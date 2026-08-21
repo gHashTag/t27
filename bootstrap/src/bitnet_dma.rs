@@ -162,7 +162,13 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            local_wdata    <= 64'd0;\n");
     s.push_str("            bytes_remaining <= 32'd0;\n");
     s.push_str("            burst_count    <= 8'd0;\n");
-    s.push_str("        end else case (state)\n");
+    s.push_str("        end else begin\n");
+    // `local_we` is a one-cycle write strobe, not a level. Defaulting it low
+    // ahead of the case means any state that does not explicitly drive it
+    // leaves it low, so the strobe cannot persist into a state it does not
+    // belong to (READ_ADDR between bursts, IDLE, WRITE_*).
+    s.push_str("            local_we <= 1'b0;\n");
+    s.push_str("            case (state)\n");
     s.push_str("            IDLE: if (start) begin\n");
     s.push_str("                busy            <= 1'b1;\n");
     s.push_str("                done            <= 1'b0;\n");
@@ -219,7 +225,8 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("                state    <= IDLE;\n");
     s.push_str("            end\n");
     s.push_str("            default: state <= IDLE;\n");
-    s.push_str("        endcase\n");
+    s.push_str("            endcase\n");
+    s.push_str("        end\n");
     s.push_str("    end\n");
     s.push_str("\n");
 
@@ -376,6 +383,56 @@ mod tests {
         ] {
             assert!(v.contains(line), "missing reset line `{}`", line);
         }
+    }
+
+    /// `local_we` must default low immediately before `case (state)`.
+    ///
+    /// Deliberately anchored to the span between the reset block's `end else`
+    /// and the `case (state)` header. The reset block itself already contains
+    /// `local_we       <= 1'b0;` (asserted by `reset_initializes_all_outputs`),
+    /// so a bare `v.contains("local_we <= 1'b0;")` is satisfied by the
+    /// *defective* emitter and would be vacuous. Measured, not assumed.
+    #[test]
+    fn local_we_defaults_low_before_the_case() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let reset_end = v
+            .find("end else")
+            .expect("emitted module must leave the reset block with `end else`");
+        let case_at = v
+            .find("case (state)")
+            .expect("emitted module must contain a `case (state)` header");
+        assert!(
+            reset_end < case_at,
+            "`end else` must precede `case (state)`"
+        );
+        let between = &v[reset_end..case_at];
+        assert!(
+            between.contains("local_we <= 1'b0;"),
+            "`local_we` must be defaulted low between the reset block and \
+             `case (state)`, so the strobe is a one-cycle pulse instead of a \
+             level that persists through states which never drive it \
+             (READ_ADDR between bursts, IDLE, WRITE_ADDR, WRITE_DATA). \
+             Text found between `end else` and `case (state)` was:\n{:?}",
+            between
+        );
+    }
+
+    /// The `case` must stay inside the `else` branch it was moved into: an
+    /// unbalanced `begin` would still emit a `local_we <= 1'b0;` in the right
+    /// span while producing Verilog that does not parse.
+    #[test]
+    fn always_block_begin_end_balanced() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let begins = v.matches("begin").count();
+        let ends = v.matches("end").count()
+            - v.matches("endcase").count()
+            - v.matches("endmodule").count();
+        assert_eq!(
+            begins, ends,
+            "unbalanced begin/end in emitted module: {} `begin` vs {} `end` \
+             (excluding `endcase`/`endmodule`)",
+            begins, ends
+        );
     }
 
     #[test]
