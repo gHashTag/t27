@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W971, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W972, 2026-08-21)
+
+> **W972 — ALL THREE DIRECTIONS, AND DOCKER WAS NEVER ABSENT.** **(1) The last convention is
+> gone:** against a float with **real subnormals** (normaliser paid for) TNF16 is **450.29 vs
+> 501.29 — 10.2 % cheaper**, while that float carries **524 287** values to TNF's **516 097**;
+> against the FTZ peer it stays **+2.0 %** on an identical grid. Subnormals cost exactly
+> **+60 cells** and buy **8 191** values. **The φ-lattice is a float that declined subnormals,
+> priced 9 decoder cells above one that did the same.** **(2) Docker:** twenty-two waves said
+> "not running" — it **is** running. `com.docker.backend` under two PIDs, socket present since
+> 19 Aug, and `docker version` **hangs**. **Wedged, not absent**: quit and reopen, not start.
+> It hid because `docker info` hangs rather than fails, killing any command it was bundled
+> with. **(3) master restore authorised, preserved first** (`origin/orphan-master-fead099c2`),
+> then **rejected by the repository's protection rules** — not bypassed. T817/T818, lessons
+> 1472/1473, **228 derived checks**. **Readiness 80 %.**
 
 > **W971 — `origin/master` WAS REPLACED BY AN ORPHAN COMMIT; NOTHING IS LOST.** `git status`
 > moved from *126 / 117* to *2556 / 1* — read as a number that is more divergence; in fact

@@ -40,7 +40,26 @@ git push origin ca4234e20:refs/heads/master --force-with-lease
 `--force-with-lease` rather than `--force`: if anyone else has moved master since this file
 was written, the push must fail rather than repeat the event.
 
-## Why the loop did not fix it
+## W972: restore attempted with the owner's authorisation, and refused by the repository
+
+The owner authorised the restore. The order was: **preserve first**, then attempt.
+
+1. `fead099c2` was pushed to **`origin/orphan-master-fead099c2`** and verified present —
+   the new commit is now recoverable independently of `master`.
+2. `git push origin ca4234e20:refs/heads/master --force-with-lease` was then **rejected**:
+
+   ```
+   ! [remote rejected]  ca4234e20 -> master (push declined due to repository rule violations)
+   ```
+
+**The repository's own protection rules forbid it, and the loop did not attempt to bypass
+them.** The restore needs someone with bypass rights — via the GitHub UI, or by relaxing the
+ruleset for one push.
+
+Because preservation completed and was verified before the destructive step, the failed
+attempt left the repository exactly as it was, plus one recoverable branch.
+
+## Why the loop did not fix it unilaterally
 
 Restoring a shared branch is outward-facing and irreversible for anyone who has already
 fetched. The loop's part is to **notice, preserve the evidence, and name the exact remedy** —

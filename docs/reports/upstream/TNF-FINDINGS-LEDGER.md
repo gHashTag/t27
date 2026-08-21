@@ -1574,3 +1574,54 @@ corrected, made portable, and re-run. **The class opened in W954 closes at W970 
 waves — with the damage quantified rather than assumed.**
 
 Theorem **T815**; lesson **1469**. **222 derived checks.**
+
+---
+
+## 40. W972 — the last convention removed, and Docker was never absent
+
+### The float peer, on both disciplines
+
+T811's peer was **flush-to-zero**, matched to TNF's own handling — a rule *we* chose. Measured
+against a float with **real subnormals**, the leading-zero normaliser paid for on the side that
+has them:
+
+| format | decoder | consumer | distinct values | TNF16 against it |
+|---|---|---|---|---|
+| **TNF16 v2-spec** `(4,11)` | **27.00** | **450.29** | **516 097** | — |
+| `fp19 e7m11`, FTZ | 18.00 | 441.29 | 516 096 | **+2.0 %** |
+| `fp19 e7m11`, **with subnormals** | **78.00** | **501.29** | **524 287** | **−10.2 %** |
+
+**Both signs are measured and neither is a matter of taste.** Subnormals cost exactly
+**+60 cells** — the leading-zero counter and its shifter — and buy **8 191** values:
+**7.33 cells per thousand values**.
+
+**The φ-lattice is a float that has declined subnormals**, priced **nine decoder cells above**
+one that declined them too. The reader picks the discipline and reads the row.
+
+### Docker was never absent
+
+Twenty-two waves recorded "the Docker daemon does not respond and cannot be started
+non-interactively". Measured:
+
+| probe | result |
+|---|---|
+| Docker Desktop process | **running** |
+| `com.docker.backend` (2 PIDs), `com.docker.vmnetd` | **running** |
+| `/var/run/docker.sock` → `~/.docker/run/docker.sock` | **exists, real socket, 19 Aug 21:04** |
+| `docker version` | **hangs indefinitely** |
+
+**Wedged, not absent.** The remedy is *quit and reopen Docker Desktop*, not *start it*. It hid
+for twenty-two waves because `docker info` **hangs** rather than failing, so every probe
+bundled into a command with other work lost the whole command to a timeout and was recorded as
+"unavailable". The distinguishing evidence — `ls` on the socket, `pgrep` on the processes —
+returns instantly, but only if the probe is **separated** from the call that blocks.
+
+### The master restore, authorised and refused
+
+The owner authorised it. **Preserve first, then attempt:** `fead099c2` was pushed to
+`origin/orphan-master-fead099c2` and verified, and only then the force-with-lease — which the
+repository's **own protection rules rejected**. The loop did not attempt to bypass them.
+Because preservation completed and was verified first, the failed attempt left the repository
+exactly as it was, plus one recoverable branch.
+
+Theorems **T817**, **T818**; lessons **1472**, **1473**. **228 derived checks.**

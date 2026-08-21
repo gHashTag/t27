@@ -29862,6 +29862,75 @@ caused by the repair. It did not touch master.
 expiring local artefact is not recorded until it is written somewhere durable, and the
 window here was days, not months.
 
+### T817 — With the last convention removed, the answer is two-sided: 2 % dearer than a float in its own discipline, 10 % cheaper than a real one
+
+**The caveat T811 carried.** Its float peer was defined **flush-to-zero**, matched to TNF's
+own handling — a rule *I* chose. The honest alternative is a float with real subnormals,
+with the leading-zero normaliser they require **paid for on the side that has them**. TNF
+pays nothing for it, and that is a property of its grid rather than a convention.
+
+**Measured structurally, every code verified:**
+
+| format | decoder | consumer | distinct values | TNF16 against it |
+|---|---|---|---|---|
+| **TNF16 v2-spec** `(4,11)` | **27.00** | **450.29** | **516 097** | — |
+| `fp19 e7m11`, FTZ | 18.00 | 441.29 | 516 096 | **+2.0 %** |
+| `fp19 e7m11`, **with subnormals** | **78.00** | **501.29** | **524 287** | **−10.2 %** |
+
+**Both signs are now measured, and neither is a matter of taste:**
+
+- Against a float built in TNF's own discipline — same grid to within one value and one
+  binade — the φ-lattice costs **2.0 % more**.
+- Against a real IEEE-shaped float — 8 191 more values, more range — the φ-lattice costs
+  **10.2 % less**.
+
+**The price of subnormals, isolated.** Adding them costs exactly **+60 cells** in the decoder
+and **+60** in the consumer — the leading-zero counter and its shifter, nothing else — and
+buys **8 191** additional values: **7.33 cells per thousand values**. That is the whole
+trade, and it is a trade the φ-lattice **declines** rather than one it wins.
+
+**Statement.** The φ-lattice's position at nineteen bits is that of a float that has chosen
+flush-to-zero, priced **nine decoder cells above** one. It is neither cheaper nor dearer in
+any absolute sense; it sits at a point on the subnormal/no-subnormal axis that an ordinary
+float reaches by configuration, and it pays a small structural premium for arriving there by
+a different construction.
+
+**Nothing here is chosen by the comparison any more.** The FTZ peer and the subnormal peer
+are both measured; the reader picks the discipline and reads the corresponding row.
+
+### T818 — Twenty-two waves reported "Docker is not running"; Docker Desktop is running and wedged
+
+**What every prior wave recorded.** "The Docker daemon does not respond and cannot be started
+non-interactively" — reported as an absent daemon, and as a blocker needing the human to
+*start* it.
+
+**What is actually true**, measured this wave:
+
+| probe | result |
+|---|---|
+| `/usr/local/bin/docker` | present |
+| `/Applications/Docker.app` | installed |
+| `Docker Desktop` process | **running** |
+| `com.docker.backend` (PIDs 43186, 43191) | **running** |
+| `com.docker.vmnetd` privileged helper | running |
+| `/var/run/docker.sock` → `~/.docker/run/docker.sock` | **exists, a real socket, created 19 Aug 21:04** |
+| `docker version` | **hangs indefinitely** — not an error, no timeout, no refusal |
+
+**The daemon accepts the connection and never answers.** That is a **wedged** Docker Desktop,
+not an absent one, and the remedy is different in kind: not "start Docker" but "quit and
+reopen it", or kill `com.docker.backend` and let the app restart it.
+
+**Why it went unnoticed for twenty-two waves.** `docker info` **hangs** rather than failing,
+so every probe that ran it inside a command with other work attached lost the whole command to
+a timeout and was recorded as "Docker not available". The distinguishing observation costs
+nothing — `ls -l /var/run/docker.sock` and `pgrep -f com.docker` return instantly — but only
+if the probe is *separated* from the thing that hangs.
+
+**Statement.** A dependency that hangs is reported by naive probing as a dependency that is
+absent, and the two have different remedies. **Probe liveness with commands that cannot
+block**, and reserve the blocking call for after the cheap evidence says something is
+listening.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
