@@ -66,9 +66,26 @@ def t27c():
     sys.exit("FAIL: t27c not built. Run: cargo build --release -p t27c")
 
 
+# Inputs whose entire purpose is to be rejected. `git ls-files "*.t27"` cannot
+# tell "must compile" from "must NOT compile", so it swept the parser's own
+# negative fixtures into the compile-debt ledger: twelve deliberately damaged
+# files, seven malformed generic-const declarations, two truncated-at-EOF
+# hazards. Recording those as debt inverts their meaning -- the day one of them
+# starts generating is the day a parser bug shipped, and the ledger would have
+# read that as progress.
+NEGATIVE_FIXTURES = (
+    "bootstrap/tests/fixtures/damage/",
+    "bootstrap/tests/fixtures/generic_const/neg_",
+    "bootstrap/tests/fixtures/terminator/",
+)
+
+
 def specs():
     r = subprocess.run(["git", "ls-files", "*.t27"], cwd=ROOT, capture_output=True, text=True)
-    return sorted(x for x in r.stdout.split() if x)
+    return sorted(
+        x for x in r.stdout.split()
+        if x and not x.startswith(NEGATIVE_FIXTURES)
+    )
 
 
 def generates(t, sp):
