@@ -79,6 +79,90 @@ case "$cmd" in
     exit 0
     ;;
 
+  anomaly)
+    # W955: every measurement defect this loop has hit left a signature in the record
+    # itself. They are cheap to look for and expensive to miss, so they are a command.
+    #   zero-reading   a cost of exactly 0 (yosys -q silenced stat, W952; LUT-only
+    #                  census reported TNF decoders at 0.000, lesson 1407)
+    #   flat-fit       R2 = 1 with slope 0 -- a perfect line through a constant is
+    #                  absence of signal, not precision
+    #   twins          two different formats with byte-identical metric vectors
+    #                  (the blockscale rig, W949: scaling had erased the difference)
+    #   short-arm      fewer runs recorded than seeds declared (a killed sweep, W954)
+    REC="${T27_RECORDS:-$REPO_ROOT/docs/reports/upstream}"
+    REC="$REC" python3 - <<'PYANOM'
+import json, os, pathlib
+R = pathlib.Path(os.environ["REC"])
+bad = 0
+
+
+def walk(o, path=""):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            yield from walk(v, f"{path}.{k}" if path else str(k))
+    elif isinstance(o, list):
+        yield path, o
+    else:
+        yield path, o
+
+
+for f in sorted(R.glob("*.json")):
+    try:
+        d = json.loads(f.read_text())
+    except Exception:
+        continue
+    name = f.name
+    cost = d.get("cost") if isinstance(d, dict) else None
+    if isinstance(cost, dict):
+        for fmt, c in cost.items():
+            if not isinstance(c, dict):
+                continue
+            slope = next((c[k] for k in ("per_lane", "per_acc", "cost", "slope")
+                          if k in c), None)
+            if slope == 0:
+                print(f"ZERO-READING  {name}: {fmt} costs exactly 0"); bad += 1
+            if c.get("r2") == 1.0 and slope == 0:
+                print(f"FLAT-FIT      {name}: {fmt} R2=1 with slope 0"); bad += 1
+        vecs = {}
+        for fmt, c in cost.items():
+            if isinstance(c, dict) and isinstance(c.get("points"), list):
+                vecs.setdefault(tuple(c["points"]), []).append(fmt)
+        for pts, fmts in vecs.items():
+            if len(fmts) > 1:
+                print(f"TWINS         {name}: {', '.join(fmts)} share the vector {list(pts)}")
+                bad += 1
+    seeds = d.get("seeds") if isinstance(d, dict) else None
+    runs = d.get("runs") if isinstance(d, dict) else None
+    if isinstance(seeds, list) and isinstance(runs, dict):
+        want = len(seeds)
+
+        def arm_counts(node, label):
+            """Yield (label, run_count). A record nests runs three ways, and the
+            first version of this check counted a per-EPOCH trace as runs -- 255
+            false positives on its first execution. Decide by shape, not by depth."""
+            if isinstance(node, list):
+                if all(isinstance(x, (int, float)) for x in node):
+                    yield label, len(node)          # {fmt: [acc per seed]}
+                return
+            if isinstance(node, dict):
+                vals = list(node.values())
+                if vals and all(isinstance(v, list) and v and isinstance(v[-1], dict)
+                                for v in vals):
+                    yield label, len(node)          # {seed: [epoch trace]}
+                    return
+                for k2, v2 in node.items():
+                    yield from arm_counts(v2, f"{label}/{k2}" if label else str(k2))
+
+        for k, v in runs.items():
+            for label, n in arm_counts(v, k):
+                if n and n != want:
+                    print(f"SHORT-ARM     {name}: {label} has {n} runs, {want} seeds declared")
+                    bad += 1
+print(f"\nanomaly: {'FAIL, ' + str(bad) + ' signature(s)' if bad else 'clean over ' + str(len(list(R.glob('*.json')))) + ' records'}")
+raise SystemExit(1 if bad else 0)
+PYANOM
+    exit $?
+    ;;
   cost)
     # W953: three silicon records now price the same three formats in three datapath
     # styles, and the ratio between them is the whole finding. Derived, never typed.
