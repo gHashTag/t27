@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W979, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W980, 2026-08-22)
+
+> **W980 — THE DIE ASKS 36 QUESTIONS; THE SUITES ASK SIX BY NAME.** `tri coverage` matches
+> wrapper clause names to spec test names: **9 wrappers, 36 clauses, 30 with no same-named test
+> — 83 %**. Worst `gft_xorpercep` at **4 clauses / 1 test**; best `gft_signed_mac` at **4 / 4**,
+> the suite strengthened by hand in W978 **from the die's own clauses** — the instrument ranks
+> the repaired spec top **without knowing that history**, which is the one row whose answer was
+> known in advance. **The tool over-reports and says so:** `gft_sadd` lists four uncovered and
+> passes **`1111`**. So it is an **`info` line, not a gate** — while `tri rungs` and `tri guards`
+> do gate, because they are exact. **A check's precision decides whether it may block**: the
+> permanently-red `disk` line lost all meaning over twelve waves and then hid a real ENOSPC.
+> **Hard signal:** `gft_smul`'s `comm`+`ind` are listed here **and** false on silicon.
+> T828/T828a, lessons 1494/1495, **334 derived checks**. **Readiness 93 %.**
 
 > **W979 — THE CORPUS AUDIT CLOSED THE CLASS AND PREDICTED A 141-WAVE-OLD HARDWARE FAILURE.**
 > **134 definitions across 26 specs** scanned; **exactly one** unguarded copy left —

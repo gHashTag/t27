@@ -79,6 +79,63 @@ case "$cmd" in
     exit 0
     ;;
 
+  coverage)
+    # W980: the die check evaluates named clauses; the spec ships named tests. W975
+    # found the MAC's suite covered exactly the two clauses that PASSED, and the two
+    # that failed were untested. That gap was closed by hand twice (W978, W979). A
+    # third time should be found by a tool, so this compares the two sets by name.
+    W="${T27_WRAPPERS:-$REPO_ROOT/fpga/verilog}"
+    S="${T27_SPECS:-$REPO_ROOT/specs}"
+    W="$W" S="$S" python3 - <<'PYCOV'
+import os, re, pathlib
+W = pathlib.Path(os.environ["W"]); S = pathlib.Path(os.environ["S"])
+OKW = re.compile(r"wire\s+(\w+)_ok\s*=")          # wire zero_ok = ...
+INST = re.compile(r"^\s*([A-Z]\w*)\s+u_\w+\s*\(", re.M)
+TEST = re.compile(r"^\s*test\s+(\w+)\s*\{", re.M)
+specs = {p: p.read_text(errors="ignore") for p in S.rglob("*.t27")}
+rows, weak = [], 0
+for w in sorted(W.glob("*_jtag.v")):
+    txt = w.read_text(errors="ignore")
+    clauses = sorted(set(OKW.findall(txt)))
+    if not clauses:
+        continue
+    mods = sorted({m for m in INST.findall(txt) if m.startswith("Gft") or m.startswith("Igla")})
+    spec = tests = None
+    for m in mods:
+        for p, t in specs.items():
+            if re.search(r"\b" + re.escape(m) + r"\b", t):
+                spec, tests = p, sorted(set(TEST.findall(t)))
+                break
+        if spec:
+            break
+    if spec is None:
+        rows.append((w.name, clauses, "-", [], []))
+        continue
+    # a clause is covered when a test name contains it, or vice versa
+    missing = [c for c in clauses
+               if not any(c in t or t in c for t in tests)]
+    rows.append((w.name, clauses, spec.name, tests, missing))
+    if missing:
+        weak += 1
+# This matches clause NAMES against test NAMES. It is not a semantic check, so it
+# OVER-REPORTS: gft_sadd shows four "uncovered" clauses and passes 1111 on the die.
+# Read it as a ranking of exposure, never as a verdict. The hard signal is the
+# intersection with a die FAILURE -- gft_smul's comm and ind are both listed here
+# and both false on silicon.
+print(f"{'wrapper':30} {'clauses':>8} {'tests':>6}  clauses with no same-named test")
+for name, cl, sp, ts, ms in rows:
+    print(f"{name[:30]:30} {len(cl):8d} {len(ts):6d}  {', '.join(ms) if ms else '-'}")
+tot_cl = sum(len(r[1]) for r in rows)
+tot_ms = sum(len(r[4]) for r in rows)
+print(f"\ntri coverage: {len(rows)} wrapper(s), {tot_cl} clauses, {tot_ms} without a "
+      f"same-named test ({100*tot_ms/max(tot_cl,1):.0f} %)")
+print("NAME matching only -- it over-reports; a ranking of exposure, not a verdict.")
+print("A clause the die evaluates and the suite does not is findable only after")
+print("synthesis, place-and-route, a bitstream and a physical load (W975).")
+raise SystemExit(1 if weak else 0)
+PYCOV
+    exit $?
+    ;;
   guards)
     # W979: the ladder's specs each keep PRIVATE copies of smul/sadd rather than
     # importing one. W978 found the MAC's copies had lost their zero guards -- a
@@ -700,6 +757,12 @@ PYGRID
     fi
     # W979: the private-copy defect reached a physical load once and was predicted
     # by a corpus audit the second time. It is cheap to check and expensive to miss.
+    # W980: reported, not gated. The check is a NAME correspondence and over-reports
+    # (gft_sadd lists four uncovered clauses and passes 1111 on the die), so failing
+    # the audit on it would make the gate cry wolf -- which is how the disk line lost
+    # its meaning over twelve waves.
+    cov="$("$0" coverage 2>&1 | grep -E '^tri coverage:' | sed 's/^tri coverage: //')"
+    echo "info  coverage  ${cov:-unavailable}"
     if out="$("$0" guards 2>&1)"; then
       echo "ok    guards    $(printf '%s' "$out" | head -1 | sed 's/^tri guards: //')"
     else

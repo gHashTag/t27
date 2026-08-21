@@ -30403,6 +30403,56 @@ by copy discipline will recur**, and the durable fix is an import mechanism, not
 That is a language decision, not a wave's work, and it is recorded here as the standing
 recommendation it is.
 
+### T828 — The die asks 36 questions; the suites ask six of them by name
+
+**The instrument.** `tri coverage` extracts each wrapper's clause names from its
+`wire X_ok =` lines and matches them against the `test` names in the spec that defines the
+instantiated module. **Nine wrappers, 36 clauses, 30 with no same-named test — 83 %.**
+
+| wrapper | clauses | tests | clauses with no same-named test |
+|---|---|---|---|
+| `gft_signed_mac` | 4 | **4** | `ind` |
+| `gft_signed_dot4` | 4 | 2 | `com`, `non` |
+| `gft_smul` | 4 | 3 | `comm`, `gold`, `ind`, `zero` |
+| `gft_sadd` | 4 | 3 | `abs`, `gold`, `ind`, `move` |
+| `gft_train1` | 4 | 3 | `fix`, `mov`, `non` |
+| `gft_dup`, `dup2`, `dup3` | 4 | 3 | `comm`, `ind`, `init`, `self` |
+| `gft_xorpercep` | 4 | **1** | `eta0`, `gold`, `ind`, `non` |
+
+**The tool over-reports, and says so.** `gft_sadd` lists four uncovered clauses and passes
+**`1111`** on the die: a name mismatch is not a semantic gap. The output is a **ranking of
+exposure, not a verdict**, and it is wired into `tri audit` as an **`info` line, not a gate** —
+a check that cries wolf is how the disk line lost its meaning over twelve waves.
+
+**The hard signal is the intersection with a measured failure.** `gft_smul`'s `comm` and `ind`
+are both listed here and both **false on silicon** (`clauses 1010`). Where an uncovered clause
+coincides with a die failure, the link is confirmed rather than suspected.
+
+**And the tool ranks correctly in the one case with a known answer.** `gft_signed_mac` is the
+only wrapper at four tests for four clauses — and it is precisely the suite strengthened by
+hand in W978 **from the die's own clauses**. The instrument places the repaired spec at the top,
+which is the direction it should.
+
+### T828a — Three tools, three postures, and the posture is the design decision
+
+This project now runs three static corpus checks, and each carries a different weight in the
+gate — deliberately:
+
+| check | posture in `tri audit` | why |
+|---|---|---|
+| `tri rungs` | **gates** — `FAIL` | a name bound to the wrong object is unambiguous and has cost two sign-flipped results |
+| `tri guards` | **gates** — `FAIL` | a missing zero guard is a correctness defect with a measured hardware consequence |
+| `tri coverage` | **reports** — `info` | name matching over-reports; gating on it would make the gate untrustworthy |
+
+**A check's precision determines whether it may block.** The two exact checks block; the
+heuristic one informs. Getting that backwards is worse than not having the check: the project
+has already watched a permanently-red line (`disk`) lose all signalling value, and then watched
+that same blindness cost it a real ENOSPC.
+
+**The corollary for the remaining 83 %.** It is not a defect count. It is a list of places
+where the cheapest oracle is known to be weaker than the most expensive one, ordered by how
+much weaker — and the correct use is to work down it, not to report it as a score.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

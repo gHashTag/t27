@@ -2036,3 +2036,51 @@ recommendation it is.
 
 Theorems **T827**, **T827a**, **T827b**; lessons **1491**, **1492**, **1493**.
 **324 derived checks.**
+
+---
+
+## 49. W980 — the die asks 36 questions; the suites ask six of them by name
+
+`tri coverage` extracts each wrapper's clause names from its `wire X_ok =` lines and matches
+them against the `test` names in the spec that defines the instantiated module.
+
+**Nine wrappers, 36 clauses, 30 with no same-named test — 83 %.**
+
+| wrapper | clauses | tests | no same-named test |
+|---|---|---|---|
+| `gft_signed_mac` | 4 | **4** | `ind` |
+| `gft_signed_dot4` | 4 | 2 | `com`, `non` |
+| `gft_smul` | 4 | 3 | `comm`, `gold`, `ind`, `zero` |
+| `gft_sadd` | 4 | 3 | `abs`, `gold`, `ind`, `move` |
+| `gft_train1` | 4 | 3 | `fix`, `mov`, `non` |
+| `gft_dup`, `dup2`, `dup3` | 4 | 3 | `comm`, `ind`, `init`, `self` |
+| `gft_xorpercep` | 4 | **1** | `eta0`, `gold`, `ind`, `non` |
+
+**The tool over-reports, and the record says so.** `gft_sadd` lists four uncovered clauses and
+passes **`1111`** on the die — a name mismatch is not a semantic gap.
+
+**The hard signal is the intersection with a measured failure:** `gft_smul`'s `comm` and `ind`
+are both listed here **and** both false on silicon (`clauses 1010`).
+
+**And it ranks correctly on the one case with a known answer.** `gft_signed_mac` is the only
+wrapper at 4 tests for 4 clauses — the suite strengthened by hand in W978 from the die's own
+clauses. The instrument put the repaired spec at the top without knowing that history.
+
+### Three checks, three postures
+
+| check | posture | why |
+|---|---|---|
+| `tri rungs` | **gates** | a name bound to the wrong object is unambiguous; cost two sign-flipped results |
+| `tri guards` | **gates** | a missing zero guard is a correctness defect with a measured hardware consequence |
+| `tri coverage` | **reports** | name matching over-reports; gating on it would make the gate untrustworthy |
+
+**A check's precision decides whether it may block.** The project watched the permanently-red
+`disk` line lose all signalling value over twelve waves — and then watched that blindness cost
+it a real ENOSPC indistinguishable from the twelve false ones. A heuristic that blocks trains
+everyone to ignore the gate, destroying the exact checks that share it.
+
+**The remaining 83 % is not a defect count.** It is a list of places where the cheapest oracle
+is known to be weaker than the most expensive one, ordered by how much — to be worked down,
+not reported as a score.
+
+Theorems **T828**, **T828a**; lessons **1494**, **1495**. **334 derived checks.**
