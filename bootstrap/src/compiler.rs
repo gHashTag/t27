@@ -2413,12 +2413,55 @@ impl Parser {
                         }
                     } else {
                         self.restore_state(checkpoint);
-                        // Collect type tokens until comma, semicolon, or closing brace
-                        while self.current.kind != TokenKind::Comma
-                            && self.current.kind != TokenKind::Semicolon
-                            && self.current.kind != TokenKind::RBrace
-                            && self.current.kind != TokenKind::Eof
-                        {
+                        // W699 (#2127, third attempt). Collect raw type lexemes, but let
+                        // NESTING decide only the SEPARATOR, never the BLOCK TERMINATOR.
+                        //
+                        // The two reverted attempts both failed the same way: they allowed a
+                        // depth counter to suppress `RBrace`/`Eof`, so an unbalanced type ate
+                        // the struct's closing brace (attempt a) or spun forever at Eof, where
+                        // the lexer yields `Eof` indefinitely (attempt b).
+                        //
+                        // Invariant enforced here:
+                        //   RBrace, Semicolon and Eof terminate UNCONDITIONALLY at any depth;
+                        //   only Comma consults `depth`.
+                        // Termination therefore does not depend on the input being well-formed:
+                        // every iteration consumes exactly one token and Eof always exits.
+                        let mut depth: i32 = 0;
+                        let mut prev_was_ident = false;
+                        loop {
+                            let k = self.current.kind.clone();
+                            // Unconditional terminators — never gated by depth.
+                            if k == TokenKind::RBrace
+                                || k == TokenKind::Semicolon
+                                || k == TokenKind::Eof
+                            {
+                                break;
+                            }
+                            if k == TokenKind::Comma && depth <= 0 {
+                                break;
+                            }
+                            match k {
+                                TokenKind::LParen | TokenKind::LBracket => depth += 1,
+                                TokenKind::RParen | TokenKind::RBracket => {
+                                    if depth > 0 {
+                                        depth -= 1;
+                                    }
+                                }
+                                // `<` opens a generic argument list only directly after an
+                                // identifier (`Map<`); as an operator it must not open depth.
+                                TokenKind::Lt if prev_was_ident => depth += 1,
+                                TokenKind::Gt => {
+                                    if depth > 0 {
+                                        depth -= 1;
+                                    }
+                                }
+                                TokenKind::ShiftRight => {
+                                    // `>>` closes two generic levels (`Vec<Vec<u8>>`).
+                                    depth = if depth >= 2 { depth - 2 } else { 0 };
+                                }
+                                _ => {}
+                            }
+                            prev_was_ident = k == TokenKind::Ident;
                             type_str.push_str(&self.current.lexeme);
                             self.advance();
                         }
