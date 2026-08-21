@@ -28,7 +28,7 @@ Mark these workflows as **required** before merging:
 | **Seal Coverage** | `.github/workflows/seal-coverage.yml` | All specs have valid seals |
 | **Schema Validation** | `.github/workflows/schema-validation.yml` | JSON schema conformance |
 | **Issue Gate** | `.github/workflows/issue-gate.yml` | L1 TRACEABILITY (Closes #N) |
-| **NOW Sync Gate** | `.github/workflows/now-sync-gate.yml` | docs/NOW.md date freshness |
+| **NOW Sync Gate** | `.github/workflows/now-sync-gate.yml` | a fresh `docs/now/<date>-<slug>.md` entry is added |
 
 ### Restrict Settings
 

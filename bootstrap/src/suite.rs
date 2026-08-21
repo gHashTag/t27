@@ -2,7 +2,6 @@
 //! Invoked as `t27c suite` from the repository root (or `tri test`).
 
 use anyhow::Context;
-use chrono::Local;
 use serde_json;
 use std::collections::HashSet;
 use std::fs;
@@ -2890,95 +2889,76 @@ pub fn validate_gen_headers(repo_root: &Path) -> anyhow::Result<()> {
     }
 }
 
-fn char_boundary_indices(line: &str) -> Vec<usize> {
-    line.char_indices()
-        .map(|(i, _)| i)
-        .chain(std::iter::once(line.len()))
-        .collect()
-}
-
-fn first_yyyy_mm_dd_in_line(line: &str) -> Option<String> {
-    let idx = char_boundary_indices(line);
-    for &i in &idx {
-        if i + 10 > line.len() {
-            continue;
-        }
-        let Some(slice) = line.get(i..i + 10) else {
-            continue;
-        };
-        if !slice.is_ascii() {
-            continue;
-        }
-        if !slice.as_bytes()[0].is_ascii_digit() {
-            continue;
-        }
-        if chrono::NaiveDate::parse_from_str(slice, "%Y-%m-%d").is_ok() {
-            return Some(slice.to_string());
-        }
-    }
-    None
-}
-
-/// First RFC3339 timestamp on the line (UTC `…Z` or numeric offset `…+07:00`), if any.
-fn optional_rfc3339_stamp(line: &str) -> Option<String> {
-    let idx = char_boundary_indices(line);
-    for (k, &i) in idx.iter().enumerate() {
-        if i + 10 > line.len() {
-            continue;
-        }
-        let date = match line.get(i..i + 10) {
-            Some(s) if s.is_ascii() => s,
-            _ => continue,
-        };
-        if chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() {
-            continue;
-        }
-        let mut longest: Option<String> = None;
-        for &j in idx.iter().skip(k + 1) {
-            if j < i + 19 {
-                continue;
-            }
-            let Some(cand) = line.get(i..j) else {
-                continue;
-            };
-            if chrono::DateTime::parse_from_rfc3339(cand).is_ok() {
-                longest = Some(cand.to_string());
-            }
-        }
-        if let Some(s) = longest {
-            return Some(s);
-        }
-    }
-    None
-}
-
-/// Gate: `docs/NOW.md` must contain `Last updated:` with today's calendar date (local timezone).
+/// Gate: `docs/now/` must hold a fresh `<YYYY-MM-DD>-<slug>.md` entry.
 /// Used by `tri` before gen/compile and by CI (see `phi-loop-ci.yml`).
+///
+/// This used to read the FIRST `Last updated:` line out of the single file
+/// `docs/NOW.md` and demand it equal today in the LOCAL timezone. Two problems,
+/// both fixed here:
+///
+///  - Every PR rewrote that one line, so concurrent PRs collided on it. Entries
+///    are now one file per unit of work and the date lives in the filename, so
+///    there is no shared line and nothing to misparse.
+///  - Local-timezone equality was STRICTER than the CI gate's
+///    `[yesterday .. tomorrow]` UTC window. A contributor west of UTC could be
+///    blocked locally on work CI would accept. The window below is now the same
+///    one scripts/ci/now-sync-gate-diff.sh applies, computed in UTC.
 pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)?;
-    let now_file = repo.join("docs/NOW.md");
-    let today = Local::now().format("%Y-%m-%d").to_string();
+    let dir = repo.join("docs/now");
 
-    if !now_file.is_file() {
-        eprintln!("tri/CI: docs/NOW.md not found at {}", now_file.display());
-        anyhow::bail!("NOW.md missing");
+    let today = chrono::Utc::now().date_naive();
+    let today_s = today.format("%Y-%m-%d").to_string();
+    let lo = (today - chrono::Duration::days(1))
+        .format("%Y-%m-%d")
+        .to_string();
+    let hi = (today + chrono::Duration::days(1))
+        .format("%Y-%m-%d")
+        .to_string();
+
+    let mut newest: Option<String> = None;
+    let mut found: Option<(String, String)> = None;
+
+    if dir.is_dir() {
+        for ent in fs::read_dir(&dir)? {
+            let ent = ent?;
+            let name = ent.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".md") {
+                continue;
+            }
+            // Filename shape: YYYY-MM-DD-<slug>.md . `get` rather than slicing:
+            // a non-ASCII filename would panic on a byte index that is not a
+            // char boundary, and this directory is not required to hold only
+            // files we wrote.
+            let (Some(date), Some("-")) = (name.get(..10), name.get(10..11)) else {
+                continue;
+            };
+            if chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() {
+                continue;
+            }
+            // ISO-8601 zero-padded dates compare correctly as strings.
+            if date >= lo.as_str() && date <= hi.as_str() {
+                found = Some((name.clone(), date.to_string()));
+                break;
+            }
+            let is_newer = match newest.as_deref() {
+                None => true,
+                Some(n) => date > n,
+            };
+            if is_newer {
+                newest = Some(date.to_string());
+            }
+        }
     }
 
-    let content = fs::read_to_string(&now_file)?;
-    let line = content
-        .lines()
-        .find(|l| l.contains("Last updated:"))
-        .unwrap_or("");
-    let last = first_yyyy_mm_dd_in_line(line);
-
-    if last.as_deref() != Some(today.as_str()) {
+    let Some((name, date)) = found else {
         eprintln!(
             r#"
 
 ╔═══════════════════════════════════════════════════════════════╗
 ║              ⛔  BUILD BLOCKED: SYNC REQUIRED                  ║
 ╠═══════════════════════════════════════════════════════════════╣
-║  docs/NOW.md is STALE. All agents must be synchronized       ║
+║  No fresh docs/now/ entry. All agents must be synchronized   ║
 ║  before any build can proceed.                               ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║  STEPS TO UNBLOCK:                                            ║
@@ -2989,40 +2969,30 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
 ║  2. Read agent sync state:                                    ║
 ║     cat .trinity/state/github-sync.json                      ║
 ║                                                               ║
-║  3. Update docs/NOW.md:                                       ║
-║     - Set calendar date YYYY-MM-DD (must match today locally) ║
-║     - Use your local wall time (see NOW.md header template)   ║
-║     - Update sprint status + what you build and why           ║
+║  3. Write today's entry (one file per unit of work):          ║
+║     tri now add "<title>" --bullet "<what changed>"           ║
+║     -> docs/now/<YYYY-MM-DD>-<slug>.md                        ║
 ║                                                               ║
-║  4. Stage and commit NOW.md with your changes:               ║
-║     git add docs/NOW.md && git commit --amend                ║
+║  4. Stage and commit it with your changes:                    ║
+║     git add docs/now && git commit --amend                    ║
 ╚═══════════════════════════════════════════════════════════════╝
 "#
         );
         eprintln!(
-            "(Expected Last updated: {}; found: {})",
-            today,
-            last.as_deref().unwrap_or("<none>")
+            "(Looked in {} for a date in {} .. {} (today {} UTC); newest found: {})",
+            dir.display(),
+            lo,
+            hi,
+            today_s,
+            newest.as_deref().unwrap_or("<none>")
         );
-        anyhow::bail!("NOW.md stale");
-    }
+        anyhow::bail!("NOW entry missing or stale");
+    };
 
-    if let Some(ts) = optional_rfc3339_stamp(line) {
-        let human = chrono::DateTime::parse_from_rfc3339(&ts)
-            .map(|dt| {
-                let local = dt.with_timezone(&Local);
-                local
-                    .format("%A, %d %B %Y · %H:%M local time (%:z)")
-                    .to_string()
-            })
-            .unwrap_or_else(|_| ts.clone());
-        println!(
-            "✅ NOW.md synced — gate date {} — doc time {} [{}] — build authorized",
-            today, human, ts
-        );
-    } else {
-        println!("✅ NOW.md synced ({}) — build authorized", today);
-    }
+    println!(
+        "✅ NOW synced -- {} (gate date {}, UTC window {} .. {}) -- build authorized",
+        name, date, lo, hi
+    );
     Ok(())
 }
 
