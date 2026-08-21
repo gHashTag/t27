@@ -1109,3 +1109,60 @@ datapath. None of it was visible from the census this project ran for eight wave
 New tool: **`tri cost`** prints the table above from the records, all four datapaths.
 
 Theorem **T804**; lessons **1448**, **1449**. **91 derived checks.**
+
+---
+
+## 30. W954 — the ladder's rung was never measured, and at matched range the lattice is at parity
+
+### The name and the object had come apart
+
+`tnf_ref.LADDER` defines the eighth rung as `TNFFormat(3, 4)`. **Every rig in this project
+instantiated `TNFFormat(4, 3)`** and labelled it TNF8:
+
+| | ladder TNF8 = (3,4) | measured as "TNF8" = (4,3) |
+|---|---|---|
+| physical width | **10 bits** | **11 bits** |
+| distinct values | 961 | 2 017 |
+| dynamic range | **30.95 binades** | **126.91 binades** |
+
+The substitute carries TNF16's exponent field with a truncated mantissa — four times the
+range and one extra bit. Every accuracy, activation, convolution and cell-census number
+published here for "TNF8" describes that, not the rung the ladder specifies.
+
+**And the module contradicts itself:** `LADDER` is bound to **v1-research** while
+`DEFAULT_LADDER_VERSION` is **v2-spec**. Above rung 8 they disagree — TNF16 is **17 bits**
+under one and **19** under the other. **This is the answer to issue #644**: 16 by name, 17
+by the research ladder, 19 by the spec ladder. Three sources, three correct answers, three
+different objects.
+
+### At matched range, the lattice is at parity — and the +46 % priced range
+
+The float-style lane put TNF4 at +46 % against `fp6 e2m3`. Those peers match in *width*
+and not in *range*: 14.58 binades against 5.91. Build the range-matched peer and price it:
+
+| format (6 bits) | binades | values | cells |
+|---|---|---|---|
+| `fp6 e2m3` | 5.91 | 31 | 74.00 |
+| **TNF4** | **14.58** | **28** | **108.00** |
+| **`fp6 e4m1`** | **15.58** | **31** | **106.00** |
+
+**+1.9 %**, with the float carrying *more* values. Replicated at ten bits on the ladder's
+true rung: **TNF8 380 vs `fp10 e5m4` 376 — +1.1 %**.
+
+**So cost tracks dynamic range, not the lattice** — about **2.4 cells per binade per lane**,
+for floats and for the φ-lattice alike. The earlier +46 % was a true measurement of a
+comparison nobody should make.
+
+**Consequence, and it is not favourable.** At equal width and equal range an ordinary float
+matches TNF4 on area and beats it on value count. **There is no configuration measured in
+this project where the lattice wins** — not accuracy, not stability, not area at matched
+range. What it has is a particular point on a curve any float can be configured to reach.
+
+### Reported, not hidden
+
+The 11-bit arm — pricing `TNFFormat(4, 3)` itself, 126.91 binades and a ~270-bit aligned
+bus — was killed without a traceback partway through and is **dropped, not silently
+omitted**. Four completed synthesis runs went with it because lesson 1441 (write progress
+incrementally) had been applied to the training rig and not to this one. Fixed.
+
+Theorems **T805**, **T806**; lessons **1450**, **1451**. **101 derived checks.**

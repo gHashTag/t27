@@ -29329,6 +29329,87 @@ RMS, T798b), no stability once the quantiser is the deployed one (T800, T802), a
 **+46 % of the multiply-accumulate datapath**. Those three together are the result, and
 none of them was visible from a decoder census.
 
+### T805 — The ladder's TNF8 was never measured; a different format wore its name
+
+**Finding.** `tnf_ref.LADDER` defines the eighth rung as `TNFFormat(3, 4)`. Every rig in
+this project instantiated **`TNFFormat(4, 3)`** and labelled it TNF8. They are not
+variants of one format:
+
+| | ladder TNF8 = (3,4) | measured as "TNF8" = (4,3) |
+|---|---|---|
+| physical width | **10 bits** | **11 bits** |
+| distinct values | 961 | 2 017 |
+| dynamic range | **30.95 binades** | **126.91 binades** |
+| maximum | 5.08 × 10⁵ | 2.90 × 10²⁶ |
+
+The substitute shares TNF16's exponent field (`exp_trits = 4`) with a truncated mantissa.
+It has **four times the dynamic range** and one more bit. Every accuracy, activation,
+convolution and cell-census figure this project published for "TNF8" describes it, not the
+rung the ladder specifies.
+
+**A second, independent defect in the same module.** `LADDER` is **not**
+`get_ladder(DEFAULT_LADDER_VERSION)`. The module exports `LADDER` bound to
+**`v1-research`** while declaring the default to be **`v2-spec`**, and the two disagree
+above the eighth rung:
+
+| rung | `LADDER` (v1-research) | `get_ladder(default)` (v2-spec) |
+|---|---|---|
+| TNF16 | **17 bits** (m9) | **19 bits** (m11) |
+| TNF32 | 30 bits (m21) | 36 bits (m25) |
+
+**This resolves the "three widths" question raised as issue #644.** TNF16 is 16 by name,
+**17** under the research ladder, **19** under the spec ladder — three numbers, three
+sources, all correct about different objects. The rigs used both: `TNFFormat(4, 11)` in
+`accuracy_coordinate.py`, `accuracy_seeds.py`, `prior_sensitivity.py`, and `TNFFormat(4, 3)`
+in `activations.py`, `conv.py`, `oracle_rtl.py`.
+
+**General form.** When a library exports both a default-version accessor and a bare
+constant, and they disagree, every consumer picks a version by accident. The bare constant
+should not exist; failing that, no measurement may name a rung without printing the
+`(exp_trits, mant_bits)` pair and the physical width it actually instantiated.
+
+### T806 — Cost tracks dynamic range, not the lattice: at matched range the φ-lattice is at parity
+
+**The question T804 left open.** The float-style MAC lane put TNF4 at **+46 %** against
+`fp6 e2m3`. But those peers are matched in *width* and not in *range*: TNF4 spans **14.58**
+binades, `fp6 e2m3` **5.91**. The +46 % may be pricing the range TNF4 buys and its peer
+does not, rather than anything about the lattice.
+
+**Test.** Build `fp6_e4m1` — an ordinary float, same six bits, exponent widened until its
+span exceeds TNF4's — and price it in the same lane.
+
+| format (6 bits) | binades | positive values | cells per lane |
+|---|---|---|---|
+| `fp6 e2m3` | 5.91 | 31 | 74.00 |
+| `fp6 e3m2` | 8.81 | 31 | 82.00 |
+| **TNF4** | **14.58** | **28** | **108.00** |
+| **`fp6 e4m1`** | **15.58** | **31** | **106.00** |
+
+**Independent replication at ten bits**, on the ladder's true eighth rung:
+
+| format (10 bits) | binades | cells per lane |
+|---|---|---|
+| **TNF8 = (3,4)** | **30.95** | **380.00** |
+| **`fp10 e5m4`** | ~31 | **376.00** |
+| `fp10 e6m3` | wider | 447.00 |
+
+**Statement.** Against a **range-matched** float the φ-lattice costs **+1.9 %** at six bits
+and **+1.1 %** at ten. Against a **width-matched but narrower** float it costs +46 %. Cost
+in this datapath is therefore a function of the **dynamic range and mantissa width** a
+format carries, and the lattice's structure contributes nothing measurable beyond them.
+**The φ-lattice sits on the same cost-versus-range curve as an ordinary float.**
+
+**Consequence, and it is not favourable.** At equal width and equal range, `fp6 e4m1`
+matches TNF4 on cost (106 vs 108) and carries **more distinct values** (31 vs 28). There is
+no configuration measured here in which the lattice wins: not on accuracy, not on
+stability, and not on area at matched range. What the lattice has is a *particular* point
+on a curve any float can be configured to reach.
+
+**Corollary — what the earlier +46 % actually said.** It was a true measurement of a
+comparison nobody should make: two formats of equal width and unequal range. The correct
+statement of the same data is that **range costs about 2.4 cells per binade per lane** in
+this datapath, for floats and for the φ-lattice alike.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

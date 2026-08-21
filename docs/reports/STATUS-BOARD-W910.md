@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W953, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W954, 2026-08-21)
+
+> **W954 — THE LADDER'S RUNG WAS NEVER MEASURED, AND AT MATCHED RANGE WE ARE AT PARITY.**
+> `LADDER` defines TNF8 as `TNFFormat(3,4)` — **10 bits, 30.95 binades**. Every rig here
+> instantiated **`TNFFormat(4,3)`** — **11 bits, 126.91 binades**, TNF16's exponent field
+> with a cut mantissa. Every "TNF8" number published describes that, not the rung. And the
+> module contradicts itself: `LADDER` is **v1-research** while `DEFAULT_LADDER_VERSION` is
+> **v2-spec**, disagreeing above rung 8 (TNF16 **17 vs 19 bits**) — **which resolves #644**:
+> 16 by name, 17 by research, 19 by spec. **Second result:** the +46 % of W953 priced
+> *range*, not the lattice. `fp6 e4m1` — an ordinary float widened to **15.58** binades —
+> costs **106** against TNF4's **108** (**+1.9 %**) and carries **31** values to 28.
+> At ten bits on the true rung: **380 vs 376, +1.1 %**. Cost is ≈**2.4 cells per binade per
+> lane**, for floats and the lattice alike. **No configuration measured here has the lattice
+> winning.** T805/T806, lessons 1450/1451, **101 derived checks**. **Readiness 70 %.**
 
 > **W953 — THE BRACKET CLOSES AT +46 %.** The float-style lane — multiply odd mantissas,
 > add shifts, align — costs **108 / 82 / 74** cells: **1.46×**, not 4.83×. It is cheaper
