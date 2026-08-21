@@ -11,7 +11,7 @@ module TriSuffixArray;
     // ═══════════════════════════════════════════════════════════
 
     pub const SuffixArray = struct {
-        data : [[]Usize],
+        data : []usize,
         allocator : "std.mem.Allocator",
     };
 

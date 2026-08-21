@@ -11,7 +11,7 @@ module TriKmp;
     // ═══════════════════════════════════════════════════════════
 
     pub const KMPPrefix = struct {
-        table : [[]Usize],
+        table : []usize,
         pattern : []const u8,
     };
 

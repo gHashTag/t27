@@ -11,7 +11,7 @@ module TriCompress;
     // ═══════════════════════════════════════════════════════════
 
     pub const Compressed = struct {
-        data : [[]U8],
+        data : []u8,
         original_len : "usize",
     };
 

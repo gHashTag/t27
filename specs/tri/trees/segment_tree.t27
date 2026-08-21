@@ -11,7 +11,7 @@ module TriSegmentTree;
     // ═══════════════════════════════════════════════════════════
 
     pub const SegmentTree = struct {
-        data : [[]I64],
+        data : []i64,
         size : "usize",
         allocator : "std.mem.Allocator",
     };

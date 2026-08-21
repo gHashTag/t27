@@ -11,7 +11,7 @@ module TriTopological;
     // ═══════════════════════════════════════════════════════════
 
     pub const TopologicalSort = struct {
-        order : [[]Usize],
+        order : []usize,
         has_cycle : "bool",
     };
 

@@ -11,7 +11,7 @@ module TriPriorityQueue;
     // ═══════════════════════════════════════════════════════════
 
     pub const PriorityQueue = struct {
-        data : [[]I64],
+        data : []i64,
         size : "usize",
         allocator : "std.mem.Allocator",
     };

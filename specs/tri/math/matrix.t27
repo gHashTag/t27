@@ -11,7 +11,7 @@ module TriMatrix;
     // ═══════════════════════════════════════════════════════════
 
     pub const Matrix = struct {
-        data : [[]F64],
+        data : []f64,
         rows : "usize",
         cols : "usize",
         allocator : "std.mem.Allocator",

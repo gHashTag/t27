@@ -11,7 +11,7 @@ module TriBitset;
     // ═══════════════════════════════════════════════════════════
 
     pub const Bitset = struct {
-        data : [[]Usize],
+        data : []usize,
         size : "usize",
         allocator : "std.mem.Allocator",
     };
