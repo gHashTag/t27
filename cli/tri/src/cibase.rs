@@ -22,6 +22,20 @@
 //! The finding is the intersection, and only the intersection: runs on
 //! `pull_request`, and has never run on the default branch by any event. Across
 //! three repositories that was 4, not 47 and not 46.
+//!
+//! Then a third pass corrected the first version of THIS command. Its premise
+//! -- "a gate with no baseline can turn a pull request red" -- turned out to be
+//! false for one of the three it reported. `seal-staleness-warn` is advisory by
+//! construction: every path through its script ends in `exit 0`. Measured over
+//! its whole history: 169 runs, 0 failures. It cannot paint anything red, so a
+//! missing baseline costs nobody anything.
+//!
+//! The signal that separates an alarm from a footnote is not the trigger table
+//! at all -- it is whether the workflow has ever concluded `failure`. Of the
+//! four holes, `emit-bitexact` had 84 failures across 144 runs and no baseline:
+//! the one that actually blocked a merge. The others had 0, 0 and 2. So this
+//! reports the failure history next to each hole and ranks by it, rather than
+//! presenting four findings that are not the same size.
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
@@ -84,6 +98,20 @@ fn is_pr_gated(body: &str) -> bool {
     })
 }
 
+/// One PR gate with no default-branch baseline, and the history that says
+/// whether that costs anyone anything.
+struct Hole {
+    file: String,
+    name: String,
+    dispatchable: bool,
+    runs: i64,
+    fails: i64,
+}
+
+fn num(s: &str) -> i64 {
+    s.trim().parse().unwrap_or(-1)
+}
+
 fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
@@ -99,7 +127,7 @@ fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
         r#".workflows[]|select(.state=="active")|[.id,.path,.name]|@tsv"#,
     ])?;
 
-    let mut holes: Vec<(String, String)> = Vec::new();
+    let mut holes: Vec<Hole> = Vec::new();
     let mut pr_gates = 0usize;
     for line in listing.lines() {
         let mut it = line.splitn(3, '\t');
@@ -132,25 +160,56 @@ fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
         .unwrap_or_else(|_| "-1".into());
         if count == "0" {
             let dispatchable = decoded.contains("workflow_dispatch");
-            holes.push((
-                path.rsplit('/').next().unwrap_or(path).to_string(),
-                format!(
-                    "{name}{}",
-                    if dispatchable {
-                        "  [workflow_dispatch — one run on the default branch fixes this]"
-                    } else {
-                        ""
-                    }
-                ),
-            ));
+            // Has this workflow ever gone red ANYWHERE? A gate that has never
+            // failed in its whole history cannot be shown to cost anyone
+            // anything by lacking a baseline, and one that fails constantly is
+            // the alarm. The first version of this command reported both at the
+            // same volume and was wrong about one of them.
+            let runs = num(&gh(&[
+                "api",
+                &format!("repos/{repo}/actions/workflows/{id}/runs?per_page=1"),
+                "--jq",
+                ".total_count",
+            ]).unwrap_or_default());
+            let fails = num(&gh(&[
+                "api",
+                &format!("repos/{repo}/actions/workflows/{id}/runs?status=failure&per_page=1"),
+                "--jq",
+                ".total_count",
+            ]).unwrap_or_default());
+            holes.push(Hole {
+                file: path.rsplit('/').next().unwrap_or(path).to_string(),
+                name: name.to_string(),
+                dispatchable,
+                runs,
+                fails,
+            });
         }
     }
+
+    // Loudest first: a gate that fails often and has never been seen to pass
+    // on the branch it gates is the alarm; one that has never failed at all is
+    // a footnote, and printing them at the same volume is how a sweep loses the
+    // reader's trust.
+    holes.sort_by(|a, b| b.fails.cmp(&a.fails));
 
     println!("{repo} (default branch {branch})");
     println!("  PR-gated workflows: {pr_gates}");
     println!("  of those, never run on {branch} by any event: {}", holes.len());
-    for (file, note) in &holes {
-        println!("     {file}\n       {note}");
+    for h in &holes {
+        let verdict = if h.fails > 0 {
+            "CAN and DOES fail — no green state has ever been observed"
+        } else if h.runs > 0 {
+            "has never failed in its whole history; a missing baseline costs nothing yet"
+        } else {
+            "has never run anywhere at all"
+        };
+        println!("     {}", h.file);
+        println!("       {}", h.name);
+        println!("       {} run(s), {} failure(s) — {verdict}", h.runs, h.fails);
+        if h.dispatchable {
+            println!("       workflow_dispatch — one run on {branch} closes this");
+        }
     }
     println!();
     if holes.is_empty() {
@@ -158,11 +217,17 @@ fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
         println!("can be compared against something that was actually observed.");
         return Ok(());
     }
-    println!("Each of these can turn a pull request red while no green state has ever");
-    println!("existed on {branch}. A red check nobody else has reads as \"you broke it\";");
-    println!("often it means \"nobody has ever seen this pass\".");
+    let loud = holes.iter().filter(|h| h.fails > 0).count();
+    if loud == 0 {
+        println!("None of them has ever failed. A missing baseline is only a problem for a");
+        println!("gate that can go red, so this list is a note, not an alarm.");
+    } else {
+        println!("{loud} of them has gone red before while no green state has ever existed on");
+        println!("{branch}. A red check nobody else has reads as \"you broke it\"; sometimes it");
+        println!("means \"nobody has ever seen this pass\".");
+    }
     println!();
-    println!("Not every one is a defect. Three kinds hide in this list, and they need");
+    println!("Not every one is a defect. Four kinds hide in this list, and they need");
     println!("different answers:");
     println!("  * a configuration hole — the question IS answerable on {branch}, and the");
     println!("    workflow simply never asks it there. Add a push: trigger.");
@@ -170,10 +235,16 @@ fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
     println!("    has no meaning on {branch}. Correct as it stands.");
     println!("  * sound but unexercised — a push: trigger exists with a paths: filter,");
     println!("    and those paths have not changed on {branch} yet. Nothing to fix.");
+    println!("  * advisory by construction — every path through the script ends in");
+    println!("    exit 0, so it appears in the check list and can never block. The");
+    println!("    failure count above is the tell: this command's first version");
+    println!("    reported one of these as a hole, and it was not one.");
     println!("Read the workflow before filing any of them.");
 
-    if strict {
-        anyhow::bail!("{} PR gate(s) have no baseline on {branch}", holes.len());
+    if strict && loud > 0 {
+        anyhow::bail!(
+            "{loud} PR gate(s) have no baseline on {branch} and have failed before"
+        );
     }
     Ok(())
 }
@@ -202,6 +273,35 @@ fn decode_b64(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The first version of this command reported four holes at the same
+    /// volume. One of them, `seal-staleness-warn`, is advisory by construction
+    /// -- every path through its script ends in `exit 0` -- and measured over
+    /// its whole history it had 169 runs and 0 failures. Its premise, "this can
+    /// turn a pull request red", was simply false. The failure count is what
+    /// separates the alarm from the footnote, and it must sort first.
+    #[test]
+    fn a_gate_that_has_never_failed_ranks_below_one_that_has() {
+        let mut holes = vec![
+            Hole { file: "seal-staleness-warn.yml".into(), name: "advisory".into(),
+                   dispatchable: false, runs: 169, fails: 0 },
+            Hole { file: "emit-bitexact-gate.yml".into(), name: "the real one".into(),
+                   dispatchable: true, runs: 144, fails: 84 },
+            Hole { file: "check-now-freshness.yml".into(), name: "pr-scoped".into(),
+                   dispatchable: false, runs: 1442, fails: 2 },
+        ];
+        holes.sort_by(|a, b| b.fails.cmp(&a.fails));
+        assert_eq!(holes[0].file, "emit-bitexact-gate.yml");
+        assert_eq!(holes[2].file, "seal-staleness-warn.yml");
+
+        // A run count alone says nothing: the advisory gate has run more often
+        // than the one that actually blocked a merge.
+        assert!(holes[2].runs > holes[0].runs);
+
+        // strict mode alarms only on gates that have been observed to fail.
+        let loud = holes.iter().filter(|h| h.fails > 0).count();
+        assert_eq!(loud, 2);
+    }
 
     /// The trigger scan must survive the YAML `on:`-is-a-boolean trap that a
     /// parser walks into, and must not fire on the word appearing in prose.
