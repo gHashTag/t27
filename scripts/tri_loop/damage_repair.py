@@ -60,10 +60,29 @@ parseable file. Reported effect is one of:
   needs-human-language-decision  no patch was attempted, information destroyed
 
 Usage:
-    tri damage-repair [--snapshot PATH] [--binary PATH] [--class DC-xxxxxxxx]
+    tri damage-repair --snapshot PATH [--binary PATH] [--class DC-xxxxxxxx]
                       [--diff] [--apply-to DIR] [--json PATH]
 
 `--apply-to` writes repaired copies into a scratch tree; specs/ is never touched.
+
+## Why --snapshot has no default (#2327)
+
+It used to default to `docs/corpus/damage_snapshot_2026-08-15.json`, a path that
+no default workflow produces: the companion writer `tri damage-freeze` defaults
+its `--out` to `docs/corpus/damage_snapshot.json`, a different name, so running
+the two tools back to back with no arguments never connected. The reader reported
+"no snapshot" while a perfectly good freeze sat beside it in the same directory.
+
+The rule that replaced it, and that `corpus_status.py` already followed for this
+same artifact: a READER must not guess at an input path, because it cannot know
+which freeze the caller meant; a WRITER may default its output path, because it
+creates the file rather than hoping one is there. So `damage-freeze --out` keeps
+its default and `damage-repair --snapshot` has none.
+
+This is the same instinct as the staleness check further down, which refuses to
+repair against a snapshot whose digests no longer match the corpus. A tool that
+refuses to repair against the wrong snapshot should equally refuse to invent
+which snapshot you meant.
 """
 
 import difflib
@@ -79,7 +98,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from diffbin import parse_fields  # noqa: E402  (same directory, deliberate)
 
 CLOSED_STRING = re.compile(r'^"[^"]*",?$')
-DEFAULT_SNAPSHOT = "docs/corpus/damage_snapshot_2026-08-15.json"
 TIMEOUT = 25
 
 EFFECTS = (
@@ -259,7 +277,7 @@ def combined(snap, rows, binary, have_binary, tmpdir, apply_to, json_out):
 
 
 def main(argv):
-    snapshot = DEFAULT_SNAPSHOT
+    snapshot = None
     binary = "/tmp/t27c.fixed"
     only = None
     apply_to = None
@@ -277,9 +295,25 @@ def main(argv):
         elif a == "--json" and i + 1 < len(argv):
             json_out = argv[i + 1]
 
+    # No default. Which freeze to repair against is a statement the caller has to
+    # make: the snapshot fixes both the corpus digest every later citation refers
+    # to and the file digests the staleness check below enforces. A guessed path
+    # either finds nothing, or silently picks up a freeze of a corpus and a date
+    # nobody named. `corpus_status.py` requires this same artifact for the same
+    # reason.
+    if snapshot is None:
+        print("REFUSING: --snapshot is required; there is no default.", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("A repair is only meaningful against a named frozen snapshot, whose", file=sys.stderr)
+        print("digests are what let this tool refuse when the corpus has moved.", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  tri damage-freeze specs --out PATH", file=sys.stderr)
+        print("  tri damage-repair --snapshot PATH", file=sys.stderr)
+        return 2
+
     if not os.path.exists(snapshot):
         print(f"no snapshot at {snapshot}", file=sys.stderr)
-        print("run: tri damage-freeze specs --out " + DEFAULT_SNAPSHOT, file=sys.stderr)
+        print("freeze one first: tri damage-freeze specs --out " + snapshot, file=sys.stderr)
         return 2
     snap = json.load(open(snapshot))
 
