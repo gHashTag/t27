@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W983, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W984, 2026-08-22)
+
+> **W984 — THE FOLDED-CLAUSE CLASS IS CLOSED, AND TWO DESIGNS RE-READ WITH REAL CLAUSES.**
+> One primitive everywhere: `Z0 = opq_a - opq_b`, two counters no mapper will try to prove equal,
+> so `K + Z0` is `K` on silicon and an unknown to `opt`. Constant operands pass through it, the
+> control's instances get structurally distinct sources, the unwritten probe rotates. **Eight
+> wrappers, 36 clauses, 0 folded** — and `tri clauses` now **gates** `tri audit`, because
+> "constant or driven" is exact and what it catches reads PASS in every build. **On the die with
+> every clause real:** `gft_smul` **`1010` → `1111`**, `gft_sadd` `1111` (3 folded, 1 measured) →
+> **`1111` with four real** — its headline earned for the first time. **The caveat travels with the
+> number:** making the clauses real changed the wrappers, so netlist and placement changed too.
+> These are new measurements at **one placement**, not re-runs; the seed sweep separating *gone*
+> from *absent here* is not done. The wave also hit **ENOSPC at 0.12 GiB**, which silently ate a
+> five-file patch batch. T839/T840, lessons 1507–1509, **422 derived checks**. **Readiness 95 %.**
 
 > **W983 — THE CONTROL WAS A CONSTANT, AND WHEN IT FINALLY RAN IT REFUTED THE STORY.**
 > `tri clauses` reads the *netlist*, not the source, and asks which `c_*` clauses are driven by

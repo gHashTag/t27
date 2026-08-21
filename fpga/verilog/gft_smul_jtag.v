@@ -79,25 +79,39 @@ module gft_smul_jtag #(parameter integer JTAG_CHAIN_N = 3);
     wire y_z1, y_z2, y_c1, y_c2, y_g, y_i;
     wire [31:0] r_z1, r_z2, r_c1, r_c2, r_gold, r_ind;
 
+    // W984 (T839): every constant operand below used to reach the DUT as a
+    // literal, so yosys evaluated the clause at compile time and the die read a
+    // folded 1 -- a PASS in every build, including the failing ones (T836).
+    // `Z0` is identically zero at runtime and opaque to the optimiser: two
+    // counters with the same seed and step, whose equality no mapper will try to
+    // prove. `K + Z0` is K on silicon and an unknown to `opt`.
+    reg [31:0] opq_a = 32'd1;
+    reg [31:0] opq_b = 32'd1;
+    always @(posedge slowclk) begin
+        opq_a <= opq_a + 32'd1;
+        opq_b <= opq_b + 32'd1;
+    end
+    wire [31:0] Z0 = opq_a - opq_b;
+
     // 1. ZERO, both operand orders
     GftSmul u_z1 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(Z), .b(live), .ready(y_z1), .result(r_z1));
+        .a(Z + Z0), .b(live), .ready(y_z1), .result(r_z1));
     GftSmul u_z2 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(live2), .b(Z), .ready(y_z2), .result(r_z2));
+        .a(live2), .b(Z + Z0), .ready(y_z2), .result(r_z2));
 
     // 2. COMM
     GftSmul u_c1 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(live), .b(TWO), .ready(y_c1), .result(r_c1));
+        .a(live), .b(TWO + Z0), .ready(y_c1), .result(r_c1));
     GftSmul u_c2 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(TWO), .b(live), .ready(y_c2), .result(r_c2));
+        .a(TWO + Z0), .b(live), .ready(y_c2), .result(r_c2));
 
     // 3. GOLD: the spec's own test m1
     GftSmul u_g (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(ONE), .b(ONE), .ready(y_g), .result(r_gold));
+        .a(ONE + Z0), .b(ONE + Z0), .ready(y_g), .result(r_gold));
 
     // 4. IND
     GftSmul u_i (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(live), .b(ONE), .ready(y_i), .result(r_ind));
+        .a(live), .b(ONE + Z0), .ready(y_i), .result(r_ind));
 
     wire zero_ok = (r_z1 == 32'd0) && (r_z2 == 32'd0);
     wire comm_ok = (r_c1 == r_c2);

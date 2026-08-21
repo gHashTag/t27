@@ -30696,6 +30696,47 @@ answers, every clause real: that is what *place-and-route is not
 function-preserving* should have meant, and it needs no commutativity argument at
 all.
 
+### T839 -- The opaque zero, and a corpus with no folded clauses [measured]
+
+W983 found 14 of 28 on-die clauses were constants folded at synthesis. The repair
+is one primitive applied everywhere:
+
+```verilog
+reg [31:0] opq_a = 32'd1, opq_b = 32'd1;
+always @(posedge slowclk) begin opq_a <= opq_a + 1; opq_b <= opq_b + 1; end
+wire [31:0] Z0 = opq_a - opq_b;      // zero at runtime, opaque to `opt`
+```
+
+`K + Z0` is `K` on silicon and an unknown to the optimiser, because proving
+`opq_a == opq_b` is not something a mapper attempts. Every literal operand now
+passes through it; the control's two instances are given structurally distinct
+sources carrying equal values; and the unwritten probe rotates and is tested for
+a rotation-invariant property. **Eight wrappers, 36 clauses, 0 folded.**
+
+`tri clauses` is now a **gate** in `tri audit` rather than a report. The question
+it asks -- is this net a constant or is it driven -- is exact, with no room to
+over-report, which is the test lesson 1494 sets for a check that may block; and
+what it catches is a clause that reads PASS in every build, the most expensive
+silent failure this project has had.
+
+### T840 -- With every clause real, two designs pass [measured]
+
+| design | before | what W983 showed the "before" meant | after |
+|--------|--------|-------------------------------------|-------|
+| `gft_smul` | `1010` FAIL | 2 folded, so **2 of 2 measured clauses false** | **`1111` PASS**, four real |
+| `gft_sadd` | `1111` PASS | 3 folded, so **1 measured clause** | **`1111` PASS**, four real |
+
+`gft_sadd`'s headline -- *four of four clauses on the die* -- is **earned for the
+first time**. And `gft_smul`, whose every measured clause was false, now satisfies
+four real ones.
+
+**The caveat is structural and must travel with the result.** Making the clauses
+real changed the wrappers, so the netlists and the placements changed with them.
+These are new measurements, not re-runs, and one placement each. Whether
+`gft_smul`'s failure is *gone* or merely *absent here* needs the seed sweep, which
+is not done. A result that arrives together with the repair that was supposed to
+produce it deserves more suspicion than one that arrives on its own.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

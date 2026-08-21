@@ -104,6 +104,7 @@ module gft_dup2_jtag #(parameter integer JTAG_CHAIN_N = 3);
     // 0x5A5A1234 is not the shift register's magic and not any TNF constant, so
     // a match cannot come from a neighbouring net being read by mistake.
     reg [31:0] initprobe = 32'h5A5A1234;
+    always @(posedge slowclk) initprobe <= {initprobe[30:0], initprobe[31]};
 
     reg [23:0] pre  = 24'd0;
     reg        beat = 1'b0;
@@ -120,26 +121,51 @@ module gft_dup2_jtag #(parameter integer JTAG_CHAIN_N = 3);
         end
     end
 
+    // W984 (T839): a constant operand reaches the DUT as a literal and the clause
+
+    // is evaluated at compile time -- the die then reads a folded 1, a PASS in
+
+    // every build including the failing ones (T836). `Z0` is identically zero at
+
+    // runtime and opaque to the optimiser: two counters, same seed, same step,
+
+    // whose equality no mapper will try to prove.
+
+    reg [31:0] opq_a = 32'd1;
+
+    reg [31:0] opq_b = 32'd1;
+
+    always @(posedge slowclk) begin
+
+        opq_a <= opq_a + 32'd1;
+
+        opq_b <= opq_b + 32'd1;
+
+    end
+
+    wire [31:0] Z0 = opq_a - opq_b;
+
+
     wire y1, y2, y3, y4, y5;
     wire [31:0] r_self_a, r_self_b, r_comm_a, r_comm_b, r_ind;
 
     // ---- THE CONTROL: identical function, identical operand order ----
     GftSmul u_self_a (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(live), .b(TWO), .ready(y1), .result(r_self_a));
+        .a(live), .b(TWO + Z0), .ready(y1), .result(r_self_a));
     GftSmul u_self_b (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(live), .b(TWO), .ready(y2), .result(r_self_b));
+        .a(live + Z0), .b(TWO + Z0), .ready(y2), .result(r_self_b));
 
     // ---- THE TEST: identical function, operands swapped ----
     GftSmul u_comm_a (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(live), .b(TWO), .ready(y3), .result(r_comm_a));
+        .a(live), .b(TWO + Z0), .ready(y3), .result(r_comm_a));
     GftSmul u_comm_b (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(TWO), .b(live), .ready(y4), .result(r_comm_b));
+        .a(TWO + Z0), .b(live), .ready(y4), .result(r_comm_b));
 
     // ---- liveness, so nothing above can be a folded constant (T534) ----
     GftSmul u_ind (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
         .a(live), .b(live2), .ready(y5), .result(r_ind));
 
-    wire init_ok = (initprobe == 32'h5A5A1234);
+    wire init_ok = (initprobe != 32'd0);   // rotation-invariant, not foldable
     wire self_ok = (r_self_a == r_self_b);
     wire comm_ok = (r_comm_a == r_comm_b);
     wire ind_ok  = (r_ind != 32'd0);

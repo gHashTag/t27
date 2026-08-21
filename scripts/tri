@@ -101,9 +101,14 @@ case "$cmd" in
     [ -f "$W_V" ] || die "no such wrapper: $W_V"
     T27C="${TRI_T27C:-$REPO_ROOT/target/release/t27c}"
     STEM="$(basename "$SPEC" .t27)"
-    GEN="${TMPDIR:-/tmp}/t27-silicon/$STEM.v"
-    [ -f "$GEN" ] || die "no generated Verilog at $GEN -- run: $T27C silicon $SPEC --top $W_V --skip-hardware"
-    WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+    # W984: this used to read the Verilog `t27c silicon` leaves in its temp dir,
+    # which made the check depend on an artefact of an unrelated command AND on a
+    # directory that is wiped whenever the disk fills. Generate it here instead.
+    WORK0="$(mktemp -d)"
+    GEN="$WORK0/$STEM.v"
+    "$T27C" gen-verilog "$SPEC" > "$GEN" 2>/dev/null
+    [ -s "$GEN" ] || die "gen-verilog produced nothing for $SPEC"
+    WORK="$(mktemp -d)"; trap 'rm -rf "$WORK" "$WORK0"' EXIT
     TOP="$(basename "$W_V" .v)"
     yosys -p "read_verilog $GEN $W_V; hierarchy -top $TOP; \
       synth_xilinx -family xc7 -flatten -run :coarse; \
@@ -165,8 +170,7 @@ PYCL
     [ -x "$T27C" ] || die "t27c not found at $T27C"
     STEM="$(basename "$SPEC" .t27)"
     WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
-    "$T27C" gen-verilog "$SPEC" > "$WORK/$STEM.v" 2>/dev/null \
-      || { V="${TMPDIR:-/tmp}/t27-silicon/$STEM.v"; [ -f "$V" ] && cp "$V" "$WORK/$STEM.v"; }
+    "$T27C" gen-verilog "$SPEC" > "$WORK/$STEM.v" 2>/dev/null
     [ -s "$WORK/$STEM.v" ] || die "no Verilog for $STEM -- run: tri silicon $SPEC --skip-hardware"
     TOPMOD="$(grep -oE '^module [A-Za-z_][A-Za-z0-9_]*' "$WORK/$STEM.v" | head -1 | awk '{print $2}')"
     [ -n "$TOPMOD" ] || die "no module found in the generated Verilog"
@@ -1031,6 +1035,21 @@ PYGRID
     # avoid it. A reporting line must not be able to end the run.
     cov="$( { "$0" coverage 2>&1 || true; } | grep -E '^tri coverage:' | sed 's/^tri coverage: //' || true)"
     echo "info  coverage  ${cov:-unavailable}"
+    # W984: this one GATES. "is this net a constant or is it driven" is exact --
+    # there is no heuristic in it and no room to over-report, which is the test
+    # lesson 1494 sets for a check that may block. And the thing it catches is a
+    # clause that reads PASS in every build: the most expensive silent failure
+    # this project has had.
+    CLW=0; CLF=0
+    for w in "$REPO_ROOT"/fpga/verilog/*_jtag.v; do
+      sp="$REPO_ROOT/specs/ternary/$(basename "$w" _jtag.v).t27"
+      [ -f "$sp" ] || sp="$REPO_ROOT/specs/ternary/gft_smul.t27"
+      o="$( { "$0" clauses "$w" "$sp" 2>/dev/null || true; } | grep -E '^tri clauses:' || true)"
+      [ -n "$o" ] || continue
+      CLW=$((CLW+1))
+      case "$o" in *", 0 folded"*) ;; *) CLF=$((CLF+1)); echo "FAIL  clauses   $(basename "$w"): $o"; bad=1 ;; esac
+    done
+    [ "$CLF" = "0" ] && echo "ok    clauses   $CLW wrapper(s), none folded to a constant"
     if out="$("$0" domain 2>&1)"; then
       echo "ok    domain    $(printf '%s' "$out" | grep -E '^tri domain:' | sed 's/^tri domain: //')"
     else

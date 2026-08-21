@@ -104,18 +104,30 @@ module gft_xorpercep_jtag #(parameter integer JTAG_CHAIN_N = 3);
         end
     end
 
+    // W984 (T839): a constant operand reaches the DUT as a literal and the clause
+    // is evaluated at compile time -- the die then reads a folded 1, a PASS in
+    // every build including the failing ones (T836). `Z0` is identically zero at
+    // runtime and opaque to the optimiser: two counters, same seed, same step.
+    reg [31:0] opq_a = 32'd1;
+    reg [31:0] opq_b = 32'd1;
+    always @(posedge slowclk) begin
+        opq_a <= opq_a + 32'd1;
+        opq_b <= opq_b + 32'd1;
+    end
+    wire [31:0] Z0 = opq_a - opq_b;
+
     wire y_g, y_e, y_i;
     wire [63:0] r_gold, r_eta0, r_ind;
 
     // 1. GOLD: the spec's own test vector
     GftXorPercep u_gold (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .v0(Z), .v1(Z), .x0(ONE), .x1(Z), .y(ONE), .eta(QTR),
+        .v0(Z + Z0), .v1(Z + Z0), .x0(ONE + Z0), .x1(Z + Z0), .y(ONE + Z0), .eta(QTR + Z0),
         .ready(y_g), .result(r_gold));
 
     // 2. ETA-ZERO: a zero learning rate must not move the weights.
     //    W838 on three dice: it HOLDS -- this spec's smul guards zero.
     GftXorPercep u_eta0 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .v0(ONE), .v1(QTR), .x0(ONE), .x1(Z), .y(ONE), .eta(Z),
+        .v0(ONE + Z0), .v1(QTR + Z0), .x0(ONE + Z0), .x1(Z + Z0), .y(ONE + Z0), .eta(Z + Z0),
         .ready(y_e), .result(r_eta0));
 
     // 4. INDEPENDENT: every port from a different source

@@ -2224,3 +2224,40 @@ contradicted it had been folded to a constant.
 One netlist, three placements, three answers, every clause real. That is what
 *place-and-route is not function-preserving* should have meant, and it needs no
 commutativity argument at all.
+
+## 53. The class closed in the wave after it was named (W984)
+
+W983 found that 14 of 28 on-die clauses were constants folded at synthesis,
+repaired one wrapper and left the rest as a named debt. Clearing all eight took
+one wave and one primitive:
+
+```verilog
+reg [31:0] opq_a = 32'd1, opq_b = 32'd1;
+always @(posedge slowclk) begin opq_a <= opq_a + 1; opq_b <= opq_b + 1; end
+wire [31:0] Z0 = opq_a - opq_b;
+```
+
+`Z0` is zero at runtime and opaque to `opt`, because proving `opq_a == opq_b` is
+not something a mapper attempts. Every literal operand passes through it; the
+control's two instances get structurally distinct sources carrying equal values;
+the unwritten probe rotates and is tested for a rotation-invariant property.
+**Eight wrappers, 36 clauses, none folded.** `tri clauses` moved from report to
+**gate**: constant-or-driven is exact, and what it catches reads PASS in every
+build.
+
+Then two designs went back to the die with every clause real. `gft_smul`, whose
+`1010` W983 showed to be *two of two measured clauses false*, reads **`1111`**.
+`gft_sadd`, whose `1111` was *one measured clause*, reads **`1111` with four real
+ones** -- its headline earned for the first time since it was published.
+
+**And the caveat belongs in the same sentence as the result.** Making the clauses
+real changed the wrappers, so the netlists changed, so the placements changed.
+These are new measurements at one placement each, not re-runs. Whether
+`gft_smul`'s failure is gone or merely absent here is exactly what the seed sweep
+would separate, and it was not run. A result that arrives together with the repair
+intended to produce it earns more suspicion, not less.
+
+The wave also ran the disk to 0.12 GiB and lost a five-file patch batch to ENOSPC
+before it wrote its capture file -- so the files were unmodified while the
+transcript showed only a storage error, and the next check reported the old state,
+which reads exactly like a repair that did not work.

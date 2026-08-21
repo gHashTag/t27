@@ -103,23 +103,37 @@ module gft_train1_jtag #(parameter integer JTAG_CHAIN_N = 3);
     wire [31:0] r_fix, r_asc, r_learn, r_live;
 
     // 1. FIXED POINT: w = t = x = 1.0 -> the weight does not move
+    // W984 (T839): every constant operand below used to reach the DUT as a
+    // literal, so yosys evaluated the clause at compile time and the die read a
+    // folded 1 -- a PASS in every build, including the failing ones (T836).
+    // `Z0` is identically zero at runtime and opaque to the optimiser: two
+    // counters with the same seed and step, whose equality no mapper will try to
+    // prove. `K + Z0` is K on silicon and an unknown to `opt`.
+    reg [31:0] opq_a = 32'd1;
+    reg [31:0] opq_b = 32'd1;
+    always @(posedge slowclk) begin
+        opq_a <= opq_a + 32'd1;
+        opq_b <= opq_b + 32'd1;
+    end
+    wire [31:0] Z0 = opq_a - opq_b;
+
     GftTrain1 u_fix   (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-                       .w(ONE),   .x(ONE), .t(ONE),   .eta(BELOW),
+                       .w(ONE + Z0),   .x(ONE + Z0), .t(ONE + Z0),   .eta(BELOW + Z0),
                        .ready(rdy_f), .result(r_fix));
 
     // 2. ASCENT: target above the prediction -> the weight rises
     GftTrain1 u_asc   (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-                       .w(ONE),   .x(ONE), .t(ABOVE), .eta(BELOW),
+                       .w(ONE + Z0),   .x(ONE + Z0), .t(ABOVE + Z0), .eta(BELOW + Z0),
                        .ready(rdy_a), .result(r_asc));
 
     // 3. MOVEMENT: a weight below the optimum moves toward it
     GftTrain1 u_learn (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-                       .w(BELOW), .x(ONE), .t(ONE),   .eta(BELOW),
+                       .w(BELOW + Z0), .x(ONE + Z0), .t(ONE + Z0),   .eta(BELOW + Z0),
                        .ready(rdy_l), .result(r_learn));
 
     // The live instance: exists so the datapath cannot be folded away (T539).
     GftTrain1 u_live  (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-                       .w(live),  .x(ONE), .t(ONE),   .eta(BELOW),
+                       .w(live),  .x(ONE + Z0), .t(ONE + Z0),   .eta(BELOW + Z0),
                        .ready(rdy_v), .result(r_live));
 
     wire fix_ok = (r_fix   == ONE);

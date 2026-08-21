@@ -83,27 +83,39 @@ module gft_signed_mac_jtag #(parameter integer JTAG_CHAIN_N = 3);
             live2 <= live2 + 32'd7;
         end
     end
+    // W984 (T839): a constant operand reaches the DUT as a literal and the clause
+    // is evaluated at compile time -- the die then reads a folded 1, a PASS in
+    // every build including the failing ones (T836). `Z0` is identically zero at
+    // runtime and opaque to the optimiser: two counters, same seed, same step.
+    reg [31:0] opq_a = 32'd1;
+    reg [31:0] opq_b = 32'd1;
+    always @(posedge slowclk) begin
+        opq_a <= opq_a + 32'd1;
+        opq_b <= opq_b + 32'd1;
+    end
+    wire [31:0] Z0 = opq_a - opq_b;
+
 
     wire y_z, y_c1, y_c2, y_x, y_i;
     wire [31:0] r_zero, r_c1, r_c2, r_cancel, r_ind;
 
     // 1. ZERO
     GftSignedMac u_z (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(Z), .b1(live), .a2(Z), .b2(live2), .ready(y_z), .result(r_zero));
+        .a1(Z + Z0), .b1(live), .a2(Z + Z0), .b2(live2), .ready(y_z), .result(r_zero));
 
     // 2. COMM
     GftSignedMac u_c1 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(live), .b1(TWO), .a2(live2), .b2(ONE), .ready(y_c1), .result(r_c1));
+        .a1(live), .b1(TWO + Z0), .a2(live2), .b2(ONE + Z0), .ready(y_c1), .result(r_c1));
     GftSignedMac u_c2 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(TWO), .b1(live), .a2(ONE), .b2(live2), .ready(y_c2), .result(r_c2));
+        .a1(TWO + Z0), .b1(live), .a2(ONE + Z0), .b2(live2), .ready(y_c2), .result(r_c2));
 
     // 3. CANCEL
     GftSignedMac u_x (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(ONE), .b1(live), .a2(NEG), .b2(live), .ready(y_x), .result(r_cancel));
+        .a1(ONE + Z0), .b1(live), .a2(NEG + Z0), .b2(live), .ready(y_x), .result(r_cancel));
 
     // 4. IND
     GftSignedMac u_i (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(live), .b1(ONE), .a2(live2), .b2(ONE), .ready(y_i), .result(r_ind));
+        .a1(live), .b1(ONE + Z0), .a2(live2), .b2(ONE + Z0), .ready(y_i), .result(r_ind));
 
     wire zero_ok   = (r_zero   == 32'd0);
     wire comm_ok   = (r_c1     == r_c2);

@@ -106,16 +106,30 @@ module gft_sadd_jtag #(parameter integer JTAG_CHAIN_N = 3);
     wire [31:0] r_move, r_abs, r_gold, r_ind;
 
     // 1. INSIDE the band: offset 5 against a term at offset 0 -- must move
+    // W984 (T839): every constant operand below used to reach the DUT as a
+    // literal, so yosys evaluated the clause at compile time and the die read a
+    // folded 1 -- a PASS in every build, including the failing ones (T836).
+    // `Z0` is identically zero at runtime and opaque to the optimiser: two
+    // counters with the same seed and step, whose equality no mapper will try to
+    // prove. `K + Z0` is K on silicon and an unknown to `opt`.
+    reg [31:0] opq_a = 32'd1;
+    reg [31:0] opq_b = 32'd1;
+    always @(posedge slowclk) begin
+        opq_a <= opq_a + 32'd1;
+        opq_b <= opq_b + 32'd1;
+    end
+    wire [31:0] Z0 = opq_a - opq_b;
+
     GftSadd u_move (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(IN_BAND), .b(SPUR), .ready(y_m), .result(r_move));
+        .a(IN_BAND + Z0), .b(SPUR + Z0), .ready(y_m), .result(r_move));
 
     // 2. OUTSIDE the band: offset 15 -- must be exactly unchanged
     GftSadd u_abs (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(OUT_BAND), .b(SPUR), .ready(y_a), .result(r_abs));
+        .a(OUT_BAND + Z0), .b(SPUR + Z0), .ready(y_a), .result(r_abs));
 
     // 3. GOLD: the spec's own test
     GftSadd u_gold (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a(ONE), .b(ONE), .ready(y_g), .result(r_gold));
+        .a(ONE + Z0), .b(ONE + Z0), .ready(y_g), .result(r_gold));
 
     // 4. INDEPENDENT: the adder must exist in the fabric
     GftSadd u_ind (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
