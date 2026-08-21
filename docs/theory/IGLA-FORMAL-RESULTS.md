@@ -30286,6 +30286,60 @@ for reasons unrelated to correctness.
 constraint by 4.3×; `xorpercep` and `dot4` were merely stopped. Collapsing those into one red
 column would claim three timing failures where there is one.
 
+### T826 — The missing special case was not only wrong, it was expensive
+
+**The fix, in the spec.** `gft_signed_mac.t27` keeps private copies of `smul` and `sadd`, and
+**both had lost their zero guards** — the very lines that exist verbatim in `gft_smul.t27` and
+`gft_sadd.t27`:
+
+| function | guards in the primitive spec | guards in the MAC's copy |
+|---|---|---|
+| `smul` | `if (a==0) return 0`, `if (b==0) return 0`, `if (mag==0) return 0` | **none** |
+| `sadd` | `if (a==0) return b`, `if (b==0) return a` | **none** |
+
+**Fixing `smul` alone was not enough**, and the way that became visible is the point: the
+residue changed from `512 + 4·live` to a **constant 512** — because `on_comb(0,x,0,y)` reduces
+to `sadd(0,0)`, which fell into the `magadd` path and returned the implicit leading one. The
+new `zero_annihilates` test — **derived from the die's clause** — failed immediately and named
+the remainder.
+
+**Verified after both guards:** spec tests **4 PASSED / 0 FAILED**; the W976 testbench reports
+**0 ZERO violations and 0 COMM violations in 64 points**, against 64 before.
+
+**The unexpected part.** Adding five lines of special-casing made the design **smaller and
+faster**:
+
+| | before | after | change |
+|---|---|---|---|
+| LUT | 6 466 | **5 484** | **−15.2 %** |
+| CARRY4 | 1 237 | **961** | **−22.3 %** |
+| Fmax | 9.14 MHz | **9.85 MHz** | **+7.8 %** |
+
+**A correct early return is cheaper than the general path it skips**, because the synthesiser
+can prune everything downstream of it. The defect was paying for arithmetic it should never
+have performed. **Correctness and area were not in tension here; the same edit bought both.**
+
+**And this inverts a number the project has published.** Every cost figure for the MAC —
+including the 6 466 LUT of T821 and the MHz/kLUT curve built on it — was measured on the
+**defective** implementation. The corrected operator is 15 % smaller. **Any cost comparison
+involving `gft_signed_mac` prior to this wave priced a bug.**
+
+### T826a — The fix is verified in simulation and unverified on silicon
+
+The corrected MAC did **not** reach a die verdict:
+
+- **nextpnr hit the 600-second cap** → `ABSENT`, at Fmax 9.85 MHz (PASS at 2.21);
+- the **BSCAN chain/site check then failed**: `JTAG_CHAIN(3) enabled, BSCAN2 wired`.
+
+The second is notable: the chain assignment **moved** — the defective build forced chain 1, the
+corrected one forces 2 — so **the spec change perturbed the very harness that would confirm it**.
+That is not a coincidence to shrug at: a design whose JTAG plumbing depends on its own size
+cannot be re-verified after any change that alters size, without also re-checking the plumbing.
+
+**So the honest state is: fixed and proven in simulation, unproven on hardware.** The claim that
+the die's ZERO clause now passes is a **prediction**, not a measurement, and it is labelled that
+way everywhere it appears.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

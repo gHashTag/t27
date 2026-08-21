@@ -97,13 +97,28 @@ fn magsub(hi: i32, lo: i32) -> i32 {
 }
 
 fn smul(a: u32, b: u32) -> u32 {
+    // W978: these three guards were present in gft_smul.t27 and absent here. The
+    // magnitude path adds the implicit leading one unconditionally (512 + am), so a
+    // zero operand is multiplied as though it carried a hidden bit: the die measured
+    // mac(0,x,0,y) = 512 + 4x, a residue linear in the operand, while gft_smul's own
+    // ZERO clause was true on the same silicon. Same arithmetic, two specs, one copy
+    // missing its special case.
+    if (a == 0) { return 0; }
+    if (b == 0) { return 0; }
     var sa : i32 = (a >> 16) as i32;
     var sb : i32 = (b >> 16) as i32;
     var mag : i32 = magmul((a & 65535) as i32, (b & 65535) as i32);
+    if (mag == 0) { return 0; }
     return (((sa ^ sb) << 16) | mag) as u32;
 }
 
 fn sadd(a: u32, b: u32) -> u32 {
+    // W978: the SAME omission as smul, one level up. gft_sadd.t27 carries these two
+    // guards and this copy did not, so sadd(0,0) fell into the magadd path and
+    // returned 512 -- the implicit leading one again. Fixing smul alone turned the
+    // die's residue from 512 + 4x into a constant 512; this is the other half.
+    if (a == 0) { return b; }
+    if (b == 0) { return a; }
     var sa : i32 = (a >> 16) as i32;
     var ma : i32 = (a & 65535) as i32;
     var sb : i32 = (b >> 16) as i32;
@@ -129,4 +144,19 @@ fn on_comb(a1: u32, b1: u32, a2: u32, b2: u32) -> u32 {
 test pp { assert_eq(on_comb(20480, 20480, 86016, 86016), 20992); }
 // (+1)*(+1) + (+1)*(-1) = 1 - 1 = 0.
 test cancel { assert_eq(on_comb(20480, 20480, 20480, 86016), 0); }
+
+// W978: derived FROM the die's clauses. The on-die check evaluates ZERO and COMM;
+// this suite evaluated neither, which is why a residue linear in the operand
+// survived to a physical load. These assert the same properties the silicon does,
+// on more than one operand value -- the second weakness of the old suite was that
+// it only ever supplied constants.
+test zero_annihilates {
+    assert_eq(on_comb(0, 20480, 0, 86016), 0);
+    assert_eq(on_comb(0, 1, 0, 7), 0);
+    assert_eq(on_comb(0, 12345, 0, 54321), 0);
+}
+test commutes {
+    assert_eq(on_comb(20480, 86016, 86016, 20480), on_comb(86016, 20480, 20480, 86016));
+    assert_eq(on_comb(1, 86016, 7, 20480), on_comb(86016, 1, 20480, 7));
+}
 endmodule

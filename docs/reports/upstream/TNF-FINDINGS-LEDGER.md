@@ -1932,3 +1932,57 @@ not pass on hardware.** The `ABSENT`/`FAIL` split earns its keep: `bitnet` genui
 constraint by **4.3×**; the other two were merely stopped.
 
 Theorems **T825**, **T825a**, **T825b**; lessons **1487**, **1488**. **304 derived checks.**
+
+---
+
+## 47. W978 — the fix, and the discovery that the defect was expensive
+
+### Five lines, in the spec
+
+`gft_signed_mac.t27` keeps private copies of `smul` and `sadd`, and **both had lost their zero
+guards** — lines that exist verbatim in the primitive specs:
+
+| function | in `gft_smul.t27` / `gft_sadd.t27` | in the MAC's copy |
+|---|---|---|
+| `smul` | `if (a==0) return 0`, `if (b==0) return 0`, `if (mag==0) return 0` | **none** |
+| `sadd` | `if (a==0) return b`, `if (b==0) return a` | **none** |
+
+**Fixing `smul` alone was not enough**, and how that surfaced is the point: the residue changed
+from `512 + 4·live` to a **constant 512**, because `on_comb(0,x,0,y)` reduces to `sadd(0,0)`,
+which fell into `magadd` and returned the implicit leading one. The **`zero_annihilates` test —
+derived from the die's own clause** — failed immediately and named the remainder. The old suite
+still passed 2 of 2 throughout.
+
+**After both:** spec tests **4 PASSED / 0 FAILED**; the W976 testbench reports **0 ZERO and
+0 COMM violations in 64 points**, against 64 before.
+
+### The defect was expensive
+
+| | before | after | change |
+|---|---|---|---|
+| LUT | 6 466 | **5 484** | **−15.2 %** |
+| CARRY4 | 1 237 | **961** | **−22.3 %** |
+| Fmax | 9.14 MHz | **9.85 MHz** | **+7.8 %** |
+
+**A correct early return is cheaper than the general path it skips** — the synthesiser prunes
+everything downstream. The bug was paying for arithmetic it should never have performed, so
+**correctness and area were not in tension: one edit bought both.**
+
+**And it invalidates published numbers.** Every cost figure for this operator — including the
+6 466 LUT of chapter 42 and the MHz/kLUT curve built on it — was measured on the **defective**
+build. **Any prior cost comparison involving `gft_signed_mac` priced a bug.**
+
+### Unverified on silicon, and labelled so
+
+The corrected MAC did not reach a die verdict: **nextpnr hit the 600 s cap** (`ABSENT`, Fmax
+9.85 MHz PASS), and the **BSCAN check then failed** — `JTAG_CHAIN(3) enabled, BSCAN2 wired`. The
+chain assignment **moved**: the defective build forced chain 1, the corrected one forces 2.
+
+**The spec change perturbed the very harness that would confirm it.** A design whose JTAG
+plumbing depends on its own size cannot be re-verified after any change that alters size without
+re-checking the plumbing.
+
+**"The die's ZERO clause now passes" is a prediction, not a measurement**, and is labelled that
+way wherever it appears.
+
+Theorems **T826**, **T826a**; lessons **1489**, **1490**. **316 derived checks.**

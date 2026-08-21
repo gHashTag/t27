@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W977, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W978, 2026-08-22)
+
+> **W978 — FIXED IN THE SPEC, AND THE DEFECT TURNED OUT TO BE EXPENSIVE.** Five guard lines —
+> three in `smul`, two in `sadd`, all present verbatim in the primitive specs — take the MAC from
+> **6 466 → 5 484 LUT (−15.2 %)**, **1 237 → 961 CARRY4 (−22.3 %)** and **9.14 → 9.85 MHz
+> (+7.8 %)**. **A correct early return is cheaper than the path it skips.** Spec tests **4
+> PASSED**; the W976 testbench goes from **64 violations to 0**. **Fixing `smul` alone was not
+> enough** — the residue became a constant 512 — and the new **`zero_annihilates` test, derived
+> from the die's clause, caught the incomplete repair immediately** while the old suite still
+> passed 2/2. **This invalidates published numbers:** every cost figure for this operator,
+> including the MHz/kLUT curve, priced the **defective** build. **Unverified on silicon:**
+> nextpnr hit the 600 s cap and the BSCAN check failed — the chain assignment **moved** (1 → 2),
+> so the spec change perturbed the harness that would confirm it. T826/T826a, lessons 1489/1490,
+> **316 derived checks**. **Readiness 91 %.**
 
 > **W977 — THE MAC KEEPS A PRIVATE COPY OF THE MULTIPLY, AND IT LOST THE ZERO GUARD.**
 > `GftSignedMac` is **flat — zero instances** of `GftSmul`/`GftSadd` — and repeats the identical
