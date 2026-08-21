@@ -30036,6 +30036,67 @@ then failed twice, in different ways:
 between *not measured* and *measured negative*. Both stages here are red, and only one of them
 is evidence about the design.
 
+### T822 — The silicon answered: the first verdict read off the die, after twenty-three waves
+
+**The result.** On `xc7a200tfbg676-1`, IDCODE `0x3636093`, board `1:5`:
+
+```
+--- hardware, board 1:5 ---
+OK   B1 our bitstream   Done Some(1)  (must be 1)
+     reading USER2, derived from the FASM
+OK   B2 read            0xa5a5a5a7   magic, ok=1 beat=1   on index [0]
+
+PASS -- the silicon answered, and its answer is ok=1.
+```
+
+The design is `mvp_ternary_classifier`, carried from its `.t27` spec: **123 LUT, 52 CARRY4,
+0 DSP48E1, Fmax 80.35 MHz** (PASS at 70.77), bitstream 9 730 834 B. **`Done = 1`**, and the
+word read back through `USER2` — derived from the FASM, not from the source — carries the
+magic `0xA5A5A5A` with **`ok = 1`, `beat = 1`**.
+
+**This is the axis on which the project had no number at all.** It now has one, and it is a
+pass.
+
+**What the first attempt taught.** The same bitstream, on the same bench, ten minutes earlier:
+
+```
+FAIL B2 read   no magic on any cable
+  index 0: ALL ZERO -- dead chain or no BSCANE2 in this bitstream
+  index 1: usb_open(index=1): rc=-3 device not found
+  index 2: usb_open(index=2): rc=-3 device not found
+```
+
+The service defaults to the **three-cable bench** — `1:4 / 1:6 / 1:8` — recorded in the SSOT.
+**This bench now has exactly one cable, at `1:5`**, which W948 measured and wrote down. Passing
+`--busdev-num 1:5` turned the identical artefact into a pass.
+
+**The failure message named the wrong suspect.** *"ALL ZERO — dead chain or no BSCANE2 in this
+bitstream"* invites the conclusion that the **bitstream** is defective. It was not: the reader
+was addressing a cable that is not there. **A read of all zeros must implicate the address
+before it implicates the artefact**, because "wrong cable" and "no BSCANE2" are
+indistinguishable at the wire.
+
+**And a default that encodes a physical configuration expires silently.** The three-cable
+default was correct when written and became a bug when the bench changed — with no code change,
+no error at build time, and a runtime message pointing elsewhere.
+
+### T822a — What this verdict does and does not establish
+
+**It establishes** that the whole chain works end to end on real hardware: `.t27` spec →
+generated Verilog → yosys → nextpnr → FASM → frames → bitstream → JTAG load → `Done = 1` →
+a value read back off the die that matches what the FASM predicts. Every stage is now
+demonstrated, not assumed, and the run takes about a minute.
+
+**It does not establish** anything about the φ-format's merit. The design that answered is a
+**classifier**, and its verdict is a liveness-and-integrity check (`ok=1, beat=1`), not a
+measurement of the number system. The format's own operators — `gft_sadd`, `gft_signed_mac`,
+`gft_signed_dot4` — have **synthesis and timing** (T821) and have **not** been read off the die.
+
+**The honest statement of the hardware axis today:** the path is proven and the classifier
+passes; the format's operators are built and timed but unread. That is a much narrower claim
+than "the hardware axis is done", and the distinction is worth keeping because the next wave
+can close it with the same command and a different spec.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

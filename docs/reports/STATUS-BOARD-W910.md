@@ -1,5 +1,17 @@
 # Full status, both tracks — one page for whoever wakes up (W974, 2026-08-21)
 
+> **W974b — THE SILICON ANSWERED.** On `xc7a200tfbg676-1`, IDCODE `0x3636093`, board `1:5`:
+> **`Done = 1`** and **`0xa5a5a5a7`** read back through `USER2` — magic `0xA5A5A5A`, **`ok=1`,
+> `beat=1`**. Spec → Verilog → yosys → nextpnr → FASM → frames → bitstream → load → read, every
+> stage demonstrated, about a minute. **The axis that had no number has one, and it is a pass.**
+> **The first attempt failed on the ADDRESS, not the artefact:** the service defaults to the
+> three-cable bench (`1:4/1:6/1:8`) while this bench has **one** cable at **`1:5`** — the
+> identical bitstream then passed. *"ALL ZERO — dead chain or no BSCANE2"* names the wrong
+> suspect; **a read of all zeros must implicate the address first.** **What this does NOT
+> establish:** anything about the format. What answered is a **classifier** and its verdict is
+> a liveness check; the format's operators are built, timed and **unread**. T822/T822a, lessons
+> 1481/1482, **270 derived checks**. **Readiness 86 %.**
+
 > **W974 — THE FORMAT'S OWN OPERATORS ON THE REAL PART.** Spec → bitstream on
 > `xc7a200tfbg676-1`, Verilog generated throughout: `gft_sadd` **1 312 LUT / 18.24 MHz**,
 > `gft_signed_mac` **6 466 / 9.14**, `gft_signed_dot4` **12 872 / 5.50**, all timing **PASS**;

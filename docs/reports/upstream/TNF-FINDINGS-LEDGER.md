@@ -1717,3 +1717,60 @@ the raw LUT ratio suggests.
 `ABSENT` and `FAIL` in separate columns is what makes that readable at all.
 
 Theorems **T821**, **T821a**; lessons **1478**, **1479**. **262 derived checks.**
+
+---
+
+## 43. W974 (second half) — the silicon answered
+
+On `xc7a200tfbg676-1`, IDCODE `0x3636093`, board `1:5`:
+
+```
+OK   B1 our bitstream   Done Some(1)  (must be 1)
+     reading USER2, derived from the FASM
+OK   B2 read            0xa5a5a5a7   magic, ok=1 beat=1   on index [0]
+
+PASS -- the silicon answered, and its answer is ok=1.
+```
+
+The design is `mvp_ternary_classifier`, carried from its `.t27` spec — **123 LUT, 52 CARRY4,
+0 DSP48E1, Fmax 80.35 MHz**, bitstream 9 730 834 B. The word read back through `USER2` is
+**derived from the FASM**, not from the source, and carries the magic with **`ok=1, beat=1`**.
+
+**The axis that had no number now has one, and it is a pass.**
+
+### The first attempt failed on the address, not the artefact
+
+Ten minutes earlier, the same bitstream on the same bench:
+
+```
+FAIL B2 read   no magic on any cable
+  index 0: ALL ZERO -- dead chain or no BSCANE2 in this bitstream
+  index 1: usb_open(index=1): rc=-3 device not found
+  index 2: usb_open(index=2): rc=-3 device not found
+```
+
+The service defaults to the **three-cable bench** (`1:4 / 1:6 / 1:8`) recorded in the SSOT.
+**This bench now has exactly one cable, at `1:5`** — measured and written down in W948.
+`--busdev-num 1:5` turned the identical artefact into a pass.
+
+**The message named the wrong suspect.** *"ALL ZERO — dead chain or no BSCANE2 in this
+bitstream"* invites blaming the bitstream. **A read of all zeros must implicate the address
+first**: "wrong cable" and "no BSCANE2" are indistinguishable at the wire. And a default that
+encodes a physical layout **expires silently** — correct when written, a bug when the bench
+changed, with no error at build time.
+
+### What this does and does not establish
+
+**Established:** the whole chain works end to end — spec → generated Verilog → yosys →
+nextpnr → FASM → frames → bitstream → JTAG load → `Done = 1` → a value read off the die that
+matches what the FASM predicts. Every stage demonstrated, about a minute per run.
+
+**Not established:** anything about the φ-format's merit. What answered is a **classifier**,
+and its verdict is a liveness-and-integrity check, not a measurement of the number system. The
+format's own operators — `gft_sadd`, `gft_signed_mac`, `gft_signed_dot4` — are built and timed
+and **unread**.
+
+**The honest statement:** the path is proven and the classifier passes; the operators are
+built, timed, and unread. Next wave closes that with the same command and a different spec.
+
+Theorems **T822**, **T822a**; lessons **1481**, **1482**. **270 derived checks.**
