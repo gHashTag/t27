@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W966, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W967, 2026-08-21)
+
+> **W967 — THE SUBSTITUTION IS A CLASS: FIVE RIGS STILL BIND A RUNG'S NAME TO A NON-RUNG.**
+> `tri anomaly` checks record *shape* and can never see a name bound to the wrong object, so
+> **`tri rungs`** now resolves every `TNFFormat(…)` call to its width and rung across both
+> ladder versions. **34 instantiations, 5 standing alone**: `accuracy_coordinate`,
+> `accuracy_seeds`, `activations`, `conv`, `oracle_rtl` — all binding "TNF8" to `(4, 3)` at
+> 11 bits. Files that also instantiate `(3, 4)` are **labelled controls**, not defects.
+> **Damage splits by axis:** the census one inverted the area sign, the four accuracy ones
+> are within ±0.1 pp. **The tool's own first run was wrong** — regex over source text flagged
+> a file for a *comment* mentioning the substitution, and another for a line deleted two waves
+> ago; rewritten to walk the **AST**, 36/6 became 34/5. Both retracted flags were the tool's.
+> T812/T812a, lessons 1462/1463. **Readiness 76 %.**
 
 > **W966 — SAME GRID, TWO PER CENT DEARER; W965's "MORE VALUES" WAS SUBNORMALS.** TNF's
 > decoder flushes offset 0 to zero — **the format has no subnormals** — and the floats W965

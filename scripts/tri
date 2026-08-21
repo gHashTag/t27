@@ -79,6 +79,86 @@ case "$cmd" in
     exit 0
     ;;
 
+  rungs)
+    # W967: tri anomaly checks the SHAPE of records; it cannot see that a name is
+    # bound to the wrong object. That defect has cost this project two sign-flipped
+    # results (W954, W963), so it gets its own command: every TNFFormat(...) in every
+    # rig, resolved to its physical width and its rung -- or to "not a rung at all".
+    ORACLES="${T27_CONFORMANCE:-}"
+    if [ -z "$ORACLES" ]; then
+      for c in "$REPO_ROOT/conformance" "${TMPDIR:-/tmp}/oracles" \
+               "$(dirname "${TMPDIR:-/tmp}")"/*/scratchpad/oracles; do
+        [ -f "$c/tnf_ref.py" ] && { ORACLES="$c"; break; }
+      done
+    fi
+    [ -f "$ORACLES/tnf_ref.py" ] || {
+      echo "tri rungs: oracles not found; set T27_CONFORMANCE" >&2; exit 2; }
+    ORACLES="$ORACLES" SRC="${T27_RECORDS:-$REPO_ROOT/docs/reports/upstream}" python3 - <<'PYRUNGS'
+import os, re, sys, pathlib
+sys.path.insert(0, os.environ["ORACLES"])
+import tnf_ref as T
+
+SRC = pathlib.Path(os.environ["SRC"])
+LADDERS = {v: T.get_ladder(v) for v in (T.LADDERS if isinstance(T.LADDERS, dict) else {})}
+known = {}
+for ver, lad in LADDERS.items():
+    for rung, f in lad.items():
+        known.setdefault((f.exp_trits, f.mant_bits), []).append(f"TNF{rung}/{ver}")
+
+# W967: the first version grepped the source text and flagged struct966.py because a
+# COMMENT mentioned TNFFormat(4,3). A tool that reads prose as code produces exactly
+# the noise it was built to remove, so this walks the AST: only real calls count.
+import ast
+
+
+def instantiations(path):
+    try:
+        tree = ast.parse(path.read_text())
+    except SyntaxError:
+        return
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", None)
+        if name != "TNFFormat" or len(node.args) != 2:
+            continue
+        a, b = node.args
+        if isinstance(a, ast.Constant) and isinstance(b, ast.Constant) \
+                and isinstance(a.value, int) and isinstance(b.value, int):
+            yield a.value, b.value
+rows, bad = [], 0
+for f in sorted(SRC.glob("*.py")):
+    seen = set()
+    for et, mb in instantiations(f):
+        if (et, mb) in seen:
+            continue
+        seen.add((et, mb))
+        fmt = T.TNFFormat(et, mb)
+        w = fmt.sign_shift + 1
+        who = known.get((et, mb))
+        rows.append([f.name, et, mb, w, ", ".join(who) if who else "not a rung", bool(who)])
+    # A non-rung format is legitimate when the same file ALSO instantiates the true
+    # rung -- that is a labelled control, which is how W963-W966 measured the
+    # substitution deliberately. It is a defect only when it stands alone.
+    true8 = any(x[:3] == [f.name, 3, 4] for x in rows if x[0] == f.name)
+    for r in rows:
+        if r[0] == f.name and not r[5]:
+            r[4] = "not a rung, but a labelled control" if true8 else "NOT A RUNG -- stands alone"
+            if not true8:
+                bad += 1
+
+print(f"{'file':30} {'TNFFormat':>12} {'bits':>5}  rung")
+for name, et, mb, w, who, ok_ in rows:
+    mark = "" if ok_ or "control" in who else "  <-- "
+    print(f"{name[:30]:30} {f'({et}, {mb})':>12} {w:5d}  {mark}{who}")
+print(f"\ntri rungs: {len(rows)} instantiation(s), {bad} standing alone as a non-rung")
+print("A rung's NAME is not its object. Print (exp_trits, mant_bits) and the physical")
+print("width beside every figure, and never label a measurement by the rung alone.")
+raise SystemExit(1 if bad else 0)
+PYRUNGS
+    exit $?
+    ;;
   anomaly)
     # W955: every measurement defect this loop has hit left a signature in the record
     # itself. They are cheap to look for and expensive to miss, so they are a command.

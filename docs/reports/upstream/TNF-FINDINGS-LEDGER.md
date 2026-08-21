@@ -1404,3 +1404,46 @@ subnormals in scope should read chapter 34's table — and then charge the float
 normaliser.
 
 Theorem **T811**; lessons **1460**, **1461**. **208 derived checks.**
+
+---
+
+## 36. W967 — the substitution is a class, and the tool that finds it had to be rewritten
+
+`tri anomaly` checks the *shape* of records. It cannot see that a **name is bound to the
+wrong object** — the defect that inverted the area result and left the eighth rung
+unmeasured for eight waves. So that gets its own command.
+
+**`tri rungs`** resolves every `TNFFormat(…)` call in every rig to its physical width and to
+the rung it actually is, in **both** ladder versions, and distinguishes a bare substitution
+from a labelled control by whether the same file also instantiates the true rung.
+
+**Over the corpus: 34 instantiations, 5 standing alone as non-rungs.**
+
+| rig | instantiates | width | status |
+|---|---|---|---|
+| `accuracy_coordinate.py` | `(4, 3)` | 11 | **stands alone** |
+| `accuracy_seeds.py` | `(4, 3)` | 11 | **stands alone** |
+| `activations.py` | `(4, 3)` | 11 | **stands alone** |
+| `conv.py` | `(4, 3)` | 11 | **stands alone** |
+| `oracle_rtl.py` | `(4, 3)` | 11 | **stands alone** |
+| `census963.py`, `rung964.py` | `(4, 3)` + `(3, 4)` | 11, 10 | labelled control |
+
+**The damage is bounded and splits by axis.** For `oracle_rtl.py` the substitution
+**inverted the sign** of the area result (chapter 32). For the four accuracy rigs it is
+**near-harmless** (chapter 33, ±0.1 pp). One wrong conclusion; four figures approximately
+right about the wrong object.
+
+### The tool's own first run was wrong
+
+The first version matched `TNFFormat(…)` by regular expression over source text and flagged
+**two files wrongly**: `struct966.py`, because a *comment* in it mentions `TNFFormat(4,3)`
+while explaining the substitution, and `ladderrig.py`, for an occurrence deleted two waves
+earlier but still described in prose. Rewritten to walk the **AST**, the corpus went from a
+claimed 36 instantiations with 6 defects to an actual **34 with 5**.
+
+**Both retracted flags belonged to the tool.** The failure mode is worth naming: text
+matching finds the thing being *discussed* as readily as the thing being *done*, so in a
+codebase whose comments document its own defects — as this one's now do — the false-positive
+rate **rises with the quality of the documentation**.
+
+Theorems **T812**, **T812a**; lessons **1462**, **1463**.

@@ -29645,6 +29645,58 @@ and not the *definition*; the definition is mine, chosen to match TNF's own zero
 infinity handling. A reader who thinks subnormals should be in scope should read the T810
 table instead — and then also charge the float for the normaliser.
 
+### T812 — The substitution is a class, not an incident: five rigs still bind a rung's name to a non-rung
+
+**Why a command and not a reading.** `tri anomaly` checks the *shape* of records — zero
+readings, flat fits, twins, short arms. It cannot see that a **name is bound to the wrong
+object**, which is the defect that inverted the area result (T808) and left the eighth rung
+unmeasured for eight waves (T805). That deserves its own instrument, so `tri rungs` resolves
+every `TNFFormat(…)` call in every rig to its physical width and to the rung it actually is —
+across **both** ladder versions.
+
+**Result over the whole corpus: 34 instantiations, of which 5 stand alone as non-rungs.**
+
+| rig | instantiates | width | status |
+|---|---|---|---|
+| `accuracy_coordinate.py` | `(4, 3)` | 11 | **not a rung, stands alone** |
+| `accuracy_seeds.py` | `(4, 3)` | 11 | **not a rung, stands alone** |
+| `activations.py` | `(4, 3)` | 11 | **not a rung, stands alone** |
+| `conv.py` | `(4, 3)` | 11 | **not a rung, stands alone** |
+| `oracle_rtl.py` | `(4, 3)` | 11 | **not a rung, stands alone** |
+| `census963.py`, `rung964.py` | `(4, 3)` + `(3, 4)` | 11, 10 | not a rung, but a **labelled control** |
+
+**The distinction matters and the tool makes it.** A non-rung format is legitimate when the
+same file also instantiates the true rung — that is how W963–W966 measured the substitution
+deliberately. It is a defect only when it stands alone, which is what "TNF8" means in those
+five files.
+
+**The damage is bounded and already known per axis.** For `oracle_rtl.py` the substitution
+**inverted the sign** of the area result (T808: true rung 0.9 % cheaper, substitute 5.0 %
+dearer). For the four accuracy rigs it is **near-harmless** (T809: ±0.1 pp). So the corpus
+splits cleanly: one wrong conclusion, four figures that are approximately right about the
+wrong object.
+
+**General form.** A name bound to an object in a table is not a label — **it is the
+experiment**. Any figure carrying a rung's name must also carry the `(exp_trits, mant_bits)`
+pair and the physical width that produced it, because those are checkable and the name is
+not.
+
+### T812a — A tool that reads prose as code produces the noise it was built to remove
+
+The first `tri rungs` matched `TNFFormat(…)` with a regular expression over the source text
+and flagged `struct966.py` — because a **comment** in that file mentions `TNFFormat(4,3)`
+while explaining the substitution. It also flagged `ladderrig.py` for an occurrence removed
+two waves earlier, still present in prose.
+
+Rewritten to walk the **AST**, only real calls with two integer literals count: the corpus
+goes from a claimed 36 instantiations with 6 defects to an actual **34 with 5**. Both
+retracted flags were the tool's, not the code's.
+
+**Statement.** An auditing tool must parse what the machine parses. Text matching over
+source finds the thing being *discussed* as readily as the thing being *done*, and in a
+codebase whose comments document its own defects — as this one's now do — the false-positive
+rate rises with the quality of the documentation.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
