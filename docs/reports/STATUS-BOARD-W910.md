@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W974, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W975, 2026-08-22)
+
+> **W975 — THE FORMAT'S SIGNED MAC FAILS ON SILICON WHILE PASSING EVERY TEST IT HAS.** Same
+> bench, control satisfied (a foreign bitstream forced **`Done=0`** first). `gft_sadd`: **3/3**
+> in simulation, **`clauses=1111`, `ok=1`** on the die. `gft_signed_mac`: **2/2** in simulation,
+> **`clauses=0011`, `ok=0`**, **`beat=1`** — loaded, alive, **answering incorrectly**. Timing is
+> not the explanation: **9.14 MHz against a 2.21 MHz target, 4.1× margin.** **The sharper
+> finding is about the tests:** the MAC ships **two** simulation tests; its die check evaluates
+> **four** clauses, and the two that fail are **not covered in simulation**. **Not "the
+> simulator lies" — a coverage gap made visible by hardware**, found after synthesis, PnR,
+> bitstream and a physical load. **L4 is satisfied by *having* tests, not by their matching the
+> project's own stronger oracle.** Remedy is free: derive the sim tests from the die clauses.
+> T823/T823a, lessons 1483/1484, **281 derived checks**. **Readiness 88 %.**
 
 > **W974b — THE SILICON ANSWERED.** On `xc7a200tfbg676-1`, IDCODE `0x3636093`, board `1:5`:
 > **`Done = 1`** and **`0xa5a5a5a7`** read back through `USER2` — magic `0xA5A5A5A`, **`ok=1`,

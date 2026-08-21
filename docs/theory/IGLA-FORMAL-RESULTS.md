@@ -30097,6 +30097,58 @@ passes; the format's operators are built and timed but unread. That is a much na
 than "the hardware axis is done", and the distinction is worth keeping because the next wave
 can close it with the same command and a different spec.
 
+### T823 — The format's signed MAC fails on silicon while passing every test it has
+
+**Both operators, same bench, same session, same toolchain, with the control satisfied:**
+
+| operator | simulation | LUT | Fmax | on-die clauses | `ok` |
+|---|---|---|---|---|---|
+| `gft_sadd` | **3 / 3 passed** | 1 312 | 18.24 MHz | **`1111`** | **1** |
+| `gft_signed_mac` | **2 / 2 passed** | 6 466 | 9.14 MHz | **`0011`** | **0** |
+
+The control is not decoration: a **foreign bitstream forced `Done` to 0** before ours brought
+it to 1, so `Done = 1` afterwards means the die was genuinely reprogrammed. `beat = 1` in both
+reads: the design is **alive and clocking**. The MAC is loaded, running, and **answering
+incorrectly**.
+
+**Timing is not the obvious explanation.** The MAC closed at **9.14 MHz against a 2.21 MHz
+target — 4.1× margin**. A design failing two clauses at a quarter of its achievable frequency
+is not a straightforward setup violation.
+
+**But the sharper finding is about the tests, not the silicon.** The MAC's spec ships **two**
+simulation tests and both pass. Its on-die check evaluates **four** clauses, and two of them
+are false. **The die check is stronger than the suite the spec carries** — the failing clauses
+are simply not covered in simulation.
+
+**So this is not "the simulator lies".** It is a **coverage gap made visible by hardware**: the
+spec was never asked, in simulation, the questions that hardware answers wrongly. `gft_sadd`,
+by contrast, carries three tests and satisfies all four clauses — its suite and its die check
+agree because its behaviour is correct in both.
+
+**Consequence for L4 (TESTABILITY).** A spec satisfies L4 by containing `test`/`invariant`/
+`bench`. `gft_signed_mac` does — and its tests are **weaker than the check the same project
+runs on the die**. Passing one's own tests is therefore not evidence of correctness when a
+stronger oracle exists in the same repository, and the ladder's central arithmetic operator is
+the case that demonstrates it.
+
+**What must not be concluded.** Not that the φ-format is arithmetically wrong — the failure is
+in *this implementation* of one operator, on one part, with one toolchain. Not that `sadd`
+being green vindicates the format; it establishes only that the path and the reader are sound,
+which is what makes the MAC's red meaningful.
+
+### T823a — The strongest oracle in the repository should be the one the spec is tested against
+
+The asymmetry is exact and worth stating on its own: **four clauses on the die, two tests in
+the spec.** Whoever wrote the on-die check knew two more things about correct behaviour than
+whoever wrote the simulation suite, and nothing in the pipeline forced those to be the same
+set.
+
+**A project that owns two oracles of unequal strength and runs the weak one first will
+discover its defects last, and at the most expensive point** — here, after synthesis,
+place-and-route, bitstream generation and a physical load. The remedy costs nothing: derive
+the simulation tests from the on-die clauses, so the cheap oracle asks every question the
+expensive one does.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

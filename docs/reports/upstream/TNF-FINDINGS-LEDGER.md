@@ -1774,3 +1774,47 @@ and **unread**.
 built, timed, and unread. Next wave closes that with the same command and a different spec.
 
 Theorems **T822**, **T822a**; lessons **1481**, **1482**. **270 derived checks.**
+
+---
+
+## 44. W975 — the format's signed MAC fails on silicon while passing every test it has
+
+Both operators, same bench, same session, same toolchain, **with the control satisfied**:
+
+| operator | simulation | LUT | Fmax | on-die clauses | `ok` |
+|---|---|---|---|---|---|
+| `gft_sadd` | **3 / 3 passed** | 1 312 | 18.24 MHz | **`1111`** | **1** |
+| `gft_signed_mac` | **2 / 2 passed** | 6 466 | 9.14 MHz | **`0011`** | **0** |
+
+The control is not decoration: a **foreign bitstream forced `Done` to 0** before ours brought
+it to 1, so `Done = 1` afterwards means the die genuinely reprogrammed. **`beat = 1`** in both
+reads — the MAC is loaded, clocking, and **answering incorrectly**.
+
+**Timing is not the obvious explanation:** the MAC closed at **9.14 MHz against a 2.21 MHz
+target — 4.1× margin.**
+
+### The sharper finding is about the tests
+
+The MAC's spec ships **two** simulation tests and both pass. Its on-die check evaluates
+**four** clauses and two are false. **The die check is stronger than the suite the spec
+carries**, and the failing clauses are simply not covered in simulation.
+
+**So this is not "the simulator lies" — it is a coverage gap made visible by hardware**, found
+at the most expensive possible point: after synthesis, place-and-route, bitstream generation
+and a physical load. `gft_sadd` carries three tests and satisfies all four clauses; its suite
+and its die check agree because its behaviour is correct in both.
+
+**Consequence for L4.** A spec satisfies TESTABILITY by *containing* `test`/`invariant`/`bench`.
+`gft_signed_mac` does — and its tests are weaker than a check the same project already runs.
+**Passing one's own tests is not evidence of correctness when a stronger oracle exists in the
+same repository.**
+
+**What must not be concluded.** Not that the φ-format is arithmetically wrong: the failure is
+in *this implementation* of one operator, on one part, with one toolchain. Not that `sadd`
+being green vindicates the format — it establishes that the path and the reader are sound,
+which is exactly what makes the MAC's red meaningful.
+
+**The free remedy:** derive the simulation tests **from** the on-die clauses, so the cheap
+oracle asks every question the expensive one does.
+
+Theorems **T823**, **T823a**; lessons **1483**, **1484**. **281 derived checks.**
