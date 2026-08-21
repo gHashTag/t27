@@ -20,23 +20,44 @@ jobs:
     container:
       image: coqorg/coq:8.19-ocaml-4.14-flambda
       options: --user root
+    # This image ships a fully initialised opam root, but it belongs to the
+    # image's `coq` user and lives at /home/coq/.opam. `--user root` above makes
+    # HOME=/root, so a bare `opam` looked for /root/.opam, found nothing, and
+    # exited 50 with "Opam has not been initialised" -- on every run since the
+    # workflow was added. Point every step at the root that actually exists.
+    #
+    # Deliberately NOT `opam init`: a fresh root has no Coq in it, so
+    # `opam install coq-flocq` would rebuild the whole compiler, and the coqc /
+    # coqchk already on PATH would still come from the image's switch. Reusing
+    # the image's root also inherits its sandbox-disabled config, which is what
+    # `--disable-sandboxing` would otherwise be needed for.
+    env:
+      OPAMROOT: /home/coq/.opam
     steps:
       - uses: actions/checkout@v6
 
       - name: Install Flocq (opam)
         run: |
+          set -eux
+          # Echo which root/switch resolved, so a future failure here says why
+          # instead of just exiting 50.
+          opam var root
+          opam switch list
           opam update -y
           opam install -y coq-flocq
 
       - name: Build coq/ (T27 + Flocq)
         run: |
+          set -eux
           eval $(opam env)
+          coqc --version
           cd coq
           coq_makefile -f _CoqProject -o CoqMakefile
           make -f CoqMakefile -j$(nproc)
 
       - name: coqchk PhiFloat (consistency)
         run: |
+          set -eux
           eval $(opam env)
           cd coq
           coqchk -silent -R . T27 T27.Kernel.PhiFloat
@@ -46,7 +67,14 @@ jobs:
 
       - name: Build t27c and validate phi f64 parameters
         run: |
-          cd bootstrap && cargo build --release
+          set -eux
+          # `bootstrap` is a member of the ROOT cargo workspace, so the binary
+          # lands in the workspace target dir at the repo root -- never in
+          # bootstrap/target/. The old `cd bootstrap && cargo build --release`
+          # followed by `./target/release/t27c` resolved to
+          # bootstrap/target/release/t27c, which cannot exist (exit 127). This
+          # step had never once executed, so the bad path was never observed.
+          cargo build --release -p t27c
           ./target/release/t27c validate-phi
 
       - name: Verify Kernel PHI layer has no Admitted
