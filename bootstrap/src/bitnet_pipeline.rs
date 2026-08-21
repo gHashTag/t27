@@ -158,10 +158,23 @@ pub fn build_layer_sequencer(module_name: &str) -> String {
     out.push_str("        end else case(state)\n");
     out.push_str("            IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end\n");
     out.push_str("            RUN: begin\n");
+    out.push_str("                // ZERO-COUNT GUARD. Both terminators are `== count-1` compares against\n");
+    out.push_str("                // an unsigned input port, and the literal `1` makes each subtraction\n");
+    out.push_str("                // 32 bits wide, so a zero count borrows to 32'hFFFFFFFF while the\n");
+    out.push_str("                // index zero-extends. Neither `neuron_id==num_neurons-1` nor\n");
+    out.push_str("                // `chunk_id==num_chunks-1` can then ever match, whatever the index\n");
+    out.push_str("                // counts up to, so the FSM never leaves RUN and keeps asserting\n");
+    out.push_str("                // `valid` for work nobody asked for.\n");
+    out.push_str("                // Zero neurons or zero chunks is zero work: retire straight to DONE_ST\n");
+    out.push_str("                // with `valid` low, which is what keeps the safety bound\n");
+    out.push_str("                // `valid |-> neuron_id < num_neurons && chunk_id < num_chunks` true.\n");
+    out.push_str("                if(num_neurons==0 || num_chunks==0) begin valid<=0; state<=DONE_ST; end\n");
+    out.push_str("                else begin\n");
     out.push_str("                valid<=1; first_chunk<=(chunk_id==0); last_chunk<=(chunk_id==num_chunks-1);\n");
     out.push_str("                if(chunk_id==num_chunks-1) begin chunk_id<=0;\n");
     out.push_str("                    if(neuron_id==num_neurons-1) state<=DONE_ST; else neuron_id<=neuron_id+1;\n");
     out.push_str("                end else chunk_id<=chunk_id+1;\n");
+    out.push_str("                end\n");
     out.push_str("            end\n");
     out.push_str("            DONE_ST: begin valid<=0; done<=1; state<=IDLE; end\n");
     out.push_str("        endcase\n");
@@ -401,6 +414,70 @@ mod tests {
         // The buggy form (no done<=0 in IDLE) must not be present.
         assert!(!v.contains("IDLE: if(start) begin state<=RUN;"),
             "old buggy IDLE form must be gone; got:\n{v}");
+    }
+
+    /// Return the RUN-state zero-count guard line from an emitted sequencer.
+    ///
+    /// Selected by all three of: it is an `if(` line, it retires to `DONE_ST`,
+    /// and it drops `valid`. That triple is unique -- `DONE_ST: begin valid<=0;`
+    /// does not branch to `DONE_ST`, and the `neuron_id==num_neurons-1`
+    /// terminator does not touch `valid` -- so these tests cannot be satisfied
+    /// by some other line that merely happens to mention `DONE_ST`.
+    fn sequencer_zero_guard_line(v: &str) -> &str {
+        v.lines()
+            .find(|l| {
+                l.trim_start().starts_with("if(")
+                    && l.contains("state<=DONE_ST;")
+                    && l.contains("valid<=0;")
+            })
+            .unwrap_or_else(|| panic!("no RUN-state zero-count guard line in:\n{v}"))
+    }
+
+    #[test]
+    fn sequencer_run_guards_zero_neurons() {
+        let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
+        let guard = sequencer_zero_guard_line(&v);
+        assert!(
+            guard.contains("num_neurons==0"),
+            "RUN-state zero-count guard must test num_neurons==0; without it \
+             `neuron_id==num_neurons-1` compares against 32'hFFFFFFFF and the \
+             FSM never reaches DONE_ST. Guard line was:\n{guard}"
+        );
+    }
+
+    #[test]
+    fn sequencer_run_guards_zero_chunks() {
+        let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
+        let guard = sequencer_zero_guard_line(&v);
+        assert!(
+            guard.contains("num_chunks==0"),
+            "RUN-state zero-count guard must test num_chunks==0; without it \
+             `chunk_id==num_chunks-1` compares against 32'hFFFFFFFF, which no \
+             8-bit chunk_id can equal, so the FSM never reaches DONE_ST. Guard \
+             line was:\n{guard}"
+        );
+    }
+
+    /// The guard is only worth anything if it runs *before* the compares it
+    /// protects. Pins the ordering so the guard cannot be demoted into dead
+    /// text below the arithmetic it is supposed to dominate.
+    #[test]
+    fn sequencer_zero_guard_dominates_the_compares() {
+        let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
+        let guard_at = v
+            .find("if(num_neurons==0 || num_chunks==0)")
+            .unwrap_or_else(|| panic!("zero-count guard missing entirely:\n{v}"));
+        let valid_at = v
+            .find("valid<=1; first_chunk<=")
+            .unwrap_or_else(|| panic!("RUN-state work block missing:\n{v}"));
+        let term_at = v
+            .find("if(neuron_id==num_neurons-1) state<=DONE_ST;")
+            .unwrap_or_else(|| panic!("neuron terminator missing:\n{v}"));
+        assert!(
+            guard_at < valid_at && guard_at < term_at,
+            "zero-count guard must precede both `valid<=1` (at {valid_at}) and \
+             the neuron terminator (at {term_at}), but sits at {guard_at}"
+        );
     }
 
     #[test]
