@@ -19,7 +19,7 @@ module TriQuadtree;
 
     pub const QuadNode = struct {
         boundary : "Rect",
-        children : [[4]?QuadNode],
+        children : [4]?QuadNode,
         points : [][2]f64,
         divided : "bool",
         allocator : "std.mem.Allocator",

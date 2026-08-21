@@ -11,8 +11,8 @@ module TriSha256;
     // ═══════════════════════════════════════════════════════════
 
     pub const SHA256 = struct {
-        state : [[8]U32],
-        buffer : [[64]U8],
+        state : [8]u32,
+        buffer : [64]u8,
         count : "u64",
     };
 
