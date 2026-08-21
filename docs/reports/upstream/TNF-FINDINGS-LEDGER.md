@@ -996,3 +996,59 @@ version of it is ever typed by hand again.
 
 Theorems **T801**, **T802**; lessons **1443**, **1444**. **62 derived checks.**
 Corrections sixteen and seventeen, still with no outside referee.
+
+---
+
+## 28. W952 — range is a bill presented at the accumulator
+
+Every cell census this project ever ran priced a **decoder**: code in, the format's own
+encoded value out. On that basis TNF4 is 51.29 cells against 50.29 — **2 % dearer**. An
+inference datapath also multiplies and accumulates, and those widths are set by the
+dynamic range that this project spent eight waves calling its advantage.
+
+### The widths are forced, and computed exactly
+
+Every grid value must be representable, so the fixed-point width follows from the grid:
+
+| format | binades | bits/value | bits/product | block-32 accumulator |
+|---|---|---|---|---|
+| TNF4 | 14.58 | **17** | **33** | **38** |
+| `fp6 e3m2` | 8.81 | 10 | 19 | 24 |
+| `fp6 e2m3` | 5.91 | **7** | **13** | **18** |
+
+### Measured, two ways, on purpose
+
+**A fixed-point MAC lane** — decode two codes, multiply, accumulate — replicated, cost as
+the slope of `cells(N) = fixture + cost·N`, fixture exactly 0 and R² exactly 1:
+
+| format | cells per lane | MUXF7/8 |
+|---|---|---|
+| TNF4 | **768.00** | 120 |
+| `fp6 e3m2` | 308.00 | 71 |
+| `fp6 e2m3` | **159.00** | 46 |
+
+**TNF4 costs 4.83× an `fp6 e2m3` lane.** But that is one datapath style, and the one most
+punishing to wide range.
+
+**The accumulator alone** is forced by arithmetic, not design — 48 / 30 / 23 cells for 38
+/ 24 / 18 bits. Amortised over the 32 elements sharing it: **+0.78 cells per element**,
+about **+1.5 %** on a ~51-cell decoder.
+
+### The honest form is a bracket
+
+**The silicon cost of range spans +1.5 % to +383 %, depending on the datapath.** Both ends
+are real designs. The published "2 % dearer" prices neither — it prices a component. The
+missing third point is the **float-style lane** (mantissa multiply, exponent add, align),
+which is what an MX engine most likely builds; until it is measured, quoting **4.83×**
+alone would repeat exactly the error the 2 % figure made.
+
+Taken with W949–W951: at block 32 the range buys **no accuracy** (3.46× worse RMS, T798b)
+and **no stability** (the failures were the learned scale, T800), and here it is shown to
+**cost width**. Range is not a free property of a lattice.
+
+A rig defect worth recording: the first synthesis run passed `-q` to yosys, which
+suppresses the `stat` block, and the parser read the silence as **zero cells** — four
+zeros fitting a perfect line, R² = 1.00000, the same signature as lesson 1407. The rig now
+refuses a reading of zero instead of fitting a line through it.
+
+Theorems **T803**, **T803a**; lessons **1446**, **1447**. **80 derived checks.**

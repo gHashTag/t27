@@ -29213,6 +29213,70 @@ a badly-behaved recipe. It is not a statement about deployment, because the reci
 produces the failures is not one anybody deploys, and under the one that is deployed the
 φ-lattice is at parity (block 32) or measurably behind (per-tensor, T800).
 
+### T803 — Dynamic range is not free in silicon; it is paid in datapath width
+
+**What every cell census in this project priced.** A *decoder*: code in, the format's
+own encoded value out. On that basis TNF4 came to 51.29 cells against a same-width
+float's 50.29 — **2 % dearer**. No census here has ever priced the thing an inference
+datapath actually contains.
+
+**What range forces.** Every grid value must be exactly representable, so the fixed-point
+width is fixed by the grid itself. Computed exactly from the enumerated grids (smallest
+power of two dividing every value, against the largest value):
+
+| format | binades | bits per value | bits per product | block-32 accumulator |
+|---|---|---|---|---|
+| TNF4 | 14.58 | **17** | **33** | **38** |
+| `fp6 e3m2` | 8.81 | 10 | 19 | 24 |
+| `fp6 e2m3` | 5.91 | **7** | **13** | **18** |
+
+**Measurement 1 — a fixed-point MAC lane** (decode two codes, multiply, accumulate at
+block width), replicated, cost as the slope of `cells(N) = fixture + cost·N`:
+
+| format | LUT1–6 + CARRY4 per lane | MUXF7/8 | fixture | R² |
+|---|---|---|---|---|
+| TNF4 | **768.00** | 120 | 0.0 | 1.00000 |
+| `fp6 e3m2` | 308.00 | 71 | 0.0 | 1.00000 |
+| `fp6 e2m3` | **159.00** | 46 | 0.0 | 1.00000 |
+
+TNF4 costs **4.83×** an `fp6 e2m3` lane and **2.49×** an `fp6 e3m2` lane. The fixture is
+exactly zero and R² exactly 1: the lanes are independent, so the slope is the whole cost.
+
+**Measurement 2 — the part no implementation escapes.** Measurement 1 prices *one*
+datapath style, and it is the style most punishing to a wide-range format; a float-style
+lane would multiply small mantissas and add exponents instead. What is forced by
+arithmetic rather than by design is the accumulator: to sum 32 products without loss it
+must span `2·binades + 5` bits.
+
+| format | accumulator | cells |
+|---|---|---|
+| TNF4 | 38 bits | **48.00** |
+| `fp6 e3m2` | 24 bits | 30.00 |
+| `fp6 e2m3` | 18 bits | **23.00** |
+
+Amortised over the 32 elements sharing it, TNF4's accumulator costs **+0.78 cells per
+element** over `fp6 e2m3` — about **+1.5 %** on top of a ~51-cell decoder.
+
+**Statement.** The silicon cost of dynamic range spans **+1.5 % to +383 %** depending on
+the datapath: negligible if only the accumulator widens, severe if the decoded value is
+materialised in fixed point and multiplied there. **Both ends are real designs**, and the
+project's published "2 % dearer" prices neither — it prices a decoder in isolation.
+
+**Consequence.** A format's cost claim is meaningless without naming the datapath it is
+claimed for, and a wide-range format must state that its range is paid for downstream.
+This is the mirror of T798b: at block 32 the range buys no accuracy (3.46× worse RMS) and
+here it is shown to cost width. **Range is not a free property of a lattice. It is a bill
+presented at the accumulator.**
+
+### T803a — What is still missing, named
+
+The float-style lane — decode to (sign, exponent, mantissa), multiply mantissas, add
+exponents, align, accumulate — is **not measured**. It is the third point that would turn
+the bracket above into a number, and it is the implementation an MX-style engine most
+likely uses. Until it exists, the honest form of T803 is the bracket, and quoting **4.83×**
+alone would repeat exactly the error the 2 %-dearer figure made: pricing one component and
+presenting it as the cost of the format.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

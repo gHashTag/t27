@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W951, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W952, 2026-08-21)
+
+> **W952 — RANGE IS A BILL PRESENTED AT THE ACCUMULATOR.** Every census here priced a
+> *decoder* (2 % dearer). A datapath also multiplies and accumulates, and range forces the
+> width: TNF4 needs **17** bits per value, **33** per product, a **38-bit** block-32
+> accumulator, against `fp6 e2m3`'s **7 / 13 / 18**. Measured: a fixed-point MAC lane costs
+> **768 cells against 159 — 4.83×** (fixture 0.0, R² 1.00000). The part no implementation
+> escapes — the accumulator — is **48 vs 23**, i.e. **+0.78 cells/element** amortised over
+> 32, about **+1.5 %**. **So the honest answer is a bracket: +1.5 % … +383 %**, and the
+> float-style lane that would pin it is **not measured** — quoting 4.83× alone would repeat
+> the error the 2 % figure made. With W949–W951: at block 32 range buys no accuracy and no
+> stability, and costs width. Rig defect caught: `yosys -q` silenced `stat`, and four zeros
+> fitted a perfect line (R² = 1.00000) — the rig now refuses a zero reading. T803/T803a,
+> lessons 1446/1447, **80 derived checks**. **Readiness 66 %.**
 
 > **W951 — SATURATION OBSERVED, THE SWEEP REDONE, A PROXY RETIRED.** The mechanism is
 > now measured, not inferred: the rig logs `max|x|/s / max(grid)` directly. **Everything
