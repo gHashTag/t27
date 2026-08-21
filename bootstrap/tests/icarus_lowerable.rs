@@ -6314,6 +6314,132 @@ fn accepts_w889_bench_module_597x2p6_aos_var_call_write() {
 }
 
 #[test]
+fn accepts_w890_bench_module_599x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w890_bench_module_599x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W890 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w891_bench_module_601x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w891_bench_module_601x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W891 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w892_bench_module_603x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w892_bench_module_603x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W892 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w893_bench_module_605x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w893_bench_module_605x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W893 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w894_bench_module_607x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w894_bench_module_607x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W894 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w895_bench_module_609x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w895_bench_module_609x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W895 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w896_bench_module_611x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w896_bench_module_611x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W896 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
@@ -6431,4 +6557,36 @@ fn corpus_classifier_matches_lean_completeness() {
         "expected at least 245 corpus agreement checks, got {}",
         checked
     );
+}
+
+#[test]
+fn accepts_w897_bench_module_613x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &["w897_bench_module_613x2p6_aos_var_call_write.t27"] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W897 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w898_bench_module_615x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &["w898_bench_module_615x2p6_aos_var_call_write.t27"] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W898 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
 }
