@@ -65,7 +65,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build t27c and validate phi f64 parameters
+      - name: Build t27c and validate the L5 phi identity
         run: |
           set -eux
           # `bootstrap` is a member of the ROOT cargo workspace, so the binary
@@ -74,8 +74,23 @@ jobs:
           # followed by `./target/release/t27c` resolved to
           # bootstrap/target/release/t27c, which cannot exist (exit 127). This
           # step had never once executed, so the bad path was never observed.
+          #
+          # The subcommand is `validate-phi-identity`. `validate-phi` has never
+          # existed in t27c, and clap exited 2 on it the very first time this
+          # step ran at all -- run 32477122735, once #2320 unblocked step 4 and
+          # #2322 unblocked step 5.
+          #
+          # The step is named for what that subcommand actually checks: the L5
+          # invariant phi^2 + phi^-2 = 3 evaluated in f64. It does NOT check the
+          # binary64 mantissa/exponent literals in coq/Kernel/PhiFloat.v, which
+          # the old name ("validate phi f64 parameters") promised.
+          # scripts/validate_phi_f64.py prints those parameters but asserts
+          # nothing about the Coq file and always exits 0, so no gate compares
+          # the two. Renaming the step to match the weaker check it performs is
+          # deliberate: the missing comparison is tracked in #2324, not hidden
+          # behind a name that overstates it.
           cargo build --release -p t27c
-          ./target/release/t27c validate-phi
+          ./target/release/t27c validate-phi-identity
 
       - name: Verify Kernel PHI layer has no Admitted
         run: |
