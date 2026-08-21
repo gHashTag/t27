@@ -29597,6 +29597,54 @@ on area and accuracy. Rung 16: strictly dominated on the grid's own terms. The p
 across three rungs is that the φ-lattice buys a particular (range, density) point that an
 exponent field reaches at equal width — and above ten bits it reaches it *better*.
 
+### T811 — Measured structurally against a float in its own discipline, the φ-lattice offers the same grid and costs 2 % more; T810's "more values" was an artefact of subnormals
+
+**What T810 claimed.** At rung sixteen a range-matched float has the rung's `(odd, shift)`
+pair, hence the same lane cost, while carrying **more distinct values** and **more range** —
+strict domination. The cost half was a *prediction* from T807; the value counts were exact.
+**Both halves are now corrected by measurement, and the result gets sharper, not weaker.**
+
+**The discipline matters, and it was not matched.** The TNF decoder maps offset 0 straight
+to zero — the format has **no subnormals**. The floats T810 compared against did have them.
+Subnormals are what gave the float its extra values, and they are not free: representing
+them requires a leading-zero normaliser the rung never pays for. **T810 therefore priced a
+design choice as a property of the lattice.**
+
+**Rebuilt in TNF's own discipline** — offset 0 flushes to zero, offset all-ones is inf/NaN,
+otherwise `1.m · 2^(off−bias)` — and priced with the project's structural rig, every code
+verified:
+
+| format | bits | distinct values | binades | decoder | consumer |
+|---|---|---|---|---|---|
+| **TNF16 v2-spec** `(4,11)` | 19 | **516 097** | **127.00** | **27.00** | **450.29** |
+| `fp19 e7m11` FTZ | 19 | **516 096** | **126.00** | **18.00** | **441.29** |
+| `fp19 e6m12` FTZ | 19 | 507 904 | 62.00 | 22.00 | 445.29 |
+| **TNF8** `(3,4)` | 10 | **961** | **30.95** | **18.00** | **230.57** |
+| `fp10 e5m4` FTZ | 10 | **960** | **29.95** | **13.00** | **225.57** |
+
+**Statement.** Against a float built in its own discipline and matched on range, the
+φ-lattice's grid is **the same grid**: 516 097 values against 516 096, 127.00 binades
+against 126.00 at nineteen bits; 961 against 960 and 30.95 against 29.95 at ten. The
+difference in what the two formats *offer* is one value and one binade. **The difference in
+what they cost is 2.0 % and 2.2 %**, and it sits in the decoder — **27.00 cells against
+18.00**, and **18.00 against 13.00** — where TNF's offset-max sentinel and bias constant
+buy nothing the float does not already have.
+
+**This is a stronger negative result than T810's.** "Dominated on three axes" invited the
+reply that the axes were unmatched — and they were. "Same grid, 2 % dearer to decode" does
+not, because the grids are now equal by construction and the cost is measured, not
+predicted.
+
+**Cross-validation.** TNF16's structural consumer cost reproduces the W942 record exactly —
+**450.29** against 450.286 — from an independently launched run, over the same 524 288
+verified codes.
+
+**Limit of the comparison, stated.** The FTZ float's Verilog is checked against a Python
+reference of the same FTZ semantics over every code, which validates the *transliteration*
+and not the *definition*; the definition is mine, chosen to match TNF's own zero and
+infinity handling. A reader who thinks subnormals should be in scope should read the T810
+table instead — and then also charge the float for the normaliser.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

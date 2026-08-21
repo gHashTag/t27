@@ -1358,3 +1358,49 @@ table over 2¹⁹ codes is not buildable.
 | **16** (17/19 bits) | **strictly dominated** | — | — |
 
 Theorem **T810**; lessons **1458**, **1459**. **185 derived checks.**
+
+---
+
+## 35. W966 — same grid, two per cent dearer; and W965's "more values" was subnormals
+
+W965 called rung sixteen strictly dominated: a range-matched float with the rung's
+`(odd, shift)` pair, hence the same lane cost, but **more values and more range**. The cost
+half was a prediction; the value counts were exact. **Both are now corrected by
+measurement, and the result sharpens.**
+
+### The discipline was not matched
+
+TNF's own decoder maps offset 0 straight to zero — **the format has no subnormals**. The
+floats W965 compared against did. Subnormals are what gave the float its extra values, and
+they are not free: they need a leading-zero normaliser the rung never pays for. **W965
+priced a design choice as a property of the lattice.**
+
+### Rebuilt in TNF's own discipline, priced structurally, every code verified
+
+| format | bits | distinct values | binades | decoder | consumer |
+|---|---|---|---|---|---|
+| **TNF16 v2-spec** `(4,11)` | 19 | **516 097** | **127.00** | **27.00** | **450.29** |
+| `fp19 e7m11` FTZ | 19 | **516 096** | **126.00** | **18.00** | **441.29** |
+| `fp19 e6m12` FTZ | 19 | 507 904 | 62.00 | 22.00 | 445.29 |
+| **TNF8** `(3,4)` | 10 | **961** | **30.95** | **18.00** | **230.57** |
+| `fp10 e5m4` FTZ | 10 | **960** | **29.95** | **13.00** | **225.57** |
+
+**The grids are the same grid.** One value and one binade apart at nineteen bits; one value
+and one binade apart at ten. **What differs is cost: +2.0 % and +2.2 %**, and it sits in the
+**decoder** — 27.00 cells against 18.00, and 18.00 against 13.00 — where TNF's offset-max
+sentinel and bias constant buy nothing the float lacks.
+
+**This negative result is stronger than W965's.** "Dominated on three axes" invited the
+reply that the axes were unmatched, and they were. "Same grid, two per cent dearer to
+decode" does not.
+
+**Cross-validated:** TNF16's structural cost reproduces the W942 record **exactly** —
+450.29 against 450.286 — from an independently launched run over the same 524 288 codes.
+
+**Limit stated.** The FTZ float's Verilog is verified against a Python reference of the same
+semantics over every code, which validates the transliteration, not the definition. The
+definition is ours, chosen to match TNF's zero and infinity handling. A reader who wants
+subnormals in scope should read chapter 34's table — and then charge the float for the
+normaliser.
+
+Theorem **T811**; lessons **1460**, **1461**. **208 derived checks.**

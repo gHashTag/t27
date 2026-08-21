@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W965, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W966, 2026-08-21)
+
+> **W966 — SAME GRID, TWO PER CENT DEARER; W965's "MORE VALUES" WAS SUBNORMALS.** TNF's
+> decoder flushes offset 0 to zero — **the format has no subnormals** — and the floats W965
+> compared against did. That is where the float's extra values came from, and it is not free:
+> subnormals need a leading-zero normaliser the rung never pays for. **W965 priced a design
+> choice as a property of the lattice.** Rebuilt with the float in TNF's own discipline and
+> priced structurally over **every code**: TNF16 **516 097** values / **127.00** binades /
+> **450.29** cells against `fp19 e7m11`'s **516 096** / **126.00** / **441.29** — **+2.0 %**.
+> At ten bits TNF8 `(3,4)` is **961**/**30.95**/**230.57** against **960**/**29.95**/**225.57**
+> — **+2.2 %**. **The grids are the same grid; the gap is in the decoder** (27 vs 18, 18 vs
+> 13). A stronger negative result than W965's, because "same grid, 2 % dearer" cannot be
+> answered with "your axes were unmatched". TNF16 reproduces the W942 record **exactly**.
+> T811, lessons 1460/1461, **208 derived checks**. **Readiness 75 %.**
 
 > **W965 — RUNG SIXTEEN IS STRICTLY DOMINATED, AND THE GRIDS ALONE SAY SO.** No training,
 > no synthesis. Factoring every grid value as `odd · 2^s` gives the pair that T807 showed
