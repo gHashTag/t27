@@ -41,6 +41,7 @@ mod behavior_sva;
 mod behavior_sva_v2;
 mod service;
 mod phi_selfcheck;
+mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
 mod bitnet_buffers;
@@ -1655,6 +1656,18 @@ enum Commands {
     /// Validate L5 phi-identity invariant (phi^2 + phi^-2 = 3)
     #[command(name = "validate-phi-identity")]
     ValidatePhiIdentity,
+
+    /// Check coq/Kernel/PhiFloat.v's binary64 literals against IEEE 754.
+    ///
+    /// Distinct from `validate-phi-identity`, which never opens the Coq file:
+    /// phi^2 + phi^-2 = 3 holds for the f64 value of phi whatever PhiFloat.v
+    /// says, so it cannot detect drift in the literals. Issue 2324.
+    #[command(name = "validate-phi-f64-literals")]
+    ValidatePhiF64Literals {
+        /// Path to PhiFloat.v (default: coq/Kernel/PhiFloat.v, relative to cwd)
+        #[arg(long)]
+        path: Option<String>,
+    },
 
     /// FPGA build pipeline: generate Verilog + top-level wrapper from specs/fpga/*.t27
     #[command(name = "fpga-build")]
@@ -10811,6 +10824,9 @@ async fn main() -> anyhow::Result<()> {
          Commands::ValidatePhiIdentity => {
              run_validate_phi_identity()?;
          }
+         Commands::ValidatePhiF64Literals { path } => {
+             phi_f64_literals::run(path.as_deref())?;
+         }
          Commands::CheckClaimTiers => {
              eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
          }
@@ -11210,6 +11226,9 @@ fn main() -> anyhow::Result<()> {
          }
          Commands::ValidatePhiIdentity => {
              run_validate_phi_identity()?;
+         }
+         Commands::ValidatePhiF64Literals { path } => {
+             phi_f64_literals::run(path.as_deref())?;
          }
          Commands::CheckClaimTiers => {
              eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
