@@ -70,6 +70,19 @@ pub struct Node {
     pub children: Vec<Node>,
 }
 
+/// Does `name` appear anywhere in this subtree as an identifier?
+///
+/// Deliberately over-approximate: it checks `name`, `value` and `extra_field`
+/// on every node. A false positive suppresses a `_ = param;` that Zig would
+/// have accepted; a false negative emits a discard for a parameter that IS
+/// used, which Zig rejects outright. Over-approximating fails safe.
+fn mentions_identifier(node: &Node, name: &str) -> bool {
+    if node.name == name || node.value == name || node.extra_field == name {
+        return true;
+    }
+    node.children.iter().any(|c| mentions_identifier(c, name))
+}
+
 impl Default for Node {
     fn default() -> Self {
         Self {
@@ -3775,6 +3788,22 @@ impl Codegen {
         self.write_line(" {");
 
         self.indent();
+
+        // Zig rejects a function parameter that is never referenced, and the
+        // idiom is to discard it explicitly. Emitting the discard is the whole
+        // fix: `error: unused function parameter` was the first ast-check error
+        // for 73 of 520 specs -- the largest class answerable by one change.
+        //
+        // `self` is exempt: a method that ignores its receiver is still legal.
+        for (pname, _) in &node.params {
+            if pname == "self" || pname.starts_with('_') {
+                continue;
+            }
+            if !node.children.iter().any(|c| mentions_identifier(c, pname)) {
+                self.write_indent();
+                self.write_line(&format!("_ = {};", pname));
+            }
+        }
 
         if node.children.is_empty() {
             self.write_indent();
