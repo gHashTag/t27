@@ -6098,7 +6098,7 @@ fn smoke_gate(
     let mut dry_run_sweep_ok = false;
     let mut verify_lean_ok = false;
     let mut validate_lean_standalone_ok = false;
-    let theorem_matrix_ok = true;
+    let mut theorem_matrix_ok = false;
     if bit_path.is_file() {
         println!("[smoke-gate] dry-run CCLK sweep: {}", bit_path.display());
         let values = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
@@ -6273,6 +6273,119 @@ fn smoke_gate(
             "summary_file": summary_path.to_string_lossy().to_string(),
         });
         println!("[smoke-gate] verify-lean OK (source=synthetic, theorems present)");
+    }
+
+    // 2c. Theorem matrix: 3 process corners x 8 OSCFSEL selections.
+    //
+    // This phase had no body. `theorem_matrix_ok` was `let theorem_matrix_ok =
+    // true;` -- a verdict flag nothing ever computed, ANDed into `passed`
+    // below. So `--theorem-matrix` certified 24 variants it never generated:
+    // the gate reported OK regardless of what the underlying theorems did, and
+    // `theorem_matrix` stayed `null` in the JSON report while `passed` was
+    // `true`. That is fail-open in the literal sense -- the flag can only ever
+    // take the passing value.
+    //
+    // The phase's three functions survived the merge that dropped the call
+    // site; rustc reported `generate_theorem_matrix`, `replay_theorem_matrix`,
+    // `build_theorem_matrix_report`, `pvt_context_inside_envelope` and
+    // `cclk_period_ns` as "never used". The 24-variant block they emit is still
+    // recorded in
+    // `tests/fixtures/fpga/smoke-gate/validate_lean_standalone_snapshot.json`.
+    // Restored in the shape `verify_lean_ok` uses above: set the flag and write
+    // the report entry inside the success path, and bail with the phase
+    // recorded as failed otherwise.
+    if run_theorem_matrix {
+        let (matrix_entries, elapsed_ms, matrix_source, replayed) =
+            if let Some(fixture_dir) = replay_fixtures {
+                println!(
+                    "[smoke-gate] theorem-matrix: replaying fixtures from {}",
+                    fixture_dir.display()
+                );
+                match replay_theorem_matrix(fixture_dir) {
+                    Ok((entries, ms, source)) => (entries, ms, source, true),
+                    Err(e) => {
+                        report["theorem_matrix"] = serde_json::json!({
+                            "status": "failed",
+                            "phase": "replay",
+                            "replay": true,
+                            "fixture_dir": fixture_dir.to_string_lossy().to_string(),
+                            "error": format!("{:?}", e),
+                        });
+                        bail!("theorem-matrix replay failed: {:?}", e);
+                    }
+                }
+            } else {
+                // `--dry-run-live` keeps the deterministic synthetic timings but
+                // labels the fixtures as a live capture and writes them to their own
+                // directory, exactly as the flag documents.
+                let source = if dry_run_live {
+                    "dry_run_live"
+                } else {
+                    "synthetic"
+                };
+                let fixture_dir = root.join("build").join("fpga").join(if dry_run_live {
+                    "theorem-matrix-dry-run-live"
+                } else {
+                    "theorem-matrix-fixtures"
+                });
+                std::fs::create_dir_all(&fixture_dir)
+                    .with_context(|| format!("create {}", fixture_dir.display()))?;
+                println!(
+                    "[smoke-gate] theorem-matrix: generating 3 corners x 8 OSCFSEL into {}",
+                    fixture_dir.display()
+                );
+                let start = std::time::Instant::now();
+                match generate_theorem_matrix(&fixture_dir, &report, source) {
+                    Ok(entries) => (
+                        entries,
+                        start.elapsed().as_millis() as u64,
+                        source.to_string(),
+                        false,
+                    ),
+                    Err(e) => {
+                        report["theorem_matrix"] = serde_json::json!({
+                            "status": "failed",
+                            "phase": "generate",
+                            "replay": false,
+                            "source": source,
+                            "fixture_dir": fixture_dir.to_string_lossy().to_string(),
+                            "error": format!("{:?}", e),
+                        });
+                        bail!("theorem-matrix generation failed: {:?}", e);
+                    }
+                }
+            };
+
+        // An empty or short matrix must not certify the phase. Both producers
+        // above walk 3 corners x 8 OSCFSEL, so anything other than 24 verified
+        // variants means the walk was cut short rather than that the theorems
+        // held.
+        const THEOREM_MATRIX_EXPECTED_VARIANTS: usize = 3 * 8;
+        if matrix_entries.len() != THEOREM_MATRIX_EXPECTED_VARIANTS {
+            report["theorem_matrix"] = serde_json::json!({
+                "status": "failed",
+                "reason": "variant count mismatch",
+                "replay": replayed,
+                "source": matrix_source,
+                "actual": matrix_entries.len(),
+                "expected": THEOREM_MATRIX_EXPECTED_VARIANTS,
+            });
+            bail!(
+                "theorem-matrix verified {} variants, expected {}",
+                matrix_entries.len(),
+                THEOREM_MATRIX_EXPECTED_VARIANTS
+            );
+        }
+
+        theorem_matrix_ok = true;
+        report["theorem_matrix"] =
+            build_theorem_matrix_report(&matrix_entries, elapsed_ms, replayed, &matrix_source);
+        println!(
+            "[smoke-gate] theorem-matrix OK ({} variants, source={}, replay={})",
+            matrix_entries.len(),
+            matrix_source,
+            replayed
+        );
     }
 
     // 3. yosys synthesis smoke on the demo sources if available.
@@ -7006,6 +7119,21 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static PVT_CTX_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    /// `smoke_gate()` writes to fixed directories under `build/fpga/` -- the
+    /// dry-run sweep log dir and the theorem-matrix fixture dir are derived
+    /// from the repo root, not from any argument -- and it deletes stale logs
+    /// there on entry. cargo runs `#[test]` functions on parallel threads
+    /// inside one process, so two concurrent invocations remove each other's
+    /// files mid-run. Until this test existed only one test reached those
+    /// directories, so the race had nothing to collide with. Serialise them.
+    static SMOKE_GATE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Take `SMOKE_GATE_LOCK`, ignoring poisoning: a panic in one smoke-gate
+    /// test must not convert every other one into a spurious failure.
+    fn lock_smoke_gate() -> std::sync::MutexGuard<'static, ()> {
+        SMOKE_GATE_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     fn square_wave_csv(period: f64, cycles: usize) -> String {
         let mut out = String::from("Time,Voltage\n");
@@ -9949,6 +10077,7 @@ mod tests {
     /// an overall `passed: true` result when the demo bitstream is present.
     #[test]
     fn test_smoke_gate_json_synthetic_verify_lean() {
+        let _gate = lock_smoke_gate();
         let root = repo_root().expect("repo root");
         let bit = root
             .join("fpga")
@@ -10018,6 +10147,179 @@ mod tests {
         let _ = std::fs::remove_file(&report_path);
     }
 
+    /// Regression test for the `--theorem-matrix` smoke-gate phase.
+    ///
+    /// The phase had no body: `theorem_matrix_ok` was a hardcoded `true` ANDed
+    /// into `passed`, so the gate certified 24 variants it never generated and
+    /// left `theorem_matrix` null in the report. The test above already passes
+    /// `run_theorem_matrix = true` and asserts `passed == true`, which is
+    /// precisely the assertion the hardcoded flag satisfied for free -- so it
+    /// could never have caught this. This test reads the phase itself.
+    ///
+    /// It asserts the report block, and then that every variant's `.lean`
+    /// fixture exists on disk and carries a `theorem` declaration. A report
+    /// block alone would be satisfiable by a JSON literal; the files are what
+    /// prove the theorems were generated and verified.
+    #[test]
+    fn test_smoke_gate_json_theorem_matrix_is_computed() {
+        let _gate = lock_smoke_gate();
+        let root = repo_root().expect("repo root");
+        let bit = root
+            .join("fpga")
+            .join("verilog")
+            .join("ternary_mac_demo_top_200t.bit");
+        if !bit.is_file() {
+            println!("SKIP: demo bitstream not found at {}", bit.display());
+            return;
+        }
+
+        let report_path = std::env::temp_dir().join(format!(
+            "tri_smoke_gate_theorem_matrix_{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&report_path);
+
+        let result = smoke_gate(
+            None,
+            "ternary_mac_demo_top",
+            false,
+            false,
+            0,
+            "digilent_hs2",
+            "xc7a200tfgg676",
+            true,
+            true,
+            true,
+            false,
+            "ss",
+            None,
+            false,
+            Some(&report_path),
+        );
+
+        assert!(
+            result.is_ok(),
+            "smoke-gate theorem-matrix path failed: {:?}",
+            result
+        );
+        let report: serde_json::Value =
+            serde_json::from_reader(std::fs::File::open(&report_path).unwrap()).unwrap();
+
+        let phase = report
+            .get("theorem_matrix")
+            .expect("missing theorem_matrix key");
+        assert!(
+            phase.is_object(),
+            "theorem_matrix phase must be populated when --theorem-matrix is requested, \
+             was {}: a hardcoded theorem_matrix_ok leaves this null while passed stays true",
+            phase
+        );
+        assert_eq!(
+            phase.get("status").and_then(|s| s.as_str()),
+            Some("ok"),
+            "theorem_matrix should have status=ok: {}",
+            phase
+        );
+        assert_eq!(
+            phase.get("variant_count").and_then(|v| v.as_u64()),
+            Some(24),
+            "theorem_matrix should verify 3 corners x 8 OSCFSEL = 24 variants: {}",
+            phase
+        );
+        assert_eq!(
+            phase.get("replay").and_then(|v| v.as_bool()),
+            Some(false),
+            "theorem_matrix should report a generated (not replayed) matrix: {}",
+            phase
+        );
+        assert_eq!(
+            phase.get("source").and_then(|s| s.as_str()),
+            Some("synthetic"),
+            "theorem_matrix source label should round-trip: {}",
+            phase
+        );
+
+        let variants = phase
+            .get("variants")
+            .and_then(|v| v.as_array())
+            .expect("theorem_matrix.variants array");
+        assert_eq!(
+            variants.len(),
+            24,
+            "variants array should hold every verified variant"
+        );
+
+        let mut seen: Vec<(String, u64)> = Vec::new();
+        for variant in variants {
+            let corner = variant
+                .get("corner")
+                .and_then(|c| c.as_str())
+                .expect("variant corner");
+            let oscfsel = variant
+                .get("oscfsel")
+                .and_then(|o| o.as_u64())
+                .expect("variant oscfsel");
+            assert_eq!(
+                variant.get("status").and_then(|s| s.as_str()),
+                Some("ok"),
+                "variant {}/{} should be ok: {}",
+                corner,
+                oscfsel,
+                variant
+            );
+            assert_eq!(
+                variant.get("envelope_check").and_then(|s| s.as_str()),
+                Some("ok"),
+                "variant {}/{} should record the PVT envelope check: {}",
+                corner,
+                oscfsel,
+                variant
+            );
+
+            // The generated theorem must exist on disk and declare a theorem.
+            let lean_path = variant
+                .get("fixtures")
+                .and_then(|f| f.get("lean"))
+                .and_then(|p| p.as_str())
+                .map(std::path::PathBuf::from)
+                .expect("variant lean fixture path");
+            assert!(
+                lean_path.is_file(),
+                "variant {}/{} claims a .lean fixture that is not on disk: {}",
+                corner,
+                oscfsel,
+                lean_path.display()
+            );
+            let lean_text = std::fs::read_to_string(&lean_path).expect("read variant .lean");
+            assert!(
+                lean_text.contains("theorem "),
+                "variant {}/{} .lean fixture declares no theorem: {}",
+                corner,
+                oscfsel,
+                lean_path.display()
+            );
+
+            seen.push((corner.to_string(), oscfsel));
+        }
+
+        // Every corner/OSCFSEL pair exactly once -- a matrix that repeated one
+        // cheap variant 24 times would satisfy the count assertion alone.
+        seen.sort();
+        let mut expected: Vec<(String, u64)> = Vec::new();
+        for corner in ["ff", "tt", "ss"] {
+            for oscfsel in 0u64..=7u64 {
+                expected.push((corner.to_string(), oscfsel));
+            }
+        }
+        expected.sort();
+        assert_eq!(
+            seen, expected,
+            "theorem matrix should cover each corner/OSCFSEL pair exactly once"
+        );
+
+        let _ = std::fs::remove_file(&report_path);
+    }
+
     /// Unit test for the `--validate-lean-standalone` smoke-gate phase. The
     /// theorem matrix generates one synthetic OSCFSEL/corner variant, then
     /// `measured-to-lean --standalone` produces a temporary lake package that
@@ -10025,6 +10327,7 @@ mod tests {
     /// generated-theorem → standalone lake build path.
     #[test]
     fn test_smoke_gate_json_synthetic_validate_lean_standalone() {
+        let _gate = lock_smoke_gate();
         let root = repo_root().expect("repo root");
         let bit = root
             .join("fpga")
@@ -10124,6 +10427,7 @@ mod tests {
     /// snapshot. The test is skipped when the demo bitstream or `lake` is absent.
     #[test]
     fn test_smoke_gate_validate_lean_standalone_matches_snapshot() {
+        let _gate = lock_smoke_gate();
         let root = repo_root().expect("repo root");
         let bit = root
             .join("fpga")
