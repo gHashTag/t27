@@ -11,10 +11,10 @@ module TriXml;
     // ═══════════════════════════════════════════════════════════
 
     pub const XmlNode = struct {
-        tag : [[]Const u8],
+        tag : []const u8,
         attributes : [std.StringHashMap([]Const u8)],
         children : [[]XmlNode],
-        text : [[]Const u8],
+        text : []const u8,
     };
 
     // ═══════════════════════════════════════════════════════════

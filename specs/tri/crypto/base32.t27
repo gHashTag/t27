@@ -11,7 +11,7 @@ module TriBase32;
     // ═══════════════════════════════════════════════════════════
 
     pub const Base32 = struct {
-        alphabet : [[]Const u8],
+        alphabet : []const u8,
         padding : bool,
     };
 

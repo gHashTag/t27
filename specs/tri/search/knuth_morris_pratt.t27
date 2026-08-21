@@ -12,7 +12,7 @@ module TriKmp;
 
     pub const KMPPrefix = struct {
         table : [[]Usize],
-        pattern : [[]Const u8],
+        pattern : []const u8,
     };
 
     // ═══════════════════════════════════════════════════════════

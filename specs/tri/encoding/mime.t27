@@ -11,10 +11,10 @@ module TriMime;
     // ═══════════════════════════════════════════════════════════
 
     pub const Email = struct {
-        from : [[]Const u8],
+        from : []const u8,
         to : [[][,
-        subject : [[]Const u8],
-        body : [[]Const u8],
+        subject : []const u8,
+        body : []const u8,
     };
 
     // ═══════════════════════════════════════════════════════════

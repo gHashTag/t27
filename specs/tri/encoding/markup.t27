@@ -11,8 +11,8 @@ module TriMarkup;
     // ═══════════════════════════════════════════════════════════
 
     pub const MarkdownNode = struct {
-        type : [[]Const u8],
-        content : [[]Const u8],
+        type : []const u8,
+        content : []const u8,
         children : [[]MarkdownNode],
     };
 

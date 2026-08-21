@@ -11,7 +11,7 @@ module TriVariant;
     // ═══════════════════════════════════════════════════════════
 
     pub const Variant(T) = struct {
-        tag : [[]Const u8],
+        tag : []const u8,
         value : T,
     };
 

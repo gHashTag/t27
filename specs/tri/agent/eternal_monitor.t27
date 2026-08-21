@@ -27,9 +27,9 @@ module EternalMonitor;
 
     pub const Alert = struct {
         timestamp : i64,
-        component : [[]Const u8],
+        component : []const u8,
         severity : Severity,
-        message : [[]Const u8],
+        message : []const u8,
         resolved : bool,
     };
 

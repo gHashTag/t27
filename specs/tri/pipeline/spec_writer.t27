@@ -11,7 +11,7 @@ module SpecWriter;
     // ═══════════════════════════════════════════════════════════
 
     pub const SpecField = struct {
-        field_type : [[]Const u8],
+        field_type : []const u8,
     };
 
     pub const SpecType = struct {
@@ -19,19 +19,19 @@ module SpecWriter;
 
     pub const SpecBehavior = struct {
         inputs : [[]Const SpecField],
-        output : [[]Const u8],
+        output : []const u8,
         steps : [[]Const [,
     };
 
     pub const SpecTemplate = struct {
-        module_name : [[]Const u8],
+        module_name : []const u8,
         types : [[]Const SpecType],
         behaviors : [[]Const SpecBehavior],
     };
 
     pub const WriteResult = struct {
-        spec_path : [[]Const u8],
-        generated_path : [[]Const u8],
+        spec_path : []const u8,
+        generated_path : []const u8,
         compile_ok : "bool",
         error_msg : [?[]Const u8],
     };

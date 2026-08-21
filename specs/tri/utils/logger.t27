@@ -17,7 +17,7 @@ module TriLogger;
     pub const LogEntry = struct {
         timestamp : "Instant",
         level : "Level",
-        message : [[]Const u8],
+        message : []const u8,
     };
 
     pub const Logger = struct {
