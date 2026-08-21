@@ -244,6 +244,51 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
 mod tests {
     use super::*;
 
+    /// Byte range of the body of the `begin`/`end` block opened by `header`.
+    ///
+    /// The terminator is the `end` sitting at the header line's own
+    /// indentation, so a nested `endcase` or a deeper `end` does not close the
+    /// span early.
+    fn block_body_range(v: &str, header: &str) -> std::ops::Range<usize> {
+        let at = v
+            .find(header)
+            .unwrap_or_else(|| panic!("missing block header `{}`", header));
+        let line_start = v[..at].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let closer = format!("\n{}end\n", &v[line_start..at]);
+        let body = at + header.len();
+        let rel = v[body..]
+            .find(&closer)
+            .unwrap_or_else(|| panic!("block `{}` is never closed", header));
+        body..body + rel
+    }
+
+    /// Offset of `stmt` *within* the block opened by `header`.
+    ///
+    /// A whole-module `contains` cannot express this. Every clear asserted
+    /// through this helper is also emitted verbatim in the reset branch --
+    /// `s_axi_awready <= 1'b1; s_axi_wready <= 1'b1; s_axi_bvalid <= 1'b0;`
+    /// and `s_axi_arready <= 1'b1; s_axi_rvalid <= 1'b0;` -- so an unanchored
+    /// `contains("s_axi_bvalid <= 1'b0;")` is satisfied by reset alone and
+    /// stays green when the clear is deleted from the handshake block, which
+    /// is exactly the edit that re-opens #925/#1968. Measured: with both
+    /// clears removed from their blocks, the unanchored form passed 8/8.
+    ///
+    /// Anchoring on the block header instead is the same failure one step
+    /// removed: the header survives the deletion of everything inside it.
+    fn stmt_in_block(v: &str, header: &str, stmt: &str) -> usize {
+        let range = block_body_range(v, header);
+        let body = &v[range.clone()];
+        let at = body.find(stmt).unwrap_or_else(|| {
+            panic!(
+                "`{}` is missing from the block `{}`. The response is then \
+                 raised on accept and never withdrawn, so the channel latches \
+                 high and the master waits forever. Block body was:{}",
+                stmt, header, body
+            )
+        });
+        range.start + at
+    }
+
     #[test]
     fn ident_validator_works() {
         assert!(is_valid_verilog_ident("axi_lite_slave"));
@@ -399,25 +444,48 @@ mod tests {
         assert!(v.contains("s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;"));
     }
 
+    // The response beat must be withdrawn INSIDE the handshake block that
+    // observes it being taken. Asserted on the block span, not on the module
+    // text: both clear statements also appear in the reset branch, so the
+    // whole-module form this replaces was satisfied by reset alone.
     #[test]
     fn axi_handshake_dropbacks_present() {
         let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
-        assert!(v.contains("if (s_axi_bvalid && s_axi_bready) begin"));
-        assert!(v.contains("if (s_axi_rvalid && s_axi_rready) begin"));
-        assert!(v.contains("s_axi_bvalid <= 1'b0;"));
-        assert!(v.contains("s_axi_rvalid <= 1'b0;"));
+        stmt_in_block(
+            &v,
+            "if (s_axi_bvalid && s_axi_bready) begin",
+            "s_axi_bvalid <= 1'b0;",
+        );
+        stmt_in_block(
+            &v,
+            "if (s_axi_rvalid && s_axi_rready) begin",
+            "s_axi_rvalid <= 1'b0;",
+        );
     }
 
     // Regression for #925: the handshake clear must come BEFORE the accept that
     // raises bvalid/rvalid, so on a same-cycle (accept + BREADY/RREADY) race the
     // accept NBA wins and the response is not silently dropped (master deadlock).
+    //
+    // Ordered on the clear STATEMENT, not on the block header. With the header
+    // as the anchor this ordering still held after the clear was deleted from
+    // the block entirely -- it compared the position of an `if` against an
+    // assignment and said nothing about the assignment that matters.
     #[test]
     fn axi_clear_precedes_accept_no_deadlock() {
         let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
-        let b_clear = v.find("if (s_axi_bvalid && s_axi_bready) begin").unwrap();
+        let b_clear = stmt_in_block(
+            &v,
+            "if (s_axi_bvalid && s_axi_bready) begin",
+            "s_axi_bvalid <= 1'b0;",
+        );
         let b_accept = v.find("s_axi_bvalid <= 1'b1; s_axi_bresp <= 2'b00;").unwrap();
         assert!(b_clear < b_accept, "B-channel clear must precede accept (#925)");
-        let r_clear = v.find("if (s_axi_rvalid && s_axi_rready) begin").unwrap();
+        let r_clear = stmt_in_block(
+            &v,
+            "if (s_axi_rvalid && s_axi_rready) begin",
+            "s_axi_rvalid <= 1'b0;",
+        );
         let r_accept = v.find("s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;").unwrap();
         assert!(r_clear < r_accept, "R-channel clear must precede accept (#925)");
     }
