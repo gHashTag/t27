@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W963, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W964, 2026-08-21)
+
+> **W964 — THE EIGHTH RUNG HAS AN ACCURACY AT LAST, AND IT IS PARITY.** MNIST, 5 seeds,
+> three recipes: TNF8 `(3,4)` against a width-matched `fp10 e5m4` is **−0.010 / −0.018 /
+> +0.060 pp** — none significant, sign changing between recipes. **Zero failures in all 45
+> runs, including under the learned scale** that destroyed `fp6 e2m3` 28/40 times at six
+> bits: exactly what T801 predicts, since every ten-bit grid spans 31+ binades against 5.91.
+> **The instability studied for eight waves has a width above which it does not exist.**
+> **The asymmetry:** the same substitution **inverted the area sign** (W963) and is
+> **harmless in accuracy** — so "the published numbers are approximately right" cannot be
+> inferred from one axis. Ladder now: rung 4 parity, rung 8 parity on both axes, **rungs 16+
+> unmeasured** with a width that depends on which ladder version was imported. T809, lessons
+> 1456/1457, **147 derived checks**. **Readiness 73 %.**
 
 > **W963 — THE PUBLISHED TNF8 PENALTY HAD THE WRONG SIGN.** The census rig binds `"tnf8"`
 > to `TNFFormat(4,3)` in its own table. Re-measured in **this project's original metric**,

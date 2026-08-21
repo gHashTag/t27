@@ -1266,3 +1266,49 @@ those of `TNFFormat(4, 3)`. Those rigs need datasets and have not been re-run. *
 ladder's eighth rung now has a measured area and no measured accuracy.**
 
 Theorem **T808**; lessons **1454**, **1455**. **130 derived checks.**
+
+---
+
+## 33. W964 — the eighth rung has an accuracy at last, and it is parity
+
+T808 left the ladder's true rung `TNFFormat(3, 4)` with a measured area and no measured
+accuracy. MNIST, MLP 784-256-256-10, weights and activations quantised, five seeds, three
+epochs, three recipes:
+
+| recipe | TNF8 = (3,4) | `fp10 e5m4` | paired | t |
+|---|---|---|---|---|
+| computed scale, per-tensor | 96.92 | 96.93 | **−0.010 pp** | −0.20 |
+| computed scale, block 32 | 96.07 | 96.09 | **−0.018 pp** | −0.48 |
+| learned scale, per-tensor | 97.08 | 97.02 | **+0.060 pp** | +0.89 |
+
+**Nothing significant, and the sign changes between recipes.** Against its width-matched
+float the eighth rung is indistinguishable.
+
+**Zero failures in all 45 runs — including under the learned scale.** At six bits that
+recipe destroyed `fp6 e2m3` in 28 of 40 runs. At ten bits it destroys nothing, for any
+format. This is exactly what T801 predicts: failure requires the scale to collapse past the
+format's headroom, and every ten-bit grid here spans 31 binades or more against
+`fp6 e2m3`'s 5.91. **The instability this project studied for eight waves has a width above
+which it simply does not exist.**
+
+### The asymmetry
+
+The same substitution **inverted the sign of the area result** (chapter 32: true rung 0.9 %
+cheaper, substitute 5.0 % dearer) and is **harmless in accuracy** — true minus substitute is
++0.022, −0.108 and +0.052 pp, with only the block-32 arm significant (t = −2.71) and in the
+substitute's favour by a tenth of a point.
+
+Area depends on the decode table's structure, where 127 binades against 31 changed the
+decoder by 2.4×; accuracy at this width depends on grid density, which the two formats
+share. **So "the published numbers are approximately right" cannot be inferred from one
+axis** — it was true for accuracy and false by a sign for area.
+
+### Where the ladder stands
+
+| rung | area | accuracy | stability |
+|---|---|---|---|
+| **4** (6 bits) | parity at matched range | no advantage | no advantage under the deployed recipe |
+| **8** (10 bits) | parity (−0.9 % / +1.1 % in two metrics) | **parity, 3 recipes** | **no failures at all** |
+| **16+** | unmeasured | unmeasured | unmeasured — and the width depends on the ladder version imported |
+
+Theorem **T809**; lessons **1456**, **1457**. **147 derived checks.**

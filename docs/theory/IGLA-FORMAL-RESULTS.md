@@ -29508,6 +29508,46 @@ either number alone.**
 still describe `TNFFormat(4, 3)`. Those rigs need datasets and have not been re-run. Until
 they are, the ladder's eighth rung has a measured **area** and no measured **accuracy**.
 
+### T809 — At the ladder's true eighth rung everything is at parity, and the substitution cost nothing in accuracy while inverting the sign in area
+
+**Closing the hole.** T808 gave the ladder's true rung `TNFFormat(3, 4)` a measured area
+and left it with no measured accuracy, because every accuracy figure ever published for
+"TNF8" used the substitute `TNFFormat(4, 3)`. MNIST, MLP 784-256-256-10, weights and
+activations quantised, five seeds, three epochs, three recipes:
+
+| recipe | TNF8 = (3,4) | `fp10 e5m4` | paired difference | t |
+|---|---|---|---|---|
+| computed scale, per-tensor | 96.92 | 96.93 | **−0.010 pp** | −0.20 |
+| computed scale, block 32 | 96.07 | 96.09 | **−0.018 pp** | −0.48 |
+| learned scale, per-tensor | 97.08 | 97.02 | **+0.060 pp** | +0.89 |
+
+**No difference reaches significance in any recipe, and the sign changes between them.**
+Against its width-matched float the ladder's eighth rung is indistinguishable.
+
+**Zero failures in all 45 runs, including under the learned scale.** At six bits that recipe
+destroyed `fp6 e2m3` in 28 of 40 runs; at ten bits it destroys nothing. This is the direct
+prediction of T801: failure requires the scale to collapse past the format's headroom, and
+every format here carries 31 binades or more. **The instability found at six bits does not
+exist at the eighth rung** — for the φ-lattice or for the float.
+
+**The asymmetry worth recording.** The same substitution that **inverted the sign of the
+area result** (T808: true rung 0.9 % cheaper, substitute 5.0 % dearer) is **harmless in
+accuracy**: true minus substitute is +0.022, −0.108 and +0.052 pp across the three recipes,
+with only the block-32 arm reaching significance (t = −2.71) and in the substitute's favour
+by a tenth of a point.
+
+**Statement.** A format substitution's damage is metric-dependent and cannot be bounded
+from one axis. Area is a function of the decode table's structure — 127 binades against 31
+changed it by 2.4× — while accuracy at this width is a function of grid density, which the
+two formats share. **"The published numbers are approximately right" is therefore not
+inferable from an accuracy check**, and was false for area by a sign.
+
+**Where the ladder stands after T805–T809.** Rung four: parity on area at matched range,
+no advantage on accuracy or stability. Rung eight: parity on area (−0.9 % / +1.1 % in two
+metrics), parity on accuracy (three recipes, none significant), no failures. Rungs sixteen
+and above: **still unmeasured**, and their width now depends on which ladder version the
+caller happened to import.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
