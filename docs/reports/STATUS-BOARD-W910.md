@@ -1,4 +1,15 @@
-# Full status, both tracks — one page for whoever wakes up (W962, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W963, 2026-08-21)
+
+> **W963 — THE PUBLISHED TNF8 PENALTY HAD THE WRONG SIGN.** The census rig binds `"tnf8"`
+> to `TNFFormat(4,3)` in its own table. Re-measured in **this project's original metric**,
+> the ladder's true rung `TNFFormat(3,4)` is **212.57** consumer cells against a
+> width-matched `fp10 e5m4`'s **214.57** — **0.9 % cheaper**; the substitute is **270.57**
+> against **257.57** — **5.0 % dearer**. Not an overstatement: **the wrong sign**. Decoder
+> alone **12.00 vs 29.00** (2.4×) — the substitute inherits TNF16's four-trit exponent, so
+> its table spans 127 binades and resists factoring. In the MAC-lane metric the same rung is
+> **+1.1 %**: **two metrics straddling zero, which is the strongest available statement of
+> parity**. Still open: accuracy for the true rung is **unmeasured** — those rigs need
+> datasets. T808, lessons 1454/1455, **130 derived checks**. **Readiness 72 %.**
 
 > **W962 — UNBLOCKED AFTER SIX DEAD WAVES; THE RATE COEFFICIENT IS WITHDRAWN.** The volume
 > sat at zero for six waves. `Bash` dies there (capture file opened before exec) and so does

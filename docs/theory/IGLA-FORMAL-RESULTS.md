@@ -29466,6 +29466,48 @@ empirical: for any TNF rung there exists an ordinary float of the same width sha
 (odd-mantissa bits, maximum shift) of the lane it was measured in. Quoting binades invites
 exactly the non-monotone comparison this table exhibits.
 
+### T808 — The ladder's true eighth rung is at parity; the published TNF8 penalty was the substitution
+
+**Setting.** T805 established that every rig in this project bound `"tnf8"` to
+`TNFFormat(4, 3)` — 11 bits, 126.91 binades — while the ladder defines the eighth rung as
+`TNFFormat(3, 4)` — 10 bits, 30.95 binades. The census rig carries the substitution in its
+own table: `("tnf8", 11, lambda: (T, T.TNFFormat(4, 3)))`. The published cell figures for
+TNF8 therefore price a different format, and until now the size of that error was unknown.
+
+**Measured in this project's original metric** — an oracle-derived decode table fused with
+a multiply, cost as the slope of `cells(N) = fixture + cost·N`, each format against a float
+of **its own physical width**:
+
+| format | bits | distinct values | decoder | consumer |
+|---|---|---|---|---|
+| **TNF8 = (3,4)**, the ladder's rung | 10 | 962 | **12.00** | **212.57** |
+| `fp10 e5m4` | 10 | 1023 | 14.00 | 214.57 |
+| **"TNF8" = (4,3)**, as measured | 11 | 2018 | **29.00** | **270.57** |
+| `fp11 e6m4` | 11 | 2047 | 16.00 | 257.57 |
+
+R² ≥ 0.9996 on every fit.
+
+**Statement.** The ladder's true eighth rung is **0.9 % cheaper** than a width-matched
+float. The substitute is **5.0 % dearer**. **The area penalty this project published for
+TNF8 is an artefact of measuring the wrong format**, and it inverted the sign of the
+result.
+
+**The decoder is where the substitution bit hardest:** 12.00 cells for the true rung
+against **29.00** for the substitute — **2.4×**. The substitute inherits TNF16's
+four-trit exponent, so its decode table spans 127 binades and resists the synthesiser's
+factoring; the true rung's 31 binades do not.
+
+**Consistency with T807.** In the MAC-lane metric the same rung is **+1.1 %**
+(380 vs 376); here it is **−0.9 %**. Both are parity, and the sign difference is the
+difference between the two metrics, not between the formats: a constant multiplicand lets
+the synthesiser specialise (T804), which flatters whichever format has the smaller decode
+table. **Two metrics, two signs, one conclusion — parity — is a stronger result than
+either number alone.**
+
+**What this does not repair.** The accuracy, activation and convolution figures for "TNF8"
+still describe `TNFFormat(4, 3)`. Those rigs need datasets and have not been re-run. Until
+they are, the ladder's eighth rung has a measured **area** and no measured **accuracy**.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

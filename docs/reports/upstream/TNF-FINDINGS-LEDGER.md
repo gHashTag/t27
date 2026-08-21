@@ -1227,3 +1227,42 @@ hit — zero-reading, flat-fit, twins, short-arm. Its own first run produced 255
 positives by counting a per-epoch trace as runs; it now decides by record shape.
 
 Theorem **T807**; lessons **1452**, **1453**. **118 derived checks.**
+
+---
+
+## 32. W963 — the published TNF8 penalty had the wrong sign
+
+W954 found that every rig here bound `"tnf8"` to `TNFFormat(4, 3)` — 11 bits, 126.91
+binades — while the ladder's eighth rung is `TNFFormat(3, 4)` — 10 bits, 30.95 binades.
+The census rig carries the substitution in its own table:
+`("tnf8", 11, lambda: (T, T.TNFFormat(4, 3)))`. The size of the error was unknown. It is
+now measured, **in this project's original metric**, each format against a float of its
+own physical width:
+
+| format | bits | values | decoder | consumer |
+|---|---|---|---|---|
+| **TNF8 = (3,4)** — the ladder's rung | 10 | 962 | **12.00** | **212.57** |
+| `fp10 e5m4` | 10 | 1023 | 14.00 | 214.57 |
+| **"TNF8" = (4,3)** — as measured | 11 | 2018 | **29.00** | **270.57** |
+| `fp11 e6m4` | 11 | 2047 | 16.00 | 257.57 |
+
+R² ≥ 0.9996 on every fit.
+
+**The true rung is 0.9 % CHEAPER than its width-matched float. The substitute is 5.0 %
+DEARER.** The published penalty was not an overstatement — it had **the wrong sign**.
+
+**The decoder is where it bit:** 12.00 cells against 29.00, a factor of **2.4**. The
+substitute inherits TNF16's four-trit exponent, so its decode table spans 127 binades and
+resists the synthesiser's factoring; the true rung's 31 binades do not.
+
+**Two metrics, two signs, one conclusion.** In the MAC-lane metric this rung is **+1.1 %**
+(380 vs 376); here it is **−0.9 %**. A constant multiplicand lets the synthesiser
+specialise (T804), which flatters whichever format has the smaller decode table, so the two
+metrics tilt oppositely by construction. **Two metrics straddling zero is a stronger
+statement of parity than either number alone.**
+
+**What is still open.** The accuracy, activation and convolution figures for "TNF8" remain
+those of `TNFFormat(4, 3)`. Those rigs need datasets and have not been re-run. **The
+ladder's eighth rung now has a measured area and no measured accuracy.**
+
+Theorem **T808**; lessons **1454**, **1455**. **130 derived checks.**
