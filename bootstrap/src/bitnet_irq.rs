@@ -9,6 +9,14 @@
 //!     `status_read` clears the latch (read-to-clear semantics) so the
 //!     host can acknowledge the IRQ from inside the ISR.
 //!
+//!     The clear and the three sources are one non-blocking assignment:
+//!     the read-to-clear is applied to the *previous* value and this
+//!     cycle's sources are ORed on top. Emitting them as four separate
+//!     non-blocking assignments in the same `always` block resolves
+//!     last-write-wins, which discards any event arriving in the same
+//!     cycle as `status_read` -- a lost interrupt on every reachable
+//!     state, not just an occasional race (see #1967).
+//!
 //! Port summary:
 //!
 //! | Group              | Signals                                     |
@@ -93,15 +101,19 @@ pub fn build_interrupt_controller(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
 
-    s.push_str("    // Capture interrupt events\n");
+    s.push_str("    // Capture interrupt events.\n");
+    s.push_str("    //\n");
+    s.push_str("    // One non-blocking assignment, not four: the read-to-clear is applied\n");
+    s.push_str("    // to the PREVIOUS value and this cycle's sources are ORed on top.\n");
+    s.push_str("    // Separate per-bit latches plus a whole-register clear in the same\n");
+    s.push_str("    // always block resolve last-write-wins, so an event arriving in the\n");
+    s.push_str("    // same cycle as status_read is discarded -- a lost interrupt.\n");
+    s.push_str("    // Bit order: [2]=error, [1]=dma_done, [0]=inference_done.\n");
     s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     s.push_str("        if (!rst_n) irq_status <= 3'b000;\n");
-    s.push_str("        else begin\n");
-    s.push_str("            if (inference_done) irq_status[0] <= 1'b1;\n");
-    s.push_str("            if (dma_done)       irq_status[1] <= 1'b1;\n");
-    s.push_str("            if (error)          irq_status[2] <= 1'b1;\n");
-    s.push_str("            if (status_read)    irq_status     <= 3'b000;  // Clear on read\n");
-    s.push_str("        end\n");
+    s.push_str("        else\n");
+    s.push_str("            irq_status <= (status_read ? 3'b000 : irq_status)\n");
+    s.push_str("                        | {error, dma_done, inference_done};\n");
     s.push_str("    end\n");
     s.push_str("\n");
 
@@ -163,16 +175,49 @@ mod tests {
 
     #[test]
     fn each_source_latches_its_bit() {
+        // The concatenation is the bit map: [2]=error, [1]=dma_done,
+        // [0]=inference_done -- the same assignment order the per-bit
+        // latches used to encode.
         let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
-        assert!(v.contains("if (inference_done) irq_status[0] <= 1'b1;"));
-        assert!(v.contains("if (dma_done)       irq_status[1] <= 1'b1;"));
-        assert!(v.contains("if (error)          irq_status[2] <= 1'b1;"));
+        assert!(v.contains("| {error, dma_done, inference_done};"));
     }
 
     #[test]
     fn status_read_clears_latch() {
+        // Read-to-clear survives: with no source asserted the register
+        // takes 3'b000 on a status_read.
         let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
-        assert!(v.contains("if (status_read)    irq_status     <= 3'b000;"));
+        assert!(v.contains("irq_status <= (status_read ? 3'b000 : irq_status)"));
+    }
+
+    #[test]
+    fn sources_and_clear_are_one_assignment() {
+        // Regression guard for the lost-interrupt race (#1967). Three
+        // per-bit latches plus a whole-register clear in one always block
+        // resolve last-write-wins, so an event coincident with status_read
+        // is discarded on every reachable state. None of those four
+        // assignments may reappear.
+        let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
+        for banned in [
+            "irq_status[0] <= 1'b1;",
+            "irq_status[1] <= 1'b1;",
+            "irq_status[2] <= 1'b1;",
+            "if (status_read)    irq_status     <= 3'b000;",
+        ] {
+            assert!(
+                !v.contains(banned),
+                "emitted RTL contains `{}`, which reintroduces the \
+                 last-write-wins lost-interrupt race",
+                banned
+            );
+        }
+        // Exactly one assignment drives irq_status outside reset.
+        let assigns = v.matches("irq_status <=").count();
+        assert_eq!(
+            assigns, 2,
+            "expected exactly two `irq_status <=` (reset + merged update), got {}",
+            assigns
+        );
     }
 
     #[test]

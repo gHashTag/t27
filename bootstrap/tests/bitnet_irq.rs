@@ -94,18 +94,45 @@ fn irq_status_read_input_present() {
 
 #[test]
 fn irq_each_source_latches_its_bit() {
+    // The concatenation is the bit map: [2]=error, [1]=dma_done,
+    // [0]=inference_done.
     let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
     assert!(ok);
-    assert!(stdout.contains("if (inference_done) irq_status[0] <= 1'b1;"));
-    assert!(stdout.contains("if (dma_done)       irq_status[1] <= 1'b1;"));
-    assert!(stdout.contains("if (error)          irq_status[2] <= 1'b1;"));
+    assert!(stdout.contains("| {error, dma_done, inference_done};"));
 }
 
 #[test]
 fn irq_status_read_clears_latch() {
     let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
     assert!(ok);
-    assert!(stdout.contains("if (status_read)    irq_status     <= 3'b000;"));
+    assert!(stdout.contains("irq_status <= (status_read ? 3'b000 : irq_status)"));
+}
+
+#[test]
+fn irq_sources_and_clear_are_one_assignment() {
+    // Regression guard for the lost-interrupt race (#1967): a clear that
+    // runs after the per-bit latches, in the same always block, wins under
+    // last-write-wins and discards the event.
+    let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
+    assert!(ok);
+    for banned in [
+        "irq_status[0] <= 1'b1;",
+        "irq_status[1] <= 1'b1;",
+        "irq_status[2] <= 1'b1;",
+        "if (status_read)    irq_status     <= 3'b000;",
+    ] {
+        assert!(
+            !stdout.contains(banned),
+            "emitted RTL contains `{}`, which reintroduces the \
+             last-write-wins lost-interrupt race",
+            banned
+        );
+    }
+    assert_eq!(
+        stdout.matches("irq_status <=").count(),
+        2,
+        "expected exactly two `irq_status <=` (reset + merged update)"
+    );
 }
 
 #[test]
