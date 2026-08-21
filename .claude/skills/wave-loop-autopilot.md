@@ -134,9 +134,17 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 887 | #1834 | wave-loop-887 | 593 | 296 | 37,952 | 1,214,464 | 1.159 | merged | #1835 |
 | 888 | #1836 | wave-loop-888 | 595 | 297 | 38,080 | 1,218,560 | 1.162 | merged | #1837 |
 | 889 | #1838 | wave-loop-889 | 597 | 298 | 38,208 | 1,222,656 | 1.166 | open | #1840 |
-| **890** | **#1841** | **wave-loop-890 (READY)** | **599** | **299** | **38,336** | **1,226,752** | **1.170** | **READY** | **TBD** |
-| 891 | TBD | wave-loop-891 | 601 | 300 | 38,464 | 1,230,848 | 1.174 | planned | TBD |
-| 892 | TBD | wave-loop-892 | 603 | 301 | 38,592 | 1,234,944 | 1.178 | planned | TBD |
+| 890 | #1841 | wave-loop-890 | 599 | 299 | 38,336 | 1,226,752 | 1.170 | open | #1842 |
+| 891 | #1843 | wave-loop-891 | 601 | 300 | 38,464 | 1,230,848 | 1.174 | open | #1844 |
+| 892 | #1845 | wave-loop-892 | 603 | 301 | 38,592 | 1,234,944 | 1.178 | open | #1847 |
+| 893 | #1848 | wave-loop-893 | 605 | 302 | 38,720 | 1,239,040 | 1.182 | open | #1850 |
+| 894 | #1851 | wave-loop-894 | 607 | 303 | 38,848 | 1,243,136 | 1.186 | open | #1852 |
+| 895 | #1853 | wave-loop-895 | 609 | 304 | 38,976 | 1,247,232 | 1.190 | open | #1854 |
+| 896 | #1855 | wave-loop-896 | 611 | 305 | 39,104 | 1,251,328 | 1.194 | open | #1856 |
+| 897 | #1857 | wave-loop-897 | 613 | 306 | 39,232 | 1,255,424 | 1.198 | closed | #1858 |
+| 898 | #1859 | wave-loop-898 | 615 | 307 | 39,360 | 1,259,520 | 1.202 | closed | #1900 |
+| **899** | **#1901** | **wave-loop-899 (READY)** | **617** | **308** | **39,488** | **1,263,616** | **1.206** | **READY** | **TBD** |
+| 900 | TBD | wave-loop-900 | 619 | 309 | 39,616 | 1,267,712 | 1.209 | planned | TBD |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2).
@@ -224,10 +232,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ## Current status
 
-- **Latest completed wave:** 880
-- **Latest issue/PR:** #1712 / #1720
-- **Current wave in progress:** 881
-- **Next wave queued:** 882
-- **Ladder depth:** W774–W880 = 107 waves
+- **Latest completed wave:** 898
+- **Latest issue/PR:** #1859 / #1900
+- **Current wave in progress:** 899
+- **Next wave queued:** 900
+- **Ladder depth:** W774–W898 = 125 waves
 
 *φ² + φ⁻² = 3 | TRINITY*
