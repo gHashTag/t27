@@ -18,6 +18,46 @@ fn run(args: &[&str]) -> (String, String, bool) {
     )
 }
 
+/// Byte range of the body of the `begin`/`end` block opened by `header`.
+///
+/// The terminator is the `end` sitting at the header line's own indentation,
+/// so a nested `endcase` or a deeper `end` does not close the span early.
+fn block_body_range(v: &str, header: &str) -> std::ops::Range<usize> {
+    let at = v
+        .find(header)
+        .unwrap_or_else(|| panic!("missing block header `{}`", header));
+    let line_start = v[..at].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let closer = format!("\n{}end\n", &v[line_start..at]);
+    let body = at + header.len();
+    let rel = v[body..]
+        .find(&closer)
+        .unwrap_or_else(|| panic!("block `{}` is never closed", header));
+    body..body + rel
+}
+
+/// Offset of `stmt` *within* the block opened by `header`.
+///
+/// A whole-output `contains` cannot express this. Every clear asserted through
+/// this helper is also emitted verbatim in the reset branch -- the very strings
+/// `axi_reset_initializes_all_outputs` below lists as reset lines -- so an
+/// unanchored `contains("s_axi_bvalid <= 1'b0;")` is satisfied by reset alone
+/// and stays green when the clear is deleted from the handshake block, which is
+/// exactly the edit that re-opens #925/#1968. Measured: with both clears
+/// removed from their blocks, the unanchored form passed 8/8.
+fn stmt_in_block(v: &str, header: &str, stmt: &str) -> usize {
+    let range = block_body_range(v, header);
+    let body = &v[range.clone()];
+    let at = body.find(stmt).unwrap_or_else(|| {
+        panic!(
+            "`{}` is missing from the block `{}`. The response is then raised \
+             on accept and never withdrawn, so the channel latches high and \
+             the master waits forever. Block body was:{}",
+            stmt, header, body
+        )
+    });
+    range.start + at
+}
+
 // ============================================================================
 // Module name & parameters
 // ============================================================================
@@ -222,14 +262,24 @@ fn axi_responses_are_okay() {
     assert!(stdout.contains("s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;"));
 }
 
+// The response beat must be withdrawn INSIDE the handshake block that observes
+// it being taken. Asserted on the block span, not on the whole emitted text:
+// both clear statements also appear in the reset branch, so the whole-output
+// form this replaces was satisfied by reset alone.
 #[test]
 fn axi_handshake_dropbacks_present() {
     let (stdout, _stderr, ok) = run(&["gen-axi-lite-slave"]);
     assert!(ok);
-    assert!(stdout.contains("if (s_axi_bvalid && s_axi_bready) begin"));
-    assert!(stdout.contains("if (s_axi_rvalid && s_axi_rready) begin"));
-    assert!(stdout.contains("s_axi_bvalid <= 1'b0;"));
-    assert!(stdout.contains("s_axi_rvalid <= 1'b0;"));
+    stmt_in_block(
+        &stdout,
+        "if (s_axi_bvalid && s_axi_bready) begin",
+        "s_axi_bvalid <= 1'b0;",
+    );
+    stmt_in_block(
+        &stdout,
+        "if (s_axi_rvalid && s_axi_rready) begin",
+        "s_axi_rvalid <= 1'b0;",
+    );
 }
 
 /// Regression guard for the lost-response defect (issue 1968), asserted on the
