@@ -29063,6 +29063,87 @@ rather than against per-tensor plain floats. This project has measured only the 
 That is now the largest unmeasured threat to its result, and it is stated as such on the
 falsification page.
 
+### T799 — The failure mode is saturation from a collapsing learned scale, not underflow
+
+**Recovering what T798 withdrew.** The withdrawn explanation was underflow: narrow grids
+zero what falls below their smallest value. The traces point the other way. Every failing
+run shows the activation scale **collapsing** (0.81 → 0.29 → 0.0065). A shrinking `s`
+makes `x/s` **grow**, so what a format needs is headroom **above** its operating point.
+Under the `peak2one` convention the tensor peak starts at grid value 1.0, so the
+available headroom is exactly `max(grid)`: **3072** (TNF4), **28** (`fp6 e3m2`), **7.5**
+(`fp6 e2m3`) — a 400× spread.
+
+**Prediction.** A run fails when the scale collapses by more than its format's headroom,
+i.e. when the tensor **saturates** against the top of the grid.
+
+**Test over every trace recorded by this project — 120 runs:**
+
+| format | outcome | n | median scale collapse | headroom | saturating |
+|---|---|---|---|---|---|
+| TNF4 | success | 40 | **32.4×** | 3072× | **0/40** |
+| `fp6 e3m2` | success | 16 | 2.0× | 28× | 4/16 |
+| `fp6 e3m2` | failure | 24 | 50.4× | 28× | 20/24 |
+| `fp6 e2m3` | success | 12 | 1.5× | 7.5× | 3/12 |
+| `fp6 e2m3` | failure | 28 | 57.2× | 7.5× | **28/28** |
+
+Saturation and failure agree on **109 of 120 runs (90.8 %)**.
+
+**The decisive comparison is within the table.** TNF4's scale collapses **32.4×** — more
+than twenty times harder than `fp6 e2m3`'s *successful* runs collapse (1.5×) — and TNF4
+never fails. It is not that the φ-lattice keeps its scale stable. It is that the φ-lattice
+has room to fall into.
+
+**Limits.** Seven runs saturate and survive; four fail without saturating. The collapse
+factor is a proxy: the records log scales, not tensor maxima, so saturation is inferred
+rather than observed. And the `peak2max` arm cannot be checked at all, because
+`scaleconv.py` recorded only final accuracies. Those are the three things a replication
+should tighten first.
+
+### T800 — Remove the learned scale and the advantage disappears; the instability was the recipe's
+
+**The prediction T799 makes.** If failure is a collapsing *learned* scale, then a scale
+that **cannot** collapse should eliminate it — for every format. The OCP microscaling
+formats specify exactly that: a shared **power-of-two** scale per block, **computed** per
+forward pass, never learned.
+
+**Experiment.** Same network, same five seeds, same three epochs, weights and activations
+quantised. Scale is `2^floor(log2(max|block| / max(grid)))`, straight-through, no learned
+parameter. Two granularities: block 32 (the OCP size) and per-tensor (the control, which
+matches the granularity of every previous run in this project).
+
+| arm | TNF4 | `fp6 e2m3` | `fp6 e3m2` |
+|---|---|---|---|
+| block 32 | 0/5 fail, 96.11 | 0/5, 96.10 | 0/5, 96.21 |
+| **per-tensor** | 0/5 fail, **96.57** | 0/5, **96.94** | 0/5, 96.82 |
+
+**All thirty runs succeed** — including `fp6 e2m3`, which fails **28 of 40** times under
+this project's learned-scale recipe at the same per-tensor granularity.
+
+**Statement.** The instability that this project measured for eight waves is a property of
+the **learned scale**, not of the number format and not of the scaling granularity. The
+control arm carries the result: at per-tensor granularity — the same granularity as every
+earlier run — replacing a learned scale with a computed one takes `fp6 e2m3` from 28/40
+failures to **0/5**.
+
+**And the ordering inverts.** Paired over five seeds at per-tensor granularity, TNF4 is
+**worse**: −0.376 pp against `fp6 e2m3` (t = −7.24, **0/5 seeds favour TNF4**) and
+−0.250 pp against `fp6 e3m2` (t = −5.15, 0/5). At block 32 the three are
+indistinguishable (+0.010 pp, t = 0.11).
+
+**Consequence.** The recipe-insensitivity claim remains literally true — TNF4 has now
+survived every recipe tried, 45/45 plus 10/10 here. What is refuted is its *implication*:
+that a same-width float is fragile in deployment. Under the quantiser the field actually
+deploys, the float is not fragile, and it is **significantly more accurate** at the
+granularity where this project made its comparisons. **At six bits, on these tasks, the
+φ-lattice has no measured advantage over a same-width IEEE-style float, and a measured
+deficit under the standard recipe.**
+
+**Corollary (the control arm answered the question).** The treatment — block scaling —
+was the hypothesis, and it explained nothing: the effect is identical per-tensor. Had the
+control been omitted as redundant, the conclusion would have been "block scaling rescues
+the float", which is false. A control that merely reproduces the old setting is the only
+thing that can tell a treatment effect from a recipe effect.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

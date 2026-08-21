@@ -295,6 +295,18 @@ PYGRID
     if [ -f "$THEORY_DOC" ]; then
       out="$("$0" theorem --check 2>&1)" && echo "ok    theorems  $out" || { echo "FAIL  theorems  $out"; bad=1; }
     fi
+    # W950: the published figures are only as good as their last recomputation, and
+    # W948d showed a hand-carried number can sit wrong in three documents for a whole
+    # wave. verify_numbers.py derives every headline figure from the records, so the
+    # audit now refuses to pass while any of them disagrees with its evidence.
+    VN="$REPO_ROOT/docs/reports/upstream/verify_numbers.py"
+    if [ -f "$VN" ]; then
+      out="$(python3 "$VN" 2>&1 | tail -1 | sed 's/^ *//')"
+      case "$out" in
+        *"расхождений 0"*) echo "ok    numbers   $out" ;;
+        *) echo "FAIL  numbers   $out"; bad=1 ;;
+      esac
+    fi
     [ "$bad" = "0" ] && echo "audit: pass" || echo "audit: FAIL"
     exit "$bad"
     ;;

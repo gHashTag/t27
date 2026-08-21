@@ -882,3 +882,60 @@ of the eight records it ships to support. Fixed, with the convention now selecta
 
 Theorems **T798**, **T798a**, **T798b**; lessons **1435–1438**. `verify_numbers.py` now
 runs **38 derived checks**. Corrections eleven through thirteen, still no outside referee.
+
+---
+
+## 26. W950 — the mechanism recovered, and the last claim killed by it
+
+W949 left this project with a result and no reason: the range explanation was
+withdrawn, and nothing replaced it. **The replacement was already on disk.**
+
+### The mechanism: saturation, not underflow
+
+Every failing run logs its per-epoch scales, and in all of them the activation scale
+**collapses** (0.81 → 0.29 → 0.0065). A shrinking `s` makes `x/s` **grow**, so the
+quantity that matters is headroom **above** the operating point — `max(grid)`, which
+is **3072 / 28 / 7.5** across the three formats. Prediction: a run fails when the
+collapse exceeds the headroom, i.e. when the tensor **saturates**.
+
+Over **all 120 recorded runs**, saturation and failure agree **90.8 %**, and
+`fp6 e2m3`'s 28 failures saturate **28 out of 28**. The decisive number is inside the
+table: **TNF4's scale collapses 32.4×** — twenty times harder than `fp6 e2m3`'s
+*successful* runs (1.5×) — and TNF4 never fails. **Not stability. Room to fall into.**
+
+### The prediction it makes, and the test that killed our claim
+
+If failure is a collapsing **learned** scale, a scale that cannot collapse should end
+it. The OCP microscaling formats specify exactly that: a shared **power-of-two** scale
+per block, **computed** each forward pass. Same net, same seeds, same epochs:
+
+| arm | TNF4 | `fp6 e2m3` | `fp6 e3m2` |
+|---|---|---|---|
+| block 32 | 0/5, 96.11 | 0/5, 96.10 | 0/5, 96.21 |
+| **per-tensor** (control) | 0/5, **96.57** | 0/5, **96.94** | 0/5, 96.82 |
+
+**All thirty runs succeed.** `fp6 e2m3` — 28/40 failures under our learned-scale recipe
+— fails **nothing**, at the *same per-tensor granularity*. So the block size explained
+nothing; **the learned scale was the entire effect.**
+
+**And the ordering inverts.** Paired over five seeds, per-tensor: TNF4 **−0.376 pp**
+against `fp6 e2m3` (t = −7.24, **0/5** seeds favour TNF4) and −0.250 against
+`fp6 e3m2` (t = −5.15). At block 32 the three are indistinguishable (+0.010, t = 0.11).
+
+### Where this leaves the result
+
+The recipe-insensitivity claim is still literally true — TNF4 has survived every recipe
+ever tried here, now 55/55. **Its implication is refuted.** Under the quantiser the
+field actually deploys, a same-width float is not fragile, and it is significantly more
+accurate at the granularity where this project made its comparisons.
+
+**At six bits, on these tasks: no measured advantage on cost (2 % dearer), none on
+accuracy, and under the standard recipe a measured deficit.** That is the honest state.
+
+**The control arm carried the result.** Block scaling was the hypothesis and explained
+nothing. Had the control been dropped as redundant, the published conclusion would have
+been "block scaling rescues the float" — false, and unfalsifiable from that experiment.
+
+Theorems **T799**, **T800**; lessons **1439–1442**. `verify_numbers.py` now runs **53
+derived checks**, and `tri audit` refuses to pass while any of them disagrees with its
+records. Corrections fourteen and fifteen, still with no outside referee.

@@ -1,4 +1,19 @@
-# Full status, both tracks — one page for whoever wakes up (W949, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W950, 2026-08-21)
+
+> **W950 — THE MECHANISM RECOVERED, AND IT KILLED THE LAST CLAIM.** The traces held
+> the answer: in every failure the scale **collapses**, so `x/s` grows and what matters
+> is headroom **above** the operating point — `max(grid)` = 3072 / 28 / 7.5. Over all
+> **120 traces**, saturation and failure agree **90.8 %**; `fp6 e2m3`'s 28 failures
+> saturate **28/28**. TNF4's scale collapses **32.4×**, twenty times harder than the
+> competitor's *successful* runs, and never fails — **not stability, headroom** (T799).
+> **The prediction that follows killed us:** a scale that cannot collapse should end the
+> failures. With the OCP-style **computed power-of-two** scale, **all 30 runs succeed** —
+> `fp6 e2m3` goes **28/40 → 0/5** at *unchanged* per-tensor granularity, so the block
+> size explained nothing and the **learned scale was the whole effect**. Paired
+> per-tensor, TNF4 is **−0.376 pp** vs `fp6 e2m3` (t = −7.24, **0/5** seeds favour it).
+> **At six bits: no advantage on cost, none on accuracy, and a deficit under the
+> standard recipe.** T799/T800, lessons 1439–1442, **53 derived checks** now gating
+> `tri audit`. **Readiness 62 %.**
 
 > **W949 — THE MECHANISM WAS COMPUTED IN A CONVENTION THE EXPERIMENT NEVER USED.**
 > The range explanation (`zeroes below 1.67 % / 0.22 % / 0.0041 % of peak`) is
