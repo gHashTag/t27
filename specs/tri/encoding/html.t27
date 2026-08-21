@@ -13,7 +13,7 @@ module TriHtml;
     pub const HtmlNode = struct {
         tag : []const u8,
         attributes : [std.StringHashMap([]Const u8)],
-        children : [[]HtmlNode],
+        children : []HtmlNode,
         inner_text : []const u8,
     };
 

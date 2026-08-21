@@ -19,7 +19,7 @@ module TriRtree;
 
     pub const RTreeNode = struct {
         rect : "Rect",
-        children : [[]RTreeNode],
+        children : []RTreeNode,
         is_leaf : "bool",
     };
 

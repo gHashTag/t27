@@ -11,7 +11,7 @@ module TriTemplate;
     // ═══════════════════════════════════════════════════════════
 
     pub const Template = struct {
-        parts : [[]TemplatePart],
+        parts : []TemplatePart,
     };
 
     pub const TemplatePart = struct {

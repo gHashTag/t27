@@ -20,7 +20,7 @@ module TriJson;
     };
 
     pub const JsonArray = struct {
-        items : [[]JsonValue],
+        items : []JsonValue,
     };
 
     pub const JsonObject = struct {

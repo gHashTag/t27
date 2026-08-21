@@ -16,7 +16,7 @@ module TriBezier;
     };
 
     pub const BezierCurve = struct {
-        control : [[]Point],
+        control : []Point,
         degree : "usize",
     };
 

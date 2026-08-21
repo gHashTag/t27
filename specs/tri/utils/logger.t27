@@ -22,7 +22,7 @@ module TriLogger;
 
     pub const Logger = struct {
         min_level : "Level",
-        writers : [[]LogWriter],
+        writers : []LogWriter,
     };
 
     // ═══════════════════════════════════════════════════════════
