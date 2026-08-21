@@ -1986,3 +1986,53 @@ re-checking the plumbing.
 way wherever it appears.
 
 Theorems **T826**, **T826a**; lessons **1489**, **1490**. **316 derived checks.**
+
+---
+
+## 48. W979 — the corpus audit closed the class, and predicted a 141-wave-old hardware failure
+
+**The audit.** Every `.t27` in the ternary tree, scanned for private definitions of `smul`,
+`sadd`, `magmul`, `magadd`, `magsub` — **134 definitions across 26 specs** — with each
+`smul`/`sadd` checked for the guards whose absence W978 proved to be a correctness defect.
+
+**Exactly one remained:** `gft_signed_dot4.t27 :: smul`, six lines, the same shape as the MAC's.
+
+**And that design's annihilation clause was measured FALSE on hardware in W838** —
+`0xa5a5a1b4`, clauses `1011`, recorded in the wrapper's own comment. **The static audit
+produced the explanation for a hardware failure that had sat unexplained in the record for 141
+waves**, without touching a board.
+
+**That is the argument for corpus audits over incident response.** W978 found one instance by
+following a die verdict through three refuted hypotheses. W979 found the last by asking the
+same question of every file at once — and got a hardware prediction for free.
+
+**Fixed and verified:** two guards added, simulation 1 → 2 tests passing, with the second
+(`zero_annihilates`) derived from the die clause.
+
+### The class is gated, and the gate was run in its passing state
+
+`tri guards` scans all of `specs/` and is wired into `tri audit`:
+
+```
+ok    guards    51 definition(s) of smul/sadd across 30 spec(s)
+```
+
+**The counts differ from the audit's on purpose, and the record says why**: the one-off pass
+counted 134 definitions of five functions in the ternary tree; the tool counts only the two
+where a missing guard is a *correctness* defect, across all 30 specs. **A number that changes
+between a report and its tool is a defect unless the difference is stated** — this project has
+been bitten by that twice already (29-vs-28, 36-vs-34).
+
+### The incidental finding is the larger one
+
+**51 definitions of `smul` and `sadd` across 30 specs.** The ladder has no shared arithmetic
+module; every spec re-declares what it needs. **Two of the 51 had drifted.**
+
+Two out of fifty-one is a low rate and the wrong thing to be reassured by: it is low only
+because the copies were duplicated from something correct, and nothing prevents the next one
+from drifting. **A checker is a tourniquet.** The durable fix is an import mechanism — one
+definition instead of fifty-one — which is a language decision, recorded here as the standing
+recommendation it is.
+
+Theorems **T827**, **T827a**, **T827b**; lessons **1491**, **1492**, **1493**.
+**324 derived checks.**

@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W978, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W979, 2026-08-22)
+
+> **W979 — THE CORPUS AUDIT CLOSED THE CLASS AND PREDICTED A 141-WAVE-OLD HARDWARE FAILURE.**
+> **134 definitions across 26 specs** scanned; **exactly one** unguarded copy left —
+> `gft_signed_dot4.t27 :: smul`. **That design's annihilation clause was measured FALSE on
+> hardware in W838** (`0xa5a5a1b4`, clauses `1011`): the static check produced the explanation
+> for a failure that had sat unexplained for 141 waves, **without a board**. Fixed; simulation
+> 1 → 2 tests, the new one derived from the die clause. **`tri guards` now gates the class** in
+> `tri audit` — *51 definitions of smul/sadd across 30 specs, all guarded* — and the counts
+> differ from the audit's **on purpose, with the reason recorded**. **The incidental finding is
+> larger:** the ladder has **no shared arithmetic module**; every spec re-declares what it
+> needs, and 2 of 51 had drifted. **A checker is a tourniquet** — the durable fix is an import
+> mechanism, recorded as a standing recommendation. T827/T827a/T827b, lessons 1491–1493,
+> **324 derived checks**. **Readiness 92 %.**
 
 > **W978 — FIXED IN THE SPEC, AND THE DEFECT TURNED OUT TO BE EXPENSIVE.** Five guard lines —
 > three in `smul`, two in `sadd`, all present verbatim in the primitive specs — take the MAC from

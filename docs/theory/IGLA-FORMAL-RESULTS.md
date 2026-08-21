@@ -30340,6 +30340,69 @@ cannot be re-verified after any change that alters size, without also re-checkin
 the die's ZERO clause now passes is a **prediction**, not a measurement, and it is labelled that
 way everywhere it appears.
 
+### T827 — A corpus audit found the last unguarded copy, and independently predicted a failure measured on hardware 141 waves earlier
+
+**The audit.** Every `.t27` in the ternary tree was scanned for private definitions of
+`smul`, `sadd`, `magmul`, `magadd`, `magsub` — **134 definitions across 26 specs** — and each
+`smul`/`sadd` checked for the two lines whose absence W978 showed to be a correctness defect.
+
+**Result: exactly one remaining.** `gft_signed_dot4.t27 :: smul`, a six-line body, the same
+shape as the MAC's:
+
+```
+fn smul(a: u32, b: u32) -> u32 {
+    var sa : i32 = (a >> 16) as i32; var sb : i32 = (b >> 16) as i32;
+    var mag : i32 = magmul((a & 65535) as i32, (b & 65535) as i32);
+    return (((sa ^ sb) << 16) | mag) as u32;
+}
+```
+
+**And that design's annihilation clause was measured FALSE on hardware in W838** —
+`0xa5a5a1b4, clauses 1011`, recorded in the wrapper's own comment. **The static audit found the
+cause of a hardware failure that had been sitting in the record for 141 waves**, without a
+board, in one pass.
+
+**That is the argument for corpus audits over incident response.** W978 found one instance by
+following a die verdict through three refuted hypotheses and a root-cause hunt. W979 found the
+last instance by asking the same question of every file at once — and got a hardware
+prediction for free.
+
+**Statement.** When a defect is found by expensive means, the next move is not to fix it and
+resume: it is to ask **what the machine-checkable form of that defect is**, and run it over
+everything. The answer here was a regular expression, and it closed the class.
+
+### T827a — The class is now gated, and the gate has a passing case
+
+`tri guards` scans the whole `specs/` tree for `smul`/`sadd` definitions lacking
+`if (a == 0)` / `if (b == 0)`, and is **wired into `tri audit`**:
+
+```
+ok    guards    51 definition(s) of smul/sadd across 30 spec(s)
+```
+
+**The two counts differ on purpose and the record says why**: the one-off audit counted 134
+definitions of five functions in the ternary tree; the shipped tool counts only the two where
+a missing guard is a *correctness* defect, and scans all 30 specs rather than 26. A number
+that changes between a report and its tool is a defect unless the difference is stated — this
+project has now been bitten by that twice (the 29-vs-28 tally, the 36-vs-34 instantiations).
+
+**And the gate was run in its passing state before being trusted** — the failure mode of W969,
+where a new check killed the audit precisely when the corpus became clean, is not repeated.
+
+### T827b — Every spec keeps a private copy, and that is the real finding
+
+The audit's incidental result is larger than the defect it found: **51 definitions of `smul`
+and `sadd` across 30 specs.** The ladder has no shared arithmetic module — each spec
+re-declares the operations it needs.
+
+**Two of those 51 had drifted.** That is a low rate, and it is also the wrong thing to be proud
+of: the rate is only low because the copies were made by duplication from a correct original,
+and nothing prevents the next one from drifting. **A defect class whose incidence is governed
+by copy discipline will recur**, and the durable fix is an import mechanism, not vigilance.
+
+That is a language decision, not a wave's work, and it is recorded here as the standing
+recommendation it is.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

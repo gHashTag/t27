@@ -79,6 +79,45 @@ case "$cmd" in
     exit 0
     ;;
 
+  guards)
+    # W979: the ladder's specs each keep PRIVATE copies of smul/sadd rather than
+    # importing one. W978 found the MAC's copies had lost their zero guards -- a
+    # residue linear in the operand that reached a physical load. This audits all of
+    # them at once: 134 definitions across 26 specs, and it found exactly one more.
+    SPECS="${T27_SPECS:-$REPO_ROOT/specs}"
+    SPECS="$SPECS" python3 - <<'PYGUARD'
+import os, re, pathlib, sys
+S = pathlib.Path(os.environ["SPECS"])
+FN = re.compile(r"^fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", re.M)
+# zero is a special case for these; a copy without the guard silently returns the
+# format's implicit leading one instead of zero.
+NEED = {"smul", "sadd"}
+rows, bad = [], []
+for p in sorted(S.rglob("*.t27")):
+    txt = p.read_text(errors="ignore")
+    for m in FN.finditer(txt):
+        name = m.group(1)
+        if name not in NEED:
+            continue
+        nxt = re.search(r"^\s*(fn|test|invariant|bench)\s", txt[m.end():], re.M)
+        body = txt[m.start(): m.end() + (nxt.start() if nxt else len(txt) - m.end())]
+        g = len(re.findall(r"if\s*\(\s*[ab]\s*==\s*0\s*\)", body))
+        rows.append((p, name, g))
+        if g == 0:
+            bad.append((p.relative_to(S), name))
+print(f"tri guards: {len(rows)} definition(s) of smul/sadd across "
+      f"{len({r[0] for r in rows})} spec(s)")
+for f, n in bad:
+    print(f"  UNGUARDED  {f} :: {n}")
+if bad:
+    print("A private copy without `if (a == 0)` / `if (b == 0)` returns the format's")
+    print("implicit leading one instead of zero. W978 measured that as 512 + 4*x.")
+else:
+    print("every copy carries its zero guards")
+raise SystemExit(1 if bad else 0)
+PYGUARD
+    exit $?
+    ;;
   bench)
     # W973: for twenty-two waves the hardware axis was reported blocked on "Docker",
     # and it was blocked on none of the things anyone named. There are FOUR
@@ -658,6 +697,14 @@ PYGRID
         echo "                see docs/reports/MASTER-ORPHANED-W971.md before any merge"
         bad=1
       fi
+    fi
+    # W979: the private-copy defect reached a physical load once and was predicted
+    # by a corpus audit the second time. It is cheap to check and expensive to miss.
+    if out="$("$0" guards 2>&1)"; then
+      echo "ok    guards    $(printf '%s' "$out" | head -1 | sed 's/^tri guards: //')"
+    else
+      echo "FAIL  guards    $(printf '%s' "$out" | grep -c UNGUARDED) unguarded copy/copies of smul/sadd"
+      bad=1
     fi
     RIGS="$REPO_ROOT/docs/reports/upstream"
     if [ -d "$RIGS" ]; then

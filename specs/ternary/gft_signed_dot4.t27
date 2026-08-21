@@ -67,6 +67,12 @@ fn magsub(hi: i32, lo: i32) -> i32 {
     return (off << 9) | mant;
 }
 fn smul(a: u32, b: u32) -> u32 {
+    // W979: the corpus audit found this the ONE remaining unguarded copy out of
+    // 134 definitions in 26 specs. gft_smul.t27 carries these lines; this copy
+    // did not. W838 measured this design's annihilation clause FALSE on board
+    // 1:4 (0xa5a5a1b4, clauses 1011) -- the audit predicts that independently.
+    if (a == 0) { return 0; }
+    if (b == 0) { return 0; }
     var sa : i32 = (a >> 16) as i32; var sb : i32 = (b >> 16) as i32;
     var mag : i32 = magmul((a & 65535) as i32, (b & 65535) as i32);
     return (((sa ^ sb) << 16) | mag) as u32;
@@ -93,4 +99,10 @@ fn on_comb(a1: u32, b1: u32, a2: u32, b2: u32, a3: u32, b3: u32, a4: u32, b4: u3
 
 // (+1*+1)+(-1*+1)+(+1*+1)+(-1*+1) = 1-1+1-1 = 0.
 test cancel { assert_eq(on_comb(20480,20480, 86016,20480, 20480,20480, 86016,20480), 0); }
+
+// W979: derived from the die clause W838 measured false. The suite had one test.
+test zero_annihilates {
+    assert_eq(on_comb(0, 20480, 0, 86016, 0, 1, 0, 7), 0);
+    assert_eq(on_comb(0, 12345, 0, 54321, 0, 99, 0, 3), 0);
+}
 endmodule
