@@ -29740,6 +29740,49 @@ disagreements flagged exactly one line, and it was a false positive — the `11`
 mantissa argument. That heuristic is deliberately **not** shipped as a `tri` command: it
 repeats the text-matching failure of T812a. Only the AST-based `tri rungs` is in the gate.
 
+### T814 — The record is regenerated, and the substitution's accuracy cost is confirmed at ≤ 0.07 pp on a second record
+
+**Source and data agree again.** `activations.py`, corrected in W968 to instantiate the
+ladder's `TNFFormat(3, 4)`, has been re-run. Same five seeds, same two tasks, same six
+formats. Against the record the substitute produced:
+
+| task | mode | substitute `(4,3)` | rung `(3,4)` | difference | t |
+|---|---|---|---|---|---|
+| MNIST | weights only | 97.2620 | 97.2540 | **−0.0080 pp** | −0.64 |
+| MNIST | weights + activations | 97.2360 | 97.2540 | **+0.0180 pp** | +1.05 |
+| Fashion | weights only | 86.8660 | 86.8500 | **−0.0160 pp** | −0.78 |
+| Fashion | weights + activations | 86.9080 | 86.8400 | **−0.0680 pp** | −1.48 |
+
+**Nothing reaches significance, and the sign changes.** An 11-bit format spanning 126.91
+binades and a 10-bit format spanning 30.95 produce statistically indistinguishable accuracy
+at this quantisation. T809 established that asymmetry on one record; this is a **second,
+independent** confirmation, and it closes the accuracy half of the substitution's damage
+assessment: **the area result was inverted, the accuracy results were not affected at all.**
+
+### T814a — The replication promise was true for two rigs out of twenty
+
+`FALSIFY-ME.md` has invited an outside replication since W948d, and W948d made exactly
+**two** rigs runnable elsewhere — `verify_numbers.py` and `stability.py`. The rest still
+carried this session's absolute paths.
+
+**Measured across the corpus: fifteen files held a hard-coded
+`/private/tmp/claude-501/…` or `upstream-wt/…` path.** They are now zero. Every rig honours
+`T27_WORK`, `T27_CONFORMANCE`, and — for the FPGA rigs — `T27_TNET` and `T27_SYNTH`, falling
+back to its own directory rather than to a machine that no longer exists.
+
+**Statement.** A portability fix applied to the rigs one happens to be editing is not a
+portability fix; it is a sample. The property to check is not "does this rig run here" but
+**"does any rig name a path outside its own tree"**, which is one grep and would have been
+one grep eighteen waves ago. The same shape as T812: the defect was a class, and only a
+corpus-wide check finds a class.
+
+**And the fix broke a rig.** The automated edit left `stability.py` with a duplicated import
+and a string literal welded to an expression — a syntax error, in the one rig that had
+already been made portable. It was caught by parsing **every** rig with `ast` immediately
+after the edit, not by running any of them. **An automated edit across a corpus must be
+followed by a corpus-wide parse**, because the failure lands in the file you were least
+expecting to touch.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

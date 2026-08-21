@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W968, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W969, 2026-08-21)
+
+> **W969 — THE RECORD CATCHES UP, AND THE REPLICATION PROMISE BECOMES TRUE.**
+> `activations.py` re-run on `TNFFormat(3, 4)`: MNIST **−0.008 / +0.018 pp**, Fashion
+> **−0.016 / −0.068 pp**, all **|t| ≤ 1.48**, sign changing — a **second independent record**
+> confirming the asymmetry: area inverted, accuracy untouched. **And the bigger finding:**
+> `FALSIFY-ME.md` has invited replication since W948d, and that was true of **two rigs out of
+> twenty** — **fifteen files still named this machine's directories**. Now **zero**; `tri
+> audit` gates it: **32 rigs parse, none names a path outside its tree**. Two self-inflicted
+> defects, both caught at once: the automated edit **broke `stability.py`** (caught by parsing
+> every rig, not running one), and the new gate **killed the audit precisely on success** —
+> `grep -l` exits 1 on no match, and under `pipefail` that aborted everything the instant the
+> corpus became clean. T814/T814a, lessons 1466–1468, **216 derived checks**.
+> **Readiness 78 %.**
 
 > **W968 — CLASS CLEARED, RECORDS ANNOTATED, AND ONE FIX WAS HALF-APPLIED.** All five rigs
 > now instantiate `TNFFormat(3, 4)`; **`tri rungs` is wired into `tri audit`** — 34

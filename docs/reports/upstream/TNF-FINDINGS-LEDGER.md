@@ -1487,3 +1487,51 @@ argument. That heuristic is deliberately **not** shipped: it repeats the text-ma
 failure of chapter 36. Only the AST-based `tri rungs` is in the gate.
 
 Theorems **T813**, **T813a**; lessons **1464**, **1465**.
+
+---
+
+## 38. W969 — the record catches up with the rig, and the replication promise becomes true
+
+**Source and data agree again.** `activations.py`, corrected in W968, has been re-run on the
+ladder's `TNFFormat(3, 4)`. Against the record the substitute produced:
+
+| task | mode | substitute `(4,3)` | rung `(3,4)` | difference | t |
+|---|---|---|---|---|---|
+| MNIST | weights only | 97.2620 | 97.2540 | **−0.0080 pp** | −0.64 |
+| MNIST | weights + activations | 97.2360 | 97.2540 | **+0.0180 pp** | +1.05 |
+| Fashion | weights only | 86.8660 | 86.8500 | **−0.0160 pp** | −0.78 |
+| Fashion | weights + activations | 86.9080 | 86.8400 | **−0.0680 pp** | −1.48 |
+
+**Nothing significant, sign changing.** An 11-bit format spanning 126.91 binades and a
+10-bit format spanning 30.95 are statistically indistinguishable here. A **second
+independent record** confirming chapter 33's asymmetry: **the area result was inverted, the
+accuracy results were never affected.**
+
+### The replication promise was true for two rigs out of twenty
+
+`FALSIFY-ME.md` has invited an outside replication since W948d — and W948d made exactly
+**two** rigs runnable elsewhere, because those were the two being edited that wave.
+**Fifteen files still carried this session's absolute paths.**
+
+Now **zero**. Every rig honours `T27_WORK` and `T27_CONFORMANCE`, the FPGA rigs also
+`T27_TNET` and `T27_SYNTH`, and all fall back to their own directory rather than to a
+machine that no longer exists. `tri audit` gates it corpus-wide: **32 rigs parse, none names
+a path outside its tree.**
+
+The property to check was never "does this rig run here" but **"does any rig name a path
+outside its own tree"** — one grep, available since the first wave.
+
+### Two self-inflicted defects, both caught immediately
+
+**The edit broke a rig.** The automated replacement left `stability.py` with a duplicated
+import and a string literal welded onto an expression — in the one rig that had *already*
+been portable and was touched only incidentally. Caught by parsing **every** rig with `ast`
+straight after the edit.
+
+**The new gate killed the audit.** `grep -l` exits 1 when it finds nothing, so under
+`set -o pipefail` the check aborted the whole audit **the instant the corpus became clean** —
+no error, just a shorter report ending in a summary. **The bug was invisible while the corpus
+was dirty and appeared the moment the fix worked.** A check whose passing case is untested is
+not a check.
+
+Theorems **T814**, **T814a**; lessons **1466**, **1467**, **1468**. **216 derived checks.**

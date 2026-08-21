@@ -598,6 +598,26 @@ PYGRID
       echo "FAIL  rungs     $(printf '%s' "$out" | grep -E '^tri rungs:' | sed 's/^tri rungs: //')"
       bad=1
     fi
+    # W969: FALSIFY-ME.md invites an outside replication, and for eighteen waves that
+    # was true of two rigs out of twenty -- the rest named this machine's directories.
+    # The property is corpus-wide, so the gate checks it corpus-wide.
+    RIGS="$REPO_ROOT/docs/reports/upstream"
+    if [ -d "$RIGS" ]; then
+      # `grep -l` exits 1 when it finds nothing, and under `set -o pipefail` that
+      # aborted the whole audit the moment the corpus became clean -- a gate that
+      # kills its own harness precisely on success. `|| true` is the fix.
+      stuck="$( { grep -l -e '/private/tmp/claude-501' -e 'upstream-wt' "$RIGS"/*.py 2>/dev/null || true; } | wc -l | tr -d ' ')"
+      unparsed=0
+      for rig in "$RIGS"/*.py; do
+        python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$rig" 2>/dev/null || \
+          unparsed=$((unparsed+1))
+      done
+      if [ "$stuck" = "0" ] && [ "$unparsed" = "0" ]; then
+        echo "ok    rigs      $(ls "$RIGS"/*.py | wc -l | tr -d ' ') rigs parse, none names a path outside its tree"
+      else
+        echo "FAIL  rigs      $stuck with hard-coded paths, $unparsed that do not parse"; bad=1
+      fi
+    fi
     VN="$REPO_ROOT/docs/reports/upstream/verify_numbers.py"
     if [ -f "$VN" ]; then
       out="$(python3 "$VN" 2>&1 | tail -1 | sed 's/^ *//')"
