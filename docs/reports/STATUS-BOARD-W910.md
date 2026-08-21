@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W970, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W971, 2026-08-21)
+
+> **W971 — `origin/master` WAS REPLACED BY AN ORPHAN COMMIT; NOTHING IS LOST.** `git status`
+> moved from *126 / 117* to *2556 / 1* — read as a number that is more divergence; in fact
+> **`git merge-base` now exits 1** and the histories share no commit. Master went from
+> **2545 commits** (`ca4234e20`, 18:00) to **1** (`fead099c2`, 18:48) — a fresh **orphan
+> root**, its own tip and root, which no rebase can produce. **Nothing is lost:** the old
+> history is on `origin/fix/coq-phifloat-binary64-name-collision` (2547 commits), and this
+> branch is intact at **2556**, 0/0 against its own origin ref. **The loop did not repair it**
+> — restoring a shared branch is a force-push, irreversible for anyone who has fetched, and it
+> would discard the human's new commit. It **noticed** (merge-base is now gated in `tri
+> audit`), **preserved the evidence** in `docs/reports/MASTER-ORPHANED-W971.md` before the
+> reflog expires, and **named the remedy** with `--force-with-lease`. T816, lessons
+> 1470/1471. **Readiness 79 %** (unchanged — no science this wave).
 
 > **W970 — THE CLASS CLOSES: ONE INVERTED SIGN, TEN ACCURACY CELLS, NONE SIGNIFICANT.**
 > Every record from a substituted rig is regenerated on `TNFFormat(3, 4)`. Across

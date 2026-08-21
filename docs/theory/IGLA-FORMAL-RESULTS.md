@@ -29823,6 +29823,45 @@ rung or carries a `_format_note` saying it does not, and every rig that produced
 corrected and re-run. The class opened in W954 is closed at W970, sixteen waves later, with
 the damage quantified rather than assumed.
 
+### T816 — A branch that loses its merge-base is not "further behind"; it is a different repository
+
+**Observation.** Between W969 and W970 `git status` moved from *"126 and 117 different
+commits"* to *"2556 and 1"*. Read as a number, that is a larger divergence. Read correctly,
+it is a categorical change: `git merge-base origin/master HEAD` now **exits 1**. The two
+histories share **no** commit.
+
+| | commit | commits | timestamp |
+|---|---|---|---|
+| master, before | `ca4234e20` | **2545** | 2026-08-21 18:00:32 +0700 |
+| master, now | `fead099c2` | **1** — it is also the root | 2026-08-21 18:48:37 +0700 |
+
+The new master is a **fresh orphan root**, not a rewrite: no rebase or filter produces a
+one-commit history whose root is its own tip.
+
+**Nothing was lost, and that had to be checked rather than hoped.** The 2545-commit history
+remains on the remote, reachable from `origin/fix/coq-phifloat-binary64-name-collision`
+(2547 commits, contains `ca4234e20`). This branch is intact — 2556 commits, 0/0 against its
+own `origin` ref.
+
+**Statement.** "Behind by N" and "no common ancestor" are different states that a divergence
+count renders identically. An automated loop reading only the number will read past the
+second, and every operation it might then attempt — merge, rebase, or a "catch up" force —
+either fails confusingly or destroys something. The check is one command that returns a
+boolean, and it now runs in the gate: **`git merge-base <main> HEAD`**.
+
+**What the loop did, and did not do.** Restoring a shared branch is outward-facing and
+irreversible for anyone who has already fetched; it also discards the human's new commit
+unless that is preserved first. So the loop **noticed, preserved the evidence in the
+repository** — the local reflog proving the previous tip expires, after which the event is
+unreconstructible from this clone — **and named the exact remedy**, with
+`--force-with-lease` rather than `--force` so that a repetition of the event cannot be
+caused by the repair. It did not touch master.
+
+**Corollary — the evidence had a shelf life.** The only proof of the previous tip was
+`git reflog show origin/master`, which expires by default. A finding that depends on an
+expiring local artefact is not recorded until it is written somewhere durable, and the
+window here was days, not months.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

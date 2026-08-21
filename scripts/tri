@@ -601,6 +601,21 @@ PYGRID
     # W969: FALSIFY-ME.md invites an outside replication, and for eighteen waves that
     # was true of two rigs out of twenty -- the rest named this machine's directories.
     # The property is corpus-wide, so the gate checks it corpus-wide.
+    # W971: origin/master was replaced by an orphan commit -- 2545 commits became 1,
+    # with no merge-base. git status reported it only as a larger divergence number,
+    # which is exactly the kind of change a loop reads past. A missing merge-base is
+    # categorically different from being behind, so the gate says so.
+    MAINB="$(git -C "$REPO_ROOT" rev-parse --verify -q origin/master >/dev/null 2>&1 && echo origin/master || echo '')"
+    if [ -n "$MAINB" ]; then
+      if git -C "$REPO_ROOT" merge-base "$MAINB" HEAD >/dev/null 2>&1; then
+        lr="$(git -C "$REPO_ROOT" rev-list --left-right --count "$MAINB"...HEAD 2>/dev/null)"
+        echo "ok    base      shares history with $MAINB (${lr:-?} behind/ahead)"
+      else
+        echo "FAIL  base      NO MERGE-BASE with $MAINB -- histories are unrelated;"
+        echo "                see docs/reports/MASTER-ORPHANED-W971.md before any merge"
+        bad=1
+      fi
+    fi
     RIGS="$REPO_ROOT/docs/reports/upstream"
     if [ -d "$RIGS" ]; then
       # `grep -l` exits 1 when it finds nothing, and under `set -o pipefail` that
