@@ -1625,3 +1625,50 @@ Because preservation completed and was verified first, the failed attempt left t
 exactly as it was, plus one recoverable branch.
 
 Theorems **T817**, **T818**; lessons **1472**, **1473**. **228 derived checks.**
+
+---
+
+## 41. W973 — the hardware axis has its first numbers, and the blocker was never Docker
+
+### Four preconditions, measured separately for the first time
+
+Twenty-two waves reported *"the Docker daemon does not respond, so no bitstream can be built."*
+One blocker, one remedy. Measured individually:
+
+| precondition | state | how it fails |
+|---|---|---|
+| Docker daemon | **wedged** — one backend PID alive **2 d 1 h**, stale socket | the client **hangs**; any probe bundled with other work dies as a timeout |
+| native toolchain | **present all along** — yosys, nextpnr-xilinx, prjxray, 317 MB chipdb | would fail loudly; **never tested** |
+| JTAG cable | present — Digilent `0x0403:0x6014`, bus 001 device 005 | absent cable is a clear error |
+| **JTAG chain** | **EMPTY — the target does not answer** | `--detect` prints `empty`, *not* an error |
+
+**The reported blocker was none of them.** Docker was wedged rather than absent — and the build
+**never used Docker**: the toolchain is native and `t27c silicon` drives it directly.
+
+Two failure modes hid this. `docker info` **hangs** rather than failing, destroying whatever
+command it is bundled into. And `openFPGALoader --detect` prints **`empty`** for a live cable
+with a silent board — a word that reads as "nothing here" and gets blamed on the cable.
+
+**New tool: `tri bench`** — four probes, each individually non-blocking, one verdict each.
+
+### The first silicon numbers
+
+From the spec through `t27c silicon`, Verilog generated not hand-written, on
+**`xc7a200tfbg676-1`**:
+
+| stage | time | result |
+|---|---|---|
+| spec → Verilog | 0.04 s | 7 483 B, one `$display` stripped |
+| yosys | 5.25 s | **123 LUT, 52 CARRY4, 0 DSP48E1, BSCANE2 ×1** |
+| datapath survives | 5.66 s | 52 CARRY4 in fabric, 37 per DUT — **1.19 DUT-equivalents** |
+| nextpnr | 15.14 s | **Fmax 80.35 MHz**, PASS at 70.77 MHz — **13.5 % margin** |
+| fasm2frames → bit | 4.31 s | **9 730 834 B**, sync word `AA995566` at offset 230 |
+
+**Thirty seconds end to end, no Docker.** Identity recorded in `bitstream_w973.json` —
+`sha256 db9fcd16…` — because the build directory lives under `TMPDIR` and is swept.
+
+**This is synthesis and timing, not a die verdict.** The chain is empty, so nothing was read
+back. **The remaining gap is one physical action**: power the board or reseat the ribbon.
+Everything upstream of it is now measured and reproducible in half a minute.
+
+Theorems **T819**, **T820**; lessons **1476**, **1477**. **238 derived checks.**

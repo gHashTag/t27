@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W972, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W973, 2026-08-21)
+
+> **W973 — FIRST SILICON NUMBERS, AND THE BLOCKER WAS NEVER DOCKER.** Built from the spec via
+> `t27c silicon` on **`xc7a200tfbg676-1`**: **123 LUT, 52 CARRY4, 0 DSP48E1, BSCANE2 ×1**,
+> **Fmax 80.35 MHz** against a 70.77 MHz target — **PASS, 13.5 % margin** — 1.19 DUT-equivalents
+> of arithmetic on the die, bitstream **9 730 834 B** with the sync word at offset 230.
+> **Thirty seconds end to end, and no Docker was involved.** **Four preconditions, measured
+> separately:** Docker **wedged** (one PID alive 2 d 1 h) not absent; the **native** openxc7
+> toolchain present all along and never used; the cable present; **the JTAG chain EMPTY — the
+> target does not answer.** The reported blocker was none of them. `docker info` **hangs**,
+> killing any command it joins; `--detect` prints **`empty`** for a live cable with a silent
+> board. New: **`tri bench`**, four non-blocking probes, one verdict each. **This is synthesis
+> and timing, not a die verdict** — the remaining gap is one physical action. T819/T820,
+> lessons 1476/1477, **238 derived checks**. **Readiness 81 %.**
 
 > **W972 — ALL THREE DIRECTIONS, AND DOCKER WAS NEVER ABSENT.** **(1) The last convention is
 > gone:** against a float with **real subnormals** (normaliser paid for) TNF16 is **450.29 vs

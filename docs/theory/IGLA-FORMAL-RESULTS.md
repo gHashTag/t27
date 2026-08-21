@@ -29931,6 +29931,63 @@ absent, and the two have different remedies. **Probe liveness with commands that
 block**, and reserve the blocking call for after the cheap evidence says something is
 listening.
 
+### T819 — The hardware axis has four independent preconditions, and twenty-two waves named the wrong one
+
+**What was reported.** For twenty-two waves: *"the Docker daemon does not respond and cannot be
+started non-interactively, so no bitstream can be built."* One blocker, one remedy, one human
+action.
+
+**What is true.** There are **four** independent preconditions, and they fail differently:
+
+| precondition | state, measured | how it fails |
+|---|---|---|
+| Docker daemon | **was wedged** — one backend PID alive 2 d 1 h holding a stale socket | client **hangs**, so any probe bundled with other work dies as a timeout |
+| native toolchain | **present all along** — yosys, nextpnr-xilinx, prjxray, 317 MB chipdb | would fail loudly; never tested |
+| JTAG cable | **present** — Digilent `0x0403:0x6014`, serial 210512180081, bus 001 device 005 | absent cable is a clear error |
+| **JTAG chain** | **EMPTY — the target does not answer** | `--detect` prints `empty`, *not* an error |
+
+**The reported blocker was not any of them.** Docker was wedged rather than absent, and — more
+to the point — **the build never used Docker**: the openxc7 toolchain is native, and
+`t27c silicon` drives it directly. The real blocker is the fourth row, and it became visible
+only once the first three were separately confirmed.
+
+**Why the misdiagnosis persisted.** Two failure modes conspire. `docker info` **hangs** rather
+than failing, so it destroys whatever command it is bundled into and the whole command is
+recorded as "Docker unavailable". And `openFPGALoader --detect` prints **`empty`** for a
+populated cable with a silent target — a word that reads as "nothing here" and is easily
+attributed to the cable rather than the board.
+
+**Statement.** When a capability has several preconditions, a report naming *one* blocker is
+only as good as the probe that distinguishes them. **The probes must be individually
+non-blocking and individually reported**, which is what `tri bench` now does: four lines, four
+verdicts, no bundling.
+
+### T820 — First silicon numbers: the design meets timing on the real part
+
+Built from the spec through `t27c silicon` — Verilog generated, not hand-written (L2) — on
+**`xc7a200tfbg676-1`**, the part the SSOT names:
+
+| stage | time | artefact |
+|---|---|---|
+| spec → Verilog | 0.04 s | 7 483 B, one `$display` stripped (T167) |
+| yosys | 5.25 s | **123 LUT, 52 CARRY4, 0 DSP48E1, BSCANE2 ×1** |
+| datapath survives | 5.66 s | 52 CARRY4 in fabric, 37 per DUT — **1.19 DUT-equivalents** of arithmetic reached the die |
+| nextpnr | 15.14 s | **Fmax 80.35 MHz on `cfgmclk`, PASS at the 70.77 MHz target** |
+| BSCAN chain == site | 0.00 s | `JTAG_CHAIN(2)` at `BSCAN2` — agree |
+| fasm2frames | 2.60 s | 22 698 060 B |
+| frames → bitstream | 1.71 s | **9 730 834 B**, sync word `AA995566` at offset 230 |
+
+**Thirty seconds, end to end, with no Docker.** `sha256 db9fcd16…`, recorded in
+`bitstream_w973.json` because the build directory is under `TMPDIR` and is swept.
+
+**What this is and is not.** It is the first *synthesis and timing* result this project has on
+the real part in this session: the design fits, routes, and closes timing with **13.5 %
+margin** over its target. It is **not** a verdict read off the die — that needs the fourth
+precondition, and the chain is empty.
+
+**The remaining gap is one physical action.** Power the board, or reseat the JTAG ribbon.
+Everything upstream of it is now measured and reproducible in half a minute.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

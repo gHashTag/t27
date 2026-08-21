@@ -79,6 +79,49 @@ case "$cmd" in
     exit 0
     ;;
 
+  bench)
+    # W973: for twenty-two waves the hardware axis was reported blocked on "Docker",
+    # and it was blocked on none of the things anyone named. There are FOUR
+    # independent preconditions and they fail differently; a wave that cannot tell
+    # them apart reports the wrong one. Each probe here is chosen so it CANNOT hang.
+    bad=0
+    if curl -s --max-time 6 --unix-socket "${DOCKER_SOCK:-$HOME/.docker/run/docker.sock}" \
+         http://localhost/_ping 2>/dev/null | grep -q OK; then
+      echo "ok    docker    daemon answers _ping"
+    else
+      echo "warn  docker    no answer (wedged or down) -- NOT needed for the openxc7 build"
+    fi
+    PNR="${T27_PNR:-$HOME/t27/build/fpga/openxc7/nextpnr-xilinx/build/nextpnr-xilinx}"
+    DB="${T27_CHIPDB:-$REPO_ROOT/build/fpga/openxc7/xc7a200tfbg676-1.bin}"
+    if [ -x "$PNR" ] && [ -s "$DB" ] && command -v yosys >/dev/null 2>&1; then
+      echo "ok    toolchain yosys + nextpnr-xilinx + chipdb $(du -h "$DB" | cut -f1) present, native"
+    else
+      echo "FAIL  toolchain missing: $( [ -x "$PNR" ] || echo nextpnr) $( [ -s "$DB" ] || echo chipdb) $(command -v yosys >/dev/null || echo yosys)"
+      bad=1
+    fi
+    if command -v openFPGALoader >/dev/null 2>&1; then
+      usb="$(openFPGALoader --scan-usb 2>/dev/null | grep -c '0x0403' || true)"
+      if [ "${usb:-0}" -gt 0 ]; then
+        echo "ok    cable     ${usb} Digilent FTDI cable(s) on the bus"
+        # --detect prints the idcode only when a device ANSWERS; an empty chain is
+        # printed as "empty", which is a different failure from an absent cable.
+        det="$(openFPGALoader -c digilent_hs2 --detect 2>&1 || true)"
+        if printf '%s' "$det" | grep -qiE 'idcode'; then
+          echo "ok    chain     $(printf '%s' "$det" | grep -iE 'idcode' | head -1 | tr -s ' ')"
+        else
+          echo "FAIL  chain     EMPTY -- cable drives JTAG but no device answers"
+          echo "                board unpowered / ribbon unseated / target fault; not fixable in software"
+          bad=1
+        fi
+      else
+        echo "FAIL  cable     no Digilent FTDI (0x0403:0x6014) on the bus"; bad=1
+      fi
+    else
+      echo "FAIL  cable     openFPGALoader not installed"; bad=1
+    fi
+    [ "$bad" = "0" ] && echo "bench: ready to load" || echo "bench: NOT ready -- see the FAIL line(s)"
+    exit "$bad"
+    ;;
   rungs)
     # W967: tri anomaly checks the SHAPE of records; it cannot see that a name is
     # bound to the wrong object. That defect has cost this project two sign-flipped
