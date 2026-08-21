@@ -152,7 +152,15 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                     // Direct field declaration without dash: "name: type"
                     if let Some((field_name, field_type)) = trimmed.split_once(':') {
                         let field_name = field_name.trim().to_string();
-                        let type_val = field_type.trim().to_string();
+                        // The dashed branch above strips quotes; this one did not,
+                        // and that asymmetry is the whole of issue #2154. A quoted
+                        // type reaches convert_type_name still wearing its quotes,
+                        // so `"[]const u8"` fails the `starts_with("[]")` test,
+                        // falls through to the `contains('[')` arm, and comes out
+                        // as `[[]Const u8"` -- doubled bracket, pascal-cased
+                        // keyword and a trailing quote, all three from this one
+                        // missing call. 115 field lines across 63 spec files.
+                        let type_val = field_type.trim().trim_matches('"').to_string();
                         t.fields.push(TriField {
                             name: field_name,
                             type_val,
