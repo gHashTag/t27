@@ -226,14 +226,49 @@ fn axi_responses_are_okay() {
 fn axi_handshake_dropbacks_present() {
     let (stdout, _stderr, ok) = run(&["gen-axi-lite-slave"]);
     assert!(ok);
-    assert!(stdout.contains("if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;"));
-    assert!(stdout.contains("if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;"));
+    assert!(stdout.contains("if (s_axi_bvalid && s_axi_bready) begin"));
+    assert!(stdout.contains("if (s_axi_rvalid && s_axi_rready) begin"));
+    assert!(stdout.contains("s_axi_bvalid <= 1'b0;"));
+    assert!(stdout.contains("s_axi_rvalid <= 1'b0;"));
+}
+
+/// Regression guard for the lost-response defect (issue 1968), asserted on the
+/// shipped CLI output rather than on the library function.
+///
+/// `awready`, `wready` and `arready` were asserted at reset and never
+/// deasserted. With one response register per channel, accepting a second
+/// transaction while the first is unanswered merges two transactions into one
+/// response beat and the master hangs. Asserting that a deassertion exists at
+/// all -- not the text of the current expression -- makes any re-pinning of a
+/// ready fail here regardless of how it is spelled.
+#[test]
+fn axi_ready_drops_while_a_response_is_owed() {
+    let (stdout, _stderr, ok) = run(&["gen-axi-lite-slave"]);
+    assert!(ok);
+    for sig in ["s_axi_awready", "s_axi_wready", "s_axi_arready"] {
+        assert!(
+            stdout.contains(&format!("{} <= 1'b0", sig)),
+            "`{}` is never deasserted: it is asserted at reset and left high, \
+             so a second transaction is accepted while the first response is \
+             still unacknowledged and one of the two responses is lost. \
+             Emitted:\n{}",
+            sig,
+            stdout
+        );
+    }
 }
 
 #[test]
 fn axi_reset_initializes_all_outputs() {
     let (stdout, _stderr, ok) = run(&["gen-axi-lite-slave"]);
     assert!(ok);
+    // Scoped to the reset branch on purpose. Since #1968 the ready signals are
+    // also assigned outside reset, so a whole-module `contains` would be
+    // satisfied by the release block and would no longer notice a reset line
+    // going missing.
+    let start = stdout.find("if (!rst_n) begin").expect("reset branch");
+    let end = stdout.find("end else begin").expect("reset branch end");
+    let reset_block = &stdout[start..end];
     for line in [
         "s_axi_awready <= 1'b1;",
         "s_axi_wready <= 1'b1;",
@@ -246,7 +281,11 @@ fn axi_reset_initializes_all_outputs() {
         "reg_input_addr <= 64'd0;",
         "reg_output_addr <= 64'd0;",
     ] {
-        assert!(stdout.contains(line), "missing reset line `{}`", line);
+        assert!(
+            reset_block.contains(line),
+            "missing reset line `{}` in the reset branch",
+            line
+        );
     }
 }
 

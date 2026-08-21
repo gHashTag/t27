@@ -173,7 +173,16 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("            // #925 fix: clear handshakes BEFORE accept so a same-cycle\n");
     s.push_str("            // (accept + BREADY/RREADY) race lets the accept NBA win; the\n");
     s.push_str("            // response is never silently dropped and the master never hangs.\n");
-    s.push_str("            if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;\n");
+    s.push_str("            // #1968 fix: this module holds ONE bvalid/bresp register, so it\n");
+    s.push_str("            // can owe at most one write response. awready/wready drop on\n");
+    s.push_str("            // accept and are restored only when that response is taken. Held\n");
+    s.push_str("            // high permanently they let a second write be accepted while the\n");
+    s.push_str("            // first is unanswered, merging two transactions into one B beat;\n");
+    s.push_str("            // the master then waits forever for a beat nobody will send.\n");
+    s.push_str("            if (s_axi_bvalid && s_axi_bready) begin\n");
+    s.push_str("                s_axi_bvalid <= 1'b0;\n");
+    s.push_str("                s_axi_awready <= 1'b1; s_axi_wready <= 1'b1;\n");
+    s.push_str("            end\n");
     s.push_str("            if (s_axi_awvalid && s_axi_wvalid && s_axi_awready && s_axi_wready) begin\n");
     s.push_str("                case (s_axi_awaddr[5:2])\n");
     s.push_str("                    4'h0: reg_ctrl                 <= s_axi_wdata[31:0];\n");
@@ -191,9 +200,15 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                    default: ; // no-op for RO / unmapped writes\n");
     s.push_str("                endcase\n");
     s.push_str("                s_axi_bvalid <= 1'b1; s_axi_bresp <= 2'b00;\n");
+    s.push_str("                s_axi_awready <= 1'b0; s_axi_wready <= 1'b0;\n");
     s.push_str("            end\n");
     s.push_str("            // ---- Read channel ---------------------------------------------\n");
-    s.push_str("            if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;\n");
+    s.push_str("            // #1968: one rvalid/rdata register, so arready drops on accept\n");
+    s.push_str("            // and returns on the R handshake. Same defect, same shape.\n");
+    s.push_str("            if (s_axi_rvalid && s_axi_rready) begin\n");
+    s.push_str("                s_axi_rvalid <= 1'b0;\n");
+    s.push_str("                s_axi_arready <= 1'b1;\n");
+    s.push_str("            end\n");
     s.push_str("            if (s_axi_arvalid && s_axi_arready) begin\n");
     s.push_str("                case (s_axi_araddr[5:2])\n");
     s.push_str("                    4'h0: s_axi_rdata <= reg_ctrl;\n");
@@ -215,6 +230,7 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                    default: s_axi_rdata <= 32'hDEADBEEF;\n");
     s.push_str("                endcase\n");
     s.push_str("                s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;\n");
+    s.push_str("                s_axi_arready <= 1'b0;\n");
     s.push_str("            end\n");
     s.push_str("        end\n");
     s.push_str("    end\n");
@@ -386,8 +402,10 @@ mod tests {
     #[test]
     fn axi_handshake_dropbacks_present() {
         let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
-        assert!(v.contains("if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;"));
-        assert!(v.contains("if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;"));
+        assert!(v.contains("if (s_axi_bvalid && s_axi_bready) begin"));
+        assert!(v.contains("if (s_axi_rvalid && s_axi_rready) begin"));
+        assert!(v.contains("s_axi_bvalid <= 1'b0;"));
+        assert!(v.contains("s_axi_rvalid <= 1'b0;"));
     }
 
     // Regression for #925: the handshake clear must come BEFORE the accept that
@@ -396,17 +414,85 @@ mod tests {
     #[test]
     fn axi_clear_precedes_accept_no_deadlock() {
         let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
-        let b_clear = v.find("if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;").unwrap();
+        let b_clear = v.find("if (s_axi_bvalid && s_axi_bready) begin").unwrap();
         let b_accept = v.find("s_axi_bvalid <= 1'b1; s_axi_bresp <= 2'b00;").unwrap();
         assert!(b_clear < b_accept, "B-channel clear must precede accept (#925)");
-        let r_clear = v.find("if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;").unwrap();
+        let r_clear = v.find("if (s_axi_rvalid && s_axi_rready) begin").unwrap();
         let r_accept = v.find("s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;").unwrap();
         assert!(r_clear < r_accept, "R-channel clear must precede accept (#925)");
+    }
+
+    /// Regression guard for the lost-response defect (issue 1968).
+    ///
+    /// `awready`, `wready` and `arready` were asserted at reset and never
+    /// deasserted anywhere. The module holds exactly one `bvalid`/`bresp`
+    /// register and one `rvalid`/`rdata` register, so it can owe at most one
+    /// response per channel; accepting a second transaction while the first is
+    /// unanswered merges two transactions into one response beat and the
+    /// master waits forever for a beat that is never sent.
+    ///
+    /// The general shape of that defect is "a ready that has no deassertion at
+    /// all", so that is what is asserted -- not the text of the current
+    /// expression. A reformulation that still drops ready while a response is
+    /// owed passes; pinning any ready high again fails, however it is spelled.
+    #[test]
+    fn axi_ready_drops_while_a_response_is_owed() {
+        let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
+        for sig in ["s_axi_awready", "s_axi_wready", "s_axi_arready"] {
+            assert!(
+                v.contains(&format!("{} <= 1'b0", sig)),
+                "`{}` is never deasserted: it is asserted at reset and left \
+                 high, so a second transaction is accepted while the first \
+                 response is still unacknowledged and one of the two responses \
+                 is lost. Emitted:\n{}",
+                sig,
+                v
+            );
+        }
+    }
+
+    /// The deassertion must sit in the accept block and the reassertion in the
+    /// response-handshake block -- a ready dropped and restored anywhere else
+    /// (or in the wrong order) does not bound the outstanding count.
+    #[test]
+    fn axi_ready_release_is_tied_to_the_response_handshake() {
+        let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
+        let b_clear = v.find("if (s_axi_bvalid && s_axi_bready) begin").unwrap();
+        let w_accept = v
+            .find("if (s_axi_awvalid && s_axi_wvalid && s_axi_awready && s_axi_wready) begin")
+            .unwrap();
+        let aw_release = v[b_clear..w_accept]
+            .find("s_axi_awready <= 1'b1;")
+            .expect("awready must be released inside the B handshake block");
+        assert!(v[b_clear..w_accept].contains("s_axi_wready <= 1'b1;"));
+        let aw_drop = v[w_accept..]
+            .find("s_axi_awready <= 1'b0;")
+            .expect("awready must drop inside the write-accept block");
+        assert!(v[w_accept..].contains("s_axi_wready <= 1'b0;"));
+        let _ = (aw_release, aw_drop);
+
+        let r_clear = v.find("if (s_axi_rvalid && s_axi_rready) begin").unwrap();
+        let r_accept = v.find("if (s_axi_arvalid && s_axi_arready) begin").unwrap();
+        assert!(
+            v[r_clear..r_accept].contains("s_axi_arready <= 1'b1;"),
+            "arready must be released inside the R handshake block"
+        );
+        assert!(
+            v[r_accept..].contains("s_axi_arready <= 1'b0;"),
+            "arready must drop inside the read-accept block"
+        );
     }
 
     #[test]
     fn axi_reset_initializes_all_outputs() {
         let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
+        // Scoped to the reset branch on purpose. Since #1968 the ready signals
+        // are also assigned outside reset, so a whole-module `contains` would
+        // be satisfied by the release block and would no longer notice a reset
+        // line going missing.
+        let start = v.find("if (!rst_n) begin").expect("reset branch");
+        let end = v.find("end else begin").expect("reset branch end");
+        let reset_block = &v[start..end];
         for line in [
             "s_axi_awready <= 1'b1;",
             "s_axi_wready <= 1'b1;",
@@ -417,7 +503,11 @@ mod tests {
             "reg_irq_en <= 32'd0;",
             "reg_weight_addr <= 64'd0;",
         ] {
-            assert!(v.contains(line), "missing reset line `{}`", line);
+            assert!(
+                reset_block.contains(line),
+                "missing reset line `{}` in the reset branch",
+                line
+            );
         }
     }
 
