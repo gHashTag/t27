@@ -1878,3 +1878,57 @@ have hidden a defect that is *linear in the operand*, because a test that suppli
 value cannot see a residue that grows with it.
 
 Theorems **T824**, **T824a**, **T824b**; lessons **1485**, **1486**. **293 derived checks.**
+
+---
+
+## 46. W977 — the MAC keeps a private copy of the multiply, and it lost the zero guard
+
+### The root cause, one line
+
+`GftSignedMac` is a **flat module with zero instances of `GftSmul` or `GftSadd`**. It
+re-implements the multiply inline with the *identical* hidden-bit line:
+
+| | line | zero guards |
+|---|---|---|
+| `GftSmul` | 333: `prod = __mul_noop((512 + am), (512 + bm))` | **`if (a==0)` @258, `if (b==0)` @262** |
+| `GftSignedMac` | 69: `prod = __mul_noop((512 + am), (512 + bm))` | **none — "zero" never appears** |
+
+The `512 +` is the format's implicit leading one. `GftSmul` special-cases a zero operand before
+reaching it; the MAC's copy does not, so zero is multiplied as though it carried a hidden one —
+hence `mac(0,x,0,y) = 512 + 4·x`, **a residue linear in the operand**.
+
+**One missing guard explains both die results**: `gft_smul`'s ZERO clause is **true** on
+silicon; `gft_signed_mac`'s is **false**.
+
+**Two specs produced two implementations of one operation, and the derived one lost a special
+case.** Nothing in the pipeline compares them.
+
+### Three hypotheses refuted first — that is what made it narrow
+
+| hypothesis | test | result |
+|---|---|---|
+| `sadd(0,0) ≠ 0` | drive `GftSadd` | **= 0** |
+| `smul(0,x) ≠ 0` | drive `GftSmul` | **= 0** |
+| `smul` not commutative | 20 pairs | **0 violations** |
+
+And W976's own result was re-checked before being built on: the ZERO probe had read `result`
+after a fixed 40 cycles without consulting `ready`; **gated on `ready` it is identical** — 16 of
+16, `512 + 4·live`, `ready` high.
+
+### Seven operators to the die
+
+| operator | simulation | die | outcome |
+|---|---|---|---|
+| `gft_sadd` | 3 / 3 | `1111` | **PASS** |
+| `gft_train1` | 3 / 3 | `1111` | **PASS** |
+| `gft_smul` | 3 / 3 | `1010` | **FAIL** — COMM, IND |
+| `gft_signed_mac` | 2 / 2 | `0011` | **FAIL** — ZERO, COMM |
+| `gft_bitnet_neuron` | 2 | — | **FAIL timing** — 16.63 MHz vs 70.77 required |
+| `gft_xorpercep` | 1 / 1 | — | **ABSENT** — 600 s PnR cap |
+| `gft_signed_dot4` | — | — | **ABSENT** — cap + BSCAN mismatch |
+
+**Every operator passes its own simulation suite. Four of the five that reached a verdict do
+not pass on hardware.** The `ABSENT`/`FAIL` split earns its keep: `bitnet` genuinely misses its
+constraint by **4.3×**; the other two were merely stopped.
+
+Theorems **T825**, **T825a**, **T825b**; lessons **1487**, **1488**. **304 derived checks.**

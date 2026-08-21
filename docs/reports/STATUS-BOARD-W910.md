@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W976, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W977, 2026-08-22)
+
+> **W977 — THE MAC KEEPS A PRIVATE COPY OF THE MULTIPLY, AND IT LOST THE ZERO GUARD.**
+> `GftSignedMac` is **flat — zero instances** of `GftSmul`/`GftSadd` — and repeats the identical
+> hidden-bit line `prod = __mul_noop((512 + am), (512 + bm))` **without** the guards `GftSmul`
+> carries (`if (a==0)` @258, `if (b==0)` @262; "zero" never appears in the MAC). **One missing
+> guard explains both die results**: smul's ZERO is **true** on silicon, the MAC's is **false**.
+> Three cheaper hypotheses were **refuted first** — `sadd(0,0)=0`, `smul(0,x)=0`, smul
+> commutative over 20 pairs — and W976's own measurement was re-verified **gated on `ready`**
+> (identical, 16/16). **Seven operators to the die:** `gft_sadd` **1111** and `gft_train1`
+> **1111** pass; `gft_smul` **1010** and `gft_signed_mac` **0011** fail; `gft_bitnet_neuron`
+> **FAILS timing** at 16.63 vs 70.77 MHz; `xorpercep` and `dot4` are **ABSENT** (600 s PnR cap).
+> **Every operator passes its own simulation suite; four of five verdicts are red.** T825/T825a/
+> T825b, lessons 1487/1488, **304 derived checks**. **Readiness 90 %.**
 
 > **W976 — ZERO IS NOT AN ANNIHILATOR, AND THE DIE ONLY HAD TO ASK.** The failing word
 > `0xa5a5334e` decodes exactly: **c_zero=0, c_comm=0**, c_cancel=1, c_ind=1, beat=1, ok=0.

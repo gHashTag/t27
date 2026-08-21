@@ -30221,6 +30221,71 @@ that change each beat.
 alone would have hidden the ZERO defect; together they made a linear-in-the-operand error
 invisible to a test that only ever supplies one operand value.
 
+### T825 — The MAC re-implements the multiply and drops the zero guard: duplication without reuse, in generated code
+
+**The root cause, located exactly.** `GftSignedMac` is a **flat module with zero instances of
+`GftSmul` or `GftSadd`**. It re-implements the multiply inline, using the *identical*
+hidden-bit line:
+
+| | file | line | zero guards |
+|---|---|---|---|
+| `GftSmul` | `smul.v` | 333: `prod = __mul_noop((512 + am), (512 + bm))` | **`if (a == 0)` @258, `if (b == 0)` @262** |
+| `GftSignedMac` | `mac.v` | 69: `prod = __mul_noop((512 + am), (512 + bm))` | **none — the word "zero" does not appear** |
+
+The `512 +` is the format's **implicit leading one**. `GftSmul` special-cases a zero operand
+before reaching it; **the MAC's copy does not**, so a zero operand is multiplied as though it
+carried a hidden one. Hence `mac(0, x, 0, y) = 512 + 4·x` — **a residue linear in the operand**,
+exactly as measured.
+
+**And it predicts the die.** `gft_smul`'s ZERO clause is **true** on silicon (it has the guard);
+`gft_signed_mac`'s ZERO clause is **false** (it does not). The two die results, taken together,
+are explained by one line of missing code.
+
+**The general shape.** Two specs generated two implementations of the same operation, and the
+derived one lost a special case the primitive one has. Nothing in the pipeline compares them —
+**a generator that emits the same arithmetic twice will eventually emit it two different ways**,
+and only an oracle that exercises both will notice. Here the oracle was a die.
+
+### T825a — Three hypotheses tested and refuted before the right one
+
+Before the composition was examined, three plausible explanations were tested **off the die**
+and each was **refuted**:
+
+| hypothesis | test | result |
+|---|---|---|
+| `sadd(0,0) ≠ 0` | drive `GftSadd` directly | **`sadd(0,0) = 0`** |
+| `smul(0,x) ≠ 0` | drive `GftSmul` directly | **`smul(0,12345) = 0`** |
+| `smul` is not commutative | 20 operand pairs | **0 violations** |
+
+Only after all three failed did the flat-composition question arise. **The refutations are what
+made the finding narrow**: with `smul` and `sadd` both clean, the defect had nowhere left to be
+except the MAC's own body.
+
+**And W976's own result was re-checked before being built on.** That measurement read `result`
+after a fixed 40 cycles without consulting `ready`. Re-run **gated on `ready`**, it is identical:
+16 violations in 16 points, `result = 512 + 4·live` with `ready` high. (Both modules assign
+`ready = 1'b1`, so the gate is vacuous here — which is knowable only after checking.)
+
+### T825b — Seven operators to the die: two pass, two fail arithmetic, one fails timing, two never arrive
+
+| operator | simulation | die | outcome |
+|---|---|---|---|
+| `gft_sadd` | 3 / 3 | `1111` | **PASS** |
+| `gft_train1` | 3 / 3 | `1111` | **PASS** |
+| `gft_smul` | 3 / 3 | `1010` | **FAIL** — COMM, IND |
+| `gft_signed_mac` | 2 / 2 | `0011` | **FAIL** — ZERO, COMM |
+| `gft_bitnet_neuron` | 2 | — | **FAIL timing**: 16.63 MHz against 70.77 required |
+| `gft_xorpercep` | 1 / 1 | — | **ABSENT** — nextpnr 600 s cap |
+| `gft_signed_dot4` | — | — | **ABSENT** — cap + BSCAN chain/site mismatch |
+
+**Every operator passes its own simulation suite. Four of five that reached a verdict do not
+pass on hardware** — two arithmetically, one on timing, and the two that never arrived did so
+for reasons unrelated to correctness.
+
+**The `ABSENT` / `FAIL` distinction earns its keep here.** `bitnet` genuinely misses its
+constraint by 4.3×; `xorpercep` and `dot4` were merely stopped. Collapsing those into one red
+column would claim three timing failures where there is one.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
