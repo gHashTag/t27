@@ -182,9 +182,41 @@ fn prefetch_fsm_states_present() {
     let (stdout, _stderr, ok) = run(&["gen-weight-prefetch-ctrl"]);
     assert!(ok);
     assert!(stdout.contains("localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;"));
-    assert!(stdout.contains("IDLE: if (start_prefetch) begin"));
+    assert!(stdout.contains("IDLE: begin"));
+    assert!(stdout.contains("if (start_prefetch) begin"));
     assert!(stdout.contains("FETCH: begin"));
     assert!(stdout.contains("DONE_ST: begin"));
+}
+
+/// Issue #1985: the emitted `IDLE` arm must retire `prefetch_done` before it
+/// tests `start_prefetch`, so a requester sampling the flag in the cycle it
+/// raises `start_prefetch` does not see the previous transaction's
+/// completion. Anchored to the `IDLE` arm because the reset block also
+/// contains `prefetch_done <= 1'b0;`.
+#[test]
+fn prefetch_done_retired_in_idle_before_start_guard() {
+    let (stdout, _stderr, ok) = run(&["gen-weight-prefetch-ctrl"]);
+    assert!(ok);
+    let case_body = stdout
+        .split_once("end else case (state)")
+        .expect("FSM case statement missing")
+        .1;
+    let idle_arm = case_body
+        .split_once("FETCH: begin")
+        .expect("FETCH arm missing")
+        .0;
+    let clear = idle_arm
+        .find("prefetch_done <= 1'b0;")
+        .unwrap_or_else(|| panic!("IDLE arm never clears prefetch_done:\n{}", idle_arm));
+    let guard = idle_arm
+        .find("if (start_prefetch)")
+        .unwrap_or_else(|| panic!("IDLE arm missing start_prefetch guard:\n{}", idle_arm));
+    assert!(
+        clear < guard,
+        "prefetch_done must be cleared on entry to IDLE, before the \
+         `if (start_prefetch)` guard (#1985). IDLE arm:\n{}",
+        idle_arm
+    );
 }
 
 #[test]
