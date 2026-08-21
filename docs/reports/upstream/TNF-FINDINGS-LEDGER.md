@@ -1535,3 +1535,42 @@ was dirty and appeared the moment the fix worked.** A check whose passing case i
 not a check.
 
 Theorems **T814**, **T814a**; lessons **1466**, **1467**, **1468**. **216 derived checks.**
+
+---
+
+## 39. W970 — the class closes: one inverted sign, ten accuracy cells, none significant
+
+**Every record produced by a substituted rig has been regenerated** on the ladder's true
+eighth rung. Three rigs, two tasks, five seeds each, paired:
+
+| record | cell | substitute `(4,3)` | rung `(3,4)` | difference | t |
+|---|---|---|---|---|---|
+| `activations` | MNIST, weights | 97.2620 | 97.2540 | −0.0080 pp | −0.64 |
+| `activations` | MNIST, w+act | 97.2360 | 97.2540 | +0.0180 pp | +1.05 |
+| `activations` | Fashion, weights | 86.8660 | 86.8500 | −0.0160 pp | −0.78 |
+| `activations` | Fashion, w+act | 86.9080 | 86.8400 | −0.0680 pp | −1.48 |
+| `conv` | MNIST | 97.5400 | 97.5540 | +0.0140 pp | +0.78 |
+| `conv` | Fashion | 85.5640 | 85.5440 | −0.0200 pp | −0.51 |
+| `accuracy_seeds` | MNIST 8b | 93.7040 | 93.7680 | +0.0640 pp | +1.42 |
+| `accuracy_seeds` | Fashion 8b | 84.1800 | 84.2200 | +0.0400 pp | +0.65 |
+
+**Not one difference is significant; the largest |t| is 1.48; the signs are mixed.**
+
+### The complete assessment
+
+The substitution **inverted the sign** of the area result (chapter 32) and **changed nothing
+measurable** in accuracy. **The asymmetry has a mechanism, not luck:** area is a function of
+the decode table's *structure* — 127 binades against 31 moved the decoder from 18 cells to 29
+— while accuracy at this width is a function of *grid density near the working range*, which
+both formats over-resolve relative to what the task can use.
+
+**A substitution damages the metrics that depend on the property it changed, and only those.**
+So "approximately right" is a claim **per axis**, and must be measured per axis rather than
+assumed from one.
+
+**What closes.** Every "TNF8" figure in this project now either describes the ladder's rung or
+carries a `_format_note` saying it does not, and every rig that produced one has been
+corrected, made portable, and re-run. **The class opened in W954 closes at W970 — sixteen
+waves — with the damage quantified rather than assumed.**
+
+Theorem **T815**; lesson **1469**. **222 derived checks.**

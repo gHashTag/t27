@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W969, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W970, 2026-08-21)
+
+> **W970 — THE CLASS CLOSES: ONE INVERTED SIGN, TEN ACCURACY CELLS, NONE SIGNIFICANT.**
+> Every record from a substituted rig is regenerated on `TNFFormat(3, 4)`. Across
+> `activations`, `conv` and `accuracy_seeds` — three rigs, two tasks, five seeds, paired —
+> the largest difference is **0.068 pp**, the largest **|t| = 1.48**, signs mixed. An 11-bit
+> format spanning **126.91** binades and a 10-bit spanning **30.95** are statistically
+> indistinguishable at this quantisation. **Complete assessment:** the substitution inverted
+> the **area** sign (W963) and changed **nothing** in accuracy. The asymmetry has a mechanism
+> — area depends on decode-table structure (decoder 29 vs 18 cells), accuracy on grid density
+> near the working range, which both over-resolve. **"Approximately right" is a claim per
+> axis, and must be measured per axis.** The class opened in W954 closes here, sixteen waves
+> later, with the damage **quantified rather than assumed**. T815, lesson 1469, **222 derived
+> checks**. **Readiness 79 %.**
 
 > **W969 — THE RECORD CATCHES UP, AND THE REPLICATION PROMISE BECOMES TRUE.**
 > `activations.py` re-run on `TNFFormat(3, 4)`: MNIST **−0.008 / +0.018 pp**, Fashion

@@ -29783,6 +29783,46 @@ after the edit, not by running any of them. **An automated edit across a corpus 
 followed by a corpus-wide parse**, because the failure lands in the file you were least
 expecting to touch.
 
+### T815 — The substitution's damage assessment is complete: one inverted sign, ten accuracy cells, none significant
+
+**Every record produced by a substituted rig has now been regenerated on the ladder's true
+eighth rung `TNFFormat(3, 4)`.** Three rigs, three tasks, ten comparable cells, five seeds
+each, paired:
+
+| record | cell | substitute `(4,3)` | rung `(3,4)` | difference | t |
+|---|---|---|---|---|---|
+| `activations` | MNIST, weights | 97.2620 | 97.2540 | −0.0080 pp | −0.64 |
+| `activations` | MNIST, w+act | 97.2360 | 97.2540 | +0.0180 pp | +1.05 |
+| `activations` | Fashion, weights | 86.8660 | 86.8500 | −0.0160 pp | −0.78 |
+| `activations` | Fashion, w+act | 86.9080 | 86.8400 | −0.0680 pp | −1.48 |
+| `conv` | MNIST | 97.5400 | 97.5540 | +0.0140 pp | +0.78 |
+| `conv` | Fashion | 85.5640 | 85.5440 | −0.0200 pp | −0.51 |
+| `accuracy_seeds` | MNIST 8b | 93.7040 | 93.7680 | +0.0640 pp | +1.42 |
+| `accuracy_seeds` | Fashion 8b | 84.1800 | 84.2200 | +0.0400 pp | +0.65 |
+
+**Not one difference reaches significance; the largest |t| is 1.48; the signs are mixed.**
+An **11-bit** format spanning **126.91 binades** and a **10-bit** format spanning **30.95**
+are, across three independent rigs and two tasks, statistically indistinguishable at this
+quantisation.
+
+**The complete assessment.** The substitution:
+
+- **inverted the sign** of the area result — the true rung is 0.9 % *cheaper* than its
+  width-matched float, the substitute 5.0 % *dearer* (T808);
+- **changed nothing measurable** in accuracy — ten cells, three records, none significant.
+
+**Why the asymmetry is not luck.** Area is a function of the decode table's *structure*: 127
+binades against 31 changed the decoder from 18 cells to 29, a factor of 1.6, and the sentinel
+arithmetic with it. Accuracy at this width is a function of *grid density near the working
+range*, and both formats resolve that region far more finely than the task can use — which is
+the eight-bit null (T809) restated. **A substitution damages the metrics that depend on the
+property it changed, and only those.**
+
+**What this closes.** Every "TNF8" figure in this project now either describes the ladder's
+rung or carries a `_format_note` saying it does not, and every rig that produced one has been
+corrected and re-run. The class opened in W954 is closed at W970, sixteen waves later, with
+the damage quantified rather than assumed.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
