@@ -127,6 +127,10 @@ for f in sorted(R.glob("*.json")):
         d = json.loads(f.read_text())
     except Exception:
         continue
+    # W951: not every record is an object -- saturation_w951.json is a flat list of
+    # runs. Ask what the JSON IS before asking what it contains.
+    if not isinstance(d, dict):
+        continue
     runs = d.get("runs")
     if not isinstance(runs, dict) or not runs:
         continue
