@@ -7,7 +7,11 @@
 //!     error) latch into a 3-bit sticky `irq_status` register. The
 //!     final `irq_out` is the logical OR of `irq_status & irq_enable`.
 //!     `status_read` clears the latch (read-to-clear semantics) so the
-//!     host can acknowledge the IRQ from inside the ISR.
+//!     host can acknowledge the IRQ from inside the ISR. The clear
+//!     applies to the value the register held BEFORE this cycle; the
+//!     three sources are OR'd on top of the cleared value, so an event
+//!     arriving in the same cycle as the acknowledging read survives it.
+//!     See the W555 note below.
 //!
 //! Port summary:
 //!
@@ -18,6 +22,29 @@
 //! | Mask               | irq_enable[2:0]                             |
 //! | Status (RW1C-ish)  | irq_status[2:0], status_read                |
 //! | Output             | irq_out                                     |
+//!
+//! W555 -- lost-interrupt race, found by formal verification and fixed
+//! here. The update arm used to be four independent non-blocking
+//! assignments in one `always` block:
+//!
+//! ```text
+//!     if (inference_done) irq_status[0] <= 1'b1;
+//!     if (dma_done)       irq_status[1] <= 1'b1;
+//!     if (error)          irq_status[2] <= 1'b1;
+//!     if (status_read)    irq_status     <= 3'b000;  // Clear on read
+//! ```
+//!
+//! Non-blocking assignments in one block resolve last-write-wins, so the
+//! clear beat every source unconditionally. `$past(inference_done) |->
+//! irq_status[0]` was REFUTED, and the positive form
+//! `$past(inference_done) && $past(status_read) |-> irq_status[0] == 0`
+//! was PROVED: the event was not merely at risk, it was lost on every
+//! reachable state. A host servicing an interrupt silently dropped any
+//! event raised in the same cycle as its status read.
+//!
+//! The single combined assignment below removes the ordering entirely --
+//! with one driver there is no later write to discard an earlier one --
+//! and keeps read-to-clear intact for the no-event case.
 //!
 //! Algorithm ported from `gHashTag/vibee-lang`
 //! `src/vibeec/verilog_codegen.zig` lines 1550-1590
@@ -93,15 +120,17 @@ pub fn build_interrupt_controller(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
 
-    s.push_str("    // Capture interrupt events\n");
+    s.push_str("    // Capture interrupt events.\n");
+    s.push_str("    //\n");
+    s.push_str("    // ONE non-blocking assignment drives irq_status outside reset. Written\n");
+    s.push_str("    // as a chain of separate assignments the read-clear is simply the last\n");
+    s.push_str("    // write and wins outright, so an event raised in the same cycle as a\n");
+    s.push_str("    // status read is discarded (W555). Here the clear selects the PREVIOUS\n");
+    s.push_str("    // value and this cycle's sources are OR'd on top, so the event is kept.\n");
     s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     s.push_str("        if (!rst_n) irq_status <= 3'b000;\n");
-    s.push_str("        else begin\n");
-    s.push_str("            if (inference_done) irq_status[0] <= 1'b1;\n");
-    s.push_str("            if (dma_done)       irq_status[1] <= 1'b1;\n");
-    s.push_str("            if (error)          irq_status[2] <= 1'b1;\n");
-    s.push_str("            if (status_read)    irq_status     <= 3'b000;  // Clear on read\n");
-    s.push_str("        end\n");
+    s.push_str("        else        irq_status <= (status_read ? 3'b000 : irq_status)\n");
+    s.push_str("                                | {error, dma_done, inference_done};\n");
     s.push_str("    end\n");
     s.push_str("\n");
 
@@ -117,6 +146,52 @@ pub fn build_interrupt_controller(module_name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Count non-blocking assignments whose left-hand side is `irq_status`
+    /// -- either the whole register or a bit-select -- returning
+    /// `(reset_arm, update_arm)`. A line mentioning `!rst_n` is the reset
+    /// arm; everything else is the update arm.
+    ///
+    /// This is the instrument the W555 regression tests are built on. It
+    /// is deliberately structural rather than textual: the defect class is
+    /// "more than one driver in one clocked block", not any particular
+    /// spelling of it, so a reintroduction under different formatting or
+    /// different guard conditions is still caught.
+    fn count_irq_status_nba(v: &str) -> (usize, usize) {
+        const LHS: &str = "irq_status";
+        let mut reset = 0usize;
+        let mut update = 0usize;
+        for line in v.lines() {
+            // Comment bodies quote the historical racy chain; they are not
+            // assignments and must not be counted.
+            let code = match line.find("//") {
+                Some(i) => &line[..i],
+                None => line,
+            };
+            let mut rest = code;
+            while let Some(pos) = rest.find(LHS) {
+                let after = rest[pos + LHS.len()..].trim_start();
+                // Step over an optional bit- or part-select.
+                let after = if after.starts_with('[') {
+                    match after.find(']') {
+                        Some(close) => after[close + 1..].trim_start(),
+                        None => after,
+                    }
+                } else {
+                    after
+                };
+                if after.starts_with("<=") {
+                    if code.contains("!rst_n") {
+                        reset += 1;
+                    } else {
+                        update += 1;
+                    }
+                }
+                rest = &rest[pos + LHS.len()..];
+            }
+        }
+        (reset, update)
+    }
 
     #[test]
     fn ident_validator_basics() {
@@ -162,17 +237,80 @@ mod tests {
     }
 
     #[test]
-    fn each_source_latches_its_bit() {
+    fn each_source_feeds_the_single_status_update() {
         let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
-        assert!(v.contains("if (inference_done) irq_status[0] <= 1'b1;"));
-        assert!(v.contains("if (dma_done)       irq_status[1] <= 1'b1;"));
-        assert!(v.contains("if (error)          irq_status[2] <= 1'b1;"));
+        // All three sources enter through one concatenation, MSB first, so
+        // the bit order is error=[2], dma_done=[1], inference_done=[0] --
+        // the same mapping the port table documents.
+        assert!(v.contains("| {error, dma_done, inference_done};"));
     }
 
     #[test]
-    fn status_read_clears_latch() {
+    fn status_read_clears_only_the_previous_value() {
         let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
-        assert!(v.contains("if (status_read)    irq_status     <= 3'b000;"));
+        // The clear is a select on the OLD value. This cycle's sources are
+        // OR'd on top of the result, so a read concurrent with an event
+        // acknowledges what was pending and still latches the new event.
+        assert!(v.contains("(status_read ? 3'b000 : irq_status)"));
+    }
+
+    #[test]
+    fn irq_status_has_exactly_one_driver_outside_reset() {
+        let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
+        let (reset, update) = count_irq_status_nba(&v);
+        assert_eq!(reset, 1, "expected exactly one reset assignment");
+        assert_eq!(
+            update, 1,
+            "irq_status must have ONE non-blocking driver outside reset; \
+             two or more resolve last-write-wins inside the same clocked \
+             block, and the later write silently discards the earlier one \
+             (W555 lost-interrupt race)"
+        );
+    }
+
+    #[test]
+    fn driver_count_sees_the_historical_race() {
+        // Negative control for the test above. Without this, a counter that
+        // always returned 1 would pass the racy design just as happily.
+        //
+        // This is the pre-fix W36f update arm verbatim: four independent
+        // non-blocking assignments, the clear last and therefore
+        // unconditional.
+        const RACY: &str = concat!(
+            "        if (!rst_n) irq_status <= 3'b000;\n",
+            "        else begin\n",
+            "            if (inference_done) irq_status[0] <= 1'b1;\n",
+            "            if (dma_done)       irq_status[1] <= 1'b1;\n",
+            "            if (error)          irq_status[2] <= 1'b1;\n",
+            "            if (status_read)    irq_status     <= 3'b000;\n",
+            "        end\n",
+        );
+        let (reset, update) = count_irq_status_nba(RACY);
+        assert_eq!(reset, 1);
+        assert_eq!(
+            update, 4,
+            "the counter must SEE all four drivers of the historical chain"
+        );
+    }
+
+    #[test]
+    fn racy_chain_is_gone_from_the_emitted_module() {
+        let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
+        // Belt-and-braces on the exact text two tests used to REQUIRE.
+        // Those assertions passed for precisely as long as the race
+        // existed and would have failed the moment it was repaired.
+        for banned in [
+            "if (inference_done) irq_status[0] <= 1'b1;",
+            "if (dma_done)       irq_status[1] <= 1'b1;",
+            "if (error)          irq_status[2] <= 1'b1;",
+            "if (status_read)    irq_status     <= 3'b000;",
+        ] {
+            assert!(
+                !v.contains(banned),
+                "emitted module still carries the racy assignment: {}",
+                banned
+            );
+        }
     }
 
     #[test]

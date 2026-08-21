@@ -18,6 +18,45 @@ fn run(args: &[&str]) -> (String, String, bool) {
     )
 }
 
+/// Count non-blocking assignments whose left-hand side is `irq_status` --
+/// either the whole register or a bit-select -- returning
+/// `(reset_arm, update_arm)`. A line mentioning `!rst_n` is the reset arm.
+///
+/// Mirrors the helper in `bootstrap/src/bitnet_irq.rs`; this crate has no
+/// library target, so an integration test cannot import it.
+fn count_irq_status_nba(v: &str) -> (usize, usize) {
+    const LHS: &str = "irq_status";
+    let mut reset = 0usize;
+    let mut update = 0usize;
+    for line in v.lines() {
+        let code = match line.find("//") {
+            Some(i) => &line[..i],
+            None => line,
+        };
+        let mut rest = code;
+        while let Some(pos) = rest.find(LHS) {
+            let after = rest[pos + LHS.len()..].trim_start();
+            let after = if after.starts_with('[') {
+                match after.find(']') {
+                    Some(close) => after[close + 1..].trim_start(),
+                    None => after,
+                }
+            } else {
+                after
+            };
+            if after.starts_with("<=") {
+                if code.contains("!rst_n") {
+                    reset += 1;
+                } else {
+                    update += 1;
+                }
+            }
+            rest = &rest[pos + LHS.len()..];
+        }
+    }
+    (reset, update)
+}
+
 // ============================================================================
 // Module name handling
 // ============================================================================
@@ -93,19 +132,74 @@ fn irq_status_read_input_present() {
 // ============================================================================
 
 #[test]
-fn irq_each_source_latches_its_bit() {
+fn irq_each_source_feeds_the_single_status_update() {
     let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
     assert!(ok);
-    assert!(stdout.contains("if (inference_done) irq_status[0] <= 1'b1;"));
-    assert!(stdout.contains("if (dma_done)       irq_status[1] <= 1'b1;"));
-    assert!(stdout.contains("if (error)          irq_status[2] <= 1'b1;"));
+    // MSB first: error=[2], dma_done=[1], inference_done=[0].
+    assert!(stdout.contains("| {error, dma_done, inference_done};"));
 }
 
 #[test]
-fn irq_status_read_clears_latch() {
+fn irq_status_read_clears_only_the_previous_value() {
     let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
     assert!(ok);
-    assert!(stdout.contains("if (status_read)    irq_status     <= 3'b000;"));
+    // The clear selects the OLD value; this cycle's sources are OR'd on
+    // top, so a read concurrent with an event does not discard it.
+    assert!(stdout.contains("(status_read ? 3'b000 : irq_status)"));
+}
+
+#[test]
+fn irq_status_has_exactly_one_driver_outside_reset() {
+    let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
+    assert!(ok);
+    let (reset, update) = count_irq_status_nba(&stdout);
+    assert_eq!(reset, 1, "expected exactly one reset assignment");
+    assert_eq!(
+        update, 1,
+        "irq_status must have ONE non-blocking driver outside reset; two \
+         or more resolve last-write-wins inside the same clocked block, \
+         and the later write silently discards the earlier one (W555)"
+    );
+}
+
+#[test]
+fn irq_driver_count_sees_the_historical_race() {
+    // Negative control for the test above: a counter that always returned
+    // 1 would pass the racy design too. This is the pre-fix W36f update
+    // arm verbatim -- four drivers, the clear last and unconditional.
+    const RACY: &str = concat!(
+        "        if (!rst_n) irq_status <= 3'b000;\n",
+        "        else begin\n",
+        "            if (inference_done) irq_status[0] <= 1'b1;\n",
+        "            if (dma_done)       irq_status[1] <= 1'b1;\n",
+        "            if (error)          irq_status[2] <= 1'b1;\n",
+        "            if (status_read)    irq_status     <= 3'b000;\n",
+        "        end\n",
+    );
+    let (reset, update) = count_irq_status_nba(RACY);
+    assert_eq!(reset, 1);
+    assert_eq!(
+        update, 4,
+        "the counter must SEE all four drivers of the historical chain"
+    );
+}
+
+#[test]
+fn irq_racy_chain_is_gone_from_the_emitted_module() {
+    let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
+    assert!(ok);
+    for banned in [
+        "if (inference_done) irq_status[0] <= 1'b1;",
+        "if (dma_done)       irq_status[1] <= 1'b1;",
+        "if (error)          irq_status[2] <= 1'b1;",
+        "if (status_read)    irq_status     <= 3'b000;",
+    ] {
+        assert!(
+            !stdout.contains(banned),
+            "emitted module still carries the racy assignment: {}",
+            banned
+        );
+    }
 }
 
 #[test]
