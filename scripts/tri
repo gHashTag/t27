@@ -33,6 +33,7 @@ Local commands (no compiler needed):
   tri domain                  how long each live stimulus source stays representable
   tri miter SPEC [CONST]      SAT-prove commutativity on the MAPPED netlist the die runs
   tri clauses WRAPPER.v       which on-die clauses survive synthesis, and which folded to a constant
+  tri seeds SPEC WRAPPER      one netlist, several placements: does the die give one answer or several?
   tri help                    this text
 
 Environment:
@@ -79,6 +80,48 @@ cmd="${1:-}"
 case "$cmd" in
   help|-h|--help)
     usage
+    exit 0
+    ;;
+
+  seeds)
+    # W985: a verdict from ONE placement is one placement's opinion (T616), and
+    # W984 closed a defect class and then read two designs at a single seed each --
+    # which cannot tell "the failure is gone" from "the failure is absent here".
+    # This is the sweep, as one command, so the distinction stops depending on
+    # somebody remembering to make it.
+    #
+    #   tri seeds <spec.t27> <wrapper.v> [seed ...]      default 1 7 42 1234
+    SPEC="${2:-}"; W_V="${3:-}"; shift 3 2>/dev/null || true
+    [ -n "$SPEC" ] && [ -n "$W_V" ] || die "usage: tri seeds <spec.t27> <wrapper.v> [seed ...]"
+    SEEDS="${*:-1 7 42 1234}"
+    T27C="${TRI_T27C:-$REPO_ROOT/target/release/t27c}"
+    [ -x "$T27C" ] || die "t27c not found at $T27C"
+    BUS="${T27_BUSDEV:-1:5}"
+    CTRL="${T27_WRONGPART:-$REPO_ROOT/fpga/verilog/ternary_mac_demo_top.bit}"
+    printf '%-8s %-10s %-8s %-10s %s\n' seed clauses ok site word
+    P=0; F=0; WORDS=""
+    for sd in $SEEDS; do
+      out="$("$T27C" silicon "$SPEC" --top "$W_V" --busdev-num "$BUS" \
+              --wrong-part "$CTRL" --pnr-seed "$sd" 2>&1 || true)"
+      line="$(printf '%s' "$out" | grep -E 'B2 read' || true)"
+      site="$(printf '%s' "$out" | grep -oE 'at BSCAN[0-9]' | tail -1 | tr -dc '0-9')"
+      word="$(printf '%s' "$line" | grep -oE '0x[0-9a-f]{8}' | tail -1)"
+      cl="$(printf '%s' "$line" | grep -oE 'clauses=[01]{4}' | tail -1 | sed 's/clauses=//')"
+      okv="$(printf '%s' "$line" | grep -oE 'ok=[01]' | tail -1 | sed 's/ok=//')"
+      printf '%-8s %-10s %-8s %-10s %s\n' "$sd" "${cl:-ABSENT}" "${okv:-?}" "${site:-?}" "${word:-none}"
+      case "$okv" in 1) P=$((P+1));; 0) F=$((F+1));; esac
+      WORDS="$WORDS ${cl:-ABSENT}"
+    done
+    U="$(printf '%s\n' $WORDS | sort -u | tr '\n' ' ')"
+    echo
+    echo "tri seeds: $P pass, $F fail over $(printf '%s\n' $SEEDS | wc -l | tr -d ' ') placement(s); distinct verdicts: $U"
+    if [ "$P" -gt 0 ] && [ "$F" -gt 0 ]; then
+      echo "SPLIT -- one netlist, several placements, more than one answer. This is the"
+      echo "T616 condition, and a single-seed result on this design means nothing."
+      exit 1
+    fi
+    echo "One verdict across every placement tried. That is not a proof of"
+    echo "placement-independence -- it is the absence of a counterexample in $(printf '%s\n' $SEEDS | wc -l | tr -d ' ') tries."
     exit 0
     ;;
 

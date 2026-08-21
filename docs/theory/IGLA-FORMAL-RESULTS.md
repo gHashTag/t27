@@ -30737,6 +30737,39 @@ These are new measurements, not re-runs, and one placement each. Whether
 is not done. A result that arrives together with the repair that was supposed to
 produce it deserves more suspicion than one that arrives on its own.
 
+### T841 -- The anomaly stops reproducing, and the reproducer is gone with it [measured]
+
+W984 made every clause real and read two designs at one placement each. This is
+the sweep that single reading could not stand in for: four placements per design,
+each bracketed by a wrong-part control.
+
+| design | LUT (was) | seeds 1 / 7 / 42 / 1234 |
+|--------|-----------|--------------------------|
+| `gft_smul` | 1877 (1312) | `1111` `1111` `1111` `1111` |
+| `gft_dup`  | 1763 (798)  | `1111` `1111` `1111` `1111` |
+
+**Eight of eight, identical words.** The split verdict that defined W842, W977,
+W981, W982 and W983 does not reproduce on the repaired sources.
+
+**What this does not establish.** The repair grew the designs by 43 % and 121 %.
+*The failure is gone* and *the failure is absent in a design this different* are
+not separated by this sweep -- and cannot be separated by any later one, because
+the case that failed no longer exists. Repairing the folded clauses was correct
+and it **destroyed this project's only reproducible hardware anomaly**.
+
+The defective wrappers are therefore frozen at `6ae9296ff` in
+`fpga/verilog/legacy/`, verified still defective (`tri clauses`: 2 of 4 folded),
+kept out of the corpus and out of the clause gate, and marked do-not-fix. A
+regression case that cannot fail is not a regression case; this one can, and it is
+the only artefact from which the openXC7 report can still be written.
+
+**A hypothesis the result raises.** In the folded wrappers the COMM clause
+compared two cones each specialised on a *literal* operand. With `Z0` neither
+operand is a literal, both cones are the generic multiplier, and they agree.
+T834 proved the folded cones logically equivalent, so a pure logic difference is
+excluded -- but a placement sensitivity peculiar to the small specialised cones
+is not, and the frozen files are where that would be tested.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

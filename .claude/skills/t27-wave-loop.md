@@ -12605,6 +12605,10 @@ a worktree in the same wave its branch merges.
 
 **1509. ENOSPC EATS THE EDIT, NOT JUST THE COMMAND.** The disk hit 0.12 GiB mid-wave and a single Bash call died with ENOSPC before writing its capture file. That call held a Python script patching five wrappers -- so five files went unmodified while the transcript showed only a storage error, and the next verification reported the OLD state, which read as the repair having failed rather than never having run. Recovered by deleting regenerable netlists and Rust rlibs (2.4 GiB). When a batch edit dies on ENOSPC, assume NOTHING in it applied and re-verify each target; the failure is silent in exactly the direction that looks like a wrong fix. (W984)
 
+**1510. A CORRECT REPAIR CAN DESTROY THE ONLY EVIDENCE.** Six waves of hardware work rested on one reproducible anomaly: one netlist, several placements, more than one answer. W984 repaired the folded clauses that carried it -- the right call, the clauses were not measurements -- and W985's sweep found 8 of 8 placements passing. The reproducer is gone, and because the repaired designs are 43 % and 121 % larger, 'the failure is gone' can never again be separated from 'the failure is absent in a design this different'. Before repairing anything that a live investigation depends on, FREEZE A COPY of the broken artefact, outside the corpus and outside the gates, marked do-not-fix. It costs one directory and it is the difference between a finding and an anecdote. (T841, W985)
+
+**1511. EIGHT PASSES ARE NOT A PROOF OF ANYTHING.** tri seeds reports '8 pass, 0 fail' and then says, in the same output, that this is not a proof of placement-independence but the absence of a counterexample in eight tries. That sentence is in the tool rather than in the report because reports get summarised and tools get quoted. When a sweep comes back clean, the honest headline is the number of tries, not the word 'passes' -- and the instrument should be the one insisting on it, since the person reading the green line is exactly the person least inclined to. (W985)
+
 ### How to update this tracker
 
 After closing a wave:

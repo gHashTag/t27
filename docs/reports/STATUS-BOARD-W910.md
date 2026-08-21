@@ -1,4 +1,18 @@
-# Full status, both tracks — one page for whoever wakes up (W984, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W985, 2026-08-22)
+
+> **W985 — THE ANOMALY STOPS REPRODUCING, AND THE REPRODUCER IS GONE WITH IT.** The sweep W984's
+> single reading could not stand in for: four placements per design, each bracketed by a wrong-part
+> control. `gft_smul` **`1111`×4**, `gft_dup` **`1111`×4** — **8 of 8, identical words**. The split
+> verdict that defined W842, W977, W981, W982 and W983 **does not reproduce** on the repaired
+> sources. **What this does not establish:** the repair grew the designs **43 %** (smul 1312→1877
+> LUT) and **121 %** (dup 798→1763), so *the failure is gone* and *the failure is absent in a design
+> this different* are not separated — and never can be, because the failing case no longer exists.
+> **Repairing the folded clauses was right, and it destroyed this project's only reproducible
+> hardware anomaly.** So the defective wrappers are frozen at `6ae9296ff` in `fpga/verilog/legacy/`,
+> verified still defective, out of the corpus and out of the clause gate, **marked do-not-fix** —
+> the one artefact from which the openXC7 report can still be written. New: `tri seeds`, which
+> reports the number of tries rather than the word *passes*. T841, lessons 1510–1511, **435 derived
+> checks**. **Readiness 95 %.**
 
 > **W984 — THE FOLDED-CLAUSE CLASS IS CLOSED, AND TWO DESIGNS RE-READ WITH REAL CLAUSES.**
 > One primitive everywhere: `Z0 = opq_a - opq_b`, two counters no mapper will try to prove equal,

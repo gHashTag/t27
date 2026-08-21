@@ -2261,3 +2261,35 @@ The wave also ran the disk to 0.12 GiB and lost a five-file patch batch to ENOSP
 before it wrote its capture file -- so the files were unmodified while the
 transcript showed only a storage error, and the next check reported the old state,
 which reads exactly like a repair that did not work.
+
+## 54. The sweep came back clean, and that is the loss (W985)
+
+W984 closed the folded-clause class and read two designs at one placement each --
+which cannot distinguish *the failure is gone* from *the failure is absent here*.
+This is the sweep: four placements per design, each read bracketed by a wrong-part
+bitstream forcing `Done=0`.
+
+| design | LUT (was) | seeds 1 / 7 / 42 / 1234 |
+|--------|-----------|--------------------------|
+| `gft_smul` | 1877 (1312) | `1111` `1111` `1111` `1111` |
+| `gft_dup`  | 1763 (798)  | `1111` `1111` `1111` `1111` |
+
+Eight of eight, identical words. The split verdict behind six waves of work does
+not reproduce.
+
+It would be comfortable to call that a fix. It is not one. The repair grew the two
+designs by 43 % and 121 %, so *gone* and *absent in a design this different* are
+not separated by this sweep -- and cannot be separated by any later sweep either,
+because the case that failed no longer exists. **Repairing the folded clauses was
+correct, and it destroyed this project's only reproducible hardware anomaly.**
+
+So the defective wrappers are frozen at `6ae9296ff` under `fpga/verilog/legacy/`,
+verified still defective, kept out of the corpus and out of the clause gate, and
+marked do-not-fix. A regression case that cannot fail is not a regression case.
+
+The result raises one hypothesis worth recording. In the folded wrappers the COMM
+clause compared two cones each specialised on a *literal* operand; with `Z0`
+neither operand is a literal, both cones are the generic multiplier, and they
+agree. T834 already proved the folded cones logically equivalent, so a pure logic
+difference is excluded -- but a placement sensitivity peculiar to those small
+specialised cones is not, and the frozen files are the only place it can be tested.
