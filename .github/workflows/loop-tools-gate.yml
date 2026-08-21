@@ -17,6 +17,7 @@ on:
       - "scripts/tri"
       - "scripts/tri_loop/**"
       - "scripts/ci/loop-tools-tracked.sh"
+      - "scripts/ci/test_damage_repair_snapshot_required.py"
       - ".github/workflows/loop-tools-gate.yml"
   push:
     branches: [master]
@@ -24,6 +25,7 @@ on:
       - "scripts/tri"
       - "scripts/tri_loop/**"
       - "scripts/ci/loop-tools-tracked.sh"
+      - "scripts/ci/test_damage_repair_snapshot_required.py"
 
 permissions:
   contents: read
@@ -50,6 +52,12 @@ jobs:
               && echo "ok       $f" \
               || { echo "BROKEN   $f"; exit 1; }
           done
+
+      - name: damage-repair requires --snapshot rather than defaulting to one
+        # A reader that defaults to a snapshot path is guessing which freeze the
+        # caller meant, and the path it guessed pointed at a file no default
+        # workflow produced (#2327). Pure Python, no compiler, no corpus.
+        run: python3 scripts/ci/test_damage_repair_snapshot_required.py
 
       - name: The dispatcher runs its helpers without a built compiler
         # tri triage and tri damage read the tracker and the spec text and have no
