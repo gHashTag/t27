@@ -4414,6 +4414,9 @@ impl Parser {
             // Enum value: .variant
             TokenKind::Dot => {
                 self.advance(); // consume .
+                if self.current.kind == TokenKind::LBrace {
+                    return self.parse_anon_braced();
+                }
                 if self.current.kind == TokenKind::Ident {
                     let name = self.current.lexeme.clone();
                     self.advance();
@@ -4556,6 +4559,50 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
         Ok(call)
+    }
+
+    /// Parse the anonymous braced literal `.{ ... }` -- Zig's anonymous struct
+    /// and its tuple, which share one spelling:
+    ///
+    /// ```text
+    /// .{}                       empty
+    /// .{ a, b }                 positional tuple
+    /// .{ .field = a, ... }      named anonymous struct
+    /// ```
+    ///
+    /// Primary-expression position understood `.Variant` and nothing else, so
+    /// every spec using this form died at its first occurrence: seven of them,
+    /// including the lexer's own `return .{ value, buf[0..i] }`. They had been
+    /// failing on master since 9 August without anything reporting it, because
+    /// the compile-debt ledger that would have named them was measured on a
+    /// branch whose compiler predated the change that broke them.
+    ///
+    /// The two shapes are separated by the token after `{`. A named field opens
+    /// with `.`, and a positional element cannot -- except for a bare enum
+    /// value, `.{ .Variant, x }`, where the two are genuinely ambiguous at two
+    /// tokens of lookahead and this parser has no third and no backtracking.
+    /// That shape is therefore read as a struct literal and rejected by the
+    /// closing `expect(RBrace)` with a parse error naming the position. Loud is
+    /// the requirement here: a silently wrong parse of a literal would emit
+    /// wrong code for every backend, which is worse than not compiling.
+    fn parse_anon_braced(&mut self) -> Result<Node, String> {
+        // Positioned on `{`; `peek` is the first token inside it.
+        if self.peek.kind == TokenKind::Dot {
+            // `parse_struct_literal` consumes the brace itself and handles the
+            // `.field = expr` loop. An empty name is what makes it anonymous --
+            // the Zig emitter writes the leading `.` when the name is empty.
+            return self.parse_struct_literal(String::new());
+        }
+        self.advance(); // consume {
+        let mut tup = Node::new(NodeKind::ExprTuple);
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            tup.children.push(self.parse_expr()?);
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
+        Ok(tup)
     }
 
     /// Parse struct literal: Name{ .field = expr, ... }
@@ -8782,7 +8829,14 @@ impl Codegen {
                 }
             }
             NodeKind::ExprStructLit => {
-                self.write(&node.name);
+                // An anonymous struct carries no type name and MUST keep the
+                // leading dot: `.{ .x = 1 }`. Writing an empty name produced
+                // `{ .x = 1 }`, which is a block, not a value.
+                if node.name.is_empty() {
+                    self.write(".");
+                } else {
+                    self.write(&node.name);
+                }
                 self.write("{ ");
                 for (i, field) in node.children.iter().enumerate() {
                     if i > 0 {
