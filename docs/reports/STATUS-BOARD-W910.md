@@ -1,4 +1,22 @@
-# Full status, both tracks — one page for whoever wakes up (W982, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W983, 2026-08-22)
+
+> **W983 — THE CONTROL WAS A CONSTANT, AND WHEN IT FINALLY RAN IT REFUTED THE STORY.**
+> `tri clauses` reads the *netlist*, not the source, and asks which `c_*` clauses are driven by
+> logic: **28 clauses across 7 wrappers, 14 folded to the literal 1**. An unwritten probe collapses
+> to its `INIT`; two structurally identical instances are **merged**, so comparing them is a
+> tautology. T555 protected the clause **operands** from folding — nobody looked at the
+> **comparison**. **This reinterprets published rows:** `gft_sadd`'s *PASS — 4 of 4 on the die* is
+> **1 of 1 measured**; `gft_smul`'s `1010` is **2 of 2 measured clauses FAIL**. It does *not*
+> reinterpret the MAC's `0011` — that was read against the pre-W978 spec, and the guard added then
+> is what makes the clause fold now. **`(* keep *)` does not stop a fold**; two structurally
+> distinct counters carrying equal values do. 4 clauses, 0 folded, LUT 452 → **696** — the rise is
+> the logic the folding had deleted. **Then the repaired control failed.** One netlist (696 LUT,
+> 160 CARRY4), three placements: `1111` / `1001` / `1011`. `c_self` — two instances of one function
+> with the **same** operand order — is false at two of three, and at seed 7 it fails while
+> commutativity **passes**. **Six waves were framed as "swapped operands disagree". Any two
+> instances disagree.** T836–T838, lessons 1504–1506, **410 derived checks**. **Readiness 94 %** —
+> down one point, and the drop is the honest signal: the corpus is more correct and now carries a
+> named debt.
 
 > **W982 — THE REPRODUCER SHRANK 46 %, AND THE PROOF MOVED TO THE ARTEFACT THAT FAILS.**
 > `gft_commmin_jtag`: three `GftSmul` instances instead of five, **430–452 LUT instead of 798**,

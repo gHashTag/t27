@@ -32,6 +32,7 @@ Local commands (no compiler needed):
   tri theorem [--check]       next theorem number; --check audits T-numbering
   tri domain                  how long each live stimulus source stays representable
   tri miter SPEC [CONST]      SAT-prove commutativity on the MAPPED netlist the die runs
+  tri clauses WRAPPER.v       which on-die clauses survive synthesis, and which folded to a constant
   tri help                    this text
 
 Environment:
@@ -79,6 +80,71 @@ case "$cmd" in
   help|-h|--help)
     usage
     exit 0
+    ;;
+
+  clauses)
+    # W983: THE CONTROL WAS A CONSTANT. `gft_commmin_jtag` and `gft_dup_jtag` each
+    # latch four clauses, and the die words have been read as "the control holds,
+    # the test fails" since W977. Inspecting the synthesised netlist: `c_init` and
+    # `c_self` are the literal 1. yosys folds them -- the init probe is a register
+    # nothing writes, and the two control instances are structurally identical with
+    # identical operands, so it merges them and the comparison becomes a tautology.
+    # Two of four "measurements" could not fail in any build, passing or failing.
+    #
+    # T555 put live counters on the OPERANDS to stop exactly this. It never
+    # occurred to anyone that the COMPARISON folds too. This checks the netlist
+    # instead of the source, because the source looks like a measurement either way.
+    #
+    #   tri clauses <wrapper.v> [spec.t27]
+    W_V="${2:-}"; SPEC="${3:-specs/ternary/gft_smul.t27}"
+    [ -n "$W_V" ] || die "usage: tri clauses <wrapper.v> [spec.t27]"
+    [ -f "$W_V" ] || die "no such wrapper: $W_V"
+    T27C="${TRI_T27C:-$REPO_ROOT/target/release/t27c}"
+    STEM="$(basename "$SPEC" .t27)"
+    GEN="${TMPDIR:-/tmp}/t27-silicon/$STEM.v"
+    [ -f "$GEN" ] || die "no generated Verilog at $GEN -- run: $T27C silicon $SPEC --top $W_V --skip-hardware"
+    WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+    TOP="$(basename "$W_V" .v)"
+    yosys -p "read_verilog $GEN $W_V; hierarchy -top $TOP; \
+      synth_xilinx -family xc7 -flatten -run :coarse; \
+      techmap -map +/cmp2lut.v -map +/cmp2lcu.v -D LUT_WIDTH=6; \
+      alumacc; opt; memory -nomap; opt_clean; \
+      synth_xilinx -family xc7 -flatten -run map_memory:; \
+      write_json $WORK/n.json" >/dev/null 2>&1 || die "yosys failed on $W_V"
+    JSON="$WORK/n.json" TOPN="$TOP" python3 - <<'PYCL'
+import json, os
+d = json.load(open(os.environ["JSON"]))
+top = os.environ["TOPN"]
+m = d["modules"].get(top) or d["modules"][[k for k, v in d["modules"].items()
+                                           if v.get("attributes", {}).get("top")][0]]
+rows, folded = [], 0
+for name, info in sorted(m.get("netnames", {}).items()):
+    base = name.split("[")[0]
+    if not base.startswith("c_"):
+        continue
+    b = info["bits"][0]
+    if isinstance(b, str):
+        rows.append((base, f"CONSTANT {b}", "folded -- cannot fail in any build"))
+        folded += 1
+    else:
+        drv = None
+        for cn, c in m["cells"].items():
+            for port, v in c.get("connections", {}).items():
+                if port in ("Q", "O", "O5", "O6", "Y") and isinstance(v, list) and b in v:
+                    drv = c["type"]; break
+            if drv: break
+        rows.append((base, f"net {b}", f"driven by {drv or 'nothing'}"))
+print(f"{'clause':<12}{'bit':<14}state")
+for r in rows:
+    print(f"{r[0]:<12}{r[1]:<14}{r[2]}")
+print(f"\ntri clauses: {len(rows)} clause(s), {folded} folded to a constant")
+if folded:
+    print("A clause folded to a constant is not a measurement. It reads as a PASS")
+    print("in every build -- including the ones that fail -- and it is exactly the")
+    print("clause a reader trusts most, because it is called the control.")
+raise SystemExit(1 if folded else 0)
+PYCL
+    exit $?
     ;;
 
   miter)

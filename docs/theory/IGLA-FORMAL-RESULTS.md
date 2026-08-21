@@ -30629,6 +30629,73 @@ decide whether a repacking placer preserved function.** What would decide it is 
 whole-design equivalence over primary inputs and outputs, which needs semantic
 models for `SLICE_LUTX`, `SLICE_FFX` and `CARRY4` as nextpnr emits them.
 
+### T836 -- Half the on-die clauses are constants folded at synthesis [measured]
+
+T555 put free-running counters on the clause **operands** so that no clause could
+be satisfied by a constant folded away at synthesis. The **comparison** folds too,
+and nobody looked. Reading the synthesised netlist instead of the source:
+
+| wrapper | clauses | folded to a constant |
+|---------|---------|----------------------|
+| `gft_signed_dot4` | 4 | 0 |
+| `gft_signed_mac` | 4 | 1 (`c_zero`) |
+| `gft_smul` | 4 | **2** (`c_zero`, `c_gold`) |
+| `gft_dup` | 4 | **2** (`c_init`, `c_self`) |
+| `gft_sadd` | 4 | **3** (`c_abs`, `c_gold`, `c_move`) |
+| `gft_train1` | 4 | **3** (`c_asc`, `c_fix`, `c_mov`) |
+| `gft_xorpercep` | 4 | **3** (`c_eta0`, `c_gold`, `c_non`) |
+| **total** | **28** | **14** |
+
+Three mechanisms: a probe register nothing writes collapses to its `INIT`; two
+structurally identical instances with identical operands are **merged**, so
+comparing them is a tautology; and a clause whose operands are all constants is
+evaluated at compile time. **A folded clause reads PASS in every build, including
+the ones that fail.**
+
+What this reinterprets, for the wrappers whose sources have not changed since
+their die reads: `gft_sadd`'s **"PASS -- 4 of 4 clauses on the die"** is
+**1 of 1 measured clause**; `gft_train1` likewise; and `gft_smul`'s `1010`,
+published as *two of four fail*, is **two of two measured clauses fail** -- every
+clause that design actually evaluates on silicon is false. It does **not**
+reinterpret `gft_signed_mac`'s `0011`, which was read against the pre-W978 spec
+where `c_zero` was real and false; the guard added in W978 is exactly what makes
+it fold today. **An instrument that reads today's sources cannot be applied
+backwards across a source change.**
+
+### T837 -- `(* keep *)` does not stop a fold; structural distinctness does [measured]
+
+The first repair marked the probe register and the instances `(* keep *)`.
+`tri clauses` still reported two constants: `keep` preserves the **cell**, and
+`opt` still propagates the constant into the **comparison**. What worked was
+making the two sources structurally distinct while carrying equal values -- a
+second counter with the same seed and step feeding the control instance, and a
+rotating probe tested for a rotation-invariant property. **4 clauses, 0 folded**,
+and the LUT count rises 452 -> 696: the difference is the logic the folding had
+been deleting.
+
+### T838 -- The control fails, and it was never about operand order [measured]
+
+With all four clauses real, on one netlist (696 LUT, 160 CARRY4, identical in
+every build) and three placements:
+
+| seed | site | c_init | c_self | c_comm | c_ind | verdict |
+|------|------|--------|--------|--------|-------|---------|
+| 1    | 2 | 1 | 1 | 1 | 1 | PASS |
+| 42   | 4 | 1 | **0** | **0** | 1 | FAIL |
+| 7    | 1 | 1 | **0** | 1 | 1 | FAIL |
+
+**`c_self` fails.** It compares two instances of the *same* function with the
+*same* operand order, fed by counters that step identically. And at seed 7 the
+control fails while the commutativity clause **passes**.
+
+So the failure is not about operand order and never was: **two instances of one
+function disagree, whichever operands they are given.** Commutativity was the
+framing only because the identical-operand control had been folded to a constant
+and could not contradict it -- for six waves. One netlist, three placements, three
+answers, every clause real: that is what *place-and-route is not
+function-preserving* should have meant, and it needs no commutativity argument at
+all.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

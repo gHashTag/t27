@@ -2181,3 +2181,46 @@ not commute* -- because the success test piped a captured string into `grep -q`,
 which exits at the first match, kills the writer with SIGPIPE, and under
 `pipefail` turns a proof into a refutation. The only symptom was a `Broken pipe`
 warning that read like the real error.
+
+## 52. The control was a constant, and when it finally ran it refuted the story (W983)
+
+`tri clauses` reads the synthesised netlist and asks, of every `c_*` clause, whether
+it is driven by logic or is the literal 1. Across seven wrappers: **28 clauses, 14
+folded**. Three mechanisms -- a probe register nothing writes collapses to its
+`INIT`; two structurally identical instances with identical operands are *merged*,
+so comparing them is a tautology; and a clause whose operands are all constants is
+evaluated at compile time. T555 put live counters on the clause **operands** for
+exactly this reason and nobody looked at the **comparison**.
+
+What it reinterprets, where sources have not changed since the reads: `gft_sadd`'s
+*PASS -- 4 of 4 clauses on the die* is **one measured clause**; `gft_train1` the
+same; and `gft_smul`'s `1010`, published as two of four failing, is **two of two
+measured clauses failing**. It does not reinterpret `gft_signed_mac`'s `0011`,
+which was read against the pre-W978 spec -- the guard added then is precisely what
+makes that clause fold today.
+
+The repair took two attempts. `(* keep *)` preserves the cell and `opt` propagates
+the constant into the comparison anyway. What worked was structural: a second
+counter with the same seed and step feeding the control instance, and a rotating
+probe tested for a rotation-invariant property. Four clauses, none folded, and the
+LUT count rises from 452 to 696 -- the difference being the logic the folding had
+been deleting all along.
+
+Then the repaired design went to the die, one netlist and three placements:
+
+| seed | site | c_init | c_self | c_comm | c_ind | verdict |
+|------|------|--------|--------|--------|-------|---------|
+| 1 | 2 | 1 | 1 | 1 | 1 | PASS |
+| 42 | 4 | 1 | **0** | **0** | 1 | FAIL |
+| 7 | 1 | 1 | **0** | 1 | 1 | FAIL |
+
+**The control fails.** `c_self` compares two instances of one function with the
+same operand order, fed by counters stepping identically -- and at seed 7 it fails
+while the commutativity clause passes. Six waves were spent on *swapped operands
+disagree*. They disagree because **any two instances disagree**; operand order was
+never the variable. The framing survived because the one clause that could have
+contradicted it had been folded to a constant.
+
+One netlist, three placements, three answers, every clause real. That is what
+*place-and-route is not function-preserving* should have meant, and it needs no
+commutativity argument at all.
