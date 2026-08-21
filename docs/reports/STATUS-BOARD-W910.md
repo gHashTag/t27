@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W973, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W974, 2026-08-21)
+
+> **W974 — THE FORMAT'S OWN OPERATORS ON THE REAL PART.** Spec → bitstream on
+> `xc7a200tfbg676-1`, Verilog generated throughout: `gft_sadd` **1 312 LUT / 18.24 MHz**,
+> `gft_signed_mac` **6 466 / 9.14**, `gft_signed_dot4` **12 872 / 5.50**, all timing **PASS**;
+> the classifier is **123 / 80.35** but constrained on a **different clock**. **MHz/kLUT falls
+> 13.9 → 1.41 → 0.43 across the comparable three — a factor of 32** over a 10× growth in area,
+> and the shape is not linear: `sadd`→`mac` is 4.9× the LUTs for half the frequency. **A
+> MHz/LUT headline must name the operator and the clock**; DUT-equivalents (3.10 vs 1.06) are
+> the honest denominator. **`dot4` is incomplete for two unrelated reasons:** nextpnr hit a
+> 600 s cap — reported **`ABSENT`, not `FAIL`**, so nothing was proven unroutable — and a real
+> **BSCAN chain/site mismatch** (`JTAG_CHAIN(3)` vs `BSCAN4` wired). T821/T821a, lessons
+> 1478/1479, **262 derived checks**. **Readiness 83 %.**
 
 > **W973 — FIRST SILICON NUMBERS, AND THE BLOCKER WAS NEVER DOCKER.** Built from the spec via
 > `t27c silicon` on **`xc7a200tfbg676-1`**: **123 LUT, 52 CARRY4, 0 DSP48E1, BSCANE2 ×1**,

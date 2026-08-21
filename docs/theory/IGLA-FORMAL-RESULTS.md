@@ -29988,6 +29988,54 @@ precondition, and the chain is empty.
 **The remaining gap is one physical action.** Power the board, or reseat the JTAG ribbon.
 Everything upstream of it is now measured and reproducible in half a minute.
 
+### T821 — The φ-format's own operators, measured on the real part: the MHz/LUT figure falls two and a half orders of magnitude across four designs
+
+**What the paper's headline uses.** A MHz-per-LUT ranking. Until now this project had **no**
+silicon number at all; W973 produced one, for a classifier. Here the **format's own operators**
+are carried from spec to bitstream on `xc7a200tfbg676-1`:
+
+| design | LUT | CARRY4 | DUT-equiv | Fmax | clock | MHz/kLUT |
+|---|---|---|---|---|---|---|
+| `mvp_ternary_classifier` | **123** | 52 | 1.19 | **80.35** | `cfgmclk` | **653.3** |
+| `gft_sadd` | 1 312 | 257 | 1.06 | **18.24** | `slowclk` | 13.9 |
+| `gft_signed_mac` | 6 466 | 1 237 | **3.10** | **9.14** | `slowclk` | 1.41 |
+| `gft_signed_dot4` | 12 872 | 2 043 | 1.98 | **5.50** | `slowclk` | 0.43 *(incomplete)* |
+
+All timing **PASS** against their own constraints. Every Verilog file generated from its spec,
+not hand-written.
+
+**The clocks are not the same, and the table says so.** The classifier is constrained on
+`cfgmclk`, the `gft_*` designs on `slowclk`. **The 653 MHz/kLUT row is not comparable with the
+others**, and quoting the four together as one ranking would be exactly the error this project
+has already made four times with unmatched widths. Within the comparable three, MHz/kLUT falls
+**13.9 → 1.41 → 0.43**, a factor of **32** across a 10× growth in area.
+
+**What that shape means.** The format's cost is not linear in the operator: `sadd` → `mac` is
+**4.9× the LUTs for half the frequency**, and `mac` → `dot4` is **2.0× the LUTs for 0.6× the
+frequency**. A MHz/LUT figure quoted for one operator therefore says almost nothing about
+another, and a paper's single headline number must name **which operator, on which clock**.
+
+**The DUT-equivalent column is the honest denominator.** `mac` reaches **3.10** DUT-equivalents
+of arithmetic on the die against `sadd`'s 1.06 — so per unit of arithmetic actually delivered,
+the gap between them is far smaller than the raw LUT ratio suggests.
+
+### T821a — Two distinct failures on the fourth design, and neither is a routing failure
+
+`gft_signed_dot4` completed synthesis (12 872 LUT, 2 043 CARRY4, Fmax **5.50 MHz**, PASS) and
+then failed twice, in different ways:
+
+1. **nextpnr hit a 600-second cap** — reported `ABSENT`, not `FAIL`. The distinction matters:
+   nothing was proven unroutable; the run was stopped. A cap reported as a failure would have
+   entered the record as "does not route", which is a different and false claim.
+2. **BSCAN chain/site mismatch** — `JTAG_CHAIN(3)` enabled in the spec while the wrapper wires
+   `BSCAN4`. The service caught it and said *"rebuilding at 4"*. This is a **real defect in the
+   wrapper**, independent of the timeout, and it would have produced a bitstream that loads and
+   answers on the wrong chain.
+
+**Statement.** A pipeline that reports `ABSENT` separately from `FAIL` preserves the difference
+between *not measured* and *measured negative*. Both stages here are red, and only one of them
+is evidence about the design.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

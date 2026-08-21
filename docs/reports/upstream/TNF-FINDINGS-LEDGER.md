@@ -1672,3 +1672,48 @@ back. **The remaining gap is one physical action**: power the board or reseat th
 Everything upstream of it is now measured and reproducible in half a minute.
 
 Theorems **T819**, **T820**; lessons **1476**, **1477**. **238 derived checks.**
+
+---
+
+## 42. W974 — the format's own operators, measured on the real part
+
+W973 gave the hardware axis its first number, for a classifier. Here the **format's own
+operators** go from spec to bitstream on `xc7a200tfbg676-1`, Verilog generated throughout:
+
+| design | LUT | CARRY4 | DUT-equiv | Fmax | clock | MHz/kLUT |
+|---|---|---|---|---|---|---|
+| `mvp_ternary_classifier` | **123** | 52 | 1.19 | **80.35** | `cfgmclk` | 653.3 |
+| `gft_sadd` | 1 312 | 257 | 1.06 | **18.24** | `slowclk` | 13.9 |
+| `gft_signed_mac` | 6 466 | 1 237 | **3.10** | **9.14** | `slowclk` | 1.41 |
+| `gft_signed_dot4` | 12 872 | 2 043 | 1.98 | **5.50** | `slowclk` | 0.43 *(incomplete)* |
+
+All timing **PASS** against their own constraints.
+
+**The clocks differ, and the table says so.** The classifier is constrained on `cfgmclk`, the
+`gft_*` designs on `slowclk`. **The 653 MHz/kLUT row is not comparable with the rest** —
+quoting all four as one ranking would repeat the unmatched-width error made four times already.
+
+**Within the comparable three, MHz/kLUT falls 13.9 → 1.41 → 0.43** — a factor of **32** across
+a 10× growth in area. And the shape is not linear in the operator: `sadd` → `mac` is **4.9× the
+LUTs for half the frequency**; `mac` → `dot4` is **2.0× the LUTs for 0.6× the frequency**.
+
+**So a MHz/LUT headline says almost nothing unless it names which operator, on which clock.**
+The **DUT-equivalent** column is the honest denominator: `mac` delivers **3.10** against
+`sadd`'s 1.06, so per unit of arithmetic actually reaching the die the gap is far smaller than
+the raw LUT ratio suggests.
+
+### Two unrelated failures on the fourth design
+
+`gft_signed_dot4` finished synthesis (12 872 LUT, Fmax 5.50 MHz, PASS) and then went red twice:
+
+1. **nextpnr hit a 600-second cap**, reported **`ABSENT`, not `FAIL`** — nothing was proven
+   unroutable, the run was stopped. Logged as a failure it would have entered the record as
+   "does not route", a different and false claim.
+2. **A genuine BSCAN chain/site mismatch** — `JTAG_CHAIN(3)` enabled in the spec while the
+   wrapper wires `BSCAN4`. Caught by the service's own check; it would otherwise have produced
+   a bitstream answering on the wrong chain.
+
+**Two red stages, one evidence about the design and one about the time budget.** Keeping
+`ABSENT` and `FAIL` in separate columns is what makes that readable at all.
+
+Theorems **T821**, **T821a**; lessons **1478**, **1479**. **262 derived checks.**
