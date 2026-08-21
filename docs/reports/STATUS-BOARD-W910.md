@@ -1,4 +1,23 @@
-# Full status, both tracks — one page for whoever wakes up (W980, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W981, 2026-08-22)
+
+> **W981 — NINE DIE READS KILLED A HYPOTHESIS, AND W977's OWN NEXT STEP.** W977's result
+> **reproduces on a changed bench** (three cables at 1:4 became one at 1:5): seeds 42/7/31337 →
+> `1111`/`1101`/`1111`, same Fmax to two decimals, each bracketed by a wrong-part control.
+> **The BSCAN-site hypothesis was 5/5 and is refuted**: holding the seed and moving the site
+> gave FAIL at BSCAN3, PASS at BSCAN1, PASS at BSCAN2. The site had moved *with* the placement
+> in every sample that suggested it. **Timing tested physically for the first time** — same
+> seed, same site, `slowclk` halved: `1101` both times; reported Fmax of the failures
+> (17.36/18.14/17.91) sits **inside** the passing range (16.41–18.57). **W977's planned FASM
+> diff cannot decide anything**: the logic-LUT multisets of two *passing* builds differ by
+> 508 words, because pin permutation rewrites INIT bits without changing the function.
+> **Arithmetic exhaustively cleared**: commutativity 0 counterexamples in 2 359 296 pairs;
+> identity fails on all 48 128 non-representable words and on **exactly one** representable
+> one — negative zero, normalised to `+0`. New instrument `tri domain`: **17 live sources,
+> 17 leave the representable set**. **Three repairs, all ours:** `tri audit` had been dying at
+> the `info` line W980 added (five gate rows unrun for a wave); the **seven oracles every
+> published comparison derives from were never committed** and now live in `conformance/oracles/`;
+> `gft_xorpercep`'s clause was fed a word the format cannot express. T829–T832a, lessons
+> 1496–1500, **375 derived checks**. **Seed 7 survives everything.** **Readiness 94 %.**
 
 > **W980 — THE DIE ASKS 36 QUESTIONS; THE SUITES ASK SIX BY NAME.** `tri coverage` matches
 > wrapper clause names to spec test names: **9 wrappers, 36 clauses, 30 with no same-named test

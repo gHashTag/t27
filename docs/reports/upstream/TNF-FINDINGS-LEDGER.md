@@ -2084,3 +2084,59 @@ is known to be weaker than the most expensive one, ordered by how much — to be
 not reported as a score.
 
 Theorems **T828**, **T828a**; lessons **1494**, **1495**. **334 derived checks.**
+
+## 50. Nine reads that killed a hypothesis, and one that killed a plan (W981)
+
+W977 left two things behind: a claim -- *place-and-route is not function-preserving* --
+and a plan -- *diff the FASM of a passing seed against a failing one and name the net*.
+This wave tested both against the die.
+
+**The claim reproduces.** On a bench that has since changed physically (three cables
+at 1:4 became one at 1:5), seeds 42, 7 and 31337 returned `1111`, `1101`, `1111` --
+the same words, with the same reported Fmax to two decimals, each bracketed by a
+wrong-part control that forced `Done=0` before the load.
+
+**A hypothesis formed mid-wave, and died.** Across the five W977 seeds the verdict
+partitioned perfectly by which USER chain the BSCAN cell landed on: PASS at BSCAN3,
+FAIL at BSCAN1 and BSCAN2, five for five. Six new reads that held the seed and moved
+the site refuted it three ways -- FAIL at BSCAN3, PASS at BSCAN1, PASS at BSCAN2. The
+site had moved together with the placement in every sample that suggested it, so no
+amount of that sweep could have separated them.
+
+**Timing, tested physically for the first time.** Every prior exclusion on this bench
+read nextpnr's own model; W977 excluded timing because the failing seeds held the
+*better* reported margin. Rows 4 and 5 of the new table are the same seed, the same
+site, the same netlist bar two counter bits, and differ only in that `slowclk` is
+`cfgmclk/8` in one and `cfgmclk/16` in the other. Both read `1101`. The reported Fmax
+of the three failing reads -- 17.36, 18.14, 17.91 MHz -- sits inside the passing range
+of 16.41 to 18.57.
+
+**The plan does not work.** Classifying every LUT INIT in four builds as logic,
+route-through or constant, the logic multisets of seed 42 and seed 1 differ by
++508/-509 -- and both compute the right answer. Pin permutation rewrites INIT bits
+without changing the function. A textual diff of configuration bits answers a
+different question and looks like an answer to this one. Deciding whether placement
+preserves function needs formal equivalence between the pre- and post-placement
+netlists.
+
+**What the arithmetic can and cannot be blamed for.** Exhaustively over all 131072
+words: commutativity has zero counterexamples, so an on-die COMM clause cannot be
+falsified by this multiply at all. Identity fails on every one of the 48128
+non-representable words and on exactly one of the 82944 representable ones --
+negative zero, which the operator normalises to `+0`, correctly. `tri domain` turns
+that into an expiry date per stimulus source: 17 sources, 17 of them leave the set,
+`gft_smul`'s in about twelve hours. The die was read within minutes, so this is a
+latent trap, not the cause.
+
+**Three repairs, all of them ours.** `tri audit` had been dying at the `info` line
+W980 added to it -- a command substitution whose command exits 1 by design, under
+`set -e` -- so five gate rows had not run for a wave. The seven reference
+implementations every published comparison derives from lived only in a session
+scratchpad, which is why `tri rungs` reported *oracles not found* on a bench where
+the files were sitting there; they are committed now, which also means a referee can
+open them. And `gft_xorpercep`'s clause was being fed a raw 32-bit LFSR word that the
+format cannot express.
+
+Seed 7 survives all of it: five failures across a bench change, a netlist
+perturbation and an octave of clock. Its cause is below the front end and is none of
+the placer seed, the BSCAN site, the reported Fmax or the clock period.

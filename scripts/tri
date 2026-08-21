@@ -30,6 +30,7 @@ Local commands (no compiler needed):
   tri lesson "TITLE" "BODY"   append the next-numbered lesson to the wave-loop skill
   tri lesson --check          audit lesson numbering (duplicates, gaps, non-monotonic)
   tri theorem [--check]       next theorem number; --check audits T-numbering
+  tri domain                  how long each live stimulus source stays representable
   tri help                    this text
 
 Environment:
@@ -79,6 +80,135 @@ case "$cmd" in
     exit 0
     ;;
 
+  domain)
+    # W981: every JTAG wrapper drives its operators from free-running "live"
+    # counters, so that a clause cannot be satisfied by a constant folded away at
+    # synthesis (T555). Nobody checked that those counters stay inside the format's
+    # REPRESENTABLE SET. They do not: a GF-T16 magnitude is (off << 9) | mant with
+    # the offset saturating at 80, so the largest representable magnitude is 41471,
+    # and `live` is a plain +1 counter that walks straight past it. Past that point
+    # a clause like `smul(live, ONE) == live` is FALSE FOR THE RIGHT REASON -- the
+    # multiply is saturating an out-of-range input exactly as specified -- and the
+    # sticky latch records it forever as a defect. This prints, per source, how many
+    # beats of validity it has left. A number here is a soak-test expiry date.
+    W="${T27_WRAPPERS:-$REPO_ROOT/fpga/verilog}"
+    S="${T27_SPECS:-$REPO_ROOT/specs}"
+    W="$W" S="$S" python3 - <<'PYDOM'
+import os, re, pathlib
+
+W = pathlib.Path(os.environ["W"]); S = pathlib.Path(os.environ["S"])
+
+# The offset ceiling is NOT hardcoded -- it is read from the spec that defines it,
+# so that a format change moves this instrument with it instead of silently lying.
+ceil_off, src = None, None
+for spec in sorted(S.rglob("*.t27")):
+    t = spec.read_text(errors="replace")
+    if "fn magmul" not in t:
+        continue
+    m = re.search(r"if\s*\(\s*res\s*>=\s*(\d+)\s*\)", t)
+    if m:
+        ceil_off, src = int(m.group(1)), spec
+        break
+if ceil_off is None:
+    print("tri domain: no magmul offset ceiling found in specs/ -- cannot bound the set")
+    raise SystemExit(0)
+
+MAG_MAX = (ceil_off << 9) | 511            # largest representable magnitude
+def valid(w):                              # a word is (sign << 16) | magnitude
+    return (w >> 17) == 0 and (w & 0xFFFF) <= MAG_MAX
+
+RE_REG  = re.compile(r"^\s*reg\s*\[31:0\]\s*(\w+)\s*=\s*32'd(\d+)\s*;", re.M)
+RE_HEX  = re.compile(r"^\s*reg\s*\[31:0\]\s*(\w+)\s*=\s*32'h([0-9A-Fa-f]+)\s*;", re.M)
+RE_STEP = re.compile(r"^\s*(\w+)\s*<=\s*\1\s*([+-])\s*32'd(\d+)\s*;", re.M)
+RE_LFSR = re.compile(r"^\s*(\w+)\s*<=\s*\{", re.M)
+RE_PRE  = re.compile(r"reg\s*\[(\d+):0\]\s*pre\b")
+RE_DV   = re.compile(r"BUFG\s+\w+\s*\(\s*\.I\(\s*dv\[(\d+)\]\s*\)")
+
+CFGMCLK_MHZ = 65.0        # STARTUPE2 nominal; the part guarantees only 50..80
+
+rows, expiring = [], 0
+for v in sorted(W.glob("*_jtag.v")):
+    t = v.read_text(errors="replace")
+    inits = {n: int(d) for n, d in RE_REG.findall(t)}
+    inits.update({n: int(h, 16) for n, h in RE_HEX.findall(t)})
+    steps = {n: (1 if s == "+" else -1) * int(d) for n, s, d in RE_STEP.findall(t)}
+    lfsrs = set(RE_LFSR.findall(t))
+    mp, mdv = RE_PRE.search(t), RE_DV.search(t)
+    if not (mp and mdv):
+        continue
+    # Only a wrapper that LATCHES a clause can be poisoned by an expired source.
+    # gft_sadd_sweep drives the same counters and holds no `wire X_ok`, so its
+    # expiry has nowhere to stick -- reported, never gated.
+    latches = bool(re.search(r"wire\s+\w+_ok\s*=", t))
+
+    # A source is only EXPOSED if it reaches an operator port bare. `.x1(lfsr)`
+    # hands the operator a word the format may not be able to express;
+    # `.x1({15'd0, lfsr[15], 7'd40, lfsr[8:0]})` hands it a constructed one, and
+    # the register behind it may roam wherever it likes. Judge the port, not the
+    # declaration -- the first version of this gate judged the declaration and
+    # went on failing after the use site had been repaired.
+    def bare(name):
+        return bool(re.search(r"\.\w+\(\s*" + re.escape(name) + r"\s*\)", t))
+    per_beat = (1 << (int(mp.group(1)) + 1)) * (1 << (int(mdv.group(1)) + 1))
+    beat_s = per_beat / (CFGMCLK_MHZ * 1e6)
+    for name, init in sorted(inits.items()):
+        if name in ("pre", "dv", "rstc", "settle"):
+            continue
+        if name in lfsrs:
+            rows.append((v.name, name, init, "lfsr", 0 if not valid(init) else 1, beat_s, True, latches and bare(name)))
+            expiring += 1
+            continue
+        if name not in steps:
+            continue
+        step, w, k = steps[name], init, 0
+        if not valid(w):
+            rows.append((v.name, name, init, f"{step:+d}", 0, beat_s, True, latches and bare(name))); expiring += 1; continue
+        while k < 20_000_000:
+            w = (w + step) & 0xFFFFFFFF
+            k += 1
+            if not valid(w):
+                break
+        rows.append((v.name, name, init, f"{step:+d}", k, beat_s, k < 20_000_000, latches and bare(name)))
+        if k < 20_000_000:
+            expiring += 1
+
+def dur(s):
+    if s < 90:      return f"{s:.0f} s"
+    if s < 5400:    return f"{s/60:.0f} min"
+    if s < 172800:  return f"{s/3600:.1f} h"
+    return f"{s/86400:.1f} d"
+
+print(f"representable magnitude <= {MAG_MAX} (offset ceiling {ceil_off}, "
+      f"read from {src.relative_to(S.parent)})\n")
+print(f"{'wrapper':<28}{'source':<8}{'init':>8}{'step':>7}{'beats valid':>13}   nominal")
+for f, n, init, step, k, bs, ex, lt in rows:
+    left = "never valid" if k == 0 and step == "lfsr" else (f"{k}" if ex else ">20e6")
+    mark = "" if lt else "   (masked at the port, or no clause latched)"
+    print(f"{f:<28}{n:<8}{init:>8}{step:>7}{left:>13}   "
+          f"{dur(k*bs) if ex and k else ('-' if not ex else 'immediate')}{mark}")
+FLOOR_S = float(os.environ.get("T27_DOMAIN_FLOOR_S", "600"))
+short = [(f, n, k * bs) for f, n, _, _, k, bs, ex, lt in rows
+         if lt and ex and k * bs < FLOOR_S]
+print(f"\ntri domain: {len(rows)} live source(s), {expiring} leave the representable set, "
+      f"{len(short)} inside {FLOOR_S:.0f} s")
+print("A counter past the ceiling makes an identity clause false FOR THE RIGHT")
+print("REASON: the operator saturates out-of-range inputs as specified, and the")
+print("sticky latch cannot tell that apart from a defect. Nominal times assume")
+print(f"CFGMCLK = {CFGMCLK_MHZ:.0f} MHz; the part guarantees only 50..80, so treat")
+print("them as an order of magnitude, not a deadline.")
+# EVERY source expires, so gating on "expires" would paint this line permanently
+# red and cost it all its signal (lesson 1494, the twelve-wave `disk` story). The
+# gate is the ACTIONABLE subset: a source whose clauses go false before a human
+# could plausibly build, load and read the die is a broken fixture, not a horizon.
+if short:
+    print(f"\nFAIL: {len(short)} source(s) expire inside {FLOOR_S:.0f} s -- the clause")
+    print("goes false before the die can be read, and the sticky latch keeps it:")
+    for f, n, sec in sorted(short, key=lambda r: r[2]):
+        print(f"  {f}  {n}  {sec:.0f} s")
+raise SystemExit(1 if short else 0)
+PYDOM
+    exit $?
+    ;;
   coverage)
     # W980: the die check evaluates named clauses; the spec ships named tests. W975
     # found the MAC's suite covered exactly the two clauses that PASSED, and the two
@@ -225,7 +355,7 @@ PYGUARD
     # rig, resolved to its physical width and its rung -- or to "not a rung at all".
     ORACLES="${T27_CONFORMANCE:-}"
     if [ -z "$ORACLES" ]; then
-      for c in "$REPO_ROOT/conformance" "${TMPDIR:-/tmp}/oracles" \
+      for c in "$REPO_ROOT/conformance/oracles" "$REPO_ROOT/conformance" "${TMPDIR:-/tmp}/oracles" \
                "$(dirname "${TMPDIR:-/tmp}")"/*/scratchpad/oracles; do
         [ -f "$c/tnf_ref.py" ] && { ORACLES="$c"; break; }
       done
@@ -517,7 +647,7 @@ PYSWEEP
     # the underflow ordering. One command now prints both conventions side by side.
     ORACLES="${T27_CONFORMANCE:-}"
     if [ -z "$ORACLES" ]; then
-      for c in "$REPO_ROOT/conformance" "${TMPDIR:-/tmp}/oracles" \
+      for c in "$REPO_ROOT/conformance/oracles" "$REPO_ROOT/conformance" "${TMPDIR:-/tmp}/oracles" \
                "$(dirname "${TMPDIR:-/tmp}")"/*/scratchpad/oracles; do
         [ -f "$c/tnf_ref.py" ] && { ORACLES="$c"; break; }
       done
@@ -761,8 +891,22 @@ PYGRID
     # (gft_sadd lists four uncovered clauses and passes 1111 on the die), so failing
     # the audit on it would make the gate cry wolf -- which is how the disk line lost
     # its meaning over twelve waves.
-    cov="$("$0" coverage 2>&1 | grep -E '^tri coverage:' | sed 's/^tri coverage: //')"
+    # W981: `tri coverage` exits 1 whenever a wrapper is weak -- which is ALWAYS,
+    # since the whole point of the line is that 30 of 36 clauses are uncovered.
+    # Under `set -e` a command substitution that fails kills the shell, so this
+    # assignment silently ABORTED the audit here: the numbers, rungs, rigs and
+    # guards rows below never ran, and the audit reported neither pass nor FAIL.
+    # Same shape as the `grep -l` abort three lines down, in the line added to
+    # avoid it. A reporting line must not be able to end the run.
+    cov="$( { "$0" coverage 2>&1 || true; } | grep -E '^tri coverage:' | sed 's/^tri coverage: //' || true)"
     echo "info  coverage  ${cov:-unavailable}"
+    if out="$("$0" domain 2>&1)"; then
+      echo "ok    domain    $(printf '%s' "$out" | grep -E '^tri domain:' | sed 's/^tri domain: //')"
+    else
+      echo "FAIL  domain    $(printf '%s' "$out" | grep -E '^tri domain:' | sed 's/^tri domain: //')"
+      printf '%s\n' "$out" | sed -n '/^FAIL:/,$p' | sed 's/^/                /'
+      bad=1
+    fi
     if out="$("$0" guards 2>&1)"; then
       echo "ok    guards    $(printf '%s' "$out" | head -1 | sed 's/^tri guards: //')"
     else

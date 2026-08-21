@@ -120,7 +120,13 @@ module gft_xorpercep_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     // 4. INDEPENDENT: every port from a different source
     GftXorPercep u_ind (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .v0(liveA), .v1(liveB), .x0(liveC), .x1(lfsr), .y(liveA), .eta(liveB),
+        // W981 (T830): `lfsr` raw is NEVER a representable GF-T16 word -- a
+        // 32-bit LFSR is outside the set from the first cycle, so this clause was
+        // asking the operator a question the format cannot express. The bits still
+        // come from the LFSR (four independent sources, T555); they are now placed
+        // in the mantissa and the sign, with the offset pinned inside the range.
+        .v0(liveA), .v1(liveB), .x0(liveC),
+        .x1({15'd0, lfsr[15], 7'd40, lfsr[8:0]}), .y(liveA), .eta(liveB),
         .ready(y_i), .result(r_ind));
 
     wire gold_ok = (r_gold == GOLD);

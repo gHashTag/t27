@@ -30453,6 +30453,111 @@ that same blindness cost it a real ENOSPC.
 where the cheapest oracle is known to be weaker than the most expensive one, ordered by how
 much weaker — and the correct use is to work down it, not to report it as a score.
 
+### T829 -- Multiplicative identity is PARTIAL; commutativity is TOTAL [measured]
+
+For GF-T16 as specified in `gft_smul.t27`, a magnitude is `(offset << 9) | mantissa`
+and `magmul` saturates the output offset at 80. Exhaustively, over all 65536
+magnitudes crossed with both signs:
+
+- `smul(x, 1) == x`, over all **131072** words, holds for **82943** and fails for
+  **48129**. Split by representability the picture is sharp: of the **82944**
+  representable words it fails on exactly **one**, and of the **48128**
+  non-representable words it fails on **all**. The first out-of-range failure is
+  magnitude 41472 (offset 81, mantissa 0), which comes back clamped to 40960.
+- **The single exception inside the set is negative zero** (word 65536). Sign-magnitude
+  admits two zeros; `smul`'s guard tests the whole word, so negative zero passes it,
+  and the `mag == 0` guard then normalises the product to `+0`. Identity fails there
+  because the operator is collapsing a redundant encoding -- a feature, found only by
+  running the sweep over words rather than over magnitudes.
+- `smul(a, b) == smul(b, a)` has **0 counterexamples** in 2359296 pairs -- every
+  magnitude crossed with nine representatives, both sign combinations, both orders --
+  and `magmul` is symmetric by inspection (`prod`, `sm` and the sign xor each are).
+
+The identity failures are not defects: an out-of-range operand comes back clamped,
+exactly as the saturation specifies. **Identity holds on the representable set save one redundant
+encoding, and nowhere outside it; commutativity holds everywhere.** The asymmetry matters for the die:
+an on-die COMM clause can never be falsified by this arithmetic, so a COMM failure
+read off silicon has its cause below the front end -- while an on-die IND clause
+driven past the ceiling is false for the right reason.
+
+### T830 -- A live stimulus counter has an expiry date [measured]
+
+Every JTAG wrapper drives its operators from free-running counters so that no
+clause can be satisfied by a constant folded away at synthesis (T555). None of
+them is constrained to the representable set. `tri domain` reads the offset
+ceiling out of the spec that defines it and simulates each source forward:
+**17 live sources, 17 leave the set.** `gft_smul`'s `live` is valid for 20992
+beats (~12 h nominal); `gft_sadd_sweep`'s `liveA` for **3 minutes** and its
+`liveB` for **23 seconds**; `gft_xorpercep`'s 32-bit LFSR is **never** valid, from
+the first cycle.
+
+Past the expiry the operator saturates as specified, the clause reads false, and
+the sticky latch records it as a defect forever. **A soak test on this bench has a
+shelf life, and until now nobody had computed it.** This does NOT explain the open
+`gft_smul` COMM/IND failure -- that die was read within minutes of load, twelve
+hours inside the window. It is a latent trap the instrument found on its way past.
+
+### T831 -- A perfect correlation over a sweep that cannot separate its variables is not evidence [measured]
+
+Across the five seeds of W842/W977 the verdict partitioned perfectly by BSCAN
+site: PASS at BSCAN3 (seeds 1, 42, 31337), FAIL at BSCAN1 (seed 7) and BSCAN2
+(seed 1234). **5 of 5.** The obvious reading -- that the USER chain the cell lands
+on decides the answer -- was tested by holding the seed and perturbing the design
+so the placer would land the cell elsewhere. Six new die reads, each bracketed by
+a wrong-part control:
+
+| seed | slowclk | BSCAN site | Fmax | clauses | verdict |
+|------|---------|-----------|------|---------|---------|
+| 7    | /8      | **3**     | 18.14 | 1101 | **FAIL** |
+| 7    | /16     | **3**     | 17.91 | 1101 | **FAIL** |
+| 7    | /32     | 2         | 18.57 | 1111 | PASS |
+| 1234 | /8      | **1**     | 17.64 | 1111 | **PASS** |
+| 1234 | /16     | 3         | 17.59 | 1111 | PASS |
+| 1234 | /32     | 2         | 17.68 | 1111 | PASS |
+
+FAIL at BSCAN3, PASS at BSCAN1, PASS at BSCAN2: **refuted three ways by the first
+designed test.** The site had moved *together with* the placement in every sample
+that suggested it, so the sweep could not separate the two -- and a partition that
+is perfect on a confounded sample is worth exactly as much as one that is not.
+
+### T832 -- Halving the physical clock at a fixed site does not repair the failure [measured]
+
+Rows 4 and 5 above are the same seed, the same BSCAN site and the same netlist
+apart from two bits of a divider counter; they differ only in that `slowclk` is
+`cfgmclk/8` in one and `cfgmclk/16` in the other. **Both read 1101.** Every prior
+timing argument on this bench read nextpnr's model -- W977 excluded timing because
+the failing seeds held the *better* reported margin, which is only as good as the
+model. This is the first test that changed the physical period, and the failure did
+not move. Reported Fmax carries no signal either: the three failing reads sit at
+17.36 / 18.14 / 17.91 MHz inside a passing range of 16.41 to 18.57 MHz.
+
+Against that, seed 1234 **failed** in W977 with a 3-bit divider counter and
+**passes** here with a 5-bit one at the same ratio: two bits that cannot reach the
+arithmetic flip the verdict, which is T614 on a second design.
+
+### T832a -- The FASM diff W977 named as its next step cannot decide the question [measured]
+
+W977 closed with: *"the two FASM files (passing seed vs failing seed) have not been
+diffed, so the specific net that routes differently is unidentified. That diff is
+the next step."* It is not. Classifying every LUT INIT in four builds as logic,
+route-through or constant:
+
+| seed | verdict | logic LUTs | route-through | unique logic INITs |
+|------|---------|-----------|---------------|--------------------|
+| 42   | PASS    | 1164 | 164 | 527 |
+| 1    | PASS    | 1165 | 166 | 537 |
+| 7    | FAIL    | 1180 | 169 | 558 |
+| 1234 | FAIL    | 1195 | 170 | 562 |
+
+The multiset of logic INIT words differs between seed 42 and seed 1 by +508/-509 --
+**two builds that both compute the right answer.** Pin permutation rewrites INIT
+bits without changing the function and nextpnr inserts route-throughs freely, so
+INIT equality is not a function-preservation invariant and INIT inequality is not
+evidence of a logic change. Deciding whether place-and-route preserves function
+needs a formal equivalence check between the pre- and post-placement netlists; a
+textual diff of configuration bits answers a different question and looks like an
+answer to this one.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
