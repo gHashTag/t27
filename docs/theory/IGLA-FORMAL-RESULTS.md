@@ -29697,6 +29697,49 @@ source finds the thing being *discussed* as readily as the thing being *done*, a
 codebase whose comments document its own defects — as this one's now do — the false-positive
 rate rises with the quality of the documentation.
 
+### T813 — Fixing the source does not repair the record, and a half-applied fix is worse than the defect
+
+**The class is cleared.** All five rigs that bound the name TNF8 to `TNFFormat(4, 3)` now
+instantiate the ladder's `TNFFormat(3, 4)`, and `tri rungs` — wired into `tri audit` — reports
+**34 instantiations, 0 standing alone**. The defect can no longer return silently.
+
+**But the sources were never the evidence.** The records those rigs produced still exist and
+still say "TNF8". Six of them now carry a `_format_note` naming the actual format, its width
+and its binades, and pointing at the measurements that supersede it —
+`census_tnf8_w963.json` for area, `rung_w964_*.json` for accuracy. **A corrected rig with an
+uncorrected record is the W797a defect in reverse: the program is now right about a claim the
+data still gets wrong.**
+
+**Which records aged well, and why.** `accuracy_coordinate_w938.json` keys its result
+`"TNF8 (E_t=4,M=3)"`; `structural_w942.json` stores `physical_bits: 11` beside every figure.
+**Those two are still correct without amendment**, because they wrote the object into the
+record rather than the name. The four that wrote only "TNF8" needed the note. The design rule
+follows directly: **a record must be readable without the rig that produced it**, and the
+cheapest way to guarantee that is to store the parameters that identify the object.
+
+### T813a — The half-fix
+
+A regular expression replaced `TNFFormat(4, 3)` with `TNFFormat(3, 4)` across five files and
+**silently left one companion width wrong**: `oracle_rtl.py` reads
+`("tnf8", 11, lambda: … TNFFormat(3, 4))`, where the width precedes the format on the line and
+the substitution pattern only looked forward. The result would have enumerated **2¹¹ codes for
+a 10-bit format** — 1 024 phantom entries decoding out of range — and it would have run,
+produced numbers, and fit a clean line through them.
+
+**That is strictly worse than the defect it replaced.** The original substitution measured a
+real format under a wrong name; the half-fix would have measured nothing at all under a right
+one. It was caught by reading the diff, not by any check — the format was correct, the width
+was correct-looking, and only their *relationship* was wrong.
+
+**Statement.** When a parameter travels beside its object, an edit that changes one must be
+verified against the other. Automated replacement is safe only for values that carry their own
+meaning; `(exp_trits, mant_bits)` does, and the bare integer `11` beside it does not.
+
+**A note on the checker that found nothing.** A one-off heuristic scanning for width/format
+disagreements flagged exactly one line, and it was a false positive — the `11` it saw was the
+mantissa argument. That heuristic is deliberately **not** shipped as a `tri` command: it
+repeats the text-matching failure of T812a. Only the AST-based `tri rungs` is in the gate.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

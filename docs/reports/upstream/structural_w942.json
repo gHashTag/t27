@@ -28,5 +28,6 @@
   "consumer_cells": 450.286,
   "r2_bare": 1.0,
   "r2_fused": 1.0
- }
+ },
+ "_format_note": "W968: the key 'TNF8' in this record is TNFFormat(4, 3) -- 11 bits, 126.91 binades -- which is NOT the ladder's eighth rung. The ladder defines rung 8 as TNFFormat(3, 4): 10 bits, 30.95 binades. Superseded for the true rung by census_tnf8_w963.json (area) and rung_w964_*.json (accuracy). Records that wrote the format into the key, like accuracy_coordinate_w938.json's 'TNF8 (E_t=4,M=3)', aged correctly; this one did not."
 }

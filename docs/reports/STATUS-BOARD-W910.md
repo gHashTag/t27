@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W967, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W968, 2026-08-21)
+
+> **W968 — CLASS CLEARED, RECORDS ANNOTATED, AND ONE FIX WAS HALF-APPLIED.** All five rigs
+> now instantiate `TNFFormat(3, 4)`; **`tri rungs` is wired into `tri audit`** — 34
+> instantiations, **0 standing alone**. Six records carrying an unqualified "TNF8" got a
+> `_format_note` pointing at what supersedes them. **Two needed nothing**:
+> `accuracy_coordinate_w938.json` keys `"TNF8 (E_t=4,M=3)"` and `structural_w942.json` stores
+> `physical_bits` — they wrote the **object** into the record, not the name. **The half-fix:**
+> the regex left `oracle_rtl.py` reading `("tnf8", 11, … TNFFormat(3, 4))` — width **precedes**
+> format on that line — which would have enumerated **2¹¹ codes for a 10-bit format** and run
+> happily, fitting a clean line through 1 024 phantom entries. **Worse than the defect it
+> replaced**, and caught only by reading the diff. T813/T813a, lessons 1464/1465.
+> **Readiness 77 %.**
 
 > **W967 — THE SUBSTITUTION IS A CLASS: FIVE RIGS STILL BIND A RUNG'S NAME TO A NON-RUNG.**
 > `tri anomaly` checks record *shape* and can never see a name bound to the wrong object, so

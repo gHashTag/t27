@@ -1447,3 +1447,43 @@ codebase whose comments document its own defects — as this one's now do — th
 rate **rises with the quality of the documentation**.
 
 Theorems **T812**, **T812a**; lessons **1462**, **1463**.
+
+---
+
+## 37. W968 — the class is cleared, the records are annotated, and one fix was half-applied
+
+**All five rigs corrected.** `activations.py`, `conv.py`, `oracle_rtl.py`,
+`accuracy_seeds.py` and `accuracy_coordinate.py` now instantiate the ladder's
+`TNFFormat(3, 4)`. **`tri rungs` is wired into `tri audit`** — 34 instantiations, **0
+standing alone** — so the class cannot return silently.
+
+**But the sources were never the evidence.** Six records still said "TNF8" about the
+substitute, and now carry a `_format_note` naming the actual format, its width and its
+binades, and pointing at `census_tnf8_w963.json` (area) and `rung_w964_*.json` (accuracy).
+A corrected rig with an uncorrected record is the defect in reverse: the program is right
+about a claim the data still gets wrong.
+
+**Two records needed nothing at all.** `accuracy_coordinate_w938.json` keys its result
+`"TNF8 (E_t=4,M=3)"`; `structural_w942.json` stores `physical_bits: 11` beside every figure.
+**They wrote the object into the record instead of the name, and aged correctly across the
+whole affair.** The design rule follows: a record must be readable without the rig that
+produced it.
+
+### The half-fix, which was worse than the defect
+
+The regular expression that swapped `TNFFormat(4, 3)` for `TNFFormat(3, 4)` silently left
+one companion width wrong — `oracle_rtl.py` read `("tnf8", 11, … TNFFormat(3, 4))`, because
+the width **precedes** the format on that line and the pattern only looked forward.
+
+That rig would have enumerated **2¹¹ codes for a 10-bit format** — 1 024 phantom entries —
+and it would have **run, produced numbers, and fit a clean line through them**. The original
+substitution measured a real format under a wrong name; the half-fix would have measured
+nothing under a right one.
+
+**Nothing caught it but reading the diff.** The format was right, the width looked right,
+and only their *relationship* was wrong. A one-off heuristic scanning for such disagreements
+flagged exactly one line and it was a false positive — the `11` it saw was a mantissa
+argument. That heuristic is deliberately **not** shipped: it repeats the text-matching
+failure of chapter 36. Only the AST-based `tri rungs` is in the gate.
+
+Theorems **T813**, **T813a**; lessons **1464**, **1465**.
