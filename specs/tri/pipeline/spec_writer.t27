@@ -20,7 +20,7 @@ module SpecWriter;
     pub const SpecBehavior = struct {
         inputs : [[]Const SpecField],
         output : []const u8,
-        steps : [[]Const [,
+        steps : []const []const u8,
     };
 
     pub const SpecTemplate = struct {
