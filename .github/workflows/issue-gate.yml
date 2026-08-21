@@ -1,9 +1,12 @@
 # Enforces L1 TRACEABILITY: No code merged without Closes #N
 name: Issue Gate
 on:
+  # `branches: [master]` removed on purpose: this is a required check, and with
+  # the filter it never ran on a stacked PR, so traceability was unenforced for
+  # exactly the PRs most likely to need it. See the same note in
+  # now-sync-gate.yml. An absent check is not a passing check.
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
-    branches: [master]
 
 permissions:
   issues: read

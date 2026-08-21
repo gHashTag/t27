@@ -2,7 +2,11 @@ name: PHI Loop CI
 
 on:
   pull_request:
-    branches: [master]
+    # No `branches:` filter on pull_request, deliberately. A branch filter makes
+    # this gate silent on any PR whose base is not listed -- a stacked PR then
+    # shows a green check list that a master-based PR would not get. Enforced by
+    # scripts/ci/check_pr_branch_filters.py. The `push` filter below, where one
+    # exists, is left alone: restricting post-merge runs is a cost decision.
 
 jobs:
   phi-loop-check:

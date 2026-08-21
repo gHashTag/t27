@@ -12,8 +12,12 @@ name: Seal Staleness Warning
 # rule: we never auto-reseal here; refreezing is an explicit human/PR step.
 
 on:
+  # `branches: [master]` removed: this warning exists to tell a reviewer that the
+  # sealed numbers were certified against an older compiler, and a stacked PR
+  # that moves the seal is precisely the case where the reviewer needs to be
+  # told. The `paths:` filter stays -- it selects PRs that touch the seal, which
+  # is the intended scope; the base-branch filter selected nothing useful.
   pull_request:
-    branches: [master]
     paths:
       - 'bootstrap/src/compiler.rs'
       - 'bootstrap/stage0/FROZEN_HASH'
