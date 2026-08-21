@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W952, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W953, 2026-08-21)
+
+> **W953 — THE BRACKET CLOSES AT +46 %.** The float-style lane — multiply odd mantissas,
+> add shifts, align — costs **108 / 82 / 74** cells: **1.46×**, not 4.83×. It is cheaper
+> than the fixed-point lane **for every format** (108 vs 768; 74 vs 159), so fixed point
+> was simply the wrong design. TNF4 has the **narrowest multiplier** (2-bit odd mantissa)
+> and the **widest aligner** (15 shifts) — the φ-lattice's trade, in gates. Built without
+> assuming a field layout: the `(1.mantissa, exponent)` form **fails on both fp6 grids**
+> (truncated bottom binade), so the rig factors `M = odd·2^s`, exact for any grid.
+> **Correction to our own headline:** the 51.29-vs-50.29 figure is decode **plus a multiply
+> by a constant** (8.0 + 43.29), not a decoder — a constant operand folds away the very
+> width range forces; with both operands varying it is 1.46×. **Six bits, complete: no
+> accuracy, no stability, +46 % of the MAC datapath.** New: **`tri cost`**. T804, lessons
+> 1448/1449, **91 derived checks**. **Readiness 68 %.**
 
 > **W952 — RANGE IS A BILL PRESENTED AT THE ACCUMULATOR.** Every census here priced a
 > *decoder* (2 % dearer). A datapath also multiplies and accumulates, and range forces the

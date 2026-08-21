@@ -1001,8 +1001,9 @@ Corrections sixteen and seventeen, still with no outside referee.
 
 ## 28. W952 — range is a bill presented at the accumulator
 
-Every cell census this project ever ran priced a **decoder**: code in, the format's own
-encoded value out. On that basis TNF4 is 51.29 cells against 50.29 — **2 % dearer**. An
+Every cell census this project ever ran priced **decode plus a multiply by a constant**
+(8.0 cells of decode, 43.29 of multiply) — corrected in W953; the earlier wording here
+said "a decoder", which was wrong by one component. On that basis TNF4 is 51.29 cells against 50.29 — **2 % dearer**. An
 inference datapath also multiplies and accumulates, and those widths are set by the
 dynamic range that this project spent eight waves calling its advantage.
 
@@ -1052,3 +1053,59 @@ zeros fitting a perfect line, R² = 1.00000, the same signature as lesson 1407. 
 refuses a reading of zero instead of fitting a line through it.
 
 Theorems **T803**, **T803a**; lessons **1446**, **1447**. **80 derived checks.**
+
+---
+
+## 29. W953 — the bracket closes at +46 %
+
+W952 left the silicon cost of range as **+1.5 % … +383 %**, because the datapath an MX
+engine most likely builds had not been priced. It is now measured, and the answer sits
+between the ends but much nearer the low one.
+
+### Building the lane without assuming a field layout
+
+The obvious form — `(1.mantissa, exponent)` — **fails on both fp6 grids**: their bottom
+binade is truncated, so `M = mantissa·2^(e−e_min)` does not reconstruct the value. That was
+tested and rejected *before* any RTL was generated. What holds for every grid: `|v| = M·u`
+for integer `M`, and every integer factors as `M = odd·2^s`. The decode table emits
+`(sign, odd, s)`; the product is `odd₁·odd₂` shifted by `s₁+s₂` — exact, no rounding, no
+subnormal case.
+
+| format | odd mantissa | max shift | aligned bus |
+|---|---|---|---|
+| TNF4 | **2 bits** | 15 | 34 |
+| `fp6 e3m2` | 3 bits | 8 | 22 |
+| `fp6 e2m3` | **4 bits** | 5 | 18 |
+
+TNF4 has the **narrowest multiplier** and the **widest aligner**: 14.58 binades collapse
+the mantissa to one explicit bit and stretch the shifter to 15 positions. The φ-lattice's
+trade, in gates.
+
+### Every datapath, one table
+
+| datapath | TNF4 | `fp6 e3m2` | `fp6 e2m3` | TNF4 / `e2m3` |
+|---|---|---|---|---|
+| decode + **constant** multiply | 51.29 | 50.29 | 50.29 | **1.02×** |
+| MAC lane, fixed point | 768.00 | 308.00 | 159.00 | **4.83×** |
+| **MAC lane, float style** | **108.00** | 82.00 | **74.00** | **1.46×** |
+| block-32 accumulator alone | 48.00 | 30.00 | 23.00 | 2.09× |
+
+The float lane is cheaper **for every format**, so the fixed-point datapath is the wrong
+design and **4.83× must not be quoted**. In the datapath a real engine builds, the
+φ-lattice costs **+46 % per MAC lane**.
+
+### And a correction to our own headline figure
+
+The 1.02× row is **not a decoder**. It is decode plus a multiply **by a constant** — 8.0
+cells of decode, 43.29 of multiply. A constant operand lets the synthesiser specialise the
+multiplier and fold away exactly the width that range forces. With both operands varying
+the same comparison is **1.46×**. The W952 chapter here described that figure as pricing
+"a decoder"; that was wrong by one component and is corrected above.
+
+**Six bits, complete:** range buys no accuracy at block 32 (3.46× worse RMS), no stability
+once the quantiser is the deployed one, and costs **+46 %** of the multiply-accumulate
+datapath. None of it was visible from the census this project ran for eight waves.
+
+New tool: **`tri cost`** prints the table above from the records, all four datapaths.
+
+Theorem **T804**; lessons **1448**, **1449**. **91 derived checks.**

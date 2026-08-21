@@ -29277,6 +29277,58 @@ likely uses. Until it exists, the honest form of T803 is the bracket, and quotin
 alone would repeat exactly the error the 2 %-dearer figure made: pricing one component and
 presenting it as the cost of the format.
 
+### T804 — The bracket closes at +46 %: the cost of range is real, and it is not 4.83×
+
+**The missing third point.** T803 left the silicon cost of dynamic range as a bracket,
+**+1.5 % … +383 %**, because only two datapath styles had been priced and the one an
+MX engine most likely builds — multiply small mantissas, add exponents, align — was not
+among them. It is now measured.
+
+**Constructing the float lane without assuming a field layout.** The obvious form,
+`(1.mantissa, exponent)`, **fails on both fp6 grids**: their bottom binade is truncated,
+so the identity `M = mantissa · 2^(e−e_min)` does not hold — verified and rejected before
+building anything. What does hold for every grid: `|v| = M·u` for integer `M`, and every
+integer factors uniquely as `M = odd · 2^s`. So the decode table emits `(sign, odd, s)`,
+the product is `odd₁·odd₂` shifted by `s₁+s₂`, exactly, with no rounding and no subnormal
+special case.
+
+| format | odd mantissa | max shift | aligned bus | accumulator |
+|---|---|---|---|---|
+| TNF4 | **2 bits** | 15 | 34 | 40 |
+| `fp6 e3m2` | 3 bits | 8 | 22 | 28 |
+| `fp6 e2m3` | **4 bits** | 5 | 18 | 24 |
+
+TNF4 has the **narrowest** multiplier of the three and the **widest** aligner: 14.58
+binades of range collapse the mantissa to one explicit bit and stretch the shifter to 15
+positions. That is the trade the φ-lattice makes, stated in gates.
+
+**Measured, replicated, fixture 0 and R² 1.00000 in every case:**
+
+| datapath | TNF4 | `fp6 e3m2` | `fp6 e2m3` | TNF4 / `e2m3` |
+|---|---|---|---|---|
+| decode + **constant** multiply (W946) | 51.29 | 50.29 | 50.29 | **1.02×** |
+| MAC lane, fixed point (W952) | 768.00 | 308.00 | 159.00 | **4.83×** |
+| **MAC lane, float style (W953)** | **108.00** | 82.00 | **74.00** | **1.46×** |
+| block-32 accumulator alone | 48.00 | 30.00 | 23.00 | 2.09× |
+
+**Statement.** The float-style lane is cheaper than the fixed-point lane **for every
+format** — 108 against 768 for TNF4, 74 against 159 for `fp6 e2m3` — so the fixed-point
+datapath is simply the wrong design and its 4.83× must not be quoted as the cost of range.
+In the datapath a real engine builds, **the φ-lattice costs +46 % per MAC lane** against a
+same-width float. The bracket closes at a number, and the number is between its ends but
+much nearer the low one.
+
+**On the 1.02× figure.** It is not a decoder in isolation — it is decode **plus a multiply
+by a constant** (8.0 cells of decode, 43.29 of multiply). A constant operand lets the
+synthesiser specialise the multiplier away from full width, which is exactly what hides
+the range. With both operands varying, the same comparison is 1.46×. **A cost measured
+against a constant is not a cost.**
+
+**Where this leaves the six-bit case.** Range buys no accuracy at block 32 (3.46× worse
+RMS, T798b), no stability once the quantiser is the deployed one (T800, T802), and costs
+**+46 % of the multiply-accumulate datapath**. Those three together are the result, and
+none of them was visible from a decoder census.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

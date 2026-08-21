@@ -79,6 +79,52 @@ case "$cmd" in
     exit 0
     ;;
 
+  cost)
+    # W953: three silicon records now price the same three formats in three datapath
+    # styles, and the ratio between them is the whole finding. Derived, never typed.
+    REC="${T27_RECORDS:-$REPO_ROOT/docs/reports/upstream}"
+    REC="$REC" python3 - <<'PYCOST'
+import json, os, pathlib
+R = pathlib.Path(os.environ["REC"])
+FMTS = ("TNF4", "fp6e3m2", "fp6e2m3")
+ALIAS = {"TNF4": ("TNF4", "tnf4"), "fp6e3m2": ("fp6e3m2", "fp6_e3m2"),
+         "fp6e2m3": ("fp6e2m3", "fp6_e2m3")}
+SRC = [("decode + const-multiply", "oracle_rtl6_w946.json", "consumer_cells"),
+       ("MAC lane, fixed point", "mac_w952.json", "per_lane"),
+       ("MAC lane, float style", "flane_w953.json", "per_lane"),
+       ("block-32 accumulator", "acc_w952.json", "per_acc")]
+print(f"{'datapath':26} " + " ".join(f"{c:>10}" for c in FMTS) + "   TNF4/e2m3")
+for label, fn, key in SRC:
+    p = R / fn
+    if not p.exists():
+        continue
+    d = json.loads(p.read_text())
+    cost = d.get("cost") or d.get("units") or {}
+    vals = {}
+    if not cost:
+        cost = d                       # some records key formats at the top level
+    for f in FMTS:
+        v = None
+        for a in ALIAS[f]:
+            if a in cost:
+                v = cost[a]
+                break
+        if isinstance(v, dict):
+            v = next((v[k] for k in (key, "consumer_cells", "cells_per_unit",
+                                     "per_lane", "per_acc", "cost", "slope")
+                      if k in v), None)
+        if isinstance(v, (int, float)):
+            vals[f] = float(v)
+    if len(vals) < 2:
+        continue
+    cells = " ".join(f"{vals.get(f, float('nan')):10.2f}" for f in FMTS)
+    r = vals.get("TNF4", 0) / vals["fp6e2m3"] if vals.get("fp6e2m3") else float("nan")
+    print(f"{label:26} {cells}   {r:8.2f}x")
+print("\nLUT1-6 + CARRY4, cost = slope of cells(N) = fixture + cost*N over N = 1,2,4,8.")
+print("The accumulator is shared by 32 elements; divide it by 32 before comparing per element.")
+PYCOST
+    exit 0
+    ;;
   sweep)
     # W951: records multiply faster than any hand-kept table, and W948d showed what
     # a hand-kept tally costs. One command, every record, derived.
