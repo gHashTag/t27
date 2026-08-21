@@ -95,7 +95,14 @@ jobs:
           path: build/fpga/generated/
           retention-days: 7
 
+  # The job ID stays `fpga-lint`: `fpga-report` depends on it by that name, and
+  # renaming a job ID silently breaks any branch-protection context matching it.
+  # The DISPLAY name carries the depth, because the check list is the only thing
+  # most readers see, and "fpga-lint (passed)" is read as "the RTL is well-formed".
+  # It is not what this job measures -- see the header on the lint step below and
+  # issue #2326.
   fpga-lint:
+    name: fpga-lint (read_verilog + hierarchy)
     # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
     # read as a red PR whose own steps were all skipped (#2214).
     timeout-minutes: 45
@@ -142,9 +149,47 @@ jobs:
           name: fpga-verilog
           path: build/fpga/generated/
 
-      - name: Yosys lint all modules
+      # What this step measures, and what it does not (#2326).
+      #
+      # Yosys elaborates a function body only where the function is CALLED. In the
+      # generated Verilog almost nothing calls its own functions: measured over the
+      # 32 files of the `fpga-verilog` artifact of run 32464326319, 485 functions
+      # are defined and 79 have a call site -- 406 have none. `hierarchy -top` walks
+      # the module header and the one or two logic blocks and never enters the rest.
+      #
+      # So this loop reported 32/32 on the same artifact that `iverilog -g2012
+      # -DSIMULATION` compiles 4/32 -- both measured by hand on the artifact, and
+      # both visible in run 32464326319 itself, where fpga-lint concluded success
+      # and fpga-conformance concluded failure against one upload.
+      #
+      # Deepening yosys does not close the gap; the axis is reachability, not depth.
+      # `synth -top` over the same 32 is 31 pass / 1 fail, and the one failure is
+      # `zerodsp_top` for a missing submodule (one-file-at-a-time compilation), not
+      # a codegen defect -- it would flag 1 of the 28 for the wrong reason and still
+      # certify the other 27. Injecting a single call site into fifo.v is what makes
+      # the defect reachable: `assign __probe_aw = addr_width(32'd0);` turns this
+      # exact command from silent rc=0 into
+      #     fifo_probe.v:174: ERROR: Non-constant expression in constant function
+      # on the same line 174 (`d = cfg_depth;`) that Icarus reports.
+      #
+      # This step is therefore left AS IS in what it runs. Only what it CLAIMS is
+      # corrected. Making it catch the 28 is a gate-policy decision (it turns the
+      # job red until #2325 lands), not a wording fix.
+      - name: Yosys parse + hierarchy (all modules)
         run: |
-          echo "## Yosys Lint Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Yosys parse + hierarchy (all modules)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo 'Depth: `read_verilog -sv -DSIMULATION` then `hierarchy -top <module>`.' >> $GITHUB_STEP_SUMMARY
+          echo 'That is parse plus top-level hierarchy resolution, and nothing deeper.' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo 'DOES NOT CHECK: function bodies are not elaborated. Yosys enters a' >> $GITHUB_STEP_SUMMARY
+          echo 'function only at a call site, and 406 of the 485 functions in these' >> $GITHUB_STEP_SUMMARY
+          echo 'files have none, so a green result here means the files parse and their' >> $GITHUB_STEP_SUMMARY
+          echo 'top-level hierarchy resolves. It does not mean the RTL is well-formed:' >> $GITHUB_STEP_SUMMARY
+          echo 'this loop passes 32/32 on an artifact `iverilog -g2012 -DSIMULATION`' >> $GITHUB_STEP_SUMMARY
+          echo 'compiles 4/32. Full elaboration is the Icarus step in fpga-conformance.' >> $GITHUB_STEP_SUMMARY
+          echo 'See #2326 (this gap), #2325 (the emitter defect behind the 28), and' >> $GITHUB_STEP_SUMMARY
+          echo '#2241 (conformance vectors are compiled but never executed).' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Module | read_verilog | hierarchy | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
@@ -169,12 +214,13 @@ jobs:
           done
           echo "" >> $GITHUB_STEP_SUMMARY
           total=$((pass+fail))
-          echo "**Result:** $pass/$total modules passed Yosys lint" >> $GITHUB_STEP_SUMMARY
+          echo "**Result:** $pass/$total modules parsed and resolved top-level hierarchy (read_verilog + hierarchy)." >> $GITHUB_STEP_SUMMARY
+          echo "Function bodies were not elaborated, so this is not a clean bill of health for the RTL." >> $GITHUB_STEP_SUMMARY
           if [ "$fail" -gt 0 ]; then
             # Audit 2026-08-19: a warning-only gate absorbed a live codegen
             # regression (fifo.v invalid Verilog) within 40 minutes of the
             # 32/32 claim. Lint failures now fail the step.
-            echo "::error::$fail/$total modules failed Yosys lint"
+            echo "::error::$fail/$total modules failed read_verilog or hierarchy. Defects inside uncalled function bodies are out of this job's reach -- see fpga-conformance and #2326."
             exit 1
           fi
 
@@ -800,7 +846,10 @@ jobs:
           echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke (gen-only) | ${{ needs.fpga-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Lint (all 31 modules) | ${{ needs.fpga-lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          # "Lint (all 31 modules)" over-claimed twice: the artifact holds 32 files,
+          # and the job is parse + hierarchy, not elaboration (#2326). This row is
+          # the only fpga-lint status most readers of the run page see.
+          echo "| Lint: parse + hierarchy, 32 modules (function bodies NOT elaborated -- see #2326) | ${{ needs.fpga-lint.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Synthesis QMTECH (Yosys) | ${{ needs.fpga-synthesis.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Synthesis Arty A7 (Yosys) | ${{ needs.fpga-synthesis-arty.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Conformance (vectors + TB) | ${{ needs.fpga-conformance.result }} |" >> $GITHUB_STEP_SUMMARY
