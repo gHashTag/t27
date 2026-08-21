@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W964, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W965, 2026-08-21)
+
+> **W965 — RUNG SIXTEEN IS STRICTLY DOMINATED, AND THE GRIDS ALONE SAY SO.** No training,
+> no synthesis. Factoring every grid value as `odd · 2^s` gives the pair that T807 showed
+> fixes lane cost at equal width. At **17 bits** TNF16 `(4,9)` is `(10, 135)` — and so is
+> `fp17 e7m9`, which carries **131 071 values against 129 025** and **136 binades against
+> 127**. At **19 bits** TNF16 `(4,11)` is `(12, 137)` — and so is `fp19 e7m11`, with
+> **524 287 vs 516 097** and **138 vs 127**. **Same cost, more range, more values: strict
+> domination**, not parity. The φ-lattice loses ~**1.6 %** of its code space to
+> unrepresentable or duplicate points. A conventional-exponent peer at the same width runs
+> a **166-bit** bus against the rung's **290** — so the rung is on **neither frontier**.
+> Scope: the cost equality is a **prediction** from T807 (validated at 6 and 10 bits); a
+> case table over 2¹⁹ codes is not buildable. T810, lessons 1458/1459, **185 derived
+> checks**. **Readiness 74 %.**
 
 > **W964 — THE EIGHTH RUNG HAS AN ACCURACY AT LAST, AND IT IS PARITY.** MNIST, 5 seeds,
 > three recipes: TNF8 `(3,4)` against a width-matched `fp10 e5m4` is **−0.010 / −0.018 /

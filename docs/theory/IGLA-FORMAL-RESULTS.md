@@ -29548,6 +29548,55 @@ metrics), parity on accuracy (three recipes, none significant), no failures. Run
 and above: **still unmeasured**, and their width now depends on which ladder version the
 caller happened to import.
 
+### T810 — At rung sixteen an ordinary float strictly dominates: same lane cost, more range, more values
+
+**Both versions, labelled — never by name alone.** `LADDER` (v1-research) gives
+`TNFFormat(4, 9)` at 17 bits; `get_ladder(DEFAULT)` (v2-spec) gives `TNFFormat(4, 11)` at
+19 bits. Both are characterised, because W954 showed what happens when a rung is taken by
+its name.
+
+**Exact structural parameters**, from factoring every grid value as `|v| = odd · 2^s · u`
+(a float is dyadic, so the factorisation is exact; no rounding enters):
+
+| format | bits | distinct values | binades | odd | max shift | aligned bus |
+|---|---|---|---|---|---|---|
+| **TNF16 v1-research** `(4,9)` | 17 | 129 025 | **127.00** | **10** | **135** | **290** |
+| `fp17 e7m9` (range-matched) | 17 | **131 071** | **136.00** | **10** | **135** | **290** |
+| **TNF16 v2-spec** `(4,11)` | 19 | 516 097 | **127.00** | **12** | **137** | **298** |
+| `fp19 e7m11` (range-matched) | 19 | **524 287** | **138.00** | **12** | **137** | **298** |
+
+**The pairs are identical.** At each width the range-matched float has *exactly* the TNF
+rung's `(odd, max shift)` — 10/135 and 12/137 — hence by T807 exactly its lane cost, its
+aligned bus and its accumulator.
+
+**And it dominates on both remaining axes.** More distinct values (131 071 against 129 025;
+524 287 against 516 097 — the φ-lattice loses about 1.6 % of its code space to
+unrepresentable or duplicate points) and more dynamic range (136 against 127; 138 against
+127).
+
+**Statement.** At rung sixteen, for either ladder version, there exists an ordinary IEEE-style
+float of **the same physical width** that costs **the same** in the MAC lane while offering
+**more range and more values**. This is not parity — it is **strict domination**, and unlike
+the six- and ten-bit results it requires no accuracy experiment to establish, because all
+three quantities are properties of the grids.
+
+**Scope, stated plainly.** T807's law — equal `(odd, shift)` at equal width implies equal
+cost — was validated by synthesis at **six and ten bits**. Applying it at seventeen and
+nineteen is a **prediction from a validated law, not a measurement**. What is measured here
+are the structural parameters and the value counts, which are exact. A synthesis check at
+these widths needs a structural decoder: a case table over 2¹⁹ codes is not buildable.
+
+**The alternative framing, which is no better.** A width-matched float with a conventional
+exponent (`fp17 e6m10`, `fp19 e6m12`) spans 73–75 binades on a **166–174-bit** bus — far
+cheaper than the rung's 290–298. So at seventeen and nineteen bits the choice against the
+φ-lattice is between *the same cost with more range and more values*, or *much less cost
+with less range*. **The rung is on neither frontier.**
+
+**Consequence for the ladder as a whole.** Rung 4: parity at matched range. Rung 8: parity
+on area and accuracy. Rung 16: strictly dominated on the grid's own terms. The pattern
+across three rungs is that the φ-lattice buys a particular (range, density) point that an
+exponent field reaches at equal width — and above ten bits it reaches it *better*.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

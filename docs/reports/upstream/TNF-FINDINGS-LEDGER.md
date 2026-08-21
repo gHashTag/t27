@@ -1312,3 +1312,49 @@ axis** — it was true for accuracy and false by a sign for area.
 | **16+** | unmeasured | unmeasured | unmeasured — and the width depends on the ladder version imported |
 
 Theorem **T809**; lessons **1456**, **1457**. **147 derived checks.**
+
+---
+
+## 34. W965 — rung sixteen is strictly dominated, and the grids alone say so
+
+The last row of the ladder marked "unmeasured" on all three axes is closed, and closing it
+needed **no training and no synthesis**.
+
+**Both versions, labelled by version.** `LADDER` (v1-research) is `TNFFormat(4, 9)` at 17
+bits; `get_ladder(DEFAULT)` (v2-spec) is `TNFFormat(4, 11)` at 19. After W954 no rung here
+is taken by its name again.
+
+| format | bits | distinct values | binades | odd | max shift | aligned bus |
+|---|---|---|---|---|---|---|
+| **TNF16 v1-research** `(4,9)` | 17 | 129 025 | **127.00** | **10** | **135** | **290** |
+| `fp17 e7m9` (range-matched) | 17 | **131 071** | **136.00** | **10** | **135** | **290** |
+| **TNF16 v2-spec** `(4,11)` | 19 | 516 097 | **127.00** | **12** | **137** | **298** |
+| `fp19 e7m11` (range-matched) | 19 | **524 287** | **138.00** | **12** | **137** | **298** |
+
+**The structural pairs are identical** — 10/135 and 12/137 — so by T807 the lane cost, the
+aligned bus and the accumulator are identical too. And the float **dominates on both
+remaining axes**: more distinct values, and more range. The φ-lattice loses about **1.6 %
+of its code space** to points that are unrepresentable or duplicated.
+
+**This is not parity. It is strict domination**, and it is a property of the grids, not of
+any experiment.
+
+**The alternative framing is no kinder.** A width-matched float with a conventional
+exponent (`fp17 e6m10`) spans 73 binades on a **166-bit** bus against the rung's 290. So at
+these widths the choice is *same cost, more range, more values* or *far less cost, less
+range*. **The rung is on neither frontier.**
+
+**Scope, stated.** T807's law was validated by synthesis at six and ten bits; applying it at
+seventeen and nineteen is a **prediction from a validated law**. The value counts and
+structural parameters are exact. A synthesis check needs a structural decoder — a case
+table over 2¹⁹ codes is not buildable.
+
+**The ladder, complete as far as it has been measured:**
+
+| rung | area | accuracy | stability |
+|---|---|---|---|
+| **4** (6 bits) | parity at matched range | no advantage | no advantage under the deployed recipe |
+| **8** (10 bits) | parity (−0.9 % / +1.1 %) | parity, three recipes | no failures |
+| **16** (17/19 bits) | **strictly dominated** | — | — |
+
+Theorem **T810**; lessons **1458**, **1459**. **185 derived checks.**
