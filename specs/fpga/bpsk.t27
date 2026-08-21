@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/fpga/bpsk.t27
-// ZeroDSP BPSK modem core (TRI-NET 5.8 GHz drone-mesh radio PHY).
+// ZeroDSP BPSK modem core (TRI-NET 5.8 GHz mesh radio PHY).
 // Byte -> +/-1 BPSK serializer with a Barker-13 preamble, plus an integer
 // Barker-13 correlator + threshold for frame synchronization. Port of the
 // trios-mesh Rust modem's synthesizable core to the t27 spec-first language.
