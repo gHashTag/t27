@@ -31,6 +31,7 @@ Local commands (no compiler needed):
   tri lesson --check          audit lesson numbering (duplicates, gaps, non-monotonic)
   tri theorem [--check]       next theorem number; --check audits T-numbering
   tri domain                  how long each live stimulus source stays representable
+  tri miter SPEC [CONST]      SAT-prove commutativity on the MAPPED netlist the die runs
   tri help                    this text
 
 Environment:
@@ -78,6 +79,70 @@ case "$cmd" in
   help|-h|--help)
     usage
     exit 0
+    ;;
+
+  miter)
+    # W982: the die says two instances of one commutative function, differing only
+    # in WHICH PORT the constant folds into, disagree. Three methods failed to
+    # locate it -- a FASM diff (W981) and a post-place-and-route LUT recovery
+    # (W982) both failed their own controls, because place-and-route repacks and
+    # renames. This one asks the question where it is still answerable: on the
+    # MAPPED netlist, before placement, with a SAT proof. A pass here exonerates
+    # the front end and puts the fault at or below place-and-route; a fail is an
+    # arithmetic defect the simulation suite missed.
+    #
+    #   tri miter <spec.t27> [CONST]      default CONST = 20992 (2.0 in GF-T16)
+    SPEC="${2:-}"; CONST="${3:-20992}"
+    [ -n "$SPEC" ] || die "usage: tri miter <spec.t27> [CONST]"
+    [ -f "$SPEC" ] || die "no such spec: $SPEC"
+    T27C="${TRI_T27C:-$REPO_ROOT/target/release/t27c}"
+    [ -x "$T27C" ] || die "t27c not found at $T27C"
+    STEM="$(basename "$SPEC" .t27)"
+    WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+    "$T27C" gen-verilog "$SPEC" > "$WORK/$STEM.v" 2>/dev/null \
+      || { V="${TMPDIR:-/tmp}/t27-silicon/$STEM.v"; [ -f "$V" ] && cp "$V" "$WORK/$STEM.v"; }
+    [ -s "$WORK/$STEM.v" ] || die "no Verilog for $STEM -- run: tri silicon $SPEC --skip-hardware"
+    TOPMOD="$(grep -oE '^module [A-Za-z_][A-Za-z0-9_]*' "$WORK/$STEM.v" | head -1 | awk '{print $2}')"
+    [ -n "$TOPMOD" ] || die "no module found in the generated Verilog"
+    cat > "$WORK/miter.v" <<MITER
+module comm_miter (input wire [31:0] live, output wire neq);
+    localparam [31:0] K = 32'd$CONST;
+    wire [31:0] ra, rb; wire y1, y2;
+    $TOPMOD u_a (.clk(1'b0), .rst_n(1'b1), .en(1'b1), .a(live), .b(K), .ready(y1), .result(ra));
+    $TOPMOD u_b (.clk(1'b0), .rst_n(1'b1), .en(1'b1), .a(K), .b(live), .ready(y2), .result(rb));
+    assign neq = (ra != rb);
+endmodule
+MITER
+    # The synthesis script is the one t27c runs, verbatim, INCLUDING the `share`
+    # removal of W813 -- proving a different netlist than the die gets would be a
+    # proof about nothing. `techmap +/xilinx/cells_sim.v` then gives the SAT
+    # solver models for LUTn/CARRY4/MUXF7, without which it answers
+    # "No SAT model available" and exits 1, which reads exactly like a refutation.
+    OUT="$(yosys -p "read_verilog $WORK/$STEM.v $WORK/miter.v; hierarchy -top comm_miter; \
+      synth_xilinx -family xc7 -flatten -run :coarse; \
+      techmap -map +/cmp2lut.v -map +/cmp2lcu.v -D LUT_WIDTH=6; \
+      alumacc; opt; memory -nomap; opt_clean; \
+      synth_xilinx -family xc7 -flatten -run map_memory:; \
+      techmap -map +/xilinx/cells_sim.v; opt -full; stat; \
+      sat -verify -prove neq 1'b0 -show-inputs" 2>&1 || true)"
+    CELLS="$(printf '%s' "$OUT" | grep -oE '^ +[0-9]+ cells' | tail -1 | tr -dc '0-9')"
+    VARS="$(printf '%s' "$OUT" | grep -oE 'with [0-9]+ variables' | tail -1 | tr -dc '0-9')"
+    # `printf ... | grep -q` is a trap under `set -o pipefail`: grep -q exits on
+    # the FIRST match, printf dies of SIGPIPE, and the pipeline reports failure --
+    # so a successful proof read as a refutation, complete with a "Broken pipe"
+    # warning that looked like the real error. No pipe, no inversion.
+    case "$OUT" in
+      *"SUCCESS!"*)
+      echo "tri miter: $STEM commutes on the MAPPED netlist -- proved"
+      echo "  ${CELLS:-?} cells after Xilinx mapping, ${VARS:-?} SAT variables, no counterexample"
+      echo "  The front end is exonerated for this spec: any disagreement between"
+      echo "  the two instances on silicon has its cause at or below placement."
+      exit 0
+      ;;
+    esac
+    echo "tri miter: $STEM does NOT commute on the mapped netlist, or the proof did not run"
+    printf '%s\n' "$OUT" | grep -iE "No SAT model|ERROR|Solving problem" | tail -5 | sed 's/^/  /'
+    exit 1
     ;;
 
   domain)

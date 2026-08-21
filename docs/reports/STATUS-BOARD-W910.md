@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W981, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W982, 2026-08-22)
+
+> **W982 — THE REPRODUCER SHRANK 46 %, AND THE PROOF MOVED TO THE ARTEFACT THAT FAILS.**
+> `gft_commmin_jtag`: three `GftSmul` instances instead of five, **430–452 LUT instead of 798**,
+> and it reproduces `c_self` TRUE / `c_comm` FALSE exactly. **The verdict tracks the netlist**:
+> both 430-LUT builds PASS, both 452-LUT builds FAIL — and the two netlists differ only because
+> `t27c` forced `JTAG_CHAIN` to the site nextpnr chose, a parameter that cannot reach the
+> arithmetic yet moves 22 LUT and 7 CARRY4. **The seed mapping inverts** against the big design.
+> **The mapped netlist commutes — proved.** The miter is synthesised by the *exact* script the die
+> runs, Xilinx cells mapped back to logic, `sat -verify -prove neq 1'b0`: `gft_smul` **277 cells /
+> 1822 SAT variables**, `gft_sadd` **5020 / 48200**, no counterexample. W977 proved the *module*;
+> this proves the two *folded cones that fail*. **The front end is exonerated — the fault is at or
+> below place-and-route.** Now `tri miter`. **Third cell-level method, third control-saved
+> retraction:** recovering post-PnR LUT functions from nextpnr's `--write` JSON, the control pair
+> — two builds that both PASS — disagrees on **591 of 1581** cells. With W981 this is a rule: no
+> cell-level comparison decides function preservation across a repacking placer. Own defect:
+> `grep -q` under `pipefail` turned the proof into a refutation. T833–T835, lessons 1501–1503,
+> **393 derived checks**. **Readiness 95 %.**
 
 > **W981 — NINE DIE READS KILLED A HYPOTHESIS, AND W977's OWN NEXT STEP.** W977's result
 > **reproduces on a changed bench** (three cables at 1:4 became one at 1:5): seeds 42/7/31337 →

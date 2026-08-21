@@ -30558,6 +30558,77 @@ needs a formal equivalence check between the pre- and post-placement netlists; a
 textual diff of configuration bits answers a different question and looks like an
 answer to this one.
 
+### T833 -- The minimal reproducer, and the verdict tracks the netlist [measured]
+
+`gft_dup_jtag` carries five `GftSmul` instances in 798 LUT. `gft_commmin_jtag`
+keeps only the structure that discriminates -- two instances with the *same*
+operand order as the control, one with them swapped as the test -- in **430-452
+LUT, a 46 % reduction**, and reproduces the failure exactly: `c_self` TRUE,
+`c_comm` FALSE.
+
+| seed | LUT | CARRY4 | chain | Fmax | clauses | verdict |
+|------|-----|--------|-------|------|---------|---------|
+| 7    | 430 | 112 | 2 | 34.68 | 1111 | PASS |
+| 42   | 430 | 112 | 2 | 29.23 | 1111 | PASS |
+| 1    | 452 | 105 | 3 | 33.71 | **1101** | **FAIL** |
+| 1234 | 452 | 105 | 3 | 33.03 | **1101** | **FAIL** |
+
+**The verdict follows the netlist, not the seed.** Both 430-LUT builds pass; both
+452-LUT builds fail. The two netlists differ because `t27c`'s fixed-point loop
+forces `JTAG_CHAIN` to whatever site nextpnr chose, and yosys maps 22 LUTs and 7
+CARRY4 differently under a parameter that selects a BSCAN site and cannot reach
+the arithmetic. **And the seed mapping inverts**: in the 798-LUT design seeds 1
+and 42 pass while 7 and 1234 fail; here 7 and 42 pass while 1 and 1234 fail. The
+seed is not a property of the failure -- it is a handle on the netlist and the
+placement together, which is the same confound T831 caught in the BSCAN site.
+
+### T834 -- The mapped netlist commutes, proved [proved]
+
+The question W977 left open was whether the two cones -- the same function with
+the constant folded into either port -- are still the same function after yosys
+has mapped them to Xilinx primitives. They are. Synthesising the miter with the
+**exact** script `t27c silicon` runs, mapping `LUTn`/`CARRY4`/`MUXF7` back to
+logic with `+/xilinx/cells_sim.v`, and running `sat -verify -prove neq 1'b0`:
+
+| spec | cells after mapping | SAT variables | result |
+|------|--------------------|---------------|--------|
+| `gft_smul` | 277 | 1822 | proved, no counterexample |
+| `gft_sadd` | 5020 | 48200 | proved, no counterexample |
+
+W977 proved commutativity of the **module**. This proves it of the two **folded
+cones that actually fail**, in the netlist nextpnr is handed. **The front end is
+exonerated; the fault is at or below place-and-route.** Available as `tri miter`.
+
+### T834a -- A proof that reads as a refutation [measured]
+
+The first run of this proof reported *does NOT commute*. The proof had succeeded;
+the test was `printf '%s' "$OUT" | grep -q "SUCCESS!"`, and under `set -o pipefail`
+`grep -q` exits at the first match, `printf` dies of SIGPIPE, and the pipeline
+reports failure. The only visible symptom was a `Broken pipe` warning that read
+like the real error. **An early-exiting reader inverts the result of the writer it
+is reading**, and the shape is general: `-q`, `head -1`, `-m1` all do it.
+
+### T835 -- Cell-level comparison cannot decide function preservation [measured]
+
+Third method, third control-saved retraction. This one recovers each
+post-place-and-route LUT's logical function from nextpnr's `--write` JSON, undoing
+the pin permutation with the `X_ORIG_PORT_A*` attributes it helpfully preserves,
+and compares name-matched cells:
+
+| pair | name-matched cells | function mismatches |
+|------|-------------------|---------------------|
+| 42 (PASS) vs 1 (PASS) | 1581 | **591** |
+| 42 (PASS) vs 7 (FAIL) | 1585 | 623 |
+| 7 (FAIL) vs 1234 (FAIL) | 1578 | 583 |
+
+**The control pair disagrees as much as the test pairs**, so the method decides
+nothing. Place-and-route repacks LUTs into slice halves and renames most cells;
+name identity does not imply function identity. With T832a this is now a rule:
+**no cell-level comparison -- configuration bits or recovered functions -- can
+decide whether a repacking placer preserved function.** What would decide it is a
+whole-design equivalence over primary inputs and outputs, which needs semantic
+models for `SLICE_LUTX`, `SLICE_FFX` and `CARRY4` as nextpnr emits them.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

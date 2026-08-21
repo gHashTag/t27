@@ -2140,3 +2140,44 @@ format cannot express.
 Seed 7 survives all of it: five failures across a bench change, a netlist
 perturbation and an octave of clock. Its cause is below the front end and is none of
 the placer seed, the BSCAN site, the reported Fmax or the clock period.
+
+## 51. The reproducer shrank, and the proof moved to the artefact that fails (W982)
+
+Two things had been outstanding since W977: a minimal case, and a proof about the
+right object.
+
+**The minimal case.** `gft_dup_jtag` carries five `GftSmul` instances in 798 LUT.
+Keeping only what discriminates -- two instances with the same operand order as a
+control, one with them swapped as the test -- gives `gft_commmin_jtag` at 430-452
+LUT, and it reproduces `c_self` TRUE with `c_comm` FALSE exactly. **The smaller
+case immediately showed something the larger one hid**: both 430-LUT builds pass
+and both 452-LUT builds fail, so the verdict follows the *netlist*, and the two
+netlists differ only because `t27c` forced `JTAG_CHAIN` to the site nextpnr chose
+-- a parameter that selects a BSCAN site and cannot reach the arithmetic, yet
+moves 22 LUTs and 7 CARRY4. The seed mapping also **inverts** between the two
+designs: 1 and 42 pass in the big one, 7 and 42 in the small one.
+
+**The proof.** W977 proved `smul` commutative by reading the source, by Icarus
+over 8192 pairs, and by yosys SAT -- all three about the *module*. What fails on
+silicon is two cones after yosys folded a constant into different ports and mapped
+to Xilinx primitives. Synthesising the miter with the exact script the die runs,
+mapping `LUTn`/`CARRY4`/`MUXF7` back to logic and proving `neq == 0` settles it:
+277 cells and 1822 SAT variables for `gft_smul`, 5020 and 48200 for `gft_sadd`,
+no counterexample. **The front end is exonerated. The fault is at or below
+place-and-route.** It is `tri miter` now.
+
+**And a third method died in its control.** Recovering each post-place-and-route
+LUT's logical function from nextpnr's own `--write` JSON -- undoing the pin
+permutation with the `X_ORIG_PORT_A*` attributes it preserves -- looked decisive
+until the control pair was run: two builds that both PASS disagree on 591 of 1581
+name-matched cells. Place-and-route repacks LUTs into slice halves and renames
+most of them. With W981's FASM result this is now a rule rather than an accident:
+**no cell-level comparison decides function preservation across a repacking
+placer**, and the thing that would is a whole-design equivalence over primary
+inputs and outputs.
+
+The wave's own defect belongs here too. The first run of the proof reported *does
+not commute* -- because the success test piped a captured string into `grep -q`,
+which exits at the first match, kills the writer with SIGPIPE, and under
+`pipefail` turns a proof into a refutation. The only symptom was a `Broken pipe`
+warning that read like the real error.
