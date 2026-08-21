@@ -137,6 +137,10 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    reg [2:0]  state;\n");
     s.push_str("    reg [31:0] bytes_remaining;\n");
     s.push_str("    reg [7:0]  burst_count;\n");
+    // Index of the beat currently being captured. `local_addr` is driven from
+    // this value, not from `local_addr + 1`, so the address presented to the
+    // local memory belongs to the same beat as `local_wdata` and `local_we`.
+    s.push_str("    reg [11:0] beat_index;\n");
     s.push_str("\n");
 
     s.push_str("    assign m_axi_rready = (state == READ_DATA);\n");
@@ -162,6 +166,7 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            local_wdata    <= 64'd0;\n");
     s.push_str("            bytes_remaining <= 32'd0;\n");
     s.push_str("            burst_count    <= 8'd0;\n");
+    s.push_str("            beat_index     <= 12'd0;\n");
     s.push_str("        end else begin\n");
     // `local_we` is a one-cycle write strobe, not a level. Defaulting it low
     // ahead of the case means any state that does not explicitly drive it
@@ -174,6 +179,7 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("                done            <= 1'b0;\n");
     s.push_str("                bytes_remaining <= length;\n");
     s.push_str("                local_addr      <= 12'd0;\n");
+    s.push_str("                beat_index      <= 12'd0;\n");
     s.push_str("                state           <= direction ? WRITE_ADDR : READ_ADDR;\n");
     s.push_str("                if (!direction) begin\n");
     s.push_str("                    m_axi_araddr <= src_addr;\n");
@@ -193,7 +199,8 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            READ_DATA: if (m_axi_rvalid) begin\n");
     s.push_str("                local_wdata     <= m_axi_rdata;\n");
     s.push_str("                local_we        <= 1'b1;\n");
-    s.push_str("                local_addr      <= local_addr + 12'd1;\n");
+    s.push_str("                local_addr      <= beat_index;\n");
+    s.push_str("                beat_index      <= beat_index + 12'd1;\n");
     s.push_str("                bytes_remaining <= bytes_remaining - 32'd8;\n");
     s.push_str("                if (m_axi_rlast || bytes_remaining <= 32'd8) state <= DONE_ST;\n");
     s.push_str("            end else local_we <= 1'b0;\n");
@@ -432,6 +439,65 @@ mod tests {
             "unbalanced begin/end in emitted module: {} `begin` vs {} `end` \
              (excluding `endcase`/`endmodule`)",
             begins, ends
+        );
+    }
+
+    /// Slice one `case` arm out of the emitted module, so an assertion cannot
+    /// be satisfied by an identical-looking line in a different state.
+    fn case_arm<'a>(v: &'a str, from: &str, to: &str) -> &'a str {
+        let a = v.find(from).unwrap_or_else(|| panic!("missing arm `{}`", from));
+        let b = v[a..]
+            .find(to)
+            .unwrap_or_else(|| panic!("missing arm `{}` after `{}`", to, from));
+        &v[a..a + b]
+    }
+
+    /// `READ_DATA` must present address, data and enable from one stage.
+    ///
+    /// Anchored to the `READ_DATA` arm on purpose. `WRITE_DATA` legitimately
+    /// keeps its own `local_addr <= local_addr + 12'd1;` (there the address is
+    /// a *read* pointer, one beat ahead by design), so an unanchored
+    /// `!v.contains("local_addr + 12'd1")` fails on the CORRECT emitter.
+    #[test]
+    fn read_data_pairs_address_with_data_and_enable() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let arm = case_arm(&v, "READ_DATA: if", "WRITE_ADDR:");
+        assert!(
+            !arm.contains("local_addr + 12'd1"),
+            "READ_DATA must not post-increment `local_addr` in the same \
+             non-blocking group that raises `local_we`: the increment lands in \
+             the same cycle as the strobe, so beat 0's data is written to \
+             address 1 and slot 0 is never written. READ_DATA arm was:\n{}",
+            arm
+        );
+        assert!(
+            arm.contains("local_addr      <= beat_index;"),
+            "READ_DATA must drive `local_addr` from `beat_index` (the index of \
+             the beat being captured), so address, data and enable are \
+             registered from one stage. READ_DATA arm was:\n{}",
+            arm
+        );
+        assert!(
+            arm.contains("beat_index      <= beat_index + 12'd1;"),
+            "READ_DATA must advance `beat_index` for the next beat. \
+             READ_DATA arm was:\n{}",
+            arm
+        );
+    }
+
+    /// `beat_index` must be re-armed when a transfer starts, not only at reset,
+    /// or a second read transfer resumes at the previous transfer's index.
+    #[test]
+    fn beat_index_rearmed_in_idle_not_only_at_reset() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let arm = case_arm(&v, "IDLE: if (start)", "READ_ADDR:");
+        assert!(
+            arm.contains("beat_index      <= 12'd0;"),
+            "`beat_index` must be cleared in the IDLE start branch alongside \
+             `local_addr`, not only in the reset block: without it the second \
+             transfer after power-on starts writing at a stale index. \
+             IDLE arm was:\n{}",
+            arm
         );
     }
 
