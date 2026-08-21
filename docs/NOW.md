@@ -1,3 +1,38 @@
+> **FROZEN ARCHIVE -- do not add entries here.**
+>
+> This banner is the first line of the file on purpose. It used to be appended
+> after whatever entry sat on top, which read as though entry #1 were exempt
+> from it.
+>
+> New entries go in [`now/`](now/), one file per unit of work:
+> `docs/now/<YYYY-MM-DD>-<slug>.md`. Create one with
+> `./scripts/tri now add "<title>" --bullet "<what changed>" --closes <N>`.
+> See [`now/README.md`](now/README.md) for the format and what the gate checks.
+>
+> Entries were prepended to this single file until 2026-08-20. That made every
+> PR rewrite the same first line, so GitHub marked every concurrent PR
+> CONFLICTING. `merge=union` was applied to paper over it and made things worse:
+> GitHub ignores merge drivers, so it never ran where the conflicts were
+> reported, while locally it merged same-line edits into silent duplicates.
+>
+> The invariant this file should hold is one `Last updated:` line per entry
+> heading. It holds for every entry but one: the entry headed `Wave Loop 421
+> close-out / Wave Loop 422 setup (2026-07-06)` carries no date line, lost to
+> exactly the mechanism above, and is left as-is rather than reconstructed from
+> a guess. Stating the invariant rather than a heading/date-line pair keeps this
+> paragraph true as entries accumulate; the counts went stale within one wave of
+> being written down. Verify with:
+>
+> ```
+> awk '/^# /{if(h!=""&&d==0)print h;h=$0;d=0;next}/^(\*\*)?Last updated:/{d++}
+>      END{if(h!=""&&d==0)print h}' docs/NOW.md
+> ```
+>
+> Nothing reads this file any more. The entries below are kept verbatim as
+> history; splitting them into `now/` is a separate mechanical migration.
+
+---
+
 # NOW -- the frozen seal was not updated with the compiler, so master does not build (2026-08-20)
 
 Last updated: 2026-08-20

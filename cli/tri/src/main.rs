@@ -73,7 +73,7 @@ enum Commands {
         #[command(subcommand)]
         action: mutate::MutateCmd,
     },
-    /// Prepend a docs/NOW.md entry without hand-writing the frame.
+    /// Write a docs/now/ entry without hand-writing the frame.
     Now {
         #[command(subcommand)]
         action: nownote::NowCmd,
