@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W954, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W962, 2026-08-21)
+
+> **W962 — UNBLOCKED AFTER SIX DEAD WAVES; THE RATE COEFFICIENT IS WITHDRAWN.** The volume
+> sat at zero for six waves. `Bash` dies there (capture file opened before exec) and so does
+> **`Write`** — it stages through `path.tmp.NNNN`, so truncating a file to free blocks fails
+> identically. **At true zero the session has no lever.** Nothing was lost: `tri anomaly`
+> and eight curve points sat in the working tree and were committed the moment writes
+> returned. **Science:** T806's "≈2.4 cells per binade" is **withdrawn** — the full split
+> sweep is **not monotone in range** (`fp6 e1m4` spans *less* and costs *more*, 80 vs 74;
+> same at ten bits, 230 vs 215), and a binade-only fit gives 6.49 cells/binade at R² = 0.85.
+> **The replacement is exact and unfitted:** formats sharing **(odd-mantissa bits, max
+> shift)** cost the same — TNF4/`fp6 e4m1` **108 vs 106**, TNF8/`fp10 e5m4` **380 vs 376**.
+> Every format in both W954 and W955 records reproduces **exactly**. T807, lessons
+> 1452/1453, **118 derived checks**. **Readiness 71 %.**
 
 > **W954 — THE LADDER'S RUNG WAS NEVER MEASURED, AND AT MATCHED RANGE WE ARE AT PARITY.**
 > `LADDER` defines TNF8 as `TNFFormat(3,4)` — **10 bits, 30.95 binades**. Every rig here

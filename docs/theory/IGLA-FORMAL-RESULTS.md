@@ -29410,6 +29410,62 @@ comparison nobody should make: two formats of equal width and unequal range. The
 statement of the same data is that **range costs about 2.4 cells per binade per lane** in
 this datapath, for floats and for the φ-lattice alike.
 
+### T807 — Cost is set by two structural integers, not by dynamic range; T806's coefficient is withdrawn
+
+**What T806 claimed.** "Cost tracks dynamic range … about **2.4 cells per binade per lane**,
+for floats and for the φ-lattice alike." The parity half of that claim survives. **The
+coefficient does not, and neither does the functional form.**
+
+**The full sweep.** Every exponent/mantissa split at two widths, priced in the float-style
+MAC lane:
+
+| format | bits | binades | odd mantissa | max shift | aligned bus | cells |
+|---|---|---|---|---|---|---|
+| `fp6 e1m4` | 6 | **4.95** | 5 | 4 | 18 | **80** |
+| `fp6 e2m3` | 6 | **5.91** | 4 | 5 | 18 | **74** |
+| `fp6 e3m2` | 6 | 8.81 | 3 | 8 | 22 | 82 |
+| `fp6 e4m1` | 6 | 15.59 | 2 | 15 | 34 | 106 |
+| `fp10 e3m6` | 10 | **12.99** | 7 | 12 | 38 | **230** |
+| `fp10 e4m5` | 10 | **19.98** | 6 | 19 | 50 | **215** |
+| `fp10 e5m4` | 10 | 34.95 | 5 | 34 | 78 | 376 |
+| `fp10 e6m3` | 10 | 65.91 | 4 | 65 | 138 | 447 |
+
+**Cost is not monotone in range.** `fp6 e1m4` spans *less* range than `fp6 e2m3` and costs
+*more* (80 vs 74); the same inversion appears at ten bits (230 vs 215). A regression on
+binades alone gives **6.49 cells per binade at R² = 0.85** — neither the coefficient T806
+quoted nor a defensible fit. **"Cells per binade" is not a well-defined quantity here**,
+because two competing terms move in opposite directions as the split changes: the
+multiplier grows with the mantissa, the aligner and accumulator grow with the shift span.
+
+**The exact statement, which needs no fitting.** Let a format's lane be characterised by
+the pair **(odd-mantissa bits, maximum shift)** — obtained by factoring each grid value as
+`|v| = odd · 2^s · u`. Formats sharing that pair share an aligned bus and an accumulator,
+and cost the same:
+
+| | odd | shift | bus | accumulator | cells |
+|---|---|---|---|---|---|
+| **TNF4** | 2 | 15 | 34 | 40 | **108** |
+| **`fp6 e4m1`** | 2 | 15 | 34 | 40 | **106** |
+| **TNF8** (ladder) | 5 | 34 | 78 | 84 | **380** |
+| **`fp10 e5m4`** | 5 | 34 | 78 | 84 | **376** |
+
+**Identical parameters, costs within 1.9 % and 1.1 %.** The φ-lattice contributes nothing
+measurable beyond those two integers, and dynamic range enters only through them.
+
+**Cross-validation.** Every format appearing in both the W954 and W955 records reproduces
+**exactly** — `fp6 e4m1` 106/106, `fp6 e2m3` 74/74, `fp6 e3m2` 82/82, `fp10 e5m4` 376/376 —
+across independently launched synthesis runs. The agreement is not a fit; it is the same
+measurement twice.
+
+**Consequence for T806.** Its parity conclusion stands and is now exact rather than
+empirical: for any TNF rung there exists an ordinary float of the same width sharing its
+(odd, shift) pair, and that float costs the same to within 2 %. Its rate coefficient is
+**withdrawn**.
+
+**Consequence for the manuscript.** A cost claim for a number format must state the pair
+(odd-mantissa bits, maximum shift) of the lane it was measured in. Quoting binades invites
+exactly the non-monotone comparison this table exhibits.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

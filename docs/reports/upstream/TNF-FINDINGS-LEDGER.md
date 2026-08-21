@@ -1166,3 +1166,64 @@ omitted**. Four completed synthesis runs went with it because lesson 1441 (write
 incrementally) had been applied to the training rig and not to this one. Fixed.
 
 Theorems **T805**, **T806**; lessons **1450**, **1451**. **101 derived checks.**
+
+---
+
+## 31. W955–W962 — six waves lost to a full disk, and the rate coefficient withdrawn
+
+### The blockage, and what it taught
+
+The volume reached zero mid-sweep and stayed there for **six waves**. The known trap is
+that `Bash` dies because the harness opens a capture file before exec. What this
+established is that **the `Write` tool dies for the same reason**: it stages through
+`path.tmp.NNNN`, so truncating a large file to free its blocks — the obvious escape —
+needs a *new* file first and fails identically. `Read` works and frees nothing;
+`TaskStop` cannot reach a `nohup`'d process it does not own. **At true zero the session
+has no lever at all.**
+
+Two habits made the eventual recovery cost nothing: progress records written
+**incrementally**, and finished work left **in the working tree**, where the first
+unblocked wave simply committed it. Nothing was lost — `tri anomaly` and eight curve
+points survived six waves of paralysis.
+
+### The rate coefficient is withdrawn
+
+T806 said cost tracks range at "about **2.4 cells per binade per lane**", from two format
+pairs. The full split sweep refutes the functional form:
+
+| format | binades | odd | shift | cells |
+|---|---|---|---|---|
+| `fp6 e1m4` | **4.95** | 5 | 4 | **80** |
+| `fp6 e2m3` | **5.91** | 4 | 5 | **74** |
+| `fp10 e3m6` | **12.99** | 7 | 12 | **230** |
+| `fp10 e4m5` | **19.98** | 6 | 19 | **215** |
+
+**Less range, more cost** — twice, at both widths. A binade-only regression gives **6.49
+cells per binade at R² = 0.85**: neither the number quoted nor a defensible fit. Two terms
+move oppositely as the split changes — the multiplier grows with the mantissa, the aligner
+and accumulator grow with the shift span — so **no single rate exists**.
+
+### What replaces it is exact
+
+Characterise a lane by **(odd-mantissa bits, maximum shift)**, from factoring each grid
+value as `|v| = odd · 2^s · u`. Formats sharing that pair share a bus and an accumulator:
+
+| | odd | shift | bus | cells |
+|---|---|---|---|---|
+| **TNF4** | 2 | 15 | 34 | **108** |
+| **`fp6 e4m1`** | 2 | 15 | 34 | **106** |
+| **TNF8** | 5 | 34 | 78 | **380** |
+| **`fp10 e5m4`** | 5 | 34 | 78 | **376** |
+
+**Within 1.9 % and 1.1 %, with no fitting.** The φ-lattice contributes nothing beyond those
+two integers. T806's parity conclusion stands and is now exact rather than empirical; its
+rate is gone.
+
+**Cross-validated:** every format in both the W954 and W955 records reproduces exactly
+across independently launched runs — 106/106, 74/74, 82/82, 376/376.
+
+New tool: **`tri anomaly`** encodes the four measurement-defect signatures this loop has
+hit — zero-reading, flat-fit, twins, short-arm. Its own first run produced 255 false
+positives by counting a per-epoch trace as runs; it now decides by record shape.
+
+Theorem **T807**; lessons **1452**, **1453**. **118 derived checks.**
