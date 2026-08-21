@@ -124,6 +124,14 @@ pub fn build_double_buffer_ctrl(module_name: &str) -> String {
 ///     (issues AXI reads + writes 54-bit packed-trit words into the
 ///     on-chip BRAM), `DONE` (one-cycle pulse on `prefetch_done`, then
 ///     returns to `IDLE`).
+///   * `prefetch_done` is retired on entry to `IDLE`, unconditionally,
+///     so it really is the one-cycle pulse documented above. Clearing it
+///     only inside the `start_prefetch` guard left the flag asserted for
+///     the whole idle gap, and a requester that samples it in the same
+///     cycle it raises `start_prefetch` -- which is exactly what the
+///     `multilayer_sequencer` `WAIT_PF` state does -- would read the
+///     *previous* transaction's completion and skip its own prefetch
+///     (issue #1985).
 ///   * Truncates incoming 64-bit AXI words to 54 bits to match the
 ///     `weight_bram` (W36a) default data width.
 ///   * Hard-wires `axi_rready = (state == FETCH)` per the source
@@ -178,11 +186,14 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("            axi_araddr <= 32'd0; bram_addr <= 12'd0; bram_data <= 54'd0;\n");
     s.push_str("            words_remaining <= 16'd0;\n");
     s.push_str("        end else case (state)\n");
-    s.push_str("            IDLE: if (start_prefetch) begin\n");
-    s.push_str("                state <= FETCH; prefetch_active <= 1'b1; prefetch_done <= 1'b0;\n");
-    s.push_str("                axi_araddr <= src_addr;\n");
-    s.push_str("                words_remaining <= num_words;\n");
-    s.push_str("                bram_addr <= 12'd0;\n");
+    s.push_str("            IDLE: begin\n");
+    s.push_str("                prefetch_done <= 1'b0;\n");
+    s.push_str("                if (start_prefetch) begin\n");
+    s.push_str("                    state <= FETCH; prefetch_active <= 1'b1;\n");
+    s.push_str("                    axi_araddr <= src_addr;\n");
+    s.push_str("                    words_remaining <= num_words;\n");
+    s.push_str("                    bram_addr <= 12'd0;\n");
+    s.push_str("                end\n");
     s.push_str("            end\n");
     s.push_str("            FETCH: begin\n");
     s.push_str("                axi_arvalid <= 1'b1;\n");
@@ -365,9 +376,56 @@ mod tests {
     fn prefetch_fsm_states_present() {
         let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
         assert!(v.contains("localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;"));
-        assert!(v.contains("IDLE: if (start_prefetch) begin"));
+        assert!(v.contains("IDLE: begin"));
+        assert!(v.contains("if (start_prefetch) begin"));
         assert!(v.contains("FETCH: begin"));
         assert!(v.contains("DONE_ST: begin"));
+    }
+
+    /// Issue #1985. `DONE_ST` raises `prefetch_done` and drops straight back
+    /// to `IDLE`. If the flag is cleared only inside the `start_prefetch`
+    /// guard, the clear is one cycle too late: a requester that samples
+    /// `prefetch_done` in the same cycle it raises `start_prefetch` reads the
+    /// *previous* transaction's completion. Require the clear to sit in the
+    /// `IDLE` arm ahead of the guard, so the flag is already retired when the
+    /// next request arrives.
+    ///
+    /// The assertion is anchored to the `IDLE` case arm on purpose: the reset
+    /// block also contains `prefetch_done <= 1'b0;`, so an unanchored
+    /// `contains` check would pass on the defective emitter.
+    #[test]
+    fn prefetch_done_retired_in_idle_before_start_guard() {
+        let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
+
+        let case_body = v
+            .split_once("end else case (state)")
+            .expect("FSM case statement missing")
+            .1;
+        let idle_arm = case_body
+            .split_once("FETCH: begin")
+            .expect("FETCH arm missing")
+            .0;
+
+        let clear = idle_arm.find("prefetch_done <= 1'b0;").unwrap_or_else(|| {
+            panic!(
+                "IDLE arm never clears prefetch_done. IDLE arm:\n{}",
+                idle_arm
+            )
+        });
+        let guard = idle_arm.find("if (start_prefetch)").unwrap_or_else(|| {
+            panic!(
+                "IDLE arm missing start_prefetch guard. IDLE arm:\n{}",
+                idle_arm
+            )
+        });
+
+        assert!(
+            clear < guard,
+            "prefetch_done must be cleared on entry to IDLE, before the \
+             `if (start_prefetch)` guard, so a new requester never observes \
+             the previous transaction's completion (#1985). IDLE arm:\n{}",
+            idle_arm
+        );
     }
 
     #[test]
