@@ -1,4 +1,18 @@
-# Full status, both tracks — one page for whoever wakes up (W975, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W976, 2026-08-22)
+
+> **W976 — ZERO IS NOT AN ANNIHILATOR, AND THE DIE ONLY HAD TO ASK.** The failing word
+> `0xa5a5334e` decodes exactly: **c_zero=0, c_comm=0**, c_cancel=1, c_ind=1, beat=1, ok=0.
+> **ZERO reproduces in simulation immediately** — driving the *same generated Verilog* with the
+> wrapper's operands gives **64 violations in 64 points**: `mac(0,x,0,y)` = **`512 + 4x`**
+> instead of 0, in **25 µs**. **Multiplying by zero does not give zero**, and the residue is
+> linear in one operand. *The die's whole contribution was to ask a question nobody had asked.*
+> **COMM is confirmed on silicon and unexplained off it** after three targeted attempts — a
+> 64-point sweep, 32 diverse probes incl. `0x80000000`/`0xFFFFFFFF`, and **960 per-cycle
+> samples** testing the sticky-latch/ready-race mechanism: **0 transients, 0 ready skew**.
+> Stated as unexplained deliberately. **The suite covered exactly the clauses that pass** —
+> ZERO and COMM untested, and the spec's tests assert on **fixed constants** while every die
+> clause drives **live operands**. T824/T824a/T824b, lessons 1485/1486, **293 derived checks**.
+> **Readiness 89 %.**
 
 > **W975 — THE FORMAT'S SIGNED MAC FAILS ON SILICON WHILE PASSING EVERY TEST IT HAS.** Same
 > bench, control satisfied (a foreign bitstream forced **`Done=0`** first). `gft_sadd`: **3/3**

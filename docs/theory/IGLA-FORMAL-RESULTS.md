@@ -30149,6 +30149,78 @@ place-and-route, bitstream generation and a physical load. The remedy costs noth
 the simulation tests from the on-die clauses, so the cheap oracle asks every question the
 expensive one does.
 
+### T824 — Zero is not an annihilator in the generated signed MAC, and it takes no hardware to see it
+
+**Decoding the failing word.** The wrapper documents its own layout —
+`{16'hA5A5, 4'd3, 6'd13, c_zero, c_comm, c_cancel, c_ind, beat, ok}` — so `0xa5a5334e`
+resolves exactly: magic `0xA5A5`, version 3, design 13, and
+
+| clause | asserts | die |
+|---|---|---|
+| **ZERO** | `mac(0, live, 0, live2) == 0` | **FALSE** |
+| **COMM** | `mac(live, TWO, live2, ONE) == mac(TWO, live, ONE, live2)` | **FALSE** |
+| CANCEL | `mac(ONE, live, NEG, live) == 0` | TRUE |
+| IND | `mac(live, ONE, live2, ONE) != 0` | TRUE |
+
+**ZERO reproduces in simulation immediately: 64 violations in 64 points.** Driving the
+generated `GftSignedMac` with the wrapper's own operands gives
+
+```
+[ZERO]  live=0 live2=0 -> 512    (must be 0)
+[ZERO]  live=1 live2=7 -> 516    (must be 0)
+[ZERO]  live=2 live2=14 -> 520   (must be 0)
+[ZERO]  live=3 live2=21 -> 524   (must be 0)
+```
+
+The result is **`512 + 4·live`**, independent of `live2` over the range probed. **Multiplying
+by zero does not produce zero**, and the residue grows linearly with one operand — a defect in
+the generated logic, not an artefact of the die, and visible in **25 µs of simulated time**.
+
+**This is the strongest form of a hardware finding: hardware pointed at a bug that hardware was
+not needed to confirm.** The die's only contribution was to ask a question nobody had asked.
+
+### T824a — Commutativity fails on the die and has resisted three attempts to reproduce it
+
+The second failing clause has **not** been reproduced off the die:
+
+| attempt | coverage | violations |
+|---|---|---|
+| dense sweep | 64 consecutive `live`, `live2 = 7·live` | **0** |
+| diverse probes | 32 values: 0, 1, 2ᵏ, the spec's constants, `0x7FFFFFFF`, `0x80000000`, `0xFFFFFFFF` | **0** |
+| per-cycle transients | 40 cycles after each of 23 operand changes, 960 samples | **0**, and **0 ready-skew** |
+
+The third attempt tested a specific mechanism: the wrapper's clause registers are **sticky** —
+`if (!comm_ok) c_comm <= 1'b0` — and the comparison is **not gated on the two `ready` signals`,
+so a single cycle of disagreement would latch the clause false forever. **No such cycle
+occurs in simulation**, and the two instances' `ready` never diverge.
+
+**So the honest state is: confirmed on silicon with the control satisfied, unexplained off it.**
+Candidates that remain open are a genuine physical effect (against a 4.1× timing margin), or an
+operand sequence the die reaches and a bounded sweep does not — `live` increments once per beat
+and runs for hours.
+
+**Stating this as unexplained is the result.** A guess dressed as a diagnosis would be the
+fourth mis-attribution this project has made about hardware in three waves, after "Docker is
+the blocker", "the cable is missing", and "the bitstream has no BSCANE2".
+
+### T824b — The suite covered exactly the clauses that pass
+
+| clause | on the die | in the spec's tests |
+|---|---|---|
+| ZERO | **FALSE** | **not tested** |
+| COMM | **FALSE** | **not tested** |
+| CANCEL | TRUE | `test cancel` |
+| IND | TRUE | `test pp` (nearest cover) |
+
+**The correspondence is exact and unlucky in both directions.** And the spec's two tests are
+weak in a second way: they assert on **fixed constants** —
+`on_comb(20480, 20480, 86016, 86016) == 20992` — while every die clause drives **live operands**
+that change each beat.
+
+**Two independent deficiencies in one suite: fewer properties, and constant inputs.** Either
+alone would have hidden the ZERO defect; together they made a linear-in-the-operand error
+invisible to a test that only ever supplies one operand value.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

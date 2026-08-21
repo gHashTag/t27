@@ -1818,3 +1818,63 @@ which is exactly what makes the MAC's red meaningful.
 oracle asks every question the expensive one does.
 
 Theorems **T823**, **T823a**; lessons **1483**, **1484**. **281 derived checks.**
+
+---
+
+## 45. W976 — zero is not an annihilator, and the die only had to ask
+
+The failing word `0xa5a5334e` decodes exactly against the layout the wrapper documents —
+`{16'hA5A5, 4'd3, 6'd13, c_zero, c_comm, c_cancel, c_ind, beat, ok}`:
+
+| clause | asserts | die | simulation |
+|---|---|---|---|
+| **ZERO** | `mac(0, live, 0, live2) == 0` | **FALSE** | **FALSE — 64/64** |
+| **COMM** | `mac(live,TWO,live2,ONE) == mac(TWO,live,ONE,live2)` | **FALSE** | TRUE — not reproduced |
+| CANCEL | `mac(ONE, live, NEG, live) == 0` | TRUE | covered by `test cancel` |
+| IND | `mac(live, ONE, live2, ONE) != 0` | TRUE | nearest cover: `test pp` |
+
+### ZERO: a logic defect, reproducible without a board
+
+Driving the **same generated Verilog** in icarus with the wrapper's own operands:
+
+```
+[ZERO]  live=0 live2=0 -> 512    (must be 0)
+[ZERO]  live=1 live2=7 -> 516    (must be 0)
+[ZERO]  live=2 live2=14 -> 520   (must be 0)
+[ZERO]  live=3 live2=21 -> 524   (must be 0)
+```
+
+**`512 + 4·live`**, independent of `live2` over the range probed. **Multiplying by zero does
+not give zero**, and the residue is linear in one operand. Reproduced in **25 µs** of simulated
+time.
+
+**This is the strongest form of a hardware finding: the die pointed at a bug that hardware was
+not needed to confirm.** Its whole contribution was to ask a question nobody had asked.
+
+### COMM: confirmed on silicon, unexplained off it
+
+| attempt | coverage | violations |
+|---|---|---|
+| dense sweep | 64 consecutive `live` | **0** |
+| diverse probes | 32 values incl. `0x7FFFFFFF`, `0x80000000`, `0xFFFFFFFF` | **0** |
+| per-cycle transients | 960 samples across 23 operand changes | **0**, and **0 ready skew** |
+
+The third attempt tested a named mechanism: the clause registers are **sticky**
+(`if (!comm_ok) c_comm <= 1'b0`) and the comparison is **not gated on `ready`**, so one
+disagreeing cycle would latch it false forever. No such cycle occurs.
+
+**Stated as unexplained on purpose.** Three hardware mis-attributions in three waves — "Docker
+is the blocker", "the cable is missing", "the bitstream has no BSCANE2" — were each a plausible
+guess. "Confirmed on silicon with the control satisfied, unexplained off it, after these three
+attempts" tells the next person where to start.
+
+### The suite covered exactly the clauses that pass
+
+ZERO and COMM: **untested**. CANCEL and IND: tested, and green. And the spec's two tests assert
+on **fixed constants** while every die clause drives **live operands**.
+
+**Two independent deficiencies — fewer properties, and constant inputs.** Either alone would
+have hidden a defect that is *linear in the operand*, because a test that supplies one operand
+value cannot see a residue that grows with it.
+
+Theorems **T824**, **T824a**, **T824b**; lessons **1485**, **1486**. **293 derived checks.**
