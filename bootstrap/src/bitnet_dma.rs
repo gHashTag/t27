@@ -162,7 +162,15 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            local_wdata    <= 64'd0;\n");
     s.push_str("            bytes_remaining <= 32'd0;\n");
     s.push_str("            burst_count    <= 8'd0;\n");
-    s.push_str("        end else case (state)\n");
+    s.push_str("        end else begin\n");
+    // `local_we` is a pulse, not a level: it must fall back to 0 on every
+    // clock that does not present a local-memory write. Defaulting it here,
+    // ahead of the dispatch, means every state arm inherits a low strobe and
+    // only the arm that actually has data raises it.
+    s.push_str("            // Write strobe is a pulse: low by default on every\n");
+    s.push_str("            // clock, raised only by the arm presenting a write.\n");
+    s.push_str("            local_we <= 1'b0;\n");
+    s.push_str("            case (state)\n");
     s.push_str("            IDLE: if (start) begin\n");
     s.push_str("                busy            <= 1'b1;\n");
     s.push_str("                done            <= 1'b0;\n");
@@ -219,7 +227,8 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("                state    <= IDLE;\n");
     s.push_str("            end\n");
     s.push_str("            default: state <= IDLE;\n");
-    s.push_str("        endcase\n");
+    s.push_str("            endcase\n");
+    s.push_str("        end\n");
     s.push_str("    end\n");
     s.push_str("\n");
 
@@ -376,6 +385,57 @@ mod tests {
         ] {
             assert!(v.contains(line), "missing reset line `{}`", line);
         }
+    }
+
+    /// The local-memory write strobe must be a one-clock pulse, not a level.
+    ///
+    /// This is deliberately anchored to the span between the end of the reset
+    /// arm and the `case (state)` dispatch. The emitted module contains three
+    /// other `local_we <= 1'b0;` sites -- the reset arm, the `READ_DATA`
+    /// else-arm and `DONE_ST` -- and none of them makes the strobe a pulse for
+    /// the states that never mention it (`READ_ADDR` in particular). A bare
+    /// `contains("local_we <= 1'b0;")` would be satisfied by any of those and
+    /// would prove nothing.
+    #[test]
+    fn write_strobe_defaults_low_ahead_of_case_dispatch() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+
+        // 8-space indent pins this to the reset arm's `else`; the direction
+        // branch inside IDLE also emits `end else begin`, at 16 spaces.
+        const ANCHOR: &str = "\n        end else begin\n";
+        let start = v
+            .find(ANCHOR)
+            .expect("reset arm must be closed by an 8-space `end else begin`")
+            + ANCHOR.len();
+        let rel = v[start..]
+            .find("case (state)")
+            .expect("state machine must dispatch through `case (state)`");
+        let preamble = &v[start..start + rel];
+
+        assert!(
+            preamble.contains("local_we <= 1'b0;"),
+            "write strobe must default low between the reset arm and \
+             `case (state)`, otherwise it latches high across states that \
+             never clear it; preamble was {:?}",
+            preamble
+        );
+    }
+
+    /// `READ_ADDR` must not clear the strobe itself -- the default above is the
+    /// only thing that may. This keeps the fix from silently regressing into a
+    /// per-arm patch-up that misses the next state somebody adds.
+    #[test]
+    fn read_addr_arm_does_not_hand_clear_the_strobe() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let start = v.find("READ_ADDR: begin").expect("READ_ADDR arm missing");
+        let rel = v[start..].find("READ_DATA:").expect("READ_DATA arm missing");
+        let arm = &v[start..start + rel];
+        assert!(
+            !arm.contains("local_we"),
+            "READ_ADDR must inherit the low strobe from the default, not \
+             assign it locally; arm was {:?}",
+            arm
+        );
     }
 
     #[test]
