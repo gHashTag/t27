@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W950, 2026-08-21)
+# Full status, both tracks — one page for whoever wakes up (W951, 2026-08-21)
+
+> **W951 — SATURATION OBSERVED, THE SWEEP REDONE, A PROXY RETIRED.** The mechanism is
+> now measured, not inferred: the rig logs `max|x|/s / max(grid)` directly. **Everything
+> overshoots** — including all 90 successes — so the binary "saturates ⟹ fails" agrees on
+> **6.7 %** and is dead. What separates is **magnitude**: among 45 learned-scale runs the
+> worst success overshoots **1 510×**, the best failure **84 775×**, **non-overlapping**,
+> gap 56×. A computed power-of-two scale bounds the overshoot in **[1, 2)** by
+> construction — measured max **2.0000** over 90 runs — which is why it never fails.
+> **Sweep redone under that scale on all three tasks: 0 failures in 90 runs**, against 9
+> under the learned scale on the same tasks and seeds. TNF4 has still never failed
+> anywhere — a true claim about tolerating a bad recipe, **not** about deployment. New:
+> **`tri sweep`** derives the whole table from every record. T801/T802, lessons
+> 1443/1444, **62 derived checks**. **Readiness 64 %.**
 
 > **W950 — THE MECHANISM RECOVERED, AND IT KILLED THE LAST CLAIM.** The traces held
 > the answer: in every failure the scale **collapses**, so `x/s` grows and what matters

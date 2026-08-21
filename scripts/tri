@@ -79,6 +79,83 @@ case "$cmd" in
     exit 0
     ;;
 
+  sweep)
+    # W951: records multiply faster than any hand-kept table, and W948d showed what
+    # a hand-kept tally costs. One command, every record, derived.
+    REC="${T27_RECORDS:-$REPO_ROOT/docs/reports/upstream}"
+    REC="$REC" python3 - <<'PYSWEEP'
+import json, os, pathlib
+R = pathlib.Path(os.environ["REC"])
+TH = {"mnist": 60.0, "fashion": 60.0, "kmnist": 40.0}
+FMTS = ("TNF4", "fp6e3m2", "fp6e2m3")
+
+
+def accs_of(v):
+    """A record stores runs three ways; return final accuracies in percent."""
+    if isinstance(v, list):
+        return [float(x) for x in v] if all(isinstance(x, (int, float)) for x in v) else None
+    if isinstance(v, dict) and v:
+        out = []
+        for tr in v.values():
+            if isinstance(tr, list) and tr and isinstance(tr[-1], dict) and "acc" in tr[-1]:
+                a = float(tr[-1]["acc"])
+                out.append(a * 100 if a <= 1.0 else a)
+            else:
+                return None
+        return out
+    return None
+
+
+def arms(runs):
+    """Some records nest an arm (block32, peak2max) above the format."""
+    direct = {k: accs_of(v) for k, v in runs.items() if k in FMTS}
+    direct = {k: v for k, v in direct.items() if v is not None}
+    if direct:
+        yield "", direct
+        return
+    for arm, inner in runs.items():
+        if isinstance(inner, dict):
+            got = {k: accs_of(v) for k, v in inner.items() if k in FMTS}
+            got = {k: v for k, v in got.items() if v is not None}
+            if got:
+                yield arm, got
+
+
+rows, tot = [], {}
+for f in sorted(R.glob("*.json")):
+    try:
+        d = json.loads(f.read_text())
+    except Exception:
+        continue
+    runs = d.get("runs")
+    if not isinstance(runs, dict) or not runs:
+        continue
+    task = d.get("task", "?")
+    th = d.get("threshold") or TH.get(task, 60.0)
+    for arm, got in arms(runs):
+        mode = d.get("mode") or (arm if arm else "learned")
+        row = {"file": f.name[:30], "task": task, "mode": str(mode)[:11],
+               "blk": d.get("block", 0), "ep": d.get("epochs", "?"), "fmt": {}}
+        for fmt, accs in got.items():
+            bad = sum(1 for a in accs if a < th)
+            row["fmt"][fmt] = (bad, len(accs))
+            t = tot.setdefault(fmt, [0, 0])
+            t[0] += bad
+            t[1] += len(accs)
+        rows.append(row)
+
+print(f"{'record':30} {'task':8} {'scale':11} {'blk':>4} {'ep':>3} " +
+      " ".join(f"{c:>9}" for c in FMTS))
+for r in rows:
+    cells = [(f"{r['fmt'][c][0]}/{r['fmt'][c][1]}" if c in r["fmt"] else "-") for c in FMTS]
+    print(f"{r['file']:30} {r['task']:8} {r['mode']:11} {r['blk']:>4} {str(r['ep']):>3} " +
+          " ".join(f"{c:>9}" for c in cells))
+print(f"\n{'FAILURES over every record':30} {'':8} {'':11} {'':>4} {'':>3} " +
+      " ".join(f"{str(tot.get(c,[0,0])[0])+'/'+str(tot.get(c,[0,0])[1]):>9}" for c in FMTS))
+print("(failure = final test accuracy below the task threshold: 60 %, 40 % on KMNIST)")
+PYSWEEP
+    exit 0
+    ;;
   grid)
     # W949: the published underflow mechanism (0.0041 / 0.22 / 1.67 % of peak) was
     # computed as min/max of each grid -- i.e. assuming the tensor peak lands on the

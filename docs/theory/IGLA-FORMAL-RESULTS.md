@@ -29144,6 +29144,75 @@ control been omitted as redundant, the conclusion would have been "block scaling
 the float", which is false. A control that merely reproduces the old setting is the only
 thing that can tell a treatment effect from a recipe effect.
 
+### T801 — Saturation is universal; it is the MAGNITUDE of the overshoot that decides, and a computed scale bounds it at 2
+
+**What T799 claimed.** A run fails when the collapsing learned scale drives the tensor
+past the top of the grid — *saturation*. The evidence was indirect: the records logged
+scales but never tensor maxima, so saturation was inferred from an end-of-epoch scale
+ratio, agreeing with failure on 90.8 % of 120 runs.
+
+**Direct observation.** The rig now records `max|x| / s / max(grid)` per layer per epoch,
+over weights and activations, across every batch. A value above 1 *is* clipping, measured.
+Over **135 runs**:
+
+| scale | outcome | n | overshoot, median | range |
+|---|---|---|---|---|
+| learned | success | 36 | 36.1× | **2.75 – 1 510×** |
+| learned | **failure** | 9 | **217 549×** | **84 775 – 1 804 000×** |
+| computed | success | 90 | 2.00× | **1 – 2×** |
+
+**The binary criterion is refuted.** *Every* run overshoots, including all 90 successes
+under the computed scale; "saturates ⟹ fails" agrees with outcome on **6.7 %** of runs.
+T799's form of the claim does not survive its own direct measurement.
+
+**The magnitude criterion is exact on this data.** Among the 45 learned-scale runs the
+two distributions **do not overlap**: the worst success overshoots **1 510×**, the best
+failure **84 775×**, a gap of **56×**. Any threshold in that interval classifies all 45
+correctly. A little clipping is harmless; five orders of magnitude of it is fatal.
+
+**Why the computed scale cannot fail.** With a shared power-of-two scale
+`s = 2^floor(log2(max|block|/max(grid)))`, the overshoot is bounded **by construction**:
+flooring the exponent leaves `max|block|/s ∈ [max(grid), 2·max(grid))`, so the ratio lies
+in **[1, 2)**. Measured maximum over 90 runs: **2.0000**. The learned scale has no such
+bound, and nothing in the LSQ objective supplies one.
+
+**Corollary — the format was never the variable.** Under the learned scale TNF4's
+successes overshoot by a median of 16.2×, `fp6 e3m2` 35.4×, `fp6 e2m3` 182.4×; under the
+computed scale all three sit at 2.00× and all 90 runs succeed. What differs between
+formats is only how much unbounded drift each can absorb before clipping becomes fatal —
+a consequence of `max(grid)` (3072 / 28 / 7.5), not of the lattice's structure.
+
+**Note on the proxy.** T799's end-of-epoch scale ratio and this within-epoch overshoot
+are different quantities — the proxy misses transients and ignores weight scales — so
+their per-format numbers are not comparable, and the direct measurement supersedes.
+The proxy's 90.8 % was neither wrong nor evidence: it measured something correlated.
+
+### T802 — The sweep, redone under the recipe the field deploys, on all three tasks
+
+**Setting.** Every one of this project's 40 sweep runs used the learned scale that T800
+identified as the cause of the failures. Repeating the sweep under the computed scale is
+what decides whether "TNF4 55/55" describes the lattice or our own defect.
+
+**Result — three tasks × two granularities × three formats × five seeds:**
+
+| task | learned, per-tensor | computed, per-tensor | computed, block 32 |
+|---|---|---|---|
+| MNIST | TNF4 0/5, `e3m2` 0/5, `e2m3` **4/5** | **0/5, 0/5, 0/5** | **0/5, 0/5, 0/5** |
+| Fashion | TNF4 0/5, `e3m2` 0/5, `e2m3` **1/5** | **0/5, 0/5, 0/5** | **0/5, 0/5, 0/5** |
+| KMNIST | TNF4 0/5, `e3m2` **2/5**, `e2m3` **2/5** | **0/5, 0/5, 0/5** | **0/5, 0/5, 0/5** |
+
+**Statement.** Under the computed scale there are **zero failures in 90 runs** across
+three tasks, two granularities and three formats. Under the learned scale, on the same
+tasks and seeds, the fp6 grids fail 9 times and TNF4 none. The instability is a property
+of the **quantiser**, reproduced on every task, and the earlier sweep measured that
+quantiser rather than the number system.
+
+**What survives of the original claim.** TNF4 has still never failed — 0 failures in 60
+recorded runs, now including 90 more here. That is a true statement about robustness to
+a badly-behaved recipe. It is not a statement about deployment, because the recipe that
+produces the failures is not one anybody deploys, and under the one that is deployed the
+φ-lattice is at parity (block 32) or measurably behind (per-tensor, T800).
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

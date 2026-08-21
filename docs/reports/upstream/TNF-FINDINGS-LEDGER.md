@@ -939,3 +939,60 @@ been "block scaling rescues the float" — false, and unfalsifiable from that ex
 Theorems **T799**, **T800**; lessons **1439–1442**. `verify_numbers.py` now runs **53
 derived checks**, and `tri audit` refuses to pass while any of them disagrees with its
 records. Corrections fourteen and fifteen, still with no outside referee.
+
+---
+
+## 27. W951 — saturation observed, the sweep redone, and a proxy retired
+
+Two things W950 left open are now closed, and closing them cost one more claim.
+
+### The mechanism, measured instead of inferred
+
+T799 inferred saturation from an end-of-epoch scale ratio, because the records stored
+scales but never tensor maxima. Agreement with failure: 90.8 % over 120 runs.
+
+The rig now logs the actual quantity — `max|x| / s / max(grid)`, per layer, per epoch,
+weights and activations, across every batch. Over **135 runs**:
+
+| scale | outcome | n | overshoot median | range |
+|---|---|---|---|---|
+| learned | success | 36 | 36.1× | 2.75 – **1 510×** |
+| learned | **failure** | 9 | **217 549×** | **84 775×** – 1 804 000× |
+| computed | success | 90 | 2.00× | 1 – 2× |
+
+**The binary criterion is refuted by its own measurement**: everything overshoots,
+including all 90 successes, so "saturates ⟹ fails" agrees on **6.7 %**. What survives is
+the magnitude — among the 45 learned-scale runs the two distributions **do not overlap**,
+worst success 1 510× against best failure 84 775×, a gap of 56×. A little clipping is
+harmless; five orders of magnitude of it is fatal.
+
+**And the computed scale cannot get there.** Flooring the shared exponent leaves
+`max|block|/s ∈ [max(grid), 2·max(grid))`, so the overshoot is bounded in **[1, 2)** by
+construction. Measured maximum over 90 runs: **2.0000**.
+
+### The sweep, redone under the recipe the field deploys
+
+| task | learned, per-tensor | computed, per-tensor | computed, block 32 |
+|---|---|---|---|
+| MNIST | 0/5, 0/5, **4/5** | 0/5, 0/5, 0/5 | 0/5, 0/5, 0/5 |
+| Fashion | 0/5, 0/5, **1/5** | 0/5, 0/5, 0/5 | 0/5, 0/5, 0/5 |
+| KMNIST | 0/5, **2/5**, **2/5** | 0/5, 0/5, 0/5 | 0/5, 0/5, 0/5 |
+
+*(TNF4, `fp6 e3m2`, `fp6 e2m3`)*
+
+**Zero failures in 90 runs under the computed scale**, on every task. The instability is
+the quantiser's, reproduced on all three tasks — the earlier forty-run sweep measured
+that quantiser, not the number system.
+
+### What is left standing
+
+TNF4 has still never failed, anywhere, in any recipe — now 0 in 60 recorded runs plus
+these 90. That is a true statement about tolerating a badly-behaved recipe. It is **not**
+a statement about deployment, because under the deployed recipe the φ-lattice is at
+parity (block 32) or measurably behind (per-tensor: −0.376 pp, t = −7.24).
+
+New tool: **`tri sweep`** derives this whole table from every record on disk, so no
+version of it is ever typed by hand again.
+
+Theorems **T801**, **T802**; lessons **1443**, **1444**. **62 derived checks.**
+Corrections sixteen and seventeen, still with no outside referee.
