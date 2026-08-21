@@ -26,3 +26,19 @@ jobs:
 
       - name: Merge-critical workflows must not filter pull_request by branch
         run: python3 scripts/ci/check_pr_branch_filters.py
+
+      # A gate that does not fire is one way to get a green that means nothing;
+      # a gate that fires and describes itself as deeper than it is, is another.
+      # fpga-lint runs read_verilog + hierarchy and reported 32/32 on an artifact
+      # iverilog compiles 4/32 (#2326). Its reach is a policy question and is
+      # left alone. Its self-description is held here.
+      #
+      # The self-test runs first and on its own line: it asserts this checker
+      # rejects the five shapes it exists to reject, including the verbatim
+      # pre-change shape of fpga-build.yml. A claim gate nobody has watched fail
+      # is indistinguishable from one that cannot.
+      - name: fpga-lint claim gate is falsifiable (self-test)
+        run: python3 scripts/ci/check_fpga_lint_claim_matches_depth.py --self-test
+
+      - name: fpga-lint must state the depth it measures
+        run: python3 scripts/ci/check_fpga_lint_claim_matches_depth.py
