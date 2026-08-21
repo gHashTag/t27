@@ -1,6 +1,13 @@
 (** PHI-IDENTITY — Flocq IEEE 754 binary64 bridge (Phase B).
     Requires [coq-flocq] on COQPATH (CI: opam install coq-flocq; see [../README.md]).
-    Mantissas/exponents must match [scripts/validate_phi_f64.py].
+    Mantissas/exponents must match IEEE 754 binary64, and CI now enforces that:
+    [t27c validate-phi-f64-literals] (bootstrap/src/phi_f64_literals.rs, run by
+    .github/workflows/coq-kernel.yml) reads the four literals below and compares
+    them to doubles it computes itself. [scripts/validate_phi_f64.py] only
+    *prints* the same parameters -- its lone assert is an internal round-trip --
+    so the older "must match that script" wording named nothing enforceable.
+    Note [phi_f64_bounded] below proves only that a pair is a *canonical*
+    binary64; it does not pin the value to phi. Issue 2324.
 
     NAME COLLISION — read this before touching the imports.
 

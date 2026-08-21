@@ -4,6 +4,10 @@ on:
     paths:
       - 'coq/**'
       - '.github/workflows/coq-kernel.yml'
+      # The IEEE 754 literal gate (#2324) lives in the Rust binary, not under
+      # coq/. Without this path the gate's own source could be edited into a
+      # no-op and no run would notice, because nothing under coq/ changed.
+      - 'bootstrap/src/phi_f64_literals.rs'
   pull_request:
     # No `branches:` filter on pull_request, deliberately. A branch filter makes
     # this gate silent on any PR whose base is not listed -- a stacked PR then
@@ -13,6 +17,7 @@ on:
     paths:
       - 'coq/**'
       - '.github/workflows/coq-kernel.yml'
+      - 'bootstrap/src/phi_f64_literals.rs'
 
 jobs:
   build:
@@ -65,7 +70,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build t27c and validate the L5 phi identity
+      - name: Build t27c, validate the L5 phi identity, check PhiFloat.v vs IEEE 754
         run: |
           set -eux
           # `bootstrap` is a member of the ROOT cargo workspace, so the binary
@@ -80,17 +85,31 @@ jobs:
           # step ran at all -- run 32477122735, once #2320 unblocked step 4 and
           # #2322 unblocked step 5.
           #
-          # The step is named for what that subcommand actually checks: the L5
-          # invariant phi^2 + phi^-2 = 3 evaluated in f64. It does NOT check the
-          # binary64 mantissa/exponent literals in coq/Kernel/PhiFloat.v, which
-          # the old name ("validate phi f64 parameters") promised.
-          # scripts/validate_phi_f64.py prints those parameters but asserts
-          # nothing about the Coq file and always exits 0, so no gate compares
-          # the two. Renaming the step to match the weaker check it performs is
-          # deliberate: the missing comparison is tracked in #2324, not hidden
-          # behind a name that overstates it.
+          # TWO checks run here, and they are not interchangeable.
+          #
+          # 1. `validate-phi-identity` -- the L5 invariant phi^2 + phi^-2 = 3
+          #    evaluated in f64. It computes phi itself and never opens
+          #    coq/Kernel/PhiFloat.v, so it holds whatever that file says. It
+          #    cannot detect drift in the literals; that is why #2322 renamed
+          #    this step down rather than let the old name ("validate phi f64
+          #    parameters") launder it.
+          #
+          # 2. `validate-phi-f64-literals` -- the check the old name promised,
+          #    added by #2324. It reads phi_mantissa / phi_exponent /
+          #    one_mantissa / one_exponent OUT of coq/Kernel/PhiFloat.v and
+          #    compares each against parameters decoded from doubles computed in
+          #    Rust from (1 + sqrt 5) / 2 and 1.0 -- not against constants copied
+          #    from the Coq file, which would be a tautology. Until it existed,
+          #    a typo in a mantissa sailed through: scripts/validate_phi_f64.py
+          #    only prints the parameters (its lone assert is an internal
+          #    round-trip) and always exits 0, and the Coq lemma
+          #    phi_f64_bounded proves only that the pair is a *canonical*
+          #    binary64, not that it is phi.
+          #
+          # Both are under `set -eux`; neither is allowed to fail open.
           cargo build --release -p t27c
           ./target/release/t27c validate-phi-identity
+          ./target/release/t27c validate-phi-f64-literals
 
       - name: Verify Kernel PHI layer has no Admitted
         run: |
