@@ -73,6 +73,14 @@ fn count(repo: &str, id: &str, success_only: bool) -> Result<u64> {
     Ok(s.parse().unwrap_or(0))
 }
 
+/// Is a zero success count over `total` lifetime runs too thin to mean
+/// anything? A workflow may simply be new, or triggered by a path nobody has
+/// touched. Lifted out of `dead` so the floor can be exercised without
+/// reaching the network — inline, it was reachable only through `gh`.
+fn too_few_runs_to_judge(total: u64, min_runs: u64) -> bool {
+    total < min_runs
+}
+
 fn dead(repos: &[String], min_runs: u64) -> Result<()> {
     let mut rows: Vec<(String, String, u64)> = Vec::new();
     for repo in repos {
@@ -89,9 +97,7 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
                 _ => continue,
             };
             let total = count(repo, id, false)?;
-            // A workflow with few runs is not evidence of anything: it may be
-            // new, or triggered by a path nobody has touched.
-            if total < min_runs {
+            if too_few_runs_to_judge(total, min_runs) {
                 continue;
             }
             if count(repo, id, true)? == 0 {
@@ -126,14 +132,52 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use clap::Parser;
+
+    /// `GatesCmd` is a `Subcommand`, so asking clap what `--min-runs` defaults
+    /// to needs a root parser. This one exists for no other purpose.
+    #[derive(Parser)]
+    struct Root {
+        #[command(subcommand)]
+        action: GatesCmd,
+    }
+
+    /// The floor `tri gates dead` actually ships with, read back out of clap
+    /// rather than repeated as a literal here.
+    fn shipped_floor() -> u64 {
+        match Root::parse_from(["tri-gates", "dead"]).action {
+            GatesCmd::Dead { min_runs, .. } => min_runs,
+        }
+    }
+
     /// The `--min-runs` floor exists because "0 successes" over 2 runs is not
     /// evidence of a dead gate, and reporting it as one would make this
     /// command the thing it is written to find: an alarm nobody reads.
+    ///
+    /// The guard this replaces declared `let below = 2u64; let at = 50u64;`
+    /// and asserted `2 < 50` and `50 >= 50`. It named neither the shipped
+    /// default nor the skip inside `dead`: lifted into a file containing no
+    /// production code — not even a `use` of this crate — it still compiled
+    /// and still passed, and setting `default_value_t` to 0 left all 173
+    /// tests green while a two-run workflow became reportable as a dead gate.
+    /// Both assertions below read the shipped floor and put it through
+    /// `too_few_runs_to_judge`, the predicate `dead` actually skips on.
     #[test]
     fn the_floor_is_what_makes_a_zero_meaningful() {
-        let below = 2u64;
-        let at = 50u64;
-        assert!(below < 50, "2 runs is not evidence");
-        assert!(at >= 50, "50 runs with no success is");
+        let floor = shipped_floor();
+
+        // A day-old workflow with two runs must be skipped, not reported.
+        assert!(
+            too_few_runs_to_judge(2, floor),
+            "--min-runs defaults to {floor}, so a workflow with 2 lifetime \
+             runs and no success would be reported as a dead gate"
+        );
+
+        // A workflow standing exactly at the floor must be judged, not skipped.
+        assert!(
+            !too_few_runs_to_judge(floor, floor),
+            "a workflow with exactly {floor} runs and no success must be reported"
+        );
     }
 }
