@@ -574,6 +574,47 @@
 >   branch from `master` with only the wave implementation commits and re-apply the
 >   close-out docs.
 >
+> ## 2026-08-06 — Wave Loop 883 (module-scope `[585][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1814, PR #1815)
+>
+> ### What worked
+> - Variant A extended the module-scope packed AoS odd outer-dimension ladder to 585.
+>   The `[585][2]^6 Pt` witness is 1,198,080 bits (~1.143 MiBit), continues past the 1-MiBit
+>   line, and required no compiler changes.
+> - The generator copy-hazard checklist (destination path, module header f-string, `MID_IDX`
+>   comment) was cleared before the first run; a post-generation `grep` sanity check caught
+>   no stale references.
+> - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles), `icarus-cocotb`, and
+>   `seal --save` all passed for the W883 witness.
+> - Targeted `cargo test --release --test icarus_lowerable accepts_w883_bench_module_585x2p6_aos_var_call_write`
+>   passed.
+> - PR #1815 opened with auto-merge enabled.
+>
+> ### What changed behavior
+> - No changes to `bootstrap/src/compiler.rs`.
+> - No changes to `bootstrap/stage0/FROZEN_HASH`.
+> - Added `specs/scratch/w883_bench_module_585x2p6_aos_var_call_write.t27` (~2.5 MB /
+>   ~111,211 lines) with seal and Icarus baseline.
+> - Added integration test `accepts_w883_bench_module_585x2p6_aos_var_call_write`.
+> - Added generator script `scripts/gen_w883.py`.
+> - Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W883_2026-08-06.md` and next-wave
+>   plan `.claude/plans/wave-loop-884.md`.
+>
+> ### Validation
+> - `t27c parse` W883: PASS.
+> - `t27c icarus-lowerable` W883: PASS (`lowerable`).
+> - `t27c icarus-simulate` W883: PASS (17 cycles, PASSED).
+> - `t27c icarus-cocotb` W883: PASS (`reference-model OK`).
+> - `t27c seal --save` W883: PASS.
+> - Targeted cargo test W883: PASS.
+>
+> ### Notes / watch-outs
+> - A pre-existing `corpus_classifier_matches_lean_completeness` failure for
+>   `specs/cloud/railway_deploy.t27` (Rust lowerable `false`, Lean theorem `true`) reproduces
+>   on clean `wave-loop-882` and is not introduced by W883. It should be tracked as a
+>   separate repair issue.
+> - GitHub required status checks remain `expected` across the Wave Loop and GF-T queues;
+>   auto-merge is the current mitigation.
+>
 > ## 2026-07-24 — Wave Loop 777 (module-scope `[373][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1490)
 
 ### What worked
