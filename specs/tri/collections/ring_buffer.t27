@@ -11,7 +11,7 @@ module TriRing;
     // ═══════════════════════════════════════════════════════════
 
     pub const Ring(T) = struct {
-        buffer : [[]T],
+        buffer : []T,
         head : usize,
         tail : usize,
         capacity : usize,

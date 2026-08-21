@@ -14,8 +14,8 @@ module TriCsv;
     };
 
     pub const CsvDocument = struct {
-        headers : [[]CsvRow],
-        rows : [[]CsvRow],
+        headers : []CsvRow,
+        rows : []CsvRow,
         delimiter : "u8",
     };
 
