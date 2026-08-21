@@ -100,6 +100,12 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    input  wire        direction,  // 0=read, 1=write\n");
     s.push_str("    output reg         busy,\n");
     s.push_str("    output reg         done,\n");
+    // Raised for the whole of a transfer whose `length` exceeded the local
+    // address space and was therefore clamped. Without it a clamp would turn
+    // silent corruption into a silent short transfer: the host would still be
+    // told `done` and would still have no way to learn that the tail of its
+    // request was dropped. Held until the next `start` re-evaluates it.
+    s.push_str("    output reg         overflow,\n");
     s.push_str("    // AXI4 Master Read\n");
     s.push_str("    output reg  [63:0] m_axi_araddr,\n");
     s.push_str("    output reg  [7:0]  m_axi_arlen,\n");
@@ -141,6 +147,10 @@ pub fn build_dma_controller(module_name: &str) -> String {
     // this value, not from `local_addr + 1`, so the address presented to the
     // local memory belongs to the same beat as `local_wdata` and `local_we`.
     s.push_str("    reg [11:0] beat_index;\n");
+    // The local memory holds 4096 words of 8 bytes: 32768 bytes is the whole
+    // of it. `length` is 32 bits, so a request can name 2**29 beats against a
+    // 2**12-entry address space -- a 131072x overrange, not a corner case.
+    s.push_str("    localparam [31:0] MAX_BYTES = 32'd32768;  // 4096 words x 8 bytes\n");
     s.push_str("\n");
 
     s.push_str("    assign m_axi_rready = (state == READ_DATA);\n");
@@ -167,6 +177,7 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            bytes_remaining <= 32'd0;\n");
     s.push_str("            burst_count    <= 8'd0;\n");
     s.push_str("            beat_index     <= 12'd0;\n");
+    s.push_str("            overflow       <= 1'b0;\n");
     s.push_str("        end else begin\n");
     // `local_we` is a one-cycle write strobe, not a level. Defaulting it low
     // ahead of the case means any state that does not explicitly drive it
@@ -177,7 +188,11 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            IDLE: if (start) begin\n");
     s.push_str("                busy            <= 1'b1;\n");
     s.push_str("                done            <= 1'b0;\n");
-    s.push_str("                bytes_remaining <= length;\n");
+    // Clamp, and say so. `bytes_remaining` is the only thing that bounds the
+    // beat counter, so bounding it here bounds `local_addr` for both the read
+    // path (`beat_index`) and the write path (`local_addr + 1`) at once.
+    s.push_str("                bytes_remaining <= (length > MAX_BYTES) ? MAX_BYTES : length;\n");
+    s.push_str("                overflow        <= (length > MAX_BYTES);\n");
     s.push_str("                local_addr      <= 12'd0;\n");
     s.push_str("                beat_index      <= 12'd0;\n");
     s.push_str("                state           <= direction ? WRITE_ADDR : READ_ADDR;\n");
@@ -498,6 +513,86 @@ mod tests {
              transfer after power-on starts writing at a stale index. \
              IDLE arm was:\n{}",
             arm
+        );
+    }
+
+    // ---- issue #2002: maximum-sized requests must not silently truncate ----
+
+    /// Slice the asynchronous-reset block out of the emitted module, so a
+    /// reset-initialisation assertion cannot be satisfied by an assignment
+    /// that only ever happens inside a `case` arm.
+    fn reset_block(v: &str) -> &str {
+        case_arm(v, "if (!rst_n) begin", "end else begin")
+    }
+
+    /// `length` is 32 bits; `local_addr` is 12. A request larger than the
+    /// local memory must be clamped to it, or the beat counter wraps and the
+    /// transfer overwrites words it already delivered while reporting `done`.
+    ///
+    /// Anchored to the `IDLE` start branch: `bytes_remaining` is also assigned
+    /// in the reset block and decremented in both data states, so an
+    /// unanchored search would be satisfied by any of them.
+    #[test]
+    fn idle_clamps_length_to_local_address_space() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let arm = case_arm(&v, "IDLE: if (start)", "READ_ADDR:");
+        assert!(
+            !arm.contains("bytes_remaining <= length;"),
+            "IDLE must not load `bytes_remaining` from `length` unclamped: \
+             `length` can name 2**29 beats against a 2**12-entry address \
+             space, so `local_addr` wraps and the transfer overwrites data it \
+             already wrote, then reports done=1. IDLE arm was:\n{}",
+            arm
+        );
+        assert!(
+            arm.contains("bytes_remaining <= (length > MAX_BYTES) ? MAX_BYTES : length;"),
+            "IDLE must clamp `bytes_remaining` to MAX_BYTES, which bounds the \
+             read path (`beat_index`) and the write path (`local_addr + 1`) at \
+             once. IDLE arm was:\n{}",
+            arm
+        );
+    }
+
+    /// Clamping alone converts silent corruption into a silent SHORT transfer.
+    /// The clamp must be reported, or the host still cannot tell that the tail
+    /// of its request was dropped.
+    #[test]
+    fn idle_raises_overflow_when_request_is_clamped() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let arm = case_arm(&v, "IDLE: if (start)", "READ_ADDR:");
+        assert!(
+            arm.contains("overflow        <= (length > MAX_BYTES);"),
+            "IDLE must raise `overflow` exactly when it clamps: a clamp with \
+             no output makes an oversized request indistinguishable from a \
+             correctly-sized one, which is the same silent failure in a new \
+             shape. IDLE arm was:\n{}",
+            arm
+        );
+    }
+
+    /// `overflow` is a status output, so it must have a defined value out of
+    /// reset rather than powering up as X.
+    #[test]
+    fn reset_block_clears_overflow() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        let blk = reset_block(&v);
+        assert!(
+            blk.contains("overflow       <= 1'b0;"),
+            "`overflow` must be cleared in the asynchronous reset block, or it \
+             reads as X until the first transfer starts and any host that \
+             samples it early sees a spurious error. Reset block was:\n{}",
+            blk
+        );
+    }
+
+    #[test]
+    fn overflow_output_port_declared() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        assert!(
+            v.contains("    output reg         overflow,\n"),
+            "`dma_controller` must expose an `overflow` output port; without \
+             it the clamp is invisible to the host and `bitnet_engine_top` has \
+             nothing to drive its error IRQ from"
         );
     }
 

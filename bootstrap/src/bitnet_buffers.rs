@@ -160,6 +160,10 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("    input  wire [15:0] num_words,\n");
     s.push_str("    output reg         prefetch_active,\n");
     s.push_str("    output reg         prefetch_done,\n");
+    // Raised for the whole of a prefetch whose `num_words` exceeded the BRAM
+    // and was therefore clamped, so a truncated request is observable rather
+    // than merely bounded. Held until the next `start_prefetch`.
+    s.push_str("    output reg         overflow,\n");
     s.push_str("    // AXI read interface\n");
     s.push_str("    output reg  [31:0] axi_araddr,\n");
     s.push_str("    output reg         axi_arvalid,\n");
@@ -174,6 +178,9 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
     s.push_str("    reg [15:0] words_remaining;\n");
+    // `bram_addr` is 12 bits, so the BRAM holds 4096 words, while `num_words`
+    // is 16 bits and can name 65536 -- a 16x overrange.
+    s.push_str("    localparam [15:0] MAX_WORDS = 16'd4096;  // bram_addr is 12 bits\n");
     s.push_str("    localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;\n");
     s.push_str("    reg [1:0] state;\n");
     s.push_str("\n");
@@ -182,7 +189,7 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     s.push_str("        if (!rst_n) begin\n");
     s.push_str("            state <= IDLE; prefetch_active <= 1'b0; prefetch_done <= 1'b0;\n");
-    s.push_str("            axi_arvalid <= 1'b0; bram_we <= 1'b0;\n");
+    s.push_str("            axi_arvalid <= 1'b0; bram_we <= 1'b0; overflow <= 1'b0;\n");
     s.push_str("            axi_araddr <= 32'd0; bram_addr <= 12'd0; bram_data <= 54'd0;\n");
     s.push_str("            words_remaining <= 16'd0;\n");
     s.push_str("        end else case (state)\n");
@@ -191,7 +198,9 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("                if (start_prefetch) begin\n");
     s.push_str("                    state <= FETCH; prefetch_active <= 1'b1;\n");
     s.push_str("                    axi_araddr <= src_addr;\n");
-    s.push_str("                    words_remaining <= num_words;\n");
+    // Clamp, and say so. `words_remaining` is what bounds `bram_addr`.
+    s.push_str("                    words_remaining <= (num_words > MAX_WORDS) ? MAX_WORDS : num_words;\n");
+    s.push_str("                    overflow        <= (num_words > MAX_WORDS);\n");
     s.push_str("                    bram_addr <= 12'd0;\n");
     s.push_str("                end\n");
     s.push_str("            end\n");
@@ -450,6 +459,82 @@ mod tests {
     fn prefetch_pure_ascii() {
         let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
         assert!(v.is_ascii(), "emitted Verilog must be ASCII");
+    }
+
+    // ---- issue #2002: maximum-sized requests must not silently truncate ----
+
+    /// Slice one region out of the emitted module, so an assertion cannot be
+    /// satisfied by an identical-looking line somewhere else.
+    fn region<'a>(v: &'a str, from: &str, to: &str) -> &'a str {
+        let a = v.find(from).unwrap_or_else(|| panic!("missing region `{}`", from));
+        let b = v[a..]
+            .find(to)
+            .unwrap_or_else(|| panic!("missing `{}` after `{}`", to, from));
+        &v[a..a + b]
+    }
+
+    /// `num_words` is 16 bits; `bram_addr` is 12. A prefetch larger than the
+    /// BRAM must be clamped to it, or `bram_addr` wraps and the transfer
+    /// overwrites words it already fetched.
+    ///
+    /// Anchored to the `IDLE` start branch: `words_remaining` is also assigned
+    /// in the reset block and decremented in `FETCH`.
+    #[test]
+    fn idle_clamps_num_words_to_bram_depth() {
+        let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
+        let arm = region(&v, "IDLE: begin", "FETCH: begin");
+        assert!(
+            !arm.contains("words_remaining <= num_words;"),
+            "IDLE must not load `words_remaining` from `num_words` unclamped: \
+             `num_words` can name 65536 words against a 4096-entry BRAM, so \
+             `bram_addr` wraps and the prefetch overwrites weights it already \
+             fetched. IDLE arm was:\n{}",
+            arm
+        );
+        assert!(
+            arm.contains("words_remaining <= (num_words > MAX_WORDS) ? MAX_WORDS : num_words;"),
+            "IDLE must clamp `words_remaining` to MAX_WORDS, which is what \
+             bounds `bram_addr`. IDLE arm was:\n{}",
+            arm
+        );
+    }
+
+    /// A clamp with no output turns silent corruption into a silent short
+    /// prefetch: the compute pipeline then runs against stale weights in the
+    /// slots that were never overwritten, with nothing reported.
+    #[test]
+    fn idle_raises_overflow_when_request_is_clamped() {
+        let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
+        let arm = region(&v, "IDLE: begin", "FETCH: begin");
+        assert!(
+            arm.contains("overflow        <= (num_words > MAX_WORDS);"),
+            "IDLE must raise `overflow` exactly when it clamps, so a truncated \
+             prefetch is observable rather than merely bounded. \
+             IDLE arm was:\n{}",
+            arm
+        );
+    }
+
+    #[test]
+    fn reset_block_clears_overflow() {
+        let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
+        let blk = region(&v, "if (!rst_n) begin", "end else case (state)");
+        assert!(
+            blk.contains("overflow <= 1'b0;"),
+            "`overflow` must be cleared in the asynchronous reset block, or it \
+             reads as X until the first prefetch starts. Reset block was:\n{}",
+            blk
+        );
+    }
+
+    #[test]
+    fn overflow_output_port_declared() {
+        let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
+        assert!(
+            v.contains("    output reg         overflow,\n"),
+            "`weight_prefetch_ctrl` must expose an `overflow` output port; \
+             without it the clamp is invisible to the host"
+        );
     }
 
     #[test]
