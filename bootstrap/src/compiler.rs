@@ -17889,6 +17889,81 @@ impl Compiler {
         Ok(())
     }
 
+    /// #2275: rewrite `[CONST_NAME]` array dimensions to their literal values
+    /// in every `extra_type`/`extra_size` string. Only module-level consts whose
+    /// initializer is a bare integer literal participate; anything else is left
+    /// exactly as written.
+    fn resolve_symbolic_dims(ast: &mut Node) {
+        let mut consts: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        fn literal_value(decl: &Node) -> Option<String> {
+            let mut v = decl.value.trim().to_string();
+            if v.is_empty() {
+                for c in &decl.children {
+                    let cv = c.value.trim();
+                    if !cv.is_empty() {
+                        v = cv.to_string();
+                        break;
+                    }
+                }
+            }
+            let cleaned: String = v.chars().filter(|c| *c != '_').collect();
+            cleaned.parse::<usize>().ok().map(|n| n.to_string())
+        }
+        fn collect(node: &Node, out: &mut std::collections::HashMap<String, String>) {
+            if node.kind == NodeKind::ConstDecl && !node.name.is_empty() {
+                if let Some(v) = literal_value(node) {
+                    out.entry(node.name.clone()).or_insert(v);
+                }
+            }
+            for c in &node.children {
+                collect(c, out);
+            }
+        }
+        collect(ast, &mut consts);
+        if consts.is_empty() {
+            return;
+        }
+        fn subst(text: &str, consts: &std::collections::HashMap<String, String>) -> String {
+            if !text.contains('[') {
+                return text.to_string();
+            }
+            let mut out = String::with_capacity(text.len());
+            let mut rest = text;
+            while let Some(open) = rest.find('[') {
+                let Some(close_rel) = rest[open..].find(']') else {
+                    break;
+                };
+                let close = open + close_rel;
+                let inner = rest[open + 1..close].trim();
+                out.push_str(&rest[..open + 1]);
+                match consts.get(inner) {
+                    Some(v) if !inner.is_empty() => out.push_str(v),
+                    _ => out.push_str(&rest[open + 1..close]),
+                }
+                out.push(']');
+                rest = &rest[close + 1..];
+            }
+            out.push_str(rest);
+            out
+        }
+        fn walk(node: &mut Node, consts: &std::collections::HashMap<String, String>) {
+            if node.extra_type.contains('[') {
+                node.extra_type = subst(&node.extra_type, consts);
+            }
+            if !node.extra_size.is_empty() {
+                node.extra_size = subst(&format!("[{}]", node.extra_size), consts)
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .to_string();
+            }
+            for c in &mut node.children {
+                walk(c, consts);
+            }
+        }
+        walk(ast, &consts);
+    }
+
     fn collect_struct_decls(
         ast: &Node,
     ) -> std::collections::HashMap<String, Vec<(String, String)>> {
@@ -17944,6 +18019,13 @@ impl Compiler {
         // Build the struct map from the *full* module AST so nested function bodies
         // can still recognize module-level scalar structs as lowerable.
         let structs = Self::collect_struct_decls(&ast);
+        // #2275 half two, layer one: array dimensions spelled as CONST NAMES
+        // ([NUM_MAC_UNITS]MACUnit) never parsed -- parse_array_type wants
+        // digits, so the whole packed-array machinery (decl width, literal
+        // lowering, element access) fell through to TODO placeholders and
+        // flattened names. Substitute integer-literal module consts into
+        // every type/dimension string BEFORE codegen, once, here.
+        Self::resolve_symbolic_dims(&mut ast);
         Self::detect_unsupported_verilog_locals(&ast, &structs)?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = VerilogCodegen::with_options(emit_test_assertions);
