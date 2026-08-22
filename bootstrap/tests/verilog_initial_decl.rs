@@ -44,7 +44,7 @@ const SPEC: &str = r#"module RVD1Probe {
 }
 "#;
 
-fn compile_spec(spec_text: &str, file_stem: &str) -> Option<String> {
+fn compile_spec(spec_text: &str, file_stem: &str, sub: &str) -> Option<String> {
     let bin = env!("CARGO_BIN_EXE_t27c");
     let tmp_dir = std::env::temp_dir();
     let spec_path = tmp_dir.join(format!("{}.t27", file_stem));
@@ -53,12 +53,12 @@ fn compile_spec(spec_text: &str, file_stem: &str) -> Option<String> {
         f.write_all(spec_text.as_bytes()).ok()?;
     }
     let out = Command::new(bin)
-        .args(["gen-verilog", spec_path.to_str()?])
+        .args([sub, spec_path.to_str()?])
         .output()
         .ok()?;
     if !out.status.success() {
         eprintln!(
-            "t27c gen-verilog exited with status {:?}\nstderr: {}",
+            "t27c {sub} exited with status {:?}\nstderr: {}",
             out.status.code(),
             String::from_utf8_lossy(&out.stderr)
         );
@@ -139,26 +139,49 @@ fn module_scope_bench_counters(src: &str) -> Vec<String> {
 
 #[test]
 fn r_vd_1_synthetic_no_integer_decl_inside_initial() {
-    let Some(src) = compile_spec(SPEC, "wave29_r_vd_1_probe") else {
+    // R-VD-1 is a rule about emitted Verilog, so it is checked on BOTH
+    // backends. The hoisted `_bench_<name>_cycles` counters, however, only
+    // exist where bench blocks are lowered at all.
+    //
+    // `gen-verilog` stopped lowering bench blocks: it emits synthesizable RTL
+    // and a bench is a simulation construct, so it now writes them as comments
+    // under "NOT LOWERED BY THIS BACKEND" and defers to
+    // `gen-verilog-for-simulation`. This test kept asking `gen-verilog` for the
+    // counters and got `[]`. The feature was never lost -- the test was
+    // pointed at the wrong subcommand (#2386, #2391).
+    let Some(rtl) = compile_spec(SPEC, "wave29_r_vd_1_probe", "gen-verilog") else {
         panic!("t27c gen-verilog failed on synthetic R-VD-1 probe spec");
     };
+    let Some(sim) = compile_spec(SPEC, "wave29_r_vd_1_probe_sim", "gen-verilog-for-simulation")
+    else {
+        panic!("t27c gen-verilog-for-simulation failed on synthetic R-VD-1 probe spec");
+    };
 
+    for (which, src) in [("gen-verilog", &rtl), ("gen-verilog-for-simulation", &sim)] {
+        assert!(
+            !has_integer_decl_inside_initial(src),
+            "R-VD-1 regression in {which}: emitter produced `integer ...;` inside an \
+             `initial begin ... end` block.\n--- emitted Verilog ---\n{src}"
+        );
+    }
+
+    // The synthesizable backend must not carry the counters at all -- if it
+    // starts emitting them, an `initial` block has come back into RTL.
     assert!(
-        !has_integer_decl_inside_initial(&src),
-        "R-VD-1 regression: emitter produced `integer ...;` inside an `initial begin ... end` block.\n\
-         --- emitted Verilog ---\n{}",
-        src
+        module_scope_bench_counters(&rtl).is_empty(),
+        "gen-verilog emitted bench counters into synthesizable RTL: {:?}",
+        module_scope_bench_counters(&rtl)
     );
 
-    let counters = module_scope_bench_counters(&src);
+    let counters = module_scope_bench_counters(&sim);
     assert_eq!(
         counters.len(),
         2,
-        "Expected exactly 2 module-scope `_bench_<name>_cycles` counters \
-         (one per bench in synthetic spec), got {:?}.\n\
+        "Expected exactly 2 module-scope `_bench_<name>_cycles` counters from \
+         gen-verilog-for-simulation (one per bench in the synthetic spec), got {:?}.\n\
          --- emitted Verilog ---\n{}",
         counters,
-        src
+        sim
     );
     assert!(
         counters.iter().any(|c| c.contains("probe_latency_a")),
@@ -189,35 +212,47 @@ fn find_repo_root() -> Option<PathBuf> {
     }
 }
 
+/// Run one emitter subcommand over a spec file and return its stdout.
+fn emit_file(sub: &str, path: &std::path::Path) -> String {
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let out = Command::new(bin)
+        .args([sub, path.to_str().expect("path utf8")])
+        .output()
+        .unwrap_or_else(|e| panic!("t27c {sub} should run: {e}"));
+    assert!(
+        out.status.success(),
+        "t27c {sub} failed on {}:\nstderr: {}",
+        path.display(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
 #[test]
 fn r_vd_1_real_uart_spec_no_integer_decl_inside_initial() {
     let Some(repo) = find_repo_root() else {
         panic!("Could not locate repo root containing specs/fpga/uart.t27");
     };
     let uart_path = repo.join("specs").join("fpga").join("uart.t27");
-    let bin = env!("CARGO_BIN_EXE_t27c");
-    let out = Command::new(bin)
-        .args(["gen-verilog", uart_path.to_str().expect("path utf8")])
-        .output()
-        .expect("t27c gen-verilog on uart.t27 should run");
-    assert!(
-        out.status.success(),
-        "t27c gen-verilog failed on real uart.t27 spec:\nstderr: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let src = String::from_utf8_lossy(&out.stdout).into_owned();
 
-    assert!(
-        !has_integer_decl_inside_initial(&src),
-        "R-VD-1 regression on real uart.t27: emitter produced \
-         `integer ...;` inside an `initial begin ... end` block."
-    );
+    let rtl = emit_file("gen-verilog", &uart_path);
+    let sim = emit_file("gen-verilog-for-simulation", &uart_path);
 
-    let counters = module_scope_bench_counters(&src);
+    for (which, src) in [("gen-verilog", &rtl), ("gen-verilog-for-simulation", &sim)] {
+        assert!(
+            !has_integer_decl_inside_initial(src),
+            "R-VD-1 regression on real uart.t27 via {which}: emitter produced \
+             `integer ...;` inside an `initial begin ... end` block."
+        );
+    }
+
+    // Counters live in the simulation backend only; see the note on the
+    // synthetic test above.
+    let counters = module_scope_bench_counters(&sim);
     assert!(
         counters.len() >= 3,
-        "Expected at least 3 module-scope `_bench_<name>_cycles` counters \
-         on real uart.t27 (3 benches), got {} ({:?}).",
+        "Expected at least 3 module-scope `_bench_<name>_cycles` counters from \
+         gen-verilog-for-simulation on real uart.t27 (3 benches), got {} ({:?}).",
         counters.len(),
         counters
     );
