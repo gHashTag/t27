@@ -10208,6 +10208,21 @@ impl VerilogCodegen {
     /// transitively contains itself cannot loop; such a type has no finite
     /// packed width and 0 is returned, which the callers surface as a width of
     /// zero rather than a plausible wrong number.
+    /// #2241/#2425: a `&str` field has NO hardware representation. Until now one
+    /// such field made the whole struct unlowerable, so every NUMERIC field of it
+    /// became unaddressable too -- measured across the corpus: 100 of 438 structs
+    /// are blocked this way while all their other fields are primitive scalars.
+    ///
+    /// Strings are therefore packed at ZERO width and skipped when accumulating
+    /// offsets. This cannot shift any existing layout, because a struct with a
+    /// string field does not lower today at all; and READING a string field stays
+    /// exactly as broken as it is now (it flattens to an unbound name), which is
+    /// the honest outcome for a value hardware cannot hold.
+    fn is_string_field_type(ty: &str) -> bool {
+        let t = ty.trim();
+        t == "str" || t == "&str" || t.starts_with("&str") || t.starts_with("[]u8")
+    }
+
     fn field_type_width(&self, ty: &str, depth: u32) -> u32 {
         // W681: 0 is a POISON value, not a width.
         //
@@ -10227,6 +10242,9 @@ impl VerilogCodegen {
             return 0;
         }
         let t = ty.trim();
+        if Self::is_string_field_type(t) {
+            return 0;
+        }
         if let Some(close) = t.find(']') {
             let inner = t[1..close].trim();
             // Unsized slices are rejected by `is_lowerable_scalar_struct`
@@ -10287,6 +10305,12 @@ impl VerilogCodegen {
         for (name, ftype) in fields {
             let fw = self.field_type_width(ftype, 0);
             if name == field_name {
+                // A string field has no bits to select. Returning None keeps the
+                // old (already broken) flatten-to-unbound-name path for reads of
+                // it, instead of inventing a zero-width slice.
+                if Self::is_string_field_type(ftype) {
+                    return None;
+                }
                 return Some((offset, fw));
             }
             offset += fw;
@@ -11033,7 +11057,8 @@ impl VerilogCodegen {
                 } else {
                     trimmed
                 };
-                Self::is_primitive_scalar_type(base)
+                Self::is_string_field_type(base)
+                    || Self::is_primitive_scalar_type(base)
                     || matches!(base, "usize" | "isize")
                     // W671: a nested struct is admissible now that
                     // `field_type_width` sizes it by its own packed width rather
