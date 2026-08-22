@@ -760,6 +760,12 @@ jobs:
           # is the executed-vector registry in tools/run_conformance_vvp.py
           # (mac today); every module and group outside it is printed as debt,
           # never silently counted as covered.
+          # #2415: without pipefail the `if` below tests tee's exit status, not
+          # the runner's -- so a MISMATCH printed one line above was reported as
+          # "EXECUTED, all cases passed" and the job stayed green. Same defect
+          # #2242 removed from fpga-formal; the corrected pattern is ~115 lines
+          # above in this file.
+          set -o pipefail
           echo "## Conformance Vector Execution" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           mkdir -p build/fpga/conformance
