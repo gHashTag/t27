@@ -15612,6 +15612,98 @@ impl VerilogCodegen {
                     //
                     // Measured before the fix: 87 broken escapes across 13 of
                     // 617 specs, `systolic_ternary.t27` among them.
+                    // #2325: `outer.arr[i].f1.f2...` -- fields of an element of a
+                    // struct's ARRAY field -- resolved the base to nothing and
+                    // flattened to `_f2`, a name with an empty base that can never
+                    // bind (memory.v `_kind`, hir.v `_name`).
+                    //
+                    // The chain must be resolved WHOLE. A first version handled
+                    // exactly one trailing field and emitted `cat[...]_luts` for a
+                    // two-field tail: a part-select with an identifier glued to it,
+                    // which is the #2240 defect in a new place. yosys caught it as a
+                    // syntax error in stdlib.v within one smoke run.
+                    {
+                        let mut tail: Vec<String> = vec![node.name.clone()];
+                        let mut cur = child;
+                        while cur.kind == NodeKind::ExprFieldAccess && !cur.children.is_empty() {
+                            tail.push(cur.name.clone());
+                            cur = &cur.children[0];
+                        }
+                        tail.reverse();
+                        if cur.kind == NodeKind::ExprIndex
+                            && cur.children.len() >= 2
+                            && cur.children[0].kind == NodeKind::ExprFieldAccess
+                            && cur.children[0]
+                                .children
+                                .first()
+                                .map(|b| b.kind == NodeKind::ExprIdentifier)
+                                .unwrap_or(false)
+                        {
+                            let outer = cur.children[0].children[0].name.clone();
+                            let arr_field = cur.children[0].name.clone();
+                            if let Some(outer_ty) = self
+                                .local_types
+                                .get(&outer)
+                                .or_else(|| self.param_types.get(&outer))
+                                .or_else(|| self.module_types.get(&outer))
+                                .cloned()
+                            {
+                                let outer_base = Self::base_type_name(&outer_ty);
+                                let arr_ty = self
+                                    .struct_decls
+                                    .get(&outer_base)
+                                    .and_then(|fs| {
+                                        fs.iter()
+                                            .find(|(n, _)| n == &arr_field)
+                                            .map(|(_, t)| t.clone())
+                                    })
+                                    .unwrap_or_default();
+                                if let (Some((arr_off, _)), Some((_, elem_ty))) = (
+                                    self.struct_field_offset(&outer_base, &arr_field),
+                                    Self::parse_array_type(&arr_ty),
+                                ) {
+                                    let elem_w = self.field_type_width(&elem_ty, 0);
+                                    let mut ty = Self::base_type_name(&elem_ty);
+                                    let mut off = 0u32;
+                                    let mut w = 0u32;
+                                    let mut ok = elem_w > 0;
+                                    for f in &tail {
+                                        match self.struct_field_offset(&ty, f) {
+                                            Some((o, fw)) => {
+                                                off += o;
+                                                w = fw;
+                                                ty = self
+                                                    .struct_decls
+                                                    .get(&ty)
+                                                    .and_then(|fs| {
+                                                        fs.iter()
+                                                            .find(|(n, _)| n == f)
+                                                            .map(|(_, t)| {
+                                                                Self::base_type_name(t)
+                                                            })
+                                                    })
+                                                    .unwrap_or_default();
+                                            }
+                                            None => {
+                                                ok = false;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if ok && w > 0 {
+                                        let mut idx = String::new();
+                                        self.collect_expr_text(&cur.children[1], &mut idx);
+                                        let base_id = Self::verilog_safe_identifier(&outer);
+                                        self.write(&format!(
+                                            "{}[({} + (({}) * {}) + {}) +: {}]",
+                                            base_id, arr_off, idx, elem_w, off, w
+                                        ));
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
                             NodeKind::ExprIdentifier => {
