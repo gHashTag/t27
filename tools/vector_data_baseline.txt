@@ -1,0 +1,28 @@
+# Vector files whose cases carry NO data -- an id and a sentence, no
+# inputs and no expected values. Each line is debt: documentation living
+# in a vectors/ shape, which no runner can execute as written (#2241).
+# Remove a line when the file gains real cases; the gate then holds it.
+fpga_apb_bridge.json
+fpga_assembler.json
+fpga_axi4.json
+fpga_bootrom.json
+fpga_clock_domain.json
+fpga_crossopt.json
+fpga_cts.json
+fpga_dft.json
+fpga_e2e_demo.json
+fpga_fifo.json
+fpga_formal.json
+fpga_gf16_accel.json
+fpga_hir.json
+fpga_hw_types.json
+fpga_linker.json
+fpga_memory.json
+fpga_partition.json
+fpga_placement.json
+fpga_power.json
+fpga_router.json
+fpga_simulator.json
+fpga_ternary_isa.json
+fpga_timing.json
+fpga_vcd_trace.json
