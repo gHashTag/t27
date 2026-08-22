@@ -39,3 +39,15 @@ jobs:
       - name: Enforce SSOT == fresh regen (canonical count)
         run: |
           python3 tools/check_catalog_count.py
+
+      # T68: this gate existed and ran nowhere. A whole-tree grep for
+      # check_catalog_integrity.py found it in docs/NOW.md and nothing else --
+      # no workflow, no hook, no Makefile target. It is the ONLY check that
+      # catches an emptied catalog: with every `// CATALOG:` line stripped, the
+      # count gate above prints "OK: SSOT == fresh regen == 0 (canonical)" and
+      # exits 0, while this one exits 1 with 9 problems. It also verifies the
+      # named specs exist ON DISK, which is why it was written -- a glob once
+      # deleted a spec while its catalog row survived, and nothing noticed.
+      - name: Every catalog row still has its spec on disk
+        run: |
+          python3 tools/check_catalog_integrity.py
