@@ -161,8 +161,11 @@ mod tests {
     /// production code — not even a `use` of this crate — it still compiled
     /// and still passed, and setting `default_value_t` to 0 left all 173
     /// tests green while a two-run workflow became reportable as a dead gate.
-    /// Both assertions below read the shipped floor and put it through
-    /// `too_few_runs_to_judge`, the predicate `dead` actually skips on.
+    /// The first two assertions below read the shipped floor and put it
+    /// through `too_few_runs_to_judge`, the predicate `dead` actually skips
+    /// on. Between them they pin the comparison's strictness but barely
+    /// constrain the number — assertion 1 fails only for a floor of 0, 1 or
+    /// 2 — so the third bounds the value itself (#2374).
     #[test]
     fn the_floor_is_what_makes_a_zero_meaningful() {
         let floor = shipped_floor();
@@ -178,6 +181,17 @@ mod tests {
         assert!(
             !too_few_runs_to_judge(floor, floor),
             "a workflow with exactly {floor} runs and no success must be reported"
+        );
+
+        // A floor low enough to judge a handful of runs is no floor at all.
+        // At 3, both assertions above still pass while a three-run workflow
+        // becomes reportable — the judgement `--min-runs` exists to prevent.
+        // A bound rather than an exact pin: retuning stays possible, dropping
+        // to a handful does not.
+        assert!(
+            floor >= 10,
+            "--min-runs defaults to {floor}; below 10 a handful of runs is \
+             treated as evidence, which is what this flag exists to prevent"
         );
     }
 }
