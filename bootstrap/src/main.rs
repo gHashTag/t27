@@ -6821,25 +6821,37 @@ fn run_fpga_build(
     let synth_dir = build_dir.join("synth");
     fs::create_dir_all(&synth_dir).context("create build/fpga/synth")?;
 
-    let modules = [
-        "mac", "uart", "spi", "bridge", "top_level",
-        "hir", "hw_types", "memory", "clock_domain", "fifo",
-        "axi4", "apb_bridge", "gf16_accel", "formal",
-        "ternary_isa", "stdlib", "simulator", "assembler", "testbench", "vcd_trace",
-        "e2e_demo", "linker", "timing", "power", "placement", "partition",
-        "router", "dft", "cts", "crossopt", "bootrom",
-        "sv_emit", "firrtl", "cdc", "lint", "coverage",
-    ];
+    // T75: the set is the DIRECTORY, not a literal. It used to be a hardcoded
+    // array of 36 names, and it had drifted in both directions: five names had
+    // no spec and printed `SKIP (spec not found)` without failing, while four
+    // specs sat in specs/fpga/ and were never generated at all -- bpsk (the
+    // merged BPSK modem core), power_analysis, ternary_link and
+    // vcd_conformance_compare. Measured with this same t27c and the
+    // elaboration ratchet's own iverilog invocation, those four carry 14 real
+    // errors the ratchet had never counted, and nothing bounded their growth.
+    //
+    // Reading the directory makes "the fpga module set" mean what it says, and
+    // a spec added tomorrow is covered without anyone remembering this list.
+    let mut modules: Vec<String> = fs::read_dir(&specs_dir)
+        .with_context(|| format!("read {}", specs_dir.display()))?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("t27"))
+        .filter_map(|e| e.path().file_stem().and_then(|s| s.to_str()).map(String::from))
+        .collect();
+    modules.sort();
+    if modules.is_empty() {
+        anyhow::bail!(
+            "no .t27 spec found under {} -- the scan is broken, not the tree",
+            specs_dir.display()
+        );
+    }
 
     println!("=== FPGA Build: Verilog generation{}===", if use_hir { " (HIR path) " } else { " " });
+    println!("  {} spec(s) under {}", modules.len(), specs_dir.display());
     let mut generated_count = 0u32;
     for module in &modules {
         let spec_file = specs_dir.join(format!("{}.t27", module));
         let out_file = gen_dir.join(format!("{}.v", module));
-        if !spec_file.exists() {
-            println!("  SKIP {} (spec not found)", module);
-            continue;
-        }
         let gen_cmd = if use_hir { "gen-verilog-hir" } else { "gen-verilog" };
         let status = std::process::Command::new(&t27c)
             .arg(gen_cmd)
