@@ -32,38 +32,87 @@ TRIT_ENC = {0: 0, 1: 1, -1: 2}
 
 def tb_case_extract_trit(c):
     exp = c["expected_trit"]
-    return (
+    return (1, (
         f'    r = dut.extract_trit(32\'d{c["word_raw"]}, 32\'d{c["index"]});\n'
         f'    if ($signed(r) !== {exp}) begin\n'
         f'      $display("FAIL {c["id"]}: got %0d want {exp}", $signed(r));\n'
         f'      fails = fails + 1;\n'
         f'    end else $display("PASS {c["id"]}");\n'
-    )
+    ))
 
 
 def tb_case_mac_multiply(c):
     a = TRIT_ENC[c["a_trit0"]]
     b = TRIT_ENC[c["b_trit0"]]
     exp = c["expected_trit0"]
-    return (
+    return (2, (
         f'    r = dut.mac_multiply(32\'d{a}, 32\'d{b}, 8\'d0);\n'
         f'    r = dut.extract_trit(r, 32\'d0);\n'
         f'    if ($signed(r) !== {exp}) begin\n'
         f'      $display("FAIL {c["id"]}: got %0d want {exp}", $signed(r));\n'
         f'      fails = fails + 1;\n'
         f'    end else $display("PASS {c["id"]}");\n'
-    )
+    ))
 
 
 def tb_case_mac_invalid_unit(c):
     exp = c["expected_raw"]
-    return (
+    return (1, (
         f'    r = dut.mac_multiply(32\'d1, 32\'d1, 8\'d{c["unit"]});\n'
         f'    if (r !== 32\'d{exp}) begin\n'
         f'      $display("FAIL {c["id"]}: got %0d want {exp}", r);\n'
         f'      fails = fails + 1;\n'
         f'    end else $display("PASS {c["id"]}");\n'
-    )
+    ))
+
+
+
+def _word_from_trits(trits):
+    raw = 0
+    for i, t in enumerate(trits):
+        raw |= TRIT_ENC[t] << (2 * i)
+    return raw
+
+
+def tb_case_pack_trit(c):
+    exp = c["expected_packed"]
+    return (1, (
+        f'    r = dut.pack_trit({c["trit"]}, 32\'d{c["index"]});\n'
+        f'    if (r !== 32\'d{exp}) begin\n'
+        f'      $display("FAIL {c["id"]}: got %0d want {exp}", r);\n'
+        f'      fails = fails + 1;\n'
+        f'    end else $display("PASS {c["id"]}");\n'
+    ))
+
+
+def tb_case_mac_cycle(c):
+    a = _word_from_trits(c["a_trits"])
+    b = _word_from_trits(c["b_trits"])
+    exp = c["expected_acc"]
+    init = c["initial_acc"]
+    return (2, (
+        f'    r = dut.mac_cycle(32\'d{a}, 32\'d{b}, 8\'d0, {init});\n'
+        f'    if ($signed(r) !== {exp}) begin\n'
+        f'      $display("FAIL {c["id"]}: got %0d want {exp}", $signed(r));\n'
+        f'      fails = fails + 1;\n'
+        f'    end else $display("PASS {c["id"]}");\n'
+    ))
+
+
+def tb_case_mac_status(c):
+    exp = c["expected"]
+    # "initially" semantics need FRESH state -- stage 0 runs before any
+    # state-writing op; "after operation" reads run last (stage 3). The first
+    # unstaged version ran ops first and read DONE where the vector said
+    # READY: a TB sequencing bug, found by the gate itself.
+    stage = 0 if "initial" in c["id"] else 3
+    return (stage, (
+        f'    r = dut.mac_status_read(8\'d{c["unit"]});\n'
+        f'    if (r !== 32\'d{exp}) begin\n'
+        f'      $display("FAIL {c["id"]}: got %0d want {exp}", r);\n'
+        f'      fails = fails + 1;\n'
+        f'    end else $display("PASS {c["id"]}");\n'
+    ))
 
 
 # module -> (top, vectors file, {group: case renderer})
@@ -75,6 +124,9 @@ REGISTRY = {
             "extract_trit": tb_case_extract_trit,
             "mac_multiply": tb_case_mac_multiply,
             "mac_invalid_unit": tb_case_mac_invalid_unit,
+            "pack_trit": tb_case_pack_trit,
+            "mac_cycle": tb_case_mac_cycle,
+            "mac_status": tb_case_mac_status,
         },
     ),
 }
@@ -85,13 +137,15 @@ def run_module(name, verilog_path, workdir):
     data = json.load(open(os.path.join(ROOT, vec_path)))
     vectors = data["vectors"]
 
-    body = []
+    stages = {0: [], 1: [], 2: [], 3: []}
     executed = 0
     for gname, render in groups.items():
         cases = vectors.get(gname, {}).get("cases", [])
         for c in cases:
-            body.append(render(c))
+            stage, text = render(c)
+            stages[stage].append(text)
             executed += 1
+    body = stages[0] + stages[1] + stages[2] + stages[3]
     skipped = [g for g in vectors if g not in groups]
 
     tb = (
