@@ -9,10 +9,27 @@ type they were copied from. Nothing prevents that from sliding back: the
 conformance job compiles two modules, and the other thirty are only linted by
 yosys, which accepts many references iverilog rejects.
 
-So this gate holds the line per module. It does not demand zero -- the
-remainder is two named design decisions (string comparison in hardware; unsized
-array params, #2410). It fails when any module gains errors, and asks you to
-record the win when a module loses them.
+So this gate holds the line per module. It does not demand zero, and the
+reason it does not is worth stating accurately, because an earlier version of
+this docstring got it wrong. It said "the remainder is two named design
+decisions". That was measured over the UNBOUND-IDENTIFIER errors only -- 68 of
+them, and there the claim holds exactly (56 string reads, 12 unsized-array
+reads, nothing else). It was written as though it described the whole
+remainder. The whole remainder, classified:
+
+    57  condition expressions -- SECONDARY, same source line as an unbound
+        identifier above them; they disappear with their cause
+    64  unbound identifiers    -- #2433 (strings) and #2410 (unsized arrays)
+    21  whole-array reads      -- an array used where a value is expected
+     4  malformed statements   -- a keyword-named identifier escaped at its
+        declaration and not at its use; a real emitter defect, not a decision
+     5  unknown module types   -- self-test modules that never elaborated
+     2  missing functions
+    ---
+    161 real errors across 25 of 32 modules
+
+It fails when any module gains errors, and asks you to record the win when a
+module loses them.
 
     tools/check_elab_ratchet.py                    # verify
     tools/check_elab_ratchet.py --update-baseline  # after a deliberate change
@@ -32,6 +49,11 @@ GEN = ROOT / "build/fpga/generated"
 BASELINE = ROOT / "tools/elab_baseline.txt"
 T27C = ROOT / "target/release/t27c"
 
+# iverilog ends a failing file with "N error(s) during elaboration." -- a TOTAL,
+# not an error. Counting it added exactly one phantom per failing module, so the
+# published figure was 25 too high in both directions (see the module docstring).
+SUMMARY = re.compile(r"\d+ error\(s\) during elaboration")
+
 
 def counts():
     """{module: elaboration error count} over the generated set."""
@@ -42,7 +64,11 @@ def counts():
             capture_output=True,
             text=True,
         )
-        n = sum(1 for ln in proc.stderr.splitlines() if " error" in ln)
+        n = sum(
+            1
+            for ln in proc.stderr.splitlines()
+            if " error" in ln and not SUMMARY.search(ln)
+        )
         out[v.stem] = n
     return out
 
@@ -108,9 +134,12 @@ def main():
     if "--update-baseline" in sys.argv:
         header = (
             "# iverilog elaboration errors per generated module. This is a RATCHET:\n"
-            "# the numbers may fall, never rise (#2325). The remainder is two named\n"
-            "# design decisions -- string comparison in hardware, and unsized array\n"
-            "# params (#2410) -- not an oversight.\n"
+            "# the numbers may fall, never rise (#2325). iverilog's own \"N error(s)\n"
+            "# during elaboration\" summary line is NOT counted -- it is a total, and\n"
+            "# counting it added one phantom error per failing module.\n"
+            "# The remainder is not one thing: see the module docstring for the full\n"
+            "# classification. Two design decisions (#2433, #2410) cover the unbound\n"
+            "# identifiers; the malformed statements are an emitter defect.\n"
             f"# iverilog-version {iverilog_version()}\n"
         )
         body = "\n".join(f"{k} {v}" for k, v in sorted(now.items()))
