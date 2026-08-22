@@ -3747,6 +3747,40 @@ impl Codegen {
             // `&&T` is a reference to a reference; recursion handles it.
             return format!("*const {}", Self::zig_type(rest));
         }
+
+        // `[T]` with no length is Rust/Swift slice syntax; Zig spells it `[]T`.
+        // Zig reads the bare form as an array of length T and then wants an
+        // element type, which is why these surface as
+        // `expected type expression, found ','` -- 8 of 14 sampled failures of
+        // that class once references were handled.
+        //
+        // 61 positions carry it, against 395 legitimate `[N]T` arrays that must
+        // not be touched, so the guard is that the WHOLE type is `[` + one
+        // identifier + `]` -- anything following the bracket means it is already
+        // an array and is left alone.
+        //
+        // The remaining ambiguity is real and is decided by CONVENTION, not
+        // derivation: `[hidden_size]` and `[K_TRUE]` are far more likely to be a
+        // length whose element type the generator lost than a slice of a type
+        // named `hidden_size`. So only a primitive, `str`/`string`, or a
+        // PascalCase name is converted; snake_case and SCREAMING_CASE are left
+        // untouched and keep failing loudly, which is the right direction for a
+        // case this parser cannot actually settle.
+        if let Some(inner) = t.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            let is_ident = !inner.is_empty()
+                && inner.chars().all(|c| c.is_alphanumeric() || c == '_')
+                && !inner.starts_with(|c: char| c.is_ascii_digit());
+            let looks_like_type = matches!(
+                inner,
+                "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
+                    | "isize" | "f32" | "f64" | "bool" | "str" | "string"
+            ) || inner.starts_with(|c: char| c.is_uppercase())
+                && inner.chars().any(|c| c.is_lowercase());
+            if is_ident && looks_like_type {
+                return format!("[]{}", Self::zig_type(inner));
+            }
+        }
+
         t.to_string()
     }
 
