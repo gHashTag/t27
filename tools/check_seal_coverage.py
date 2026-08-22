@@ -93,6 +93,21 @@ def scan(root=ROOT):
 
 
 _EVER = {}
+_SHALLOW = {}
+
+
+def _shallow(root):
+    """True when this checkout has no history to ask about."""
+    if root in _SHALLOW:
+        return _SHALLOW[root]
+    try:
+        r = subprocess.run(["git", "rev-parse", "--is-shallow-repository"],
+                           cwd=root, capture_output=True, text=True, timeout=10)
+        val = r.stdout.strip() == "true"
+    except Exception:
+        val = False
+    _SHALLOW[root] = val
+    return val
 
 
 def _ever_existed(root, sp):
@@ -107,6 +122,18 @@ def _ever_existed(root, sp):
     """
     if sp in _EVER:
         return _EVER[sp]
+    # T70: in a SHALLOW clone there is no history to ask, and answering "never
+    # committed" from a one-commit checkout is not a measurement -- it is the
+    # broken-ruler error, with the instrument inside the failure domain. CI
+    # used a bare `actions/checkout@v4`, i.e. depth 1, so the exact-path arm
+    # could never fire and every deleted spec printed `phantom` ("the spec
+    # appears in NO commit -- find the spec or drop the seal") instead of
+    # `dangling` ("remove the seal with it, or restore both"). Wrong class,
+    # wrong prescribed repair, on the only output the gate prints. Measured in
+    # a real --depth=1 clone: {stale 191, dangling 74, phantom 15} became
+    # {stale 191, phantom 89, dangling 0}.
+    if _shallow(root):
+        return True              # cannot tell: assume the milder classification
     base = os.path.basename(sp)
     hit = False
     for args in (["--", sp], ["--", "*/" + base]):
