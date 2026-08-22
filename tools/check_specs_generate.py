@@ -170,13 +170,37 @@ def main():
 
     known = baseline()
     new = [(sp, m) for sp, m in bad if sp not in known]
-    fixed = sorted(known - {sp for sp, _ in bad})
+
+    # T69: a spec that LEAVES the index has not been repaired. `bad` is built
+    # only from `git ls-files "*.t27"`, so `known - bad` folded two very
+    # different events into one congratulation: a spec that started compiling,
+    # and a spec that stopped being tracked while still failing on disk.
+    # Untracking three debt specs printed "NOTE 3 spec(s) in the baseline now
+    # generate" and exited 0. Commit 2255e4c32 removed 58 ledger lines with 455
+    # deletions and 0 modifications to the specs themselves -- its own message
+    # concedes "those 58 would read as fixed". Departure is now its own class,
+    # and it fails.
+    tracked = set(all_specs)
+    departed = sorted(known - tracked)
+    fixed = sorted((known & tracked) - {sp for sp, _ in bad})
+    if departed:
+        print(f"DEPARTED {len(departed)} spec(s) in the baseline are no longer tracked.")
+        print("They did not start generating -- they left the measured set, which")
+        print("reads as progress in the count below and is not. Drop their ledger")
+        print("lines in the same commit that removes them, deliberately:")
+        for sp in departed[:10]:
+            print(f"  {sp}")
+        if len(departed) > 10:
+            print(f"  ... and {len(departed) - 10} more")
+        print()
     if fixed:
         print(f"NOTE {len(fixed)} spec(s) in the baseline now generate. Remove them from "
               f"{BASELINE.name} so the gate holds them:")
         for sp in fixed[:10]:
             print(f"  {sp}")
         print()
+    if departed:
+        return 1
     if not new:
         print(f"OK: {len(all_specs)} specs, {len(all_specs)-len(bad)} generate, "
               f"{len(bad)} known-broken in {BASELINE.name}")
