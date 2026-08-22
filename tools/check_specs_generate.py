@@ -73,11 +73,40 @@ def t27c():
 # hazards. Recording those as debt inverts their meaning -- the day one of them
 # starts generating is the day a parser bug shipped, and the ledger would have
 # read that as progress.
-NEGATIVE_FIXTURES = (
-    "bootstrap/tests/fixtures/damage/",
-    "bootstrap/tests/fixtures/generic_const/neg_",
+# T84: these three prefixes were one list under one rationale, and the
+# rationale did not describe them. The comment enumerated 21 files -- "twelve
+# deliberately damaged, seven malformed generic-const declarations, two
+# truncated-at-EOF hazards" -- while the prefixes exclude 29. Measured: 21 fail
+# to generate, 8 do not, and the 8 are two different kinds of thing.
+#
+# `terminator/` holds parser CONTROLS with their own assertions in
+# bootstrap/tests/struct_body_terminator.rs -- several are meant to parse, and
+# excluding them from a generate census is right.
+CONTROL_FIXTURES = (
     "bootstrap/tests/fixtures/terminator/",
 )
+
+# These exist to be REJECTED. The comment that used to sit over all three said
+# it out loud -- "the day one of them starts generating is the day a parser bug
+# shipped" -- and nothing enforced it: a repo-wide grep for `damage_class` in
+# tests and tools returns nothing at all. Three of them generate today, and the
+# C they emit does not compile (`type name requires a specifier or qualifier`).
+# So the alarm has been ringing, unread, into an empty room.
+MUST_NOT_GENERATE = (
+    "bootstrap/tests/fixtures/damage/",
+    "bootstrap/tests/fixtures/generic_const/neg_",
+)
+
+# The three already generating, frozen as named debt so master stays green and
+# the class cannot grow. Removing a line when the parser rejects it again is
+# the ratchet; adding one has to be a hand edit with a reason.
+GENERATING_DAMAGE_DEBT = {
+    "bootstrap/tests/fixtures/damage/damage_class_03.t27",
+    "bootstrap/tests/fixtures/damage/damage_class_04.t27",
+    "bootstrap/tests/fixtures/damage/damage_class_12.t27",
+}
+
+NEGATIVE_FIXTURES = CONTROL_FIXTURES + MUST_NOT_GENERATE
 
 
 def specs():
@@ -145,9 +174,15 @@ def main():
         print(f"  {len(all_specs)} specs, {len(all_specs)-len(bad)} generate "
               f"({100*(len(all_specs)-len(bad))/len(all_specs):.1f}%), {len(bad)} do not\n")
         print("  by directory:")
+        # T84: this took path component [1] and glued "specs/" back on, so
+        # rows merged trees that share a second component and invented labels
+        # for the 17 of 171 entries that are not under specs/ at all.
+        # Measured: "specs/runtime/ 5" was 3 under specs/runtime plus
+        # compiler/runtime/{commands,validation}.t27 -- a count true of neither
+        # directory it names. Print the directory that exists.
         for d, c in collections.Counter(
-                sp.split("/")[1] if sp.count("/") > 1 else "." for sp, _ in bad).most_common(12):
-            print(f"    {c:>4}  specs/{d}/")
+                sp.rsplit("/", 1)[0] for sp, _ in bad).most_common(12):
+            print(f"    {c:>4}  {d}/")
         print("\n  by error class:")
         def cls(m):
             for k in ("unknown cast target", "parse error at module level",
@@ -219,6 +254,26 @@ def main():
         for sp in fixed[:10]:
             print(f"  {sp}")
         print()
+    # T84: an input whose purpose is to be rejected, and is not.
+    leaked = []
+    _tracked = subprocess.run(["git", "ls-files", "*.t27"], cwd=ROOT,
+                              capture_output=True, text=True).stdout.split()
+    for sp in sorted(f for f in _tracked
+                     if any(f.startswith(x) for x in MUST_NOT_GENERATE)):
+        ok, _msg = generates(t, sp)
+        if ok and sp not in GENERATING_DAMAGE_DEBT:
+            leaked.append(sp)
+    if leaked:
+        print(f"LEAKED {len(leaked)} damaged fixture(s) now GENERATE:")
+        for sp in leaked:
+            print(f"  {sp}")
+        print()
+        print("  These files exist to be rejected. One of them generating is a")
+        print("  parser accepting input it was built to refuse -- the comment over")
+        print("  the list has said so since it was written, and nothing enforced it.")
+        print("  If deliberate, add the path to GENERATING_DAMAGE_DEBT with a reason.")
+        return 1
+
     if departed:
         return 1
     if not new:
