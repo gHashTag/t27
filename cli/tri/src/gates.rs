@@ -80,6 +80,12 @@ const EXTERNAL_CONTROL: &[(&str, &str)] = &[
     ("check_vector_data.py", "check_gate_preconditions.py"),
 ];
 
+/// Scripts that serve as somebody else's negative control AND are gates in
+/// their own right. They stay in the gate list -- they have their own
+/// self-check and are measured like anything else -- but naming them here says
+/// the double role is intended rather than a wiring mistake.
+const CONTROL_IS_ALSO_A_GATE: &[&str] = &["check_gate_preconditions.py"];
+
 /// Files under tools/ that ARE controls rather than gates.
 const IS_A_CONTROL: &[&str] = &[
     "wp18_selftest_gate.py",
@@ -611,12 +617,33 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
     }
 
     #[test]
-    fn a_gate_is_never_both_a_gate_and_its_own_control() {
+    fn an_external_control_is_never_reported_as_uncontrolled() {
+        // The invariant that matters is not "a control file is not a gate" --
+        // that was the wp18 shape, where the control does nothing else.
+        // check_gate_preconditions.py breaks it deliberately: it covers the
+        // precondition branch of six gates AND is a gate in its own right,
+        // with its own self-check. What must hold is that a script named as
+        // somebody's control never ends up in the uncontrolled list, which
+        // would be a finding invented out of the wiring.
         for (g, c) in EXTERNAL_CONTROL {
             assert_ne!(g, c, "a script cannot be its own negative control");
             assert!(
-                IS_A_CONTROL.contains(c),
-                "{c} must be excluded from the gate list"
+                IS_A_CONTROL.contains(c) || CONTROL_IS_ALSO_A_GATE.contains(c),
+                "{c} is named as a control but is neither excluded from the gate \
+                 list nor declared as a gate that carries its own control"
+            );
+        }
+        // And the declaration is not free: a script listed there must really
+        // have a control of its own, or the exemption hides the thing the
+        // sweep exists to report.
+        for c in CONTROL_IS_ALSO_A_GATE {
+            let src = std::fs::read_to_string(repo_root().expect("git repo").join("tools").join(c))
+                .unwrap_or_default();
+            assert!(
+                ["--self-check-drop", "--self-check", "--selftest"]
+                    .iter()
+                    .any(|fl| src.contains(&format!("\"{}\"", fl))),
+                "{c} claims to be a gate with its own control and declares no control flag"
             );
         }
     }
