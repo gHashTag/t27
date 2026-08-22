@@ -10394,7 +10394,12 @@ impl VerilogCodegen {
                 if !self.struct_decls.contains_key(&elem_type) {
                     return false;
                 }
-                (base_name, dims, elem_type)
+                // T64: `base_name` stops being a lookup key here and becomes
+                // emitted TEXT. A parameter named for a Verilog keyword is
+                // escaped at its declaration (`\\cross `) and must be escaped
+                // at every use too, or the part-select below emits a bare
+                // keyword and iverilog reports a plain "syntax error".
+                (Self::verilog_safe_identifier(&base_name), dims, elem_type)
             }
             NodeKind::ExprCall if !current.name.is_empty() => {
                 let ret_ty = match self.fn_return_types.get(&current.name) {
@@ -12656,7 +12661,7 @@ impl VerilogCodegen {
                         _ => node.children[0].clone(),
                     };
                     self.emit_packed_struct_array_init(
-                        &node.name,
+                        &Self::verilog_safe_identifier(&node.name),
                         &node.extra_type,
                         &init_node,
                     );
@@ -14529,7 +14534,7 @@ impl VerilogCodegen {
                         self.write_line("begin");
                         self.indent();
                         self.emit_packed_struct_array_init(
-                            &node.name,
+                            &Self::verilog_safe_identifier(&node.name),
                             &node.extra_type,
                             child,
                         );
@@ -15512,7 +15517,7 @@ impl VerilogCodegen {
                                     }
                                     if ok && fw > 0 {
                                         let signed = Self::scalar_field_is_signed(&ftype);
-                                        let slice = format!("{}[{} +: {}]", chain_base, total_off, fw);
+                                        let slice = format!("{}[{} +: {}]", Self::verilog_safe_identifier(&chain_base), total_off, fw);
                                         if signed && !self.in_lvalue {
                                             self.write(&format!("$signed({})", slice));
                                         } else {
@@ -15556,7 +15561,7 @@ impl VerilogCodegen {
                                         })
                                         .unwrap_or_default();
                                     let signed = Self::scalar_field_is_signed(&ftype);
-                                    let slice = format!("{}[{} +: {}]", base_name, off, fw);
+                                    let slice = format!("{}[{} +: {}]", Self::verilog_safe_identifier(&base_name), off, fw);
                                     if signed && !self.in_lvalue {
                                         self.write(&format!("$signed({})", slice));
                                     } else {
@@ -32852,6 +32857,32 @@ mod tests_hir_pipeline_parity {
         assert!(
             v.contains("pairs[((idx) * 16 + 0) +: 8]"),
             "expected packed slice for indexed field access, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_named_param_escaped_at_use() {
+        // T64: a parameter whose name is a Verilog keyword was escaped at its
+        // DECLARATION (`\cross `) and emitted bare at every USE, so the
+        // part-select read `cross[8 +: 32]` and iverilog answered with a plain
+        // "syntax error" -- 4 of them in the corpus, and each one truncated
+        // the file, hiding whatever elaboration errors came after it.
+        let src = r#"module KeywordParam {
+    pub struct Crossing { kind : u8, bits : u32 }
+    pub fn crossing_bits(cross: Crossing) -> u32 {
+        return cross.bits
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("\\cross [8 +: 32]"),
+            "keyword-named param must stay escaped where it is USED, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains(" cross[8 +: 32]"),
+            "bare keyword in a part-select is a syntax error, got:\n{}",
             v
         );
     }
