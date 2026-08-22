@@ -12613,6 +12613,10 @@ a worktree in the same wave its branch merges.
 
 **1513. A READBACK FAILURE UNDER ENOSPC IS ABSENT, NOT FAIL.** The frozen smul sweep built at seed 7 and then reported 'no cable carries design 12'. That looks like a hardware result and is not one: the volume was at 0.15 GiB, the next seed never ran, and a bitstream written on a full disk is not a bitstream. Recorded as ABSENT. The ABSENT/FAIL distinction this project already keeps for place-and-route time caps applies to the storage layer too -- and the temptation to bank a FAIL is strongest exactly when the run was expensive. Check the free space before writing down the verdict. (W986)
 
+**1514. THE PRICE OF AN HONEST CLAUSE MEASURES WHAT THE FOLD WAS HIDING.** Making the on-die clauses real grew gft_sadd 3.2x, gft_xorpercep 2.6x, gft_dup 2.2x. That is not overhead added by the repair -- it is the clause logic that yosys had been deleting, now present. Two designs that used to build now exceed the place-and-route time cap, with timing PASSING in both cases. So every area figure published for a wrapper with folded clauses was measuring a design with its checks optimised away, and the honest numbers are several times larger. When a check costs nothing, ask whether it is running. (T844, W987)
+
+**1515. A FIX UNVERIFIED FOR NINE WAVES WAS ONE BUILD AWAY.** W978 added the missing zero guards to gft_signed_mac and the die read stayed 0011 in every report since, marked 'unverified on silicon' for nine waves because the PnR cap and a BSCAN mismatch blocked the path. W987 rebuilt it with real clauses and it read 1111 at 482 s of placement -- inside the cap all along. The blocker was recorded once and then inherited, wave after wave, without being retried. Re-test an inherited blocker whenever anything upstream of it changes; the cost is one build and the standing claim was wrong. (T843, W987)
+
 ### How to update this tracker
 
 After closing a wave:

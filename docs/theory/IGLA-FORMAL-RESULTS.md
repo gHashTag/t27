@@ -30801,6 +30801,52 @@ The frozen `gft_smul` sweep is recorded **ABSENT, not FAIL**: seed 7 built and t
 readback found no design 12, seed 42 never ran, and the volume was at 0.15 GiB. A
 readback failure under disk exhaustion is not a measurement of the design.
 
+### T843 -- The operator table, with every clause real [measured]
+
+W983 found that 14 of 28 on-die clauses were constants folded at synthesis; W984
+repaired them. This is the table those repairs were for.
+
+| operator | LUT | placements | clauses | verdict |
+|----------|-----|-----------|---------|---------|
+| `gft_smul` | 1877 | 4 | `1111` x4 | PASS |
+| `gft_dup` | 1763 | 4 | `1111` x4 | PASS |
+| `gft_sadd` | 4231 | 2 | `1111` x2 | PASS |
+| `gft_signed_dot4` | 7851 | 1 | `1111` | **PASS -- first time on silicon** |
+| `gft_signed_mac` | 9465 | 1 | `1111` | **PASS -- confirms the W978 fix** |
+| `gft_train1` | 16188 | 2 | -- | **ABSENT**, 600 s place-and-route cap |
+| `gft_xorpercep` | 28217 | 1 | -- | **ABSENT**, 600 s cap |
+
+Two results carry weight beyond their row. **`gft_signed_dot4` reaches the die for
+the first time** -- ABSENT since W977 behind the time cap and a BSCAN chain/site
+mismatch -- and it is the one wrapper that never had a folded clause, so its four
+were always real. **`gft_signed_mac` reads `1111` where W975 read `0011`**: its
+`c_zero` was real and false against the pre-W978 spec, which lacked the zero
+guards. That spec fix has stood *unverified on silicon* for nine waves. It is
+verified now, and with every clause real.
+
+The caveat from T841 and T842 applies to the last two rows: **one placement cannot
+distinguish a passing design from a design whose failure is not reachable at that
+seed.**
+
+### T844 -- Folded clauses were deleting most of the design [measured]
+
+Making the clauses real is not free, and the price measures what the folding had
+been hiding:
+
+| wrapper | LUT before | LUT after | factor |
+|---------|-----------|-----------|--------|
+| `gft_smul` | 1312 | 1877 | x1.4 |
+| `gft_dup` | 798 | 1763 | x2.2 |
+| `gft_xorpercep` | 10799 | 28217 | x2.6 |
+| `gft_sadd` | 1312 | 4231 | **x3.2** |
+
+**Every area figure this project published for a wrapper with folded clauses was
+measuring a design whose clause logic had been optimised away.** And the cost is
+not only cosmetic: `gft_train1` and `gft_xorpercep` used to build and now exceed
+the 600 s place-and-route cap -- both with timing PASSING (3.13 / 3.26 MHz against
+2.21, and 1.97 against 1.11). They are ABSENT for placement time, not for
+correctness.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

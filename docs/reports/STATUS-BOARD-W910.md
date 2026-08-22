@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W986, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W987, 2026-08-22)
+
+> **W987 — THE OPERATOR TABLE, WITH EVERY CLAUSE REAL.** `gft_smul` `1111`×4, `gft_dup` `1111`×4,
+> `gft_sadd` `1111`×2, **`gft_signed_dot4` `1111` — its first time on silicon**, ABSENT behind the
+> time cap since W977; **`gft_signed_mac` `1111` where W975 read `0011`** — the W978 zero-guard fix
+> is **verified on silicon** after nine waves marked unverified, at 482 s of placement, inside the
+> cap all along. The blocker had been inherited, never retried. `gft_train1` (16188 LUT) and
+> `gft_xorpercep` (28217) are **ABSENT at the 600 s cap with timing PASSING** — placement time, not
+> correctness. **And honesty has a price that measures what the fold was hiding:** `gft_sadd`
+> **×3.2** (1312→4231 LUT), `gft_xorpercep` **×2.6**, `gft_dup` **×2.2**, `gft_smul` **×1.4** —
+> every area figure published for a wrapper with folded clauses was measuring a design with its
+> checks optimised away. dot4 and mac are **one placement each**, and T841/T842 say what that
+> cannot settle. T843/T844, lessons 1514–1515, **463 derived checks**. **Readiness 97 %.**
 
 > **W986 — THE FROZEN REPRODUCER IS ALIVE, AND THE SPLIT BELONGS TO THE DESIGN.** W985 wrote that
 > *gone* and *absent in a design this different* could never be separated, because the failing case

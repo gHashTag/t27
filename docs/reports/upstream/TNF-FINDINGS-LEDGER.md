@@ -2326,3 +2326,36 @@ The frozen `gft_smul` sweep is recorded ABSENT rather than FAIL. It built at see
 0.15 GiB. A bitstream written on a full disk is not a bitstream, and the
 ABSENT/FAIL distinction this project keeps for place-and-route time caps applies
 to the storage layer too.
+
+## 56. The table those repairs were for (W987)
+
+Every operator, re-read on the die with every clause real.
+
+| operator | LUT | placements | clauses | verdict |
+|----------|-----|-----------|---------|---------|
+| `gft_smul` | 1877 | 4 | `1111` x4 | PASS |
+| `gft_dup` | 1763 | 4 | `1111` x4 | PASS |
+| `gft_sadd` | 4231 | 2 | `1111` x2 | PASS |
+| `gft_signed_dot4` | 7851 | 1 | `1111` | PASS -- first time on silicon |
+| `gft_signed_mac` | 9465 | 1 | `1111` | PASS -- confirms the W978 fix |
+| `gft_train1` | 16188 | 2 | -- | ABSENT, 600 s cap |
+| `gft_xorpercep` | 28217 | 1 | -- | ABSENT, 600 s cap |
+
+Two rows matter beyond themselves. `gft_signed_dot4` had been ABSENT since W977,
+behind the place-and-route time cap and a BSCAN chain/site mismatch; it is the one
+wrapper that never carried a folded clause, so the `1111` it returns is four real
+answers. And `gft_signed_mac` reads `1111` where W975 read `0011` -- its `c_zero`
+was real and false against the pre-W978 spec, which lacked the zero guards. That
+fix had been carried as *unverified on silicon* for nine waves. It took 482
+seconds of placement, inside the cap the whole time. The blocker was recorded once
+and then inherited rather than retried.
+
+The price of an honest clause is the size of what the fold was hiding: `gft_sadd`
+x3.2, `gft_xorpercep` x2.6, `gft_dup` x2.2, `gft_smul` x1.4. **Every area figure
+this project published for a wrapper with folded clauses was measuring a design
+whose checks had been optimised away.** Two operators that used to build now
+exceed the 600 s cap -- with timing PASSING in both cases, so they are absent for
+placement time and not for correctness.
+
+`gft_signed_dot4` and `gft_signed_mac` are one placement each, and T841 and T842
+already established what a single placement cannot distinguish.
