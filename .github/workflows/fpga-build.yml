@@ -770,7 +770,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           mkdir -p build/fpga/conformance
           fails=0
-          for m in mac; do
+          for m in mac spi; do
             v="build/fpga/generated/${m}.v"
             if [ ! -f "$v" ]; then
               echo "::error::generated ${m}.v missing"; fails=$((fails+1)); continue
