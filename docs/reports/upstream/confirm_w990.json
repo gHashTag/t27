@@ -57,27 +57,82 @@
    "tool_note": "tri seeds prints it plainly: not a proof of placement-independence, the absence of a counterexample in 4 tries"
   },
   "gft_signed_dot4": {
-   "placements_done": 1,
+   "placements_done": 2,
    "seeds_done": [
-    1
+    1,
+    7
    ],
    "sites": [
-    2
+    2,
+    1
    ],
    "clauses": [
+    "1111",
     "1111"
    ],
    "ok": [
+    1,
     1
    ],
    "word": "0xa5a530ff",
    "repeatability": "seed 1 read twice -- W987 and W990 -- same word both times",
-   "status": "IN FLIGHT: seeds 7, 42 and 1234 still placing when this record was written"
+   "status": "seeds 42 and 1234 still placing when this record was written; two placements at two distinct BSCAN sites return the identical word"
   }
  },
  "what_was_given_up_for_it": "the speculative gft_xorpercep run under a 3600 s cap was killed at ~50 minutes elapsed (nextpnr 20 min into placement) to free the board. It is re-runnable and W989 already recorded it as IN FLIGHT; the Architect's request outranked it.",
  "a_finding_from_the_interruption": "t27c runs nextpnr TWICE when the BSCAN chain fixed-point loop has to correct the parameter, so a design at the cap costs up to 2x the cap in wall clock. gft_xorpercep had used ~50 minutes without reaching a verdict against a 3600 s stage cap.",
  "environment": {
   "web_search": "unavailable all session"
- }
+ },
+ "die_reads_canonical": [
+  {
+   "design": "gft_signed_mac",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W990",
+   "seed": 1,
+   "site": 3
+  },
+  {
+   "design": "gft_signed_mac",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W990",
+   "seed": 7,
+   "site": 2
+  },
+  {
+   "design": "gft_signed_mac",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W990",
+   "seed": 42,
+   "site": 2
+  },
+  {
+   "design": "gft_signed_mac",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W990",
+   "seed": 1234,
+   "site": 4
+  },
+  {
+   "design": "gft_signed_dot4",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W990",
+   "seed": 1,
+   "site": 2
+  },
+  {
+   "design": "gft_signed_dot4",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W990",
+   "seed": 7,
+   "site": 1
+  }
+ ],
+ "schema_note": "W989 convention: every die read in this record, machine-locatable."
 }

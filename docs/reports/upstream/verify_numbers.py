@@ -953,11 +953,14 @@ if cf:
     check("инструмент не называет это доказательством",
           "not a proof" in m["tool_note"], True, tol=0)
     d4 = cf["confirmation_sweep"]["gft_signed_dot4"]
-    check("dot4: подтверждено размещений", d4["placements_done"], 1, tol=0)
+    check("dot4: подтверждено размещений", d4["placements_done"], 2, tol=0)
+    check("dot4: обе площадки различны", len(set(d4["sites"])), 2, tol=0)
+    check("dot4: один вердикт", len(set(d4["clauses"])), 1, tol=0)
     check("dot4: повторяемость на одном зерне",
           "same word both times" in d4["repeatability"], True, tol=0)
-    check("dot4: остальное названо в полёте",
-          d4["status"].startswith("IN FLIGHT"), True, tol=0)
+    check("dot4: остальное названо",
+          "still placing" in d4["status"], True, tol=0)
+    check("чтения канонизированы", len(cf["die_reads_canonical"]), 6, tol=0)
     check("прерванное названо, а не скрыто",
           "killed" in cf["what_was_given_up_for_it"], True, tol=0)
 
