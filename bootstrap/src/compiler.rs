@@ -9000,6 +9000,7 @@ pub struct VerilogCodegen {
     // the path of the spec being compiled and a source string does not carry
     // one. Empty everywhere else, which is exactly the old behaviour.
     imported_enums: Vec<(String, Vec<(String, String)>)>,
+    imported_structs: Vec<(String, Vec<(String, String)>)>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -9049,6 +9050,7 @@ impl VerilogCodegen {
             array_param_indices: std::collections::HashMap::new(),
             array_param_errors: std::collections::HashMap::new(),
             imported_enums: Vec::new(),
+            imported_structs: Vec::new(),
         }
     }
 
@@ -9056,6 +9058,14 @@ impl VerilogCodegen {
     ///
     /// Nothing is emitted for an enum the module never names; see
     /// `imported_enum_nodes`.
+    /// #2275: imported structs join `struct_decls` so a `param.field` on an
+    /// imported struct type resolves to a part-select instead of flattening to
+    /// an unbound identifier. Local declarations always win: entries are only
+    /// added for names the module does not declare itself.
+    pub fn set_imported_structs(&mut self, structs: Vec<(String, Vec<(String, String)>)>) {
+        self.imported_structs = structs;
+    }
+
     pub fn set_imported_enums(&mut self, enums: Vec<(String, Vec<(String, String)>)>) {
         self.imported_enums = enums;
     }
@@ -10668,6 +10678,7 @@ impl VerilogCodegen {
             array_param_indices: std::collections::HashMap::new(),
             array_param_errors: std::collections::HashMap::new(),
             imported_enums: Vec::new(),
+            imported_structs: Vec::new(),
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -10886,6 +10897,7 @@ impl VerilogCodegen {
                     array_param_indices: std::collections::HashMap::new(),
                     array_param_errors: std::collections::HashMap::new(),
                     imported_enums: Vec::new(),
+            imported_structs: Vec::new(),
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -11438,6 +11450,12 @@ impl VerilogCodegen {
                 .map(|f| (f.name.clone(), f.extra_type.clone()))
                 .collect();
             self.struct_decls.insert(s.name.clone(), fields);
+        }
+        // #2275: imported structs fill the gaps -- never shadow a local decl.
+        for (name, fields) in &self.imported_structs.clone() {
+            self.struct_decls
+                .entry(name.clone())
+                .or_insert_with(|| fields.clone());
         }
 
         // W528: cache module-level const/var type annotations so function-local
@@ -17931,6 +17949,7 @@ impl Compiler {
         let mut codegen = VerilogCodegen::with_options(emit_test_assertions);
         if let Some(path) = spec_path {
             codegen.set_imported_enums(crate::use_resolve::imported_enums(path, source));
+            codegen.set_imported_structs(crate::use_resolve::imported_structs(path, source));
         }
         codegen.gen_verilog(&ast);
         Ok(codegen.into_string())

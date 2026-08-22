@@ -60,6 +60,14 @@ module ZeroDSP_MAC;
     // 314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371
 
     // MAC unit state
+    // #2275: the packed word this spec has always assumed. No file in the
+    // corpus declares TernaryWord{raw} -- the base::ternary_memory struct is a
+    // different shape (trits/state/checksum) -- so `word.raw` fell past the
+    // part-select branch and flattened to the unbound identifier `word_raw`.
+    struct TernaryWord {
+        raw : u32,
+    }
+
     struct MACUnit {
         accumulator : i32,           // Accumulator value
         status : u8,                 // Current status (READY/BUSY/DONE)
