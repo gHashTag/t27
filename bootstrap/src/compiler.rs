@@ -2595,7 +2595,9 @@ impl Parser {
             return ty;
         }
 
-        // Handle pointer prefix: *Type or *const Type
+        // Handle pointer prefix: *Type or *const Type. Parse the pointee through
+        // this same type grammar: `*Name(T)` is a pointer to the application
+        // `Name(T)`, not an attempt to apply `T` to a pointer.
         if self.current.kind == TokenKind::Star {
             ty.push('*');
             self.advance();
@@ -2603,10 +2605,7 @@ impl Parser {
                 ty.push_str("const ");
                 self.advance();
             }
-            if self.current.kind == TokenKind::Ident {
-                ty.push_str(&self.current.lexeme);
-                self.advance();
-            }
+            ty.push_str(&self.parse_type_annotation());
             return ty;
         }
 
@@ -2692,12 +2691,67 @@ impl Parser {
                 ty.push_str(&self.current.lexeme);
                 self.advance(); // consume the segment
             }
+
+            // #2164: `Name(T)` is a type application when the parser has
+            // already entered a type position. It is deliberately parsed here,
+            // rather than in expression parsing, because the same tokens in an
+            // expression position continue to mean a function call.
+            self.parse_type_application_args(&mut ty);
         } else if self.current.kind == TokenKind::KwVoid {
             ty.push_str("void");
             self.advance();
         }
 
         ty
+    }
+
+    /// Append one parenthesised type-argument list to a type name.
+    ///
+    /// The parser reaches this helper only after consuming the base type name.
+    /// Thus `Name(T)` in an annotation is an application, whereas `Name(T)` in
+    /// an expression remains the expression parser's call syntax. Numeric
+    /// arguments are retained verbatim because existing `P(2)`, `Z(1)`, and
+    /// `N(0)` applications are part of the accepted type surface.
+    fn parse_type_application_args(&mut self, ty: &mut String) {
+        if self.current.kind != TokenKind::LParen {
+            return;
+        }
+
+        ty.push('(');
+        self.advance(); // consume (
+        let mut first = true;
+        while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+            if !first {
+                if self.current.kind != TokenKind::Comma {
+                    // Keep an unfamiliar shape for the caller's existing
+                    // recovery rather than consuming a token without progress.
+                    break;
+                }
+                ty.push_str(", ");
+                self.advance(); // consume ,
+                if self.current.kind == TokenKind::RParen {
+                    break;
+                }
+            }
+
+            let before = self.current.kind;
+            if self.current.kind == TokenKind::Number {
+                ty.push_str(&self.current.lexeme);
+                self.advance();
+            } else {
+                let arg = self.parse_type_annotation();
+                if arg.is_empty() && self.current.kind == before {
+                    // Do not loop forever on a token outside the type grammar.
+                    break;
+                }
+                ty.push_str(&arg);
+            }
+            first = false;
+        }
+        if self.current.kind == TokenKind::RParen {
+            ty.push(')');
+            self.advance(); // consume )
+        }
     }
 
     fn parse_fn_decl(&mut self, is_pub: bool) -> Result<Node, String> {
@@ -2813,6 +2867,7 @@ impl Parser {
                 }
             }
             decl.extra_return_type = rt_name;
+            self.parse_type_application_args(&mut decl.extra_return_type);
             // Handle generic return types like Option<Foo>
             if self.current.kind == TokenKind::Lt {
                 let mut gt_depth = 1;
