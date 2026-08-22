@@ -495,3 +495,46 @@ executes two modules and lints the rest with a tool (yosys) that accepts what
 iverilog rejects. The baseline records the count per module, fails naming the
 module and both numbers, and does not demand zero — the remainder is two named
 design decisions, not an oversight.
+
+## 15. What the second batch of repairs added to the ten classes
+
+Twenty-eight of the forty-three findings are closed. Eight more repairs landed
+after section 14 was written, and they sharpened three of its classes and added
+one habit that is not in the list.
+
+**Class H sharpened -- a scope that conflates two purposes.** A fixture
+exclusion held 29 files under one rationale enumerating 21. The eight extra
+were not slop: five were parser CONTROLS with their own assertions, meant to
+pass, and three were damaged inputs that had started generating. One list, two
+opposite intents, and the gate could not tell them apart because the selector
+never distinguished them. Split the list before you fix the count -- the count
+was the symptom.
+
+**Class J sharpened -- the row already carries the oracle.** Before writing a
+second tool, look at what the data stores about itself. Every conformance row
+carried a hex twin of each decimal it states; nothing compared them. Measured
+first: 3795 rows, 7590 pairs, all agreeing -- so the check was free, in-corpus
+and total. A second instrument you have to build is a reason to look harder for
+one you already have.
+
+**Class D sharpened -- an instrument fix looks exactly like drift.** After
+giving a gate git history, fifteen ledger entries changed class. Nothing in the
+tree moved; the answer improved. A ratchet that compares states must suppress
+movement inside a pair whose distinction the instrument itself concedes it
+cannot always make -- and must say why in the code, or the next reader deletes
+the suppression as dead weight.
+
+**The new habit: mutate every half of your own patch, not the halves you
+expect to matter.** A three-part fix landed with two mutants. Reverting the
+third part left the whole selftest green, because the fixture made that
+assertion unobservable. The check was decoration for as long as it existed. If
+a patch has N independent parts, it needs N mutants, and the one you are least
+worried about is the one most likely to be untested.
+
+**And a discipline for the reports themselves.** Three separate controls in
+this batch failed because they exercised the wrong branch: one mutated a pack
+id the fixture does not contain, one ran a tool from a directory where its
+ROOT resolves to `/`, one planted a fault the OLD branch already caught. State
+in the control which branch it exercises and how you know -- usually by naming
+a string only that branch prints, and by asserting the neighbouring branch's
+marker is ABSENT.
