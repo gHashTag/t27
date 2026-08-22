@@ -169,10 +169,84 @@ def _ever_existed(root, sp):
 
 
 def baseline():
+    """{name: kind} from the ledger. The kind column was always written and
+    always thrown away.
+
+    T83: the ledger forgave a NAME, not a state. `--update-baseline` writes
+    `name | kind | detail`, and reading it back kept only the name, so a
+    baselined entry was a permanent, kind-blind exemption. Measured on the real
+    tree: 58 baselined names are no longer in the bad set and NOTHING computed
+    that -- 56 are genuine repairs the gate never mentioned, and 2 seal files
+    are gone outright (FpgaEmission.json, radix_economy.json), both admitted as
+    `stale`, whose prescribed repair is "re-seal it". Deleting a stale seal
+    destroys the reproducibility record and the gate said nothing.
+
+    No file-format change: the writer already emits the kind, and a kind-less
+    line maps to None.
+    """
     if not BASELINE.exists():
-        return set()
-    return {l.split("|")[0].strip() for l in BASELINE.read_text().splitlines()
-            if l.strip() and not l.startswith("#")}
+        return {}
+    out = {}
+    for l in BASELINE.read_text().splitlines():
+        if not l.strip() or l.startswith("#"):
+            continue
+        parts = [x.strip() for x in l.split("|")]
+        out[parts[0]] = parts[1] if len(parts) > 1 and parts[1] else None
+    return out
+
+
+# `phantom` and `dangling` are decided from git history, which a shallow
+# checkout does not have -- `_ever_existed` concedes exactly that. Movement
+# WITHIN this pair is a property of the checkout, not of the repository, so it
+# is never reported as drift. Measured: 15 baselined entries sit at `phantom`
+# because the ledger was written when CI ran on a depth-1 clone, and read
+# `dangling` now that #2445 gave it history. That is the instrument being
+# fixed, not the tree changing.
+_HISTORY_PAIR = {"phantom", "dangling"}
+
+
+def compare(bad, known, present):
+    """(changed, departed, fixed) -- the three things a name-keyed ledger hid."""
+    badkind = {n: k for n, k, _ in bad}
+    badnames = set(badkind)
+    changed = []
+    for n, was in sorted(known.items()):
+        now = badkind.get(n)
+        if now is None or was is None or was == now:
+            continue
+        if {was, now} <= _HISTORY_PAIR:
+            continue
+        changed.append((n, was, now))
+    left = sorted(set(known) - badnames)
+    departed = [n for n in left if n not in present]
+    fixed = [n for n in left if n in present]
+    return changed, departed, fixed
+
+
+def _check_compare():
+    """T83: the ledger forgives a STATE, not a name.
+
+    Pure, so it needs no tree: `compare` is the whole of the new behaviour.
+    Movement inside {phantom, dangling} must stay silent -- that pair is
+    decided from git history a shallow checkout does not have, and 15 real
+    entries sit exactly there because the ledger was written before #2445 gave
+    CI its history.
+    """
+    present = {"A.json", "B.json", "D.json"}
+    bad = [("A.json", "dangling", ""), ("B.json", "dangling", "")]
+    ch, dep, fx = compare(bad, {"A.json": "stale"}, present)
+    real_change = ch == [("A.json", "stale", "dangling")]
+    ch2, _, _ = compare(bad, {"B.json": "phantom"}, present)
+    pair_silent = ch2 == []
+    _, dep3, _ = compare(bad, {"Gone.json": "stale"}, present)
+    departure = dep3 == ["Gone.json"]
+    _, _, fx4 = compare(bad, {"D.json": "stale"}, present)
+    repair = fx4 == ["D.json"]
+    ok = real_change and pair_silent and departure and repair
+    print(f"  compare: real kind change reported = {real_change}, "
+          f"phantom/dangling silent = {pair_silent}, "
+          f"departure named = {departure}, repair named = {repair}")
+    return ok
 
 
 def self_check():
@@ -202,7 +276,7 @@ def self_check():
           f"phantom (no history), good one silent = {ok}")
     if not ok:
         print(f"              got {total} seals, kinds {kinds}")
-    return 0 if ok else 1
+    return 0 if (ok and _check_compare()) else 1
 
 
 def main():
@@ -222,10 +296,29 @@ def main():
         return 0
 
     known = baseline()
+    present = {q.name for q in (ROOT / ".trinity/seals").rglob("*.json")}
+    changed, departed, fixed = compare(bad, known, present)
+    if changed or departed or fixed:
+        for n, was, now in changed:
+            print(f"  CHANGED  {n}: {was} -> {now} (the repair is not the same one)")
+        for n in departed:
+            print(f"  DEPARTED {n}: baselined as broken, and the seal FILE is gone")
+        if fixed:
+            print(f"  NOTE     {len(fixed)} baselined seal(s) now hold. Drop their lines "
+                  f"so the gate holds them: {', '.join(fixed[:5])}"
+                  + (f" (+{len(fixed) - 5} more)" if len(fixed) > 5 else ""))
+        print()
     new = [b for b in bad if b[0] not in known]
     kinds = {}
     for _, k, _ in bad:
         kinds[k] = kinds.get(k, 0) + 1
+    if not new and (changed or departed):
+        print("A baselined seal changed class, or its file left the tree. A name in")
+        print("the ledger excuses the STATE it was recorded in, not every later one:")
+        print("`stale` says re-seal it, `dangling` says restore or remove, and a")
+        print("DEPARTED seal is a reproducibility record deleted rather than fixed.")
+        print("If deliberate, re-record with --update-baseline in the same commit.")
+        return 1
     if not new:
         print(f"OK: {total} seals, {total - len(bad)} hold, {len(bad)} known-broken "
               f"({', '.join(f'{v} {k}' for k, v in sorted(kinds.items()))}) "
