@@ -2000,6 +2000,47 @@ impl Parser {
         if self.current.kind == TokenKind::Equals {
             self.advance(); // consume =
 
+            // A TAGGED UNION: `pub const Operand = union(enum) { A: struct {...}, ... };`
+            // `union` is not a keyword in this lexer, so it arrives as an
+            // identifier and `union(enum)` parsed as a CALL -- whose argument
+            // is the keyword `enum`, reported as "Unexpected token in
+            // expression: KwEnum" pointing into the middle of a type.
+            //
+            // Captured verbatim rather than lowered to a struct. Its variants
+            // carry payload types (`RegOperand: struct { reg_num: u8 }`) and a
+            // union is not a struct: emitting one as the other would give every
+            // variant its own storage and silently change the layout. A backend
+            // that cannot read this text refuses the declaration, which is the
+            // outcome to want.
+            if self.current.kind == TokenKind::Ident && self.current.lexeme == "union" {
+                let mut text = String::new();
+                let mut depth = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            depth += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => depth -= 1,
+                        _ => {}
+                    }
+                    if !text.is_empty() {
+                        text.push(' ');
+                    }
+                    text.push_str(&self.current.lexeme);
+                    self.advance();
+                    if seen && depth == 0 {
+                        break;
+                    }
+                }
+                decl.value = text;
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                return Ok(decl);
+            }
+
             // [BUG 8 FIX] Check what follows: enum(...), struct { }, [N]T{ }, identifier, number, etc.
             if self.current.kind == TokenKind::KwEnum {
                 // pub const Trit = enum(i8) { ... };
@@ -3171,6 +3212,21 @@ impl Parser {
 
     /// Parse a single statement inside a function body
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
+        // `inline for (...)` / `inline while (...)` -- Zig's unroll hint. It is
+        // not a keyword in this lexer, so it arrived as an identifier, the
+        // statement was parsed as the expression `inline`, and the loop keyword
+        // behind it became "unexpected token after expression statement".
+        //
+        // Skipped, not recorded: `inline` asks the compiler to unroll, and a
+        // parser that does not unroll loses nothing by ignoring it. The loop
+        // itself is parsed normally, which is the part that carries meaning.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "inline"
+            && matches!(self.peek.kind, TokenKind::KwFor | TokenKind::KwWhile)
+        {
+            self.advance();
+        }
+
         // W914: a Rust-dialect `match` block. The grammar has no match; the
         // frozen parser ATE it through an uncounted channel and called the fn
         // parsed, and this parser hard-errored -- both wrong. Capture the
@@ -4442,9 +4498,28 @@ impl Parser {
                 idx_node.children.push(index);
                 expr = idx_node;
             } else if self.current.kind == TokenKind::LParen {
-                // Function call on an expression: shouldn't normally happen here
-                // since calls are handled in primary for ident(...) and @builtin(...)
-                break;
+                // A call on an ARBITRARY expression. The comment this replaces
+                // said it "shouldn't normally happen", and `func.?(a, b)` in
+                // specs/jit/jit.t27 is exactly it: the optional is unwrapped by
+                // the branch above, and the call on the result arrived here and
+                // was left unconsumed -- so the statement parser met a bare
+                // `(` and reported "unexpected token after expression
+                // statement: LParen", pointing past the construct rather than
+                // at it.
+                self.advance(); // consume (
+                let mut call = Node::new(NodeKind::ExprCall);
+                call.children.push(expr);
+                call.extra_op = "callee_expr".to_string();
+                while self.current.kind != TokenKind::RParen
+                    && self.current.kind != TokenKind::Eof
+                {
+                    call.children.push(self.parse_expr()?);
+                    if self.current.kind == TokenKind::Comma {
+                        self.advance();
+                    }
+                }
+                self.expect(TokenKind::RParen)?;
+                expr = call;
             } else {
                 break;
             }
