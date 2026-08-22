@@ -47,7 +47,7 @@ const SPEC: &str = r#"module RCA2Probe {
     }
 
     fn driver() {
-        consume([1, 2, 3, 4])
+        consume([1, 2, 3, 4]);
         return
     }
 }
