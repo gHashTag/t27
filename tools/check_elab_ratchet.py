@@ -333,9 +333,22 @@ def main():
     if "--self-check" in sys.argv:
         return self_check()
 
+    # T89: this used to `return 0`. The ratchet then greenlights an unchecked
+    # tree and says so out loud -- exactly the "SKIP: tool missing -> 0" shape
+    # the gate audit asks about. It is not exploitable in fpga-conformance
+    # today, because the iverilog install step above it exits 1 after three
+    # bounded attempts. But that guarantee lives in a NEIGHBOURING step and is
+    # invisible from here: add this gate to another job -- which is what
+    # happened to its own control one day earlier -- and the guarantee does not
+    # travel with it. The precondition now belongs to the gate.
     if not shutil.which("iverilog") or not T27C.exists():
         print("SKIP: iverilog or target/release/t27c missing")
-        return 0
+        if "--allow-missing-tools" in sys.argv:
+            print("  --allow-missing-tools given: reporting nothing, deliberately")
+            return 0
+        print("  FAIL: nothing was checked. Pass --allow-missing-tools to")
+        print("        accept that locally; CI must never pass it.")
+        return 1
 
     gen = subprocess.run(
         [str(T27C), "fpga-build", "--smoke"], capture_output=True, text=True
