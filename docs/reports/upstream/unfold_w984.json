@@ -56,5 +56,22 @@
  "environment": {
   "disk": "the wave hit ENOSPC mid-edit at 0.12 GiB free and lost a whole patch batch; recovered by deleting regenerable netlists and Rust rlibs, 2.40 GiB reclaimed",
   "web_search": "unavailable all session"
- }
+ },
+ "die_reads_canonical": [
+  {
+   "design": "gft_smul",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W984",
+   "site": 4
+  },
+  {
+   "design": "gft_sadd",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W984",
+   "site": 3
+  }
+ ],
+ "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it."
 }

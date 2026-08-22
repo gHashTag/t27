@@ -225,5 +225,89 @@
    "base -- origin/master has no merge-base; awaiting a human, see MASTER-ORPHANED-W971.md"
   ],
   "numbers": "369 derived checks, 0 discrepancies"
- }
+ },
+ "die_reads_canonical": [
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W981",
+   "seed": 42,
+   "site": 3,
+   "fmax_mhz": 18.15
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1101",
+   "ok": 0,
+   "wave": "W981",
+   "seed": 7,
+   "site": 1,
+   "fmax_mhz": 17.36
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W981",
+   "seed": 31337,
+   "site": 3,
+   "fmax_mhz": 16.41
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1101",
+   "ok": 0,
+   "wave": "W981",
+   "seed": 7,
+   "site": 3,
+   "fmax_mhz": 18.14
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1101",
+   "ok": 0,
+   "wave": "W981",
+   "seed": 7,
+   "site": 3,
+   "fmax_mhz": 17.91
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W981",
+   "seed": 7,
+   "site": 2,
+   "fmax_mhz": 18.57
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W981",
+   "seed": 1234,
+   "site": 1,
+   "fmax_mhz": 17.64
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W981",
+   "seed": 1234,
+   "site": 3,
+   "fmax_mhz": 17.59
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W981",
+   "seed": 1234,
+   "site": 2,
+   "fmax_mhz": 17.68
+  }
+ ],
+ "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it."
 }

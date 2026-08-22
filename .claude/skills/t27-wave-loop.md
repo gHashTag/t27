@@ -12621,6 +12621,10 @@ a worktree in the same wave its branch merges.
 
 **1517. TEN HUNDREDTHS OF A SECOND IS NOT A PROPERTY OF THE DESIGN.** gft_train1 was ABSENT for two waves, killed at 600.10 s. Rebuilt under a larger cap it placed in 536.85 s -- it had been over by a tenth of a second on a netlist 0.4 % larger. A verdict that close to the boundary is a coin flip with the harness, not a measurement of the circuit, and it was carried in the table as though it described the circuit. When a run dies within a few percent of its limit, record it as MARGINAL and retry before it hardens into a fact. (T846, W988)
 
+**1518. IF A TABLE CANNOT BE DERIVED, IT IS NOT A RESULT YET.** Six waves assembled the operator table by hand from records that share no schema. Asking a script to derive it: 10 of 38 die reads could be placed. The numbers were right and the path from record to table ran through a person, which is the same defect as the oracles that lived only in a scratchpad -- correct, and not reproducible. One convention (die_reads_canonical) and ten normalised files took it to 39 of 39. Before publishing a table, try to regenerate it from the records with a script that knows nothing; whatever it cannot find is what a referee cannot check. (T847, W989)
+
+**1519. PUT THE CAVEAT WHERE THE NUMBER IS QUOTED.** tri table marks a design SPLIT when its die reads disagree -- but it groups by design NAME across every wave, so it mixes source revisions with placements: gft_smul's 1010 and 1111 are before and after a repair, while gft_dup_folded's 1101 and 1111 are one netlist placed four ways. The tool cannot separate them, so the tool says so, in its own output, every time it runs. Reports get summarised and tools get quoted; a limitation recorded only in prose is a limitation that will be dropped by the first person who copies the table. (T847a, W989)
+
 ### How to update this tracker
 
 After closing a wave:

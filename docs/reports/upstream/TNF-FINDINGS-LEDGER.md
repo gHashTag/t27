@@ -2395,3 +2395,47 @@ waves as a fact about the circuit.
 passing. It is the one operator this project has never read off silicon, and the
 reason is placement time alone. Six of seven now stand measured with all four
 clauses real.
+
+## 58. The table stops being transcribed (W989)
+
+Six consecutive waves assembled the operator table by hand. This one asked a
+script to derive it instead, and the script could place **10 of 38 die reads**.
+The rest sit in records that name the design differently -- `operators.<name>`,
+`die_reads[]`, `reads[]`, `sweep.<wrapper>.reads[]` -- because twenty-odd
+measurement files were each written in whatever shape suited the wave that wrote
+them.
+
+The numbers were never wrong. The path from record to table ran through a person,
+which is the same defect as the conformance oracles that lived only in a session
+scratchpad: correct, and not reproducible. **A referee re-deriving this table by
+script would have got a quarter of it.**
+
+One convention fixes it. `die_reads_canonical` holds
+`{design, clauses, ok, wave, seed?, site?, LUT?, pnr_s?}`; ten records were
+normalised and **39 of 39 reads now place, none skipped**. `tri table` reads the
+canonical key first and guesses only for records written before the convention
+existed.
+
+| operator | reads | pass | fail | verdicts |
+|----------|-------|------|------|----------|
+| `gft_commmin` | 7 | 3 | 4 | `1001` `1011` `1101` `1111` |
+| `gft_dup` | 13 | 10 | 3 | `1101` `1111` |
+| `gft_dup_folded` | 4 | 2 | 2 | `1101` `1111` |
+| `gft_sadd` | 4 | 4 | 0 | `1111` |
+| `gft_signed_dot4` | 1 | 1 | 0 | `1111` |
+| `gft_signed_mac` | 2 | 1 | 1 | `0011` `1111` |
+| `gft_smul` | 6 | 5 | 1 | `1010` `1111` |
+| `gft_train1` | 2 | 2 | 0 | `1111` |
+
+The instrument states its own limit in its own output. `SPLIT` groups by design
+name across every wave, so it mixes source revisions with placements: `gft_smul`
+shows `1010` and `1111` because its clauses were repaired between the two, while
+`gft_dup_folded` shows `1101` and `1111` because one netlist was placed four ways.
+Those are different kinds of disagreement, the tool cannot separate them, and the
+wave column can. That caveat is printed rather than filed, for the same reason
+`tri seeds` prints the number of tries: reports get summarised and tools get
+quoted.
+
+`gft_xorpercep` was still placing under a 3600 s cap when this was written, and is
+recorded as IN FLIGHT rather than omitted, so the next wave does not rediscover
+the question.

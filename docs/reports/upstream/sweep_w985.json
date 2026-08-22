@@ -92,5 +92,80 @@
  "environment": {
   "disk": "0.37 GiB at the sweep's end; t27-silicon cleared to 0.45 GiB",
   "web_search": "unavailable all session"
- }
+ },
+ "die_reads_canonical": [
+  {
+   "design": "gft_smul",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 1,
+   "site": 1,
+   "LUT": 1877
+  },
+  {
+   "design": "gft_smul",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 7,
+   "site": 4,
+   "LUT": 1877
+  },
+  {
+   "design": "gft_smul",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 42,
+   "site": 4,
+   "LUT": 1877
+  },
+  {
+   "design": "gft_smul",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 1234,
+   "site": 4,
+   "LUT": 1877
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 1,
+   "site": 4,
+   "LUT": 1763
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 7,
+   "site": 4,
+   "LUT": 1763
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 42,
+   "site": 4,
+   "LUT": 1763
+  },
+  {
+   "design": "gft_dup",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W985",
+   "seed": 1234,
+   "site": 4,
+   "LUT": 1763
+  }
+ ],
+ "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it."
 }

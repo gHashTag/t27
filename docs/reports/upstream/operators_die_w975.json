@@ -43,5 +43,22 @@
    "control_run": true
   }
  },
- "finding": "gft_signed_mac passes every test it has in simulation (2/2) and satisfies only 2 of the 4 clauses its on-die check evaluates. The die check is STRONGER than the simulation suite the spec ships with -- the failing clauses are not covered in simulation, so this is a coverage gap made visible by hardware, not a simulator that lies. beat=1 and Done=1 with a wrong-part control at Done=0: the design is alive, loaded, and answering incorrectly. Timing closed with 4.1x margin (9.14 MHz against a 2.21 MHz target), so a timing violation is not the obvious explanation."
+ "finding": "gft_signed_mac passes every test it has in simulation (2/2) and satisfies only 2 of the 4 clauses its on-die check evaluates. The die check is STRONGER than the simulation suite the spec ships with -- the failing clauses are not covered in simulation, so this is a coverage gap made visible by hardware, not a simulator that lies. beat=1 and Done=1 with a wrong-part control at Done=0: the design is alive, loaded, and answering incorrectly. Timing closed with 4.1x margin (9.14 MHz against a 2.21 MHz target), so a timing violation is not the obvious explanation.",
+ "die_reads_canonical": [
+  {
+   "design": "gft_sadd",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W975",
+   "LUT": 1312
+  },
+  {
+   "design": "gft_signed_mac",
+   "clauses": "0011",
+   "ok": 0,
+   "wave": "W975",
+   "LUT": 6466
+  }
+ ],
+ "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it."
 }

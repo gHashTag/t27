@@ -99,5 +99,44 @@
  },
  "environment": {
   "web_search": "unavailable all session (model-config error); competitor and literature work analytic only"
- }
+ },
+ "die_reads_canonical": [
+  {
+   "design": "gft_commmin",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W982",
+   "seed": 7,
+   "site": 2,
+   "LUT": 430
+  },
+  {
+   "design": "gft_commmin",
+   "clauses": "1101",
+   "ok": 0,
+   "wave": "W982",
+   "seed": 1234,
+   "site": 3,
+   "LUT": 452
+  },
+  {
+   "design": "gft_commmin",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W982",
+   "seed": 42,
+   "site": 2,
+   "LUT": 430
+  },
+  {
+   "design": "gft_commmin",
+   "clauses": "1101",
+   "ok": 0,
+   "wave": "W982",
+   "seed": 1,
+   "site": 3,
+   "LUT": 452
+  }
+ ],
+ "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it."
 }

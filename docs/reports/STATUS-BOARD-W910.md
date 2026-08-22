@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W988, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W989, 2026-08-22)
+
+> **W989 — THE TABLE STOPS BEING TRANSCRIBED AND STARTS BEING DERIVED.** Six waves assembled the
+> operator table by hand. Asked to derive it instead, a script could place **10 of 38 die reads** —
+> twenty-odd records each nesting the read in the shape that suited its wave. **A referee
+> re-deriving the table by script would have got a quarter of it**, which is the same defect family
+> as the oracles that lived only in a scratchpad. Fixed by a convention, `die_reads_canonical`:
+> **10 records normalised, 39 of 39 reads placed, 0 skipped.** New `tri table` derives 8 designs,
+> **39 die reads, 28 with `ok=1`** — and prints its own limit every run: `SPLIT` groups by design
+> *name* across waves, so it mixes **source revisions** (`gft_smul` `1010`/`1111`, straddling a
+> repair) with **placements** (`gft_dup_folded` `1101`/`1111`, one netlist placed four ways).
+> **In flight:** `gft_xorpercep` under a 3600 s cap — 28 609 LUT needing >62.9 ms/LUT, the one
+> operator never read off silicon. Recorded as IN FLIGHT rather than omitted.
+> T847/T847a, lessons 1518–1519, **499 derived checks**. **Readiness 97 %.**
 
 > **W988 — THE CAP WAS DERIVED FROM A SLOPE THAT IS WRONG BY 2.4×, AND IS NOT A SLOPE.** Completed
 > builds give **33.7 / 50.4 / 51.0 ms/LUT** against a documented **21**; `gft_xorpercep` needs

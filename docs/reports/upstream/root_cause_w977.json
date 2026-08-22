@@ -72,5 +72,22 @@
   "gft_xorpercep": "1/1 sim, ABSENT -- PnR 600 s cap",
   "gft_bitnet_neuron": "2 sim, FAIL timing 16.63 vs 70.77 MHz",
   "gft_signed_dot4": "ABSENT -- PnR cap + BSCAN chain/site mismatch"
- }
+ },
+ "die_reads_canonical": [
+  {
+   "design": "gft_smul",
+   "clauses": "1010",
+   "ok": 0,
+   "wave": "W977",
+   "LUT": null
+  },
+  {
+   "design": "gft_train1",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W977",
+   "LUT": null
+  }
+ ],
+ "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it."
 }

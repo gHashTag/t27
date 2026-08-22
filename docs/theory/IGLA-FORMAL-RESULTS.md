@@ -30891,6 +30891,48 @@ read off silicon, and the reason is placement time alone.
 
 The table stands at **six of seven measured with all four clauses real**.
 
+### T847 -- Three quarters of the die reads were not machine-locatable [measured]
+
+The operator table has been assembled by hand in six consecutive waves. Asking a
+script to derive it instead: **10 of 38 die reads could be placed.** The other 28
+sit in records that name the design differently -- `operators.<name>`,
+`die_reads[]`, `reads[]`, `sweep.<wrapper>.reads[]` -- because twenty-odd
+measurement files were each written in the shape that suited the wave that wrote
+them.
+
+**A referee re-deriving this table by script would have got a quarter of it.**
+That is a reproducibility defect of the same family as the oracles that lived only
+in a scratchpad (W981): the numbers are correct and the path from record to table
+runs through a person.
+
+The fix is a convention, `die_reads_canonical`, holding
+`{design, clauses, ok, wave, seed?, site?, LUT?, pnr_s?}`. Ten records normalised,
+**39 reads canonicalised, 0 skipped**, and `tri table` now derives:
+
+| operator | reads | pass | fail | verdicts |
+|----------|-------|------|------|----------|
+| `gft_commmin` | 7 | 3 | 4 | `1001` `1011` `1101` `1111` |
+| `gft_dup` | 13 | 10 | 3 | `1101` `1111` |
+| `gft_dup_folded` | 4 | 2 | 2 | `1101` `1111` |
+| `gft_sadd` | 4 | 4 | 0 | `1111` |
+| `gft_signed_dot4` | 1 | 1 | 0 | `1111` |
+| `gft_signed_mac` | 2 | 1 | 1 | `0011` `1111` |
+| `gft_smul` | 6 | 5 | 1 | `1010` `1111` |
+| `gft_train1` | 2 | 2 | 0 | `1111` |
+
+**8 designs, 39 die reads, 28 with `ok=1`.**
+
+### T847a -- The derived table's own limit, stated in the tool [measured]
+
+`SPLIT` groups by design *name* across every wave, so it mixes **source
+revisions** with **placements**. `gft_smul` shows `1010` and `1111` because its
+clauses were repaired between the two (T836, T839); `gft_dup_folded` shows `1101`
+and `1111` because one netlist was placed four ways (T842). Those are different
+kinds of disagreement and the instrument cannot separate them -- the wave column
+can. The caveat is printed by `tri table` itself rather than kept in a report,
+for the same reason `tri seeds` prints the number of tries: reports get
+summarised, tools get quoted.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

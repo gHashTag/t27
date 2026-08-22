@@ -35,6 +35,7 @@ Local commands (no compiler needed):
   tri clauses WRAPPER.v       which on-die clauses survive synthesis, and which folded to a constant
   tri seeds SPEC WRAPPER      one netlist, several placements: does the die give one answer or several?
   tri slope                   place-and-route seconds per LUT, re-derived from the records
+  tri table                   the operator table, derived from every die read on record
   tri help                    this text
 
 Environment:
@@ -81,6 +82,103 @@ cmd="${1:-}"
 case "$cmd" in
   help|-h|--help)
     usage
+    exit 0
+    ;;
+
+  table)
+    # W989: the operator table has been assembled by hand in six consecutive waves,
+    # and by W987 it disagreed with itself -- a row said ABSENT that a later record
+    # had measured. The table is derivable: every die read this project keeps lives
+    # in a record with a design name, a clause word and an ok bit. So derive it.
+    R="${T27_RECORDS:-$REPO_ROOT/docs/reports/upstream}"
+    R="$R" python3 - <<'PYTAB'
+import json, os, pathlib, re
+
+R = pathlib.Path(os.environ["R"])
+rows = {}          # design -> list of (wave, clauses, ok, LUT, record)
+
+# W989: the records do not share a schema. Twenty-odd files written across as
+# many waves each nest the die read differently -- `operators.<name>`,
+# `die_reads[]`, `reads[]`, `sweep.<wrapper>.reads[]` -- so a derived table has to
+# guess which enclosing key names the DESIGN. Guess narrowly: only a key that
+# looks like a design name counts, and container names never do. Anything the
+# guess cannot place is dropped and counted, because a table that silently
+# absorbs unplaceable rows is worse than one that admits what it skipped.
+CONTAINERS = {"reads", "die_reads", "operators", "sweep", "results", "die_reads_with_every_clause_real"}
+DESIGN = re.compile(r"^gft_[a-z0-9_]+$")
+skipped = []
+
+def note(design, wave, clauses, ok, lut, src):
+    if not clauses:
+        return
+    d = (design or "").replace("_jtag.v", "").replace("_jtag", "")
+    if not DESIGN.fullmatch(d) or d in CONTAINERS:
+        skipped.append((design, src)); return
+    rows.setdefault(d, []).append((wave, str(clauses), ok, lut, src))
+
+for f in sorted(R.glob("*.json")):
+    try:
+        d = json.loads(f.read_text())
+    except Exception:
+        continue
+    if not isinstance(d, dict):
+        continue
+    wave = d.get("wave", f.stem)
+
+    # W989: a record that carries the canonical list is read from it, and nothing
+    # is guessed. The walk below remains only for records written before the
+    # convention existed.
+    if isinstance(d.get("die_reads_canonical"), list):
+        for r in d["die_reads_canonical"]:
+            note(r.get("design"), r.get("wave", wave), r.get("clauses"),
+                 r.get("ok"), r.get("LUT"), f.name)
+        continue
+
+    def walk(o, name=None):
+        if isinstance(o, dict):
+            cl = o.get("clauses") or o.get("die_clauses")
+            ok = o.get("ok")
+            nm = o.get("design") or name
+            if isinstance(cl, str) and re.fullmatch(r"[01]{4}", cl):
+                note(nm, wave, cl, ok, o.get("LUT"), f.name)
+            elif isinstance(cl, list):
+                for c in cl:
+                    if isinstance(c, str) and re.fullmatch(r"[01]{4}", c):
+                        note(nm, wave, c, ok, o.get("LUT"), f.name)
+            for k, v in o.items():
+                walk(v, k if isinstance(v, (dict, list)) else name)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v, name)
+    walk(d)
+
+if not rows:
+    print("tri table: no record carries a four-bit clause word -- nothing to derive")
+    raise SystemExit(0)
+
+print(f"{'operator':<22}{'reads':>6}{'pass':>6}{'fail':>6}  verdicts        newest record")
+tot = ok_n = 0
+for name in sorted(rows):
+    rs = rows[name]
+    words = sorted({r[1] for r in rs})
+    p = sum(1 for r in rs if r[2] == 1)
+    f_ = sum(1 for r in rs if r[2] == 0)
+    tot += len(rs); ok_n += p
+    newest = sorted(rs)[-1][4]
+    flag = "  SPLIT" if len(words) > 1 else ""
+    print(f"{name:<22}{len(rs):>6}{p:>6}{f_:>6}  {' '.join(words):<15} {newest}{flag}")
+print(f"\ntri table: {len(rows)} operator(s), {tot} die read(s), {ok_n} with ok=1"
+      + (f", {len(skipped)} read(s) skipped -- no design name in scope" if skipped else ""))
+print("Derived from the records, not transcribed. A design with more than one")
+print("distinct verdict is marked SPLIT -- that is the T616 condition, and it is")
+print("the only thing in this table a single reading can never show.")
+print()
+print("READ SPLIT CAREFULLY. This groups by design name across every wave, so it")
+print("mixes SOURCE REVISIONS with PLACEMENTS. gft_smul shows 1010 and 1111 because")
+print("its clauses were repaired between the two (W983/W984) -- that is a different")
+print("kind of disagreement from gft_dup_folded's 1101/1111, which is one netlist")
+print("placed four ways. The tool cannot tell them apart; the wave column can.")
+PYTAB
     exit 0
     ;;
 
