@@ -203,16 +203,64 @@ fn dma_rlast_or_count_terminates_read() {
         .contains("if (m_axi_rlast || bytes_remaining <= 32'd8) state <= DONE_ST;"));
 }
 
+/// Both transfer paths must advance the local address, but they do it by
+/// different mechanisms and a single literal cannot see both.
+///
+/// This test used to count occurrences of `local_addr <= local_addr + 12'd1;`
+/// across the whole module and require two. #2345 replaced the read path's
+/// post-increment with `local_addr <= beat_index` — deliberately, because the
+/// post-increment landed beat 0's data at address 1 and never wrote slot 0 —
+/// so the count fell to one and the test failed. The test was stale, not the
+/// emitter: the *property* it meant to hold (each path advances the
+/// destination address) is still true.
+///
+/// It went unnoticed because `cargo test -p t27c --tests` stops at the first
+/// failing target and this one is 42nd, so it never ran. See #2382.
+///
+/// Anchored per state arm rather than counted globally: a count over the whole
+/// output cannot tell which path a match came from, which is what let the read
+/// path silently lose its advance.
 #[test]
-fn dma_local_addr_autoincrement_both_paths() {
+fn dma_local_addr_advances_on_both_paths() {
     let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
     assert!(ok);
-    let bumps = stdout.matches("local_addr      <= local_addr + 12'd1;").count();
+
+    let read_arm = arm(&stdout, "READ_DATA: if (m_axi_rvalid) begin", "end else local_we");
+    // The read path presents the beat's own index, so beat 0 lands at address 0.
     assert!(
-        bumps >= 2,
-        "expected local_addr++ on both read and write beats, got {}",
-        bumps
+        read_arm.contains("local_addr      <= beat_index;"),
+        "READ_DATA must present the beat index as the address, not post-increment \
+         (that was #2003 — beat 0 landed at address 1 and slot 0 was never written). \
+         READ_DATA arm was:\n{}",
+        read_arm
     );
+    assert!(
+        read_arm.contains("beat_index      <= beat_index + 12'd1;"),
+        "READ_DATA must advance beat_index, or every beat writes address 0. \
+         READ_DATA arm was:\n{}",
+        read_arm
+    );
+
+    // The write path's local_addr is a read pointer into local memory, so a
+    // post-increment is correct there and must not be "fixed" to match the read path.
+    let write_arm = arm(&stdout, "WRITE_DATA: begin", "WRITE_RESP");
+    assert!(
+        write_arm.contains("local_addr      <= local_addr + 12'd1;"),
+        "WRITE_DATA must advance local_addr, or every beat reads the same word. \
+         WRITE_DATA arm was:\n{}",
+        write_arm
+    );
+}
+
+/// Slice from `start` to the next `end_marker`, so an assertion cannot be
+/// satisfied by an identical line in a different state.
+fn arm<'a>(hay: &'a str, start: &str, end_marker: &str) -> &'a str {
+    let from = hay
+        .find(start)
+        .unwrap_or_else(|| panic!("state arm not found: {start}\nin:\n{hay}"));
+    let rest = &hay[from..];
+    let to = rest.find(end_marker).unwrap_or(rest.len());
+    &rest[..to]
 }
 
 // ============================================================================
