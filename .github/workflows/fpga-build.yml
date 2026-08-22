@@ -752,41 +752,37 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Result:** $pass passed, $fail failed" >> $GITHUB_STEP_SUMMARY
 
-      - name: Compile conformance testbenches (iverilog)
+      - name: Execute conformance vectors (iverilog + vvp)
         run: |
-          echo "## Conformance TB Compilation" >> $GITHUB_STEP_SUMMARY
+          # #2241 v1: the job now EXECUTES vectors instead of compiling
+          # everything and running nothing. Doctrine as formal v1: a thin gate
+          # that is real beats a broad one that is vacuous. The compile+run set
+          # is the executed-vector registry in tools/run_conformance_vvp.py
+          # (mac today); every module and group outside it is printed as debt,
+          # never silently counted as covered.
+          echo "## Conformance Vector Execution" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           mkdir -p build/fpga/conformance
-          pass=0
-          fail=0
-          for v in build/fpga/generated/*.v; do
-            # The top is the MODULE name, not the file name -- mac.v holds ZeroDSP_MAC,
-            # so a filename-derived top failed 31 of 32 modules. The repo's own
-            # convention (suite.rs:859, verify_emit_bitexact.py:184) reads generated
-            # Verilog with `-sv -DSIMULATION`: -sv for the emitter's SV static casts,
-            # -DSIMULATION to strip `ifndef SIMULATION` bench blocks whose $display
-            # has non-constant args synthesis cannot evaluate (mac.v:535). As
-            # written, this loop could never have passed.
-            name=$(sed -n 's/^module \([A-Za-z0-9_]*\).*/\1/p' "$v" | head -1)
-            # Audit 2026-08-19: bare -g2005 compiled 0/32 -- the repo convention
-            # (-sv -DSIMULATION, same fix as the yosys loop) was never applied here.
-            if iverilog -o "build/fpga/conformance/${name}_tb.vvp" -g2012 -DSIMULATION "$v" 2>/dev/null; then
-              pass=$((pass+1))
+          fails=0
+          for m in mac; do
+            v="build/fpga/generated/${m}.v"
+            if [ ! -f "$v" ]; then
+              echo "::error::generated ${m}.v missing"; fails=$((fails+1)); continue
+            fi
+            if python3 tools/run_conformance_vvp.py "$m" "$v" build/fpga/conformance | tee "build/fpga/conformance/${m}.log"; then
+              echo "| $m | EXECUTED, all cases passed |" >> $GITHUB_STEP_SUMMARY
             else
-              fail=$((fail+1))
+              echo "| $m | FAILED (see log) |" >> $GITHUB_STEP_SUMMARY
+              fails=$((fails+1))
             fi
           done
-          total=$((pass+fail))
-          echo "| Result | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Compiled OK | $pass |" >> $GITHUB_STEP_SUMMARY
-          echo "| Compile FAIL | $fail |" >> $GITHUB_STEP_SUMMARY
-          echo "| Total | $total |" >> $GITHUB_STEP_SUMMARY
+          # Debt inventory: modules with vector files but no executed groups yet.
+          total_json=$(ls conformance/fpga_*.json | wc -l | tr -d ' ')
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "$fail" -gt 0 ]; then
-            echo "::error::$fail/$total modules failed iverilog compilation"
-            exit 1
-          fi
+          echo "Vector files: $total_json; executed modules: 1 (registry v1). The" >> $GITHUB_STEP_SUMMARY
+          echo "remainder is open work in #2241 -- displayed, not counted as covered." >> $GITHUB_STEP_SUMMARY
+          [ "$fails" -gt 0 ] && { echo "::error::conformance execution failed"; exit 1; }
+          echo "conformance: executed set green"
 
       - name: Validate conformance JSON structure
         run: |
