@@ -59,9 +59,7 @@ pub enum GatesCmd {
 /// Gate scripts whose control lives in a SEPARATE file, and the file that
 /// holds it. Counting these as control-less would be wrong; counting the
 /// control files themselves as gates would be wrong twice.
-const EXTERNAL_CONTROL: &[(&str, &str)] = &[
-    ("wp18_conformance_gate.py", "wp18_selftest_gate.py"),
-];
+const EXTERNAL_CONTROL: &[(&str, &str)] = &[("wp18_conformance_gate.py", "wp18_selftest_gate.py")];
 
 /// Files under tools/ that ARE controls rather than gates.
 const IS_A_CONTROL: &[&str] = &[
@@ -86,7 +84,11 @@ fn sweep(controls_only: bool) -> Result<()> {
     let mut rows: Vec<(String, String, String)> = Vec::new();
 
     for f in &files {
-        let name = f.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        let name = f
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
         if IS_A_CONTROL.contains(&name.as_str()) {
             continue;
         }
@@ -125,7 +127,11 @@ fn sweep(controls_only: bool) -> Result<()> {
         println!("{:<38} {:>6}  {:>6}", n, g, c);
     }
     println!();
-    println!("{} gate(s); {} with no negative control at all:", rows.len(), uncontrolled.len());
+    println!(
+        "{} gate(s); {} with no negative control at all:",
+        rows.len(),
+        uncontrolled.len()
+    );
     for n in &uncontrolled {
         println!("  {}", n);
     }
@@ -207,7 +213,11 @@ fn mutate(only: Option<&str>) -> Result<()> {
     let mut total_survived: Vec<String> = Vec::new();
 
     for f in &files {
-        let name = f.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        let name = f
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
         if IS_A_CONTROL.contains(&name.as_str()) {
             continue;
         }
@@ -221,7 +231,10 @@ fn mutate(only: Option<&str>) -> Result<()> {
             .iter()
             .find(|fl| pristine.contains(&format!("\"{}\"", fl)))
             .map(|s| s.to_string());
-        let external = EXTERNAL_CONTROL.iter().find(|(g, _)| *g == name).map(|(_, c)| c.to_string());
+        let external = EXTERNAL_CONTROL
+            .iter()
+            .find(|(g, _)| *g == name)
+            .map(|(_, c)| c.to_string());
         if flag.is_none() && external.is_none() {
             println!("{:<38} {:>9}  {}", name, "-", "no control to run");
             continue;
@@ -264,17 +277,29 @@ fn mutate(only: Option<&str>) -> Result<()> {
             format!(
                 "SURVIVED at line{} {}",
                 if survivors.len() == 1 { "" } else { "s" },
-                survivors.iter().map(|l| l.to_string()).collect::<Vec<_>>().join(", ")
+                survivors
+                    .iter()
+                    .map(|l| l.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
         };
-        println!("{:<38} {:>9}  {}", name, format!("{}/{}", killed, sites.len()), verdict);
+        println!(
+            "{:<38} {:>9}  {}",
+            name,
+            format!("{}/{}", killed, sites.len()),
+            verdict
+        );
     }
 
     println!();
     if total_survived.is_empty() {
         println!("Every gate's control noticed every break in its failure path.");
     } else {
-        println!("{} gate(s) whose control did not notice:", total_survived.len());
+        println!(
+            "{} gate(s) whose control did not notice:",
+            total_survived.len()
+        );
         for n in &total_survived {
             println!("  {}", n);
         }
@@ -304,7 +329,10 @@ fn code(root: &std::path::Path, script: &str, args: &[&String]) -> String {
             if o.status.code() == Some(2) && err.contains("arguments are required") {
                 return "args".into();
             }
-            o.status.code().map(|n| n.to_string()).unwrap_or_else(|| "sig".into())
+            o.status
+                .code()
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| "sig".into())
         }
         Err(_) => "ERR".into(),
     }
@@ -492,6 +520,41 @@ mod sweep_tests {
     use super::*;
 
     #[test]
+    fn mutation_never_touches_the_control_itself() {
+        // The mistake this guards against was made by hand first: one regex
+        // over every `return 1..4` also rewrote the returns inside self_check,
+        // so two sound controls reported a vacuous pass when what had actually
+        // broken was their ability to report at all.
+        let src = "\
+def check(root):\n    if bad:\n        return 1\n    return 0\n\
+def self_check():\n    if not ok:\n        return 1\n    return 0\n\
+def main():\n    if problems:\n        return 2\n    return 0\n";
+        let sites = mutable_sites(src);
+        let lines: Vec<usize> = sites.iter().map(|(at, _, _)| line_of(src, *at)).collect();
+        assert_eq!(lines, vec![3, 11], "got {:?}", sites);
+        // The `return 1` at line 7 is self_check's own. Mutating it would
+        // break the instrument rather than the subject.
+        assert!(!lines.contains(&7));
+    }
+
+    #[test]
+    fn a_returns_zero_is_not_a_failure_path() {
+        // Only 1..4 are verdicts. Flipping `return 0` to `return 0` is a
+        // no-op mutant, and a no-op mutant that "survives" would be scored as
+        // a gap that is not there -- a finding invented by the tool.
+        assert!(mutable_sites("def main():\n    return 0\n").is_empty());
+        assert!(mutable_sites("def main():\n    return 5\n").is_empty());
+    }
+
+    #[test]
+    fn nested_defs_do_not_end_the_control_region() {
+        // `case()` and friends are defined INSIDE self_check, indented. Only a
+        // `def` at column zero changes which region we are in.
+        let src = "def self_check():\n    def case(x):\n        return 1\n    return 0\n";
+        assert!(mutable_sites(src).is_empty());
+    }
+
+    #[test]
     fn control_files_are_not_counted_as_gates() {
         // T85: wp18_selftest_gate.py IS the control for wp18_conformance_gate.py.
         // Counting it as a gate in its own right would report it as having no
@@ -506,7 +569,10 @@ mod sweep_tests {
     fn a_gate_is_never_both_a_gate_and_its_own_control() {
         for (g, c) in EXTERNAL_CONTROL {
             assert_ne!(g, c, "a script cannot be its own negative control");
-            assert!(IS_A_CONTROL.contains(c), "{c} must be excluded from the gate list");
+            assert!(
+                IS_A_CONTROL.contains(c),
+                "{c} must be excluded from the gate list"
+            );
         }
     }
 }

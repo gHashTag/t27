@@ -10,7 +10,11 @@ pub fn merkle_root(leaves: &[[u8; 32]]) -> [u8; 32] {
         let mut i = 0;
         while i < layer.len() {
             let left = layer[i];
-            let right = if i + 1 < layer.len() { layer[i + 1] } else { left };
+            let right = if i + 1 < layer.len() {
+                layer[i + 1]
+            } else {
+                left
+            };
             next.push(hash_pair(&left, &right));
             i += 2;
         }
@@ -19,7 +23,12 @@ pub fn merkle_root(leaves: &[[u8; 32]]) -> [u8; 32] {
     layer[0]
 }
 
-pub fn verify_merkle(root: &[u8; 32], leaf: &[u8; 32], siblings: &[[u8; 32]], index: usize) -> bool {
+pub fn verify_merkle(
+    root: &[u8; 32],
+    leaf: &[u8; 32],
+    siblings: &[[u8; 32]],
+    index: usize,
+) -> bool {
     let mut current = *leaf;
     let mut idx = index;
     for sibling in siblings {
@@ -64,8 +73,18 @@ mod tests {
             sha2_hash(&[3u8]),
         ];
         let root = merkle_root(&leaves);
-        assert!(verify_merkle(&root, &leaves[0], &get_siblings(&leaves, 0), 0));
-        assert!(verify_merkle(&root, &leaves[3], &get_siblings(&leaves, 3), 3));
+        assert!(verify_merkle(
+            &root,
+            &leaves[0],
+            &get_siblings(&leaves, 0),
+            0
+        ));
+        assert!(verify_merkle(
+            &root,
+            &leaves[3],
+            &get_siblings(&leaves, 3),
+            3
+        ));
     }
 
     fn sha2_hash(input: &[u8]) -> [u8; 32] {
@@ -88,7 +107,11 @@ mod tests {
             let mut i = 0;
             while i < layer.len() {
                 let left = layer[i];
-                let right = if i + 1 < layer.len() { layer[i + 1] } else { left };
+                let right = if i + 1 < layer.len() {
+                    layer[i + 1]
+                } else {
+                    left
+                };
                 next.push(super::hash_pair(&left, &right));
                 i += 2;
             }

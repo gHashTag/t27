@@ -68,11 +68,7 @@ fn yosys_version() -> Result<String> {
         .output()
         .context("yosys is not installed or not on PATH")?;
     let s = String::from_utf8_lossy(&out.stdout).to_string();
-    let v = s
-        .split_whitespace()
-        .take(2)
-        .collect::<Vec<_>>()
-        .join(" ");
+    let v = s.split_whitespace().take(2).collect::<Vec<_>>().join(" ");
     if v.trim().is_empty() {
         bail!("yosys -V printed nothing; refusing to report numbers from an unnamed tool");
     }
@@ -189,7 +185,10 @@ fn check(dir: &Path, top: Option<&str>, json: bool, expect_flops: Option<u64>) -
         name: "sources resolve",
         pass: missing.is_empty(),
         detail: if missing.is_empty() {
-            format!("every file info.yaml declares is present ({} of them)", sources.len())
+            format!(
+                "every file info.yaml declares is present ({} of them)",
+                sources.len()
+            )
         } else {
             format!("declared but absent: {}", missing.join(", "))
         },
@@ -263,9 +262,7 @@ fn check(dir: &Path, top: Option<&str>, json: bool, expect_flops: Option<u64>) -
         pass: flops_ok,
         detail: match expect_flops {
             Some(e) if e != flops => format!("{flops} flip-flops, asserted {e}"),
-            _ => format!(
-                "{flops} flip-flops, so a clock frequency is a meaningful question"
-            ),
+            _ => format!("{flops} flip-flops, so a clock frequency is a meaningful question"),
         },
         command: "stat, any cell type containing \"dff\"".into(),
     });
@@ -274,7 +271,10 @@ fn check(dir: &Path, top: Option<&str>, json: bool, expect_flops: Option<u64>) -
     // that never got pushed would otherwise leave a shorter report that reads
     // exactly like a complete one.
     if v.len() != 5 {
-        bail!("the report carries {} verdicts where five were expected", v.len());
+        bail!(
+            "the report carries {} verdicts where five were expected",
+            v.len()
+        );
     }
 
     if json {
@@ -315,7 +315,10 @@ fn check(dir: &Path, top: Option<&str>, json: bool, expect_flops: Option<u64>) -
     }
 
     if v.iter().any(|x| !x.pass) {
-        bail!("{} of 5 checks failed", v.iter().filter(|x| !x.pass).count());
+        bail!(
+            "{} of 5 checks failed",
+            v.iter().filter(|x| !x.pass).count()
+        );
     }
     Ok(())
 }

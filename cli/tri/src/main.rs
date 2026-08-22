@@ -7,8 +7,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-mod depin;
 mod cibase;
+mod depin;
+mod elab;
 mod fleet;
 mod fpga;
 mod gates;
@@ -19,9 +20,8 @@ mod prcheck;
 mod red;
 mod rtl;
 mod sweep;
-mod elab;
-mod vectors;
 mod synth;
+mod vectors;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]

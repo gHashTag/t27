@@ -58,11 +58,7 @@ impl MiningEpoch {
 
     pub fn next(&self) -> Self {
         let mut seed = [0u8; 16];
-        let hash = sha2_hash(&[
-            b"EPOCH_SEED",
-            &self.epoch_id.to_le_bytes(),
-            &self.phi_seed,
-        ]);
+        let hash = sha2_hash(&[b"EPOCH_SEED", &self.epoch_id.to_le_bytes(), &self.phi_seed]);
         seed.copy_from_slice(&hash[..16]);
         Self {
             epoch_id: self.epoch_id + 1,
