@@ -14060,9 +14060,26 @@ impl VerilogCodegen {
                             self.write_indent();
                             self.write_line("end");
                         } else {
-                            self.write_indent();
-                            self.gen_verilog_expr(expr);
-                            self.write_line(";");
+                            // #2413(3): a bare call in statement position whose
+                            // value was hoisted into a W557 temp would emit the
+                            // RESIDUAL temp name as a statement -- and a bare
+                            // identifier statement is a task enable in Verilog
+                            // ("Enable of unknown task _t27_call_tmp_...").
+                            // The materialized assignment above already
+                            // performed the call; the residual says nothing.
+                            let hoisted_bare_call = self.use_call_array_temps
+                                && expr.kind == NodeKind::ExprCall
+                                && self
+                                    .call_returning_cse_value_info(expr)
+                                    .map(|(key, _, _, _, _)| {
+                                        self.call_array_tmp_names.contains_key(&key)
+                                    })
+                                    .unwrap_or(false);
+                            if !hoisted_bare_call {
+                                self.write_indent();
+                                self.gen_verilog_expr(expr);
+                                self.write_line(";");
+                            }
                         }
                     }
                 }
