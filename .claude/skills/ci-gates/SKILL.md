@@ -306,3 +306,36 @@ Rules distilled:
   file → union-merge of every hunk, guarded to that one file and known shape;
   anything else → report and stop. Six NOW.md races were resolved by hand before
   the watch learned to; zero after.
+
+## 12. The executed-vector registry: three verdicts, never two
+
+When a corpus of "conformance vectors" has never been run, the repair is not
+"run them all" — it is a REGISTRY that sorts every artifact into exactly one of
+three verdicts, each with a different obligation:
+
+| verdict | meaning | obligation |
+|---|---|---|
+| **executed** | a call template maps the case shape onto real RTL entry points | gate hard; a planted fault must fail (prove it once per renderer) |
+| **named debt** | executable in principle, blocked by a NUMBERED defect | print it in the job summary; link the issue; never count it as covered |
+| **aspirational** | describes behavior no current interface exposes (bit-level protocol vectors against a combinational model; prose-only cases with no data fields) | classify honestly and stop — executing them would test an invention, not the design |
+
+Rules the first registry distilled (t27 #2241, mac 18 cases in one day):
+- **State-writing calls poison "initially" reads.** Stage every case: fresh
+  reads → stateless → stateful ops → post-op reads. The gate's own first catch
+  was its own sequencing bug — a TB that ran ops before an "initially" read.
+- **An observability gap is a SPEC defect**: if a vector checks state nothing
+  reads back (reset → accumulator), add a pure reader to the spec rather than
+  bending the TB.
+- **Different entry points, same registries.** The one-line class kill of the
+  day: the simulation path passed None as the spec path, so import-aware
+  registries never loaded THERE while the plain path elaborated clean — 95
+  errors from one unplumbed parameter. When a compiler grows a registry, grep
+  every `compile_*` entry point for the parameter that feeds it.
+- **A phantom type can survive for months on a fallback width**: mac referenced
+  TernaryWord{raw} which NO file declared (the same-named struct elsewhere had
+  different fields); the 32-bit fallback happened to be right. When a field
+  access flattens to an unbound name, first ask whether the TYPE exists at all.
+- **Symbolic dimensions are one resolver away from a whole feature**: array
+  dims spelled as const names never parsed, so AoS declarations emitted TODOs
+  and every access flattened. One pre-codegen substitution pass (integer-literal
+  consts into type strings) unlocked declaration, literal and access at once.
