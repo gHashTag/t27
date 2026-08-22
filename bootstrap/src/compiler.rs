@@ -13585,6 +13585,24 @@ impl VerilogCodegen {
                                 reg_decl(width, signed),
                                 name
                             ));
+                            // #2413: the binding declared a reg but recorded no
+                            // TYPE, so `r0.raw` on a struct-returning call fell
+                            // past the part-select branch and flattened to the
+                            // unbound `r0_raw`. Register the callee's return
+                            // type; the block-end cleanup removes it with the
+                            // other block locals.
+                            if let Some(rt) = stmt
+                                .children
+                                .get(1)
+                                .filter(|c| c.kind == NodeKind::ExprCall)
+                                .and_then(|c| self.fn_return_types.get(&c.name))
+                                .cloned()
+                            {
+                                if self.is_lowerable_scalar_struct_type(&rt) {
+                                    self.local_types.insert(target.name.clone(), rt);
+                                    block_locals.push(target.name.clone());
+                                }
+                            }
                         }
                         // Tuple-destructure binding `(a, b) = call()`: every
                         // element identifier needs a reg at its ELEMENT width.
@@ -13676,6 +13694,22 @@ impl VerilogCodegen {
                             reg_decl(width, signed),
                             name
                         ));
+                        // #2413: same type registration as the assign-binding
+                        // path -- a struct-returning call bound by `given`/`and`
+                        // needs its TYPE on record or `r0.raw` flattens to the
+                        // unbound `r0_raw`.
+                        if let Some(rt) = stmt
+                            .children
+                            .first()
+                            .filter(|c| c.kind == NodeKind::ExprCall)
+                            .and_then(|c| self.fn_return_types.get(&c.name))
+                            .cloned()
+                        {
+                            if self.is_lowerable_scalar_struct_type(&rt) {
+                                self.local_types.insert(stmt.name.clone(), rt);
+                                block_locals.push(stmt.name.clone());
+                            }
+                        }
                     }
                     stack.extend(stmt.children.iter());
                 }
