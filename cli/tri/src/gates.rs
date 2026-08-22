@@ -189,7 +189,39 @@ fn is_control_fn(name: &str) -> bool {
     name.contains("self_check") || name.contains("selftest") || name.contains("self_test")
 }
 
-/// Byte offsets of every `return 1..4` that belongs to the gate's own logic.
+/// Does this return expression carry a non-zero verdict? `1` and `2` do;
+/// `0` does not; `1 if bad else 0` does, and so does `0 if killed else 1`.
+/// A bare identifier does not -- `return fails` is a value the caller decides
+/// about, and forcing it to 0 mutates a helper rather than a failure path.
+fn yields_a_verdict(expr: &str) -> bool {
+    let mut prev_alnum = false;
+    let mut chars = expr.chars().peekable();
+    while let Some(c) = chars.next() {
+        let is_digit_1_4 = matches!(c, '1'..='4');
+        let next_alnum = chars
+            .peek()
+            .map(|n| n.is_alphanumeric() || *n == '_' || *n == '.')
+            .unwrap_or(false);
+        if is_digit_1_4 && !prev_alnum && !next_alnum {
+            return true;
+        }
+        prev_alnum = c.is_alphanumeric() || c == '_' || c == '.';
+    }
+    false
+}
+
+/// Every failure path that belongs to the gate's own logic: byte offset, the
+/// length to replace, and what to put there.
+///
+/// T90: the first version matched only a BARE `return 1..4`. Measured across
+/// the twelve gate scripts: 34 sites seen, 8 missed -- seven ternary returns
+/// (`return 1 if bad else 0`) and one `raise SystemExit(3)`. Its denominator
+/// was short by a fifth of what it claimed to measure, and it reported
+/// pack_index_consistency_gate.py as having "no failure path to break" when
+/// every one of that gate's verdicts is a ternary. A scanner that cannot see a
+/// failure path scores it as covered, which is the same substitution this
+/// command exists to catch.
+///
 /// Line-based on purpose: these files are flat, and a real Python parse would
 /// buy nothing a `def` at column zero does not already give.
 fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
@@ -203,11 +235,20 @@ fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
         }
         if !in_control {
             let t = line.trim_start();
-            if let Some(n) = t.strip_prefix("return ") {
-                let d = n.trim_end();
-                if matches!(d, "1" | "2" | "3" | "4") {
-                    let col = line.len() - t.len();
-                    sites.push((off + col, t.len() - 1, format!("return {}", d)));
+            let col = line.len() - t.len();
+            let body = t.trim_end();
+            // Whole-line replacement in every case, so a ternary is neutered
+            // entirely rather than having one of its arms edited.
+            if let Some(expr) = body.strip_prefix("return ") {
+                if yields_a_verdict(expr) {
+                    sites.push((off + col, body.len(), "return 0".to_string()));
+                }
+            } else if let Some(rest) = body.strip_prefix("raise SystemExit(") {
+                // `raise SystemExit(main())` is a dispatch, not a verdict.
+                if let Some(inner) = rest.strip_suffix(')') {
+                    if yields_a_verdict(inner) {
+                        sites.push((off + col, body.len(), "raise SystemExit(0)".to_string()));
+                    }
                 }
             }
         }
@@ -292,10 +333,10 @@ fn mutate(only: Option<&str>) -> Result<()> {
 
         let mut killed = 0usize;
         let mut survivors: Vec<usize> = Vec::new();
-        for (at, len, _text) in &sites {
+        for (at, len, replacement) in &sites {
             let mut m = String::with_capacity(pristine.len());
             m.push_str(&pristine[..*at]);
-            m.push_str("return 0");
+            m.push_str(replacement);
             m.push_str(&pristine[at + len..]);
             std::fs::write(f, &m)?;
             let mut noticed = false;
@@ -595,6 +636,47 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // a gap that is not there -- a finding invented by the tool.
         assert!(mutable_sites("def main():\n    return 0\n").is_empty());
         assert!(mutable_sites("def main():\n    return 5\n").is_empty());
+        // A bare name is a value the caller decides about, not a verdict.
+        // Forcing `return fails` to 0 mutates a helper and scores the result
+        // against the gate.
+        assert!(mutable_sites("def collect():\n    return fails\n").is_empty());
+        assert!(mutable_sites("def go():\n    raise SystemExit(main())\n").is_empty());
+    }
+
+    #[test]
+    fn a_ternary_return_is_a_failure_path() {
+        // T90: the first scanner matched only a bare `return 1..4` and missed
+        // eight sites across seven files -- seven ternaries and one
+        // SystemExit. It then reported pack_index_consistency_gate.py as
+        // having "no failure path to break" when every verdict in that gate is
+        // a ternary. A path the scanner cannot see is scored as covered.
+        for src in [
+            "def main():\n    return 1 if bad else 0\n",
+            "def main():\n    return 0 if killed else 1\n",
+            "def main():\n    return 0 if not fails else 1\n",
+        ] {
+            let s = mutable_sites(src);
+            assert_eq!(s.len(), 1, "missed a ternary verdict in {src:?}");
+            assert_eq!(
+                s[0].2, "return 0",
+                "a ternary is neutered whole, not per arm"
+            );
+        }
+        let s = mutable_sites("def main():\n    raise SystemExit(3)\n");
+        assert_eq!(s.len(), 1, "missed a SystemExit verdict");
+        assert_eq!(s[0].2, "raise SystemExit(0)");
+    }
+
+    #[test]
+    fn a_digit_inside_a_name_is_not_a_verdict() {
+        // `return t27c_failures` and `return code2` contain a 1..4 character.
+        // Reading them as verdicts would invent sites, and an invented site
+        // that survives is an invented finding.
+        assert!(!yields_a_verdict("t27c_failures"));
+        assert!(!yields_a_verdict("code2"));
+        assert!(!yields_a_verdict("x.f1"));
+        assert!(yields_a_verdict("1"));
+        assert!(yields_a_verdict("1 if bad else 0"));
     }
 
     #[test]
