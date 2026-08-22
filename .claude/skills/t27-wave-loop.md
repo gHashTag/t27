@@ -12625,6 +12625,10 @@ a worktree in the same wave its branch merges.
 
 **1519. PUT THE CAVEAT WHERE THE NUMBER IS QUOTED.** tri table marks a design SPLIT when its die reads disagree -- but it groups by design NAME across every wave, so it mixes source revisions with placements: gft_smul's 1010 and 1111 are before and after a repair, while gft_dup_folded's 1101 and 1111 are one netlist placed four ways. The tool cannot separate them, so the tool says so, in its own output, every time it runs. Reports get summarised and tools get quoted; a limitation recorded only in prose is a limitation that will be dropped by the first person who copies the table. (T847a, W989)
 
+**1520. CONFIRM MEANS MORE THAN ONE PLACEMENT.** Asked to confirm two spec fixes on silicon, the honest first answer was that both had already read 1111 in W987 -- and the honest second was that each had been read at ONE placement, which this project's own T841/T842 say cannot distinguish a passing design from one whose failure is not reachable at that seed. Four placements for the MAC returned the identical word at three distinct BSCAN sites. When someone asks for confirmation, give the measurement that exists AND the sweep that makes it mean something; the gap between those two is exactly where a wrong result survives. (T848, W990)
+
+**1521. A STAGE CAP IS NOT A BUILD CAP.** The BSCAN chain fixed-point loop runs nextpnr twice whenever it has to correct the parameter, so a design near the stage cap costs up to twice the cap in wall clock. gft_xorpercep under a 3600 s stage cap had burned fifty minutes without a verdict. Anyone sizing a cap from a placement rate is sizing one stage; the build can be double that, and the schedule that assumed otherwise is the one that gets interrupted. (T848a, W990)
+
 ### How to update this tracker
 
 After closing a wave:

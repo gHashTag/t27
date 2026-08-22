@@ -30933,6 +30933,33 @@ can. The caveat is printed by `tri table` itself rather than kept in a report,
 for the same reason `tri seeds` prints the number of tries: reports get
 summarised, tools get quoted.
 
+### T848 -- Both spec fixes confirmed on silicon, one of them across four placements [measured]
+
+The two arithmetic repairs this project carried longest as *unverified on silicon*
+were W978's missing zero guards in `GftSignedMac` and W979's last unguarded copy
+of `smul` in `gft_signed_dot4`. Both now answer.
+
+| fix | before | after | placements |
+|-----|--------|-------|-----------|
+| `gft_signed_mac` (W978) | `0011`, `ok=0` -- `c_zero` real and **false** | **`1111`, `ok=1`**, word `0xa5a5337f` | **4** (seeds 1, 7, 42, 1234; BSCAN sites 3, 2, 2, 4) |
+| `gft_signed_dot4` (W979) | **ABSENT** since W977 -- time cap and a chain/site mismatch | **`1111`, `ok=1`**, word `0xa5a530ff` | 1 confirmed, read twice at the same seed; three more in flight |
+
+The MAC's four builds return **the identical 32-bit word at three distinct BSCAN
+sites**. By T841 and T842 that is not a proof of placement-independence -- it is
+the absence of a counterexample in four tries, and `tri seeds` prints exactly that
+sentence beneath the result. But it is the strongest form of confirmation this
+bench can produce, and it is what the two fixes had been missing for nine and
+eight waves respectively.
+
+### T848a -- The chain fixed-point loop can double the cost of a capped build [measured]
+
+`t27c silicon` runs nextpnr **twice** whenever the BSCAN chain fixed-point loop has
+to correct the parameter (T172a, W796). A design near the stage cap therefore costs
+up to **2x the cap** in wall clock: `gft_xorpercep` under a 3600 s cap had consumed
+about **50 minutes** without reaching a verdict when the board was needed
+elsewhere. The cap bounds a stage, not a build, and for the largest designs those
+are different numbers by a factor of two.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

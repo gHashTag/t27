@@ -2439,3 +2439,29 @@ quoted.
 `gft_xorpercep` was still placing under a 3600 s cap when this was written, and is
 recorded as IN FLIGHT rather than omitted, so the next wave does not rediscover
 the question.
+
+## 59. Both fixes, confirmed (W990)
+
+The Architect asked, mid-wave, for the two spec repairs to be confirmed on
+silicon. The first honest answer was that both had already read `1111` in W987.
+The second was that each stood on a single placement, and this project's own T841
+and T842 say a single placement cannot tell a passing design from one whose
+failure is not reachable at that seed. So the answer had to be finished.
+
+| fix | before | after | placements |
+|-----|--------|-------|-----------|
+| `gft_signed_mac` (W978) | `0011`, `ok=0`, `c_zero` real and false | `1111`, `ok=1`, `0xa5a5337f` | **4** -- seeds 1, 7, 42, 1234, sites 3, 2, 2, 4 |
+| `gft_signed_dot4` (W979) | ABSENT since W977 | `1111`, `ok=1`, `0xa5a530ff` | 1 confirmed twice, three in flight |
+
+The MAC's four builds return the identical 32-bit word at three distinct BSCAN
+sites. `tri seeds` prints the qualification itself: that is not a proof of
+placement-independence, it is the absence of a counterexample in four tries. It is
+also the strongest confirmation this bench can give, and it is what these two
+repairs had been missing for nine and eight waves.
+
+Freeing the board cost the speculative `gft_xorpercep` run, killed at about fifty
+minutes with nextpnr twenty minutes into placement. That is recorded rather than
+quietly dropped, and it produced a finding of its own: `t27c silicon` runs nextpnr
+**twice** whenever the BSCAN chain fixed-point loop has to correct the parameter,
+so a design near the stage cap costs up to **twice the cap** in wall clock. The
+cap bounds a stage; for the largest designs the build is a different number.

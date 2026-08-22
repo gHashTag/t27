@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W989, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W990, 2026-08-22)
+
+> **W990 — BOTH SPEC FIXES CONFIRMED ON SILICON.** Asked directly for it mid-wave. The honest first
+> answer was that both had already read `1111` in W987; the honest second was that each stood on
+> **one placement**, which T841/T842 say cannot distinguish a passing design from one whose failure
+> is not reachable at that seed. So: **`gft_signed_mac` (W978 zero guards) — `1111`, `ok=1`, four
+> placements, three distinct BSCAN sites, identical word `0xa5a5337f`.** It read `0011` with
+> `c_zero` real and **false** against the pre-fix spec. **`gft_signed_dot4` (W979) — `1111`, word
+> `0xa5a530ff`**, one placement read twice with the same word; seeds 7/42/1234 in flight. These are
+> the two repairs carried longest as *unverified on silicon* — nine and eight waves. The
+> speculative `gft_xorpercep` run was **killed at ~50 minutes** to free the board, and named rather
+> than hidden. **A stage cap is not a build cap:** the chain fixed-point loop runs nextpnr twice, so
+> a capped design costs up to **2×** the cap. T848/T848a, lessons 1520–1521, **514 derived checks**.
+> **Readiness 98 %.**
 
 > **W989 — THE TABLE STOPS BEING TRANSCRIBED AND STARTS BEING DERIVED.** Six waves assembled the
 > operator table by hand. Asked to derive it instead, a script could place **10 of 38 die reads** —
