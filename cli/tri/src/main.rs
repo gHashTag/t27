@@ -19,6 +19,7 @@ mod prcheck;
 mod red;
 mod rtl;
 mod sweep;
+mod elab;
 mod vectors;
 mod synth;
 
@@ -130,6 +131,11 @@ enum Commands {
     Vectors {
         #[command(subcommand)]
         action: vectors::VectorsCmd,
+    },
+    /// Classify a compiler's error output before quoting a number from it.
+    Elab {
+        #[command(subcommand)]
+        action: elab::ElabCmd,
     },
 }
 
@@ -733,6 +739,7 @@ fn main() -> Result<()> {
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
+        Commands::Elab { action } => elab::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
