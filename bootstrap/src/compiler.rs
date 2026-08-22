@@ -15115,6 +15115,57 @@ impl VerilogCodegen {
                     return;
                 }
 
+                // #2413(2): `.len()` on an array folds to its declared length.
+                // The Rust backend has resolved this shape since 7172; Verilog
+                // emitted the method call VERBATIM (`MAC_LUT.len(1'b0)`) and
+                // iverilog rejected it: arrays have no methods in Verilog.
+                // Three parse shapes reach here for the same source text:
+                // method-kind (assert path), a call whose child is the
+                // field-access `RECV.len` (given-binding path), and a call
+                // carrying the qualified name itself.
+                let len_receiver: Option<String> = if node.name == "len"
+                    && node.extra_kind == "method"
+                    && node.children.len() == 1
+                    && node.children[0].kind == NodeKind::ExprIdentifier
+                {
+                    Some(node.children[0].name.clone())
+                } else if node.name == "len"
+                    && !node.children.is_empty()
+                    && node.children[0].kind == NodeKind::ExprFieldAccess
+                    && node.children[0].name == "len"
+                    && node.children[0]
+                        .children
+                        .first()
+                        .map(|b| b.kind == NodeKind::ExprIdentifier)
+                        .unwrap_or(false)
+                {
+                    Some(node.children[0].children[0].name.clone())
+                } else if let Some(base) = node.name.strip_suffix(".len") {
+                    if !base.is_empty() && !base.contains('.') {
+                        Some(base.to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                if let Some(recv) = len_receiver {
+                    let ty = self
+                        .local_types
+                        .get(&recv)
+                        .or_else(|| self.param_types.get(&recv))
+                        .or_else(|| self.module_types.get(&recv))
+                        .cloned();
+                    if let Some(ty) = ty {
+                        if let Some((dims, _)) = Self::parse_array_type(&ty) {
+                            let n: usize = dims.iter().product();
+                            self.write(&n.to_string());
+                            return;
+                        }
+                    }
+                }
+
+
                 // W663: Zig builtins must not reach Verilog.
                 //
                 // `CCodegen` has handled these since its own wave (see the
