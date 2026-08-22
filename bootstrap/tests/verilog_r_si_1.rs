@@ -115,14 +115,45 @@ fn r_si_1_emitter_injects_mul_noop_helper() {
         return;
     };
 
+    // The declared width is load-bearing, not cosmetic: t27#1886 widened this
+    // helper from 32 to 64 bits so that u64 products stop truncating. This
+    // assertion used to pin `[31:0]`, so when the emitter was widened the test
+    // went red and stayed red — it was 51st of 73 targets, and `cargo test`
+    // stops at the first failing target, so nobody saw it (#2382, #2386).
+    // Pinning 64 rather than accepting any width keeps a silent narrowing —
+    // which would restore the truncation bug — a failure.
     assert!(
-        verilog.contains("function [31:0] __mul_noop;"),
-        "R-SI-1 helper missing: `__mul_noop` function declaration not found.\n\
+        verilog.contains("function [63:0] __mul_noop;"),
+        "R-SI-1 helper missing or narrowed: expected `function [63:0] __mul_noop;`. \
+         A 32-bit helper truncates u64 products, which is what t27#1886 fixed.\n\
          --- emitted ---\n{verilog}"
     );
+
+    // `endfunction` alone is satisfied by any other function in the module —
+    // this spec emits three. Slice the helper's own body and check there, or the
+    // assertion certifies a neighbour.
+    let body = helper_body(&verilog);
     assert!(
-        verilog.contains("endfunction"),
-        "R-SI-1 helper malformed: no `endfunction` keyword.\n\
-         --- emitted ---\n{verilog}"
+        body.contains("endfunction"),
+        "R-SI-1 helper malformed: no `endfunction` closing the helper itself. \
+         Helper body was:\n{body}"
     );
+    assert!(
+        body.contains("__mul_noop = acc[63:0];"),
+        "R-SI-1 helper does not assign its 64-bit result. Helper body was:\n{body}"
+    );
+}
+
+/// Slice from the `__mul_noop` declaration to the `endfunction` that closes it,
+/// so an assertion cannot be satisfied by a different function's text.
+fn helper_body(verilog: &str) -> &str {
+    let from = match verilog.find("function [63:0] __mul_noop;") {
+        Some(i) => i,
+        None => return "",
+    };
+    let rest = &verilog[from..];
+    match rest.find("endfunction") {
+        Some(j) => &rest[..j + "endfunction".len()],
+        None => rest,
+    }
 }
