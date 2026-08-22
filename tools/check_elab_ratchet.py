@@ -1,42 +1,37 @@
 #!/usr/bin/env python3
 """Elaboration errors may fall, never rise (#2325).
 
-The generated Verilog of the 32-module fpga set went from 573 iverilog
-elaboration errors to 186 in one evening, across three emitter classes:
-string fields poisoning a whole struct (#2424), fields of array elements of a
-struct flattening to an empty base (#2325), and unannotated locals losing the
-type they were copied from. Nothing prevents that from sliding back: the
-conformance job compiles two modules, and the other thirty are only linted by
-yosys, which accepts many references iverilog rejects.
+This gate holds the line per module over the generated fpga set. It does not
+demand zero: most of what is left waits on two named design decisions -- what a
+string field means in generated hardware (#2433) and unsized array params
+(#2410).
 
-So this gate holds the line per module. It does not demand zero, and the
-reason it does not is worth stating accurately, because an earlier version of
-this docstring got it wrong. It said "the remainder is two named design
-decisions". That was measured over the UNBOUND-IDENTIFIER errors only -- 68 of
-them, and there the claim holds exactly (56 string reads, 12 unsized-array
-reads, nothing else). It was written as though it described the whole
-remainder. The whole remainder, classified:
+It does NOT print a classification, and the reason is a lesson. It used to. The
+table said 57 condition expressions, 64 unbound, 21 whole-array, 4 malformed,
+5 unknown-module, 2 missing-function -- which sums to 153 under a headline of
+161, so it was arithmetically wrong the day it was written, and within an hour
+three of its six rows were also stale: unbound is 72, condition is 59, malformed
+is 0 (that defect was closed by the next commit), and a seventh class it never
+listed (Enable of unknown task, 3) exists. A hand-copied distribution rots
+faster than anyone re-reads it.
 
-    57  condition expressions -- SECONDARY, same source line as an unbound
-        identifier above them; they disappear with their cause
-    64  unbound identifiers    -- #2433 (strings) and #2410 (unsized arrays)
-    21  whole-array reads      -- an array used where a value is expected
-     4  malformed statements   -- a keyword-named identifier escaped at its
-        declaration and not at its use; a real emitter defect, not a decision
-     5  unknown module types   -- self-test modules that never elaborated
-     2  missing functions
-    ---
-    161 real errors across 25 of 32 modules
+    tri elab classify     # the distribution, measured, by message shape
+    tri elab secondary    # which of them are derived from another above them
 
-It fails when any module gains errors, and asks you to record the win when a
-module loses them.
+Two things this gate counts carefully, because it got both wrong once:
+
+  * iverilog's closing "N error(s) during elaboration." is a TOTAL, not an
+    error. Counting it added one phantom per failing module -- 25 of a
+    published 186.
+  * a "diagnostic line" is not a "bad construct". One bad construct can emit
+    `syntax error` AND `error: Malformed statement` on the same line, so the
+    number here is diagnostic LINES. Do not quote it as a defect count.
 
     tools/check_elab_ratchet.py                    # verify
     tools/check_elab_ratchet.py --update-baseline  # after a deliberate change
 
 Requires iverilog and a built t27c; skips cleanly (exit 0) when either is
-missing, so a Rust-only checkout is never blocked by it -- the same contract
-emit-bitexact-gate.yml uses.
+missing, so a Rust-only checkout is never blocked by it.
 """
 import pathlib
 import re
@@ -52,6 +47,10 @@ T27C = ROOT / "target/release/t27c"
 # iverilog ends a failing file with "N error(s) during elaboration." -- a TOTAL,
 # not an error. Counting it added exactly one phantom per failing module, so the
 # published figure was 25 too high in both directions (see the module docstring).
+# Hand-written notes live below this line in the baseline and survive
+# --update-baseline. Everything above it is regenerated.
+NOTES_MARK = "# --- notes (hand-written, preserved) ---\n"
+
 SUMMARY = re.compile(r"\d+ error\(s\) during elaboration")
 
 
@@ -132,18 +131,38 @@ def main():
     total = sum(now.values())
 
     if "--update-baseline" in sys.argv:
+        # T66: the header is regenerated from a literal, so every hand-written
+        # note under it was deleted by the very command this gate recommends --
+        # including the one explaining that removing a syntax error can RAISE a
+        # module's count. Notes below the sentinel are carried across.
+        notes = ""
+        if BASELINE.exists():
+            txt = BASELINE.read_text()
+            if NOTES_MARK in txt:
+                # Bound the section by the comment lines themselves, not by a
+                # blank line: this writer emits none after them, so a
+                # blank-line bound swallowed the whole module list on the
+                # SECOND consecutive run and wrote it back twice.
+                tail = txt.split(NOTES_MARK, 1)[1].splitlines()
+                kept = []
+                for ln in tail:
+                    if not ln.startswith("#"):
+                        break
+                    kept.append(ln)
+                if kept:
+                    notes = NOTES_MARK + "\n".join(kept) + "\n"
         header = (
             "# iverilog elaboration errors per generated module. This is a RATCHET:\n"
             "# the numbers may fall, never rise (#2325). iverilog's own \"N error(s)\n"
             "# during elaboration\" summary line is NOT counted -- it is a total, and\n"
             "# counting it added one phantom error per failing module.\n"
-            "# The remainder is not one thing: see the module docstring for the full\n"
-            "# classification. Two design decisions (#2433, #2410) cover the unbound\n"
-            "# identifiers; the malformed statements are an emitter defect.\n"
+            "# The remainder is not one thing. Do not copy a classification here:\n"
+            "# the last one was wrong when written and stale within the hour. Run\n"
+            "# `tri elab classify` -- it measures the distribution by message shape.\n"
             f"# iverilog-version {iverilog_version()}\n"
         )
         body = "\n".join(f"{k} {v}" for k, v in sorted(now.items()))
-        BASELINE.write_text(header + body + "\n")
+        BASELINE.write_text(header + notes + body + "\n")
         print(f"baseline updated: {len(now)} modules, {total} errors")
         return 0
 
@@ -152,14 +171,21 @@ def main():
         print("no baseline; run --update-baseline once")
         return 1
 
-    worse, better, new = [], [], []
-    for m, n in sorted(now.items()):
+    # T66: iterate the UNION. Iterating `now` alone means a module that stops
+    # being generated -- dropped from the hardcoded list in main.rs, or a whole
+    # empty output directory -- contributes no row at all, the total falls, and
+    # the gate prints OK. A ratchet that only looks at what is present scores a
+    # disappearance as an improvement.
+    worse, better, new, gone = [], [], [], []
+    for m in sorted(set(now) | set(base)):
         if m not in base:
-            new.append((m, n))
-        elif n > base[m]:
-            worse.append((m, base[m], n))
-        elif n < base[m]:
-            better.append((m, base[m], n))
+            new.append((m, now[m]))
+        elif m not in now:
+            gone.append((m, base[m]))
+        elif now[m] > base[m]:
+            worse.append((m, base[m], now[m]))
+        elif now[m] < base[m]:
+            better.append((m, base[m], now[m]))
 
     print(f"elaboration errors: {total} (baseline {sum(base.values())})")
     for m, b, n in better:
@@ -168,6 +194,16 @@ def main():
         print(f"  NEW     {m}: {n} errors, not in baseline")
     for m, b, n in worse:
         print(f"  WORSE   {m}: {b} -> {n}")
+    for m, b in gone:
+        print(f"  GONE    {m}: was {b}, is no longer generated at all")
+
+    if gone:
+        print()
+        print("A module in the baseline was not generated. Its errors did not")
+        print("get fixed -- they left the measured set, which reads as progress")
+        print("in the total above. Restore the module, or remove its baseline")
+        print("line deliberately with --update-baseline.")
+        return 1
 
     if worse or new:
         print()
@@ -182,7 +218,15 @@ def main():
         return 1
     if better:
         print()
-        print("Modules improved. Record it: tools/check_elab_ratchet.py --update-baseline")
+        # T66: a drop is not automatically a win. A syntax error TRUNCATES the
+        # file, so introducing one makes a module's count collapse and this
+        # branch used to answer "Modules improved. Record it." with no hedge --
+        # and obeying it froze the truncated number as the new baseline.
+        print("Modules improved -- classify before recording. A drop caused by a")
+        print("syntax error is not a fix: a syntax error truncates the file, so")
+        print("everything after it stops being counted. Check with:")
+        print("    tri elab classify")
+        print("Then, if the drop is real: tools/check_elab_ratchet.py --update-baseline")
         return 1
     print("OK: no module gained elaboration errors")
     return 0

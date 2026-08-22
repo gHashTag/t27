@@ -2,16 +2,16 @@
 # the numbers may fall, never rise (#2325). iverilog's own "N error(s)
 # during elaboration" summary line is NOT counted -- it is a total, and
 # counting it added one phantom error per failing module.
-# The remainder is not one thing: see the module docstring for the full
-# classification. Two design decisions (#2433, #2410) cover the unbound
-# identifiers; the malformed statements are an emitter defect.
-#
+# The remainder is not one thing. Do not copy a classification here:
+# the last one was wrong when written and stale within the hour. Run
+# `tri elab classify` -- it measures the distribution by message shape.
+# iverilog-version 13.0
+# --- notes (hand-written, preserved) ---
 # clock_domain went 4 -> 5 and that was the FIX landing, not a regression. Its
 # 4 entries were syntax errors from a keyword-named parameter emitted bare; a
 # syntax error truncates the file, so the 5 real elaboration errors behind it
 # had never been counted. Removing a syntax error can RAISE this number. The
 # ratchet is a guard against silent slippage, not a quality score.
-# iverilog-version 13.0
 apb_bridge 4
 assembler 4
 axi4 2

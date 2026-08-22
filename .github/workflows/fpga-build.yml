@@ -15,6 +15,17 @@ on:
       - 'Cargo.lock'
       - 'contrib/formal/**'
       - 'conformance/fpga_*.json'
+      # The gates this job runs, and the ledgers they compare against. Without
+      # these four, a one-line edit to check_vector_data.py (`return 1` ->
+      # `return 0`) lands in a PR that never runs the gate -- a silent kill --
+      # and a new prose-only vector file can be admitted by splitting the
+      # pre-seed and the file across two PRs. Every sibling workflow in this
+      # repository lists its own tool; this one did not.
+      - 'tools/check_vector_data.py'
+      - 'tools/vector_data_baseline.txt'
+      - 'tools/check_elab_ratchet.py'
+      - 'tools/elab_baseline.txt'
+      - 'tools/run_conformance_vvp.py'
       - '.github/workflows/fpga-build.yml'
   push:
     branches: [master]
@@ -26,6 +37,17 @@ on:
       - 'Cargo.lock'
       - 'contrib/formal/**'
       - 'conformance/fpga_*.json'
+      # The gates this job runs, and the ledgers they compare against. Without
+      # these four, a one-line edit to check_vector_data.py (`return 1` ->
+      # `return 0`) lands in a PR that never runs the gate -- a silent kill --
+      # and a new prose-only vector file can be admitted by splitting the
+      # pre-seed and the file across two PRs. Every sibling workflow in this
+      # repository lists its own tool; this one did not.
+      - 'tools/check_vector_data.py'
+      - 'tools/vector_data_baseline.txt'
+      - 'tools/check_elab_ratchet.py'
+      - 'tools/elab_baseline.txt'
+      - 'tools/run_conformance_vvp.py'
       - '.github/workflows/fpga-build.yml'
   workflow_dispatch:
 
