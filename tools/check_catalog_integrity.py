@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Catalog integrity: every source= resolves, and the three phi-family neighbours
+"""Catalog integrity: every source= resolves, and the five phi-family neighbours
 are all present and distinct.
 
 Written after a glob of `gft*` deleted specs/numeric/gfternary.t27 -- a 2-bit
@@ -29,7 +29,7 @@ def main():
                 ident = re.search(r"id=(\S+)", row)
                 problems.append(f"DANGLING  {ident.group(1) if ident else '?'} -> {path}")
 
-    # 2. The three neighbours that share a prefix must all be present.
+    # 2. The five neighbours that share a prefix must all be present.
     ids = set(re.findall(r"id=(\S+)", text))
     # Four families on two axes -- phi-derived against theorem-derived, binary
     # against ternary -- plus the 2-bit alphabet that shares their prefix. Each has
@@ -56,12 +56,29 @@ def main():
     for name, members in fam.items():
         if not members:
             problems.append(f"COLLAPSED  family {name} has no rungs left")
-    # No family may be a subset of another: that is what "these are the same
-    # format under two names" looks like from the outside, and it has happened.
-    for a in fam:
-        for b in fam:
-            if a < b and fam[a] & fam[b]:
-                problems.append(f"OVERLAP    {a} and {b} share ids {sorted(fam[a] & fam[b])}")
+    # T68: "these are the same format under two names" -- the thing the check
+    # below is for, and it has happened. It used to be tested as a family
+    # INTERSECTION, which cannot fire: `gf\d+`, `gft\d+`, `bnf\d+` and
+    # `tnf\d+` are pairwise disjoint under fullmatch, so `fam[a] & fam[b]` is
+    # empty for every input. Brute-forced every string up to six characters
+    # over the relevant alphabet: zero match two families.
+    #
+    # Aliasing is visible where it actually happens -- two catalog rows naming
+    # the SAME spec file. Today 43 rows carry a spec path and they resolve to
+    # 43 distinct specs, one to one. (`source=` is NOT the field to check: it
+    # is a citation, "Alam 2021" and the like, and 30 of 109 rows legitimately
+    # share one.)
+    by_spec = {}
+    for row in rows:
+        ident = re.search(r"id=(\S+)", row)
+        ident = ident.group(1) if ident else "?"
+        for path in re.findall(r'(specs/numeric/[A-Za-z0-9_]+\.t27)', row):
+            by_spec.setdefault(path, []).append(ident)
+    for path, owners in sorted(by_spec.items()):
+        if len(owners) > 1:
+            problems.append(
+                f"ALIAS      {path} is claimed by {len(owners)} rows: {sorted(owners)}"
+            )
 
     # 4. The former name must stay searchable. Not for citation reasons -- the
     # ladder has never been published under either name -- but because research
