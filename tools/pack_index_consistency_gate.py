@@ -74,8 +74,15 @@ def check(index: dict, packs: dict, on_disk: set, notes: list | None = None) -> 
         # B -- digest matches
         recorded = e.get("sha256")
         actual = pack["__sha256__"]
-        if recorded is not None and recorded != actual:
-            fails.append(f"B {cid}: sha256 {recorded[:12]}... recorded, "
+        # T72: `is not None` caught an empty string but not an ABSENT key, so
+        # `del entry["sha256"]` turned a caught tamper into CLEAN here and in
+        # wp18 both. The condition alone is not enough -- `recorded[:12]` on
+        # None raises -- so the message names which of the two states it is.
+        if recorded != actual:
+            shown = ("<no sha256 key>" if recorded is None
+                     else "<empty sha256>" if recorded == ""
+                     else f"{recorded[:12]}...")
+            fails.append(f"B {cid}: sha256 {shown} recorded, "
                          f"{actual[:12]}... on disk")
 
         # C -- tier agrees with the pack's own state.

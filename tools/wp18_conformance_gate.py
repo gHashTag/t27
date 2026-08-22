@@ -72,6 +72,20 @@ def _read_ssot_ids(ssot_path):
     return ids
 
 
+def _count_value_rows(o):
+    """Rows the D/D2/E checks would read: the three fields they re-derive from."""
+    n = 0
+    if isinstance(o, dict):
+        if "abs_error" in o and "input_f64" in o and "decoded_f64" in o:
+            n += 1
+        for v in o.values():
+            n += _count_value_rows(v)
+    elif isinstance(o, list):
+        for x in o:
+            n += _count_value_rows(x)
+    return n
+
+
 def _sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -217,11 +231,50 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
             continue
         want = p.get("sha256")
         got = _sha256_file(fn)
-        if want and want != got:
+        # T72: `if want and ...` read an ABSENT or EMPTY digest as "no freshness
+        # requirement". Measured: tamper a pack in a way only this check sees,
+        # and with the digest present both this gate and pack_index fail; delete
+        # the key and BOTH return CLEAN, exit 0. An anomaly must not be read as
+        # an absence. All 109 live entries carry a digest, so this cannot fire
+        # today -- it fires the moment one stops carrying it.
+        if want != got:
             sha_drift.append({"file": p["file"], "index_sha": want, "file_sha": got})
     report["checks"]["C_sha_freshness"] = {"drift_count": len(sha_drift), "drift": sha_drift[:10], "ok": not sha_drift}
     if sha_drift:
         report["failures"].append({"check": "C", "sha_drift": sha_drift[:10]})
+
+    # ---- Check B2: a `kind` is a claim, not evidence ----
+    # T72: the D/D2/E loop below skips `kind == "structural"` on the grounds
+    # that such packs carry no round-trip rows -- an assumption never checked
+    # against the pack's actual contents. Measured: relabel one pack
+    # bitexact -> structural in the INDEX and adjust the two header counts, and
+    # a planted drift goes from exit 2 to CLEAN with the pack file byte for
+    # byte unchanged; rows_checked falls 3795 -> 3787 in silence. 89 packs are
+    # demotable that way. So the label is verified against the rows before it
+    # is allowed to excuse them. All 20 structural packs measured at 0 value
+    # rows today, so this cannot fire on the clean tree.
+    mislabelled = []
+    for p in packs:
+        if p.get("kind") != "structural":
+            continue
+        fn = os.path.join(vectors_dir, p["file"])
+        if not os.path.isfile(fn):
+            continue
+        try:
+            doc = json.load(open(fn, encoding="utf-8"))
+        except Exception:
+            continue
+        n = _count_value_rows(doc)
+        if n:
+            mislabelled.append({"file": p["file"], "value_rows": n})
+    report["checks"]["B2_structural_carries_no_rows"] = {
+        "structural_packs": sum(1 for p in packs if p.get("kind") == "structural"),
+        "mislabelled_count": len(mislabelled),
+        "mislabelled": mislabelled[:10],
+        "ok": not mislabelled,
+    }
+    if mislabelled:
+        report["failures"].append({"check": "B2", "mislabelled": mislabelled[:10]})
 
     # ---- Checks D + D2 + E: row re-derivation + special-value + honesty allow-list ----
     rederive_mismatch = []
