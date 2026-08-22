@@ -59,7 +59,32 @@ pub enum GatesCmd {
 /// Gate scripts whose control lives in a SEPARATE file, and the file that
 /// holds it. Counting these as control-less would be wrong; counting the
 /// control files themselves as gates would be wrong twice.
-const EXTERNAL_CONTROL: &[(&str, &str)] = &[("wp18_conformance_gate.py", "wp18_selftest_gate.py")];
+/// Not 1:1. `check_gate_preconditions.py` is ONE control covering the
+/// precondition branch of six gates at once -- the class this command found,
+/// where a gate's own self-check plants faults inside a well-formed world and
+/// never breaks the world's existence. Without these rows those branches keep
+/// reporting as survivors while a control that does cover them sits in the
+/// tree, which is the same "it exists but nothing connects it" mistake in the
+/// tool rather than in the repository. It is also a gate in its own right, with
+/// its own self-check, so it appears in the table below as well.
+const EXTERNAL_CONTROL: &[(&str, &str)] = &[
+    ("wp18_conformance_gate.py", "wp18_selftest_gate.py"),
+    (
+        "check_duplicate_agreement.py",
+        "check_gate_preconditions.py",
+    ),
+    ("check_elab_ratchet.py", "check_gate_preconditions.py"),
+    ("check_seal_coverage.py", "check_gate_preconditions.py"),
+    ("check_specs_generate.py", "check_gate_preconditions.py"),
+    ("check_specs_parse.py", "check_gate_preconditions.py"),
+    ("check_vector_data.py", "check_gate_preconditions.py"),
+];
+
+/// Scripts that serve as somebody else's negative control AND are gates in
+/// their own right. They stay in the gate list -- they have their own
+/// self-check and are measured like anything else -- but naming them here says
+/// the double role is intended rather than a wiring mistake.
+const CONTROL_IS_ALSO_A_GATE: &[&str] = &["check_gate_preconditions.py"];
 
 /// Files under tools/ that ARE controls rather than gates.
 const IS_A_CONTROL: &[&str] = &[
@@ -95,10 +120,14 @@ fn sweep(controls_only: bool) -> Result<()> {
         let src = std::fs::read_to_string(f).unwrap_or_default();
         // The flag the script itself dispatches on -- read from its source, so a
         // control that is only mentioned in a comment is not counted as one.
-        let flag = ["--self-check-drop", "--self-check", "--selftest"]
+        // Every declared flag, not the first. A gate may carry more than one
+        // control; reporting a single one understates its coverage and made
+        // `mutate` invent a survivor. Both commands read the set the same way.
+        let flags: Vec<String> = ["--self-check-drop", "--self-check", "--selftest"]
             .iter()
-            .find(|fl| src.contains(&format!("\"{}\"", fl)))
-            .map(|s| s.to_string());
+            .filter(|fl| src.contains(&format!("\"{}\"", fl)))
+            .map(|s| s.to_string())
+            .collect();
         let external = EXTERNAL_CONTROL
             .iter()
             .find(|(g, _)| *g == name)
@@ -109,15 +138,21 @@ fn sweep(controls_only: bool) -> Result<()> {
         } else {
             code(&root, &name, &[])
         };
-        let ctrl = match (&flag, &external) {
-            (Some(fl), _) if !controls_only => code(&root, &name, &[fl]),
-            (Some(_), _) => "-".to_string(),
-            (None, Some(c)) if !controls_only => code(&root, c, &[]),
-            (None, Some(_)) => "-".to_string(),
-            (None, None) => {
-                uncontrolled.push(name.clone());
-                "NONE".to_string()
-            }
+        let ctrl = if flags.is_empty() && external.is_none() {
+            uncontrolled.push(name.clone());
+            "NONE".to_string()
+        } else if controls_only {
+            "-".to_string()
+        } else if !flags.is_empty() {
+            // The worst verdict across the gate's controls: a green one does
+            // not excuse a red sibling.
+            flags
+                .iter()
+                .map(|fl| code(&root, &name, &[fl]))
+                .find(|c| c != "0")
+                .unwrap_or_else(|| "0".to_string())
+        } else {
+            code(&root, external.as_ref().unwrap(), &[])
         };
         rows.push((name, gate, ctrl));
     }
@@ -227,15 +262,24 @@ fn mutate(only: Option<&str>) -> Result<()> {
             }
         }
         let pristine = std::fs::read_to_string(f)?;
-        let flag = ["--self-check-drop", "--self-check", "--selftest"]
+        // EVERY flag the gate declares, not the first one found. A gate can
+        // carry several controls aimed at different branches, and running one
+        // of them scores the branches the others cover as uncovered.
+        // check_duplicate_agreement.py has two: --self-check-drop misses the
+        // drift verdict at line 298 entirely, --self-check kills it. The first
+        // version of this command took `.find()` and reported that line as a
+        // survivor -- a finding invented by the tool, published before it was
+        // checked. A mutant is killed if ANY declared control notices.
+        let flags: Vec<String> = ["--self-check-drop", "--self-check", "--selftest"]
             .iter()
-            .find(|fl| pristine.contains(&format!("\"{}\"", fl)))
-            .map(|s| s.to_string());
+            .filter(|fl| pristine.contains(&format!("\"{}\"", fl)))
+            .map(|s| s.to_string())
+            .collect();
         let external = EXTERNAL_CONTROL
             .iter()
             .find(|(g, _)| *g == name)
             .map(|(_, c)| c.to_string());
-        if flag.is_none() && external.is_none() {
+        if flags.is_empty() && external.is_none() {
             println!("{:<38} {:>9}  {}", name, "-", "no control to run");
             continue;
         }
@@ -254,15 +298,22 @@ fn mutate(only: Option<&str>) -> Result<()> {
             m.push_str("return 0");
             m.push_str(&pristine[at + len..]);
             std::fs::write(f, &m)?;
-            let ctrl = match (&flag, &external) {
-                (Some(fl), _) => code(&root, &name, &[fl]),
-                (_, Some(c)) => code(&root, c, &[]),
-                _ => unreachable!(),
-            };
+            let mut noticed = false;
+            for fl in &flags {
+                if code(&root, &name, &[fl]) != "0" {
+                    noticed = true;
+                    break;
+                }
+            }
+            if !noticed {
+                if let Some(c) = &external {
+                    noticed = code(&root, c, &[]) != "0";
+                }
+            }
             // Restore before judging, so an early return can never leave the
             // tree mutated.
             std::fs::write(f, &pristine)?;
-            if ctrl == "0" {
+            if !noticed {
                 survivors.push(line_of(&pristine, *at));
             } else {
                 killed += 1;
@@ -566,12 +617,33 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
     }
 
     #[test]
-    fn a_gate_is_never_both_a_gate_and_its_own_control() {
+    fn an_external_control_is_never_reported_as_uncontrolled() {
+        // The invariant that matters is not "a control file is not a gate" --
+        // that was the wp18 shape, where the control does nothing else.
+        // check_gate_preconditions.py breaks it deliberately: it covers the
+        // precondition branch of six gates AND is a gate in its own right,
+        // with its own self-check. What must hold is that a script named as
+        // somebody's control never ends up in the uncontrolled list, which
+        // would be a finding invented out of the wiring.
         for (g, c) in EXTERNAL_CONTROL {
             assert_ne!(g, c, "a script cannot be its own negative control");
             assert!(
-                IS_A_CONTROL.contains(c),
-                "{c} must be excluded from the gate list"
+                IS_A_CONTROL.contains(c) || CONTROL_IS_ALSO_A_GATE.contains(c),
+                "{c} is named as a control but is neither excluded from the gate \
+                 list nor declared as a gate that carries its own control"
+            );
+        }
+        // And the declaration is not free: a script listed there must really
+        // have a control of its own, or the exemption hides the thing the
+        // sweep exists to report.
+        for c in CONTROL_IS_ALSO_A_GATE {
+            let src = std::fs::read_to_string(repo_root().expect("git repo").join("tools").join(c))
+                .unwrap_or_default();
+            assert!(
+                ["--self-check-drop", "--self-check", "--selftest"]
+                    .iter()
+                    .any(|fl| src.contains(&format!("\"{}\"", fl))),
+                "{c} claims to be a gate with its own control and declares no control flag"
             );
         }
     }

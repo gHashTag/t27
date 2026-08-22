@@ -593,3 +593,58 @@ inside `self_check` too. Doing that scored two sound controls as vacuous passes
 -- they had detected the mutant correctly and merely lost the ability to say
 so. Reading the printed output rather than the exit code is what caught it.
 The broken-ruler error applies to the experiment you run on your own tools.
+
+## 17. The audit tool is a gate, and it lies the same ten ways
+
+§16 added `tri gates mutate` and reported nine gates with surviving mutants.
+Using it for one more day found two defects **in the tool**, and both are
+classes already in §14 — which is the point.
+
+**It ran ONE control per gate, and invented a survivor.** The flag lookup took
+the first match. `check_duplicate_agreement.py` declares two, and the one it
+picked never reaches that gate's drift verdict; the other kills the mutant in a
+line. The published table said `SURVIVED at 298`. Nothing in the repository was
+wrong; the tool was. §14 class H, scope decided by a convenient rule rather
+than by what the rule is for. **A gate can have more than one control. Read the
+set, not the first element.**
+
+**Its control map was 1:1, so a shared control could not be expressed.** Once
+one control covered the precondition branch of six gates, those branches kept
+reporting as survivors while the control that covers them sat in the tree.
+Same "it exists but nothing connects it" defect §13 is about, in the auditor.
+
+**Classify by reading the sites, not by a proxy for them.** The claim "six of
+the nine share the precondition shape" came from *does this gate keep a
+baseline file*. Reading all twenty sites: seven are preconditions, thirteen are
+ordinary verdict branches, one of them a gate's MAIN verdict. The proxy was
+cheap, plausible, and shipped in an issue and a blog post before anyone read
+the thing it stood for.
+
+### The precondition class, and how one control closes it
+
+A control plants a fault INSIDE a well-formed world. It never breaks the
+world's EXISTENCE. **An empty tree makes every precondition fail at once** --
+no baseline, no compiler, no specs, no seals -- so one control covers every
+gate that has one, and new gates join by a table row. Copy the script INTO the
+empty tree so `ROOT` resolves there by `parent.parent`: no `--root` flag and no
+env override, so covering the class adds no way to aim a live gate somewhere
+harmless.
+
+Two things it must do that an exit-code check does not:
+
+- **Assert the message.** These gates reach one exit code from many branches. A
+  gate that fails by CRASHING satisfies "it went red" and satisfies nothing.
+- **Stage it.** Preconditions are checked in order and the first to fire hides
+  the rest. A bare tree reaches "t27c not built"; a tree with t27c reaches "the
+  scan matched nothing, the instrument is broken". The first version of the
+  table expected the second message from the first stage, and the file's own
+  control is what said so.
+
+**Name what you do not cover in a constant, not in a count.** Two sites here
+sit behind a tool check, so their message depends on the machine, and an
+assertion whose expected value varies is not one. `UNCOVERED = 2` next to the
+reason beats a reader inferring completeness from a green.
+
+**Line numbers in comments go stale inside the same commit.** The note listing
+those two sites said `:346` and `:390`; the fix eight lines above them moved
+both before the branch was ever pushed. Name branches by their message.
