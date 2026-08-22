@@ -3721,6 +3721,35 @@ impl Codegen {
         }
     }
 
+    /// Render a t27 type in Zig.
+    ///
+    /// Prop. 184 made the parser KEEP `&T` in type position rather than lose the
+    /// declaration, which was right -- but the Zig emitter then wrote it out
+    /// verbatim, and Zig has no `&T` type. `expected type expression, found '&'`
+    /// was the token in 8 of 14 sampled failures of that class, across 467
+    /// reference-typed positions in the corpus.
+    ///
+    /// Only the reference forms are translated. Everything else passes through
+    /// untouched: this is a rendering step, not a type checker, and silently
+    /// rewriting a type it does not understand is how the converter corrupted
+    /// 131 field declarations in the first place.
+    fn zig_type(ty: &str) -> String {
+        let t = ty.trim();
+        // `str` is Rust's, and appears bare as well as behind a reference.
+        if t == "&str" || t == "str" {
+            return "[]const u8".to_string();
+        }
+        if let Some(rest) = t.strip_prefix("&mut ") {
+            // A mutable reference is a plain pointer.
+            return format!("*{}", Self::zig_type(rest));
+        }
+        if let Some(rest) = t.strip_prefix('&') {
+            // `&&T` is a reference to a reference; recursion handles it.
+            return format!("*const {}", Self::zig_type(rest));
+        }
+        t.to_string()
+    }
+
     fn gen_const_decl(&mut self, node: &Node) {
         if node.extra_pub {
             self.write("pub ");
@@ -3729,7 +3758,7 @@ impl Codegen {
         self.write(&format!("const {}", node.name));
 
         if !node.extra_type.is_empty() {
-            self.write(&format!(": {}", node.extra_type));
+            self.write(&format!(": {}", Self::zig_type(&node.extra_type)));
         }
 
         if !node.children.is_empty() {
@@ -3783,7 +3812,7 @@ impl Codegen {
             } else {
                 "void"
             };
-            self.write_line(&format!("{}: {},", field.name, ty));
+            self.write_line(&format!("{}: {},", field.name, Self::zig_type(ty)));
         }
 
         self.dedent();
@@ -3802,7 +3831,7 @@ impl Codegen {
         let return_type = if node.extra_return_type.is_empty() {
             "void".to_string()
         } else {
-            node.extra_return_type.clone()
+            Self::zig_type(&node.extra_return_type)
         };
 
         // Check if this is a method (first param is "self")
@@ -3813,7 +3842,7 @@ impl Codegen {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&format!("{}: {}", pname, ptype));
+            self.write(&format!("{}: {}", pname, Self::zig_type(ptype)));
         }
         self.write(")");
 
@@ -3942,7 +3971,7 @@ impl Codegen {
                 }
                 self.write(&node.name);
                 if !node.extra_type.is_empty() {
-                    self.write(&format!(": {}", node.extra_type));
+                    self.write(&format!(": {}", Self::zig_type(&node.extra_type)));
                 }
                 if !node.children.is_empty() {
                     self.write(" = ");
