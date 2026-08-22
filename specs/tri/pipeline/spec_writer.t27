@@ -18,15 +18,15 @@ module SpecWriter;
     };
 
     pub const SpecBehavior = struct {
-        inputs : [[]Const SpecField],
+        inputs : []const SpecField,
         output : []const u8,
         steps : []const []const u8,
     };
 
     pub const SpecTemplate = struct {
         module_name : []const u8,
-        types : [[]Const SpecType],
-        behaviors : [[]Const SpecBehavior],
+        types : []const SpecType,
+        behaviors : []const SpecBehavior,
     };
 
     pub const WriteResult = struct {

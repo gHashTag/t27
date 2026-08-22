@@ -18,7 +18,7 @@ module TriBtree;
     pub const BTreeNode(K, V) = struct {
         keys : []K,
         values : []V,
-        children : [[]BTreeNode(K, V)],
+        children : []BTreeNode(K, V),
         leaf : "bool",
     };
 

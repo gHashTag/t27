@@ -18,7 +18,7 @@ module Workflow;
 
     pub const Workflow = struct {
         version : String,
-        steps : [[]Const WorkflowStep],
+        steps : []const WorkflowStep,
     };
 
     // ═══════════════════════════════════════════════════════════

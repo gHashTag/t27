@@ -12,7 +12,7 @@ module TriDijkstra;
 
     pub const DijkstraResult = struct {
         distance : []f64,
-        parent : [[]?Usize],
+        parent : []?usize,
         allocator : "std.mem.Allocator",
     };
 
