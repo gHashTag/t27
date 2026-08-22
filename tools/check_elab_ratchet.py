@@ -22,6 +22,7 @@ missing, so a Rust-only checkout is never blocked by it -- the same contract
 emit-bitexact-gate.yml uses.
 """
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,32 @@ def counts():
         n = sum(1 for ln in proc.stderr.splitlines() if " error" in ln)
         out[v.stem] = n
     return out
+
+
+def iverilog_version():
+    """The calibration of this instrument, recorded beside its numbers.
+
+    A ratchet compares counts produced by a specific iverilog; an apt upgrade
+    on the runner can move them without a single line of the compiler changing.
+    The first CI run matched the local baseline exactly (186 vs 186), which is
+    luck, not a property -- so the version is stored and a mismatch is named in
+    the failure text instead of being mistaken for a regression.
+    """
+    try:
+        out = subprocess.run(["iverilog", "-V"], capture_output=True, text=True)
+    except Exception:
+        return "unknown"
+    m = re.search(r"version\s+(\S+)", out.stdout)
+    return m.group(1) if m else "unknown"
+
+
+def baseline_version():
+    if not BASELINE.exists():
+        return None
+    for ln in BASELINE.read_text().splitlines():
+        if ln.startswith("# iverilog-version "):
+            return ln.split(" ", 2)[2].strip()
+    return None
 
 
 def baseline():
@@ -84,6 +111,7 @@ def main():
             "# the numbers may fall, never rise (#2325). The remainder is two named\n"
             "# design decisions -- string comparison in hardware, and unsized array\n"
             "# params (#2410) -- not an oversight.\n"
+            f"# iverilog-version {iverilog_version()}\n"
         )
         body = "\n".join(f"{k} {v}" for k, v in sorted(now.items()))
         BASELINE.write_text(header + body + "\n")
@@ -114,6 +142,11 @@ def main():
 
     if worse or new:
         print()
+        bv, nv = baseline_version(), iverilog_version()
+        if bv and bv != nv:
+            print(f"NOTE: the baseline was taken with iverilog {bv}; this run used {nv}.")
+            print("A version change can move these counts without any compiler change,")
+            print("so check that before reading the rows above as a regression.")
         print("A module gained elaboration errors. Generated Verilog that iverilog")
         print("cannot elaborate cannot be simulated, so its vectors can never run.")
         print("If the increase is deliberate: tools/check_elab_ratchet.py --update-baseline")
