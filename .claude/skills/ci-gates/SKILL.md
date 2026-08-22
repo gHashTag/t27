@@ -378,6 +378,31 @@ and proved nothing. Controls need their own verification: change the input, see
 the output change, then restore. Twice this month a silently-inert control
 almost certified a gate that could not fail.
 
+**Your own gate is an instrument, and instruments lie the same way.** The
+elaboration ratchet counted every stderr line containing `" error"`. iverilog
+closes a failing file with `N error(s) during elaboration.` -- a TOTAL, which
+matched. One phantom per failing module, 25 of them, and the number went into
+a published post. What caught it was classifying the output by message shape
+instead of counting lines. Do that once for every gate you write: print the
+distribution, read the rows, and check that each row is a thing you meant to
+count.
+
+**A count is not a quality score, and fixing something can raise it.** A syntax
+error TRUNCATES the file. Removing four of them revealed five real elaboration
+errors that had never been reached, so the ratchet reported `WORSE 4 -> 5` for
+a strict improvement. Two consequences: (a) the gate is right to demand an
+explanation for every increase, which is exactly what it did; (b) the reason
+must be written NEXT TO THE NUMBER in the baseline, not only in the commit
+message -- the next reader sees the file, not your PR.
+
+**The same defect shape returns wherever nobody swept the siblings.** A
+keyword-named identifier was escaped at its declaration and printed bare at its
+use. That had already been fixed once here, for a local array's declaration and
+initialiser, with a note saying the expression paths were fine. The part-select
+paths were never checked. When you fix "escaped here but not there", grep for
+every OTHER place the same value is printed before you close it -- the root is
+usually one variable serving as both a lookup key and emitted text.
+
 **Classify the WHOLE list, not its head.** After three fixes I wrote that "the
 remainder is two design decisions" — from the top six rows of the error output.
 Checking all of it later gave 48 unique names and 68 references, and the claim
