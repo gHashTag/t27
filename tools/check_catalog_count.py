@@ -92,6 +92,12 @@ def regen_count(ssot: Path, tool: Path) -> int:
         return int(gen["count"])
 
 
+# The catalog has only ever grown: 83 at the paper, then 92, then 109. This is
+# a ratchet floor, not a target -- see the check in main() for why equality
+# alone is not enough.
+MIN_ROWS = 109
+
+
 def main(argv: list[str]) -> int:
     repo = Path(__file__).resolve().parent.parent
     ap = argparse.ArgumentParser()
@@ -112,6 +118,20 @@ def main(argv: list[str]) -> int:
     print(f"SSOT   (// CATALOG: lines)      = {n_ssot}")
     print(f"regen  (codegen fresh)          = {n_regen}")
     print(f"paper  ({PAPER_ID} declared)    = {PAPER_DECLARED_COUNT}")
+
+    # T68: a FLOOR, because equality alone is satisfied at zero. Stripping
+    # every `// CATALOG:` line from the SSOT made both counters read 0 and this
+    # gate printed "OK: SSOT == fresh regen == 0 (canonical)." and exited 0 --
+    # both counters read the same file, so at zero the "independent path" they
+    # rely on collapses onto nothing. The ladder has only ever grown, 83 -> 92
+    # -> 109, so a drop is a deliberate act: lower this number in the same
+    # commit that removes rows, and say in the message why.
+    if n_ssot < MIN_ROWS:
+        print(f"FAIL: SSOT has {n_ssot} rows, floor is {MIN_ROWS}. Rows left the "
+              f"catalog. Equality with the regen does not prove a catalog EXISTS "
+              f"-- 0 == 0 passes it. If the removal is deliberate, lower MIN_ROWS "
+              f"in the same commit.", file=sys.stderr)
+        return 4
 
     if n_ssot != n_regen:
         print(f"FAIL: SSOT ({n_ssot}) != regen ({n_regen}) -- "
