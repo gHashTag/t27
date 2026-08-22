@@ -752,6 +752,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Result:** $pass passed, $fail failed" >> $GITHUB_STEP_SUMMARY
 
+      - name: A vector case must carry data, not only prose
+        run: |
+          # #2241: 412 of 512 cases carry an id and a sentence and nothing else.
+          # The 24 files that are entirely prose are frozen as debt; this fails
+          # when a NEW one lands, so the class cannot grow again unnoticed.
+          python3 tools/check_vector_data.py
+
       - name: Execute conformance vectors (iverilog + vvp)
         run: |
           # #2241 v1: the job now EXECUTES vectors instead of compiling
