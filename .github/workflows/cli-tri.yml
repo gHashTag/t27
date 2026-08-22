@@ -72,8 +72,40 @@ jobs:
       - name: install yosys
         run: sudo apt-get update -qq && sudo apt-get install -y -qq yosys
 
+      # --nocapture --test-threads=1, and the log tee'd out, so the ratchet
+      # below can measure something `cargo test` otherwise throws away.
+      #
+      # Three smoke-gate tests need a Lean toolchain that no workflow installs
+      # (#2370). They do not use #[ignore] -- they println! a reason and return.
+      # So libtest counts them as PASSED and the summary line reads
+      # "0 ignored", and `cargo test` CAPTURES the stdout of a passing test, so
+      # the reason never reaches the log at all. Without --nocapture there is
+      # nothing to measure. Without --test-threads=1 the reason cannot be
+      # attributed to a test, because libtest lands it on the "test NAME ... "
+      # line it has already opened and parallel workers interleave those.
+      #
+      # set -o pipefail keeps tee from swallowing a real test failure.
       - name: cargo test -p tri
-        run: cargo test -p tri
+        run: |
+          set -o pipefail
+          cargo test -p tri -- --nocapture --test-threads=1 2>&1 | tee "$RUNNER_TEMP/tri-test.log"
+
+      # A green run of this job is consistent with those three never having
+      # executed. This step puts the count and the reasons in the job summary so
+      # a reader of a green run cannot mistake it for coverage, and ratchets the
+      # set: it FAILS if the set grows. A fourth test starting to skip silently
+      # is the regression nobody would otherwise see.
+      #
+      # It deliberately does not fail on today's three. Turning existing skips
+      # red is the owner's policy decision and a skip is not a failure; #2370
+      # stays open for the real fix, which is installing the toolchain.
+      #
+      # The baseline is emitted by this same script (--emit-baseline) from a real
+      # test log. It is never hand-written: a hand-typed "3" would restate what
+      # we already know and would not survive a rename.
+      - name: runtime skip ratchet
+        if: always()
+        run: python3 cli/tri/skipwatch.py "$RUNNER_TEMP/tri-test.log" cli/tri/skip-baseline.txt
 
       # `tri rtl check` reports numbers, and a binary that runs but reports
       # nothing would pass the two steps above. yosys is already on PATH from
