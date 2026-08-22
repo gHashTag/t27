@@ -1,37 +1,40 @@
 # iverilog elaboration errors per generated module. This is a RATCHET:
-# the numbers may fall, never rise (#2325). The remainder is two named
-# design decisions -- string comparison in hardware, and unsized array
-# params (#2410) -- not an oversight.
+# the numbers may fall, never rise (#2325). iverilog's own "N error(s)
+# during elaboration" summary line is NOT counted -- it is a total, and
+# counting it added one phantom error per failing module.
+# The remainder is not one thing: see the module docstring for the full
+# classification. Two design decisions (#2433, #2410) cover the unbound
+# identifiers; the malformed statements are an emitter defect.
 # iverilog-version 13.0
-apb_bridge 5
-assembler 5
-axi4 3
-bootrom 4
-bridge 17
+apb_bridge 4
+assembler 4
+axi4 2
+bootrom 3
+bridge 16
 clock_domain 4
 crossopt 0
-cts 3
-dft 7
-e2e_demo 3
-fifo 3
-formal 21
-gf16_accel 7
-hir 17
+cts 2
+dft 6
+e2e_demo 2
+fifo 2
+formal 20
+gf16_accel 6
+hir 16
 hw_types 0
-linker 5
+linker 4
 mac 0
-memory 6
-partition 3
-placement 7
-power 3
-router 9
-simulator 3
+memory 5
+partition 2
+placement 6
+power 2
+router 8
+simulator 2
 spi 0
-stdlib 3
-ternary_isa 7
-testbench 9
-timing 11
+stdlib 2
+ternary_isa 6
+testbench 8
+timing 10
 top_level 0
 uart 0
-vcd_trace 15
-zerodsp_top 6
+vcd_trace 14
+zerodsp_top 5
