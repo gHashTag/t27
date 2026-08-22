@@ -143,3 +143,163 @@ test -p t27c` is invoked by no workflow (removed by #2292) and `fpga-build.yml`
 never calls `vvp` (#2241). It prints `RESULT: PASS`/`RESULT: FAIL` and exits 0
 either way, matching `tb_bitnet_request_overflow.v`. Wiring `sim/` into CI is
 tracked separately.
+
+## Emitting the pre-fix and post-fix Verilog
+
+All four BitNet emitters compile **standalone under `rustc`** — no `cargo`, no
+target directory, seconds per revision. The only `use` in any of them is
+`use super::*` inside a `#[cfg(test)]` module, which `rustc` never reaches
+without `--test`.
+
+```
+# $1 = bootstrap/src file, $2 = commit sha, $3 = emitter fn, $4 = module name
+gh api "repos/gHashTag/t27/contents/bootstrap/src/$1?ref=$2" --jq .content \
+  | base64 -d > src_$2.rs
+printf '#[path = "src_%s.rs"]\nmod e;\nfn main(){let a:Vec<String>=std::env::args().collect();print!("{}",e::%s(&a[1]));}\n' "$2" "$3" > drv_$2.rs
+rustc -O --edition 2021 -o drv_$2 drv_$2.rs
+./drv_$2 "$4" > "$4.v"
+```
+
+Base and head shas come from `gh api repos/gHashTag/t27/pulls/N --jq
+'.base.sha, .head.sha'`. The per-harness tables below give the ones used.
+
+## `tb_bitnet_sequencer_zero_count.v` — issue #1977
+
+Differential harness for the `layer_sequencer` that never terminated when
+asked for zero work. Both terminators are `index == count-1` compares against
+an unsigned port, and the bare literal `1` widens each subtraction to 32 bits,
+so a zero count borrows to `32'hFFFFFFFF` while the index zero-extends. No
+value a 16-bit `neuron_id` or an 8-bit `chunk_id` can hold ever matches, the
+FSM never reaches `DONE_ST`, and `valid` is asserted forever for work nobody
+requested.
+
+| emitter | `bootstrap/src/bitnet_pipeline.rs`, `build_layer_sequencer` |
+|---|---|
+| pre-fix | `4ea72c322fa5572fc0c33fb5deedb739b7ad6c6a` (PR #2337 base) |
+| post-fix | `e3c2d655fbcae69dd41c4a050d3feb801ac2d129` (PR #2337 head) |
+
+```
+iverilog -g2005 -o tb.vvp sim/tb_bitnet_sequencer_zero_count.v seq_old.v seq_new.v
+vvp tb.vvp
+```
+
+### What it asserts
+
+| case | stimulus | expectation |
+|---|---|---|
+| 1 | `num_neurons=0`, `num_chunks=4`, 200,000 cycles | old never pulses `done` and is *still counting* — `neuron_id` reaches exactly 50,000 (200000/4); new retires with `valid` never raised |
+| 2 | `num_neurons=8`, `num_chunks=0`, 200,000 cycles | the other borrow: old's `chunk_id` free-runs and wraps (high-water 255, final 64 = 200000 mod 256) while `neuron_id` never advances |
+| 3–8 | six non-zero requests | old and new identical on **every output, every cycle** |
+
+Case 1 asserts the old rendering still hangs *and* still counts: a rendering
+frozen with all outputs static would also show `done=0`, and that is a
+different defect. The six non-zero controls are what stop the guard being a
+licence to retire everything — a mutant guarded on `1'b1` passes cases 1 and 2
+and fails all six.
+
+`first_chunk`/`last_chunk` are compared only while `valid` is high. **Neither
+rendering resets them** — the emitted reset block is `state<=IDLE;
+neuron_id<=0; chunk_id<=0; valid<=0; done<=0;` — so both sit at X until the
+first RUN cycle and `X !== X`. That is a property of the design, identical
+either side of the fix. `qual_cycles` counts how often the qualified
+comparison actually ran and is asserted equal to `num_neurons*num_chunks`, so
+the qualification cannot silently void that half of the vector.
+
+## `tb_bitnet_prefetch_done_pulse.v` — issue #1985
+
+Differential harness for `weight_prefetch_ctrl`'s `prefetch_done`, documented
+as a one-cycle pulse but implemented as a level. The pre-fix emitter cleared
+the flag only *inside* the start guard, so it stayed asserted for the whole
+idle gap. A requester that samples it in the same cycle it raises
+`start_prefetch` — exactly what `multilayer_sequencer`'s `WAIT_PF` state does —
+reads the previous transaction's completion and skips its own prefetch.
+
+| emitter | `bootstrap/src/bitnet_buffers.rs`, `build_weight_prefetch_ctrl` |
+|---|---|
+| pre-fix | `e058a03ea20397ae4f066a57ad12ad25e01d78df` (PR #2340 base) |
+| post-fix | `851dc6d99ed6f88b6bb5fd02cbf93a89ec71900a` (PR #2340 head) |
+
+```
+iverilog -g2005 -o tb.vvp sim/tb_bitnet_prefetch_done_pulse.v pf_old.v pf_new.v
+vvp tb.vvp
+```
+
+### What it asserts
+
+| case | stimulus | expectation |
+|---|---|---|
+| 1 | two 2-word transactions, 8-cycle gap | at request 2 old reads the stale `prefetch_done=1`, new reads `0`; both show `done_rises=2` and `we_count=4` |
+| 2 | the same with a 40-cycle gap | old's high-time grows by exactly the extra 32 cycles — it is a **level**; new's stays at 2, one cycle per completion — it is a **pulse** |
+
+Case 2 is what distinguishes the two readings of case 1: a single sample can
+be explained by phase, but only a level stretches with the gap. Both cases
+also assert that at the *first* request both renderings read the flag low,
+which is what makes the request-2 reading a difference in staleness rather
+than a constant offset.
+
+Every output **except** `prefetch_done` is compared cycle by cycle and must be
+identical (the fix is surgical), while `prefetch_done` itself must differ on at
+least one cycle (the harness is observing something). Those two assertions are
+anti-vacuity controls pointing in opposite directions: a mutant that fixes the
+flag but breaks the BRAM address stride fails the first, and a mutant that
+changes nothing fails the second.
+
+## `tb_bitnet_dma_we_default.v` — issue #2006
+
+**Three-way** differential harness for the `local_we` default-low. Its result
+is a **null** one, and that is the whole difficulty: the pre-fix and post-fix
+renderings are observationally *identical*. Reading the pre-fix output, every
+reachable path already drives the strobe — reset clears it, `READ_DATA` sets
+it and has an explicit `else` clear, `DONE_ST` clears it — and the states that
+never mention it are never entered with it high, because `READ_DATA`'s only
+exit is `DONE_ST`. The fix is defence in depth against a future arm, not a
+repair of an observable defect.
+
+A harness that "passes" by finding no difference proves nothing on its own:
+one wired to the wrong ports finds no difference either. So this harness
+elaborates **three** renderings and runs one comparator over two pairs:
+
+| slot | rendering | sha |
+|---|---|---|
+| A | pre-#2006 | `bd2d25df4b2e5bcc4cca61eb3da3b3505c73df7d` (PR #2344 base) |
+| B | #2006 applied | `4f07aa84acdac656977ea45b284288f2b6d2ba69` (PR #2344 head) |
+| C | #2006 + #2003 | `4db5729b1817a2d0f0d453e34c707ab425956934` (PR #2345 head) |
+
+B and C are consecutive revisions of the same file — PR #2344's head rendering
+is byte-identical to PR #2345's base rendering — so A, B and C form a linear
+chain and one comparator sees all three.
+
+```
+iverilog -g2005 -o tb.vvp sim/tb_bitnet_dma_we_default.v dma_a.v dma_b.v dma_c.v
+vvp tb.vvp
+```
+
+### What it asserts
+
+* **A vs B must be identical** — the null result under test.
+* **B vs C must differ** — the anti-vacuity control. #2003 changed the
+  `READ_DATA` address arm, so a working comparator has to see it.
+
+The control is not a separate test. It is the same comparator, on the same
+stimulus, in the same simulation, over the same 293-bit vector of every output
+port. If the comparator is blind — misconnected ports, an enable left off, a
+vector omitting `local_we` — then B vs C reports "identical" too and the run
+**fails**, explicitly refusing to certify the A/B null result. Only once the
+instrument has shown on C that it *can* see a difference does "A equals B"
+carry information.
+
+Seven stimulus phases cover read, back-to-back read, stretched `READ_ADDR`
+(`arready` held low), write, throttled `WRITE_DATA`, throttled `READ_DATA`
+(`rvalid` toggled), and a long idle tail. Phase 6 is load-bearing: throttling
+`rvalid` is the only condition under which the pre-fix `end else local_we <=
+1'b0;` does any work, and hence the only place the #2006 default has a live
+competitor. Deleting that `else` clear from both renderings makes A emit **22**
+local writes against B's 18 — four spurious strobes — with the first
+divergence inside phase 6. The fix is latent today and a real backstop the
+moment an arm stops clearing the strobe.
+
+### Status
+
+Like the harnesses above, all three are **reporting** instruments, not gates.
+`vvp` exits 0 on `RESULT: FAIL` as well as `RESULT: PASS`, and no workflow runs
+them.
