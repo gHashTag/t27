@@ -378,6 +378,85 @@ and proved nothing. Controls need their own verification: change the input, see
 the output change, then restore. Twice this month a silently-inert control
 almost certified a gate that could not fail.
 
+## 14. Ten ways a gate lies, from auditing eleven of them at once
+
+Every gate in `tools/` was put to five questions -- does it count what it
+claims, can it pass having done nothing, does its scope match its prose, can
+its ledger be lowered silently, and is anything it says about itself false
+today. 63 candidate findings, **43 survived independent refutation**. The list
+was the evidence; these classes are the product. Read them as a checklist for
+the next gate you write.
+
+**A. Departure scored as repair.** The most repeated shape -- six gates. A
+thing that LEAVES the measured set produces a lower number, and a lower number
+reads as progress: a deleted spec, an ungenerated module, an emptied vector
+file, a re-sealed spec, a relabelled pack. Every one of these ratchets counted
+in one direction and never asked whether the baseline still covers the corpus.
+The repair is one line each: iterate `set(now) | set(base)`, compute
+`known - now`, and report a disappearance as its own failing class.
+
+**B. Exit status mistaken for the property.** `rc == 0` becomes "generates",
+"parses", "the vectors ran". The artefact is never opened -- 264 specs emit
+syntactically invalid C while counted as generating, and an empty file returns
+0 from every backend. Twice the compiler already ships the stronger answer
+(`parse-complete` distinguishes consume-all from DISCARD from fail) and no gate
+calls it.
+
+**C. A dated measurement written as a standing fact.** Fifteen findings, one
+mechanism: measure once, write it in present tense, never re-derive. Seven had
+already been copied outward into a workflow header, `NOW.md`, or a commit
+message. The healthy cases all share one feature -- an explicit "state when
+this was written" line. Where that phrase exists the snapshot is defensible;
+where it does not, the number is a live lie.
+
+**D. The broken ruler -- the instrument inside the failure domain.** A syntax
+error truncates the parse that produces the error count, so breakage reads as
+improvement. `dangling` vs `phantom` is decided from git history that CI's own
+depth-1 checkout removes. A self-test built from the schema it validates cannot
+reach the branch that drops other schemas.
+
+**E. Negative controls that cannot fail for a defect in the gate.** Four
+instances, under CI steps named "must be falsifiable". One asserts a
+comprehension it wrote itself and survives three mutants of the real logic;
+one plants only rows the gate can already parse; one never calls the function
+whose filter is the bug. The correct pattern was already in the tree twice:
+plant a fixture, call the REAL scan().
+
+**F. No floor: zero work passes.** `0 == 0` prints "canonical". An empty
+generated directory prints "no module gained errors". No gate asserted
+`rows_checked > 0`. This is section 1 of this file violated by gates that cite
+it.
+
+**G. Anomaly swallowed as absence.** An unreadable file becomes `(0, 0)` --
+"nothing to check". A missing hash key becomes "no freshness requirement". A
+NaN comparison becomes "no mismatch". The safe reading of an anomaly is
+failure; each of these chose silence. The correct pattern was in-tree here too.
+
+**H. Scope declared by prefix or literal while the rationale is a count.** A
+fixture exclusion covering 29 files for a reason enumerating 21. A "32-module
+set" that is a hardcoded array, not a directory. A population defined by an
+`int16_t` baked into a regex. Someone counted the things they were thinking
+about, then wrote a selector catching a different set.
+
+**I. CI reach narrower than gate reach.** A `paths:` filter omitting the gate's
+own script and ledger -- so `return 1` -> `return 0` lands in a PR that never
+runs it. A self-test in no workflow. A gate wired into nothing at all. A
+checkout depth that changes the answer. "It is enforced" and "it runs on the PR
+that changes it" are different claims, and the second is the one that matters.
+
+**J. A self-declared label trusted where a measurement was available.** A pack
+kind skips the row check without counting the rows. "bitexact" names a property
+nothing verifies. Family distinctness asserted from mutually exclusive regexes,
+i.e. by construction. The data needed to check was in the file the gate had
+already parsed.
+
+**And the audit itself was wrong once.** It proposed a `source=` uniqueness
+check for the catalog; `source=` is a citation and 30 of 109 rows legitimately
+share one, so that check would have failed on the clean tree the day it landed.
+A finding survives refutation only in the direction it was checked -- verify a
+proposed fix against the corpus before applying it, including one that arrived
+with evidence attached.
+
 **Your own gate is an instrument, and instruments lie the same way.** The
 elaboration ratchet counted every stderr line containing `" error"`. iverilog
 closes a failing file with `N error(s) during elaboration.` -- a TOTAL, which
