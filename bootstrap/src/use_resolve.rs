@@ -467,6 +467,45 @@ pub fn imported_enums(input_path: &Path, source: &str) -> Vec<(String, Vec<(Stri
     out
 }
 
+/// The struct declarations of every direct `use` dependency, in the same
+/// `(name, fields)` shape `struct_decls` stores for a local struct. Mirrors
+/// `imported_enums` (#2275): `word.raw` on an imported-struct param used to
+/// fall past the part-select branch (struct_field_offset had no entry) and
+/// flatten to the unbound identifier `word_raw`.
+pub fn imported_structs(input_path: &Path, source: &str) -> Vec<(String, Vec<(String, String)>)> {
+    let specs_root = match find_specs_root(input_path) {
+        Some(r) => r,
+        None => return Vec::new(),
+    };
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out: Vec<(String, Vec<(String, String)>)> = Vec::new();
+    for dep in use_targets(source, &specs_root) {
+        let text = match std::fs::read_to_string(&dep) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let ast = match crate::compiler::Compiler::parse_ast(&text) {
+            Ok(a) => a,
+            Err(_) => continue,
+        };
+        for decl in &ast.children {
+            if decl.kind != crate::compiler::NodeKind::StructDecl || decl.name.is_empty() {
+                continue;
+            }
+            if !seen.insert(decl.name.clone()) {
+                continue;
+            }
+            let fields: Vec<(String, String)> = decl
+                .children
+                .iter()
+                .map(|f| (f.name.clone(), f.extra_type.clone()))
+                .collect();
+            out.push((decl.name.clone(), fields));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
