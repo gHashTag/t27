@@ -2,7 +2,7 @@
 # Remove the line when the seal is fixed; the gate then holds it fixed.
 AdamW.json | stale | specs/ml/optimizer/adamw.t27 changed since sealing
 AspSolver.json | stale | specs/ar/asp_solver.t27 changed since sealing
-Backend.json | stale | specs/igla/race/backend.t27 changed since sealing
+Backend.json | no-spec-hash | spec_hash is not 64 hex characters and can never match
 BaseOps.json | stale | specs/base/ops.t27 changed since sealing
 BaseTypes.json | stale | specs/base/types.t27 changed since sealing
 Binary16.json | dangling | specs/numeric/binary16.t27
@@ -26,12 +26,12 @@ NF4.json | dangling | specs/numeric/nf4.t27
 Partition.json | stale | specs/fpga/partition.t27 changed since sealing
 PhiRatio.json | stale | specs/numeric/phi_ratio.t27 changed since sealing
 ProofTrace.json | stale | specs/ar/proof_trace.t27 changed since sealing
-RTL.json | stale | specs/igla/race/rtl.t27 changed since sealing
+RTL.json | no-spec-hash | spec_hash is not 64 hex characters and can never match
 Restraint.json | stale | specs/ar/restraint.t27 changed since sealing
 SPI_Master.json | stale | specs/fpga/spi.t27 changed since sealing
 SacredAttention.json | stale | specs/nn/attention.t27 changed since sealing
 SacredPhysics.json | stale | specs/math/sacred_physics.t27 changed since sealing
-SimilaritySearch.json | stale | specs/vsa/similarity_search.t27 changed since sealing
+SimilaritySearch.json | no-spec-hash | spec_hash is not 64 hex characters and can never match
 String.json | stale | specs/sacred/sacred_governance.t27 changed since sealing
 TF3.json | stale | specs/numeric/tf3.t27 changed since sealing
 TernaryBackprop.json | dangling | specs/ml/ternary_backprop.t27
@@ -43,8 +43,8 @@ TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
 TestFramework.json | stale | specs/test_framework/core.t27 changed since sealing
 TestRunner.json | stale | specs/test_framework/runner.t27 changed since sealing
 TriNetFormats.json | dangling | specs/numeric/tri_net_formats.t27
-Trinity_FPGA_Top.json | stale | specs/fpga/top_level.t27 changed since sealing
-UART_Bridge.json | stale | specs/fpga/uart.t27 changed since sealing
+Trinity_FPGA_Top.json | no-spec-hash | spec_hash is not 64 hex characters and can never match
+UART_Bridge.json | no-spec-hash | spec_hash is not 64 hex characters and can never match
 VSACore.json | stale | specs/test_framework/core.t27 changed since sealing
 agent_"[]const u8".json | stale | specs/tri/agent/eternal_monitor.t27 changed since sealing
 agent_AgentMemory.json | stale | specs/tri/agent/memory.t27 changed since sealing
