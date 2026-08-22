@@ -156,6 +156,29 @@ def tb_case_mac_reset(c):
     ))
 
 
+
+def tb_case_spi_prescaler(c):
+    """The executable half of a prescaler vector.
+
+    The case gives (clk_freq, target_freq, expected_divisor). No spec function
+    maps frequencies to a prescaler code -- that arithmetic is the vector's own
+    derivation -- so what executes is the round trip the SPEC does own:
+    spi_set_prescaler(code) then spi_get_prescaler_div() == expected_divisor.
+    That chain is worth executing: it was a `match` the parser silently dropped
+    until #1941, so the whole dispatch was once an unimplemented stub.
+    """
+    d = c["expected_divisor"]
+    code = d.bit_length() - 2  # 2->0, 4->1, 8->2, ... 256->7
+    return (1, (
+        f'    r = dut.spi_set_prescaler(8\'d{code});\n'
+        f'    r = dut.spi_get_prescaler_div(1\'b0);\n'
+        f'    if (r !== 32\'d{d}) begin\n'
+        f'      $display("FAIL {c["id"]}: got %0d want {d}", r);\n'
+        f'      fails = fails + 1;\n'
+        f'    end else $display("PASS {c["id"]}");\n'
+    ))
+
+
 # module -> (top, vectors file, {group: case renderer})
 REGISTRY = {
     "mac": (
@@ -169,6 +192,13 @@ REGISTRY = {
             "mac_cycle": tb_case_mac_cycle,
             "mac_status": tb_case_mac_status,
             "mac_reset": tb_case_mac_reset,
+        },
+    ),
+    "spi": (
+        "SPI_Master",
+        "conformance/fpga_spi.json",
+        {
+            "spi_prescaler": tb_case_spi_prescaler,
         },
     ),
 }
