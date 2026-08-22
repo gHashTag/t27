@@ -1,0 +1,36 @@
+# iverilog elaboration errors per generated module. This is a RATCHET:
+# the numbers may fall, never rise (#2325). The remainder is two named
+# design decisions -- string comparison in hardware, and unsized array
+# params (#2410) -- not an oversight.
+apb_bridge 5
+assembler 5
+axi4 3
+bootrom 4
+bridge 17
+clock_domain 4
+crossopt 0
+cts 3
+dft 7
+e2e_demo 3
+fifo 3
+formal 21
+gf16_accel 7
+hir 17
+hw_types 0
+linker 5
+mac 0
+memory 6
+partition 3
+placement 7
+power 3
+router 9
+simulator 3
+spi 0
+stdlib 3
+ternary_isa 7
+testbench 9
+timing 11
+top_level 0
+uart 0
+vcd_trace 15
+zerodsp_top 6
