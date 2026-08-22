@@ -28,6 +28,7 @@ SSOT_TEXT = "\n".join([
     "// CATALOG: id=fp8_e4m3",
     "// CATALOG: id=fp8_e5m2",
     "// CATALOG: id=gf16",
+    "// CATALOG: id=gf256",
 ]) + "\n"
 
 
@@ -42,12 +43,26 @@ def _bitexact_pack(pid, rows):
     return {"schema": "t27-conformance/v0", "format": pid, "n_vectors": len(rows), "vectors": rows}
 
 
+def _wide_pack(pid, rows):
+    """T78: the fixture was a SCHEMA MONOCULTURE -- one row shape, so the branch
+    that drops every other shape was taken zero times by any planted mutant,
+    across both selftests. Live, that branch swallowed 2110 of 5905 rows."""
+    return {"schema": "t27-conformance/v0", "format": pid, "kind": "bitexact",
+            "n_vectors": len(rows), "vectors": rows}
+
+
 def _structural_pack(pid):
     return {"schema": "t27-conformance/v0", "format": pid, "kind": "structural", "n_vectors": 0, "vectors": []}
 
 
 def build_clean_corpus(root):
-    """A small, fully-consistent corpus: 2 bit-exact packs + 1 structural pack."""
+    """A small, fully-consistent corpus: 2 f64 packs, 1 WIDE pack, 1 structural.
+
+    The wide pack is not decoration. Until T78 every fixture row was the f64
+    shape, so the branch that drops other shapes was taken ZERO times by any
+    planted mutant in either selftest -- while live it swallowed 2110 of 5905
+    rows across seven packs the INDEX calls bitexact.
+    """
     vec = os.path.join(root, "vectors")
     os.makedirs(vec, exist_ok=True)
 
@@ -67,11 +82,18 @@ def build_clean_corpus(root):
     ])
     # gf16 declared structural here (no bit-exact rows) to exercise the structural path
     gf16 = _structural_pack("gf16")
+    # gf256: the WIDE shape -- an integer code and its exact value, no f64
+    # round-trip, because the format is wider than f64.
+    gf256 = _wide_pack("gf256", [
+        {"name": "pos_zero", "bits": 0, "value": "0", "abs_error": "0"},
+        {"name": "pos_one", "bits": 1, "value": "1", "abs_error": "0"},
+    ])
 
     files = {
         "fp8_e4m3_conformance_v0.json": e4m3,
         "fp8_e5m2_conformance_v0.json": e5m2,
         "gf16_conformance_v0.json": gf16,
+        "gf256_conformance_v0.json": gf256,
     }
     for fn, obj in files.items():
         with open(os.path.join(vec, fn), "w", encoding="ascii") as fh:
@@ -84,8 +106,10 @@ def build_clean_corpus(root):
          "sha256": _sha(os.path.join(vec, "fp8_e5m2_conformance_v0.json"))},
         {"id": "gf16", "file": "gf16_conformance_v0.json", "kind": "structural",
          "sha256": _sha(os.path.join(vec, "gf16_conformance_v0.json"))},
+        {"id": "gf256", "file": "gf256_conformance_v0.json", "kind": "bitexact",
+         "sha256": _sha(os.path.join(vec, "gf256_conformance_v0.json"))},
     ]
-    index = {"total_packs": 3, "bitexact_packs": 2, "structural_packs": 1, "packs": packs}
+    index = {"total_packs": 4, "bitexact_packs": 3, "structural_packs": 1, "packs": packs}
     with open(os.path.join(vec, "INDEX_all_formats.json"), "w", encoding="ascii") as fh:
         json.dump(index, fh)
 
@@ -175,6 +199,67 @@ def main():
         code, rep = G.run_gate(ssot, vec, allow)
         check("TA2_missing_pack_fails_A", rep["checks"]["A_packset_equals_ssot"]["ok"] is False
               and "fp8_e5m2" in rep["checks"]["A_packset_equals_ssot"]["missing_packs"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TF: a wide row's stored error must be exactly zero ----------
+    # T78: before this, NO fixture row had the wide shape, so the branch that
+    # drops non-f64 rows was taken zero times by every planted mutant while it
+    # swallowed 2110 live rows. This plants the fault that was invisible:
+    # a wide row whose abs_error is not zero.
+    root = tempfile.mkdtemp(prefix="wp18st_F_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def spoil(pack):
+            pack["vectors"][0]["abs_error"] = "1e300"
+        _edit_pack(vec, "gf256_conformance_v0.json", spoil)
+        _reindex_sha(vec)
+        code, rep = G.run_gate(ssot, vec, allow)
+        f = rep["checks"].get("F_row_schema_recognised", {})
+        check("TF_wide_row_nonzero_error_fails_F",
+              f.get("ok") is False
+              and f.get("wide_nonzero_count") == 1
+              and rep["checks"]["D_rederive_abs_error"]["ok"] is True
+              and rep["checks"]["C_sha_freshness"]["ok"] is True)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TF2: a row shape nobody planned for is reported ----------
+    root = tempfile.mkdtemp(prefix="wp18st_F2_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def add_alien(pack):
+            pack["vectors"].append({"surprise": 1, "shape": "unplanned"})
+        _edit_pack(vec, "gf256_conformance_v0.json", add_alien)
+        _reindex_sha(vec)
+        code, rep = G.run_gate(ssot, vec, allow)
+        f = rep["checks"].get("F_row_schema_recognised", {})
+        check("TF2_unrecognised_row_shape_fails_F",
+              f.get("ok") is False and f.get("unrecognised_count") == 1)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TB2b: the demotion guard must see the WIDE shape too ----------
+    # The guard added in #2448 counted only f64 rows, so demoting a wide pack
+    # to `structural` passed with 2021 rows in the file on the live corpus.
+    root = tempfile.mkdtemp(prefix="wp18st_B2b_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def demote(idx):
+            for p in idx["packs"]:
+                if p["id"] == "gf256":
+                    p["kind"] = "structural"
+            idx["bitexact_packs"] -= 1
+            idx["structural_packs"] += 1
+        _edit_index(vec, demote)
+        code, rep = G.run_gate(ssot, vec, allow)
+        b2 = rep["checks"].get("B2_structural_carries_no_rows", {})
+        check("TB2b_wide_pack_demotion_fails_B2",
+              b2.get("ok") is False
+              and any(m["file"].startswith("gf256") for m in b2.get("mislabelled", [])))
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

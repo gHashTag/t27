@@ -72,11 +72,47 @@ def _read_ssot_ids(ssot_path):
     return ids
 
 
+def _is_wide_row(r):
+    """The wide-GF shape: an integer code and its exact rational/decimal value.
+
+    These packs carry no f64 round-trip because the format is wider than f64;
+    the honest check for them is that the stored error is exactly zero.
+    """
+    return "bits" in r and "value" in r
+
+
+def _is_exact_zero(v):
+    """True for the several spellings of exact zero these packs use.
+
+    NOT `_to_float`: that helper answers only inf/nan and returns None for the
+    plain "0" these rows store, so reusing it would classify every wide row as
+    a violation on the clean tree.
+    """
+    if v is None:
+        return True
+    if isinstance(v, (int, float)):
+        return v == 0
+    t = str(v).strip()
+    if not t:
+        return True
+    try:
+        return float(t) == 0.0
+    except ValueError:
+        return False
+
+
 def _count_value_rows(o):
-    """Rows the D/D2/E checks would read: the three fields they re-derive from."""
+    """Rows a check would read -- BOTH shapes.
+
+    T78: this counted only the f64 shape, so the demotion guard added with it
+    was blind to exactly the 2110 wide rows that the D/D2/E loop was already
+    dropping. Relabelling gf256 `bitexact` -> `structural` passed with 2021
+    rows in the file. A guard against a mislabel must know every shape the
+    corpus actually stores, not the one its author had in mind.
+    """
     n = 0
     if isinstance(o, dict):
-        if "abs_error" in o and "input_f64" in o and "decoded_f64" in o:
+        if ("abs_error" in o and "input_f64" in o and "decoded_f64" in o) or _is_wide_row(o):
             n += 1
         for v in o.values():
             n += _count_value_rows(v)
@@ -280,6 +316,10 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
     rederive_mismatch = []
     undisclosed_nonzero = []
     rows_checked = 0
+    wide_rows = 0
+    wide_nonzero = []
+    unrecognised = []
+    unparseable = []
     finite_rows = 0
     special_rows = 0
     special_mismatch = []
@@ -298,12 +338,41 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
         for r in _rows_of(pack):
             if not isinstance(r, dict):
                 continue
+            # T78: a row SHAPE is not an excuse. These two `continue`s dropped
+            # every row that is not the f64 shape, and said nothing. Measured on
+            # the live corpus: 2110 of 5905 rows (35.7%) leave here, across
+            # SEVEN packs the INDEX labels `bitexact` -- gf14/48/96/128/256/512/
+            # 1024, with gf256 alone contributing 2021. Setting `abs_error` to
+            # "1e300" on all 2021 gf256 rows and refreshing the pack digest
+            # returns exit 0 CLEAN. That field is validated by nothing: the wide
+            # witness that covers those packs re-derives from `bits` and
+            # compares `value`, and never reads abs_error.
+            #
+            # Every row is now classified into F, so a shape nobody thought
+            # about is reported instead of skipped.
+            if _is_wide_row(r):
+                wide_rows += 1
+                if not _is_exact_zero(r.get("abs_error")):
+                    wide_nonzero.append({
+                        "file": p["file"],
+                        "name": r.get("name") or r.get("label"),
+                        "abs_error": r.get("abs_error"),
+                    })
+                continue
             if "abs_error" not in r or "input_f64" not in r or "decoded_f64" not in r:
+                unrecognised.append({"file": p["file"], "keys": sorted(r)[:8]})
                 continue
             ae_stored = _to_float(r.get("abs_error"))
             inp = _to_float(r.get("input_f64"))
             dec = _to_float(r.get("decoded_f64"))
             if ae_stored is None or inp is None or dec is None:
+                unparseable.append({
+                    "file": p["file"],
+                    "name": r.get("name"),
+                    "abs_error": r.get("abs_error"),
+                    "input_f64": r.get("input_f64"),
+                    "decoded_f64": r.get("decoded_f64"),
+                })
                 continue
             rows_checked += 1
 
@@ -347,6 +416,24 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
                 else:
                     undisclosed_nonzero.append({"pack": p["id"], "row": r.get("name"),
                                                 "abs_error": str(ae_stored)})
+    report["checks"]["F_row_schema_recognised"] = {
+        "wide_rows": wide_rows,
+        "wide_nonzero_count": len(wide_nonzero),
+        "wide_nonzero": wide_nonzero[:10],
+        "unrecognised_count": len(unrecognised),
+        "unrecognised": unrecognised[:10],
+        "unparseable_count": len(unparseable),
+        "unparseable": unparseable[:10],
+        "ok": not wide_nonzero and not unrecognised and not unparseable,
+    }
+    if wide_nonzero or unrecognised or unparseable:
+        report["failures"].append({
+            "check": "F",
+            "wide_nonzero": wide_nonzero[:10],
+            "unrecognised": unrecognised[:10],
+            "unparseable": unparseable[:10],
+        })
+
     report["checks"]["D_rederive_abs_error"] = {
         "rows_checked": rows_checked,
         "finite_rows": finite_rows,
