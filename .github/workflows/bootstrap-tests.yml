@@ -1,0 +1,99 @@
+# Ratchet the bootstrap test suite over a baseline of failing test NAMES.
+#
+# Why this exists (#2382): `cargo test -p t27c --tests` stops after the FIRST failing
+# target. The unit-test target fails, so the other 72 targets compile and never run —
+# every integration test under bootstrap/tests/ among them. That is why the regression
+# guards added for #2363, #2003, #2006 and others were dead: not because CI lacked a
+# test step, but because the step everyone had in mind would have run 1 target of 73.
+# Hence `--no-fail-fast`, and hence the ratchet refuses a log with only one target.
+#
+# Why a ratchet and not a gate: master has 383 failing tests today. A plain gate would
+# land red, and corpus-ratchet.yml already records what happens then — "a gate that
+# lands red gets disabled rather than obeyed".
+#
+# Why names and not a count: 383 still passes when one failure is fixed and a different
+# one appears. Only a set catches that.
+#
+# This job is NOT in the required-context set, so it does not block a merge (see #2376).
+# That is the repository owner's decision to make, not this workflow's.
+
+name: Bootstrap Test Ratchet
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'bootstrap/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'scripts/ci/test_ratchet.py'
+      - 'scripts/ci/test-baseline.txt'
+      - '.github/workflows/bootstrap-tests.yml'
+  pull_request:
+    # No `branches:` filter, deliberately — scripts/ci/check_pr_branch_filters.py
+    # enforces its absence so stacked PRs are not silently ungated.
+    paths:
+      - 'bootstrap/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'scripts/ci/test_ratchet.py'
+      - 'scripts/ci/test-baseline.txt'
+      - '.github/workflows/bootstrap-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-ratchet:
+    name: test-ratchet
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bootstrap-${{ hashFiles('Cargo.lock') }}
+
+      # The suite has 383 known failures, so cargo exits non-zero on a healthy run.
+      # The exit code is recorded rather than obeyed, and the RATCHET is the verdict.
+      # This is not `|| true`: a build failure produces a log with zero targets, which
+      # the ratchet reports as "NOT evaluated" and exits 2 on. Absence never reads as a
+      # clean set.
+      - name: Run bootstrap tests (--no-fail-fast)
+        id: tests
+        run: |
+          set -o pipefail
+          cargo test -p t27c --tests --no-fail-fast 2>&1 | tee test-log.txt \
+            || echo "cargo_exit=$?" >> "$GITHUB_OUTPUT"
+          echo "targets=$(grep -cE '^[[:space:]]+Running' test-log.txt || true)" >> "$GITHUB_OUTPUT"
+
+      - name: Ratchet the failing set
+        if: always()
+        run: |
+          set -eux
+          python3 scripts/ci/test_ratchet.py \
+            --log test-log.txt \
+            --baseline scripts/ci/test-baseline.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Bootstrap test ratchet"
+            echo ""
+            echo "- targets run: \`${{ steps.tests.outputs.targets }}\`"
+            echo "- cargo exit: \`${{ steps.tests.outputs.cargo_exit || '0' }}\` (recorded, not obeyed — see the workflow header)"
+            echo "- baseline: \`scripts/ci/test-baseline.txt\`"
+            echo ""
+            echo "A run reporting one target means \`--no-fail-fast\` was lost; the ratchet fails on it."
+          } >> "$GITHUB_STEP_SUMMARY"
