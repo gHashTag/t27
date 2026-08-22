@@ -752,6 +752,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Result:** $pass passed, $fail failed" >> $GITHUB_STEP_SUMMARY
 
+      - name: Elaboration errors may fall, never rise
+        run: |
+          # #2325: 573 -> 186 across three emitter classes in one evening. The
+          # conformance job executes two modules; the other thirty are only
+          # yosys-linted, and yosys accepts many references iverilog rejects --
+          # so without this ratchet the win can slide back invisibly.
+          python3 tools/check_elab_ratchet.py
+
       - name: A vector case must carry data, not only prose
         run: |
           # #2241: 412 of 512 cases carry an id and a sentence and nothing else.
