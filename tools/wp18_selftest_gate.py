@@ -178,6 +178,54 @@ def main():
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
+    # ---------- TB2: a `kind` must be verified, not believed ----------
+    # T72: relabelling a bit-exact pack `structural` in the INDEX made the
+    # D/D2/E loop skip it, so a planted drift went from exit 2 to CLEAN with
+    # the pack file byte for byte unchanged. This mutant plants exactly that
+    # and requires B2 to be the thing that catches it -- C and B must both
+    # stay green, or the assertion is passing for the wrong reason.
+    root = tempfile.mkdtemp(prefix="wp18st_B2_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def relabel(idx):
+            for p in idx["packs"]:
+                if p["id"] == "fp8_e4m3":
+                    p["kind"] = "structural"
+            idx["bitexact_packs"] -= 1
+            idx["structural_packs"] += 1
+        _edit_index(vec, relabel)
+        code, rep = G.run_gate(ssot, vec, allow)
+        b2 = rep["checks"].get("B2_structural_carries_no_rows", {})
+        check("TB2_relabel_to_structural_fails_B2",
+              b2.get("ok") is False
+              and any(m["file"].startswith("fp8_e4m3") for m in b2.get("mislabelled", []))
+              and rep["checks"]["C_sha_freshness"]["ok"] is True
+              and rep["checks"]["B_index_counts"]["ok"] is True)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TC2: an ABSENT digest is a failure, not an exemption ----------
+    # T72: `if want and want != got` read a missing or empty sha256 as "no
+    # freshness requirement". Deleting the key turned a caught tamper into
+    # CLEAN in this gate and in pack_index_consistency_gate both.
+    root = tempfile.mkdtemp(prefix="wp18st_C2_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def drop_sha(idx):
+            for p in idx["packs"]:
+                if p["id"] == "fp8_e4m3":
+                    p.pop("sha256", None)
+        _edit_index(vec, drop_sha)
+        code, rep = G.run_gate(ssot, vec, allow)
+        c = rep["checks"]["C_sha_freshness"]
+        check("TC2_absent_sha_fails_C",
+              c["ok"] is False
+              and any(d.get("index_sha") is None for d in c.get("drift", [])))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
     # ---------- TB: Check B fails on wrong INDEX count ----------
     root = tempfile.mkdtemp(prefix="wp18st_B_")
     try:
