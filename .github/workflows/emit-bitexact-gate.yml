@@ -26,6 +26,10 @@ on:
       - "cli/**"
       - "tools/check_specs_parse.py"
       - "tools/check_specs_generate.py"
+      # T77: the LEDGER, not just the script that reads it. Without this, the
+      # PR the gate's own NOTE tells you to open -- the one that edits
+      # specs_generate_baseline.txt -- does not run the gate that validates it.
+      - "tools/specs_generate_baseline.txt"
       - "specs/**"
       - "tools/verify_exhaustive.py"
       - "tools/check_duplicate_agreement.py"
