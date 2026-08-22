@@ -105,7 +105,7 @@ fn make_recoverable(file: &Path, original: &str) -> Result<PathBuf> {
 ///
 /// So the restore has to reach the derived artefacts too, or the next
 /// measurement in that session is against a mutant nobody can see.
-fn clear_derived_caches(file: &Path) {
+pub(crate) fn clear_derived_caches(file: &Path) {
     let stem = match file.file_stem().and_then(|s| s.to_str()) {
         Some(s) => s,
         None => return,

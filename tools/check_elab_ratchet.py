@@ -159,6 +159,17 @@ GONE_P = "A module in the baseline was not generated."
 BETTER_P = "Modules improved -- classify before recording."
 OK_LINE = "OK: no module gained elaboration errors"
 
+# T90: the calibration note is the one branch that reads the baseline's HEADER
+# rather than its rows, and neither half of it was proven. The four direction
+# cases are structurally blind to it for the same reason they are blind to a
+# miscount: they only ever read the module rows, and the note prints BESIDE a
+# WORSE row without changing the verdict, so iverilog_version() could return
+# anything and baseline_version() could return nothing and every case above
+# stayed green. Both were measured survivors of `tri gates mutate`.
+VERSION_MARK = "# iverilog-version "
+STALE_VER = "0.0-planted"
+NOTE_HEAD = "NOTE: the baseline was taken with iverilog"
+
 
 def _plant(td):
     """A tree the gate can run in: real specs, real t27c, its own build/ and
@@ -239,6 +250,20 @@ def _better(head, rows):
     return head, rows
 
 
+def _stale_version(head, rows):
+    """A record taken with a DIFFERENT iverilog, beside something to report.
+
+    Two faults on purpose, and they are not independent: the note prints only
+    inside the worse-or-new branch, so a stale header ALONE leaves the run
+    green and silent and proves nothing. Planting it next to a WORSE row is
+    the only way to reach the comparison at all.
+    """
+    head = [
+        VERSION_MARK + STALE_VER if ln.startswith(VERSION_MARK) else ln for ln in head
+    ]
+    return _worse(head, rows)
+
+
 def _case(t, label, mutate, want, absent):
     _write(t, *mutate(*_rows(t)))
     r = _run(t)
@@ -282,6 +307,24 @@ def _check_summary_filter():
     return ok
 
 
+def _self_check_iverilog_version():
+    """`iverilog -V`, read by the CONTROL rather than through the gate.
+
+    iverilog_version() is one of the two things the version note is being
+    tested for, so a control that asked it for the expected answer would move
+    both sides of the comparison together and cancel -- the same blindness
+    _check_summary_filter() exists to break for counts(). This is the ABSOLUTE
+    expectation the direction cases cannot supply.
+
+    The name carries `self_check` deliberately. That substring is how
+    `tri gates mutate` tells the instrument from the thing being measured; a
+    return in here must never be scored as one of the gate's failure paths.
+    """
+    out = subprocess.run(["iverilog", "-V"], capture_output=True, text=True)
+    m = re.search(r"version\s+(\S+)", out.stdout)
+    return m.groups()[0] if m else "unknown"
+
+
 def self_check():
     """Plant a fault in the ratchet's record and require the gate to name it."""
     if not shutil.which("iverilog") or not T27C.exists():
@@ -307,6 +350,28 @@ def self_check():
             return 1
         truth = (t / "tools/elab_baseline.txt").read_text()
 
+        # What --update-baseline recorded as this instrument's calibration,
+        # against `iverilog -V` read by the control itself. Nothing else in
+        # this file looks at that header line: the cases below take it as
+        # given and edit the rows underneath it, so a version that stopped
+        # being a version -- or stopped being written at all -- left every one
+        # of them green.
+        real = _self_check_iverilog_version()
+        recorded = next(
+            (
+                ln[len(VERSION_MARK) :].strip()
+                for ln in truth.splitlines()
+                if ln.startswith(VERSION_MARK)
+            ),
+            None,
+        )
+        vok = recorded == real
+        print(
+            f"  self-check version: baseline records {recorded!r}, "
+            f"`iverilog -V` says {real!r} = {vok}"
+        )
+        ok = vok and ok
+
         # The plant must be GREEN before it is faulted. Without this the four
         # cases below could all be firing on a broken plant rather than on the
         # fault, and a red for the wrong reason is what this whole exercise is
@@ -318,11 +383,38 @@ def self_check():
             return 1
         print(f"  self-check clean : {OK_LINE!r}, exit = {c.returncode} (want 0)")
 
+        # NOTE_HEAD is in the absent list of exactly the two cases that reach
+        # the branch which can print it. The plant's record was written by
+        # --update-baseline moments earlier, on this machine, by this iverilog,
+        # so a calibration warning there is a false alarm -- and a false alarm
+        # beside a real WORSE row is how a reader learns to skip the paragraph.
+        # GONE returns before that branch and BETTER after it, so naming it
+        # there would assert nothing.
         for label, mut, want, absent in (
-            ("WORSE", _worse, ["  WORSE   ", WORSE_P], ["  NEW     ", GONE_P, BETTER_P]),
-            ("NEW", _new, ["  NEW     ", WORSE_P], ["  WORSE   ", GONE_P, BETTER_P]),
+            (
+                "WORSE",
+                _worse,
+                ["  WORSE   ", WORSE_P],
+                ["  NEW     ", GONE_P, BETTER_P, NOTE_HEAD],
+            ),
+            (
+                "NEW",
+                _new,
+                ["  NEW     ", WORSE_P],
+                ["  WORSE   ", GONE_P, BETTER_P, NOTE_HEAD],
+            ),
             ("GONE", _gone, ["  GONE    ", GONE_P], [WORSE_P, BETTER_P]),
             ("BETTER", _better, ["  BETTER  ", BETTER_P], [WORSE_P, GONE_P]),
+            (
+                "STALE",
+                _stale_version,
+                [
+                    "  WORSE   ",
+                    WORSE_P,
+                    f"{NOTE_HEAD} {STALE_VER}; this run used {real}.",
+                ],
+                ["  NEW     ", GONE_P, BETTER_P],
+            ),
         ):
             (t / "tools/elab_baseline.txt").write_text(truth)
             ok = _case(t, label, mut, want, absent + [OK_LINE, "SKIP:"]) and ok

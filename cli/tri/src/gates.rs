@@ -353,6 +353,7 @@ fn mutate(only: Option<&str>) -> Result<()> {
         // The gate is NAMED in the survivor list rather than silently
         // credited: "nothing was measured here" is a finding, and a row that
         // quietly vanished would repeat the mistake one level up.
+        crate::mutate::clear_derived_caches(f);
         let mut already_red: Vec<String> = Vec::new();
         for fl in &flags {
             if code(&root, &name, &[fl]) != "0" {
@@ -383,6 +384,19 @@ fn mutate(only: Option<&str>) -> Result<()> {
             m.push_str(replacement);
             m.push_str(&pristine[at + len..]);
             std::fs::write(f, &m)?;
+            // T92: a fifth defect, and the one that makes the numbers above
+            // non-deterministic rather than merely incomplete. Python keys a
+            // cached .pyc on (source mtime in whole seconds, source size).
+            // `return 1` -> `return 0` preserves the size, and this loop writes
+            // mutant, restore, next mutant well inside one second -- so an
+            // IMPORTED gate can be served bytecode compiled from the previous
+            // state. tools/wp18_selftest_gate.py does
+            // `import wp18_conformance_gate as G`, and that .pyc is on disk.
+            //
+            // `tri mutate` already solved this and this command did not call
+            // it. Found by an adversarial reviewer who went looking in the
+            // sibling module rather than in the file under review.
+            crate::mutate::clear_derived_caches(f);
             let mut noticed = false;
             for fl in &flags {
                 if code(&root, &name, &[fl]) != "0" {
@@ -396,8 +410,11 @@ fn mutate(only: Option<&str>) -> Result<()> {
                 }
             }
             // Restore before judging, so an early return can never leave the
-            // tree mutated.
+            // tree mutated. Clear again: the restore is the same
+            // same-size-same-second write in the other direction, and a stale
+            // mutant .pyc would poison the NEXT site's measurement.
             std::fs::write(f, &pristine)?;
+            crate::mutate::clear_derived_caches(f);
             if !noticed {
                 survivors.push(line_of(&pristine, *at));
             } else {
