@@ -30960,6 +30960,57 @@ about **50 minutes** without reaching a verdict when the board was needed
 elsewhere. The cap bounds a stage, not a build, and for the largest designs those
 are different numbers by a factor of two.
 
+### T849 -- The competitor table, computed rather than recalled [measured]
+
+The web has been unavailable for this entire session, and the standing brief asks
+for competitor work every wave. It does not need the web: the reference
+implementations every published comparison derives from were committed in W981, so
+the head-to-head can be **computed**. At matched **physical** width:
+
+| width | format | values | binades | median step | step at 1.0 |
+|-------|--------|--------|---------|-------------|-------------|
+| 19 | **TNF16** (4t,11m) | 516 096 | 127.0 | 0.016 % | **0.024 %** |
+| 19 | posit19 es=1 | 524 286 | 68.0 | 0.002 % | **0.002 %** |
+| 19 | posit19 es=2 | 524 286 | 136.0 | 0.003 % | 0.003 % |
+| 19 | takum19 | 524 286 | 510.0 | 0.024 % | 0.003 % |
+| 10 | **TNF8** (3t,4m) | 960 | 31.0 | 2.174 % | **3.125 %** |
+| 10 | posit10 es=1 | 1 022 | 32.0 | 0.781 % | **0.781 %** |
+| 6 | **TNF4** (2t,1m) | 56 | 14.6 | 25.0 % | 25.0 % |
+| 6 | posit6 es=1 | 62 | 16.0 | 12.5 % | 12.5 % |
+
+**At every matched width the ladder occupies, TNF has fewer representable values
+than posit and a coarser step at 1.0 than posit `es=1`** -- by a factor of 12 at
+19 bits, 4 at 10 bits and 2 at 6 bits.
+
+The value deficit is structural: the ternary exponent does not tile a binary
+field. Four trits need seven bits and use 81 of 128 codes, so **8 190 of the
+2^19 codes are unreachable**.
+
+None of this is a cost figure, and TNF's case was never precision-per-bit -- it is
+what the lattice costs in cells, which lives in the area records. A format can
+lose every column here and still win a design. But the columns are now derived
+from committed oracles by one command, which is what a referee will do.
+
+### T849a -- The tool put a 19-bit format in a 16-bit table on its first run [measured]
+
+`tri compare 16` placed "TNF16" beside `posit16` and `fp16` and reported **516 096
+values from a 16-bit format**. 516 096 exceeds 2^16; the arithmetic said out loud
+what the label had hidden. **TNF16's physical width is 19 bits** -- a fact
+`structural_w942.json` has recorded since W942, and which T614 states as a rule: a
+rung's name is not its object.
+
+The instrument rediscovered a known result by contradiction, which is the good
+case; the bad case is the same table with a plausible number in it. `tri compare`
+is now keyed on **physical** width, and asking for a width no rung occupies prints
+the ladder and refuses rather than substituting the nearest.
+
+Two reporting decisions are recorded with it. Takum's *worst* relative step is
+astronomically large at every width -- arithmetically correct, useless as a
+comparison, and printed anyway, because suppressing it would hide the shape of the
+format. And three step columns are reported together: the worst is set by the
+tapered extremes, the median by the bulk, and quoting either alone picks the
+conclusion in advance.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

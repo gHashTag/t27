@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W990, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W991, 2026-08-22)
+
+> **W991 — THE COMPETITOR TABLE, COMPUTED INSTEAD OF RECALLED.** Twenty waves reported *analytic
+> only, web unavailable*. The oracles for posit, takum and fp were committed in W981 for a different
+> reason and were sitting there the whole time. `tri compare` at matched **physical** width:
+> **TNF16** 516 096 values, step at 1.0 **0.024 %** — against **posit19 es=1** 524 286 and
+> **0.002 %**. TNF8 **3.125 %** against posit10's **0.781 %**; TNF4 **25 %** against posit6's
+> **12.5 %**. **At every matched width the ladder occupies, TNF has fewer representable values than
+> posit and a coarser step at 1.0** — ×12, ×4, ×2. The deficit is structural: four trits use 81 of
+> 128 codes, so **8 190 of 2^19 codes are unreachable**. **None of it is a cost figure** — TNF's
+> case was never precision-per-bit. **And the tool's first run put a 19-bit format in a 16-bit
+> table**, reporting 516 096 values from "16 bits": impossible arithmetic exposed it, a plausible
+> number would have shipped. `gft_signed_dot4` now confirmed at **two placements, two BSCAN sites**,
+> identical word. T849/T849a, lessons 1522–1523, **532 derived checks**. **Readiness 98 %.**
 
 > **W990 — BOTH SPEC FIXES CONFIRMED ON SILICON.** Asked directly for it mid-wave. The honest first
 > answer was that both had already read `1111` in W987; the honest second was that each stood on

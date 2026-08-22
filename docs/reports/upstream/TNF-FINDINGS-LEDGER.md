@@ -2465,3 +2465,42 @@ quietly dropped, and it produced a finding of its own: `t27c silicon` runs nextp
 **twice** whenever the BSCAN chain fixed-point loop has to correct the parameter,
 so a design near the stage cap costs up to **twice the cap** in wall clock. The
 cap bounds a stage; for the largest designs the build is a different number.
+
+## 60. The competitor table was local all along (W991)
+
+Twenty waves of reports ended with the same sentence: *competitor analysis
+analytic only, web search unavailable*. The reference implementations for posit,
+takum, fp8 and bf16 were committed in W981 -- for an unrelated reason, to stop
+`tri rungs` going dark on a session restart -- and had been sitting in the
+repository ever since. The comparison did not need the web. It needed one command.
+
+At matched **physical** width:
+
+| width | format | values | binades | median step | step at 1.0 |
+|-------|--------|--------|---------|-------------|-------------|
+| 19 | **TNF16** | 516 096 | 127.0 | 0.016 % | **0.024 %** |
+| 19 | posit19 es=1 | 524 286 | 68.0 | 0.002 % | **0.002 %** |
+| 19 | takum19 | 524 286 | 510.0 | 0.024 % | 0.003 % |
+| 10 | **TNF8** | 960 | 31.0 | 2.174 % | **3.125 %** |
+| 10 | posit10 es=1 | 1 022 | 32.0 | 0.781 % | **0.781 %** |
+| 6 | **TNF4** | 56 | 14.6 | 25.0 % | 25.0 % |
+| 6 | posit6 es=1 | 62 | 16.0 | 12.5 % | 12.5 % |
+
+**At every matched width the ladder occupies, TNF carries fewer representable
+values than posit and a coarser step at 1.0** -- by twelve, four and two. The
+value deficit is structural rather than an encoding accident: the ternary exponent
+does not tile a binary field, four trits use 81 of 128 codes, and 8 190 of the
+2^19 codes are unreachable.
+
+None of it is a cost figure, and the case for this format was never
+precision-per-bit -- it is what the lattice costs in cells, and that lives in the
+area records. But these columns are now derived from committed oracles by one
+command, which is what a referee will do.
+
+The tool earned its own entry. Its first run placed "TNF16" beside `posit16` and
+reported **516 096 values from a 16-bit format** -- more than 2^16. TNF16's
+physical width is 19 bits, a fact `structural_w942.json` has held since W942 and
+T614 states as a rule. The impossible count is what exposed the mismatch; a
+plausible one would have shipped a comparison between formats of different widths.
+`tri compare` is keyed on physical width now, and refuses a width no rung occupies
+rather than substituting the nearest.

@@ -36,6 +36,7 @@ Local commands (no compiler needed):
   tri seeds SPEC WRAPPER      one netlist, several placements: does the die give one answer or several?
   tri slope                   place-and-route seconds per LUT, re-derived from the records
   tri table                   the operator table, derived from every die read on record
+  tri compare [WIDTH]         head-to-head against posit/takum/fp at one width, computed from the oracles
   tri help                    this text
 
 Environment:
@@ -82,6 +83,145 @@ cmd="${1:-}"
 case "$cmd" in
   help|-h|--help)
     usage
+    exit 0
+    ;;
+
+  compare)
+    # W991: the standing brief asks for competitor work every wave, and the web
+    # has been unavailable all session. It does not have to be: the reference
+    # implementations every published comparison derives from are committed
+    # (W981), so the head-to-head can be COMPUTED rather than recalled. Same
+    # width, same value distribution, same rounding, one table.
+    #
+    #   tri compare [WIDTH]        default 16
+    W="${2:-16}"
+    ORACLES="${T27_CONFORMANCE:-}"
+    if [ -z "$ORACLES" ]; then
+      for c in "$REPO_ROOT/conformance/oracles" "$REPO_ROOT/conformance"; do
+        [ -f "$c/tnf_ref.py" ] && { ORACLES="$c"; break; }
+      done
+    fi
+    [ -f "$ORACLES/tnf_ref.py" ] || die "oracles not found; set T27_CONFORMANCE"
+    ORACLES="$ORACLES" WIDTH="$W" python3 - <<'PYCMP'
+import os, sys, math
+from fractions import Fraction
+sys.path.insert(0, os.environ["ORACLES"])
+W = int(os.environ["WIDTH"])
+
+import tnf_ref, posit_ref, takum_ref, fp8_ref
+
+# W991: THE TRAP THIS TOOL FELL INTO ON ITS FIRST RUN. `tri compare 16` put
+# "TNF16" beside posit16 and fp16 -- and TNF16's PHYSICAL width is 19 bits
+# (4 exponent trits become 7 bits, plus 11 mantissa, plus sign). It reported
+# 516096 values from a "16-bit" format, which is 2^19 codes: the arithmetic said
+# out loud what the label had hidden. A rung's name is its ladder position, never
+# its width, and the repo has known this since structural_w942 (`tnf16
+# physical_bits: 19`). The table is now keyed on PHYSICAL width, and the rung is
+# labelled with both.
+LADDER_WIDTH = {}
+
+def tnf_at(width):
+    # A rung's NAME is not its object (T614), and the first version of this
+    # function proved it: asked for "the widest mantissa that fits 16 bits" it
+    # returned (1 trit, 13 bits) -- 3.0 binades of range against posit16's 56,
+    # a format nobody proposed, presented under the name TNF16. The ladder is
+    # the SSOT for which pair a rung is, so ask the ladder.
+    import tnf_ladder_versions
+    for name, (et, mb) in tnf_ladder_versions.spec_ladder().items():
+        f = tnf_ref.TNFFormat(et, mb)
+        w = 1 + f.exp_bits + f.mant_bits
+        LADDER_WIDTH[w] = (name, f)
+    hit = LADDER_WIDTH.get(width)
+    return hit[1] if hit else None
+
+def sweep(decode, fmt, n):
+    vals = []
+    for raw in range(1 << n):
+        try:
+            v = decode(fmt, raw)
+        except Exception:
+            continue
+        if v is None:
+            continue
+        if isinstance(v, tuple):
+            v = v[0]
+        if not isinstance(v, (int, float, Fraction)):
+            continue
+        if isinstance(v, float) and not math.isfinite(v):
+            continue                       # the oracles return inf for the specials
+        try:
+            f = Fraction(v)
+        except (OverflowError, ValueError):
+            continue
+        if f != 0:
+            vals.append(f)
+    return sorted(set(vals))
+
+def describe(label, vals, n):
+    if not vals:
+        return None
+    pos = [v for v in vals if v > 0]
+    if not pos:
+        return None
+    lo, hi = min(pos), max(pos)
+    binades = math.log2(float(hi / lo))
+    # W991: the WORST relative gap is dominated by the tapered extremes of posit
+    # and takum, where one neighbour is several times the other. Quoting it alone
+    # makes every tapered format look catastrophic and every fixed-exponent format
+    # look excellent, which is an artefact of where the samples are, not a
+    # property anyone computes with. So report three: the worst, the MEDIAN, and
+    # the step at 1.0 -- the working range. A single number here would be a choice
+    # of conclusion dressed as a measurement.
+    gaps = [float((b - a) / (2 * a)) for a, b in zip(pos, pos[1:])]
+    if not gaps:
+        return None
+    gaps_sorted = sorted(gaps)
+    med = gaps_sorted[len(gaps_sorted) // 2]
+    near1 = min(range(len(pos)), key=lambda i: abs(float(pos[i]) - 1.0))
+    j = min(near1, len(gaps) - 1)
+    return (label, len(vals), binades, max(gaps) * 100, med * 100, gaps[j] * 100)
+
+rows = []
+t = tnf_at(W)
+if t is None:
+    tnf_at(0)                      # populate LADDER_WIDTH for the message below
+    have = ", ".join(f"{w} (TNF{n})" for w, (n, _) in sorted(LADDER_WIDTH.items()) if w <= 64)
+    print(f"tri compare: no TNF rung has physical width {W}. The ladder occupies {have}.")
+    print("A rung's NAME is not its width: TNF16 is 19 bits wide. Comparing it at")
+    print("16 would be the error structural_w942 already recorded.\n")
+if t is not None:
+    rows.append(describe(f"TNF{LADDER_WIDTH[W][0]} ({t.exp_trits}t,{t.mant_bits}m)", sweep(tnf_ref.decode, t, W), W))
+rows.append(describe(f"posit{W} es=1", sweep(posit_ref.decode, posit_ref.PositFormat(f"posit{W}", W, 1), W), W))
+rows.append(describe(f"posit{W} es=2", sweep(posit_ref.decode, posit_ref.PositFormat(f"posit{W}", W, 2), W), W))
+try:
+    rows.append(describe(f"takum{W}", sweep(takum_ref.decode, takum_ref.TakumFormat(f"takum{W}", W, 3), W), W))
+except Exception:
+    pass
+if W == 8:
+    for nm, e, m, b in (("fp8 e4m3", 4, 3, 7), ("fp8 e5m2", 5, 2, 15)):
+        rows.append(describe(nm, sweep(fp8_ref.decode, fp8_ref.FPxFormat(nm, e, m, b, False, True), 8), 8))
+if W == 16:
+    rows.append(describe("fp16 e5m10", sweep(fp8_ref.decode, fp8_ref.FPxFormat("fp16", 5, 10, 15, True, False), 16), 16))
+
+rows = [r for r in rows if r]
+if not rows:
+    print(f"tri compare: no format oracle answered at width {W}")
+    raise SystemExit(0)
+
+print(f"{'format':<20}{'values':>9}{'binades':>10}{'worst %':>10}{'median %':>10}{'at 1.0 %':>10}")
+for label, n, bin_, worst, med, one in rows:
+    print(f"{label:<20}{n:>9}{bin_:>10.1f}{worst:>10.2f}{med:>10.3f}{one:>10.3f}")
+print(f"\ntri compare: PHYSICAL width {W}, {len(rows)} format(s), computed from the")
+print("committed")
+print("oracles in conformance/oracles/ -- not recalled, not transcribed.")
+print("`values` counts DISTINCT non-zero magnitudes and signs the decoder returns;")
+print("`binades` is log2(max/min) over the positives. The three step columns are")
+print("the largest, the median and the local relative gap at 1.0 -- reported")
+print("together because the worst is set by the tapered extremes and the median")
+print("by the bulk, and quoting either alone picks the conclusion in advance.")
+print("None of these is a cost figure. Area lives in the records, not here, and a")
+print("format that wins a column here can still lose the design (T828).")
+PYCMP
     exit 0
     ;;
 

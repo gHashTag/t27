@@ -12629,6 +12629,10 @@ a worktree in the same wave its branch merges.
 
 **1521. A STAGE CAP IS NOT A BUILD CAP.** The BSCAN chain fixed-point loop runs nextpnr twice whenever it has to correct the parameter, so a design near the stage cap costs up to twice the cap in wall clock. gft_xorpercep under a 3600 s stage cap had burned fifty minutes without a verdict. Anyone sizing a cap from a placement rate is sizing one stage; the build can be double that, and the schedule that assumed otherwise is the one that gets interrupted. (T848a, W990)
 
+**1522. A BLOCKED CHANNEL IS NOT A BLOCKED QUESTION.** Twenty waves reported 'competitor analysis analytic only -- web search unavailable'. The reference implementations for posit, takum, fp8 and bf16 were sitting in the repository the whole time, committed in W981 for a different reason. One command computes the head-to-head at matched width, and it produced a negative result for TNF that no amount of recall would have: fewer representable values than posit at every rung, and a coarser step at 1.0 by up to 12x. When a channel is unavailable, ask what the question actually needs -- often the answer is already local, and 'unavailable' has been doing the work of 'not attempted'. (T849, W991)
+
+**1523. IMPOSSIBLE ARITHMETIC IS THE CHEAPEST BUG DETECTOR YOU HAVE.** The first run of tri compare reported 516096 values from a 16-bit format. 2^16 is 65536, so the number was impossible on its face -- and that is what exposed the real error: TNF16's physical width is 19 bits, a fact the repo had recorded since W942 and stated as a rule in T614. Had the tool printed 65534 instead, the mismatched-width comparison would have looked perfect and shipped. Put a bound on every count a tool prints and check it against the code space; the numbers that cannot be true are the ones that save you. (T849a, W991)
+
 ### How to update this tracker
 
 After closing a wave:

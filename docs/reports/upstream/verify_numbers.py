@@ -964,5 +964,35 @@ if cf:
     check("прерванное названо, а не скрыто",
           "killed" in cf["what_was_given_up_for_it"], True, tol=0)
 
+# W991: the competitor table, computed from the committed oracles.
+cm = rec("compare_w991.json")
+if cm:
+    print("\n== сравнение с конкурентами при равной ФИЗИЧЕСКОЙ ширине (W991)")
+    lw = cm["ladder_physical_widths"]
+    check("TNF16 шириной 19 бит", lw["TNF16"], 19, tol=0)
+    check("TNF8 шириной 10 бит", lw["TNF8"], 10, tol=0)
+    check("TNF4 шириной 6 бит", lw["TNF4"], 6, tol=0)
+    m = cm["matched_width_results"]
+    t19 = m["19_bits"]["TNF16 (4t,11m)"]; p19 = m["19_bits"]["posit19 es=1"]
+    check("19 бит: значений у TNF16", t19["values"], 516096, tol=0)
+    check("19 бит: значений у posit19", p19["values"], 524286, tol=0)
+    check("19 бит: TNF беднее по значениям", p19["values"] > t19["values"], True, tol=0)
+    check("недостижимых кодов", 2**19 - t19["values"], 8190, tol=0)
+    check("19 бит: шаг в 1.0 хуже во сколько раз",
+          t19["step_at_1_pct"] / p19["step_at_1_pct"], 12.0, tol=0.5)
+    t10 = m["10_bits"]["TNF8 (3t,4m)"]; p10 = m["10_bits"]["posit10 es=1"]
+    check("10 бит: TNF беднее по значениям", p10["values"] > t10["values"], True, tol=0)
+    check("10 бит: шаг хуже во сколько раз",
+          t10["step_at_1_pct"] / p10["step_at_1_pct"], 4.0, tol=0.05)
+    t6 = m["6_bits"]["TNF4 (2t,1m)"]; p6 = m["6_bits"]["posit6 es=1"]
+    check("6 бит: TNF беднее по значениям", p6["values"] > t6["values"], True, tol=0)
+    check("6 бит: шаг хуже во сколько раз",
+          t6["step_at_1_pct"] / p6["step_at_1_pct"], 2.0, tol=0.05)
+    check("ловушка ширины зафиксирована",
+          "516096 is more than 2^16" in cm["the_trap_it_fell_into_first"]["arithmetic"], True, tol=0)
+    check("сказано, что это не про цену",
+          "cost figure" in cm["what_this_does_not_say"], True, tol=0)
+    check("dot4: канонических чтений", len(cm["die_reads_canonical"]), 2, tol=0)
+
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)
