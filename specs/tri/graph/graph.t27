@@ -11,7 +11,7 @@ module TriGraph;
     // ═══════════════════════════════════════════════════════════
 
     pub const Graph(T) = struct {
-        nodes : [std.HashMap(T, []T)",
+        nodes : "std.HashMap(T, []T)",
         directed : "bool",
     };
 

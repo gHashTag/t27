@@ -13,13 +13,13 @@ module TriAhoCorasick;
     pub const ACTrieNode = struct {
         children : [256]?*ACTrieNode,
         fail : "*ACTrieNode",
-        output : [[][,
+        output : "[]Const []Const u8",
         char : "u8",
     };
 
     pub const ACAutomaton = struct {
         root : "*ACTrieNode",
-        patterns : [[][,
+        patterns : "[]Const []Const u8",
         allocator : "std.mem.Allocator",
     };
 
