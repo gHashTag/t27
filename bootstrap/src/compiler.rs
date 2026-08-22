@@ -2292,7 +2292,25 @@ impl Parser {
     fn parse_enum_body(&mut self, decl: &mut Node) -> Result<(), String> {
         // We are inside { ... } of an enum. Parse variant = value pairs.
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
-            if self.current.kind == TokenKind::Ident {
+            // A variant whose name is a KEYWORD: `then`, `and`, `assert`,
+            // `expect` are all real members of ClauseKind in
+            // contrib/backend/zig/legacy/main_zig_handwritten.t27. Requiring
+            // Ident dropped them, the loop fell through to the skip below, and
+            // the enum's own `}` ended something else -- reported 60 lines on
+            // as "Unexpected token in expression: Semicolon".
+            //
+            // Same predicate the struct-literal parser uses for a keyword field
+            // label and the `.Variant` shorthand uses for a keyword value: in a
+            // position where only a name can appear, any word-shaped token is a
+            // name. A language whose own token names are keywords will keep
+            // producing this.
+            let word_shaped = !self.current.lexeme.is_empty()
+                && self
+                    .current
+                    .lexeme
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_');
+            if self.current.kind == TokenKind::Ident || word_shaped {
                 let name = self.current.lexeme.clone();
                 self.advance();
 
@@ -2346,6 +2364,44 @@ impl Parser {
             // modifier and missed on the one with it.
             if self.current.kind == TokenKind::KwPub {
                 self.advance();
+            }
+            // A NESTED TYPE declaration: `const Kind = enum { ... };` inside a
+            // struct body. Nothing here consumed it, so the walk reached the
+            // ENUM's closing brace -- and this loop stops at any RBrace, so the
+            // struct ended there. The module then ended at the struct's own
+            // brace and the error surfaced sixty lines later on a `;`.
+            //
+            // Third appearance of one shape: a nested brace group ending the
+            // construct that contains it (W577 for methods, gap 5 for an
+            // anonymous return type, this for a nested type). Consumed
+            // brace-balanced; the members are not lowered, and the point is
+            // only that the struct still ends where it should.
+            if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+                let mut d = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            d += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => d -= 1,
+                        TokenKind::Semicolon if !seen => {
+                            // A plain `const N = 3;` with no brace group.
+                            self.advance();
+                            break;
+                        }
+                        _ => {}
+                    }
+                    self.advance();
+                    if seen && d == 0 {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        break;
+                    }
+                }
+                continue;
             }
             if self.current.kind == TokenKind::Ident {
                 let field_name = self.current.lexeme.clone();
@@ -3555,6 +3611,30 @@ impl Parser {
         };
         if_node.children.push(cond);
 
+        // PAYLOAD CAPTURE: `if (opt) |value| { ... }` -- Zig's optional
+        // unwrap. The for-loop parser has handled `|x|` since W-something;
+        // `if` never learned it, so the `|` was read as bitwise-or, its right
+        // operand demanded, and the body brace arrived instead. Stored the
+        // same way `for` stores its capture -- in params, not lowered -- so
+        // this changes what PARSES and nothing about what is emitted.
+        if self.current.kind == TokenKind::Pipe {
+            self.advance(); // consume |
+            while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Star {
+                    self.advance(); // pointer capture |*x|
+                }
+                if self.current.kind == TokenKind::Ident {
+                    if_node
+                        .params
+                        .push((self.current.lexeme.clone(), String::new()));
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::Pipe {
+                self.advance(); // consume closing |
+            }
+        }
+
         // Then branch: { ... }
         if self.current.kind == TokenKind::LBrace {
             self.advance(); // consume {
@@ -3637,6 +3717,34 @@ impl Parser {
             c?
         };
         while_node.children.push(cond);
+
+        // Zig's CONTINUE EXPRESSION: `while (i < n) : (i += 1) { ... }`, the
+        // step that runs after every iteration. Without it the `:` arrived
+        // where the body brace was expected and the fn died on "Expected
+        // LBrace, got Colon".
+        //
+        // Parsed and attached, not discarded: dropping it would leave a loop
+        // whose counter never advances, which is a WORSE outcome than refusing
+        // the file -- an infinite loop that compiles is the kind of silence
+        // this project keeps finding. Backends that do not know the marker
+        // refuse the node; they do not quietly emit a loop missing its step.
+        if self.current.kind == TokenKind::Colon {
+            self.advance(); // consume :
+            let step = if self.current.kind == TokenKind::LParen {
+                self.advance();
+                let e = self.parse_body_stmt()?;
+                if self.current.kind == TokenKind::RParen {
+                    self.advance();
+                }
+                e
+            } else {
+                self.parse_body_stmt()?
+            };
+            let mut cont = Node::new(NodeKind::Module);
+            cont.name = "continue_expr".to_string();
+            cont.children.push(step);
+            while_node.children.push(cont);
+        }
 
         // Body: { ... }
         self.expect(TokenKind::LBrace)?;
