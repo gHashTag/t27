@@ -39,6 +39,9 @@ pub enum GatesCmd {
     /// mutant is killed if the control goes non-zero. The file is restored
     /// after every run. Refuses to start on a dirty tools/ tree, so an
     /// interrupted run is always recoverable with `git checkout tools/`.
+    ///
+    /// A control that is red BEFORE any mutation scores nothing and is named:
+    /// red-no-matter-what would otherwise read as a perfect score.
     Mutate {
         /// Only this gate, by file name (e.g. check_vector_data.py).
         #[arg(long)]
@@ -328,6 +331,47 @@ fn mutate(only: Option<&str>) -> Result<()> {
         let sites = mutable_sites(&pristine);
         if sites.is_empty() {
             println!("{:<38} {:>9}  {}", name, 0, "no failure path to break");
+            continue;
+        }
+
+        // T91: the baseline this command did not take, found by an adversarial
+        // reviewer of its own output rather than of the code it audits. A
+        // mutant is scored killed when the control exits non-zero, so a
+        // control that is red BEFORE any mutation is red after every one of
+        // them, and this printed a perfect score. Reproduced, one variable,
+        // with a `return 1` planted at the top of check_json_parses.py's
+        // self_check:
+        //
+        //   old:  check_json_parses.py    1/1  all killed
+        //   new:  check_json_parses.py      -  CONTROL ALREADY RED
+        //
+        // The exact inverse of the defect this command was written to find.
+        // There a control that could not FAIL scored everything as covered;
+        // here a control that cannot PASS does the same. Both replace a
+        // measurement with a constant.
+        //
+        // The gate is NAMED in the survivor list rather than silently
+        // credited: "nothing was measured here" is a finding, and a row that
+        // quietly vanished would repeat the mistake one level up.
+        let mut already_red: Vec<String> = Vec::new();
+        for fl in &flags {
+            if code(&root, &name, &[fl]) != "0" {
+                already_red.push(fl.clone());
+            }
+        }
+        if let Some(c) = &external {
+            if code(&root, c, &[]) != "0" {
+                already_red.push(c.clone());
+            }
+        }
+        if !already_red.is_empty() {
+            total_survived.push(name.clone());
+            println!(
+                "{:<38} {:>9}  CONTROL ALREADY RED: {} -- scored nothing",
+                name,
+                "-",
+                already_red.join(", ")
+            );
             continue;
         }
 
