@@ -1,0 +1,530 @@
+{
+ "purpose": "Files under specs/ written in Rust rather than t27. The lexer has no KwLet and no KwMatch: the language does not admit them. Recorded so measurements can exclude them honestly. NOT a decision to delete, move or translate anything -- see #2398.",
+ "generated_by": "marker scan, 8 Rust constructs, see #2398",
+ "totals": {
+  "any_marker": 66,
+  "two_or_more": 32,
+  "corpus": 497
+ },
+ "files": [
+  {
+   "path": "specs/ternary/hybrid_bigint.t27",
+   "markers": [
+    "array_semi",
+    "for_in",
+    "impl",
+    "let",
+    "self_ref",
+    "tuple_ret"
+   ],
+   "count": 6
+  },
+  {
+   "path": "specs/pins/parser.t27",
+   "markers": [
+    "impl",
+    "let",
+    "match",
+    "self_ref",
+    "vec"
+   ],
+   "count": 5
+  },
+  {
+   "path": "specs/test_framework/runner.t27",
+   "markers": [
+    "for_in",
+    "impl",
+    "let",
+    "self_ref",
+    "vec"
+   ],
+   "count": 5
+  },
+  {
+   "path": "specs/neural/forward_pass.t27",
+   "markers": [
+    "array_semi",
+    "for_in",
+    "let",
+    "vec"
+   ],
+   "count": 4
+  },
+  {
+   "path": "specs/sandbox/https_enforce.t27",
+   "markers": [
+    "array_semi",
+    "let",
+    "self_ref",
+    "vec"
+   ],
+   "count": 4
+  },
+  {
+   "path": "specs/sandbox/orphan_detection.t27",
+   "markers": [
+    "array_semi",
+    "let",
+    "self_ref",
+    "vec"
+   ],
+   "count": 4
+  },
+  {
+   "path": "specs/test_framework/core.t27",
+   "markers": [
+    "for_in",
+    "impl",
+    "let",
+    "vec"
+   ],
+   "count": 4
+  },
+  {
+   "path": "specs/ar/coa_planning.t27",
+   "markers": [
+    "let",
+    "match",
+    "tuple_ret"
+   ],
+   "count": 3
+  },
+  {
+   "path": "specs/ar/composition.t27",
+   "markers": [
+    "let",
+    "match",
+    "tuple_ret"
+   ],
+   "count": 3
+  },
+  {
+   "path": "specs/enrichment/audio_overview.t27",
+   "markers": [
+    "let",
+    "tuple_ret",
+    "vec"
+   ],
+   "count": 3
+  },
+  {
+   "path": "specs/math/phi_split_optimality.t27",
+   "markers": [
+    "for_in",
+    "let",
+    "tuple_ret"
+   ],
+   "count": 3
+  },
+  {
+   "path": "specs/math/phi_universal_attractor.t27",
+   "markers": [
+    "for_in",
+    "let",
+    "tuple_ret"
+   ],
+   "count": 3
+  },
+  {
+   "path": "specs/sandbox/session_timeout.t27",
+   "markers": [
+    "array_semi",
+    "let",
+    "self_ref"
+   ],
+   "count": 3
+  },
+  {
+   "path": "specs/test_framework/property_test_template.t27",
+   "markers": [
+    "for_in",
+    "let",
+    "tuple_ret"
+   ],
+   "count": 3
+  },
+  {
+   "path": "specs/ar/datalog_engine.t27",
+   "markers": [
+    "let",
+    "tuple_ret"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/ar/explainability.t27",
+   "markers": [
+    "let",
+    "tuple_ret"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/ar/proof_trace.t27",
+   "markers": [
+    "let",
+    "tuple_ret"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/compiler/lexer.t27",
+   "markers": [
+    "array_semi",
+    "tuple_ret"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/depin/prove.t27",
+   "markers": [
+    "array_semi",
+    "vec"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/enrichment/youtube_transcript.t27",
+   "markers": [
+    "let",
+    "tuple_ret"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/fpga/bridge.t27",
+   "markers": [
+    "array_semi",
+    "tuple_ret"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/math/constants.t27",
+   "markers": [
+    "for_in",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/math/e8_lie_algebra.t27",
+   "markers": [
+    "array_semi",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/math/gf_competitive.t27",
+   "markers": [
+    "for_in",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/math/pellis_precision_verify.t27",
+   "markers": [
+    "for_in",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/math/radix_economy.t27",
+   "markers": [
+    "for_in",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/numeric/phi_ratio.t27",
+   "markers": [
+    "for_in",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/physics/formula_discovery.t27",
+   "markers": [
+    "let",
+    "vec"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/physics/su2_chern_simons.t27",
+   "markers": [
+    "array_semi",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/test_framework/graph_drift_detection.t27",
+   "markers": [
+    "let",
+    "match"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/test_framework/verilog_bench_harness.t27",
+   "markers": [
+    "for_in",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/vsa/jones_polynomial.t27",
+   "markers": [
+    "for_in",
+    "let"
+   ],
+   "count": 2
+  },
+  {
+   "path": "specs/ar/asp_solver.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/ar/restraint.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/ar/ternary_logic.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/automation/wrapup-auto.t27",
+   "markers": [
+    "tuple_ret"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/compiler/stdlib.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/compiler/typechecker.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/demos/jones_topology_filter.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/fpga/mac.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/fpga/testbench/mac_tb.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/fpga/testbench/top_tb.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/fpga/testbench/uart_tb.t27",
+   "markers": [
+    "tuple_ret"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/git/diff.t27",
+   "markers": [
+    "tuple_ret"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/git/status.t27",
+   "markers": [
+    "tuple_ret"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/isa/registers.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/math/property_test_template.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/math/sacred_physics.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/math/zamolodchikov_e8.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/memory/notebooklm.t27",
+   "markers": [
+    "tuple_ret"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/ml/transformer/multi_head_attn.t27",
+   "markers": [
+    "for_in"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/ml/transformer/positional_enc.t27",
+   "markers": [
+    "for_in"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/nn/phi_rope.t27",
+   "markers": [
+    "for_in"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/numeric/gf12.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/numeric/gf20.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/numeric/gf24.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/numeric/gf32.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/numeric/gf8.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/physics/formula_registry.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/physics/p2_brain_physics.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/physics/sacred_verification.t27",
+   "markers": [
+    "let"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/queen/lotus.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/sandbox/health.t27",
+   "markers": [
+    "self_ref"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/tri/collections/state.t27",
+   "markers": [
+    "tuple_ret"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/vsa/sdk.t27",
+   "markers": [
+    "self_ref"
+   ],
+   "count": 1
+  },
+  {
+   "path": "specs/vsa/similarity_search.t27",
+   "markers": [
+    "array_semi"
+   ],
+   "count": 1
+  }
+ ]
+}
