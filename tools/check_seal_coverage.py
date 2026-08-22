@@ -48,6 +48,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -83,7 +84,22 @@ def scan(root=ROOT):
             continue
         want = (d.get("spec_hash") or "")
         algo, _, digest = want.partition(":")
-        if algo != "sha256" or not digest:
+        # T81: a digest must be SHAPED like one. `not digest` accepted anything
+        # non-empty, so a malformed digest fell through to the byte comparison
+        # below and came back "changed since sealing" -- a diagnosis whose
+        # prescribed repair is "re-seal the spec", which cannot work.
+        # hexdigest() returns exactly 64 lowercase hex characters, so a 71- or
+        # 63-character value can never equal one no matter what the spec says.
+        #
+        # Measured: five seals sit in the ledger that way -- four carry a
+        # doubled `sha256:sha256:` prefix (71 chars, one of them a colon) and
+        # two carry 63-character walking-nibble placeholders; five are reported
+        # `stale` and the sixth is caught a branch earlier as `dangling`.
+        # Hashing every historical blob of each named spec matched none of the
+        # inner digests, so those seals never described the spec at any commit.
+        # A permanent +5 floor that no spec work can retire, wearing the label
+        # of work someone could do.
+        if algo != "sha256" or not _HEX64.fullmatch(digest):
             bad.append((name, "no-spec-hash", f"spec_hash={want!r}"))
             continue
         got = hashlib.sha256(full.read_bytes()).hexdigest()
@@ -91,6 +107,9 @@ def scan(root=ROOT):
             bad.append((name, "stale", f"{sp} changed since sealing"))
     return len(seals), bad
 
+
+# hashlib.sha256().hexdigest() is exactly this and nothing else.
+_HEX64 = re.compile(r"[0-9a-f]{64}")
 
 _EVER = {}
 _SHALLOW = {}
