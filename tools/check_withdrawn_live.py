@@ -146,6 +146,36 @@ def main():
         print(f"  baseline written: {len({(h[0], h[2], h[6]) for h in hits})} entries")
         return 0
     known = baseline()
+
+    # T71: the REVERSE direction. This gate asked one question -- is a withdrawn
+    # number stated in a live document -- and guarded only against the registry
+    # being emptied entirely. Deleting a single row is invisible: measured, six
+    # of the seven rows can be removed with the gate printing
+    # "OK: no withdrawn number is stated in a live document" and exiting 0,
+    # while coverage genuinely lapses (a planted "41.2 GOPS" scores 1 hit with
+    # the rule and 0 without). The seventh, 323 MHz, is pinned only because
+    # self_check() happens to hardcode that string.
+    #
+    # No new data file is needed: the baseline already records WHICH pattern
+    # excused each accepted occurrence, so a pattern present there and absent
+    # from the registry is a rule that was deleted while its exemptions stayed.
+    # `rsplit` on the last separator keeps this correct if a regex contains "|".
+    live_patterns = {p.pattern for p, _, _ in rules()}
+    excused = {ln.split(" | ", 1)[1].rsplit(" | ", 1)[0]
+               for ln in known if ln.count(" | ") >= 2}
+    gone = sorted(excused - live_patterns)
+    if gone:
+        print(f"FAIL: {len(gone)} rule(s) removed from {REGISTRY.name} while their")
+        print("baseline exemptions remain:\n")
+        for pat in gone:
+            print(f"  /{pat}/ -- no longer scanned for; the number is un-withdrawn")
+        print()
+        print("  A registry row is the only thing standing between a retracted")
+        print("  number and a live document. Deleting one is a withdrawal being")
+        print("  reversed, which is an owner decision, not a cleanup. If it IS")
+        print("  deliberate, drop the matching baseline lines in the same commit.")
+        return 1
+
     new = [h for h in hits if f"{h[0]} | {h[2]} | {h[6]}" not in known]
     if not new:
         print(f"OK: no withdrawn number is stated in a live document "
