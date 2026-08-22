@@ -2293,3 +2293,36 @@ neither operand is a literal, both cones are the generic multiplier, and they
 agree. T834 already proved the folded cones logically equivalent, so a pure logic
 difference is excluded -- but a placement sensitivity peculiar to those small
 specialised cones is not, and the frozen files are the only place it can be tested.
+
+## 55. The comparison that was called impossible took four builds (W986)
+
+W985 ended on a loss: repairing the folded clauses was correct and it destroyed
+this project's only reproducible hardware anomaly, so *the failure is gone* and
+*the failure is absent in a design this different* could never be separated. It
+also froze a copy of the broken wrappers, out of the corpus, marked do-not-fix.
+
+That copy answers the question in four builds.
+
+| design | placements | verdicts |
+|--------|-----------|----------|
+| repaired `gft_smul`, `gft_dup` | 8 | 8 x `1111` |
+| frozen `gft_dup_folded_jtag` | 4 | 2 x `1111`, 2 x `1101` |
+
+Same bench, same day, same tool, same four seeds -- and the frozen file reproduces
+W977's seed mapping exactly: 1 and 42 pass, 7 and 1234 fail. **The split verdict
+is a property of the folded design.** The anomaly did not disappear when the
+clauses were repaired; it stopped being reachable from the repaired sources.
+
+The difference between the two designs is now nameable. In the folded wrapper the
+COMM clause compares two cones each specialised on a *literal* operand, because
+yosys folds the constant into the multiplier. With `Z0` neither operand is a
+literal, both cones are the generic multiplier, and they agree at every placement
+tried. T834 already proved the folded cones logically equivalent, so this is not a
+logic difference: it is a placement sensitivity peculiar to the small specialised
+cones -- and unlike a wave ago, that claim has a live reproducer behind it.
+
+The frozen `gft_smul` sweep is recorded ABSENT rather than FAIL. It built at seed
+7 and the readback found no design 12; seed 42 never ran; the volume was at
+0.15 GiB. A bitstream written on a full disk is not a bitstream, and the
+ABSENT/FAIL distinction this project keeps for place-and-route time caps applies
+to the storage layer too.

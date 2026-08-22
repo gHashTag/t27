@@ -12609,6 +12609,10 @@ a worktree in the same wave its branch merges.
 
 **1511. EIGHT PASSES ARE NOT A PROOF OF ANYTHING.** tri seeds reports '8 pass, 0 fail' and then says, in the same output, that this is not a proof of placement-independence but the absence of a counterexample in eight tries. That sentence is in the tool rather than in the report because reports get summarised and tools get quoted. When a sweep comes back clean, the honest headline is the number of tries, not the word 'passes' -- and the instrument should be the one insisting on it, since the person reading the green line is exactly the person least inclined to. (W985)
 
+**1512. FREEZING THE BROKEN ARTEFACT PAID OFF IN ONE WAVE.** W985 wrote that 'the failure is gone' and 'the failure is absent in a design this different' could never be separated, because the failing case no longer existed -- and then froze a copy anyway, out of the corpus and marked do-not-fix. W986 ran the sweep on that copy: 2 pass, 2 fail, W977's seed mapping exactly, same bench and same day as the repaired designs' 8-for-8. The comparison W985 called impossible took four builds. The cost of the insurance was one directory and ten minutes; the payoff was turning 'we cannot know' into 'the split belongs to the folded design'. Freeze before you repair, every time. (T842, W986)
+
+**1513. A READBACK FAILURE UNDER ENOSPC IS ABSENT, NOT FAIL.** The frozen smul sweep built at seed 7 and then reported 'no cable carries design 12'. That looks like a hardware result and is not one: the volume was at 0.15 GiB, the next seed never ran, and a bitstream written on a full disk is not a bitstream. Recorded as ABSENT. The ABSENT/FAIL distinction this project already keeps for place-and-route time caps applies to the storage layer too -- and the temptation to bank a FAIL is strongest exactly when the run was expensive. Check the free space before writing down the verdict. (W986)
+
 ### How to update this tracker
 
 After closing a wave:

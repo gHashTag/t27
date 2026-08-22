@@ -30770,6 +30770,37 @@ T834 proved the folded cones logically equivalent, so a pure logic difference is
 excluded -- but a placement sensitivity peculiar to the small specialised cones
 is not, and the frozen files are where that would be tested.
 
+### T842 -- The reproducer is alive, and the split belongs to the design [measured]
+
+W985 froze the pre-repair wrappers because repairing them had destroyed the only
+reproducible hardware anomaly, and wrote that *gone* and *absent in a design this
+different* could never again be separated. One wave later the frozen copy makes
+exactly that separation:
+
+| design | placements | verdicts |
+|--------|-----------|----------|
+| repaired `gft_smul`, `gft_dup` (W985) | 8 | **8 x `1111`** |
+| frozen `gft_dup_folded_jtag` (this wave) | 4 | **2 x `1111`, 2 x `1101`** |
+
+Same bench, same day, same tool, same four seeds -- and the frozen file reproduces
+**W977's seed mapping exactly**: 1 and 42 pass, 7 and 1234 fail.
+
+**So the split verdict is a property of the folded design, not of the bench and
+not of place-and-route in general.** The anomaly did not disappear when the
+clauses were repaired; it stopped being reachable from the repaired sources.
+
+What distinguishes the two: in the folded wrapper the COMM clause compares two
+cones each **specialised on a literal operand**, because yosys folds the constant
+into the multiplier. With `Z0` neither operand is a literal, both cones are the
+generic multiplier, and they agree everywhere tried. T834 proved the folded cones
+logically equivalent, so this is not a logic difference -- it is a **placement
+sensitivity peculiar to the small specialised cones**, and that is now a claim
+with a live reproducer behind it.
+
+The frozen `gft_smul` sweep is recorded **ABSENT, not FAIL**: seed 7 built and the
+readback found no design 12, seed 42 never ran, and the volume was at 0.15 GiB. A
+readback failure under disk exhaustion is not a measurement of the design.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

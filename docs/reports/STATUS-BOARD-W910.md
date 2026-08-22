@@ -1,4 +1,18 @@
-# Full status, both tracks — one page for whoever wakes up (W985, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W986, 2026-08-22)
+
+> **W986 — THE FROZEN REPRODUCER IS ALIVE, AND THE SPLIT BELONGS TO THE DESIGN.** W985 wrote that
+> *gone* and *absent in a design this different* could never be separated, because the failing case
+> no longer existed — and froze a copy anyway. Four builds later: `gft_dup_folded_jtag` gives
+> **2 × `1111`, 2 × `1101`**, reproducing **W977's seed mapping exactly** (1, 42 pass; 7, 1234 fail),
+> against the repaired designs' **8 of 8** — same bench, same day, same tool, same four seeds.
+> **So the split verdict is a property of the folded design, not of the bench and not of
+> place-and-route in general.** The anomaly did not disappear; it stopped being reachable from the
+> repaired sources. **What distinguishes them:** the folded COMM clause compares two cones each
+> *specialised on a literal operand*; with `Z0` both are the generic multiplier. T834 already proved
+> the folded cones logically equivalent, so this is **not a logic difference** — it is a placement
+> sensitivity peculiar to the small specialised cones, and it now has a live reproducer. The frozen
+> `gft_smul` sweep is **ABSENT, not FAIL** — readback failed with the volume at 0.15 GiB.
+> T842, lessons 1512–1513, **445 derived checks**. **Readiness 96 %.**
 
 > **W985 — THE ANOMALY STOPS REPRODUCING, AND THE REPRODUCER IS GONE WITH IT.** The sweep W984's
 > single reading could not stand in for: four placements per design, each bracketed by a wrong-part
