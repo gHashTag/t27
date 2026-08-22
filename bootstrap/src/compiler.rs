@@ -18006,6 +18006,18 @@ impl Compiler {
         Self::compile_verilog_with_options(source, true, None)
     }
 
+    /// #2241: the simulation path passed `None` as the spec path, so the
+    /// import-aware registries (enums, structs) never loaded and every
+    /// `Enum.variant` or imported-struct field in a TEST BLOCK emitted an
+    /// unbound name -- icarus-simulate failed with 95 elaboration errors on
+    /// mac while the plain gen-verilog of the same spec elaborated clean.
+    pub fn compile_verilog_for_simulation_at(
+        source: &str,
+        spec_path: &std::path::Path,
+    ) -> Result<String, String> {
+        Self::compile_verilog_with_options(source, true, Some(spec_path))
+    }
+
     fn compile_verilog_with_options(
         source: &str,
         emit_test_assertions: bool,
