@@ -266,6 +266,18 @@ def main():
         return 2
     rc, executed, skipped = run_module(name, verilog_path, workdir)
     print(f"executed cases: {executed}; groups not yet executed: {len(skipped)} {sorted(skipped)}")
+    # T67: zero executed cases is a FAILURE, not a pass. A testbench with no
+    # cases prints "CONFORMANCE OK: all executed cases passed" -- vacuously
+    # true and indistinguishable from a real run. Emptying a vector file made
+    # this whole job green end to end while the vectors it names ceased to
+    # exist. `.claude/skills/ci-gates/SKILL.md` §1: a gate that cannot fail
+    # reads as coverage and is worse than none.
+    if rc == 0 and executed == 0:
+        print()
+        print(f"{name}: NOTHING WAS EXECUTED. 'all executed cases passed' over an")
+        print("empty set is not a pass -- the vectors this module names are gone,")
+        print("unparseable, or no longer match the registry's call templates.")
+        return 1
     return rc
 
 
