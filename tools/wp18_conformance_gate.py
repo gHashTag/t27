@@ -50,6 +50,7 @@ import json
 import math
 import os
 import re
+import struct
 import sys
 
 SCHEMA = "wp18-conformance-gate/v2"
@@ -70,6 +71,39 @@ def _read_ssot_ids(ssot_path):
             if m:
                 ids.append(m.group(1))
     return ids
+
+
+def _f64_from_hex(h):
+    """The IEEE-754 double a `*_hex` field names, or None if it is not one."""
+    if h is None:
+        return None
+    t = str(h).strip().lower()
+    if t.startswith("0x"):
+        t = t[2:]
+    if len(t) > 16:
+        return None
+    try:
+        return struct.unpack(">d", bytes.fromhex(t.rjust(16, "0")))[0]
+    except Exception:
+        return None
+
+
+def _same_f64(a, b):
+    """Exact identity, with NaN == NaN and -0.0 != 0.0.
+
+    Not `==`: NaN != NaN would report every nan row as a disagreement, and
+    0.0 == -0.0 would hide a sign flip in a field whose whole job is to be
+    exact.
+    """
+    if a is None or b is None:
+        return None
+    if math.isnan(a) and math.isnan(b):
+        return True
+    if math.isnan(a) or math.isnan(b):
+        return False
+    if a == 0.0 and b == 0.0:
+        return math.copysign(1.0, a) == math.copysign(1.0, b)
+    return a == b
 
 
 def _is_wide_row(r):
@@ -316,6 +350,9 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
     rederive_mismatch = []
     undisclosed_nonzero = []
     rows_checked = 0
+    hex_disagree = []
+    hex_unparseable = []
+    overflow_rows = 0
     wide_rows = 0
     wide_nonzero = []
     unrecognised = []
@@ -376,6 +413,36 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
                 continue
             rows_checked += 1
 
+            # ---- G: each decimal against its own hex twin ----
+            # T80: Check D cannot constrain an overflow row. `abs(inf - x)` is
+            # `inf` for every finite x, and `NaN > tol` is False, so changing
+            # gf16::overflow_to_inf's input_f64 from 1e+40 to 1.0 and refreshing
+            # the digest returned exit 0 CLEAN -- a row asserting that gf16
+            # encodes 1.0 as the +inf code, contradicted by its OWN
+            # input_f64_hex, with nothing firing.
+            #
+            # The row already carries the oracle. Measured across the corpus:
+            # all 3795 rows carry both hex twins and all 7590 pairs agree, so
+            # this is free, in-corpus, and 100% covering -- no second tool, no
+            # new data. gf16/gf32/gf64 have no independent witness at all
+            # (gf-wide-conformance covers only the wide rungs), so for those
+            # rungs this is the only thing that can see such an edit.
+            for _dec_key, _hex_key in (("input_f64", "input_f64_hex"),
+                                       ("decoded_f64", "decoded_f64_hex")):
+                if _hex_key not in r:
+                    continue
+                _stated = _to_float(r.get(_dec_key))
+                _twin = _f64_from_hex(r.get(_hex_key))
+                if _stated is None or _twin is None:
+                    hex_unparseable.append({"pack": p["id"], "row": r.get("name"),
+                                            "field": _dec_key})
+                    continue
+                if _same_f64(_stated, _twin) is False:
+                    hex_disagree.append({"pack": p["id"], "row": r.get("name"),
+                                         "field": _dec_key,
+                                         "decimal": str(_stated),
+                                         "hex_decodes_to": str(_twin)})
+
             # ---- D2: special-value rows (inf-code / nan-code) ----
             if _is_special_row(r, inp, dec):
                 special_rows += 1
@@ -398,12 +465,32 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
                                              "detail": "special-value round-trip broken"})
                 if roundtrip_ok is not None:
                     continue  # fully handled as a special-value row
+                # T80: a finite input that overflowed to inf is NEITHER special
+                # nor finite -- it fell through both. It was counted in
+                # special_rows above and again in finite_rows below, so
+                # 3591 + 205 = 3796 against rows_checked 3795. Its own class,
+                # counted once, and the partition is asserted below.
+                overflow_rows += 1
+                special_rows -= 1
+                if math.isinf(dec):
+                    continue
 
             # ---- finite-value row (the meaningful arithmetic case) ----
             finite_rows += 1
             # D: re-derive abs_error from stored decoded vs input
             rederived = abs(dec - inp)
-            if abs(rederived - ae_stored) > REDERIVE_TOL:
+            # T80: `NaN > tol` is False, so a NaN on either side used to make
+            # this comparison assert NOTHING and pass. Setting abs_error to NaN
+            # on an allowlisted finite row returned exit 0 CLEAN: E excuses the
+            # row by name and D could not see it. A comparison that cannot be
+            # evaluated is a FAILURE, not a match.
+            _diff = abs(rederived - ae_stored)
+            if math.isnan(_diff) or math.isnan(ae_stored) or math.isnan(rederived):
+                rederive_mismatch.append({"pack": p["id"], "row": r.get("name"),
+                                          "stored": str(ae_stored),
+                                          "rederived": str(rederived),
+                                          "detail": "comparison is not a number"})
+            elif _diff > REDERIVE_TOL:
                 rederive_mismatch.append({"pack": p["id"], "row": r.get("name"),
                                           "stored": ae_stored, "rederived": rederived})
             # E: honesty allow-list for any finite nonzero abs_error
@@ -416,6 +503,38 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
                 else:
                     undisclosed_nonzero.append({"pack": p["id"], "row": r.get("name"),
                                                 "abs_error": str(ae_stored)})
+    report["checks"]["G_decimal_matches_hex"] = {
+        "rows_with_twins": rows_checked,
+        "disagree_count": len(hex_disagree),
+        "disagree": hex_disagree[:10],
+        "unparseable_count": len(hex_unparseable),
+        "unparseable": hex_unparseable[:10],
+        "ok": not hex_disagree and not hex_unparseable,
+    }
+    if hex_disagree or hex_unparseable:
+        report["failures"].append({"check": "G", "disagree": hex_disagree[:10],
+                                   "unparseable": hex_unparseable[:10]})
+
+    # T80: the partition must hold, or the three numbers a reader quotes for
+    # coverage do not describe one set of rows. It did not: one row was in two
+    # buckets and the sum overshot by exactly 1.
+    _partition_ok = (finite_rows + special_rows + overflow_rows) == rows_checked
+    report["checks"]["H_row_partition"] = {
+        "rows_checked": rows_checked,
+        "finite_rows": finite_rows,
+        "special_rows": special_rows,
+        "overflow_rows": overflow_rows,
+        "sum": finite_rows + special_rows + overflow_rows,
+        "ok": _partition_ok,
+    }
+    if not _partition_ok:
+        report["failures"].append({
+            "check": "H",
+            "detail": "finite + special + overflow != rows_checked",
+            "sum": finite_rows + special_rows + overflow_rows,
+            "rows_checked": rows_checked,
+        })
+
     report["checks"]["F_row_schema_recognised"] = {
         "wide_rows": wide_rows,
         "wide_nonzero_count": len(wide_nonzero),

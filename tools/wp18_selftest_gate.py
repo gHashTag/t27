@@ -72,13 +72,22 @@ def build_clean_corpus(root):
 
     # fp8_e4m3: one exact finite row + one nan-code row + one inf-code row
     e4m3 = _bitexact_pack("fp8_e4m3", [
-        {"name": "pos_1p0", "input_f64": 1.0, "decoded_f64": 1.0, "abs_error": 0.0, "category": "normal"},
+        {"name": "pos_1p0", "input_f64": 1.0, "input_f64_hex": "0x3FF0000000000000",
+         "decoded_f64": 1.0, "decoded_f64_hex": "0x3FF0000000000000",
+         "abs_error": 0.0, "category": "normal"},
         {"name": "nan_code", "input_f64": "nan", "decoded_f64": "nan", "abs_error": "nan", "category": "nan"},
     ])
     # fp8_e5m2: one exact row + one inf-code row (inf -> inf, abs_error placeholder 0.0)
     e5m2 = _bitexact_pack("fp8_e5m2", [
         {"name": "pos_2p0", "input_f64": 2.0, "decoded_f64": 2.0, "abs_error": 0.0, "category": "normal"},
         {"name": "pos_inf", "input_f64": "inf", "decoded_f64": "inf", "abs_error": 0.0, "category": "inf"},
+        # T80: a FINITE input that overflowed to inf. Neither special nor
+        # finite -- it used to fall through both and be counted twice, which is
+        # why the fixture needs one for the partition assertion to be testable.
+        {"name": "overflow_to_inf", "input_f64": 1e+40,
+         "input_f64_hex": "0x483D6329F1C35CA5",
+         "decoded_f64": "inf", "decoded_f64_hex": "0x7FF0000000000000",
+         "abs_error": "inf", "category": "normal"},
     ])
     # gf16 declared structural here (no bit-exact rows) to exercise the structural path
     gf16 = _structural_pack("gf16")
@@ -199,6 +208,63 @@ def main():
         code, rep = G.run_gate(ssot, vec, allow)
         check("TA2_missing_pack_fails_A", rep["checks"]["A_packset_equals_ssot"]["ok"] is False
               and "fp8_e5m2" in rep["checks"]["A_packset_equals_ssot"]["missing_packs"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TH: the row partition must actually hold ----------
+    # T80: without a mutant here the assertion is decoration. Reverting the
+    # partition fix left the whole selftest green until this existed -- a gap
+    # in MY controls, found by mutating my own patch and noticing nothing died.
+    # The fixture now carries an overflow row, so the three buckets are
+    # non-trivial and a double count is observable.
+    root = tempfile.mkdtemp(prefix="wp18st_H_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+        code, rep = G.run_gate(ssot, vec, allow)
+        h = rep["checks"].get("H_row_partition", {})
+        check("TH_partition_holds_on_clean_fixture",
+              h.get("ok") is True
+              and h.get("overflow_rows") == 1
+              and h.get("sum") == h.get("rows_checked"))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TG: a decimal must match its own hex twin ----------
+    # T80: Check D cannot constrain an overflow row -- abs(inf - x) is inf for
+    # every finite x -- so swapping input_f64 on such a row was invisible. The
+    # row carries its own oracle; this plants a decimal that contradicts it.
+    root = tempfile.mkdtemp(prefix="wp18st_G_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def lie(pack):
+            pack["vectors"][0]["input_f64"] = 2.0   # hex still says 1.0
+        _edit_pack(vec, "fp8_e4m3_conformance_v0.json", lie)
+        _reindex_sha(vec)
+        code, rep = G.run_gate(ssot, vec, allow)
+        g = rep["checks"].get("G_decimal_matches_hex", {})
+        check("TG_decimal_contradicts_hex_fails_G",
+              g.get("ok") is False
+              and g.get("disagree_count") == 1
+              and rep["checks"]["C_sha_freshness"]["ok"] is True)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TD_nan: a comparison that is not a number is a failure ----------
+    root = tempfile.mkdtemp(prefix="wp18st_Dnan_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def nanify(pack):
+            pack["vectors"][0]["abs_error"] = "nan"
+        _edit_pack(vec, "fp8_e4m3_conformance_v0.json", nanify)
+        _reindex_sha(vec)
+        code, rep = G.run_gate(ssot, vec, allow)
+        d = rep["checks"]["D_rederive_abs_error"]
+        check("TDnan_nan_comparison_fails_D",
+              d["ok"] is False
+              and any("not a number" in str(m.get("detail", "")) for m in d.get("mismatch", []))
+              and rep["checks"].get("G_decimal_matches_hex", {}).get("ok") is True)
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -371,8 +437,16 @@ def main():
         ssot, vec, allow = build_clean_corpus(root)
         # finite row with a HONEST nonzero abs_error (consistent w/ D) but NOT on allowlist
         def leak(p):
-            p["vectors"][0].update({"input_f64": 0.1, "decoded_f64": 0.10009765625,
-                                    "abs_error": abs(0.10009765625 - 0.1), "category": "normal"})
+            # T80: the hex twins move with the decimals. Once G exists, a
+            # fixture that rewrites one and not the other is internally
+            # inconsistent and trips G instead of the check it is testing --
+            # which is G doing its job, not a reason to weaken it.
+            p["vectors"][0].update({"input_f64": 0.1,
+                                    "input_f64_hex": "0x3FB999999999999A",
+                                    "decoded_f64": 0.10009765625,
+                                    "decoded_f64_hex": "0x3FB9A00000000000",
+                                    "abs_error": abs(0.10009765625 - 0.1),
+                                    "category": "normal"})
         _edit_pack(vec, "fp8_e4m3_conformance_v0.json", leak)
         _reindex_sha(vec)
         code, rep = G.run_gate(ssot, vec, allow)
@@ -387,8 +461,16 @@ def main():
     try:
         ssot, vec, allow = build_clean_corpus(root)
         def leak2(p):
-            p["vectors"][0].update({"input_f64": 0.1, "decoded_f64": 0.10009765625,
-                                    "abs_error": abs(0.10009765625 - 0.1), "category": "normal"})
+            # T80: the hex twins move with the decimals. Once G exists, a
+            # fixture that rewrites one and not the other is internally
+            # inconsistent and trips G instead of the check it is testing --
+            # which is G doing its job, not a reason to weaken it.
+            p["vectors"][0].update({"input_f64": 0.1,
+                                    "input_f64_hex": "0x3FB999999999999A",
+                                    "decoded_f64": 0.10009765625,
+                                    "decoded_f64_hex": "0x3FB9A00000000000",
+                                    "abs_error": abs(0.10009765625 - 0.1),
+                                    "category": "normal"})
         _edit_pack(vec, "fp8_e4m3_conformance_v0.json", leak2)
         _reindex_sha(vec)
         with open(allow, "w", encoding="ascii") as fh:
