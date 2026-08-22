@@ -5,11 +5,10 @@ bootstrap/src/codegen_python.t27 | Error: Compile error: parse error in fn 'map_
 bootstrap/tests/goldring/cap_test.t27 | Error: Compile error: nested fn 'inner' inside 'outer' captures enclosing locals ["scale"] -- hoisting would unbind them; lift them to parameters or m
 compiler/cli/gen.t27 | Error: Compile error: parse error in fn 'gen' near line 84: Unexpected token in expression: Pipe ('|') at line 84:44
 compiler/cli/git.t27 | Error: Compile error: parse error in fn 'git_commit' near line 38: Unexpected token in expression: Pipe ('|') at line 38:45
-compiler/cli/spec.t27 | Error: Compile error: parse error in fn 'spec_list' near line 160: parse error near line 160: Unexpected token in expression: RBracket (']') at line 1
-compiler/codegen/verilog/codegen.t27 | Error: Compile error: parse error at module level near line 644: unexpected token after expression statement: Ident
+compiler/cli/spec.t27 | Error: Compile error: parse error in fn 'spec_list' near line 165: parse error near line 165: Unexpected token in expression: Pipe ('|') at line 165:2
+compiler/codegen/verilog/codegen.t27 | Error: Compile error: parse error at module level near line 647: Unexpected token in expression: Pipe ('|') at line 647:40
 compiler/codegen/verilog/fpga_emission.t27 | Error: Compile error: parse error in fn 'emit_line' near line 720: Expected LBrace, got Colon (':') at line 720:39
 compiler/codegen/zig/codegen.t27 | Error: Compile error: Unexpected token in expression: KwEnum ('enum') at line 1112:31
-compiler/parser/lexer.t27 | Error: Compile error: parse error at module level near line 406: Expected identifier after '.', got LBrace
 compiler/parser/parser.t27 | Error: Compile error: parse error in fn 'Parser.new' near line 36: Expected RBrace, got KwConst ('const') at line 36:38
 compiler/runtime/commands.t27 | Error: Compile error: parse error in fn 'spec_create' near line 33: Unexpected token in expression: LBrace ('{') at line 33:42
 compiler/runtime/validation.t27 | Error: Compile error: parse error in fn 'contains_cyrillic' near line 244: Expected LBrace, got Colon (':') at line 244:30
@@ -42,7 +41,6 @@ specs/compiler/parser.t27 | Error: Compile error: parse error in fn 'parse_modul
 specs/compiler/typechecker.t27 | Error: Compile error: parse error in fn 'check_stmt' near line 373: parse error near line 373: parse error near line 373: Unexpected token in expressi
 specs/config/load.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('Config') at line 13:21
 specs/config/migrate.t27 | Error: Compile error: parse error in fn 'migrate_detect_version' near line 396: Expected RBrace, got Colon (':') at line 396:59
-specs/config/paths.t27 | Error: Compile error: parse error in fn 'basename' near line 256: Unexpected token in expression: RBracket (']') at line 256:37
 specs/conformance/e2e_scenarios.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/enrichment/audio_overview.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
 specs/enrichment/youtube_transcript.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
@@ -64,12 +62,7 @@ specs/isa/ternary_bitwise.t27 | Error: Compile error: Expected LBrace, got Numbe
 specs/isa/ternary_deque.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 29:76
 specs/isa/ternary_encoding.t27 | Error: Compile error: parse error at module level near line 4: unexpected token after expression statement: Ident
 specs/isa/ternary_gates.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 30:28
-specs/isa/ternary_hash.t27 | Error: Compile error: parse error in fn 'insert_lookup' near line 102: Unexpected token in expression: RBracket (']') at line 102:27
-specs/isa/ternary_pattern_matching.t27 | Error: Compile error: parse error in fn 'match_exact_found' near line 110: Unexpected token in expression: RBracket (']') at line 110:36
-specs/isa/ternary_search.t27 | Error: Compile error: parse error in fn 'linear_search_found' near line 113: Unexpected token in expression: RBracket (']') at line 113:38
-specs/isa/ternary_set.t27 | Error: Compile error: parse error in fn 'insert_contains' near line 127: Unexpected token in expression: RBracket (']') at line 127:27
 specs/isa/ternary_shift.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 34:66
-specs/isa/ternary_sorting.t27 | Error: Compile error: parse error in fn 'bubble_sort' near line 117: Unexpected token in expression: RBracket (']') at line 117:29
 specs/jit/jit.t27 | Error: Compile error: parse error in fn 'jit_bind' near line 539: unexpected token after expression statement: LParen
 specs/lsp/language.t27 | Error: Compile error: parse error in fn 'symbol_kind_to_string' near line 311: Expected RBrace, got FatArrow ('=>') at line 311:17
 specs/math/constants.t27 | Error: Compile error: parse error in fn 'pow' near line 98: Expected LParen, got Ident ('negative') at line 98:22
@@ -77,9 +70,7 @@ specs/math/gf_competitive.t27 | Error: Compile error: parse error in fn 'decode_
 specs/math/radix_economy.t27 | Error: Compile error: parse error in fn 'pow' near line 104: Expected LParen, got Ident ('negative') at line 104:22
 specs/memory/formula_embed.t27 | Error: Compile error: parse error in fn 'pad_features' near line 109: Expected LBrace, got Colon (':') at line 109:31
 specs/memory/semantic_search.t27 | Error: Compile error: parse error in fn 'semantic_search' near line 95: Expected LBrace, got Colon (':') at line 95:28
-specs/ml/transformer/feed_forward.t27 | Error: Compile error: Expected LBrace, got KwStruct ('struct') at line 148:59
 specs/ml/transformer/multi_head_attn.t27 | Error: Compile error: parse error in fn 'compute_phi_scale' near line 175: unknown cast target type `GF16`; expected one of ["bool", "u8", "i8", "u16"
-specs/ml/transformer/positional_enc.t27 | Error: Compile error: Expected LBrace, got KwStruct ('struct') at line 67:34
 specs/neural/forward_pass.t27 | Error: Compile error: parse error at module level near line 10: unexpected token after expression statement: Ident
 specs/nn/phi_rope.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
 specs/nn/sacred_attention.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
@@ -102,14 +93,11 @@ specs/physics/p2_brain_physics.t27 | Error: Compile error: Expected LBrace, got 
 specs/physics/quantum.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/physics/sacred_verification.t27 | Error: Compile error: parse error in fn 'verify_formula' near line 388: Expected LParen, got Ident ('abs_error') at line 388:28
 specs/pins/parser.t27 | Error: Compile error: unterminated string literal opened at line 596:24
-specs/pipeline/benchmarks.t27 | Error: Compile error: parse error in fn 'percentile_sample' near line 66: Unexpected token in expression: RBracket (']') at line 66:46
-specs/pipeline/e2e_test.t27 | Error: Compile error: parse error in fn 'full_pipeline_pass' near line 87: Unexpected token in expression: RBracket (']') at line 87:50
 specs/portable/relay_observer.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:16
 specs/provider/adapters.t27 | Error: Compile error: parse error in fn 'adapter_config_create' near line 208: Unexpected token in expression: LBrace ('{') at line 208:55
 specs/provider/schema.t27 | Error: Compile error: parse error in fn 'provider_config_create' near line 267: Unexpected token in expression: LBrace ('{') at line 267:55
 specs/runtime/execute.t27 | Error: Compile error: Expected LBrace, got RParen (')') at line 238:77
 specs/runtime/instance.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('ProcessID') at line 13:23
-specs/runtime/process.t27 | Error: Compile error: parse error in fn 'process_continue' near line 313: Expected identifier after '.', got KwContinue
 specs/sandbox/health.t27 | Error: Compile error: Unexpected top-level token: Ident ('trait') at line 32:5
 specs/sandbox/https_enforce.t27 | Error: Compile error: parse error in fn 'redirect_url' near line 74: Expected LParen, got Ident ('original_url') at line 74:25
 specs/sandbox/modules.t27 | Error: Compile error: Unexpected top-level token: KwUse ('use') at line 18:5
