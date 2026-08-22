@@ -39,7 +39,11 @@ No new competitors were discovered (stable landscape for 6 consecutive waves).
   - `bitexact` — identical numeric outputs across all runs
   - `bitexact_selfconsistent` — outputs are deterministic and self-consistent but may differ across architectures due to floating-point ordering
   - `structural` — output structure matches but numeric values may vary
-- **Self-test:** `tools/wp18_gate_selfconsistent_selftest.py` with 19 positive validations + 6 failure scenarios (25/25 pass).
+- **Self-test:** `tools/wp18_gate_selfconsistent_selftest.py`, **13 assertions, 13 pass**.
+  (This line said "19 positive validations + 6 failure scenarios (25/25 pass)" until
+  2026-08-23. The suite prints `SELFTEST RESULT: 13 PASS, 0 FAIL`; the earlier figure
+  reproduces from no run of it. Corrected rather than deleted, because the number had
+  been quoted as evidence of coverage.)
 - **Impact:** CI gates on Check B with clear numeric threshold. Current counts: 55 `bitexact`, 0 `bitexact_selfconsistent`, 28 `structural`.
 
 ### 2.2 #991.3 — C Array Literal Type Inference
