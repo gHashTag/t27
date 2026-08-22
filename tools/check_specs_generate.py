@@ -161,6 +161,26 @@ def main():
         return 0
 
     if "--update-baseline" in sys.argv:
+        # T77: the cap only ever moves DOWN. This command is the documented way
+        # to bless a change, and it rewrote the ledger unconditionally -- so the
+        # debt list could grow as a SIDE EFFECT of the very command the gate
+        # recommends, while the docstring asserts the number can only fall.
+        # bootstrap/src/suite.rs:2634 already does it right for the corpus
+        # ratchet, with the same words: "raising the cap must be a hand edit in
+        # the pull request, never a side effect of running the blessing
+        # command." Same rule, same file format, now the same behaviour.
+        prior = len(baseline())
+        if prior and len(bad) > prior:
+            print(f"REFUSING to grow the ledger: {prior} -> {len(bad)} entries.")
+            print()
+            print("  These specs newly fail to generate and are not in the ledger:")
+            for sp, msg in [(sp, m) for sp, m in bad if sp not in baseline()][:10]:
+                print(f"    {sp}\n      {msg[:110]}")
+            print()
+            print("  Fix them, or add their lines BY HAND in the same pull request")
+            print("  with a reason. A ledger that grows when you run the blessing")
+            print("  command is a ledger that records nothing.")
+            return 1
         BASELINE.write_text(
             "# Specs that do not generate with ANY backend. Each line is a debt.\n"
             "# Remove the line when the spec compiles; the gate then holds it compiling.\n"
