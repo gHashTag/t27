@@ -3299,7 +3299,7 @@ impl Parser {
         self.expect(TokenKind::RParen)?;
 
         // Then expression
-        let then_expr = self.parse_expr()?;
+        let then_expr = self.parse_braced_or_bare_expr()?;
 
         // else expression
         let mut if_node = Node::new(NodeKind::ExprIf);
@@ -3308,11 +3308,36 @@ impl Parser {
 
         if self.current.kind == TokenKind::KwElse {
             self.advance(); // consume 'else'
-            let else_expr = self.parse_expr()?;
+            let else_expr = self.parse_braced_or_bare_expr()?;
             if_node.children.push(else_expr);
         }
 
         Ok(if_node)
+    }
+
+    /// An if-expression arm, written either bare (`if (c) a else b`) or wrapped
+    /// in braces around a single expression (`if (c) { a } else { b }`).
+    ///
+    /// The corpus uses the braced spelling and this parser only accepted the bare
+    /// one, so `parse_expr` failed on the `{`, the `?` in parse_local_decl threw
+    /// the whole declaration away, and the statements below it kept referring to
+    /// a name that was never emitted -- `error: use of undeclared identifier`,
+    /// first error for 113 of 520 specs.
+    ///
+    /// A brace holding more than one statement is NOT handled: that is a block,
+    /// Zig wants a labelled break to give it a value, and guessing at one would
+    /// produce plausible code with the wrong semantics. Those still fail loudly.
+    fn parse_braced_or_bare_expr(&mut self) -> Result<Node, String> {
+        if self.current.kind != TokenKind::LBrace {
+            return self.parse_expr();
+        }
+        self.advance(); // consume '{'
+        let inner = self.parse_expr()?;
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+        self.expect(TokenKind::RBrace)?;
+        Ok(inner)
     }
 
     /// Parse switch expression: switch (val) { .arm => expr, ... }
