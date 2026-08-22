@@ -84,8 +84,23 @@ def main():
     # ladder has never been published under either name -- but because research
     # notes, prior branches and the author's own profile still use it, and every
     # measurement against takum/tekum/posit was recorded under the old label.
-    # The phi families must keep their rule visible: it is what distinguishes them
-    # from the theorem-derived pair, and it was ad hoc once already.
+    #
+    # T82: this comment described a check that a later commit DELETED, replacing
+    # it with the golden-section test below and leaving the four lines above it
+    # in place. Measured: stripping all nine `former_name=` fields from the SSOT
+    # passed BOTH catalog gates green, and a repo-wide grep finds `former_name`
+    # nowhere outside specs/ and two docs -- so nothing else would have noticed
+    # either. Every tnf rung must still carry the name its measurements were
+    # recorded under.
+    for m in re.finditer(r"id=(tnf\d+)\b", text):
+        rung = m.group(1)
+        row = text[m.start():text.find("\n", m.start())]
+        want = 'former_name="GF-T%s"' % rung[3:]
+        if want not in row:
+            problems.append(f"LOST      {rung} no longer carries {want}")
+
+    # 5. The phi families must keep their rule visible: it is what distinguishes
+    # them from the theorem-derived pair, and it was ad hoc once already.
     if "round((N-1)/phi^2)" not in text:
         problems.append("LOST      the golden-section rule from the GF-T block")
 
