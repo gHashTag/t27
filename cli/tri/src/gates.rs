@@ -26,6 +26,24 @@ pub enum GatesCmd {
         #[arg(long)]
         controls_only: bool,
     },
+    /// Break each gate's failure path and demand its control notices.
+    ///
+    /// `sweep` reports whether a control EXISTS. That is a label, not a
+    /// property: a control can be present, pass, and be incapable of failing.
+    /// Measured on check_catalog_integrity.py -- with main()'s `return 1`
+    /// rewritten to `return 0` the gate printed OK on a broken catalog, and
+    /// its control still reported every branch red.
+    ///
+    /// One mutant per site: each `return 1..4` outside the control's own
+    /// functions is flipped to `return 0` in turn, the control is run, and the
+    /// mutant is killed if the control goes non-zero. The file is restored
+    /// after every run. Refuses to start on a dirty tools/ tree, so an
+    /// interrupted run is always recoverable with `git checkout tools/`.
+    Mutate {
+        /// Only this gate, by file name (e.g. check_vector_data.py).
+        #[arg(long)]
+        only: Option<String>,
+    },
     /// List active workflows whose lifetime success count is zero.
     Dead {
         /// owner/repo, repeatable. Defaults to the three this fleet uses.
@@ -121,6 +139,153 @@ fn sweep(controls_only: bool) -> Result<()> {
     Ok(())
 }
 
+/// Top-level `def`s that belong to the CONTROL, not to the gate. Mutating a
+/// `return` inside one of these breaks the instrument instead of the thing
+/// being measured -- done by accident once, and it made two sound controls
+/// look like they passed vacuously. Reading the printed output rather than the
+/// exit code is what separated the two.
+fn is_control_fn(name: &str) -> bool {
+    name.contains("self_check") || name.contains("selftest") || name.contains("self_test")
+}
+
+/// Byte offsets of every `return 1..4` that belongs to the gate's own logic.
+/// Line-based on purpose: these files are flat, and a real Python parse would
+/// buy nothing a `def` at column zero does not already give.
+fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
+    let mut sites = Vec::new();
+    let mut in_control = false;
+    let mut off = 0usize;
+    for line in src.split_inclusive('\n') {
+        if let Some(rest) = line.strip_prefix("def ") {
+            let fname: String = rest.chars().take_while(|c| *c != '(').collect();
+            in_control = is_control_fn(&fname);
+        }
+        if !in_control {
+            let t = line.trim_start();
+            if let Some(n) = t.strip_prefix("return ") {
+                let d = n.trim_end();
+                if matches!(d, "1" | "2" | "3" | "4") {
+                    let col = line.len() - t.len();
+                    sites.push((off + col, t.len() - 1, format!("return {}", d)));
+                }
+            }
+        }
+        off += line.len();
+    }
+    sites
+}
+
+fn line_of(src: &str, byte: usize) -> usize {
+    src[..byte].matches('\n').count() + 1
+}
+
+fn mutate(only: Option<&str>) -> Result<()> {
+    let root = repo_root()?;
+    let dirty = Command::new("git")
+        .args(["status", "--porcelain", "--", "tools/"])
+        .current_dir(&root)
+        .output()
+        .context("git status failed")?;
+    if !String::from_utf8_lossy(&dirty.stdout).trim().is_empty() {
+        anyhow::bail!(
+            "tools/ has uncommitted changes. This command rewrites those files in \
+             place and restores them; starting from a dirty tree means an \
+             interrupted run cannot be told from your own edits. Commit or stash first."
+        );
+    }
+
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(root.join("tools"))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            let n = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            n.ends_with(".py") && (n.starts_with("check_") || n.contains("gate"))
+        })
+        .collect();
+    files.sort();
+
+    println!("{:<38} {:>9}  {}", "gate", "mutants", "verdict");
+    let mut total_survived: Vec<String> = Vec::new();
+
+    for f in &files {
+        let name = f.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        if IS_A_CONTROL.contains(&name.as_str()) {
+            continue;
+        }
+        if let Some(o) = only {
+            if o != name {
+                continue;
+            }
+        }
+        let pristine = std::fs::read_to_string(f)?;
+        let flag = ["--self-check-drop", "--self-check", "--selftest"]
+            .iter()
+            .find(|fl| pristine.contains(&format!("\"{}\"", fl)))
+            .map(|s| s.to_string());
+        let external = EXTERNAL_CONTROL.iter().find(|(g, _)| *g == name).map(|(_, c)| c.to_string());
+        if flag.is_none() && external.is_none() {
+            println!("{:<38} {:>9}  {}", name, "-", "no control to run");
+            continue;
+        }
+
+        let sites = mutable_sites(&pristine);
+        if sites.is_empty() {
+            println!("{:<38} {:>9}  {}", name, 0, "no failure path to break");
+            continue;
+        }
+
+        let mut killed = 0usize;
+        let mut survivors: Vec<usize> = Vec::new();
+        for (at, len, _text) in &sites {
+            let mut m = String::with_capacity(pristine.len());
+            m.push_str(&pristine[..*at]);
+            m.push_str("return 0");
+            m.push_str(&pristine[at + len..]);
+            std::fs::write(f, &m)?;
+            let ctrl = match (&flag, &external) {
+                (Some(fl), _) => code(&root, &name, &[fl]),
+                (_, Some(c)) => code(&root, c, &[]),
+                _ => unreachable!(),
+            };
+            // Restore before judging, so an early return can never leave the
+            // tree mutated.
+            std::fs::write(f, &pristine)?;
+            if ctrl == "0" {
+                survivors.push(line_of(&pristine, *at));
+            } else {
+                killed += 1;
+            }
+        }
+        debug_assert_eq!(std::fs::read_to_string(f).unwrap_or_default(), pristine);
+
+        let verdict = if survivors.is_empty() {
+            "all killed".to_string()
+        } else {
+            total_survived.push(name.clone());
+            format!(
+                "SURVIVED at line{} {}",
+                if survivors.len() == 1 { "" } else { "s" },
+                survivors.iter().map(|l| l.to_string()).collect::<Vec<_>>().join(", ")
+            )
+        };
+        println!("{:<38} {:>9}  {}", name, format!("{}/{}", killed, sites.len()), verdict);
+    }
+
+    println!();
+    if total_survived.is_empty() {
+        println!("Every gate's control noticed every break in its failure path.");
+    } else {
+        println!("{} gate(s) whose control did not notice:", total_survived.len());
+        for n in &total_survived {
+            println!("  {}", n);
+        }
+        println!();
+        println!("A survivor means the gate stopped being able to fail and its own");
+        println!("control still passed. Usually the control exercises the checking");
+        println!("FUNCTION but not the wiring from that function to the exit code.");
+    }
+    Ok(())
+}
+
 fn code(root: &std::path::Path, script: &str, args: &[&String]) -> String {
     let mut c = Command::new("python3");
     c.arg(format!("tools/{}", script));
@@ -158,6 +323,7 @@ fn repo_root() -> Result<std::path::PathBuf> {
 pub fn run(cmd: &GatesCmd) -> Result<()> {
     match cmd {
         GatesCmd::Sweep { controls_only } => sweep(*controls_only),
+        GatesCmd::Mutate { only } => mutate(only.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
