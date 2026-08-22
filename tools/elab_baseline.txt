@@ -2,6 +2,7 @@
 # the numbers may fall, never rise (#2325). The remainder is two named
 # design decisions -- string comparison in hardware, and unsized array
 # params (#2410) -- not an oversight.
+# iverilog-version 13.0
 apb_bridge 5
 assembler 5
 axi4 3
