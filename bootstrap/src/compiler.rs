@@ -18413,26 +18413,53 @@ pub fn optimize(ast: &mut Node, config: &OptConfig) -> OptStats {
     stats
 }
 
+/// t27#2363: names of MODULE-level state (`var`/`const` declarations and
+/// module-level `StmtLocal` regs). A function body that writes one of these is
+/// writing state that OUTLIVES the call and is observable outside it -- in the
+/// Verilog backend such a `var` is emitted as an `output reg` port. The
+/// dead-store analysis is per-function-body, so without this set it sees the
+/// write as having no reader and deletes it.
+fn collect_module_state_names(node: &Node) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    for decl in &node.children {
+        if matches!(decl.kind, NodeKind::ConstDecl | NodeKind::StmtLocal) && !decl.name.is_empty() {
+            out.insert(decl.name.clone());
+        }
+    }
+    out
+}
+
 fn optimize_module(node: &mut Node, config: &OptConfig, stats: &mut OptStats) {
+    let module_state = collect_module_state_names(node);
     let mut i = 0;
     while i < node.children.len() {
         if node.children[i].kind == NodeKind::FnDecl {
-            optimize_fn_body(&mut node.children[i], config, stats);
+            optimize_fn_body(&mut node.children[i], config, stats, &module_state);
         }
         i += 1;
     }
 }
 
-fn optimize_fn_body(fn_node: &mut Node, config: &OptConfig, stats: &mut OptStats) {
+fn optimize_fn_body(
+    fn_node: &mut Node,
+    config: &OptConfig,
+    stats: &mut OptStats,
+    module_state: &std::collections::HashSet<String>,
+) {
     for child in &mut fn_node.children {
         if child.kind == NodeKind::Module && child.name == "body" {
-            optimize_stmts(&mut child.children, config, stats);
+            optimize_stmts(&mut child.children, config, stats, module_state);
         }
     }
-    optimize_stmts(&mut fn_node.children, config, stats);
+    optimize_stmts(&mut fn_node.children, config, stats, module_state);
 }
 
-fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStats) {
+fn optimize_stmts(
+    stmts: &mut Vec<Node>,
+    config: &OptConfig,
+    stats: &mut OptStats,
+    module_state: &std::collections::HashSet<String>,
+) {
     if config.enable_dce {
         // W74 (#950): only remove an uninitialized StmtLocal if no later
         // statement assigns to it AND no later statement reads it. Without
@@ -18452,7 +18479,7 @@ fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStat
     copy_propagate(stmts, stats);
     strength_reduce(stmts, stats);
     common_subexpr_elim(stmts, stats);
-    dead_store_elim(stmts, stats);
+    dead_store_elim(stmts, stats, module_state);
     loop_unroll(stmts, stats);
 }
 
@@ -19108,7 +19135,11 @@ fn collect_reads_in_stmts(stmts: &[Node], reads: &mut std::collections::HashSet<
     }
 }
 
-fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+fn dead_store_elim(
+    stmts: &mut Vec<Node>,
+    stats: &mut OptStats,
+    module_state: &std::collections::HashSet<String>,
+) {
     let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
     collect_reads_in_stmts(stmts, &mut reads);
     let before = stmts.len();
@@ -19137,11 +19168,21 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
         {
             return false;
         }
+        //
+        // t27#2363: a write to MODULE-level state is never dead, whatever this
+        // body does afterwards -- the value outlives the call and is read from
+        // outside it. `fn on_clock { acc = acc + x }` survived only because its
+        // RHS mentions `acc`, which put `acc` in `reads` by accident; the plain
+        // register load `fn on_clock { acc = x }` -- `reg <= input`, the
+        // commonest sequential idiom there is -- was deleted outright, leaving
+        // an `always` block with an EMPTY `en` arm while the input port and the
+        // reset value stayed, so the module looked right and did nothing.
         if s.kind == NodeKind::StmtAssign && s.children.len() >= 2 {
             let lhs = &s.children[0];
             if lhs.kind == NodeKind::ExprIdentifier
                 && !lhs.name.is_empty()
                 && !reads.contains(&lhs.name)
+                && !module_state.contains(&lhs.name)
             {
                 return false;
             }
@@ -36209,7 +36250,7 @@ mod tests_phase40_coverage {
         // `reads.contains("")` and `retain` always dropped the assign.
         let mut stmts = vec![assign("x", lit("7")), ret(ident("x"))];
         let mut stats = fresh_stats();
-        dead_store_elim(&mut stmts, &mut stats);
+        dead_store_elim(&mut stmts, &mut stats, &std::collections::HashSet::new());
         assert_eq!(
             stmts.len(),
             2,
@@ -36235,7 +36276,7 @@ mod tests_phase40_coverage {
         stmt.children.push(lit("1"));
         let mut stmts = vec![stmt];
         let mut stats = fresh_stats();
-        dead_store_elim(&mut stmts, &mut stats);
+        dead_store_elim(&mut stmts, &mut stats, &std::collections::HashSet::new());
         assert_eq!(
             stmts.len(),
             1,
@@ -36248,7 +36289,7 @@ mod tests_phase40_coverage {
         // x = 1; return 0;  -- x is never read; the assign is dead.
         let mut stmts = vec![assign("x", lit("1")), ret(lit("0"))];
         let mut stats = fresh_stats();
-        dead_store_elim(&mut stmts, &mut stats);
+        dead_store_elim(&mut stmts, &mut stats, &std::collections::HashSet::new());
         assert_eq!(stmts.len(), 1, "truly dead assign must be removed");
         assert_eq!(stmts[0].kind, NodeKind::ExprReturn);
         assert_eq!(stats.dead_stores, 1);
@@ -36455,7 +36496,8 @@ mod tests_phase40_coverage {
             ret(ident("x")),
         ];
         let mut stats = fresh_stats();
-        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats);
+        let no_module_state = std::collections::HashSet::new();
+        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats, &no_module_state);
 
         let has_decl = stmts
             .iter()
@@ -36477,7 +36519,8 @@ mod tests_phase40_coverage {
         // know whether `x` is fed by an outer scope or by a later pass.
         let mut stmts = vec![uninit_local("x", "i32"), ret(ident("x"))];
         let mut stats = fresh_stats();
-        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats);
+        let no_module_state = std::collections::HashSet::new();
+        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats, &no_module_state);
         let has_decl = stmts
             .iter()
             .any(|s| s.kind == NodeKind::StmtLocal && s.name == "x");
@@ -36494,7 +36537,8 @@ mod tests_phase40_coverage {
         // original behaviour for the genuinely-dead case.
         let mut stmts = vec![uninit_local("dead", "i32"), ret(lit("0"))];
         let mut stats = fresh_stats();
-        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats);
+        let no_module_state = std::collections::HashSet::new();
+        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats, &no_module_state);
         assert_eq!(stmts.len(), 1, "truly unused uninit local must still be dropped");
         assert_eq!(stmts[0].kind, NodeKind::ExprReturn);
         assert!(stats.dead_removed >= 1);
