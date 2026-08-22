@@ -115,6 +115,47 @@ def tb_case_mac_status(c):
     ))
 
 
+
+def tb_case_mac_reset(c):
+    # Stage 3: a stateful op has already dirtied unit state; reset then read.
+    if "units_checked" in c:
+        exp = c["expected_acc"]
+        lines = ['    dummy = dut.mac_reset_all_ret();\n'] if False else []
+        body = ""
+        for u in c["units_checked"]:
+            body += (
+                f'    r = dut.mac_cycle(32\'d1, 32\'d1, 8\'d{u}, 0);\n'
+                f'    r = dut.mac_reset(8\'d{u});\n'
+                f'    r = dut.mac_acc_read(8\'d{u});\n'
+                f'    if ($signed(r) !== {exp}) begin\n'
+                f'      $display("FAIL {c["id"]}_u{u}: got %0d want {exp}", $signed(r));\n'
+                f'      fails = fails + 1;\n'
+                f'    end else $display("PASS {c["id"]}_u{u}");\n'
+            )
+        return (3, body)
+    if "expected_status_after_reset" in c:
+        exp = c["expected_status_after_reset"]
+        return (3, (
+            f'    r = dut.mac_cycle(32\'d1, 32\'d1, 8\'d{c["unit"]}, 0);\n'
+            f'    r = dut.mac_reset(8\'d{c["unit"]});\n'
+            f'    r = dut.mac_status_read(8\'d{c["unit"]});\n'
+            f'    if (r !== 32\'d{exp}) begin\n'
+            f'      $display("FAIL {c["id"]}: got %0d want {exp}", r);\n'
+            f'      fails = fails + 1;\n'
+            f'    end else $display("PASS {c["id"]}");\n'
+        ))
+    exp = c["expected_acc_after_reset"]
+    return (3, (
+        f'    r = dut.mac_cycle(32\'d1, 32\'d1, 8\'d{c["unit"]}, 5);\n'
+        f'    r = dut.mac_reset(8\'d{c["unit"]});\n'
+        f'    r = dut.mac_acc_read(8\'d{c["unit"]});\n'
+        f'    if ($signed(r) !== {exp}) begin\n'
+        f'      $display("FAIL {c["id"]}: got %0d want {exp}", $signed(r));\n'
+        f'      fails = fails + 1;\n'
+        f'    end else $display("PASS {c["id"]}");\n'
+    ))
+
+
 # module -> (top, vectors file, {group: case renderer})
 REGISTRY = {
     "mac": (
@@ -127,6 +168,7 @@ REGISTRY = {
             "pack_trit": tb_case_pack_trit,
             "mac_cycle": tb_case_mac_cycle,
             "mac_status": tb_case_mac_status,
+            "mac_reset": tb_case_mac_reset,
         },
     ),
 }

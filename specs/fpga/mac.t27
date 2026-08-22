@@ -263,6 +263,16 @@ module ZeroDSP_MAC;
 
     // mac_status_read(unit: u8) 737 u8
     // Read MAC unit status
+    // #2241: the reset vectors check the accumulator AFTER mac_reset, and no
+    // function exposed it -- the only read path was mac_cycle's return, which
+    // also WRITES. A pure reader closes the observability gap.
+    fn mac_acc_read(unit: u8) -> i32 {
+        if (unit >= NUM_MAC_UNITS) {
+            return 0;
+        }
+        return mac_units[unit].accumulator;
+    }
+
     fn mac_status_read(unit: u8) -> u8 {
         if (unit >= NUM_MAC_UNITS) {
             return 0xFF;  // Error sentinel
