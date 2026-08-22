@@ -35,6 +35,7 @@ Exits non-zero if a required spec does not parse.
 import glob
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -42,6 +43,28 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Specs the cross-target bit-exactness proof consumes. These must parse; a PR
 # that breaks one is breaking the proof, not merely a file.
+# T76: top-level tokens the parser DROPS while still exiting 0, per required
+# spec, as measured on 2026-08-23 with `t27c parse-complete`. Debt, not a
+# target: these two carry 2,548 tokens between them -- 41 of ternary_mac's 137
+# `invariant` declarations among them -- and every backend reports success on
+# what is left. The number may fall; a rise is a new failure.
+DISCARD_DEBT = {
+    "specs/igla/race/ternary_mac.t27": 1139,
+    "specs/igla/race/systolic_ternary.t27": 1409,
+}
+
+
+def parse_completeness(t27c):
+    """{spec: discarded token count} from the compiler's own completeness pass."""
+    r = subprocess.run([t27c, "parse-complete"], capture_output=True, text=True, cwd=ROOT)
+    out = {}
+    for ln in (r.stdout + r.stderr).splitlines():
+        m = re.match(r"\s*(\S+\.t27):\s*DISCARDED\s+(\d+)", ln)
+        if m:
+            out[m.group(1)] = int(m.group(2))
+    return out
+
+
 REQUIRED = [
     "specs/igla/race/ternary_mac.t27",
     "specs/igla/race/systolic_ternary.t27",
@@ -113,8 +136,44 @@ def main():
         print("  that are tracked separately. Only the REQUIRED set gates CI.")
         return 0
 
+    # T76: "gen-c exited 0" is not "the parser read the file". Measured on the
+    # REQUIRED set: appending `fn broken(( -> {` to a spec leaves gen-c,
+    # gen-rust, gen-verilog, gen, typecheck AND parse all exiting 0 -- the
+    # top-level drop-recovery discards what it cannot parse and says nothing.
+    # `t27c parse-complete` is the stronger answer the compiler already ships
+    # and no gate was calling: 650 specs, 430 consume all, 66 DISCARD 26,546
+    # tokens between them.
+    #
+    # Two of the four REQUIRED specs discard today, so this is a RATCHET rather
+    # than a demand for zero: the counts are frozen as named debt and may fall,
+    # never rise. A REQUIRED spec that starts discarding is a new failure.
+    discarded = parse_completeness(t27c)
+    drift = []
+    for rel in REQUIRED:
+        now = discarded.get(rel, 0)
+        was = DISCARD_DEBT.get(rel, 0)
+        if now > was:
+            drift.append((rel, was, now))
+    if discarded:
+        shown = ", ".join(f"{os.path.basename(r)} {n}" for r, n in sorted(discarded.items())
+                          if r in REQUIRED) or "none"
+        print(f"  discarded top-level tokens in the required set: {shown}")
+    if drift:
+        print(f"\nFAIL: {len(drift)} required spec(s) discard MORE than recorded\n")
+        for rel, was, now in drift:
+            print(f"  {rel}: {was} -> {now} top-level token(s) dropped")
+        print()
+        print("  The parser accepted the file without reading all of it, and more of")
+        print("  it than before. Every backend still exits 0 on the part it skipped,")
+        print("  so nothing else in CI can see this. Inspect with:")
+        print(f"    t27c parse-complete --show {drift[0][0]}")
+        print("  If the increase is deliberate, raise the number in DISCARD_DEBT")
+        print("  in this file, in the same commit, and say why.")
+        return 1
+
     if not bad:
-        print(f"\nOK: all {len(targets)} required specs parse")
+        print(f"\nOK: all {len(targets)} required specs parse and none discards more "
+              f"than recorded")
         return 0
     print(f"\nFAIL: {len(bad)} required spec(s) do not parse\n")
     for rel, msg in bad:
