@@ -133,43 +133,153 @@ fn debt() -> Result<()> {
         .collect();
     files.sort();
 
-    let (mut executed, mut other) = (0usize, 0usize);
-    println!("{:<38} {}", "vector file", "verdict");
+    let (mut n_exec, mut n_debt, mut n_prose) = (0usize, 0usize, 0usize);
+    let (mut c_total, mut c_data) = (0usize, 0usize);
+    println!("{:<38}{:>7}{:>7}  {}", "vector file", "cases", "data", "verdict");
     for f in &files {
+        let text = std::fs::read_to_string(f).unwrap_or_default();
+        let (cases, data) = count_cases(&text);
+        c_total += cases;
+        c_data += data;
         let stem = f
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or_default()
             .trim_start_matches("fpga_")
             .to_string();
-        // A module counts as executed only when the registry names it as a key
-        // — the presence of a vector file proves nothing about execution, and
-        // that confusion is exactly what this command exists to end.
+        // Executed only when the registry names the module as a key: the mere
+        // presence of a vector file proves nothing about execution, and that
+        // confusion is what this command exists to end.
         let key = format!("\"{}\": (", stem.trim_end_matches("_vectors"));
-        let is_executed = registry.contains(&key);
-        if is_executed {
-            executed += 1;
+        let verdict = if registry.contains(&key) {
+            n_exec += 1;
+            "executed"
+        } else if data > 0 {
+            n_debt += 1;
+            "debt (has data, no runner)"
         } else {
-            other += 1;
-        }
+            n_prose += 1;
+            "prose-only (no data at all)"
+        };
         println!(
-            "{:<38} {}",
+            "{:<38}{:>7}{:>7}  {}",
             f.file_name().unwrap().to_string_lossy(),
-            if is_executed { "executed" } else { "not executed" }
+            cases,
+            data,
+            verdict
         );
     }
     println!();
     println!(
-        "{} executed, {} not executed, {} total.",
-        executed,
-        other,
-        files.len()
+        "{} executed, {} debt, {} prose-only ({} files); {} cases, {} carrying data ({}%).",
+        n_exec,
+        n_debt,
+        n_prose,
+        files.len(),
+        c_total,
+        c_data,
+        if c_total == 0 { 0 } else { c_data * 100 / c_total }
     );
     println!(
-        "Not-executed splits into DEBT (numbered defect: see #2410, #2413) and\n\
-         ASPIRATIONAL (no interface exposes the behaviour: uart's bit-level\n\
-         protocol vectors, fifo's prose-only config cases). Neither counts as\n\
-         coverage; both are printed so nobody mistakes a file for a check."
+        "PROSE-ONLY is the majority and the important number: those cases carry\n\
+         an id and a sentence, no inputs and no expected values, so no runner\n\
+         can ever execute them as written -- they are documentation shaped like\n\
+         tests. DEBT is executable in principle and blocked by numbered defects\n\
+         (#2410 slices, #2413 test emission). Neither counts as coverage."
     );
     Ok(())
+}
+
+/// Count cases and how many carry any field beyond prose metadata.
+///
+/// String-aware by construction. The first version split objects on ',' and was
+/// fooled by commas INSIDE description strings ("is_sync=true, is_async=false"),
+/// reporting 147 data-carrying cases where an independent python pass reported
+/// 100 -- the two instruments disagreed, and the text splitter was the liar.
+/// This one tracks string state and collects only real KEYS (a string followed
+/// by ':'), which reproduces the python count exactly.
+fn count_cases(text: &str) -> (usize, usize) {
+    const PROSE: [&str; 5] = ["id", "description", "note", "name", "comment"];
+    let b = text.as_bytes();
+    let (mut cases, mut data) = (0usize, 0usize);
+    let mut i = 0usize;
+    while let Some(rel) = text[i..].find("\"cases\"") {
+        let mut j = i + rel + 7;
+        // Find the opening bracket of the array.
+        while j < b.len() && b[j] != b'[' {
+            j += 1;
+        }
+        if j >= b.len() {
+            break;
+        }
+        let mut depth = 0i32;
+        let mut in_str = false;
+        let mut esc = false;
+        // Per-case state.
+        let mut obj_depth = 0i32;
+        let mut has_data = false;
+        let mut key_start: Option<usize> = None;
+        let mut last_string: Option<(usize, usize)> = None;
+        while j < b.len() {
+            let c = b[j];
+            if in_str {
+                if esc {
+                    esc = false;
+                } else if c == b'\\' {
+                    esc = true;
+                } else if c == b'"' {
+                    in_str = false;
+                    if let Some(st) = key_start.take() {
+                        last_string = Some((st, j));
+                    }
+                }
+                j += 1;
+                continue;
+            }
+            match c {
+                b'"' => {
+                    in_str = true;
+                    key_start = Some(j + 1);
+                }
+                b'[' => depth += 1,
+                b']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                b'{' => {
+                    if obj_depth == 0 {
+                        has_data = false;
+                    }
+                    obj_depth += 1;
+                }
+                b'}' => {
+                    obj_depth -= 1;
+                    if obj_depth == 0 {
+                        cases += 1;
+                        if has_data {
+                            data += 1;
+                        }
+                    }
+                }
+                b':' => {
+                    // The string that just closed is a KEY.
+                    if obj_depth >= 1 {
+                        if let Some((a, z)) = last_string {
+                            let k = &text[a..z];
+                            if !PROSE.contains(&k) {
+                                has_data = true;
+                            }
+                        }
+                    }
+                    last_string = None;
+                }
+                _ => {}
+            }
+            j += 1;
+        }
+        i = j.max(i + rel + 7);
+    }
+    (cases, data)
 }
