@@ -18,8 +18,14 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::process::Command;
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum GatesCmd {
+    /// Run every gate script and its negative control; name the ones with none.
+    Sweep {
+        /// Skip the gates themselves and only report which have no control.
+        #[arg(long)]
+        controls_only: bool,
+    },
     /// List active workflows whose lifetime success count is zero.
     Dead {
         /// owner/repo, repeatable. Defaults to the three this fleet uses.
@@ -32,8 +38,126 @@ pub enum GatesCmd {
     },
 }
 
+/// Gate scripts whose control lives in a SEPARATE file, and the file that
+/// holds it. Counting these as control-less would be wrong; counting the
+/// control files themselves as gates would be wrong twice.
+const EXTERNAL_CONTROL: &[(&str, &str)] = &[
+    ("wp18_conformance_gate.py", "wp18_selftest_gate.py"),
+];
+
+/// Files under tools/ that ARE controls rather than gates.
+const IS_A_CONTROL: &[&str] = &[
+    "wp18_selftest_gate.py",
+    "wp18_gate_selfconsistent_selftest.py",
+];
+
+fn sweep(controls_only: bool) -> Result<()> {
+    let root = repo_root()?;
+    let tools = root.join("tools");
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&tools)
+        .with_context(|| format!("read {}", tools.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            let n = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            n.ends_with(".py") && (n.starts_with("check_") || n.contains("gate"))
+        })
+        .collect();
+    files.sort();
+
+    let mut uncontrolled: Vec<String> = Vec::new();
+    let mut rows: Vec<(String, String, String)> = Vec::new();
+
+    for f in &files {
+        let name = f.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        if IS_A_CONTROL.contains(&name.as_str()) {
+            continue;
+        }
+        let src = std::fs::read_to_string(f).unwrap_or_default();
+        // The flag the script itself dispatches on -- read from its source, so a
+        // control that is only mentioned in a comment is not counted as one.
+        let flag = ["--self-check-drop", "--self-check", "--selftest"]
+            .iter()
+            .find(|fl| src.contains(&format!("\"{}\"", fl)))
+            .map(|s| s.to_string());
+        let external = EXTERNAL_CONTROL
+            .iter()
+            .find(|(g, _)| *g == name)
+            .map(|(_, c)| c.to_string());
+
+        let gate = if controls_only {
+            "-".to_string()
+        } else {
+            code(&root, &name, &[])
+        };
+        let ctrl = match (&flag, &external) {
+            (Some(fl), _) if !controls_only => code(&root, &name, &[fl]),
+            (Some(_), _) => "-".to_string(),
+            (None, Some(c)) if !controls_only => code(&root, c, &[]),
+            (None, Some(_)) => "-".to_string(),
+            (None, None) => {
+                uncontrolled.push(name.clone());
+                "NONE".to_string()
+            }
+        };
+        rows.push((name, gate, ctrl));
+    }
+
+    println!("{:<38} {:>6}  {:>6}", "gate", "run", "control");
+    for (n, g, c) in &rows {
+        println!("{:<38} {:>6}  {:>6}", n, g, c);
+    }
+    println!();
+    println!("{} gate(s); {} with no negative control at all:", rows.len(), uncontrolled.len());
+    for n in &uncontrolled {
+        println!("  {}", n);
+    }
+    println!();
+    println!("A gate is proven working only by a RED on a deliberately broken input.");
+    println!("`args` means the script needs arguments this sweep does not supply --");
+    println!("it was not run, which is not the same as passing or failing.");
+    println!("`run` is the gate on the tree as it stands; `control` is its own");
+    println!("negative check. NONE means nothing in the repository demonstrates that");
+    println!("this gate can fail -- which is the same evidence as a gate that cannot.");
+    Ok(())
+}
+
+fn code(root: &std::path::Path, script: &str, args: &[&String]) -> String {
+    let mut c = Command::new("python3");
+    c.arg(format!("tools/{}", script));
+    for a in args {
+        c.arg(a.as_str());
+    }
+    c.current_dir(root);
+    match c.output() {
+        Ok(o) => {
+            // A gate that needs --ssot/--vectors exits 2 from argparse without
+            // running anything. Printing "2" in the run column would report a
+            // refusal to parse arguments as a gate verdict -- the same
+            // exit-status-mistaken-for-the-property mistake this command
+            // exists to surface. Say what actually happened.
+            let err = String::from_utf8_lossy(&o.stderr);
+            if o.status.code() == Some(2) && err.contains("arguments are required") {
+                return "args".into();
+            }
+            o.status.code().map(|n| n.to_string()).unwrap_or_else(|| "sig".into())
+        }
+        Err(_) => "ERR".into(),
+    }
+}
+
+fn repo_root() -> Result<std::path::PathBuf> {
+    let out = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .context("git rev-parse failed")?;
+    Ok(std::path::PathBuf::from(
+        String::from_utf8_lossy(&out.stdout).trim(),
+    ))
+}
+
 pub fn run(cmd: &GatesCmd) -> Result<()> {
     match cmd {
+        GatesCmd::Sweep { controls_only } => sweep(*controls_only),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
@@ -148,6 +272,7 @@ mod tests {
     fn shipped_floor() -> u64 {
         match Root::parse_from(["tri-gates", "dead"]).action {
             GatesCmd::Dead { min_runs, .. } => min_runs,
+            other => panic!("this test is about Dead's default, got {other:?}"),
         }
     }
 
@@ -193,5 +318,29 @@ mod tests {
             "--min-runs defaults to {floor}; below 10 a handful of runs is \
              treated as evidence, which is what this flag exists to prevent"
         );
+    }
+}
+
+#[cfg(test)]
+mod sweep_tests {
+    use super::*;
+
+    #[test]
+    fn control_files_are_not_counted_as_gates() {
+        // T85: wp18_selftest_gate.py IS the control for wp18_conformance_gate.py.
+        // Counting it as a gate in its own right would report it as having no
+        // control -- inventing a finding out of the naming convention.
+        assert!(IS_A_CONTROL.contains(&"wp18_selftest_gate.py"));
+        assert!(EXTERNAL_CONTROL
+            .iter()
+            .any(|(g, c)| *g == "wp18_conformance_gate.py" && *c == "wp18_selftest_gate.py"));
+    }
+
+    #[test]
+    fn a_gate_is_never_both_a_gate_and_its_own_control() {
+        for (g, c) in EXTERNAL_CONTROL {
+            assert_ne!(g, c, "a script cannot be its own negative control");
+            assert!(IS_A_CONTROL.contains(c), "{c} must be excluded from the gate list");
+        }
     }
 }
