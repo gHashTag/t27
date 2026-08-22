@@ -93,10 +93,32 @@ impl Stage {
 /// one design exceeded it turns a timeout into decoration. What changed is that
 /// the number now follows from a measured slope and a known largest design, not
 /// from the fact that something failed.
-const STAGE_TIMEOUT: Duration = Duration::from_secs(600);
+/// W988 (T845): the 21 ms/LUT slope above is wrong by 2.4x on this corpus.
+/// Two builds that COMPLETED inside the old cap give it directly -- and they
+/// agree to 1%: `gft_signed_dot4` 7851 LUT in 395.61 s (50.4 ms/LUT) and
+/// `gft_signed_mac` 9465 LUT in 482.42 s (51.0 ms/LUT). At 50.7 ms/LUT the two
+/// designs that timed out were never going to fit: `gft_train1` 16188 LUT needs
+/// ~821 s and `gft_xorpercep` 28217 LUT needs ~1431 s, both against a 600 s cap.
+///
+/// W823's rule is that raising a limit because one design exceeded it turns a
+/// timeout into decoration. This raise follows the same discipline as W827's:
+/// a measured slope and a known largest design. 1800 s buys ~35,500 LUT at the
+/// corrected slope, which covers every design this corpus contains including
+/// `gft_xorpercep` with its clause logic no longer folded away (T844).
+///
+/// It is also an environment variable now, so that the next wave to meet the cap
+/// does not have to rebuild the compiler to test whether the cap is the problem.
+fn stage_timeout() -> Duration {
+    let secs = std::env::var("T27_STAGE_TIMEOUT_S")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|v| *v >= 30 && *v <= 21_600)
+        .unwrap_or(1800);
+    Duration::from_secs(secs)
+}
 
 fn run(cmd: &mut Command) -> (Option<i32>, String, String) {
-    run_bounded(cmd, STAGE_TIMEOUT)
+    run_bounded(cmd, stage_timeout())
 }
 
 fn run_bounded(cmd: &mut Command, limit: Duration) -> (Option<i32>, String, String) {

@@ -2359,3 +2359,39 @@ placement time and not for correctness.
 
 `gft_signed_dot4` and `gft_signed_mac` are one placement each, and T841 and T842
 already established what a single placement cannot distinguish.
+
+## 57. The cap, and the model underneath it (W988)
+
+Two operators were ABSENT behind a 600 s place-and-route cap. The obvious move is
+to raise it, and W823's standing rule forbids raising a limit because something
+failed. So the question was what the limit had been derived from.
+
+It was derived from a rate of **21 ms/LUT** (T560, W827). Builds that completed
+give the rate directly: 50.4 for `gft_signed_dot4`, 51.0 for `gft_signed_mac`,
+33.7 for `gft_train1`, and more than 62.9 for `gft_xorpercep`, which is a lower
+bound because it was killed. The aggregate is **50.7 -- 2.4x the documented
+figure**. A 600 s cap looked like 28,600 LUT and bought 11,800. Neither timed-out
+design was ever going to fit, and both were carried in the table as ABSENT, which
+reads like a property of the design rather than of the harness.
+
+The sharper finding is that a single rate cannot describe this at all. The spread
+is at least **1.9x**, and it is **not monotone in size**: the 15,946-LUT design is
+the fastest per LUT and the 7,851-LUT design is slower than it. Place-and-route
+time per LUT is a property of the design's structure. A cap can be sized on the
+worst observed rate; it cannot be sized on an average.
+
+The cap is now 1800 s, chosen that way, and reads `T27_STAGE_TIMEOUT_S` so that
+the next wave to meet it does not have to rebuild the compiler to test whether the
+cap is the problem. `tri slope` re-derives the rate from every record carrying
+both a LUT count and a placement time, and prints the spread.
+
+Under it, `gft_train1` reaches the die for the first time with every clause real:
+`1111`, `ok=1`, **536.85 s** at 15,946 LUT. Its previous ABSENT had died at
+**600.10 s** with 16,188 LUT -- a tenth of a second over the limit, on a netlist
+0.4 % larger. That verdict was a coin flip with the harness and it stood for two
+waves as a fact about the circuit.
+
+`gft_xorpercep` is still ABSENT at 28,609 LUT, killed at 1800 s with timing
+passing. It is the one operator this project has never read off silicon, and the
+reason is placement time alone. Six of seven now stand measured with all four
+clauses real.

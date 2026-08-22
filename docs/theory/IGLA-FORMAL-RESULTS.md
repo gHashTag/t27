@@ -30847,6 +30847,50 @@ the 600 s place-and-route cap -- both with timing PASSING (3.13 / 3.26 MHz again
 2.21, and 1.97 against 1.11). They are ABSENT for placement time, not for
 correctness.
 
+### T845 -- The place-and-route slope is wrong by 2.4x, and it is not a slope [measured]
+
+The service caps every stage at a wall-clock timeout, and the constant was chosen
+from a modelled rate of **21 ms/LUT** (T560, W827/T567). Builds that *completed*
+give the rate directly:
+
+| design | LUT | PnR s | ms/LUT |
+|--------|-----|-------|--------|
+| `gft_train1` | 15946 | 536.85 | **33.7** |
+| `gft_signed_dot4` | 7851 | 395.61 | 50.4 |
+| `gft_signed_mac` | 9465 | 482.42 | 51.0 |
+| `gft_xorpercep` | 28609 | **>1800** | **>62.9** (killed at the cap) |
+
+The aggregate is **50.7 ms/LUT -- 2.4x the documented figure**. At 21 ms/LUT a
+600 s cap looks like it buys 28,600 LUT; at the rates actually seen it buys
+11,800. **Both designs that timed out were never going to fit**, and both were
+reported ABSENT, which reads like a property of the design rather than of the cap.
+
+**And a single rate cannot describe this.** The spread is at least **1.9x** and it
+is *not monotone in size*: the 15,946-LUT design is the **fastest** per LUT, and
+the 7,851-LUT design is slower than it. Place-and-route time per LUT is a property
+of the design's structure, not of its size. A cap can be sized on the worst
+observed rate; it cannot be sized on an average, and no linear model will predict
+the next design.
+
+The cap is now **1800 s** and reads `T27_STAGE_TIMEOUT_S`, so that the next wave
+to meet it does not have to rebuild the compiler to find out whether the cap is
+the problem. `tri slope` re-derives the rate from the records and prints the
+spread.
+
+### T846 -- Six of seven operators, and one marginal ABSENT [measured]
+
+`gft_train1` reaches the die for the first time with every clause real:
+**`1111`, `ok=1`**, 536.85 s of placement at 15,946 LUT. Its previous ABSENT died
+at **600.10 s with 16,188 LUT** -- ten hundredths of a second over, on a netlist
+0.4% larger. **That ABSENT was marginal, not structural**, and it stood for two
+waves as though it were a property of the design.
+
+`gft_xorpercep` remains ABSENT at 28,609 LUT, killed at 1800 s with timing
+PASSING (1.85 MHz against 1.11). It is the only operator this project has never
+read off silicon, and the reason is placement time alone.
+
+The table stands at **six of seven measured with all four clauses real**.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

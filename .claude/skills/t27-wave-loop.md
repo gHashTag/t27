@@ -12617,6 +12617,10 @@ a worktree in the same wave its branch merges.
 
 **1515. A FIX UNVERIFIED FOR NINE WAVES WAS ONE BUILD AWAY.** W978 added the missing zero guards to gft_signed_mac and the die read stayed 0011 in every report since, marked 'unverified on silicon' for nine waves because the PnR cap and a BSCAN mismatch blocked the path. W987 rebuilt it with real clauses and it read 1111 at 482 s of placement -- inside the cap all along. The blocker was recorded once and then inherited, wave after wave, without being retried. Re-test an inherited blocker whenever anything upstream of it changes; the cost is one build and the standing claim was wrong. (T843, W987)
 
+**1516. A CAP DERIVED FROM A MODEL INHERITS THE MODEL'S ERROR.** The 600 s stage cap was set from a place-and-route rate of 21 ms/LUT, carefully, on measurement, with three waves of deliberation. Builds that completed give 50.4, 51.0 and 33.7 ms/LUT -- the aggregate is 2.4x the modelled figure, so the cap bought 11800 LUT while the docstring said 28600. Two designs were reported ABSENT for two waves as though that were a property of them. Worse, the rate is not a slope at all: the spread is 1.9x and the largest design is the FASTEST per LUT. Re-derive a modelled constant from outcomes whenever outcomes exist, and prefer the worst observed rate to the average when the constant is a deadline. (T845, W988)
+
+**1517. TEN HUNDREDTHS OF A SECOND IS NOT A PROPERTY OF THE DESIGN.** gft_train1 was ABSENT for two waves, killed at 600.10 s. Rebuilt under a larger cap it placed in 536.85 s -- it had been over by a tenth of a second on a netlist 0.4 % larger. A verdict that close to the boundary is a coin flip with the harness, not a measurement of the circuit, and it was carried in the table as though it described the circuit. When a run dies within a few percent of its limit, record it as MARGINAL and retry before it hardens into a fact. (T846, W988)
+
 ### How to update this tracker
 
 After closing a wave:

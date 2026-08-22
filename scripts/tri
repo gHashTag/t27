@@ -34,6 +34,7 @@ Local commands (no compiler needed):
   tri miter SPEC [CONST]      SAT-prove commutativity on the MAPPED netlist the die runs
   tri clauses WRAPPER.v       which on-die clauses survive synthesis, and which folded to a constant
   tri seeds SPEC WRAPPER      one netlist, several placements: does the die give one answer or several?
+  tri slope                   place-and-route seconds per LUT, re-derived from the records
   tri help                    this text
 
 Environment:
@@ -80,6 +81,66 @@ cmd="${1:-}"
 case "$cmd" in
   help|-h|--help)
     usage
+    exit 0
+    ;;
+
+  slope)
+    # W988 (T845): the service caps every stage at a wall-clock timeout chosen from
+    # a place-and-route slope of ~21 ms/LUT (T560, T567). Two builds that COMPLETED
+    # inside the old cap put the real slope at 50.7 ms/LUT -- 2.4x steeper -- and at
+    # that rate the two designs that timed out could never have fitted. A constant
+    # derived from a slope has to be re-derived when the slope moves, so this
+    # recomputes it from the committed records instead of trusting the docstring.
+    R="${T27_RECORDS:-$REPO_ROOT/docs/reports/upstream}"
+    R="$R" python3 - <<'PYSLOPE'
+import json, os, pathlib, re
+
+R = pathlib.Path(os.environ["R"])
+pts = []
+for f in sorted(R.glob("*.json")):
+    try:
+        d = json.loads(f.read_text())
+    except Exception:
+        continue
+    def walk(o, name=None):
+        if isinstance(o, dict):
+            lut = o.get("LUT"); sec = o.get("pnr_s")
+            if isinstance(lut, int) and isinstance(sec, (int, float)):
+                pts.append((name or f.stem, lut, float(sec), f.name))
+            for k, v in o.items():
+                walk(v, k if isinstance(v, dict) else name)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v, name)
+    walk(d)
+
+if not pts:
+    print("tri slope: no record carries both LUT and pnr_s -- nothing to derive")
+    print("Record place-and-route seconds beside the LUT count and this becomes a")
+    print("measurement instead of a docstring.")
+    raise SystemExit(0)
+
+print(f"{'design':<22}{'LUT':>8}{'PnR s':>9}{'ms/LUT':>9}   record")
+tot_l = tot_s = 0
+for name, lut, sec, src in sorted(pts, key=lambda r: r[1]):
+    print(f"{name:<22}{lut:>8}{sec:>9.1f}{1000*sec/lut:>9.1f}   {src}")
+    tot_l += lut; tot_s += sec
+slope = 1000 * tot_s / tot_l
+per = sorted(1000 * sec / lut for _, lut, sec, _ in pts)
+lo, hi = per[0], per[-1]
+print(f"\ntri slope: {len(pts)} completed build(s), {slope:.1f} ms/LUT aggregate, "
+      f"range {lo:.1f}..{hi:.1f}")
+if hi / max(lo, 1e-9) > 1.25:
+    print(f"SPREAD {hi/lo:.2f}x -- place-and-route time is NOT a clean function of LUT")
+    print("count. Size a cap on the WORST rate seen, not the average, or the")
+    print("designs that lose the coin flip come back as ABSENT.")
+for cap in (600, 1800, 3600):
+    print(f"  a {cap:>4} s cap buys {int(cap*1000/hi):>7} LUT at the worst rate seen"
+          f" ({int(cap*1000/slope)} at the aggregate)")
+print("The documented figure is 21 ms/LUT (T560/T567). A cap set from a slope that")
+print("is wrong by a factor kills builds that were never going to fit, and reports")
+print("them as ABSENT -- which reads like a property of the design.")
+PYSLOPE
     exit 0
     ;;
 

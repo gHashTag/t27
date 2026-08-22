@@ -1,4 +1,18 @@
-# Full status, both tracks — one page for whoever wakes up (W987, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W988, 2026-08-22)
+
+> **W988 — THE CAP WAS DERIVED FROM A SLOPE THAT IS WRONG BY 2.4×, AND IS NOT A SLOPE.** Completed
+> builds give **33.7 / 50.4 / 51.0 ms/LUT** against a documented **21**; `gft_xorpercep` needs
+> **>62.9**. So a 600 s cap looked like 28 600 LUT and bought **11 800** — **both timed-out designs
+> were never going to fit**, and both were carried as ABSENT, which reads like a property of the
+> design. **And a single rate cannot describe it:** spread **≥1.9×**, *not monotone in size* — the
+> 15 946-LUT design is the **fastest** per LUT. Cap raised to **1800 s** on the measured worst rate,
+> and made `T27_STAGE_TIMEOUT_S` so the next wave need not rebuild the compiler to test it. New
+> `tri slope` re-derives the rate from the records and sizes caps on the worst, not the average.
+> **`gft_train1` reaches the die:** `1111`, all four clauses real, **536.85 s** — its old ABSENT
+> died at **600.10 s**, a tenth of a second over on a netlist 0.4 % larger. **Marginal, not
+> structural**, and it stood two waves as a fact. **Six of seven operators measured.**
+> `gft_xorpercep` remains the only one never read, at 1800 s with timing PASSING.
+> T845/T846, lessons 1516–1517, **483 derived checks**. **Readiness 97 %.**
 
 > **W987 — THE OPERATOR TABLE, WITH EVERY CLAUSE REAL.** `gft_smul` `1111`×4, `gft_dup` `1111`×4,
 > `gft_sadd` `1111`×2, **`gft_signed_dot4` `1111` — its first time on silicon**, ABSENT behind the
