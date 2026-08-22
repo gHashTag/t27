@@ -648,3 +648,64 @@ reason beats a reader inferring completeness from a green.
 **Line numbers in comments go stale inside the same commit.** The note listing
 those two sites said `:346` and `:390`; the fix eight lines above them moved
 both before the branch was ever pushed. Name branches by their message.
+
+## 18. Five defects in one audit tool, and the shape they share
+
+`tri gates mutate` was written to find gates whose controls cannot fail. Over
+three days of using it, five defects turned up **in it**. Listed together
+because the list is the lesson: an instrument that measures coverage is itself
+a thing whose coverage nobody measures.
+
+1. **First flag, not the set.** A gate with two controls was measured by one of
+   them, and a fully covered line was published as a survivor.
+2. **A 1:1 control map.** One control covering six gates could not be
+   expressed, so those branches reported as uncovered while the file that
+   covers them sat in the tree.
+3. **One syntactic form.** It matched a bare `return 1..4` and missed seven
+   ternaries and a `raise SystemExit(3)` -- 34 of 42 sites. It reported a gate
+   whose every verdict is a ternary as having "no failure path to break".
+4. **No baseline.** A mutant is killed when the control exits non-zero, so a
+   control that is red BEFORE any mutation scored a perfect kill on everything.
+   The exact inverse of the defect the tool exists to find.
+5. **No cache clear.** Python keys a `.pyc` on (mtime in whole seconds, size).
+   `return 1` -> `return 0` preserves the size and the loop writes well inside
+   one second, so an IMPORTED gate can be served the previous state's
+   bytecode. The sibling command in the same crate had already solved this and
+   this one did not call it.
+
+**One shape: scope decided by what was convenient to write, rather than by what
+the rule is for.** (1), (2) and (3) are §14 class H. (4) and (5) are the
+measurement replaced by a constant -- §14 class B and class D.
+
+**Three of the five were found by an adversarial reviewer of the tool's own
+OUTPUT, not of its code.** The brief that produced them was "default to
+REFUTED, and re-run every command in the report yourself". One of them came
+from a reviewer who went looking in the neighbouring module and found a
+solved-and-uncalled function there. Reviewing a tool by reading its source
+finds different defects from reviewing it by distrusting its numbers.
+
+### The asymmetry that should set the tool's bias
+
+A **missed** site stays an open question. An **invented** one gets published as
+a defect in somebody else's work -- which this tool did, in an issue and a blog
+post, before anyone checked it. So the digit test that decides "is this a
+verdict" is deliberately conservative and carries its own negative tests: a
+digit inside an identifier is not a verdict, and a bare name is not one either.
+
+### Closing a survivor: what a good case does
+
+- **Assert the message AND the siblings' absence.** Several gates reach one
+  exit code from three or four branches. Verified to matter, not assumed: a
+  fault planted so a case reds through the WRONG branch is caught on the
+  message alone, and an over-broad refusal that names every file rather than
+  the one unreadable file is caught only by the forbid list.
+- **Build the configuration the LIVE gate is in.** `check_seal_coverage` had
+  four end-to-end cases and none had a ledger present AND something outside it
+  newly broken -- which is every day in this repository. Planting "a ledger
+  existing hides every new breakage" passes all four and reds only the fifth.
+- **Name the helper so the tool cannot mutate it.** A planting helper called
+  `_plant` is excluded only by the accident of holding no `return 1..4`.
+  Rename it to contain `self_check`.
+- **Say what you did not cover, in a constant.** And say when a guard is
+  correct by construction but **has not been seen to fire** -- by this
+  repository's own rule that is not the same as working.

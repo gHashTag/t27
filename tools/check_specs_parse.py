@@ -90,9 +90,75 @@ def parses(t27c, spec):
     return False, err[0] if err else f"exit {r.returncode}, no message"
 
 
+# --- negative control -------------------------------------------------------
+#
+# T91: `tri gates mutate` rewrote each of main()'s two verdicts to `return 0`
+# in turn and this control noticed neither. It proved parses() -- the FUNCTION
+# -- and nothing proved the wiring from either verdict to the process exit
+# code. Measured: with the drift verdict's `return 1` changed to `return 0` the
+# gate printed "OK: all 4 required specs parse and none discards more than
+# recorded" over a spec whose invariants the parser had thrown away, and the
+# line below still reported "planted spec rejected = True".
+#
+# So the three cases at the end run the WHOLE program against a planted tree.
+# The script is COPIED into that tree, which makes its module-level ROOT
+# resolve there by the ordinary parent.parent rule -- no --root flag and no
+# environment override, so nothing here adds a way to aim a live gate at
+# somewhere harmless.
+
+# Parses, consumes every token, and gives the two faults below a function to
+# refer to.
+_GOOD_SPEC = "module Ok;\n\nfn f(a: i32) -> i32 {\n    return a + 1;\n}\n"
+
+# Parses -- gen-c exits 0 -- while top-level drop-recovery throws the body away.
+# This is the shape the recorded debt is actually made of: `parse-complete
+# --show specs/igla/race/ternary_mac.t27` shows 41 `invariant` declarations
+# discarding exactly like this. Measured at 10 discarded tokens; the case below
+# asserts the BRANCH and not the number, so a parser that drops more still
+# reads as the same fault. A parser that learned to READ this would not make
+# the case pass vacuously -- it demands the FAIL text, not merely a non-zero
+# exit, so it would go loudly red instead.
+_DISCARDS = "\ninvariant f_grows\n    forall a : i32\n    f(a) == a + 1\n"
+
+# Does not parse at all: the paren never closes, so recovery cannot resync and
+# gen-c exits 1 naming the file and the line.
+#
+# T91: this is the exact string the T76 note in main() offers as an example of
+# a spec that DISCARDS while every backend still exits 0. It does not do that
+# today. Measured on 2026-08-23 against target/release/t27c, on a planted spec
+# and on a copy of the real specs/igla/race/ternary_mac.t27, bare and with the
+# brace closed: gen-c exits 1 with "Expected RParen, got Eof". Whatever it did
+# when that note was written, it is now a REJECT -- which is why the control
+# uses it for the parse verdict and an `invariant` block for the discard one.
+_REJECTED = "\nfn broken(( -> {\n"
+
+# The spec the control plants into: a REQUIRED one carrying NO recorded debt,
+# so any discard at all is a rise. Chosen by that rule rather than by index --
+# reordering REQUIRED must not silently pick a spec whose 1,139-token debt
+# swallows a 10-token plant and turns the drift case into a vacuous pass.
+_CONTROL_SPEC = next((r for r in REQUIRED if DISCARD_DEBT.get(r, 0) == 0), None)
+
+
+def _self_check_plant(td, faulty=None, extra=""):
+    """The four REQUIRED specs under `td`; `faulty` gets `extra` appended.
+
+    The other three stay clean, so the COUNT in the gate's message ("1 required
+    spec(s)") is asserted too -- a fault that spread to every spec would reach
+    the same branch and the same exit code through a different world.
+    """
+    root = pathlib.Path(td)
+    for rel in REQUIRED:
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(_GOOD_SPEC + (extra if rel == faulty else ""), encoding="utf-8")
+    return root
+
+
 def self_check(t27c):
-    """Plant an unclosed test block and prove the gate reports it."""
+    """Prove the gate red: the parse fault in-process, then both verdicts end to end."""
     import tempfile, shutil
+    ok = True
+
     src = ROOT / REQUIRED[0]
     with tempfile.TemporaryDirectory() as td:
         bad = os.path.join(td, "bad.t27")
@@ -106,7 +172,83 @@ def self_check(t27c):
     print(f"  self-check: planted spec rejected = {not ok_bad}, real spec accepted = {ok_good}")
     if not ok_bad:
         print(f"              reported: {msg[:100]}")
-    return 0 if (not ok_bad and ok_good) else 1
+    if ok_bad or not ok_good:
+        ok = False
+
+    name = pathlib.Path(__file__).name
+
+    def spawned(label, want, says, absent, **kw):
+        """Run the whole program in a planted tree and demand the exact verdict.
+
+        `says` is every marker the branch must print; `absent` is every marker
+        belonging to its NEIGHBOURS. Both verdicts open with "FAIL:" and both
+        exit 1, so neither the exit code nor the first word can tell them
+        apart, and a crash reaches the same exit code through no branch at all.
+        Only the tails separate the three.
+        """
+        nonlocal ok
+        with tempfile.TemporaryDirectory() as td:
+            root = _self_check_plant(td, **kw)
+            (root / "tools").mkdir(parents=True, exist_ok=True)
+            shutil.copy(__file__, root / "tools" / name)
+            (root / "target/release").mkdir(parents=True, exist_ok=True)
+            # Linked, not copied: find_t27c() asks only whether the path is
+            # there, and the compiler that parses the planted specs has to be
+            # the one CI runs. A stub would agree with the gate by construction.
+            os.symlink(t27c, root / "target/release/t27c")
+            proc = subprocess.run([sys.executable, str(root / "tools" / name)],
+                                  timeout=300,
+                                  capture_output=True, text=True, cwd=str(root))
+        out = proc.stdout + proc.stderr
+        missing = [s for s in says if s not in out]
+        leaked = [a for a in absent if a in out]
+        good = proc.returncode == want and not missing and not leaked
+        print("  %-26s %s" % (label, "exit %d, says it" % want if good else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print("       exit %r (want %r)" % (proc.returncode, want))
+            if missing:
+                print("       marker never printed: %r" % (missing,))
+            if leaked:
+                print("       neighbouring marker leaked: %r" % (leaked,))
+            print("       output %r" % (out[:400],))
+
+    # The clean planted tree must be green, or the two faults below go red for
+    # whatever is wrong with the planting and prove nothing about the gate.
+    # The count comes from len(REQUIRED) rather than a literal 4: adding a
+    # REQUIRED spec must not turn this case red for a reason that has nothing
+    # to do with the gate. The sentence itself is still unique to that branch.
+    spawned("end-to-end clean tree", 0,
+            says=("OK: all %d required specs parse" % len(REQUIRED),),
+            absent=("FAIL", "t27c not built"))
+
+    if _CONTROL_SPEC is None:
+        # NOT COVERED, said out loud rather than skipped quietly: with every
+        # REQUIRED spec carrying debt there is no spec a small plant can push
+        # over its own ratchet, and a silent skip here would read as coverage.
+        print("  %-26s %s" % ("drift: discards more",
+                              "NOT RUN -- every REQUIRED spec carries recorded debt"))
+        ok = False
+    else:
+        spawned("drift: discards more", 1,
+                says=("FAIL: 1 required spec(s) discard MORE than recorded",
+                      "%s: 0 -> " % _CONTROL_SPEC,
+                      "top-level token(s) dropped",
+                      "raise the number in DISCARD_DEBT"),
+                absent=("do not parse", "compiler's own message", "OK: all",
+                        "t27c not built"),
+                faulty=_CONTROL_SPEC, extra=_DISCARDS)
+
+    spawned("parse: spec rejected", 1,
+            says=("FAIL: 1 required spec(s) do not parse",
+                  _CONTROL_SPEC or REQUIRED[0],
+                  "compiler's own message"),
+            absent=("discard MORE than recorded", "DISCARD_DEBT", "OK: all",
+                    "t27c not built"),
+            faulty=_CONTROL_SPEC or REQUIRED[0], extra=_REJECTED)
+
+    print("  self-check: %s" % ("both verdicts proven red" if ok else "FAILED"))
+    return 0 if ok else 1
 
 
 def main():

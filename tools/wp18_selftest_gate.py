@@ -13,15 +13,36 @@ each planted mutant is killed by at least one assertion.
 
 Exit 0 = all self-tests pass. Exit 1 = a self-test failed (gate is not falsifiable).
 ASCII-only. Apache-2.0.
+
+T91: every case below called `G.run_gate()` in-process, which proves the checking
+FUNCTION and nothing about the wiring from it to the process exit code, and never
+broke the WORLD's existence -- only the contents of a well-formed one. Measured
+with `tri gates mutate --only wp18_conformance_gate.py`: five of the gate's six
+`return 3` sites survived (224, 235, 245, 597, 600) while all 23 assertions stayed
+green. The TP_* cases at the end run the gate as a whole PROCESS against a broken
+world, one broken thing at a time.
+
+NOT covered, so nobody infers it from a green: the per-pack `parse error` at
+wp18_conformance_gate.py:373 records a D failure and CONTINUES rather than
+returning, so it is not a `return` site, `tri gates mutate` never perturbs it, and
+no case here plants an unparseable pack file.
 """
 import copy
 import hashlib
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 
 import wp18_conformance_gate as G
+
+# The gate file as a SCRIPT. `G.__file__` is the module this control already
+# imported, so a mutant of the gate is the thing that gets run -- no --root
+# flag and no T27_*_ROOT to aim a live gate somewhere harmless, and no second
+# copy that could drift from the one under test.
+GATE_SCRIPT = os.path.abspath(G.__file__)
 
 
 SSOT_TEXT = "\n".join([
@@ -153,6 +174,38 @@ def _edit_pack(vec, fname, fn):
     fn(pack)
     with open(fpath, "w", encoding="ascii") as fh:
         json.dump(pack, fh)
+
+
+def _run_gate_process(ssot, vec, allow=None):
+    """Run the gate the way CI does: a whole process, exit code and streams.
+
+    Returns (returncode, stdout, stderr). The two precondition branches in
+    `main()` live entirely outside `run_gate()`, so an in-process call cannot
+    reach them at all; and every exit-3 branch INSIDE `run_gate()` reaches the
+    process exit code through a `code, report = run_gate(...)` unpack that an
+    in-process caller performs itself. Forcing any of those five `return 3`s
+    to 0 left all 23 in-process assertions green.
+    """
+    argv = [sys.executable or "python3", GATE_SCRIPT, "--ssot", ssot, "--vectors", vec]
+    if allow is not None:
+        argv += ["--allowlist", allow]
+    p = subprocess.run(argv, capture_output=True, text=True)
+    return p.returncode, p.stdout, p.stderr
+
+
+def _input_failure_details(stdout):
+    """The `detail` strings the gate printed for its bad-input failures.
+
+    Empty when the gate printed no report at all, which is itself the signal
+    that `main()` refused before `run_gate()` ever ran.
+    """
+    if not stdout.strip():
+        return []
+    try:
+        rep = json.loads(stdout)
+    except ValueError:
+        return []
+    return [str(f.get("detail", "")) for f in rep.get("failures", [])]
 
 
 def main():
@@ -489,6 +542,131 @@ def main():
         os.remove(os.path.join(vec, "INDEX_all_formats.json"))
         code, rep = G.run_gate(ssot, vec, allow)
         check("T_input_missing_index_exit3", code == 3)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TP0: the WHOLE PROGRAM on a clean world -> exit 0 ----------
+    # Every TP_* case below asserts exit 3. Without one run that reaches exit 0
+    # through the same path, "exit 3" would be satisfied by a gate that can only
+    # ever say 3, and the five cases would be measuring nothing.
+    root = tempfile.mkdtemp(prefix="wp18st_P0_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+        rc, out, err = _run_gate_process(ssot, vec, allow)
+        # A bare json.loads here aborts the WHOLE control with a traceback when
+        # the gate emits nothing or emits garbage -- which is exactly the
+        # failure this case exists to catch. A control that dies instead of
+        # reporting FAIL leaves every case after it unrun, and the exit code
+        # looks the same as a caught failure only by luck.
+        try:
+            verdict = json.loads(out).get("verdict")
+        except (ValueError, AttributeError):
+            verdict = None
+        check("TP0_whole_program_clean_exit0",
+              rc == 0
+              and verdict == "CLEAN"
+              and "WP-18 verdict: CLEAN (exit 0)" in err
+              and "bad-input" not in err)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TP_ssot_missing: main() refuses a --ssot that is not a file ----------
+    # Gate line 597. Nothing here had ever run the gate as a process, so this
+    # branch and its sibling were unreachable by this file: forcing `return 3`
+    # to `return 0` printed the same bad-input line on stderr and exited 0.
+    root = tempfile.mkdtemp(prefix="wp18st_Pssot_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+        absent = os.path.join(root, "no_such_formats_catalog.t27")
+        rc, out, err = _run_gate_process(absent, vec, allow)
+        check("TP_ssot_not_a_file_exit3",
+              rc == 3
+              and "bad-input: SSOT not found" in err
+              # the sibling precondition (line 600) opens with the same word
+              and "vectors dir not found" not in err
+              # every exit-3 branch INSIDE run_gate prints the report and the
+              # verdict line; this one refuses before either exists
+              and "WP-18 verdict" not in err
+              and out.strip() == "")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TP_vectors_missing: main() refuses a --vectors that is not a dir ----------
+    # Gate line 600, the sibling of the case above.
+    root = tempfile.mkdtemp(prefix="wp18st_Pvec_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+        absent = os.path.join(root, "no_such_vectors_dir")
+        rc, out, err = _run_gate_process(ssot, absent, allow)
+        check("TP_vectors_not_a_dir_exit3",
+              rc == 3
+              and "bad-input: vectors dir not found" in err
+              and "SSOT not found" not in err
+              and "WP-18 verdict" not in err
+              and out.strip() == "")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TP_index_unparseable: an INDEX that is not JSON -> exit 3 ----------
+    # Gate line 224. T_input_missing_index_exit3 removes the INDEX (line 219);
+    # a file that EXISTS and does not parse is the other half of that pair, and
+    # it was covered by nothing.
+    root = tempfile.mkdtemp(prefix="wp18st_Pidx_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+        with open(os.path.join(vec, "INDEX_all_formats.json"), "w", encoding="ascii") as fh:
+            fh.write("{ this INDEX is not JSON\n")
+        rc, out, err = _run_gate_process(ssot, vec, allow)
+        details = _input_failure_details(out)
+        check("TP_index_unparseable_exit3",
+              rc == 3
+              and any(d.startswith("INDEX parse error:") for d in details)
+              # the three sibling bad-input branches, named so a shared prefix
+              # cannot let one pass for another
+              and not any("INDEX_all_formats.json not found" in d for d in details)
+              and not any("allowlist parse error" in d for d in details)
+              and not any("no SSOT CATALOG ids" in d for d in details)
+              and "WP-18 verdict: BAD_INPUT (exit 3)" in err)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TP_allowlist_unparseable: an allow-list that is not JSON -> exit 3 ----------
+    # Gate line 235. A gate that swallowed this would read "cannot parse the
+    # disclosures" as "there are no disclosures to make", which is check E's
+    # whole subject matter.
+    root = tempfile.mkdtemp(prefix="wp18st_Pal_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+        with open(allow, "w", encoding="ascii") as fh:
+            fh.write("[ this allow-list is not JSON\n")
+        rc, out, err = _run_gate_process(ssot, vec, allow)
+        details = _input_failure_details(out)
+        check("TP_allowlist_unparseable_exit3",
+              rc == 3
+              and any(d.startswith("allowlist parse error:") for d in details)
+              and not any("INDEX" in d for d in details)
+              and not any("no SSOT CATALOG ids" in d for d in details)
+              and "WP-18 verdict: BAD_INPUT (exit 3)" in err)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TP_ssot_declares_nothing: an SSOT with no CATALOG ids -> exit 3 ----------
+    # Gate line 245. An empty id-set would make check A's "missing / extra"
+    # arithmetic vacuously satisfiable, so an unparsed SSOT must be bad input
+    # rather than an SSOT that happens to declare nothing.
+    root = tempfile.mkdtemp(prefix="wp18st_Pids_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+        with open(ssot, "w", encoding="ascii") as fh:
+            fh.write("// this file declares no catalog id at all\n")
+        rc, out, err = _run_gate_process(ssot, vec, allow)
+        details = _input_failure_details(out)
+        check("TP_ssot_declares_no_ids_exit3",
+              rc == 3
+              and any(d.startswith("no SSOT CATALOG ids parsed") for d in details)
+              and not any("INDEX" in d for d in details)
+              and not any("allowlist parse error" in d for d in details)
+              and "WP-18 verdict: BAD_INPUT (exit 3)" in err)
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

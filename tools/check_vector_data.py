@@ -124,6 +124,12 @@ MARKERS = ("UNREADABLE ", "DEPARTED   ", "EMPTIED    ",
 DEBT_EPILOGUE = "the measured set getting smaller"
 GAIN_EPILOGUE = "Files gained data. Record it"
 
+# The two things --update-baseline can say. They are each other's neighbour and
+# nothing else in this program prints either, so one of them present and the
+# other absent pins which way that branch went.
+RECORD_REFUSED = "refusing to record a baseline over unreadable files:"
+RECORD_DONE = "baseline updated:"
+
 DATA_A = {"id": "a1", "inputs": [1, 1], "expect": 1}
 DATA_B = {"id": "a2", "inputs": [1, -1], "expect": -1}
 PROSE_A = {"id": "a3", "description": "reads well, runs never"}
@@ -176,6 +182,55 @@ def _control_case(label, mutate, want, marker, code):
     ok = not missing and not leaked and r.returncode == code
     print(f"  {label:<10} exit {r.returncode} (want {code}); said it = {not missing}; "
           f"no other branch fired = {not leaked}")
+    for s in missing:
+        print(f"             MISSING  {s!r}")
+    for s in leaked:
+        print(f"             LEAKED   {s!r}  (wrong branch)")
+    return ok
+
+
+def _record_refusal_case():
+    """--update-baseline over an unreadable file must refuse AND go red.
+
+    Same fixture and same planting helper as the cases above; the one thing
+    that differs is WHEN the fault arrives. Every case in `self_check` plants
+    its fault AFTER the ledger has been written, so at record time `unreadable`
+    is empty for all of them and the refusal in the --update-baseline branch is
+    never reached -- measured: forcing that `return 1` to `return 0` left all
+    seven cases green.
+
+    The refusal is what stops a parse failure being frozen into the ledger, and
+    a ledger written over a corrupt file records it as absent, i.e. as nothing
+    to check -- the exact swallow the module docstring lists as having passed
+    end to end once. So the refusal has to be a FAILURE, not a polite skip: a
+    caller that runs `--update-baseline && git commit` reads exit 0 as "the
+    census was recorded".
+
+    The exit code is the assertion that bites. `wrote` does not separate the
+    mutant -- the writer sits below the return either way -- it pins the other
+    half of the promise, that "refusing" means nothing was recorded, and would
+    notice the writer being moved above the check.
+    """
+    # "  fpga_beta.json" is the READABLE neighbour. Without it in `forbid` the
+    # case passes when the refusal names every file rather than only the
+    # unreadable one -- an over-broad refusal reads identically to a correct
+    # one on the exit code and on the marker.
+    forbid = ["  fpga_beta.json", RECORD_DONE, DEBT_EPILOGUE, GAIN_EPILOGUE, *MARKERS]
+    want = [RECORD_REFUSED, "  fpga_alpha.json"]
+    with tempfile.TemporaryDirectory() as td:
+        t = pathlib.Path(td)
+        (t / "conformance").mkdir()
+        (t / "tools").mkdir()
+        for name, cases in FIXTURE.items():
+            _write_vectors(t / "conformance", name, cases)
+        (t / "conformance" / "fpga_alpha.json").write_text('{"vectors": {"g": ')
+        r = _run_gate(t, "--update-baseline")
+        wrote = (t / "tools" / "vector_data_baseline.txt").exists()
+    missing = [s for s in want if s not in r.stdout]
+    leaked = [s for s in forbid if s in r.stdout]
+    ok = not missing and not leaked and r.returncode == 1 and not wrote
+    print(f"  {'NO RECORD':<10} exit {r.returncode} (want 1); said it = {not missing}; "
+          f"no other branch fired = {not leaked}; ledger unwritten = {not wrote}")
     for s in missing:
         print(f"             MISSING  {s!r}")
     for s in leaked:
@@ -237,7 +292,12 @@ def self_check():
     ok = True
     for label, mutate, want, marker, code in cases:
         ok = _control_case(label, mutate, want, marker, code) and ok
-    print(f"  self-check: {len(cases) - 1} failing classes each reported by name, "
+    # The seven above all run the VERIFY path. The refusal inside
+    # --update-baseline is the one failure path they cannot reach, because they
+    # need that same path to succeed first in order to have a ledger at all.
+    ok = _record_refusal_case() and ok
+    print(f"  self-check: {len(cases) - 1} verify-path failing classes plus the "
+          f"--update-baseline refusal, each reported by name, "
           f"clean planted tree silent = {ok}")
     return 0 if ok else 1
 

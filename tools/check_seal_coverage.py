@@ -251,21 +251,39 @@ def _check_compare():
 
 def self_check():
     """Plant a seal whose spec hash is wrong and prove the scan reports it."""
+    import shutil
     import tempfile
-    with tempfile.TemporaryDirectory() as td:
+
+    WRONG = "0" * 64          # well-formed digest, and no spec produces it
+
+    def plant(td, seals, ledger=None):
+        """A tree this gate can be aimed at: one spec, the seals named, and
+        optionally a ledger.
+
+        `seals` maps a seal FILENAME to (spec_path, spec_hash). A hash of None
+        means "the digest that holds", which only this function can supply
+        because only it writes the spec.
+        """
         t = pathlib.Path(td)
         (t / ".trinity/seals").mkdir(parents=True)
         (t / "specs").mkdir()
+        (t / "tools").mkdir()
         spec = t / "specs/x.t27"
         spec.write_text("module X;\n")
-        good = hashlib.sha256(spec.read_bytes()).hexdigest()
-        (t / ".trinity/seals/Good.json").write_text(json.dumps(
-            {"module": "Good", "spec_path": "specs/x.t27", "spec_hash": "sha256:" + good}))
-        (t / ".trinity/seals/Stale.json").write_text(json.dumps(
-            {"module": "Stale", "spec_path": "specs/x.t27", "spec_hash": "sha256:" + "0" * 64}))
-        (t / ".trinity/seals/Gone.json").write_text(json.dumps(
-            {"module": "Gone", "spec_path": "specs/missing.t27", "spec_hash": "sha256:" + good}))
-        total, bad = scan(t)
+        holds = hashlib.sha256(spec.read_bytes()).hexdigest()
+        for nm, (spath, digest) in seals.items():
+            (t / ".trinity/seals" / nm).write_text(json.dumps(
+                {"module": nm[:-5], "spec_path": spath,
+                 "spec_hash": "sha256:" + (holds if digest is None else digest)}))
+        if ledger is not None:
+            (t / "tools/seal_baseline.txt").write_text(ledger)
+        return t
+
+    with tempfile.TemporaryDirectory() as td:
+        total, bad = scan(plant(td, {
+            "Good.json": ("specs/x.t27", None),
+            "Stale.json": ("specs/x.t27", WRONG),
+            "Gone.json": ("specs/missing.t27", None)}))
         kinds = sorted(k for _, k, _ in bad)
         # The temp tree has no git history, so a missing spec is correctly PHANTOM
         # rather than dangling -- that distinction is the point of this scan and the
@@ -276,6 +294,117 @@ def self_check():
           f"phantom (no history), good one silent = {ok}")
     if not ok:
         print(f"              got {total} seals, kinds {kinds}")
+
+    # T91: everything above proves scan(), and _check_compare() below proves
+    # compare(). NEITHER proves the wiring from those to the process exit code,
+    # and that wiring is the whole of main(). Measured with `tri gates mutate
+    # --only check_seal_coverage.py`: forcing main()'s two verdicts to 0 left
+    # BOTH of the checks above green -- 1/3 killed, "SURVIVED at lines 321,
+    # 339" -- while the program announced newly-broken seals and exited 0.
+    #
+    # So run the WHOLE program. The script is COPIED into the planted tree,
+    # which makes its module-level ROOT (and therefore BASELINE, and the seal
+    # directory main() reads for `present`) resolve there by the ordinary
+    # parent.parent rule -- no --root flag and no environment override, so this
+    # adds no way to aim the live gate at somewhere harmless.
+    #
+    # main()'s remaining verdict, "no seals found at all", is covered from
+    # OUTSIDE this file by tools/check_gate_preconditions.py, which is the one
+    # control for that precondition class across six gates. It is not repeated
+    # here, and it is named here so nobody reads this block as the whole of the
+    # gate's coverage.
+    me = pathlib.Path(__file__).resolve()
+
+    def spawned(label, want_exit, present, absent, seals, ledger=None):
+        """Plant a world, run the real program in it, demand one exact branch.
+
+        `present` pins WHICH branch spoke and `absent` names the siblings that
+        must not have. Three of main()'s exits are `1`, so the exit code alone
+        cannot tell them apart -- and two of them open with the word FAIL while
+        the ledger-drift paragraph itself contains the word DEPARTED, so the
+        markers are chosen to be text no other branch emits.
+        """
+        nonlocal ok
+        with tempfile.TemporaryDirectory() as td:
+            t = plant(td, seals, ledger)
+            shutil.copy(me, t / "tools" / me.name)
+            r = subprocess.run([sys.executable, str(t / "tools" / me.name)],
+                               capture_output=True, text=True, cwd=t, timeout=120)
+        missing = [p for p in present if p not in r.stdout]
+        leaked = [a for a in absent if a in r.stdout]
+        good = r.returncode == want_exit and not missing and not leaked
+        print(f"  {label:<28} "
+              + (f"exit {want_exit}, right branch" if good else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want_exit!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       stdout {r.stdout[:400]!r}")
+
+    HOLDS = {"Good.json": ("specs/x.t27", None)}
+    ONE_STALE = {"Good.json": ("specs/x.t27", None),
+                 "Stale.json": ("specs/x.t27", WRONG)}
+    # Text no branch but the named one prints. `DEPARTED` and `FAIL` on their
+    # own are not usable: the ledger-drift paragraph says DEPARTED in prose,
+    # and the empty-tree precondition also opens with FAIL.
+    DRIFT = "A baselined seal changed class, or its file left the tree."
+    CHANGED = "CHANGED  Stale.json: phantom -> stale (the repair is not the same one)"
+    DEPARTED = "DEPARTED Vanished.json: baselined as broken, and the seal FILE is gone"
+    NEWLY = "FAIL: 1 seal(s) newly do not hold"
+    NOTE = "baselined seal(s) now hold"
+    WROTE = "baseline written"
+
+    # The clean direction first, or every case below passes for free on a
+    # program that reds unconditionally. It also proves a planted tree can be
+    # GREEN, which this gate's own repository has not been for a long time.
+    spawned("end-to-end clean tree", 0, ("OK: 1 seals, 1 hold",),
+            ("FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE), HOLDS)
+
+    # main(): the newly-broken verdict. Nothing is baselined, so the stale seal
+    # is NEW and the ledger paragraph must stay silent.
+    spawned("end-to-end new breakage", 1, (NEWLY, "Stale.json  [stale]"),
+            ("OK:", "no seals found at all", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            ONE_STALE)
+
+    # main(): the ledger verdict, reached by a baselined seal whose KIND moved.
+    # Nothing is newly broken, so the FAIL branch must stay silent.
+    spawned("end-to-end ledger drift", 1, (DRIFT, CHANGED),
+            ("FAIL:", "OK:", DEPARTED, NOTE, WROTE),
+            ONE_STALE, ledger="Stale.json | phantom | specs/x.t27\n")
+
+    # main(): the SAME verdict reached by the other branch -- a baselined seal
+    # whose file left the tree. Each of these two names the other's marker as
+    # one that must be absent, because the exit code cannot separate them.
+    spawned("end-to-end ledger departure", 1, (DRIFT, DEPARTED),
+            ("FAIL:", "OK:", CHANGED, NOTE, WROTE),
+            ONE_STALE,
+            ledger="Stale.json | stale | specs/x.t27\n"
+                   "Vanished.json | stale | specs/gone.t27\n")
+
+    # The configuration the LIVE gate is in every single day, and the one the
+    # four cases above never build: a ledger exists AND something outside it is
+    # newly broken. The new-breakage case above runs with no ledger at all, so
+    # the branch this repository actually takes was proved only in a world it
+    # never has. Fresh.json is broken and unbaselined; Stale.json is broken and
+    # baselined, so it must NOT be counted as new, and the ledger paragraph must
+    # stay silent because nothing in the ledger moved.
+    spawned("end-to-end ledger plus new", 1, (NEWLY, "Fresh.json  [stale]"),
+            ("OK:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE,
+             "Stale.json  [stale]"),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # NOT covered here, so that "everything else is covered" is not available as
+    # a reading: the `dangling` kind, and the compare() path where a seal is
+    # both baselined and repaired in the same run. `phantom`/`dangling`
+    # movement is suppressed on purpose (a small clone parks 15 entries there),
+    # and no planted tree in this file is a git repository, so the branch that
+    # asks git whether a spec ever existed is inert in all five cases above.
     return 0 if (ok and _check_compare()) else 1
 
 

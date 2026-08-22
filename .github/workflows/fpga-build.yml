@@ -805,11 +805,12 @@ jobs:
 
       # A gate nobody has seen fail is not a gate. This plants each failing
       # class in a temp tree -- data lost, file emptied, file corrupted, file
-      # deleted, a new prose-only file, an unrecorded gain -- and runs the whole
-      # gate against it through T27_VECTOR_ROOT, asserting the MESSAGE of the
-      # branch and the ABSENCE of its neighbours. Mutation-tested: swallowing a
-      # parse failure as (0, 0) again still exits 1, through EMPTIED, so an
-      # exit-code-only control would stay green on exactly the T67 bug.
+      # deleted, a new prose-only file, an unrecorded gain, and --update-baseline
+      # asked to record over a corrupt file -- and runs the whole gate against it
+      # through T27_VECTOR_ROOT, asserting the MESSAGE of the branch and the
+      # ABSENCE of its neighbours. Mutation-tested: swallowing a parse failure as
+      # (0, 0) again still exits 1, through EMPTIED, so an exit-code-only control
+      # would stay green on exactly the T67 bug.
       - name: A vector case must carry data (negative control)
         run: python3 tools/check_vector_data.py --self-check
 
