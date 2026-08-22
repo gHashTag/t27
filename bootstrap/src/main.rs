@@ -4093,7 +4093,7 @@ fn run_gen_verilog_hir(
 fn run_icarus_simulate(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
-    let verilog = compiler::Compiler::compile_verilog_for_simulation(&source)
+    let verilog = compiler::Compiler::compile_verilog_for_simulation_at(&source, path)
         .map_err(|e| anyhow::anyhow!("Verilog generation error: {}", e))?;
 
     let name = path
@@ -4231,7 +4231,7 @@ fn run_icarus_cocotb(input_path: &str) -> anyhow::Result<()> {
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
-    let verilog = compiler::Compiler::compile_verilog_for_simulation(&source)
+    let verilog = compiler::Compiler::compile_verilog_for_simulation_at(&source, path)
         .map_err(|e| anyhow::anyhow!("Verilog generation error: {}", e))?;
 
     // The generated Verilog may use a synthetic module name when the source
