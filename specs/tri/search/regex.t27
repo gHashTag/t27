@@ -18,7 +18,7 @@ module TriRegex;
     pub const Match = struct {
         start : "usize",
         end : "usize",
-        groups : [[][,
+        groups : [][]const u8,
     };
 
     // ═══════════════════════════════════════════════════════════

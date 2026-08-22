@@ -1794,11 +1794,26 @@ impl Parser {
                     // (161 events / 0 blind -> 171 / 6, twice). The next attempt
                     // needs the counterexample field type, not a third guess.
                                     // Collect type tokens until comma, semicolon, or closing brace
-                    while self.current.kind != TokenKind::Comma
-                        && self.current.kind != TokenKind::Semicolon
-                        && self.current.kind != TokenKind::RBrace
-                        && self.current.kind != TokenKind::Eof
-                    {
+                    // Prop. 191, third attempt, landed only after the corpus was
+                    // repaired. The two earlier repairs were reverted as regressions
+                    // and were correct all along: #2350 measured the flagged set as
+                    // exactly the specs still carrying unbalanced field types (6 of 6),
+                    // and #2358 confirmed it under a one-line perturbation (6 -> 5).
+                    //
+                    // `<` and `>` are deliberately NOT counted. They are comparison
+                    // operators as often as generic brackets, and one unbalanced `>`
+                    // would swallow the rest of the struct. `Map<K, V>` still truncates
+                    // at the first comma -- the older, narrower bug, left standing.
+                    let mut depth: i32 = 0;
+                    loop {
+                        match self.current.kind {
+                            TokenKind::Eof => break,
+                            TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace => depth += 1,
+                            TokenKind::RParen | TokenKind::RBracket => depth -= 1,
+                            TokenKind::RBrace => { if depth == 0 { break; } depth -= 1; }
+                            TokenKind::Comma | TokenKind::Semicolon if depth == 0 => break,
+                            _ => {}
+                        }
                         type_str.push_str(&self.current.lexeme);
                         self.advance();
                     }

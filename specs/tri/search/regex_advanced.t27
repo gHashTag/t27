@@ -16,7 +16,7 @@ module TriRegexAdvanced;
 
     pub const RegexMatch = struct {
         matched : "bool",
-        groups : [[][,
+        groups : [][]const u8,
         start : "usize",
         end : "usize",
     };

@@ -11,7 +11,7 @@ module TriFs;
     // ═══════════════════════════════════════════════════════════
 
     pub const Path = struct {
-        parts : [[][,
+        parts : [][]const u8,
         absolute : "bool",
     };
 
