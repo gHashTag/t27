@@ -32,17 +32,35 @@ reported as DEPARTED rather than as a repair.
 
     tools/check_vector_data.py                    # verify
     tools/check_vector_data.py --update-baseline  # after a deliberate change
+    tools/check_vector_data.py --self-check       # negative control
 
 Prose fields are id/description/note/name/comment. Any other key makes a case
 data-carrying -- deliberately generous: a single input field is enough, because
 the question this gate asks is "could a runner ever apply this?", not "is this
 a good vector".
+
+The history above was written by an AUDIT, not by this gate: every one of those
+five modes was found by hand, because nothing here could fail on demand. The
+`--self-check` control closes that -- it plants each failing class in a temp
+tree and runs THIS WHOLE FILE against it as a subprocess, so the census, the
+baseline writer, the classification and main()'s own return value all run.
 """
 import json
+import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+# T87: overridable so the negative control can point the WHOLE program -- census,
+# baseline reader AND baseline writer, all derived from ROOT at import -- at a
+# planted tree. Nothing in the repository sets it. It exists because a control
+# that runs this tool from a temp cwd would leave ROOT resolving to the real
+# repository (or, if the tool were copied out, to `/`), find nothing, and pass
+# for the wrong reason. The clean case asserts the planted file COUNT, so a
+# child that ignored this variable is caught rather than believed.
+ROOT = pathlib.Path(os.environ.get("T27_VECTOR_ROOT")
+                    or pathlib.Path(__file__).resolve().parent.parent)
 VECTORS = ROOT / "conformance"
 BASELINE = ROOT / "tools/vector_data_baseline.txt"
 PROSE = {"id", "description", "note", "name", "comment"}
@@ -97,7 +115,137 @@ def baseline():
     return out
 
 
+# ---------------------------------------------------------------- control ----
+
+# The exact prefixes the report prints, padded as in the report, so that a
+# marker can only have come from its own branch and not from prose elsewhere.
+MARKERS = ("UNREADABLE ", "DEPARTED   ", "EMPTIED    ",
+           "LOST DATA  ", "NEW        ", "BETTER     ")
+DEBT_EPILOGUE = "the measured set getting smaller"
+GAIN_EPILOGUE = "Files gained data. Record it"
+
+DATA_A = {"id": "a1", "inputs": [1, 1], "expect": 1}
+DATA_B = {"id": "a2", "inputs": [1, -1], "expect": -1}
+PROSE_A = {"id": "a3", "description": "reads well, runs never"}
+
+# 3 cases / 2 data-carrying, and a prose-only neighbour so the census line has
+# a non-zero prose count to get wrong.
+FIXTURE = {
+    "fpga_alpha.json": [DATA_A, DATA_B, PROSE_A],
+    "fpga_beta.json": [{"id": "b1", "description": "prose"},
+                       {"id": "b2", "note": "prose"}],
+}
+
+
+def _write_vectors(conf, name, cases):
+    (conf / name).write_text(json.dumps({"vectors": {"g": {"cases": cases}}}))
+
+
+def _run_gate(root, *args):
+    """Run THIS FILE as a subprocess with ROOT pointed at a planted tree."""
+    return subprocess.run(
+        [sys.executable, str(pathlib.Path(__file__).resolve()), *args],
+        capture_output=True, text=True,
+        env={**os.environ, "T27_VECTOR_ROOT": str(root)})
+
+
+def _control_case(label, mutate, want, marker, code):
+    """Plant the fixture, let the gate baseline it, mutate, run the gate.
+
+    The baseline is written by the gate's own --update-baseline against the
+    planted root, so the control never hand-writes the ledger it is about to
+    compare against -- and never touches the repository's.
+    """
+    forbid = [m for m in MARKERS if m != marker]
+    forbid.append(DEBT_EPILOGUE if GAIN_EPILOGUE in want else GAIN_EPILOGUE)
+    with tempfile.TemporaryDirectory() as td:
+        t = pathlib.Path(td)
+        (t / "conformance").mkdir()
+        (t / "tools").mkdir()
+        for name, cases in FIXTURE.items():
+            _write_vectors(t / "conformance", name, cases)
+        rec = _run_gate(t, "--update-baseline")
+        if rec.returncode != 0 or "2 files, 1 prose-only" not in rec.stdout:
+            print(f"  {label:<10} FIXTURE NOT BASELINED (exit {rec.returncode}): "
+                  f"{rec.stdout.strip()[:120]}")
+            return False
+        mutate(t / "conformance")
+        r = _run_gate(t)
+    missing = [s for s in want if s not in r.stdout]
+    leaked = [s for s in forbid if s in r.stdout]
+    ok = not missing and not leaked and r.returncode == code
+    print(f"  {label:<10} exit {r.returncode} (want {code}); said it = {not missing}; "
+          f"no other branch fired = {not leaked}")
+    for s in missing:
+        print(f"             MISSING  {s!r}")
+    for s in leaked:
+        print(f"             LEAKED   {s!r}  (wrong branch)")
+    return ok
+
+
+def self_check():
+    """Prove this gate can go RED, once per failing class, on a planted tree.
+
+    Each case runs the REAL program end to end -- census(), counts(), the
+    baseline writer, the classification loop, the report and main()'s return --
+    against a temp root handed over in T27_VECTOR_ROOT. Nothing here re-states
+    the comparison: a control that evaluates its own copy of the logic certifies
+    the copy, and three mutants of the real logic walked through exactly such a
+    control elsewhere in this repository (T73).
+
+    Each case names the MESSAGE of its branch and requires every other branch's
+    marker to be ABSENT. Exit codes alone would not separate them: all six
+    failing classes exit 1, and the audit in the module docstring is a list of
+    faults that reached the wrong branch (a corrupt file read as "nothing here",
+    a deletion reported as a repair). UNREADABLE is the sharpest of these -- if
+    the parse failure is ever swallowed as (0, 0) again, the run still exits 1,
+    through EMPTIED, and only the absent-marker assertion notices.
+    """
+    cases = [
+        ("clean", lambda c: None,
+         ["vector files: 2 (1 prose-only, baseline 2)",
+          "OK: no vector file lost data, emptied, departed or stopped parsing"],
+         None, 0),
+        ("LOST DATA",
+         lambda c: _write_vectors(c, "fpga_alpha.json", [DATA_A, PROSE_A, PROSE_A]),
+         ["LOST DATA  fpga_alpha.json: 2 -> 1 data-carrying cases", DEBT_EPILOGUE],
+         "LOST DATA  ", 1),
+        ("EMPTIED",
+         lambda c: _write_vectors(c, "fpga_alpha.json", []),
+         ["EMPTIED    fpga_alpha.json: had 3 cases, now has none", DEBT_EPILOGUE],
+         "EMPTIED    ", 1),
+        ("UNREADABLE",
+         lambda c: (c / "fpga_alpha.json").write_text('{"vectors": {"g": '),
+         ["UNREADABLE fpga_alpha.json: cannot be parsed as JSON", DEBT_EPILOGUE],
+         "UNREADABLE ", 1),
+        ("DEPARTED",
+         lambda c: (c / "fpga_alpha.json").unlink(),
+         ["DEPARTED   fpga_alpha.json: was 3 cases / 2 carrying data, now absent",
+          DEBT_EPILOGUE],
+         "DEPARTED   ", 1),
+        ("NEW",
+         lambda c: _write_vectors(c, "fpga_gamma.json",
+                                  [{"id": "g1", "description": "prose"}]),
+         ["NEW        fpga_gamma.json: 1 cases, none carrying data", DEBT_EPILOGUE],
+         "NEW        ", 1),
+        ("BETTER",
+         lambda c: _write_vectors(c, "fpga_alpha.json",
+                                  [DATA_A, DATA_B, {"id": "a3", "expect": 0}]),
+         ["BETTER     fpga_alpha.json: 2 -> 3 data-carrying cases", GAIN_EPILOGUE],
+         "BETTER     ", 1),
+    ]
+    ok = True
+    for label, mutate, want, marker, code in cases:
+        ok = _control_case(label, mutate, want, marker, code) and ok
+    print(f"  self-check: {len(cases) - 1} failing classes each reported by name, "
+          f"clean planted tree silent = {ok}")
+    return 0 if ok else 1
+
+
 def main():
+    if "--self-check" in sys.argv:
+        return self_check()
+
     now = census()
 
     if "--update-baseline" in sys.argv:

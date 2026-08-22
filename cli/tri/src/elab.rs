@@ -81,7 +81,11 @@ fn diagnostics(root: &Path, only: Option<&str>) -> Result<Vec<(String, u32, Stri
 
     let mut out = Vec::new();
     for f in files {
-        let stem = f.file_stem().unwrap_or_default().to_string_lossy().to_string();
+        let stem = f
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         if let Some(m) = only {
             if stem != m {
                 continue;
@@ -163,8 +167,7 @@ fn classify(only: Option<&str>, show_names: bool) -> Result<()> {
     let root = repo_root()?;
     let diags = diagnostics(&root, only)?;
 
-    let (summaries, real): (Vec<_>, Vec<_>) =
-        diags.iter().partition(|(_, _, m)| is_summary(m));
+    let (summaries, real): (Vec<_>, Vec<_>) = diags.iter().partition(|(_, _, m)| is_summary(m));
 
     let mut by_shape: BTreeMap<String, usize> = BTreeMap::new();
     for (_, _, m) in &real {
@@ -249,7 +252,10 @@ fn secondary() -> Result<()> {
     println!("diagnostics with a source line: {}", real.len());
     println!("  causes (unbound / array-index):  {}", causes.len());
     println!("  SECONDARY -- same line as a cause: {}", derived);
-    println!("  independent, needing their own explanation: {}", independent.len());
+    println!(
+        "  independent, needing their own explanation: {}",
+        independent.len()
+    );
     if !independent.is_empty() {
         println!();
         println!("The independent ones, which is where the real work is:");

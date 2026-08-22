@@ -194,6 +194,9 @@ mod tests {
                 _ => break,
             }
         }
-        assert_eq!(n, 2, "the skipped run must neither end nor extend the streak");
+        assert_eq!(
+            n, 2,
+            "the skipped run must neither end nor extend the streak"
+        );
     }
 }

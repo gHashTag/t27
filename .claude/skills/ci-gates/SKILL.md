@@ -538,3 +538,58 @@ ROOT resolves to `/`, one planted a fault the OLD branch already caught. State
 in the control which branch it exercises and how you know -- usually by naming
 a string only that branch prints, and by asserting the neighbouring branch's
 marker is ABSENT.
+
+## 16. The control has a failure path too, and it is usually the exit code
+
+Every §15 lesson is about which branch a control exercises. This one is about
+what a control **omits by construction**, and it produced the two findings of
+the fifth batch.
+
+**A control that calls the checking function proves the function.** It does not
+prove the wiring from that function to the process exit code, and CI reads only
+the exit code. Measured on `check_catalog_integrity.py`, one variable changed:
+
+```
+main(): return 1 -> return 0
+  gate on a catalog with a dangling source=  ->  "OK: 109 catalog rows...", exit 0
+  --self-check                               ->  "all branches proven red", exit 0
+```
+
+The gate was completely dead. Seven per-branch cases all reported success. The
+in-process design was not a mistake -- it exists so module-level `ROOT` can
+never resolve to `/`, a trap this campaign fell into for real. So **add** an
+end-to-end layer rather than replacing the precise one: copy the script into
+the planted tree and spawn it there, and `ROOT` resolves to the planted tree by
+the ordinary `parent.parent` rule -- no `--root` flag, no environment override,
+no new way to aim a live gate at somewhere harmless.
+
+**Controls plant data faults; gates also have preconditions.** A control builds
+a well-formed world and then breaks one fact inside it. It never breaks the
+world's *existence*: the missing baseline, the tool that would not run, the
+unreadable directory. Nine of twelve gates here had every data branch covered
+and no precondition branch covered. Those paths are one `return` away from
+turning the gate into a silent pass that announces itself:
+
+```
+no baseline; run --update-baseline once      <- printed
+exit 0                                       <- and green
+```
+
+**`tri gates mutate` is the check.** It flips each `return 1..4` outside the
+control's own functions to `return 0`, one site at a time, and demands the
+control notice. `sweep` reports whether a control EXISTS -- a label. `mutate`
+reports whether it can FAIL -- the property. Do not let a count of controls
+stand in for evidence; that substitution is §14 class J, and it was in the tool
+written to find §14 class J.
+
+**A survivor is not a broken gate.** It says nothing proves the gate will keep
+working, not that it is wrong now. Check by hand before writing it up: all six
+baseline-backed gates here exit 1 correctly today with their baseline moved
+aside. "Nine gates are broken" would have been false and alarming; "nine
+controls do not cover their preconditions" is true and actionable.
+
+**Finally: do not mutate with one regex.** `return 1..4` matches the returns
+inside `self_check` too. Doing that scored two sound controls as vacuous passes
+-- they had detected the mutant correctly and merely lost the ability to say
+so. Reading the printed output rather than the exit code is what caught it.
+The broken-ruler error applies to the experiment you run on your own tools.

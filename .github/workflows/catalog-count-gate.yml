@@ -4,9 +4,14 @@ name: Catalog Count Invariant (CI-01)
 # on every PR touching the numeric catalog or its codegen path. The canonical
 # number is the count of `// CATALOG:` lines in the SSOT; codegen run fresh
 # against it must reproduce that number exactly (catches the parser-bug class
-# that silently dropped formula-bias rows). Paper-count divergence
-# (arXiv:2606.09686 says 84; SSOT canonical is 83) is surfaced as a WARN that
-# requires an erratum, not a silent edit.
+# that silently dropped formula-bias rows). Paper-count divergence is surfaced
+# as a WARN that requires an erratum, not a silent edit.
+#
+# T86: the parenthetical here used to read "arXiv:2606.09686 says 84; SSOT
+# canonical is 83". Both numbers are stale -- the gate's paper constant is 83
+# and the live SSOT is 109 -- so the WARN it describes now fires on EVERY run
+# and has since the ladder grew past the paper. A warning that is always on
+# carries no information; see the issue linked from check_catalog_count.py.
 #
 # NOTE: per the repo constitution (L2 GENERATION), gen/ is DERIVED and is never
 # hand-committed in a PR. This gate therefore regenerates into a temp dir and
@@ -23,6 +28,17 @@ on:
       - "specs/numeric/formats_catalog.t27"
       - "tools/gen_formats_catalog.py"
       - "tools/check_catalog_count.py"
+      # T85, two reach defects. First: this job runs check_catalog_integrity.py
+      # but did not list it, so a one-line edit to that gate landed in a PR that
+      # never executed it -- the same defect the branch-filter note above guards
+      # against, one file over.
+      - "tools/check_catalog_integrity.py"
+      # Second, and worse: that gate exists because a glob deleted
+      # specs/numeric/gfternary.t27 while its catalog row survived. Only
+      # formats_catalog.t27 was listed, so deleting a spec -- the exact incident
+      # -- did not trigger the workflow written to catch it. The gate could not
+      # fire on its own founding case.
+      - "specs/numeric/*.t27"
       - ".github/workflows/catalog-count-gate.yml"
   workflow_dispatch:
 
@@ -51,3 +67,14 @@ jobs:
       - name: Every catalog row still has its spec on disk
         run: |
           python3 tools/check_catalog_integrity.py
+
+      # T86 / T85: neither gate above had ever been seen red. Both controls
+      # plant faults and assert the branch by its MESSAGE, because both gates
+      # reach one exit code from several branches. The integrity control also
+      # runs the whole program end to end against a planted tree: its per-branch
+      # cases call check() in-process, and a main() neutered to `return 0` left
+      # every one of them still reporting "RED, correct branch".
+      - name: Both catalog gates must go red (negative controls)
+        run: |
+          python3 tools/check_catalog_count.py --self-check
+          python3 tools/check_catalog_integrity.py --self-check

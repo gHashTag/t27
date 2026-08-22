@@ -135,7 +135,10 @@ fn debt() -> Result<()> {
 
     let (mut n_exec, mut n_debt, mut n_prose) = (0usize, 0usize, 0usize);
     let (mut c_total, mut c_data) = (0usize, 0usize);
-    println!("{:<38}{:>7}{:>7}  {}", "vector file", "cases", "data", "verdict");
+    println!(
+        "{:<38}{:>7}{:>7}  {}",
+        "vector file", "cases", "data", "verdict"
+    );
     for f in &files {
         let text = std::fs::read_to_string(f).unwrap_or_default();
         let (cases, data) = count_cases(&text);
@@ -178,7 +181,11 @@ fn debt() -> Result<()> {
         files.len(),
         c_total,
         c_data,
-        if c_total == 0 { 0 } else { c_data * 100 / c_total }
+        if c_total == 0 {
+            0
+        } else {
+            c_data * 100 / c_total
+        }
     );
     println!(
         "PROSE-ONLY is the majority and the important number: those cases carry\n\

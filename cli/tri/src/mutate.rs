@@ -77,9 +77,16 @@ fn make_recoverable(file: &Path, original: &str) -> Result<PathBuf> {
         .unwrap_or(false);
 
     if clean {
-        println!("Recovery: `git checkout -- {}` (also copied to {}).", file.display(), backup.display());
+        println!(
+            "Recovery: `git checkout -- {}` (also copied to {}).",
+            file.display(),
+            backup.display()
+        );
     } else {
-        println!("Recovery: {} (the file has uncommitted changes, so git cannot restore it).", backup.display());
+        println!(
+            "Recovery: {} (the file has uncommitted changes, so git cannot restore it).",
+            backup.display()
+        );
     }
     Ok(backup)
 }
@@ -159,7 +166,11 @@ fn masked(text: &str) -> Vec<bool> {
         // Triple quotes first: a docstring opener would be misread as an
         // ordinary quote and closed three bytes later.
         if rest.starts_with(TRIPLE_D) || rest.starts_with(TRIPLE_S) {
-            let q = if rest.starts_with(TRIPLE_D) { TRIPLE_D } else { TRIPLE_S };
+            let q = if rest.starts_with(TRIPLE_D) {
+                TRIPLE_D
+            } else {
+                TRIPLE_S
+            };
             let end = rest[3..].find(q).map(|p| i + 3 + p + 3).unwrap_or(b.len());
             mark(&mut mask, i, end);
             i = end;
@@ -230,7 +241,9 @@ fn find_mutants(text: &str, max: usize) -> Vec<Mutant> {
         // Don't split an identifier like `sha1` or `gf16` — a digit is only a
         // literal if what precedes it cannot be part of a name.
         let prev_is_word = i > 0
-            && (bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_' || bytes[i - 1] == b'.');
+            && (bytes[i - 1].is_ascii_alphanumeric()
+                || bytes[i - 1] == b'_'
+                || bytes[i - 1] == b'.');
         let start = i;
         while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
             i += 1;
@@ -246,7 +259,8 @@ fn find_mutants(text: &str, max: usize) -> Vec<Mutant> {
         // Hex, binary and anything with a letter in it is left alone: mutating
         // `0x3FCF1BBD` by +1 is meaningful, but `1e12` and `0b10` are not
         // reliably parsed here, and a wrong mutant wastes a whole run.
-        let (from, to) = if let Some(h) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+        let (from, to) = if let Some(h) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X"))
+        {
             match u64::from_str_radix(h, 16) {
                 Ok(v) => (tok.to_string(), format!("0x{:X}", v.wrapping_add(1))),
                 Err(_) => continue,
@@ -280,8 +294,8 @@ fn passes(cmd: &str) -> Result<bool> {
 }
 
 fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
-    let original = std::fs::read_to_string(file)
-        .with_context(|| format!("cannot read {}", file.display()))?;
+    let original =
+        std::fs::read_to_string(file).with_context(|| format!("cannot read {}", file.display()))?;
     let backup = make_recoverable(file, &original)?;
 
     // A checker that is already failing cannot tell us anything about a
