@@ -19,6 +19,7 @@ mod prcheck;
 mod red;
 mod rtl;
 mod sweep;
+mod vectors;
 mod synth;
 
 #[derive(Parser)]
@@ -123,6 +124,12 @@ enum Commands {
     Hooks {
         #[command(subcommand)]
         action: hooks::HooksCmd,
+    },
+    /// The executed-vector registry: run a module's vectors, or inventory
+    /// which files are executed and which are only displayed.
+    Vectors {
+        #[command(subcommand)]
+        action: vectors::VectorsCmd,
     },
 }
 
@@ -725,6 +732,7 @@ fn main() -> Result<()> {
         Commands::Synth { action } => synth::run(action)?,
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
+        Commands::Vectors { action } => vectors::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
