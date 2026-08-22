@@ -13079,8 +13079,38 @@ impl VerilogCodegen {
         // W527: cache local variable types for array-of-struct resolution.
         for stmt in &node.children {
             if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
-                self.local_types
-                    .insert(stmt.name.clone(), stmt.extra_type.clone());
+                // #2325: an UNANNOTATED local (`var result = make_config(...)`)
+                // recorded an empty type, so `result.port_count` fell past the
+                // part-select branch and flattened to the unbound
+                // `result_port_count` (hir.v, memory.v, timing.v). Recover the
+                // type from the callee when the initializer is a call, exactly
+                // as the test-block binding path does since #2413. Only walks
+                // top-level statements, matching the existing registration.
+                let ty = if stmt.extra_type.is_empty() {
+                    match stmt.children.first() {
+                        // `var x = make_thing(...)` -- the callee's return type.
+                        Some(c) if c.kind == NodeKind::ExprCall => self
+                            .fn_return_types
+                            .get(&c.name)
+                            .cloned()
+                            .unwrap_or_default(),
+                        // `var result = mem;` -- copy of a param or an earlier
+                        // local. This is the shape that actually dominates the
+                        // corpus (hir.t27's mem_add_port and its siblings): the
+                        // call-only version measured ZERO change over the fpga
+                        // set before this arm was added.
+                        Some(c) if c.kind == NodeKind::ExprIdentifier => self
+                            .param_types
+                            .get(&c.name)
+                            .or_else(|| self.local_types.get(&c.name))
+                            .cloned()
+                            .unwrap_or_default(),
+                        _ => String::new(),
+                    }
+                } else {
+                    stmt.extra_type.clone()
+                };
+                self.local_types.insert(stmt.name.clone(), ty);
             }
         }
         for (pname, ptype) in &node.params {
