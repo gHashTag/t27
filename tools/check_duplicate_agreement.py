@@ -33,7 +33,12 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# T73: overridable so the negative control can point the WHOLE program at a
+# planted tree and run it end to end. Nothing in the repository sets it; if it
+# is set to a directory without a built t27c, the tool exits loudly rather than
+# passing.
+ROOT = os.environ.get("T27_DUP_ROOT") or os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))
 
 # name -> (C signature regex, extra functions it needs, the enumeration body)
 CASES = {
@@ -108,19 +113,61 @@ def scan(wd):
     return out
 
 
+FIXTURE = """module DupFixture{tag}
+
+fn tmul(ta: i8, tb: i8) -> i8 {{
+    if (ta == 0) {{ return 0; }}
+    if (tb == 0) {{ return 0; }}
+    if (ta == tb) {{ return {agree}; }}
+    return {differ};
+}}
+
+test t_{tag}
+    given a = tmul(1, 1)
+    then a == {agree}
+"""
+
+
+def self_check():
+    """Plant a real disagreement and run THIS WHOLE FILE against it.
+
+    T73: the previous control built a literal `fake = {"x": {...}}`, evaluated
+    a comprehension written inside itself, and returned before the reporting
+    block. It proved that the copy of the comparison living in the control
+    worked. Measured: three mutants of the REAL logic -- the verdict flag
+    inverted, the digest grouping key destroyed, a bare `return 0` planted
+    ahead of the report -- each let a genuinely divergent tree pass with exit
+    0, and this control stayed green for two of them with identical output.
+
+    A control has to execute the thing it certifies. This one spawns the gate
+    as a subprocess against a planted tree, so scan(), the grouping, the report
+    block and main()'s own return value all run. Both the message and the exit
+    code are asserted: a fixture that stops compiling makes the child exit 1
+    through the unrelated "no duplicated function found" guard, so an
+    exit-code-only assertion would go wrongly green.
+    """
+    t = t27c()
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "specs/ternary"))
+        os.makedirs(os.path.join(td, "target/release"))
+        os.symlink(t, os.path.join(td, "target/release/t27c"))
+        for tag, agree, differ in (("A", "1", "-1"), ("B", "-1", "1")):
+            with open(os.path.join(td, f"specs/ternary/{tag.lower()}.t27"), "w") as fh:
+                fh.write(FIXTURE.format(tag=tag, agree=agree, differ=differ))
+        r = subprocess.run([sys.executable, os.path.abspath(__file__)],
+                           capture_output=True, text=True,
+                           env={**os.environ, "T27_DUP_ROOT": td})
+    split = "FAIL tmul" in r.stdout and "DIFFERENT behaviours" in r.stdout
+    print(f"  self-check: planted divergence reported as a split = {split}")
+    print(f"  self-check: the gate's exit code on it = {r.returncode} (want 1)")
+    return 0 if (split and r.returncode == 1) else 1
+
+
 def main():
+    if "--self-check" in sys.argv:
+        return self_check()
     with tempfile.TemporaryDirectory() as wd:
         found = scan(wd)
-        if "--self-check" in sys.argv:
-            # A grouping that cannot report disagreement is not a check. Prove the
-            # comparison separates two digests when they differ.
-            fake = {"x": {"aaaa": ["a.t27"], "bbbb": ["b.t27"]}}
-            bad = [n for n, g in fake.items() if len(g) > 1]
-            print(f"  self-check: differing digests are reported as a split = {bad == ['x']}")
-            print(f"  self-check: the scan found {sum(len(g) for g in found.values())} "
-                  f"digest group(s) over {len(found)} function(s) in the real tree")
-            return 0 if bad == ["x"] and found else 1
-
         if not found:
             print("FAIL: no duplicated function was found at all -- the extraction is broken, "
                   "not the tree (tmul alone is defined in 14 specs)")
