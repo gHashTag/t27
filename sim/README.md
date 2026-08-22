@@ -70,3 +70,76 @@ The AXI read slave holds `rlast` low and streams beats indefinitely, so
 termination is decided purely by the DUT's own byte/word counter. That isolates
 the counter-to-address path under test; `arlen` being hardwired to `8'hFF`
 regardless of `length` is issue #1970 and is not exercised here.
+
+## `tb_bitnet_dma_write_address.v` — issue #2003
+
+Differential harness for the DMA local-write off-by-one: the pre-fix
+`dma_controller` raised `local_we` and post-incremented `local_addr` in the same
+non-blocking group, so beat N was written at address N+1, address 0 was never
+written, and the slot one past the transfer was clobbered.
+
+It instantiates the **pre-fix** and **post-fix** renderings of `dma_controller`
+in one simulation and drives them from identical stimulus. The two renderings
+differ only in the `--module-name` passed to the emitter.
+
+Every check is made at the module **ports**, so the harness is independent of
+the internal register name. A later wave renamed the fix's `beat_index` to
+`word_index`; the harness runs unmodified against both.
+
+### Reproducing
+
+`bitnet_dma.rs` has no `use` statements and no `crate::` references, so the
+emitter compiles standalone — no cargo build and no target directory are
+required:
+
+```
+for ref in <base-sha> <head-sha> master; do
+  gh api "repos/gHashTag/t27/contents/bootstrap/src/bitnet_dma.rs?ref=$ref" \
+     --jq .content | base64 -d > dma_$ref.rs
+  printf '#[path = "dma_%s.rs"]\nmod e;\nfn main(){let a:Vec<String>=std::env::args().collect();print!("{}",e::build_dma_controller(&a[1]));}\n' "$ref" > drv_$ref.rs
+  rustc -O --edition 2021 -o drv_$ref drv_$ref.rs
+done
+./drv_<base-sha> dma_old > dma_old.v
+./drv_<head-sha> dma_new > dma_new.v
+```
+
+where `<base-sha>`/`<head-sha>` are the base and head of PR #2345
+(`cb1f0d4eb980` and `4db5729b1817`). Then:
+
+```
+iverilog -g2005 -o tb.vvp sim/tb_bitnet_dma_write_address.v dma_old.v dma_new.v
+vvp tb.vvp
+```
+
+Substituting current master's rendering for `dma_new.v` also passes; master adds
+an `overflow` output (issue #2002), which this harness leaves unconnected.
+
+### What it asserts
+
+The measured property is **beat N is written at local address N, and no address
+outside `0..N-1` is written**. Address *and* payload are checked together: an
+address-only check passes for a controller that writes the right slots in the
+wrong order.
+
+| case | stimulus | expectation |
+|---|---|---|
+| 1 | 4-beat read transfer | old writes 1..4 and never writes address 0; new writes 0..3, each exactly once, address K holding beat K |
+| 2 | a second transfer, no reset between | new again writes 0..3 — the fix clears its index in the IDLE start branch, not only at reset |
+| 3 | control: write direction (`direction=1`) | `READ_DATA` is never entered, so old and new must agree on AXI write beats, local writes and `done` |
+
+Case 1 also asserts that the **old** rendering still misses address 0 and still
+clobbers address 4, and case 3 asserts the control actually produced AXI write
+beats. Without those the harness could pass while never reaching the behaviour
+it exists to demonstrate.
+
+Case 2 is the only case that constrains the IDLE re-arm: deleting just that line
+from the post-fix rendering leaves case 1 passing and fails case 2 with
+`addr_range=4..7`.
+
+### Status
+
+This is a **reporting** instrument, not a gate. Nothing in CI runs it: `cargo
+test -p t27c` is invoked by no workflow (removed by #2292) and `fpga-build.yml`
+never calls `vvp` (#2241). It prints `RESULT: PASS`/`RESULT: FAIL` and exits 0
+either way, matching `tb_bitnet_request_overflow.v`. Wiring `sim/` into CI is
+tracked separately.
