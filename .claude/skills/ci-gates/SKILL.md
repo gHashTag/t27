@@ -339,3 +339,47 @@ Rules the first registry distilled (t27 #2241, mac 18 cases in one day):
   dims spelled as const names never parsed, so AoS declarations emitted TODOs
   and every access flattened. One pre-codegen substitution pass (integer-literal
   consts into type strings) unlocked declaration, literal and access at once.
+
+## 13. Emitter-class repair: measure the radius, then measure each arm
+
+One evening took the 32-module fpga set from 573 iverilog elaboration errors to
+186 across three emitter classes. What made that possible was not insight about
+Verilog — it was refusing to write a line of code before a number existed, and
+refusing to believe the fix worked until a second number said so.
+
+**Measure the radius before the change.** "A string field blocks lowering" is a
+guess; "100 of 438 structs are rejected ONLY by string fields, every other field
+being a primitive scalar" is a decision. The second sentence also tells you the
+change is safe: a struct that never lowered cannot have its layout shifted.
+
+**Measure each arm separately, and believe the zero.** The unannotated-local fix
+has two arms — initializer is a call, initializer copies a param. The call arm
+was written first because it is the obvious one, and it moved the count by
+EXACTLY ZERO (213 → 213). The copy-of-parameter arm is what this corpus needed.
+Had both landed together, the commit would have claimed a fix for something that
+never fired.
+
+**Verify ordering instead of assuming it.** The local-type registration reads
+`param_types`; if params were registered after locals, the lookup would silently
+read an empty map and the fix would "work" for the wrong reason. Four lines of
+source settled it. A fix that works by accident regresses the moment the
+accident stops.
+
+**Fixing one flattening class can create another.** The first nested-path
+version resolved exactly one trailing field and emitted
+`cat[(0 + i*233 + 40) +: 160]_luts` — a part-select with an identifier glued to
+it, which is the *same* defect one layer out. yosys caught it in one smoke run
+(32/32 → 31/32). Always run the full smoke set on a change to the expression
+emitter; the new defect will not be where you were looking.
+
+**A control that does not fire is not a control.** A negative control for the
+elaboration ratchet was written as a no-op string replacement; the gate "passed"
+and proved nothing. Controls need their own verification: change the input, see
+the output change, then restore. Twice this month a silently-inert control
+almost certified a gate that could not fail.
+
+**Hold the win with a per-module ratchet.** 573 → 186 is invisible to a job that
+executes two modules and lints the rest with a tool (yosys) that accepts what
+iverilog rejects. The baseline records the count per module, fails naming the
+module and both numbers, and does not demand zero — the remainder is two named
+design decisions, not an oversight.
