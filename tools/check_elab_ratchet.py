@@ -29,17 +29,38 @@ Two things this gate counts carefully, because it got both wrong once:
 
     tools/check_elab_ratchet.py                    # verify
     tools/check_elab_ratchet.py --update-baseline  # after a deliberate change
+    tools/check_elab_ratchet.py --self-check       # negative control
 
 Requires iverilog and a built t27c; skips cleanly (exit 0) when either is
 missing, so a Rust-only checkout is never blocked by it.
 """
+import os
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+# T88: overridable so the negative control can aim the WHOLE program at a
+# planted tree -- the real regeneration, the real iverilog, the real
+# comparison. Nothing in the repository sets it.
+#
+# It is read here, at import, and that is exactly what makes it usable: the
+# control re-runs THIS FILE as a subprocess rather than copying it somewhere.
+# A copy is how this goes wrong. ROOT is `parent.parent` of the script, so a
+# control that copies the tool to a temp directory and runs it from there gets
+# ROOT=/tmp -- or, one level shallower, ROOT=/ -- where the glob matches
+# nothing, every baseline module reads as absent, and the run "passes" for a
+# reason that has nothing to do with the tree under test.
+_ENV_ROOT = os.environ.get("T27_ELAB_ROOT")
+if _ENV_ROOT and not pathlib.Path(_ENV_ROOT).is_dir():
+    sys.exit(f"T27_ELAB_ROOT={_ENV_ROOT} is not a directory")
+ROOT = (
+    pathlib.Path(_ENV_ROOT).resolve()
+    if _ENV_ROOT
+    else pathlib.Path(__file__).resolve().parent.parent
+)
 GEN = ROOT / "build/fpga/generated"
 BASELINE = ROOT / "tools/elab_baseline.txt"
 T27C = ROOT / "target/release/t27c"
@@ -54,10 +75,14 @@ NOTES_MARK = "# --- notes (hand-written, preserved) ---\n"
 SUMMARY = re.compile(r"\d+ error\(s\) during elaboration")
 
 
-def counts():
-    """{module: elaboration error count} over the generated set."""
+def counts(gen=None):
+    """{module: elaboration error count} over the generated set.
+
+    `gen` is resolved here rather than as a default argument: `def counts(gen=GEN)`
+    would bind at import, so the negative control could not aim it anywhere.
+    """
     out = {}
-    for v in sorted(GEN.glob("*.v")):
+    for v in sorted((gen or GEN).glob("*.v")):
         proc = subprocess.run(
             ["iverilog", "-g2012", "-DSIMULATION", "-o", "/dev/null", str(v)],
             capture_output=True,
@@ -114,7 +139,200 @@ def baseline():
     return d
 
 
+# --------------------------------------------------------------- control
+#
+# The fault cannot go in the corpus. main() regenerates build/fpga/generated
+# with `t27c fpga-build --smoke` BEFORE it counts, so a damaged .v planted
+# there is overwritten between the planting and the reading. The baseline is
+# the half of the comparison that survives regeneration, so that is where the
+# fault goes: record what the planted tree really contains, then change one
+# line of the record and require the gate to name the direction.
+#
+# Every marker below is the branch's own text. WORSE and NEW share a closing
+# paragraph, so those two are separated by their row prefixes instead. Each
+# case also asserts its NEIGHBOURS are silent: all four directions exit 1, so
+# an exit code cannot say which one fired, and a plant that broke some other
+# way -- a corpus that failed to generate, a baseline that failed to parse --
+# would exit 1 too, through a branch that proves nothing about the ratchet.
+WORSE_P = "A module gained elaboration errors."
+GONE_P = "A module in the baseline was not generated."
+BETTER_P = "Modules improved -- classify before recording."
+OK_LINE = "OK: no module gained elaboration errors"
+
+
+def _plant(td):
+    """A tree the gate can run in: real specs, real t27c, its own build/ and
+    tools/. The specs and the compiler are symlinked because the point is to
+    exercise the real corpus, not a toy one."""
+    t = pathlib.Path(td)
+    (t / "tools").mkdir()
+    (t / "target/release").mkdir(parents=True)
+    (t / "specs").symlink_to(ROOT / "specs")
+    (t / "target/release/t27c").symlink_to(T27C)
+    return t
+
+
+def _run(t, *args):
+    """This very file, against the planted tree.
+
+    cwd is the plant, and that is load-bearing rather than tidiness. main()
+    invokes t27c with no cwd of its own, and `fpga-build --smoke` resolves
+    specs/fpga and build/fpga/generated relative to the working directory,
+    while GEN is resolved relative to ROOT. Run the child from anywhere else
+    and the corpus is written where the gate will not look for it.
+    """
+    return subprocess.run(
+        [sys.executable, os.path.abspath(__file__), *args],
+        capture_output=True,
+        text=True,
+        cwd=str(t),
+        env={**os.environ, "T27_ELAB_ROOT": str(t)},
+    )
+
+
+def _rows(t):
+    """(header lines, [(module, count)]) of the planted baseline.
+
+    Splitting the file to edit one line is fixture construction. It is not the
+    comparison -- that stays in main(), in the child process, where the control
+    cannot reach in and rewrite it.
+    """
+    head, rows = [], []
+    for ln in (t / "tools/elab_baseline.txt").read_text().splitlines():
+        if not ln.strip() or ln.startswith("#"):
+            head.append(ln)
+        else:
+            name, _, num = ln.rpartition(" ")
+            rows.append((name.strip(), int(num)))
+    return head, rows
+
+
+def _write(t, head, rows):
+    (t / "tools/elab_baseline.txt").write_text(
+        "\n".join(head + [f"{k} {v}" for k, v in rows]) + "\n"
+    )
+
+
+def _worse(head, rows):
+    """The busiest module's record loses one, so the corpus is now above it.
+    Taking the largest count means this still plants a fault on the day every
+    module reaches zero -- the record goes to -1 and 0 > -1 is still WORSE."""
+    i = max(range(len(rows)), key=lambda j: rows[j][1])
+    rows[i] = (rows[i][0], rows[i][1] - 1)
+    return head, rows
+
+
+def _new(head, rows):
+    """A generated module the baseline has never heard of."""
+    return head, rows[1:]
+
+
+def _gone(head, rows):
+    """A baseline module that is not generated -- the disappearance that reads
+    as progress in the total, which is why the gate iterates the union."""
+    return head, rows + [("zz_never_generated", 1)]
+
+
+def _better(head, rows):
+    """An improvement, which must be recorded rather than silently banked."""
+    rows[0] = (rows[0][0], rows[0][1] + 1)
+    return head, rows
+
+
+def _case(t, label, mutate, want, absent):
+    _write(t, *mutate(*_rows(t)))
+    r = _run(t)
+    named = all(w in r.stdout for w in want)
+    quiet = not any(a in r.stdout for a in absent)
+    ok = named and quiet and r.returncode == 1
+    print(
+        f"  self-check {label:<6}: named = {named}, neighbours silent = {quiet}, "
+        f"exit = {r.returncode} (want 1)"
+    )
+    if not ok:
+        print(f"      wanted {want}\n      absent {absent}")
+        print("      " + "\n      ".join((r.stdout + r.stderr).splitlines()[-14:]))
+    return ok
+
+
+def _check_summary_filter():
+    """counts() must read iverilog's closing total as a TOTAL, not an error.
+
+    This is the one defect this file records having shipped, and the four
+    direction cases below are structurally blind to it: they take a baseline
+    written by counts() and move it by a known delta, so a miscount shifts the
+    record and the measurement by the same amount and cancels. Only an
+    ABSOLUTE expectation catches it, which needs a module whose errors are
+    hand-made rather than generated.
+
+    `missing_mod` is instantiated once and never defined. iverilog emits one
+    diagnostic line for it and then "2 error(s) during elaboration." -- so the
+    filter is the whole difference between 1 and 2 here, which is exactly the
+    one-phantom-per-failing-module that put a published figure 25 too high.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        g = pathlib.Path(td)
+        (g / "clean.v").write_text("module clean; endmodule\n")
+        (g / "one.v").write_text("module one; missing_mod u(); endmodule\n")
+        got = counts(g)
+    ok = got == {"clean": 0, "one": 1}
+    print(f"  self-check counts: clean 0, one real error 1, total line not counted = {ok}")
+    if not ok:
+        print(f"      got {got}, want {{'clean': 0, 'one': 1}}")
+    return ok
+
+
+def self_check():
+    """Plant a fault in the ratchet's record and require the gate to name it."""
+    if not shutil.which("iverilog") or not T27C.exists():
+        # The gate skips without these, so the control cannot run either. Say
+        # that it proved nothing rather than letting a green be read as one.
+        print("SKIP: iverilog or target/release/t27c missing -- control PROVED NOTHING")
+        return 0
+
+    ok = _check_summary_filter()
+
+    with tempfile.TemporaryDirectory() as td:
+        t = _plant(td)
+
+        # Ground truth, written by the gate's OWN --update-baseline, against
+        # the PLANTED tree and never the repository. Deriving it beats
+        # hardcoding numbers: the fault below is a known delta from a record
+        # that was true one run earlier, whatever the real counts are today,
+        # so this control does not rot as the corpus improves.
+        u = _run(t, "--update-baseline")
+        if u.returncode != 0 or not (t / "tools/elab_baseline.txt").exists():
+            print("  self-check: could not record a baseline in the plant")
+            print("      " + (u.stdout + u.stderr).strip()[-400:])
+            return 1
+        truth = (t / "tools/elab_baseline.txt").read_text()
+
+        # The plant must be GREEN before it is faulted. Without this the four
+        # cases below could all be firing on a broken plant rather than on the
+        # fault, and a red for the wrong reason is what this whole exercise is
+        # about.
+        c = _run(t)
+        if OK_LINE not in c.stdout or c.returncode != 0:
+            print(f"  self-check: plant not clean before faulting (exit {c.returncode})")
+            print("      " + (c.stdout + c.stderr).strip()[-400:])
+            return 1
+        print(f"  self-check clean : {OK_LINE!r}, exit = {c.returncode} (want 0)")
+
+        for label, mut, want, absent in (
+            ("WORSE", _worse, ["  WORSE   ", WORSE_P], ["  NEW     ", GONE_P, BETTER_P]),
+            ("NEW", _new, ["  NEW     ", WORSE_P], ["  WORSE   ", GONE_P, BETTER_P]),
+            ("GONE", _gone, ["  GONE    ", GONE_P], [WORSE_P, BETTER_P]),
+            ("BETTER", _better, ["  BETTER  ", BETTER_P], [WORSE_P, GONE_P]),
+        ):
+            (t / "tools/elab_baseline.txt").write_text(truth)
+            ok = _case(t, label, mut, want, absent + [OK_LINE, "SKIP:"]) and ok
+        return 0 if ok else 1
+
+
 def main():
+    if "--self-check" in sys.argv:
+        return self_check()
+
     if not shutil.which("iverilog") or not T27C.exists():
         print("SKIP: iverilog or target/release/t27c missing")
         return 0

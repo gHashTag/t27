@@ -782,6 +782,23 @@ jobs:
           # so without this ratchet the win can slide back invisibly.
           python3 tools/check_elab_ratchet.py
 
+      # T88: the ratchet's own control. Plants a NEW module, a GONE module and a
+      # BETTER one against a stub iverilog, and asserts each is named by its own
+      # class while its neighbours stay silent -- the GONE and BETTER directions
+      # share an exit code, so a code-only assertion cannot tell them apart.
+      - name: Elaboration ratchet must go red (negative control)
+        run: python3 tools/check_elab_ratchet.py --self-check
+
+      # A gate nobody has seen fail is not a gate. This plants each failing
+      # class in a temp tree -- data lost, file emptied, file corrupted, file
+      # deleted, a new prose-only file, an unrecorded gain -- and runs the whole
+      # gate against it through T27_VECTOR_ROOT, asserting the MESSAGE of the
+      # branch and the ABSENCE of its neighbours. Mutation-tested: swallowing a
+      # parse failure as (0, 0) again still exits 1, through EMPTIED, so an
+      # exit-code-only control would stay green on exactly the T67 bug.
+      - name: A vector case must carry data (negative control)
+        run: python3 tools/check_vector_data.py --self-check
+
       - name: A vector case must carry data, not only prose
         run: |
           # #2241: 412 of 512 cases carry an id and a sentence and nothing else.
