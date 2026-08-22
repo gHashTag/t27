@@ -3212,6 +3212,32 @@ impl Parser {
 
     /// Parse a single statement inside a function body
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
+        // `defer <stmt>;` / `errdefer <stmt>;` -- Zig's scope-exit hook. Not
+        // keywords in this lexer, so the statement parsed as the expression
+        // `defer` and whatever followed became "unexpected token after
+        // expression statement".
+        //
+        // ATTACHED, not skipped -- unlike `inline` below. `inline` is a hint a
+        // non-unrolling parser can ignore with nothing lost; a dropped `defer`
+        // silently removes a release, a close or a free. The distinction is the
+        // same one the `while` continue expression got: skip what carries no
+        // meaning, keep what does, and let a backend refuse a marker it does
+        // not know rather than emit code missing a step.
+        if self.current.kind == TokenKind::Ident
+            && (self.current.lexeme == "defer" || self.current.lexeme == "errdefer")
+        {
+            let name = self.current.lexeme.clone();
+            let line = self.current.line as u32;
+            self.advance();
+            let inner = self.parse_body_stmt()?;
+            let mut node = Node::new(NodeKind::StmtExpr);
+            node.name = name;
+            node.extra_op = "scope_exit".to_string();
+            node.line = line;
+            node.children.push(inner);
+            return Ok(node);
+        }
+
         // `inline for (...)` / `inline while (...)` -- Zig's unroll hint. It is
         // not a keyword in this lexer, so it arrived as an identifier, the
         // statement was parsed as the expression `inline`, and the loop keyword
@@ -4497,6 +4523,43 @@ impl Parser {
                 idx_node.children.push(expr);
                 idx_node.children.push(index);
                 expr = idx_node;
+            } else if self.current.kind == TokenKind::LBrace
+                && self.no_struct_literal == 0
+                && expr.kind == NodeKind::ExprCall
+            {
+                // `Type(args){}` -- a call that RETURNS a type, initialised on
+                // the spot: `GeneralPurposeAllocator(.{}){}`. The call itself is
+                // built in primary, so this has to live in the postfix chain to
+                // see it; putting it beside the expression-call branch missed,
+                // because `ident(...)` never reaches that branch.
+                //
+                // Two guards, both load-bearing. `no_struct_literal` is the
+                // same counter that stops `if cond {` being read as a struct
+                // literal -- inside a paren-less condition this brace opens the
+                // BODY. And the left side must already BE a call: a bare
+                // `name {` is a struct literal or a block and is not this.
+                let mut init = String::new();
+                let mut depth = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            depth += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => depth -= 1,
+                        _ => {}
+                    }
+                    if !init.is_empty() {
+                        init.push(' ');
+                    }
+                    init.push_str(&self.current.lexeme);
+                    self.advance();
+                    if seen && depth == 0 {
+                        break;
+                    }
+                }
+                expr.value = init;
             } else if self.current.kind == TokenKind::LParen {
                 // A call on an ARBITRARY expression. The comment this replaces
                 // said it "shouldn't normally happen", and `func.?(a, b)` in
