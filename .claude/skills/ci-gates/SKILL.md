@@ -378,6 +378,14 @@ and proved nothing. Controls need their own verification: change the input, see
 the output change, then restore. Twice this month a silently-inert control
 almost certified a gate that could not fail.
 
+**Classify the WHOLE list, not its head.** After three fixes I wrote that "the
+remainder is two design decisions" — from the top six rows of the error output.
+Checking all of it later gave 48 unique names and 68 references, and the claim
+happened to hold: 56 string reads, 12 unsized-array reads, zero anything else.
+It held; it was still stated before it was checked, which is the same sampling
+habit that produced a five-fold overcount elsewhere in this repo. A remainder is
+a claim like any other — enumerate it exhaustively, or say you sampled.
+
 **Hold the win with a per-module ratchet.** 573 → 186 is invisible to a job that
 executes two modules and lints the rest with a tool (yosys) that accepts what
 iverilog rejects. The baseline records the count per module, fails naming the
