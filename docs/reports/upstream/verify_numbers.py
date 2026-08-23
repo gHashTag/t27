@@ -1017,5 +1017,33 @@ if dl:
     e = dl["environment"]
     check("освобождено ГиБ", e["free_gib_after"] - e["free_gib_before"], 0.73, tol=0.02)
 
+# W993: the tool that ate a run, the defect that exposed, and the dashboard gate.
+tw = rec("tooling_w993.json")
+if tw:
+    print("\n== инструментальные дефекты и гейт дашборда (W993)")
+    d1 = tw["the_tool_defect_that_ate_a_run"]
+    check("третий случай одной формы", len(d1["third_instance_of_one_shape"]), 3, tol=0)
+    check("механизм назван -- pipefail",
+          "pipefail" in d1["mechanism"], True, tol=0)
+    check("починка -- один помощник, а не заплатки",
+          "one helper that cannot fail" in d1["repair"], True, tol=0)
+    check("проверено на ломавшем выводе",
+          "the exact output that broke it" in d1["validated_on"], True, tol=0)
+    d2 = tw["the_second_defect_the_first_one_exposed"]
+    check("ABSENT назван не-вердиктом",
+          "ABSENT is not a verdict" in d2["why_it_is_wrong"], True, tol=0)
+    check("второй дефект не выдан за починенный",
+          d2["status"].startswith("found this wave, not yet repaired"), True, tol=0)
+    tr = tw["train1_regression"]
+    check("локализовано ниже проверки цепочки",
+          "downstream" in tr["what_that_locates"], True, tol=0)
+    check("не объяснено -- и так и сказано",
+          "not_yet_explained" in tr, True, tol=0)
+    dg = tw["dashboard_gate"]
+    check("гейт различает две причины",
+          "different defects, same symptom" in dg["distinction_stated"], True, tol=0)
+    check("проверен в обе стороны", "exits 1" in dg["validated"], True, tol=0)
+    check("апстрим слит", tw["upstream"]["state"] == "MERGED", True, tol=0)
+
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)

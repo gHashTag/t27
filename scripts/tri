@@ -38,6 +38,7 @@ Local commands (no compiler needed):
   tri table                   the operator table, derived from every die read on record
   tri compare [WIDTH]         head-to-head against posit/takum/fp at one width, computed from the oracles
   tri dashboard [OUT.html]    the wave dashboard, derived from the board, the records and the ledger
+  tri dashboard --check       does the published copy's wave stamp still agree with the board?
   tri help                    this text
 
 Environment:
@@ -98,7 +99,10 @@ case "$cmd" in
     #
     #   tri dashboard [OUT.html]
     OUT="${2:-$REPO_ROOT/docs/reports/dashboard.html}"
-    OUT="$OUT" ROOT="$REPO_ROOT" TRI="$0" python3 - <<'PYDASH'
+    CHECK=0; [ "${3:-}" = "--check" ] || [ "${2:-}" = "--check" ] && CHECK=1
+    [ "${2:-}" = "--check" ] && OUT="$REPO_ROOT/docs/reports/dashboard.html"
+    OUT="$OUT" ROOT="$REPO_ROOT" TRI="$0" CHECK="$CHECK" \
+      PUBLISHED="${T27_DASHBOARD:-}" python3 - <<'PYDASH'
 import os, re, subprocess, pathlib, html
 
 TEMPLATE = """<title>t27 - TNF: волна W{wave}</title>
@@ -262,6 +266,31 @@ OUT.write_text(TEMPLATE.format(
     trows=trows, logrows=logrows))
 print(f"tri dashboard: {OUT} -- волна W{wave_no}, готовность {ready} %, "
       f"{len(rows)} операторов, {len(log)} записей журнала")
+
+# W993: the dashboard is a DELIVERABLE of every iteration, and for eleven waves
+# the only thing keeping its wave stamp in step with the repository was somebody
+# remembering. `--check` compares the stamp the board says with the stamp the
+# published copy carries, so a wave that forgets to republish is caught by the
+# same command that catches a lesson-numbering gap.
+import sys
+if os.environ.get("CHECK") == "1":
+    pub = os.environ.get("PUBLISHED", "")
+    pw = None
+    if pub and pathlib.Path(pub).exists():
+        m = re.search(r"волна <b>W(\d+)</b>", pathlib.Path(pub).read_text(errors="replace"))
+        pw = m.group(1) if m else None
+    if pw is None:
+        print(f"tri dashboard: no published copy at {pub or '(unset)'} -- "
+              f"cannot compare; set T27_DASHBOARD to the file that is published")
+        raise SystemExit(0)
+    if pw != wave_no:
+        print(f"tri dashboard: STAMP DRIFT -- the board says W{wave_no}, "
+              f"the published copy says W{pw}")
+        print("The dashboard is a deliverable of every iteration. A stale stamp means")
+        print("either the page was not republished or the board was not updated, and")
+        print("the two are different defects with the same symptom.")
+        raise SystemExit(1)
+    print(f"tri dashboard: published copy agrees with the board at W{wave_no}")
 PYDASH
     exit $?
     ;;
@@ -582,11 +611,27 @@ PYSLOPE
     for sd in $SEEDS; do
       out="$("$T27C" silicon "$SPEC" --top "$W_V" --busdev-num "$BUS" \
               --wrong-part "$CTRL" --pnr-seed "$sd" 2>&1 || true)"
-      line="$(printf '%s' "$out" | grep -E 'B2 read' || true)"
-      site="$(printf '%s' "$out" | grep -oE 'at BSCAN[0-9]' | tail -1 | tr -dc '0-9')"
-      word="$(printf '%s' "$line" | grep -oE '0x[0-9a-f]{8}' | tail -1)"
-      cl="$(printf '%s' "$line" | grep -oE 'clauses=[01]{4}' | tail -1 | sed 's/clauses=//')"
-      okv="$(printf '%s' "$line" | grep -oE 'ok=[01]' | tail -1 | sed 's/ok=//')"
+      # W993: every one of these greps can legitimately find NOTHING -- that is
+      # what a failed build looks like -- and under `set -o pipefail` a grep that
+      # matches nothing fails its pipeline, fails the substitution, and `set -e`
+      # ends the run BEFORE the row is printed. So the tool discarded the result
+      # of a thirty-minute place-and-route in exactly the case the row exists to
+      # report, and printed a header with nothing under it. Third instance of this
+      # shape in one session (the `grep -l` abort in `tri audit`, the
+      # `printf | grep -q` inversion in `tri miter`, this).
+      #
+      # `pick` makes the failure mode impossible rather than guarded one call at a
+      # time: it always succeeds, and an empty answer is an answer.
+      pick() { printf '%s' "$1" | grep -oE "$2" 2>/dev/null | tail -1 || true; }
+      line="$(pick "$out" '.*B2 read.*')"
+      site="$(pick "$out" 'at BSCAN[0-9]' | tr -dc '0-9' || true)"
+      word="$(pick "$line" '0x[0-9a-f]{8}')"
+      cl="$(pick "$line" 'clauses=[01]{4}' | sed 's/clauses=//' || true)"
+      okv="$(pick "$line" 'ok=[01]' | sed 's/ok=//' || true)"
+      # A build that produced no verdict is still a measurement: say why.
+      if [ -z "$cl" ]; then
+        if printf '%s' "$out" | grep -q 'ABSENT' 2>/dev/null; then cl="CAP"; else cl="ABSENT"; fi
+      fi
       printf '%-8s %-10s %-8s %-10s %s\n' "$sd" "${cl:-ABSENT}" "${okv:-?}" "${site:-?}" "${word:-none}"
       case "$okv" in 1) P=$((P+1));; 0) F=$((F+1));; esac
       WORDS="$WORDS ${cl:-ABSENT}"
@@ -1572,6 +1617,16 @@ PYGRID
       case "$o" in *", 0 folded"*) ;; *) CLF=$((CLF+1)); echo "FAIL  clauses   $(basename "$w"): $o"; bad=1 ;; esac
     done
     [ "$CLF" = "0" ] && echo "ok    clauses   $CLW wrapper(s), none folded to a constant"
+    if [ -n "${T27_DASHBOARD:-}" ]; then
+      if out="$("$0" dashboard --check 2>&1)"; then
+        echo "ok    dash      $(printf '%s' "$out" | grep -E '^tri dashboard:' | tail -1 | sed 's/^tri dashboard: //')"
+      else
+        echo "FAIL  dash      $(printf '%s' "$out" | grep -E 'STAMP DRIFT' | tail -1)"
+        bad=1
+      fi
+    else
+      echo "info  dash      T27_DASHBOARD unset -- stamp not compared"
+    fi
     if out="$("$0" domain 2>&1)"; then
       echo "ok    domain    $(printf '%s' "$out" | grep -E '^tri domain:' | sed 's/^tri domain: //')"
     else

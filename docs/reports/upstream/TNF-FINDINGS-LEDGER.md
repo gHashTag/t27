@@ -2548,3 +2548,46 @@ read here is trusted. Both match the pattern `xc7a100t`; neither is a chipdb. A
 every subsequent `done 1` into an unbracketed claim.
 
 Delete by enumerated path, never by glob, and read the out-of-scope notes hardest.
+
+## 62. The tool ate a run, and fixing it exposed the next defect (W993)
+
+Two designs were run to completion -- one of them more than half an hour of
+place-and-route -- and `tri seeds` printed a header with nothing under it.
+
+Under `set -o pipefail`, a build that fails produces no `at BSCAN` line, `grep`
+exits 1, the pipeline fails, the command substitution fails, and `set -e` ends the
+run **before the row is printed**. The tool discarded the result in exactly the
+case the row exists to report, and reported nothing rather than `ABSENT`.
+
+That is the third instance of one shape in a single session. `grep -l` exiting 1
+on no match aborted `tri audit` precisely when the corpus became clean; `printf |
+grep -q` inverted a successful SAT proof into a refutation because `-q` exits at
+the first match and kills the writer with SIGPIPE; and this. **A shell that treats
+"found nothing" as failure will fail hardest on the empty case, which is the case
+worth reporting.** The repair is not another `|| true` per call site but one
+helper that cannot fail, with the row printed from whatever it returned and an
+explicit `ABSENT` or `CAP` when the verdict is missing. Validated on the exact
+output that broke it.
+
+The first row printed then earned its keep immediately -- and exposed the next
+defect. Two `ABSENT` results produced *0 pass, 0 fail over 2 placements* followed
+by *One verdict across every placement tried*: a sentence written to be honest
+about a clean sweep, now applied to a sweep that measured nothing. **`ABSENT` is
+not a verdict, it is the absence of one.** W977 established that split -- *the
+ABSENT/FAIL split matters: one genuine timing miss, not three* -- and the tool
+collapsed it one command later. It is recorded and not yet repaired: the script
+was executing while the run was in flight.
+
+The measurement underneath is a regression that is not yet explained.
+`gft_train1` reads `ABSENT` at both new placements, with BSCAN sites 2 and 4
+captured -- so synthesis, place-and-route and the chain check all completed and
+the failure is downstream, in `fasm2frames`, the bitstream or the read. W988
+recorded the same design at `1111` in 536.85 s. The tool does not keep the failing
+stage line, which is the next thing it should do.
+
+Two things were finished cleanly. `tri dashboard --check` compares the wave stamp
+on the status board against the stamp in the published copy and exits 1 on drift,
+naming the ambiguity rather than hiding it: a stale stamp means either the page
+was not republished or the board was not updated, and those are different defects
+with the same symptom. And tf#727 carried W991's competitor table and W992's
+deletion audit upstream.

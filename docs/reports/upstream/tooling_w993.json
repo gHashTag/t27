@@ -1,0 +1,44 @@
+{
+ "wave": "W993",
+ "options_taken": "all three -- collect the in-flight runs, push W991+W992 upstream, gate the dashboard stamp",
+ "the_tool_defect_that_ate_a_run": {
+  "symptom": "tri seeds ran two designs to completion -- one of them more than half an hour of place-and-route -- and printed a header with NOTHING under it",
+  "mechanism": "site=\"$(printf '%s' \"$out\" | grep -oE 'at BSCAN[0-9]' | tail -1 | tr -dc '0-9')\". A failed build has no 'at BSCAN' line; grep exits 1, pipefail fails the pipeline, the substitution fails, and set -e ends the run BEFORE the row prints",
+  "why_it_matters": "the tool discarded the result in exactly the case the row exists to report, and reported nothing rather than ABSENT",
+  "third_instance_of_one_shape": [
+   "grep -l exiting 1 aborted tri audit when the corpus became CLEAN (W979)",
+   "printf | grep -q inverted a successful SAT proof into a refutation (T834a, W982)",
+   "this"
+  ],
+  "repair": "one helper that cannot fail -- pick() { printf '%s' \"$1\" | grep -oE \"$2\" 2>/dev/null | tail -1 || true; } -- and a row printed from whatever it returned, with an explicit ABSENT or CAP when the verdict is missing",
+  "validated_on": "the exact output that broke it: a FAIL/ABSENT stage line now prints a row instead of killing the script"
+ },
+ "the_second_defect_the_first_one_exposed": {
+  "symptom": "with the rows printing, two ABSENT results produced 'tri seeds: 0 pass, 0 fail over 2 placement(s)' followed by 'One verdict across every placement tried'",
+  "why_it_is_wrong": "ABSENT is not a verdict, it is the absence of one, and the closing sentence reads as reassurance. This project established the ABSENT/FAIL distinction in W977 -- 'the ABSENT/FAIL split matters: one genuine timing miss, not three' -- and the tool collapses it.",
+  "status": "found this wave, not yet repaired -- the script was executing while the run was in flight and editing a running bash script risks corrupting its parse"
+ },
+ "train1_regression": {
+  "observed": "gft_train1 ABSENT at seeds 42 and 1234, BSCAN sites 2 and 4 captured, no die word",
+  "what_that_locates": "the site was captured, so synthesis, place-and-route and the chain check all completed. The failure is downstream: fasm2frames, bitstream or the read",
+  "against": "W988 recorded gft_train1 at 1111, 536.85 s, 15946 LUT under a 1800 s cap",
+  "not_yet_explained": "the tool does not keep the failing stage line, which is the next thing it should do"
+ },
+ "dashboard_gate": {
+  "command": "tri dashboard --check",
+  "compares": "the wave stamp the status board carries against the stamp in the published copy",
+  "distinction_stated": "a stale stamp means either the page was not republished or the board was not updated -- different defects, same symptom",
+  "posture": "gates when T27_DASHBOARD names the published file, info line when it does not -- a check that cannot see its input must say so rather than pass",
+  "validated": "agreement at W992 exits 0; a copy forged back to W990 exits 1"
+ },
+ "upstream": {
+  "pr": "gHashTag/trinity-fpga#727",
+  "state": "MERGED",
+  "carries": "W991 competitor table + W992 deletion audit, 543 derived checks"
+ },
+ "in_flight": {
+  "design": "gft_xorpercep",
+  "cap_s": 5400,
+  "note": "still the one operator never read off silicon"
+ }
+}

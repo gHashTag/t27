@@ -31069,6 +31069,48 @@ was given, including the half designed to contradict the first half.** Acting on
 the confirming half alone is the same error as quoting the passing clause of a
 split verdict.
 
+### T853 -- A reporting pipeline that cannot match is a reporting pipeline that cannot report [measured]
+
+`tri seeds` ran two designs to completion -- one of them more than half an hour of
+place-and-route -- and printed a header with **nothing under it**. The rows were
+never reached. Under `set -o pipefail`:
+
+    site="$(printf '%s' "$out" | grep -oE 'at BSCAN[0-9]' | tail -1 | tr -dc '0-9')"
+
+A build that fails produces no `at BSCAN` line. `grep` exits 1, the pipeline
+fails, the command substitution fails, and `set -e` ends the run **before the row
+is printed** -- so the tool discarded the result in exactly the case the row
+exists to report, and reported nothing rather than `ABSENT`.
+
+This is the **third instance of one shape in a single session**: `grep -l`
+exiting 1 on no match aborted `tri audit` precisely when the corpus became clean
+(W979); `printf | grep -q` inverted a successful SAT proof into a refutation
+because `-q` exits at the first match and kills the writer with SIGPIPE (T834a);
+and this. The pattern is not incidental -- **a shell that treats "found nothing"
+as failure will fail hardest on the empty case, which is the case worth
+reporting.**
+
+The repair is not another `|| true`. It is one helper that cannot fail:
+
+    pick() { printf '%s' "$1" | grep -oE "$2" 2>/dev/null | tail -1 || true; }
+
+and a row that is printed from whatever `pick` returned, with an explicit
+`ABSENT` or `CAP` when the verdict is missing. Validated on the exact output that
+broke it.
+
+### T853a -- The dashboard stamp becomes a gate [measured]
+
+The dashboard is a deliverable of every iteration, and for eleven waves the only
+thing keeping its wave stamp in step with the repository was somebody remembering.
+`tri dashboard --check` compares the stamp the status board carries against the
+stamp in the published copy and exits 1 on drift, with the distinction stated:
+**a stale stamp means either the page was not republished or the board was not
+updated, and those are different defects with the same symptom.** Wired into
+`tri audit` as a gate when `T27_DASHBOARD` names the published file, and as an
+`info` line when it does not -- a check that cannot see its input must say so
+rather than pass. Validated both ways: agreement at W992 exits 0, a copy forged
+back to W990 exits 1.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

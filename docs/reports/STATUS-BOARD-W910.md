@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W992, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W993, 2026-08-23)
+
+> **W993 — THE TOOL ATE A RUN, AND FIXING IT EXPOSED THE NEXT DEFECT.** All three options taken.
+> `tri seeds` had run two designs to completion — one of them **30+ minutes of place-and-route** —
+> and printed a header with **nothing under it**: under `pipefail`, `grep -oE 'at BSCAN[0-9]'`
+> finds nothing on a failed build, the substitution fails, and `set -e` ends the run **before the
+> row prints**. The tool discarded the result in exactly the case the row exists to report.
+> **Third instance of one shape in one session** — `grep -l` aborting `tri audit` when the corpus
+> became clean, `printf | grep -q` inverting a SAT proof, this. Repaired with one helper that
+> cannot fail, validated on the output that broke it. **And the repair exposed the next defect:**
+> two `ABSENT` results now print, and the summary calls them *One verdict across every placement
+> tried*. **`ABSENT` is not a verdict** — W977 established that split and the tool collapsed it.
+> Recorded, **not yet repaired**. **`gft_train1` is ABSENT at both new placements** (sites 2 and 4
+> captured, so the failure is downstream of the chain check) against W988's `1111` at 536.85 s —
+> unexplained, and the tool does not keep the failing stage line, which is the next thing it should
+> do. **Dashboard stamp is now a gate:** `tri dashboard --check`, validated in both directions.
+> **Upstream tf#727 merged** (W991 + W992). T853/T853a, lessons 1526–1527, **554 derived checks**.
+> **IN FLIGHT:** `gft_xorpercep`. **Readiness 97 %** — down one: a green row went ABSENT.
 
 > **W992 — THE AUDIT WAS RIGHT, AND I DID NOT WAIT FOR IT.** All three options taken. Freed
 > **0.73 GiB** by deleting the XC7A100T chipdb — a part not attached to this bench. Twelve agents
