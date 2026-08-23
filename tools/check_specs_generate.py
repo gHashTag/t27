@@ -496,7 +496,7 @@ def main():
         print("  parser accepting input it was built to refuse -- the comment over")
         print("  the list has said so since it was written, and nothing enforced it.")
         print("  If deliberate, add the path to GENERATING_DAMAGE_DEBT with a reason.")
-        return 0
+        return 1
 
     if departed:
         return 1
