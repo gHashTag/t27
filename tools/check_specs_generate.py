@@ -312,6 +312,24 @@ def self_check():
             baseline_lines=["specs/known.t27 | parse error in fn"],
             args=("--update-baseline",))
 
+    # T107: the ratchet's BOUNDARY. The case above proves it refuses to GROW
+    # (1 -> 2) and the case below proves it writes when the ledger SHRINKS
+    # (2 -> 1). Neither goes through EQUAL, and equal is where a ratchet is
+    # defined: `len(bad) > prior` rewritten to `>=` refuses a re-blessing that
+    # changes nothing, and passed the entire control. Found by the boundary
+    # operator (`tri gates mutate --all`).
+    #
+    # One ledger line, one still-broken spec, the same spec: the ledger is
+    # rewritten identically and that is legal. Exit and effect asserted
+    # together, and REFUSING named as absent -- it is the only marker that
+    # separates this from the mutant's behaviour.
+    spawned("blessing command rewrites an unchanged ledger", 0,
+            "baseline written: 1 entries",
+            (GREEN, NEW, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/known.t27": SPEC_BROKEN},
+            baseline_lines=["specs/known.t27 | parse error in fn"],
+            args=("--update-baseline",))
+
     # T100: the same command's SUCCESS path, which nothing asserted. The case
     # above proves --update-baseline refuses to GROW the ledger; nothing proved
     # that a legitimate blessing writes it and returns 0. `tri gates mutate
