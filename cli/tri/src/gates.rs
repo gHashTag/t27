@@ -313,73 +313,98 @@ const BOUNDARY_SWAPS: &[(&str, &str)] = &[(">=", ">"), ("<=", "<"), (">", ">="),
 /// kind of limitation this campaign has twice found to be invented. Measure
 /// first, narrow only on evidence.
 fn boundary_sites(src: &str) -> Vec<(usize, usize, String)> {
+    let b = src.as_bytes();
     let mut sites = Vec::new();
+    let mut i = 0usize;
+    let mut at_line_start = true;
     let mut in_control = false;
-    let mut off = 0usize;
-    for line in src.split_inclusive('\n') {
-        if let Some(rest) = line.strip_prefix("def ") {
-            let fname: String = rest.chars().take_while(|c| *c != '(').collect();
-            in_control = is_control_fn(&fname);
+    let mut triple: Option<[u8; 3]> = None;
+    let mut quote: Option<u8> = None;
+    let mut comment = false;
+
+    while i < b.len() {
+        if at_line_start {
+            at_line_start = false;
+            // Only when not inside a docstring: `def` at column 0 inside one is
+            // prose, and treating it as a definition is how a scanner walks out
+            // of a string it is still in.
+            if triple.is_none() && src[i..].starts_with("def ") {
+                let fname: String = src[i + 4..].chars().take_while(|c| *c != '(').collect();
+                in_control = is_control_fn(&fname);
+            }
         }
-        if in_control || line.trim_start().starts_with('#') {
-            off += line.len();
+        let c = b[i];
+        if c == b'\n' {
+            at_line_start = true;
+            comment = false;
+            quote = None; // an unterminated single quote cannot cross a line
+            i += 1;
             continue;
         }
-        let b = line.as_bytes();
-        let mut quote: Option<u8> = None;
-        let mut i = 0usize;
-        while i < b.len() {
-            let c = b[i];
-            match quote {
-                Some(q) => {
-                    if c == b'\\' {
-                        i += 2;
-                        continue;
-                    }
-                    if c == q {
-                        quote = None;
-                    }
+        // T107b: triple quotes FIRST. Tracking quotes per line took every `>`
+        // in every module docstring -- lines 10, 43, 136, 230 of four different
+        // gates, prose about ratchets and usage, reported as surviving mutants.
+        // The count was real and its meaning was not (number-audit 8.5); this
+        // is the check that stops it, and the reason the operator was measured
+        // before it was believed.
+        if quote.is_none() && !comment && i + 2 < b.len() {
+            let t3 = [b[i], b[i + 1], b[i + 2]];
+            if (t3 == [b'"', b'"', b'"']) || (t3 == [b'\'', b'\'', b'\'']) {
+                match triple {
+                    Some(open) if open == t3 => triple = None,
+                    Some(_) => {}
+                    None => triple = Some(t3),
                 }
-                None => {
-                    if c == b'"' || c == b'\'' {
-                        quote = Some(c);
-                    } else if c == b'#' {
-                        break; // trailing comment
-                    } else if c == b'<' || c == b'>' {
-                        // `->` is a return annotation, `<<`/`>>` are shifts, and
-                        // `<>` does not exist in Python 3. None is a comparison.
-                        let prev = if i > 0 { b[i - 1] } else { b' ' };
-                        let next = if i + 1 < b.len() { b[i + 1] } else { b' ' };
-                        let shift = next == c || prev == c;
-                        let annot = c == b'>' && prev == b'-';
-                        if !shift && !annot {
-                            let two = i + 1 < b.len() && next == b'=';
-                            let found = if two {
-                                if c == b'>' { ">=" } else { "<=" }
-                            } else if c == b'>' {
-                                ">"
-                            } else {
-                                "<"
-                            };
-                            if let Some((_, to)) =
-                                BOUNDARY_SWAPS.iter().find(|(from, _)| *from == found)
-                            {
-                                sites.push((off + i, found.len(), to.to_string()));
-                            }
-                            if two {
-                                i += 1;
-                            }
+                i += 3;
+                continue;
+            }
+        }
+        if triple.is_some() || comment {
+            i += 1;
+            continue;
+        }
+        match quote {
+            Some(q) => {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == q {
+                    quote = None;
+                }
+            }
+            None => {
+                if c == b'"' || c == b'\'' {
+                    quote = Some(c);
+                } else if c == b'#' {
+                    comment = true;
+                } else if (c == b'<' || c == b'>') && !in_control {
+                    let prev = if i > 0 { b[i - 1] } else { b' ' };
+                    let next = if i + 1 < b.len() { b[i + 1] } else { b' ' };
+                    let shift = next == c || prev == c;
+                    let annot = c == b'>' && prev == b'-';
+                    if !shift && !annot {
+                        let two = next == b'=';
+                        let found = match (c, two) {
+                            (b'>', true) => ">=",
+                            (b'<', true) => "<=",
+                            (b'>', false) => ">",
+                            _ => "<",
+                        };
+                        if let Some((_, to)) = BOUNDARY_SWAPS.iter().find(|(f, _)| *f == found) {
+                            sites.push((i, found.len(), to.to_string()));
+                        }
+                        if two {
+                            i += 1;
                         }
                     }
                 }
             }
-            i += 1;
         }
-        off += line.len();
+        i += 1;
     }
     sites
 }
-
 fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
     sites_in_direction(src, Direction::Silent)
 }
@@ -1172,6 +1197,32 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         assert!(s("print('a > b')\n").is_empty(), "took a single-quoted string");
         // The control's own functions are off limits, same as every operator.
         assert!(s("def self_check():\n    if a > b:\n").is_empty());
+
+        // T107b: docstrings. The first scanner tracked quotes per LINE, so
+        // every `>` in every module docstring became a site -- prose about
+        // ratchets and usage on lines 10, 43, 136 and 230 of four gates,
+        // reported as surviving mutants. Real count, wrong meaning.
+        assert!(
+            s("\"\"\"usage: x --a <b>\n  and total > 0 means data\n\"\"\"\nx = 1\n").is_empty(),
+            "took a comparison out of a module docstring"
+        );
+        assert!(
+            s("def f():\n    \"\"\"doc: a > b\n    more: c < d\n    \"\"\"\n    return 0\n").is_empty(),
+            "took a comparison out of a function docstring"
+        );
+        assert!(s("x = \'\'\'a > b\'\'\'\n").is_empty(), "took a single-quoted triple");
+        // A `def` at column 0 INSIDE a docstring is prose, not a definition:
+        // acting on it is how a scanner walks out of a string it is still in.
+        assert!(
+            s("\"\"\"\ndef self_check():\n\"\"\"\nif a > b:\n    x = 1\n").len() == 1,
+            "a def inside a docstring changed the control scope"
+        );
+        // And code AFTER a docstring is still code.
+        assert_eq!(
+            s("\"\"\"doc a > b\"\"\"\nif c > d:\n    return 1\n").len(),
+            1,
+            "lost the code after a docstring"
+        );
 
         // And it is its own operator, not a relabelling of another. This is the
         // assertion #2500 was missing.
