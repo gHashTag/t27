@@ -985,3 +985,43 @@ backticks being command substitution, which cost text out of a commit message
 and then out of a filed issue earlier in this campaign. **Long messages go
 through `-F` or a quoted heredoc, every time — there is no version of this
 that is worth retyping.**
+
+## 26. A fix in the tool is not a fix at the terminal
+
+A reviewer found that `tri gates mutate` never cleared Python's bytecode cache:
+a `.pyc` is keyed on (source mtime in whole seconds, source size), `return 1` →
+`return 0` preserves the size, and the loop writes well inside one second. That
+was fixed in the tool.
+
+Two days later I hit the identical defect **by hand**, on the same gate, while
+checking somebody's recommendation. Five quick mutations left a stale `.pyc`,
+and the control then reported five failures on a tree whose `git status` was
+empty and whose source sha matched HEAD. I spent a round chasing a phantom.
+
+**Fixing a hazard inside one tool leaves it live everywhere a person does the
+same thing manually** — and the manual path is the one used while investigating,
+which is exactly when a false red is most expensive.
+
+The repair belongs in the artefact that can be reached both ways. Here it is
+three lines in the control: drop the imported module's cached bytecode before
+importing it.
+
+### Every verdict taken before you found the broken instrument is suspect
+
+Not wrong — **suspect**. The control could have been red for the right reason or
+the wrong one, and nothing in the output distinguishes them. Re-run all of them
+and say in the write-up that the numbers are a re-measurement. I did, and they
+held; if they had not, publishing the first set would have been the finding.
+
+### Refuting a recommendation needs the same rigour as making one
+
+The recommendation was "the drift verdict is not covered; add a whole-process
+case". Three mutations of increasing narrowness — the broadest, the wiring only,
+and the drift path alone with bad-input untouched — plus a **no-op mutation as a
+control on the control**. All three killed, the no-op silent. The
+recommendation is refuted, and refuting it needed more measurements than
+accepting it would have.
+
+An unexamined recommendation costs an iteration of work. Accepting one because
+the reviewer was right about four other things is how a review's authority
+outlives its evidence.
