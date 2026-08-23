@@ -975,6 +975,22 @@ fn zig_string_body(s: &str) -> String {
 ///
 /// 20 specs emit one: `error` 23 sites, `packed` 3, `align` 2, `opaque` 1.
 fn zig_ident(name: &str) -> String {
+    // Primitive type names are not keywords, so Zig rejects them in binding
+    // position with `name shadows primitive` rather than a syntax error. Reached
+    // via `use tritype-base::usize;`, which #2578 made visible by keeping the
+    // hyphenated path -- before that the import was named `tritype` and the
+    // collision never arose.
+    const ZIG_PRIMITIVES: &[&str] = &[
+        "usize", "isize", "bool", "void", "type", "anyerror", "comptime_int",
+        "comptime_float", "noreturn", "anyopaque", "c_int", "c_uint", "c_long",
+        "c_ulong", "c_short", "c_ushort", "c_char", "f16", "f32", "f64", "f80",
+        "f128", "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64",
+        "u128",
+    ];
+    if ZIG_PRIMITIVES.contains(&name) {
+        return format!("@\"{}\"", name);
+    }
+
     const ZIG_KEYWORDS: &[&str] = &[
         "align", "allowzero", "and", "anyframe", "anytype", "asm", "async",
         "await", "break", "callconv", "catch", "comptime", "const", "continue",
@@ -1397,6 +1413,27 @@ impl Parser {
                     let first_ident = self.current.lexeme.clone();
                     full_path.push_str(&first_ident);
                     self.advance();
+
+                    // A hyphenated module name -- `use lsp-schema::Diagnostic;`.
+                    // The lexer reads `-` as an operator, so the path ended at
+                    // `lsp` and every `use lsp-schema::X;` in a file produced the
+                    // same import named `lsp`. The dedup in #2527 then collapsed
+                    // them into one line, which hid the loss rather than causing
+                    // it: server.t27 declares six imports and emitted one.
+                    //
+                    // 42 use-lines across 18 files. The hyphen is part of the
+                    // segment, so it is consumed here and mapped to `_` later by
+                    // the same rule #2537 applies to brace-list paths.
+                    while self.current.kind == TokenKind::Minus {
+                        self.advance();
+                        if self.current.kind == TokenKind::Ident {
+                            full_path.push('-');
+                            full_path.push_str(&self.current.lexeme);
+                            self.advance();
+                        } else {
+                            break;
+                        }
+                    }
 
                     // Check for aliased import: using name: @import("path");
                     if self.current.kind == TokenKind::Colon && self.peek.kind != TokenKind::Colon {
