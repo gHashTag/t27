@@ -4487,6 +4487,47 @@ impl Codegen {
         t.to_string()
     }
 
+    /// Emit an array literal as `.{ ... }`, letting the declaration's type
+    /// supply the element type.
+    ///
+    /// The literal node carries neither size nor element type -- both live on
+    /// the declaration -- so `gen_expr` wrote `[_]{...}`, which is
+    /// `expected type expression, found '{'`. Passing the declared type down
+    /// does not work either: it is the WHOLE type, `[12]PinAssignment`, and
+    /// gen_expr would wrap it again as `[_][12]PinAssignment{...}`.
+    ///
+    /// Zig infers a `.{...}` literal from the declared type, so there is
+    /// nothing to reconstruct.
+    fn gen_inferred_array(&mut self, node: &Node) {
+        self.write(".{");
+        if node.children.is_empty() {
+            // The parser puts the element list in extra_size -- the ARRAY SIZE
+            // field -- as raw text. That is why the emitter wrote
+            // `[PIN_CLK,PIN_RST_N,...]{}`: it faithfully rendered a list of
+            // twelve pin names as the array's length.
+            //
+            // A real size is a plain integer, so anything else in that field is
+            // an element list wearing the wrong name.
+            // The signal is the COMMA, not "fails to parse as a number".
+            // That first cut broke `&[_]Diagnostic{}` -- `_` is a legitimate
+            // size placeholder -- and would equally have broken `[MAX_LEN]u8`,
+            // where the size is a named constant. A size is one term; an
+            // element list is several.
+            let raw = node.extra_size.trim().trim_end_matches(',');
+            if !raw.is_empty() && node.extra_size.contains(',') {
+                self.write(&zig_path(raw));
+            }
+        } else {
+            for (i, elem) in node.children.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                self.gen_expr(elem);
+            }
+        }
+        self.write("}");
+    }
+
     fn gen_const_decl(&mut self, node: &Node) {
         if node.extra_pub {
             self.write("pub ");
@@ -4520,6 +4561,12 @@ impl Codegen {
                     Self::zig_type(&node.extra_type),
                     &raw[1..raw.len() - 1]
                 ));
+            } else if v.kind == NodeKind::ExprArrayLiteral
+                && !node.extra_type.is_empty()
+                && v.extra_type.is_empty()
+            {
+                self.write(" = ");
+                self.gen_inferred_array(v);
             } else {
                 self.write(" = ");
                 self.gen_expr(v);
@@ -4965,7 +5012,15 @@ impl Codegen {
                 }
                 if !node.children.is_empty() {
                     self.write(" = ");
-                    self.gen_expr(&node.children[0]);
+                    let v = &node.children[0];
+                    if v.kind == NodeKind::ExprArrayLiteral
+                        && !node.extra_type.is_empty()
+                        && v.extra_type.is_empty()
+                    {
+                        self.gen_inferred_array(v);
+                    } else {
+                        self.gen_expr(v);
+                    }
                 } else if !node.extra_type.is_empty() {
                     // `var keys : [27]i32` with no value. Zig has no bare
                     // declaration -- the storage has to be spelled, and
@@ -5371,6 +5426,14 @@ impl Codegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
+                // extra_size holds the element list when the literal was
+                // written out longhand -- see gen_inferred_array. A real size
+                // is a plain integer.
+                let elements_in_size = node.extra_size.contains(',');
+                if elements_in_size && node.children.is_empty() {
+                    self.gen_inferred_array(node);
+                    return;
+                }
                 let size = if node.extra_size.is_empty() {
                     "_".to_string()
                 } else {
