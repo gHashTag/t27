@@ -34,6 +34,14 @@ def _run_bin(cmd, what, cwd=None):
                        capture_output=True, text=True, cwd=cwd)
     if r.returncode == 0:
         return r.stdout
+    # mutant-equivalent: the guard above forces returncode != 0, so < is <=
+    #
+    # T132. Five copies of this line across five verifiers, and the boundary
+    # operator reports each as a survivor. All five are reached only after a
+    # returncode check -- three via `if returncode == 0: return`, two via
+    # `if returncode != 0:` -- so at this point the value cannot be zero, and
+    # `< 0` and `<= 0` agree on every value it can hold. Proven from the line
+    # above, not assumed from the shape.
     sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
     print(f"  {what}: exited {r.returncode}{sig}")
     for line in (r.stderr or "").strip().splitlines()[:4]:

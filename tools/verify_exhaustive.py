@@ -174,6 +174,14 @@ def build_and_run(src, path, cmd, wd, what):
         return None
     r = subprocess.run([cmd[cmd.index("-o") + 1]], cwd=wd, capture_output=True, text=True)
     if r.returncode != 0:
+        # mutant-equivalent: the guard above forces returncode != 0, so < is <=
+        #
+        # T132. Five copies of this line across five verifiers, and the boundary
+        # operator reports each as a survivor. All five are reached only after a
+        # returncode check -- three via `if returncode == 0: return`, two via
+        # `if returncode != 0:` -- so at this point the value cannot be zero, and
+        # `< 0` and `<= 0` agree on every value it can hold. Proven from the line
+        # above, not assumed from the shape.
         sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
         print(f"  {what}: run exited {r.returncode}{sig} -- nothing was compared")
         return None
