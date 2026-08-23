@@ -168,6 +168,39 @@ def _run_planted(tool: Path, ssot_text: str, extra: list[str]) -> tuple[int, str
     return r.returncode, r.stdout + r.stderr
 
 
+def _codegen_failure_case(tool: Path) -> bool:
+    """The codegen itself dying is a verdict, and nothing here reached it.
+
+    T114. Every case in the table plants SSOT CONTENT, so the codegen always
+    ran and always succeeded; the branch that fires when the codegen exits
+    non-zero was unreachable from this control. It was invisible for the whole
+    campaign because it exits through `sys.exit(2)` and the mutation operators
+    only understood `return`, so the gate scored a clean 3/3 with this site
+    unseen.
+
+    `--tool` already exists, so the plant is a codegen that fails rather than a
+    mangled input: the failure is the subprocess's, which is exactly the state
+    the branch describes. Distinguished from the OTHER exit-2 branch by message,
+    because both leave the same code.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        broken = Path(td) / "codegen_that_dies.py"
+        broken.write_text(
+            "import sys\n"
+            "sys.stderr.write('codegen: exploded\\n')\n"
+            "sys.exit(1)\n",
+            encoding="utf-8",
+        )
+        rc, out = _run_planted(broken, _planted_ssot(110), [])
+    said = "codegen failed" in out
+    quiet = "codegen dropped a CATALOG line" not in out and "OK: SSOT ==" not in out
+    ok = rc == 2 and said and quiet
+    print(f"  [{'ok ' if ok else 'FAIL'}] the codegen itself failing is a verdict")
+    print(f"        exit {rc} (want 2); says 'codegen failed': {said}; "
+          f"no other branch fired: {quiet}")
+    return ok
+
+
 def self_check(tool: Path) -> int:
     """Plant each fault this gate claims to catch; assert it catches THAT one."""
     cases: list[tuple[str, str, list[str], int, str, tuple[str, ...]]] = [
@@ -204,7 +237,7 @@ def self_check(tool: Path) -> int:
          ("OK: SSOT ==",)),
     ]
 
-    red = 0
+    red = 0 if _codegen_failure_case(tool) else 1
     for name, ssot_text, extra, want_rc, want, forbid in cases:
         rc, out = _run_planted(tool, ssot_text, extra)
         said = want in out
