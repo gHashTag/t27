@@ -982,6 +982,25 @@ fn zig_string_body(s: &str) -> String {
 /// only 45 errors between them -- each one died at the first `::` and
 /// ast-check never saw the rest. compiler/parser.t27 alone has 338 such lines
 /// and reports a single error.
+/// Rewrite `a == "lit"` as a Zig string comparison, if that is what it is.
+///
+/// Zig has no `==` for strings; it spells the test `std.mem.eql`. Only when one
+/// side is a string literal -- everything else keeps `==`, which is correct for
+/// every other type.
+fn string_compare(text: &str) -> Option<String> {
+    for (op, neg) in [("==", false), ("!=", true)] {
+        if let Some(i) = text.find(op) {
+            let lhs = text[..i].trim();
+            let rhs = text[i + 2..].trim();
+            if (lhs.starts_with('"') || rhs.starts_with('"')) && !lhs.is_empty() && !rhs.is_empty() {
+                let eql = format!("std.mem.eql(u8, {}, {})", lhs, rhs);
+                return Some(if neg { format!("!{}", eql) } else { eql });
+            }
+        }
+    }
+    None
+}
+
 /// Byte offset of a top-level `=` that is assignment, not comparison.
 ///
 /// Skips `==`, `!=`, `<=`, `>=` and anything inside brackets, so
@@ -3962,7 +3981,19 @@ impl Parser {
 
             let mut text = String::new();
             while self.current.kind != TokenKind::Eof && self.current.line == line {
-                if !text.is_empty() {
+                // A space goes between two word-like tokens and nowhere else.
+                // Joining everything with spaces split `ErrorCode::Unexpected`
+                // into `ErrorCode : : Unexpected`, which no later rule can
+                // recognise -- 15 errors, and the `::` folding in #2606 never
+                // saw them because the damage happened before it ran.
+                let wordish = |t: &str| {
+                    t.chars()
+                        .next()
+                        .map_or(false, |c| c.is_alphanumeric() || c == '_' || c == '"')
+                };
+                if wordish(text.chars().last().map(|c| c.to_string()).unwrap_or_default().as_str())
+                    && wordish(&self.current.lexeme)
+                {
                     text.push(' ');
                 }
                 if self.current.kind == TokenKind::String {
@@ -4711,9 +4742,17 @@ impl Codegen {
 
         self.indent();
 
-        for stmt in &node.children {
+        for (i, stmt) in node.children.iter().enumerate() {
             if matches!(stmt.extra_kind.as_str(), "given" | "when" | "then") {
-                self.gen_behavior_clause(stmt);
+                let bound = top_level_assign(&stmt.name)
+                    .map(|i| stmt.name[..i].trim().to_string())
+                    .unwrap_or_default();
+                let used_later = !bound.is_empty()
+                    && node.children[i + 1..].iter().any(|later| {
+                        later.name.split(|c: char| !c.is_alphanumeric() && c != '_')
+                            .any(|tok| tok == bound)
+                    });
+                self.gen_behavior_clause(stmt, used_later);
             } else {
                 self.gen_stmt(stmt);
             }
@@ -4730,11 +4769,17 @@ impl Codegen {
     /// 6540 clauses in the corpus, 3959 are `name = expr`, 2245 comparisons,
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
-    fn gen_behavior_clause(&mut self, node: &Node) {
+    fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
         let text = zig_path(&node.name);
         self.write_indent();
         if node.extra_kind == "then" {
-            self.write_line(&format!("try std.testing.expect({});", text));
+            // Zig has no `==` for strings. `then name == "Arty A7"` is 45 of
+            // the errors this rendering introduced -- mine, not the spec's.
+            if let Some(cmp) = string_compare(&text) {
+                self.write_line(&format!("try std.testing.expect({});", cmp));
+            } else {
+                self.write_line(&format!("try std.testing.expect({});", text));
+            }
             return;
         }
         match top_level_assign(&text) {
@@ -4749,6 +4794,16 @@ impl Codegen {
             // Zig rejects a discarded-free expression statement, so an action
             // clause is bound to `_`.
             None => self.write_line(&format!("_ = {};", text)),
+        }
+        // Zig rejects a binding nothing reads. 126 of the errors this
+        // rendering introduced were that -- a `given` whose name no later
+        // clause mentions.
+        if !used_later {
+            if let Some(i) = top_level_assign(&text) {
+                let name = zig_ident(text[..i].trim());
+                self.write_indent();
+                self.write_line(&format!("_ = {};", name));
+            }
         }
     }
 
