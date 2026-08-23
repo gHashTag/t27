@@ -1141,7 +1141,7 @@ fn prs(repo: Option<&str>) -> Result<()> {
     }
 
     println!("{:<7} {:<13} {:>7}  {}", "pr", "mergeable", "checks", "title");
-    let mut blind = Vec::new();
+    let mut blind: Vec<(i64, usize, String)> = Vec::new();
     let mut rows: Vec<(i64, String, usize)> = Vec::new();
     for it in &items {
         let n = it["number"].as_i64().unwrap_or(0);
@@ -1180,37 +1180,51 @@ fn prs(repo: Option<&str>) -> Result<()> {
     // Asserting from the CONFLICTING state alone was wrong: a conflict does not
     // retract runs that already happened, so a pull request can be conflicting
     // now and still carry a full list from when it was not.
-    let mut healthy: Vec<usize> = rows
-        .iter()
-        .filter(|(_, m, _)| m != "CONFLICTING")
-        .map(|(_, _, c)| *c)
-        .collect();
-    healthy.sort_unstable();
-    let reference = healthy.get(healthy.len() / 2).copied().unwrap_or(0);
+    // T134: the median of EVERY pull request, not of the non-conflicting ones.
+    // Filtering by state made the reference move with the state -- it read 21 on
+    // one run and 35 on the next, with no pull request changed, because two rows
+    // crossed between UNKNOWN and CONFLICTING in between. A median over all rows
+    // is unmoved by a few short lists and does not depend on a value GitHub
+    // recomputes while you are looking at it.
+    let mut all: Vec<usize> = rows.iter().map(|(_, _, c)| *c).collect();
+    all.sort_unstable();
+    let reference = all.get(all.len() / 2).copied().unwrap_or(0);
 
     for (n, m, c) in &rows {
-        if m == "CONFLICTING" && reference > 0 && *c * 2 < reference {
-            blind.push((*n, *c));
+        // T134: flag by the COUNT, not by the state. `mergeable` is computed on
+        // demand and reports UNKNOWN while GitHub is still working it out, so a
+        // detector keyed on "CONFLICTING" finds a pull request one hour and
+        // loses it the next -- measured: two with three checks each went from
+        // CONFLICTING to UNKNOWN between two runs, and the alarm went silent
+        // while nothing about them had changed.
+        //
+        // The short check list is the observable. The mergeable state is the
+        // explanation for it, and belongs in the row rather than in the test.
+        if reference > 0 && *c * 2 < reference {
+            blind.push((*n, *c, m.clone()));
         }
     }
 
     println!();
     if reference == 0 {
-        println!("No non-conflicting pull request to compare against, so no reference.");
+        println!("No pull request has any checks, so there is no reference to compare against.");
         return Ok(());
     }
-    println!("Reference: a non-conflicting pull request here gets {} checks (median).", reference);
+    println!("Reference: the median open pull request here gets {} checks.", reference);
     if blind.is_empty() {
         println!("No pull request has a check list far below it.");
         return Ok(());
     }
     println!();
     println!(
-        "{} pull request(s) CONFLICTING with a check list far below the reference:",
+        "{} pull request(s) with a check list far below the reference:",
         blind.len()
     );
-    for (n, c) in &blind {
-        println!("  #{}  {} check(s) against a reference of {}", n, c, reference);
+    for (n, c, m) in &blind {
+        println!(
+            "  #{}  {} check(s) against a reference of {}   (mergeable: {})",
+            n, c, reference, m
+        );
     }
     println!();
     println!("A pull request that is conflicting when an event fires cannot have its merge");
@@ -1220,6 +1234,10 @@ fn prs(repo: Option<&str>) -> Result<()> {
     println!();
     println!("A conflict does NOT retract earlier runs: a pull request that was mergeable");
     println!("when it was last pushed keeps that list. Rebase to get a real one.");
+    println!();
+    println!("`mergeable: UNKNOWN` means GitHub has not finished computing it -- not that");
+    println!("the pull request is fine. A short list with UNKNOWN beside it is the same");
+    println!("finding as one with CONFLICTING beside it, seen a moment earlier.");
     Ok(())
 }
 
