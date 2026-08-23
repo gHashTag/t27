@@ -982,6 +982,30 @@ fn zig_string_body(s: &str) -> String {
 /// only 45 errors between them -- each one died at the first `::` and
 /// ast-check never saw the rest. compiler/parser.t27 alone has 338 such lines
 /// and reports a single error.
+/// Byte offset of a top-level `=` that is assignment, not comparison.
+///
+/// Skips `==`, `!=`, `<=`, `>=` and anything inside brackets, so
+/// `then nonzero == 0` is not mistaken for a binding.
+fn top_level_assign(s: &str) -> Option<usize> {
+    let b = s.as_bytes();
+    let mut depth = 0i32;
+    for i in 0..b.len() {
+        match b[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                let prev = if i > 0 { b[i - 1] } else { b' ' };
+                let next = if i + 1 < b.len() { b[i + 1] } else { b' ' };
+                if next != b'=' && !matches!(prev, b'=' | b'!' | b'<' | b'>') {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Does this type mention a single-uppercase name the spec never declares?
 ///
 /// `*BTree(T)` and `Either(L, R)` carry the generic INSIDE a type application,
@@ -3899,11 +3923,69 @@ impl Parser {
             self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
         } else {
-            // Keyword-style test: test name given ... when ... then ...
-            // Skip until we hit a top-level keyword or EOF or RBrace (end of module)
-            self.skip_out_of_block(hdr_col);
+            // Keyword-style test: `test name` followed by indented
+            // given/when/then/and clauses. These were skipped outright, so
+            // 6540 clauses across the corpus reached no backend and 173 specs
+            // counted as valid while asserting nothing (#2593, #2601).
+            self.parse_behavior_clauses(&mut block, hdr_col);
         }
         Ok(block)
+    }
+
+    /// Capture `given`/`when`/`then`/`and` clauses as children of the block.
+    ///
+    /// Bounded twice, which is exactly what #2596 lacked. The OUTER loop stops
+    /// at the same column boundary `skip_out_of_block` uses. Each clause is
+    /// bounded by its own LINE -- a behaviour clause is one line by
+    /// construction, so no general statement parser runs and nothing can
+    /// consume past the dedent and swallow the next declaration.
+    ///
+    /// The clause body is kept as text rather than parsed. A parse would be a
+    /// second place to get the boundary wrong for no gain: the emitter renders
+    /// it into a Zig expression either way.
+    fn parse_behavior_clauses(&mut self, block: &mut Node, hdr_col: usize) {
+        let mut last_kind = String::new();
+        while self.current.kind != TokenKind::Eof && self.current.col > hdr_col {
+            let kw = self.current.lexeme.clone();
+            if !matches!(kw.as_str(), "given" | "when" | "then" | "and") {
+                break; // not a behaviour body -- leave it to the skip below
+            }
+            let line = self.current.line;
+            self.advance();
+            // `and` continues whatever clause preceded it.
+            let kind = if kw == "and" && !last_kind.is_empty() {
+                last_kind.clone()
+            } else {
+                kw.clone()
+            };
+            last_kind = kind.clone();
+
+            let mut text = String::new();
+            while self.current.kind != TokenKind::Eof && self.current.line == line {
+                if !text.is_empty() {
+                    text.push(' ');
+                }
+                if self.current.kind == TokenKind::String {
+                    text.push('"');
+                    text.push_str(&self.current.lexeme);
+                    text.push('"');
+                } else {
+                    text.push_str(&self.current.lexeme);
+                }
+                self.advance();
+            }
+            if text.is_empty() {
+                continue;
+            }
+            let mut clause = Node::new(NodeKind::StmtExpr);
+            clause.extra_kind = kind;
+            clause.name = text;
+            clause.line = line as u32;
+            block.children.push(clause);
+        }
+        if self.current.kind != TokenKind::Eof && self.current.col > hdr_col {
+            self.skip_out_of_block(hdr_col);
+        }
     }
 
     fn parse_invariant_block(&mut self) -> Result<Node, String> {
@@ -4630,11 +4712,44 @@ impl Codegen {
         self.indent();
 
         for stmt in &node.children {
-            self.gen_stmt(stmt);
+            if matches!(stmt.extra_kind.as_str(), "given" | "when" | "then") {
+                self.gen_behavior_clause(stmt);
+            } else {
+                self.gen_stmt(stmt);
+            }
         }
 
         self.dedent();
         self.write_line("}");
+    }
+
+    /// Render one behaviour clause as Zig.
+    ///
+    /// The mapping is what the words mean, not a choice: `given` and `when`
+    /// bind a name or perform an action, `then` states what must hold. Of the
+    /// 6540 clauses in the corpus, 3959 are `name = expr`, 2245 comparisons,
+    /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
+    /// is already Zig, which spells conjunction with the same word.
+    fn gen_behavior_clause(&mut self, node: &Node) {
+        let text = zig_path(&node.name);
+        self.write_indent();
+        if node.extra_kind == "then" {
+            self.write_line(&format!("try std.testing.expect({});", text));
+            return;
+        }
+        match top_level_assign(&text) {
+            Some(i) => {
+                let (lhs, rhs) = text.split_at(i);
+                self.write_line(&format!(
+                    "const {} = {};",
+                    zig_ident(lhs.trim()),
+                    rhs[1..].trim()
+                ));
+            }
+            // Zig rejects a discarded-free expression statement, so an action
+            // clause is bound to `_`.
+            None => self.write_line(&format!("_ = {};", text)),
+        }
     }
 
     fn gen_invariant_block(&mut self, node: &Node) {
