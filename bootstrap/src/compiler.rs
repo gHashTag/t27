@@ -982,6 +982,22 @@ fn zig_string_body(s: &str) -> String {
 /// only 45 errors between them -- each one died at the first `::` and
 /// ast-check never saw the rest. compiler/parser.t27 alone has 338 such lines
 /// and reports a single error.
+/// Does this type mention a single-uppercase name the spec never declares?
+///
+/// `*BTree(T)` and `Either(L, R)` carry the generic INSIDE a type application,
+/// where the #2597 check -- whole type is one uppercase letter -- cannot see it.
+/// 78 of the 79 remaining single-uppercase undeclared sites are this shape.
+///
+/// Checked against the spec's own declarations so a real single-letter type is
+/// left alone.
+fn mentions_free_generic(ty: &str, declared: &std::collections::HashSet<String>) -> bool {
+    ty.split(|c: char| !c.is_alphanumeric() && c != '_').any(|tok| {
+        tok.len() == 1
+            && tok.chars().next().map_or(false, |c| c.is_ascii_uppercase())
+            && !declared.contains(tok)
+    })
+}
+
 /// Split `A, B<C, D>` at top-level commas only, so nested generics survive.
 fn split_generic_args(inner: &str) -> Vec<String> {
     let mut out = Vec::new();
@@ -4548,7 +4564,13 @@ impl Codegen {
                     .trim();
                 core.len() == 1 && core.chars().all(|c| c.is_ascii_uppercase())
             };
-            if is_generic_param(ptype) {
+            // Extended to types that MENTION a free generic rather than only
+            // to types that ARE one: `fn insert(tree: *BTree(T))`. Same
+            // decision as #2597, applied where it could not previously reach --
+            // not a new one.
+            let use_anytype =
+                is_generic_param(ptype) || mentions_free_generic(ptype, &self.declared);
+            if use_anytype {
                 self.write(&format!("{}: anytype", pname));
             } else {
                 self.write(&format!("{}: {}", pname, Self::zig_type(ptype)));
