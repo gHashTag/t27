@@ -1612,3 +1612,50 @@ does not invent one. The middle one is load-bearing: a drop a later deploy heale
 is history, not damage, and a gate that reddens forever over a fixed incident
 gets run once.
 
+## 41. Sweeping for the shape, and what a guard cannot ask
+
+§40 named a shape — a verification aimed one step to the left of what the change
+replaces. A shape is worth sweeping for, so every deploy path in reach got the
+same two questions: **what does it REPLACE, and what does it verify?**
+
+Four paths, one hit.
+
+**The hit was the worst one available.** `publish-website.yml` runs on a
+15-minute cron, unattended, and replaces the site's `assets/` with a build from
+another repository. It called the blog regenerator and the drift checker and
+nothing that asks whether the incoming build still carries the posts the site is
+serving — the exact gap that cost eleven posts two days of downtime, sitting in
+the one path that fires ninety-six times a day without a human present.
+
+**And the drift checker structurally cannot ask it.** It compares the shipped
+bundle against the static tree and fails on disagreement. That is the right
+check. It is also blind to a slug leaving **both sides at once**, which is what
+happened: the posts lived only in the bundle, the bundle was replaced, and
+nothing disagreed with anything. *A checker of agreement between two artefacts
+says nothing about preservation across time.* Those are different questions and
+one instrument cannot hold both.
+
+**The clean paths were clean for a reason worth copying.** The CNAME guard reads
+the CNAME file; the Pages guard reads the Pages API *and* curls production. Each
+verifies the artefact it names, and the second one crosses an independent
+channel to do it.
+
+**Then the sweep turned on the instrument.** The new gate counted slugs by
+PRESENCE on disk. `rsync` is additive, so yesterday's chunk sits beside today's:
+a slug dropped from the reachable chunk is still on disk in the unreachable one,
+so a disk-wide read calls it live while the site 404s it — and the orphan prune
+that follows a deploy then deletes it for good. **That is the 2026-08-21
+mechanism exactly, and the instrument built to catch it shared its blind spot.**
+Today the apex carries 16 chunks, one reachable, and the reachable one happens
+to hold all 48 slugs, so the old reading gave the right answer **by luck**.
+
+Reachability from `index.html`, not presence on disk. Eighth control case,
+verified RED under the old reading. The planted trees now carry a real
+`index.html` and entry chunk so the cases run the walk rather than the no-index
+fallback — planting only the chunk would test the fallback and call it the gate.
+
+Verified in CI, not only locally: the cron fired on the commit that added the
+gate and printed `no post is lost — live serves 48, this build carries 48`. And
+on real data the other way: the pre-restoration build exits 1 and names all
+eleven.
+
