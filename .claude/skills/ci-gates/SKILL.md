@@ -937,3 +937,42 @@ measurement says so, and a commit that made the numbers move would have had to
 be invented. The temptation to produce a diff is strongest exactly when the
 honest result is "the plan was wrong" — and a diff manufactured then is the
 purest form of the thing this whole skill is about.
+
+## 24. Check the regression before proposing the next thing
+
+Seventy merges landed in the twenty-four hours after this campaign's work. None
+of them was reviewed against the numbers the campaign produced. **Re-running the
+measurements is the first item of the next iteration, not an afterthought** —
+and it is the only way "the new cycle does not break the old work" is a fact
+rather than a hope.
+
+Everything held. The detail worth keeping is *why* the most fragile piece held:
+`check_gate_preconditions.py` names its two uncovered branches **by message**,
+and other people's edits moved those lines from `:359/:403` to `:451/:495`
+without breaking the declaration. A line number in a note is a claim with an
+expiry date nobody sets.
+
+### The decision brief is part of the work, not a wrapper on it
+
+Eight questions accumulated that are an owner's to answer: repository security
+settings, deleting reproducibility records, corpus-wide language decisions. Left
+as eight issues they are eight interruptions; collected with **options and the
+cost of doing nothing**, they are one sitting.
+
+Two properties make such a brief usable rather than decorative:
+
+- **Every number comes from running a command**, named in the footer so it can
+  be re-run. A brief that summarises other summaries inherits every error in
+  them and adds none of the evidence.
+- **It says how often its author has been wrong.** Seven claims in this campaign
+  were published and then refuted by my own later measurement. A decision
+  document whose author has that record should carry it, or the reader has to
+  discover the reliability of the source by accident.
+
+### When "fix it" is not on the menu, say what is
+
+`coverage` is red for a real reason and cannot be moved by bookkeeping *or* by
+one compiler fix — re-sealing moved it zero, and the backlog is zero specs deep
+at depth 1. The honest options are a multi-month body of work or a decision to
+call it accepted debt. Offering a third, cheaper-sounding option would be the
+comfortable thing and there isn't one.
