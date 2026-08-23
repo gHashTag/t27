@@ -1000,9 +1000,10 @@ fn node_mentions(node: &Node, name: &str) -> bool {
 }
 
 fn node_assigns(node: &Node, name: &str) -> bool {
-    if node.kind == NodeKind::StmtAssign
-        && node.children.first().map_or(false, |lhs| lhs.name == name)
-    {
+    // Through field and index chains: `result.field = 1` mutates `result`, so
+    // it cannot be emitted `const`. Matching only a bare identifier on the left
+    // made #2618 turn such a var into a const and produce a Zig error.
+    if assign_root(node).as_deref() == Some(name) {
         return true;
     }
     node.children.iter().any(|c| node_assigns(c, name))
@@ -8085,13 +8086,54 @@ fn parse_int_value(s: &str) -> Option<i64> {
     }
 }
 
+/// Root identifier an assignment writes through: `a.b[i] = x` roots at `a`.
+fn assign_root(node: &Node) -> Option<String> {
+    if node.kind != NodeKind::StmtAssign {
+        return None;
+    }
+    let mut cur = node.children.first()?;
+    loop {
+        match cur.kind {
+            NodeKind::ExprIdentifier => return Some(cur.name.clone()),
+            NodeKind::ExprFieldAccess | NodeKind::ExprIndex => match cur.children.first() {
+                Some(next) => cur = next,
+                None => return Some(cur.name.clone()),
+            },
+            _ => return None,
+        }
+    }
+}
+
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    // Every name written to anywhere in this statement list, following field
+    // and index chains to the variable that actually changes.
+    let written: std::collections::HashSet<String> = stmts
+        .iter()
+        .filter_map(assign_root)
+        .collect();
+
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
         if stmt.kind == NodeKind::StmtLocal
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && stmt.name != stmt.children[0].name
+            // This pass had NO safety condition, while const_propagate
+            // directly below it checks for reassignment. Without it,
+            //
+            //     var result = d;
+            //     result.field = 1;
+            //     return result;
+            //
+            // became `return d` -- the unmodified parameter. Silently wrong
+            // code, in 13 specs.
+            //
+            // It survived only because the propagation is also INCOMPLETE:
+            // `result.field` kept its old base, so the output referenced an
+            // undeclared name and failed loudly. Complete propagation would
+            // have compiled and been wrong.
+            && !written.contains(&stmt.name)
+            && !written.contains(&stmt.children[0].name)
         {
             replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
         }
