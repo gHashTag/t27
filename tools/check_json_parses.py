@@ -35,6 +35,9 @@ import pathlib
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import broken  # noqa: E402
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tools/json_parse_baseline.txt"
 EXCLUDE = ("external/",)
@@ -115,6 +118,16 @@ def self_check():
             root = pathlib.Path(td)
             (root / "tools").mkdir()
             shutil.copy(__file__, root / "tools" / me)
+            # And its imports. A plant that copies the gate but not what the
+            # gate imports runs a DIFFERENT program: the copy dies on
+            # ImportError, prints nothing to stdout, and every expectation
+            # below reads as "expected text absent" -- which looks like a
+            # broken gate rather than a broken plant. Found by adding an
+            # import to this file and watching four controls fail at once.
+            for dep in ("_prereq.py",):
+                src = pathlib.Path(__file__).resolve().parent / dep
+                if src.is_file():
+                    shutil.copy(src, root / "tools" / dep)
             for rel, body in files.items():
                 (root / rel).write_text(body, encoding="utf-8")
             # tracked_json() asks git first and only falls back to rglob when
@@ -146,6 +159,16 @@ def self_check():
             ["OK: 1 tracked JSON files, none newly unparseable"],
             ("FAIL:", "baseline written:", "empty file"),
             {"good.json": '{"a": 1}'})
+
+    # A tree with NO tracked JSON at all. Before the guard this printed
+    # `OK: 0 tracked JSON files, none newly unparseable` and returned 0 --
+    # the denominator was on the screen and the verdict ignored it. It was the
+    # only gate of ten that PASSED when run in an empty tree; the others
+    # skipped or crashed.
+    spawned("end-to-end no tracked JSON", 1,
+            ["no tracked JSON files at all"],
+            ("OK:", "baseline written:"),
+            {"notjson.txt": "nothing here"})
 
     # main()'s `return 1`, reached through the malformed list. The closing
     # advice is asserted too: it is what distinguishes this branch's text from
@@ -195,6 +218,26 @@ def main():
         return self_check()
     empty, bad = scan()
     total = len(tracked_json())
+
+    # Zero tracked JSON files is not a clean repository; it is not this
+    # repository. `git ls-files` returning nothing means the gate is running
+    # outside the tree, and the rglob fallback finding nothing means the same.
+    #
+    # The OK line already printed the denominator -- `OK: 0 tracked JSON
+    # files, none newly unparseable` -- so the scope was on the screen and the
+    # verdict was still 0. That is the shape this gate exists to catch, one
+    # level up: an honest number under a green result. Measured by running
+    # every gate in an empty tree, where this was the only one of ten that
+    # PASSED rather than skipping or crashing.
+    #
+    # broken(), not skip(): a missing corpus is the environment, but a
+    # repository that tracks no JSON at all is the repository being wrong, and
+    # that is fatal with no flag involved.
+    if total == 0:
+        broken("no tracked JSON files at all. This repository tracks many, so "
+               "either `git ls-files` found no repository or the scan ran "
+               "outside the tree. A zero here is the absence of a corpus, not "
+               "the absence of a defect.")
 
     if "--update-baseline" in sys.argv:
         BASELINE.write_text(

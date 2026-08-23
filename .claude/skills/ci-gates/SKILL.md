@@ -3390,3 +3390,74 @@ this — `if joined == 0` on a list, and an `empty` I referenced before defining
 Both were caught in seconds because I ran three states after each change
 (empty, clean, damaged) instead of one. **A guard is code, and untested code in
 a guard is worse than no guard: it looks like coverage.**
+
+## 84. Ten gates had never been run in an empty tree, and one of them passed
+
+`check_gate_preconditions.py` runs gates in a planted empty tree and asserts
+each one refuses loudly. It ends with:
+
+```
+OK: 10 precondition(s) across 6 gates fail loudly; 0 known-uncovered
+```
+
+**`0 known-uncovered` counts rows this file chose to write, not gates.** Six of
+the sixteen gate scripts in `tools/` are exercised; ten had never been run in
+an empty tree at all, and the line reads like none were missing.
+
+Run them:
+
+| outcome in an empty tree | gates | reading |
+|---|---|---|
+| `skip()`, and `FAIL` under `--require` | 2 | by design |
+| traceback, exit 1 | 5 | loud, though a crash is not a verdict |
+| clear refusal, exit 2 or 3 | 2 | correct |
+| **`OK: 0 tracked JSON files, none newly unparseable`, exit 0** | **1** | a pass over nothing |
+
+`check_json_parses` printed its denominator — `0 tracked JSON files` — and
+returned 0 anyway. §83's lesson again, now inside a gate rather than a report:
+**the honest number and the honest verdict are separate things.** Zero tracked
+JSON is not a clean repository; it is not this repository, and that is
+`broken()` rather than `skip()` — the environment can be bare, but a repository
+that tracks nothing it tracks is the repository being wrong.
+
+The meta-gate now prints `coverage: 6 of 16` and names the ten. **Reported, not
+enforced**: making an uncovered gate a failure turns a green file red today
+over gates whose empty-tree behaviour is already loud, and a gate that is red
+on the day it lands teaches people to ignore red. The number is there so the
+gap is a fact rather than an implication.
+
+**Whenever a file reports "0 missing", ask what the 0 is over.** A count of
+rows, of files, of cases you happened to write — each is defensible, and none
+of them is the count the reader assumes.
+
+## 85. A self-check that plants the gate but not what the gate imports
+
+Adding `from _prereq import broken` to a gate broke four of its own end-to-end
+controls at once. They all reported the same way:
+
+```
+end-to-end empty file      CONTROL FAILED
+     exit 1 (want 1)
+     expected text absent: [...]
+     stdout ''
+```
+
+`exit 1 (want 1)` — the code was right. `stdout ''` is the whole story: the
+planted copy died on `ImportError` before printing anything, so every expected
+string was "absent" and the failure read as a broken gate rather than a broken
+plant.
+
+The planting copied `__file__` into a temporary tree and nothing else. **A
+plant that copies the subject but not its dependencies runs a different
+program**, and the difference only shows the day a dependency is added — long
+after the plant was written and trusted.
+
+Two habits:
+
+* **Copy what the subject imports**, and say so in the plant. One loop over a
+  named list beats discovering the omission through four simultaneous
+  failures.
+* **Read `stdout ''` as a signal, not as detail.** A control that expected text
+  and got *nothing at all* did not observe a wrong answer; it observed no
+  answer. Those are different bugs, and the second one is usually in the
+  harness.
