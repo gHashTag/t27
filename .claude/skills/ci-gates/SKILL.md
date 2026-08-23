@@ -1219,3 +1219,43 @@ four, one mirror, three report modes" is what a reader can act on.
 visible. It could not tell that those four were one fix and the other four were
 three different things. **A tool that surfaces N instances has done its job;
 deciding whether N is one finding or four is still reading.**
+
+## 32. An opt-out that fails anyway is worse than no opt-out
+
+`check_elab_ratchet` reds when its tools are missing, and offers
+`--allow-missing-tools` to accept that locally. A sibling control proved the
+red. **Nothing proved that the flag then returns success**, and the loud
+operator rewrote that return to a failure with no assertion noticing.
+
+An opt-out that fails anyway teaches that the flag does not work — and the next
+person removes the guard instead of passing it. **Every escape hatch needs a
+case proving it escapes**, not only one proving the thing it escapes from fires.
+
+### A report is still a program with an exit code
+
+Three of the last survivors were report modes behind flags CI never passes, and
+each file said so: *"a report, not a gate"*, *"reporting nothing, deliberately"*.
+The distinction is real and worth keeping. **Leaving the report's exit code
+unmeasured is not part of it** — a report that prints its table and then reports
+failure breaks any script reading it, and nothing would have said so.
+
+### "No path to break" is unmeasured, not clean
+
+Two gates report `no success path to break` under the loud operator: they hold
+no bare `return 0`, every verdict being a ternary or a `SystemExit`. The
+operator takes only bare returns on purpose, because forcing a ternary's whole
+line to 1 is the silent operator seen backwards and would be scored against the
+wrong control.
+
+So those two are **unmeasured in that direction**, and the report has to say
+which. A row that reads as a clean score when it is an absence of measurement is
+the same substitution this whole skill is about — and it is easiest to commit in
+your own tool's output, where you know what the row means and the next reader
+does not.
+
+### Name branches by message, not by line
+
+The one remaining silent survivor is declared uncovered with its reason. Its
+line has moved **four times** — `:390`, `:403`, `:495`, `:516` — under other
+people's edits and my own, and the declaration matched every time. A line number
+in a note is a claim with an expiry date nobody sets.

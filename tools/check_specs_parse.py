@@ -177,7 +177,7 @@ def self_check(t27c):
 
     name = pathlib.Path(__file__).name
 
-    def spawned(label, want, says, absent, **kw):
+    def spawned(label, want, says, absent, args=(), **kw):
         """Run the whole program in a planted tree and demand the exact verdict.
 
         `says` is every marker the branch must print; `absent` is every marker
@@ -196,7 +196,7 @@ def self_check(t27c):
             # there, and the compiler that parses the planted specs has to be
             # the one CI runs. A stub would agree with the gate by construction.
             os.symlink(t27c, root / "target/release/t27c")
-            proc = subprocess.run([sys.executable, str(root / "tools" / name)],
+            proc = subprocess.run([sys.executable, str(root / "tools" / name), *args],
                                   timeout=300,
                                   capture_output=True, text=True, cwd=str(root))
         out = proc.stdout + proc.stderr
@@ -269,6 +269,16 @@ def self_check(t27c):
             absent=("discard MORE than recorded", "DISCARD_DEBT", "OK: all",
                     "t27c not built"),
             faulty=_CONTROL_SPEC or REQUIRED[0], extra=_REJECTED)
+
+    # T101: --all is a REPORT mode, and this file says so in its own output:
+    # "a report, not a gate". That distinction is worth keeping and it is not a
+    # reason to leave the report's exit code unmeasured -- a report that prints
+    # its table and then reports failure breaks any script reading it, and
+    # nothing here would have said so. Found by `tri gates mutate --loud`.
+    spawned("report mode --all", 0,
+            says=("--all is a report, not a gate",),
+            absent=("FAIL:", "discard MORE than recorded", "t27c not built"),
+            args=("--all",))
 
     print("  self-check: %s" % ("both verdicts proven red" if ok else "FAILED"))
     return 0 if ok else 1

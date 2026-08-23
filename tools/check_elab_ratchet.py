@@ -418,6 +418,27 @@ def self_check():
         ):
             (t / "tools/elab_baseline.txt").write_text(truth)
             ok = _case(t, label, mut, want, absent + [OK_LINE, "SKIP:"]) and ok
+
+        # T101: the OPT-OUT direction. check_gate_preconditions.py proves this
+        # gate reds when the tools are missing; nothing proved that
+        # --allow-missing-tools then returns SUCCESS. `tri gates mutate --loud`
+        # rewrote that return to a failure and no assertion noticed. An opt-out
+        # that fails anyway is worse than none: it teaches that the flag does
+        # not work, and the next person removes the guard instead.
+        #
+        # A tree with no t27c, so the precondition genuinely fails.
+        with tempfile.TemporaryDirectory() as bare:
+            b = pathlib.Path(bare)
+            (b / "tools").mkdir()
+            shutil.copy(__file__, b / "tools" / pathlib.Path(__file__).name)
+            o = _run(b, "--allow-missing-tools")
+            said = "reporting nothing, deliberately" in o.stdout
+            good = o.returncode == 0 and said
+            print(f"  self-check OPTOUT: said = {said}, exit = {o.returncode} (want 0)")
+            if not good:
+                ok = False
+                print("      " + "\n      ".join((o.stdout + o.stderr).splitlines()[-8:]))
+
         return 0 if ok else 1
 
 
