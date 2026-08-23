@@ -3954,3 +3954,30 @@ computed from it.
 The general rule, and this campaign keeps arriving at it from new directions:
 **a verdict that lives only in stdout gates nothing except a human reading
 carefully.** Print the sentence *and* return the code.
+
+## 102. The live control caught me measuring with the wrong binary, again
+
+Having fixed `tri pr ready` to return its verdict, I ran it against the very
+pull request carrying the fix, while 19 checks were still running. It printed
+`VERDICT: WAIT` and **exited 0**.
+
+The fix was correct. `./scripts/tri` dispatched to `target/release/tri`, seven
+hours old, because the front door tried release first and `cargo build -p tri`
+writes debug. Running the debug binary directly gave the expected `2`.
+
+**Third time this campaign that a measurement ran against a binary that did not
+contain the change** — and the first time the front door itself was the cause
+rather than my command line.
+
+Two fixes, both in the wrapper:
+
+* **Newest wins, not release-first.** Preferring a profile means preferring
+  whichever one you did not just build.
+* **Say so when the binary predates its source.** `find cli/tri/src -name '*.rs'
+  -newer "$BIN" -print -quit` is one call; silence there is indistinguishable
+  from "your edit did nothing".
+
+The habit worth keeping is smaller than either: **run the new behaviour against
+something real before believing it.** A unit test on the verdict table passed
+the whole time. What caught this was pointing the command at a live pull
+request with checks in flight — the one situation the change exists for.
