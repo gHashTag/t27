@@ -765,3 +765,51 @@ was at 221 of a 221 cap with three fixed entries still in it.
   This ate text out of a commit message and then out of a filed issue, in the
   same session, after being written down once. Pass long bodies through
   `--body-file` or a heredoc with a quoted delimiter, never `-m "…\`x\`…"`.
+
+## 20. A number that is correct and misleading
+
+The hardest finding to catch in this campaign was not a wrong number. It was a
+right one attached to the wrong meaning.
+
+**"26,546 tokens of specification never reach codegen."** Every part of that
+sentence was measured. Two thirds of it is `forall`-quantified statements that
+`compiler.rs` documents, in the function that skips them, as *"not
+runtime-checkable"* — a decision the project made, wrote down, and half-fixed
+already (the artefact stopped printing `verified` and now prints `NOT CHECKED`).
+The actionable number was 9,547.
+
+A wrong number gets caught by anyone who re-runs the command. A right number
+with the wrong meaning survives re-running, because re-running reproduces it.
+
+**Before publishing a corpus-wide count, grep the code that produces the
+behaviour for a comment about it.** One `grep forall bootstrap/src/compiler.rs`
+would have found the sentence. It cost nothing and it was not done, twice: once
+before filing the issue and once before writing the census.
+
+### Your own tool truncates, and a census inherits it
+
+`--spans` printed the first 40 discarded lines per file. The census ran over
+that output. Every file with more than 40 discarded lines was undercounted —
+**exactly the files a census is about.** It reported `forall` on 415 lines;
+uncapped it is 857, which then corroborated the compiler's own count of 837 and
+made the whole thing legible.
+
+Two rules from that:
+
+- **A display limit is a measurement limit the moment anything reads the
+  output.** Give it a `--limit 0`, and make the default SAY it truncated. A list
+  that just stops looks like a list that ended.
+- **The truncation bias always points the same way.** It hides the tail, and the
+  tail is the population you are studying.
+
+### Seven over-generalisations in three days, all measured away
+
+"Invariant inside a test is discarded" — a passing spec has fifteen. "It is the
+expression form" — seven forms behave identically. "It is the braceless test
+block" — the biggest contributor is a `forall` property. "Six of nine gates
+share the precondition shape" — a proxy for reading the sites. And three more.
+
+The pattern is not carelessness about evidence; each had evidence. It is
+**reaching for the general statement one step before the measurement supports
+it**, because the general statement is what a report wants. The discipline is to
+write the specific one and let the reader generalise.
