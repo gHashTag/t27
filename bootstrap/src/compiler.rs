@@ -1637,7 +1637,16 @@ impl Parser {
                 self.advance();
             } else if self.current.kind == TokenKind::String {
                 let mut val_node = Node::new(NodeKind::ExprLiteral);
-                val_node.value = self.current.lexeme.clone();
+                // The lexeme is the string's CONTENT, without its delimiters, so
+                // the quotes have to be put back. parse_primary's String arm
+                // already does this; this arm did not, and the two paths
+                // disagreeing is exactly the shape of #2336 in the converter --
+                // one branch stripping quotes, its sibling keeping them.
+                //
+                // Emitted `const BOARD_NAME: []const u8 = arty-a7-100t;`, which
+                // Zig reports as an undeclared identifier, so it surfaced in the
+                // largest failure class rather than as anything string-shaped.
+                val_node.value = format!("\"{}\"", self.current.lexeme);
                 decl.children.push(val_node);
                 self.advance();
             } else {
