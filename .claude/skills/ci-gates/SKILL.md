@@ -3562,3 +3562,48 @@ narrow it back — add the second condition that distinguishes them.** Narrowing
 returns you to the miss you just fixed. And when a guard you wrote yesterday
 stays silent on exactly what it was written for, the guard is the thing to
 re-measure, not the code it cleared.
+
+## 89. A probe retyped each time is a new instrument with new defects
+
+I ran the same measurement three iterations running — every gate in a planted
+empty tree — and wrote it by hand each time. The third copy planted each gate
+ALONE, so two gates died on an ImportError and were recorded as crashing on the
+repository. That table then justified a day of work.
+
+Re-run with the whole `tools/` directory planted:
+
+| | ad-hoc probe (planting one file) | complete plant |
+|---|---|---|
+| PASS | 3 | 4 |
+| VERDICT | 2 | 13 |
+| CRASH | 5 | **0** |
+
+The crash column was entirely an artefact of my own harness — the same
+incomplete-planting defect I had spent the previous iteration fixing *in the
+gates*.
+
+**A measurement you repeat is a tool, and it should live in the tree.** Not
+because typing it again is slow, but because each retype is a fresh
+implementation with fresh mistakes, and nothing compares it against the last
+one. `tri gate-sweep` is now that measurement, with the planting done once and
+the classification named:
+
+* **PASS** — exit 0 over nothing. Legitimate for a self-test that builds its own
+  corpus, and for a `skip()` that `--require` turns fatal. Anything else here
+  is a gate that cannot fail.
+* **VERDICT** — non-zero, with a sentence naming the missing input.
+* **CRASH** — non-zero through a traceback. Loud, and still reporting the
+  harness rather than the subject.
+
+It reports and does not gate: which PASS is legitimate is a judgement, and
+encoding it would be a second list to drift against `GATES`.
+
+The three habits this cost me, in order of how expensive each was:
+
+1. **Re-measure a conclusion when you fix the instrument that produced it.**
+   §86 fixed incomplete planting in the gates. It should have been obvious that
+   my probe planted the same way; it was not, until a number moved.
+2. **Put the probe in the tree the second time you write it**, not the fourth.
+3. **A tool that is not committed does not exist.** `loop-tools-tracked.sh`
+   refused the new command until it was `git add`ed, naming the state that
+   "already destroyed two of these scripts and every number they produced".

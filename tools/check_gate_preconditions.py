@@ -513,9 +513,71 @@ def self_check():
     return 0 if ok else 1
 
 
+def sweep():
+    """Run EVERY gate in a fully planted empty tree and say what each does.
+
+    Written because I re-implemented this probe by hand three iterations
+    running, and the third time it was wrong: it planted each gate ALONE, so
+    two gates died on an import and were recorded as crashing on the
+    repository. That table then justified work. A probe kept in the tree is
+    measured once and reused; a probe retyped each time is a new instrument
+    with new defects.
+
+    Three outcomes, and only one of them is a problem by itself:
+
+      PASS     exit 0 over nothing. Legitimate for a self-test that builds its
+               own corpus, and for a skip() that turns fatal under --require.
+               Everything else here is a gate that cannot fail.
+      VERDICT  non-zero, with a sentence saying which input is missing.
+      CRASH    non-zero through a traceback. Loud, and still not a verdict --
+               it reports the harness, not the subject.
+
+    Reports; does not gate. The judgement of which PASS is legitimate belongs
+    to a reader, and encoding it here would be a second list to drift out of
+    date against GATES.
+    """
+    gates = sorted(q.name for q in (ROOT / "tools").glob("*.py")
+                   if q.name.startswith("check_") or "gate" in q.name)
+    rows = []
+    for g in gates:
+        with tempfile.TemporaryDirectory() as td:
+            tree = pathlib.Path(td)
+            (tree / "tools").mkdir()
+            # The WHOLE tools directory, not just this gate. Planting one file
+            # is what made the third probe lie.
+            for f in (ROOT / "tools").glob("*.py"):
+                shutil.copy(f, tree / "tools" / f.name)
+            try:
+                r = subprocess.run(
+                    [sys.executable, f"tools/{g}"], cwd=str(tree),
+                    capture_output=True, text=True, timeout=TIMEOUT)
+                out = (r.stdout + r.stderr).strip().splitlines()
+                first = out[0][:56] if out else "(silent)"
+                kind = ("PASS" if r.returncode == 0
+                        else "CRASH" if "Traceback" in (r.stderr or "")
+                        else "VERDICT")
+                rows.append((g, r.returncode, kind, first))
+            except subprocess.TimeoutExpired:
+                rows.append((g, -1, "HUNG", f"no verdict in {TIMEOUT}s"))
+
+    print(f"every gate in a planted empty tree ({len(rows)} gate(s))\n")
+    for g, rc, kind, first in rows:
+        print(f"  {g:<40} rc={rc:<3} {kind:<8} {first}")
+    tally = {}
+    for _, _, kind, _ in rows:
+        tally[kind] = tally.get(kind, 0) + 1
+    print("\n  " + "   ".join(f"{k}: {v}" for k, v in sorted(tally.items())))
+    print("\n  A PASS is not automatically wrong: a self-test that plants its own")
+    print("  corpus, and a skip() that --require turns fatal, both belong here.")
+    print("  A CRASH always is -- it reports the harness and not the subject.")
+    return 0
+
+
 def main():
     if "--self-check" in sys.argv:
         return self_check()
+    if "--sweep" in sys.argv:
+        return sweep()
     problems = check()
     if problems:
         for p in problems:
