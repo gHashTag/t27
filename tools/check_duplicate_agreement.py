@@ -116,7 +116,22 @@ def digest_for(cbin, name, sig, deps, loop, csrc, wd, tag=""):
     c = os.path.join(wd, f"d{tag}.c")
     open(c, "w").write(prog)
     b = os.path.join(wd, f"d{tag}")
-    if subprocess.run(["cc", "-O2", "-o", b, c], capture_output=True).returncode:
+    try:
+        failed = subprocess.run(["cc", "-O2", "-o", b, c], capture_output=True).returncode
+    except OSError:
+        # T116: the compiler being ABSENT, which is not the compiler failing.
+        # Without this the call raises FileNotFoundError and the gate dies with
+        # a traceback -- exit 1 and no verdict, so "cc is not installed" and
+        # "two copies of a function disagree" leave the same colour and the
+        # same silence. Found by sweeping every gate for the shape that
+        # verify_exhaustive.py had (#2515).
+        #
+        # None here means "no digest", which the caller already treats as
+        # uncompared rather than as a disagreement -- so the absence flows into
+        # the count of what could not be measured, where it belongs.
+        print("  cc is not on PATH -- no C copy could be compiled, nothing compared")
+        return None
+    if failed:
         return None
     r = subprocess.run([b], capture_output=True, text=True)
     return r.stdout.strip() if r.returncode == 0 else None
@@ -229,7 +244,37 @@ def self_check():
     quiet = ("DIFFERENT behaviours" not in q.stdout) and q.returncode == 0
     print("  self-check: agreeing copies reported as one behaviour = %s (exit %d, want 0)"
           % (quiet, q.returncode))
-    return 0 if (split and r.returncode == 1 and quiet) else 1
+    # T116: the compiler being ABSENT. Both cases above run with a working cc,
+    # so the branch that fires when it is missing was unreachable from this
+    # control -- and until this commit the gate did not have that branch at all:
+    # it raised FileNotFoundError, exiting 1 with no verdict, so "cc is not
+    # installed" and "two copies disagree" left the same colour and the same
+    # silence.
+    #
+    # The agreeing fixture is reused, so the ONLY thing wrong with this world is
+    # the missing tool. `DIFFERENT behaviours` is named absent because reporting
+    # an absence as a disagreement is the failure this branch exists to prevent.
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "specs/ternary"))
+        os.makedirs(os.path.join(td, "target/release"))
+        os.symlink(t, os.path.join(td, "target/release/t27c"))
+        for tag in ("A", "B"):
+            with open(os.path.join(td, "specs/ternary/%s.t27" % tag.lower()), "w") as fh:
+                fh.write(FIXTURE.format(tag=tag, agree="1", differ="-1"))
+        env = {**os.environ, "T27_DUP_ROOT": td}
+        env["PATH"] = os.pathsep.join(
+            d for d in env.get("PATH", "").split(os.pathsep)
+            if d and not os.path.exists(os.path.join(d, "cc")))
+        n = subprocess.run([sys.executable, os.path.abspath(__file__)],
+                           capture_output=True, text=True, env=env)
+    named = ("cc is not on PATH" in n.stdout
+             and "DIFFERENT behaviours" not in n.stdout
+             and "Traceback" not in n.stderr
+             and n.returncode != 0)
+    print("  self-check: a missing compiler is named, not reported as a split = %s "
+          "(exit %d, traceback %s)"
+          % (named, n.returncode, "YES" if "Traceback" in n.stderr else "no"))
+    return 0 if (split and r.returncode == 1 and quiet and named) else 1
 
 
 DROP_FIXTURE = """module DupFixtureDrop
