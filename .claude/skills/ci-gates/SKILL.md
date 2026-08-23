@@ -662,8 +662,11 @@ a thing whose coverage nobody measures.
    expressed, so those branches reported as uncovered while the file that
    covers them sat in the tree.
 3. **One syntactic form.** It matched a bare `return 1..4` and missed seven
-   ternaries and a `raise SystemExit(3)` -- 34 of 42 sites. It reported a gate
-   whose every verdict is a ternary as having "no failure path to break".
+   ternaries and a `raise SystemExit(3)`: 34 of the 42 sites it could see AT THE
+   TIME. It reported a gate whose every verdict is a ternary as having "no
+   failure path to break". That denominator is a **dated measurement** — §33
+   tightened the predicate and 42 became 36, because the loose one had been
+   counting helper functions.
 4. **No baseline.** A mutant is killed when the control exits non-zero, so a
    control that is red BEFORE any mutation scored a perfect kill on everything.
    The exact inverse of the defect the tool exists to find.
@@ -1146,7 +1149,8 @@ cases demanding RED satisfied all of them, and the **opposite** defect went
 unmeasured across thirteen gates.
 
 `--loud` flips `return 0` to `return 1`: does anything notice a gate that fails
-on a **clean** tree? First run, **seven of thirteen** have survivors.
+on a **clean** tree? On its first run seven of thirteen had survivors; all are
+closed now, which is a fact about a date and not about the tool.
 
 The worst was the file that enforces this discipline for six other gates:
 
@@ -1241,13 +1245,16 @@ failure breaks any script reading it, and nothing would have said so.
 
 ### "No path to break" is unmeasured, not clean
 
-Two gates report `no success path to break` under the loud operator: they hold
-no bare `return 0`, every verdict being a ternary or a `SystemExit`. The
-operator takes only bare returns on purpose, because forcing a ternary's whole
-line to 1 is the silent operator seen backwards and would be scored against the
-wrong control.
+**RETRACTED, see §33.** This section originally said two gates were in that
+state because "the operator takes only bare returns on purpose, since forcing a
+ternary's whole line to 1 is the silent operator seen backwards". **That reason
+was wrong and I wrote it.** Silent forces the line to 0 — the gate never fails.
+Loud forces it to 1 — the gate always fails. With ternaries allowed one of the
+two measures fine; the other has no literal success return at all, its success
+being `return code`, so the row is true there for a different reason.
 
-So those two are **unmeasured in that direction**, and the report has to say
+The rule the section is for still stands: a row saying `no path to break` is an
+**absence of measurement**, and the report has to say
 which. A row that reads as a clean score when it is an absence of measurement is
 the same substitution this whole skill is about — and it is easiest to commit in
 your own tool's output, where you know what the row means and the next reader
@@ -1304,3 +1311,47 @@ before deciding whether to be pleased.
 Two produced missing coverage. This one produced a row that **read as a score**,
 which is worse: the first kind gets found by the next person who looks, and the
 second gets quoted.
+
+## 34. Audit your own skill the way you audit a gate
+
+Thirty-three sections were written over six days, each in the moment, none
+re-read with the question that catches a stale claim. So I ran the audit on the
+file itself: every named file, every behavioural assertion, every number that can
+be checked today.
+
+**Ten file references, four behavioural claims, five numeric pairs. One was
+stale, and one contradiction was live.**
+
+- **The contradiction is the finding.** §32 stated, in the present tense, the
+  justification that §33 retracts — and §32 comes first. A reader stopping there
+  gets the wrong rule with a confident explanation attached. It now carries
+  **RETRACTED, see §33** at the top of the paragraph, not a note appended after
+  it.
+
+- **The stale number.** "34 of 42 sites" was true when written and false the next
+  day, because §33 tightened the predicate and the denominator fell to 36.
+  Dated in place rather than updated: the point of the sentence is what the
+  scanner missed at that moment, and a number that keeps being silently corrected
+  teaches nothing about how it drifted.
+
+- **A near-miss worth recording.** "30 of 109 catalog rows share a citation" read
+  false at first — I counted 45. Both readings had to be computed before saying
+  anything: 45 rows sit in shared groups, and **30 are duplicates beyond the
+  first**, which is exactly what a uniqueness check would flag. The claim holds.
+  Checking both readings is the difference between a correction and a false
+  accusation, and this is the second time in three days that habit saved one.
+
+### Prose you wrote is a claim like any other
+
+Every rule this skill has about gate output applies to the skill: dated
+measurements presented as standing facts, a label trusted over a property, a
+justification that sounds principled. **The difference is that nothing runs
+prose, so nothing goes red when it rots.** The only mechanism is re-reading it
+against the tree, on purpose, with the same presumption of being wrong.
+
+### A contradiction resolved in place, never appended
+
+Repository doctrine here is to fix a contradiction where it lives rather than
+adding a second truth next to the first. That is easy to honour in code and easy
+to forget in a document, where appending is always the cheaper edit — and where
+the reader who most needs the correction is the one who stops before reaching it.
