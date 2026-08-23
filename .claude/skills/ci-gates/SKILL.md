@@ -4034,3 +4034,53 @@ Three things worth keeping:
 
 Verified in both directions: with two lessons planted at 1 and 3 the checker
 prints `gap: 1 -> 3` and exits 1; restored, it exits 0.
+
+## 104. The rules file was sealed, and two of its clauses are observed by nobody
+
+Continuing yesterday's sweep of commands I had never run: `tri loop-rules`
+checks `docs/loop/LOOP-RULES.md` against a sealed digest and passes. It closes
+with its own disclaimer:
+
+> *"This certifies identity only. It does not certify that the rules are
+> correct, nor that the tick obeyed them."*
+
+That is the file's own **R6** — *the seal certifies identity, not correctness* —
+stated about the tool that enforces it. Nothing measured the second half, so I
+did. Over the last 30 merged pull requests, **every author**:
+
+| clause (R11) | observed |
+|---|---|
+| branch prefix `w699-<topic>` | **0 of 30** |
+| provenance tag on a number | **0 of 25** stating one |
+| no `Closes #N` autoclose | 30 of 30 ✓ |
+
+The tag convention is alive elsewhere — `[measured]` appears **211** times in
+the theory document. It has simply never reached a pull request.
+
+**Two clauses at zero across every author is not one operator drifting.** The
+file and the practice have parted, and **the seal made the file look governed
+while nothing looked at the practice.** A checksum over rules is exactly as
+strong as a green check over a gate that cannot fail.
+
+There is a third clause I am knowingly not observing — *"do not merge; merging
+is a human act"* — because the repository owner authorised it outside this
+file. I did not edit the rule to match what I do. **A rules file edited by the
+thing it governs is worth nothing**; the conflict is filed where a human sees
+it.
+
+`tri rule-observance` measures the three mechanical clauses and **reports
+without gating**, for two reasons worth separating:
+
+* **Which way a drift resolves is not the measurer's call.** Practice to rule,
+  rule to practice, or rule plus a gate — each is defensible, and encoding a
+  preference makes the decision by default.
+* **Most of the file is not mechanically checkable.** *"Your own instrument is
+  the first suspect"* and *"a differential claim names the class of loss it
+  checked"* are judgements about a tick's content. A regex pretending to score
+  them would be worse than the silence it replaced — it would make the
+  unmeasured look measured, which is the whole subject of this file.
+
+And the smaller finding under it: **R2 is "your own instrument is the first
+suspect."** I have re-derived that rule from scratch five times in this campaign
+— the broken ruler, the stale binary twice, the incomplete plant, the retyped
+probe — while it sat written down, sealed, in a file I had never opened.
