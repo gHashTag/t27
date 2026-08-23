@@ -1355,3 +1355,43 @@ Repository doctrine here is to fix a contradiction where it lives rather than
 adding a second truth next to the first. That is easy to honour in code and easy
 to forget in a document, where appending is always the cheaper edit — and where
 the reader who most needs the correction is the one who stops before reaching it.
+
+## 35. The third axis, and the value of an instrument that finds nothing
+
+Two operators asked whether a gate can still reach its verdicts. `--invert`
+asks whether it reaches the **right** one: `if C:` becomes `if not (C):` on
+conditions whose body carries a verdict. A gate that fires FAIL on a healthy
+tree and OK on a broken one satisfies both return operators and neither is
+looking at that.
+
+Thirteen gates, **one survivor** — the same branch both other operators leave,
+declared uncovered with its reason.
+
+**That is the first new instrument here to find nothing, and it is worth as much
+as the ones that found plenty.** Controls written over a week against two
+questions held against a third they were not written for. A tool that comes back
+empty on a corpus that has been failing every new question is evidence; a tool
+that comes back empty on its first ever run is untested.
+
+### Scope a mutation operator by what its kills would MEAN
+
+Inverting any condition is easy and useless. Inverting a loop guard or a
+plumbing check makes the gate **crash**, and a control that reds on a traceback
+scores that as a kill — for the wrong reason, which is the mistake the command
+exists to catch. Only conditions whose body holds a verdict return, a
+`SystemExit` or a FAIL print are sites.
+
+**Then measure that the scoping worked**, rather than asserting it: 19 mutations
+across four gates, 19 killed by message, **zero tracebacks**.
+
+### The probe that checks a tool gets less care than the tool
+
+Mine was broken twice in one run: it mutated inside the control functions, which
+the real implementation excludes and the probe did not; and its verdict label
+conflated *not killed* with *killed by a crash*, so it printed `killed by crash`
+for a mutant that had survived.
+
+Its first output read as a finding about the tool. **A throwaway script written
+to verify a careful one inherits none of its care**, and it is trusted anyway
+because it is short. Seven instruments of my own have now been broken in this
+campaign; the throwaway ones account for most of them.
