@@ -4265,6 +4265,44 @@ impl Codegen {
 
         if !node.extra_type.is_empty() {
             self.write(&format!("({})", node.extra_type));
+        } else {
+            // Zig demands a tag type the moment any variant carries a value:
+            // `enum { idle = 0 }` is `explicitly valued enum missing integer
+            // tag type`, and it is a wall -- the spec stops being checked
+            // there. 7 specs stood behind this one.
+            //
+            // The spec names no type, so it is derived from the values, and
+            // only when every explicit value is an integer literal. A guessed
+            // width would be a silent semantic change; the missing tag is a
+            // loud syntax error, and trading loud for silent is the wrong
+            // direction.
+            let valued: Vec<&Node> = node.children.iter().filter(|c| !c.value.is_empty()).collect();
+            let parsed: Vec<i128> = valued
+                .iter()
+                .filter_map(|c| c.value.trim().parse::<i128>().ok())
+                .collect();
+            if !valued.is_empty() && parsed.len() == valued.len() {
+                let lo = *parsed.iter().min().unwrap();
+                // Unvalued variants continue from the last value, so leave that
+                // much headroom rather than sizing to the literals alone.
+                let hi = *parsed.iter().max().unwrap() + node.children.len() as i128;
+                let ty = if lo < 0 {
+                    if lo >= -128 && hi <= 127 {
+                        "i8"
+                    } else if lo >= -32768 && hi <= 32767 {
+                        "i16"
+                    } else {
+                        "i64"
+                    }
+                } else if hi <= 255 {
+                    "u8"
+                } else if hi <= 65535 {
+                    "u16"
+                } else {
+                    "u64"
+                };
+                self.write(&format!("({})", ty));
+            }
         }
 
         self.write_line(" {");
