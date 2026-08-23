@@ -1524,3 +1524,51 @@ against a floor of 109 — clearly under — so `n_ssot < MIN_ROWS` rewritten to
 `<=` passed the entire control while failing every catalog sitting exactly *on*
 the floor. A single case asserting that exactly `MIN_ROWS` is legal kills it.
 
+## 39. Closing boundaries, and a classification that was wrong
+
+Three of §38's twelve boundary survivors are closed, one is corrected, and the
+correction is the useful part.
+
+**Closed.** The catalog floor (every case tested 0 against a floor of 109, never
+109 itself). The ledger ratchet — its control proved *refuses to grow* (1→2) and
+*writes on shrink* (2→1) and never went through **equal**, which is where a
+ratchet is defined. The re-derive tolerance: every case sat far from `1e-12`, so
+nothing asked what happens *at* it. The arithmetic for that one is exact on
+purpose — a row that decodes to its own input gives `rederived = 0.0`, and an
+`abs_error` of exactly the tolerance makes the difference the tolerance itself
+with no rounding anywhere.
+
+**Closed rather than declared.** One survivor guarded a `"... and N more"`
+display line and was classified cosmetic. Closed anyway, with a case planting
+exactly ten departed entries: this campaign has twice found a written-down
+limitation to be invented, and a declared exception costs a reader more than a
+case costs to write.
+
+**The classification that was wrong.** §38 called
+`math.isinf(dec) and (inp > 0) == (dec > 0)` a *candidate* theorem "resting on a
+property of the codec that has not been checked here". It rests on nothing of
+the kind. The branch is guarded by `elif math.isinf(inp):` one line above, so
+`inp` is infinite by construction and `dec` is infinite by the `and` that
+short-circuits before the comparison. For a value in {+inf, −inf}, `x > 0` and
+`x >= 0` agree — the only input separating them is zero, and neither can be
+zero. **A proven equivalence, and I had written the caveat after reading the
+comparison and not the `elif` above it.**
+
+**So: `# mutant-equivalent: <why>`.** A survivor whose line carries the marker
+prints its reason beside the row. It is **printed, never acted on** — the row
+still reads SURVIVED and still counts. Suppressing a row on the strength of a
+comment is exactly how a declared `UNCOVERED` stood for a week while being
+false; the marker's only job is to stop the next reader re-deriving a proof
+already written beside the code.
+
+**And the marker's first implementation was a broken ruler.** It took
+marker + 2 lines. The proof it was written for is a fifteen-line comment block,
+so it named a line in the middle of its own explanation — and a one-line proof
+would have passed the test. It now names the first line after the marker that is
+neither comment nor blank, with a case for the multi-line block specifically.
+Third time this campaign that a measuring device was calibrated against the one
+example in front of it.
+
+State: 13 gates, 3 with boundary survivors, 8 remaining — two of them proven
+equivalences that will never go away and now say so.
+
