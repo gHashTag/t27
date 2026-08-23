@@ -178,7 +178,8 @@ def main(argv):
 
     print(f"corpus: {corpus}")
     print(f"files scanned: {scanned}")
-    if scanned == 0:
+    empty = scanned == 0
+    if empty:
         print("NOTHING WAS SCANNED. A zero below is the absence of a corpus,")
         print("not the absence of damage. Check the path.")
     print(f"damaged lines: {len(rows)} in {len(files)} files, "
@@ -228,6 +229,12 @@ def main(argv):
     print("produces a balanced, quote-even, plausible-looking wrong type is")
     print("invisible here, and nothing in this output bounds how much of that")
     print("there is.")
+    # An empty scan is neither "damage found" nor "corpus clean". Code 2 matches
+    # `cost`, `corpus-parse` and `diffbin`, which all refuse an empty corpus.
+    # Printing NOTHING WAS SCANNED and then exiting 0 leaves the CI step green
+    # with the warning on the screen, which is where warnings go to be ignored.
+    if empty:
+        return 2
     return 1 if rows else 0
 
 

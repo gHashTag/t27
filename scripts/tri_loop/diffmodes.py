@@ -266,6 +266,23 @@ def main(argv: list[str]) -> int:
         }, indent=2) + "\n")
         print(f"\nwrote {args.out}")
 
+    # An empty comparison is not a clean one.
+    #
+    # Every count above is honest -- `diffbin rows: 0`, `joined: 0`, `0
+    # file(s)` -- and a reader who looks sees the scope. The exit code did not:
+    # zero field-loss over zero files returned 0, so a CI step that pointed
+    # this at the wrong path, or at a diffbin run that produced nothing, went
+    # green with "loss on the clean/evaluable corpus: 0" on the screen.
+    #
+    # The tool already hedges about WHAT it claims ("a scoped claim, not a
+    # clearance"). This makes it hedge about HOW MUCH, which is the half that
+    # reads as good news when the scope is nothing.
+    if not joined:
+        print("\nNOTHING WAS COMPARED. The zeros above are the size of the")
+        print("comparison, not a property of the corpus. Check that the diffbin")
+        print("run produced rows and that the status file covers the same files.")
+        return 2
+
     return 0 if (fl == 0 and unk == 0) else 1
 
 
