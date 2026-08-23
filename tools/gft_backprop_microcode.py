@@ -15,6 +15,26 @@ board/bpseq.v for the hand-written (2,2,1) version this reproduces).
 
 Op: 'MUL'|'ADD'|'MOV'.  Operand mod: 0 none, 1 relu, 2 relu', 3 neg, 4 -eta*x
 (neg . scale_q, eta=2^-k). Hidden biases fixed at c=[0,-1,-1,...] (the XOR trick).
+
+WHAT THIS DOES NOT ESTABLISH
+----------------------------
+Everything here is Python. There is no t27c, no .t27 spec, and no iverilog in
+this file: it runs unchanged in a directory containing nothing but itself,
+which is how the scope was noticed at all (`tri gate-sweep`).
+
+So a green run says the GENERATED MICROCODE learns, on a bit-faithful GF-T
+interpreter, and that the emitted Verilog TEXT contains the ports and idioms
+asserted below. It does not say:
+
+  * that the compiler produces this microcode -- nothing here compiles a spec;
+  * that the emitted Verilog SIMULATES correctly -- the assertions read the
+    text, they do not run it;
+  * that any of it works on silicon.
+
+Those are separate claims with separate evidence elsewhere in the repository.
+The CI step that runs this was called "Prove the trainer LEARNS", which a
+reader of a green run reasonably took for one of the three above; it now says
+what this paragraph says.
 """
 import tempfile
 import subprocess

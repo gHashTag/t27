@@ -863,6 +863,16 @@ def main(argv: list[str]) -> int:
     repo = Path(__file__).resolve().parent.parent
     src = Path(argv[1]) if len(argv) > 1 else repo / "specs/numeric/formats_catalog.t27"
     out_root = Path(argv[2]) if len(argv) > 2 else repo / "gen/numeric"
+    # A crash is not a verdict. Without the SSOT this raised FileNotFoundError
+    # and a stack, which says nothing about WHICH file or that the repository
+    # tracks it. Found by `tri gate-sweep`, which classifies a traceback as
+    # reporting the harness rather than the subject.
+    if not src.is_file():
+        print(f"FAIL {Path(__file__).name}: {src} is missing.")
+        print("  It is the catalog this tool generates from, and it is tracked")
+        print("  in git. Nothing was generated; the outputs on disk, if any, are")
+        print("  from an earlier run and were not refreshed.")
+        return 1
     text = src.read_text(encoding="utf-8")
     formats = parse_t27(text)
     print(f"parsed {len(formats)} formats from {src}", file=sys.stderr)
