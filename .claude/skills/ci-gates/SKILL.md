@@ -4130,3 +4130,75 @@ Two consequences for how to write one:
 
 I have re-derived R2 five times this campaign while it sat sealed in a file I
 never opened. R2 has no program either.
+
+## 106. The filter was wrong, and the killed set is what proved it
+
+`boundary` kills 26 of 77 while `invert` kills 72 of 78, and the difference is
+that `invert_sites` keeps only conditions whose body carries a verdict. So I
+gave `boundary` the same filter: comparisons on an `assert`, or on an
+`if`/`elif`/`while` whose body returns a verdict literal, raises `SystemExit`,
+or says `FAIL`.
+
+Sites went 77 → 5. And among the 72 removed were these:
+
+| gate | before | after |
+|---|---|---|
+| `check_vector_data` | **6/6** | 0/0 |
+| `check_seal_coverage` | **3/3** | 0/0 |
+| `check_catalog_integrity` | **1/1** | 0/0 |
+
+Those were **killed** mutants. Moving those comparisons demonstrably made the
+control fail — which is proof that they reach a verdict. **My filter removed
+sites the measurement had already proven verdict-bearing**, so the filter is
+wrong, and reverted.
+
+Why it cannot be fixed by widening: the sites it misses look like
+
+```python
+if x > threshold:
+    problems.append(...)     # no return, no FAIL, no SystemExit
+...
+if problems:
+    return 1                 # the verdict, several statements away
+```
+
+**Verdict-reachability is a dataflow property.** A line-local pattern cannot
+decide it, and widening the pattern until the number looks agreeable is exactly
+the move R2 forbids — the same one that made `tri damage` report 429.
+
+So the 34% is not a defect to fix. **A boundary survivor means "moving this
+comparison did not change the verdict", which for a loop bound is the correct
+answer.** The population is mixed on purpose, and the *kills* are the ones that
+identify the verdict-bearing half — after the fact, which is the only way it can
+be known.
+
+The negative result is the deliverable. What would improve this operator is
+reporting the two populations separately, not filtering one away.
+
+## 107. The cache key covered the subject and not the instrument
+
+The filter above appeared to do **nothing**: 26/77 before, 26/77 after. Two
+runs, one number, an edit that looked inert.
+
+The mutation cache keys on the gate's bytes and its control's bytes. **Changing
+how sites are selected changes neither.** So a rebuilt `tri` served 24 rows
+measured by the version before the change, and the table did not move because
+it was the same table.
+
+`--fresh` gave 3/5, and only then was the filter's real effect visible — which
+is also how the filter's wrongness became visible.
+
+The key now includes `sha256(current_exe())`. Verified in three states:
+
+* same binary twice → 2 rows cached;
+* **rebuild the tool → 0 cached**, every row re-measured;
+* same binary again → 2 cached.
+
+**A cache that cannot see its own instrument change is the instrument lying
+about itself** — R2 one level down. And the failure mode is the worst kind: not
+a wrong number, but an *unchanged* number, which reads as "your change had no
+effect" and invites you to conclude something about the subject.
+
+The general form: **a cache key must cover everything that can change the
+answer**, and the code computing the answer is part of that. Subject bytes are
+the obvious half; the tool's own bytes are the half nobody writes down.
