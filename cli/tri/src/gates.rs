@@ -1337,17 +1337,18 @@ fn mutate(
         let ctrl_sha = sha_of(&judges);
 
         let mut scores: Vec<(Direction, usize, usize, Vec<usize>)> = Vec::new();
-        let mut from_cache = false;
+        let (mut n_row_cached, mut n_row_fresh) = (0usize, 0usize);
         for dir in directions {
         let key = format!("{}|{}", name, label(*dir));
         if let Some(c) = cache.get(&key) {
             if c.gate_sha == gate_sha && c.ctrl_sha == ctrl_sha {
                 scores.push((*dir, c.killed, c.total, c.survivors.clone()));
-                from_cache = true;
+                n_row_cached += 1;
                 n_cached += 1;
                 continue;
             }
         }
+        n_row_fresh += 1;
         n_measured += 1;
         let sites = sites_in_direction(&pristine, *dir);
         let mut killed = 0usize;
@@ -1432,7 +1433,11 @@ fn mutate(
                 name,
                 0,
                 what,
-                if from_cache { " [cached]" } else { "" }
+                if n_row_fresh == 0 && n_row_cached > 0 {
+                    " [cached]"
+                } else {
+                    ""
+                }
             );
             continue;
         }
@@ -1486,10 +1491,10 @@ fn mutate(
                 // multi-column branch only, so a cached single-operator row
                 // printed exactly like a fresh one -- the failure this marker
                 // exists to prevent, in the half of the code that prints it.
-                if from_cache {
-                    format!("{} [cached]", v)
-                } else {
-                    v
+                match (n_row_cached, n_row_fresh) {
+                    (0, _) => v,
+                    (_, 0) => format!("{} [cached]", v),
+                    (c, f) => format!("{} [{} cached, {} fresh]", v, c, f),
                 }
             };
             println!(
@@ -1516,10 +1521,15 @@ fn mutate(
                     // T127: a reused row says so. A cached green that read like
                     // a fresh one would be the same lie this command exists to
                     // find.
-                    if from_cache {
-                        format!("{} [cached]", v)
-                    } else {
-                        v
+                    // T130: per-ROW precision. A row with two columns measured
+                    // and three reused was labelled `[cached]` wholesale --
+                    // under-claiming rather than over-claiming, so the safe
+                    // direction, and still wrong. The point of the marker is
+                    // that a reader can tell which it is.
+                    match (n_row_cached, n_row_fresh) {
+                        (0, _) => v,
+                        (_, 0) => format!("{} [cached]", v),
+                        (c, f) => format!("{} [{} cached, {} fresh]", v, c, f),
                     }
                 }
             );
