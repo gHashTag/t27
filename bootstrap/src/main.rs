@@ -107,6 +107,16 @@ enum Commands {
         /// Name the constructs whose removal changes the count.
         #[arg(long, default_value_t = false)]
         bisect: bool,
+
+        /// Print the discarded tokens themselves, with their line numbers.
+        ///
+        /// This is the direct answer and `--bisect` is the indirect one.
+        /// `parse_ast_dropped_spans` already recorded exactly this and nothing
+        /// exposed it, so the first version of this command bisected its way to
+        /// a construct the compiler could have named. Look for the right sample
+        /// in the tree before inventing a coarser one.
+        #[arg(long, default_value_t = false)]
+        spans: bool,
     },
 
     /// Generate Zig code from .t27 file
@@ -3564,7 +3574,7 @@ fn top_level_items(src: &str) -> Vec<(String, usize, usize)> {
     out
 }
 
-fn run_parse_accounted(input_path: &str, bisect: bool) -> anyhow::Result<()> {
+fn run_parse_accounted(input_path: &str, bisect: bool, spans: bool) -> anyhow::Result<()> {
     let src = std::fs::read_to_string(input_path)
         .with_context(|| format!("reading {input_path}"))?;
     let base = match compiler::Compiler::parse_ast_accounted(&src) {
@@ -3580,8 +3590,33 @@ fn run_parse_accounted(input_path: &str, bisect: bool) -> anyhow::Result<()> {
         println!("  the parser consumed everything it was given");
         return Ok(());
     }
+    if spans {
+        // The compiler already recorded these. Grouping by line keeps a 1,813-token
+        // file readable: what a reader needs is WHERE it stops, not 1,813 lexemes.
+        match compiler::Compiler::parse_ast_dropped_spans(&src) {
+            Err(e) => println!("  could not re-parse for spans: {e}"),
+            Ok(sp) => {
+                let mut by_line: Vec<(u32, Vec<String>)> = Vec::new();
+                for (line, lex) in sp {
+                    match by_line.last_mut() {
+                        Some((l, v)) if *l == line => v.push(lex),
+                        _ => by_line.push((line, vec![lex])),
+                    }
+                }
+                println!("  discarded on {} line(s):", by_line.len());
+                for (line, lexemes) in by_line.iter().take(40) {
+                    println!("    {:>5}: {}", line, lexemes.join(" "));
+                }
+                if by_line.len() > 40 {
+                    println!("    ... and {} more line(s)", by_line.len() - 40);
+                }
+            }
+        }
+    }
     if !bisect {
-        println!("  pass --bisect to name the constructs it stops on");
+        if !spans {
+            println!("  pass --spans for the discarded tokens, --bisect for the constructs");
+        }
         return Ok(());
     }
     let lines: Vec<&str> = src.lines().collect();
@@ -10622,7 +10657,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
-        Commands::ParseAccounted { input, bisect } => run_parse_accounted(&input, bisect)?,
+        Commands::ParseAccounted { input, bisect, spans } => run_parse_accounted(&input, bisect, spans)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
@@ -11029,7 +11064,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
-        Commands::ParseAccounted { input, bisect } => run_parse_accounted(&input, bisect)?,
+        Commands::ParseAccounted { input, bisect, spans } => run_parse_accounted(&input, bisect, spans)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
