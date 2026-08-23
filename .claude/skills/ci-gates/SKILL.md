@@ -1480,3 +1480,47 @@ verdict). A fourth operator would be a fourth question, and the honest prior
 after this campaign is that a new question finds something — twice now the
 instrument itself was what it found.
 
+## 38. The fourth operator, and the count that would have been wrong
+
+Yesterday's §37 ended with a prediction: *a fourth question finds something, and
+twice it found the instrument.* Both halves held.
+
+`--boundary` moves a comparison one place: `>` ↔ `>=`, `<` ↔ `<=`. The three
+earlier operators ask whether a gate reaches a verdict and whether it reaches
+the right one; this asks whether it reaches it at the right **place**. Ratchets,
+floors and tolerances live on a boundary, and a control that tests *clearly
+worse* and *clearly better* never tests **equal**.
+
+**First run: 8 of 13 gates had survivors. That number was wrong.**
+
+The scanner tracked quote state per LINE, so every `>` inside a multi-line
+docstring became a site — prose about ratchets and usage on lines 10, 43, 136
+and 230 of four different gates, reported as surviving mutants. Real count,
+wrong meaning: §8.5 again, in the instrument, on its first run. Fixing the
+scanner to carry triple-quote state across lines took it to **5 gates, 21
+mutants, 9 killed, 12 survived**.
+
+**And the survivor count still overstates the gap.** Classified by hand, because
+a boundary mutant that lives can be a theorem rather than a hole:
+
+| class | n | example |
+|---|---|---|
+| real threshold, closeable | 2 | `if prior and len(bad) > prior:` — a ledger ratchet whose `>=` form refuses on *no change* |
+| real semantic, medium | 4 | `v[0] > 0` over non-negative counts: `>= 0` is always true, so the mutant changes what is counted |
+| candidate theorem | 2 | `math.isinf(dec) and (inp > 0) == (dec > 0)` — an infinity is never zero, so the two forms agree *if* no zero input decodes to infinity |
+| cosmetic | 2 | `if len(fixed) > 5:` guarding a "(+N more)" line — at the boundary it prints "+0 more" |
+| plumbing | 1 | `len(parts) > 1` — `>= 1` would raise only on a line that splits into exactly one part, which no input produces |
+
+Publishing "12 uncovered boundaries" would have been the same mistake as
+"26,546 tokens never reach codegen": every word measured, the sentence false.
+
+**The rule.** A new operator's first number is a claim about the operator, not
+about the code. Read the surviving *sites*, not the count, before believing
+either — and classify before publishing, because a boundary that survives is
+sometimes a proof that the boundary does not matter there.
+
+One closed immediately: the catalog floor. Every case in its control tested 0
+against a floor of 109 — clearly under — so `n_ssot < MIN_ROWS` rewritten to
+`<=` passed the entire control while failing every catalog sitting exactly *on*
+the floor. A single case asserting that exactly `MIN_ROWS` is legal kills it.
+
