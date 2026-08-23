@@ -1259,3 +1259,48 @@ The one remaining silent survivor is declared uncovered with its reason. Its
 line has moved **four times** — `:390`, `:403`, `:495`, `:516` — under other
 people's edits and my own, and the declaration matched every time. A line number
 in a note is a claim with an expiry date nobody sets.
+
+## 33. Re-read your own justifications; a wrong one that sounds principled survives longest
+
+Two gates reported `no success path to break`, and §32 documented that as an
+honest limit with a reason I had written:
+
+> A ternary can yield 0 on one arm and a verdict on the other; forcing the whole
+> line to 1 is the Silent operator's job seen backwards.
+
+It is not. Silent forces the line to `0` — the gate never fails. Loud forces it
+to `1` — the gate always fails. Two different mutants of one line.
+
+The sentence had the shape of a careful distinction, which is exactly why it
+lasted: it reads as someone having thought about it. **A justification that
+sounds principled is harder to re-examine than an obvious mistake**, and it
+printed a row that read as a clean score while being an absence of measurement.
+
+### A predicate that scans for a digit is not a predicate for a verdict
+
+Allowing ternaries found two survivors immediately and **both were false**:
+`return out.splitlines()[0][:88] if out else "(nothing)"` and `return v == 0`.
+Helper functions returning values. Both predicates scanned for a standalone
+digit *anywhere* in the expression, so an index and a comparison read as
+verdicts. The silent one had the same weakness: `return v == 1` would have been
+a site.
+
+Strict version: **a return is a verdict when the whole expression is a literal,
+or a ternary whose two arms are literals.** Everything else is a value the
+caller decides about.
+
+### A denominator that grows can mean worse measurement
+
+The counts fell — `check_elab_ratchet` 10 → 6 sites, `wp18_conformance_gate`
+6 → 2. Those earlier kills were real: the controls did notice. They were
+noticing **mutations of helper functions**. A higher denominator looked like a
+more thorough measurement and was a measurement of the wrong thing.
+
+When a fix makes your own numbers smaller, check which direction the truth moved
+before deciding whether to be pleased.
+
+### Three of my justifications have been wrong in this campaign
+
+Two produced missing coverage. This one produced a row that **read as a score**,
+which is worse: the first kind gets found by the next person who looks, and the
+second gets quoted.
