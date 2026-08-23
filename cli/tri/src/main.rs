@@ -16,6 +16,7 @@ mod gates;
 mod hooks;
 mod mutate;
 mod nownote;
+mod reseal;
 mod prcheck;
 mod red;
 mod rtl;
@@ -74,6 +75,11 @@ enum Commands {
     Mutate {
         #[command(subcommand)]
         action: mutate::MutateCmd,
+    },
+    /// Recompute the FROZEN_HASH seal from the file it seals.
+    Reseal {
+        #[command(subcommand)]
+        action: reseal::ResealCmd,
     },
     /// Write a docs/now/ entry without hand-writing the frame.
     Now {
@@ -730,6 +736,7 @@ fn main() -> Result<()> {
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
+        Commands::Reseal { action } => reseal::run(action)?,
         Commands::Now { action } => nownote::run(action)?,
         Commands::Ci { action } => cibase::run(action)?,
         Commands::Fleet { action } => fleet::run(action)?,
