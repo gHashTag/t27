@@ -9589,7 +9589,31 @@ impl VerilogCodegen {
 
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
-        if width == 1 {
+        // A width of 0 is not a narrow signal; it is `field_type_width`'s poison
+        // value arriving here, and `width - 1` has no case for it. What that
+        // produced depended on a build flag, and CI builds the quiet one:
+        //
+        //   debug   (overflow-checks on)   panic, "subtract with overflow"
+        //   release (overflow-checks off)  `[4294967295:0]`, exit 0, no stderr
+        //
+        // Ten specs emitted a four-billion-bit range past every green gate
+        // (#2566). `struct CoverPoint { name: &str, condition: &str, clock:
+        // &str, description: &str }` is the shape: a string field contributes 0
+        // by design -- correct in a MIXED struct, where the other fields carry
+        // the width -- and there is no other field.
+        //
+        // Clamped rather than refused. Making such a struct non-lowerable was
+        // tried first and cost 17 new elaboration errors in `hir`: the
+        // non-lowerable path declares per-field registers at some sites and not
+        // at function locals, so `result.assign_count` emitted a reference to a
+        // `result_assign_count` that nothing declares. Elaboration errors
+        // measured, not guessed: 176 before, 193 after, on the same iverilog.
+        //
+        // A 1-bit placeholder for a type that occupies no bits keeps every
+        // packing and slicing path exactly as it was -- there are no field
+        // offsets to disturb, since every field is zero-width -- and emits a
+        // legal declaration instead of an impossible one.
+        if width <= 1 {
             String::new()
         } else {
             format!("[{}:0]", width - 1)
@@ -11008,19 +11032,6 @@ impl VerilogCodegen {
     /// refused above for floats, and refusing it for floats while accepting it
     /// here would be incoherent. Nested structs are worth 18 more structs and
     /// need the width computation fixed first; they get their own wave.
-    /// The element type of a field, with any array brackets stripped.
-    ///
-    /// `[4]u8` -> `u8`, `&str` -> `&str`. The same unwrapping the lowerability
-    /// predicate does inline; named so the width question can be asked about a
-    /// field without repeating it a third time.
-    fn field_base_type(ty: &str) -> &str {
-        let t = ty.trim();
-        match t.find(']') {
-            Some(end) => t[end + 1..].trim(),
-            None => t,
-        }
-    }
-
     fn is_lowerable_scalar_struct_d(
         name: &str,
         structs: &std::collections::HashMap<String, Vec<(String, String)>>,
@@ -11040,30 +11051,7 @@ impl VerilogCodegen {
         let Some(fields) = structs.get(name) else {
             return false;
         };
-        // W681 again, and this time from the other side. `field_type_width`
-        // opens with "0 is a POISON value, not a width" and prescribes the
-        // repair -- this predicate must refuse any struct it cannot size --
-        // twenty lines above its own `return 0` for a string field.
-        //
-        // Returning 0 for a string is right in a MIXED struct: the string
-        // occupies no bits and the rest of the fields carry the width. It is
-        // poison when there is no rest. `struct CoverPoint { name: &str,
-        // condition: &str, clock: &str, description: &str }` sums to 0, was
-        // accepted here, and reached `range_decl(0)`, which formats
-        // `width - 1` and has no case for 0:
-        //
-        //   debug   panic, "attempt to subtract with overflow"
-        //   release `function [4294967295:0] cover_point;`, exit 0, no stderr
-        //
-        // CI builds release, so ten specs emitted a four-billion-bit range and
-        // every gate stayed green (#2566). Refusing the struct here sends
-        // `packed_width` down its `type_to_width` fallthrough instead, which
-        // treats the type as an opaque 32-bit value -- the same thing every
-        // other unlowerable type already gets, and a legal range.
         !fields.is_empty()
-            && fields
-                .iter()
-                .any(|(_, t)| !Self::is_string_field_type(Self::field_base_type(t)))
             && fields.iter().all(|(_, t)| {
                 let trimmed = t.trim();
                 let base = if let Some(end) = trimmed.find(']') {

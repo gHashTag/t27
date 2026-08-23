@@ -3153,6 +3153,19 @@ connected them.
 (it is useful even if you stop there), then the check that keeps it from
 getting worse, then -- if the log says the seal moves routinely and the file
 itself tells you what correct looks like -- the fix, with the blast radius
-measured rather than argued: 650 specs regenerated before and after, **9 files
-differ**, 8 intended and the 9th a struct that had been declared "lowered as
-packed vector (0 bits)" and is now honestly marked unsupported.
+measured rather than argued.
+
+**And measure the fix you are shipping, not the one you meant to ship.** My
+first version followed the file's own prescription and made a zero-width struct
+non-lowerable. It was the principled repair and it cost **17 new elaboration
+errors** in one module, because the non-lowerable path declares per-field
+registers at some sites and not at function locals. The narrow version --
+clamp the width, change nothing about lowerability -- costs none. Both numbers
+came from `check_elab_ratchet` on the same iverilog: 176 before, 193 for the
+principled fix, 176 for the narrow one, and 650 specs regenerated showing
+exactly the 8 intended files differ.
+
+The prescription in the comment was right about the *diagnosis* and wrong
+about the *dose*. A repair that follows a file's stated intent is still a
+change with a blast radius, and the intent was written before the fallback
+path it routes into was known to be incomplete.
