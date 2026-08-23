@@ -35,7 +35,11 @@ import argparse
 import json
 import re
 import subprocess
+import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import broken  # noqa: E402
 import tempfile
 from pathlib import Path
 
@@ -265,6 +269,15 @@ def self_check(tool: Path) -> int:
 
 def main(argv: list[str]) -> int:
     repo = Path(__file__).resolve().parent.parent
+    # A crash is not a verdict. Run where the tracked SSOT is absent, this
+    # raised FileNotFoundError and a traceback -- scored WRONG by
+    # check_gate_preconditions: "red, but not through the branch that explains
+    # why". broken(), not skip(): a missing tool is the environment, a missing
+    # file this repository tracks is the repository.
+    ssot_default = repo / "specs/numeric/formats_catalog.t27"
+    if not ssot_default.is_file() and not any(a.startswith("--ssot") for a in argv):
+        broken("specs/numeric/formats_catalog.t27 is missing. It is the catalog "
+               "whose lines this gate counts, and it is tracked in git.")
     ap = argparse.ArgumentParser()
     ap.add_argument("--ssot",
                     default=repo / "specs/numeric/formats_catalog.t27")

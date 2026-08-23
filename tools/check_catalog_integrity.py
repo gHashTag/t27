@@ -18,7 +18,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _prereq import plant  # noqa: E402
+from _prereq import broken, plant  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SSOT_REL = "specs/numeric/formats_catalog.t27"
@@ -304,6 +304,15 @@ def self_check():
 def main():
     if "--self-check" in sys.argv:
         return self_check()
+    # A crash is not a verdict. Run where the tracked input is absent, this
+    # raised FileNotFoundError and a traceback -- which check_gate_preconditions
+    # scores WRONG: "it went red, but not through the branch that explains
+    # why". broken(), not skip(): a missing TOOL is the environment, a missing
+    # file this repository tracks is the repository.
+    ssot = ROOT / SSOT_REL
+    if not ssot.is_file():
+        broken(f"{SSOT_REL} is missing. It is the catalog this gate compares "
+               "against, and it is tracked in git.")
     problems, rows, fam = check(ROOT)
     if problems:
         for p in problems:

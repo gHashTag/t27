@@ -38,10 +38,14 @@ Usage:
 Exits non-zero on any failure.
 """
 import hashlib
+import os
 import pathlib
 import re
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import broken, plant  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "tools/withdrawn.txt"
@@ -132,7 +136,7 @@ def _self_check_tree(td, docs, registry_text, baseline_text=None):
     t = pathlib.Path(td)
     (t / "tools").mkdir(parents=True, exist_ok=True)
     (t / "docs").mkdir(parents=True, exist_ok=True)
-    shutil.copy(pathlib.Path(__file__).resolve(), t / "tools/check_withdrawn_live.py")
+    plant(pathlib.Path(__file__).resolve(), t / "tools")
     (t / "tools/withdrawn.txt").write_text(registry_text, encoding="utf-8")
     if baseline_text is not None:
         (t / "tools/withdrawn_live_baseline.txt").write_text(baseline_text,
@@ -303,6 +307,14 @@ def self_check():
 def main():
     if "--self-check" in sys.argv:
         return self_check()
+    # A crash is not a verdict. Run where the tracked input is absent, this
+    # raised FileNotFoundError and a traceback -- which check_gate_preconditions
+    # scores WRONG: "it went red, but not through the branch that explains
+    # why". broken(), not skip(): a missing TOOL is the environment, a missing
+    # file this repository tracks is the repository.
+    if not REGISTRY.is_file():
+        broken("tools/withdrawn.txt is missing. It is the register of withdrawn "
+               "claims this gate searches for, and it is tracked in git.")
     hits = scan()
     if "--update-baseline" in sys.argv:
         BASELINE.write_text(

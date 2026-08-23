@@ -39,6 +39,16 @@ def _drop_stale_bytecode():
 
 
 _drop_stale_bytecode()
+# The subject must be here, and a ModuleNotFoundError is not a verdict. This
+# file exists to prove wp18_conformance_gate can fail; if the gate itself is
+# absent the honest answer is that nothing was tested, said in one line rather
+# than through a traceback that check_gate_preconditions scores WRONG.
+if not os.path.isfile(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "wp18_conformance_gate.py")):
+    print("FAIL " + os.path.basename(__file__) + ": wp18_conformance_gate.py is "
+          "not next to this file. It is the gate under test and it is tracked "
+          "in git; without it nothing was proved falsifiable.")
+    sys.exit(1)
 import wp18_conformance_gate as gate  # noqa: E402  # noqa: E402
 
 PASS = 0
