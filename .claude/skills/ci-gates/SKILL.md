@@ -4202,3 +4202,29 @@ effect" and invites you to conclude something about the subject.
 The general form: **a cache key must cover everything that can change the
 answer**, and the code computing the answer is part of that. Subject bytes are
 the obvious half; the tool's own bytes are the half nobody writes down.
+
+## 108. I ran the command twice and blamed the first run for the second's answer
+
+Chasing §107 I saw `VERDICT: WAIT` and `rc=0` and concluded the exit-code fix
+was not working. It was working. I had run the command **twice** -- once to
+capture the output, once to capture `$?` -- and in the second between them the
+last check completed. The WAIT belonged to the first invocation and the zero to
+the second, and neither was wrong.
+
+```
+./tri pr ready N 2>&1 | tail -3     # says WAIT
+./tri pr ready N >/dev/null; echo $?  # says 0
+```
+
+Two invocations of a command that reads a **live** external system are two
+measurements of two different states. Written on adjacent lines they read as
+one.
+
+```
+out=$(./tri pr ready N 2>&1); rc=$?     # one invocation, both facts
+```
+
+This is the whole campaign's subject arriving in the shell one-liner used to
+investigate it. Before suspecting the subject, look at how many times the
+question was asked -- and against a moving system, asking twice is already a
+different question.
