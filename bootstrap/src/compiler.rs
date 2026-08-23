@@ -966,6 +966,31 @@ fn zig_string_body(s: &str) -> String {
 }
 
 
+/// Quote an identifier that collides with a Zig keyword.
+///
+/// A spec may legitimately name a field `error` or `align`; Zig reserves both and
+/// reports `expected '.', found ':'` on the field line. `@"error"` is the exact
+/// answer the language provides, so this is a rendering rule rather than a
+/// judgement -- unlike the six field types in #2393, nothing here is guessed.
+///
+/// 20 specs emit one: `error` 23 sites, `packed` 3, `align` 2, `opaque` 1.
+fn zig_ident(name: &str) -> String {
+    const ZIG_KEYWORDS: &[&str] = &[
+        "align", "allowzero", "and", "anyframe", "anytype", "asm", "async",
+        "await", "break", "callconv", "catch", "comptime", "const", "continue",
+        "defer", "else", "enum", "errdefer", "error", "export", "extern", "fn",
+        "for", "if", "inline", "linksection", "noalias", "nosuspend", "noinline",
+        "opaque", "or", "orelse", "packed", "pub", "resume", "return", "struct",
+        "suspend", "switch", "test", "threadlocal", "try", "union",
+        "unreachable", "usingnamespace", "var", "volatile", "while",
+    ];
+    if ZIG_KEYWORDS.contains(&name) {
+        format!("@\"{}\"", name)
+    } else {
+        name.to_string()
+    }
+}
+
 pub struct Parser {
     lexer: Lexer,
     current: Token,
@@ -3801,9 +3826,13 @@ impl Codegen {
                     continue;
                 }
                 emitted.push(&decl.name);
+                // The module's file name keeps its real spelling; only the
+                // binding needs quoting. `const opaque = @import("opaque.zig")`
+                // is a Zig keyword in binding position.
                 self.write_line(&format!(
                     "const {} = @import(\"{}.zig\");",
-                    decl.name, decl.name
+                    zig_ident(&decl.name),
+                    decl.name
                 ));
                 has_imports = true;
             }
@@ -3964,7 +3993,7 @@ impl Codegen {
             self.write("pub ");
         }
 
-        self.write(&format!("const {}", node.name));
+        self.write(&format!("const {}", zig_ident(&node.name)));
 
         if !node.extra_type.is_empty() {
             self.write(&format!(": {}", Self::zig_type(&node.extra_type)));
@@ -4021,7 +4050,11 @@ impl Codegen {
             } else {
                 "void"
             };
-            self.write_line(&format!("{}: {},", field.name, Self::zig_type(ty)));
+            self.write_line(&format!(
+                "{}: {},",
+                zig_ident(&field.name),
+                Self::zig_type(ty)
+            ));
         }
 
         self.dedent();
@@ -4178,7 +4211,11 @@ impl Codegen {
                 } else {
                     self.write("const ");
                 }
-                self.write(&node.name);
+                // Fourth site that binds a name. `const packed = pack_trit(...)`
+                // and `const error = error_create(...)` are locals inside test
+                // and function bodies, so quoting the three declaration sites
+                // above left these behind.
+                self.write(&zig_ident(&node.name));
                 if !node.extra_type.is_empty() {
                     self.write(&format!(": {}", Self::zig_type(&node.extra_type)));
                 }
