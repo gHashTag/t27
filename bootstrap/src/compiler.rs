@@ -1814,6 +1814,21 @@ impl Parser {
                             TokenKind::Comma | TokenKind::Semicolon if depth == 0 => break,
                             _ => {}
                         }
+                        // Lexemes are concatenated raw, so a multi-word type came
+                        // out welded: `[]const u8` became `[]constu8`, which then
+                        // reads as an undeclared identifier. Separate two tokens
+                        // only when both sides are identifier characters --
+                        // inserting a space unconditionally would break `[]u8`
+                        // into `[] u8` and `*const T` into `* const T`.
+                        if let (Some(prev), Some(next)) = (
+                            type_str.chars().last(),
+                            self.current.lexeme.chars().next(),
+                        ) {
+                            let ident = |c: char| c.is_alphanumeric() || c == '_';
+                            if ident(prev) && ident(next) {
+                                type_str.push(' ');
+                            }
+                        }
                         type_str.push_str(&self.current.lexeme);
                         self.advance();
                     }
