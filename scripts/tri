@@ -69,7 +69,12 @@ free_gib() { df -Pk "$REPO_ROOT" | awk 'NR==2 { printf "%.1f", $4/1048576 }'; }
 # Lesson headers are "**1401. TITLE.** body". The space after the period is what
 # separates a header from bold prose like "**88.03% on Fashion**" -- without it
 # the counter reads a percentage as a lesson number.
-lesson_numbers() { grep -oE '^\*\*[0-9]+\.[[:space:]]' "$WAVE_SKILL" | tr -dc '0-9\n'; }
+# `|| true` because this file has no lessons and `set -o pipefail` is on: an
+# empty grep exits 1, the pipeline inherits it, and the CHECKER'S verdict never
+# reaches the caller. `tri lesson --check` printed its conclusion and returned
+# grep's "no matches" instead, so `tri audit` reported FAIL over a file with
+# nothing wrong in it. The exit code belonged to the search, not to the answer.
+lesson_numbers() { grep -oE '^\*\*[0-9]+\.[[:space:]]' "$WAVE_SKILL" 2>/dev/null | tr -dc '0-9\n' || true; }
 
 # Theorem headers are "### T763 -- TITLE [measured]", and sub-parts are real
 # theorems: T709, T709a, T709b are three distinct entries, not a triple collision.
@@ -281,6 +286,18 @@ case "$cmd" in
           for (i = 2; i <= NR; i++) {
             if (order[i] < order[i-1]) { printf "out of order: %d follows %d\n", order[i], order[i-1]; bad = 1 }
             else if (order[i] > order[i-1] + 1) { printf "gap: %d -> %d\n", order[i-1], order[i]; bad = 1 }
+          }
+          # NR == 0 is ABSENCE, not an anomaly, and the two must not share a
+          # verdict. This printed "0 lessons, highest 0, no anomalies" AND exited
+          # non-zero -- nothing wrong, and a failure, on one line. It has read
+          # that way since the command landed on 2026-08-20, and nobody ran it:
+          # `git log --all -S` shows the `**N. ` lesson format has NEVER existed
+          # in this file. This repository keeps theorems, not lessons; the lesson
+          # ledger belongs to a wave loop in another repository, and the command
+          # arrived here with it.
+          if (NR == 0) {
+            print "no lesson ledger (this repository keeps theorems -- see tri theorem)"
+            exit 0
           }
           printf "%d lessons, highest %d, %s\n", NR, order[NR], bad ? "ANOMALIES ABOVE" : "no anomalies"
           exit bad

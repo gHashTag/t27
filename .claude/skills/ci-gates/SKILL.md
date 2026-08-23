@@ -3981,3 +3981,56 @@ The habit worth keeping is smaller than either: **run the new behaviour against
 something real before believing it.** A unit test on the verdict table passed
 the whole time. What caught this was pointing the command at a live pull
 request with checks in flight — the one situation the change exists for.
+
+## 103. The unused instrument was red from the day it landed
+
+Yesterday's lesson was that a correct tool sat in the tree while I typed my own
+loop. So I ran the front door's inventory and picked the command I had never
+run: `tri audit` — *"every pre-wave invariant in one exit code."*
+
+It fails on master:
+
+```
+FAIL  lessons   0 lessons, highest 0, no anomalies
+```
+
+Read that line. **Zero lessons, no anomalies, FAIL.** Three claims, and they
+cannot all be about the same thing.
+
+Two defects behind it, and the second is the interesting one.
+
+**The feature is not this repository's.** `git log --all -S'**1. '` over the
+file the counter reads returns nothing: the `**N. Title.**` lesson format has
+*never existed there*. This repository keeps **theorems** — 914 headings,
+highest T727b, counted correctly by the same command. The lesson ledger belongs
+to a wave loop in another repository, and the command arrived carrying it.
+So zero is the right answer, and calling it a failure is the bug.
+
+**And the verdict was never the checker's to give.** `scripts/tri` runs under
+`set -euo pipefail`, and the counter is
+
+```sh
+grep -oE '^\*\*[0-9]+\.[[:space:]]' "$FILE" | tr -dc '0-9\n'
+```
+
+An empty `grep` exits 1, `pipefail` hands that to the pipeline, and the awk
+block's own `exit 0` never reaches the caller. **The exit code belonged to the
+search, not to the answer** — so even after teaching the checker that absence
+is not an anomaly, it still returned failure. `|| true` on the search, and the
+verdict is the checker's again.
+
+Three things worth keeping:
+
+* **Absence and anomaly must not share a verdict.** "Nothing here" and "something
+  is wrong here" are different findings; a line that says both is reporting
+  neither.
+* **`grep | ... ` under `pipefail` returns the grep.** This campaign has the
+  mirror of it recorded — `rc=$?` after a pipeline reading `tail`'s status —
+  and this is the same defect from the other end of the pipe.
+* **An instrument nobody runs is not neutral; it rots red.** This one landed
+  four days ago and has been failing since, which is survivable only because
+  nothing depends on it. The moment something had, the first thing it would
+  have learned is a falsehood.
+
+Verified in both directions: with two lessons planted at 1 and 3 the checker
+prints `gap: 1 -> 3` and exits 1; restored, it exits 0.
