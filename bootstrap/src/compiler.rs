@@ -1776,6 +1776,55 @@ impl Parser {
     fn parse_struct_body(&mut self, decl: &mut Node) -> Result<(), String> {
         // We are inside { ... } of a struct. Parse field: Type pairs.
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            // A Zig struct body legitimately holds declarations, not only fields:
+            //
+            //     pub const BigInt = struct {
+            //         trits : [MAX_TRITS]Trit,
+            //         const Self = @This();
+            //         pub fn zero() Self { ... }
+            //
+            // Everything here used to be read as `name : Type`, so
+            // `const Self = @This();` became the fields `Self: void` and
+            // `@This: void`, the method name became `zero: void`, and the loop
+            // then ate the rest of the file. ternary/bigint.t27 is 1445 lines and
+            // produced 32. The 37 test blocks it declares were reported as
+            // "lost" -- that was the symptom, not the defect.
+            //
+            // Skipping is deliberately conservative: declarations are dropped
+            // rather than emitted, so methods do not survive, but the struct and
+            // everything after it does. Parsing them properly needs the
+            // declaration parser reentrant inside a struct body, which is a
+            // larger change than should land unmeasured at this hour.
+            if matches!(
+                self.current.kind,
+                TokenKind::KwConst | TokenKind::KwVar | TokenKind::KwFn | TokenKind::KwPub
+            ) {
+                let mut depth: i32 = 0;
+                loop {
+                    match self.current.kind {
+                        TokenKind::Eof => break,
+                        TokenKind::LBrace => depth += 1,
+                        TokenKind::RBrace => {
+                            if depth == 0 {
+                                break; // the struct's own closing brace
+                            }
+                            depth -= 1;
+                            if depth == 0 {
+                                self.advance(); // consume the body's `}`
+                                break;
+                            }
+                        }
+                        TokenKind::Semicolon if depth == 0 => {
+                            self.advance(); // `const X = ...;` ends here
+                            break;
+                        }
+                        _ => {}
+                    }
+                    self.advance();
+                }
+                continue;
+            }
+
             if self.current.kind == TokenKind::Ident {
                 let field_name = self.current.lexeme.clone();
                 self.advance();
