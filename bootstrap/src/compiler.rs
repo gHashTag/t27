@@ -4162,6 +4162,18 @@ impl Codegen {
         if t.contains("::") {
             return Self::zig_type(&t.replace("::", "."));
         }
+        // `OrgID?` is the Swift/Kotlin spelling of an optional; Zig writes the
+        // question mark in front. 62 emitted positions carry it across 15 files,
+        // not one of them valid -- the first-error histogram showed 6.
+        //
+        // Only when `?` ends the WHOLE type: `Result<str?,GitError>` is broken
+        // by its angle brackets, not by the question mark, and rewriting the
+        // inner one would hide that.
+        if let Some(inner) = t.strip_suffix('?') {
+            if !inner.is_empty() && !inner.ends_with('?') {
+                return format!("?{}", Self::zig_type(inner));
+            }
+        }
         // `str` is Rust's, and appears bare as well as behind a reference.
         if t == "&str" || t == "str" {
             return "[]const u8".to_string();
