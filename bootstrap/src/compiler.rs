@@ -4076,6 +4076,52 @@ impl Codegen {
             self.write("pub ");
         }
 
+        // Prop. 156 captures a generic parameter list into extra_field as the
+        // literal `(K, V)`, and this ignored it: `const BTree(K, V) = struct`
+        // emitted `const BTree = struct` while the body kept referring to K and
+        // V. 111 undeclared-identifier errors -- `T` 94, `K` 12, `L` 5 -- the
+        // largest single item left in that class after #2549.
+        //
+        // Zig spells a generic container as a function returning a type, so the
+        // declaration form changes shape entirely rather than gaining a suffix.
+        let generic: Vec<String> = node
+            .extra_field
+            .trim()
+            .trim_start_matches('(')
+            .trim_end_matches(')')
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_'))
+            .collect();
+
+        if !generic.is_empty() {
+            let params = generic
+                .iter()
+                .map(|g| format!("comptime {}: type", g))
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.write_line(&format!("fn {}({}) type {{", node.name, params));
+            self.indent();
+            self.write_indent();
+            self.write_line("return struct {");
+            self.indent();
+            for child in &node.children {
+                self.write_indent();
+                let ty = if !child.extra_type.is_empty() {
+                    &child.extra_type
+                } else {
+                    "void"
+                };
+                self.write_line(&format!("{}: {},", zig_ident(&child.name), Self::zig_type(ty)));
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("};");
+            self.dedent();
+            self.write_line("}");
+            return;
+        }
+
         self.write_line(&format!("const {} = struct {{", node.name));
         self.indent();
 
