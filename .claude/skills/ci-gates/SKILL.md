@@ -2968,13 +2968,32 @@ The two possible answers look identical in the file and completely different
 in the log:
 
 ```
-git log --oneline -S'## 63. ' -- path/to/file.md
+git log --all --oneline -S'## 63. ' -- path/to/file.md
 ```
 
-* no commits — the number was never used. Nothing is missing. (`## 24` here.)
+* no commits — the number was never used. Nothing is missing.
 * two commits — one that added it, one that removed it. Something is missing,
   and the second commit tells you which one to blame. The parent of the
   removing commit still has the text: `git show <sha>^:path | ...`
+* **one commit, on a branch that is not merged** — the section exists and is
+  waiting in a pull request.
+
+**`--all` is not optional, and leaving it out is how I got this wrong.** The
+first version of this section said the gap at `## 24` was a number never used,
+citing an empty `git log -S` as proof. I ran it twice, on master, and read
+"nothing here" as "nothing anywhere". Section 24 was sitting in PR #2487,
+authored days earlier and unmerged.
+
+`git log -S` searches the history of the **current branch**. A section that
+exists only on an unmerged branch is byte-for-byte indistinguishable from one
+that never existed — same empty output, opposite meaning. The scope of the
+search is part of the claim, and I omitted it from the claim while omitting it
+from the command.
+
+Widen it further when the answer still looks empty: `git log --reflog`,
+`git fsck --lost-found` for a section dropped by an abandoned rebase, and — for
+a repository with more than one worktree, which this one has — the branches
+those worktrees hold.
 
 Recovery cost nothing because git had it. The cost was the sessions in
 between, where the experience was simply absent and I could have re-learned it
