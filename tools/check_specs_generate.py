@@ -312,6 +312,21 @@ def self_check():
             baseline_lines=["specs/known.t27 | parse error in fn"],
             args=("--update-baseline",))
 
+    # T107b: the DISPLAY boundary, closed rather than declared cosmetic.
+    #
+    # `if len(departed) > 10:` guards a "... and N more" line. Classified as
+    # cosmetic when the boundary operator first reported it -- at exactly ten it
+    # would print "and 0 more", which harms nobody. Closed anyway: this campaign
+    # has twice found a written-down limitation to be invented, and a declared
+    # exception costs a reader more than a case costs to write. Ten departed
+    # ledger lines, none tracked, and the continuation line must be ABSENT.
+    spawned("exactly ten departed prints no continuation", 1,
+            "DEPARTED 10 spec(s) in the baseline",
+            (GREEN, NEW, LEAK, BLESS, "... and"),
+            files={"specs/ok.t27": SPEC_OK},
+            baseline_lines=[f"specs/gone{i}.t27 | parse error at module level"
+                            for i in range(10)])
+
     # T107: the ratchet's BOUNDARY. The case above proves it refuses to GROW
     # (1 -> 2) and the case below proves it writes when the ledger SHRINKS
     # (2 -> 1). Neither goes through EQUAL, and equal is where a ratchet is
