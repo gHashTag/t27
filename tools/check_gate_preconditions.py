@@ -52,7 +52,7 @@ T27C = ROOT / "target/release/t27c"
 # this table expected check_specs_generate.py to say "found no .t27 at all" on
 # a bare tree. It says "t27c not built", and this file's own control is what
 # said so.
-BARE, WITH_T27C = "bare", "t27c"
+BARE, WITH_T27C, WITH_IVERILOG = "bare", "t27c", "t27c+iverilog"
 GATES = [
     ("check_duplicate_agreement.py", BARE, "t27c not built"),
     ("check_duplicate_agreement.py", WITH_T27C, "no duplicated function was found at all"),
@@ -62,11 +62,16 @@ GATES = [
     ("check_specs_generate.py", WITH_T27C, "found no .t27 at all"),
     ("check_specs_parse.py", BARE, "t27c not built"),
     ("check_vector_data.py", BARE, "no baseline"),
+    # T95: the third stage. This one needs a tool that cannot be planted --
+    # iverilog lives on PATH, not in the tree -- so it reports UNRUN when the
+    # tool is absent rather than passing or guessing. Same choice the WITH_T27C
+    # rows make: a row that cannot run proved nothing, and reporting it as
+    # absent would be the vacuous pass this file exists to catch, one level up.
+    ("check_elab_ratchet.py", WITH_IVERILOG, "t27c fpga-build --smoke failed"),
 ]
 
 # NOT COVERED, said out loud rather than left to be inferred from a count:
 #
-#   check_elab_ratchet.py  "t27c fpga-build --smoke failed"
 #   check_elab_ratchet.py  "no baseline; run --update-baseline once"
 #
 # Named by message, not by line. The first version of this note said :346 and
@@ -74,12 +79,16 @@ GATES = [
 # both to :359 and :403 in the same commit -- a comment that was measurably
 # false about its own repository before it was ever pushed.
 #
-# Both sit behind an iverilog check, so reaching them needs iverilog on PATH --
-# true in fpga-conformance, not true everywhere this file runs. An assertion
-# whose expected message changes with the machine is not an assertion. Covering
-# them needs a stage that requires iverilog and skips loudly without it; that
-# is a bigger change than this file is, and it is filed rather than faked.
-UNCOVERED = 2
+# Its sibling, "t27c fpga-build --smoke failed", WAS in this list and is now
+# covered by the WITH_IVERILOG stage above -- the note then said covering it
+# "needs a stage that requires iverilog and skips loudly without it", which is
+# exactly what was built.
+#
+# This one stays. Reaching it needs `t27c fpga-build --smoke` to SUCCEED and
+# then find no baseline, and a smoke build that succeeds needs the real spec
+# tree -- not something an empty directory can be given. Planting a fake
+# success would test the plant, not the gate.
+UNCOVERED = 1
 
 TIMEOUT = 300
 
@@ -93,7 +102,7 @@ def run_on_empty_tree(script, stage=BARE, source=None):
             shutil.copy(ROOT / "tools" / script, tree / "tools" / script)
         else:
             (tree / "tools" / script).write_text(source, encoding="utf-8")
-        if stage == WITH_T27C:
+        if stage in (WITH_T27C, WITH_IVERILOG):
             (tree / "target/release").mkdir(parents=True)
             shutil.copy(T27C, tree / "target/release/t27c")
         return subprocess.run(
@@ -134,7 +143,13 @@ def check():
         if not (ROOT / "tools" / script).exists():
             problems.append(f"GONE      tools/{script} is in the table and not on disk")
             continue
-        if stage == WITH_T27C and not T27C.exists():
+        if stage == WITH_IVERILOG and not shutil.which("iverilog"):
+            problems.append(
+                f"UNRUN     {script} [{stage}] needs iverilog on PATH\n"
+                f"            it is not in the tree and cannot be planted"
+            )
+            continue
+        if stage in (WITH_T27C, WITH_IVERILOG) and not T27C.exists():
             # Not a pass. A row that cannot run is a row that proved nothing,
             # and reporting it as absent would be the vacuous pass this file
             # exists to catch, one level up.
