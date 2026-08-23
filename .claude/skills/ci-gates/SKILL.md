@@ -2637,6 +2637,39 @@ A sentence cannot disagree with tomorrow's data; a command can.
 **And it crashed on its first run**, slicing a title by byte index in the middle
 of an em dash — in a pull request this campaign had opened. Truncate by chars.
 
+## 67. The blocking check was right, and its ledger held 58 paid debts
+
+`coverage` — the required check that blocked a pull request — is
+`check_seal_coverage.py`, one of this campaign's own gates. **It is not a broken
+instrument.** Its negative control passes, and the finding is real: **131 seals
+are stale**, meaning the spec changed after sealing so the recorded hashes
+describe something it no longer produces.
+
+**What was mine to do, and what was not.** Re-sealing 131 specs is blessing the
+drift the ratchet exists to prevent, and fixing them is 131 separate judgements.
+Filed as an owner decision.
+
+**But the gate also asked for something free.** It prints, every run:
+
+> NOTE 56 baselined seal(s) now hold. Drop their lines so the gate holds them.
+> DEPARTED … baselined as broken, and the seal FILE is gone.
+
+Fifty-six debts paid and never collected, plus two lines naming files that no
+longer exist. **209 → 151 lines**, and the 131 untouched. That *tightens* the
+ratchet: fifty-six seals that were excused are now held.
+
+**Removed by hand, line by line — not with `--update-baseline`.** That command
+rewrites the whole ledger from today's state, which would bless all 131 in the
+same stroke. **Tightening a ratchet and blessing drift use the same file and must
+not use the same command**, and the only thing separating them here is which one
+you reach for.
+
+**And the state worth naming.** `coverage` is required, so this blocks merges —
+and every recent merge went in with it red anyway. A required check that is
+always red costs the friction of a gate without the protection of one, which is
+the same condition this campaign opened on, arrived at from the opposite
+direction: not a gate that cannot fail, but a gate that cannot pass.
+
 ## 68. The second blocking check was also right, and also unread
 
 `Corpus ratchet`, the other permanently-red required check, had been printing a
@@ -2667,4 +2700,3 @@ and the longer it stays red the more certain everyone is that it means nothing.*
 **The check that separates the two cases takes one command.** Run the gate
 locally and read what it says. Both of these named their own remedy in the
 output, on every run, for days.
-
