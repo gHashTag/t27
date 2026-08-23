@@ -2637,37 +2637,6 @@ A sentence cannot disagree with tomorrow's data; a command can.
 **And it crashed on its first run**, slicing a title by byte index in the middle
 of an em dash — in a pull request this campaign had opened. Truncate by chars.
 
-## 68. The second blocking check was also right, and also unread
-
-`Corpus ratchet`, the other permanently-red required check, had been printing a
-precise verdict for its whole history and nobody had acted on it:
-
-    UNEXPECTED PASSES  : 3
-    UNEXPECTED FAILURES: 2
-
-**The same two specs appear in both lists.** They used to fail `parse` outright;
-they now parse and fail the narrower `parse-no-discard`. The third simply passes.
-
-So the fix is three removals and two re-labels, and the distinction matters:
-**the excuse for those two specs went from "does not parse at all" to "parses
-but discards tokens", and the third lost its excuse entirely.** Ledger 221 → 220
-against a cap of 221 — strictly tighter, and `RATCHET: CLEAN`.
-
-**Both permanently-red required checks turned out to be right.** Neither was a
-broken instrument; both were reporting real, small, actionable findings that had
-gone unread long enough to become scenery. `coverage` asked for 58 lines to be
-dropped; `Corpus ratchet` asked for 3 removals and 2 re-labels. Between them:
-**five minutes of work each, blocking every merge in the repository.**
-
-That is the failure mode neither §1 nor §57 covers. A gate that cannot fail reads
-as coverage. A gate that cannot pass reads as noise. **A gate that is right, and
-whose verdict is a short actionable list, becomes furniture if nobody reads it —
-and the longer it stays red the more certain everyone is that it means nothing.**
-
-**The check that separates the two cases takes one command.** Run the gate
-locally and read what it says. Both of these named their own remedy in the
-output, on every run, for days.
-
 ## 67. The blocking check was right, and its ledger held 58 paid debts
 
 `coverage` — the required check that blocked a pull request — is
@@ -2701,3 +2670,33 @@ always red costs the friction of a gate without the protection of one, which is
 the same condition this campaign opened on, arrived at from the opposite
 direction: not a gate that cannot fail, but a gate that cannot pass.
 
+## 68. The second blocking check was also right, and also unread
+
+`Corpus ratchet`, the other permanently-red required check, had been printing a
+precise verdict for its whole history and nobody had acted on it:
+
+    UNEXPECTED PASSES  : 3
+    UNEXPECTED FAILURES: 2
+
+**The same two specs appear in both lists.** They used to fail `parse` outright;
+they now parse and fail the narrower `parse-no-discard`. The third simply passes.
+
+So the fix is three removals and two re-labels, and the distinction matters:
+**the excuse for those two specs went from "does not parse at all" to "parses
+but discards tokens", and the third lost its excuse entirely.** Ledger 221 → 220
+against a cap of 221 — strictly tighter, and `RATCHET: CLEAN`.
+
+**Both permanently-red required checks turned out to be right.** Neither was a
+broken instrument; both were reporting real, small, actionable findings that had
+gone unread long enough to become scenery. `coverage` asked for 58 lines to be
+dropped; `Corpus ratchet` asked for 3 removals and 2 re-labels. Between them:
+**five minutes of work each, blocking every merge in the repository.**
+
+That is the failure mode neither §1 nor §57 covers. A gate that cannot fail reads
+as coverage. A gate that cannot pass reads as noise. **A gate that is right, and
+whose verdict is a short actionable list, becomes furniture if nobody reads it —
+and the longer it stays red the more certain everyone is that it means nothing.**
+
+**The check that separates the two cases takes one command.** Run the gate
+locally and read what it says. Both of these named their own remedy in the
+output, on every run, for days.
