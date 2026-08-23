@@ -3936,6 +3936,14 @@ impl Parser {
 pub struct Codegen {
     output: String,
     indent: u32,
+    /// Every name this spec declares at top level.
+    ///
+    /// The emitter rewrites a few operator spellings -- `eq(a, b)` becomes
+    /// `a == b` -- and must not do so when the spec defines a function by that
+    /// name. 9 specs define `eq`, `not` or `abs` as ordinary functions against
+    /// 14 uses that expect the operator, so an unguarded rewrite would break 9
+    /// to fix 14. #2611.
+    declared: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -3943,6 +3951,7 @@ impl Codegen {
         Self {
             output: String::new(),
             indent: 0,
+            declared: std::collections::HashSet::new(),
         }
     }
 
@@ -3972,6 +3981,31 @@ impl Codegen {
     }
 
     pub fn gen_zig(&mut self, ast: &Node) {
+        // Collect the spec's own declarations before emitting anything, so the
+        // operator rewrites below can tell a spelling from a definition.
+        //
+        // Recursive, not just top level: every one of the 9 specs that defines
+        // `eq`, `not` or `abs` defines it as a METHOD inside a struct. A
+        // top-level-only walk finds none of them, so the guard would collect
+        // nothing and only accidentally avoid harm -- method calls happen to
+        // parse as field access rather than a bare call.
+        fn collect(node: &Node, out: &mut std::collections::HashSet<String>) {
+            for decl in node.children.iter() {
+                if matches!(
+                    decl.kind,
+                    NodeKind::ConstDecl
+                        | NodeKind::EnumDecl
+                        | NodeKind::StructDecl
+                        | NodeKind::FnDecl
+                ) && !decl.name.is_empty()
+                {
+                    out.insert(decl.name.clone());
+                }
+                collect(decl, out);
+            }
+        }
+        collect(ast, &mut self.declared);
+
         // Header with module name
         let module_name = if !ast.name.is_empty() {
             &ast.name
@@ -4877,7 +4911,39 @@ impl Codegen {
                 self.write(&zig_path(&node.name));
             }
             NodeKind::ExprCall => {
-                if node.name == "@compileAssert" || node.name == "assert" {
+                // `eq(a, b)`, `not(x)`, `abs(x)` are operator spellings the
+                // spec expects the compiler to provide -- the same shape as
+                // `expect` and `assert`, whose binding was worth +33 specs.
+                // 14 uses across the corpus.
+                //
+                // Guarded on the spec's own declarations: 9 specs define one of
+                // these as an ordinary function, and rewriting those would
+                // break 9 to fix 14.
+                if !self.declared.contains(&node.name)
+                    && ((node.name == "eq" && node.children.len() == 2)
+                        || (node.name == "not" && node.children.len() == 1)
+                        || (node.name == "abs" && node.children.len() == 1))
+                {
+                    match node.name.as_str() {
+                        "eq" => {
+                            self.write("(");
+                            self.gen_expr(&node.children[0]);
+                            self.write(" == ");
+                            self.gen_expr(&node.children[1]);
+                            self.write(")");
+                        }
+                        "not" => {
+                            self.write("(!");
+                            self.gen_expr(&node.children[0]);
+                            self.write(")");
+                        }
+                        _ => {
+                            self.write("@abs(");
+                            self.gen_expr(&node.children[0]);
+                            self.write(")");
+                        }
+                    }
+                } else if node.name == "@compileAssert" || node.name == "assert" {
                     if !node.children.is_empty() {
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
