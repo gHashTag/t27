@@ -85,6 +85,16 @@ pub enum GatesCmd {
         #[arg(long)]
         dir: Option<String>,
 
+        /// Move the comparison in a boundary: `>` <-> `>=`, `<` <-> `<=`.
+        ///
+        /// The only operator that had no flag of its own, reachable solely
+        /// through `--all` -- and it is the one with the worst kill rate of the
+        /// five (26 of 77 across the tree), so it is the one you most want to
+        /// iterate on alone. Four operators selectable and the weakest not is
+        /// exactly backwards.
+        #[arg(long)]
+        boundary: bool,
+
         /// Neuter assertions: `assert C, "msg"` -> `assert True, "msg"`.
         ///
         /// The operator for gates whose verdicts are asserts rather than exit
@@ -1338,6 +1348,7 @@ fn mutate(
     only: Option<&str>,
     loud: bool,
     invert: bool,
+    boundary: bool,
     assert_op: bool,
     fresh: bool,
     all: bool,
@@ -1447,6 +1458,8 @@ fn mutate(
         ]
     } else if assert_op {
         &[Direction::Assert]
+    } else if boundary {
+        &[Direction::Boundary]
     } else if invert {
         &[Direction::Invert]
     } else if loud {
@@ -1863,6 +1876,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             only,
             loud,
             invert,
+            boundary,
             assert_op,
             fresh,
             all,
@@ -1871,6 +1885,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             only.as_deref(),
             *loud,
             *invert,
+            *boundary,
             *assert_op,
             *fresh,
             *all,
@@ -1977,6 +1992,35 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    /// Each operator has a flag, and each flag selects exactly one.
+    ///
+    /// `--boundary` had none: it was reachable only through `--all`, and it is
+    /// the operator with the worst kill rate of the five, so it is the one you
+    /// most want to run alone. Four selectable and the weakest not is exactly
+    /// backwards, and nothing here would have said so -- the gap was in the
+    /// argument parser, where no measurement looks.
+    #[test]
+    fn every_operator_has_its_own_flag() {
+        for f in ["--loud", "--invert", "--boundary", "--assert"] {
+            assert!(
+                gates_mutate_accepts(f),
+                "{f} is not accepted by `tri gates mutate`"
+            );
+        }
+        // And a spelling that does not exist must be refused, or the loop above
+        // would pass against a parser that accepts anything.
+        assert!(!gates_mutate_accepts("--bounadry"));
+    }
+
+    fn gates_mutate_accepts(flag: &str) -> bool {
+        // `Root` wraps GatesCmd directly, so the argv is `<prog> mutate <flag>`
+        // and not `tri gates mutate <flag>`. Getting this wrong made every flag
+        // look unaccepted, including the four that already worked -- which is
+        // what a negative control is for: `--loud` failing was the tell that the
+        // harness was wrong, not the parser.
+        Root::try_parse_from(["tri-gates", "mutate", flag]).is_ok()
+    }
 
     /// Three ways two DIFFERENT control sets used to share one cache key. That
     /// direction is the harmful one: a shared key serves a row measured against
