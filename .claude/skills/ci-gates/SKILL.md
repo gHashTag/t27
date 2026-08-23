@@ -3723,3 +3723,54 @@ path boundary, gives twelve real invocations and no false one.
 reading documentation as if it were behaviour — the same error as grepping a
 source file for a call and finding it in a docstring. Strip what is not a
 command first, and match at a boundary rather than as a substring.
+
+## 94. "Prove" over a fixed sample, and the distinction lived in the tools
+
+The remaining strong-named steps, read against what their tools actually do:
+
+| step name | evidence |
+|---|---|
+| Prove generated RTL == GF-T model (bit-exact) | 14 topologies from a **list**, one seeded training run |
+| Prove GF-T primitives bit-exact across C + Rust + model | `N = 600` pairs drawn from **48** values |
+| Prove the WHOLE trainer bit-exact in C | `STEPS = 80`, seeded |
+| Exhaustive, every arm, whole domain | genuinely enumerates — **"wherever the space is small"** |
+
+Three name a proof over a **fixed sample**. The fourth is the real thing, and
+its first line says exactly where the real thing stops.
+
+**The distinction was already in the repository — in the tools, in careful
+prose, by an author who clearly understood it. It had simply never reached the
+step names**, and the step name is what a green check shows.
+
+I checked the sample first for the failure I expected: an unseeded random
+sample, which would make a "proof" draw different inputs every run. **It is
+seeded** — `random.seed(202)`, `random.seed(101)` — and two consecutive runs
+produce byte-identical output. That is a strength, and it has a shadow worth
+naming: *the sample never moves*, so a disagreement outside those 600 pairs
+cannot be found here however many times CI runs.
+
+Renamed to name the evidence, with `DOES NOT CHECK` blocks saying which inputs
+are outside.
+
+## 95. My limits statement was invisible because I wrote it in my own words
+
+After adding a scope note to three steps, `tri claims` still reported them as
+stating none. The note said "FIXED, SEEDED sample … and not that". The
+detector's vocabulary is the repository's: `does not check`, `not claimed`,
+`says nothing`, `scoped claim`, `is a ratchet`.
+
+**A limit stated in different words reads as no limit at all** — to the
+detector, and to a reader scanning for the familiar phrase. Rewritten as
+`DOES NOT CHECK: …`, the count moved.
+
+The tempting fix was to widen the detector's vocabulary to include my phrasing.
+That is backwards: **an established vocabulary is worth more than any single
+statement made in it**, and widening it once per author ends with a regex that
+matches everything and means nothing.
+
+The same sweep has a blind spot I could not fix the same way, and named
+instead: **it reads workflows, so a limit stated in the tool is invisible to
+it.** `verify_exhaustive.py` opens with as careful a scope statement as exists
+in this tree and is reported as having none. A flagged name may be the most
+honest thing in the repository — the flag means *worth reading*, and reading
+means opening the tool.
