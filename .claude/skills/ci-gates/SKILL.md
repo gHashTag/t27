@@ -2147,8 +2147,9 @@ red that is not a live finding, just a run nobody has repeated. `run` on a branc
 and `run` on the default branch answer different questions, and the older one
 answers about a tree that no longer exists.
 
-**The parallel work found the third copy.** `skip()` exists three times in the
-trainer/verifier family. `verify_multitarget.py` has had `--require` from the
+**The parallel work found the third copy.** `skip()` exists **four** times in
+the trainer/verifier family — the count in this paragraph said three, and was
+itself off by one until §54 recounted it. `verify_multitarget.py` has had `--require` from the
 start with a comment explaining why. `verify_trainer_c.py` did not, until
 yesterday. `verify_igla_race.py` did not either. **One rule, written down once,
 applied in one of three places** — and the two without it are CI steps that could
@@ -2166,3 +2167,841 @@ the declared gap and the measured gap are the same line.
 copies before writing it up. A shared idea with three implementations has three
 chances to be right and usually takes one.
 
+## 54. The gate that exited 0 when the compiler refused to emit
+
+Counting the copies of `skip()` corrected §53 (**four**, not three) and found the
+one that mattered.
+
+`verify_emit_bitexact.py` — the gate whose entire job is *"prove the generated
+RTL equals the model bit-exactly"* — called `skip()` when `t27c gen-verilog`
+returned **non-zero**. A code-generation failure in the exact thing being
+verified made this check **exit 0**, in CI and locally, with or without any flag.
+
+That is not a missing prerequisite. iverilog absent is an incomplete
+environment; the compiler refusing to emit is the product being broken, and it
+is the loudest thing this gate could possibly find. It was the quietest.
+
+**Two different words for two different states.** `skip()` keeps its meaning —
+the environment is incomplete, tolerated locally, fatal under `--require`. A new
+`broken()` says the product failed, and is fatal always, with a line that names
+which of the two happened so a reader never has to guess.
+
+**The fourth copy also lacked `--require`**, so it was the last of the four that
+could silently pass on a missing simulator. All four now agree.
+
+**The control's third case is the one that would have caught it**: a planted
+`t27c` that refuses to emit, asserting exit 1 and naming `SKIP` as forbidden —
+because reporting a broken compiler as a missing tool is exactly the defect.
+
+**The rule.** Every `skip` is a claim that the thing missing is *not the subject
+of the test*. Read them as that sentence and the wrong ones become obvious: "we
+skipped because the compiler under test would not compile" does not survive
+being said out loud.
+
+## 55. Reading every `skip` as the sentence it makes
+
+§54 gave a mechanical test: **every `skip` claims that the thing missing is not
+the subject of this check.** Fourteen calls in the tree; read each as that
+sentence and two do not survive.
+
+Both are a **spec file tracked in git**. `verify_emit_bitexact` skipped when
+`gft_smul.t27` / `gft_sadd.t27` were absent; `verify_igla_race` when
+`ternary_mac.t27` was. Measured, not argued: renaming the file aside makes both
+exit **0** without a flag. A deleted spec is not a bare machine — it is the
+repository missing the thing the gate exists to verify, and the sentence
+"the missing spec is not the subject of this check" is simply false.
+
+Both now call `broken()`: fatal with or without `--require`. `--require` should
+not be what saves you from a deleted source file.
+
+### And the extraction, at the one safe moment
+
+Four hand-copied `skip()`s had just been made to behave identically, which is
+the only time a deduplication is a pure deduplication. `tools/_prereq.py` now
+holds both words, with the rule that separates them written **where the code
+is** rather than in a comment inside one of four copies — which is exactly how
+the four came to disagree.
+
+**The extraction broke a control on its first run, and the control said so.**
+`verify_multitarget`'s planted tree carried the script and not the module it now
+imports, so the child died at import with empty stdout — and the case refused to
+read that as a skip. A plant must carry everything the thing under test needs;
+adding a shared dependency changes what "everything" means, and the only cheap
+way to learn that is a control that fails loudly.
+
+Two assertions also had to move: the messages now name the script from `argv`
+rather than a constant, so `SKIP verify_multitarget` became
+`SKIP verify_multitarget.py`. A control asserting exact text is a control that
+notices a message changing — which is the point, even when the change is mine.
+
+## 56. A null result, and a selector that was right by accident
+
+Two measurements this iteration, and the honest one is the boring one.
+
+**The assert blind spot costs nothing here.** `is_gate_by_property` recognises
+`return`, `sys.exit` and `raise SystemExit`; a tool that fails only through an
+uncaught `AssertionError` is invisible to it. I expected that to be costing
+coverage. Measured across every CI-invoked tool: **zero** fail only that way —
+every one has an explicit or ternary exit as well. The hole is real and empty,
+and saying so is worth more than the fix I was about to write.
+
+**But the selector has a false positive, and it fired.**
+`gft_backprop_microcode.py` was classified as a gate on the strength of
+
+    return 0 if ys[0] >= ys[1] else 1
+
+which is a **class label from a classifier**, not a verdict. `verdict_literals`
+was built to recognise return statements that carry verdicts; using it to answer
+*"can this file exit non-zero"* conflates a returned value with an exit code.
+The file is a gate anyway — sixteen `assert`s — so the classification is right
+**by accident**, which is the least useful way to be right.
+
+**The last of the four verifiers now has a control.** `verify_trainer_c.py` —
+the one whose `skip()` every other copied — is 1/1, 1/1, 3/3, with a planted
+divergence in its C arm and the clean direction asserted beside it. The plant
+scopes its edit to the text after `def run_c(`, because the same plant in
+`fuzz_trainer.py` hit `run_model` three functions earlier and a case passed on a
+divergence planted where it was never meant to be.
+
+Gates with no control in any form: **1**, and it is the file the selector was
+right about by accident.
+
+**The rule.** A predicate reused outside the question it was written for will be
+right often enough to look correct. `verdict_literals` answers *"is this return a
+verdict?"*; it does not answer *"can this program fail?"*, and the difference
+only shows up on a classifier that returns 1 for a class.
+
+## 57. Zero, and a null result that answered the easier question
+
+**21 gates, 0 with no control in any form.** The count that opened this campaign
+at 4 of 12 is at zero, across a set two-thirds larger and selected by property
+rather than by name.
+
+The last one, `gft_backprop_microcode.py`, carried sixteen `assert`s — XOR trains
+to 4/4, held-out clears 90%, the emitted Verilog carries the ports it claims —
+and nothing showed that any of them could go red. Now three planted cases do: a
+sign flip in the shared multiplier stops XOR converging, a renamed port trips the
+emitter assertion, and the clean tree stays green.
+
+**And building it corrected §56's null result.** That entry measured *"do any
+CI-invoked tools fail ONLY through assert?"* — answer zero, no gate is invisible
+to the selector — and I reported it as if it settled the matter. It does not.
+
+The mutation operators score this gate **0/0 silent, 0/0 loud, 0/0 invert**.
+Its verdicts are asserts, which no operator recognises, so **every verdict in
+this gate is invisible to three of the four questions**. The selector sees it
+(via a ternary that returns a class label, §56's accident); the operators do not
+see a single one of its sixteen assertions.
+
+Two different questions — *"is this file classified as a gate?"* and *"can its
+verdicts be broken and noticed?"* — and I answered the easier one, found nothing,
+and moved on.
+
+**And the documented trap, reproduced.** The port-rename plant spelled its needle
+literally, so the first occurrence of that string in the file became **the
+control's own source line**, and `str.replace(.., 1)` edited the harness instead
+of the target. The case then reported the gate as blind when nothing had been
+planted at all. `check_duplicate_agreement.py` carries a comment warning about
+exactly this, written after it happened there. I had read that comment. The fix
+is to assemble the needle — `"input [31:0] x" + "0i"` — so it does not exist as a
+literal anywhere.
+
+**Named and left:** the boundary column reads 5/31. Those sites are arithmetic
+internals — encodings, magnitude comparisons — where moving a comparison is a
+numerical change rather than a verdict change. A different kind of surface,
+larger than anything else outstanding, and not this campaign's question.
+
+## 58. The fifth operator, and the control scope that leaked
+
+§57 named a measurable hole: a gate whose verdicts are `assert`s scores 0/0 in
+every column, which prints exactly like a gate with nothing to break. `--assert`
+closes it — `assert C, "msg"` becomes `assert True, "msg"`, the silent operator
+spelled the way a test-shaped gate spells it. The message is kept deliberately:
+a mutant that also dropped the text would be killed by a control asserting that
+text, and the kill would be for the wrong reason.
+
+**Its first run found one site in a file with eighteen assertions.** Not a
+scoping choice — a bug, and one all three scanners shared.
+
+`in_control` was set by a top-level `def` and cleared only by the **next**
+top-level `def`. So everything after the last function in a file inherits that
+function's status, and when the last function is a `self_check`, the whole
+`if __name__ == "__main__":` block below it is scored as control code. Sixteen
+assertions live in exactly that block. The operator reported **0/1**.
+
+A function ends at the next top-level *statement*, not at the next `def`. Three
+scanners fixed; the silent, loud and invert operators had the same leak and never
+showed it, because module-level verdicts are rare and asserts are where they
+live.
+
+**And then the honest number.** 16 sites, **2 killed**. The control I wrote for
+that gate one iteration ago — three planted cases, all passing — covers **two of
+its sixteen verdicts**. "Has a control" became a measurement, which is the entire
+point of the operator.
+
+**A cost, stated.** The full five-operator run now exceeds ten minutes; the
+assert column alone spawns sixteen ten-second runs for one gate. The suite has
+outgrown a single foreground command, and that is a real consequence of the
+fifth question rather than a reason not to ask it.
+
+### And a rule I wrote, then broke, in the same session
+
+§53 said: wait for the job that runs what you changed, not for the checks beside
+it. Two iterations later I read `in_progress`, and merged anyway. The branch run
+completed **success** afterwards — so the outcome was fine and the method was
+not, and the difference between those is the whole subject of this document.
+
+Mitigating and worth saying precisely: that change added a `--self-check` branch
+and touched no CI invocation, so the job could not have been affected by it.
+That is an argument I could have made *before* merging, and did not — I simply
+did not look.
+
+## 59. A mutant escaped into a commit, and `git add -A` is how
+
+The five-operator run exceeds ten minutes, so I backgrounded it. A timeout killed
+an earlier one. The loop writes a mutant, runs the control, restores — and a kill
+lands between the first and the third.
+
+**A boundary mutant stayed in `gft_backprop_microcode.py`. `git add -A` staged
+it. It went into a commit, a push, and an open pull request** — a deliberately
+broken line, in the file whose control I had just written, in a repository whose
+whole subject is gates that cannot fail.
+
+The command's docstring already said the restore is recoverable with
+`git checkout tools/`. True, and useless: **you have to know an interrupt
+happened.** The dirty-tree guard could not help — it refuses to *start* dirty,
+and by then the mutant was already staged.
+
+**Two failures, and the second is the one that shipped it.** Staging everything
+and trusting that nothing else moved. During a mutation run the tree is
+*transiently* dirty by design, so `git add -A` in that window commits whatever
+the loop is holding at that instant.
+
+**Fixed both ways.** A marker under `target/` (already ignored, so it can never
+be the dirt it warns about) is written before each gate and removed on success;
+a later run refuses to start and prints the recovery commands. And the habit:
+during any mutation work, stage named files, never `-A`.
+
+**The demonstration failed on its first attempt, correctly.** With the background
+run still holding a file mutated, the dirty-tree guard fired before the marker
+check — the older guard doing its job, and proof that the two cover different
+moments rather than the same one.
+
+## 60. The second mutant, and why file-by-file recovery missed it
+
+§59 caught one escaped mutant. **There were two.**
+
+`check_specs_generate.py` carried `return 1` -> `return 0` — a silent mutant, in
+a commit, in the open pull request, for two iterations. It survived the cleanup
+because I recovered **the file named in the PR diff** instead of checking the
+directory.
+
+The command's own recovery instruction is `git checkout tools/` — the whole
+directory. I quoted it in §59 while doing something narrower, and then asserted
+the tree was clean on the strength of one file matching.
+
+**What found it.** Not vigilance: the background run was still going, and two
+files showed dirty at once. One mutated file is the loop working; two is either a
+bug or residue. Chasing which produced the answer — and the honest note is that
+without that anomaly I would not have looked, because the PR diff had stopped
+mentioning it.
+
+**The recovery that works is a directory comparison**, both directions:
+
+    git diff origin/master HEAD --stat -- tools/     # nothing committed
+    git status --porcelain -- tools/                 # nothing pending
+
+Two empty outputs, not one file inspected.
+
+**And the marker now proves both directions.** Present, it refuses and prints the
+recovery commands, naming the gate the interrupted run was on; absent, the run
+proceeds and clears it on success. The command it prints is
+`git checkout -- tools/` — the directory, which is exactly the instruction I had
+and did not follow.
+
+**The rule.** After any interrupted tool that edits files in place, compare the
+whole directory it edits against its baseline, in both the committed and the
+working direction. A diff that names one file is a report about that file, not
+about the tree.
+
+## 61. A run nobody can finish is not a measurement
+
+Five operators over 21 gates passed twenty minutes and kept growing —
+`gft_backprop_microcode.py` alone has 47 sites, each a ten-second subprocess. The
+last two attempts were killed by timeouts, and one of those kills is what leaked
+two mutants into a branch. **The cost had stopped being an inconvenience and
+started being a correctness problem**: the full picture was the entire point of
+`--all`, and nobody could reach it.
+
+**Cached by what the answer depends on**: the gate's bytes and the bytes of
+whatever control judges it. Both hashed, both must match, and the cache is
+written **after every gate** rather than at the end — so an interrupted run keeps
+what it measured and the next one resumes. Cold 2.6s → warm 0.5s on one gate.
+
+**Every reused row says `[cached]`.** A cached green that read like a fresh one
+would be precisely the lie this command exists to find, and the summary names the
+split: *N measured, M reused*.
+
+**I put that marker into one of two print paths, then two of three.** The
+multi-column branch got it first; the single-operator branch printed cached rows
+identically to fresh ones; and the zero-site branch — *"no failure path to
+break"* — printed a third way with no marker at all. Three printers, one
+property, and it took two corrections to reach all three. The same shape as
+`skip()` in four copies, inside one function.
+
+**Invalidation is verified, not assumed.** On a planted repository: measure,
+reuse, then append one comment to the gate and watch the third run measure again.
+A cache that never invalidates is worse than no cache, and that direction is the
+one worth testing.
+
+**The stale case, stated rather than hidden.** A fixture changing underneath a
+gate and its control leaves both hashes intact and the recorded row wrong. That
+is why the marker exists instead of silence: a reader who sees `[cached]` knows
+which question to ask, and `--fresh` answers it.
+
+## 62. The marker fired on real data, and a control that kills nothing
+
+**The interrupt marker caught a real one.** A run from the previous iteration had
+been orphaned and left `gft_backprop_microcode.py` mutated. The marker named the
+gate, printed the recovery commands, and I ran exactly what it printed —
+`git checkout -- tools/` on the directory, which is the instruction §60 says I
+should have followed the first time.
+
+**And it spoke second, which is the wrong order.** The dirty-tree guard fires
+first, and after an interrupt the tree *is* dirty — so the informative message
+existed and was never the one shown. Marker now checked first. Found by hitting a
+real interrupt and reading the wrong error.
+
+**An orphaned run was still alive.** Thirteen minutes in, mutating files, from an
+iteration I had already reported as finished. Third time mutants got loose, and
+every time the cause was mine: starting a long background job and losing track of
+it. The guard did refuse the concurrent run I started on top of it — an unplanned
+safety property, since two mutation loops would each restore the other's
+mutations and produce numbers that describe nothing.
+
+### Seventeen of twenty-one rows, and one is stark
+
+    verify_emit_bitexact.py   0/1   0/1   0/11   0/4   0/0
+
+**Its control kills nothing.** Not one of seventeen mutants, across four
+operators. I gave that gate a control three iterations ago — three planted cases,
+all passing, covering the skip pair and the codegen-failure branch — and **none
+of the sites the operators can reach are among them.**
+
+That is the same class as `verify_exhaustive.py` before §49: a control that
+exists, passes, and is not connected to the verdicts anyone would break. It is
+worse here, because I wrote this one *knowing* that class, and the number that
+exposes it could not be produced until the run learned to be interruptible.
+
+**The table is 17 of 21 and says so.** The remaining four are measuring; the
+cache means the next run finishes them rather than starting over. A partial table
+reported as partial is a measurement; the same table reported as complete is the
+thing this campaign is about.
+
+## 63. Why that control killed nothing, and what fixing it cost
+
+`verify_emit_bitexact.py` scored **0 killed of 17**. The reason, once the survivor
+lines were read rather than counted:
+
+- `sys.exit(0 if ok else 1)` survived **both** return operators
+- every FAIL branch of the comparison — timeout, step count, mismatch, resource
+  count, synth error — survived inversion
+
+**All three of my cases leave through `skip()` or `broken()`.** The gate's own
+verdict was never observed at all. A control that covers only preconditions is a
+control *for* preconditions, and I wrote those three knowing that class.
+
+**The plant that reaches the verdict moves one arm only.** The Python side comes
+from the interpreter `g.run()`; the Verilog is emitted from the microcode
+`steps`, not from `run()`. Perturbing the interpreter makes the model disagree
+with an RTL that is unchanged — which is what a real bit-exactness failure looks
+like. Perturbing shared arithmetic instead would move both arms together and
+plant nothing.
+
+Two cases now: a clean tree exits 0 saying `RTL == model BIT-EXACT`, and a
+perturbed model exits 1 naming the disagreeing step. Five cases in the file, both
+directions of the verdict.
+
+### And the cost is real, and worth stating plainly
+
+The mutation loop runs a gate's **whole control per mutant**. This control now
+spawns two ~45-second whole-program runs, so seventeen sites cost roughly half an
+hour — the measurement timed out at ten minutes and the marker caught the
+interrupted tree, cleanly, with nothing leaked.
+
+**That is not a reason to make the control cheaper.** A control that exercises
+only what is fast to exercise is how this gate got to 0/17 in the first place.
+The tension is inherent: *a control worth having is expensive, and the mutation
+loop pays that cost once per mutant.* The cache is the answer — measure once,
+reuse until the gate or its control changes — and `[cached]` is what keeps a
+reused row honest.
+
+**The guard chain worked end to end for the first time.** Timeout → marker names
+the gate → `git checkout -- tools/` → tree clean → committed diff contains only
+the intended change. Three iterations ago the same sequence leaked two mutants
+into a branch.
+
+## 64. Two gates, one mistake, made twice by the same author
+
+`verify_multitarget.py` scored **0 killed of 7** — and the survivor lines are
+identical in shape to `verify_emit_bitexact.py`'s: the gate's own
+`sys.exit(0 if ok else 1)` under both return operators, and all three comparison
+FAIL branches under inversion.
+
+Both controls cover the skip pair. **Both leave through `skip()` and never reach
+`main()`.** Two gates, one mistake, and I made it twice — the second time three
+iterations after writing down the first.
+
+That is what a *class* looks like when you have not internalised it: the rule was
+recorded, the next control was written the same way, and only a measurement
+caught it.
+
+**Both plants move one arm.** In `verify_multitarget`, `py_ref` reads the Python
+model while C and Rust come from `t27c`; perturbing `py_ref` makes the model
+disagree with backends that are unchanged. Perturbing the spec or the emitter
+would move every arm together and plant nothing — the same distinction that made
+the `verify_emit_bitexact` plant work, and the reason both are one-line edits in
+a specific place rather than "break something".
+
+    verify_emit_bitexact.py   0/17  ->  13/17
+    verify_multitarget.py      0/7  ->   5/7
+
+Only boundary survivors remain in both.
+
+### And the honesty mechanism needed its own correction
+
+Re-measuring produced a row with **two columns measured and three reused**,
+labelled `[cached]` wholesale. Under-claiming rather than over-claiming — the
+safe direction, and still wrong, because the entire point of the marker is that
+a reader can tell which they are looking at.
+
+Three states now: no marker when fresh, `[cached]` when every column is reused,
+`[3 cached, 2 fresh]` when mixed. The mixed case had to be reached by marking
+cache entries stale by hand, which is worth noting: **a state that cannot occur
+naturally during testing is a state nobody has seen your code produce.**
+
+## 65. Triaging fifty boundary survivors, and a pull request that got 7 of 35 checks
+
+The boundary column carried **50 survivors** — the largest and last unexamined
+number in the table. Read rather than counted, they sort into four kinds, and
+only one is a verdict:
+
+| kind | n | example |
+|---|---|---|
+| **proven equivalence** | 6 | `sig = … if r.returncode < 0 else ""`, reached only after a returncode check |
+| **fixture generation** | 8 | `cls = int((xs[0] > 0) != (xs[-1] > 0))`, `if p < 0.15:`, `while len(v) < N:` |
+| **display truncation** | 4 | `if len(out) > 6:` guarding a "… N more" line |
+| **possibly real thresholds** | 3 | `if total < 200:`, `if not full and space > budget:`, `if b < 0:` |
+
+Plus 26 in one file's arithmetic internals, a separate surface.
+
+**The operator has no scope discipline, and this is where that shows.** `invert`
+restricts itself to conditions whose body carries a verdict. `boundary` takes
+every comparison — and in *verifier*-style gates most comparisons are in test-data
+generation and reporting, not in verdicts. On checker-style gates the same
+operator found six real thresholds. **The same operator is sharp on one shape of
+gate and noisy on another**, which is a fact about the operator worth knowing
+before quoting its count.
+
+**Five of the six equivalences are one line, copied five times.** The `signal`
+message appears in five verifiers, each reached only after a returncode check —
+three via `if returncode == 0: return`, two via `if returncode != 0:` — so the
+value cannot be zero there and `< 0` ≡ `<= 0`. Proven from the line above, not
+assumed from the shape. Fifth duplication family this campaign has found; all
+five are now marked, and the rows still read SURVIVED and still count.
+
+### And a pull request that silently received 7 checks of 35
+
+PR #2541 changed `tools/verify_multitarget.py` — a path explicitly listed in
+`emit-bitexact-gate.yml`'s `pull_request` paths — and **that gate did not run**.
+Seven checks total, where a sibling opened minutes earlier got thirty-five.
+
+Measured rather than assumed:
+
+- an empty commit did **not** re-trigger it — so not a transient miss
+- a second branch touching the **same files** got a normal check list — so not
+  the paths
+- the repository had no queue backlog — so not contention
+
+**Not diagnosed.** The cause is inside GitHub's trigger evaluation for that
+pull request, and nothing I can read from here explains it. What matters is the
+response: **re-opened as a fresh pull request rather than merged without checks.**
+The new one has 25 checks and `emit-bitexact` running.
+
+**The rule.** A green check list is evidence; a *short* check list is a finding.
+Count the checks against a sibling before reading the colours — a gate that never
+ran is invisible in exactly the way a gate that passed is.
+
+## 66. A conflicting pull request loses its path-filtered CI — and my first rule for it was wrong
+
+§65 left one pull request's missing CI undiagnosed. Checking every open pull
+request found the mechanism, and then the mechanism corrected itself.
+
+**Three more pull requests have the same shape.** Two of them change
+`bootstrap/src/compiler.rs` and got **three checks** — `check-linked-issue`,
+GitGuardian, NotebookLM. Every one path-less.
+
+That file's gate carries this comment, written to prevent exactly this:
+
+> Without `bootstrap/**` here, a PR that rewrites the C emitter merges with the
+> cross-target proof never running.
+
+The path was added. **The gate is defeated by a merge conflict instead.**
+
+**The mechanism.** A pull request that is CONFLICTING when an event fires cannot
+have its merge diff computed, so `paths:` filters cannot be evaluated and only
+path-less workflows run. The checks that remain are green — because they are the
+ones that never look at the diff — which reads exactly like a passing pull
+request.
+
+### And the rule I first wrote was wrong
+
+The correlation looked exact: four conflicting pull requests with 3, 3, 9 and 7
+checks; everything else 21 to 35. I wrote *"a CONFLICTING pull request loses most
+of its checks"* into the tool's own documentation.
+
+**An hour later two of those four reported 21 and 26.** They had been mergeable
+when their events fired, kept those results, and only conflicted afterwards.
+**A conflict does not retract past runs.**
+
+So the detectable shape is not the state. It is *conflicting **and** a check list
+far below its siblings'*, and `tri gates prs` now computes a reference from the
+non-conflicting pull requests rather than asserting from the state alone. Three
+flagged, two correctly excluded.
+
+**Caught by re-running the command on fresher data**, not by thinking harder —
+which is the argument for putting a finding into a tool rather than a document.
+A sentence cannot disagree with tomorrow's data; a command can.
+
+**And it crashed on its first run**, slicing a title by byte index in the middle
+of an em dash — in a pull request this campaign had opened. Truncate by chars.
+
+## 67. The blocking check was right, and its ledger held 58 paid debts
+
+`coverage` — the required check that blocked a pull request — is
+`check_seal_coverage.py`, one of this campaign's own gates. **It is not a broken
+instrument.** Its negative control passes, and the finding is real: **131 seals
+are stale**, meaning the spec changed after sealing so the recorded hashes
+describe something it no longer produces.
+
+**What was mine to do, and what was not.** Re-sealing 131 specs is blessing the
+drift the ratchet exists to prevent, and fixing them is 131 separate judgements.
+Filed as an owner decision.
+
+**But the gate also asked for something free.** It prints, every run:
+
+> NOTE 56 baselined seal(s) now hold. Drop their lines so the gate holds them.
+> DEPARTED … baselined as broken, and the seal FILE is gone.
+
+Fifty-six debts paid and never collected, plus two lines naming files that no
+longer exist. **209 → 151 lines**, and the 131 untouched. That *tightens* the
+ratchet: fifty-six seals that were excused are now held.
+
+**Removed by hand, line by line — not with `--update-baseline`.** That command
+rewrites the whole ledger from today's state, which would bless all 131 in the
+same stroke. **Tightening a ratchet and blessing drift use the same file and must
+not use the same command**, and the only thing separating them here is which one
+you reach for.
+
+**And the state worth naming.** `coverage` is required, so this blocks merges —
+and every recent merge went in with it red anyway. A required check that is
+always red costs the friction of a gate without the protection of one, which is
+the same condition this campaign opened on, arrived at from the opposite
+direction: not a gate that cannot fail, but a gate that cannot pass.
+
+## 68. The second blocking check was also right, and also unread
+
+`Corpus ratchet`, the other permanently-red required check, had been printing a
+precise verdict for its whole history and nobody had acted on it:
+
+    UNEXPECTED PASSES  : 3
+    UNEXPECTED FAILURES: 2
+
+**The same two specs appear in both lists.** They used to fail `parse` outright;
+they now parse and fail the narrower `parse-no-discard`. The third simply passes.
+
+So the fix is three removals and two re-labels, and the distinction matters:
+**the excuse for those two specs went from "does not parse at all" to "parses
+but discards tokens", and the third lost its excuse entirely.** Ledger 221 → 220
+against a cap of 221 — strictly tighter, and `RATCHET: CLEAN`.
+
+**Both permanently-red required checks turned out to be right.** Neither was a
+broken instrument; both were reporting real, small, actionable findings that had
+gone unread long enough to become scenery. `coverage` asked for 58 lines to be
+dropped; `Corpus ratchet` asked for 3 removals and 2 re-labels. Between them:
+**five minutes of work each, blocking every merge in the repository.**
+
+That is the failure mode neither §1 nor §57 covers. A gate that cannot fail reads
+as coverage. A gate that cannot pass reads as noise. **A gate that is right, and
+whose verdict is a short actionable list, becomes furniture if nobody reads it —
+and the longer it stays red the more certain everyone is that it means nothing.**
+
+**The check that separates the two cases takes one command.** Run the gate
+locally and read what it says. Both of these named their own remedy in the
+output, on every run, for days.
+
+## 69. A detector keyed on a value that is recomputed while you look at it
+
+`tri gates prs` flagged three pull requests one iteration ago. Run again today, it
+flagged **one** — and nothing about the other two had changed.
+
+`mergeable` is computed on demand. Between two runs, two pull requests moved from
+CONFLICTING to UNKNOWN and back, and the detector — which tested
+`m == "CONFLICTING"` — lost them and found them again. **The alarm was
+intermittent for a condition that was not.**
+
+**The observable is the short check list.** Three checks against a median of
+twenty-one is the finding, whatever GitHub currently believes about
+mergeability. The state is the *explanation*, and it belongs in the row rather
+than in the test.
+
+The reference had the same defect one layer down: computed as the median of the
+*non-conflicting* rows, it read 21 on one run and 35 on the next, because two
+rows crossed the filter in between. **A median over every row is unmoved by a
+few short lists and does not depend on a value that changes while you watch.**
+Two consecutive runs now agree.
+
+**And `UNKNOWN` is not `fine`.** It means GitHub has not finished computing.
+A short list with UNKNOWN beside it is the same finding as one with CONFLICTING
+beside it, seen a moment earlier — which the output now says.
+
+**The rule.** Before keying an alarm on a field, ask whether the field is
+*measured* or *computed on demand*. A derived, cached, or lazily-evaluated value
+makes a detector that reports the weather rather than the climate — and the
+first symptom is a finding that comes and goes without anything changing.
+
+## 70. A finding recorded as a line number expires on the next edit
+
+Three boundary survivors were carried forward from §65's triage as "possibly real
+thresholds", identified by file and line. Reading those lines today gave three
+completely unrelated statements — a `subprocess.run` argument, a `None` guard,
+and a random-vector append.
+
+**The files had been edited in between.** Five equivalence markers went in, two
+controls grew whole-program cases, and every line below each insertion moved. The
+triage note was measurably false about its own repository within a day of being
+written.
+
+This campaign already knows the fix in one place: `check_gate_preconditions.py`
+names its uncovered branch **by message**, with a comment explaining that an
+earlier version said `:346` and `:390` and was wrong before it was ever pushed.
+The same discipline did not reach my own notes.
+
+**The rule.** A survivor list is a snapshot of one run against one tree. Carry
+forward the *file and the expression*, or re-run and re-read — never the line
+number alone. And when a triage spans iterations that edit the files, the
+re-run is the cheap half.
+
+**And I caught myself with a truncated view first.** Reading the fresh table
+through `awk` that printed six columns, I concluded the cache was not working —
+the marker lives in the seventh. The conclusion was drawn from a ruler I had cut
+short myself, which is the third time this campaign that a display choice became
+a finding.
+
+## 71. The cache failed silently, three ways, in six lines
+
+A full re-measurement re-measured gates whose hashes **matched entries already in
+the cache**, and the entry count climbed 30 → 40 → 80 *during* that run. It was
+rebuilding a cache it should have loaded.
+
+Reading the six lines that load and save it found three silent failure paths:
+
+    read_to_string(..).ok()          unreadable file  -> empty map
+    serde_json::from_str(..).ok()    corrupt file     -> empty map
+    let _ = fs::write(..)            failed write     -> next run starts empty
+
+**Each degrades to "no data", which is indistinguishable from "nothing measured
+yet".** A corrupt cache looked exactly like a first run — the same shape as a
+gate that cannot fail, one layer down in the tooling that measures gates.
+
+**The cause was mine, repeatedly.** `fs::write` truncates in place, and I killed
+`--all` runs on a ten-minute timeout three times. Each kill landed some chance
+between the truncate and the write and left half a JSON document, which the next
+run swallowed.
+
+Fixed both halves. **Write-then-rename** — atomic on one filesystem, so the file
+is either the old complete document or the new one, never half of either. And
+every path now says what happened: a missing file is a first run and silent, an
+unreadable or unparseable one prints what it found and why it is re-measuring.
+
+Verified on a planted repository in three states: fresh measures, a repeat says
+`[cached]`, and a **deliberately truncated** cache prints the warning and
+re-measures. The truncation was done by cutting the file to 40 bytes, which is
+what a killed run does by accident.
+
+**The rule.** `.ok()` on a read and `let _ =` on a write are the two commonest
+ways a tool loses data without saying so. Neither is wrong where the absence is
+expected — a missing cache file genuinely is a first run — but the *present and
+broken* case has to be told apart from the *absent* one, and only the code that
+opens the file can tell them apart.
+
+
+## 72. A verification recipe is scoped to the repository that taught it
+
+I keep a note that says: reproduce CI locally by exit code, `cargo fmt --all
+--check` then `cargo clippy --all-targets -D warnings`. It is a good note. It
+was learned in a different repository.
+
+Run in this one, `cargo fmt --all` rewrote **150 files**, including
+`bootstrap/src/compiler.rs` — which is frozen, with `bootstrap/stage0/FROZEN_HASH`
+holding its sha256. The freeze gate went red. I broke a real gate with a check
+that this repository does not run: `grep -c "cargo fmt" .github/workflows/*.yml`
+returns nothing, and `cargo fmt -p tri -- --check` was already exit 1 on clean
+master, untouched, for however long.
+
+So the check I ran was not a gate here, and the gate it broke was.
+
+Before running a "standard" check, ask the repository which checks it actually
+has. The workflows are the answer, and they are two greps away:
+
+```
+grep -rhoE "cargo (fmt|clippy|test|build)[^|&;]*" .github/workflows/*.yml | sort -u
+```
+
+The tell that a check is not a gate: **it is already failing on untouched
+master.** A check nobody runs drifts red and nobody notices — the same
+condition as a gate that cannot fail (§3), one layer out. Two consequences,
+and they point opposite ways:
+
+* Do not "fix" that drift as a side effect of unrelated work. The diff buries
+  your actual change, and here it also broke the freeze.
+* Do not trust it as verification either. It says nothing about your change.
+
+Recovery, when the formatter has already run: `git checkout -- .`, then restore
+only your file from a copy made **before** the formatter. Keep that copy — I
+had `/tmp/gates_fixed.rs` from the negative-control step by luck, not by plan,
+and it is the only reason the recovery was one command. Then re-verify the
+freeze explicitly rather than assuming the checkout covered it:
+
+```
+shasum -a 256 bootstrap/src/compiler.rs | cut -c1-16
+cat bootstrap/stage0/FROZEN_HASH | tr -d '[:space:]' | cut -c1-16
+```
+
+## 73. A cache key that maps two different inputs to one key
+
+`.ok()` and `let _ =` lose data loudly enough once you look for them (§71).
+The quieter relative is a key function that **collides**. Both directions are
+possible and only one hurts:
+
+* same input, different key — the cache misses. Wasteful, self-announcing.
+* **different input, same key — the cache serves a row measured against
+  something else.** Silent, and it corrupts the measurement.
+
+Four lines of `sha_of` had two collisions of the second kind:
+
+```rust
+for p in paths {
+    h.update(std::fs::read(p).unwrap_or_default());  // gone == empty
+}                                                     // and "ab"+"c" == "a"+"bc"
+```
+
+The first is §71 wearing a different hat: an unreadable file hashes as the
+empty string, so *missing* and *empty* share a key, and any two unreadable
+paths share a key with each other. The second is structural — concatenating
+without separators lets the boundary move. It needs a list to be reachable,
+and the control list is a list, so any gate declaring more than one control
+could hit it.
+
+Both close the same way: **one length-prefixed record per element**, covering
+the path, the read outcome, and the bytes. Length prefixes pin the boundaries;
+a status byte keeps an absence from impersonating an emptiness.
+
+Test it by asserting the collisions are gone, then **plant the old function and
+watch the test go red**. Mine printed `ba7816bf8f01cfea` on both sides — the
+sha256 of `"abc"`, arriving from two different inputs. Without that step the
+test only proves the new code is self-consistent.
+
+## 74. The section that was overwritten by the section after it
+
+This file is append-only by intent. It still lost a section.
+
+`## 63` was written in `d3005bda6` and gone by `456c6b08f` — a commit about a
+different gate entirely, whose diff on this file reads `38 insertions, 42
+deletions`. Not an append. Section 64 landed *on top of* 63 instead of after
+it, and the numbering hid it: sections still ran 62, 64, 65, and nothing about
+that looks wrong at a glance. It survived several sessions.
+
+I found it by accident, checking the numbering after an unrelated append.
+
+**A gap in a numbered sequence is a question, and the history answers it.**
+The two possible answers look identical in the file and completely different
+in the log:
+
+```
+git log --oneline -S'## 63. ' -- path/to/file.md
+```
+
+* no commits — the number was never used. Nothing is missing. (`## 24` here.)
+* two commits — one that added it, one that removed it. Something is missing,
+  and the second commit tells you which one to blame. The parent of the
+  removing commit still has the text: `git show <sha>^:path | ...`
+
+Recovery cost nothing because git had it. The cost was the sessions in
+between, where the experience was simply absent and I could have re-learned it
+the expensive way.
+
+Cheap standing check, worth running whenever this file is touched:
+
+```
+python3 -c "
+import re,pathlib
+n=[int(m) for m in re.findall(r'^## (\d+)\.', pathlib.Path('SKILL.md').read_text(), re.M)]
+print('ascending:', n==sorted(n), '| gaps:', [i for i in range(1,max(n)+1) if i not in n])"
+```
+
+Every gap it prints needs an answer from the log, once, recorded here — not a
+shrug. A file whose whole purpose is to carry experience forward is exactly
+the file where a silent deletion costs the most.
+
+## 75. The gate told me how to fix it, and the command did not exist
+
+`now-sync-gate-diff.sh` fails a PR that adds no `docs/now/` entry, and prints
+the cure:
+
+```
+    ./scripts/tri now add "<title>" --bullet "<what changed>" --closes <N>
+```
+
+Running it printed `error: unrecognized subcommand 'now'`.
+
+The command was not missing. `tri now` is implemented, tested, and documented
+— in `cli/tri`, a Rust binary. `./scripts/tri` is a **different** program, a
+bash front door that dispatches its own helpers and forwards everything else
+to `t27c`, a **third** binary. Three things named `tri`-ish, and the
+documented path went to the one that didn't have it. Seventeen subcommands
+were in this state; `now` is simply the one a gate names out loud.
+
+This is §3 one layer out. A gate that cannot fail is useless; a gate that
+fails correctly and hands you a cure that doesn't run **costs more than
+silence**, because the failure looks handled. I hand-wrote `docs/now/` entries
+twice and got them wrong twice — bulletless, rejected — while a command that
+makes a bulletless entry impossible sat one broken route away.
+
+Two checks, both cheap:
+
+* **Run the remediation text.** Any gate that prints a command should have
+  that command executed once, from a clean checkout, by someone who did not
+  write it. Copy-paste is the test.
+* **Ask what is reachable, not what exists.** For a multi-binary front door,
+  the reachable set is what the dispatcher routes, not what any binary
+  implements:
+
+```
+comm -23 <(BIN --help | sed -n 's/^  \([a-z][a-z0-9-]*\).*/\1/p' | sort -u) \
+         <(FRONT_DOOR_TARGET --help | sed -n 's/^  \([a-z][a-z0-9-]*\).*/\1/p' | sort -u)
+```
+
+Everything it prints exists and cannot be run by name.
+
+When fixing the routing, reroute **only** what the fallback target does not
+implement, and prove the untouched routes byte-for-byte:
+
+```
+for c in $SHARED; do front $c --help > after-$c; done
+git stash -- scripts/tri; for c in $SHARED; do front $c --help > before-$c; done; git stash pop
+for c in $SHARED; do cmp -s before-$c after-$c || echo "MOVED: $c"; done
+```
+
+Eight shared names here, eight byte-identical. "I don't think that changed" is
+not a result; `cmp` is.

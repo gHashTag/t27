@@ -85,7 +85,19 @@ pub enum GatesCmd {
         #[arg(long)]
         dir: Option<String>,
 
-        /// Run all three operators in one pass and print them as columns.
+        /// Neuter assertions: `assert C, "msg"` -> `assert True, "msg"`.
+        ///
+        /// The operator for gates whose verdicts are asserts rather than exit
+        /// codes. Without it such a gate scores 0/0 in every column, which
+        /// prints exactly like a gate with nothing to break.
+        #[arg(long = "assert")]
+        assert_op: bool,
+
+        /// Re-measure everything, ignoring the cache.
+        #[arg(long)]
+        fresh: bool,
+
+        /// Run all operators in one pass and print them as columns.
         ///
         /// Three commands answering one question is the same shape as two
         /// naming conventions or two parse commands: the operators are only
@@ -93,6 +105,35 @@ pub enum GatesCmd {
         /// that `--invert` was printing the silent operator's numbers.
         #[arg(long)]
         all: bool,
+    },
+    /// Open pull requests whose path-filtered CI never ran.
+    ///
+    /// T133: a pull request that is CONFLICTING when an event fires does not
+    /// get its path-filtered workflows for that event -- GitHub cannot compute
+    /// the merge diff, so `paths:` cannot be evaluated, and only the path-less
+    /// workflows run.
+    ///
+    /// The first version of this comment said "a CONFLICTING pull request loses
+    /// most of its checks", on a correlation measured once: four conflicting
+    /// pull requests had 3, 3, 9 and 7 checks while the rest had 21 to 35. An
+    /// hour later two of those four reported 21 and 26 -- they had been
+    /// mergeable when their events fired, kept those results, and only
+    /// conflicted afterwards. **A conflict does not retract past runs.**
+    ///
+    /// So the detectable shape is not "conflicting". It is conflicting AND a
+    /// check list far shorter than its siblings', which is why this command
+    /// computes a reference from the non-conflicting pull requests rather than
+    /// asserting from the state alone.
+    ///
+    /// The danger is not that the checks are red. It is that they are ABSENT,
+    /// and a short list of green checks reads like a passing pull request. Two
+    /// of the affected ones change `bootstrap/src/compiler.rs` -- the exact
+    /// file whose gate carries the comment "a PR that rewrites the C emitter
+    /// merges with the cross-target proof never running".
+    Prs {
+        /// owner/repo. Defaults to the repository of the working directory.
+        #[arg(long)]
+        repo: Option<String>,
     },
     /// List active workflows whose lifetime success count is zero.
     Dead {
@@ -318,6 +359,22 @@ fn sweep(controls_only: bool, dir: Option<&str>) -> Result<()> {
 /// being measured -- done by accident once, and it made two sound controls
 /// look like they passed vacuously. Reading the printed output rather than the
 /// exit code is what separated the two.
+/// Does this line end whatever function preceded it?
+///
+/// Any statement at column 0 that is not a `def`, a decorator, or a continuation
+/// of the line before. Comments and blank lines decide nothing.
+fn leaves_function(line: &str) -> bool {
+    let t = line.trim_end();
+    if t.is_empty() {
+        return false;
+    }
+    let first = t.as_bytes()[0];
+    if first == b' ' || first == b'\t' || first == b'#' || first == b'@' || first == b')' {
+        return false;
+    }
+    true
+}
+
 fn is_control_fn(name: &str) -> bool {
     name.contains("self_check") || name.contains("selftest") || name.contains("self_test")
 }
@@ -400,6 +457,15 @@ pub enum Direction {
     /// control that tests "clearly worse" and "clearly better" never tests
     /// equal.
     Boundary,
+    /// `assert C, "msg"` -> `assert True, "msg"`: can an assertion still fail?
+    ///
+    /// T125. The three return operators and the boundary operator all read
+    /// `return` / `sys.exit` / comparisons. A gate whose verdicts are `assert`s
+    /// has NONE of those, and scored 0/0 in every column -- eighteen assertions
+    /// in one file, invisible to every question the tool could ask. An assert
+    /// is a verdict delivered through a traceback; neutering it is exactly the
+    /// silent operator, spelled the way a test-shaped gate spells it.
+    Assert,
 }
 
 /// Comparison swaps, longest first so `>=` is matched before `>`.
@@ -414,6 +480,83 @@ const BOUNDARY_SWAPS: &[(&str, &str)] = &[(">=", ">"), ("<=", "<"), (">", ">="),
 /// three statements later, and a scope guessed in advance would be exactly the
 /// kind of limitation this campaign has twice found to be invented. Measure
 /// first, narrow only on evidence.
+/// `assert <cond>[, msg]` outside a control function, neutered to `assert True`.
+///
+/// The message is KEPT: a mutant that also drops the text would be caught by a
+/// control asserting that text, and the kill would be for the wrong reason --
+/// the message changing rather than the check stopping. Only the condition
+/// moves.
+fn assert_sites(src: &str) -> Vec<(usize, usize, String)> {
+    let mut sites = Vec::new();
+    let mut in_control = false;
+    let mut off = 0usize;
+    for line in src.split_inclusive('\n') {
+        if let Some(rest) = line.strip_prefix("def ") {
+            let fname: String = rest.chars().take_while(|c| *c != '(').collect();
+            in_control = is_control_fn(&fname);
+        } else if leaves_function(line) {
+            // T125: a function ends at the next TOP-LEVEL statement, not only at
+            // the next `def`. Without this, everything after the last function
+            // inherits that function's control status -- and when the last
+            // function is a self_check, the whole `if __name__ == "__main__":`
+            // block below it is scored as control code.
+            //
+            // Sixteen assertions in gft_backprop_microcode.py live in exactly
+            // that block. The assert operator found ONE site -- the only assert
+            // above the self_check -- and printed 0/1, which reads as a gate
+            // with almost nothing to break.
+            in_control = false;
+        }
+        if !in_control {
+            let t = line.trim_start();
+            let col = line.len() - t.len();
+            let body = t.trim_end();
+            if let Some(rest) = body.strip_prefix("assert ") {
+                // `assert True` is already vacuous; mutating it changes nothing
+                // and would score a site that cannot be killed by anyone.
+                if !rest.trim_start().starts_with("True") {
+                    // Split on the LAST top-level comma is wrong: a message may
+                    // contain one, and so may the condition. The message is
+                    // whatever follows the first comma that is not inside
+                    // brackets or quotes -- and if there is none, the whole rest
+                    // is the condition.
+                    let b = rest.as_bytes();
+                    let (mut depth, mut quote, mut cut) = (0i32, None::<u8>, None);
+                    for (i, &c) in b.iter().enumerate() {
+                        match quote {
+                            Some(q) => {
+                                if c == b'\\' {
+                                    continue;
+                                }
+                                if c == q {
+                                    quote = None;
+                                }
+                            }
+                            None => match c {
+                                b'"' | b'\'' => quote = Some(c),
+                                b'(' | b'[' | b'{' => depth += 1,
+                                b')' | b']' | b'}' => depth -= 1,
+                                b',' if depth == 0 => {
+                                    cut = Some(i);
+                                    break;
+                                }
+                                _ => {}
+                            },
+                        }
+                    }
+                    let replacement = match cut {
+                        Some(i) => format!("assert True{}", &rest[i..]),
+                        None => "assert True".to_string(),
+                    };
+                    sites.push((off + col, body.len(), replacement));
+                }
+            }
+        }
+        off += line.len();
+    }
+    sites
+}
+
 fn boundary_sites(src: &str) -> Vec<(usize, usize, String)> {
     let b = src.as_bytes();
     let mut sites = Vec::new();
@@ -526,6 +669,9 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
     if matches!(dir, Direction::Boundary) {
         return boundary_sites(src);
     }
+    if matches!(dir, Direction::Assert) {
+        return assert_sites(src);
+    }
     let mut sites = Vec::new();
     let mut in_control = false;
     let mut off = 0usize;
@@ -533,6 +679,18 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
         if let Some(rest) = line.strip_prefix("def ") {
             let fname: String = rest.chars().take_while(|c| *c != '(').collect();
             in_control = is_control_fn(&fname);
+        } else if leaves_function(line) {
+            // T125: a function ends at the next TOP-LEVEL statement, not only at
+            // the next `def`. Without this, everything after the last function
+            // inherits that function's control status -- and when the last
+            // function is a self_check, the whole `if __name__ == "__main__":`
+            // block below it is scored as control code.
+            //
+            // Sixteen assertions in gft_backprop_microcode.py live in exactly
+            // that block. The assert operator found ONE site -- the only assert
+            // above the self_check -- and printed 0/1, which reads as a gate
+            // with almost nothing to break.
+            in_control = false;
         }
         if !in_control {
             let t = line.trim_start();
@@ -630,6 +788,18 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
         if let Some(rest) = line.strip_prefix("def ") {
             let fname: String = rest.chars().take_while(|c| *c != '(').collect();
             in_control = is_control_fn(&fname);
+        } else if leaves_function(line) {
+            // T125: a function ends at the next TOP-LEVEL statement, not only at
+            // the next `def`. Without this, everything after the last function
+            // inherits that function's control status -- and when the last
+            // function is a self_check, the whole `if __name__ == "__main__":`
+            // block below it is scored as control code.
+            //
+            // Sixteen assertions in gft_backprop_microcode.py live in exactly
+            // that block. The assert operator found ONE site -- the only assert
+            // above the self_check -- and printed 0/1, which reads as a gate
+            // with almost nothing to break.
+            in_control = false;
         }
         if in_control {
             continue;
@@ -895,12 +1065,268 @@ fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
     found
 }
 
+/// A measurement, keyed by what it depends on.
+///
+/// T127: the five-operator run passed twenty minutes and kept growing --
+/// `gft_backprop_microcode.py` alone has 47 sites, each a ten-second subprocess.
+/// A run nobody can finish is not a measurement, and the whole point of `--all`
+/// was the full picture.
+///
+/// The result of mutating a gate depends on the gate's bytes and on the bytes of
+/// whatever control judges it. Both are hashed; a row is reused only when both
+/// match, and reused rows are MARKED. A cached green that read like a fresh one
+/// would be the same lie this command exists to find.
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct CachedRun {
+    gate_sha: String,
+    ctrl_sha: String,
+    killed: usize,
+    total: usize,
+    survivors: Vec<usize>,
+}
+
+/// A cache key over the bytes of `paths`.
+///
+/// Two hazards live in the obvious four-line version of this, and both make
+/// DIFFERENT inputs share a key -- which is the direction that hurts, because
+/// a shared key means a row measured against one input is served for another.
+///
+///   * An unreadable file hashed as `unwrap_or_default()` is the empty string,
+///     so "the file is gone" and "the file is empty" are one key, and any two
+///     unreadable files are one key.
+///   * Concatenating contents with no separator lets the boundary move:
+///     ["ab", "c"] and ["a", "bc"] hash identically. `judges` is a LIST, so
+///     this is reachable whenever a gate carries more than one control.
+///
+/// Both are closed by hashing a length-prefixed record per file: the path, the
+/// read status, and the bytes, each preceded by its length.
+fn sha_of(paths: &[std::path::PathBuf]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    let mut field = |h: &mut Sha256, b: &[u8]| {
+        h.update((b.len() as u64).to_le_bytes());
+        h.update(b);
+    };
+    for p in paths {
+        field(&mut h, p.to_string_lossy().as_bytes());
+        match std::fs::read(p) {
+            Ok(bytes) => {
+                h.update([1u8]);
+                field(&mut h, &bytes);
+            }
+            // Not "no bytes" -- an outcome of its own, and one that must not
+            // collide with an empty file or with another unreadable path.
+            Err(e) => {
+                h.update([0u8]);
+                field(&mut h, e.kind().to_string().as_bytes());
+            }
+        }
+    }
+    hex::encode(&h.finalize()[..8])
+}
+
+fn cache_path(root: &std::path::Path) -> std::path::PathBuf {
+    root.join("target/.tri-mutate-cache.json")
+}
+
+/// T135: three silent failure paths lived in this function's six lines --
+/// unreadable file, unparseable file, and a discarded write result. Each
+/// degraded to "no data", which is indistinguishable from "nothing measured
+/// yet", so a corrupt cache looked exactly like a first run.
+///
+/// Measured: a full run re-measured gates whose hashes matched entries already
+/// in the file, and the entry count climbed 30 -> 40 -> 80 DURING that run --
+/// it was rebuilding a cache it should have loaded. The cause is below.
+fn load_cache(root: &std::path::Path) -> std::collections::HashMap<String, CachedRun> {
+    let p = cache_path(root);
+    if !p.exists() {
+        return std::collections::HashMap::new();
+    }
+    match std::fs::read_to_string(&p) {
+        Err(e) => {
+            eprintln!("warning: the cache at {} exists and could not be read ({e}).", p.display());
+            eprintln!("         Every row will be measured fresh.");
+            std::collections::HashMap::new()
+        }
+        Ok(s) => match serde_json::from_str(&s) {
+            Ok(m) => m,
+            Err(e) => {
+                // The likely cause, and it is worth naming rather than
+                // shrugging at: the old writer truncated the file in place, so
+                // a run killed mid-write left half a JSON document behind.
+                eprintln!("warning: the cache at {} is unreadable JSON ({e}).", p.display());
+                eprintln!("         A run killed mid-write can truncate it. Every row will be");
+                eprintln!("         measured fresh, and this run rewrites the file atomically.");
+                std::collections::HashMap::new()
+            }
+        },
+    }
+}
+
+fn save_cache(root: &std::path::Path, c: &std::collections::HashMap<String, CachedRun>) {
+    let p = cache_path(root);
+    if let Some(d) = p.parent() {
+        if let Err(e) = std::fs::create_dir_all(d) {
+            eprintln!("warning: cannot create {} for the cache ({e})", d.display());
+            return;
+        }
+    }
+    let s = match serde_json::to_string_pretty(c) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("warning: the cache could not be serialised ({e})");
+            return;
+        }
+    };
+    // Write-then-rename. `fs::write` truncates in place, so a kill between the
+    // truncate and the write leaves a partial document -- which the old reader
+    // then swallowed as "no cache". A rename is atomic on the same filesystem:
+    // the file is either the old complete one or the new complete one.
+    let tmp = p.with_extension("json.tmp");
+    if let Err(e) = std::fs::write(&tmp, s) {
+        eprintln!("warning: cannot write the cache ({e}); this run will not be reusable");
+        return;
+    }
+    if let Err(e) = std::fs::rename(&tmp, &p) {
+        eprintln!("warning: cannot replace the cache ({e}); this run will not be reusable");
+        let _ = std::fs::remove_file(&tmp);
+    }
+}
+
+/// Open pull requests, with how much CI each one actually got.
+fn prs(repo: Option<&str>) -> Result<()> {
+    let mut base = vec!["pr", "list", "--state", "open", "--limit", "50", "--json",
+                        "number,title,mergeable"];
+    if let Some(r) = repo {
+        base.push("--repo");
+        base.push(r);
+    }
+    let out = Command::new("gh")
+        .args(&base)
+        .output()
+        .context("gh pr list failed -- is the GitHub CLI installed and authenticated?")?;
+    if !out.status.success() {
+        anyhow::bail!(
+            "gh pr list exited {}: {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    let list: serde_json::Value = serde_json::from_slice(&out.stdout).context("parse gh json")?;
+    let items = list.as_array().cloned().unwrap_or_default();
+    if items.is_empty() {
+        println!("No open pull requests.");
+        return Ok(());
+    }
+
+    println!("{:<7} {:<13} {:>7}  {}", "pr", "mergeable", "checks", "title");
+    let mut blind: Vec<(i64, usize, String)> = Vec::new();
+    let mut rows: Vec<(i64, String, usize)> = Vec::new();
+    for it in &items {
+        let n = it["number"].as_i64().unwrap_or(0);
+        let m = it["mergeable"].as_str().unwrap_or("?").to_string();
+        let title = it["title"].as_str().unwrap_or("");
+        let mut cargs = vec!["pr".into(), "checks".into(), n.to_string(),
+                             "--json".into(), "name".into()];
+        if let Some(r) = repo {
+            cargs.push("--repo".into());
+            cargs.push(r.to_string());
+        }
+        // `gh pr checks` exits non-zero when a check has failed, so the count is
+        // read from stdout regardless of status -- an exit code here is about
+        // the checks' colours, not about whether the listing worked.
+        let c = Command::new("gh").args(&cargs).output();
+        let count = c
+            .ok()
+            .and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok())
+            .and_then(|v| v.as_array().map(|a| a.len()))
+            .unwrap_or(0);
+        println!(
+            "#{:<6} {:<13} {:>7}  {}",
+            n,
+            m,
+            count,
+            // By CHARS, not bytes. Slicing a String by byte index panics in the
+            // middle of a multi-byte character, and the first title this
+            // command ever printed contained an em dash -- from a pull request
+            // this campaign opened.
+            title.chars().take(46).collect::<String>()
+        );
+        rows.push((n, m, count));
+    }
+
+    // The reference is what a pull request in this repository normally gets.
+    // Asserting from the CONFLICTING state alone was wrong: a conflict does not
+    // retract runs that already happened, so a pull request can be conflicting
+    // now and still carry a full list from when it was not.
+    // T134: the median of EVERY pull request, not of the non-conflicting ones.
+    // Filtering by state made the reference move with the state -- it read 21 on
+    // one run and 35 on the next, with no pull request changed, because two rows
+    // crossed between UNKNOWN and CONFLICTING in between. A median over all rows
+    // is unmoved by a few short lists and does not depend on a value GitHub
+    // recomputes while you are looking at it.
+    let mut all: Vec<usize> = rows.iter().map(|(_, _, c)| *c).collect();
+    all.sort_unstable();
+    let reference = all.get(all.len() / 2).copied().unwrap_or(0);
+
+    for (n, m, c) in &rows {
+        // T134: flag by the COUNT, not by the state. `mergeable` is computed on
+        // demand and reports UNKNOWN while GitHub is still working it out, so a
+        // detector keyed on "CONFLICTING" finds a pull request one hour and
+        // loses it the next -- measured: two with three checks each went from
+        // CONFLICTING to UNKNOWN between two runs, and the alarm went silent
+        // while nothing about them had changed.
+        //
+        // The short check list is the observable. The mergeable state is the
+        // explanation for it, and belongs in the row rather than in the test.
+        if reference > 0 && *c * 2 < reference {
+            blind.push((*n, *c, m.clone()));
+        }
+    }
+
+    println!();
+    if reference == 0 {
+        println!("No pull request has any checks, so there is no reference to compare against.");
+        return Ok(());
+    }
+    println!("Reference: the median open pull request here gets {} checks.", reference);
+    if blind.is_empty() {
+        println!("No pull request has a check list far below it.");
+        return Ok(());
+    }
+    println!();
+    println!(
+        "{} pull request(s) with a check list far below the reference:",
+        blind.len()
+    );
+    for (n, c, m) in &blind {
+        println!(
+            "  #{}  {} check(s) against a reference of {}   (mergeable: {})",
+            n, c, reference, m
+        );
+    }
+    println!();
+    println!("A pull request that is conflicting when an event fires cannot have its merge");
+    println!("diff computed, so every workflow with a `paths:` filter is skipped for that");
+    println!("event. The checks that remain are the ones that never look at the diff -- and");
+    println!("they are green, which reads exactly like a passing pull request.");
+    println!();
+    println!("A conflict does NOT retract earlier runs: a pull request that was mergeable");
+    println!("when it was last pushed keeps that list. Rebase to get a real one.");
+    println!();
+    println!("`mergeable: UNKNOWN` means GitHub has not finished computing it -- not that");
+    println!("the pull request is fine. A short list with UNKNOWN beside it is the same");
+    println!("finding as one with CONFLICTING beside it, seen a moment earlier.");
+    Ok(())
+}
+
 fn label(d: Direction) -> &'static str {
     match d {
         Direction::Silent => "silent",
         Direction::Loud => "loud",
         Direction::Invert => "invert",
         Direction::Boundary => "boundary",
+        Direction::Assert => "assert",
     }
 }
 
@@ -908,8 +1334,56 @@ fn line_of(src: &str, byte: usize) -> usize {
     src[..byte].matches('\n').count() + 1
 }
 
-fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&str>) -> Result<()> {
+fn mutate(
+    only: Option<&str>,
+    loud: bool,
+    invert: bool,
+    assert_op: bool,
+    fresh: bool,
+    all: bool,
+    dir: Option<&str>,
+) -> Result<()> {
     let (root, tools) = resolve_target(dir)?;
+    // T126: a marker for an INTERRUPTED run. The loop writes a mutant, runs the
+    // control, and restores; a kill lands between the first and the third and
+    // leaves the tree mutated. The docstring says that is recoverable with
+    // `git checkout tools/` -- true, and useless unless you know it happened.
+    //
+    // Measured, on myself: a ten-minute timeout killed an --all run, a boundary
+    // mutant stayed in gft_backprop_microcode.py, and `git add -A` committed and
+    // pushed it. The dirty-tree guard could not help: it refuses to START on a
+    // dirty tree, and by then the damage was already staged.
+    //
+    // Under target/, which every Rust checkout already ignores, so the marker
+    // itself can never be the dirt it warns about.
+    let marker = root.join("target/.tri-mutating");
+    if marker.exists() {
+        let who = std::fs::read_to_string(&marker).unwrap_or_default();
+        anyhow::bail!(
+            "a previous `tri gates mutate` did not finish{}.\n\
+             It may have left a mutant in the tree. Recover with:\n\
+             \n    git -C {} checkout -- tools/\n    rm {}\n\
+             \nThis marker exists because an interrupted run is silent otherwise: \
+             the loop restores each file after its control, and a kill between \
+             those two steps leaves the mutation in place.",
+            if who.trim().is_empty() {
+                String::new()
+            } else {
+                format!(" (it was on {})", who.trim())
+            },
+            root.display(),
+            marker.display()
+        );
+    }
+    if let Some(d) = marker.parent() {
+        let _ = std::fs::create_dir_all(d);
+    }
+
+    // T128: BEFORE the dirty-tree check, not after. The marker exists for the
+    // interrupted case, and in that case the tree IS dirty -- so the older,
+    // less informative guard spoke first and the message naming the gate and
+    // the recovery commands was never seen. Found by hitting a real interrupt
+    // and watching the wrong error come out.
     let dirty = Command::new("git")
         .args(["status", "--porcelain", "--", "."])
         .current_dir(&tools)
@@ -969,7 +1443,10 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
             Direction::Loud,
             Direction::Invert,
             Direction::Boundary,
+            Direction::Assert,
         ]
+    } else if assert_op {
+        &[Direction::Assert]
     } else if invert {
         &[Direction::Invert]
     } else if loud {
@@ -980,13 +1457,14 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
 
     if all {
         println!(
-            "{:<34}{:>8}{:>8}{:>8}{:>9}  {}",
-            "gate", "silent", "loud", "invert", "boundary", "verdict"
+            "{:<30}{:>8}{:>8}{:>8}{:>9}{:>8}  {}",
+            "gate", "silent", "loud", "invert", "boundary", "assert", "verdict"
         );
         println!("(silent: `return 1..4` -> `return 0`  -- can the gate still FAIL?)");
         println!("(loud:   `return 0`    -> `return 1`  -- does anything require it to be SILENT?)");
         println!("(invert: `if C:` -> `if not (C):`     -- does it reach the RIGHT verdict?)");
         println!("(bound:  `>` <-> `>=`, `<` <-> `<=`    -- at the right PLACE?)");
+        println!("(assert: `assert C` -> `assert True`   -- can the assertion still fail?)");
     } else {
         println!("{:<38} {:>9}  {}", "gate", "mutants", "verdict");
         if invert {
@@ -997,6 +1475,12 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
         }
     }
     let mut total_survived: Vec<String> = Vec::new();
+    let mut cache = if fresh {
+        std::collections::HashMap::new()
+    } else {
+        load_cache(&root)
+    };
+    let (mut n_cached, mut n_measured) = (0usize, 0usize);
 
     for f in &files {
         let name = f
@@ -1012,6 +1496,18 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
                 continue;
             }
         }
+        // Refuse to mutate rather than mutate unmarked. The marker is what
+        // makes a killed run recoverable: without it on disk, an interrupted
+        // run leaves a mutated gate behind and the next run has no way to know.
+        // Swallowing this failure disarms the guard exactly when it is needed.
+        std::fs::write(&marker, &name).map_err(|e| {
+            anyhow::anyhow!(
+                "cannot write the interrupt marker {}: {e}\n\
+                 Refusing to mutate {name}: an interrupted run would leave the \
+                 file mutated with nothing on disk to say so.",
+                marker.display()
+            )
+        })?;
         let pristine = std::fs::read_to_string(f)?;
         // EVERY flag the gate declares, not the first one found. A gate can
         // carry several controls aimed at different branches, and running one
@@ -1077,8 +1573,29 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
             continue;
         }
 
+        // What this row depends on: the gate's bytes and its judges' bytes.
+        let mut judges: Vec<std::path::PathBuf> =
+            flags.iter().map(|_| f.clone()).take(1).collect();
+        if let Some(c) = &external {
+            judges.push(tools.join(c));
+        }
+        let gate_sha = sha_of(&[f.clone()]);
+        let ctrl_sha = sha_of(&judges);
+
         let mut scores: Vec<(Direction, usize, usize, Vec<usize>)> = Vec::new();
+        let (mut n_row_cached, mut n_row_fresh) = (0usize, 0usize);
         for dir in directions {
+        let key = format!("{}|{}", name, label(*dir));
+        if let Some(c) = cache.get(&key) {
+            if c.gate_sha == gate_sha && c.ctrl_sha == ctrl_sha {
+                scores.push((*dir, c.killed, c.total, c.survivors.clone()));
+                n_row_cached += 1;
+                n_cached += 1;
+                continue;
+            }
+        }
+        n_row_fresh += 1;
+        n_measured += 1;
         let sites = sites_in_direction(&pristine, *dir);
         let mut killed = 0usize;
         let mut survivors: Vec<usize> = Vec::new();
@@ -1126,6 +1643,17 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
             }
         }
         debug_assert_eq!(std::fs::read_to_string(f).unwrap_or_default(), pristine);
+        cache.insert(
+            key,
+            CachedRun {
+                gate_sha: gate_sha.clone(),
+                ctrl_sha: ctrl_sha.clone(),
+                killed,
+                total: sites.len(),
+                survivors: survivors.clone(),
+            },
+        );
+        save_cache(&root, &cache);
         scores.push((*dir, killed, sites.len(), survivors));
         }
 
@@ -1138,10 +1666,25 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
                 [Direction::Loud] => "no success path to break",
                 [Direction::Invert] => "no verdict-bearing condition to invert",
                 [Direction::Boundary] => "no comparison to move",
+                [Direction::Assert] => "no assertion to neuter",
                 [Direction::Silent] => "no failure path to break",
                 _ => "no mutable site in any direction",
             };
-            println!("{:<38} {:>9}  {}", name, 0, what);
+            // T127: the THIRD print path. A zero-site row is still a row, and a
+            // cached one printed with no marker -- so the property went into two
+            // of three branches, which is how it got into one of two the first
+            // time.
+            println!(
+                "{:<38} {:>9}  {}{}",
+                name,
+                0,
+                what,
+                if n_row_fresh == 0 && n_row_cached > 0 {
+                    " [cached]"
+                } else {
+                    ""
+                }
+            );
             continue;
         }
 
@@ -1184,10 +1727,21 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
 
         if directions.len() == 1 {
             let (_, killed, total, _) = &scores[0];
-            let verdict = if survived_here.is_empty() {
-                "all killed".to_string()
-            } else {
-                format!("SURVIVED at {}", survived_here[0])
+            let verdict = {
+                let v = if survived_here.is_empty() {
+                    "all killed".to_string()
+                } else {
+                    format!("SURVIVED at {}", survived_here[0])
+                };
+                // T127: the marker belongs in BOTH shapes. It was added to the
+                // multi-column branch only, so a cached single-operator row
+                // printed exactly like a fresh one -- the failure this marker
+                // exists to prevent, in the half of the code that prints it.
+                match (n_row_cached, n_row_fresh) {
+                    (0, _) => v,
+                    (_, 0) => format!("{} [cached]", v),
+                    (c, f) => format!("{} [{} cached, {} fresh]", v, c, f),
+                }
             };
             println!(
                 "{:<38} {:>9}  {}",
@@ -1201,16 +1755,46 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
                 .map(|(_, k, t, _)| format!("{:>8}", format!("{}/{}", k, t)))
                 .collect();
             println!(
-                "{:<34}{}  {}",
+                "{:<30}{}  {}",
                 name,
                 cols,
-                if survived_here.is_empty() {
-                    "all killed".to_string()
-                } else {
-                    format!("SURVIVED: {}", survived_here.join("; "))
+                {
+                    let v = if survived_here.is_empty() {
+                        "all killed".to_string()
+                    } else {
+                        format!("SURVIVED: {}", survived_here.join("; "))
+                    };
+                    // T127: a reused row says so. A cached green that read like
+                    // a fresh one would be the same lie this command exists to
+                    // find.
+                    // T130: per-ROW precision. A row with two columns measured
+                    // and three reused was labelled `[cached]` wholesale --
+                    // under-claiming rather than over-claiming, so the safe
+                    // direction, and still wrong. The point of the marker is
+                    // that a reader can tell which it is.
+                    match (n_row_cached, n_row_fresh) {
+                        (0, _) => v,
+                        (_, 0) => format!("{} [cached]", v),
+                        (c, f) => format!("{} [{} cached, {} fresh]", v, c, f),
+                    }
                 }
             );
         }
+    }
+
+    let _ = std::fs::remove_file(&marker);
+    save_cache(&root, &cache);
+    if n_cached > 0 {
+        println!();
+        println!(
+            "{} row(s) MEASURED, {} reused from cache (gate and control bytes unchanged).",
+            n_measured, n_cached
+        );
+        println!("A cached row is a measurement from an earlier run, not from this one.");
+        println!("`--fresh` re-measures everything. The cache lives in target/ and is");
+        println!("keyed on the gate's bytes and its control's -- a fixture changing");
+        println!("underneath both is a way for a reused row to be stale, and is why");
+        println!("the marker exists rather than being silently omitted.");
     }
 
     println!();
@@ -1279,9 +1863,20 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             only,
             loud,
             invert,
+            assert_op,
+            fresh,
             all,
             dir,
-        } => mutate(only.as_deref(), *loud, *invert, *all, dir.as_deref()),
+        } => mutate(
+            only.as_deref(),
+            *loud,
+            *invert,
+            *assert_op,
+            *fresh,
+            *all,
+            dir.as_deref(),
+        ),
+        GatesCmd::Prs { repo } => prs(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
@@ -1382,6 +1977,56 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    /// Three ways two DIFFERENT control sets used to share one cache key. That
+    /// direction is the harmful one: a shared key serves a row measured against
+    /// one input when asked about another.
+    ///
+    /// Each case here fails against the `unwrap_or_default()` + bare-concat
+    /// version -- verified by reverting the function and watching them go red,
+    /// which is the only evidence that a test tests anything.
+    #[test]
+    fn sha_of_separates_what_used_to_collide() {
+        let d = std::env::temp_dir().join(format!("tri-sha-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let w = |n: &str, b: &str| {
+            let p = d.join(n);
+            std::fs::write(&p, b).unwrap();
+            p
+        };
+
+        // The split moves, the concatenation does not: "ab"+"c" == "a"+"bc".
+        // Reachable whenever a gate declares more than one control.
+        let (ab, c) = (w("ab", "ab"), w("c", "c"));
+        let (a, bc) = (w("a", "a"), w("bc", "bc"));
+        assert_ne!(
+            sha_of(&[ab, c]),
+            sha_of(&[a, bc]),
+            "two control sets differing only in where the boundary falls must not share a key"
+        );
+
+        // "the file is gone" is not "the file is empty".
+        let empty = w("empty", "");
+        let gone = d.join("gone");
+        assert_ne!(
+            sha_of(&[empty]),
+            sha_of(&[gone.clone()]),
+            "a missing control must not hash as an empty one"
+        );
+
+        // Two missing controls are two different absences.
+        assert_ne!(
+            sha_of(&[gone]),
+            sha_of(&[d.join("also-gone")]),
+            "two distinct missing paths must not share a key"
+        );
+
+        // And the point of a cache: same bytes, same key.
+        let stable = w("stable", "same");
+        assert_eq!(sha_of(&[stable.clone()]), sha_of(&[stable]));
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     /// `GatesCmd` is a `Subcommand`, so asking clap what `--min-runs` defaults
     /// to needs a root parser. This one exists for no other purpose.

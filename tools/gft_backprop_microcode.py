@@ -16,6 +16,10 @@ board/bpseq.v for the hand-written (2,2,1) version this reproduces).
 Op: 'MUL'|'ADD'|'MOV'.  Operand mod: 0 none, 1 relu, 2 relu', 3 neg, 4 -eta*x
 (neg . scale_q, eta=2^-k). Hidden biases fixed at c=[0,-1,-1,...] (the XOR trick).
 """
+import tempfile
+import subprocess
+import sys
+import os
 import math
 
 def enc(x):
@@ -328,7 +332,96 @@ def _emit_module(reg, steps, initv, n_in, n_out, modname, clk_div=1):
     return "\n".join(L)
 
 
+def self_check():
+    """Prove this file's sixteen asserts can fail, by planting faults they name.
+
+    T124. The last gate in the tree with no negative control in any form. Its
+    verdicts are `assert`s -- XOR trains to 4/4, the held-out classifier clears
+    90%, the emitted Verilog carries the ports it claims -- and nothing showed
+    that any of them could go red. Sixteen assertions and no evidence that they
+    assert anything.
+
+    Worth recording about the FORM: an assert delivers its verdict through a
+    traceback, so exit 1 means both "XOR did not train" and "somebody typed a
+    name wrong three lines up". Each case here demands the ASSERTION'S OWN
+    MESSAGE, because the exit code cannot tell those apart -- which is the same
+    reason every other control in this tree asserts text.
+
+    The plants are copies of this file with one thing changed, run as whole
+    programs. Nothing here can affect a live run: the child never sees
+    --self-check, and the edits exist only in a temporary tree.
+    """
+    ok = True
+
+    def spawned(label, edit, want_rc, expect, absent):
+        nonlocal ok
+        with tempfile.TemporaryDirectory() as td:
+            tools = os.path.join(td, "tools")
+            os.makedirs(tools)
+            src = open(os.path.abspath(__file__), encoding="utf-8").read()
+            if edit:
+                before = src
+                src = edit(src)
+                assert src != before, f"{label}: the plant changed nothing"
+            me = os.path.join(tools, os.path.basename(__file__))
+            open(me, "w", encoding="utf-8").write(src)
+            r = subprocess.run([sys.executable, me], capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = (r.returncode == want_rc) if want_rc == 0 else (r.returncode != 0)
+        good = good and not missing and not leaked
+        print(f"  {label:<44} " + (f"exit {r.returncode}, right assertion" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {'0' if want_rc == 0 else 'non-zero'})")
+            if missing:
+                print(f"       the assertion never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[-320:]!r}")
+
+    # The clean direction first, or every case below passes for free on a file
+    # that raises unconditionally.
+    spawned("an unperturbed tree trains and emits", None, 0,
+            ["generated XOR microcode trains 4/4", "emit_verilog: clk_div=16"],
+            ["XOR self-test failed", "Traceback"])
+
+    # The arithmetic the whole microsequencer rests on. A sign flip in the
+    # shared multiplier makes the net stop converging, which is exactly what
+    # `assert acc == 4` exists to notice.
+    spawned("a broken multiplier stops XOR converging",
+            lambda s: s.replace(
+                "    return 0 if mag == 0 else (sgn << 16) | mag",
+                "    return 0 if mag == 0 else ((1 - sgn) << 16) | mag", 1),
+            1, ["XOR self-test failed"],
+            ["emit_verilog: clk_div=16"])
+
+    # And an emitter assertion, which is a different claim entirely: not that
+    # the net learns, but that the Verilog says what this file says it says.
+    # T124: the needle is ASSEMBLED, never written out. Spelled literally, its
+    # first occurrence in this file would be THIS LINE -- so `str.replace(.., 1)`
+    # edited the control's own source and left the assertion untouched, and the
+    # case reported the gate as blind when nothing had been planted at all.
+    #
+    # check_duplicate_agreement.py carries a comment warning about exactly this,
+    # written after the same thing happened there. I read that comment, wrote a
+    # control, and reproduced the defect it describes in the same repository.
+    port = "input [31:0] x" + "0i"
+    spawned("a renamed port is caught by the emitter check",
+            lambda s: s.replace(port, "input [31:0] xRENAMED", 1),
+            1, ["AssertionError"],
+            ["emit_verilog: clk_div=16"])
+
+    print(f"  self-check: the training verdict and an emitter verdict both go red, "
+          f"and a clean tree stays green = {ok}")
+    return 0 if ok else 1
+
+
 if __name__ == "__main__":
+    if "--self-check" in sys.argv:
+        sys.exit(self_check())
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)
         print(f"arch {arch}: {len(reg)} regs, {len(steps)} microcode steps")
