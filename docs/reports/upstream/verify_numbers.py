@@ -994,5 +994,28 @@ if cm:
           "cost figure" in cm["what_this_does_not_say"], True, tol=0)
     check("dot4: канонических чтений", len(cm["die_reads_canonical"]), 2, tol=0)
 
+# W992: the chipdb deletion, its audit, and the sequencing error.
+dl = rec("deletion_w992.json")
+if dl:
+    print("\n== удаление чипдб и состязательный аудит (W992)")
+    a = dl["audit"]
+    check("углов поиска", len(a["sweep_verdicts"]), 4, tol=0)
+    check("все четыре сказали 'безопасно'",
+          all(v == "SAFE_TO_DELETE" for v in a["sweep_verdicts"]), True, tol=0)
+    check("агентов", a["agents"], 12, tol=0)
+    check("агенты = 4 угла + 2 скептика на угол", a["agents"], 4 + 4 * 2, tol=0)
+    r = dl["refutations_that_landed"]
+    check("опровержений", len(r), 3, tol=0)
+    check("подтверждённых опровержений",
+          sum(1 for x in r if x["status"].startswith("CONFIRMED")), 2, tol=0)
+    check("литеральный grep назван причиной",
+          "cannot see a consumer that CONSTRUCTS" in r[0]["refutation"], True, tol=0)
+    check("ничего не сломано", dl["what_is_actually_broken_now"].startswith("nothing"), True, tol=0)
+    check("цена регенерации названа", "bbaexport" in dl["the_real_cost"], True, tol=0)
+    check("ошибка порядка признана",
+          "BEFORE the refutation phase finished" in dl["my_sequencing_error"], True, tol=0)
+    e = dl["environment"]
+    check("освобождено ГиБ", e["free_gib_after"] - e["free_gib_before"], 0.73, tol=0.02)
+
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)

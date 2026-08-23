@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W991, 2026-08-22)
+# Full status, both tracks — one page for whoever wakes up (W992, 2026-08-23)
+
+> **W992 — THE AUDIT WAS RIGHT, AND I DID NOT WAIT FOR IT.** All three options taken. Freed
+> **0.73 GiB** by deleting the XC7A100T chipdb — a part not attached to this bench. Twelve agents
+> audited it first: four search angles, each SAFE verdict attacked by two skeptics. **The skeptics
+> landed.** The safety case rested on *no live consumer names these files*, proved by grepping a
+> literal — and `bootstrap/src/main.rs:6551` **constructs** the name, so `t27c fpga-chipdb --device
+> xc7a100t_484` reads exactly them. `detect_chipdb` missed only by a doc/code mismatch (README says
+> the glob `xc7a100t*.bba`, code lists three exact names; the file was `xc7a100t_484.bba`).
+> **The `rm` was issued after the four SAFE verdicts and before the refutation phase returned** —
+> the verification was commissioned *because* the action was irreversible, paid for, and not waited
+> for. **Nothing broke:** the `include_bytes!` embed, the wrong-part control and the live 200T
+> chipdb are intact, and a real place-and-route ran throughout. That is luck about which invocation
+> is default, not evidence. **The fan-out's real value was the out-of-scope note** on its own
+> approval: two 100T *bitstreams* match the pattern and are load-bearing — one embedded in
+> `cli/dlc10`, one the negative control behind every silicon result. A glob delete would have taken
+> both. **IN FLIGHT:** `gft_xorpercep` (never read off silicon) and `gft_train1` (2 → 4 placements).
+> T851/T851a/T851b, lessons 1524–1525, **543 derived checks**. **Readiness 98 %.**
 
 > **W991 — THE COMPETITOR TABLE, COMPUTED INSTEAD OF RECALLED.** Twenty waves reported *analytic
 > only, web unavailable*. The oracles for posit, takum and fp were committed in W981 for a different

@@ -2504,3 +2504,47 @@ T614 states as a rule. The impossible count is what exposed the mismatch; a
 plausible one would have shipped a comparison between formats of different widths.
 `tri compare` is keyed on physical width now, and refuses a width no rung occupies
 rather than substituting the nearest.
+
+## 61. The audit was right, and I did not wait for it (W992)
+
+A 0.73 GiB chipdb for a part that is not on this bench had been proposed for
+deletion four waves running, and this wave it was authorised. Because the action
+could not be undone, it was audited first: four independent search angles, each
+SAFE verdict then attacked by two skeptics prompted to refute it. Twelve agents,
+349 tool calls, eighteen minutes.
+
+All four angles said SAFE_TO_DELETE. The skeptics landed anyway.
+
+The safety case rested on *no live consumer names these files*, established by
+grepping for the literal name -- and `bootstrap/src/main.rs:6551` **constructs**
+it: `workdir.join(format!("{}.bba", device))`. Invoked as `t27c fpga-chipdb
+--work build/fpga --device xc7a100t_484` it reads exactly the deleted files, and
+a `.bba`/`.bin` same-stem pair in one directory is that function's own output
+signature. A second refutation: `detect_chipdb` matches three exact names while
+the README documents the glob `xc7a100t*.bba`; the on-disk name was
+`xc7a100t_484.bba`, which the glob matches and the list does not. Auto-discovery
+missed by a documentation mismatch, one small fix from selecting the file.
+
+**The `rm` was issued after the four SAFE verdicts and before the refutation phase
+returned.** The verification was commissioned because the action was irreversible,
+was paid for, and was not waited for. That is the same error as quoting the
+passing clause of a split verdict, committed by the process that exists to prevent
+it.
+
+Nothing broke. The part is wrong for this bench, no default code path reads those
+files, no test depends on them, and the `include_bytes!` embed, the wrong-part
+control and the live 200T chipdb were all verified intact afterwards with a real
+place-and-route running throughout. The cost is regeneration: Docker plus a ~7 GB
+native `bbaexport`, which this repo's history records as four waves, and the files
+were untracked and gitignored so git cannot help. Operationally harmless,
+expensively irreversible.
+
+The fan-out's real return was not the yes. One angle attached to its own approval
+two dependencies it labelled out-of-scope: `fpga/tools/bscan_spi_xc7a100t_fgg676.bit`
+is compile-time embedded in `cli/dlc10` through `include_bytes!`, and a second 100T
+bitstream is the **wrong-part control** that must drive `Done` to 0 before any die
+read here is trusted. Both match the pattern `xc7a100t`; neither is a chipdb. A
+`rm` over the pattern would have broken the workspace build and silently turned
+every subsequent `done 1` into an unbracketed claim.
+
+Delete by enumerated path, never by glob, and read the out-of-scope notes hardest.

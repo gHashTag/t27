@@ -31011,6 +31011,64 @@ format. And three step columns are reported together: the worst is set by the
 tapered extremes, the median by the bulk, and quoting either alone picks the
 conclusion in advance.
 
+### T851 -- A grep for a literal cannot clear a path built at runtime [measured]
+
+Before deleting 0.73 GiB of chipdb, four independent searches returned
+SAFE_TO_DELETE. Two skeptics per angle, prompted to refute, found what the method
+could not: the safety argument rested on *no live consumer names these files*,
+established by grepping for the literal name, and
+
+    bootstrap/src/main.rs:6551
+      let bba = workdir.join(format!("{}.bba", device));
+      let bin = workdir.join(format!("{}.bin", device));
+
+**constructs** the name. `t27c fpga-chipdb --work build/fpga --device
+xc7a100t_484` reads exactly the deleted files, and a `.bba`/`.bin` same-stem pair
+in one directory is that function's own output signature -- so those files were
+almost certainly written by it.
+
+A second refutation is subtler. `detect_chipdb` matches three **exact** names
+while the README documents the **glob** `xc7a100t*.bba`. The on-disk name was
+`xc7a100t_484.bba`: the glob matches it, the exact list does not. Auto-discovery
+missed by a doc/code mismatch, one small fix from selecting the file -- a latent
+dependency, not its absence.
+
+**A negative established by pattern search is only as strong as the assumption
+that every reader spells the name out.** Nothing was broken by this deletion, and
+that is luck about *which* invocation is default, not the evidence the search
+produced.
+
+### T851a -- The fan-out earned its cost by naming what the yes did not cover [measured]
+
+All four angles said yes. The value was in an out-of-scope note one of them
+attached to its own approval: `fpga/tools/bscan_spi_xc7a100t_fgg676.bit` is
+compile-time embedded in `cli/dlc10` through `include_bytes!`, and a second 100T
+bitstream is the **wrong-part control** that must drive `Done` to 0 before any die
+read in this project is trusted. Both match the pattern `xc7a100t`; neither is a
+chipdb.
+
+A `rm` over the pattern would have broken `cargo build -p dlc10` and, worse,
+destroyed the negative control that makes every silicon result here meaningful --
+silently turning every subsequent `done 1` into an unbracketed claim. **Delete by
+enumerated path, never by glob, and read the out-of-scope notes hardest.**
+
+### T851b -- Verification not waited for is verification not done [measured]
+
+The audit was commissioned *because* the action was irreversible. The deletion was
+issued after the four sweep verdicts and **before** the refutation phase finished.
+The refuters then produced the runtime path above.
+
+Nothing broke. The files were for a part not attached to this bench, no default
+code path read them, and no test depended on them -- so the loss is operational
+zero and regeneration cost: Docker plus a ~7 GB native `bbaexport`, which this
+repo's own history records as four waves of work, with git unable to help because
+the files were untracked and gitignored.
+
+The rule this leaves: **an irreversible action waits for the whole verification it
+was given, including the half designed to contradict the first half.** Acting on
+the confirming half alone is the same error as quoting the passing clause of a
+split verdict.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
