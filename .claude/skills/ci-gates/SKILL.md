@@ -2537,3 +2537,55 @@ Three states now: no marker when fresh, `[cached]` when every column is reused,
 cache entries stale by hand, which is worth noting: **a state that cannot occur
 naturally during testing is a state nobody has seen your code produce.**
 
+## 65. Triaging fifty boundary survivors, and a pull request that got 7 of 35 checks
+
+The boundary column carried **50 survivors** — the largest and last unexamined
+number in the table. Read rather than counted, they sort into four kinds, and
+only one is a verdict:
+
+| kind | n | example |
+|---|---|---|
+| **proven equivalence** | 6 | `sig = … if r.returncode < 0 else ""`, reached only after a returncode check |
+| **fixture generation** | 8 | `cls = int((xs[0] > 0) != (xs[-1] > 0))`, `if p < 0.15:`, `while len(v) < N:` |
+| **display truncation** | 4 | `if len(out) > 6:` guarding a "… N more" line |
+| **possibly real thresholds** | 3 | `if total < 200:`, `if not full and space > budget:`, `if b < 0:` |
+
+Plus 26 in one file's arithmetic internals, a separate surface.
+
+**The operator has no scope discipline, and this is where that shows.** `invert`
+restricts itself to conditions whose body carries a verdict. `boundary` takes
+every comparison — and in *verifier*-style gates most comparisons are in test-data
+generation and reporting, not in verdicts. On checker-style gates the same
+operator found six real thresholds. **The same operator is sharp on one shape of
+gate and noisy on another**, which is a fact about the operator worth knowing
+before quoting its count.
+
+**Five of the six equivalences are one line, copied five times.** The `signal`
+message appears in five verifiers, each reached only after a returncode check —
+three via `if returncode == 0: return`, two via `if returncode != 0:` — so the
+value cannot be zero there and `< 0` ≡ `<= 0`. Proven from the line above, not
+assumed from the shape. Fifth duplication family this campaign has found; all
+five are now marked, and the rows still read SURVIVED and still count.
+
+### And a pull request that silently received 7 checks of 35
+
+PR #2541 changed `tools/verify_multitarget.py` — a path explicitly listed in
+`emit-bitexact-gate.yml`'s `pull_request` paths — and **that gate did not run**.
+Seven checks total, where a sibling opened minutes earlier got thirty-five.
+
+Measured rather than assumed:
+
+- an empty commit did **not** re-trigger it — so not a transient miss
+- a second branch touching the **same files** got a normal check list — so not
+  the paths
+- the repository had no queue backlog — so not contention
+
+**Not diagnosed.** The cause is inside GitHub's trigger evaluation for that
+pull request, and nothing I can read from here explains it. What matters is the
+response: **re-opened as a fresh pull request rather than merged without checks.**
+The new one has 25 checks and `emit-bitexact` running.
+
+**The rule.** A green check list is evidence; a *short* check list is a finding.
+Count the checks against a sibling before reading the colours — a gate that never
+ran is invisible in exactly the way a gate that passed is.
+
