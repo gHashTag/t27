@@ -1068,6 +1068,41 @@ fn mutate(
         );
     }
 
+    // T126: a marker for an INTERRUPTED run. The loop writes a mutant, runs the
+    // control, and restores; a kill lands between the first and the third and
+    // leaves the tree mutated. The docstring says that is recoverable with
+    // `git checkout tools/` -- true, and useless unless you know it happened.
+    //
+    // Measured, on myself: a ten-minute timeout killed an --all run, a boundary
+    // mutant stayed in gft_backprop_microcode.py, and `git add -A` committed and
+    // pushed it. The dirty-tree guard could not help: it refuses to START on a
+    // dirty tree, and by then the damage was already staged.
+    //
+    // Under target/, which every Rust checkout already ignores, so the marker
+    // itself can never be the dirt it warns about.
+    let marker = root.join("target/.tri-mutating");
+    if marker.exists() {
+        let who = std::fs::read_to_string(&marker).unwrap_or_default();
+        anyhow::bail!(
+            "a previous `tri gates mutate` did not finish{}.\n\
+             It may have left a mutant in the tree. Recover with:\n\
+             \n    git -C {} checkout -- tools/\n    rm {}\n\
+             \nThis marker exists because an interrupted run is silent otherwise: \
+             the loop restores each file after its control, and a kill between \
+             those two steps leaves the mutation in place.",
+            if who.trim().is_empty() {
+                String::new()
+            } else {
+                format!(" (it was on {})", who.trim())
+            },
+            root.display(),
+            marker.display()
+        );
+    }
+    if let Some(d) = marker.parent() {
+        let _ = std::fs::create_dir_all(d);
+    }
+
     let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&tools)?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {
@@ -1161,6 +1196,7 @@ fn mutate(
                 continue;
             }
         }
+        let _ = std::fs::write(&marker, &name);
         let pristine = std::fs::read_to_string(f)?;
         // EVERY flag the gate declares, not the first one found. A gate can
         // carry several controls aimed at different branches, and running one
@@ -1362,6 +1398,8 @@ fn mutate(
             );
         }
     }
+
+    let _ = std::fs::remove_file(&marker);
 
     println!();
     if total_survived.is_empty() {
