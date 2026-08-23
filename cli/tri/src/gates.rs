@@ -93,6 +93,10 @@ pub enum GatesCmd {
         #[arg(long = "assert")]
         assert_op: bool,
 
+        /// Re-measure everything, ignoring the cache.
+        #[arg(long)]
+        fresh: bool,
+
         /// Run all operators in one pass and print them as columns.
         ///
         /// Three commands answering one question is the same shape as two
@@ -1032,6 +1036,55 @@ fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
     found
 }
 
+/// A measurement, keyed by what it depends on.
+///
+/// T127: the five-operator run passed twenty minutes and kept growing --
+/// `gft_backprop_microcode.py` alone has 47 sites, each a ten-second subprocess.
+/// A run nobody can finish is not a measurement, and the whole point of `--all`
+/// was the full picture.
+///
+/// The result of mutating a gate depends on the gate's bytes and on the bytes of
+/// whatever control judges it. Both are hashed; a row is reused only when both
+/// match, and reused rows are MARKED. A cached green that read like a fresh one
+/// would be the same lie this command exists to find.
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct CachedRun {
+    gate_sha: String,
+    ctrl_sha: String,
+    killed: usize,
+    total: usize,
+    survivors: Vec<usize>,
+}
+
+fn sha_of(paths: &[std::path::PathBuf]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    for p in paths {
+        h.update(std::fs::read(p).unwrap_or_default());
+    }
+    hex::encode(&h.finalize()[..8])
+}
+
+fn cache_path(root: &std::path::Path) -> std::path::PathBuf {
+    root.join("target/.tri-mutate-cache.json")
+}
+
+fn load_cache(root: &std::path::Path) -> std::collections::HashMap<String, CachedRun> {
+    std::fs::read_to_string(cache_path(root))
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_cache(root: &std::path::Path, c: &std::collections::HashMap<String, CachedRun>) {
+    if let Some(d) = cache_path(root).parent() {
+        let _ = std::fs::create_dir_all(d);
+    }
+    if let Ok(s) = serde_json::to_string_pretty(c) {
+        let _ = std::fs::write(cache_path(root), s);
+    }
+}
+
 fn label(d: Direction) -> &'static str {
     match d {
         Direction::Silent => "silent",
@@ -1051,6 +1104,7 @@ fn mutate(
     loud: bool,
     invert: bool,
     assert_op: bool,
+    fresh: bool,
     all: bool,
     dir: Option<&str>,
 ) -> Result<()> {
@@ -1181,6 +1235,12 @@ fn mutate(
         }
     }
     let mut total_survived: Vec<String> = Vec::new();
+    let mut cache = if fresh {
+        std::collections::HashMap::new()
+    } else {
+        load_cache(&root)
+    };
+    let (mut n_cached, mut n_measured) = (0usize, 0usize);
 
     for f in &files {
         let name = f
@@ -1262,8 +1322,28 @@ fn mutate(
             continue;
         }
 
+        // What this row depends on: the gate's bytes and its judges' bytes.
+        let mut judges: Vec<std::path::PathBuf> =
+            flags.iter().map(|_| f.clone()).take(1).collect();
+        if let Some(c) = &external {
+            judges.push(tools.join(c));
+        }
+        let gate_sha = sha_of(&[f.clone()]);
+        let ctrl_sha = sha_of(&judges);
+
         let mut scores: Vec<(Direction, usize, usize, Vec<usize>)> = Vec::new();
+        let mut from_cache = false;
         for dir in directions {
+        let key = format!("{}|{}", name, label(*dir));
+        if let Some(c) = cache.get(&key) {
+            if c.gate_sha == gate_sha && c.ctrl_sha == ctrl_sha {
+                scores.push((*dir, c.killed, c.total, c.survivors.clone()));
+                from_cache = true;
+                n_cached += 1;
+                continue;
+            }
+        }
+        n_measured += 1;
         let sites = sites_in_direction(&pristine, *dir);
         let mut killed = 0usize;
         let mut survivors: Vec<usize> = Vec::new();
@@ -1311,6 +1391,17 @@ fn mutate(
             }
         }
         debug_assert_eq!(std::fs::read_to_string(f).unwrap_or_default(), pristine);
+        cache.insert(
+            key,
+            CachedRun {
+                gate_sha: gate_sha.clone(),
+                ctrl_sha: ctrl_sha.clone(),
+                killed,
+                total: sites.len(),
+                survivors: survivors.clone(),
+            },
+        );
+        save_cache(&root, &cache);
         scores.push((*dir, killed, sites.len(), survivors));
         }
 
@@ -1327,7 +1418,17 @@ fn mutate(
                 [Direction::Silent] => "no failure path to break",
                 _ => "no mutable site in any direction",
             };
-            println!("{:<38} {:>9}  {}", name, 0, what);
+            // T127: the THIRD print path. A zero-site row is still a row, and a
+            // cached one printed with no marker -- so the property went into two
+            // of three branches, which is how it got into one of two the first
+            // time.
+            println!(
+                "{:<38} {:>9}  {}{}",
+                name,
+                0,
+                what,
+                if from_cache { " [cached]" } else { "" }
+            );
             continue;
         }
 
@@ -1370,10 +1471,21 @@ fn mutate(
 
         if directions.len() == 1 {
             let (_, killed, total, _) = &scores[0];
-            let verdict = if survived_here.is_empty() {
-                "all killed".to_string()
-            } else {
-                format!("SURVIVED at {}", survived_here[0])
+            let verdict = {
+                let v = if survived_here.is_empty() {
+                    "all killed".to_string()
+                } else {
+                    format!("SURVIVED at {}", survived_here[0])
+                };
+                // T127: the marker belongs in BOTH shapes. It was added to the
+                // multi-column branch only, so a cached single-operator row
+                // printed exactly like a fresh one -- the failure this marker
+                // exists to prevent, in the half of the code that prints it.
+                if from_cache {
+                    format!("{} [cached]", v)
+                } else {
+                    v
+                }
             };
             println!(
                 "{:<38} {:>9}  {}",
@@ -1390,16 +1502,39 @@ fn mutate(
                 "{:<30}{}  {}",
                 name,
                 cols,
-                if survived_here.is_empty() {
-                    "all killed".to_string()
-                } else {
-                    format!("SURVIVED: {}", survived_here.join("; "))
+                {
+                    let v = if survived_here.is_empty() {
+                        "all killed".to_string()
+                    } else {
+                        format!("SURVIVED: {}", survived_here.join("; "))
+                    };
+                    // T127: a reused row says so. A cached green that read like
+                    // a fresh one would be the same lie this command exists to
+                    // find.
+                    if from_cache {
+                        format!("{} [cached]", v)
+                    } else {
+                        v
+                    }
                 }
             );
         }
     }
 
     let _ = std::fs::remove_file(&marker);
+    save_cache(&root, &cache);
+    if n_cached > 0 {
+        println!();
+        println!(
+            "{} row(s) MEASURED, {} reused from cache (gate and control bytes unchanged).",
+            n_measured, n_cached
+        );
+        println!("A cached row is a measurement from an earlier run, not from this one.");
+        println!("`--fresh` re-measures everything. The cache lives in target/ and is");
+        println!("keyed on the gate's bytes and its control's -- a fixture changing");
+        println!("underneath both is a way for a reused row to be stale, and is why");
+        println!("the marker exists rather than being silently omitted.");
+    }
 
     println!();
     if total_survived.is_empty() {
@@ -1468,9 +1603,18 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             loud,
             invert,
             assert_op,
+            fresh,
             all,
             dir,
-        } => mutate(only.as_deref(), *loud, *invert, *assert_op, *all, dir.as_deref()),
+        } => mutate(
+            only.as_deref(),
+            *loud,
+            *invert,
+            *assert_op,
+            *fresh,
+            *all,
+            dir.as_deref(),
+        ),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]

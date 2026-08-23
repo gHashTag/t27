@@ -2424,3 +2424,38 @@ whole directory it edits against its baseline, in both the committed and the
 working direction. A diff that names one file is a report about that file, not
 about the tree.
 
+## 61. A run nobody can finish is not a measurement
+
+Five operators over 21 gates passed twenty minutes and kept growing —
+`gft_backprop_microcode.py` alone has 47 sites, each a ten-second subprocess. The
+last two attempts were killed by timeouts, and one of those kills is what leaked
+two mutants into a branch. **The cost had stopped being an inconvenience and
+started being a correctness problem**: the full picture was the entire point of
+`--all`, and nobody could reach it.
+
+**Cached by what the answer depends on**: the gate's bytes and the bytes of
+whatever control judges it. Both hashed, both must match, and the cache is
+written **after every gate** rather than at the end — so an interrupted run keeps
+what it measured and the next one resumes. Cold 2.6s → warm 0.5s on one gate.
+
+**Every reused row says `[cached]`.** A cached green that read like a fresh one
+would be precisely the lie this command exists to find, and the summary names the
+split: *N measured, M reused*.
+
+**I put that marker into one of two print paths, then two of three.** The
+multi-column branch got it first; the single-operator branch printed cached rows
+identically to fresh ones; and the zero-site branch — *"no failure path to
+break"* — printed a third way with no marker at all. Three printers, one
+property, and it took two corrections to reach all three. The same shape as
+`skip()` in four copies, inside one function.
+
+**Invalidation is verified, not assumed.** On a planted repository: measure,
+reuse, then append one comment to the gate and watch the third run measure again.
+A cache that never invalidates is worse than no cache, and that direction is the
+one worth testing.
+
+**The stale case, stated rather than hidden.** A fixture changing underneath a
+gate and its control leaves both hashes intact and the recorded row wrong. That
+is why the marker exists instead of silence: a reader who sees `[cached]` knows
+which question to ask, and `--fresh` answers it.
+
