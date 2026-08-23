@@ -393,6 +393,21 @@ if [[ "$cmd" =~ ^[a-z][a-z0-9-]*$ ]]; then
   if [[ -n "$TRI_BIN" ]] && ! lists_cmd "$T27C" && lists_cmd "$TRI_BIN"; then
     exec "$TRI_BIN" "$@"
   fi
+  # Routing alone still leaves the case that matters most: a fresh clone, where
+  # nothing under target/ is built. There the gate's remediation lands on the
+  # same `unrecognized subcommand 'now'` it always did -- verified by moving
+  # BOTH binaries aside, since hiding only target/debug/tri proves nothing while
+  # target/release/tri answers.
+  #
+  # Nothing here can say WHICH commands the unbuilt binary has, so this does not
+  # claim to. It says the binary exists, is not built, and how to build it, then
+  # falls through so t27c's own error still prints.
+  if [[ -z "$TRI_BIN" ]] && ! lists_cmd "$T27C" && [[ -d "$REPO_ROOT/cli/tri" ]]; then
+    echo "tri: '$cmd' is not a t27c subcommand, and the Rust \`tri\` binary (cli/tri) is not built." >&2
+    echo "tri: seventeen subcommands live there, 'now' among them. If '$cmd' is one:" >&2
+    echo "tri:     cargo build --release -p tri" >&2
+    echo "tri: t27c's own error follows." >&2
+  fi
 fi
 
 # `t27c suite` is the only subcommand that accepts --repo-root.
