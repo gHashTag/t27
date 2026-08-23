@@ -20,6 +20,8 @@ group failed to build; 2 = usage/environment error.
 """
 import json
 import os
+import tempfile
+import shutil
 import subprocess
 import sys
 
@@ -239,15 +241,29 @@ def run_module(name, verilog_path, workdir):
     open(tb_path, "w").write(tb)
 
     vvp_path = os.path.join(workdir, f"{name}_conformance.vvp")
-    build = subprocess.run(
-        ["iverilog", "-g2012", "-DSIMULATION", "-o", vvp_path, verilog_path, tb_path],
-        capture_output=True, text=True,
-    )
+    try:
+        build = subprocess.run(
+            ["iverilog", "-g2012", "-DSIMULATION", "-o", vvp_path, verilog_path, tb_path],
+            capture_output=True, text=True,
+        )
+    except OSError as e:
+        # T117: absent is not failed. Without this the call raises
+        # FileNotFoundError and this gate dies with a traceback -- red, and not
+        # one word saying whether the RTL is wrong or the simulator is missing.
+        print(f"{name}: iverilog is not on PATH ({e.strerror})")
+        print(f"{name}: NOTHING WAS EXECUTED -- the simulator is absent, which is")
+        print("not the same as vectors that failed.")
+        return 2, 0, skipped
     if build.returncode != 0:
         print(build.stderr.strip())
         print(f"{name}: TB BUILD FAILED")
         return 1, executed, skipped
-    sim = subprocess.run(["vvp", vvp_path], capture_output=True, text=True)
+    try:
+        sim = subprocess.run(["vvp", vvp_path], capture_output=True, text=True)
+    except OSError as e:
+        print(f"{name}: vvp is not on PATH ({e.strerror})")
+        print(f"{name}: NOTHING WAS EXECUTED -- the simulator is absent.")
+        return 2, 0, skipped
     print(sim.stdout.strip())
     if sim.stderr.strip():
         print(sim.stderr.strip())
@@ -255,7 +271,91 @@ def run_module(name, verilog_path, workdir):
     return (1 if failed else 0), executed, skipped
 
 
+def self_check():
+    """Run the WHOLE program once per verdict it can reach without a simulator.
+
+    T117. This gate ran in CI with no negative control in any form -- invisible
+    to `tri gates sweep` until selection moved from names to properties, because
+    it is called `run_*` rather than `check_*`.
+
+    Every case here spawns the real program and asserts the exit code AND the
+    message. Three of its exits are 2 and two are 1, so the code alone cannot
+    say which branch spoke, and this file's own subject is a gate that reported
+    a vacuous pass.
+
+    NOT COVERED, said rather than left to be inferred: the passing path and the
+    real per-case mismatch, both of which need iverilog and a built .v. The
+    "nothing was executed" verdict is reachable only through a registry module
+    whose vectors are gone, which means planting a corpus -- worth building and
+    not built here.
+    """
+    ok = True
+
+    def case(label, argv, want, expect, absent, env=None):
+        nonlocal ok
+        r = subprocess.run([sys.executable, os.path.abspath(__file__), *argv],
+                           capture_output=True, text=True,
+                           env=env or os.environ.copy())
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<40} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[:300]!r}")
+
+    case("no arguments is usage, not a pass", [], 2,
+         ["usage: run_conformance_vvp.py"],
+         ["CONFORMANCE OK", "NOTHING WAS EXECUTED", "TB BUILD FAILED", "Traceback"])
+
+    case("a module outside the registry is refused",
+         ["not_a_real_module", "/nonexistent.v"], 2,
+         ["not in the executed-vector registry"],
+         ["CONFORMANCE OK", "TB BUILD FAILED", "Traceback"])
+
+    name = sorted(REGISTRY)[0]
+    with tempfile.TemporaryDirectory() as td:
+        # A registry module with a .v that cannot build: the TB-BUILD branch,
+        # reached without needing correct RTL. iverilog must be PRESENT for this
+        # one, or it would be measuring the case below instead.
+        if shutil.which("iverilog"):
+            bad_v = os.path.join(td, "not_verilog.v")
+            open(bad_v, "w").write("this is not verilog at all\n")
+            case("unbuildable RTL is a build failure",
+                 [name, bad_v, td], 1,
+                 [f"{name}: TB BUILD FAILED"],
+                 ["CONFORMANCE OK", "is not on PATH", "Traceback"])
+        else:
+            print("  unbuildable RTL is a build failure     UNRUN (no iverilog on PATH)")
+            ok = False
+
+        # And the same world with the simulator removed. Before this commit the
+        # call raised FileNotFoundError: red, with nothing said about whether
+        # the RTL was wrong or the tool was missing.
+        stripped = os.environ.copy()
+        stripped["PATH"] = os.pathsep.join(
+            d for d in stripped.get("PATH", "").split(os.pathsep)
+            if d and not os.path.exists(os.path.join(d, "iverilog")))
+        case("a missing simulator is named, not a failure",
+             [name, os.path.join(td, "whatever.v"), td], 2,
+             ["iverilog is not on PATH", "NOTHING WAS EXECUTED"],
+             ["TB BUILD FAILED", "CONFORMANCE OK", "Traceback"], env=stripped)
+
+    print(f"  self-check: four verdicts reached, each by its own message; the passing "
+          f"path and per-case mismatch are NOT covered here = {ok}")
+    return 0 if ok else 1
+
+
 def main():
+    if "--self-check" in sys.argv:
+        return self_check()
     if len(sys.argv) < 3:
         print("usage: run_conformance_vvp.py <module> <generated.v> [workdir]")
         return 2
