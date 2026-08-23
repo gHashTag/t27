@@ -2,7 +2,13 @@
 
 Two operators asked whether a gate can still reach its verdicts. The third asks whether it reaches the **right** one: a gate that fires its FAIL branch on a healthy tree and its OK branch on a broken one satisfies both of the others.
 
-- **`--invert`.** `if C:` becomes `if not (C):`, on conditions whose body carries a verdict. All thirteen gates: **one survivor**, and it is `check_elab_ratchet`'s no-baseline branch — the same one both other operators leave, declared `UNCOVERED` with its reason.
+- **`--invert`.** `if C:` becomes `if not (C):`, on conditions whose body carries a verdict.
+
+  **RETRACTED.** This bullet first read *"all thirteen gates: one survivor, `check_elab_ratchet`'s no-baseline branch — the same one both other operators leave."* The flag did not run the invert operator. `Direction::Invert` was declared, documented, and never constructed; `invert_sites()` had zero callers; `mutate()` chose `if loud { Loud } else { Silent }`. `--invert` printed an invert banner over a silent run, so the survivor reported was the *silent* survivor, and "the same one both other operators leave" was true by construction rather than by measurement.
+
+  The real first measurement, after wiring the delegation: **33 invert mutants across 13 gates, 33 killed, no survivors.** The columns now visibly disagree where they must — `check_json_parses` has one silent site and no invertible condition, `check_vector_data` five inverts against four silents.
+
+  What made this durable is worth naming: the wrong answer was *plausible*. A real measurement of the wrong thing agreed with the story I already believed.
 
 - **Three axes now converge on one line.** That is the first result in this campaign where a new instrument found nothing new, and it is worth as much as the ones that did: the controls written over the last week hold up against a question they were not written for.
 

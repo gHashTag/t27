@@ -1395,3 +1395,42 @@ Its first output read as a finding about the tool. **A throwaway script written
 to verify a careful one inherits none of its care**, and it is trusted anyway
 because it is short. Seven instruments of my own have now been broken in this
 campaign; the throwaway ones account for most of them.
+
+## 36. A flag can be a banner
+
+`tri gates mutate --invert` shipped, merged, and published a number. It never
+ran the invert operator. `Direction::Invert` was declared and documented,
+`invert_sites()` was written and unit-tested, and nothing joined them —
+`mutate()` picked its direction with `if loud { Loud } else { Silent }`, so the
+flag printed an invert header over a silent run.
+
+Ten unit tests passed with the bug in place. Every one of them exercised
+`invert_sites()` **or** `sites_in_direction()`; none crossed between them. That
+is precisely the defect this whole command exists to find — the checking
+function is covered, the wiring from it to the answer is not — arriving one
+level up, in the auditor.
+
+**Two things made it durable.**
+
+The output was *plausible*: one survivor, the declared `UNCOVERED` branch, the
+same one the other operators leave. Every part of that sentence was true, and
+"the same branch as the other operators" was true **by construction** — it *was*
+the other operator. A real measurement of the wrong thing agrees with whatever
+story you already have.
+
+And the operators were read one at a time. Three commands answering one question
+cannot be cross-checked; three columns can. `--all` now prints them together,
+and the first honest run shows them disagreeing exactly where they must:
+`check_json_parses` has one silent site and no invertible condition,
+`check_vector_data` five inverts against four silents.
+
+**The check.** For any new mode, flag or direction, write the test that asserts
+it produces something the *other* modes do not, on one fixture where all of them
+have a site. Equality across modes is not a reassuring symmetry — it is the
+signature of a fall-through.
+
+**And the count.** First real measurement: 33 invert mutants across 13 gates,
+33 killed, no survivors. The suite's one remaining survivor is
+`check_elab_ratchet.py`'s no-baseline branch under the silent operator, declared
+`UNCOVERED` by message.
+
