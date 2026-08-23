@@ -1099,6 +1099,42 @@ fn zig_path(name: &str) -> String {
     }
 }
 
+const ZIG_KEYWORDS_ALL: &[&str] = &[
+        "align", "allowzero", "and", "anyframe", "anytype", "asm", "async",
+        "await", "break", "callconv", "catch", "comptime", "const", "continue",
+        "defer", "else", "enum", "errdefer", "error", "export", "extern", "fn",
+        "for", "if", "inline", "linksection", "noalias", "nosuspend", "noinline",
+        "opaque", "or", "orelse", "packed", "pub", "resume", "return", "struct",
+        "suspend", "switch", "test", "threadlocal", "try", "union",
+        "unreachable", "usingnamespace", "var", "volatile", "while",
+    ];
+
+/// Quote a name used in EXPRESSION position, segment by segment.
+///
+/// Keywords only -- unlike `zig_ident`, primitives are left alone. `@as(u8, x)`
+/// names `u8` as an ordinary expression, and quoting it there would break a
+/// call that was correct.
+///
+/// Segment by segment because `mod.union` needs `mod.@"union"`, not a quoted
+/// whole. Builtins keep their `@` and are never touched.
+fn zig_expr_name(name: &str) -> String {
+    let folded = zig_path(name);
+    if folded.starts_with('@') {
+        return folded;
+    }
+    folded
+        .split('.')
+        .map(|seg| {
+            if ZIG_KEYWORDS_ALL.contains(&seg) {
+                format!("@\"{}\"", seg)
+            } else {
+                seg.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
 fn zig_ident(name: &str) -> String {
     // Primitive type names are not keywords, so Zig rejects them in binding
     // position with `name shadows primitive` rather than a syntax error. Reached
@@ -1116,15 +1152,7 @@ fn zig_ident(name: &str) -> String {
         return format!("@\"{}\"", name);
     }
 
-    const ZIG_KEYWORDS: &[&str] = &[
-        "align", "allowzero", "and", "anyframe", "anytype", "asm", "async",
-        "await", "break", "callconv", "catch", "comptime", "const", "continue",
-        "defer", "else", "enum", "errdefer", "error", "export", "extern", "fn",
-        "for", "if", "inline", "linksection", "noalias", "nosuspend", "noinline",
-        "opaque", "or", "orelse", "packed", "pub", "resume", "return", "struct",
-        "suspend", "switch", "test", "threadlocal", "try", "union",
-        "unreachable", "usingnamespace", "var", "volatile", "while",
-    ];
+    const ZIG_KEYWORDS: &[&str] = ZIG_KEYWORDS_ALL;
     if ZIG_KEYWORDS.contains(&name) {
         format!("@\"{}\"", name)
     } else {
@@ -4705,10 +4733,14 @@ impl Codegen {
             // not a new one.
             let use_anytype =
                 is_generic_param(ptype) || mentions_free_generic(ptype, &self.declared);
+            // Sixth and seventh binding sites. `fn f(error: Err)` and
+            // `fn update(key: K, fn: anytype)` -- `error` and `fn` are Zig
+            // keywords and these are the natural names for those parameters.
+            let pn = zig_ident(pname);
             if use_anytype {
-                self.write(&format!("{}: anytype", pname));
+                self.write(&format!("{}: anytype", pn));
             } else {
-                self.write(&format!("{}: {}", pname, Self::zig_type(ptype)));
+                self.write(&format!("{}: {}", pn, Self::zig_type(ptype)));
             }
         }
         self.write(")");
@@ -4740,8 +4772,10 @@ impl Codegen {
                 continue;
             }
             if !node.children.iter().any(|c| mentions_identifier(c, pname)) {
+                // Same spelling as the declaration above, or the discard names
+                // something that does not exist.
                 self.write_indent();
-                self.write_line(&format!("_ = {};", pname));
+                self.write_line(&format!("_ = {};", zig_ident(pname)));
             }
         }
 
@@ -5135,10 +5169,10 @@ impl Codegen {
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => self.write(&node.value),
-            NodeKind::ExprIdentifier => self.write(&zig_path(&node.name)),
+            NodeKind::ExprIdentifier => self.write(&zig_expr_name(&node.name)),
             NodeKind::ExprEnumValue => {
                 self.write(".");
-                self.write(&zig_path(&node.name));
+                self.write(&zig_expr_name(&node.name));
             }
             NodeKind::ExprCall => {
                 // `eq(a, b)`, `not(x)`, `abs(x)` are operator spellings the
@@ -5201,7 +5235,7 @@ impl Codegen {
                     || node.name == "gf16_extract_exponent"
                     || node.name == "gf16_extract_mantissa"
                 {
-                    self.write(&zig_path(&node.name));
+                    self.write(&zig_expr_name(&node.name));
                     self.write("(");
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
@@ -5211,7 +5245,7 @@ impl Codegen {
                     }
                     self.write(")");
                 } else {
-                    self.write(&zig_path(&node.name));
+                    self.write(&zig_expr_name(&node.name));
                     self.write("(");
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
@@ -5273,7 +5307,7 @@ impl Codegen {
                         self.gen_expr(&node.children[0]);
                     }
                     self.write(".");
-                    self.write(&zig_path(&node.name));
+                    self.write(&zig_expr_name(&node.name));
                 }
             }
             NodeKind::ExprIndex => {
@@ -5358,7 +5392,7 @@ impl Codegen {
                 self.write("}");
             }
             NodeKind::ExprStructLit => {
-                self.write(&zig_path(&node.name));
+                self.write(&zig_expr_name(&node.name));
                 self.write("{ ");
                 for (i, field) in node.children.iter().enumerate() {
                     if i > 0 {
