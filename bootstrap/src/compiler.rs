@@ -2264,6 +2264,29 @@ impl Parser {
             self.advance();
         }
 
+        // A qualified type name: `std.mem.Allocator`. Nothing here consumed the
+        // dot, so the type ended at `std` and `.mem.Allocator` was left for the
+        // parameter-list parser, which manufactured parameters out of it:
+        //
+        //   fn reverse(allocator: std.mem.Allocator, ...)
+        //   ->  fn reverse(allocator: Std, mem: , Allocator: ...)
+        //
+        // 31 of the 36 `expected type expression, found ','` errors. I had
+        // assumed from one sampled line that the class was map-type syntax
+        // (`[str:str]`); reading all 36 shows exactly one is.
+        while self.current.kind == TokenKind::Dot && !ty.is_empty() {
+            self.advance();
+            if self.current.kind == TokenKind::Ident {
+                ty.push('.');
+                ty.push_str(&self.current.lexeme);
+                self.advance();
+            } else {
+                // A dot not followed by a name is not a qualified type; leave it
+                // for the caller rather than swallowing a token blindly.
+                break;
+            }
+        }
+
         ty
     }
 
@@ -4000,6 +4023,7 @@ impl Codegen {
     /// rewriting a type it does not understand is how the converter corrupted
     /// 131 field declarations in the first place.
     fn zig_type(ty: &str) -> String {
+
         let t = ty.trim();
         // `str` is Rust's, and appears bare as well as behind a reference.
         if t == "&str" || t == "str" {
