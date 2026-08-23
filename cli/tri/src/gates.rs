@@ -155,7 +155,14 @@ fn sweep(controls_only: bool, dir: Option<&str>) -> Result<()> {
             // reads exactly like a clean suite. Two naming conventions for one
             // thing is a shape this campaign has met before.
             n.ends_with(".py")
-                && (n.starts_with("check_") || n.starts_with("check-") || n.contains("gate"))
+                && (n.starts_with("check_")
+                    || n.starts_with("check-")
+                    || n.contains("gate")
+                    || is_gate_by_property(
+                        &root,
+                        n,
+                        &std::fs::read_to_string(p).unwrap_or_default(),
+                    ))
         })
         .collect();
     files.sort();
@@ -271,8 +278,14 @@ fn sweep(controls_only: bool, dir: Option<&str>) -> Result<()> {
     // never saw them, and a table that does not list them reads as a repository
     // that does not have them. Printed with the row count so the denominator is
     // never read as "every gate here".
+    // T113: `rows.len()` is the count AFTER the control files are excluded, so
+    // the old wording ("13 of 28 matched") understated the match by exactly the
+    // number of controls and made me report 15 invisible files where there are
+    // 13. The disclosure line added for honesty was itself off by two.
     println!(
-        "Files considered: {} of {} *.py under {} matched check_* / check-* / *gate*.",
+        "Files considered: {} gate(s) from {} *.py under {} — by name (check_*, \
+         check-*, *gate*) or by property (a workflow invokes it AND it can exit \
+         non-zero); control files excluded.",
         rows.len(),
         std::fs::read_dir(&tools)
             .map(|d| d
@@ -282,8 +295,8 @@ fn sweep(controls_only: bool, dir: Option<&str>) -> Result<()> {
             .unwrap_or(rows.len()),
         tools.display()
     );
-    println!("A gate named otherwise is invisible here, which is a fact about the");
-    println!("filter and not about the repository.");
+    println!("Selection by name alone failed twice: `check-` against `check_`, and");
+    println!("then verify_*/run_*, which hid three verdict-carrying CI scripts here.");
     println!();
     println!("Forms searched: a --self-check/--selftest flag in the script; the");
     println!("EXTERNAL_CONTROL table in this command; tests/test_<name>.py; and a");
@@ -731,6 +744,42 @@ fn resolve_target(dir: Option<&str>) -> Result<(std::path::PathBuf, std::path::P
 /// that upgrades "no control" to "controlled" is the one error direction that
 /// hurts here: an uncontrolled gate reading as controlled is exactly the
 /// false green this command exists to find.
+/// Is this script a gate, by what it DOES rather than by what it is called?
+///
+/// T113: naming was the selector for the whole campaign and it failed twice --
+/// `check-` against `check_`, and then `verify_*` / `run_*`, which is how three
+/// verdict-carrying CI scripts in this very repository stayed invisible to a
+/// command whose output looks exhaustive.
+///
+/// The property that actually matters is measurable: a workflow invokes it, and
+/// it can exit non-zero. Anything that can turn a pipeline red is a gate whether
+/// or not its name says so. Name-matching stays as a second rule, because a gate
+/// may be invoked by a script rather than by a workflow directly.
+fn is_gate_by_property(root: &std::path::Path, name: &str, src: &str) -> bool {
+    let exits_nonzero = src.contains("sys.exit(1")
+        || src.contains("sys.exit(2")
+        || src.contains("sys.exit(3")
+        || src.contains("sys.exit(4")
+        || src.contains("return 1")
+        || src.contains("return 2")
+        || src.contains("return 3")
+        || src.contains("return 4")
+        || src.contains("raise SystemExit(1");
+    if !exits_nonzero {
+        return false;
+    }
+    let Ok(rd) = std::fs::read_dir(root.join(".github/workflows")) else {
+        return false;
+    };
+    rd.filter_map(|e| e.ok()).any(|e| {
+        let p = e.path();
+        p.extension().is_some_and(|x| x == "yml" || x == "yaml")
+            && std::fs::read_to_string(&p)
+                .unwrap_or_default()
+                .contains(name)
+    })
+}
+
 fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
     let mut found = Vec::new();
 
@@ -767,10 +816,32 @@ fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
                     return false;
                 }
                 let body = std::fs::read_to_string(&p).unwrap_or_default();
-                body.contains(name)
-                    && ["fixture", "expect_", "planted", "broken", "must-", "must "]
-                        .iter()
-                        .any(|w| body.contains(w))
+                // T113: NEAR the invocation, and only the strong words.
+                //
+                // The first version asked whether the file contained the script
+                // name anywhere and a planted-fault word anywhere. On its first
+                // real use it labelled three uncontrolled gates as having a
+                // control, on the strength of the word "must" sitting in a prose
+                // comment 760 lines away from the call. That is the false green
+                // this command exists to find, produced by the command.
+                //
+                // `broken` and `must` are dropped: both are ordinary English in
+                // a workflow comment. `fixture`, `expect_` and `planted` are
+                // vocabulary somebody chose on purpose.
+                let lines: Vec<&str> = body.lines().collect();
+                let calls: Vec<usize> = lines
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, l)| l.contains(name))
+                    .map(|(i, _)| i)
+                    .collect();
+                if calls.is_empty() {
+                    return false;
+                }
+                lines.iter().enumerate().any(|(i, l)| {
+                    ["fixture", "expect_", "planted"].iter().any(|w| l.contains(w))
+                        && calls.iter().any(|c| i.abs_diff(*c) <= 30)
+                })
             })
             .map(|e| e.file_name().to_string_lossy().to_string())
             .collect();
@@ -779,6 +850,9 @@ fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
             found.push(format!("workflow candidate {}", h));
         }
     }
+    // The three test-file patterns collide when the stem does not begin with
+    // `check_`, and a name printed twice reads as two independent controls.
+    found.dedup();
     found
 }
 
@@ -820,7 +894,14 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
             // reads exactly like a clean suite. Two naming conventions for one
             // thing is a shape this campaign has met before.
             n.ends_with(".py")
-                && (n.starts_with("check_") || n.starts_with("check-") || n.contains("gate"))
+                && (n.starts_with("check_")
+                    || n.starts_with("check-")
+                    || n.contains("gate")
+                    || is_gate_by_property(
+                        &root,
+                        n,
+                        &std::fs::read_to_string(p).unwrap_or_default(),
+                    ))
         })
         .collect();
     files.sort();
@@ -1518,6 +1599,37 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         .unwrap();
         let f = control_forms(&base, "", "check_paths.py");
         assert!(f.iter().any(|s| s.contains("workflow candidate")), "{f:?}");
+
+        // T113: the false positive this heuristic produced on its first real
+        // use. The word `must` sat in a prose comment far from the call, and
+        // three uncontrolled gates were labelled as having a control -- the
+        // false green this command exists to find, produced by the command.
+        std::fs::write(
+            base.join(".github/workflows/faraway.yml"),
+            format!(
+                "# a comment that says must and broken\n{}run: python3 tools/check_far.py\n",
+                "# filler\n".repeat(60)
+            ),
+        )
+        .unwrap();
+        let f = control_forms(&base, "", "check_far.py");
+        assert!(
+            f.is_empty(),
+            "prose 60 lines from the call is not a control, got {f:?}"
+        );
+
+        // And the strong words still count when they are beside the call.
+        std::fs::write(
+            base.join(".github/workflows/near.yml"),
+            "run: python3 tools/check_near.py --root tests/fixture/broken\n",
+        )
+        .unwrap();
+        assert!(
+            control_forms(&base, "", "check_near.py")
+                .iter()
+                .any(|s| s.contains("workflow candidate")),
+            "a fixture path beside the call is the evidence this looks for"
+        );
 
         // A workflow that merely RUNS the gate is not evidence of a control.
         std::fs::write(
