@@ -11533,8 +11533,19 @@ fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow
     println!("  {:<48}{:>7}", "total .t27 files", total);
     println!("  {:<48}{:>7}", "HONEST DENOMINATOR (source only)", source);
     println!();
-    println!("  A .t27 extension is a filename, not a type declaration. Anything");
-    println!("  outside SOURCE cannot parse, and counting it as a failing spec");
-    println!("  inflates every corpus ratio in a knowable direction.");
+    println!("  A .t27 extension is a filename, not a type declaration. Counting a");
+    println!("  Markdown document as a failing spec inflates every corpus ratio in a");
+    println!("  knowable direction, which is what this denominator is for.");
+    println!();
+    // T94: this used to read "Anything outside SOURCE cannot parse". Measured
+    // 2026-08-24 against `parse-complete`: 5 of the 28 non-SOURCE files DO
+    // parse -- 3 ALT-SYNTAX (specs/ar/coa_planning, proof_trace, restraint) and
+    // 2 UNCLASSIFIED (specs/physics/formula_registry, lqg_entropy). The
+    // direction of the correction was right and its stated reason was not, so
+    // the sentence claimed more than the classifier can see: this reads the
+    // opening of a file, and parsing is a different question about the rest.
+    println!("  It does NOT follow that everything outside SOURCE fails to parse.");
+    println!("  Measured: 5 of the non-SOURCE files parse. `parse-complete` is the");
+    println!("  authority on parsing; this one is the authority on what is code.");
     Ok(())
 }
