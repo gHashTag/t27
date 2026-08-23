@@ -93,9 +93,20 @@ jobs:
       # constitution calls the single source of truth. Not one is a backend mismatch:
       # on a 25-spec sample, zero generated with any of the four. They are recorded as
       # debt so this holds the line, and the number can only go down.
-      - name: Every spec still generates (negative control)
+      # Matches the step it controls: this proves the ratchet can fail, so
+      # it should not promise completeness the ratchet does not have.
+      - name: No spec newly fails to generate -- negative control
         run: python3 tools/check_specs_generate.py --self-check
-      - name: Every spec still generates
+      # "Every X" promises a proof. This gate is a RATCHET: it holds a ledger
+      # of the exceptions and fails only when the set GROWS. Both are worth
+      # having, and they are different claims -- a reader of a green check
+      # takes the name for the first one.
+      # Measured today: 595 of 718 specs generate; 123 are ledgered in
+      # tools/specs_generate_baseline.txt and do not.
+      # The count stays in this comment and out of the name: a name carrying
+      # a number becomes a WRONG number the day the ledger moves, which is
+      # a worse failure than the vague name it replaced.
+      - name: No spec newly fails to generate (known-broken set is ledgered)
         run: python3 tools/check_specs_generate.py
 
       # Ternary primitives have input spaces small enough to enumerate: a full adder

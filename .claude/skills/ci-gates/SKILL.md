@@ -3660,3 +3660,66 @@ before deciding the pass is fine — an honest tool under an overclaiming name i
 the most durable kind of wrong number, because every individual artefact is
 accurate. And when writing a step name, write what would still be true if the
 environment were bare.
+
+## 92. "Every X" over a ratchet is a wrong number with no wrong number in it
+
+Swept all 191 named CI steps for names carrying a completeness or proof word.
+Fifteen. One stated what it does not check. Then I read the five that say
+"Every X" against what their tool prints:
+
+| step name | the tool's own output |
+|---|---|
+| Every spec still generates | `595 of 718 generate, 123 known-broken` |
+| Every tracked JSON parses | `2078 tracked, none NEWLY unparseable (6 known)` |
+| Every gate must fail loudly with nothing to check | `coverage: 6 of 16` |
+| Every seal still describes its spec | red on master, 148 seals |
+| Every catalog row still has its spec on disk | `SSOT == fresh regen == 109` ✓ |
+
+Four of five name a **proof** over a tool that implements a **ratchet**: a
+ledger of exceptions, failing only when the set grows. Both are worth having
+and they are different claims — and every artefact underneath is accurate, so
+there is no wrong number anywhere to find. The wrongness lives only in the
+sentence a reader of a green check actually reads.
+
+Renamed to what a ratchet proves: *no X newly fails*.
+
+**Then I nearly made it worse.** My first rename put the count in the name —
+"(123 known-broken, ledgered)". A name carrying a number becomes a **wrong
+number** the day the ledger moves, and a precise falsehood is worse than the
+vague truth it replaced. The count belongs in a comment, which git dates, and
+in the tool's output, which is recomputed. The name carries the *shape* of the
+claim and no figures.
+
+`tri claims` is the sweep, kept in the tree per §89: it lists every step whose
+name carries a strong word and whether the step says what it does not check.
+It reports and does not gate, and it says so: **a flagged name is not a wrong
+name.** "Every tracked JSON parses" over a gate that reads every tracked JSON
+is exactly right, and no pattern can tell that from a ratchet wearing the same
+sentence — only reading the tool can. What the sweep buys is a short list out
+of 191.
+
+It also reports the workflows it could not parse, separately. A file this
+cannot read is not a file without claims.
+
+## 93. Matching a tool name in a `run:` block matched a comment
+
+My first pass at "which CI steps invoke a tool that passes over nothing"
+searched the whole `run:` text for the tool's filename. Thirteen hits. One was
+`fpga-build.yml`'s "Yosys parse + hierarchy" step, which looked like a serious
+mismatch — until the match turned out to be this, inside the step body:
+
+```
+# convention (suite.rs:859, verify_emit_bitexact.py:184) reads generated
+```
+
+A **comment**. The step never runs that tool, and it is in fact the best-behaved
+step in the repository: a deliberately narrow name, and a `DOES NOT CHECK`
+block echoed into the job summary with counts and issue links.
+
+Stripping comment and `echo` lines before matching, and requiring the name at a
+path boundary, gives twelve real invocations and no false one.
+
+**A `run:` block is prose and code in one string.** Anything that greps it is
+reading documentation as if it were behaviour — the same error as grepping a
+source file for a call and finding it in a docstring. Strip what is not a
+command first, and match at a boundary rather than as a substring.
