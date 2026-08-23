@@ -1877,3 +1877,42 @@ a directory with no gates it printed `0 gate(s); 0 with no control` and exited
 Fixing a class in one command and not in the one beside it is how the class
 survives.
 
+## 47. Selecting gates by property, and a heuristic that lied on first use
+
+§46 disclosed that the file filter was narrower than the control search. Measuring
+the hidden files turned that disclosure into three findings, two of them about
+this command.
+
+**A correction first: the disclosure line was itself off by two.** It printed
+`13 of 28` where 15 files match by name — `rows.len()` is the count *after* the
+two control files are excluded. The line added for honesty understated the match
+by exactly the number of controls, and I repeated its number in a report. Now it
+says `17 gate(s) from 28 *.py … control files excluded`.
+
+**Naming was never the property.** It failed as `check-` vs `check_`, and again
+as `verify_*` / `run_*`. The property that matters is measurable: **a workflow
+invokes it and it can exit non-zero.** Anything that can turn a pipeline red is a
+gate whether or not its name says so. Selection is now by-name **or**
+by-property, and the count moved 13 → 17 here.
+
+The three that surfaced — `fuzz_trainer.py`, `run_conformance_vvp.py`,
+`verify_multitarget.py` — run in CI, carry verdicts, and have **no control in any
+form**. Invisible for the whole campaign to a command whose output looks
+exhaustive.
+
+**And the workflow heuristic lied on its first real use.** §46 added it with the
+warning that upgrading "no control" to "controlled" is the one error direction
+that hurts. It then did exactly that, for all three, on the strength of the word
+`must` sitting in a prose comment **760 lines** from the call.
+
+Tightened two ways: only vocabulary somebody chooses on purpose — `fixture`,
+`expect_`, `planted`, dropping `must` and `broken`, which are ordinary English in
+a comment — and **within 30 lines of an invocation**. Both directions tested: a
+fixture path beside the call is found, prose 60 lines away is not.
+
+**The cross-check worth keeping.** Pointed at the second repository, the tightened
+version independently reproduced the by-hand measurement from §45: the same three
+gates controlled, by the same evidence. A heuristic agreeing with a careful manual
+pass on a corpus it was not tuned against is the closest thing to a control this
+kind of search can have.
+
