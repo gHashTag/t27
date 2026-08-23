@@ -974,6 +974,22 @@ fn zig_string_body(s: &str) -> String {
 /// judgement -- unlike the six field types in #2393, nothing here is guessed.
 ///
 /// 20 specs emit one: `error` 23 sites, `packed` 3, `align` 2, `opaque` 1.
+/// t27 spells a module path `parser::Node` and an enum variant
+/// `ShellType::Bash`; Zig spells both with a dot. `::` is not valid Zig in any
+/// position, so the conversion needs no guard.
+///
+/// 904 emitted lines carried it across 49 files, and those 49 files reported
+/// only 45 errors between them -- each one died at the first `::` and
+/// ast-check never saw the rest. compiler/parser.t27 alone has 338 such lines
+/// and reports a single error.
+fn zig_path(name: &str) -> String {
+    if name.contains("::") {
+        name.replace("::", ".")
+    } else {
+        name.to_string()
+    }
+}
+
 fn zig_ident(name: &str) -> String {
     // Primitive type names are not keywords, so Zig rejects them in binding
     // position with `name shadows primitive` rather than a syntax error. Reached
@@ -4141,6 +4157,11 @@ impl Codegen {
     fn zig_type(ty: &str) -> String {
 
         let t = ty.trim();
+        // Fold the module path first so every rule below sees a Zig-shaped
+        // name. The recursive call cannot re-enter -- replace removes them all.
+        if t.contains("::") {
+            return Self::zig_type(&t.replace("::", "."));
+        }
         // `str` is Rust's, and appears bare as well as behind a reference.
         if t == "&str" || t == "str" {
             return "[]const u8".to_string();
@@ -4749,10 +4770,10 @@ impl Codegen {
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => self.write(&node.value),
-            NodeKind::ExprIdentifier => self.write(&node.name),
+            NodeKind::ExprIdentifier => self.write(&zig_path(&node.name)),
             NodeKind::ExprEnumValue => {
                 self.write(".");
-                self.write(&node.name);
+                self.write(&zig_path(&node.name));
             }
             NodeKind::ExprCall => {
                 if node.name == "@compileAssert" || node.name == "assert" {
@@ -4783,7 +4804,7 @@ impl Codegen {
                     || node.name == "gf16_extract_exponent"
                     || node.name == "gf16_extract_mantissa"
                 {
-                    self.write(&node.name);
+                    self.write(&zig_path(&node.name));
                     self.write("(");
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
@@ -4793,7 +4814,7 @@ impl Codegen {
                     }
                     self.write(")");
                 } else {
-                    self.write(&node.name);
+                    self.write(&zig_path(&node.name));
                     self.write("(");
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
@@ -4855,7 +4876,7 @@ impl Codegen {
                         self.gen_expr(&node.children[0]);
                     }
                     self.write(".");
-                    self.write(&node.name);
+                    self.write(&zig_path(&node.name));
                 }
             }
             NodeKind::ExprIndex => {
@@ -4940,7 +4961,7 @@ impl Codegen {
                 self.write("}");
             }
             NodeKind::ExprStructLit => {
-                self.write(&node.name);
+                self.write(&zig_path(&node.name));
                 self.write("{ ");
                 for (i, field) in node.children.iter().enumerate() {
                     if i > 0 {
