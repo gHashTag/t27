@@ -2271,3 +2271,43 @@ right often enough to look correct. `verdict_literals` answers *"is this return 
 verdict?"*; it does not answer *"can this program fail?"*, and the difference
 only shows up on a classifier that returns 1 for a class.
 
+## 57. Zero, and a null result that answered the easier question
+
+**21 gates, 0 with no control in any form.** The count that opened this campaign
+at 4 of 12 is at zero, across a set two-thirds larger and selected by property
+rather than by name.
+
+The last one, `gft_backprop_microcode.py`, carried sixteen `assert`s — XOR trains
+to 4/4, held-out clears 90%, the emitted Verilog carries the ports it claims —
+and nothing showed that any of them could go red. Now three planted cases do: a
+sign flip in the shared multiplier stops XOR converging, a renamed port trips the
+emitter assertion, and the clean tree stays green.
+
+**And building it corrected §56's null result.** That entry measured *"do any
+CI-invoked tools fail ONLY through assert?"* — answer zero, no gate is invisible
+to the selector — and I reported it as if it settled the matter. It does not.
+
+The mutation operators score this gate **0/0 silent, 0/0 loud, 0/0 invert**.
+Its verdicts are asserts, which no operator recognises, so **every verdict in
+this gate is invisible to three of the four questions**. The selector sees it
+(via a ternary that returns a class label, §56's accident); the operators do not
+see a single one of its sixteen assertions.
+
+Two different questions — *"is this file classified as a gate?"* and *"can its
+verdicts be broken and noticed?"* — and I answered the easier one, found nothing,
+and moved on.
+
+**And the documented trap, reproduced.** The port-rename plant spelled its needle
+literally, so the first occurrence of that string in the file became **the
+control's own source line**, and `str.replace(.., 1)` edited the harness instead
+of the target. The case then reported the gate as blind when nothing had been
+planted at all. `check_duplicate_agreement.py` carries a comment warning about
+exactly this, written after it happened there. I had read that comment. The fix
+is to assemble the needle — `"input [31:0] x" + "0i"` — so it does not exist as a
+literal anywhere.
+
+**Named and left:** the boundary column reads 5/31. Those sites are arithmetic
+internals — encodings, magnitude comparisons — where moving a comparison is a
+numerical change rather than a verdict change. A different kind of surface,
+larger than anything else outstanding, and not this campaign's question.
+
