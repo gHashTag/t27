@@ -1098,19 +1098,67 @@ fn cache_path(root: &std::path::Path) -> std::path::PathBuf {
     root.join("target/.tri-mutate-cache.json")
 }
 
+/// T135: three silent failure paths lived in this function's six lines --
+/// unreadable file, unparseable file, and a discarded write result. Each
+/// degraded to "no data", which is indistinguishable from "nothing measured
+/// yet", so a corrupt cache looked exactly like a first run.
+///
+/// Measured: a full run re-measured gates whose hashes matched entries already
+/// in the file, and the entry count climbed 30 -> 40 -> 80 DURING that run --
+/// it was rebuilding a cache it should have loaded. The cause is below.
 fn load_cache(root: &std::path::Path) -> std::collections::HashMap<String, CachedRun> {
-    std::fs::read_to_string(cache_path(root))
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+    let p = cache_path(root);
+    if !p.exists() {
+        return std::collections::HashMap::new();
+    }
+    match std::fs::read_to_string(&p) {
+        Err(e) => {
+            eprintln!("warning: the cache at {} exists and could not be read ({e}).", p.display());
+            eprintln!("         Every row will be measured fresh.");
+            std::collections::HashMap::new()
+        }
+        Ok(s) => match serde_json::from_str(&s) {
+            Ok(m) => m,
+            Err(e) => {
+                // The likely cause, and it is worth naming rather than
+                // shrugging at: the old writer truncated the file in place, so
+                // a run killed mid-write left half a JSON document behind.
+                eprintln!("warning: the cache at {} is unreadable JSON ({e}).", p.display());
+                eprintln!("         A run killed mid-write can truncate it. Every row will be");
+                eprintln!("         measured fresh, and this run rewrites the file atomically.");
+                std::collections::HashMap::new()
+            }
+        },
+    }
 }
 
 fn save_cache(root: &std::path::Path, c: &std::collections::HashMap<String, CachedRun>) {
-    if let Some(d) = cache_path(root).parent() {
-        let _ = std::fs::create_dir_all(d);
+    let p = cache_path(root);
+    if let Some(d) = p.parent() {
+        if let Err(e) = std::fs::create_dir_all(d) {
+            eprintln!("warning: cannot create {} for the cache ({e})", d.display());
+            return;
+        }
     }
-    if let Ok(s) = serde_json::to_string_pretty(c) {
-        let _ = std::fs::write(cache_path(root), s);
+    let s = match serde_json::to_string_pretty(c) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("warning: the cache could not be serialised ({e})");
+            return;
+        }
+    };
+    // Write-then-rename. `fs::write` truncates in place, so a kill between the
+    // truncate and the write leaves a partial document -- which the old reader
+    // then swallowed as "no cache". A rename is atomic on the same filesystem:
+    // the file is either the old complete one or the new complete one.
+    let tmp = p.with_extension("json.tmp");
+    if let Err(e) = std::fs::write(&tmp, s) {
+        eprintln!("warning: cannot write the cache ({e}); this run will not be reusable");
+        return;
+    }
+    if let Err(e) = std::fs::rename(&tmp, &p) {
+        eprintln!("warning: cannot replace the cache ({e}); this run will not be reusable");
+        let _ = std::fs::remove_file(&tmp);
     }
 }
 
