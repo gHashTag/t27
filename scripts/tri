@@ -606,7 +606,7 @@ PYSLOPE
     [ -x "$T27C" ] || die "t27c not found at $T27C"
     BUS="${T27_BUSDEV:-1:5}"
     CTRL="${T27_WRONGPART:-$REPO_ROOT/fpga/verilog/ternary_mac_demo_top.bit}"
-    printf '%-8s %-10s %-8s %-10s %s\n' seed clauses ok site word
+    printf '%-8s %-10s %-8s %-10s %-12s %s\n' seed clauses ok site word "stage that stopped"
     P=0; F=0; WORDS=""
     for sd in $SEEDS; do
       out="$("$T27C" silicon "$SPEC" --top "$W_V" --busdev-num "$BUS" \
@@ -628,24 +628,47 @@ PYSLOPE
       word="$(pick "$line" '0x[0-9a-f]{8}')"
       cl="$(pick "$line" 'clauses=[01]{4}' | sed 's/clauses=//' || true)"
       okv="$(pick "$line" 'ok=[01]' | sed 's/ok=//' || true)"
-      # A build that produced no verdict is still a measurement: say why.
+      # W994: a build that produced no verdict is still a measurement, and the
+      # useful part is WHICH STAGE stopped. W993 printed three ABSENT rows and
+      # kept none of the reasons, so a regression (gft_train1, 1111 -> ABSENT)
+      # could not be diagnosed from the sweep that found it.
+      why=""
       if [ -z "$cl" ]; then
-        if printf '%s' "$out" | grep -q 'ABSENT' 2>/dev/null; then cl="CAP"; else cl="ABSENT"; fi
+        why="$(pick "$out" '^ *FAIL +[a-zA-Z0-9 ,+@.-]+' | sed 's/^ *FAIL *//;s/ *$//')"
+        case "$out" in *ABSENT*) cl="CAP";; *) cl="ABSENT";; esac
       fi
-      printf '%-8s %-10s %-8s %-10s %s\n' "$sd" "${cl:-ABSENT}" "${okv:-?}" "${site:-?}" "${word:-none}"
+      printf '%-8s %-10s %-8s %-10s %-12s %s\n' "$sd" "${cl:-ABSENT}" "${okv:-?}" \
+             "${site:-?}" "${word:-none}" "${why:-}"
       case "$okv" in 1) P=$((P+1));; 0) F=$((F+1));; esac
       WORDS="$WORDS ${cl:-ABSENT}"
     done
-    U="$(printf '%s\n' $WORDS | sort -u | tr '\n' ' ')"
+    N="$(printf '%s\n' $SEEDS | wc -l | tr -d ' ')"
+    # W994: ABSENT is NOT a verdict, it is the absence of one. W993 reported two
+    # ABSENT rows as "One verdict across every placement tried" -- a sentence
+    # written to be honest about a clean sweep, applied to a sweep that measured
+    # nothing. W977 established the ABSENT/FAIL split and the summary collapsed
+    # it. Three states, three sentences, and the third never borrows the first's.
+    V="$(printf '%s\n' $WORDS | grep -E '^[01]{4}$' | sort -u | tr '\n' ' ' || true)"
+    NOVERDICT=$((N - P - F))
     echo
-    echo "tri seeds: $P pass, $F fail over $(printf '%s\n' $SEEDS | wc -l | tr -d ' ') placement(s); distinct verdicts: $U"
+    echo "tri seeds: $N placement(s) -- $P pass, $F fail, $NOVERDICT with NO VERDICT; verdicts seen: ${V:-none}"
+    if [ "$NOVERDICT" = "$N" ]; then
+      echo "NOTHING WAS MEASURED. Every placement stopped before the die answered, so"
+      echo "this says nothing about the design -- only about the build. The stage that"
+      echo "stopped is in the last column; that is the thing to fix before re-running."
+      exit 2
+    fi
     if [ "$P" -gt 0 ] && [ "$F" -gt 0 ]; then
       echo "SPLIT -- one netlist, several placements, more than one answer. This is the"
       echo "T616 condition, and a single-seed result on this design means nothing."
       exit 1
     fi
-    echo "One verdict across every placement tried. That is not a proof of"
-    echo "placement-independence -- it is the absence of a counterexample in $(printf '%s\n' $SEEDS | wc -l | tr -d ' ') tries."
+    if [ "$NOVERDICT" -gt 0 ]; then
+      echo "PARTIAL -- $NOVERDICT of $N placements produced no verdict at all. The"
+      echo "agreement below covers only the $((P + F)) that answered."
+    fi
+    echo "One verdict across every placement that ANSWERED. That is not a proof of"
+    echo "placement-independence -- it is the absence of a counterexample in $((P + F)) reads."
     exit 0
     ;;
 

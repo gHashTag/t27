@@ -1,5 +1,5 @@
 {
- "wave": "W993",
+ "wave": "W993 (resolved in W994)",
  "options_taken": "all three -- collect the in-flight runs, push W991+W992 upstream, gate the dashboard stamp",
  "the_tool_defect_that_ate_a_run": {
   "symptom": "tri seeds ran two designs to completion -- one of them more than half an hour of place-and-route -- and printed a header with NOTHING under it",
@@ -22,7 +22,18 @@
   "observed": "gft_train1 ABSENT at seeds 42 and 1234, BSCAN sites 2 and 4 captured, no die word",
   "what_that_locates": "the site was captured, so synthesis, place-and-route and the chain check all completed. The failure is downstream: fasm2frames, bitstream or the read",
   "against": "W988 recorded gft_train1 at 1111, 536.85 s, 15946 LUT under a 1800 s cap",
-  "not_yet_explained": "the tool does not keep the failing stage line, which is the next thing it should do"
+  "not_yet_explained": "the tool does not keep the failing stage line, which is the next thing it should do",
+  "RESOLVED_W994": {
+   "verdict": "NOT a regression in gft_train1, and not a defect in the design, the spec or the toolchain. The JTAG cable is gone from the bus.",
+   "evidence": {
+    "full_stage_table": "spec->Verilog OK, yosys OK 15946 LUT / 2725 CARRY4, datapath survives OK, nextpnr+XDC OK 540.55 s with slowclk 2.92 MHz PASS at 2.21, BSCAN chain==site OK JTAG_CHAIN(2) at BSCAN2, fasm2frames OK, frames->bitstream OK 9730822 B -- every stage green",
+    "hardware": "A1 wrong part Done None, B1 our bitstream Done None, B2 read: 'no cable carries design 5 -- ours did not answer'; index 0/1/2 all 'usb_open rc=-3 device not found'; cables carrying the magic: 0 of 3",
+    "direct_check": "openFPGALoader --scan-usb -> 'No USB devices found'; openFPGALoader -c digilent_hs2 --detect -> 'unable to open ftdi device: -3 (device not found)'"
+   },
+   "scope": "this explains ALL THREE ABSENT results of W993 -- gft_train1 at seeds 42 and 1234 and gft_xorpercep at seed 1 -- with one cause that is not in the repository",
+   "correction": "W993's status board and ledger called this an unexplained regression in gft_train1 and dropped readiness by a point for it. That reading was wrong: the design was never measured, so nothing about it changed.",
+   "why_the_sweep_could_not_say_so": "tri seeds kept no failing stage line, so a bench fault and a design fault produced the identical row. W994 added the stage column; this is the first thing it would have shown."
+  }
  },
  "dashboard_gate": {
   "command": "tri dashboard --check",

@@ -31111,6 +31111,42 @@ updated, and those are different defects with the same symptom.** Wired into
 rather than pass. Validated both ways: agreement at W992 exits 0, a copy forged
 back to W990 exits 1.
 
+### T855 -- The absence of a result is not evidence about the thing measured [measured]
+
+W993 read `ABSENT` on three placements across two designs, wrote *an unexplained
+regression in `gft_train1`* into the status board and the ledger, and docked a
+readiness point for it. One build with the full stage table settled it:
+
+| stage | result |
+|-------|--------|
+| spec -> Verilog | OK |
+| yosys | OK, 15 946 LUT, 2 725 CARRY4 |
+| datapath survives | OK, 3.82 DUT-equivalents reached the die |
+| nextpnr + XDC | OK, **540.55 s**, slowclk 2.92 MHz PASS at 2.21 |
+| BSCAN chain == site | OK, `JTAG_CHAIN(2)` at BSCAN2 |
+| fasm2frames | OK |
+| frames -> bitstream | OK, 9 730 822 B |
+| **A1 wrong part** | **`Done None`** |
+| **B2 read** | **`usb_open rc=-3 device not found` on indices 0, 1 and 2** |
+
+`openFPGALoader --scan-usb` answers **`No USB devices found`**. The cable had left
+the bus. **One cause, three `ABSENT`s, none of them about the designs** -- and the
+place-and-route the previous wave believed had failed had in fact completed in
+540 seconds with timing to spare.
+
+Two things follow. First, **a sweep that records only the verdict cannot
+distinguish a bench fault from a design fault**: `tri seeds` kept no failing stage
+line, so both produced the identical row, and the wave that had just fixed the
+tool's inability to print a row at all still could not read what the row meant.
+The stage column added in W994 is the first thing that would have shown it.
+
+Second, and more costly: **a missing measurement was written into the record as a
+property of the design.** T851 said an irreversible action must wait for the whole
+verification; this is the same error one level up -- a conclusion published from
+the half of the evidence that existed. The correction is in `tooling_w993.json`
+rather than a silent edit, because a retracted claim that leaves no trace teaches
+nothing.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

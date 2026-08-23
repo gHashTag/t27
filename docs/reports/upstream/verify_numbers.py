@@ -1039,6 +1039,20 @@ if tw:
           "downstream" in tr["what_that_locates"], True, tol=0)
     check("не объяснено -- и так и сказано",
           "not_yet_explained" in tr, True, tol=0)
+    # W994: and then it WAS explained -- by the bench, not the design.
+    rv = tr.get("RESOLVED_W994")
+    check("разрешено в W994", rv is not None, True, tol=0)
+    if rv:
+        check("вердикт: не регрессия схемы",
+              rv["verdict"].startswith("NOT a regression"), True, tol=0)
+        check("все стадии сборки прошли",
+              "every stage green" in rv["evidence"]["full_stage_table"], True, tol=0)
+        check("кабеля нет на шине",
+              "No USB devices found" in rv["evidence"]["direct_check"], True, tol=0)
+        check("одна причина на три ABSENT",
+              "ALL THREE ABSENT" in rv["scope"], True, tol=0)
+        check("прежнее прочтение названо ошибочным",
+              "was wrong" in rv["correction"], True, tol=0)
     dg = tw["dashboard_gate"]
     check("гейт различает две причины",
           "different defects, same symptom" in dg["distinction_stated"], True, tol=0)

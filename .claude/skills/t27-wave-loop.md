@@ -12641,6 +12641,8 @@ a worktree in the same wave its branch merges.
 
 **1527. ABSENT IS NOT A VERDICT, AND A TOOL THAT COUNTS IT AS ONE REASSURES.** With the rows finally printing, two ABSENT results made tri seeds report '0 pass, 0 fail over 2 placements' and then 'One verdict across every placement tried' -- a sentence written to be honest about a clean sweep, now applied to a sweep that measured nothing. This project established the ABSENT/FAIL split in W977 and the tool collapsed it one command later. When adding a summary line, enumerate the states it can summarise: pass, fail, and NO RESULT are three, and the third must never borrow the wording of the first. (W993)
 
+**1528. A MISSING CABLE AND A BROKEN DESIGN PRODUCE THE SAME EMPTY ROW.** W993 read ABSENT on three placements across two designs, called it an unexplained regression in gft_train1, and docked a readiness point for it. W994 ran one build with the full stage table: every stage green -- 15946 LUT, place-and-route 540.55 s inside the cap, timing PASS, FASM and bitstream written -- and then 'usb_open rc=-3 device not found' on all three cable indices. openFPGALoader --scan-usb: No USB devices found. The cable had left the bus. One cause, three ABSENTs, none of them about the designs. A sweep that records only the verdict cannot distinguish a bench fault from a design fault, and the absence of a result is not evidence about the thing you were measuring. Keep the failing stage in the row, and check the instrument before writing a regression into the record. (W994)
+
 ### How to update this tracker
 
 After closing a wave:

@@ -1,4 +1,4 @@
-<title>t27 - TNF: волна W992</title>
+<title>t27 - TNF: волна W993</title>
 <style>
 :root {
   --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
@@ -55,18 +55,18 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="wrap">
 <header>
   <h1>TNF - публикационная готовность</h1>
-  <span class="live">*W992 — THE AUDIT WAS RIGHT, AND I DID NOT WAIT FOR IT.** All three options taken. Freed</span>
+  <span class="live">*W993 — THE TOOL ATE A RUN, AND FIXING IT EXPOSED THE NEXT DEFECT.** All three options taken.</span>
 </header>
 
 <div class="kpis">
-  <div class="kpi"><div class="lbl">готовность</div><div class="val">98%</div>
-    <div class="sub">оценка волны W992</div></div>
-  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">543</div>
+  <div class="kpi"><div class="lbl">готовность</div><div class="val">97%</div>
+    <div class="sub">оценка волны W993</div></div>
+  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">554</div>
     <div class="sub">расхождений 0</div></div>
   <div class="kpi"><div class="lbl">чтений с кристалла</div><div class="val">47</div>
     <div class="sub">8 схем, 36 с ok=1</div></div>
-  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1110/753</div>
-    <div class="sub">старшие T851b, и 1525</div></div>
+  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1112/755</div>
+    <div class="sub">старшие T853a, и 1527</div></div>
 </div>
 
 <h2>Операторы на кремнии - выведено из записей</h2>
@@ -85,6 +85,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 </tbody></table></div>
 
 <h2>Журнал итераций</h2>
+<div class="row"><span class="w">W993</span><span class="t"><b>The tool ate a run, and fixing it exposed the next defect.</b> Two designs were run to completion -- one of them more than half an hour of place-and-route -- and <code>tri seeds</code> printed a header with nothing under it. Under <code>set -o pipefail</code>, a build that fails produces no <code>at BSCAN</code> line, <code>grep</code> exits 1, the pipeline fails, the command substitution fails, and <code>set -e</code> ends the run <b>before the row is printed</b>. The tool discarded the result in exactly the case the row exists to report, and reported nothing rather than <code>ABSENT</code>.</span></div>
 <div class="row"><span class="w">W992</span><span class="t"><b>The audit was right, and I did not wait for it.</b> A 0.73 GiB chipdb for a part that is not on this bench had been proposed for deletion four waves running, and this wave it was authorised. Because the action could not be undone, it was audited first: four independent search angles, each SAFE verdict then attacked by two skeptics prompted to refute it. Twelve agents, 349 tool calls, eighteen minutes. All four angles said SAFE_TO_DELETE. The skeptics landed anyway.</span></div>
 <div class="row"><span class="w">W991</span><span class="t"><b>The competitor table was local all along.</b> Twenty waves of reports ended with the same sentence: *competitor analysis analytic only, web search unavailable*. The reference implementations for posit, takum, fp8 and bf16 were committed in W981 -- for an unrelated reason, to stop <code>tri rungs</code> going dark on a session restart -- and had been sitting in the repository ever since. The comparison did not need the web. It needed one command. At matched <b>physical</b> width:</span></div>
 <div class="row"><span class="w">W990</span><span class="t"><b>Both fixes, confirmed.</b> The Architect asked, mid-wave, for the two spec repairs to be confirmed on silicon. The first honest answer was that both had already read <code>1111</code> in W987. The second was that each stood on a single placement, and this project's own T841 and T842 say a single placement cannot tell a passing design from one whose failure is not reachable at that seed. So the answer had to be finished. | fix | before | after | placements | |-----|--------|-------|-----------| | <code>gft_signed_mac</code> (W978) | <code>0011</code>, <code>ok=0</code>, <code>c_zero</code> real and false | <code>1111</code>, <code>ok=1</code>, <code>0xa5a5337f</code> | <b>4</b> -- seeds 1, 7, 42, 1234, sites 3, 2, 2, 4 | | <code>gft_signed_dot4</code> (W979) | ABSENT since W977 | <code>1111</code>, <code>ok=1</code>, <code>0xa5a530ff</code> | 1 confirmed twice, three in flight |</span></div>
@@ -98,8 +99,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="row"><span class="w">W982</span><span class="t"><b>The reproducer shrank, and the proof moved to the artefact that fails.</b> Two things had been outstanding since W977: a minimal case, and a proof about the right object. <b>The minimal case.</b> <code>gft_dup_jtag</code> carries five <code>GftSmul</code> instances in 798 LUT. Keeping only what discriminates -- two instances with the same operand order as a control, one with them swapped as the test -- gives <code>gft_commmin_jtag</code> at 430-452 LUT, and it reproduces <code>c_self</code> TRUE with <code>c_comm</code> FALSE exactly. <b>The smaller case immediately showed something the larger one hid</b>: both 430-LUT builds pass and both 452-LUT builds fail, so the verdict follows the *netlist*, and the two netlists differ only because <code>t27c</code> forced <code>JTAG_CHAIN</code> to the site nextpnr chose -- a parameter that selects a BSCAN site and cannot reach the arithmetic, yet moves 22 LUTs and 7 CARRY4. The seed mapping also <b>inverts</b> between the two designs: 1 and 42 pass in the big one, 7 and 42 in the small one.</span></div>
 <div class="row"><span class="w">W981</span><span class="t"><b>Nine reads that killed a hypothesis, and one that killed a plan.</b> W977 left two things behind: a claim -- *place-and-route is not function-preserving* -- and a plan -- *diff the FASM of a passing seed against a failing one and name the net*. This wave tested both against the die. <b>The claim reproduces.</b> On a bench that has since changed physically (three cables at 1:4 became one at 1:5), seeds 42, 7 and 31337 returned <code>1111</code>, <code>1101</code>, <code>1111</code> -- the same words, with the same reported Fmax to two decimals, each bracketed by a wrong-part control that forced <code>Done=0</code> before the load.</span></div>
 <div class="row"><span class="w">W49</span><span class="t"><b>W980 — the die asks 36 questions; the suites ask six of them by name.</b> <code>tri coverage</code> extracts each wrapper's clause names from its <code>wire X_ok =</code> lines and matches them against the <code>test</code> names in the spec that defines the instantiated module. <b>Nine wrappers, 36 clauses, 30 with no same-named test — 83 %.</b></span></div>
-<div class="row"><span class="w">W48</span><span class="t"><b>W979 — the corpus audit closed the class, and predicted a 141-wave-old hardware failure.</b> <b>The audit.</b> Every <code>.t27</code> in the ternary tree, scanned for private definitions of <code>smul</code>, <code>sadd</code>, <code>magmul</code>, <code>magadd</code>, <code>magsub</code> — <b>134 definitions across 26 specs</b> — with each <code>smul</code>/<code>sadd</code> checked for the guards whose absence W978 proved to be a correctness defect. <b>Exactly one remained:</b> <code>gft_signed_dot4.t27 :: smul</code>, six lines, the same shape as the MAC's.</span></div>
 
-<footer><span>обновлено: <b>W992 - 2026-08-23</b></span>
+<footer><span>обновлено: <b>W993 - 2026-08-23</b></span>
 <span>сгенерировано <code>tri dashboard</code> из записей репозитория</span></footer>
 </div>

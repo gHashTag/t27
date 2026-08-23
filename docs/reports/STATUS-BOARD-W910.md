@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W993, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W994, 2026-08-23)
+
+> **W994 — THE REGRESSION WAS THE BENCH, AND THE PREVIOUS WAVE PUBLISHED IT AS THE DESIGN.**
+> All three options taken. W993 read `ABSENT` on three placements, called it *an unexplained
+> regression in `gft_train1`*, and docked a readiness point. One build with the full stage table
+> settled it: **every stage green** — 15 946 LUT, place-and-route **540.55 s** inside the cap,
+> slowclk 2.92 MHz against 2.21 required, `JTAG_CHAIN(2)` at BSCAN2, FASM and bitstream written —
+> then `usb_open rc=-3 device not found` on **all three** cable indices, and
+> `openFPGALoader --scan-usb` answering **`No USB devices found`**. **The cable has left the bus.**
+> One cause, three `ABSENT`s, **none of them about the designs**, and the place-and-route the
+> previous wave believed had failed had completed in 540 seconds with timing to spare.
+> **That is the same error as T851 one level up: a conclusion published from the half of the
+> evidence that existed.** The correction is recorded in the JSON rather than silently edited.
+> **Repaired in the tool:** `tri seeds` now keeps the failing stage in the row — a bench fault and
+> a design fault had produced the identical row — and `ABSENT` no longer counts as a verdict:
+> three states, three sentences, `NOTHING WAS MEASURED` exits 2. T855, lesson 1528,
+> **560 derived checks**. **Readiness 98 %** — the point taken back, since nothing about
+> `gft_train1` ever changed. **BLOCKED:** the die is unreachable until the cable returns.
 
 > **W993 — THE TOOL ATE A RUN, AND FIXING IT EXPOSED THE NEXT DEFECT.** All three options taken.
 > `tri seeds` had run two designs to completion — one of them **30+ minutes of place-and-route** —

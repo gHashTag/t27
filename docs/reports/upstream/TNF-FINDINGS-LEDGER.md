@@ -2591,3 +2591,44 @@ naming the ambiguity rather than hiding it: a stale stamp means either the page
 was not republished or the board was not updated, and those are different defects
 with the same symptom. And tf#727 carried W991's competitor table and W992's
 deletion audit upstream.
+
+## 63. The regression was the bench, and the previous wave published it as the design (W994)
+
+W993 read `ABSENT` on three placements across two designs, wrote *an unexplained
+regression in `gft_train1`* into the status board and the ledger, and docked a
+readiness point for it.
+
+One build with the full stage table settled it. Every stage green: 15 946 LUT and
+2 725 CARRY4 out of yosys, the datapath check finding 3.82 DUT-equivalents of
+arithmetic in the fabric, place-and-route in **540.55 s** -- well inside the cap
+the previous wave had raised -- with `slowclk` at 2.92 MHz against 2.21 required,
+`JTAG_CHAIN(2)` agreeing with BSCAN2, FASM written, bitstream written at
+9 730 822 bytes. Then:
+
+    FAIL A1 wrong part   Done None
+    FAIL B2 read         usb_open(index=0): rc=-3 device not found
+                         usb_open(index=1): rc=-3 device not found
+                         usb_open(index=2): rc=-3 device not found
+                         cables carrying the magic: 0 of 3
+
+`openFPGALoader --scan-usb` answers `No USB devices found`. **The cable has left
+the bus.** One cause, three `ABSENT`s, none of them about the designs -- and the
+place-and-route the previous wave believed had failed had in fact completed in 540
+seconds with timing to spare.
+
+Two things follow, and the second is the expensive one.
+
+**A sweep that records only the verdict cannot distinguish a bench fault from a
+design fault.** `tri seeds` kept no failing stage line, so both produced the
+identical row. The wave that had just repaired the tool's inability to print a row
+*at all* still could not read what the row meant. The stage column exists now.
+
+**And a missing measurement was written into the record as a property of the
+design.** T851 said an irreversible action must wait for the whole verification it
+was given; this is the same error one level up -- a conclusion published from the
+half of the evidence that existed, in a project whose entire discipline is that
+ABSENT and FAIL are different things. The correction lives in
+`tooling_w993.json` under `RESOLVED_W994` rather than as a silent edit, because a
+retracted claim that leaves no trace teaches nothing.
+
+The readiness point is taken back. Nothing about `gft_train1` ever changed.
