@@ -1090,6 +1090,18 @@ fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
 struct CachedRun {
     gate_sha: String,
     ctrl_sha: String,
+    /// The bytes of the binary that produced this row.
+    ///
+    /// The key covered the SUBJECT and not the INSTRUMENT. Changing how sites
+    /// are selected -- the whole point of iterating on an operator -- left
+    /// every row valid, so a rebuilt `tri` served 24 rows measured by the
+    /// version before the change and the table did not move. Two runs, one
+    /// number, and the edit looked like it did nothing.
+    ///
+    /// R2: your own instrument is the first suspect. A cache that cannot see
+    /// its own instrument change is the instrument lying about itself.
+    #[serde(default)]
+    tool_sha: String,
     killed: usize,
     total: usize,
     survivors: Vec<usize>,
@@ -1594,13 +1606,14 @@ fn mutate(
         }
         let gate_sha = sha_of(&[f.clone()]);
         let ctrl_sha = sha_of(&judges);
+        let tool_sha = std::env::current_exe().map(|p| sha_of(&[p])).unwrap_or_default();
 
         let mut scores: Vec<(Direction, usize, usize, Vec<usize>)> = Vec::new();
         let (mut n_row_cached, mut n_row_fresh) = (0usize, 0usize);
         for dir in directions {
         let key = format!("{}|{}", name, label(*dir));
         if let Some(c) = cache.get(&key) {
-            if c.gate_sha == gate_sha && c.ctrl_sha == ctrl_sha {
+            if c.gate_sha == gate_sha && c.ctrl_sha == ctrl_sha && c.tool_sha == tool_sha {
                 scores.push((*dir, c.killed, c.total, c.survivors.clone()));
                 n_row_cached += 1;
                 n_cached += 1;
@@ -1661,6 +1674,7 @@ fn mutate(
             CachedRun {
                 gate_sha: gate_sha.clone(),
                 ctrl_sha: ctrl_sha.clone(),
+                tool_sha: tool_sha.clone(),
                 killed,
                 total: sites.len(),
                 survivors: survivors.clone(),
