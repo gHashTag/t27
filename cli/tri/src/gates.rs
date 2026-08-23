@@ -46,6 +46,16 @@ pub enum GatesCmd {
         /// Only this gate, by file name (e.g. check_vector_data.py).
         #[arg(long)]
         only: Option<String>,
+
+        /// Push gates the OTHER way: `return 0` -> `return 1`, and ask whether
+        /// anything notices a gate that fails on a clean tree.
+        ///
+        /// The default operator turns failures into passes, so a control made
+        /// entirely of cases demanding RED satisfies every one of them. This
+        /// asks the question those cases cannot: is there an assertion that
+        /// requires SILENCE?
+        #[arg(long)]
+        loud: bool,
     },
     /// List active workflows whose lifetime success count is zero.
     Dead {
@@ -227,7 +237,29 @@ fn yields_a_verdict(expr: &str) -> bool {
 ///
 /// Line-based on purpose: these files are flat, and a real Python parse would
 /// buy nothing a `def` at column zero does not already give.
+/// Which way a mutant pushes the gate.
+///
+/// T99: `Silent` is the operator this command was missing. Every mutation it
+/// made turned a failure into a pass, so a control made entirely of cases that
+/// demand RED satisfied all of them -- and a gate rewritten to fail on a clean
+/// tree passed unnoticed. Measured on check_duplicate_agreement.py, whose two
+/// controls both assert exit 1: a gate reporting a split where every copy
+/// agrees was caught only by the sibling control, which exists for a different
+/// branch. Coverage by accident is not coverage, and a green report does not
+/// tell the two apart.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Direction {
+    /// `return 1` -> `return 0`: can the gate still fail?
+    Silent,
+    /// `return 0` -> `return 1`: does anything notice the gate getting LOUDER?
+    Loud,
+}
+
 fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
+    sites_in_direction(src, Direction::Silent)
+}
+
+fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> {
     let mut sites = Vec::new();
     let mut in_control = false;
     let mut off = 0usize;
@@ -243,14 +275,30 @@ fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
             // Whole-line replacement in every case, so a ternary is neutered
             // entirely rather than having one of its arms edited.
             if let Some(expr) = body.strip_prefix("return ") {
-                if yields_a_verdict(expr) {
-                    sites.push((off + col, body.len(), "return 0".to_string()));
+                match dir {
+                    Direction::Silent if yields_a_verdict(expr) => {
+                        sites.push((off + col, body.len(), "return 0".to_string()));
+                    }
+                    // Only a BARE `return 0` is a success return. A ternary can
+                    // yield 0 on one arm and a verdict on the other; forcing the
+                    // whole line to 1 there is the Silent operator's job seen
+                    // backwards, and would be scored against the wrong control.
+                    Direction::Loud if expr.trim() == "0" => {
+                        sites.push((off + col, body.len(), "return 1".to_string()));
+                    }
+                    _ => {}
                 }
             } else if let Some(rest) = body.strip_prefix("raise SystemExit(") {
                 // `raise SystemExit(main())` is a dispatch, not a verdict.
                 if let Some(inner) = rest.strip_suffix(')') {
-                    if yields_a_verdict(inner) {
-                        sites.push((off + col, body.len(), "raise SystemExit(0)".to_string()));
+                    match dir {
+                        Direction::Silent if yields_a_verdict(inner) => {
+                            sites.push((off + col, body.len(), "raise SystemExit(0)".to_string()));
+                        }
+                        Direction::Loud if inner.trim() == "0" => {
+                            sites.push((off + col, body.len(), "raise SystemExit(1)".to_string()));
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -264,7 +312,7 @@ fn line_of(src: &str, byte: usize) -> usize {
     src[..byte].matches('\n').count() + 1
 }
 
-fn mutate(only: Option<&str>) -> Result<()> {
+fn mutate(only: Option<&str>, loud: bool) -> Result<()> {
     let root = repo_root()?;
     let dirty = Command::new("git")
         .args(["status", "--porcelain", "--", "tools/"])
@@ -289,6 +337,9 @@ fn mutate(only: Option<&str>) -> Result<()> {
     files.sort();
 
     println!("{:<38} {:>9}  {}", "gate", "mutants", "verdict");
+    if loud {
+        println!("(loud: `return 0` -> `return 1`. A survivor means NOTHING requires this gate to be silent.)");
+    }
     let mut total_survived: Vec<String> = Vec::new();
 
     for f in &files {
@@ -328,9 +379,19 @@ fn mutate(only: Option<&str>) -> Result<()> {
             continue;
         }
 
-        let sites = mutable_sites(&pristine);
+        let dir = if loud {
+            Direction::Loud
+        } else {
+            Direction::Silent
+        };
+        let sites = sites_in_direction(&pristine, dir);
         if sites.is_empty() {
-            println!("{:<38} {:>9}  {}", name, 0, "no failure path to break");
+            let what = if loud {
+                "no success path to break"
+            } else {
+                "no failure path to break"
+            };
+            println!("{:<38} {:>9}  {}", name, 0, what);
             continue;
         }
 
@@ -504,7 +565,7 @@ fn repo_root() -> Result<std::path::PathBuf> {
 pub fn run(cmd: &GatesCmd) -> Result<()> {
     match cmd {
         GatesCmd::Sweep { controls_only } => sweep(*controls_only),
-        GatesCmd::Mutate { only } => mutate(only.as_deref()),
+        GatesCmd::Mutate { only, loud } => mutate(only.as_deref(), *loud),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
@@ -702,6 +763,36 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // against the gate.
         assert!(mutable_sites("def collect():\n    return fails\n").is_empty());
         assert!(mutable_sites("def go():\n    raise SystemExit(main())\n").is_empty());
+    }
+
+    #[test]
+    fn the_loud_operator_takes_only_bare_success_returns() {
+        // T99: `return 0` is the success return; forcing it to 1 asks whether
+        // anything requires the gate to be SILENT. A ternary is excluded on
+        // purpose -- it can yield 0 on one arm and a verdict on the other, so
+        // forcing the whole line to 1 is the Silent operator seen backwards and
+        // would be scored against the wrong control.
+        let s = sites_in_direction("def main():\n    return 0\n", Direction::Loud);
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0].2, "return 1");
+
+        for src in [
+            "def main():\n    return 1\n",
+            "def main():\n    return 0 if ok else 1\n",
+            "def main():\n    return fails\n",
+        ] {
+            assert!(
+                sites_in_direction(src, Direction::Loud).is_empty(),
+                "loud took a non-success return in {src:?}"
+            );
+        }
+        // And the two directions never claim the same line.
+        let both = "def main():\n    if bad:\n        return 1\n    return 0\n";
+        let quiet = sites_in_direction(both, Direction::Silent);
+        let loud = sites_in_direction(both, Direction::Loud);
+        assert_eq!(quiet.len(), 1);
+        assert_eq!(loud.len(), 1);
+        assert_ne!(quiet[0].0, loud[0].0);
     }
 
     #[test]

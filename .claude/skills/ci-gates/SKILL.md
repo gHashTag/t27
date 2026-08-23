@@ -1137,3 +1137,50 @@ The count is a proxy. One file was read and confirmed; the other twelve were
 scored by a regex and left there. The write-up says so. A sweep reported without
 that sentence reads as twelve clean results, and twelve unexamined counts is a
 different claim.
+
+## 30. An operator that only pushes one way measures one way
+
+For six days `tri gates mutate` turned failures into passes. Every mutant asked
+the same question — *can this gate still fail?* — so a control made entirely of
+cases demanding RED satisfied all of them, and the **opposite** defect went
+unmeasured across thirteen gates.
+
+`--loud` flips `return 0` to `return 1`: does anything notice a gate that fails
+on a **clean** tree? First run, **seven of thirteen** have survivors.
+
+The worst was the file that enforces this discipline for six other gates:
+
+```
+check_gate_preconditions.py, success return forced to 1
+  OK: 9 precondition(s) across 6 gates fail loudly
+  exit 1
+  control: exit 0 -- nothing noticed
+```
+
+It prints a clean bill of health and reports failure. That is the exact mirror
+of this campaign's **first** finding, and it survived every iteration since,
+because the tool and the blind spot shared a direction.
+
+**When you build a mutation operator, write down what it cannot express.** Ours
+could not express "the gate got louder", and nothing in a green report says so.
+The generalisation is not about mutation testing: *any* instrument that
+perturbs a system perturbs it along some axis, and the axes you did not choose
+are invisible in exactly the way a passing test is.
+
+### The survivors were one class, which is what made them worth reporting
+
+Four of the eight are the success return of `--update-baseline`, right after
+"baseline written: N entries" — nothing exercises the ledger-writing path's exit
+code in any gate. A `--update-baseline` that writes the ledger and then reports
+failure is invisible to every control in the tree.
+
+One gate scored 2/2, and only because a case added days earlier for an unrelated
+reason happens to run `--update-baseline`. **Note when a clean score is
+accidental** — it tells the next reader that the coverage is not load-bearing.
+
+### Land the tool and the finding; fix in the next change
+
+Eight sites across seven gates were left open. Fixing them in the same commit
+that introduced the tool that found them would leave nobody able to tell whether
+the tool or the fixes were doing the work — and the tool is the part that has to
+survive being wrong.
