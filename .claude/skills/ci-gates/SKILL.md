@@ -4084,3 +4084,49 @@ And the smaller finding under it: **R2 is "your own instrument is the first
 suspect."** I have re-derived that rule from scratch five times in this campaign
 — the broken ruler, the stale binary twice, the incomplete plant, the retyped
 probe — while it sat written down, sealed, in a file I had never opened.
+
+## 105. Every rule with a program is observed; every rule without one is at zero
+
+Read `docs/loop/LOOP-RULES.md` properly instead of the three clauses a regex
+could reach, and checked each one that can be checked at all:
+
+| clause | enforced by | observed |
+|---|---|---|
+| R1 — `cost` output format | the tool itself | **yes** — n, med, p95, min/max, CV, `alpha` suppressed at n<8, KB range, build profile |
+| R5 — a tool whose number reaches a report is committed | `loop-tools-tracked.sh` | **yes** (it refused my new command until `git add`) |
+| R6 — the seal certifies identity, not correctness | `tri loop-rules` | **yes**, and it says so in its own output |
+| R10 — an absent check is not a passing check | `check_pr_branch_filters.py` | **yes** |
+| R15 — six categories, `unchanged` ≠ "could not compare" | `diffbin`, **at runtime** | **yes** |
+| R0 — one outcome per tick, ledger at `cron_tracking/` | nothing | the directory has **never existed** anywhere |
+| R11 — branch prefix `w699-<topic>` | nothing | **0 of 30** |
+| R11 — provenance tag on a number | nothing | **1 of 25** (the one is mine, yesterday) |
+
+**The split is total.** Not "mostly" — every clause with a program behind it is
+followed, and every clause without one is at zero.
+
+R15 makes the point itself, about its own enforcement:
+
+> *"The set must be **asserted** to partition the corpus at runtime; claiming it
+> in a docstring is not a check."*
+
+And `diffbin.py:458` does exactly that — sums the six categories, compares
+against the file total, errors on mismatch. The rule anticipated that a rule
+about categories, kept only in prose, would drift.
+
+So the finding is not that anyone is careless. **A rule kept in a document is a
+wish; a rule kept in a program is a rule** — and this file holds both kinds
+under one heading, indistinguishable to a reader, all equally sealed by a
+checksum that certifies neither.
+
+Two consequences for how to write one:
+
+* **When you write a rule, ask what would notice it being broken.** If the
+  answer is "a careful person", the rule is a wish. That is not always wrong —
+  some things cannot be checked — but it should be *said*, so a reader knows
+  which kind they are holding.
+* **A checksum over rules measures the text, not the practice.** Yesterday's
+  §104 found the seal made the file look governed. Today's measurement says
+  what governs instead: the five clauses that compiled themselves into tools.
+
+I have re-derived R2 five times this campaign while it sat sealed in a file I
+never opened. R2 has no program either.
