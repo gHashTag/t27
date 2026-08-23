@@ -20,7 +20,26 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import wp18_conformance_gate as gate  # noqa: E402
+# T96: drop any cached bytecode for wp18_conformance_gate BEFORE importing it.
+#
+# Python keys a .pyc on (source mtime in whole seconds, source size). A one-line
+# edit that preserves the size, followed by a run inside the same second, hands
+# this file the PREVIOUS state's bytecode. Measured on wp18_selftest_gate.py:
+# five hand mutations left a .pyc that produced five failures on a tree matching
+# HEAD exactly. `tri gates mutate` clears this between mutants; a person at a
+# terminal does not.
+def _drop_stale_bytecode():
+    import pathlib
+    cache = pathlib.Path(__file__).resolve().parent / "__pycache__"
+    for p in cache.glob("wp18_conformance_gate.*.pyc"):
+        try:
+            p.unlink()
+        except OSError:
+            pass
+
+
+_drop_stale_bytecode()
+import wp18_conformance_gate as gate  # noqa: E402  # noqa: E402
 
 PASS = 0
 FAIL = 0

@@ -36,7 +36,31 @@ import subprocess
 import sys
 import tempfile
 
-import wp18_conformance_gate as G
+# T96: drop any cached bytecode for the gate BEFORE importing it.
+#
+# Python keys a .pyc on (source mtime in whole seconds, source size). Editing
+# the gate's `return 1` to `return 0` preserves the size, and an edit-run-edit
+# loop finishes well inside one second -- so this control can be handed the
+# PREVIOUS state's bytecode and go red on a tree that matches git exactly.
+#
+# Measured here, on this file, while testing this gate: five hand mutations in
+# quick succession left a .pyc that made the control report five failures with
+# `git status` clean and the source sha matching HEAD. `tri gates mutate` clears
+# this between mutants; a person at a terminal does not, and neither did this
+# control. Three lines remove the whole class.
+def _drop_stale_bytecode():
+    import pathlib
+    here = pathlib.Path(__file__).resolve().parent / "__pycache__"
+    for p in here.glob("wp18_conformance_gate.*.pyc"):
+        try:
+            p.unlink()
+        except OSError:
+            pass
+
+
+_drop_stale_bytecode()
+
+import wp18_conformance_gate as G  # noqa: E402
 
 # The gate file as a SCRIPT. `G.__file__` is the module this control already
 # imported, so a mutant of the gate is the thing that gets run -- no --root
@@ -300,6 +324,38 @@ def main():
               g.get("ok") is False
               and g.get("disagree_count") == 1
               and rep["checks"]["C_sha_freshness"]["ok"] is True)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # ---------- TD_tol: the tolerance's own BOUNDARY ----------
+    # T107: `_diff > REDERIVE_TOL` rewritten to `>=` passed this entire control.
+    # Every case here sits far from the tolerance -- a clean row has _diff 0.0
+    # and TD_nan's row has none at all -- so nothing ever asked what happens AT
+    # it. Found by the boundary operator (`tri gates mutate --all`), which is
+    # the whole reason a fourth operator was written.
+    #
+    # The arithmetic is exact on purpose: row 0 decodes to its own input, so
+    # `rederived = abs(dec - inp)` is 0.0, and an abs_error of exactly
+    # REDERIVE_TOL makes `_diff = abs(0.0 - 1e-12)` the tolerance itself with no
+    # rounding anywhere. Equal to the tolerance is WITHIN it: the check asks
+    # whether the re-derivation disagrees by MORE than tol.
+    #
+    # Asserted on D's own dict rather than the exit code. A nonzero abs_error
+    # also trips E, the honesty allow-list, and an exit-code assertion could
+    # not tell the two branches apart -- which is the confusion this whole file
+    # exists to prevent.
+    root = tempfile.mkdtemp(prefix="wp18st_Dtol_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def at_tolerance(pack):
+            pack["vectors"][0]["abs_error"] = G.REDERIVE_TOL
+        _edit_pack(vec, "fp8_e4m3_conformance_v0.json", at_tolerance)
+        _reindex_sha(vec)
+        code, rep = G.run_gate(ssot, vec, allow)
+        d = rep["checks"]["D_rederive_abs_error"]
+        check("TDtol_exactly_the_tolerance_is_within_it",
+              d["ok"] is True and not d.get("mismatch"))
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

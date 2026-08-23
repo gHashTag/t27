@@ -29,6 +29,7 @@ testing rather than on the gate's ordinary behaviour.)
   tools/check_gate_preconditions.py                gate
   tools/check_gate_preconditions.py --self-check   negative control
 """
+import os
 import pathlib
 import shutil
 import subprocess
@@ -52,7 +53,14 @@ T27C = ROOT / "target/release/t27c"
 # this table expected check_specs_generate.py to say "found no .t27 at all" on
 # a bare tree. It says "t27c not built", and this file's own control is what
 # said so.
-BARE, WITH_T27C = "bare", "t27c"
+BARE, WITH_T27C, WITH_IVERILOG = "bare", "t27c", "t27c+iverilog"
+# T106: the fourth stage, and the one the note below said could not exist.
+# The tree is EMPTY of the artefact under test and the CORPUS is real: the
+# child runs with cwd=ROOT, so `t27c fpga-build --smoke` resolves the real
+# specs and succeeds, while T27_ELAB_ROOT points at a planted tree holding a
+# built t27c, an empty generated/ and no baseline. Nothing in the real tree
+# is written or moved -- verified by git status before and after.
+REAL_CORPUS = "real-corpus"
 GATES = [
     ("check_duplicate_agreement.py", BARE, "t27c not built"),
     ("check_duplicate_agreement.py", WITH_T27C, "no duplicated function was found at all"),
@@ -62,24 +70,40 @@ GATES = [
     ("check_specs_generate.py", WITH_T27C, "found no .t27 at all"),
     ("check_specs_parse.py", BARE, "t27c not built"),
     ("check_vector_data.py", BARE, "no baseline"),
+    # T95: the third stage. This one needs a tool that cannot be planted --
+    # iverilog lives on PATH, not in the tree -- so it reports UNRUN when the
+    # tool is absent rather than passing or guessing. Same choice the WITH_T27C
+    # rows make: a row that cannot run proved nothing, and reporting it as
+    # absent would be the vacuous pass this file exists to catch, one level up.
+    ("check_elab_ratchet.py", WITH_IVERILOG, "t27c fpga-build --smoke failed"),
+    ("check_elab_ratchet.py", REAL_CORPUS, "no baseline"),
 ]
 
-# NOT COVERED, said out loud rather than left to be inferred from a count:
+# NOTHING IS UNCOVERED HERE ANY MORE, and the reason the last one stood for a
+# week is worth keeping.
 #
-#   check_elab_ratchet.py  "t27c fpga-build --smoke failed"
-#   check_elab_ratchet.py  "no baseline; run --update-baseline once"
+# The note that lived here read: "Reaching it needs `t27c fpga-build --smoke` to
+# SUCCEED and then find no baseline, and a smoke build that succeeds needs the
+# real spec tree -- not something an empty directory can be given. Planting a
+# fake success would test the plant, not the gate."
 #
-# Named by message, not by line. The first version of this note said :346 and
-# :390, and the edit that fixed the SKIP branch eight lines above them moved
-# both to :359 and :403 in the same commit -- a comment that was measurably
-# false about its own repository before it was ever pushed.
+# Every clause of that is TRUE. The conclusion does not follow. A control does
+# not have to use an empty directory -- the note reasoned entirely inside the
+# frame of run_on_empty_tree(), the helper this file happens to be built around,
+# and never asked whether a stage could keep the real corpus and empty only what
+# it is testing. Splitting cwd from T27_ELAB_ROOT does exactly that, and the
+# branch turned out to be reachable in under a second.
 #
-# Both sit behind an iverilog check, so reaching them needs iverilog on PATH --
-# true in fpga-conformance, not true everywhere this file runs. An assertion
-# whose expected message changes with the machine is not an assertion. Covering
-# them needs a stage that requires iverilog and skips loudly without it; that
-# is a bigger change than this file is, and it is filed rather than faked.
-UNCOVERED = 2
+# The tell was that the justification sounded mechanical and no measurement had
+# produced it (number-audit 8.6). One command falsified it. So: for every
+# limitation written down here, name the experiment that would show it is not a
+# limitation, and run it -- a reason you cannot falsify in one command is a
+# hypothesis wearing a fact's clothes.
+#
+# Kept at 0 rather than deleted: the count is asserted in main()'s OK line, and
+# a reader who sees the number go 1 -> 0 learns something a removed line cannot
+# tell them.
+UNCOVERED = 0
 
 TIMEOUT = 300
 
@@ -93,12 +117,53 @@ def run_on_empty_tree(script, stage=BARE, source=None):
             shutil.copy(ROOT / "tools" / script, tree / "tools" / script)
         else:
             (tree / "tools" / script).write_text(source, encoding="utf-8")
-        if stage == WITH_T27C:
+        if stage in (WITH_T27C, WITH_IVERILOG):
             (tree / "target/release").mkdir(parents=True)
             shutil.copy(T27C, tree / "target/release/t27c")
         return subprocess.run(
             [sys.executable, str(tree / "tools" / script)],
             capture_output=True, text=True, cwd=td, timeout=TIMEOUT,
+        )
+
+
+def smoke_builds():
+    """Does `t27c fpga-build --smoke` succeed at ROOT? Cached: the REAL_CORPUS
+    rows all ask, and the answer cannot change inside one run."""
+    if not hasattr(smoke_builds, "_v"):
+        try:
+            smoke_builds._v = subprocess.run(
+                [str(T27C), "fpga-build", "--smoke"], capture_output=True,
+                text=True, cwd=str(ROOT), timeout=TIMEOUT).returncode == 0
+        except Exception:
+            smoke_builds._v = False
+    return smoke_builds._v
+
+
+def run_with_real_corpus(script, source=None):
+    """Real corpus, planted ROOT. The inverse of run_on_empty_tree.
+
+    cwd is the real repository so `t27c fpga-build --smoke` finds real specs and
+    succeeds; T27_ELAB_ROOT is a planted tree carrying a built t27c, an empty
+    generated/ and NO baseline, so the gate gets past the smoke build and then
+    finds nothing to compare against. The real tree is only read.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tree = pathlib.Path(td)
+        (tree / "target/release").mkdir(parents=True)
+        shutil.copy(T27C, tree / "target/release/t27c")
+        # Present and empty. Absent would make counts() raise, and a crash is
+        # not the branch -- it is the WRONG verdict this file exists to name.
+        (tree / "build/fpga/generated").mkdir(parents=True)
+        (tree / "tools").mkdir()
+        if source is None:
+            target = ROOT / "tools" / script
+        else:
+            target = tree / "tools" / script
+            target.write_text(source, encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, str(target)],
+            capture_output=True, text=True, cwd=str(ROOT), timeout=TIMEOUT,
+            env={**os.environ, "T27_ELAB_ROOT": str(tree)},
         )
 
 
@@ -134,7 +199,13 @@ def check():
         if not (ROOT / "tools" / script).exists():
             problems.append(f"GONE      tools/{script} is in the table and not on disk")
             continue
-        if stage == WITH_T27C and not T27C.exists():
+        if stage in (WITH_IVERILOG, REAL_CORPUS) and not shutil.which("iverilog"):
+            problems.append(
+                f"UNRUN     {script} [{stage}] needs iverilog on PATH\n"
+                f"            it is not in the tree and cannot be planted"
+            )
+            continue
+        if stage in (WITH_T27C, WITH_IVERILOG, REAL_CORPUS) and not T27C.exists():
             # Not a pass. A row that cannot run is a row that proved nothing,
             # and reporting it as absent would be the vacuous pass this file
             # exists to catch, one level up.
@@ -143,10 +214,24 @@ def check():
                 f"            build it: cargo build --release -p t27c"
             )
             continue
+        if stage == REAL_CORPUS and not smoke_builds():
+            # Same doctrine as the rows above: a stage that cannot run proved
+            # nothing, and calling that a pass would be the vacuous green this
+            # file exists to catch. It is also what a copied tree looks like --
+            # the end-to-end cases plant a corpus precisely so this does not
+            # fire there and hide the wiring they measure.
+            problems.append(
+                f"UNRUN     {script} [{stage}] needs a spec corpus at ROOT\n"
+                f"            `t27c fpga-build --smoke` does not succeed there"
+            )
+            continue
         try:
-            r = run_on_empty_tree(script, stage)
+            if stage == REAL_CORPUS:
+                r = run_with_real_corpus(script)
+            else:
+                r = run_on_empty_tree(script, stage)
         except subprocess.TimeoutExpired:
-            problems.append(f"HUNG      {script} [{stage}] did not finish on an empty tree")
+            problems.append(f"HUNG      {script} [{stage}] did not finish")
             continue
         verdict = classify(r, want)
         if verdict:
@@ -211,6 +296,45 @@ def self_check():
         "VACUOUS",
     )
 
+    # T106: the same two directions for the REAL_CORPUS stage. The two cases
+    # above certify run_on_empty_tree; this stage uses a different runner, and a
+    # runner that cannot make its row go red is the vacuous pass one level up --
+    # which is the whole subject of this file. The victim is the real gate whose
+    # branch the stage exists to reach.
+    def real_corpus_case(label, mutate, want_marker, absent):
+        nonlocal ok
+        script = "check_elab_ratchet.py"
+        src = (ROOT / "tools" / script).read_text(encoding="utf-8")
+        r = run_with_real_corpus(script, source=mutate(src))
+        got = classify(r, "no baseline") or "(silent)"
+        good = got == want_marker and got != absent
+        print("  %-28s %s" % (label, "classified %s" % got if good else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print("       wanted %s, got %s; exit %r" % (want_marker, got, r.returncode))
+            print("       said   %s" % (first_line(r),))
+
+    real_corpus_case(
+        "real-corpus: swallows it",
+        lambda s: s.replace(
+            'print("no baseline; run --update-baseline once")\n        return 1',
+            'print("no baseline; run --update-baseline once")\n        return 0',
+            1,
+        ),
+        "VACUOUS",
+        "WRONG",
+    )
+    real_corpus_case(
+        "real-corpus: reds mutely",
+        lambda s: s.replace(
+            'print("no baseline; run --update-baseline once")',
+            'print("something else entirely")',
+            1,
+        ),
+        "WRONG",
+        "VACUOUS",
+    )
+
     # Both cases above prove classify(). Neither proves that a non-empty
     # problem list becomes a non-zero exit code AND says so -- and this file's
     # own WRONG class is precisely "went red without explaining". Measured:
@@ -238,6 +362,13 @@ def self_check():
         if T27C.exists():
             (tree / "target/release").mkdir(parents=True)
             shutil.copy(T27C, tree / "target/release/t27c")
+        # T106: and a real corpus, 1.2 MB of it. The REAL_CORPUS row needs
+        # `t27c fpga-build --smoke` to SUCCEED at the tree root; without specs
+        # the row reports UNRUN and both end-to-end cases below would be
+        # measuring the absence of a corpus rather than the wiring they exist
+        # to measure.
+        if (ROOT / "specs/fpga").is_dir():
+            shutil.copytree(ROOT / "specs/fpga", tree / "specs/fpga")
         r = subprocess.run([sys.executable, str(tree / "tools" / me)],
                            capture_output=True, text=True, cwd=td, timeout=TIMEOUT)
     said = "FAIL: 1 gate(s) do not fail loudly" in r.stdout
@@ -248,6 +379,45 @@ def self_check():
         ok = False
         print("       exit %r (want 1); named the count: %s" % (r.returncode, said))
         print("       said   %s" % (first_line(r),))
+
+    # T100: the SUCCESS wiring, and it is the mirror of the case above.
+    # `tri gates mutate --loud` rewrote this file's own success return to a
+    # failure and NOTHING noticed: the gate printed "OK: 9 precondition(s)..."
+    # and exited 1 on a clean tree. Every mutation this campaign made until
+    # then turned a failure into a pass, so the instrument and the blind spot
+    # shared a direction -- and the file that enforces this discipline for six
+    # other gates was the worst offender.
+    #
+    # Same tree, no victim: every gate healthy, so the program must say OK and
+    # exit 0. The count is asserted with it, because an exit 0 from a table
+    # that silently emptied would satisfy the code alone.
+    with tempfile.TemporaryDirectory() as td:
+        tree = pathlib.Path(td)
+        (tree / "tools").mkdir()
+        me = pathlib.Path(__file__).name
+        shutil.copy(__file__, tree / "tools" / me)
+        for script, _, _ in GATES:
+            shutil.copy(ROOT / "tools" / script, tree / "tools" / script)
+        if T27C.exists():
+            (tree / "target/release").mkdir(parents=True)
+            shutil.copy(T27C, tree / "target/release/t27c")
+        # T106: and a real corpus, 1.2 MB of it. The REAL_CORPUS row needs
+        # `t27c fpga-build --smoke` to SUCCEED at the tree root; without specs
+        # the row reports UNRUN and both end-to-end cases below would be
+        # measuring the absence of a corpus rather than the wiring they exist
+        # to measure.
+        if (ROOT / "specs/fpga").is_dir():
+            shutil.copytree(ROOT / "specs/fpga", tree / "specs/fpga")
+        g = subprocess.run([sys.executable, str(tree / "tools" / me)],
+                           capture_output=True, text=True, cwd=td, timeout=TIMEOUT)
+    counted = ("OK: %d precondition(s)" % len(GATES)) in g.stdout
+    quiet = g.returncode == 0 and counted
+    print("  %-28s %s" % ("end-to-end, all healthy",
+                          "exit 0, says OK" if quiet else "CONTROL FAILED"))
+    if not quiet:
+        ok = False
+        print("       exit %r (want 0); counted the table: %s" % (g.returncode, counted))
+        print("       said   %s" % (first_line(g),))
 
     # And the clean direction: the real table must be silent, or both cases
     # above pass for free on a file that always reports something.

@@ -177,7 +177,7 @@ def self_check(t27c):
 
     name = pathlib.Path(__file__).name
 
-    def spawned(label, want, says, absent, **kw):
+    def spawned(label, want, says, absent, args=(), **kw):
         """Run the whole program in a planted tree and demand the exact verdict.
 
         `says` is every marker the branch must print; `absent` is every marker
@@ -196,7 +196,7 @@ def self_check(t27c):
             # there, and the compiler that parses the planted specs has to be
             # the one CI runs. A stub would agree with the gate by construction.
             os.symlink(t27c, root / "target/release/t27c")
-            proc = subprocess.run([sys.executable, str(root / "tools" / name)],
+            proc = subprocess.run([sys.executable, str(root / "tools" / name), *args],
                                   timeout=300,
                                   capture_output=True, text=True, cwd=str(root))
         out = proc.stdout + proc.stderr
@@ -239,6 +239,29 @@ def self_check(t27c):
                         "t27c not built"),
                 faulty=_CONTROL_SPEC, extra=_DISCARDS)
 
+    # T97: the case that tells `was` from the constant 0.
+    #
+    # Every case above plants into a spec whose recorded debt is ZERO, so
+    # `now > was` and `now > 0` are the same expression and a mutant that
+    # forgets the ledger entirely is invisible. Measured: `if now > 0` passes
+    # this control and turns the LIVE gate red -- every spec carrying debt
+    # would fail, and nothing here would have said which change did it.
+    #
+    # The economical distinguisher is not more debt, it is debt UNDER the
+    # recorded figure: a spec that owes 1,139 tokens, planted with about ten.
+    # Correct code is silent; `now > 0` raises a false alarm. So this case
+    # asserts SILENCE, and it is the only case here that does.
+    _DEBTOR = next((r for r in REQUIRED if DISCARD_DEBT.get(r, 0) > 0), None)
+    if _DEBTOR is None:
+        print("  %-26s %s" % ("ledger: under recorded debt",
+                              "NOT RUN -- no REQUIRED spec carries recorded debt"))
+        ok = False
+    else:
+        spawned("ledger: under recorded debt", 0,
+                says=("OK: all %d required specs parse" % len(REQUIRED),),
+                absent=("discard MORE than recorded", "FAIL", "t27c not built"),
+                faulty=_DEBTOR, extra=_DISCARDS)
+
     spawned("parse: spec rejected", 1,
             says=("FAIL: 1 required spec(s) do not parse",
                   _CONTROL_SPEC or REQUIRED[0],
@@ -246,6 +269,16 @@ def self_check(t27c):
             absent=("discard MORE than recorded", "DISCARD_DEBT", "OK: all",
                     "t27c not built"),
             faulty=_CONTROL_SPEC or REQUIRED[0], extra=_REJECTED)
+
+    # T101: --all is a REPORT mode, and this file says so in its own output:
+    # "a report, not a gate". That distinction is worth keeping and it is not a
+    # reason to leave the report's exit code unmeasured -- a report that prints
+    # its table and then reports failure breaks any script reading it, and
+    # nothing here would have said so. Found by `tri gates mutate --loud`.
+    spawned("report mode --all", 0,
+            says=("--all is a report, not a gate",),
+            absent=("FAIL:", "discard MORE than recorded", "t27c not built"),
+            args=("--all",))
 
     print("  self-check: %s" % ("both verdicts proven red" if ok else "FAILED"))
     return 0 if ok else 1

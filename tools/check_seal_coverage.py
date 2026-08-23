@@ -315,7 +315,7 @@ def self_check():
     # gate's coverage.
     me = pathlib.Path(__file__).resolve()
 
-    def spawned(label, want_exit, present, absent, seals, ledger=None):
+    def spawned(label, want_exit, present, absent, seals, ledger=None, args=()):
         """Plant a world, run the real program in it, demand one exact branch.
 
         `present` pins WHICH branch spoke and `absent` names the siblings that
@@ -328,7 +328,7 @@ def self_check():
         with tempfile.TemporaryDirectory() as td:
             t = plant(td, seals, ledger)
             shutil.copy(me, t / "tools" / me.name)
-            r = subprocess.run([sys.executable, str(t / "tools" / me.name)],
+            r = subprocess.run([sys.executable, str(t / "tools" / me.name), *args],
                                capture_output=True, text=True, cwd=t, timeout=120)
         missing = [p for p in present if p not in r.stdout]
         leaked = [a for a in absent if a in r.stdout]
@@ -399,12 +399,52 @@ def self_check():
              "Fresh.json": ("specs/x.t27", WRONG)},
             ledger="Stale.json | stale | specs/x.t27\n")
 
+    # T109: a ledger line with no `|` at all. `parts[1] if len(parts) > 1` is
+    # the guard; under `>= 1` the index raises and the gate dies with a
+    # traceback on a tree where nothing is wrong. Every ledger in the cases
+    # above is well-formed, so nothing asked -- and a hand-edited ledger losing
+    # its pipe is the likeliest malformation this file will ever see.
+    #
+    # A bare name means "baselined, kind not recorded", which is a legal ledger
+    # and is measured here rather than assumed: the gate exits 0 and counts it
+    # as known-broken. `Traceback` is named absent because the mutant's failure
+    # is a crash, and a crash reaching a non-zero exit would otherwise read as
+    # a branch doing its job.
+    spawned("ledger line without a pipe", 0,
+            ("OK: 2 seals, 1 hold, 1 known-broken (1 stale)",),
+            ("FAIL:", "Traceback", "IndexError", DRIFT, CHANGED, DEPARTED, WROTE),
+            ONE_STALE, ledger="Stale.json\n")
+
+    # T109: exactly FIVE repaired seals, which is the boundary of the
+    # "(+N more)" continuation and not a value any other case reaches. Under
+    # `len(fixed) >= 5` the line reads "(+0 more)" -- harmless, and closed
+    # anyway: this campaign has twice found a limitation written down as
+    # cosmetic to be worth a case, and a declared exception costs a reader more
+    # than a case costs to write.
+    spawned("exactly five repaired seals", 0,
+            (NOTE, "S1.json, S2.json, S3.json, S4.json, S5.json"),
+            ("(+", "FAIL:", DRIFT, CHANGED, DEPARTED, WROTE),
+            {f"S{i}.json": ("specs/x.t27", None) for i in range(1, 6)},
+            ledger="".join(f"S{i}.json | stale | specs/x.t27\n" for i in range(1, 6)))
+
     # NOT covered here, so that "everything else is covered" is not available as
     # a reading: the `dangling` kind, and the compare() path where a seal is
     # both baselined and repaired in the same run. `phantom`/`dangling`
     # movement is suppressed on purpose (a small clone parks 15 entries there),
     # and no planted tree in this file is a git repository, so the branch that
     # asks git whether a spec ever existed is inert in all five cases above.
+    # T100: the LEDGER-WRITING path. Every case above runs the verify path;
+    # `--update-baseline` writes the ledger and returns success, and
+    # `tri gates mutate --loud` showed that success return could be rewritten to
+    # a failure with nothing noticing. The same site survived in four gates.
+    #
+    # Exit AND effect: the exit alone would pass a run that returned 0 without
+    # writing, and the marker alone would pass one that wrote and then reported
+    # failure -- which is the mutation that found this.
+    spawned("end-to-end --update-baseline", 0, (WROTE,),
+            ("FAIL:", "OK:", DRIFT, CHANGED, DEPARTED),
+            ONE_STALE, args=("--update-baseline",))
+
     return 0 if (ok and _check_compare()) else 1
 
 

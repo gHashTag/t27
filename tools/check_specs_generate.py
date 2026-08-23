@@ -312,6 +312,68 @@ def self_check():
             baseline_lines=["specs/known.t27 | parse error in fn"],
             args=("--update-baseline",))
 
+    # T107b: the DISPLAY boundary, closed rather than declared cosmetic.
+    #
+    # `if len(departed) > 10:` guards a "... and N more" line. Classified as
+    # cosmetic when the boundary operator first reported it -- at exactly ten it
+    # would print "and 0 more", which harms nobody. Closed anyway: this campaign
+    # has twice found a written-down limitation to be invented, and a declared
+    # exception costs a reader more than a case costs to write. Ten departed
+    # ledger lines, none tracked, and the continuation line must be ABSENT.
+    spawned("exactly ten departed prints no continuation", 1,
+            "DEPARTED 10 spec(s) in the baseline",
+            (GREEN, NEW, LEAK, BLESS, "... and"),
+            files={"specs/ok.t27": SPEC_OK},
+            baseline_lines=[f"specs/gone{i}.t27 | parse error at module level"
+                            for i in range(10)])
+
+    # T107: the ratchet's BOUNDARY. The case above proves it refuses to GROW
+    # (1 -> 2) and the case below proves it writes when the ledger SHRINKS
+    # (2 -> 1). Neither goes through EQUAL, and equal is where a ratchet is
+    # defined: `len(bad) > prior` rewritten to `>=` refuses a re-blessing that
+    # changes nothing, and passed the entire control. Found by the boundary
+    # operator (`tri gates mutate --all`).
+    #
+    # One ledger line, one still-broken spec, the same spec: the ledger is
+    # rewritten identically and that is legal. Exit and effect asserted
+    # together, and REFUSING named as absent -- it is the only marker that
+    # separates this from the mutant's behaviour.
+    spawned("blessing command rewrites an unchanged ledger", 0,
+            "baseline written: 1 entries",
+            (GREEN, NEW, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/known.t27": SPEC_BROKEN},
+            baseline_lines=["specs/known.t27 | parse error in fn"],
+            args=("--update-baseline",))
+
+    # T100: the same command's SUCCESS path, which nothing asserted. The case
+    # above proves --update-baseline refuses to GROW the ledger; nothing proved
+    # that a legitimate blessing writes it and returns 0. `tri gates mutate
+    # --loud` rewrote that success return to a failure and no assertion here
+    # noticed -- the same site survived in four gates.
+    #
+    # The ledger SHRINKS here (two recorded, one still broken), which is the
+    # direction the gate permits. Exit and effect are asserted together: exit
+    # alone would pass a run that returned 0 without writing, and the marker
+    # alone would pass one that wrote and then reported failure.
+    spawned("blessing command shrinks ledger", 0, "baseline written: 1 entries",
+            (GREEN, NEW, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/known.t27": SPEC_BROKEN},
+            baseline_lines=["specs/known.t27 | parse error in fn",
+                            "specs/fixed.t27 | parse error in fn"],
+            args=("--update-baseline",))
+
+    # T101: --summary is a REPORT mode, not a gate, and its success return was
+    # unasserted like the four ledger writers before it. A report that prints
+    # its table and then reports failure would break any script reading it, and
+    # nothing here would have said so. The distinction between a report and a
+    # gate is worth keeping; leaving the report's exit code unmeasured is not
+    # part of it.
+    spawned("report mode --summary", 0, "specs, ",
+            (NEW, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/known.t27": SPEC_BROKEN},
+            baseline_lines=["specs/known.t27 | parse error in fn"],
+            args=("--summary",))
+
     print("  self-check: %s" % ("every verdict reaches the exit code"
                                 if ok else "FAILED"))
     return 0 if ok else 1
