@@ -1708,10 +1708,15 @@ So: measure one. `tri gates mutate` learned `--dir`, and the campaign's own
 question was pointed outside its repository for the first time.
 
 **The prediction could not be tested, and the reason is a finding.** The second
-repository has **54 Python tools and not one declared negative control** — no
-`--self-check`, no `--selftest`, under any spelling. There is nothing to ask
-"did the control notice?" of. That is the state the first repository was in
-before this campaign, and it is a larger fact than the prediction was.
+repository has 54 Python tools and none of them declares a `--self-check` flag.
+
+**RETRACTED — see §45.** That sentence is literally true and its meaning is
+false. A control does not have to be a flag inside the script: this very file
+already knows that (`EXTERNAL_CONTROL` names five gates whose control lives in a
+different file), and I searched for the one mechanism I had built rather than for
+the thing itself. Measured properly, the denominator is 6 and not 54, and three
+of those six are well controlled — one of them by a test whose docstring names
+this exact failure.
 
 The only other controlled gate in reach is the one I wrote yesterday, *from
 these lessons*. Its boundary column reads `0/0` — the file contains no
@@ -1783,4 +1788,52 @@ verdict, and this is the third time this campaign that the two got confused.
 you had no reason to try: nothing, empty, wrong type, wrong place. The author of
 an option builds the case that motivated it — which is, by construction, not any
 of those.
+
+## 45. The retraction: a control is not a flag
+
+§43 reported "54 Python tools and not one declared negative control" in a second
+repository. Every word measured. **The sentence is false**, and the way it is
+false is the one this campaign has now met six times: a true number whose meaning
+does not survive contact with the thing it describes.
+
+**The denominator was wrong.** 54 is every Python file under `tools/` and
+`scripts/`. Of those, **7** are mentioned in any workflow, and **6** both run in
+CI and carry a path to a non-zero exit. A script nobody invokes is not a gate
+without a control; it is not a gate.
+
+**The numerator was wrong too, and worse.** Of those six, three have real
+negative controls:
+
+- `check_build_paths.py` — clean and broken fixtures, and the workflow asserts
+  *exactly one dangling path and one LIKELY*, not merely that it went red
+- `conformance_check.py` — good/wrong RTL fixtures with `expect_mismatches: 0`
+  and `expect_mismatches: 6`, a planted defect caught **with the right count**
+- `signal_health.py` — a value-asserting test whose docstring says *"Values, not
+  verdicts. The structural check's flop counter returned zero for every design
+  on earth and stayed green for weeks because the only thing its self-test
+  asserted was pass-or-fail."*
+
+That last one is this campaign's own lesson, written down in the repository I
+had just declared control-less, before I got there.
+
+The remaining three — `signal_health_report.py`, `check_status_report.py`,
+`fetch_run_report.py` — are data-refresh scripts that commit a JSON file. Their
+non-zero exit fails a workflow, which is why they matched a mechanical search
+for "carries a verdict", but nobody would call them gates.
+
+**Why I got it wrong.** I searched for `--self-check` / `--selftest`, then
+widened to any self-check-shaped flag, and concluded absence. But a control can
+be a workflow job with fixtures, or a test file — and **this file already knew
+that**: `EXTERNAL_CONTROL` exists precisely because five gates here have their
+control in a different file. I looked for the mechanism I had built rather than
+for the property I cared about.
+
+**The check.** Before reporting that something has no control, enumerate the
+*forms* a control can take in that repository — flag, sibling script, workflow
+job, fixture pair, test file — and search for each. An absence proved by one
+mechanism is a statement about the mechanism.
+
+And the timing is the part worth keeping: this was published one iteration after
+a post about right numbers with wrong meanings, in the sentence that post's own
+verification produced.
 
