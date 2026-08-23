@@ -31147,6 +31147,45 @@ the half of the evidence that existed. The correction is in `tooling_w993.json`
 rather than a silent edit, because a retracted claim that leaves no trace teaches
 nothing.
 
+### T857 -- The ladder name is a symbol count read as a bit count [measured]
+
+`spec_ladder` asserts `1 + E_t + M == N`, where `E_t` counts **trits**. So
+`TNF16` means one sign, four trits and eleven mantissa bits -- **sixteen storage
+elements**. Packed into binary, four trits need seven bits and the format is
+**nineteen bits wide**.
+
+| name | 1 + trits + mantissa | binary width | gap |
+|------|----------------------|--------------|-----|
+| TNF4 | 1 + 2 + 1 = 4 | **6** | +2 |
+| TNF8 | 1 + 3 + 4 = 8 | **10** | +2 |
+| TNF16 | 1 + 4 + 11 = 16 | **19** | +3 |
+| TNF32 | 1 + 6 + 25 = 32 | **36** | +4 |
+| TNF64 | 1 + 7 + 56 = 64 | **69** | +5 |
+
+The name is **correct in a unit nobody else uses and wrong in the unit every
+comparison is made in**. That is worse than an arbitrary label in two ways: it is
+self-consistent, so it never trips; and the sequence 4/8/16/32/64 is exactly the
+IEEE width sequence, so *TNF16 against binary16* reads as matched and is not.
+The gap grows with the rung.
+
+The cost is already on record three times. `structural_w942` had to carry
+`physical_bits: 19` as a separate field. T614 exists as a standing rule -- *a
+rung's name is not its object* -- written after the confusion cost two
+sign-flipped results. And in W991 `tri compare` put TNF16 in a 16-bit table and
+reported **516 096 values from a "16-bit" format** -- 2^19 codes -- catching
+itself only because the count was arithmetically impossible.
+
+**The canonical name is now the binary width**: TNF6, TNF10, TNF19, TNF36, TNF69.
+The symbol-count names are kept as aliases rather than deleted -- 1 506
+occurrences across the corpus cite them, and every committed record, die word and
+referee row is indexed by them, so a rename that makes history unreadable trades
+one defect for a worse one. `tri compare` prints `TNF19 (ex-TNF16, 4t+11m)`:
+canonical name, old name, and the configuration that produces both.
+
+**No measurement changes.** Every number in the corpus was already computed at the
+physical width; only the label moves. The W991 competitor table is untouched --
+it was already keyed on physical width, which is exactly what exposed this.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

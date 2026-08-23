@@ -394,12 +394,19 @@ rows = []
 t = tnf_at(W)
 if t is None:
     tnf_at(0)                      # populate LADDER_WIDTH for the message below
-    have = ", ".join(f"{w} (TNF{n})" for w, (n, _) in sorted(LADDER_WIDTH.items()) if w <= 64)
-    print(f"tri compare: no TNF rung has physical width {W}. The ladder occupies {have}.")
-    print("A rung's NAME is not its width: TNF16 is 19 bits wide. Comparing it at")
-    print("16 would be the error structural_w942 already recorded.\n")
+    have = ", ".join(f"TNF{w} (ex-TNF{n})" for w, (n, _) in sorted(LADDER_WIDTH.items()) if w <= 69)
+    print(f"tri compare: no TNF rung is {W} bits wide. The ladder occupies {have}.")
+    print("The old names counted SYMBOLS -- 1 sign + E trits + M mantissa bits -- so")
+    print("ex-TNF16 is 19 bits. The sequence 4/8/16/32/64 is the IEEE width sequence,")
+    print("which made every such name read as a matched comparison it was not (W995).\n")
 if t is not None:
-    rows.append(describe(f"TNF{LADDER_WIDTH[W][0]} ({t.exp_trits}t,{t.mant_bits}m)", sweep(tnf_ref.decode, t, W), W))
+    # W995: the canonical name is the BINARY width -- the unit this table is
+    # keyed on -- with the symbol-count name kept in parentheses so an older
+    # record stays findable. "TNF16" means 16 storage ELEMENTS (1 sign + 4 trits
+    # + 11 mantissa bits); packed into binary that is 19 bits, and 19 is what a
+    # comparison against posit19 has to mean.
+    rows.append(describe(f"TNF{W} (ex-TNF{LADDER_WIDTH[W][0]}, {t.exp_trits}t+{t.mant_bits}m)",
+                         sweep(tnf_ref.decode, t, W), W))
 rows.append(describe(f"posit{W} es=1", sweep(posit_ref.decode, posit_ref.PositFormat(f"posit{W}", W, 1), W), W))
 rows.append(describe(f"posit{W} es=2", sweep(posit_ref.decode, posit_ref.PositFormat(f"posit{W}", W, 2), W), W))
 try:

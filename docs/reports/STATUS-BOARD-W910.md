@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W994, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W995, 2026-08-23)
+
+> **W995 — THE LADDER NAME IS A SYMBOL COUNT READ AS A BIT COUNT.** Raised by the Architect:
+> *TNF4 occupies 6 bits, not 4 — then logically it should be TNF6.* Correct, and the mechanism is
+> sharper than a mislabel. `spec_ladder` **asserts** `1 + E_t + M = N` with `E_t` counting **trits**,
+> so `TNF16` really is sixteen storage **elements** — one sign, four trits, eleven mantissa bits —
+> and nineteen **bits**. **The name is right in a unit nobody else uses and wrong in the unit every
+> comparison is made in.** Worse than an arbitrary label twice over: it is **self-consistent, so it
+> never trips**, and 4/8/16/32/64 is exactly the **IEEE width sequence**, so *TNF16 vs binary16*
+> reads as matched and is not. The gap **grows**: +2, +2, +3, +4, +5. The cost was already on record
+> three times — a `physical_bits: 19` field bolted onto `structural_w942`, T614 written after two
+> sign-flipped results, and W991's table reporting **516 096 values from a "16-bit" format** (2^19),
+> caught only because the count was impossible. **Canonical name is now the binary width** —
+> **TNF6 / TNF10 / TNF19 / TNF36 / TNF69** — with the old names kept as aliases, because **1 506
+> committed citations** use them and a rename that makes history unreadable trades one defect for a
+> worse one. **No measurement changes.** T857, lesson 1529, **581 derived checks**.
+> **Cable is back at bus 1:4** (it moved on replug); `gft_xorpercep` and the `gft_train1` sweep are
+> running. **Readiness 98 %.**
 
 > **W994 — THE REGRESSION WAS THE BENCH, AND THE PREVIOUS WAVE PUBLISHED IT AS THE DESIGN.**
 > All three options taken. W993 read `ABSENT` on three placements, called it *an unexplained

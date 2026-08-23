@@ -1,5 +1,20 @@
 # One page for a referee — claim, record, limitation
 
+> **NAMING (W995).** Every rung name in this document below this line is a **symbol
+> count**, not a bit width: `spec_ladder` asserts `1 + E_t + M = N` where `E_t`
+> counts **trits**, so `TNF16` is one sign, four trits and eleven mantissa bits —
+> **sixteen storage elements, nineteen bits**. The canonical name is now the binary
+> width; the old names are kept as aliases because 1 506 committed citations use them.
+>
+> | old (symbols) | TNF4 | TNF8 | TNF16 | TNF32 | TNF64 |
+> |---|---|---|---|---|---|
+> | **canonical (bits)** | **TNF6** | **TNF10** | **TNF19** | **TNF36** | **TNF69** |
+>
+> **No measurement changes** — every figure was already computed at the physical
+> width. Read `TNF16 vs binary16` anywhere below as `TNF19 vs binary16`, which is
+> not a matched comparison, and is why the rename happened.
+
+
 Every row is a claim this project currently makes, the committed record that
 supports it, and the limitation that bounds it. Nothing here is a claim from the
 manuscript; these are the measurements produced by the autonomous audit

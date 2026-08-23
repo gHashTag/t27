@@ -1,0 +1,47 @@
+{
+ "wave": "W995",
+ "raised_by": "the Architect: 'TNF4 occupies 6 bits, not 4 -- then logically it should be called TNF6'",
+ "diagnosis": {
+  "what_the_name_counts": "spec_ladder asserts 1 + E_t + M == N where E_t counts TRITS. TNF16 means one sign, four trits and eleven mantissa bits -- sixteen storage ELEMENTS.",
+  "what_it_is_read_as": "a binary width, because every comparison in the corpus and in the literature is in bits",
+  "why_this_is_worse_than_a_wrong_label": "it is SELF-CONSISTENT, so it never trips; and the sequence 4/8/16/32/64 is exactly the IEEE width sequence, so 'TNF16 vs binary16' reads as a matched comparison and is not",
+  "gap_grows_with_the_rung": {
+   "TNF4": 2,
+   "TNF8": 2,
+   "TNF16": 3,
+   "TNF32": 4,
+   "TNF64": 5
+  }
+ },
+ "measured_cost_before_this_wave": [
+  "structural_w942 had to carry physical_bits: 19 as a separate field",
+  "T614 exists as a standing rule -- 'a rung's NAME is not its object' -- after the confusion cost two sign-flipped results",
+  "W991: tri compare put TNF16 in a 16-bit table and reported 516096 values from a '16-bit' format (2**19 codes), caught only because the count was arithmetically impossible"
+ ],
+ "decision": {
+  "canonical": "the BINARY width -- the unit of comparison",
+  "table": {
+   "TNF4": "TNF6",
+   "TNF8": "TNF10",
+   "TNF16": "TNF19",
+   "TNF32": "TNF36",
+   "TNF64": "TNF69",
+   "TNF128": "TNF133",
+   "TNF256": "TNF262",
+   "TNF512": "TNF518",
+   "TNF1024": "TNF1031"
+  },
+  "legacy_kept_as_alias": "not deleted. Every committed record, die word, referee row and derived check cites the old names; a rename that makes history unreadable trades one defect for a worse one",
+  "api": "tnf_ladder_versions.canonical('TNF4') -> 'TNF6'; .legacy('TNF19') -> 'TNF16'; LADDER_RENAME maps the whole ladder",
+  "display": "tri compare now prints 'TNF19 (ex-TNF16, 4t+11m)' -- canonical name, old name, and the configuration that produces both"
+ },
+ "what_it_does_not_change": "no measurement. Every number in the corpus was already computed at the physical width; only the label moves. The competitor table of W991 is unaffected -- it was already keyed on physical width, which is what exposed the naming defect in the first place.",
+ "occurrences_of_legacy_names": {
+  "TNF4": 636,
+  "TNF8": 296,
+  "TNF16": 397,
+  "TNF32": 112,
+  "TNF64": 65,
+  "total": 1506
+ }
+}

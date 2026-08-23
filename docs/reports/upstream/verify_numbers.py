@@ -1059,5 +1059,34 @@ if tw:
     check("проверен в обе стороны", "exits 1" in dg["validated"], True, tol=0)
     check("апстрим слит", tw["upstream"]["state"] == "MERGED", True, tol=0)
 
+# W995: the ladder name is a symbol count, and the canonical name becomes the bit width.
+nm = rec("naming_w995.json")
+if nm:
+    print("\n== имя ступени: символы против бит (W995)")
+    g = nm["diagnosis"]["gap_grows_with_the_rung"]
+    check("разрыв у TNF4", g["TNF4"], 2, tol=0)
+    check("разрыв у TNF16", g["TNF16"], 3, tol=0)
+    check("разрыв у TNF64", g["TNF64"], 5, tol=0)
+    check("разрыв растёт со ступенью",
+          all(b >= a for a, b in zip(g.values(), list(g.values())[1:])), True, tol=0)
+    t = nm["decision"]["table"]
+    check("ступеней в таблице переименования", len(t), 9, tol=0)
+    check("TNF4 -> TNF6", t["TNF4"] == "TNF6", True, tol=0)
+    check("TNF16 -> TNF19", t["TNF16"] == "TNF19", True, tol=0)
+    check("TNF64 -> TNF69", t["TNF64"] == "TNF69", True, tol=0)
+    # The rename must agree with the ladder invariant 1 + trits + mant = name.
+    for old_n, new_n in t.items():
+        o = int(old_n[3:]); n_ = int(new_n[3:])
+        check(f"{old_n} шире своего имени", n_ > o, True, tol=0)
+    check("старые имена сохранены как псевдонимы",
+          "not deleted" in nm["decision"]["legacy_kept_as_alias"], True, tol=0)
+    check("измерения не меняются",
+          nm["what_it_does_not_change"].startswith("no measurement"), True, tol=0)
+    check("цена ошибки задокументирована трижды",
+          len(nm["measured_cost_before_this_wave"]), 3, tol=0)
+    occ = nm["occurrences_of_legacy_names"]
+    check("сумма вхождений",
+          sum(v for k, v in occ.items() if k != "total"), occ["total"], tol=0)
+
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)

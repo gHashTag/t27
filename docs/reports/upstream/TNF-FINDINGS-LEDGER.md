@@ -2632,3 +2632,49 @@ ABSENT and FAIL are different things. The correction lives in
 retracted claim that leaves no trace teaches nothing.
 
 The readiness point is taken back. Nothing about `gft_train1` ever changed.
+
+## 64. The name was in the wrong unit, and that is why it never tripped (W995)
+
+The Architect asked the obvious question nobody in 63 chapters had asked:
+*`TNF4` occupies 6 bits, not 4 -- then logically it should be called `TNF6`.*
+
+It should. And the mechanism turns out to be sharper than a careless label.
+`spec_ladder` does not merely happen to use those numbers; it **asserts**
+`1 + E_t + M == N`, with `E_t` counting **trits**. So `TNF16` genuinely is
+sixteen storage *elements* -- one sign, four trits, eleven mantissa bits. Packed
+into binary, four trits need seven bits, and the format is nineteen bits wide.
+
+| name | 1 + trits + mantissa | binary width | gap |
+|------|----------------------|--------------|-----|
+| TNF4 | 4 | **6** | +2 |
+| TNF8 | 8 | **10** | +2 |
+| TNF16 | 16 | **19** | +3 |
+| TNF32 | 32 | **36** | +4 |
+| TNF64 | 64 | **69** | +5 |
+
+**The name is correct in a unit nobody else uses and wrong in the unit every
+comparison is made in.** That is worse than an arbitrary label in two specific
+ways. It is self-consistent, so it never contradicts itself and never trips. And
+the sequence 4/8/16/32/64 is exactly the IEEE width sequence, so *TNF16 against
+binary16* reads as a matched comparison and is not -- with the gap growing as the
+ladder climbs.
+
+The cost was already on record three times, each time filed as something else. A
+`physical_bits: 19` field had to be bolted onto `structural_w942`. T614 exists as
+a standing rule -- *a rung's name is not its object* -- written after the
+confusion cost two sign-flipped results. And in W991 `tri compare` put TNF16 into
+a 16-bit table and reported **516 096 values from a "16-bit" format**; the tool
+caught itself only because 516 096 exceeds 2^16 and the count was arithmetically
+impossible. Three symptoms, one cause, never named until asked from outside.
+
+The canonical name is now the binary width: **TNF6, TNF10, TNF19, TNF36, TNF69**.
+The symbol-count names are kept as aliases rather than deleted -- 1 506
+occurrences across the corpus cite them, and every committed record, die word and
+referee row is indexed by them, so a rename that makes the history unreadable
+would trade one defect for a worse one. `tri compare` now prints
+`TNF19 (ex-TNF16, 4t+11m)`: the canonical name, the old one, and the
+configuration that produces both. The referee page carries the mapping at the top.
+
+**No measurement changes.** Every figure in the corpus was already computed at the
+physical width; only the label moves. The W991 competitor table is untouched -- it
+was already keyed on physical width, which is precisely what made this visible.
