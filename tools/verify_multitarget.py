@@ -19,6 +19,12 @@ failure. A real cross-target divergence exits 1 in both modes.
 """
 import os, sys, shutil, subprocess, tempfile, importlib.util, random
 
+
+_pq = importlib.util.spec_from_file_location(
+    "_prereq", os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"))
+_prereq = importlib.util.module_from_spec(_pq); _pq.loader.exec_module(_prereq)
+skip, broken = _prereq.skip, _prereq.broken
+
 def _run_bin(cmd, what, cwd=None):
     """Run a built binary and return its stdout, or None with the reason printed.
 
@@ -83,17 +89,6 @@ N = 600
 
 
 REQUIRE = "--require" in sys.argv
-
-
-def skip(msg):
-    if REQUIRE:
-        print(f"FAIL verify_multitarget: {msg}")
-        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
-        print("  The CI job builds t27c and the runner ships cc and rustc; if one is")
-        print("  absent the environment is broken and this check did not run.")
-        sys.exit(1)
-    print(f"SKIP verify_multitarget: {msg}")
-    sys.exit(0)
 
 
 def find_t27c():
@@ -205,6 +200,13 @@ def self_check():
             os.makedirs(tools)
             me = os.path.join(tools, os.path.basename(__file__))
             _sh.copy(os.path.abspath(__file__), me)
+            # T122: the shared prerequisite module travels with the gate. The
+            # extraction broke this control on its first run -- the planted tree
+            # had the script and not the module it imports, so the child died at
+            # import with empty stdout, which the case correctly refused to read
+            # as a skip.
+            _sh.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"),
+                     os.path.join(tools, "_prereq.py"))
             env = dict(os.environ)
             env["PATH"] = os.pathsep.join(
                 d for d in env.get("PATH", "").split(os.pathsep)
@@ -226,14 +228,14 @@ def self_check():
             print(f"       stdout {r.stdout[:300]!r}")
 
     case("missing prerequisite skips", [], 0,
-         ["SKIP verify_multitarget: t27c binary not found"],
+         ["SKIP verify_multitarget.py: t27c binary not found"],
          ["FAIL", "--require was given", "ALL TARGETS BIT-EXACT", "CROSS-TARGET MISMATCH"])
 
     # The same world, the opposite verdict. The explanation is asserted with the
     # exit code because main() has other paths to 1, and "it went red" does not
     # say it went red for this reason.
     case("--require turns it into a failure", ["--require"], 1,
-         ["FAIL verify_multitarget: t27c binary not found",
+         ["FAIL verify_multitarget.py: t27c binary not found",
           "--require was given, so a missing prerequisite is a failure"],
          ["SKIP", "ALL TARGETS BIT-EXACT", "CROSS-TARGET MISMATCH"])
 

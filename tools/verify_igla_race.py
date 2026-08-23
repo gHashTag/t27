@@ -12,8 +12,15 @@ i32-accumulator edges. Closes the "RACE specs not multi-target-verified" gap.
 Self-contained + CI-friendly: SKIPs (exit 0) if t27c / cc / rustc is missing; a real
 divergence exits 1.  Run:  python3 tools/verify_igla_race.py
 """
+import importlib.util
 import os
 import subprocess, re, sys, shutil, subprocess, tempfile, random
+
+
+_pq = importlib.util.spec_from_file_location(
+    "_prereq", os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"))
+_prereq = importlib.util.module_from_spec(_pq); _pq.loader.exec_module(_prereq)
+skip, broken = _prereq.skip, _prereq.broken
 
 def _run_bin(cmd, what, cwd=None):
     """Run a built binary and return its stdout, or None with the reason printed.
@@ -82,29 +89,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPEC = "specs/igla/race/ternary_mac.t27"
 SYS_SPEC = "specs/igla/race/systolic_ternary.t27"
 N = 800
-
-
-def skip(msg):
-    """A missing prerequisite: a SKIP locally, a FAILURE under --require.
-
-    T120. The THIRD copy of this helper in the trainer/verifier family, and the
-    second found without a --require. Its sibling verify_multitarget.py has had
-    one from the start, with a comment saying why: in CI a skip means the
-    environment broke, and exit 0 makes "proved" indistinguishable from "never
-    ran". Three copies, one rule, applied in one of them.
-
-    The name is read from argv rather than hard-coded, for the reason the copy
-    in verify_trainer_c.py needed it: that one announced another tool's name
-    when a second script imported and called it.
-    """
-    who = os.path.basename(sys.argv[0]) or "verify_igla_race"
-    if "--require" in sys.argv:
-        print(f"FAIL {who}: {msg}")
-        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
-        print("  The CI job builds t27c and the runner ships cc and rustc; if one is")
-        print("  absent the environment is broken and this check did not run.")
-        sys.exit(1)
-    print(f"SKIP {who}: {msg}"); sys.exit(0)
 
 
 def self_check():
@@ -482,7 +466,7 @@ def main():
     if not t27c:
         skip("t27c not found")
     if not os.path.exists(os.path.join(ROOT, SPEC)):
-        skip("ternary_mac.t27 not found")
+        broken("specs/igla/race/ternary_mac.t27 is tracked in this repository and is not on disk")
     if not shutil.which("cc"):
         skip("no C compiler")
     if not shutil.which("rustc"):
