@@ -3817,7 +3817,13 @@ impl Codegen {
         let needs_expect = uses("expect");
         let needs_assert = uses("assert");
 
-        if has_tests || needs_expect || needs_assert {
+        // `needs_pow` belongs in this guard, not only in the body. It was
+        // inside the block, so a spec that uses pow but has no tests, no expect
+        // and no assert never entered it -- 20 of the 21 remaining pow errors sit
+        // in one such spec. The check was right and unreachable.
+        let needs_pow = uses("pow");
+
+        if has_tests || needs_expect || needs_assert || needs_pow {
             self.write_line("const std = @import(\"std\");");
             if needs_expect {
                 self.write_line("const expect = std.testing.expect;");
@@ -3829,7 +3835,7 @@ impl Codegen {
             // first argument, so a wrapper is needed. Every call site passes
             // float literals or f64 constants, so f64 is the assumption -- and it
             // IS an assumption, not something the spec states.
-            if uses("pow") {
+            if needs_pow {
                 self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
             }
             self.write_line("");
@@ -3911,7 +3917,13 @@ impl Codegen {
         let needs_expect = uses("expect");
         let needs_assert = uses("assert");
 
-        if has_tests || needs_expect || needs_assert {
+        // `needs_pow` belongs in this guard, not only in the body. It was
+        // inside the block, so a spec that uses pow but has no tests, no expect
+        // and no assert never entered it -- 20 of the 21 remaining pow errors sit
+        // in one such spec. The check was right and unreachable.
+        let needs_pow = uses("pow");
+
+        if has_tests || needs_expect || needs_assert || needs_pow {
             self.write_line("const std = @import(\"std\");");
             if needs_expect {
                 self.write_line("const expect = std.testing.expect;");
@@ -3923,7 +3935,7 @@ impl Codegen {
             // first argument, so a wrapper is needed. Every call site passes
             // float literals or f64 constants, so f64 is the assumption -- and it
             // IS an assumption, not something the spec states.
-            if uses("pow") {
+            if needs_pow {
                 self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
             }
             self.write_line("");
