@@ -146,7 +146,21 @@ def rust_program(core, fn, args):
 
 def build_and_run(src, path, cmd, wd, what):
     open(path, "w").write(src)
-    b = subprocess.run(cmd, cwd=wd, capture_output=True, text=True)
+    try:
+        b = subprocess.run(cmd, cwd=wd, capture_output=True, text=True)
+    except OSError as e:
+        # T115: the compiler being ABSENT, which is not the same as the compiler
+        # failing. Without this the call raises FileNotFoundError and the gate
+        # dies with a traceback -- exit 1 and not one word of verdict.
+        #
+        # This file's own comment in main() is about exactly that distinction:
+        # "could not measure" said in the same breath as "measured and found
+        # wrong" leaves a reader no way to tell a broken instrument from a
+        # broken product. The UNRUN path built for it was unreachable when the
+        # tool was simply missing, because the crash came first.
+        print(f"  {what}: {os.path.basename(cmd[0])} is not on PATH ({e.strerror})"
+              f" -- nothing was compared")
+        return None
     if b.returncode != 0:
         print(f"  {what}: {os.path.basename(cmd[0])} exited {b.returncode}")
         lines = (b.stderr or "").strip().splitlines()
@@ -311,16 +325,28 @@ def verilog_digest(spec, fn, args, ret, wd, full=False):
         covered = space // (hi - lo + 1) * n
     f = os.path.join(wd, f"{fn}_tb.v")
     open(f, "w").write(verilog_program(vsrc, fn, vargs, signed, bits))
-    b = subprocess.run(["iverilog", "-o", os.path.join(wd, f"{fn}.vvp"), f],
-                       cwd=wd, capture_output=True, text=True)
+    try:
+        b = subprocess.run(["iverilog", "-o", os.path.join(wd, f"{fn}.vvp"), f],
+                           cwd=wd, capture_output=True, text=True)
+    except OSError as e:
+        # T115, the Verilog arm. Same distinction: absent is not failed, and a
+        # traceback is not a verdict.
+        print(f"  {fn} Verilog: iverilog is not on PATH ({e.strerror})"
+              f" -- nothing was compared")
+        return UNRUN
     if b.returncode != 0:
         errs = [l for l in (b.stderr or "").splitlines() if "error" in l.lower()]
         print(f"  {fn} Verilog: iverilog exited {b.returncode}")
         for l in (errs or (b.stderr or "").splitlines())[:4]:
             print(f"      {l}")
         return UNRUN
-    r = subprocess.run(["vvp", os.path.join(wd, f"{fn}.vvp")], cwd=wd,
-                       capture_output=True, text=True)
+    try:
+        r = subprocess.run(["vvp", os.path.join(wd, f"{fn}.vvp")], cwd=wd,
+                           capture_output=True, text=True)
+    except OSError as e:
+        print(f"  {fn} Verilog: vvp is not on PATH ({e.strerror})"
+              f" -- nothing was compared")
+        return UNRUN
     if r.returncode != 0:
         print(f"  {fn} Verilog: vvp exited {r.returncode} -- nothing was compared")
         return UNRUN
@@ -337,7 +363,10 @@ def check(spec, fn, args, wd, ret=None):
         space *= (hi - lo + 1)
     cs, rs = gen("c", spec), gen("rust", spec)
     if cs is None or rs is None:
-        return None
+        # T115: UNRUN, not None. `bad` collects everything that is not True, but
+        # the two tallies below it count `is False` and `is UNRUN` -- a None fell
+        # through both, so this path exited 1 having printed no verdict at all.
+        return UNRUN
     t0 = time.time()
     cd = build_and_run(c_program(cs, fn, args), os.path.join(wd, f"{fn}.c"),
                        ["cc", "-O2", "-o", os.path.join(wd, f"{fn}_c"), os.path.join(wd, f"{fn}.c")],
@@ -347,7 +376,13 @@ def check(spec, fn, args, wd, ret=None):
                         os.path.join(wd, f"{fn}.rs")], wd, f"{fn} Rust")
     dt = time.time() - t0
     if cd is None or rd is None:
-        return False
+        # T115: UNRUN, not False. main()'s comment says "check() already
+        # distinguishes them -- None is 'could not run', False is 'ran and
+        # disagreed'". That was true of the Verilog arm and false here: a
+        # backend that could not be BUILT was reported as a backend that
+        # DISAGREED. With no compiler on PATH the gate said "1 of 1 targets
+        # DISAGREED" about arithmetic it never performed.
+        return UNRUN
     if cd != rd:
         print(f"FAIL {fn}: C digest {cd} != Rust digest {rd} -- the backends disagree on at "
               f"least one of the {space:,} possible inputs")
@@ -432,7 +467,62 @@ def self_check(wd):
     print(f"  self-check: one-input perturbation of the MODEL is visible = {ok_m}"
           + (f"  ({clean} -> {perturbed}, backends {good_c})" if ok_m else ""))
 
-    return 0 if (ok_c and ok_m) else 1
+    # T115: everything above proves the comparison has RESOLUTION -- a
+    # one-input perturbation changes the digest. None of it leaves this
+    # function, and main() is where every verdict lives. Measured with
+    # `tri gates mutate`: both of main()'s `return 1`s were rewritten to
+    # `return 0` and this control stayed green, 0 of 2 killed.
+    #
+    # So run the WHOLE program, once per verdict it can reach cheaply.
+    def spawned(label, args, want, expect, absent, env=None):
+        nonlocal ok_c
+        r = subprocess.run([sys.executable, os.path.abspath(__file__), *args],
+                           capture_output=True, text=True, cwd=ROOT,
+                           env=env or os.environ.copy())
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<40} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[:300]!r}")
+        return good
+
+    both = True
+    # An empty selection is not a pass. Instant: nothing is built.
+    both = spawned("no target selected is a failure", ["no_such_primitive"], 1,
+                   ["FAIL: no targets selected"],
+                   ["DISAGREED", "COULD NOT RUN", "PRIMITIVES:", "Traceback"]) and both
+
+    # A missing compiler is COULD NOT RUN, never DISAGREED. Before this control
+    # existed the gate raised FileNotFoundError here -- exit 1 and not one word
+    # of verdict -- and once that was caught it reported the absence as a
+    # disagreement about arithmetic it had never performed.
+    stripped = os.environ.copy()
+    stripped["PATH"] = os.pathsep.join(
+        d for d in stripped.get("PATH", "").split(os.pathsep)
+        if d and not any(os.path.exists(os.path.join(d, x))
+                         for x in ("cc", "rustc", "iverilog")))
+    both = spawned("a missing compiler is UNRUN, not disagreement", ["negate"], 1,
+                   ["COULD NOT RUN", "is not on PATH"],
+                   ["DISAGREED", "PRIMITIVES:", "Traceback"], env=stripped) and both
+
+    # T115: the SUCCESS wiring, and it is the mirror of the two above. Both of
+    # them demand exit 1, so a gate rewritten to fail unconditionally satisfies
+    # every case in this file -- `tri gates mutate --loud` rewrote main()'s
+    # `return 0` to `return 1` and nothing here noticed. `negate` is the cheap
+    # end of TARGETS: one byte of domain, 0.8s end to end.
+    both = spawned("a clean target exits 0 and says what it proved", ["negate"], 0,
+                   ["1 PRIMITIVES: model == C == Rust EXHAUSTIVELY over every input."],
+                   ["FAIL", "DISAGREED", "COULD NOT RUN", "Traceback"]) and both
+
+    return 0 if (ok_c and ok_m and both) else 1
 
 
 def main():

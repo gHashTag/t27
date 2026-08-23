@@ -1958,3 +1958,49 @@ Left open and named: `verify_multitarget.py`'s cross-target MISMATCH verdict
 The tool's survivors match that written declaration exactly, which is the first
 time this campaign a declared gap and a measured one agreed line for line.
 
+## 49. A control with resolution and no wiring, and the product defect behind it
+
+`verify_exhaustive.py` scored **0/2, 0/1, 0/9, 0/3** — a control that exists,
+passes, and kills nothing. Worse than no control: the gate read as covered.
+
+**Its control was good at the wrong thing.** It perturbs one input and proves the
+digest changes — the comparison has *resolution*. Excellent, and it never leaves
+the function. Every verdict lives in `main()`, which the control never ran. The
+campaign's oldest defect, in the gate that measures bit-exactness across four
+backends.
+
+**Reaching main() found a product defect.** With no C compiler on PATH the gate
+raised `FileNotFoundError` — exit 1 and not one word of verdict. A traceback is
+not a verdict: CI sees red, the reader learns nothing, and "the tool is missing"
+is indistinguishable from "the arithmetic is wrong."
+
+**Guarding the crash exposed a worse one.** Once the absence was caught, the gate
+announced `FAIL: 1 of 1 targets DISAGREED` — about arithmetic it had never
+performed. `check()` returned `False` (ran and disagreed) where it meant `UNRUN`
+(could not run).
+
+And main()'s own comment, twenty lines below, says:
+
+> check() already distinguishes them -- None is "could not run", False is "ran
+> and disagreed" -- and the tally threw that away.
+
+**That comment was true of the Verilog arm and false of the C/Rust arm, in the
+same function.** A distinction documented as implemented, implemented once, and
+believed twice. A third path returned `None`, which is in neither tally — so it
+exited 1 having printed nothing at all.
+
+**Three end-to-end cases now, one per reachable verdict**: an empty selection
+fails, a missing compiler is UNRUN and never DISAGREED, and a clean target exits
+0 *saying what it proved*. The last is the mirror the other two need — both demand
+exit 1, so a gate rewritten to fail unconditionally satisfied every case in the
+file, and `--loud` showed exactly that.
+
+Result: **2/2, 1/1, 7/9, 0/3**. Named and left: the disagreement verdicts need a
+backend that genuinely differs, which is a fixture worth building and not built
+here.
+
+**The rule.** A control that never leaves the function it tests measures the
+function. Ask of every control: *which process exit does this case observe?* If
+the answer is none, it is a property test wearing a gate's clothes — and the two
+are told apart by exactly one thing, whether a mutant of the verdict survives it.
+
