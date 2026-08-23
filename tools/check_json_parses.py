@@ -100,7 +100,7 @@ def self_check():
     # its module-level ROOT resolves there by the ordinary parent.parent rule --
     # no --root flag and no environment override, either of which would add a
     # way to aim the LIVE gate at somewhere harmless.
-    def spawned(label, want, expect, absent, files):
+    def spawned(label, want, expect, absent, files, args=()):
         """Run the whole program on a planted tree; demand the exit AND the text.
 
         `expect` is text that must appear and `absent` names the markers of the
@@ -125,7 +125,7 @@ def self_check():
             # the gate, and the rglob fallback finds the same files.
             for argv in (["git", "init", "-q"], ["git", "add", "-A", "-f"]):
                 subprocess.run(argv, cwd=root, capture_output=True)
-            proc = subprocess.run([sys.executable, str(root / "tools" / me)],
+            proc = subprocess.run([sys.executable, str(root / "tools" / me), *args],
                                   capture_output=True, text=True)
         missing = [e for e in expect if e not in proc.stdout]
         leaked = [a for a in absent if a in proc.stdout]
@@ -166,6 +166,22 @@ def self_check():
              "empty file — a build that died, or a placeholder never filled"],
             ("OK:", "baseline written:", "Expecting"),
             {"good.json": '{"a": 1}', "hollow.json": ""})
+
+    # T100: the LEDGER-WRITING path, which nothing exercised. Every case above
+    # runs the verify path and demands a specific exit; `--update-baseline`
+    # writes the ledger and returns success, and `tri gates mutate --loud`
+    # showed that success return could be rewritten to a failure with no
+    # assertion anywhere noticing. The same site survived in four gates.
+    #
+    # Asserted together: the exit code AND the effect. Exit alone would pass a
+    # run that returned 0 without writing, and the marker alone would pass one
+    # that wrote and then reported failure -- which is the mutation that found
+    # this.
+    spawned("end-to-end --update-baseline", 0,
+            ["baseline written: 1 entries"],
+            ("FAIL:", "OK:", "Expecting"),
+            {"good.json": '{"a": 1}', "bad.json": "{not json"},
+            args=("--update-baseline",))
 
     # NOT covered here: that a file already listed in the baseline is filtered
     # OUT of new_bad. Breaking that filter turns baselined debt into a false

@@ -315,7 +315,7 @@ def self_check():
     # gate's coverage.
     me = pathlib.Path(__file__).resolve()
 
-    def spawned(label, want_exit, present, absent, seals, ledger=None):
+    def spawned(label, want_exit, present, absent, seals, ledger=None, args=()):
         """Plant a world, run the real program in it, demand one exact branch.
 
         `present` pins WHICH branch spoke and `absent` names the siblings that
@@ -328,7 +328,7 @@ def self_check():
         with tempfile.TemporaryDirectory() as td:
             t = plant(td, seals, ledger)
             shutil.copy(me, t / "tools" / me.name)
-            r = subprocess.run([sys.executable, str(t / "tools" / me.name)],
+            r = subprocess.run([sys.executable, str(t / "tools" / me.name), *args],
                                capture_output=True, text=True, cwd=t, timeout=120)
         missing = [p for p in present if p not in r.stdout]
         leaked = [a for a in absent if a in r.stdout]
@@ -405,6 +405,18 @@ def self_check():
     # movement is suppressed on purpose (a small clone parks 15 entries there),
     # and no planted tree in this file is a git repository, so the branch that
     # asks git whether a spec ever existed is inert in all five cases above.
+    # T100: the LEDGER-WRITING path. Every case above runs the verify path;
+    # `--update-baseline` writes the ledger and returns success, and
+    # `tri gates mutate --loud` showed that success return could be rewritten to
+    # a failure with nothing noticing. The same site survived in four gates.
+    #
+    # Exit AND effect: the exit alone would pass a run that returned 0 without
+    # writing, and the marker alone would pass one that wrote and then reported
+    # failure -- which is the mutation that found this.
+    spawned("end-to-end --update-baseline", 0, (WROTE,),
+            ("FAIL:", "OK:", DRIFT, CHANGED, DEPARTED),
+            ONE_STALE, args=("--update-baseline",))
+
     return 0 if (ok and _check_compare()) else 1
 
 

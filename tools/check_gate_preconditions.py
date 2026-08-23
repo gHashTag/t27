@@ -264,6 +264,38 @@ def self_check():
         print("       exit %r (want 1); named the count: %s" % (r.returncode, said))
         print("       said   %s" % (first_line(r),))
 
+    # T100: the SUCCESS wiring, and it is the mirror of the case above.
+    # `tri gates mutate --loud` rewrote this file's own success return to a
+    # failure and NOTHING noticed: the gate printed "OK: 9 precondition(s)..."
+    # and exited 1 on a clean tree. Every mutation this campaign made until
+    # then turned a failure into a pass, so the instrument and the blind spot
+    # shared a direction -- and the file that enforces this discipline for six
+    # other gates was the worst offender.
+    #
+    # Same tree, no victim: every gate healthy, so the program must say OK and
+    # exit 0. The count is asserted with it, because an exit 0 from a table
+    # that silently emptied would satisfy the code alone.
+    with tempfile.TemporaryDirectory() as td:
+        tree = pathlib.Path(td)
+        (tree / "tools").mkdir()
+        me = pathlib.Path(__file__).name
+        shutil.copy(__file__, tree / "tools" / me)
+        for script, _, _ in GATES:
+            shutil.copy(ROOT / "tools" / script, tree / "tools" / script)
+        if T27C.exists():
+            (tree / "target/release").mkdir(parents=True)
+            shutil.copy(T27C, tree / "target/release/t27c")
+        g = subprocess.run([sys.executable, str(tree / "tools" / me)],
+                           capture_output=True, text=True, cwd=td, timeout=TIMEOUT)
+    counted = ("OK: %d precondition(s)" % len(GATES)) in g.stdout
+    quiet = g.returncode == 0 and counted
+    print("  %-28s %s" % ("end-to-end, all healthy",
+                          "exit 0, says OK" if quiet else "CONTROL FAILED"))
+    if not quiet:
+        ok = False
+        print("       exit %r (want 0); counted the table: %s" % (g.returncode, counted))
+        print("       said   %s" % (first_line(g),))
+
     # And the clean direction: the real table must be silent, or both cases
     # above pass for free on a file that always reports something.
     live = check()

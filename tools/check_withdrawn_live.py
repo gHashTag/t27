@@ -142,7 +142,7 @@ def _self_check_tree(td, docs, registry_text, baseline_text=None):
     return t
 
 
-def _self_check_run(t):
+def _self_check_run(t, args=()):
     """Run the WHOLE program in a planted tree: (exit code, stdout+stderr).
 
     Calling scan() in-process proves the checking FUNCTION and not the wiring
@@ -151,7 +151,7 @@ def _self_check_run(t):
     either `return 1` in main() to `return 0` left the gate printing its full
     FAIL text and exiting 0, and the control saw nothing.
     """
-    p = subprocess.run([sys.executable, str(t / "tools/check_withdrawn_live.py")],
+    p = subprocess.run([sys.executable, str(t / "tools/check_withdrawn_live.py"), *args],
                        cwd=str(t), capture_output=True, text=True)
     return p.returncode, p.stdout + p.stderr
 
@@ -273,6 +273,29 @@ def self_check():
                 "intact registry -> OK", got, out, 0,
                 must=[M_OK],
                 must_not=["FAIL:", M_GONE, M_BASELINE, M_CONTROL]) and ok
+
+    # T100: the LEDGER-WRITING path, which nothing exercised. Every case above
+    # runs the verify path; `--update-baseline` writes the exemption ledger and
+    # returns success, and `tri gates mutate --loud` rewrote that success return
+    # to a failure with no assertion here noticing. The same site survived in
+    # four gates.
+    #
+    # Exit AND effect: exit alone would pass a run that returned 0 without
+    # writing, and the marker alone would pass one that wrote and then reported
+    # failure -- which is the mutation that found this.
+    with tempfile.TemporaryDirectory() as td:
+        if True:
+            t = _self_check_tree(
+                td,
+                {"planted.md": "The design reaches 323 MHz on Artix-7.\n",
+                 "clean.md": CLEAN_DOC},
+                registry_text,
+                baseline_text="")
+            got, out = _self_check_run(t, args=("--update-baseline",))
+            ok = _self_check_verdict(
+                "--update-baseline -> writes", got, out, 0,
+                must=[M_BASELINE],
+                must_not=["FAIL:", M_GONE, M_CONTROL]) and ok
 
     return 0 if ok else 1
 
