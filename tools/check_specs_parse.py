@@ -239,6 +239,29 @@ def self_check(t27c):
                         "t27c not built"),
                 faulty=_CONTROL_SPEC, extra=_DISCARDS)
 
+    # T97: the case that tells `was` from the constant 0.
+    #
+    # Every case above plants into a spec whose recorded debt is ZERO, so
+    # `now > was` and `now > 0` are the same expression and a mutant that
+    # forgets the ledger entirely is invisible. Measured: `if now > 0` passes
+    # this control and turns the LIVE gate red -- every spec carrying debt
+    # would fail, and nothing here would have said which change did it.
+    #
+    # The economical distinguisher is not more debt, it is debt UNDER the
+    # recorded figure: a spec that owes 1,139 tokens, planted with about ten.
+    # Correct code is silent; `now > 0` raises a false alarm. So this case
+    # asserts SILENCE, and it is the only case here that does.
+    _DEBTOR = next((r for r in REQUIRED if DISCARD_DEBT.get(r, 0) > 0), None)
+    if _DEBTOR is None:
+        print("  %-26s %s" % ("ledger: under recorded debt",
+                              "NOT RUN -- no REQUIRED spec carries recorded debt"))
+        ok = False
+    else:
+        spawned("ledger: under recorded debt", 0,
+                says=("OK: all %d required specs parse" % len(REQUIRED),),
+                absent=("discard MORE than recorded", "FAIL", "t27c not built"),
+                faulty=_DEBTOR, extra=_DISCARDS)
+
     spawned("parse: spec rejected", 1,
             says=("FAIL: 1 required spec(s) do not parse",
                   _CONTROL_SPEC or REQUIRED[0],

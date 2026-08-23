@@ -1065,3 +1065,41 @@ mutation a mutation-tester makes is size-preserving by design, so a mutation
 harness and this cache are natural enemies. If you are writing anything that
 edits source in a loop, clear the cache in the loop — and remember the loop is
 sometimes a person.
+
+## 28. Two cases with opposite requirements need two fixtures
+
+`check_specs_parse.py` compares `now > was`. Its control chose, deliberately and
+with a comment, a spec whose recorded debt is **zero** — because a spec owing
+1,139 tokens would swallow a ten-token plant and make the *drift* case vacuous.
+
+That reasoning is correct, and it is exactly what left `was`-versus-`0`
+unmeasurable. With `was == 0` the expressions `now > was` and `now > 0` are
+indistinguishable. Measured: `if now > 0` **passes the control** and turns the
+live gate red — a mutation that ignores the ledger entirely, invisible to the
+thing that exists to see it.
+
+**One fixture chosen by one rule cannot serve two cases whose requirements
+point opposite ways.** The drift case needs debt small enough not to swallow the
+plant; the ledger case needs debt large enough that the plant sits under it.
+
+### The economical distinguisher is often "assert silence"
+
+The obvious repair is a bigger plant that raises a non-zero debt. The cheaper
+one is a plant that sits **under** the recorded figure and asserts the gate
+stays quiet: correct code is silent, `now > 0` raises a false alarm.
+
+A control made entirely of cases that demand red has a blind spot shaped like
+every mutation that makes a gate louder. **At least one case should require
+silence**, and it will usually be the one that catches a constant substituted
+for a variable.
+
+### Close the loop on guards written "correct by construction"
+
+#2469 added a `try` around a `json.loads` so garbage stdout would record a
+failure instead of aborting the control with a traceback. It was reasoned, not
+demonstrated, and it stayed on the open list for that reason alone. Planting a
+gate that prints non-JSON: `[FAIL]`, exit 1, zero tracebacks — and without it
+the control dies there and every later case silently never runs.
+
+A guard nobody has seen fire is the same evidential state as a gate nobody has
+seen go red. Both are one planted fault away from being real.
