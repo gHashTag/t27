@@ -513,6 +513,15 @@ def self_check(wd):
                    ["COULD NOT RUN", "is not on PATH"],
                    ["DISAGREED", "PRIMITIVES:", "Traceback"], env=stripped) and both
 
+    # T115: the SUCCESS wiring, and it is the mirror of the two above. Both of
+    # them demand exit 1, so a gate rewritten to fail unconditionally satisfies
+    # every case in this file -- `tri gates mutate --loud` rewrote main()'s
+    # `return 0` to `return 1` and nothing here noticed. `negate` is the cheap
+    # end of TARGETS: one byte of domain, 0.8s end to end.
+    both = spawned("a clean target exits 0 and says what it proved", ["negate"], 0,
+                   ["1 PRIMITIVES: model == C == Rust EXHAUSTIVELY over every input."],
+                   ["FAIL", "DISAGREED", "COULD NOT RUN", "Traceback"]) and both
+
     return 0 if (ok_c and ok_m and both) else 1
 
 
