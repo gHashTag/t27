@@ -37,6 +37,7 @@ Local commands (no compiler needed):
   tri slope                   place-and-route seconds per LUT, re-derived from the records
   tri table                   the operator table, derived from every die read on record
   tri compare [WIDTH]         head-to-head against posit/takum/fp at one width, computed from the oracles
+  tri dashboard [OUT.html]    the wave dashboard, derived from the board, the records and the ledger
   tri help                    this text
 
 Environment:
@@ -84,6 +85,185 @@ case "$cmd" in
   help|-h|--help)
     usage
     exit 0
+    ;;
+
+  dashboard)
+    # W992: the dashboard lived only in the session scratchpad, and the scratchpad
+    # is wiped on restart -- the same failure that took the conformance oracles in
+    # W981 and that a saved lesson already names. Losing it a second time is a
+    # process defect, not bad luck. So the GENERATOR lives here and the page is
+    # DERIVED: wave and readiness from the status board, the operator table from
+    # `tri table`, the check count from the verifier, counters from the skill and
+    # the theory document, and the iteration log from the findings ledger.
+    #
+    #   tri dashboard [OUT.html]
+    OUT="${2:-$REPO_ROOT/docs/reports/dashboard.html}"
+    OUT="$OUT" ROOT="$REPO_ROOT" TRI="$0" python3 - <<'PYDASH'
+import os, re, subprocess, pathlib, html
+
+TEMPLATE = """<title>t27 - TNF: волна W{wave}</title>
+<style>
+:root {{
+  --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
+  --bg:#faf7f1; --card:#fffdf8; --accent:#8a3a1e; --ok:#2f6b46; --bad:#9b2c1f;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}}
+@media (prefers-color-scheme:dark) {{
+  :root {{ --ink:#efe9df; --dim:#a89f92; --faint:#7d7469; --rule:#332e28;
+    --bg:#14120f; --card:#1c1915; --accent:#d9784f; --ok:#6fbf8e; --bad:#e2705c; }}
+}}
+:root[data-theme="dark"] {{ --ink:#efe9df; --dim:#a89f92; --faint:#7d7469; --rule:#332e28;
+  --bg:#14120f; --card:#1c1915; --accent:#d9784f; --ok:#6fbf8e; --bad:#e2705c; }}
+:root[data-theme="light"] {{ --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
+  --bg:#faf7f1; --card:#fffdf8; --accent:#8a3a1e; --ok:#2f6b46; --bad:#9b2c1f; }}
+* {{ box-sizing:border-box; }}
+body {{ margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.6 Georgia,"Iowan Old Style",serif; }}
+.wrap {{ max-width:1040px; margin:0 auto; padding:40px 24px 80px; }}
+header {{ border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:28px; }}
+h1 {{ font-size:1.5rem; margin:0 0 6px; letter-spacing:-.01em; }}
+.live {{ display:block; font-family:var(--mono); font-size:.78rem; color:var(--accent);
+  margin-top:10px; line-height:1.55; }}
+.kpis {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:14px; margin:26px 0 32px; }}
+.kpi {{ background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:14px 16px; }}
+.kpi .lbl {{ font-family:var(--mono); font-size:.66rem; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--faint); }}
+.kpi .val {{ font-size:1.9rem; font-weight:700; line-height:1.15; margin-top:4px;
+  font-variant-numeric:tabular-nums; }}
+.kpi .sub {{ font-size:.76rem; color:var(--dim); margin-top:2px; }}
+h2 {{ font-size:.72rem; font-family:var(--mono); letter-spacing:.12em; text-transform:uppercase;
+  color:var(--faint); border-bottom:1px solid var(--rule); padding-bottom:7px; margin:34px 0 14px; }}
+.scroll {{ overflow-x:auto; }}
+table {{ width:100%; border-collapse:collapse; font-size:.86rem; }}
+th {{ text-align:left; font-family:var(--mono); font-size:.66rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--faint); font-weight:400;
+  border-bottom:1px solid var(--rule); padding:6px 10px 6px 0; }}
+td {{ padding:7px 10px 7px 0; border-bottom:1px solid var(--rule); vertical-align:top; }}
+td.n {{ text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); }}
+td.ok {{ color:var(--ok); }} td.bad {{ color:var(--bad); }}
+tr.split td {{ background:color-mix(in srgb,var(--accent) 7%,transparent); }}
+.tag {{ font-family:var(--mono); font-size:.62rem; letter-spacing:.08em; color:var(--accent);
+  border:1px solid var(--accent); border-radius:2px; padding:1px 5px; }}
+code {{ font-family:var(--mono); font-size:.86em; }}
+.row {{ display:grid; grid-template-columns:64px 1fr; gap:16px; padding:15px 0;
+  border-bottom:1px solid var(--rule); }}
+.row .w {{ font-family:var(--mono); font-size:.76rem; color:var(--accent); font-weight:700; }}
+.row .t {{ font-size:.9rem; }}
+footer {{ margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
+  font-family:var(--mono); font-size:.7rem; color:var(--faint);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }}
+@media (max-width:640px) {{ .row {{ grid-template-columns:1fr; gap:4px; }} }}
+</style>
+<div class="wrap">
+<header>
+  <h1>TNF - публикационная готовность</h1>
+  <span class="live">{headline}</span>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="lbl">готовность</div><div class="val">{ready}%</div>
+    <div class="sub">оценка волны W{wave}</div></div>
+  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">{checks}</div>
+    <div class="sub">расхождений {drift}</div></div>
+  <div class="kpi"><div class="lbl">чтений с кристалла</div><div class="val">{reads}</div>
+    <div class="sub">{ops} схем, {oks} с ok=1</div></div>
+  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">{n_thm}/{n_les}</div>
+    <div class="sub">старшие {hi_thm} и {hi_les}</div></div>
+</div>
+
+<h2>Операторы на кремнии - выведено из записей</h2>
+<div class="scroll"><table>
+<thead><tr><th>оператор</th><th class="n">чтений</th><th class="n">прошло</th>
+<th class="n">упало</th><th>вердикты</th><th></th></tr></thead>
+<tbody>
+{trows}
+</tbody></table></div>
+
+<h2>Журнал итераций</h2>
+{logrows}
+
+<footer><span>обновлено: <b>W{wave} - {date}</b></span>
+<span>сгенерировано <code>tri dashboard</code> из записей репозитория</span></footer>
+</div>
+"""
+
+ROOT = pathlib.Path(os.environ["ROOT"]); OUT = pathlib.Path(os.environ["OUT"])
+TRI = os.environ["TRI"]
+
+def run(*a):
+    try:
+        return subprocess.run(a, capture_output=True, text=True, timeout=900).stdout
+    except Exception:
+        return ""
+
+board = (ROOT / "docs/reports/STATUS-BOARD-W910.md").read_text(errors="replace")
+wave = (re.search(r"\(W(\d+), ([\d-]+)\)", board) or [None, "?", "?"])
+wave_no, wave_date = wave[1], wave[2]
+head = re.search(r"^> \*\*W%s [^\n]*" % wave_no, board, re.M)
+headline = head.group(0)[3:] if head else ""
+ready = re.search(r"\*\*Readiness (\d+) %", board)
+ready = ready.group(1) if ready else "?"
+
+table = run(TRI, "table")
+rows = []
+for ln in table.splitlines():
+    m = re.match(r"^(gft_\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S.*?)\s{2,}(\S+)(\s+SPLIT)?$", ln)
+    if m:
+        rows.append(dict(name=m.group(1), reads=m.group(2), p=m.group(3), f=m.group(4),
+                         verdicts=m.group(5).strip(), src=m.group(6), split=bool(m.group(7))))
+tot = re.search(r"tri table: (\d+) operator\(s\), (\d+) die read\(s\), (\d+) with ok=1", table)
+
+ver = run("python3", str(ROOT / "docs/reports/upstream/verify_numbers.py"))
+vm = re.search(r"сошлось (\d+), расхождений (\d+)", ver)
+checks, drift = (vm.group(1), vm.group(2)) if vm else ("?", "?")
+
+les = run(TRI, "lesson", "--check")
+thm = run(TRI, "theorem", "--check")
+n_les = (re.search(r"(\d+) lessons", les) or [None, "?"])[1]
+hi_les = (re.search(r"highest (\d+)", les) or [None, "?"])[1]
+n_thm = (re.search(r"(\d+) theorem", thm) or [None, "?"])[1]
+hi_thm = (re.search(r"highest (T\S+)", thm) or [None, "?"])[1]
+
+ledger = (ROOT / "docs/reports/upstream/TNF-FINDINGS-LEDGER.md").read_text(errors="replace")
+chapters = re.findall(r"^## (\d+)\. (.+?)$\n(.*?)(?=^## \d+\.|\Z)", ledger, re.S | re.M)
+log = []
+for num, title, body in reversed(chapters[-14:]):
+    w = re.search(r"\(W(\d+)\)\s*$", title)
+    para = " ".join(p.strip() for p in body.strip().split("\n\n")[:2])
+    para = re.sub(r"\s+", " ", para)
+    para = re.sub(r"`([^`]+)`", r"<code>\1</code>", html.escape(para, quote=False)
+                  .replace("&lt;code&gt;", "<code>").replace("&lt;/code&gt;", "</code>"))
+    para = re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", para)
+    log.append((w.group(1) if w else num, re.sub(r"\s*\(W\d+\)$", "", title), para[:1400]))
+
+def esc(x):
+    return html.escape(str(x), quote=False)
+
+trows = "\n".join(
+    f'<tr class="{"split" if r["split"] else ""}"><td><code>{esc(r["name"])}</code></td>'
+    f'<td class="n">{r["reads"]}</td><td class="n ok">{r["p"]}</td><td class="n bad">{r["f"]}</td>'
+    f'<td><code>{esc(r["verdicts"])}</code></td>'
+    f'<td>{"<span class=\"tag\">SPLIT</span>" if r["split"] else ""}</td></tr>'
+    for r in rows)
+
+logrows = "\n".join(
+    f'<div class="row"><span class="w">W{esc(w)}</span><span class="t"><b>{esc(t)}.</b> {p}</span></div>'
+    for w, t, p in log)
+
+OUT.parent.mkdir(parents=True, exist_ok=True)
+OUT.write_text(TEMPLATE.format(
+    wave=esc(wave_no), date=esc(wave_date), ready=esc(ready),
+    headline=re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", esc(headline))[:900],
+    checks=esc(checks), drift=esc(drift),
+    ops=esc(tot.group(1) if tot else "?"), reads=esc(tot.group(2) if tot else "?"),
+    oks=esc(tot.group(3) if tot else "?"),
+    n_les=esc(n_les), hi_les=esc(hi_les), n_thm=esc(n_thm), hi_thm=esc(hi_thm),
+    trows=trows, logrows=logrows))
+print(f"tri dashboard: {OUT} -- волна W{wave_no}, готовность {ready} %, "
+      f"{len(rows)} операторов, {len(log)} записей журнала")
+PYDASH
+    exit $?
     ;;
 
   compare)

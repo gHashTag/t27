@@ -1,0 +1,105 @@
+<title>t27 - TNF: волна W992</title>
+<style>
+:root {
+  --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
+  --bg:#faf7f1; --card:#fffdf8; --accent:#8a3a1e; --ok:#2f6b46; --bad:#9b2c1f;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark) {
+  :root { --ink:#efe9df; --dim:#a89f92; --faint:#7d7469; --rule:#332e28;
+    --bg:#14120f; --card:#1c1915; --accent:#d9784f; --ok:#6fbf8e; --bad:#e2705c; }
+}
+:root[data-theme="dark"] { --ink:#efe9df; --dim:#a89f92; --faint:#7d7469; --rule:#332e28;
+  --bg:#14120f; --card:#1c1915; --accent:#d9784f; --ok:#6fbf8e; --bad:#e2705c; }
+:root[data-theme="light"] { --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
+  --bg:#faf7f1; --card:#fffdf8; --accent:#8a3a1e; --ok:#2f6b46; --bad:#9b2c1f; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.6 Georgia,"Iowan Old Style",serif; }
+.wrap { max-width:1040px; margin:0 auto; padding:40px 24px 80px; }
+header { border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:28px; }
+h1 { font-size:1.5rem; margin:0 0 6px; letter-spacing:-.01em; }
+.live { display:block; font-family:var(--mono); font-size:.78rem; color:var(--accent);
+  margin-top:10px; line-height:1.55; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:14px; margin:26px 0 32px; }
+.kpi { background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:14px 16px; }
+.kpi .lbl { font-family:var(--mono); font-size:.66rem; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--faint); }
+.kpi .val { font-size:1.9rem; font-weight:700; line-height:1.15; margin-top:4px;
+  font-variant-numeric:tabular-nums; }
+.kpi .sub { font-size:.76rem; color:var(--dim); margin-top:2px; }
+h2 { font-size:.72rem; font-family:var(--mono); letter-spacing:.12em; text-transform:uppercase;
+  color:var(--faint); border-bottom:1px solid var(--rule); padding-bottom:7px; margin:34px 0 14px; }
+.scroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:.86rem; }
+th { text-align:left; font-family:var(--mono); font-size:.66rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--faint); font-weight:400;
+  border-bottom:1px solid var(--rule); padding:6px 10px 6px 0; }
+td { padding:7px 10px 7px 0; border-bottom:1px solid var(--rule); vertical-align:top; }
+td.n { text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); }
+td.ok { color:var(--ok); } td.bad { color:var(--bad); }
+tr.split td { background:color-mix(in srgb,var(--accent) 7%,transparent); }
+.tag { font-family:var(--mono); font-size:.62rem; letter-spacing:.08em; color:var(--accent);
+  border:1px solid var(--accent); border-radius:2px; padding:1px 5px; }
+code { font-family:var(--mono); font-size:.86em; }
+.row { display:grid; grid-template-columns:64px 1fr; gap:16px; padding:15px 0;
+  border-bottom:1px solid var(--rule); }
+.row .w { font-family:var(--mono); font-size:.76rem; color:var(--accent); font-weight:700; }
+.row .t { font-size:.9rem; }
+footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
+  font-family:var(--mono); font-size:.7rem; color:var(--faint);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+@media (max-width:640px) { .row { grid-template-columns:1fr; gap:4px; } }
+</style>
+<div class="wrap">
+<header>
+  <h1>TNF - публикационная готовность</h1>
+  <span class="live">*W992 — THE AUDIT WAS RIGHT, AND I DID NOT WAIT FOR IT.** All three options taken. Freed</span>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="lbl">готовность</div><div class="val">98%</div>
+    <div class="sub">оценка волны W992</div></div>
+  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">543</div>
+    <div class="sub">расхождений 0</div></div>
+  <div class="kpi"><div class="lbl">чтений с кристалла</div><div class="val">47</div>
+    <div class="sub">8 схем, 36 с ok=1</div></div>
+  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1110/753</div>
+    <div class="sub">старшие T851b, и 1525</div></div>
+</div>
+
+<h2>Операторы на кремнии - выведено из записей</h2>
+<div class="scroll"><table>
+<thead><tr><th>оператор</th><th class="n">чтений</th><th class="n">прошло</th>
+<th class="n">упало</th><th>вердикты</th><th></th></tr></thead>
+<tbody>
+<tr class=""><td><code>gft_commmin</code></td><td class="n">7</td><td class="n ok">3</td><td class="n bad">4</td><td><code>1001 1011 1101 1111 clauses_w983.json</code></td><td></td></tr>
+<tr class="split"><td><code>gft_dup</code></td><td class="n">13</td><td class="n ok">10</td><td class="n bad">3</td><td><code>1101 1111</code></td><td><span class="tag">SPLIT</span></td></tr>
+<tr class="split"><td><code>gft_dup_folded</code></td><td class="n">4</td><td class="n ok">2</td><td class="n bad">2</td><td><code>1101 1111</code></td><td><span class="tag">SPLIT</span></td></tr>
+<tr class=""><td><code>gft_sadd</code></td><td class="n">4</td><td class="n ok">4</td><td class="n bad">0</td><td><code>1111</code></td><td></td></tr>
+<tr class=""><td><code>gft_signed_dot4</code></td><td class="n">5</td><td class="n ok">5</td><td class="n bad">0</td><td><code>1111</code></td><td></td></tr>
+<tr class="split"><td><code>gft_signed_mac</code></td><td class="n">6</td><td class="n ok">5</td><td class="n bad">1</td><td><code>0011 1111</code></td><td><span class="tag">SPLIT</span></td></tr>
+<tr class="split"><td><code>gft_smul</code></td><td class="n">6</td><td class="n ok">5</td><td class="n bad">1</td><td><code>1010 1111</code></td><td><span class="tag">SPLIT</span></td></tr>
+<tr class=""><td><code>gft_train1</code></td><td class="n">2</td><td class="n ok">2</td><td class="n bad">0</td><td><code>1111</code></td><td></td></tr>
+</tbody></table></div>
+
+<h2>Журнал итераций</h2>
+<div class="row"><span class="w">W992</span><span class="t"><b>The audit was right, and I did not wait for it.</b> A 0.73 GiB chipdb for a part that is not on this bench had been proposed for deletion four waves running, and this wave it was authorised. Because the action could not be undone, it was audited first: four independent search angles, each SAFE verdict then attacked by two skeptics prompted to refute it. Twelve agents, 349 tool calls, eighteen minutes. All four angles said SAFE_TO_DELETE. The skeptics landed anyway.</span></div>
+<div class="row"><span class="w">W991</span><span class="t"><b>The competitor table was local all along.</b> Twenty waves of reports ended with the same sentence: *competitor analysis analytic only, web search unavailable*. The reference implementations for posit, takum, fp8 and bf16 were committed in W981 -- for an unrelated reason, to stop <code>tri rungs</code> going dark on a session restart -- and had been sitting in the repository ever since. The comparison did not need the web. It needed one command. At matched <b>physical</b> width:</span></div>
+<div class="row"><span class="w">W990</span><span class="t"><b>Both fixes, confirmed.</b> The Architect asked, mid-wave, for the two spec repairs to be confirmed on silicon. The first honest answer was that both had already read <code>1111</code> in W987. The second was that each stood on a single placement, and this project's own T841 and T842 say a single placement cannot tell a passing design from one whose failure is not reachable at that seed. So the answer had to be finished. | fix | before | after | placements | |-----|--------|-------|-----------| | <code>gft_signed_mac</code> (W978) | <code>0011</code>, <code>ok=0</code>, <code>c_zero</code> real and false | <code>1111</code>, <code>ok=1</code>, <code>0xa5a5337f</code> | <b>4</b> -- seeds 1, 7, 42, 1234, sites 3, 2, 2, 4 | | <code>gft_signed_dot4</code> (W979) | ABSENT since W977 | <code>1111</code>, <code>ok=1</code>, <code>0xa5a530ff</code> | 1 confirmed twice, three in flight |</span></div>
+<div class="row"><span class="w">W989</span><span class="t"><b>The table stops being transcribed.</b> Six consecutive waves assembled the operator table by hand. This one asked a script to derive it instead, and the script could place <b>10 of 38 die reads</b>. The rest sit in records that name the design differently -- <code>operators.&lt;name&gt;</code>, <code>die_reads[]</code>, <code>reads[]</code>, <code>sweep.&lt;wrapper&gt;.reads[]</code> -- because twenty-odd measurement files were each written in whatever shape suited the wave that wrote them. The numbers were never wrong. The path from record to table ran through a person, which is the same defect as the conformance oracles that lived only in a session scratchpad: correct, and not reproducible. <b>A referee re-deriving this table by script would have got a quarter of it.</b></span></div>
+<div class="row"><span class="w">W988</span><span class="t"><b>The cap, and the model underneath it.</b> Two operators were ABSENT behind a 600 s place-and-route cap. The obvious move is to raise it, and W823's standing rule forbids raising a limit because something failed. So the question was what the limit had been derived from. It was derived from a rate of <b>21 ms/LUT</b> (T560, W827). Builds that completed give the rate directly: 50.4 for <code>gft_signed_dot4</code>, 51.0 for <code>gft_signed_mac</code>, 33.7 for <code>gft_train1</code>, and more than 62.9 for <code>gft_xorpercep</code>, which is a lower bound because it was killed. The aggregate is <b>50.7 -- 2.4x the documented figure</b>. A 600 s cap looked like 28,600 LUT and bought 11,800. Neither timed-out design was ever going to fit, and both were carried in the table as ABSENT, which reads like a property of the design rather than of the harness.</span></div>
+<div class="row"><span class="w">W987</span><span class="t"><b>The table those repairs were for.</b> Every operator, re-read on the die with every clause real. | operator | LUT | placements | clauses | verdict | |----------|-----|-----------|---------|---------| | <code>gft_smul</code> | 1877 | 4 | <code>1111</code> x4 | PASS | | <code>gft_dup</code> | 1763 | 4 | <code>1111</code> x4 | PASS | | <code>gft_sadd</code> | 4231 | 2 | <code>1111</code> x2 | PASS | | <code>gft_signed_dot4</code> | 7851 | 1 | <code>1111</code> | PASS -- first time on silicon | | <code>gft_signed_mac</code> | 9465 | 1 | <code>1111</code> | PASS -- confirms the W978 fix | | <code>gft_train1</code> | 16188 | 2 | -- | ABSENT, 600 s cap | | <code>gft_xorpercep</code> | 28217 | 1 | -- | ABSENT, 600 s cap |</span></div>
+<div class="row"><span class="w">W986</span><span class="t"><b>The comparison that was called impossible took four builds.</b> W985 ended on a loss: repairing the folded clauses was correct and it destroyed this project's only reproducible hardware anomaly, so *the failure is gone* and *the failure is absent in a design this different* could never be separated. It also froze a copy of the broken wrappers, out of the corpus, marked do-not-fix. That copy answers the question in four builds.</span></div>
+<div class="row"><span class="w">W985</span><span class="t"><b>The sweep came back clean, and that is the loss.</b> W984 closed the folded-clause class and read two designs at one placement each -- which cannot distinguish *the failure is gone* from *the failure is absent here*. This is the sweep: four placements per design, each read bracketed by a wrong-part bitstream forcing <code>Done=0</code>. | design | LUT (was) | seeds 1 / 7 / 42 / 1234 | |--------|-----------|--------------------------| | <code>gft_smul</code> | 1877 (1312) | <code>1111</code> <code>1111</code> <code>1111</code> <code>1111</code> | | <code>gft_dup</code> | 1763 (798) | <code>1111</code> <code>1111</code> <code>1111</code> <code>1111</code> |</span></div>
+<div class="row"><span class="w">W984</span><span class="t"><b>The class closed in the wave after it was named.</b> W983 found that 14 of 28 on-die clauses were constants folded at synthesis, repaired one wrapper and left the rest as a named debt. Clearing all eight took one wave and one primitive: ``<code>verilog reg [31:0] opq_a = 32'd1, opq_b = 32'd1; always @(posedge slowclk) begin opq_a &lt;= opq_a + 1; opq_b &lt;= opq_b + 1; end wire [31:0] Z0 = opq_a - opq_b; </code>``</span></div>
+<div class="row"><span class="w">W983</span><span class="t"><b>The control was a constant, and when it finally ran it refuted the story.</b> <code>tri clauses</code> reads the synthesised netlist and asks, of every <code>c_*</code> clause, whether it is driven by logic or is the literal 1. Across seven wrappers: <b>28 clauses, 14 folded</b>. Three mechanisms -- a probe register nothing writes collapses to its <code>INIT</code>; two structurally identical instances with identical operands are *merged*, so comparing them is a tautology; and a clause whose operands are all constants is evaluated at compile time. T555 put live counters on the clause <b>operands</b> for exactly this reason and nobody looked at the <b>comparison</b>. What it reinterprets, where sources have not changed since the reads: <code>gft_sadd</code>'s *PASS -- 4 of 4 clauses on the die* is <b>one measured clause</b>; <code>gft_train1</code> the same; and <code>gft_smul</code>'s <code>1010</code>, published as two of four failing, is <b>two of two measured clauses failing</b>. It does not reinterpret <code>gft_signed_mac</code>'s <code>0011</code>, which was read against the pre-W978 spec -- the guard added then is precisely what makes that clause fold today.</span></div>
+<div class="row"><span class="w">W982</span><span class="t"><b>The reproducer shrank, and the proof moved to the artefact that fails.</b> Two things had been outstanding since W977: a minimal case, and a proof about the right object. <b>The minimal case.</b> <code>gft_dup_jtag</code> carries five <code>GftSmul</code> instances in 798 LUT. Keeping only what discriminates -- two instances with the same operand order as a control, one with them swapped as the test -- gives <code>gft_commmin_jtag</code> at 430-452 LUT, and it reproduces <code>c_self</code> TRUE with <code>c_comm</code> FALSE exactly. <b>The smaller case immediately showed something the larger one hid</b>: both 430-LUT builds pass and both 452-LUT builds fail, so the verdict follows the *netlist*, and the two netlists differ only because <code>t27c</code> forced <code>JTAG_CHAIN</code> to the site nextpnr chose -- a parameter that selects a BSCAN site and cannot reach the arithmetic, yet moves 22 LUTs and 7 CARRY4. The seed mapping also <b>inverts</b> between the two designs: 1 and 42 pass in the big one, 7 and 42 in the small one.</span></div>
+<div class="row"><span class="w">W981</span><span class="t"><b>Nine reads that killed a hypothesis, and one that killed a plan.</b> W977 left two things behind: a claim -- *place-and-route is not function-preserving* -- and a plan -- *diff the FASM of a passing seed against a failing one and name the net*. This wave tested both against the die. <b>The claim reproduces.</b> On a bench that has since changed physically (three cables at 1:4 became one at 1:5), seeds 42, 7 and 31337 returned <code>1111</code>, <code>1101</code>, <code>1111</code> -- the same words, with the same reported Fmax to two decimals, each bracketed by a wrong-part control that forced <code>Done=0</code> before the load.</span></div>
+<div class="row"><span class="w">W49</span><span class="t"><b>W980 — the die asks 36 questions; the suites ask six of them by name.</b> <code>tri coverage</code> extracts each wrapper's clause names from its <code>wire X_ok =</code> lines and matches them against the <code>test</code> names in the spec that defines the instantiated module. <b>Nine wrappers, 36 clauses, 30 with no same-named test — 83 %.</b></span></div>
+<div class="row"><span class="w">W48</span><span class="t"><b>W979 — the corpus audit closed the class, and predicted a 141-wave-old hardware failure.</b> <b>The audit.</b> Every <code>.t27</code> in the ternary tree, scanned for private definitions of <code>smul</code>, <code>sadd</code>, <code>magmul</code>, <code>magadd</code>, <code>magsub</code> — <b>134 definitions across 26 specs</b> — with each <code>smul</code>/<code>sadd</code> checked for the guards whose absence W978 proved to be a correctness defect. <b>Exactly one remained:</b> <code>gft_signed_dot4.t27 :: smul</code>, six lines, the same shape as the MAC's.</span></div>
+
+<footer><span>обновлено: <b>W992 - 2026-08-23</b></span>
+<span>сгенерировано <code>tri dashboard</code> из записей репозитория</span></footer>
+</div>
