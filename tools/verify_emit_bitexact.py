@@ -19,6 +19,22 @@ Self-contained and CI-friendly: if t27c or iverilog is unavailable it prints SKI
 and exits 0 (so it never breaks a Rust-only CI); the synth phase is skipped when
 yosys is absent; a real mismatch or synth failure exits 1. Run:
     python3 tools/verify_emit_bitexact.py
+
+WHAT THIS DOES NOT ESTABLISH
+----------------------------
+The topologies are a LIST, not a space. Fourteen are exercised; a fifteenth
+that breaks the datapath invariant is not found here until someone adds it.
+
+The training run is a fixed, seeded sequence -- byte-identical across runs,
+which is what makes a disagreement reproducible, and also means the sample
+never moves. Inputs outside it are not compared however often this runs.
+
+"Synthesizes" is yosys reaching a cell count. It is not place-and-route, not
+timing closure, and not silicon.
+
+verify_exhaustive.py is the step in this job that enumerates a whole input
+space, and it does that only "wherever the space is small". The two are
+different claims and were named the same way until now.
 """
 import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
 

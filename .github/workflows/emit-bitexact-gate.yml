@@ -137,13 +137,43 @@ jobs:
       - name: Duplicated functions agree
         run: python3 tools/check_duplicate_agreement.py
 
-      - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
+      # "Prove" names a proof over the input space. The evidence here is a
+      # FIXED, SEEDED sample -- strong, and reproducible byte-for-byte
+      # across runs (checked), and not that.
+      #
+      # DOES NOT CHECK: inputs outside the sample. The sample never moves,
+      # so a disagreement outside it cannot be found here however many
+      # times this runs. verify_exhaustive.py in this same job is the step
+      # that enumerates, "wherever the space is small", and says so in its
+      # own first line. The distinction lived in the tools and not in the
+      # names.
+      - name: Generated RTL is bit-exact to the GF-T model on the listed topologies, and they synthesize
         run: python3 tools/verify_emit_bitexact.py --require
 
-      - name: Prove GF-T primitives bit-exact across C + Rust + model
+      # "Prove" names a proof over the input space. The evidence here is a
+      # FIXED, SEEDED sample -- strong, and reproducible byte-for-byte
+      # across runs (checked), and not that.
+      #
+      # DOES NOT CHECK: inputs outside the sample. The sample never moves,
+      # so a disagreement outside it cannot be found here however many
+      # times this runs. verify_exhaustive.py in this same job is the step
+      # that enumerates, "wherever the space is small", and says so in its
+      # own first line. The distinction lived in the tools and not in the
+      # names.
+      - name: GF-T primitives agree across C + Rust + model on a fixed operand sample
         run: python3 tools/verify_multitarget.py --require
 
-      - name: Prove the WHOLE trainer bit-exact in C (== model == Verilog)
+      # "Prove" names a proof over the input space. The evidence here is a
+      # FIXED, SEEDED sample -- strong, and reproducible byte-for-byte
+      # across runs (checked), and not that.
+      #
+      # DOES NOT CHECK: inputs outside the sample. The sample never moves,
+      # so a disagreement outside it cannot be found here however many
+      # times this runs. verify_exhaustive.py in this same job is the step
+      # that enumerates, "wherever the space is small", and says so in its
+      # own first line. The distinction lived in the tools and not in the
+      # names.
+      - name: Whole trainer is bit-exact in C against the model over a fixed training run
         run: python3 tools/verify_trainer_c.py --require
 
       # The step name is the claim most people read. This one said "Prove the

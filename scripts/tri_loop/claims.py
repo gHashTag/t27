@@ -20,6 +20,17 @@ worth reading, out of nearly two hundred steps.
 It also cannot see a claim made in prose the step echoes into the job summary
 rather than in its name, and it does not look at job names at all.
 
+AND IT CANNOT SEE LIMITS THAT LIVE IN THE TOOL. `verify_exhaustive.py` opens
+with "over the ENTIRE input space, wherever the space is small" -- as careful a
+statement of scope as exists in this repository -- and this reports its step as
+stating none, because it reads workflows and the sentence is in Python. A step
+flagged here may be the most honest thing in the tree; the flag means "worth
+reading", and reading means opening the tool.
+
+The vocabulary below is the one this repository already uses. A limit stated in
+different words reads as no limit at all -- which happened the first time these
+step comments were written, and is why they now say DOES NOT CHECK.
+
 Exit 0 always: this reports, it does not gate. Turning it into a gate would
 need a ledger of the legitimate ones, and that ledger is a judgement that goes
 stale in a way this file cannot notice.
