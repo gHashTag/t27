@@ -447,9 +447,36 @@ def main():
         print("           why -- usually a crash, which is not a verdict.")
         print("  HUNG     no verdict at all.")
         return 1
-    names = len({g for g, _, _ in GATES})
-    print(f"OK: {len(GATES)} precondition(s) across {names} gates fail loudly; "
-          f"{UNCOVERED} known-uncovered (see UNCOVERED in this file)")
+    names = {g for g, _, _ in GATES}
+    print(f"OK: {len(GATES)} precondition(s) across {len(names)} gates fail loudly; "
+          f"{UNCOVERED} known-uncovered row(s) (see UNCOVERED in this file)")
+
+    # The denominator, because `UNCOVERED = 0` counts ROWS this file chose to
+    # write and reads like it counts GATES. It does not: this file exercises
+    # six of the gate scripts in tools/, and said "0 known-uncovered" while
+    # eleven others had never been run in an empty tree at all.
+    #
+    # Measured when they were: one of them PASSED there --
+    # `check_json_parses` printed `OK: 0 tracked JSON files` and returned 0.
+    # The rest skipped or crashed, which is survivable; a pass is not.
+    #
+    # Reported, not enforced. Making an uncovered gate a failure would turn
+    # this green file red today over gates whose empty-tree behaviour is
+    # already loud, and a gate that is red on the day it lands teaches people
+    # to ignore red. The number is here so the gap is a fact rather than an
+    # implication.
+    on_disk = sorted(
+        q.name for q in (ROOT / "tools").glob("*.py")
+        if (q.name.startswith("check_") or "gate" in q.name)
+        and q.name != pathlib.Path(__file__).name
+    )
+    uncovered = [g for g in on_disk if g not in names]
+    print(f"    coverage: {len(on_disk) - len(uncovered)} of {len(on_disk)} "
+          f"gate script(s) in tools/ are exercised here")
+    if uncovered:
+        print(f"    not exercised in an empty tree by this file ({len(uncovered)}):")
+        for g in uncovered:
+            print(f"      {g}")
     return 0
 
 
