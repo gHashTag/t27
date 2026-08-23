@@ -1916,3 +1916,45 @@ gates controlled, by the same evidence. A heuristic agreeing with a careful manu
 pass on a corpus it was not tuned against is the closest thing to a control this
 kind of search can have.
 
+## 48. `sys.exit` is a verdict, and two columns of zeros said otherwise
+
+Giving `verify_multitarget.py` its first negative control turned into a finding
+about the operators, and then into a survivor inside a gate that had been
+reported clean for the whole campaign.
+
+**The control first.** This gate's skip pair is its most rottable branch: without
+`--require` a missing prerequisite is a SKIP and exit 0, with it the same state
+is a FAILURE. Three lines apart, same message, and only the exit code differs —
+so each case names the other's marker as forbidden. `SKIP` reaching exit 1 and
+`FAIL` reaching exit 0 are both silent successes.
+
+**The plant was wrong on the first attempt, and said so.** I ran the gate from a
+temp working directory, reasoning that `target/debug/t27c` would be missing
+there. It resolves against `ROOT`, not cwd, so the gate found the real binary and
+ran the whole check successfully — and the control reported CONTROL FAILED rather
+than passing. A control that fails on a bad plant is doing its job; the fix is
+the copy-into-an-empty-tree pattern every other gate here uses.
+
+**Then two columns of zeros.** `silent 0/0, loud 0/0` for a file that is nothing
+but verdicts. The operators understood `return N` and `raise SystemExit(N)` and
+**not `sys.exit(N)`** — the spelling half this repository uses. Two empty columns
+read as *nothing here to break*, which is the same sentence a clean gate prints.
+
+**And the fix immediately found a survivor in a gate scored 3/3 for weeks.**
+`check_catalog_count.py` has a `sys.exit(2)` for *the codegen subprocess itself
+failing*, and every case in its control plants SSOT **content** — so the codegen
+always ran and always succeeded, and that branch was unreachable from its own
+control. Closed with a planted codegen that dies, distinguished from the other
+exit-2 branch by message since both leave the same code.
+
+**The rule.** An operator that recognises one spelling of a verdict is a
+coverage measurement of that spelling. When a column reads `0/0`, ask whether
+the gate has no such site or the scanner has no such pattern — those print
+identically and mean opposite things.
+
+Left open and named: `verify_multitarget.py`'s cross-target MISMATCH verdict
+(three invert survivors at the comparison, and the final `sys.exit(0 if ok else
+1)`). Reaching it needs a fake compiler emitting deliberately wrong C and Rust.
+The tool's survivors match that written declaration exactly, which is the first
+time this campaign a declared gap and a measured one agreed line for line.
+

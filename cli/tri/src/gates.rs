@@ -555,6 +555,32 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
                     }
                     _ => {}
                 }
+            } else if let Some(rest) = body.strip_prefix("sys.exit(") {
+                // T114: the same verdict, spelled the way half this repository
+                // spells it. `verify_multitarget.py` carries every one of its
+                // exits through sys.exit() and scored 0/0 on both return
+                // operators -- two empty columns that read as "nothing here to
+                // break" for a gate that is nothing but verdicts.
+                //
+                // `sys.exit(main())` is a dispatch, not a verdict, and
+                // verdict_literals rejects it for the same reason it rejects
+                // `raise SystemExit(main())`.
+                if let Some(inner) = rest.strip_suffix(')') {
+                    match dir {
+                        Direction::Silent
+                            if verdict_literals(inner)
+                                .is_some_and(|v| v.iter().any(|&x| (1..=4).contains(&x))) =>
+                        {
+                            sites.push((off + col, body.len(), "sys.exit(0)".to_string()));
+                        }
+                        Direction::Loud
+                            if verdict_literals(inner).is_some_and(|v| v.contains(&0)) =>
+                        {
+                            sites.push((off + col, body.len(), "sys.exit(1)".to_string()));
+                        }
+                        _ => {}
+                    }
+                }
             } else if let Some(rest) = body.strip_prefix("raise SystemExit(") {
                 // `raise SystemExit(main())` is a dispatch, not a verdict.
                 if let Some(inner) = rest.strip_suffix(')') {

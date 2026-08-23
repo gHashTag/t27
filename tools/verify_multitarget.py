@@ -163,7 +163,88 @@ def run_rust(t27c, spec, fn, pairs, wd):
     return [int(x) for x in out.split()]
 
 
+def self_check():
+    """Prove the skip pair can reach BOTH of its exits, for the right reason.
+
+    T114. This gate ran in CI for the whole campaign with no negative control in
+    any form -- invisible to `tri gates sweep` because it is named `verify_*`
+    rather than `check_*`, which is how a name came to stand in for a property.
+
+    The branch covered here is the one whose entire purpose is to stop a silent
+    non-run: without --require a missing prerequisite is a SKIP and exit 0, with
+    it the same state is a FAILURE. Those two exits are three lines apart and
+    the exit code is the only thing that differs, so each case names the other's
+    marker as forbidden -- "SKIP" reaching exit 1 and "FAIL" reaching exit 0 are
+    both silent successes of the kind this campaign exists to find.
+
+    The world is planted by COPYING THIS SCRIPT INTO AN EMPTY TREE. find_t27c()
+    resolves target/*/t27c against ROOT, and ROOT is __file__'s parent's parent,
+    so the copy makes the absence real rather than simulated. A temp cwd was
+    tried first and does nothing -- the control said so on its first run, which
+    is what a control is for. `t27c` is also removed from PATH, because
+    find_t27c() falls back to shutil.which and a runner with it installed would
+    otherwise find one.
+
+    No flag aims this gate anywhere: nothing here adds a way to make the live
+    check pass.
+
+    NOT COVERED, said out loud rather than left to be inferred: the cross-target
+    MISMATCH verdict at the end of main(). Reaching it needs t27c to emit a
+    backend that disagrees with the Python model, which means planting a fake
+    compiler that generates deliberately wrong C and Rust -- a control worth
+    building and not built here. Until it exists, this gate is proven able to
+    fail on a broken ENVIRONMENT and unproven on a broken ARITHMETIC.
+    """
+    ok = True
+
+    def case(label, args, want_rc, want, forbid):
+        nonlocal ok
+        with tempfile.TemporaryDirectory() as td:
+            import shutil as _sh
+            tools = os.path.join(td, "tools")
+            os.makedirs(tools)
+            me = os.path.join(tools, os.path.basename(__file__))
+            _sh.copy(os.path.abspath(__file__), me)
+            env = dict(os.environ)
+            env["PATH"] = os.pathsep.join(
+                d for d in env.get("PATH", "").split(os.pathsep)
+                if d and not os.path.exists(os.path.join(d, "t27c")))
+            r = subprocess.run([sys.executable, me, *args],
+                               capture_output=True, text=True, cwd=td, env=env)
+        missing = [s for s in want if s not in r.stdout]
+        leaked = [s for s in forbid if s in r.stdout]
+        good = r.returncode == want_rc and not missing and not leaked
+        print(f"  {label:<34} " + (f"exit {want_rc}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want_rc!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       stdout {r.stdout[:300]!r}")
+
+    case("missing prerequisite skips", [], 0,
+         ["SKIP verify_multitarget: t27c binary not found"],
+         ["FAIL", "--require was given", "ALL TARGETS BIT-EXACT", "CROSS-TARGET MISMATCH"])
+
+    # The same world, the opposite verdict. The explanation is asserted with the
+    # exit code because main() has other paths to 1, and "it went red" does not
+    # say it went red for this reason.
+    case("--require turns it into a failure", ["--require"], 1,
+         ["FAIL verify_multitarget: t27c binary not found",
+          "--require was given, so a missing prerequisite is a failure"],
+         ["SKIP", "ALL TARGETS BIT-EXACT", "CROSS-TARGET MISMATCH"])
+
+    print("  self-check: both exits of the skip pair reached, each by its own message; "
+          f"the cross-target mismatch verdict is NOT covered here = {ok}")
+    return 0 if ok else 1
+
+
 def main():
+    if "--self-check" in sys.argv:
+        sys.exit(self_check())
     t27c = find_t27c()
     if not t27c:
         skip("t27c binary not found")
