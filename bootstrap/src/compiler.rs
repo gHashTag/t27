@@ -8403,6 +8403,12 @@ fn find_first_non_local(stmts: &[Node]) -> usize {
     stmts.len()
 }
 
+/// Does this subtree call anything? A call may do work beyond its value, and
+/// no pass here knows which ones do.
+fn contains_call(node: &Node) -> bool {
+    node.kind == NodeKind::ExprCall || node.children.iter().any(contains_call)
+}
+
 fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
     for stmt in stmts.iter() {
@@ -8412,6 +8418,12 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             }
             NodeKind::StmtAssign if stmt.children.len() >= 2 => {
                 collect_reads(&stmt.children[1], &mut reads);
+                // `acc.field = 1` READS `acc` -- you cannot write through a
+                // variable without having it. Only the RHS was collected, so
+                // the declaration was deleted while the use remained.
+                if stmt.children[0].kind != NodeKind::ExprIdentifier {
+                    collect_reads(&stmt.children[0], &mut reads);
+                }
             }
             NodeKind::ExprReturn if !stmt.children.is_empty() => {
                 collect_reads(&stmt.children[0], &mut reads);
@@ -8439,6 +8451,12 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     }
     let before = stmts.len();
     stmts.retain(|s| {
+        // `var unused = launch(d);` was deleted outright, taking the call with
+        // it. This pass decides a STORE is dead; it has no basis for deciding
+        // the computation is. Anything containing a call stays.
+        if s.children.iter().any(contains_call) {
+            return true;
+        }
         if s.kind == NodeKind::StmtLocal && !s.children.is_empty()
             && !reads.contains(&s.name) {
                 return false;
