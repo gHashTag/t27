@@ -3774,3 +3774,63 @@ it.** `verify_exhaustive.py` opens with as careful a scope statement as exists
 in this tree and is reported as having none. A flagged name may be the most
 honest thing in the repository — the flag means *worth reading*, and reading
 means opening the tool.
+
+## 96. Three absurd widths, three different mechanisms, and only two were bugs
+
+The widths ledger opened with ten specs carrying a Verilog range no hardware
+can hold. It closes with one, and the interesting part is that the three
+mechanisms behind them were unrelated:
+
+| width | mechanism |
+|---|---|
+| `4294967295` (u32::MAX) | `range_decl(width - 1)` with no case for 0; a struct of only `&str` sums to zero |
+| `18446744073709551615` (usize::MAX) | `total_width - 1` where `total_width = dims[0] * elem_w` and `dims[0]` is **0** — `var xs : [0]T`, a legal empty list |
+| `4198431` | **not an underflow at all** |
+
+The third is arithmetic that is correct:
+
+```
+Str { data: [4096]u8; len: u32 }                    = 4096*8 + 32     =    32,800
+Map { keys: [64]Str; values: [64]Str; count: u32 }  = 2*64*32800 + 32 = 4,198,432
+```
+
+513 KiB in one packed register. The backend computed it faithfully; the spec
+asked for something with no hardware form. **A gate that catches a class will
+catch things outside the class it was written for**, and the discipline is to
+find the mechanism for each hit rather than assume the one you already fixed.
+
+Two habits this cost:
+
+* **The detector keyed on a property found all three; a search for the literal
+  found one.** Keyed on `4294967295` by hand: 8 specs, one mechanism. Keyed on
+  "no real bus is a million bits wide": 10 specs, three mechanisms.
+* **Write the mechanism into the ledger next to the entry.** The remaining line
+  now carries the arithmetic, so the next reader does not spend an evening
+  looking for a subtraction that is not there. A ledger entry without its
+  mechanism is an invitation to re-derive it, wrongly.
+
+## 97. Ninety-six sites format a width inline, and one of them was the bug
+
+Searching for the second underflow turned up **96** places in the compiler that
+format `[{}:0]` with a bare `- 1`, bypassing the helper that clamps. Eight use
+`saturating_sub`.
+
+That is a **candidate list, not a finding**. Exactly one of the 96 produced a
+bad width over the 650-spec corpus, because most operate on widths that cannot
+be zero — bus widths from a config, element widths already `.max(1)`'d.
+
+The temptation is to fix all 96. Don't:
+
+* The change is enormous, and its blast radius is the whole backend.
+* 95 of the edits would be unverifiable — there is no input that reaches them
+  with zero, so no test can distinguish the fixed version from the broken one.
+* An unverifiable edit in a compiler is a change you cannot defend later.
+
+**Fix the site the corpus reaches. Record the other 95 as a candidate list with
+the count, not as a claim that they are broken.** The measured result is what
+belongs in the commit: 650 specs regenerated, **1 file differs**, and it is the
+target.
+
+The general form, and it is the same rule as §50 one layer down: *a static
+search over an emitter tells you where a bug COULD be. Only running the corpus
+tells you where one IS.*

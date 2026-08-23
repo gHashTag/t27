@@ -3,5 +3,19 @@
 # compiler-side fix is a maintainer decision. Tracked as issue #2566.
 #
 # Removing a line is a repair. Adding one is a regression.
+#
+# The one line left is NOT an underflow, and the arithmetic below is correct:
+#
+#   Str  { data: [4096]u8; len: u32 }   = 4096*8 + 32          = 32,800 bits
+#   Map  { keys: [64]Str; values: [64]Str; count: u32 }
+#                                       = 2*64*32800 + 32   = 4,198,432 bits
+#
+# 513 KiB in one packed register. The backend computed it faithfully; the
+# spec asked for something that has no hardware form. Whether a type this
+# large should be lowerable at all is a design decision, not a bug fix, and
+# it belongs with the same question about zero-width types in #2566.
+#
+# Recorded here so the next reader does not spend an evening looking for a
+# subtraction that is not there. Two of the three mechanisms this ledger
+# once held WERE underflows (u32 and usize) and are fixed.
 specs/compiler/stdlib.t27
-specs/memory/notebooklm.t27
