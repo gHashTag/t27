@@ -219,6 +219,14 @@ def _emit_and_gen(g, arch, modname="bpx"):
     return v, reg, steps, arch[0], arch[2]
 
 
+# mutant-equivalent: the guard above forces returncode != 0, so < is <=
+#
+# T132. Five copies of this line across five verifiers, and the boundary
+# operator reports each as a survivor. All five are reached only after a
+# returncode check -- three via `if returncode == 0: return`, two via
+# `if returncode != 0:` -- so at this point the value cannot be zero, and
+# `< 0` and `<= 0` agree on every value it can hold. Proven from the line
+# above, not assumed from the shape.
 def check(g, arch, workdir):
     v, reg, steps, n_in, n_out = _emit_and_gen(g, arch)
     rf = [0] * len(reg)
