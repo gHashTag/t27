@@ -2498,46 +2498,42 @@ cache means the next run finishes them rather than starting over. A partial tabl
 reported as partial is a measurement; the same table reported as complete is the
 thing this campaign is about.
 
-## 63. Why that control killed nothing, and what fixing it cost
+## 64. Two gates, one mistake, made twice by the same author
 
-`verify_emit_bitexact.py` scored **0 killed of 17**. The reason, once the survivor
-lines were read rather than counted:
+`verify_multitarget.py` scored **0 killed of 7** — and the survivor lines are
+identical in shape to `verify_emit_bitexact.py`'s: the gate's own
+`sys.exit(0 if ok else 1)` under both return operators, and all three comparison
+FAIL branches under inversion.
 
-- `sys.exit(0 if ok else 1)` survived **both** return operators
-- every FAIL branch of the comparison — timeout, step count, mismatch, resource
-  count, synth error — survived inversion
+Both controls cover the skip pair. **Both leave through `skip()` and never reach
+`main()`.** Two gates, one mistake, and I made it twice — the second time three
+iterations after writing down the first.
 
-**All three of my cases leave through `skip()` or `broken()`.** The gate's own
-verdict was never observed at all. A control that covers only preconditions is a
-control *for* preconditions, and I wrote those three knowing that class.
+That is what a *class* looks like when you have not internalised it: the rule was
+recorded, the next control was written the same way, and only a measurement
+caught it.
 
-**The plant that reaches the verdict moves one arm only.** The Python side comes
-from the interpreter `g.run()`; the Verilog is emitted from the microcode
-`steps`, not from `run()`. Perturbing the interpreter makes the model disagree
-with an RTL that is unchanged — which is what a real bit-exactness failure looks
-like. Perturbing shared arithmetic instead would move both arms together and
-plant nothing.
+**Both plants move one arm.** In `verify_multitarget`, `py_ref` reads the Python
+model while C and Rust come from `t27c`; perturbing `py_ref` makes the model
+disagree with backends that are unchanged. Perturbing the spec or the emitter
+would move every arm together and plant nothing — the same distinction that made
+the `verify_emit_bitexact` plant work, and the reason both are one-line edits in
+a specific place rather than "break something".
 
-Two cases now: a clean tree exits 0 saying `RTL == model BIT-EXACT`, and a
-perturbed model exits 1 naming the disagreeing step. Five cases in the file, both
-directions of the verdict.
+    verify_emit_bitexact.py   0/17  ->  13/17
+    verify_multitarget.py      0/7  ->   5/7
 
-### And the cost is real, and worth stating plainly
+Only boundary survivors remain in both.
 
-The mutation loop runs a gate's **whole control per mutant**. This control now
-spawns two ~45-second whole-program runs, so seventeen sites cost roughly half an
-hour — the measurement timed out at ten minutes and the marker caught the
-interrupted tree, cleanly, with nothing leaked.
+### And the honesty mechanism needed its own correction
 
-**That is not a reason to make the control cheaper.** A control that exercises
-only what is fast to exercise is how this gate got to 0/17 in the first place.
-The tension is inherent: *a control worth having is expensive, and the mutation
-loop pays that cost once per mutant.* The cache is the answer — measure once,
-reuse until the gate or its control changes — and `[cached]` is what keeps a
-reused row honest.
+Re-measuring produced a row with **two columns measured and three reused**,
+labelled `[cached]` wholesale. Under-claiming rather than over-claiming — the
+safe direction, and still wrong, because the entire point of the marker is that
+a reader can tell which they are looking at.
 
-**The guard chain worked end to end for the first time.** Timeout → marker names
-the gate → `git checkout -- tools/` → tree clean → committed diff contains only
-the intended change. Three iterations ago the same sequence leaked two mutants
-into a branch.
+Three states now: no marker when fresh, `[cached]` when every column is reused,
+`[3 cached, 2 fresh]` when mixed. The mixed case had to be reached by marking
+cache entries stale by hand, which is worth noting: **a state that cannot occur
+naturally during testing is a state nobody has seen your code produce.**
 
