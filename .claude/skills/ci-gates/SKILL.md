@@ -813,3 +813,47 @@ The pattern is not carelessness about evidence; each had evidence. It is
 **reaching for the general statement one step before the measurement supports
 it**, because the general statement is what a report wants. The discipline is to
 write the specific one and let the reader generalise.
+
+## 21. Grep --help for the noun in your own commit message
+
+Twice in two days I built a tool that already existed, one layer down each time.
+
+- `parse_ast_dropped_spans` was in the compiler, returning every discarded token
+  as `(line, lexeme)`. I wrote a bisection that reaches the same answer by
+  removing items one at a time.
+- `t27c parse-complete --show <spec>` was in the CLI, printing those tokens
+  grouped by line **with the source line beside them**. I wrote
+  `parse-accounted --spans`, which printed the tokens alone and capped the list
+  at 40. Its no-argument form is also the corpus census I then hand-rolled in
+  Python — same figures to the token.
+
+§14 already says to look for the right sample in the tree before inventing a
+coarser one. Knowing the rule did not fire it, because the moment you reach for
+a tool you are thinking about the problem, not about the toolbox.
+
+**The check that would have fired: take the noun out of the sentence you are
+about to write in the commit message, and grep `--help` and the source for it.**
+"How many tokens does the parser DISCARD" → `grep -i discard`. Ten seconds,
+twice missed.
+
+### Two commands answering one question is a drift generator
+
+The consolidation is not tidiness. Two seal-naming conventions left 99 orphaned
+records that a gate reported as stale work for weeks. Two commands for one
+question do the same to knowledge: the next reader finds one of them, and which
+one is chance.
+
+Fold, and keep only what is genuinely new — here, `--bisect`, which says WHICH
+construct the parser stops on where `--show` says WHAT it dropped.
+
+### When the freeze says don't, file instead
+
+Two real defects turned up in `compiler.rs` while doing this: a comment saying
+"one of four discard channels" where five sites increment the counter, and a
+`dropped_spans` cap of 20,000 against an uncapped count, so a large enough file
+would make a summary and its detail view disagree with nothing saying which.
+
+Neither is worth spending a stage0 freeze on. **Filing with the measurement is
+the finished state of that work, not a postponement** — and the issue is the
+right place for the remedy sketch, so whoever does spend the freeze does not
+re-derive it.
