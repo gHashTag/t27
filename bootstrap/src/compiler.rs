@@ -8226,18 +8226,21 @@ fn reduce_expr(node: &mut Node, stats: &mut OptStats) {
     if node.kind == NodeKind::ExprBinary && node.children.len() >= 2 {
         reduce_expr(&mut node.children[0], stats);
         reduce_expr(&mut node.children[1], stats);
-        let is_mul = node.extra_op == "*";
-        let is_div = node.extra_op == "/";
-        if (is_mul || is_div) && is_power_of_two_literal(&node.children[1]) {
-            let shift_val = get_power_of_two(&node.children[1]);
-            node.extra_op = if is_mul {
-                "<<".to_string()
-            } else {
-                ">>".to_string()
-            };
-            node.children[1].value = shift_val.to_string();
-            stats.strengths_reduced += 1;
-        }
+        // The rewrite `x * 2^k -> x << k` and `x / 2^k -> x >> k` used to
+        // happen here unconditionally. It has no type information, and both
+        // directions need it:
+        //
+        //   x: f64,  x * 2  ->  x << 1   -- shifting a float
+        //   x: i32,  x / 2  ->  x >> 1   -- -3/2 is -1, -3>>1 is -2
+        //
+        // The second compiles and is wrong for every negative value. The
+        // rewrite is sound only for unsigned integers, and nothing at this
+        // point knows the operand's type.
+        //
+        // Removed rather than guarded: Zig's own backend strength-reduces, so
+        // the pass bought nothing and cost correctness. The recursion is kept
+        // so the pass still has its shape if type information arrives.
+        let _ = &stats.strengths_reduced;
     }
 }
 
