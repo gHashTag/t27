@@ -1008,6 +1008,12 @@ fn zig_ident(name: &str) -> String {
 }
 
 pub struct Parser {
+    /// While parsing an unparenthesised control-flow condition, a `{` opens the
+    /// BODY, not a struct literal. Without this, `while i < count {` parses
+    /// `count { ... }` as `Name{ .field = ... }` and swallows the loop body,
+    /// leaving the following `return` at apparent top level. Rust solves the
+    /// same ambiguity the same way.
+    no_struct_literal: bool,
     lexer: Lexer,
     current: Token,
     peek: Token,
@@ -1041,6 +1047,7 @@ impl Parser {
             current: first,
             peek: second,
             discarded: Vec::new(),
+            no_struct_literal: false,
             swallowed: Vec::new(),
         }
     }
@@ -2824,10 +2831,30 @@ impl Parser {
         let mut while_node = Node::new(NodeKind::StmtWhile);
         self.advance(); // consume 'while'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // The condition's parentheses are OPTIONAL in t27. Requiring them here
+        // meant `while i < 100 {` failed at the first token and recovery threw
+        // the whole loop away: 115 of 586 while statements are written without
+        // them, and 138 loops never reached the output across 51 specs.
+        //
+        // That is the defect underneath `unused local variable`. A loop counter
+        // whose loop is discarded looks unused to Zig, which is why #2583
+        // deleted 27 live counters on a correct-looking measurement and had to
+        // be reverted (#2587).
+        //
+        // Zig requires the parentheses, so the emitter writes them regardless of
+        // how the spec spelled it.
+        let parenthesised = self.current.kind == TokenKind::LParen;
+        if parenthesised {
+            self.advance();
+        }
+        let saved = self.no_struct_literal;
+        self.no_struct_literal = !parenthesised;
+        let cond = self.parse_expr();
+        self.no_struct_literal = saved;
+        let cond = cond?;
+        if parenthesised {
+            self.expect(TokenKind::RParen)?;
+        }
         while_node.children.push(cond);
 
         // Body: { ... }
@@ -3317,7 +3344,7 @@ impl Parser {
                 }
 
                 // Check for struct literal: Name{ .field = expr, ... }
-                if self.current.kind == TokenKind::LBrace {
+                if self.current.kind == TokenKind::LBrace && !self.no_struct_literal {
                     return self.parse_struct_literal(name);
                 }
 
