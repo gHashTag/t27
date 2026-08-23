@@ -9589,7 +9589,31 @@ impl VerilogCodegen {
 
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
-        if width == 1 {
+        // A width of 0 is not a narrow signal; it is `field_type_width`'s poison
+        // value arriving here, and `width - 1` has no case for it. What that
+        // produced depended on a build flag, and CI builds the quiet one:
+        //
+        //   debug   (overflow-checks on)   panic, "subtract with overflow"
+        //   release (overflow-checks off)  `[4294967295:0]`, exit 0, no stderr
+        //
+        // Ten specs emitted a four-billion-bit range past every green gate
+        // (#2566). `struct CoverPoint { name: &str, condition: &str, clock:
+        // &str, description: &str }` is the shape: a string field contributes 0
+        // by design -- correct in a MIXED struct, where the other fields carry
+        // the width -- and there is no other field.
+        //
+        // Clamped rather than refused. Making such a struct non-lowerable was
+        // tried first and cost 17 new elaboration errors in `hir`: the
+        // non-lowerable path declares per-field registers at some sites and not
+        // at function locals, so `result.assign_count` emitted a reference to a
+        // `result_assign_count` that nothing declares. Elaboration errors
+        // measured, not guessed: 176 before, 193 after, on the same iverilog.
+        //
+        // A 1-bit placeholder for a type that occupies no bits keeps every
+        // packing and slicing path exactly as it was -- there are no field
+        // offsets to disturb, since every field is zero-width -- and emits a
+        // legal declaration instead of an impossible one.
+        if width <= 1 {
             String::new()
         } else {
             format!("[{}:0]", width - 1)
