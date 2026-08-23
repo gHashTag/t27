@@ -3834,3 +3834,69 @@ target.
 The general form, and it is the same rule as §50 one layer down: *a static
 search over an emitter tells you where a bug COULD be. Only running the corpus
 tells you where one IS.*
+
+## 98. The full table, and two of five operators were measuring the wrong sites
+
+Recomputed all five operators over the tree, with the repaired cache:
+
+| operator | killed | sites | rate |
+|---|---|---|---|
+| silent | 47 | 52 | 90% |
+| loud | 28 | 32 | 88% |
+| invert | 72 | 78 | 92% |
+| **boundary** | 26 | 77 | **34%** |
+| **assert** | 2 | 16 | **12%** |
+| **total** | **175** | **255** | **69%** — 80 survivors |
+
+Previously 157/244 with 87 survivors. The verdict-reaching operators sit near
+90%; the whole weakness is two columns, and **40 of the 80 survivors are in one
+file**.
+
+Reading the survivors instead of counting them changes what they mean:
+
+* **The boundary operator has no notion of a verdict.** `invert_sites` keeps
+  only conditions whose body carries one — hence 92%. `boundary_sites` mutates
+  *every* comparison, and the survivors it reports are `while len(v) < N`,
+  `if len(out) > 6`, `while j < len(src)`: **loop bounds and display cutoffs**.
+  Moving those cannot make a gate stop failing, so they were never the question.
+  A 34% rate over sites that do not reach a verdict is not a finding about
+  gates; it is a finding about the operator.
+* **One survivor was already labelled equivalent by the tool itself**:
+  `if r.returncode < 0` where a guard above forces `!= 0`, so `<` and `<=` are
+  the same predicate. The machinery to say this exists; it just runs over the
+  wrong population.
+* **The assert survivors are thresholds with margin.** `te >= int(0.9 * 60)` is
+  a floor of 54, and the measured values are 58, 56, 59, 59, 55, 55. Two sit
+  **one point** above the line — so the threshold is doing real work, and the
+  boundary operator survives because 55 satisfies both `>= 54` and `> 54`.
+  Slack is not the problem; the operator is asking a question the data cannot
+  answer either way.
+
+So the honest correction to this campaign's own framing: **"survivor" means
+"defect" for the return operators and does not for the other two**, and I had
+been reading one number across all five.
+
+Restricting `boundary_sites` to verdict-bearing comparisons is the fix, and it
+is a change to the instrument that deserves its own measurement rather than
+being folded into a tick that discovered it.
+
+## 99. The weakest operator was the one with no flag
+
+`tri gates mutate` had `--loud`, `--invert`, `--assert` — and boundary
+reachable **only through `--all`**, which runs all five over every gate. The
+one operator you cannot iterate on alone was the one with the worst rate.
+
+Four selectable and the weakest not is exactly backwards, and no measurement
+would have found it: the gap was in the **argument parser**, where none of this
+campaign's instruments look. It surfaced because I tried to run a single column
+and the CLI refused.
+
+Added, with a test asserting every operator has a flag and that a misspelling
+is refused.
+
+**The negative control earned its place immediately.** My first version of the
+test built the wrong argv — `["tri", "gates", "mutate", flag]` against a parser
+that wraps `GatesCmd` directly — and *every* flag came back unaccepted,
+including the three that already worked. `--loud` failing was the tell that the
+harness was wrong rather than the parser. A test whose failure names something
+you know to be true is reporting on itself.
