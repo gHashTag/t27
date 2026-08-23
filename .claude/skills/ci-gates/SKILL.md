@@ -857,3 +857,43 @@ Neither is worth spending a stage0 freeze on. **Filing with the measurement is
 the finished state of that work, not a postponement** — and the issue is the
 right place for the remedy sketch, so whoever does spend the freeze does not
 re-derive it.
+
+## 22. A command cannot certify an answer to a question it does not ask
+
+`t27c classify` reads the opening of a file to decide whether it is code. Its
+closing sentence read *"Anything outside SOURCE cannot parse"*. Measured: 5 of
+28 non-SOURCE files parse fine.
+
+The **direction** was right — counting a Markdown document as a failing spec
+does inflate a corpus ratio — and the **stated reason** was a different claim
+entirely, about the rest of the file, which this command never looks at.
+
+That is the shape to watch for: a tool that measures X, and a sentence in its
+output that asserts Y because Y feels like it follows. It survives review
+because the conclusion is correct and only the justification is invented.
+
+**The repair is not to delete the sentence.** State what the number is for, say
+explicitly what does NOT follow, and name the command that IS the authority on
+the other question. Two commands cross-referenced then say what neither says
+alone: of 154 specs that do not parse, 131 are SOURCE — so the not-code
+correction is worth 23, not 28.
+
+### Cross-reference before you build
+
+Every number in that finding came from two existing commands. §21's lesson —
+grep `--help` for the noun before writing a tool — has a second half: once you
+have found the tools, **the answer is often the intersection of two of them**,
+and neither author had a reason to compute it.
+
+### Read the raw section before reporting an inconsistency
+
+I nearly filed "the summary says 5, the detail view lists 7 — the command
+contradicts itself". It does not. My line filter was catching the closing prose,
+which contains the string `.t27`. The section itself lists exactly five.
+
+An inconsistency inside one command's own output is a strong claim. It is also
+the easiest kind of finding to manufacture with a sloppy filter, because you are
+grepping output whose format you did not write and did not check. **Print the
+section and count by eye before writing it up.** Six of my own instruments have
+been broken in this campaign; this is the first one that would have accused
+somebody else's working code.
