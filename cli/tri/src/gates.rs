@@ -782,15 +782,28 @@ fn resolve_target(dir: Option<&str>) -> Result<(std::path::PathBuf, std::path::P
 /// or not its name says so. Name-matching stays as a second rule, because a gate
 /// may be invoked by a script rather than by a workflow directly.
 fn is_gate_by_property(root: &std::path::Path, name: &str, src: &str) -> bool {
-    let exits_nonzero = src.contains("sys.exit(1")
-        || src.contains("sys.exit(2")
-        || src.contains("sys.exit(3")
-        || src.contains("sys.exit(4")
-        || src.contains("return 1")
-        || src.contains("return 2")
-        || src.contains("return 3")
-        || src.contains("return 4")
-        || src.contains("raise SystemExit(1");
+    // T119: a TERNARY exit counts. `sys.exit(0 if ok else 1)` is the ordinary
+    // way this repository ends a verifier, and a substring test for
+    // "sys.exit(1" cannot see it -- so a gate that fails correctly was not
+    // classified as a gate at all.
+    //
+    // Found by a wrong claim of my own: a one-off grep with this exact blind
+    // spot said verify_trainer_c.py "could not fail", and its last line is
+    // `sys.exit(0 if ok else 1)`. The campaign wrote verdict_literals() to
+    // handle ternaries in the mutation scanner months ago, and the shortcut
+    // here reintroduced the same blindness in the selector.
+    let exits_nonzero = src.lines().any(|l| {
+        let t = l.trim();
+        let inner = t
+            .strip_prefix("sys.exit(")
+            .and_then(|r| r.strip_suffix(')'))
+            .or_else(|| t.strip_prefix("raise SystemExit(").and_then(|r| r.strip_suffix(')')))
+            .or_else(|| t.strip_prefix("return "));
+        match inner {
+            Some(e) => verdict_literals(e).is_some_and(|v| v.iter().any(|&x| (1..=4).contains(&x))),
+            None => false,
+        }
+    });
     if !exits_nonzero {
         return false;
     }
@@ -1586,6 +1599,53 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         assert!(equivalence_claims("s = \"mutant-equivalent: no\"\nif a > b:\n").is_empty());
         // A marker with nothing after it names nothing rather than panicking.
         assert!(equivalence_claims("# mutant-equivalent: x\n").is_empty());
+    }
+
+    #[test]
+    fn a_ternary_exit_is_a_failure_path() {
+        // T119: `sys.exit(0 if ok else 1)` is how this repository ends a
+        // verifier, and a substring test for "sys.exit(1" cannot see it. Three
+        // CI gates were classified as not-gates for that reason, and the count
+        // of uncovered gates was reported too low for a week.
+        let base = std::env::temp_dir().join(format!("tri_t119_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join(".github/workflows")).unwrap();
+        std::fs::write(
+            base.join(".github/workflows/ci.yml"),
+            "run: python3 tools/verifier.py\nrun: python3 tools/reporter.py\n",
+        )
+        .unwrap();
+
+        assert!(
+            is_gate_by_property(&base, "verifier.py", "    sys.exit(0 if ok else 1)\n"),
+            "a ternary exit is a failure path"
+        );
+        assert!(
+            is_gate_by_property(&base, "verifier.py", "    return 1 if bad else 0\n"),
+            "a ternary return is a failure path"
+        );
+        assert!(
+            is_gate_by_property(&base, "verifier.py", "    sys.exit(1)\n"),
+            "the plain form must keep working"
+        );
+
+        // And the other direction, or everything becomes a gate: a script that
+        // only ever succeeds is not one, and neither is a failing script nobody
+        // invokes.
+        assert!(
+            !is_gate_by_property(&base, "reporter.py", "    sys.exit(0)\n"),
+            "a script that cannot fail is not a gate"
+        );
+        assert!(
+            !is_gate_by_property(&base, "unmentioned.py", "    sys.exit(1)\n"),
+            "a script no workflow invokes is not a gate"
+        );
+        // `sys.exit(main())` is a dispatch, not a verdict.
+        assert!(
+            !is_gate_by_property(&base, "verifier.py", "    sys.exit(main())\n"),
+            "a dispatch is not a verdict"
+        );
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]

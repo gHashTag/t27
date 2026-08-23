@@ -2079,3 +2079,54 @@ by something that cannot read it.
 Gates with no control in any form: **1** — down from 3 when property-based
 selection first exposed them, and from 4 of 12 when the campaign began.
 
+## 52. Closing the last one revealed the count was wrong
+
+`fuzz_trainer.py` was the last gate with no control. Closing it produced three
+findings, and the third makes the first two look small.
+
+**Two defects in two lines of a shared helper.** `skip()` hard-coded its own
+name, so `fuzz_trainer.py` announced *"SKIP verify_trainer_c"* while running
+something else — anyone reading a CI log to see which check declined got the
+wrong answer. And it had no `--require` at all, while its sibling
+`verify_multitarget.py` has one with a comment explaining why. **Two of the three
+trainer checks in one workflow job could silently pass on a missing compiler
+while the third refused** — same runner, same environment, opposite rules.
+
+**A crash at import.** `ROUNDS = int(sys.argv[1])` read position, not meaning, so
+`fuzz_trainer.py --require` — the spelling this commit adds to CI — died with a
+`ValueError` before `main()` and before any verdict.
+
+**A case that passed for the wrong reason.** The planted divergence used a bare
+`str.replace` on the whole file and hit `run_model`'s return, three functions
+before `run_c`. The counterexample case failed loudly; the **length** case
+passed, because a shortened model is also a length mismatch. Satisfied by a
+divergence planted somewhere it was never meant to be. Scoping the edit to the
+text after `def run_c(` is what makes the case measure the arm it names.
+
+### And then the count moved 18 → 21
+
+Closing the last gate made the tool report a *new* uncovered one, and chasing
+that produced a claim of my own: *"verify_trainer_c.py has no non-zero exit at
+all — a CI step named 'Prove the WHOLE trainer bit-exact' that cannot fail."*
+
+**That claim is false.** Its last line is `sys.exit(0 if ok else 1)`. My grep
+looked for `sys.exit(` followed by a digit and could not see a ternary — and
+**`is_gate_by_property` had the identical blind spot**, so it classified three
+more CI gates as not-gates.
+
+The campaign wrote `verdict_literals()` for exactly this, months ago, because the
+mutation scanner was blind to ternaries. The selector reintroduced the blindness
+as a substring shortcut, and I reintroduced it a third time in a one-off grep
+while investigating.
+
+Fixed by routing the property check through `verdict_literals` — the function
+that already knew. Real state: **21 gates, 4 with no control in any form**, not
+18 and 1. `gft_backprop_microcode.py`, `verify_emit_bitexact.py`,
+`verify_igla_race.py` and `verify_trainer_c.py` were invisible for the whole
+campaign because their only failure path is a ternary.
+
+**The rule.** When you write a quick grep to check a property the codebase
+already has a parser for, you are choosing the version with the known bug. Ask
+what the existing checker would say, and if you cannot run it, at least give the
+shortcut the same cases the real one has.
+

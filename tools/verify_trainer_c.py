@@ -94,7 +94,29 @@ static uint32_t modf_(uint32_t v, int m){
 
 
 def skip(msg):
-    print(f"SKIP verify_trainer_c: {msg}"); sys.exit(0)
+    """A missing prerequisite: a SKIP locally, a FAILURE under --require.
+
+    T118, two defects in two lines.
+
+    The name was hard-coded, so `fuzz_trainer.py` -- which imports this module
+    and calls this function -- announced "SKIP verify_trainer_c" while running
+    something else. Anyone reading a CI log to see which check declined got the
+    wrong answer. `sys.argv[0]` is the script that is actually running.
+
+    And there was no --require at all. Its sibling verify_multitarget.py has one,
+    with a comment explaining why: in CI a skip means the environment broke, and
+    exit 0 makes "proved" indistinguishable from "never ran". Two of the three
+    trainer checks in one workflow job could silently pass on a missing compiler
+    while the third refused -- same runner, same environment, opposite rules.
+    """
+    who = os.path.basename(sys.argv[0]) or "verify_trainer_c"
+    if "--require" in sys.argv:
+        print(f"FAIL {who}: {msg}")
+        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
+        print("  The CI job builds t27c and the runner ships cc; if one is absent the")
+        print("  environment is broken and this check did not run.")
+        sys.exit(1)
+    print(f"SKIP {who}: {msg}"); sys.exit(0)
 
 
 def find_t27c():
