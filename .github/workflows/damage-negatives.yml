@@ -1,0 +1,39 @@
+# `tri damage` must report zero on lines that are not damage.
+#
+# Six fixtures hold false positives the detector used to produce -- 230 of its
+# first 429 findings were latency bounds, `target : < 5000ns`, where `<` is the
+# operator and not a bracket. They were written in #2161 and never merged,
+# while the tool they guard landed through other PRs, so the control has never
+# run until now.
+#
+# The gate asserts the fixtures were FOUND as well as found clean. `tri damage`
+# over a path that does not exist also reports zero, and until the file count
+# was added to its output the two were the same line of text.
+#
+# No `paths:` filter: a filtered workflow is skipped on a PR whose merge diff
+# cannot be computed, which is the conflicting PR that most needs a gate.
+name: Damage Negatives
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: damage-negatives-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  negatives:
+    runs-on: ubuntu-latest
+    name: Damage negatives (false-positive fixtures)
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that this checker can fail
+        run: python3 tools/check_damage_negatives.py --self-check
+      - name: Run the negative control
+        run: python3 tools/check_damage_negatives.py --require
