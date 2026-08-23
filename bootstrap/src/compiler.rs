@@ -3805,8 +3805,26 @@ impl Codegen {
 
         // Check if file has test blocks — emit std import if so
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
-        if has_tests {
+
+        // Specs call `expect(...)` and `assert(...)` bare and nothing declared
+        // them: 40 and 22 undeclared-identifier errors, 62 of the 322 in that
+        // class. Invisible to the first-error histogram -- #2545, where counting
+        // every error rather than the first made them findable.
+        //
+        // Bound only when referenced, or the binding is itself an unused
+        // declaration and one error is traded for another.
+        let uses = |n: &str| ast.children.iter().any(|c| mentions_identifier(c, n));
+        let needs_expect = uses("expect");
+        let needs_assert = uses("assert");
+
+        if has_tests || needs_expect || needs_assert {
             self.write_line("const std = @import(\"std\");");
+            if needs_expect {
+                self.write_line("const expect = std.testing.expect;");
+            }
+            if needs_assert {
+                self.write_line("const assert = std.debug.assert;");
+            }
             self.write_line("");
         }
 
@@ -3874,8 +3892,26 @@ impl Codegen {
 
         // Check if file has test blocks — emit std import if so
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
-        if has_tests {
+
+        // Specs call `expect(...)` and `assert(...)` bare and nothing declared
+        // them: 40 and 22 undeclared-identifier errors, 62 of the 322 in that
+        // class. Invisible to the first-error histogram -- #2545, where counting
+        // every error rather than the first made them findable.
+        //
+        // Bound only when referenced, or the binding is itself an unused
+        // declaration and one error is traded for another.
+        let uses = |n: &str| ast.children.iter().any(|c| mentions_identifier(c, n));
+        let needs_expect = uses("expect");
+        let needs_assert = uses("assert");
+
+        if has_tests || needs_expect || needs_assert {
             self.write_line("const std = @import(\"std\");");
+            if needs_expect {
+                self.write_line("const expect = std.testing.expect;");
+            }
+            if needs_assert {
+                self.write_line("const assert = std.debug.assert;");
+            }
             self.write_line("");
         }
 
