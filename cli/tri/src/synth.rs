@@ -62,7 +62,11 @@ fn count(log: &str, needle: &str, exact: bool) -> u64 {
             (Some(a), Some(b)) => (a, b),
             _ => continue,
         };
-        let hit = if exact { name == needle } else { name.starts_with(needle) };
+        let hit = if exact {
+            name == needle
+        } else {
+            name.starts_with(needle)
+        };
         if hit {
             if let Ok(v) = n.parse::<u64>() {
                 total += v;
@@ -127,7 +131,14 @@ fn area(sources: &[String], top: &str, nodsp: bool, params: &[String]) -> Result
     let ff = count(&log, "FD", false);
     let carry = count(&log, "CARRY4", true);
 
-    println!("{top}   {}", if nodsp { "(DSP inference off)" } else { "(DSP inference on)" });
+    println!(
+        "{top}   {}",
+        if nodsp {
+            "(DSP inference off)"
+        } else {
+            "(DSP inference on)"
+        }
+    );
     for p in params {
         println!("  param {p}");
     }

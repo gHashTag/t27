@@ -1,0 +1,56 @@
+# iverilog elaboration errors per generated module. This is a RATCHET:
+# the numbers may fall, never rise (#2325). iverilog's own "N error(s)
+# during elaboration" summary line is NOT counted -- it is a total, and
+# counting it added one phantom error per failing module.
+# The remainder is not one thing. Do not copy a classification here:
+# the last one was wrong when written and stale within the hour. Run
+# `tri elab classify` -- it measures the distribution by message shape.
+# iverilog-version 13.0
+# --- notes (hand-written, preserved) ---
+# 2026-08-23: 162 -> 176 across 32 -> 35 modules, and that is COVERAGE
+# arriving, not a regression. The module set was a hardcoded 36-name array
+# in main.rs; four specs on disk were never generated -- bpsk,
+# power_analysis, ternary_link, vcd_conformance_compare -- and carried 14
+# errors nothing counted or bounded. The set is now the directory (T75).
+#
+# clock_domain went 4 -> 5 and that was the FIX landing, not a regression. Its
+# 4 entries were syntax errors from a keyword-named parameter emitted bare; a
+# syntax error truncates the file, so the 5 real elaboration errors behind it
+# had never been counted. Removing a syntax error can RAISE this number. The
+# ratchet is a guard against silent slippage, not a quality score.
+apb_bridge 4
+assembler 4
+axi4 2
+bootrom 3
+bpsk 0
+bridge 16
+clock_domain 5
+crossopt 0
+cts 2
+dft 6
+e2e_demo 2
+fifo 2
+formal 20
+gf16_accel 6
+hir 16
+hw_types 0
+linker 4
+mac 0
+memory 5
+partition 2
+placement 6
+power 2
+power_analysis 1
+router 8
+simulator 2
+spi 0
+stdlib 2
+ternary_isa 6
+ternary_link 0
+testbench 8
+timing 10
+top_level 0
+uart 0
+vcd_conformance_compare 13
+vcd_trace 14
+zerodsp_top 5

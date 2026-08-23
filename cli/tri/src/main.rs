@@ -15,10 +15,12 @@ mod gates;
 mod hooks;
 mod mutate;
 mod nownote;
+mod reseal;
 mod prcheck;
 mod red;
 mod rtl;
 mod sweep;
+mod vectors;
 mod synth;
 
 #[derive(Parser)]
@@ -73,6 +75,11 @@ enum Commands {
         #[command(subcommand)]
         action: mutate::MutateCmd,
     },
+    /// Recompute the FROZEN_HASH seal from the file it seals.
+    Reseal {
+        #[command(subcommand)]
+        action: reseal::ResealCmd,
+    },
     /// Write a docs/now/ entry without hand-writing the frame.
     Now {
         #[command(subcommand)]
@@ -123,6 +130,12 @@ enum Commands {
     Hooks {
         #[command(subcommand)]
         action: hooks::HooksCmd,
+    },
+    /// The executed-vector registry: run a module's vectors, or inventory
+    /// which files are executed and which are only displayed.
+    Vectors {
+        #[command(subcommand)]
+        action: vectors::VectorsCmd,
     },
 }
 
@@ -717,6 +730,7 @@ fn main() -> Result<()> {
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
+        Commands::Reseal { action } => reseal::run(action)?,
         Commands::Now { action } => nownote::run(action)?,
         Commands::Ci { action } => cibase::run(action)?,
         Commands::Fleet { action } => fleet::run(action)?,
@@ -725,6 +739,7 @@ fn main() -> Result<()> {
         Commands::Synth { action } => synth::run(action)?,
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
+        Commands::Vectors { action } => vectors::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }

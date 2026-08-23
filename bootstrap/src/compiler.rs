@@ -2000,6 +2000,47 @@ impl Parser {
         if self.current.kind == TokenKind::Equals {
             self.advance(); // consume =
 
+            // A TAGGED UNION: `pub const Operand = union(enum) { A: struct {...}, ... };`
+            // `union` is not a keyword in this lexer, so it arrives as an
+            // identifier and `union(enum)` parsed as a CALL -- whose argument
+            // is the keyword `enum`, reported as "Unexpected token in
+            // expression: KwEnum" pointing into the middle of a type.
+            //
+            // Captured verbatim rather than lowered to a struct. Its variants
+            // carry payload types (`RegOperand: struct { reg_num: u8 }`) and a
+            // union is not a struct: emitting one as the other would give every
+            // variant its own storage and silently change the layout. A backend
+            // that cannot read this text refuses the declaration, which is the
+            // outcome to want.
+            if self.current.kind == TokenKind::Ident && self.current.lexeme == "union" {
+                let mut text = String::new();
+                let mut depth = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            depth += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => depth -= 1,
+                        _ => {}
+                    }
+                    if !text.is_empty() {
+                        text.push(' ');
+                    }
+                    text.push_str(&self.current.lexeme);
+                    self.advance();
+                    if seen && depth == 0 {
+                        break;
+                    }
+                }
+                decl.value = text;
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                return Ok(decl);
+            }
+
             // [BUG 8 FIX] Check what follows: enum(...), struct { }, [N]T{ }, identifier, number, etc.
             if self.current.kind == TokenKind::KwEnum {
                 // pub const Trit = enum(i8) { ... };
@@ -2292,7 +2333,25 @@ impl Parser {
     fn parse_enum_body(&mut self, decl: &mut Node) -> Result<(), String> {
         // We are inside { ... } of an enum. Parse variant = value pairs.
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
-            if self.current.kind == TokenKind::Ident {
+            // A variant whose name is a KEYWORD: `then`, `and`, `assert`,
+            // `expect` are all real members of ClauseKind in
+            // contrib/backend/zig/legacy/main_zig_handwritten.t27. Requiring
+            // Ident dropped them, the loop fell through to the skip below, and
+            // the enum's own `}` ended something else -- reported 60 lines on
+            // as "Unexpected token in expression: Semicolon".
+            //
+            // Same predicate the struct-literal parser uses for a keyword field
+            // label and the `.Variant` shorthand uses for a keyword value: in a
+            // position where only a name can appear, any word-shaped token is a
+            // name. A language whose own token names are keywords will keep
+            // producing this.
+            let word_shaped = !self.current.lexeme.is_empty()
+                && self
+                    .current
+                    .lexeme
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_');
+            if self.current.kind == TokenKind::Ident || word_shaped {
                 let name = self.current.lexeme.clone();
                 self.advance();
 
@@ -2346,6 +2405,44 @@ impl Parser {
             // modifier and missed on the one with it.
             if self.current.kind == TokenKind::KwPub {
                 self.advance();
+            }
+            // A NESTED TYPE declaration: `const Kind = enum { ... };` inside a
+            // struct body. Nothing here consumed it, so the walk reached the
+            // ENUM's closing brace -- and this loop stops at any RBrace, so the
+            // struct ended there. The module then ended at the struct's own
+            // brace and the error surfaced sixty lines later on a `;`.
+            //
+            // Third appearance of one shape: a nested brace group ending the
+            // construct that contains it (W577 for methods, gap 5 for an
+            // anonymous return type, this for a nested type). Consumed
+            // brace-balanced; the members are not lowered, and the point is
+            // only that the struct still ends where it should.
+            if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+                let mut d = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            d += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => d -= 1,
+                        TokenKind::Semicolon if !seen => {
+                            // A plain `const N = 3;` with no brace group.
+                            self.advance();
+                            break;
+                        }
+                        _ => {}
+                    }
+                    self.advance();
+                    if seen && d == 0 {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        break;
+                    }
+                }
+                continue;
             }
             if self.current.kind == TokenKind::Ident {
                 let field_name = self.current.lexeme.clone();
@@ -2495,10 +2592,43 @@ impl Parser {
                 // part of what the backends emit today. What matters is that
                 // the skip is BRACE-BALANCED so the struct still ends where it
                 // should.
-                while self.current.kind != TokenKind::LBrace
-                    && self.current.kind != TokenKind::Eof
-                    && self.current.kind != TokenKind::RBrace
-                {
+                // Scan to the method's BODY brace. An anonymous struct type in
+                // return position -- `fn f(...) struct { u64, []const u8 } {`
+                // -- puts a brace in front of it, and stopping at that one made
+                // the balanced skip below close on the TYPE. The struct then
+                // ended at its first such method and the module ended at the
+                // struct's own `}`: exactly the W577 failure this comment block
+                // records, recurring on a construct it did not anticipate. It
+                // cost compiler/parser/lexer.t27 everything after line 362
+                // while reporting a parse error 144 lines further on.
+                loop {
+                    if matches!(
+                        self.current.kind,
+                        TokenKind::Eof | TokenKind::RBrace | TokenKind::LBrace
+                    ) {
+                        break;
+                    }
+                    if matches!(self.current.kind, TokenKind::KwStruct | TokenKind::KwEnum) {
+                        // Consume the whole type, braces included, so the scan
+                        // resumes looking for the body.
+                        let mut d = 0i32;
+                        let mut seen = false;
+                        while self.current.kind != TokenKind::Eof {
+                            match self.current.kind {
+                                TokenKind::LBrace => {
+                                    d += 1;
+                                    seen = true;
+                                }
+                                TokenKind::RBrace => d -= 1,
+                                _ => {}
+                            }
+                            self.advance();
+                            if seen && d == 0 {
+                                break;
+                            }
+                        }
+                        continue;
+                    }
                     self.advance();
                 }
                 if self.current.kind == TokenKind::LBrace {
@@ -2833,7 +2963,44 @@ impl Parser {
         // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
         // W581: an OPTIONAL return type, `-> ?u32`. The shared type parser
         // handles the `?`; this header has its own paths and needed telling.
-        if self.current.kind == TokenKind::Question {
+        if self.current.kind == TokenKind::KwStruct {
+            // An ANONYMOUS STRUCT TYPE in return position: Zig's tuple type,
+            // `fn f(...) struct { u64, []const u8 } { ... }`. The dispatch
+            // below knows `?`, `(`, an identifier and the slice forms, and
+            // nothing else, so `struct` fell through to the body and the
+            // header died on "Expected LBrace, got KwStruct" -- which is
+            // exactly where compiler/parser/lexer.t27 stopped once the
+            // anonymous braced LITERAL was understood. Captured verbatim, the
+            // way a local `const T = struct {...}` already is: the backends
+            // that can lower it read the text, and the ones that cannot refuse
+            // on a type they can see rather than on a header they could not
+            // parse.
+            let mut text = String::new();
+            let mut depth: i32 = 0;
+            let mut seen = false;
+            loop {
+                if self.current.kind == TokenKind::Eof {
+                    break;
+                }
+                match self.current.kind {
+                    TokenKind::LBrace => {
+                        depth += 1;
+                        seen = true;
+                    }
+                    TokenKind::RBrace => depth -= 1,
+                    _ => {}
+                }
+                if !text.is_empty() {
+                    text.push(' ');
+                }
+                text.push_str(&self.current.lexeme);
+                self.advance();
+                if seen && depth == 0 {
+                    break;
+                }
+            }
+            decl.extra_return_type = text;
+        } else if self.current.kind == TokenKind::Question {
             decl.extra_return_type = self.parse_type_annotation();
         } else if self.current.kind == TokenKind::LParen {
             // Tuple return type: (u32, u32)
@@ -3100,6 +3267,47 @@ impl Parser {
 
     /// Parse a single statement inside a function body
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
+        // `defer <stmt>;` / `errdefer <stmt>;` -- Zig's scope-exit hook. Not
+        // keywords in this lexer, so the statement parsed as the expression
+        // `defer` and whatever followed became "unexpected token after
+        // expression statement".
+        //
+        // ATTACHED, not skipped -- unlike `inline` below. `inline` is a hint a
+        // non-unrolling parser can ignore with nothing lost; a dropped `defer`
+        // silently removes a release, a close or a free. The distinction is the
+        // same one the `while` continue expression got: skip what carries no
+        // meaning, keep what does, and let a backend refuse a marker it does
+        // not know rather than emit code missing a step.
+        if self.current.kind == TokenKind::Ident
+            && (self.current.lexeme == "defer" || self.current.lexeme == "errdefer")
+        {
+            let name = self.current.lexeme.clone();
+            let line = self.current.line as u32;
+            self.advance();
+            let inner = self.parse_body_stmt()?;
+            let mut node = Node::new(NodeKind::StmtExpr);
+            node.name = name;
+            node.extra_op = "scope_exit".to_string();
+            node.line = line;
+            node.children.push(inner);
+            return Ok(node);
+        }
+
+        // `inline for (...)` / `inline while (...)` -- Zig's unroll hint. It is
+        // not a keyword in this lexer, so it arrived as an identifier, the
+        // statement was parsed as the expression `inline`, and the loop keyword
+        // behind it became "unexpected token after expression statement".
+        //
+        // Skipped, not recorded: `inline` asks the compiler to unroll, and a
+        // parser that does not unroll loses nothing by ignoring it. The loop
+        // itself is parsed normally, which is the part that carries meaning.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "inline"
+            && matches!(self.peek.kind, TokenKind::KwFor | TokenKind::KwWhile)
+        {
+            self.advance();
+        }
+
         // W914: a Rust-dialect `match` block. The grammar has no match; the
         // frozen parser ATE it through an uncounted channel and called the fn
         // parsed, and this parser hard-errored -- both wrong. Capture the
@@ -3540,6 +3748,30 @@ impl Parser {
         };
         if_node.children.push(cond);
 
+        // PAYLOAD CAPTURE: `if (opt) |value| { ... }` -- Zig's optional
+        // unwrap. The for-loop parser has handled `|x|` since W-something;
+        // `if` never learned it, so the `|` was read as bitwise-or, its right
+        // operand demanded, and the body brace arrived instead. Stored the
+        // same way `for` stores its capture -- in params, not lowered -- so
+        // this changes what PARSES and nothing about what is emitted.
+        if self.current.kind == TokenKind::Pipe {
+            self.advance(); // consume |
+            while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Star {
+                    self.advance(); // pointer capture |*x|
+                }
+                if self.current.kind == TokenKind::Ident {
+                    if_node
+                        .params
+                        .push((self.current.lexeme.clone(), String::new()));
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::Pipe {
+                self.advance(); // consume closing |
+            }
+        }
+
         // Then branch: { ... }
         if self.current.kind == TokenKind::LBrace {
             self.advance(); // consume {
@@ -3622,6 +3854,34 @@ impl Parser {
             c?
         };
         while_node.children.push(cond);
+
+        // Zig's CONTINUE EXPRESSION: `while (i < n) : (i += 1) { ... }`, the
+        // step that runs after every iteration. Without it the `:` arrived
+        // where the body brace was expected and the fn died on "Expected
+        // LBrace, got Colon".
+        //
+        // Parsed and attached, not discarded: dropping it would leave a loop
+        // whose counter never advances, which is a WORSE outcome than refusing
+        // the file -- an infinite loop that compiles is the kind of silence
+        // this project keeps finding. Backends that do not know the marker
+        // refuse the node; they do not quietly emit a loop missing its step.
+        if self.current.kind == TokenKind::Colon {
+            self.advance(); // consume :
+            let step = if self.current.kind == TokenKind::LParen {
+                self.advance();
+                let e = self.parse_body_stmt()?;
+                if self.current.kind == TokenKind::RParen {
+                    self.advance();
+                }
+                e
+            } else {
+                self.parse_body_stmt()?
+            };
+            let mut cont = Node::new(NodeKind::Module);
+            cont.name = "continue_expr".to_string();
+            cont.children.push(step);
+            while_node.children.push(cont);
+        }
 
         // Body: { ... }
         self.expect(TokenKind::LBrace)?;
@@ -3937,6 +4197,17 @@ impl Parser {
                 | TokenKind::Gte
                 | TokenKind::DotDot
         ) {
+            // `..` is in this chain as a range operator, which makes the
+            // OPEN-ENDED slice `x[a..]` unparseable: the operator is consumed,
+            // a right operand is demanded, and the `]` arrives instead --
+            // reported as "Unexpected token in expression: RBracket" pointing
+            // at a bracket that is exactly where it belongs. Leave the `..` for
+            // the slice parser when nothing can follow it.
+            if self.current.kind == TokenKind::DotDot
+                && matches!(self.peek.kind, TokenKind::RBracket | TokenKind::RParen)
+            {
+                break;
+            }
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_bitor()?;
@@ -4273,15 +4544,32 @@ impl Parser {
                 // The corpus ALSO contains 78 `[7:0]` bit-ranges -- Verilog,
                 // inside string literals -- which are not slices and are not
                 // reached here, because a string literal is one token.
-                if self.current.kind == TokenKind::Colon {
-                    self.advance(); // consume :
-                    let end = self.parse_expr()?;
+                // Zig spells the same slice `x[a..b]`, and also has an
+                // OPEN-ENDED form `x[a..]` with no end index -- which is what
+                // `for (ident[1..]) |c|` uses in the lexer's own spec. Without
+                // it the `..` was consumed as a binary operator, the end
+                // operand was demanded, and the parser reported "Unexpected
+                // token in expression: RBracket" pointing at the `]`.
+                //
+                // The open form gets its own marker rather than a synthesised
+                // end. A backend that has never heard of it then refuses on a
+                // node it does not recognise, instead of lowering a bounded
+                // slice whose bound nobody wrote.
+                if self.current.kind == TokenKind::Colon
+                    || self.current.kind == TokenKind::DotDot
+                {
+                    self.advance(); // consume : or ..
+                    let open = self.current.kind == TokenKind::RBracket;
+                    let end = if open { None } else { Some(self.parse_expr()?) };
                     self.expect(TokenKind::RBracket)?;
                     let mut slice_node = Node::new(NodeKind::ExprIndex);
-                    slice_node.extra_op = "slice".to_string();
+                    slice_node.extra_op =
+                        if open { "slice_open" } else { "slice" }.to_string();
                     slice_node.children.push(expr);
                     slice_node.children.push(index);
-                    slice_node.children.push(end);
+                    if let Some(e) = end {
+                        slice_node.children.push(e);
+                    }
                     expr = slice_node;
                     continue;
                 }
@@ -4290,10 +4578,66 @@ impl Parser {
                 idx_node.children.push(expr);
                 idx_node.children.push(index);
                 expr = idx_node;
+            } else if self.current.kind == TokenKind::LBrace
+                && self.no_struct_literal == 0
+                && expr.kind == NodeKind::ExprCall
+            {
+                // `Type(args){}` -- a call that RETURNS a type, initialised on
+                // the spot: `GeneralPurposeAllocator(.{}){}`. The call itself is
+                // built in primary, so this has to live in the postfix chain to
+                // see it; putting it beside the expression-call branch missed,
+                // because `ident(...)` never reaches that branch.
+                //
+                // Two guards, both load-bearing. `no_struct_literal` is the
+                // same counter that stops `if cond {` being read as a struct
+                // literal -- inside a paren-less condition this brace opens the
+                // BODY. And the left side must already BE a call: a bare
+                // `name {` is a struct literal or a block and is not this.
+                let mut init = String::new();
+                let mut depth = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            depth += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => depth -= 1,
+                        _ => {}
+                    }
+                    if !init.is_empty() {
+                        init.push(' ');
+                    }
+                    init.push_str(&self.current.lexeme);
+                    self.advance();
+                    if seen && depth == 0 {
+                        break;
+                    }
+                }
+                expr.value = init;
             } else if self.current.kind == TokenKind::LParen {
-                // Function call on an expression: shouldn't normally happen here
-                // since calls are handled in primary for ident(...) and @builtin(...)
-                break;
+                // A call on an ARBITRARY expression. The comment this replaces
+                // said it "shouldn't normally happen", and `func.?(a, b)` in
+                // specs/jit/jit.t27 is exactly it: the optional is unwrapped by
+                // the branch above, and the call on the result arrived here and
+                // was left unconsumed -- so the statement parser met a bare
+                // `(` and reported "unexpected token after expression
+                // statement: LParen", pointing past the construct rather than
+                // at it.
+                self.advance(); // consume (
+                let mut call = Node::new(NodeKind::ExprCall);
+                call.children.push(expr);
+                call.extra_op = "callee_expr".to_string();
+                while self.current.kind != TokenKind::RParen
+                    && self.current.kind != TokenKind::Eof
+                {
+                    call.children.push(self.parse_expr()?);
+                    if self.current.kind == TokenKind::Comma {
+                        self.advance();
+                    }
+                }
+                self.expect(TokenKind::RParen)?;
+                expr = call;
             } else {
                 break;
             }
@@ -4469,7 +4813,23 @@ impl Parser {
             // Enum value: .variant
             TokenKind::Dot => {
                 self.advance(); // consume .
-                if self.current.kind == TokenKind::Ident {
+                if self.current.kind == TokenKind::LBrace {
+                    return self.parse_anon_braced();
+                }
+                // An enum-value shorthand whose name is a KEYWORD: `.use`,
+                // `.const`, `.data`. The lexer classifies those as keywords,
+                // so requiring Ident here rejected them -- and a language
+                // whose own token names are keywords will keep producing this.
+                // Same predicate the struct-literal parser already uses for a
+                // keyword FIELD LABEL (W906): any word-shaped token in a
+                // position where only a name can appear is a name.
+                let word_shaped = !self.current.lexeme.is_empty()
+                    && self
+                        .current
+                        .lexeme
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_');
+                if self.current.kind == TokenKind::Ident || word_shaped {
                     let name = self.current.lexeme.clone();
                     self.advance();
                     Ok(Node {
@@ -4611,6 +4971,50 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
         Ok(call)
+    }
+
+    /// Parse the anonymous braced literal `.{ ... }` -- Zig's anonymous struct
+    /// and its tuple, which share one spelling:
+    ///
+    /// ```text
+    /// .{}                       empty
+    /// .{ a, b }                 positional tuple
+    /// .{ .field = a, ... }      named anonymous struct
+    /// ```
+    ///
+    /// Primary-expression position understood `.Variant` and nothing else, so
+    /// every spec using this form died at its first occurrence: seven of them,
+    /// including the lexer's own `return .{ value, buf[0..i] }`. They had been
+    /// failing on master since 9 August without anything reporting it, because
+    /// the compile-debt ledger that would have named them was measured on a
+    /// branch whose compiler predated the change that broke them.
+    ///
+    /// The two shapes are separated by the token after `{`. A named field opens
+    /// with `.`, and a positional element cannot -- except for a bare enum
+    /// value, `.{ .Variant, x }`, where the two are genuinely ambiguous at two
+    /// tokens of lookahead and this parser has no third and no backtracking.
+    /// That shape is therefore read as a struct literal and rejected by the
+    /// closing `expect(RBrace)` with a parse error naming the position. Loud is
+    /// the requirement here: a silently wrong parse of a literal would emit
+    /// wrong code for every backend, which is worse than not compiling.
+    fn parse_anon_braced(&mut self) -> Result<Node, String> {
+        // Positioned on `{`; `peek` is the first token inside it.
+        if self.peek.kind == TokenKind::Dot {
+            // `parse_struct_literal` consumes the brace itself and handles the
+            // `.field = expr` loop. An empty name is what makes it anonymous --
+            // the Zig emitter writes the leading `.` when the name is empty.
+            return self.parse_struct_literal(String::new());
+        }
+        self.advance(); // consume {
+        let mut tup = Node::new(NodeKind::ExprTuple);
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            tup.children.push(self.parse_expr()?);
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
+        Ok(tup)
     }
 
     /// Parse struct literal: Name{ .field = expr, ... }
@@ -8837,7 +9241,14 @@ impl Codegen {
                 }
             }
             NodeKind::ExprStructLit => {
-                self.write(&node.name);
+                // An anonymous struct carries no type name and MUST keep the
+                // leading dot: `.{ .x = 1 }`. Writing an empty name produced
+                // `{ .x = 1 }`, which is a block, not a value.
+                if node.name.is_empty() {
+                    self.write(".");
+                } else {
+                    self.write(&node.name);
+                }
                 self.write("{ ");
                 for (i, field) in node.children.iter().enumerate() {
                     if i > 0 {
@@ -9644,7 +10055,31 @@ impl VerilogCodegen {
 
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
-        if width == 1 {
+        // A width of 0 is not a narrow signal; it is `field_type_width`'s poison
+        // value arriving here, and `width - 1` has no case for it. What that
+        // produced depended on a build flag, and CI builds the quiet one:
+        //
+        //   debug   (overflow-checks on)   panic, "subtract with overflow"
+        //   release (overflow-checks off)  `[4294967295:0]`, exit 0, no stderr
+        //
+        // Ten specs emitted a four-billion-bit range past every green gate
+        // (#2566). `struct CoverPoint { name: &str, condition: &str, clock:
+        // &str, description: &str }` is the shape: a string field contributes 0
+        // by design -- correct in a MIXED struct, where the other fields carry
+        // the width -- and there is no other field.
+        //
+        // Clamped rather than refused. Making such a struct non-lowerable was
+        // tried first and cost 17 new elaboration errors in `hir`: the
+        // non-lowerable path declares per-field registers at some sites and not
+        // at function locals, so `result.assign_count` emitted a reference to a
+        // `result_assign_count` that nothing declares. Elaboration errors
+        // measured, not guessed: 176 before, 193 after, on the same iverilog.
+        //
+        // A 1-bit placeholder for a type that occupies no bits keeps every
+        // packing and slicing path exactly as it was -- there are no field
+        // offsets to disturb, since every field is zero-width -- and emits a
+        // legal declaration instead of an impossible one.
+        if width <= 1 {
             String::new()
         } else {
             format!("[{}:0]", width - 1)
@@ -10263,6 +10698,21 @@ impl VerilogCodegen {
     /// transitively contains itself cannot loop; such a type has no finite
     /// packed width and 0 is returned, which the callers surface as a width of
     /// zero rather than a plausible wrong number.
+    /// #2241/#2425: a `&str` field has NO hardware representation. Until now one
+    /// such field made the whole struct unlowerable, so every NUMERIC field of it
+    /// became unaddressable too -- measured across the corpus: 100 of 438 structs
+    /// are blocked this way while all their other fields are primitive scalars.
+    ///
+    /// Strings are therefore packed at ZERO width and skipped when accumulating
+    /// offsets. This cannot shift any existing layout, because a struct with a
+    /// string field does not lower today at all; and READING a string field stays
+    /// exactly as broken as it is now (it flattens to an unbound name), which is
+    /// the honest outcome for a value hardware cannot hold.
+    fn is_string_field_type(ty: &str) -> bool {
+        let t = ty.trim();
+        t == "str" || t == "&str" || t.starts_with("&str") || t.starts_with("[]u8")
+    }
+
     fn field_type_width(&self, ty: &str, depth: u32) -> u32 {
         // W681: 0 is a POISON value, not a width.
         //
@@ -10282,6 +10732,9 @@ impl VerilogCodegen {
             return 0;
         }
         let t = ty.trim();
+        if Self::is_string_field_type(t) {
+            return 0;
+        }
         if let Some(close) = t.find(']') {
             let inner = t[1..close].trim();
             // Unsized slices are rejected by `is_lowerable_scalar_struct`
@@ -10342,6 +10795,12 @@ impl VerilogCodegen {
         for (name, ftype) in fields {
             let fw = self.field_type_width(ftype, 0);
             if name == field_name {
+                // A string field has no bits to select. Returning None keeps the
+                // old (already broken) flatten-to-unbound-name path for reads of
+                // it, instead of inventing a zero-width slice.
+                if Self::is_string_field_type(ftype) {
+                    return None;
+                }
                 return Some((offset, fw));
             }
             offset += fw;
@@ -10425,7 +10884,12 @@ impl VerilogCodegen {
                 if !self.struct_decls.contains_key(&elem_type) {
                     return false;
                 }
-                (base_name, dims, elem_type)
+                // T64: `base_name` stops being a lookup key here and becomes
+                // emitted TEXT. A parameter named for a Verilog keyword is
+                // escaped at its declaration (`\\cross `) and must be escaped
+                // at every use too, or the part-select below emits a bare
+                // keyword and iverilog reports a plain "syntax error".
+                (Self::verilog_safe_identifier(&base_name), dims, elem_type)
             }
             NodeKind::ExprCall if !current.name.is_empty() => {
                 let ret_ty = match self.fn_return_types.get(&current.name) {
@@ -11088,7 +11552,8 @@ impl VerilogCodegen {
                 } else {
                     trimmed
                 };
-                Self::is_primitive_scalar_type(base)
+                Self::is_string_field_type(base)
+                    || Self::is_primitive_scalar_type(base)
                     || matches!(base, "usize" | "isize")
                     // W671: a nested struct is admissible now that
                     // `field_type_width` sizes it by its own packed width rather
@@ -12686,7 +13151,7 @@ impl VerilogCodegen {
                         _ => node.children[0].clone(),
                     };
                     self.emit_packed_struct_array_init(
-                        &node.name,
+                        &Self::verilog_safe_identifier(&node.name),
                         &node.extra_type,
                         &init_node,
                     );
@@ -13109,8 +13574,38 @@ impl VerilogCodegen {
         // W527: cache local variable types for array-of-struct resolution.
         for stmt in &node.children {
             if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
-                self.local_types
-                    .insert(stmt.name.clone(), stmt.extra_type.clone());
+                // #2325: an UNANNOTATED local (`var result = make_config(...)`)
+                // recorded an empty type, so `result.port_count` fell past the
+                // part-select branch and flattened to the unbound
+                // `result_port_count` (hir.v, memory.v, timing.v). Recover the
+                // type from the callee when the initializer is a call, exactly
+                // as the test-block binding path does since #2413. Only walks
+                // top-level statements, matching the existing registration.
+                let ty = if stmt.extra_type.is_empty() {
+                    match stmt.children.first() {
+                        // `var x = make_thing(...)` -- the callee's return type.
+                        Some(c) if c.kind == NodeKind::ExprCall => self
+                            .fn_return_types
+                            .get(&c.name)
+                            .cloned()
+                            .unwrap_or_default(),
+                        // `var result = mem;` -- copy of a param or an earlier
+                        // local. This is the shape that actually dominates the
+                        // corpus (hir.t27's mem_add_port and its siblings): the
+                        // call-only version measured ZERO change over the fpga
+                        // set before this arm was added.
+                        Some(c) if c.kind == NodeKind::ExprIdentifier => self
+                            .param_types
+                            .get(&c.name)
+                            .or_else(|| self.local_types.get(&c.name))
+                            .cloned()
+                            .unwrap_or_default(),
+                        _ => String::new(),
+                    }
+                } else {
+                    stmt.extra_type.clone()
+                };
+                self.local_types.insert(stmt.name.clone(), ty);
             }
         }
         for (pname, ptype) in &node.params {
@@ -13640,6 +14135,24 @@ impl VerilogCodegen {
                                 reg_decl(width, signed),
                                 name
                             ));
+                            // #2413: the binding declared a reg but recorded no
+                            // TYPE, so `r0.raw` on a struct-returning call fell
+                            // past the part-select branch and flattened to the
+                            // unbound `r0_raw`. Register the callee's return
+                            // type; the block-end cleanup removes it with the
+                            // other block locals.
+                            if let Some(rt) = stmt
+                                .children
+                                .get(1)
+                                .filter(|c| c.kind == NodeKind::ExprCall)
+                                .and_then(|c| self.fn_return_types.get(&c.name))
+                                .cloned()
+                            {
+                                if self.is_lowerable_scalar_struct_type(&rt) {
+                                    self.local_types.insert(target.name.clone(), rt);
+                                    block_locals.push(target.name.clone());
+                                }
+                            }
                         }
                         // Tuple-destructure binding `(a, b) = call()`: every
                         // element identifier needs a reg at its ELEMENT width.
@@ -13731,6 +14244,22 @@ impl VerilogCodegen {
                             reg_decl(width, signed),
                             name
                         ));
+                        // #2413: same type registration as the assign-binding
+                        // path -- a struct-returning call bound by `given`/`and`
+                        // needs its TYPE on record or `r0.raw` flattens to the
+                        // unbound `r0_raw`.
+                        if let Some(rt) = stmt
+                            .children
+                            .first()
+                            .filter(|c| c.kind == NodeKind::ExprCall)
+                            .and_then(|c| self.fn_return_types.get(&c.name))
+                            .cloned()
+                        {
+                            if self.is_lowerable_scalar_struct_type(&rt) {
+                                self.local_types.insert(stmt.name.clone(), rt);
+                                block_locals.push(stmt.name.clone());
+                            }
+                        }
                     }
                     stack.extend(stmt.children.iter());
                 }
@@ -14115,9 +14644,26 @@ impl VerilogCodegen {
                             self.write_indent();
                             self.write_line("end");
                         } else {
-                            self.write_indent();
-                            self.gen_verilog_expr(expr);
-                            self.write_line(";");
+                            // #2413(3): a bare call in statement position whose
+                            // value was hoisted into a W557 temp would emit the
+                            // RESIDUAL temp name as a statement -- and a bare
+                            // identifier statement is a task enable in Verilog
+                            // ("Enable of unknown task _t27_call_tmp_...").
+                            // The materialized assignment above already
+                            // performed the call; the residual says nothing.
+                            let hoisted_bare_call = self.use_call_array_temps
+                                && expr.kind == NodeKind::ExprCall
+                                && self
+                                    .call_returning_cse_value_info(expr)
+                                    .map(|(key, _, _, _, _)| {
+                                        self.call_array_tmp_names.contains_key(&key)
+                                    })
+                                    .unwrap_or(false);
+                            if !hoisted_bare_call {
+                                self.write_indent();
+                                self.gen_verilog_expr(expr);
+                                self.write_line(";");
+                            }
                         }
                     }
                 }
@@ -14478,7 +15024,7 @@ impl VerilogCodegen {
                         self.write_line("begin");
                         self.indent();
                         self.emit_packed_struct_array_init(
-                            &node.name,
+                            &Self::verilog_safe_identifier(&node.name),
                             &node.extra_type,
                             child,
                         );
@@ -15170,6 +15716,57 @@ impl VerilogCodegen {
                     return;
                 }
 
+                // #2413(2): `.len()` on an array folds to its declared length.
+                // The Rust backend has resolved this shape since 7172; Verilog
+                // emitted the method call VERBATIM (`MAC_LUT.len(1'b0)`) and
+                // iverilog rejected it: arrays have no methods in Verilog.
+                // Three parse shapes reach here for the same source text:
+                // method-kind (assert path), a call whose child is the
+                // field-access `RECV.len` (given-binding path), and a call
+                // carrying the qualified name itself.
+                let len_receiver: Option<String> = if node.name == "len"
+                    && node.extra_kind == "method"
+                    && node.children.len() == 1
+                    && node.children[0].kind == NodeKind::ExprIdentifier
+                {
+                    Some(node.children[0].name.clone())
+                } else if node.name == "len"
+                    && !node.children.is_empty()
+                    && node.children[0].kind == NodeKind::ExprFieldAccess
+                    && node.children[0].name == "len"
+                    && node.children[0]
+                        .children
+                        .first()
+                        .map(|b| b.kind == NodeKind::ExprIdentifier)
+                        .unwrap_or(false)
+                {
+                    Some(node.children[0].children[0].name.clone())
+                } else if let Some(base) = node.name.strip_suffix(".len") {
+                    if !base.is_empty() && !base.contains('.') {
+                        Some(base.to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                if let Some(recv) = len_receiver {
+                    let ty = self
+                        .local_types
+                        .get(&recv)
+                        .or_else(|| self.param_types.get(&recv))
+                        .or_else(|| self.module_types.get(&recv))
+                        .cloned();
+                    if let Some(ty) = ty {
+                        if let Some((dims, _)) = Self::parse_array_type(&ty) {
+                            let n: usize = dims.iter().product();
+                            self.write(&n.to_string());
+                            return;
+                        }
+                    }
+                }
+
+
                 // W663: Zig builtins must not reach Verilog.
                 //
                 // `CCodegen` has handled these since its own wave (see the
@@ -15410,7 +16007,7 @@ impl VerilogCodegen {
                                     }
                                     if ok && fw > 0 {
                                         let signed = Self::scalar_field_is_signed(&ftype);
-                                        let slice = format!("{}[{} +: {}]", chain_base, total_off, fw);
+                                        let slice = format!("{}[{} +: {}]", Self::verilog_safe_identifier(&chain_base), total_off, fw);
                                         if signed && !self.in_lvalue {
                                             self.write(&format!("$signed({})", slice));
                                         } else {
@@ -15454,7 +16051,7 @@ impl VerilogCodegen {
                                         })
                                         .unwrap_or_default();
                                     let signed = Self::scalar_field_is_signed(&ftype);
-                                    let slice = format!("{}[{} +: {}]", base_name, off, fw);
+                                    let slice = format!("{}[{} +: {}]", Self::verilog_safe_identifier(&base_name), off, fw);
                                     if signed && !self.in_lvalue {
                                         self.write(&format!("$signed({})", slice));
                                     } else {
@@ -15540,6 +16137,98 @@ impl VerilogCodegen {
                     //
                     // Measured before the fix: 87 broken escapes across 13 of
                     // 617 specs, `systolic_ternary.t27` among them.
+                    // #2325: `outer.arr[i].f1.f2...` -- fields of an element of a
+                    // struct's ARRAY field -- resolved the base to nothing and
+                    // flattened to `_f2`, a name with an empty base that can never
+                    // bind (memory.v `_kind`, hir.v `_name`).
+                    //
+                    // The chain must be resolved WHOLE. A first version handled
+                    // exactly one trailing field and emitted `cat[...]_luts` for a
+                    // two-field tail: a part-select with an identifier glued to it,
+                    // which is the #2240 defect in a new place. yosys caught it as a
+                    // syntax error in stdlib.v within one smoke run.
+                    {
+                        let mut tail: Vec<String> = vec![node.name.clone()];
+                        let mut cur = child;
+                        while cur.kind == NodeKind::ExprFieldAccess && !cur.children.is_empty() {
+                            tail.push(cur.name.clone());
+                            cur = &cur.children[0];
+                        }
+                        tail.reverse();
+                        if cur.kind == NodeKind::ExprIndex
+                            && cur.children.len() >= 2
+                            && cur.children[0].kind == NodeKind::ExprFieldAccess
+                            && cur.children[0]
+                                .children
+                                .first()
+                                .map(|b| b.kind == NodeKind::ExprIdentifier)
+                                .unwrap_or(false)
+                        {
+                            let outer = cur.children[0].children[0].name.clone();
+                            let arr_field = cur.children[0].name.clone();
+                            if let Some(outer_ty) = self
+                                .local_types
+                                .get(&outer)
+                                .or_else(|| self.param_types.get(&outer))
+                                .or_else(|| self.module_types.get(&outer))
+                                .cloned()
+                            {
+                                let outer_base = Self::base_type_name(&outer_ty);
+                                let arr_ty = self
+                                    .struct_decls
+                                    .get(&outer_base)
+                                    .and_then(|fs| {
+                                        fs.iter()
+                                            .find(|(n, _)| n == &arr_field)
+                                            .map(|(_, t)| t.clone())
+                                    })
+                                    .unwrap_or_default();
+                                if let (Some((arr_off, _)), Some((_, elem_ty))) = (
+                                    self.struct_field_offset(&outer_base, &arr_field),
+                                    Self::parse_array_type(&arr_ty),
+                                ) {
+                                    let elem_w = self.field_type_width(&elem_ty, 0);
+                                    let mut ty = Self::base_type_name(&elem_ty);
+                                    let mut off = 0u32;
+                                    let mut w = 0u32;
+                                    let mut ok = elem_w > 0;
+                                    for f in &tail {
+                                        match self.struct_field_offset(&ty, f) {
+                                            Some((o, fw)) => {
+                                                off += o;
+                                                w = fw;
+                                                ty = self
+                                                    .struct_decls
+                                                    .get(&ty)
+                                                    .and_then(|fs| {
+                                                        fs.iter()
+                                                            .find(|(n, _)| n == f)
+                                                            .map(|(_, t)| {
+                                                                Self::base_type_name(t)
+                                                            })
+                                                    })
+                                                    .unwrap_or_default();
+                                            }
+                                            None => {
+                                                ok = false;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if ok && w > 0 {
+                                        let mut idx = String::new();
+                                        self.collect_expr_text(&cur.children[1], &mut idx);
+                                        let base_id = Self::verilog_safe_identifier(&outer);
+                                        self.write(&format!(
+                                            "{}[({} + (({}) * {}) + {}) +: {}]",
+                                            base_id, arr_off, idx, elem_w, off, w
+                                        ));
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
                             NodeKind::ExprIdentifier => {
@@ -17944,6 +18633,81 @@ impl Compiler {
         Ok(())
     }
 
+    /// #2275: rewrite `[CONST_NAME]` array dimensions to their literal values
+    /// in every `extra_type`/`extra_size` string. Only module-level consts whose
+    /// initializer is a bare integer literal participate; anything else is left
+    /// exactly as written.
+    fn resolve_symbolic_dims(ast: &mut Node) {
+        let mut consts: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        fn literal_value(decl: &Node) -> Option<String> {
+            let mut v = decl.value.trim().to_string();
+            if v.is_empty() {
+                for c in &decl.children {
+                    let cv = c.value.trim();
+                    if !cv.is_empty() {
+                        v = cv.to_string();
+                        break;
+                    }
+                }
+            }
+            let cleaned: String = v.chars().filter(|c| *c != '_').collect();
+            cleaned.parse::<usize>().ok().map(|n| n.to_string())
+        }
+        fn collect(node: &Node, out: &mut std::collections::HashMap<String, String>) {
+            if node.kind == NodeKind::ConstDecl && !node.name.is_empty() {
+                if let Some(v) = literal_value(node) {
+                    out.entry(node.name.clone()).or_insert(v);
+                }
+            }
+            for c in &node.children {
+                collect(c, out);
+            }
+        }
+        collect(ast, &mut consts);
+        if consts.is_empty() {
+            return;
+        }
+        fn subst(text: &str, consts: &std::collections::HashMap<String, String>) -> String {
+            if !text.contains('[') {
+                return text.to_string();
+            }
+            let mut out = String::with_capacity(text.len());
+            let mut rest = text;
+            while let Some(open) = rest.find('[') {
+                let Some(close_rel) = rest[open..].find(']') else {
+                    break;
+                };
+                let close = open + close_rel;
+                let inner = rest[open + 1..close].trim();
+                out.push_str(&rest[..open + 1]);
+                match consts.get(inner) {
+                    Some(v) if !inner.is_empty() => out.push_str(v),
+                    _ => out.push_str(&rest[open + 1..close]),
+                }
+                out.push(']');
+                rest = &rest[close + 1..];
+            }
+            out.push_str(rest);
+            out
+        }
+        fn walk(node: &mut Node, consts: &std::collections::HashMap<String, String>) {
+            if node.extra_type.contains('[') {
+                node.extra_type = subst(&node.extra_type, consts);
+            }
+            if !node.extra_size.is_empty() {
+                node.extra_size = subst(&format!("[{}]", node.extra_size), consts)
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .to_string();
+            }
+            for c in &mut node.children {
+                walk(c, consts);
+            }
+        }
+        walk(ast, &consts);
+    }
+
     fn collect_struct_decls(
         ast: &Node,
     ) -> std::collections::HashMap<String, Vec<(String, String)>> {
@@ -17986,6 +18750,18 @@ impl Compiler {
         Self::compile_verilog_with_options(source, true, None)
     }
 
+    /// #2241: the simulation path passed `None` as the spec path, so the
+    /// import-aware registries (enums, structs) never loaded and every
+    /// `Enum.variant` or imported-struct field in a TEST BLOCK emitted an
+    /// unbound name -- icarus-simulate failed with 95 elaboration errors on
+    /// mac while the plain gen-verilog of the same spec elaborated clean.
+    pub fn compile_verilog_for_simulation_at(
+        source: &str,
+        spec_path: &std::path::Path,
+    ) -> Result<String, String> {
+        Self::compile_verilog_with_options(source, true, Some(spec_path))
+    }
+
     fn compile_verilog_with_options(
         source: &str,
         emit_test_assertions: bool,
@@ -17999,6 +18775,13 @@ impl Compiler {
         // Build the struct map from the *full* module AST so nested function bodies
         // can still recognize module-level scalar structs as lowerable.
         let structs = Self::collect_struct_decls(&ast);
+        // #2275 half two, layer one: array dimensions spelled as CONST NAMES
+        // ([NUM_MAC_UNITS]MACUnit) never parsed -- parse_array_type wants
+        // digits, so the whole packed-array machinery (decl width, literal
+        // lowering, element access) fell through to TODO placeholders and
+        // flattened names. Substitute integer-literal module consts into
+        // every type/dimension string BEFORE codegen, once, here.
+        Self::resolve_symbolic_dims(&mut ast);
         Self::detect_unsupported_verilog_locals(&ast, &structs)?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = VerilogCodegen::with_options(emit_test_assertions);
@@ -32564,6 +33347,32 @@ mod tests_hir_pipeline_parity {
         assert!(
             v.contains("pairs[((idx) * 16 + 0) +: 8]"),
             "expected packed slice for indexed field access, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_named_param_escaped_at_use() {
+        // T64: a parameter whose name is a Verilog keyword was escaped at its
+        // DECLARATION (`\cross `) and emitted bare at every USE, so the
+        // part-select read `cross[8 +: 32]` and iverilog answered with a plain
+        // "syntax error" -- 4 of them in the corpus, and each one truncated
+        // the file, hiding whatever elaboration errors came after it.
+        let src = r#"module KeywordParam {
+    pub struct Crossing { kind : u8, bits : u32 }
+    pub fn crossing_bits(cross: Crossing) -> u32 {
+        return cross.bits
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("\\cross [8 +: 32]"),
+            "keyword-named param must stay escaped where it is USED, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains(" cross[8 +: 32]"),
+            "bare keyword in a part-select is a syntax error, got:\n{}",
             v
         );
     }

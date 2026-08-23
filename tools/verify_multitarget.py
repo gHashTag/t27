@@ -19,6 +19,12 @@ failure. A real cross-target divergence exits 1 in both modes.
 """
 import os, sys, shutil, subprocess, tempfile, importlib.util, random
 
+
+_pq = importlib.util.spec_from_file_location(
+    "_prereq", os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"))
+_prereq = importlib.util.module_from_spec(_pq); _pq.loader.exec_module(_prereq)
+skip, broken = _prereq.skip, _prereq.broken
+
 def _run_bin(cmd, what, cwd=None):
     """Run a built binary and return its stdout, or None with the reason printed.
 
@@ -31,6 +37,14 @@ def _run_bin(cmd, what, cwd=None):
                        capture_output=True, text=True, cwd=cwd)
     if r.returncode == 0:
         return r.stdout
+    # mutant-equivalent: the guard above forces returncode != 0, so < is <=
+    #
+    # T132. Five copies of this line across five verifiers, and the boundary
+    # operator reports each as a survivor. All five are reached only after a
+    # returncode check -- three via `if returncode == 0: return`, two via
+    # `if returncode != 0:` -- so at this point the value cannot be zero, and
+    # `< 0` and `<= 0` agree on every value it can hold. Proven from the line
+    # above, not assumed from the shape.
     sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
     print(f"  {what}: exited {r.returncode}{sig}")
     for line in (r.stderr or "").strip().splitlines()[:4]:
@@ -83,17 +97,6 @@ N = 600
 
 
 REQUIRE = "--require" in sys.argv
-
-
-def skip(msg):
-    if REQUIRE:
-        print(f"FAIL verify_multitarget: {msg}")
-        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
-        print("  The CI job builds t27c and the runner ships cc and rustc; if one is")
-        print("  absent the environment is broken and this check did not run.")
-        sys.exit(1)
-    print(f"SKIP verify_multitarget: {msg}")
-    sys.exit(0)
 
 
 def find_t27c():
@@ -163,7 +166,154 @@ def run_rust(t27c, spec, fn, pairs, wd):
     return [int(x) for x in out.split()]
 
 
+def self_check():
+    """Prove the skip pair can reach BOTH of its exits, for the right reason.
+
+    T114. This gate ran in CI for the whole campaign with no negative control in
+    any form -- invisible to `tri gates sweep` because it is named `verify_*`
+    rather than `check_*`, which is how a name came to stand in for a property.
+
+    The branch covered here is the one whose entire purpose is to stop a silent
+    non-run: without --require a missing prerequisite is a SKIP and exit 0, with
+    it the same state is a FAILURE. Those two exits are three lines apart and
+    the exit code is the only thing that differs, so each case names the other's
+    marker as forbidden -- "SKIP" reaching exit 1 and "FAIL" reaching exit 0 are
+    both silent successes of the kind this campaign exists to find.
+
+    The world is planted by COPYING THIS SCRIPT INTO AN EMPTY TREE. find_t27c()
+    resolves target/*/t27c against ROOT, and ROOT is __file__'s parent's parent,
+    so the copy makes the absence real rather than simulated. A temp cwd was
+    tried first and does nothing -- the control said so on its first run, which
+    is what a control is for. `t27c` is also removed from PATH, because
+    find_t27c() falls back to shutil.which and a runner with it installed would
+    otherwise find one.
+
+    No flag aims this gate anywhere: nothing here adds a way to make the live
+    check pass.
+
+    NOT COVERED, said out loud rather than left to be inferred: the cross-target
+    MISMATCH verdict at the end of main(). Reaching it needs t27c to emit a
+    backend that disagrees with the Python model, which means planting a fake
+    compiler that generates deliberately wrong C and Rust -- a control worth
+    building and not built here. Until it exists, this gate is proven able to
+    fail on a broken ENVIRONMENT and unproven on a broken ARITHMETIC.
+    """
+    ok = True
+
+    def case(label, args, want_rc, want, forbid):
+        nonlocal ok
+        with tempfile.TemporaryDirectory() as td:
+            import shutil as _sh
+            tools = os.path.join(td, "tools")
+            os.makedirs(tools)
+            me = os.path.join(tools, os.path.basename(__file__))
+            _sh.copy(os.path.abspath(__file__), me)
+            # T122: the shared prerequisite module travels with the gate. The
+            # extraction broke this control on its first run -- the planted tree
+            # had the script and not the module it imports, so the child died at
+            # import with empty stdout, which the case correctly refused to read
+            # as a skip.
+            _sh.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"),
+                     os.path.join(tools, "_prereq.py"))
+            env = dict(os.environ)
+            env["PATH"] = os.pathsep.join(
+                d for d in env.get("PATH", "").split(os.pathsep)
+                if d and not os.path.exists(os.path.join(d, "t27c")))
+            r = subprocess.run([sys.executable, me, *args],
+                               capture_output=True, text=True, cwd=td, env=env)
+        missing = [s for s in want if s not in r.stdout]
+        leaked = [s for s in forbid if s in r.stdout]
+        good = r.returncode == want_rc and not missing and not leaked
+        print(f"  {label:<34} " + (f"exit {want_rc}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want_rc!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       stdout {r.stdout[:300]!r}")
+
+    case("missing prerequisite skips", [], 0,
+         ["SKIP verify_multitarget.py: t27c binary not found"],
+         ["FAIL", "--require was given", "ALL TARGETS BIT-EXACT", "CROSS-TARGET MISMATCH"])
+
+    # The same world, the opposite verdict. The explanation is asserted with the
+    # exit code because main() has other paths to 1, and "it went red" does not
+    # say it went red for this reason.
+    case("--require turns it into a failure", ["--require"], 1,
+         ["FAIL verify_multitarget.py: t27c binary not found",
+          "--require was given, so a missing prerequisite is a failure"],
+         ["SKIP", "ALL TARGETS BIT-EXACT", "CROSS-TARGET MISMATCH"])
+
+    # T131: the gate's OWN verdict, which the two cases above never reach. The
+    # five-operator table scored this gate 0 killed of 7 -- `sys.exit(0 if ok
+    # else 1)` survived both return operators and all three comparison FAIL
+    # branches survived inversion, because both cases leave through skip().
+    #
+    # Identical in shape to verify_emit_bitexact.py, which scored 0 of 17 for
+    # the same reason. Two gates, one mistake, made twice by the same author.
+    #
+    # The plant moves ONE arm: py_ref reads the Python model, while C and Rust
+    # come from t27c. Perturbing py_ref makes the model disagree with backends
+    # that are unchanged -- a real cross-target divergence. Perturbing the spec
+    # or the emitter would move every arm together and plant nothing.
+    def whole_program(label, edit, want, expect, absent):
+        nonlocal ok
+        import shutil as _sh
+        with tempfile.TemporaryDirectory() as td:
+            tools = os.path.join(td, "tools")
+            os.makedirs(tools)
+            for f in os.listdir(os.path.join(ROOT, "tools")):
+                if f.endswith(".py"):
+                    src = open(os.path.join(ROOT, "tools", f), encoding="utf-8").read()
+                    if f == os.path.basename(__file__) and edit:
+                        before = src
+                        src = edit(src)
+                        assert src != before, f"{label}: the plant changed nothing"
+                    open(os.path.join(tools, f), "w", encoding="utf-8").write(src)
+            for extra in ("target", "specs"):
+                s = os.path.join(ROOT, extra)
+                if os.path.exists(s):
+                    os.symlink(s, os.path.join(td, extra))
+            r = subprocess.run(
+                [sys.executable, os.path.join(tools, os.path.basename(__file__))],
+                capture_output=True, text=True, cwd=ROOT)
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<44} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[-300:]!r}")
+
+    whole_program("a clean tree agrees across targets", None, 0,
+                  ["ALL TARGETS BIT-EXACT"],
+                  ["CROSS-TARGET MISMATCH", "FAIL", "SKIP", "Traceback"])
+
+    whole_program("a perturbed model diverges from both backends",
+                  lambda s: s.replace(
+                      "    return [f(a, b) & 0xFFFFFFFF for a, b in pairs]",
+                      "    return [(f(a, b) ^ 1) & 0xFFFFFFFF for a, b in pairs]", 1),
+                  1, ["!= model", "CROSS-TARGET MISMATCH"],
+                  ["ALL TARGETS BIT-EXACT", "SKIP", "Traceback"])
+
+    print("  self-check: the skip pair and the gate's own verdict in both "
+          f"directions = {ok}")
+    return 0 if ok else 1
+
+
 def main():
+    if "--self-check" in sys.argv:
+        sys.exit(self_check())
     t27c = find_t27c()
     if not t27c:
         skip("t27c binary not found")

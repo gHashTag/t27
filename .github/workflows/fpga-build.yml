@@ -15,6 +15,18 @@ on:
       - 'Cargo.lock'
       - 'contrib/formal/**'
       - 'conformance/fpga_*.json'
+      # The gates this job runs, and the ledgers they compare against. Without
+      # these four, a one-line edit to check_vector_data.py (`return 1` ->
+      # `return 0`) lands in a PR that never runs the gate -- a silent kill --
+      # and a new prose-only vector file can be admitted by splitting the
+      # pre-seed and the file across two PRs. Every sibling workflow in this
+      # repository lists its own tool; this one did not.
+      - 'tools/check_vector_data.py'
+      - 'tools/check_gate_preconditions.py'
+      - 'tools/vector_data_baseline.txt'
+      - 'tools/check_elab_ratchet.py'
+      - 'tools/elab_baseline.txt'
+      - 'tools/run_conformance_vvp.py'
       - '.github/workflows/fpga-build.yml'
   push:
     branches: [master]
@@ -26,6 +38,18 @@ on:
       - 'Cargo.lock'
       - 'contrib/formal/**'
       - 'conformance/fpga_*.json'
+      # The gates this job runs, and the ledgers they compare against. Without
+      # these four, a one-line edit to check_vector_data.py (`return 1` ->
+      # `return 0`) lands in a PR that never runs the gate -- a silent kill --
+      # and a new prose-only vector file can be admitted by splitting the
+      # pre-seed and the file across two PRs. Every sibling workflow in this
+      # repository lists its own tool; this one did not.
+      - 'tools/check_vector_data.py'
+      - 'tools/check_gate_preconditions.py'
+      - 'tools/vector_data_baseline.txt'
+      - 'tools/check_elab_ratchet.py'
+      - 'tools/elab_baseline.txt'
+      - 'tools/run_conformance_vvp.py'
       - '.github/workflows/fpga-build.yml'
   workflow_dispatch:
 
@@ -752,41 +776,88 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Result:** $pass passed, $fail failed" >> $GITHUB_STEP_SUMMARY
 
-      - name: Compile conformance testbenches (iverilog)
+      - name: Elaboration errors may fall, never rise
         run: |
-          echo "## Conformance TB Compilation" >> $GITHUB_STEP_SUMMARY
+          # #2325: 573 -> 186 across three emitter classes in one evening. The
+          # conformance job executes two modules; the other thirty are only
+          # yosys-linted, and yosys accepts many references iverilog rejects --
+          # so without this ratchet the win can slide back invisibly.
+          python3 tools/check_elab_ratchet.py
+
+      # T88: the ratchet's own control. Plants a NEW module, a GONE module and a
+      # BETTER one against a stub iverilog, and asserts each is named by its own
+      # class while its neighbours stay silent -- the GONE and BETTER directions
+      # share an exit code, so a code-only assertion cannot tell them apart.
+      - name: Elaboration ratchet must go red (negative control)
+        run: python3 tools/check_elab_ratchet.py --self-check
+
+      # T89: the class `tri gates mutate` found across six gates -- a control
+      # that plants faults INSIDE a well-formed world and never breaks the
+      # world's existence. One empty tree makes every precondition fail at
+      # once, so this is one control for all six rather than six bespoke cases.
+      # It found a live one on its first run: check_elab_ratchet.py printed
+      # "SKIP: iverilog or target/release/t27c missing" and exited 0.
+      # Needs t27c, which this job has already built.
+      - name: Every gate must fail loudly with nothing to check
+        run: |
+          python3 tools/check_gate_preconditions.py
+          python3 tools/check_gate_preconditions.py --self-check
+
+      # A gate nobody has seen fail is not a gate. This plants each failing
+      # class in a temp tree -- data lost, file emptied, file corrupted, file
+      # deleted, a new prose-only file, an unrecorded gain, and --update-baseline
+      # asked to record over a corrupt file -- and runs the whole gate against it
+      # through T27_VECTOR_ROOT, asserting the MESSAGE of the branch and the
+      # ABSENCE of its neighbours. Mutation-tested: swallowing a parse failure as
+      # (0, 0) again still exits 1, through EMPTIED, so an exit-code-only control
+      # would stay green on exactly the T67 bug.
+      - name: A vector case must carry data (negative control)
+        run: python3 tools/check_vector_data.py --self-check
+
+      - name: A vector case must carry data, not only prose
+        run: |
+          # #2241: 412 of 512 cases carry an id and a sentence and nothing else.
+          # The 24 files that are entirely prose are frozen as debt; this fails
+          # when a NEW one lands, so the class cannot grow again unnoticed.
+          python3 tools/check_vector_data.py
+
+      - name: Execute conformance vectors (iverilog + vvp)
+        run: |
+          # #2241 v1: the job now EXECUTES vectors instead of compiling
+          # everything and running nothing. Doctrine as formal v1: a thin gate
+          # that is real beats a broad one that is vacuous. The compile+run set
+          # is the executed-vector registry in tools/run_conformance_vvp.py
+          # (mac today); every module and group outside it is printed as debt,
+          # never silently counted as covered.
+          # #2415: without pipefail the `if` below tests tee's exit status, not
+          # the runner's -- so a MISMATCH printed one line above was reported as
+          # "EXECUTED, all cases passed" and the job stayed green. Same defect
+          # #2242 removed from fpga-formal; the corrected pattern is ~115 lines
+          # above in this file.
+          set -o pipefail
+          echo "## Conformance Vector Execution" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           mkdir -p build/fpga/conformance
-          pass=0
-          fail=0
-          for v in build/fpga/generated/*.v; do
-            # The top is the MODULE name, not the file name -- mac.v holds ZeroDSP_MAC,
-            # so a filename-derived top failed 31 of 32 modules. The repo's own
-            # convention (suite.rs:859, verify_emit_bitexact.py:184) reads generated
-            # Verilog with `-sv -DSIMULATION`: -sv for the emitter's SV static casts,
-            # -DSIMULATION to strip `ifndef SIMULATION` bench blocks whose $display
-            # has non-constant args synthesis cannot evaluate (mac.v:535). As
-            # written, this loop could never have passed.
-            name=$(sed -n 's/^module \([A-Za-z0-9_]*\).*/\1/p' "$v" | head -1)
-            # Audit 2026-08-19: bare -g2005 compiled 0/32 -- the repo convention
-            # (-sv -DSIMULATION, same fix as the yosys loop) was never applied here.
-            if iverilog -o "build/fpga/conformance/${name}_tb.vvp" -g2012 -DSIMULATION "$v" 2>/dev/null; then
-              pass=$((pass+1))
+          fails=0
+          for m in mac spi; do
+            v="build/fpga/generated/${m}.v"
+            if [ ! -f "$v" ]; then
+              echo "::error::generated ${m}.v missing"; fails=$((fails+1)); continue
+            fi
+            if python3 tools/run_conformance_vvp.py "$m" "$v" build/fpga/conformance | tee "build/fpga/conformance/${m}.log"; then
+              echo "| $m | EXECUTED, all cases passed |" >> $GITHUB_STEP_SUMMARY
             else
-              fail=$((fail+1))
+              echo "| $m | FAILED (see log) |" >> $GITHUB_STEP_SUMMARY
+              fails=$((fails+1))
             fi
           done
-          total=$((pass+fail))
-          echo "| Result | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Compiled OK | $pass |" >> $GITHUB_STEP_SUMMARY
-          echo "| Compile FAIL | $fail |" >> $GITHUB_STEP_SUMMARY
-          echo "| Total | $total |" >> $GITHUB_STEP_SUMMARY
+          # Debt inventory: modules with vector files but no executed groups yet.
+          total_json=$(ls conformance/fpga_*.json | wc -l | tr -d ' ')
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "$fail" -gt 0 ]; then
-            echo "::error::$fail/$total modules failed iverilog compilation"
-            exit 1
-          fi
+          echo "Vector files: $total_json; executed modules: 1 (registry v1). The" >> $GITHUB_STEP_SUMMARY
+          echo "remainder is open work in #2241 -- displayed, not counted as covered." >> $GITHUB_STEP_SUMMARY
+          [ "$fails" -gt 0 ] && { echo "::error::conformance execution failed"; exit 1; }
+          echo "conformance: executed set green"
 
       - name: Validate conformance JSON structure
         run: |

@@ -1,0 +1,7 @@
+# Specs whose Verilog carries a width that cannot be real.
+# See tools/check_verilog_widths.py for what this is and why the
+# compiler-side fix is a maintainer decision. Tracked as issue #2566.
+#
+# Removing a line is a repair. Adding one is a regression.
+specs/compiler/stdlib.t27
+specs/memory/notebooklm.t27

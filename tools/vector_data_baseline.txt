@@ -1,0 +1,43 @@
+# A CENSUS of conformance/fpga_*.json: name | total cases | cases
+# carrying data. Debt is any row whose data count is 0 -- documentation
+# living in a vectors/ shape, which no runner can execute (#2241).
+#
+# This gate fails when a data count FALLS, when a file empties, when a
+# baselined file disappears, and when one cannot be parsed. It records
+# numbers rather than names because the name-only version congratulated
+# a deletion with "now carries data" (T67).
+# 34 files, 24 of them prose-only.
+fpga_apb_bridge.json | 18 | 0
+fpga_assembler.json | 19 | 0
+fpga_axi4.json | 16 | 0
+fpga_bootrom.json | 6 | 0
+fpga_bridge.json | 11 | 11
+fpga_clock_domain.json | 12 | 0
+fpga_crossopt.json | 6 | 0
+fpga_cts.json | 15 | 0
+fpga_dft.json | 17 | 0
+fpga_e2e_demo.json | 16 | 0
+fpga_fifo.json | 18 | 0
+fpga_formal.json | 18 | 0
+fpga_gf16_accel.json | 27 | 0
+fpga_hir.json | 26 | 0
+fpga_hw_types.json | 22 | 0
+fpga_linker.json | 17 | 0
+fpga_mac_vectors.json | 21 | 21
+fpga_memory.json | 15 | 0
+fpga_partition.json | 12 | 0
+fpga_placement.json | 14 | 0
+fpga_power.json | 15 | 0
+fpga_power_analysis.json | 9 | 9
+fpga_router.json | 19 | 0
+fpga_simulator.json | 13 | 0
+fpga_spi.json | 8 | 8
+fpga_ternary_isa.json | 29 | 0
+fpga_testbench_mac_tb.json | 10 | 10
+fpga_testbench_top_tb.json | 4 | 4
+fpga_testbench_uart_tb.json | 7 | 7
+fpga_timing.json | 24 | 0
+fpga_top_level.json | 7 | 7
+fpga_uart.json | 7 | 7
+fpga_vcd_conformance_compare.json | 16 | 16
+fpga_vcd_trace.json | 18 | 0

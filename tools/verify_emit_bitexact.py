@@ -22,6 +22,12 @@ yosys is absent; a real mismatch or synth failure exits 1. Run:
 """
 import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
 
+
+_pq = importlib.util.spec_from_file_location(
+    "_prereq", os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"))
+_prereq = importlib.util.module_from_spec(_pq); _pq.loader.exec_module(_prereq)
+skip, broken = _prereq.skip, _prereq.broken
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
 SADD_SPEC = os.path.join(ROOT, "specs/ternary/gft_sadd.t27")
@@ -30,11 +36,6 @@ ARCHS = [(2, 2, 1), (2, 3, 1), (2, 4, 1), (2, 5, 1),  # hidden-width axis
          [2, 4, 3, 1], [2, 5, 3, 2], [3, 4, 4, 2, 1]]  # DEEP (lists): 3- and 4-layer
 SYNTH_ARCHS = [(2, 2, 1), (2, 4, 2), [2, 4, 3, 1]]  # single / multi-out / deep (yosys is slower)
 STEPS = 80
-
-
-def skip(msg):
-    print(f"SKIP verify_emit_bitexact: {msg}")
-    sys.exit(0)
 
 
 def find_t27c():
@@ -52,10 +53,160 @@ def load_gen():
     return m
 
 
+def self_check():
+    """Run the WHOLE program once per verdict reachable without a simulator.
+
+    T121. This gate had no negative control in any form. It was invisible to
+    `tri gates sweep` until the selector learned that `sys.exit(0 if ok else 1)`
+    is a failure path -- its only non-zero exit is that ternary, and now the
+    two this commit adds.
+
+    The gen-failure case is the one that matters: it plants a t27c that refuses
+    to emit, which before this commit made the gate exit 0. `SKIP` is named
+    absent there, because reporting a broken compiler as a missing prerequisite
+    is precisely the defect.
+
+    NOT COVERED, said rather than inferred: the bit-exactness verdict itself,
+    which needs a Verilog arm that genuinely disagrees with the model.
+    """
+    ok = True
+
+    def spawned(label, args, want, expect, absent, env=None, tree=None):
+        nonlocal ok
+        me = os.path.abspath(__file__)
+        cwd = None
+        if tree is not None:
+            os.makedirs(os.path.join(tree, "tools"), exist_ok=True)
+            import shutil as _sh
+            _sh.copy(me, os.path.join(tree, "tools", os.path.basename(me)))
+            me = os.path.join(tree, "tools", os.path.basename(me))
+            cwd = tree
+        r = subprocess.run([sys.executable, me, *args], capture_output=True,
+                           text=True, cwd=cwd, env=env or os.environ.copy())
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<46} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[:320]!r}")
+
+    stripped = os.environ.copy()
+    stripped["PATH"] = os.pathsep.join(
+        d for d in stripped.get("PATH", "").split(os.pathsep)
+        if d and not any(os.path.exists(os.path.join(d, x)) for x in ("iverilog", "vvp")))
+
+    spawned("a missing simulator skips locally", [], 0,
+            ["SKIP verify_emit_bitexact.py: iverilog/vvp not on PATH"],
+            ["FAIL", "ALL SYNTHESIZE", "BIT-EXACT"], env=stripped)
+
+    spawned("--require turns the same state into a failure", ["--require"], 1,
+            ["FAIL verify_emit_bitexact.py: iverilog/vvp not on PATH",
+             "--require was given"],
+            ["SKIP", "ALL SYNTHESIZE"], env=stripped)
+
+    # T121: the branch that used to exit 0. A planted t27c that refuses to emit
+    # is the compiler under test being broken -- the loudest thing this gate can
+    # find, and it was reported as a missing prerequisite.
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "target/release"))
+        fake = os.path.join(td, "target/release/t27c")
+        open(fake, "w").write("#!/bin/sh\necho 'gen-verilog: refused' >&2\nexit 1\n")
+        os.chmod(fake, 0o755)
+        for extra in ("specs", "conformance"):
+            s = os.path.join(ROOT, extra)
+            if os.path.exists(s):
+                os.symlink(s, os.path.join(td, extra))
+        import shutil as _sh
+        for f in os.listdir(os.path.join(ROOT, "tools")):
+            if f.endswith(".py") and f != os.path.basename(__file__):
+                os.makedirs(os.path.join(td, "tools"), exist_ok=True)
+                _sh.copy(os.path.join(ROOT, "tools", f), os.path.join(td, "tools", f))
+        spawned("a compiler that will not emit is a FAILURE", [], 1,
+                ["t27c gen-verilog failed",
+                 "This is not a missing tool"],
+                ["SKIP", "ALL SYNTHESIZE"], tree=td)
+
+    # T129: the gate's OWN verdict, which none of the three cases above reaches.
+    # Measured with the five-operator run: this gate scored 0 killed out of 17 --
+    # `sys.exit(0 if ok else 1)` survived both return operators, and every FAIL
+    # branch of the comparison survived inversion. All three cases leave through
+    # skip() or broken(), so main()'s verdict was never observed at all.
+    #
+    # A control that covers only preconditions is a control for preconditions.
+    # I wrote these three knowing that class, and the number that showed it could
+    # not be produced until the run learned to be interruptible.
+    #
+    # The plant moves ONE arm. The Python side comes from g.run(); the Verilog is
+    # emitted from the microcode `steps`, not from run(). Perturbing the
+    # interpreter therefore makes the model disagree with an RTL that is
+    # unchanged -- which is what a real bit-exactness failure looks like.
+    def whole_program(label, edit, want, expect, absent):
+        nonlocal ok
+        import shutil as _sh
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, "tools"))
+            for f in os.listdir(os.path.join(ROOT, "tools")):
+                if f.endswith(".py"):
+                    src = open(os.path.join(ROOT, "tools", f), encoding="utf-8").read()
+                    if f == "gft_backprop_microcode.py" and edit:
+                        before = src
+                        src = edit(src)
+                        assert src != before, f"{label}: the plant changed nothing"
+                    open(os.path.join(td, "tools", f), "w", encoding="utf-8").write(src)
+            for extra in ("target", "specs"):
+                s = os.path.join(ROOT, extra)
+                if os.path.exists(s):
+                    os.symlink(s, os.path.join(td, extra))
+            r = subprocess.run(
+                [sys.executable, os.path.join(td, "tools", os.path.basename(__file__))],
+                capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<46} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[-320:]!r}")
+
+    whole_program("a clean tree is bit-exact and exits 0", None, 0,
+                  ["RTL == model BIT-EXACT"],
+                  ["FAIL", "SKIP", "Traceback"])
+
+    whole_program("a perturbed model disagrees with the RTL",
+                  lambda s: s.replace(
+                      '        rf[d] = smul(av, bv) if op == "MUL" else '
+                      '(sadd(av, bv) if op == "ADD" else av)',
+                      '        rf[d] = smul(av, bv) if op == "MUL" else '
+                      '(sadd(av, bv) if op == "ADD" else av)\n'
+                      '        if op == "ADD": rf[d] ^= 1', 1),
+                  1, ["py=", "FAIL"],
+                  ["RTL == model BIT-EXACT", "SKIP", "Traceback"])
+
+    print(f"  self-check: the skip pair, the gen-failure branch, and the gate's own "
+          f"verdict in both directions = {ok}")
+    return 0 if ok else 1
+
+
 def gen_core(t27c, spec, out):
     v = subprocess.run([t27c, "gen-verilog", spec], capture_output=True, text=True)
     if v.returncode != 0 or "module" not in v.stdout:
-        skip(f"t27c gen-verilog failed for {os.path.basename(spec)}")
+        broken(f"t27c gen-verilog failed for {os.path.basename(spec)}"
+               + (f": {v.stderr.strip().splitlines()[-1][:120]}" if v.stderr.strip() else ""))
     open(out, "w").write(v.stdout)
 
 
@@ -68,6 +219,14 @@ def _emit_and_gen(g, arch, modname="bpx"):
     return v, reg, steps, arch[0], arch[2]
 
 
+# mutant-equivalent: the guard above forces returncode != 0, so < is <=
+#
+# T132. Five copies of this line across five verifiers, and the boundary
+# operator reports each as a survivor. All five are reached only after a
+# returncode check -- three via `if returncode == 0: return`, two via
+# `if returncode != 0:` -- so at this point the value cannot be zero, and
+# `< 0` and `<= 0` agree on every value it can hold. Proven from the line
+# above, not assumed from the shape.
 def check(g, arch, workdir):
     v, reg, steps, n_in, n_out = _emit_and_gen(g, arch)
     rf = [0] * len(reg)
@@ -212,13 +371,15 @@ def synth_check(g, arch, workdir):
 
 
 def main():
+    if "--self-check" in sys.argv:
+        sys.exit(self_check())
     if not shutil.which("iverilog") or not shutil.which("vvp"):
         skip("iverilog/vvp not on PATH")
     t27c = find_t27c()
     if not t27c:
         skip("t27c binary not found (build with `cargo build` first)")
     if not (os.path.exists(SMUL_SPEC) and os.path.exists(SADD_SPEC)):
-        skip("gft_smul.t27 / gft_sadd.t27 specs not found")
+        broken("gft_smul.t27 / gft_sadd.t27 are tracked in this repository and are not on disk")
     g = load_gen()
     with tempfile.TemporaryDirectory() as wd:
         gen_core(t27c, SMUL_SPEC, os.path.join(wd, "GftSmul.v"))

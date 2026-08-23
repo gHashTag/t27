@@ -15,6 +15,7 @@ on:
       - "specs/numeric/formats_catalog.t27"
       - "conformance/vectors/**"
       - "tools/wp18_conformance_gate.py"
+      - "tools/wp18_gate_selfconsistent_selftest.py"
       - "tools/wp18_selftest_gate.py"
       - ".github/workflows/conformance-integrity-gate.yml"
   pull_request:
@@ -22,6 +23,7 @@ on:
       - "specs/numeric/formats_catalog.t27"
       - "conformance/vectors/**"
       - "tools/wp18_conformance_gate.py"
+      - "tools/wp18_gate_selfconsistent_selftest.py"
       - "tools/wp18_selftest_gate.py"
       - ".github/workflows/conformance-integrity-gate.yml"
   workflow_dispatch: {}
@@ -45,6 +47,17 @@ jobs:
         # If any planted mutant is NOT killed, the gate is not trustworthy -> fail here.
         working-directory: tools
         run: python3 wp18_selftest_gate.py
+
+      # T74: this selftest existed and ran NOWHERE -- a whole-tree grep found
+      # it only in its own docstring. It is not redundant with the step above:
+      # measured, two mutants of Check B's kind dispatch (selfconsistent folded
+      # into bitexact; an unrecognised kind ignored instead of reported) leave
+      # BOTH the selftest above and the live-corpus run below green, exit 0,
+      # while this one exits 1 on each. The unknown-kind branch is reachable
+      # from any typo in a real `kind` field.
+      - name: Self-test the three-kind dispatch (gate must be falsifiable)
+        working-directory: tools
+        run: python3 wp18_gate_selfconsistent_selftest.py
 
       - name: Run integrity gate against live corpus
         run: |

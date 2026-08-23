@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:114457f8d8bfa1be1dd86cec1a1485ee36944f53b256c3239c1d76eec21b9faf",
-  "gen_hash_rust": "sha256:283223aeaf6ffb5d26397a957e3cc15803c569b2c33888d5a4382877c2ec03d1",
-  "gen_hash_verilog": "sha256:9cbcd319d16c12426bc6a1fba523b6556bea6aa3fdee6cbfb63afa2fe6c652d1",
-  "gen_hash_zig": "sha256:ed99eac4f931dfcb2ce5b5b9a5dee65955f4cd9b9eea5c4c0e5e3a928e1782bb",
+  "gen_hash_c": "sha256:938929b233e017908297e42e2566d0056c8a6a893949fa82617401ee69067290",
+  "gen_hash_rust": "sha256:af293e42b031880422d23ebcd3d9d478f52cf43e672b359d0e9d06fd4b0a736f",
+  "gen_hash_verilog": "sha256:c921f19a228d0badafd017ef05f78c9ae56f3b582418efa9bce08a4a4520e5d8",
+  "gen_hash_zig": "sha256:341714e4852caffacaf6932bfb742ed64c0a4f34ea0b06fdb7270eb2a33e9b3e",
   "module": "TriMime",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-23T00:20:40Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:4a7b2f6d39fadfeceefb7c84a046ec8de99d41be22802a2c49691b17fd257e94",
   "spec_path": "specs/tri/encoding/mime.t27"
