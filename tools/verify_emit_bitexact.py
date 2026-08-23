@@ -22,6 +22,12 @@ yosys is absent; a real mismatch or synth failure exits 1. Run:
 """
 import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
 
+
+_pq = importlib.util.spec_from_file_location(
+    "_prereq", os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"))
+_prereq = importlib.util.module_from_spec(_pq); _pq.loader.exec_module(_prereq)
+skip, broken = _prereq.skip, _prereq.broken
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
 SADD_SPEC = os.path.join(ROOT, "specs/ternary/gft_sadd.t27")
@@ -30,46 +36,6 @@ ARCHS = [(2, 2, 1), (2, 3, 1), (2, 4, 1), (2, 5, 1),  # hidden-width axis
          [2, 4, 3, 1], [2, 5, 3, 2], [3, 4, 4, 2, 1]]  # DEEP (lists): 3- and 4-layer
 SYNTH_ARCHS = [(2, 2, 1), (2, 4, 2), [2, 4, 3, 1]]  # single / multi-out / deep (yosys is slower)
 STEPS = 80
-
-
-def skip(msg):
-    """A missing PREREQUISITE: a skip locally, a failure under --require.
-
-    T121, the fourth copy of this helper in the trainer/verifier family and the
-    last one without --require. Three of the four now agree that in CI a skip
-    means the environment broke, and exit 0 makes "proved" indistinguishable
-    from "never ran". This one could still pass silently.
-
-    The name comes from argv rather than being hard-coded, the defect the second
-    copy carried: a script that imports another's skip() announced the wrong
-    tool in the CI log.
-    """
-    who = os.path.basename(sys.argv[0]) or "verify_emit_bitexact"
-    if "--require" in sys.argv:
-        print(f"FAIL {who}: {msg}")
-        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
-        sys.exit(1)
-    print(f"SKIP {who}: {msg}")
-    sys.exit(0)
-
-
-def broken(msg):
-    """The PRODUCT failing, which is never a skip.
-
-    T121. `gen_core` called skip() when `t27c gen-verilog` returned non-zero --
-    so the gate whose entire job is "prove the generated RTL equals the model
-    bit-exactly" exited 0 when the generation FAILED. A codegen regression in
-    the exact thing being verified made this check pass silently, in both CI and
-    local runs, with or without any flag.
-
-    That is not a missing prerequisite. iverilog absent is an incomplete
-    environment; t27c refusing to emit is the compiler being broken, and it is
-    the loudest thing this gate could possibly find.
-    """
-    print(f"FAIL {os.path.basename(sys.argv[0])}: {msg}")
-    print("  This is a code-generation failure, not a missing tool. Nothing was")
-    print("  compared, and the reason is the compiler under test.")
-    sys.exit(1)
 
 
 def find_t27c():
@@ -165,7 +131,7 @@ def self_check():
                 _sh.copy(os.path.join(ROOT, "tools", f), os.path.join(td, "tools", f))
         spawned("a compiler that will not emit is a FAILURE", [], 1,
                 ["t27c gen-verilog failed",
-                 "This is a code-generation failure, not a missing tool"],
+                 "This is not a missing tool"],
                 ["SKIP", "ALL SYNTHESIZE"], tree=td)
 
     print(f"  self-check: the skip pair in both directions plus the gen-failure branch; "
@@ -342,7 +308,7 @@ def main():
     if not t27c:
         skip("t27c binary not found (build with `cargo build` first)")
     if not (os.path.exists(SMUL_SPEC) and os.path.exists(SADD_SPEC)):
-        skip("gft_smul.t27 / gft_sadd.t27 specs not found")
+        broken("gft_smul.t27 / gft_sadd.t27 are tracked in this repository and are not on disk")
     g = load_gen()
     with tempfile.TemporaryDirectory() as wd:
         gen_core(t27c, SMUL_SPEC, os.path.join(wd, "GftSmul.v"))
