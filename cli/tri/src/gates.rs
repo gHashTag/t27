@@ -1418,7 +1418,17 @@ fn mutate(
                 [Direction::Silent] => "no failure path to break",
                 _ => "no mutable site in any direction",
             };
-            println!("{:<38} {:>9}  {}", name, 0, what);
+            // T127: the THIRD print path. A zero-site row is still a row, and a
+            // cached one printed with no marker -- so the property went into two
+            // of three branches, which is how it got into one of two the first
+            // time.
+            println!(
+                "{:<38} {:>9}  {}{}",
+                name,
+                0,
+                what,
+                if from_cache { " [cached]" } else { "" }
+            );
             continue;
         }
 
@@ -1461,10 +1471,21 @@ fn mutate(
 
         if directions.len() == 1 {
             let (_, killed, total, _) = &scores[0];
-            let verdict = if survived_here.is_empty() {
-                "all killed".to_string()
-            } else {
-                format!("SURVIVED at {}", survived_here[0])
+            let verdict = {
+                let v = if survived_here.is_empty() {
+                    "all killed".to_string()
+                } else {
+                    format!("SURVIVED at {}", survived_here[0])
+                };
+                // T127: the marker belongs in BOTH shapes. It was added to the
+                // multi-column branch only, so a cached single-operator row
+                // printed exactly like a fresh one -- the failure this marker
+                // exists to prevent, in the half of the code that prints it.
+                if from_cache {
+                    format!("{} [cached]", v)
+                } else {
+                    v
+                }
             };
             println!(
                 "{:<38} {:>9}  {}",
