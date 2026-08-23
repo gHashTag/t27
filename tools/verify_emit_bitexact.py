@@ -134,8 +134,71 @@ def self_check():
                  "This is not a missing tool"],
                 ["SKIP", "ALL SYNTHESIZE"], tree=td)
 
-    print(f"  self-check: the skip pair in both directions plus the gen-failure branch; "
-          f"the bit-exactness verdict is NOT covered here = {ok}")
+    # T129: the gate's OWN verdict, which none of the three cases above reaches.
+    # Measured with the five-operator run: this gate scored 0 killed out of 17 --
+    # `sys.exit(0 if ok else 1)` survived both return operators, and every FAIL
+    # branch of the comparison survived inversion. All three cases leave through
+    # skip() or broken(), so main()'s verdict was never observed at all.
+    #
+    # A control that covers only preconditions is a control for preconditions.
+    # I wrote these three knowing that class, and the number that showed it could
+    # not be produced until the run learned to be interruptible.
+    #
+    # The plant moves ONE arm. The Python side comes from g.run(); the Verilog is
+    # emitted from the microcode `steps`, not from run(). Perturbing the
+    # interpreter therefore makes the model disagree with an RTL that is
+    # unchanged -- which is what a real bit-exactness failure looks like.
+    def whole_program(label, edit, want, expect, absent):
+        nonlocal ok
+        import shutil as _sh
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, "tools"))
+            for f in os.listdir(os.path.join(ROOT, "tools")):
+                if f.endswith(".py"):
+                    src = open(os.path.join(ROOT, "tools", f), encoding="utf-8").read()
+                    if f == "gft_backprop_microcode.py" and edit:
+                        before = src
+                        src = edit(src)
+                        assert src != before, f"{label}: the plant changed nothing"
+                    open(os.path.join(td, "tools", f), "w", encoding="utf-8").write(src)
+            for extra in ("target", "specs"):
+                s = os.path.join(ROOT, extra)
+                if os.path.exists(s):
+                    os.symlink(s, os.path.join(td, extra))
+            r = subprocess.run(
+                [sys.executable, os.path.join(td, "tools", os.path.basename(__file__))],
+                capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<46} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[-320:]!r}")
+
+    whole_program("a clean tree is bit-exact and exits 0", None, 0,
+                  ["RTL == model BIT-EXACT"],
+                  ["FAIL", "SKIP", "Traceback"])
+
+    whole_program("a perturbed model disagrees with the RTL",
+                  lambda s: s.replace(
+                      '        rf[d] = smul(av, bv) if op == "MUL" else '
+                      '(sadd(av, bv) if op == "ADD" else av)',
+                      '        rf[d] = smul(av, bv) if op == "MUL" else '
+                      '(sadd(av, bv) if op == "ADD" else av)\n'
+                      '        if op == "ADD": rf[d] ^= 1', 1),
+                  1, ["py=", "FAIL"],
+                  ["RTL == model BIT-EXACT", "SKIP", "Traceback"])
+
+    print(f"  self-check: the skip pair, the gen-failure branch, and the gate's own "
+          f"verdict in both directions = {ok}")
     return 0 if ok else 1
 
 
