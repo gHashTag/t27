@@ -1572,3 +1572,43 @@ example in front of it.
 State: 13 gates, 3 with boundary survivors, 8 remaining — two of them proven
 equivalences that will never go away and now say so.
 
+## 40. A verification that checked the adjacent thing
+
+A gate written yesterday for a question nobody was asking went red on real data
+today, and what it found was eleven blog posts absent from a live site for two
+days.
+
+A deploy had replaced the site's application bundle with one built from a
+different repository. Eleven posts existed **only** in the old bundle — they had
+never been migrated into the shared source — so the swap removed them. They had
+no static pages either, so nothing served them at all.
+
+That deploy was verified before pushing. Its commit message says so:
+
+> Verified before pushing: deck/, .claude/, blog/ (29) and ru/ (11) untouched
+
+**Every word of that is true, and it is the wrong question.** It checked the
+static trees. The loss was entirely inside the bundle. This is not carelessness —
+it is a verification aimed one step to the left of the thing being changed, which
+is much harder to notice than no verification at all, because the commit reads as
+checked.
+
+**The reusable rule: name what your change REPLACES, and verify that.** The
+deploy replaced `assets/`; the check covered `blog/` and `ru/`. Nothing in the
+sentence "blog/ untouched" is false and nothing in it is relevant.
+
+**And a gate is not tested until it is red on data you did not plant.** The new
+gate had four planted control cases, all passing, before it had ever seen a real
+deploy. Replaying it over 160 commits of history found three drops — two healed
+by the next deploy, one not. That replay is now a mode of the tool (`--history`)
+rather than a script I ran once.
+
+**Which needed its own two directions.** On its first real run `--history`
+printed "still missing today: 0" for all three drops — correct, because the loss
+had just been repaired, and a mode whose only observed output is green has not
+been shown to go red. It now has three planted cases in a real git repository:
+an unhealed drop reds, a healed drop stays green and says why, a clean history
+does not invent one. The middle one is load-bearing: a drop a later deploy healed
+is history, not damage, and a gate that reddens forever over a fixed incident
+gets run once.
+
