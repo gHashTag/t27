@@ -3646,10 +3646,22 @@ impl Codegen {
             self.write_line("");
         }
 
-        // Emit @import for UseDecl nodes first
+        // Emit @import for UseDecl nodes first.
+        //
+        // A spec that says `use lsp::server; use lsp::client;` yields several
+        // UseDecl nodes whose leading segment is the same, and each was emitted
+        // as its own `const lsp = @import("lsp.zig");`. Zig rejects the second as
+        // a redeclaration, so the whole file failed on a line that was correct
+        // the first time it appeared. `lsp/server.t27` emitted `const lsp` six
+        // times; 19 pure-t27 specs carry a duplicate and none of them were valid.
+        let mut emitted: Vec<&str> = Vec::new();
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
+                if emitted.contains(&decl.name.as_str()) {
+                    continue;
+                }
+                emitted.push(&decl.name);
                 self.write_line(&format!(
                     "const {} = @import(\"{}.zig\");",
                     decl.name, decl.name
