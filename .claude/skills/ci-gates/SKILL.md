@@ -2755,7 +2755,6 @@ the marker lives in the seventh. The conclusion was drawn from a ruler I had cut
 short myself, which is the third time this campaign that a display choice became
 a finding.
 
-<<<<<<< HEAD
 ## 71. The cache failed silently, three ways, in six lines
 
 A full re-measurement re-measured gates whose hashes **matched entries already in
@@ -2793,5 +2792,3 @@ expected — a missing cache file genuinely is a first run — but the *present 
 broken* case has to be told apart from the *absent* one, and only the code that
 opens the file can tell them apart.
 
-=======
->>>>>>> origin/master
