@@ -48,5 +48,14 @@ jobs:
       - name: Negative control
         run: python3 tools/check_json_parses.py --self-check
 
-      - name: Every tracked JSON parses
+      # "Every X" promises a proof. This gate is a RATCHET: it holds a ledger
+      # of the exceptions and fails only when the set GROWS. Both are worth
+      # having, and they are different claims -- a reader of a green check
+      # takes the name for the first one.
+      # Measured today: 2078 tracked JSON files, 6 of them ledgered in
+      # tools/json_parse_baseline.txt as not parsing.
+      # The count stays in this comment and out of the name: a name carrying
+      # a number becomes a WRONG number the day the ledger moves, which is
+      # a worse failure than the vague name it replaced.
+      - name: No tracked JSON newly unparseable (known set is ledgered)
         run: python3 tools/check_json_parses.py

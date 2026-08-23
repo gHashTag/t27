@@ -798,7 +798,14 @@ jobs:
       # It found a live one on its first run: check_elab_ratchet.py printed
       # "SKIP: iverilog or target/release/t27c missing" and exited 0.
       # Needs t27c, which this job has already built.
-      - name: Every gate must fail loudly with nothing to check
+      # "Every gate" is the rule this enforces, not the set it covers. The
+      # file exercises six of the thirty checkers in tools/ and prints that
+      # ratio; the other twenty-four are swept by `tri gate-sweep` and
+      # judged by a reader, not gated here.
+      # The count stays in this comment and out of the name: a name carrying
+      # a number becomes a WRONG number the day the ledger moves, which is
+      # a worse failure than the vague name it replaced.
+      - name: The gates in this file's table must fail loudly with nothing to check
         run: |
           python3 tools/check_gate_preconditions.py
           python3 tools/check_gate_preconditions.py --self-check

@@ -41,10 +41,11 @@ REQUIRED_TOOLS=(
   "scripts/tri_loop/diffmodes.py"
   "scripts/tri_loop/loop_rules.py"
   "scripts/tri_loop/gate_sweep.py"
+  "scripts/tri_loop/claims.py"
 )
 REQUIRED_SUBCOMMANDS=(triage cost diffbin damage damage-freeze damage-repair \
                       corpus-parse corpus-status diffmodes loop-rules \
-                      gate-sweep)
+                      gate-sweep claims)
 
 fail=0
 note() { printf '  %s\n' "$1"; }
