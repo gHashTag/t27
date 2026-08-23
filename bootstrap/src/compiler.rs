@@ -2769,10 +2769,27 @@ impl Parser {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Same as #2588 for `while`: the parentheses are optional in t27, and
+        // requiring them threw the statement away. 458 `if` statements are
+        // written bare -- four times the 115 bare `while` -- and they are why 97
+        // of the 104 remaining `unused local variable` errors name a variable
+        // the SPEC uses: `if pins.clk_pin == "" { valid = false; }` vanished, so
+        // `valid` looked unused in code it was never given.
+        //
+        // The struct-literal suppression matters here too: without it,
+        // `if x == "" {` reads `"" { ... }` as an initialiser and eats the body.
+        let parenthesised = self.current.kind == TokenKind::LParen;
+        if parenthesised {
+            self.advance();
+        }
+        let saved = self.no_struct_literal;
+        self.no_struct_literal = !parenthesised;
+        let cond = self.parse_expr();
+        self.no_struct_literal = saved;
+        let cond = cond?;
+        if parenthesised {
+            self.expect(TokenKind::RParen)?;
+        }
         if_node.children.push(cond);
 
         // Then branch: { ... }
