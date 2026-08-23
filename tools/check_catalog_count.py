@@ -179,6 +179,17 @@ def self_check(tool: Path) -> int:
          _planted_ssot(0), [], 4,
          f"floor is {MIN_ROWS}",
          ("OK: SSOT ==", "!= regen")),
+        # T107: the floor's BOUNDARY, not just a value far below it. Every case
+        # here tested 0 against a floor of MIN_ROWS -- clearly under -- so
+        # `n_ssot < MIN_ROWS` rewritten to `<=` passed the whole control while
+        # failing every catalog that sits exactly ON the floor. Found by the
+        # boundary operator (`tri gates mutate --all`), which asks whether a
+        # gate reaches its verdict at the right PLACE. Exactly MIN_ROWS is legal:
+        # the floor is a minimum, not a forbidden value.
+        ("floor: exactly MIN_ROWS is legal, not a failure",
+         _planted_ssot(MIN_ROWS), [], 0,
+         f"OK: SSOT == fresh regen == {MIN_ROWS}",
+         ("FAIL:", "floor is")),
         ("SSOT counts a row the codegen silently drops",
          _planted_ssot(110, _DROPPED_ROW), [], 2,
          "SSOT (111) != regen (110)",

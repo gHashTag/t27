@@ -291,8 +291,120 @@ pub enum Direction {
     /// traceback would score that as a kill -- the wrong reason, which is the
     /// mistake this command exists to catch.
     Invert,
+    /// `>` <-> `>=`, `<` <-> `<=`: an off-by-one at a comparison that decides a
+    /// verdict. The three operators above ask whether a gate reaches a verdict
+    /// and whether it reaches the right one. This asks whether it reaches it at
+    /// the right PLACE -- ratchets and thresholds live on a boundary, and a
+    /// control that tests "clearly worse" and "clearly better" never tests
+    /// equal.
+    Boundary,
 }
 
+/// Comparison swaps, longest first so `>=` is matched before `>`.
+const BOUNDARY_SWAPS: &[(&str, &str)] = &[(">=", ">"), ("<=", "<"), (">", ">="), ("<", "<=")];
+
+/// Sites for the boundary operator: every comparison outside a control
+/// function, outside a comment, and outside a string literal.
+///
+/// Deliberately NOT scoped to verdict-bearing lines the way `invert_sites` is.
+/// That scope was written for conditions, where the body says whether the line
+/// decides anything; a comparison decides through a variable that may be read
+/// three statements later, and a scope guessed in advance would be exactly the
+/// kind of limitation this campaign has twice found to be invented. Measure
+/// first, narrow only on evidence.
+fn boundary_sites(src: &str) -> Vec<(usize, usize, String)> {
+    let b = src.as_bytes();
+    let mut sites = Vec::new();
+    let mut i = 0usize;
+    let mut at_line_start = true;
+    let mut in_control = false;
+    let mut triple: Option<[u8; 3]> = None;
+    let mut quote: Option<u8> = None;
+    let mut comment = false;
+
+    while i < b.len() {
+        if at_line_start {
+            at_line_start = false;
+            // Only when not inside a docstring: `def` at column 0 inside one is
+            // prose, and treating it as a definition is how a scanner walks out
+            // of a string it is still in.
+            if triple.is_none() && src[i..].starts_with("def ") {
+                let fname: String = src[i + 4..].chars().take_while(|c| *c != '(').collect();
+                in_control = is_control_fn(&fname);
+            }
+        }
+        let c = b[i];
+        if c == b'\n' {
+            at_line_start = true;
+            comment = false;
+            quote = None; // an unterminated single quote cannot cross a line
+            i += 1;
+            continue;
+        }
+        // T107b: triple quotes FIRST. Tracking quotes per line took every `>`
+        // in every module docstring -- lines 10, 43, 136, 230 of four different
+        // gates, prose about ratchets and usage, reported as surviving mutants.
+        // The count was real and its meaning was not (number-audit 8.5); this
+        // is the check that stops it, and the reason the operator was measured
+        // before it was believed.
+        if quote.is_none() && !comment && i + 2 < b.len() {
+            let t3 = [b[i], b[i + 1], b[i + 2]];
+            if (t3 == [b'"', b'"', b'"']) || (t3 == [b'\'', b'\'', b'\'']) {
+                match triple {
+                    Some(open) if open == t3 => triple = None,
+                    Some(_) => {}
+                    None => triple = Some(t3),
+                }
+                i += 3;
+                continue;
+            }
+        }
+        if triple.is_some() || comment {
+            i += 1;
+            continue;
+        }
+        match quote {
+            Some(q) => {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == q {
+                    quote = None;
+                }
+            }
+            None => {
+                if c == b'"' || c == b'\'' {
+                    quote = Some(c);
+                } else if c == b'#' {
+                    comment = true;
+                } else if (c == b'<' || c == b'>') && !in_control {
+                    let prev = if i > 0 { b[i - 1] } else { b' ' };
+                    let next = if i + 1 < b.len() { b[i + 1] } else { b' ' };
+                    let shift = next == c || prev == c;
+                    let annot = c == b'>' && prev == b'-';
+                    if !shift && !annot {
+                        let two = next == b'=';
+                        let found = match (c, two) {
+                            (b'>', true) => ">=",
+                            (b'<', true) => "<=",
+                            (b'>', false) => ">",
+                            _ => "<",
+                        };
+                        if let Some((_, to)) = BOUNDARY_SWAPS.iter().find(|(f, _)| *f == found) {
+                            sites.push((i, found.len(), to.to_string()));
+                        }
+                        if two {
+                            i += 1;
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    sites
+}
 fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
     sites_in_direction(src, Direction::Silent)
 }
@@ -308,6 +420,9 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
     // measurement of the wrong thing.
     if matches!(dir, Direction::Invert) {
         return invert_sites(src);
+    }
+    if matches!(dir, Direction::Boundary) {
+        return boundary_sites(src);
     }
     let mut sites = Vec::new();
     let mut in_control = false;
@@ -435,6 +550,7 @@ fn label(d: Direction) -> &'static str {
         Direction::Silent => "silent",
         Direction::Loud => "loud",
         Direction::Invert => "invert",
+        Direction::Boundary => "boundary",
     }
 }
 
@@ -467,7 +583,12 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
     files.sort();
 
     let directions: &[Direction] = if all {
-        &[Direction::Silent, Direction::Loud, Direction::Invert]
+        &[
+            Direction::Silent,
+            Direction::Loud,
+            Direction::Invert,
+            Direction::Boundary,
+        ]
     } else if invert {
         &[Direction::Invert]
     } else if loud {
@@ -478,12 +599,13 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
 
     if all {
         println!(
-            "{:<38}{:>9}{:>9}{:>9}  {}",
-            "gate", "silent", "loud", "invert", "verdict"
+            "{:<34}{:>8}{:>8}{:>8}{:>9}  {}",
+            "gate", "silent", "loud", "invert", "boundary", "verdict"
         );
         println!("(silent: `return 1..4` -> `return 0`  -- can the gate still FAIL?)");
         println!("(loud:   `return 0`    -> `return 1`  -- does anything require it to be SILENT?)");
         println!("(invert: `if C:` -> `if not (C):`     -- does it reach the RIGHT verdict?)");
+        println!("(bound:  `>` <-> `>=`, `<` <-> `<=`    -- at the right PLACE?)");
     } else {
         println!("{:<38} {:>9}  {}", "gate", "mutants", "verdict");
         if invert {
@@ -634,6 +756,7 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
             let what = match directions {
                 [Direction::Loud] => "no success path to break",
                 [Direction::Invert] => "no verdict-bearing condition to invert",
+                [Direction::Boundary] => "no comparison to move",
                 [Direction::Silent] => "no failure path to break",
                 _ => "no mutable site in any direction",
             };
@@ -676,10 +799,10 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
         } else {
             let cols: String = scores
                 .iter()
-                .map(|(_, k, t, _)| format!("{:>9}", format!("{}/{}", k, t)))
+                .map(|(_, k, t, _)| format!("{:>8}", format!("{}/{}", k, t)))
                 .collect();
             println!(
-                "{:<38}{}  {}",
+                "{:<34}{}  {}",
                 name,
                 cols,
                 if survived_here.is_empty() {
@@ -1046,6 +1169,68 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // `def` at column zero changes which region we are in.
         let src = "def self_check():\n    def case(x):\n        return 1\n    return 0\n";
         assert!(mutable_sites(src).is_empty());
+    }
+
+    #[test]
+    fn the_boundary_operator_takes_comparisons_and_nothing_else() {
+        // T107. The operator is an off-by-one, so what it must NOT take matters
+        // as much as what it takes: a shift, a return annotation, a comment or
+        // a string mutated here would make the gate crash or change a message,
+        // and a control that reds on a traceback scores that as a kill for the
+        // wrong reason -- the mistake the whole command exists to catch.
+        let s = |src| sites_in_direction(src, Direction::Boundary);
+
+        assert_eq!(s("if a > b:\n").len(), 1);
+        assert_eq!(s("if a >= b:\n")[0].2, ">");
+        assert_eq!(s("if a > b:\n")[0].2, ">=");
+        assert_eq!(s("if a <= b:\n")[0].2, "<");
+        assert_eq!(s("if a < b:\n")[0].2, "<=");
+        // Two comparisons on one line are two independent sites.
+        assert_eq!(s("if a > b and c < d:\n").len(), 2);
+
+        assert!(s("x = a << 2\n").is_empty(), "took a left shift");
+        assert!(s("x = a >> 2\n").is_empty(), "took a right shift");
+        assert!(s("def f(a) -> int:\n").is_empty(), "took a return annotation");
+        assert!(s("# a > b\n").is_empty(), "took a comment");
+        assert!(s("x = 1  # a > b\n").is_empty(), "took a trailing comment");
+        assert!(s("print(\"a > b\")\n").is_empty(), "took a string");
+        assert!(s("print('a > b')\n").is_empty(), "took a single-quoted string");
+        // The control's own functions are off limits, same as every operator.
+        assert!(s("def self_check():\n    if a > b:\n").is_empty());
+
+        // T107b: docstrings. The first scanner tracked quotes per LINE, so
+        // every `>` in every module docstring became a site -- prose about
+        // ratchets and usage on lines 10, 43, 136 and 230 of four gates,
+        // reported as surviving mutants. Real count, wrong meaning.
+        assert!(
+            s("\"\"\"usage: x --a <b>\n  and total > 0 means data\n\"\"\"\nx = 1\n").is_empty(),
+            "took a comparison out of a module docstring"
+        );
+        assert!(
+            s("def f():\n    \"\"\"doc: a > b\n    more: c < d\n    \"\"\"\n    return 0\n").is_empty(),
+            "took a comparison out of a function docstring"
+        );
+        assert!(s("x = \'\'\'a > b\'\'\'\n").is_empty(), "took a single-quoted triple");
+        // A `def` at column 0 INSIDE a docstring is prose, not a definition:
+        // acting on it is how a scanner walks out of a string it is still in.
+        assert!(
+            s("\"\"\"\ndef self_check():\n\"\"\"\nif a > b:\n    x = 1\n").len() == 1,
+            "a def inside a docstring changed the control scope"
+        );
+        // And code AFTER a docstring is still code.
+        assert_eq!(
+            s("\"\"\"doc a > b\"\"\"\nif c > d:\n    return 1\n").len(),
+            1,
+            "lost the code after a docstring"
+        );
+
+        // And it is its own operator, not a relabelling of another. This is the
+        // assertion #2500 was missing.
+        let src = "def main():\n    if a > b:\n        return 1\n    return 0\n";
+        let bnd = sites_in_direction(src, Direction::Boundary);
+        assert_ne!(bnd, sites_in_direction(src, Direction::Silent));
+        assert_ne!(bnd, sites_in_direction(src, Direction::Loud));
+        assert_ne!(bnd, sites_in_direction(src, Direction::Invert));
     }
 
     #[test]
