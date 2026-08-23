@@ -1,4 +1,4 @@
-# NOW — the third axis (2026-08-25)
+# NOW — the third axis (2026-08-23)
 
 Two operators asked whether a gate can still reach its verdicts. The third asks whether it reaches the **right** one: a gate that fires its FAIL branch on a healthy tree and its OK branch on a broken one satisfies both of the others.
 
@@ -15,3 +15,7 @@ Two operators asked whether a gate can still reach its verdicts. The third asks 
   That is the seventh instrument of my own to be broken in this campaign, and it is the same lesson each time: **the probe written to check a tool needs the care the tool got, and usually gets less.**
 
 Refs #2492
+
+- **This note was first dated 2026-08-25 and the gate rejected it.** The real UTC date is 2026-08-23. I had been inferring the passage of days from the number of iterations rather than reading a clock, and two earlier notes carry the same invented drift.
+
+  That is mechanism 8.2 — *the claim was true and the world moved* — turned inside out: the world did not move and I recorded that it had. The gate caught it, which is the gate doing precisely its job, and it is the first time in this campaign that an existing gate caught **me** rather than the other way round.
