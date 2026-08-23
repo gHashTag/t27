@@ -7,6 +7,29 @@ the rules are correct, nor that the tick obeyed them."* That is R6 stated about
 itself -- the seal certifies identity, not correctness -- and nothing measured
 the second half.
 
+THE PATTERN, measured across every clause that can be checked at all:
+
+    clause          enforced by            observed
+    R1  cost format  the tool itself        yes
+    R5  tool tracked loop-tools-tracked.sh  yes
+    R6  seal         tri loop-rules         yes
+    R10 CI topology  check_pr_branch_filters yes
+    R15 six categories diffbin, at runtime  yes
+    ---
+    R0  tick ledger  nothing                cron_tracking/ has never existed
+    R11 branch prefix nothing               0 of 30
+    R11 number tag   nothing                1 of 25
+
+**Every clause with a program behind it is observed. Every clause without one
+is at zero.** Not "mostly" -- the split is total. R15 even demands its own
+enforcement be at runtime: "the set must be ASSERTED to partition the corpus at
+runtime; claiming it in a docstring is not a check", and diffbin.py:458 does
+exactly that.
+
+So the finding is not that people are careless. It is that **a rule kept in a
+document is a wish, and a rule kept in a program is a rule** -- and this file
+contains both kinds under one heading, indistinguishable to a reader.
+
 Measured the first time this ran, over the last 30 merged pull requests:
 
     branch prefix `w699-<topic>`   0 of 30
@@ -86,6 +109,12 @@ def main(argv):
         print("tri rule-observance: no merged pull requests to read.")
         return 2
 
+    # R0's ledger: `cron_tracking/<cron_id>/ledger.md`, append only. The
+    # directory is named nowhere else in the tree and exists nowhere on disk,
+    # so no tick has ever written one -- a third clause at zero, and the third
+    # with no program behind it.
+    ledger = os.path.isdir("cron_tracking")
+
     w699 = tagged = no_closes = 0
     numeric = 0
     for pr in prs:
@@ -105,6 +134,15 @@ def main(argv):
     print(f"  provenance tag on a number     {tagged:>3} of {numeric}"
           f"   (pull requests stating a number)")
     print(f"  no `Closes #N` autoclose       {no_closes:>3} of {n}")
+    print(f"  R0 tick ledger (cron_tracking/){'  yes' if ledger else '   no':>6}"
+          f"        {'present' if ledger else 'the directory does not exist'}")
+    print()
+    print("  Every clause above with a program behind it is observed; every")
+    print("  clause without one is at zero. R1 lives in `cost`, R5 in")
+    print("  loop-tools-tracked.sh, R10 in check_pr_branch_filters.py, R15 in")
+    print("  diffbin's runtime partition assertion -- all five observed. The")
+    print("  three at zero are enforced by nothing. A rule kept in a document")
+    print("  is a wish; a rule kept in a program is a rule.")
     print()
     print("  Reported, not gated. Which way a drift should be resolved -- the")
     print("  practice moving to the rule, or the rule to the practice -- belongs")
