@@ -33,8 +33,43 @@ STEPS = 80
 
 
 def skip(msg):
-    print(f"SKIP verify_emit_bitexact: {msg}")
+    """A missing PREREQUISITE: a skip locally, a failure under --require.
+
+    T121, the fourth copy of this helper in the trainer/verifier family and the
+    last one without --require. Three of the four now agree that in CI a skip
+    means the environment broke, and exit 0 makes "proved" indistinguishable
+    from "never ran". This one could still pass silently.
+
+    The name comes from argv rather than being hard-coded, the defect the second
+    copy carried: a script that imports another's skip() announced the wrong
+    tool in the CI log.
+    """
+    who = os.path.basename(sys.argv[0]) or "verify_emit_bitexact"
+    if "--require" in sys.argv:
+        print(f"FAIL {who}: {msg}")
+        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
+        sys.exit(1)
+    print(f"SKIP {who}: {msg}")
     sys.exit(0)
+
+
+def broken(msg):
+    """The PRODUCT failing, which is never a skip.
+
+    T121. `gen_core` called skip() when `t27c gen-verilog` returned non-zero --
+    so the gate whose entire job is "prove the generated RTL equals the model
+    bit-exactly" exited 0 when the generation FAILED. A codegen regression in
+    the exact thing being verified made this check pass silently, in both CI and
+    local runs, with or without any flag.
+
+    That is not a missing prerequisite. iverilog absent is an incomplete
+    environment; t27c refusing to emit is the compiler being broken, and it is
+    the loudest thing this gate could possibly find.
+    """
+    print(f"FAIL {os.path.basename(sys.argv[0])}: {msg}")
+    print("  This is a code-generation failure, not a missing tool. Nothing was")
+    print("  compared, and the reason is the compiler under test.")
+    sys.exit(1)
 
 
 def find_t27c():
@@ -52,10 +87,97 @@ def load_gen():
     return m
 
 
+def self_check():
+    """Run the WHOLE program once per verdict reachable without a simulator.
+
+    T121. This gate had no negative control in any form. It was invisible to
+    `tri gates sweep` until the selector learned that `sys.exit(0 if ok else 1)`
+    is a failure path -- its only non-zero exit is that ternary, and now the
+    two this commit adds.
+
+    The gen-failure case is the one that matters: it plants a t27c that refuses
+    to emit, which before this commit made the gate exit 0. `SKIP` is named
+    absent there, because reporting a broken compiler as a missing prerequisite
+    is precisely the defect.
+
+    NOT COVERED, said rather than inferred: the bit-exactness verdict itself,
+    which needs a Verilog arm that genuinely disagrees with the model.
+    """
+    ok = True
+
+    def spawned(label, args, want, expect, absent, env=None, tree=None):
+        nonlocal ok
+        me = os.path.abspath(__file__)
+        cwd = None
+        if tree is not None:
+            os.makedirs(os.path.join(tree, "tools"), exist_ok=True)
+            import shutil as _sh
+            _sh.copy(me, os.path.join(tree, "tools", os.path.basename(me)))
+            me = os.path.join(tree, "tools", os.path.basename(me))
+            cwd = tree
+        r = subprocess.run([sys.executable, me, *args], capture_output=True,
+                           text=True, cwd=cwd, env=env or os.environ.copy())
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<46} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[:320]!r}")
+
+    stripped = os.environ.copy()
+    stripped["PATH"] = os.pathsep.join(
+        d for d in stripped.get("PATH", "").split(os.pathsep)
+        if d and not any(os.path.exists(os.path.join(d, x)) for x in ("iverilog", "vvp")))
+
+    spawned("a missing simulator skips locally", [], 0,
+            ["SKIP verify_emit_bitexact.py: iverilog/vvp not on PATH"],
+            ["FAIL", "ALL SYNTHESIZE", "BIT-EXACT"], env=stripped)
+
+    spawned("--require turns the same state into a failure", ["--require"], 1,
+            ["FAIL verify_emit_bitexact.py: iverilog/vvp not on PATH",
+             "--require was given"],
+            ["SKIP", "ALL SYNTHESIZE"], env=stripped)
+
+    # T121: the branch that used to exit 0. A planted t27c that refuses to emit
+    # is the compiler under test being broken -- the loudest thing this gate can
+    # find, and it was reported as a missing prerequisite.
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "target/release"))
+        fake = os.path.join(td, "target/release/t27c")
+        open(fake, "w").write("#!/bin/sh\necho 'gen-verilog: refused' >&2\nexit 1\n")
+        os.chmod(fake, 0o755)
+        for extra in ("specs", "conformance"):
+            s = os.path.join(ROOT, extra)
+            if os.path.exists(s):
+                os.symlink(s, os.path.join(td, extra))
+        import shutil as _sh
+        for f in os.listdir(os.path.join(ROOT, "tools")):
+            if f.endswith(".py") and f != os.path.basename(__file__):
+                os.makedirs(os.path.join(td, "tools"), exist_ok=True)
+                _sh.copy(os.path.join(ROOT, "tools", f), os.path.join(td, "tools", f))
+        spawned("a compiler that will not emit is a FAILURE", [], 1,
+                ["t27c gen-verilog failed",
+                 "This is a code-generation failure, not a missing tool"],
+                ["SKIP", "ALL SYNTHESIZE"], tree=td)
+
+    print(f"  self-check: the skip pair in both directions plus the gen-failure branch; "
+          f"the bit-exactness verdict is NOT covered here = {ok}")
+    return 0 if ok else 1
+
+
 def gen_core(t27c, spec, out):
     v = subprocess.run([t27c, "gen-verilog", spec], capture_output=True, text=True)
     if v.returncode != 0 or "module" not in v.stdout:
-        skip(f"t27c gen-verilog failed for {os.path.basename(spec)}")
+        broken(f"t27c gen-verilog failed for {os.path.basename(spec)}"
+               + (f": {v.stderr.strip().splitlines()[-1][:120]}" if v.stderr.strip() else ""))
     open(out, "w").write(v.stdout)
 
 
@@ -212,6 +334,8 @@ def synth_check(g, arch, workdir):
 
 
 def main():
+    if "--self-check" in sys.argv:
+        sys.exit(self_check())
     if not shutil.which("iverilog") or not shutil.which("vvp"):
         skip("iverilog/vvp not on PATH")
     t27c = find_t27c()

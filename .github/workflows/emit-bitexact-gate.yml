@@ -127,7 +127,7 @@ jobs:
         run: python3 tools/check_duplicate_agreement.py
 
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
-        run: python3 tools/verify_emit_bitexact.py
+        run: python3 tools/verify_emit_bitexact.py --require
 
       - name: Prove GF-T primitives bit-exact across C + Rust + model
         run: python3 tools/verify_multitarget.py --require
