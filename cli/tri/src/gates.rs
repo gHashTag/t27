@@ -596,6 +596,54 @@ fn equivalence_claims(src: &str) -> std::collections::HashMap<usize, String> {
     out
 }
 
+/// Where to audit, and a refusal for every way the answer can be nothing.
+///
+/// T111: each branch below is a degenerate input this flag accepted on the day
+/// it shipped, found by feeding it the inputs its own author had no reason to
+/// try -- which is the lesson the command exists to teach, arriving in the
+/// command.
+fn resolve_target(dir: Option<&str>) -> Result<(std::path::PathBuf, std::path::PathBuf)> {
+    let Some(d) = dir else {
+        let r = repo_root()?;
+        let t = r.join("tools");
+        return Ok((r, t));
+    };
+    let tools = std::fs::canonicalize(d).with_context(|| format!("--dir {d}"))?;
+    if !tools.is_dir() {
+        // Previously this reached the dirty-tree check and died with
+        // "git status failed", which names the instrument rather than the
+        // mistake.
+        anyhow::bail!("--dir {d} is not a directory");
+    }
+    // The gate runs with cwd at ITS repository root, not at the directory
+    // holding it: a gate that resolves paths relative to the working directory
+    // would otherwise be run somewhere it has never been run, and the
+    // difference would look like a finding.
+    //
+    // And a directory outside any repository is REFUSED, not defaulted. This
+    // command rewrites gate files in place and restores them afterwards; the
+    // restore is only a promise because `git checkout` can undo an interrupted
+    // run. Outside a work tree there is no undo, and the dirty-tree guard that
+    // is supposed to protect against exactly that passed silently there --
+    // `git status` fails, stdout is empty, and empty reads as clean.
+    let out = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(&tools)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => Ok((
+            std::path::PathBuf::from(String::from_utf8_lossy(&o.stdout).trim().to_string()),
+            tools,
+        )),
+        _ => anyhow::bail!(
+            "--dir {d} is not inside a git work tree.\n\
+             This command rewrites each gate in place and restores it. That restore \
+             is only recoverable because `git checkout` exists; with no repository \
+             an interrupted run leaves a mutated file and no way back."
+        ),
+    }
+}
+
 fn label(d: Direction) -> &'static str {
     match d {
         Direction::Silent => "silent",
@@ -610,31 +658,7 @@ fn line_of(src: &str, byte: usize) -> usize {
 }
 
 fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&str>) -> Result<()> {
-    let (root, tools) = match dir {
-        None => {
-            let r = repo_root()?;
-            let t = r.join("tools");
-            (r, t)
-        }
-        Some(d) => {
-            let t = std::fs::canonicalize(d).with_context(|| format!("--dir {d}"))?;
-            // The gate runs with cwd at ITS repository root, not at the
-            // directory holding it: a gate that resolves paths relative to the
-            // working directory would otherwise be run somewhere it has never
-            // been run, and the difference would look like a finding.
-            let out = Command::new("git")
-                .args(["rev-parse", "--show-toplevel"])
-                .current_dir(&t)
-                .output();
-            let r = match out {
-                Ok(o) if o.status.success() => std::path::PathBuf::from(
-                    String::from_utf8_lossy(&o.stdout).trim().to_string(),
-                ),
-                _ => t.parent().map(|p| p.to_path_buf()).unwrap_or(t.clone()),
-            };
-            (r, t)
-        }
-    };
+    let (root, tools) = resolve_target(dir)?;
     let dirty = Command::new("git")
         .args(["status", "--porcelain", "--", "."])
         .current_dir(&tools)
@@ -662,6 +686,24 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&
         })
         .collect();
     files.sort();
+
+    // T111: nothing found is a FINDING, not a pass. Aimed at a directory with
+    // no gate scripts, this printed its header, printed no rows, and exited 0 --
+    // which reads exactly like a clean suite. The command whose whole subject is
+    // a check that cannot fail had one.
+    if files.is_empty() {
+        println!(
+            "FAIL: no gate scripts under {}\n\n  \
+             Looked for *.py named check_* / check-* or containing \"gate\".\n  \
+             Nothing was measured, which is not the same as nothing being wrong.",
+            tools.display()
+        );
+        // A message is not a verdict. The first version of this block printed
+        // FAIL and returned Ok, so the command announced that nothing had been
+        // measured and exited 0 -- the vacuous pass, written into the fix for
+        // the vacuous pass, in the command whose subject is vacuous passes.
+        anyhow::bail!("no gate scripts under {}", tools.display());
+    }
 
     let directions: &[Direction] = if all {
         &[
@@ -1299,6 +1341,62 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         assert!(equivalence_claims("s = \"mutant-equivalent: no\"\nif a > b:\n").is_empty());
         // A marker with nothing after it names nothing rather than panicking.
         assert!(equivalence_claims("# mutant-equivalent: x\n").is_empty());
+    }
+
+    #[test]
+    fn every_degenerate_dir_is_refused_by_name() {
+        // T111: the four inputs `--dir` accepted on the day it shipped. Two of
+        // them exited 0 -- an empty directory printed a header and no rows,
+        // which reads exactly like a clean suite, and a directory outside any
+        // repository passed the dirty-tree guard because `git status` fails
+        // there and its empty stdout reads as clean.
+        //
+        // The second is the one with teeth: this command rewrites each gate in
+        // place and restores it, and that restore is only recoverable because
+        // `git checkout` exists. Outside a work tree an interrupted run leaves
+        // a mutated file and no way back.
+        let base = std::env::temp_dir().join(format!("tri_t111_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("plain")).unwrap();
+        std::fs::write(base.join("afile"), "x").unwrap();
+
+        let msg = |d: &std::path::Path| match resolve_target(Some(d.to_str().unwrap())) {
+            Ok(_) => "OK".to_string(),
+            Err(e) => format!("{e:#}"),
+        };
+
+        assert!(msg(&base.join("nope")).contains("--dir"), "a missing dir must name the flag");
+        assert!(
+            msg(&base.join("afile")).contains("not a directory"),
+            "a file must be refused as a file, not as a git failure"
+        );
+        assert!(
+            msg(&base.join("plain")).contains("git work tree"),
+            "a directory outside a repository must be refused: got {:?}",
+            msg(&base.join("plain"))
+        );
+
+        // And the accepting direction, or the three refusals above would pass
+        // for a function that refuses everything.
+        let repo = base.join("repo");
+        std::fs::create_dir_all(repo.join("tools")).unwrap();
+        let ran = Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(&repo)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if ran {
+            let (root, tools) = resolve_target(Some(repo.join("tools").to_str().unwrap()))
+                .expect("a tools dir inside a repository is the normal case");
+            assert!(tools.ends_with("tools"));
+            assert_eq!(
+                std::fs::canonicalize(&root).unwrap(),
+                std::fs::canonicalize(&repo).unwrap(),
+                "root must be the work tree, not the parent of the directory"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
