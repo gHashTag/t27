@@ -1085,11 +1085,42 @@ struct CachedRun {
     survivors: Vec<usize>,
 }
 
+/// A cache key over the bytes of `paths`.
+///
+/// Two hazards live in the obvious four-line version of this, and both make
+/// DIFFERENT inputs share a key -- which is the direction that hurts, because
+/// a shared key means a row measured against one input is served for another.
+///
+///   * An unreadable file hashed as `unwrap_or_default()` is the empty string,
+///     so "the file is gone" and "the file is empty" are one key, and any two
+///     unreadable files are one key.
+///   * Concatenating contents with no separator lets the boundary move:
+///     ["ab", "c"] and ["a", "bc"] hash identically. `judges` is a LIST, so
+///     this is reachable whenever a gate carries more than one control.
+///
+/// Both are closed by hashing a length-prefixed record per file: the path, the
+/// read status, and the bytes, each preceded by its length.
 fn sha_of(paths: &[std::path::PathBuf]) -> String {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
+    let mut field = |h: &mut Sha256, b: &[u8]| {
+        h.update((b.len() as u64).to_le_bytes());
+        h.update(b);
+    };
     for p in paths {
-        h.update(std::fs::read(p).unwrap_or_default());
+        field(&mut h, p.to_string_lossy().as_bytes());
+        match std::fs::read(p) {
+            Ok(bytes) => {
+                h.update([1u8]);
+                field(&mut h, &bytes);
+            }
+            // Not "no bytes" -- an outcome of its own, and one that must not
+            // collide with an empty file or with another unreadable path.
+            Err(e) => {
+                h.update([0u8]);
+                field(&mut h, e.kind().to_string().as_bytes());
+            }
+        }
     }
     hex::encode(&h.finalize()[..8])
 }
@@ -1465,7 +1496,18 @@ fn mutate(
                 continue;
             }
         }
-        let _ = std::fs::write(&marker, &name);
+        // Refuse to mutate rather than mutate unmarked. The marker is what
+        // makes a killed run recoverable: without it on disk, an interrupted
+        // run leaves a mutated gate behind and the next run has no way to know.
+        // Swallowing this failure disarms the guard exactly when it is needed.
+        std::fs::write(&marker, &name).map_err(|e| {
+            anyhow::anyhow!(
+                "cannot write the interrupt marker {}: {e}\n\
+                 Refusing to mutate {name}: an interrupted run would leave the \
+                 file mutated with nothing on disk to say so.",
+                marker.display()
+            )
+        })?;
         let pristine = std::fs::read_to_string(f)?;
         // EVERY flag the gate declares, not the first one found. A gate can
         // carry several controls aimed at different branches, and running one
@@ -1935,6 +1977,56 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    /// Three ways two DIFFERENT control sets used to share one cache key. That
+    /// direction is the harmful one: a shared key serves a row measured against
+    /// one input when asked about another.
+    ///
+    /// Each case here fails against the `unwrap_or_default()` + bare-concat
+    /// version -- verified by reverting the function and watching them go red,
+    /// which is the only evidence that a test tests anything.
+    #[test]
+    fn sha_of_separates_what_used_to_collide() {
+        let d = std::env::temp_dir().join(format!("tri-sha-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let w = |n: &str, b: &str| {
+            let p = d.join(n);
+            std::fs::write(&p, b).unwrap();
+            p
+        };
+
+        // The split moves, the concatenation does not: "ab"+"c" == "a"+"bc".
+        // Reachable whenever a gate declares more than one control.
+        let (ab, c) = (w("ab", "ab"), w("c", "c"));
+        let (a, bc) = (w("a", "a"), w("bc", "bc"));
+        assert_ne!(
+            sha_of(&[ab, c]),
+            sha_of(&[a, bc]),
+            "two control sets differing only in where the boundary falls must not share a key"
+        );
+
+        // "the file is gone" is not "the file is empty".
+        let empty = w("empty", "");
+        let gone = d.join("gone");
+        assert_ne!(
+            sha_of(&[empty]),
+            sha_of(&[gone.clone()]),
+            "a missing control must not hash as an empty one"
+        );
+
+        // Two missing controls are two different absences.
+        assert_ne!(
+            sha_of(&[gone]),
+            sha_of(&[d.join("also-gone")]),
+            "two distinct missing paths must not share a key"
+        );
+
+        // And the point of a cache: same bytes, same key.
+        let stable = w("stable", "same");
+        assert_eq!(sha_of(&[stable.clone()]), sha_of(&[stable]));
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     /// `GatesCmd` is a `Subcommand`, so asking clap what `--min-runs` defaults
     /// to needs a root parser. This one exists for no other purpose.
