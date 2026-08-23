@@ -2387,3 +2387,40 @@ run still holding a file mutated, the dirty-tree guard fired before the marker
 check — the older guard doing its job, and proof that the two cover different
 moments rather than the same one.
 
+## 60. The second mutant, and why file-by-file recovery missed it
+
+§59 caught one escaped mutant. **There were two.**
+
+`check_specs_generate.py` carried `return 1` -> `return 0` — a silent mutant, in
+a commit, in the open pull request, for two iterations. It survived the cleanup
+because I recovered **the file named in the PR diff** instead of checking the
+directory.
+
+The command's own recovery instruction is `git checkout tools/` — the whole
+directory. I quoted it in §59 while doing something narrower, and then asserted
+the tree was clean on the strength of one file matching.
+
+**What found it.** Not vigilance: the background run was still going, and two
+files showed dirty at once. One mutated file is the loop working; two is either a
+bug or residue. Chasing which produced the answer — and the honest note is that
+without that anomaly I would not have looked, because the PR diff had stopped
+mentioning it.
+
+**The recovery that works is a directory comparison**, both directions:
+
+    git diff origin/master HEAD --stat -- tools/     # nothing committed
+    git status --porcelain -- tools/                 # nothing pending
+
+Two empty outputs, not one file inspected.
+
+**And the marker now proves both directions.** Present, it refuses and prints the
+recovery commands, naming the gate the interrupted run was on; absent, the run
+proceeds and clears it on success. The command it prints is
+`git checkout -- tools/` — the directory, which is exactly the instruction I had
+and did not follow.
+
+**The rule.** After any interrupted tool that edits files in place, compare the
+whole directory it edits against its baseline, in both the committed and the
+working direction. A diff that names one file is a report about that file, not
+about the tree.
+
