@@ -1659,3 +1659,41 @@ gate and printed `no post is lost — live serves 48, this build carries 48`. An
 on real data the other way: the pre-restoration build exits 1 and names all
 eleven.
 
+## 42. The mutation line closed, and what the boundaries had in common
+
+All twelve boundary survivors are gone. The suite now stands at **111 mutants
+across 13 gates — 36 silent, 21 loud, 33 invert, 21 boundary — with two
+survivors, both proven equivalences that say so in the row.**
+
+Six closed in one pass, and they rhymed. **Every one needed an input no case had
+a reason to build**, and in each the missing input was the degenerate one:
+
+- a file with **zero** cases (the prose census counted `> 0`; nothing planted an
+  empty file, so `>= 0` was free)
+- a **new** file with zero cases (announced as prose-only under `>=`, on a tree
+  with nothing wrong)
+- a file that was **already empty when the ledger was written** (an emptying is
+  a *transition*; under `>=` a file that never made one is announced as EMPTIED
+  on every run forever)
+- a ledger line with **no separator at all** (`parts[1] if len(parts) > 1`; under
+  `>=` the index raises and the gate dies on a healthy tree)
+- **exactly five** repaired seals (the `"(+N more)"` continuation boundary)
+- **exactly `MIN_ROWS`** in the catalog floor, closed earlier
+
+Nothing here is exotic. A control author plants the fault they are testing for,
+which is by construction a *non-degenerate* example: a file with the wrong
+contents, not a file with no contents. The boundary operator's whole yield is
+the empty case, the equal case, and the one-off-the-edge case — **the inputs
+that are nobody's example.**
+
+**One planted tree can close two boundaries when they are the same question on
+either side of a ledger.** The prose count appears in `--update-baseline`'s
+header and again in the verify path's census line; a single fixture carrying a
+zero-case file at record time pins both.
+
+**And "cosmetic" was closed rather than declared, twice.** The `"(+N more)"`
+guards change a message and nothing else. Both are shut with a case, because
+this campaign has twice found a written-down limitation to be invented, and a
+declared exception costs every future reader more than a case costs to write
+once.
+
