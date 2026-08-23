@@ -897,3 +897,43 @@ grepping output whose format you did not write and did not check. **Print the
 section and count by eye before writing it up.** Six of my own instruments have
 been broken in this campaign; this is the first one that would have accused
 somebody else's working code.
+
+## 23. Backlogs stack; find out which one is underneath
+
+Three investigations in this campaign looked separate and were one.
+
+```
+coverage is red            121 stale seals
+  99 orphaned by a rename       81 have a current twin  -> bookkeeping
+  18 twins themselves stale     14 DO NOT PARSE         -> not bookkeeping
+                                                            at all
+```
+
+Sealing requires generating; generating requires parsing. **The seal backlog is
+downstream of the parse backlog**, so no amount of re-sealing moves the gate.
+Measured: re-sealing all 18 twins moved the stale count by **zero** — 14
+rejected by all four backends, 4 changed nothing but a timestamp.
+
+Before proposing work on a red gate, ask what the failing items need in order to
+succeed, and whether *that* is also failing. A plan that treats a downstream
+symptom as the unit of work produces a diff and no movement.
+
+### Two proposals, both refuted by running something that already existed
+
+- "Split the 131 non-parsing specs by error class; if one dominates it is one
+  fix." `t27c backlog` had measured it: **0 specs at depth 1**, and its help text
+  records that removing the most frequent cause (435 sites, 140 specs) moved the
+  compiling count 151 → 151.
+- "Re-seal the 18 twins — pure improvement, no deletions." Zero movement, above.
+
+§21 said to grep `--help` for the noun before writing a tool. Its stronger form:
+**grep it before writing the PLAN.** Both of these were an iteration of work
+each, and both were answered by a command whose entire purpose was that question.
+
+### An iteration whose output is two refutations is a finished iteration
+
+Nothing went into the tree here but a note. Two proposals were wrong, the
+measurement says so, and a commit that made the numbers move would have had to
+be invented. The temptation to produce a diff is strongest exactly when the
+honest result is "the plan was wrong" — and a diff manufactured then is the
+purest form of the thing this whole skill is about.
