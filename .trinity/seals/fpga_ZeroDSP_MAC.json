@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:b3b567849c5c70b33293c706a42d72d7dd0967dc34610e729cd17d50ef48cb4a",
-  "gen_hash_rust": "sha256:aad2154d477ad6a1304d3818dcb59b01bfecf97cef73591ab59798881a73eca4",
-  "gen_hash_verilog": "sha256:e7e2612d02dedac230bde6da8e74a47a52ce37e9b19fb41d62f2726df4682b20",
-  "gen_hash_zig": "sha256:c7e395bed5e22f4aa537d6ac8abe152a24286ec472c2c0a702fe131e7bbd507b",
+  "gen_hash_c": "sha256:4f20540b15473c7da021a0bbacbdf481fce66c347521a5b120b2ac76a6c06581",
+  "gen_hash_rust": "sha256:8e152e0a414d9894eb3f2349f79f86193154db861b67e5a338500c674b65e991",
+  "gen_hash_verilog": "sha256:1ddfc27a4ffbe035c37bb460f4232580acddd604abc55cbb99a36db69ba5b067",
+  "gen_hash_zig": "sha256:18e6ea7f3b161d6a49baa5961bb46ad55286b6162c928bee21765fde2fb8cb37",
   "module": "ZeroDSP_MAC",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_at": "2026-08-23T00:20:40Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:136aee0b279e14e2d44bbf40b8c858c61b4b2f275ecb5a598ab5b8a4dcba4e83",
+  "spec_hash": "sha256:89e6bee4cf23b19e61376000e740db4576ab77350b9c32df8bf35e932fb553ab",
   "spec_path": "specs/fpga/mac.t27"
 }
