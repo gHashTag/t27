@@ -66,6 +66,19 @@ pub enum GatesCmd {
         #[arg(long)]
         invert: bool,
 
+        /// Audit gates in this directory instead of `<repo>/tools`.
+        ///
+        /// The gate SCRIPTS refuse a path override on purpose -- a flag that
+        /// aims a live gate somewhere harmless is a way to make it pass. This
+        /// is the auditor, not a gate: pointing it at another repository is
+        /// the whole job, and refusing to would mean every lesson this command
+        /// has learned stays inside one tree.
+        ///
+        /// The dirty-tree refusal follows the directory, so an interrupted run
+        /// is still recoverable with `git checkout` in the right repository.
+        #[arg(long)]
+        dir: Option<String>,
+
         /// Run all three operators in one pass and print them as columns.
         ///
         /// Three commands answering one question is the same shape as two
@@ -131,7 +144,13 @@ fn sweep(controls_only: bool) -> Result<()> {
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {
             let n = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            n.ends_with(".py") && (n.starts_with("check_") || n.contains("gate"))
+            // Both separators. The hyphen was not an oversight worth ignoring:
+            // aimed at another repository with --dir, the underscore-only
+            // filter silently found nothing and reported an empty table, which
+            // reads exactly like a clean suite. Two naming conventions for one
+            // thing is a shape this campaign has met before.
+            n.ends_with(".py")
+                && (n.starts_with("check_") || n.starts_with("check-") || n.contains("gate"))
         })
         .collect();
     files.sort();
@@ -167,7 +186,7 @@ fn sweep(controls_only: bool) -> Result<()> {
         let gate = if controls_only {
             "-".to_string()
         } else {
-            code(&root, &name, &[])
+            code(&root, &root.join("tools"), &name, &[])
         };
         let ctrl = if flags.is_empty() && external.is_none() {
             uncontrolled.push(name.clone());
@@ -179,11 +198,11 @@ fn sweep(controls_only: bool) -> Result<()> {
             // not excuse a red sibling.
             flags
                 .iter()
-                .map(|fl| code(&root, &name, &[fl]))
+                .map(|fl| code(&root, &root.join("tools"), &name, &[fl]))
                 .find(|c| c != "0")
                 .unwrap_or_else(|| "0".to_string())
         } else {
-            code(&root, external.as_ref().unwrap(), &[])
+            code(&root, &root.join("tools"), external.as_ref().unwrap(), &[])
         };
         rows.push((name, gate, ctrl));
     }
@@ -590,11 +609,35 @@ fn line_of(src: &str, byte: usize) -> usize {
     src[..byte].matches('\n').count() + 1
 }
 
-fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()> {
-    let root = repo_root()?;
+fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool, dir: Option<&str>) -> Result<()> {
+    let (root, tools) = match dir {
+        None => {
+            let r = repo_root()?;
+            let t = r.join("tools");
+            (r, t)
+        }
+        Some(d) => {
+            let t = std::fs::canonicalize(d).with_context(|| format!("--dir {d}"))?;
+            // The gate runs with cwd at ITS repository root, not at the
+            // directory holding it: a gate that resolves paths relative to the
+            // working directory would otherwise be run somewhere it has never
+            // been run, and the difference would look like a finding.
+            let out = Command::new("git")
+                .args(["rev-parse", "--show-toplevel"])
+                .current_dir(&t)
+                .output();
+            let r = match out {
+                Ok(o) if o.status.success() => std::path::PathBuf::from(
+                    String::from_utf8_lossy(&o.stdout).trim().to_string(),
+                ),
+                _ => t.parent().map(|p| p.to_path_buf()).unwrap_or(t.clone()),
+            };
+            (r, t)
+        }
+    };
     let dirty = Command::new("git")
-        .args(["status", "--porcelain", "--", "tools/"])
-        .current_dir(&root)
+        .args(["status", "--porcelain", "--", "."])
+        .current_dir(&tools)
         .output()
         .context("git status failed")?;
     if !String::from_utf8_lossy(&dirty.stdout).trim().is_empty() {
@@ -605,11 +648,17 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
         );
     }
 
-    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(root.join("tools"))?
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&tools)?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {
             let n = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            n.ends_with(".py") && (n.starts_with("check_") || n.contains("gate"))
+            // Both separators. The hyphen was not an oversight worth ignoring:
+            // aimed at another repository with --dir, the underscore-only
+            // filter silently found nothing and reported an empty table, which
+            // reads exactly like a clean suite. Two naming conventions for one
+            // thing is a shape this campaign has met before.
+            n.ends_with(".py")
+                && (n.starts_with("check_") || n.starts_with("check-") || n.contains("gate"))
         })
         .collect();
     files.sort();
@@ -708,12 +757,12 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
         crate::mutate::clear_derived_caches(f);
         let mut already_red: Vec<String> = Vec::new();
         for fl in &flags {
-            if code(&root, &name, &[fl]) != "0" {
+            if code(&root, &tools, &name, &[fl]) != "0" {
                 already_red.push(fl.clone());
             }
         }
         if let Some(c) = &external {
-            if code(&root, c, &[]) != "0" {
+            if code(&root, &tools, c, &[]) != "0" {
                 already_red.push(c.clone());
             }
         }
@@ -754,14 +803,14 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
             crate::mutate::clear_derived_caches(f);
             let mut noticed = false;
             for fl in &flags {
-                if code(&root, &name, &[fl]) != "0" {
+                if code(&root, &tools, &name, &[fl]) != "0" {
                     noticed = true;
                     break;
                 }
             }
             if !noticed {
                 if let Some(c) = &external {
-                    noticed = code(&root, c, &[]) != "0";
+                    noticed = code(&root, &tools, c, &[]) != "0";
                 }
             }
             // Restore before judging, so an early return can never leave the
@@ -883,9 +932,12 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
     Ok(())
 }
 
-fn code(root: &std::path::Path, script: &str, args: &[&String]) -> String {
+fn code(root: &std::path::Path, tools: &std::path::Path, script: &str, args: &[&String]) -> String {
     let mut c = Command::new("python3");
-    c.arg(format!("tools/{}", script));
+    // Absolute, so the script found is the one in `tools` rather than whatever
+    // sits under a directory of that name below cwd. With no --dir this is the
+    // same file the old relative form resolved to.
+    c.arg(tools.join(script));
     for a in args {
         c.arg(a.as_str());
     }
@@ -923,9 +975,13 @@ fn repo_root() -> Result<std::path::PathBuf> {
 pub fn run(cmd: &GatesCmd) -> Result<()> {
     match cmd {
         GatesCmd::Sweep { controls_only } => sweep(*controls_only),
-        GatesCmd::Mutate { only, loud, invert, all } => {
-            mutate(only.as_deref(), *loud, *invert, *all)
-        }
+        GatesCmd::Mutate {
+            only,
+            loud,
+            invert,
+            all,
+            dir,
+        } => mutate(only.as_deref(), *loud, *invert, *all, dir.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
