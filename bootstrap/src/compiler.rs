@@ -4284,12 +4284,16 @@ impl Codegen {
         self.write(")");
 
         // T27 methods: return type after ) without arrow
-        if is_method {
-            self.write(&format!(" {}", return_type));
-        } else if !node.extra_return_type.is_empty() {
-            // Zig uses space for return type, not : or ->
-            self.write(&format!(" {}", return_type));
-        }
+        // `return_type` already defaults to "void" a few lines above, and then
+        // this wrote it only when extra_return_type was NON-empty -- so the
+        // default was computed and never reached. A spec function with no
+        // declared return type emitted `fn tick() {`, which Zig rejects: the
+        // return type is mandatory there.
+        //
+        // 31 of the 32 `expected return type expression` errors, one per spec.
+        // Methods already took the first branch and were unaffected, which is
+        // why the two arms wrote the identical thing under different conditions.
+        self.write(&format!(" {}", return_type));
 
         self.write_line(" {");
 
