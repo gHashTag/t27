@@ -4074,7 +4074,7 @@ impl Codegen {
             self.write("pub ");
         }
 
-        self.write(&format!("const {} = enum", node.name));
+        self.write(&format!("const {} = enum", zig_ident(&node.name)));
 
         if !node.extra_type.is_empty() {
             self.write(&format!("({})", node.extra_type));
@@ -4086,9 +4086,12 @@ impl Codegen {
         for value_node in node.children.iter() {
             self.write_indent();
             if !value_node.value.is_empty() {
-                self.write(&format!("{} = {},", value_node.name, value_node.value));
+                // Fifth binding site. #2539 quoted struct fields, top-level
+                // consts, import bindings and locals, and stopped there --
+                // `error = 4,` in an enum still emitted a bare keyword.
+                self.write(&format!("{} = {},", zig_ident(&value_node.name), value_node.value));
             } else {
-                self.write(&format!("{},", value_node.name));
+                self.write(&format!("{},", zig_ident(&value_node.name)));
             }
             self.write_line("");
         }
