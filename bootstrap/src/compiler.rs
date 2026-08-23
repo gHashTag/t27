@@ -940,6 +940,32 @@ impl Lexer {
 // Parser (recursive descent, minimal)
 // ============================================================================
 
+/// Render a string's content as a Zig string literal body.
+///
+/// The lexer DECODES escapes, so `"a:\n"` in a spec arrives here holding a
+/// real newline. Writing that back out unescaped produced an unterminated
+/// literal -- `error_print(":` followed by a bare line break -- which Zig
+/// reports as `string literal contains invalid byte: '\n'`. Seven specs
+/// failed on exactly that.
+///
+/// Backslash is escaped first; doing it after would double the backslashes
+/// this function itself introduces.
+fn zig_string_body(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 8);
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+
 pub struct Parser {
     lexer: Lexer,
     current: Token,
@@ -1646,7 +1672,8 @@ impl Parser {
                 // Emitted `const BOARD_NAME: []const u8 = arty-a7-100t;`, which
                 // Zig reports as an undeclared identifier, so it surfaced in the
                 // largest failure class rather than as anything string-shaped.
-                val_node.value = format!("\"{}\"", self.current.lexeme);
+                val_node.value =
+                    format!("\"{}\"", zig_string_body(&self.current.lexeme));
                 decl.children.push(val_node);
                 self.advance();
             } else {
@@ -3109,7 +3136,7 @@ impl Parser {
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
-                    value: format!("\"{}\"", val),
+                    value: format!("\"{}\"", zig_string_body(&val)),
                     ..Default::default()
                 })
             }
