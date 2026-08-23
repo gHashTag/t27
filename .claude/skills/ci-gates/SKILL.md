@@ -2589,3 +2589,110 @@ The new one has 25 checks and `emit-bitexact` running.
 Count the checks against a sibling before reading the colours — a gate that never
 ran is invisible in exactly the way a gate that passed is.
 
+## 66. A conflicting pull request loses its path-filtered CI — and my first rule for it was wrong
+
+§65 left one pull request's missing CI undiagnosed. Checking every open pull
+request found the mechanism, and then the mechanism corrected itself.
+
+**Three more pull requests have the same shape.** Two of them change
+`bootstrap/src/compiler.rs` and got **three checks** — `check-linked-issue`,
+GitGuardian, NotebookLM. Every one path-less.
+
+That file's gate carries this comment, written to prevent exactly this:
+
+> Without `bootstrap/**` here, a PR that rewrites the C emitter merges with the
+> cross-target proof never running.
+
+The path was added. **The gate is defeated by a merge conflict instead.**
+
+**The mechanism.** A pull request that is CONFLICTING when an event fires cannot
+have its merge diff computed, so `paths:` filters cannot be evaluated and only
+path-less workflows run. The checks that remain are green — because they are the
+ones that never look at the diff — which reads exactly like a passing pull
+request.
+
+### And the rule I first wrote was wrong
+
+The correlation looked exact: four conflicting pull requests with 3, 3, 9 and 7
+checks; everything else 21 to 35. I wrote *"a CONFLICTING pull request loses most
+of its checks"* into the tool's own documentation.
+
+**An hour later two of those four reported 21 and 26.** They had been mergeable
+when their events fired, kept those results, and only conflicted afterwards.
+**A conflict does not retract past runs.**
+
+So the detectable shape is not the state. It is *conflicting **and** a check list
+far below its siblings'*, and `tri gates prs` now computes a reference from the
+non-conflicting pull requests rather than asserting from the state alone. Three
+flagged, two correctly excluded.
+
+**Caught by re-running the command on fresher data**, not by thinking harder —
+which is the argument for putting a finding into a tool rather than a document.
+A sentence cannot disagree with tomorrow's data; a command can.
+
+**And it crashed on its first run**, slicing a title by byte index in the middle
+of an em dash — in a pull request this campaign had opened. Truncate by chars.
+
+## 67. The blocking check was right, and its ledger held 58 paid debts
+
+`coverage` — the required check that blocked a pull request — is
+`check_seal_coverage.py`, one of this campaign's own gates. **It is not a broken
+instrument.** Its negative control passes, and the finding is real: **131 seals
+are stale**, meaning the spec changed after sealing so the recorded hashes
+describe something it no longer produces.
+
+**What was mine to do, and what was not.** Re-sealing 131 specs is blessing the
+drift the ratchet exists to prevent, and fixing them is 131 separate judgements.
+Filed as an owner decision.
+
+**But the gate also asked for something free.** It prints, every run:
+
+> NOTE 56 baselined seal(s) now hold. Drop their lines so the gate holds them.
+> DEPARTED … baselined as broken, and the seal FILE is gone.
+
+Fifty-six debts paid and never collected, plus two lines naming files that no
+longer exist. **209 → 151 lines**, and the 131 untouched. That *tightens* the
+ratchet: fifty-six seals that were excused are now held.
+
+**Removed by hand, line by line — not with `--update-baseline`.** That command
+rewrites the whole ledger from today's state, which would bless all 131 in the
+same stroke. **Tightening a ratchet and blessing drift use the same file and must
+not use the same command**, and the only thing separating them here is which one
+you reach for.
+
+**And the state worth naming.** `coverage` is required, so this blocks merges —
+and every recent merge went in with it red anyway. A required check that is
+always red costs the friction of a gate without the protection of one, which is
+the same condition this campaign opened on, arrived at from the opposite
+direction: not a gate that cannot fail, but a gate that cannot pass.
+
+## 68. The second blocking check was also right, and also unread
+
+`Corpus ratchet`, the other permanently-red required check, had been printing a
+precise verdict for its whole history and nobody had acted on it:
+
+    UNEXPECTED PASSES  : 3
+    UNEXPECTED FAILURES: 2
+
+**The same two specs appear in both lists.** They used to fail `parse` outright;
+they now parse and fail the narrower `parse-no-discard`. The third simply passes.
+
+So the fix is three removals and two re-labels, and the distinction matters:
+**the excuse for those two specs went from "does not parse at all" to "parses
+but discards tokens", and the third lost its excuse entirely.** Ledger 221 → 220
+against a cap of 221 — strictly tighter, and `RATCHET: CLEAN`.
+
+**Both permanently-red required checks turned out to be right.** Neither was a
+broken instrument; both were reporting real, small, actionable findings that had
+gone unread long enough to become scenery. `coverage` asked for 58 lines to be
+dropped; `Corpus ratchet` asked for 3 removals and 2 re-labels. Between them:
+**five minutes of work each, blocking every merge in the repository.**
+
+That is the failure mode neither §1 nor §57 covers. A gate that cannot fail reads
+as coverage. A gate that cannot pass reads as noise. **A gate that is right, and
+whose verdict is a short actionable list, becomes furniture if nobody reads it —
+and the longer it stays red the more certain everyone is that it means nothing.**
+
+**The check that separates the two cases takes one command.** Run the gate
+locally and read what it says. Both of these named their own remedy in the
+output, on every run, for days.
