@@ -982,6 +982,34 @@ fn zig_string_body(s: &str) -> String {
 /// only 45 errors between them -- each one died at the first `::` and
 /// ast-check never saw the rest. compiler/parser.t27 alone has 338 such lines
 /// and reports a single error.
+/// Split `A, B<C, D>` at top-level commas only, so nested generics survive.
+fn split_generic_args(inner: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut cur = String::new();
+    for ch in inner.chars() {
+        match ch {
+            '<' | '[' | '(' => {
+                depth += 1;
+                cur.push(ch);
+            }
+            '>' | ']' | ')' => {
+                depth -= 1;
+                cur.push(ch);
+            }
+            ',' if depth == 0 => {
+                out.push(cur.trim().to_string());
+                cur.clear();
+            }
+            _ => cur.push(ch),
+        }
+    }
+    if !cur.trim().is_empty() {
+        out.push(cur.trim().to_string());
+    }
+    out
+}
+
 fn zig_path(name: &str) -> String {
     if name.contains("::") {
         name.replace("::", ".")
@@ -4172,6 +4200,29 @@ impl Codegen {
         if let Some(inner) = t.strip_suffix('?') {
             if !inner.is_empty() && !inner.ends_with('?') {
                 return format!("?{}", Self::zig_type(inner));
+            }
+        }
+        // Zig has no angle brackets. 182 uses reached the output across 19
+        // files, not one of them valid: Result 158, List 17, Option 7.
+        //
+        // Two of the three have exact Zig counterparts and are converted:
+        // `Result<T, E>` is the error union `E!T`, `Option<T>` is `?T`.
+        //
+        // `List<T>` is NOT converted. `[]T` and `std.ArrayList(T)` are both
+        // defensible readings of it and the spec does not say which, so those
+        // 17 keep failing loudly -- the same call as the enum tag type in
+        // #2608, and for the same reason: a guessed semantic is worse than a
+        // visible syntax error.
+        if let Some(rest) = t.strip_suffix('>') {
+            if let Some(lt) = rest.find('<') {
+                let ctor = &rest[..lt];
+                let args = split_generic_args(&rest[lt + 1..]);
+                if ctor == "Result" && args.len() == 2 {
+                    return format!("{}!{}", Self::zig_type(&args[1]), Self::zig_type(&args[0]));
+                }
+                if (ctor == "Option" || ctor == "Optional") && args.len() == 1 {
+                    return format!("?{}", Self::zig_type(&args[0]));
+                }
             }
         }
         // `str` is Rust's, and appears bare as well as behind a reference.
