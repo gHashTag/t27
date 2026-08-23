@@ -89,43 +89,6 @@ enum Commands {
         json: bool,
     },
 
-    /// How many top-level tokens the parser DISCARDS in one file.
-    ///
-    /// The suite's `parse-no-discard` phase computes this for every spec and
-    /// reports it only as a pass or a fail, so the one question you ask when a
-    /// spec appears in that list -- WHERE does it stop consuming -- had no
-    /// command behind it. Nineteen specs sit in the ledger for this and nobody
-    /// could interrogate one without running the whole corpus.
-    ///
-    /// `--bisect` answers it: the file is re-parsed with one top-level item
-    /// removed at a time, and the items whose removal changes the discard count
-    /// are the ones the parser cannot consume.
-    ParseAccounted {
-        /// Input .t27 file path
-        input: String,
-
-        /// Name the constructs whose removal changes the count.
-        #[arg(long, default_value_t = false)]
-        bisect: bool,
-
-        /// Print the discarded tokens themselves, with their line numbers.
-        ///
-        /// This is the direct answer and `--bisect` is the indirect one.
-        /// `parse_ast_dropped_spans` already recorded exactly this and nothing
-        /// exposed it, so the first version of this command bisected its way to
-        /// a construct the compiler could have named. Look for the right sample
-        /// in the tree before inventing a coarser one.
-        #[arg(long, default_value_t = false)]
-        spans: bool,
-
-        /// How many discarded lines `--spans` prints. 0 means all of them.
-        ///
-        /// The default truncates, and a census built on truncated output
-        /// undercounts every file with more than this many discarded lines --
-        /// which is exactly the files a census is about. Machine readers pass 0.
-        #[arg(long, default_value_t = 40)]
-        limit: usize,
-    },
 
     /// Generate Zig code from .t27 file
     /// THE SERVICE: run the whole path from a spec to gates, judging every
@@ -512,6 +475,13 @@ enum Commands {
         /// only reading says whether any of it mattered.
         #[arg(long)]
         show: Option<String>,
+
+        /// Name the top-level items whose removal changes the discard count.
+        ///
+        /// `--show` prints WHAT was dropped; this says WHICH construct the
+        /// parser stops on, by re-parsing with one item removed at a time.
+        #[arg(long)]
+        bisect: Option<String>,
     },
     /// Check call sites against the signatures they call (arity and
     /// aggregate-vs-scalar), across a spec tree
@@ -3582,81 +3552,6 @@ fn top_level_items(src: &str) -> Vec<(String, usize, usize)> {
     out
 }
 
-fn run_parse_accounted(input_path: &str, bisect: bool, spans: bool, limit: usize) -> anyhow::Result<()> {
-    let src = std::fs::read_to_string(input_path)
-        .with_context(|| format!("reading {input_path}"))?;
-    let base = match compiler::Compiler::parse_ast_accounted(&src) {
-        Err(e) => {
-            println!("does not parse at all -- that is the `parse` phase's question, not this one");
-            println!("  {e}");
-            return Ok(());
-        }
-        Ok((_, n)) => n,
-    };
-    println!("{input_path}: {base} top-level token(s) discarded");
-    if base == 0 {
-        println!("  the parser consumed everything it was given");
-        return Ok(());
-    }
-    if spans {
-        // The compiler already recorded these. Grouping by line keeps a 1,813-token
-        // file readable: what a reader needs is WHERE it stops, not 1,813 lexemes.
-        match compiler::Compiler::parse_ast_dropped_spans(&src) {
-            Err(e) => println!("  could not re-parse for spans: {e}"),
-            Ok(sp) => {
-                let mut by_line: Vec<(u32, Vec<String>)> = Vec::new();
-                for (line, lex) in sp {
-                    match by_line.last_mut() {
-                        Some((l, v)) if *l == line => v.push(lex),
-                        _ => by_line.push((line, vec![lex])),
-                    }
-                }
-                println!("  discarded on {} line(s):", by_line.len());
-                let show = if limit == 0 { by_line.len() } else { limit };
-                for (line, lexemes) in by_line.iter().take(show) {
-                    println!("    {:>5}: {}", line, lexemes.join(" "));
-                }
-                if by_line.len() > show {
-                    println!("    ... and {} more line(s) -- pass --limit 0 for all",
-                             by_line.len() - show);
-                }
-            }
-        }
-    }
-    if !bisect {
-        if !spans {
-            println!("  pass --spans for the discarded tokens, --bisect for the constructs");
-        }
-        return Ok(());
-    }
-    let lines: Vec<&str> = src.lines().collect();
-    let items = top_level_items(&src);
-    println!("  {} top-level item(s) to try", items.len());
-    let mut named = 0usize;
-    for (label, a, b) in &items {
-        let mut kept: Vec<&str> = Vec::with_capacity(lines.len());
-        kept.extend_from_slice(&lines[..*a]);
-        kept.extend_from_slice(&lines[*b..]);
-        let trial = kept.join("\n");
-        // A removal that breaks parsing entirely tells us nothing about the
-        // discard: report it as inconclusive rather than as a culprit.
-        match compiler::Compiler::parse_ast_accounted(&trial) {
-            Err(_) => {}
-            Ok((_, n)) if n < base => {
-                println!("  -{:>3} discarded without `{}`  (lines {}-{})",
-                         base - n, label, a + 1, b);
-                named += 1;
-            }
-            Ok(_) => {}
-        }
-    }
-    if named == 0 {
-        println!("  no single top-level item accounts for the discard: it is either");
-        println!("  inside one of them, or in text this line-based split does not see.");
-    }
-    Ok(())
-}
-
 fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
@@ -3982,11 +3877,64 @@ fn run_parse_conform() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Name the top-level items the parser stops on, by removing one at a time.
+///
+/// `--show` prints WHAT was dropped and is the direct answer; this is for the
+/// case where the dropped tokens alone do not say which construct owns them.
+/// It exists because a command that answered this did not, and I built a whole
+/// second command around it before finding `parse-complete --show`, which had
+/// been printing the tokens with their source line all along -- better than the
+/// version I wrote. Two commands answering one question is the same defect as
+/// two seal-naming conventions: the second one is where the drift lives.
+fn run_bisect(path: &str) -> anyhow::Result<()> {
+    let src = std::fs::read_to_string(path)
+        .with_context(|| format!("reading {path}"))?;
+    let base = match compiler::Compiler::parse_ast_accounted(&src) {
+        Err(e) => {
+            println!("{path} does not parse at all -- that is `parse`'s question, not this one");
+            println!("  {e}");
+            return Ok(());
+        }
+        Ok((_, n)) => n,
+    };
+    println!("{path}: {base} top-level token(s) discarded");
+    if base == 0 {
+        println!("  the parser consumed everything it was given");
+        return Ok(());
+    }
+    let lines: Vec<&str> = src.lines().collect();
+    let items = top_level_items(&src);
+    println!("  {} top-level item(s) to try", items.len());
+    let mut named = 0usize;
+    for (label, a, b) in &items {
+        let mut kept: Vec<&str> = Vec::with_capacity(lines.len());
+        kept.extend_from_slice(&lines[..*a]);
+        kept.extend_from_slice(&lines[*b..]);
+        // A removal that breaks parsing entirely says nothing about the
+        // discard: an item that cannot be tested is not evidence.
+        if let Ok((_, n)) = compiler::Compiler::parse_ast_accounted(&kept.join("\n")) {
+            if n < base {
+                println!("  -{:>4} without `{}`  (lines {}-{})", base - n, label, a + 1, b);
+                named += 1;
+            }
+        }
+    }
+    if named == 0 {
+        println!("  no single top-level item accounts for it: the discard is inside");
+        println!("  one of them, or in text this line-based split does not see.");
+    }
+    Ok(())
+}
+
 fn run_parse_complete(
     specs_dir: &str,
     include_scratch: bool,
     show: Option<&str>,
+    bisect: Option<&str>,
 ) -> anyhow::Result<()> {
+    if let Some(path) = bisect {
+        return run_bisect(path);
+    }
     // W634: single-file mode -- print what was discarded, grouped by line, so a
     // human can decide whether any of it is content a theorem depends on.
     if let Some(path) = show {
@@ -10667,7 +10615,6 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
-        Commands::ParseAccounted { input, bisect, spans, limit } => run_parse_accounted(&input, bisect, spans, limit)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
@@ -10688,8 +10635,8 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show } => {
-            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref(), bisect.as_deref())?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
@@ -11074,7 +11021,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
-        Commands::ParseAccounted { input, bisect, spans, limit } => run_parse_accounted(&input, bisect, spans, limit)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
@@ -11094,8 +11040,8 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show } => {
-            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref(), bisect.as_deref())?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
