@@ -3226,3 +3226,42 @@ verdict.** A path in both is a spec that advanced, and recording it as a fresh
 failure — or refusing to add it, and reverting the fix — both get the sign
 wrong. Net here: 220 entries to 208, and the five carry a reason saying which
 stage they came from, so the next reader is not told they are new.
+
+## 80. The tool truncated its own list, and I read the printout as the set
+
+The corpus ratchet said **27 unexpected passes**, then printed a list. I
+removed every name in the list, re-ran, and it still failed — with two more
+names, from the same 27. The summary count and the printed list disagreed, and
+I had trusted the list.
+
+This is the third time this shape has cost me a wrong conclusion. Once it was
+an `awk` view six columns wide hiding a marker in column seven; once a `head`
+on a diff; now a tool that caps its own output. **The count and the listing are
+two different things, and only one of them is complete.**
+
+Two habits, both cheap:
+
+* **Compare the summary number to the number of lines you extracted.** If the
+  tool says 27 and your regex found 25, the gap is the finding — not a regex
+  bug to shrug at. Print both.
+* **Loop until the verdict is clean, do not act once and assume.** A single
+  pass over a truncated list leaves a tail, every time:
+
+```
+for round in 1..N:
+    run the gate
+    if exit 0: done
+    extract the removable names
+    if none extractable: stop and read it by hand   # not an infinite loop
+    if any NEW failure appeared: stop               # never auto-bless damage
+    apply, and go round again
+```
+
+The two guards are what make the loop safe to leave running. Without the first
+it spins on a failure it cannot parse; without the second it will happily
+ratchet a real regression into a ledger while you sleep. Mine converged in two
+rounds and printed each one.
+
+The same caution applies to reading a gate's output through `head`, `tail`,
+`grep -m`, or a truncating pipe of your own: you chose the truncation, so the
+missing part is on you and not on the tool.
