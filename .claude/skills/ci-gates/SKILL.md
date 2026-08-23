@@ -2004,3 +2004,45 @@ function. Ask of every control: *which process exit does this case observe?* If
 the answer is none, it is a property test wearing a gate's clothes — and the two
 are told apart by exactly one thing, whether a mutant of the verdict survives it.
 
+## 50. Sweeping for the shape: how many "missing tool" crashes are there?
+
+§49 found a gate that raised `FileNotFoundError` when a compiler was absent —
+exit 1 with no verdict, so *"the tool is missing"* and *"the arithmetic is wrong"*
+left the same colour and the same silence. That is a shape, so it got swept for.
+
+**Mechanically: 17 invocations of an external tool by bare name across the gate
+directory, 11 with no `try/except OSError` around them.** And 11 is a raw number
+whose meaning is not yet established — the same trap as *54 tools*.
+
+**Five of the eleven are guarded by a `shutil.which` precondition**, which is a
+better design than catching the exception: the gate says the tool is missing
+before it does any work. Counting those as defects would have been the
+false-accusation direction.
+
+**Six have neither.** Three are `git` — nearly universal, low value, and named
+rather than fixed. The other three matter: one `cc`, and an `iverilog`/`vvp` pair
+inside a gate that also has **no control at all**, so two findings converge on
+one file.
+
+**Measured rather than assumed, and the measurement disagreed with the count.**
+Running each with the tool stripped from PATH: `check_duplicate_agreement.py`
+crashes as predicted; `check_elab_ratchet.py` reports the absence correctly (its
+`which` precondition does dominate the call, which the static read could not
+show); and the third exits 2 on usage before reaching the tool, so the probe
+never tested what it meant to. **Eleven candidates, one confirmed crash.**
+
+Fixed with the same shape as §49: catch, name the absence, and return the value
+the caller already treats as *uncompared* rather than as *disagreed*. The gate
+now reaches its own "the extraction is broken, not the tree" verdict — the right
+class, which is the whole point.
+
+**The control case reuses the AGREEING fixture**, so the only thing wrong with
+that world is the missing tool, and `DIFFERENT behaviours` is named absent:
+reporting an absence as a disagreement is exactly what the branch exists to
+prevent.
+
+**The rule.** A static count of unguarded calls is a list of candidates, not
+findings. Run each one in the world it describes — a `which` above the call, an
+argument check before it, or a wrapper you did not read all make the same static
+pattern harmless, and only running tells you which.
+
