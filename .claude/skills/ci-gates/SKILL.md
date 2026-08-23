@@ -2311,3 +2311,116 @@ internals — encodings, magnitude comparisons — where moving a comparison is 
 numerical change rather than a verdict change. A different kind of surface,
 larger than anything else outstanding, and not this campaign's question.
 
+## 58. The fifth operator, and the control scope that leaked
+
+§57 named a measurable hole: a gate whose verdicts are `assert`s scores 0/0 in
+every column, which prints exactly like a gate with nothing to break. `--assert`
+closes it — `assert C, "msg"` becomes `assert True, "msg"`, the silent operator
+spelled the way a test-shaped gate spells it. The message is kept deliberately:
+a mutant that also dropped the text would be killed by a control asserting that
+text, and the kill would be for the wrong reason.
+
+**Its first run found one site in a file with eighteen assertions.** Not a
+scoping choice — a bug, and one all three scanners shared.
+
+`in_control` was set by a top-level `def` and cleared only by the **next**
+top-level `def`. So everything after the last function in a file inherits that
+function's status, and when the last function is a `self_check`, the whole
+`if __name__ == "__main__":` block below it is scored as control code. Sixteen
+assertions live in exactly that block. The operator reported **0/1**.
+
+A function ends at the next top-level *statement*, not at the next `def`. Three
+scanners fixed; the silent, loud and invert operators had the same leak and never
+showed it, because module-level verdicts are rare and asserts are where they
+live.
+
+**And then the honest number.** 16 sites, **2 killed**. The control I wrote for
+that gate one iteration ago — three planted cases, all passing — covers **two of
+its sixteen verdicts**. "Has a control" became a measurement, which is the entire
+point of the operator.
+
+**A cost, stated.** The full five-operator run now exceeds ten minutes; the
+assert column alone spawns sixteen ten-second runs for one gate. The suite has
+outgrown a single foreground command, and that is a real consequence of the
+fifth question rather than a reason not to ask it.
+
+### And a rule I wrote, then broke, in the same session
+
+§53 said: wait for the job that runs what you changed, not for the checks beside
+it. Two iterations later I read `in_progress`, and merged anyway. The branch run
+completed **success** afterwards — so the outcome was fine and the method was
+not, and the difference between those is the whole subject of this document.
+
+Mitigating and worth saying precisely: that change added a `--self-check` branch
+and touched no CI invocation, so the job could not have been affected by it.
+That is an argument I could have made *before* merging, and did not — I simply
+did not look.
+
+## 59. A mutant escaped into a commit, and `git add -A` is how
+
+The five-operator run exceeds ten minutes, so I backgrounded it. A timeout killed
+an earlier one. The loop writes a mutant, runs the control, restores — and a kill
+lands between the first and the third.
+
+**A boundary mutant stayed in `gft_backprop_microcode.py`. `git add -A` staged
+it. It went into a commit, a push, and an open pull request** — a deliberately
+broken line, in the file whose control I had just written, in a repository whose
+whole subject is gates that cannot fail.
+
+The command's docstring already said the restore is recoverable with
+`git checkout tools/`. True, and useless: **you have to know an interrupt
+happened.** The dirty-tree guard could not help — it refuses to *start* dirty,
+and by then the mutant was already staged.
+
+**Two failures, and the second is the one that shipped it.** Staging everything
+and trusting that nothing else moved. During a mutation run the tree is
+*transiently* dirty by design, so `git add -A` in that window commits whatever
+the loop is holding at that instant.
+
+**Fixed both ways.** A marker under `target/` (already ignored, so it can never
+be the dirt it warns about) is written before each gate and removed on success;
+a later run refuses to start and prints the recovery commands. And the habit:
+during any mutation work, stage named files, never `-A`.
+
+**The demonstration failed on its first attempt, correctly.** With the background
+run still holding a file mutated, the dirty-tree guard fired before the marker
+check — the older guard doing its job, and proof that the two cover different
+moments rather than the same one.
+
+## 60. The second mutant, and why file-by-file recovery missed it
+
+§59 caught one escaped mutant. **There were two.**
+
+`check_specs_generate.py` carried `return 1` -> `return 0` — a silent mutant, in
+a commit, in the open pull request, for two iterations. It survived the cleanup
+because I recovered **the file named in the PR diff** instead of checking the
+directory.
+
+The command's own recovery instruction is `git checkout tools/` — the whole
+directory. I quoted it in §59 while doing something narrower, and then asserted
+the tree was clean on the strength of one file matching.
+
+**What found it.** Not vigilance: the background run was still going, and two
+files showed dirty at once. One mutated file is the loop working; two is either a
+bug or residue. Chasing which produced the answer — and the honest note is that
+without that anomaly I would not have looked, because the PR diff had stopped
+mentioning it.
+
+**The recovery that works is a directory comparison**, both directions:
+
+    git diff origin/master HEAD --stat -- tools/     # nothing committed
+    git status --porcelain -- tools/                 # nothing pending
+
+Two empty outputs, not one file inspected.
+
+**And the marker now proves both directions.** Present, it refuses and prints the
+recovery commands, naming the gate the interrupted run was on; absent, the run
+proceeds and clears it on success. The command it prints is
+`git checkout -- tools/` — the directory, which is exactly the instruction I had
+and did not follow.
+
+**The rule.** After any interrupted tool that edits files in place, compare the
+whole directory it edits against its baseline, in both the committed and the
+working direction. A diff that names one file is a report about that file, not
+about the tree.
+
