@@ -142,4 +142,4 @@ jobs:
         run: python3 tools/fuzz_trainer.py 40 --require
 
       - name: Cross-check IGLA RACE ternary MAC (C + Rust == model)
-        run: python3 tools/verify_igla_race.py
+        run: python3 tools/verify_igla_race.py --require

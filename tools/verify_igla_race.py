@@ -12,7 +12,8 @@ i32-accumulator edges. Closes the "RACE specs not multi-target-verified" gap.
 Self-contained + CI-friendly: SKIPs (exit 0) if t27c / cc / rustc is missing; a real
 divergence exits 1.  Run:  python3 tools/verify_igla_race.py
 """
-import os, re, sys, shutil, subprocess, tempfile, random
+import os
+import subprocess, re, sys, shutil, subprocess, tempfile, random
 
 def _run_bin(cmd, what, cwd=None):
     """Run a built binary and return its stdout, or None with the reason printed.
@@ -84,7 +85,87 @@ N = 800
 
 
 def skip(msg):
-    print(f"SKIP verify_igla_race: {msg}"); sys.exit(0)
+    """A missing prerequisite: a SKIP locally, a FAILURE under --require.
+
+    T120. The THIRD copy of this helper in the trainer/verifier family, and the
+    second found without a --require. Its sibling verify_multitarget.py has had
+    one from the start, with a comment saying why: in CI a skip means the
+    environment broke, and exit 0 makes "proved" indistinguishable from "never
+    ran". Three copies, one rule, applied in one of them.
+
+    The name is read from argv rather than hard-coded, for the reason the copy
+    in verify_trainer_c.py needed it: that one announced another tool's name
+    when a second script imported and called it.
+    """
+    who = os.path.basename(sys.argv[0]) or "verify_igla_race"
+    if "--require" in sys.argv:
+        print(f"FAIL {who}: {msg}")
+        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
+        print("  The CI job builds t27c and the runner ships cc and rustc; if one is")
+        print("  absent the environment is broken and this check did not run.")
+        sys.exit(1)
+    print(f"SKIP {who}: {msg}"); sys.exit(0)
+
+
+def self_check():
+    """Run the WHOLE program once per verdict reachable without a divergence.
+
+    T120. This gate ran in CI with no negative control in any form, invisible to
+    `tri gates sweep` until the selector learned that `sys.exit(0 if ok else 1)`
+    is a failure path -- its only non-zero exit is that ternary.
+
+    The skip PAIR is asserted in both directions, because those two exits are
+    three lines apart and only the code differs: SKIP reaching 1 and FAIL
+    reaching 0 are both silent successes. The clean direction is asserted too --
+    without it a gate rewritten to fail unconditionally satisfies every case.
+
+    NOT COVERED, said rather than inferred: the CROSS-TARGET MISMATCH verdict.
+    Reaching it needs a backend that genuinely disagrees with the reference,
+    which means planting an emitter -- worth building and not built here.
+    """
+    ok = True
+
+    def spawned(label, args, want, expect, absent, env=None):
+        nonlocal ok
+        r = subprocess.run([sys.executable, os.path.abspath(__file__), *args],
+                           capture_output=True, text=True,
+                           env=env or os.environ.copy())
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<44} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[:300]!r}")
+
+    stripped = os.environ.copy()
+    stripped["PATH"] = os.pathsep.join(
+        d for d in stripped.get("PATH", "").split(os.pathsep)
+        if d and not os.path.exists(os.path.join(d, "cc")))
+
+    spawned("a missing compiler skips locally", [], 0,
+            ["SKIP verify_igla_race.py: no C compiler"],
+            ["FAIL", "CROSS-TARGET MISMATCH", "IGLA RACE: ternary_mul"], env=stripped)
+
+    spawned("--require turns the same state into a failure", ["--require"], 1,
+            ["FAIL verify_igla_race.py: no C compiler",
+             "--require was given, so a missing prerequisite is a failure"],
+            ["SKIP", "CROSS-TARGET MISMATCH", "IGLA RACE: ternary_mul"], env=stripped)
+
+    spawned("a healthy tree exits 0 and says what it proved", ["--require"], 0,
+            ["IGLA RACE: ternary_mul EXHAUSTIVE over all 65,536 inputs"],
+            ["FAIL", "SKIP", "CROSS-TARGET MISMATCH"])
+
+    print(f"  self-check: the skip pair in both directions plus the clean run; the "
+          f"cross-target mismatch verdict is NOT covered here = {ok}")
+    return 0 if ok else 1
 
 
 def find_t27c():
@@ -395,6 +476,8 @@ def run_pe_rust(t27c, vecs, wd):
 
 
 def main():
+    if "--self-check" in sys.argv:
+        sys.exit(self_check())
     t27c = find_t27c()
     if not t27c:
         skip("t27c not found")
