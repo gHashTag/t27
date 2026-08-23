@@ -1,5 +1,20 @@
 # TNF audit — the complete ledger
 
+> **NAMING (W995).** Rung names in this document are **symbol counts**, not bit
+> widths. `spec_ladder` asserts `1 + E_t + M = N` with `E_t` counting **trits**, so
+> `TNF16` is one sign, four trits and eleven mantissa bits — **sixteen storage
+> elements, nineteen bits**. The canonical name is the binary width; the old names
+> are kept as aliases because the corpus is indexed by them.
+>
+> | symbols | TNF4 | TNF8 | TNF16 | TNF32 | TNF64 | TNF128 | TNF256 |
+> |---|---|---|---|---|---|---|---|
+> | **bits** | **6** | **10** | **19** | **36** | **69** | **133** | **262** |
+>
+> **No measurement changes** — every figure was computed at the physical width.
+> Read `TNF16 vs binary16` below as `TNF19 vs binary16`, which is not matched, and
+> is why the canonical name moved. `tnf_ladder_versions.canonical()` converts.
+
+
 One page holding everything this audit found, fixed, reported and withdrew, so a
 review of PR #603 does not have to walk fourteen commit messages. Every claim
 below is measured; the measurement lives in the named commit or record.
@@ -2678,3 +2693,41 @@ configuration that produces both. The referee page carries the mapping at the to
 **No measurement changes.** Every figure in the corpus was already computed at the
 physical width; only the label moves. The W991 competitor table is untouched -- it
 was already keyed on physical width, which is precisely what made this visible.
+
+## 65. Correct forward, annotate backward (W996)
+
+The rename of W995 could have been swept through the corpus. It was not.
+
+Measured first: **1 344 legacy citations across 107 files** -- `TNF4` 629,
+`TNF16` 299, `TNF8` 247, `TNF32` 59, `TNF64` 45, and a tail. Rewriting them would
+break every cross-reference, touch every committed record that is indexed by the
+old name, and **change no measurement**, because each figure was already computed
+at the physical width. The records were written when the name meant what it meant.
+What a reader needs is the mapping at the point of entry, so that is where it went:
+the top of the referee page, the theory document and this ledger.
+
+A counting note, kept rather than swallowed. W995 reported 1 506 occurrences and
+this reports 1 344. W995 grepped raw substrings across more roots; this counts
+word-boundary matches in text-bearing files. The smaller number is the honest one,
+and both are on record -- a corrected count that erases the first teaches nothing
+about how the first was got.
+
+**And a measurement fell out of the waiting.** `gft_xorpercep`, 28 609 LUT, spent
+**2 470 s** in place-and-route without finishing: **86.3 ms/LUT and still
+climbing**, against the **50.7 ms/LUT** from which W988 derived the cap. That is
+**1.70x**, on the largest design in the corpus, and it is a lower bound because
+the run had not returned.
+
+T846 already established that the slope is not one number -- spread at least 1.9x,
+not monotonic in size. This extends the range at the top end, and it was obtained
+for free by a wave that had to wait anyway. The point is about the cap, not the
+design: **the 1 800 s limit W988 chose from the mean would have killed this build
+at thirty minutes and reported `ABSENT`** -- a bench limit read as a property of
+the design, which is precisely the error W994 had to retract one wave earlier. A
+limit set from a mean, on a quantity whose spread is a factor of two and whose
+worst case sits at the top of the size range, fails exactly on the largest thing
+you own.
+
+The bench-liveness gate is deferred with its reason: `scripts/tri` was executing
+the sweep for the whole wave, and editing a running shell script risks corrupting
+its parse mid-run.

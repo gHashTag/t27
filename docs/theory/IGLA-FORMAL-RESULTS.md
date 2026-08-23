@@ -1,5 +1,20 @@
 # IGLA — Formal results, measured propositions, and where they sit in the literature
 
+> **NAMING (W995).** Rung names in this document are **symbol counts**, not bit
+> widths. `spec_ladder` asserts `1 + E_t + M = N` with `E_t` counting **trits**, so
+> `TNF16` is one sign, four trits and eleven mantissa bits — **sixteen storage
+> elements, nineteen bits**. The canonical name is the binary width; the old names
+> are kept as aliases because the corpus is indexed by them.
+>
+> | symbols | TNF4 | TNF8 | TNF16 | TNF32 | TNF64 | TNF128 | TNF256 |
+> |---|---|---|---|---|---|---|---|
+> | **bits** | **6** | **10** | **19** | **36** | **69** | **133** | **262** |
+>
+> **No measurement changes** — every figure was computed at the physical width.
+> Read `TNF16 vs binary16` below as `TNF19 vs binary16`, which is not matched, and
+> is why the canonical name moved. `tnf_ladder_versions.canonical()` converts.
+
+
 **Status:** living document · **Established:** Wave Loop 585, 2026-08-09 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
@@ -31185,6 +31200,40 @@ canonical name, old name, and the configuration that produces both.
 **No measurement changes.** Every number in the corpus was already computed at the
 physical width; only the label moves. The W991 competitor table is untouched --
 it was already keyed on physical width, which is exactly what exposed this.
+
+### T859 -- The rename goes in the reader's path, not through the history [measured]
+
+The W995 mapping now sits at the top of all three forward-facing documents. It
+does **not** go through the 1 344 legacy citations counted across 107 files
+(`TNF4` 629, `TNF16` 299, `TNF8` 247, `TNF32` 59, `TNF64` 45, and the tail).
+
+Rewriting them would break every cross-reference, touch every committed record
+that is indexed by the old name, and **change no measurement** -- each figure was
+already computed at the physical width. The records were written when the name
+meant what it meant. What a reader needs is the table at the point of entry, and
+that is where it is.
+
+A counting note, because two numbers appear: W995 reported 1 506 and this reports
+**1 344**. W995 grepped raw substrings over more roots; this counts word-boundary
+matches in text-bearing files. **The smaller number is the honest one**, and both
+are recorded rather than the second quietly replacing the first.
+
+### T859a -- A fresh lower bound on placement time, obtained by waiting [measured]
+
+`gft_xorpercep`, 28 609 LUT, had spent **2 470 s** in place-and-route without
+finishing -- **86.3 ms/LUT and still climbing**, against the **50.7 ms/LUT** the
+cap of W988 was derived from. That is **1.70x** the corrected slope, on the
+largest design in the corpus, and it is a *lower* bound: the run had not returned.
+
+T846 already said the slope is not one number -- spread at least 1.9x, and not
+monotonic in size. This extends the range upward at the top end, and it was
+obtained for free by a wave that had to wait anyway. The cap of 1 800 s that W988
+chose from the mean would have killed this build at 30 minutes; the 5 400 s the
+run was given is what let it continue.
+
+**The lesson is about the cap, not the design.** A limit set from a mean, on a
+quantity whose spread is a factor of two and whose worst case sits at the top of
+the size range, will fail exactly on the largest thing you own.
 
 ---
 

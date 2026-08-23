@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W995, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W996, 2026-08-23)
+
+> **W996 — CORRECT FORWARD, ANNOTATE BACKWARD, NEVER REWRITE THE RECORD.** The W995 mapping box now
+> heads all three forward-facing documents. It does **not** go through the **1 344** legacy
+> citations across **107** files (`TNF4` 629, `TNF16` 299, `TNF8` 247, `TNF32` 59, `TNF64` 45):
+> rewriting them breaks every cross-reference, touches every committed record indexed by the old
+> name, and **changes no measurement** — each figure was already computed at the physical width, and
+> the records were written when the name meant what it meant. **Two counts are kept, not one:**
+> 1 506 (W995's raw substring grep) and **1 344** (word-boundary matches in text files, the honest
+> figure) — the smaller does not quietly replace the larger. **And a measurement fell out of the
+> waiting:** `gft_xorpercep` at **28 609 LUT** spent **2 470 s** in place-and-route without
+> finishing — **86.3 ms/LUT and climbing**, **1.70×** the 50.7 the W988 cap was derived from, on the
+> largest design in the corpus. T846 said the slope is not one number; this extends the range at the
+> top. **The 1 800 s cap chosen from the mean would have killed this build at thirty minutes** and
+> reported `ABSENT` — a bench limit read as a property of the design, exactly the W994 error.
+> T859/T859a, lessons 1530–1531, **590 derived checks**. **Deferred:** the bench-liveness gate —
+> `scripts/tri` was executing the sweep all wave and editing a running shell script risks its parse.
+> **IN FLIGHT:** `gft_xorpercep` under a 5 400 s cap, then the `gft_train1` sweep. **Readiness 98 %.**
 
 > **W995 — THE LADDER NAME IS A SYMBOL COUNT READ AS A BIT COUNT.** Raised by the Architect:
 > *TNF4 occupies 6 bits, not 4 — then logically it should be TNF6.* Correct, and the mechanism is

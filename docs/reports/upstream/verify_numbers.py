@@ -1088,5 +1088,29 @@ if nm:
     check("сумма вхождений",
           sum(v for k, v in occ.items() if k != "total"), occ["total"], tol=0)
 
+# W996: the rename carried into the text, and a placement-time lower bound.
+nt = rec("naming_text_w996.json")
+if nt:
+    print("\n== переименование в тексте и нижняя граница размещения (W996)")
+    o = nt["naming_carried_into_the_text"]["legacy_occurrences_measured"]
+    check("файлов с упоминаниями", o["files"], 107, tol=0)
+    check("сумма по именам",
+          sum(v for k, v in o.items() if k not in ("files", "total")), o["total"], tol=0)
+    check("исторические записи не переписаны",
+          "NOT rewritten" in nt["naming_carried_into_the_text"]["decision"], True, tol=0)
+    check("расхождение счётчиков объяснено",
+          "1344 counted here against 1506" in nt["naming_carried_into_the_text"]["note"], True, tol=0)
+    b = nt["placement_time_lower_bound"]
+    check("нижняя граница мс/LUT",
+          1000 * b["still_running_at_s"] / b["LUT"], b["lower_bound_ms_per_lut"], tol=0.2)
+    check("во сколько раз выше наклона потолка",
+          b["lower_bound_ms_per_lut"] / b["cap_was_set_from_ms_per_lut"], 1.70, tol=0.02)
+    check("ожидание по наклону, с",
+          b["cap_was_set_from_ms_per_lut"] * b["LUT"] / 1000, b["expected_at_that_slope_s"], tol=1)
+    check("статус назван, а не выдан за результат",
+          b["status"].startswith("IN FLIGHT"), True, tol=0)
+    check("гейт стенда отложен с причиной",
+          "executing the sweep" in nt["bench_gate_deferred"]["why"], True, tol=0)
+
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)

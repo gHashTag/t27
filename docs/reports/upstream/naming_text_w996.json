@@ -1,0 +1,35 @@
+{
+ "wave": "W996",
+ "naming_carried_into_the_text": {
+  "action": "the W995 mapping box added at the top of IGLA-FORMAL-RESULTS.md and TNF-FINDINGS-LEDGER.md, matching the one already on REFEREE-PAGE.md",
+  "legacy_occurrences_measured": {
+   "files": 107,
+   "TNF4": 629,
+   "TNF16": 299,
+   "TNF8": 247,
+   "TNF32": 59,
+   "TNF64": 45,
+   "TNF128": 29,
+   "TNF256": 15,
+   "TNF1024": 11,
+   "TNF512": 10,
+   "total": 1344
+  },
+  "decision": "historical records are NOT rewritten. They were written when the name meant what it meant, and rewriting 1344 citations would break every cross-reference while changing no measurement. The box gives the reader the table at the point of entry.",
+  "note": "1344 counted here against 1506 counted in W995 -- W995 grepped raw substrings across more roots, this counts word-boundary matches in text-bearing files. The smaller number is the honest one."
+ },
+ "placement_time_lower_bound": {
+  "design": "gft_xorpercep",
+  "LUT": 28609,
+  "still_running_at_s": 2470,
+  "lower_bound_ms_per_lut": 86.3,
+  "cap_was_set_from_ms_per_lut": 50.7,
+  "expected_at_that_slope_s": 1450,
+  "reading": "place-and-route on this design has already spent 1.70x the time the corrected slope predicts, and has not finished. T846 said the slope is not one number and the spread is at least 1.9x and not monotonic in size; this is a fresh lower bound at the top of the corpus, obtained by waiting.",
+  "status": "IN FLIGHT under a 5400 s cap"
+ },
+ "bench_gate_deferred": {
+  "why": "scripts/tri was executing the sweep for the whole wave, and editing a running bash script risks corrupting its parse mid-run",
+  "what_it_will_do": "report cable presence and its bus:dev address BEFORE a build, since W994 lost an hour of place-and-route to a cable that had left the bus and W995 found the address had silently moved from 1:5 to 1:4"
+ }
+}
