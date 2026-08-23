@@ -1285,7 +1285,6 @@ bench "bench_trit_multiply_table_latency" {
     for (0..1000) |_| {
         result = trit_multiply_table(.pos, .neg);
     }
-    _ = result;
 }
 
 bench "bench_trit_add_table_latency" {
@@ -1296,7 +1295,6 @@ bench "bench_trit_add_table_latency" {
     for (0..1000) |_| {
         result = trit_add_table(.pos, .neg);
     }
-    _ = result;
 }
 
 bench "bench_trit_carry_table_latency" {
@@ -1307,7 +1305,6 @@ bench "bench_trit_carry_table_latency" {
     for (0..1000) |_| {
         result = trit_carry_table(.pos, .pos);
     }
-    _ = result;
 }
 
 bench "bench_trit_add_with_carry_latency" {
@@ -1318,7 +1315,6 @@ bench "bench_trit_add_with_carry_latency" {
     for (0..1000) |_| {
         result = trit_add_with_carry(.pos, .pos, .zero);
     }
-    _ = result;
 }
 
 bench "bench_trit_compare_latency" {
@@ -1329,7 +1325,6 @@ bench "bench_trit_compare_latency" {
     for (0..1000) |_| {
         result = trit_compare(.pos, .neg);
     }
-    _ = result;
 }
 
 bench "bench_trit_min_max_latency" {
@@ -1340,7 +1335,6 @@ bench "bench_trit_min_max_latency" {
     for (0..1000) |_| {
         result = trit_min(.pos, .neg);
     }
-    _ = result;
 }
 
 bench "bench_trit_lt_latency" {
@@ -1351,7 +1345,6 @@ bench "bench_trit_lt_latency" {
     for (0..1000) |_| {
         result = trit_lt(.neg, .pos);
     }
-    _ = result;
 }
 
 bench "bench_trit_le_latency" {
@@ -1362,7 +1355,6 @@ bench "bench_trit_le_latency" {
     for (0..1000) |_| {
         result = trit_le(.neg, .pos);
     }
-    _ = result;
 }
 
 bench "bench_trit_gt_latency" {
@@ -1373,7 +1365,6 @@ bench "bench_trit_gt_latency" {
     for (0..1000) |_| {
         result = trit_gt(.pos, .neg);
     }
-    _ = result;
 }
 
 bench "bench_trit_ge_latency" {
@@ -1384,7 +1375,6 @@ bench "bench_trit_ge_latency" {
     for (0..1000) |_| {
         result = trit_ge(.pos, .neg);
     }
-    _ = result;
 }
 
 bench "bench_trit_multiply_with_carry_latency" {
@@ -1395,7 +1385,6 @@ bench "bench_trit_multiply_with_carry_latency" {
     for (0..1000) |_| {
         result = trit_multiply_with_carry(.pos, .pos, .zero);
     }
-    _ = result;
 }
 
 bench "bench_trit_reverse_latency" {
@@ -1406,7 +1395,6 @@ bench "bench_trit_reverse_latency" {
     for (0..1000) |_| {
         result = trit_reverse(.pos);
     }
-    _ = result;
 }
 
 bench "bench_trit_multiply_by_power_of_two_latency" {
@@ -1417,7 +1405,6 @@ bench "bench_trit_multiply_by_power_of_two_latency" {
     for (0..1000) |_| {
         result = trit_multiply_by_power_of_two(.pos, 1);
     }
-    _ = result;
 }
 
 bench "bench_trit_power_latency" {
@@ -1428,7 +1415,6 @@ bench "bench_trit_power_latency" {
     for (0..1000) |_| {
         result = trit_power(.neg, 2);
     }
-    _ = result;
 }
 
 bench "bench_trit_from_bool_latency" {
@@ -1439,7 +1425,6 @@ bench "bench_trit_from_bool_latency" {
     for (0..1000) |_| {
         result = trit_from_bool(true);
     }
-    _ = result;
 }
 
 bench "bench_trit_to_bool_latency" {
@@ -1450,7 +1435,6 @@ bench "bench_trit_to_bool_latency" {
     for (0..1000) |_| {
         result = trit_to_bool(.pos);
     }
-    _ = result;
 }
 
 bench "bench_trit_abs_diff_latency" {
@@ -1461,7 +1445,6 @@ bench "bench_trit_abs_diff_latency" {
     for (0..1000) |_| {
         result = trit_abs_diff(.pos, .neg);
     }
-    _ = result;
 }
 
 bench "bench_trit_cond_swap_latency" {
@@ -1472,7 +1455,6 @@ bench "bench_trit_cond_swap_latency" {
     for (0..1000) |_| {
         result = trit_cond_swap(.pos, .neg, .zero);
     }
-    _ = result;
 }
 
 bench "bench_trit_is_unit_latency" {
@@ -1483,7 +1465,6 @@ bench "bench_trit_is_unit_latency" {
     for (0..1000) |_| {
         result = trit_is_unit(.pos);
     }
-    _ = result;
 }
 
 bench "bench_trit_is_identity_latency" {
@@ -1494,7 +1475,6 @@ bench "bench_trit_is_identity_latency" {
     for (0..1000) |_| {
         result = trit_is_identity(.zero);
     }
-    _ = result;
 }
 
 bench "bench_trit_is_negated_latency" {
@@ -1505,6 +1485,5 @@ bench "bench_trit_is_negated_latency" {
     for (0..1000) |_| {
         result = trit_is_negated(.neg, .pos);
     }
-    _ = result;
 }
 
