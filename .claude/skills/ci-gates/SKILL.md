@@ -2696,3 +2696,34 @@ and the longer it stays red the more certain everyone is that it means nothing.*
 **The check that separates the two cases takes one command.** Run the gate
 locally and read what it says. Both of these named their own remedy in the
 output, on every run, for days.
+
+## 69. A detector keyed on a value that is recomputed while you look at it
+
+`tri gates prs` flagged three pull requests one iteration ago. Run again today, it
+flagged **one** — and nothing about the other two had changed.
+
+`mergeable` is computed on demand. Between two runs, two pull requests moved from
+CONFLICTING to UNKNOWN and back, and the detector — which tested
+`m == "CONFLICTING"` — lost them and found them again. **The alarm was
+intermittent for a condition that was not.**
+
+**The observable is the short check list.** Three checks against a median of
+twenty-one is the finding, whatever GitHub currently believes about
+mergeability. The state is the *explanation*, and it belongs in the row rather
+than in the test.
+
+The reference had the same defect one layer down: computed as the median of the
+*non-conflicting* rows, it read 21 on one run and 35 on the next, because two
+rows crossed the filter in between. **A median over every row is unmoved by a
+few short lists and does not depend on a value that changes while you watch.**
+Two consecutive runs now agree.
+
+**And `UNKNOWN` is not `fine`.** It means GitHub has not finished computing.
+A short list with UNKNOWN beside it is the same finding as one with CONFLICTING
+beside it, seen a moment earlier — which the output now says.
+
+**The rule.** Before keying an alarm on a field, ask whether the field is
+*measured* or *computed on demand*. A derived, cached, or lazily-evaluated value
+makes a detector that reports the weather rather than the climate — and the
+first symptom is a finding that comes and goes without anything changing.
+
