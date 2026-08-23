@@ -2130,3 +2130,39 @@ already has a parser for, you are choosing the version with the known bug. Ask
 what the existing checker would say, and if you cannot run it, at least give the
 shortcut the same cases the real one has.
 
+## 53. Three copies of one helper, one rule applied once
+
+Waiting for a CI job before merging turned out to be the productive part of the
+iteration, twice over.
+
+**The wait was right.** #2518 tightened two CI steps with `--require`, and the
+job that runs them takes twenty minutes. Merging on "the other checks are green"
+would have been the exact error this campaign keeps correcting: the checks that
+were green were not the ones the change affects. It completed **success**, and
+only then did it merge.
+
+**And the wait surfaced a stale red.** That workflow last ran on the default
+branch on 2026-08-20 and **failed** — at a step my branch passes. Three days of
+red that is not a live finding, just a run nobody has repeated. `run` on a branch
+and `run` on the default branch answer different questions, and the older one
+answers about a tree that no longer exists.
+
+**The parallel work found the third copy.** `skip()` exists three times in the
+trainer/verifier family. `verify_multitarget.py` has had `--require` from the
+start with a comment explaining why. `verify_trainer_c.py` did not, until
+yesterday. `verify_igla_race.py` did not either. **One rule, written down once,
+applied in one of three places** — and the two without it are CI steps that could
+exit 0 having compared nothing.
+
+That is not a bug in any of the three. It is what happens when a rule lives in a
+comment inside one file: the next author copies the code and not the reasoning.
+
+**The fourth consecutive agreement.** `verify_igla_race.py` now scores 1/2, 1/1,
+8/9 — and its single silent survivor is the final `sys.exit(0 if ok else 1)`,
+which the new control's docstring names as uncovered. Four gates in a row where
+the declared gap and the measured gap are the same line.
+
+**The rule.** When you fix a defect in a helper, grep for the helper's other
+copies before writing it up. A shared idea with three implementations has three
+chances to be right and usually takes one.
+
