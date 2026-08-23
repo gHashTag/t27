@@ -709,3 +709,59 @@ digit inside an identifier is not a verdict, and a bare name is not one either.
 - **Say what you did not cover, in a constant.** And say when a guard is
   correct by construction but **has not been seen to fire** -- by this
   repository's own rule that is not the same as working.
+
+## 19. A permanently-red gate is a question, not a verdict
+
+Three red gates were opened this campaign. **Two were the instrument, one was the
+record, none was the product.** That ratio is the finding.
+
+- **`emit-bitexact`** said "6 of 8 targets did not agree or did not run". Its own
+  testbench wrapper lifted a module body into a bare `module tb;` and declared
+  four hardcoded port names; the module had nine. Three targets never ran. Run,
+  they agree exhaustively.
+- **`coverage`** reported 136 stale seals. `t27c seal --save` writes
+  `<dir>_<Module>.json`; the old files are bare `<Module>.json`. 99 of them are
+  duplicates left behind by the rename, 81 with a current twin.
+- **`Corpus ratchet`** named two unexpected failures. Both are the braceless
+  `given`-style `test` block, which is parsed to its header and loses its body.
+
+**Open the gate before you conclude anything about the code it guards.** All
+three had been red for weeks and read as backlog.
+
+### "Could not measure" and "measured and found wrong" are different verdicts
+
+`emit-bitexact` printed one sentence for both, and the six was entirely the
+first. A reader has no way to tell a broken instrument from a broken product.
+Where a checker already distinguishes them internally — `None` vs `False` —
+a tally that collapses them throws away the distinction the code paid for.
+
+**And splitting the tally is not the fix on its own.** My first attempt did
+exactly that and was *more confidently wrong*: `verilog_digest` returned `False`
+for build failures too, so a broken testbench would have been labelled
+`DISAGREED` in bold. Fix the source of the distinction, then the report.
+
+### Build the instrument when the question has no command behind it
+
+`parse-no-discard` gates nineteen specs and reports pass/fail. The one question
+a reader asks — WHERE does the parser stop consuming — had no command, so nobody
+asked it. `t27c parse-accounted --bisect` answered it in two runs.
+
+It also **killed two plausible causes** I had already written down: "invariant
+inside a test is discarded" (fifteen such in a passing spec) and "it is the
+expression form" (all seven forms behave identically). A report built on either
+would have sent someone to the wrong file. When a diagnosis is cheap to test,
+the tool that tests it pays for itself before it is merged.
+
+### Ledger reading, in one line
+
+Read an "unexpected passes" list as **headroom nobody has**: the corpus ledger
+was at 221 of a 221 cap with three fixed entries still in it.
+
+### Two operational rules earned the hard way
+
+- **`git stash` is repository-global, not worktree-local.** With agents in
+  worktrees of the same repo, a `stash`/`pop` pair pops somebody else's work.
+- **Backticks inside a double-quoted shell string are command substitution.**
+  This ate text out of a commit message and then out of a filed issue, in the
+  same session, after being written down once. Pass long bodies through
+  `--body-file` or a heredoc with a quoted delimiter, never `-m "…\`x\`…"`.
