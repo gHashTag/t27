@@ -677,13 +677,31 @@ fn generate_t27(spec: &TriSpec) -> String {
     output.push_str("    // ═══════════════════════════════════════════════════════════\n\n");
 
     for func in &spec.functions {
-        let test_name = format!("{}_basic_case", to_snake_case(&func.name));
         let fn_name_snake = to_snake_case(&func.name);
 
-        output.push_str(&format!("    test {}\n", test_name));
-        output.push_str(&format!("        given input = default_input()\n"));
-        output.push_str(&format!("        when result = {}(input)\n", fn_name_snake));
-        output.push_str(&format!("        then result != undefined\n\n"));
+        // This used to manufacture a test per function:
+        //
+        //     test {name}_basic_case
+        //         given input = default_input()
+        //         when result = {fn}(input)
+        //         then result != undefined
+        //
+        // `default_input` is defined nowhere in this repository. It appears in
+        // 169 specs and every one of them came from this template, so the
+        // generator was the sole author of a name it never provided.
+        //
+        // Even supplied, the test asserts nothing: `result != undefined` is
+        // vacuous, and Zig cannot compare against undefined at all. These are
+        // hollow tests -- they make a spec look covered while checking nothing,
+        // which is the exact failure `valid AND asserting` was added to catch.
+        //
+        // The generator knows the signature and not the meaning, so it now says
+        // so instead of inventing a behaviour.
+        output.push_str(&format!(
+            "    // TODO: behaviour for {}() -- write given/when/then by hand.\n",
+            fn_name_snake
+        ));
+        output.push_str("    // Not generated: a signature does not imply a behaviour.\n\n");
     }
 
     // TDD: Invariants (from constraints)
@@ -692,11 +710,12 @@ fn generate_t27(spec: &TriSpec) -> String {
         output.push_str("    // TDD: Invariants (from .tri constraints)\n");
         output.push_str("    // ═══════════════════════════════════════════════════════════\n\n");
 
-        for (i, constraint) in spec.constraints.iter().enumerate() {
-            let inv_name = format!("{}_constraint_{}", to_snake_case(&spec.name), i);
-            output.push_str(&format!("    invariant {}\n", inv_name));
-            output.push_str(&format!("        given input = valid_input()\n"));
-            output.push_str(&format!("        then {} // {}\n\n", "true", constraint));
+        for constraint in spec.constraints.iter() {
+            // Same defect, same reason: `valid_input` is defined nowhere, and
+            // `then true` is an invariant that cannot fail. The constraint text
+            // is the only real content here, so emit it as the TODO it is.
+            output.push_str(&format!("    // TODO: invariant -- {}\n", constraint));
+            output.push_str("    // Not generated: the constraint is prose, not an expression.\n\n");
         }
     }
 
