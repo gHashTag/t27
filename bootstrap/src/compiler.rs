@@ -2896,17 +2896,36 @@ impl Parser {
         let mut for_node = Node::new(NodeKind::StmtFor);
         self.advance(); // consume 'for'
 
-        // Iterable(s) in parentheses
-        self.expect(TokenKind::LParen)?;
-        // Parse comma-separated iterables
-        while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+        // Optional parentheses, as for `while` (#2588) and `if` (#2589). 240
+        // `for` statements are written bare.
+        //
+        // This one is not a copy of those: the iterable list terminates on `)`,
+        // which the bare form never produces. It ends instead at the capture
+        // payload `|x|` or at the body `{`, so both become terminators and the
+        // closing paren becomes conditional. Two earlier attempts broke the
+        // build by editing this loop's condition in place from a truncated
+        // reading of it; this replaces the whole block against its exact text.
+        let parenthesised = self.current.kind == TokenKind::LParen;
+        if parenthesised {
+            self.advance();
+        }
+        let saved_nsl = self.no_struct_literal;
+        self.no_struct_literal = !parenthesised;
+        while self.current.kind != TokenKind::RParen
+            && self.current.kind != TokenKind::Pipe
+            && self.current.kind != TokenKind::LBrace
+            && self.current.kind != TokenKind::Eof
+        {
             let iter_expr = self.parse_expr()?;
             for_node.children.push(iter_expr);
             if self.current.kind == TokenKind::Comma {
                 self.advance();
             }
         }
-        self.expect(TokenKind::RParen)?;
+        self.no_struct_literal = saved_nsl;
+        if parenthesised {
+            self.expect(TokenKind::RParen)?;
+        }
 
         // Capture variables: |x| or |x, y| or |*x| (pointer capture)
         if self.current.kind == TokenKind::Pipe {
