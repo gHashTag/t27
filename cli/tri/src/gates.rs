@@ -25,6 +25,12 @@ pub enum GatesCmd {
         /// Skip the gates themselves and only report which have no control.
         #[arg(long)]
         controls_only: bool,
+
+        /// Sweep this directory instead of `<repo>/tools`. Same refusals as
+        /// `mutate --dir`: a missing path, a file, or anywhere outside a git
+        /// work tree is rejected by name rather than run.
+        #[arg(long)]
+        dir: Option<String>,
     },
     /// Break each gate's failure path and demand its control notices.
     ///
@@ -136,9 +142,8 @@ const IS_A_CONTROL: &[&str] = &[
     "wp18_gate_selfconsistent_selftest.py",
 ];
 
-fn sweep(controls_only: bool) -> Result<()> {
-    let root = repo_root()?;
-    let tools = root.join("tools");
+fn sweep(controls_only: bool, dir: Option<&str>) -> Result<()> {
+    let (root, tools) = resolve_target(dir)?;
     let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&tools)
         .with_context(|| format!("read {}", tools.display()))?
         .filter_map(|e| e.ok().map(|e| e.path()))
@@ -155,7 +160,7 @@ fn sweep(controls_only: bool) -> Result<()> {
         .collect();
     files.sort();
 
-    let mut uncontrolled: Vec<String> = Vec::new();
+    let mut uncontrolled: Vec<(String, Vec<String>)> = Vec::new();
     let mut rows: Vec<(String, String, String)> = Vec::new();
 
     for f in &files {
@@ -186,11 +191,23 @@ fn sweep(controls_only: bool) -> Result<()> {
         let gate = if controls_only {
             "-".to_string()
         } else {
-            code(&root, &root.join("tools"), &name, &[])
+            code(&root, &tools, &name, &[])
         };
+        // Every form, not only the two this command can RUN. A gate whose
+        // control is a workflow fixture or a test file is controlled; calling
+        // it uncontrolled because this tool cannot execute that form is a
+        // statement about the tool.
+        let forms = control_forms(&root, &src, &name);
         let ctrl = if flags.is_empty() && external.is_none() {
-            uncontrolled.push(name.clone());
-            "NONE".to_string()
+            uncontrolled.push((name.clone(), forms.clone()));
+            if forms.is_empty() {
+                "NONE".to_string()
+            } else {
+                // Found, but not runnable from here. Distinct from NONE on
+                // purpose: "I cannot run it" and "it does not exist" are
+                // different findings and were conflated once already.
+                "OTHER".to_string()
+            }
         } else if controls_only {
             "-".to_string()
         } else if !flags.is_empty() {
@@ -198,13 +215,28 @@ fn sweep(controls_only: bool) -> Result<()> {
             // not excuse a red sibling.
             flags
                 .iter()
-                .map(|fl| code(&root, &root.join("tools"), &name, &[fl]))
+                .map(|fl| code(&root, &tools, &name, &[fl]))
                 .find(|c| c != "0")
                 .unwrap_or_else(|| "0".to_string())
         } else {
-            code(&root, &root.join("tools"), external.as_ref().unwrap(), &[])
+            code(&root, &tools, external.as_ref().unwrap(), &[])
         };
         rows.push((name, gate, ctrl));
+    }
+
+    // T112: the same refusal `mutate` grew one iteration ago, in the sibling
+    // that did not get it. An empty set printed "0 gate(s); 0 with no control"
+    // and exited 0 -- a sentence in which every number is zero and which reads
+    // as a clean sweep. Fixing a vacuous pass in one command and not in the one
+    // beside it is how the class survives its own repair.
+    if files.is_empty() {
+        println!(
+            "FAIL: no gate scripts under {}\n\n  \
+             Looked for *.py named check_* / check-* or containing \"gate\".\n  \
+             Nothing was swept, which is not the same as nothing being wrong.",
+            tools.display()
+        );
+        anyhow::bail!("no gate scripts under {}", tools.display());
     }
 
     println!("{:<38} {:>6}  {:>6}", "gate", "run", "control");
@@ -212,14 +244,52 @@ fn sweep(controls_only: bool) -> Result<()> {
         println!("{:<38} {:>6}  {:>6}", n, g, c);
     }
     println!();
+    let none: Vec<&(String, Vec<String>)> =
+        uncontrolled.iter().filter(|(_, f)| f.is_empty()).collect();
+    let other: Vec<&(String, Vec<String>)> =
+        uncontrolled.iter().filter(|(_, f)| !f.is_empty()).collect();
     println!(
-        "{} gate(s); {} with no negative control at all:",
+        "{} gate(s); {} with no control in any form; {} with one this command cannot run:",
         rows.len(),
-        uncontrolled.len()
+        none.len(),
+        other.len()
     );
-    for n in &uncontrolled {
-        println!("  {}", n);
+    for (n, _) in &none {
+        println!("  NONE   {}", n);
     }
+    for (n, forms) in &other {
+        println!("  OTHER  {}  ->  {}", n, forms.join(", "));
+    }
+    println!();
+    // T112: the forms searched, printed whether or not anything was found.
+    // Reporting "no control" while having looked for exactly one kind is how
+    // six gates in another repository were called control-less, three of them
+    // wrongly. A reader cannot weigh a NONE without seeing the search behind it.
+    // T112: the FILE FILTER is an assumption too, and a narrower one than the
+    // control search. `conformance_check.py` and `signal_health.py` are gates in
+    // the second repository and match neither `check_*` nor "gate"; this command
+    // never saw them, and a table that does not list them reads as a repository
+    // that does not have them. Printed with the row count so the denominator is
+    // never read as "every gate here".
+    println!(
+        "Files considered: {} of {} *.py under {} matched check_* / check-* / *gate*.",
+        rows.len(),
+        std::fs::read_dir(&tools)
+            .map(|d| d
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().is_some_and(|x| x == "py"))
+                .count())
+            .unwrap_or(rows.len()),
+        tools.display()
+    );
+    println!("A gate named otherwise is invisible here, which is a fact about the");
+    println!("filter and not about the repository.");
+    println!();
+    println!("Forms searched: a --self-check/--selftest flag in the script; the");
+    println!("EXTERNAL_CONTROL table in this command; tests/test_<name>.py; and a");
+    println!("workflow naming the script beside fixture/expect/planted/broken/must.");
+    println!("The last is reported as a CANDIDATE -- it is a keyword match, not proof");
+    println!("that anything is asserted. Nothing here upgrades an absence to a pass.");
     println!();
     println!("A gate is proven working only by a RED on a deliberately broken input.");
     println!("`args` means the script needs arguments this sweep does not supply --");
@@ -644,6 +714,74 @@ fn resolve_target(dir: Option<&str>) -> Result<(std::path::PathBuf, std::path::P
     }
 }
 
+/// Every FORM a negative control takes, and the evidence found for each.
+///
+/// T112: the tool used to look for one thing -- a `--self-check`-shaped flag --
+/// plus a hand-kept table of siblings. Pointed at another repository it reported
+/// "no control" for six gates, three of which are well controlled: two by
+/// workflow jobs with clean/broken fixtures asserting exact counts, one by a
+/// test file whose docstring names this campaign's own lesson.
+///
+/// So the search is widened, and -- more importantly -- the FORMS SEARCHED are
+/// printed. An absence proved by one mechanism is a statement about the
+/// mechanism, and the only way a reader can weigh a "none" is to see what was
+/// looked for.
+///
+/// Workflow evidence is reported as a CANDIDATE, never as proof. A heuristic
+/// that upgrades "no control" to "controlled" is the one error direction that
+/// hurts here: an uncontrolled gate reading as controlled is exactly the
+/// false green this command exists to find.
+fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
+    let mut found = Vec::new();
+
+    for fl in ["--self-check-drop", "--self-check", "--selftest"] {
+        if src.contains(&format!("\"{}\"", fl)) {
+            found.push(format!("flag {}", fl));
+        }
+    }
+    if let Some((_, c)) = EXTERNAL_CONTROL.iter().find(|(g, _)| *g == name) {
+        found.push(format!("sibling {}", c));
+    }
+
+    let stem = name.trim_end_matches(".py");
+    for cand in [
+        format!("tests/test_{}.py", stem),
+        format!("tests/{}_test.py", stem),
+        format!("tests/test_{}.py", stem.trim_start_matches("check_")),
+    ] {
+        if root.join(&cand).exists() {
+            found.push(format!("test file {}", cand));
+        }
+    }
+
+    // A workflow that both NAMES the script and carries the vocabulary of a
+    // planted fault. Named as a candidate: this is a keyword match, not a proof
+    // that anything is asserted.
+    if let Ok(rd) = std::fs::read_dir(root.join(".github/workflows")) {
+        let mut hits: Vec<String> = rd
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                let p = e.path();
+                let is_yml = p.extension().is_some_and(|x| x == "yml" || x == "yaml");
+                if !is_yml {
+                    return false;
+                }
+                let body = std::fs::read_to_string(&p).unwrap_or_default();
+                body.contains(name)
+                    && ["fixture", "expect_", "planted", "broken", "must-", "must "]
+                        .iter()
+                        .any(|w| body.contains(w))
+            })
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect();
+        hits.sort();
+        for h in hits {
+            found.push(format!("workflow candidate {}", h));
+        }
+    }
+    found
+}
+
 fn label(d: Direction) -> &'static str {
     match d {
         Direction::Silent => "silent",
@@ -1016,7 +1154,7 @@ fn repo_root() -> Result<std::path::PathBuf> {
 
 pub fn run(cmd: &GatesCmd) -> Result<()> {
     match cmd {
-        GatesCmd::Sweep { controls_only } => sweep(*controls_only),
+        GatesCmd::Sweep { controls_only, dir } => sweep(*controls_only, dir.as_deref()),
         GatesCmd::Mutate {
             only,
             loud,
@@ -1341,6 +1479,58 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         assert!(equivalence_claims("s = \"mutant-equivalent: no\"\nif a > b:\n").is_empty());
         // A marker with nothing after it names nothing rather than panicking.
         assert!(equivalence_claims("# mutant-equivalent: x\n").is_empty());
+    }
+
+    #[test]
+    fn a_control_is_found_in_every_form_it_takes() {
+        // T112: the search that reported "no control" for three well-controlled
+        // gates in another repository, because it looked for a flag and a
+        // hand-kept table and nothing else.
+        let base = std::env::temp_dir().join(format!("tri_t112_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("tests")).unwrap();
+        std::fs::create_dir_all(base.join(".github/workflows")).unwrap();
+
+        // Nothing planted: the alarm must still be an alarm.
+        assert!(
+            control_forms(&base, "print('hi')\n", "check_bare.py").is_empty(),
+            "an uncontrolled gate must stay uncontrolled"
+        );
+
+        // The flag, read from the source rather than from a comment.
+        let f = control_forms(&base, "if \"--self-check\" in sys.argv:\n", "check_x.py");
+        assert!(f.iter().any(|s| s.starts_with("flag --self-check")), "{f:?}");
+        assert!(
+            control_forms(&base, "# mentions --self-check in prose\n", "check_y.py").is_empty(),
+            "a flag named only in a comment is not a control"
+        );
+
+        // A test file beside the gate.
+        std::fs::write(base.join("tests/test_check_paths.py"), "x").unwrap();
+        let f = control_forms(&base, "", "check_paths.py");
+        assert!(f.iter().any(|s| s.contains("test file")), "{f:?}");
+
+        // A workflow that names the gate AND carries planted-fault vocabulary.
+        std::fs::write(
+            base.join(".github/workflows/selftest.yml"),
+            "run: python3 tools/check_paths.py --root tests/fixture/broken\n",
+        )
+        .unwrap();
+        let f = control_forms(&base, "", "check_paths.py");
+        assert!(f.iter().any(|s| s.contains("workflow candidate")), "{f:?}");
+
+        // A workflow that merely RUNS the gate is not evidence of a control.
+        std::fs::write(
+            base.join(".github/workflows/plain.yml"),
+            "run: python3 tools/check_other.py\n",
+        )
+        .unwrap();
+        let f = control_forms(&base, "", "check_other.py");
+        assert!(
+            f.is_empty(),
+            "running a gate is not controlling it, got {f:?}"
+        );
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]

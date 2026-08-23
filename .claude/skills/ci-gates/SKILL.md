@@ -1837,3 +1837,43 @@ And the timing is the part worth keeping: this was published one iteration after
 a post about right numbers with wrong meanings, in the sentence that post's own
 verification produced.
 
+## 46. Putting §45 into the tool, and two more assumptions it was hiding
+
+§45 said: before reporting that something has no control, enumerate the *forms*
+a control takes and search for each. A rule only I know is not a rule, so it
+went into `tri gates sweep`.
+
+**It now searches four forms** — a flag in the script, the `EXTERNAL_CONTROL`
+table, `tests/test_<name>.py`, and a workflow that names the gate *beside*
+planted-fault vocabulary (`fixture`, `expect_`, `planted`, `broken`, `must`).
+The verdict column gained `OTHER`, distinct from `NONE`: **"I cannot run it" and
+"it does not exist" are different findings and were conflated once already.**
+
+Workflow evidence is labelled a **candidate**, never proof. A heuristic that
+upgrades "no control" to "controlled" is the one error direction that hurts:
+an uncontrolled gate reading as controlled is the false green this command
+exists to find. A test asserts the other direction too — a workflow that merely
+*runs* a gate is not evidence of controlling it.
+
+**And the output now prints what it searched.** Both the forms and the file
+filter, on every run, found or not. That is the actual repair for §45's mistake:
+a reader cannot weigh a `NONE` without seeing the search behind it.
+
+Pointing it at the second repository immediately produced two more assumptions
+the old output was hiding.
+
+**The file filter is narrower than the control search.** `conformance_check.py`
+and `signal_health.py` are gates there and match neither `check_*` nor `gate`.
+The command never saw them, and a table that does not list them reads as a
+repository that does not have them. So the header now says
+`Files considered: 3 of 22` — and in this repository, `13 of 28`. **Fifteen
+Python files under `tools/` here are invisible to a command whose output looks
+exhaustive.**
+
+**And the vacuous pass survived its own repair, in the sibling.** `mutate` grew
+a refusal for an empty gate set one iteration ago. `sweep` did not, so aimed at
+a directory with no gates it printed `0 gate(s); 0 with no control` and exited
+0 — a sentence in which every number is zero and which reads as a clean sweep.
+Fixing a class in one command and not in the one beside it is how the class
+survives.
+
