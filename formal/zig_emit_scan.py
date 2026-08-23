@@ -86,6 +86,7 @@ def classify(rel):
     finally:
         pathlib.Path(tmp).unlink(missing_ok=True)
     errors = re.findall(r"error: .*", text)
+    gen = gen.stdout.decode("utf-8", "replace")
     return rel, {
         "first": errors[0] if errors else "VALID",
         # ast-check reports every error it can reach, not just the first. The
@@ -95,6 +96,12 @@ def classify(rel):
         # moved the valid count by zero, because the spec still failed on
         # whatever sat underneath. Total errors is the sensitive instrument.
         "count": len(errors),
+        # An empty `test "..." {}` is valid Zig, so a spec whose test bodies were
+        # discarded compiles cleanly and counts as valid. 53% of emitted test
+        # blocks are empty and 150 of 195 valid specs contain one (#2593), which
+        # makes "valid" thinner than it reads. `hollow` records that per spec so
+        # the strict count can be reported beside the permissive one.
+        "hollow": len(re.findall(r'^test\s+"[^"]*"\s*\{\s*\}\s*$', gen, re.M)),
     }
 
 
@@ -139,6 +146,10 @@ def main():
 
     pure_errors = sum(v["count"] for k, v in results.items() if k not in rusty)
     print(f"  total ast-check errors  {total_errors}   (pure t27: {pure_errors})")
+    strict = [f for f in pure if f in valid and results[f].get("hollow", 0) == 0]
+    hollow_valid = len([f for f in pure if f in valid]) - len(strict)
+    print(f"  valid AND no empty test {len(strict)}/{len(pure)}   "
+          f"({hollow_valid} more are valid with an empty test block -- #2593)")
     counts = collections.Counter(
         normalise(v) for f, v in first.items() if v != "VALID" and f not in rusty
     )
