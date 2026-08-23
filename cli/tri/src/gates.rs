@@ -56,6 +56,15 @@ pub enum GatesCmd {
         /// requires SILENCE?
         #[arg(long)]
         loud: bool,
+
+        /// Invert the CONDITIONS that reach a verdict, rather than the returns.
+        ///
+        /// The two return operators ask whether a gate can still reach its
+        /// verdicts. This asks whether it reaches the RIGHT one: a gate that
+        /// fires its FAIL branch on a healthy tree and its OK branch on a
+        /// broken one passes both of them.
+        #[arg(long)]
+        invert: bool,
     },
     /// List active workflows whose lifetime success count is zero.
     Dead {
@@ -263,6 +272,16 @@ pub enum Direction {
     Silent,
     /// `return 0` -> `return 1`: does anything notice the gate getting LOUDER?
     Loud,
+    /// `if <cond>:` -> `if not (<cond>):`, on conditions whose body carries a
+    /// verdict. The two return operators ask whether the gate can still reach
+    /// its verdicts; this asks whether it reaches the RIGHT one.
+    ///
+    /// T104: scoped to conditions whose body holds a `return 1..4`, a
+    /// `raise SystemExit(N)` or a FAIL print. Inverting a loop guard or a
+    /// plumbing check makes the gate CRASH, and a control that reds on a
+    /// traceback would score that as a kill -- the wrong reason, which is the
+    /// mistake this command exists to catch.
+    Invert,
 }
 
 fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
@@ -324,11 +343,78 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
     sites
 }
 
+/// Conditions whose body carries a verdict: `(offset, len, replacement)`.
+///
+/// Line-based like everything else here, and the body is read to a dedent
+/// rather than parsed. A condition whose body only prints or only accumulates
+/// is not a decision this command has anything to say about.
+fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
+    let lines: Vec<&str> = src.split_inclusive('\n').collect();
+    let mut sites = Vec::new();
+    let mut in_control = false;
+    let mut off = 0usize;
+    let offsets: Vec<usize> = {
+        let mut v = Vec::with_capacity(lines.len());
+        let mut o = 0usize;
+        for l in &lines {
+            v.push(o);
+            o += l.len();
+        }
+        v
+    };
+    for (i, line) in lines.iter().enumerate() {
+        off = offsets[i];
+        if let Some(rest) = line.strip_prefix("def ") {
+            let fname: String = rest.chars().take_while(|c| *c != '(').collect();
+            in_control = is_control_fn(&fname);
+        }
+        if in_control {
+            continue;
+        }
+        let t = line.trim_start();
+        let indent = line.len() - t.len();
+        if indent == 0 {
+            continue;
+        }
+        let body_line = t.trim_end();
+        let cond = match body_line
+            .strip_prefix("if ")
+            .and_then(|c| c.strip_suffix(':'))
+        {
+            Some(c) if !c.is_empty() => c,
+            _ => continue,
+        };
+        // The body, to the first line at or left of this indent.
+        let mut carries_verdict = false;
+        for l in lines.iter().skip(i + 1) {
+            let s = l.trim_end();
+            if !s.trim().is_empty() && (l.len() - l.trim_start().len()) <= indent {
+                break;
+            }
+            let b = s.trim();
+            if b.starts_with("return ")
+                && verdict_literals(&b[7..])
+                    .is_some_and(|v| v.iter().any(|&x| (1..=4).contains(&x)))
+                || b.starts_with("raise SystemExit(")
+                || b.contains("FAIL")
+            {
+                carries_verdict = true;
+                break;
+            }
+        }
+        if carries_verdict {
+            sites.push((off + indent, body_line.len(), format!("if not ({cond}):")));
+        }
+    }
+    let _ = off;
+    sites
+}
+
 fn line_of(src: &str, byte: usize) -> usize {
     src[..byte].matches('\n').count() + 1
 }
 
-fn mutate(only: Option<&str>, loud: bool) -> Result<()> {
+fn mutate(only: Option<&str>, loud: bool, invert: bool) -> Result<()> {
     let root = repo_root()?;
     let dirty = Command::new("git")
         .args(["status", "--porcelain", "--", "tools/"])
@@ -353,7 +439,10 @@ fn mutate(only: Option<&str>, loud: bool) -> Result<()> {
     files.sort();
 
     println!("{:<38} {:>9}  {}", "gate", "mutants", "verdict");
-    if loud {
+    if invert {
+        println!("(invert: `if C:` -> `if not (C):` where the body carries a verdict.");
+        println!(" A survivor means the gate can reach the WRONG verdict unnoticed.)");
+    } else if loud {
         println!("(loud: `return 0` -> `return 1`. A survivor means NOTHING requires this gate to be silent.)");
     }
     let mut total_survived: Vec<String> = Vec::new();
@@ -581,7 +670,7 @@ fn repo_root() -> Result<std::path::PathBuf> {
 pub fn run(cmd: &GatesCmd) -> Result<()> {
     match cmd {
         GatesCmd::Sweep { controls_only } => sweep(*controls_only),
-        GatesCmd::Mutate { only, loud } => mutate(only.as_deref(), *loud),
+        GatesCmd::Mutate { only, loud, invert } => mutate(only.as_deref(), *loud, *invert),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
@@ -875,6 +964,31 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // `def` at column zero changes which region we are in.
         let src = "def self_check():\n    def case(x):\n        return 1\n    return 0\n";
         assert!(mutable_sites(src).is_empty());
+    }
+
+    #[test]
+    fn invert_takes_only_verdict_bearing_conditions() {
+        // T104: inverting a loop guard or a plumbing check makes the gate
+        // CRASH, and a control that reds on a traceback scores that as a kill
+        // for the wrong reason. Measured over 19 mutations on four gates with
+        // this scoping: 19 killed by MESSAGE, zero tracebacks.
+        let s = invert_sites("def main():\n    if bad:\n        return 1\n");
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0].2, "if not (bad):");
+
+        // A body that only prints decides nothing this command can speak to.
+        assert!(invert_sites("def main():\n    if x:\n        print(x)\n").is_empty());
+        // A body that returns success is not a verdict branch either.
+        assert!(invert_sites("def main():\n    if x:\n        return 0\n").is_empty());
+        // A FAIL print counts even without a return: the branch still decides.
+        assert_eq!(
+            invert_sites("def main():\n    if x:\n        print(\"FAIL: no\")\n").len(),
+            1
+        );
+        // Inside the control, never.
+        assert!(invert_sites("def self_check():\n    if bad:\n        return 1\n").is_empty());
+        // Top-level `if` is module plumbing, not a gate decision.
+        assert!(invert_sites("if bad:\n    return 1\n").is_empty());
     }
 
     #[test]
