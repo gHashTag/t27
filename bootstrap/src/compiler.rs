@@ -1904,28 +1904,44 @@ impl Parser {
                 self.current.kind,
                 TokenKind::KwConst | TokenKind::KwVar | TokenKind::KwFn | TokenKind::KwPub
             ) {
-                let mut depth: i32 = 0;
-                loop {
-                    match self.current.kind {
-                        TokenKind::Eof => break,
-                        TokenKind::LBrace => depth += 1,
-                        TokenKind::RBrace => {
-                            if depth == 0 {
-                                break; // the struct's own closing brace
-                            }
-                            depth -= 1;
-                            if depth == 0 {
-                                self.advance(); // consume the body's `}`
-                                break;
-                            }
-                        }
-                        TokenKind::Semicolon if depth == 0 => {
-                            self.advance(); // `const X = ...;` ends here
-                            break;
-                        }
-                        _ => {}
-                    }
+                let is_pub = if self.current.kind == TokenKind::KwPub {
                     self.advance();
+                    true
+                } else {
+                    false
+                };
+                let parsed = match self.current.kind {
+                    TokenKind::KwConst => self.parse_const_decl(is_pub).ok(),
+                    TokenKind::KwFn => self.parse_fn_decl(is_pub).ok(),
+                    _ => None,
+                };
+                match parsed {
+                    Some(node) => decl.children.push(node),
+                    None => {
+                        let mut depth: i32 = 0;
+                        loop {
+                            match self.current.kind {
+                                TokenKind::Eof => break,
+                                TokenKind::LBrace => depth += 1,
+                                TokenKind::RBrace => {
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                    depth -= 1;
+                                    if depth == 0 {
+                                        self.advance();
+                                        break;
+                                    }
+                                }
+                                TokenKind::Semicolon if depth == 0 => {
+                                    self.advance();
+                                    break;
+                                }
+                                _ => {}
+                            }
+                            self.advance();
+                        }
+                    }
                 }
                 continue;
             }
@@ -4238,18 +4254,28 @@ impl Codegen {
         self.write_line(&format!("const {} = struct {{", node.name));
         self.indent();
 
-        for field in &node.children {
-            self.write_indent();
-            let ty = if !field.extra_type.is_empty() {
-                &field.extra_type
+        // Children are a mix: plain fields, and the declarations a Zig struct
+        // body legitimately carries. #2529 skipped those to stop the damage and
+        // said so; the parser now keeps them (#2534, #2536 removed the two
+        // blockers), so they are dispatched on kind rather than printed as
+        // `name: Type,` -- which is what produced `Self: void` and `zero: void`.
+        for child in &node.children {
+            if child.kind == NodeKind::ExprIdentifier {
+                self.write_indent();
+                let ty = if !child.extra_type.is_empty() {
+                    &child.extra_type
+                } else {
+                    "void"
+                };
+                self.write_line(&format!(
+                    "{}: {},",
+                    zig_ident(&child.name),
+                    Self::zig_type(ty)
+                ));
             } else {
-                "void"
-            };
-            self.write_line(&format!(
-                "{}: {},",
-                zig_ident(&field.name),
-                Self::zig_type(ty)
-            ));
+                self.write_indent();
+                self.gen_decl(child);
+            }
         }
 
         self.dedent();
