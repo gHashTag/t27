@@ -937,3 +937,51 @@ measurement says so, and a commit that made the numbers move would have had to
 be invented. The temptation to produce a diff is strongest exactly when the
 honest result is "the plan was wrong" — and a diff manufactured then is the
 purest form of the thing this whole skill is about.
+
+## 25. A note naming what you did not cover is a work item
+
+`check_gate_preconditions.py` said, of two branches it left uncovered:
+
+> Covering them needs a stage that requires iverilog and skips loudly without
+> it; that is a bigger change than this file is, and it is filed rather than
+> faked.
+
+That sentence **was the design**: the mechanism, the tool it needs, and the
+failure mode to avoid. Building it took one stage and moved the campaign's
+surviving mutants from 2 to 1.
+
+It sat unread for a day because it was written as an admission. Write the same
+content as a task and it gets picked up; write it as a confession and it reads
+as closed. **Both halves are worth having — the admission is what stops a reader
+inferring completeness from a green — so put the design sentence in it too.**
+
+### A tool that cannot be planted is its own class
+
+`iverilog` lives on PATH, not in the tree. A stage that needs it cannot plant
+it, so it reports **UNRUN** when the tool is absent rather than passing or
+guessing. Three states, all measured, none inferred:
+
+```
+with the tool      the gate reaches its branch and reds
+without the tool   UNRUN, named
+branch neutered    VACUOUS, caught
+```
+
+The temptation is a fourth behaviour — skip quietly when the tool is missing —
+and that is the exact defect the file was written to catch, one level up.
+
+### Some branches genuinely cannot be covered, and saying which is the work
+
+The remaining uncovered branch needs a build that **succeeds** before it can
+fail the way it fails. Planting a fake success would test the plant, not the
+gate. `UNCOVERED = 1` next to that reason is a finished state; a control that
+faked it would be worse than none, because it would report a number.
+
+### Quote characters in `-m` end the string
+
+`git commit -m "... \"t27c fpga-build --smoke failed\" ..."` failed with
+`unknown option --smoke`: the inner quotes closed the argument. Same family as
+backticks being command substitution, which cost text out of a commit message
+and then out of a filed issue earlier in this campaign. **Long messages go
+through `-F` or a quoted heredoc, every time — there is no version of this
+that is worth retyping.**
