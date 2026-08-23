@@ -109,6 +109,17 @@ def normalise(err):
     return re.sub(r"'[^']*'", "X", re.sub(r"\d+", "N", err))
 
 
+# A parse error stops ast-check dead; a semantic one does not. Only the first
+# kind caps a file's error count, so only the first kind hides an unknown
+# remainder behind it. Everything ast-check phrases as a thwarted expectation
+# is the parse kind.
+_WALL = re.compile(r"\b(expected|invalid|unexpected|extra|missing)\b", re.I)
+
+
+def is_parse_error(err):
+    return bool(err) and err != "VALID" and bool(_WALL.search(err))
+
+
 def rust_dialect():
     if not MANIFEST.exists():
         return set()
@@ -145,7 +156,16 @@ def main():
         print("  specs/RUST_DIALECT.json absent -- rates are NOT split by dialect")
 
     pure_errors = sum(v["count"] for k, v in results.items() if k not in rusty)
+    # #2603/#2606: a parse error is a WALL. ast-check stops at the first one and
+    # reports a single error for the whole file, so this total is not monotone
+    # in correctness -- a corpus can halve it by getting worse. compiler/parser
+    # carried 338 broken lines and reported 1 error. Report how much of the
+    # total is capped so the number is never read as a defect count.
+    walled = [f for f in pure if f not in valid and is_parse_error(first.get(f, ""))]
+    behind = sum(results[f]["count"] for f in walled)
     print(f"  total ast-check errors  {total_errors}   (pure t27: {pure_errors})")
+    print(f"    of which behind a wall {behind} in {len(walled)} specs   "
+          f"-- these stop at their first parse error; true count is unknown and higher")
     strict = [f for f in pure if f in valid and results[f].get("hollow", 0) == 0]
     hollow_valid = len([f for f in pure if f in valid]) - len(strict)
     print(f"  valid AND no empty test {len(strict)}/{len(pure)}   "
