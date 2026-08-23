@@ -14979,7 +14979,14 @@ impl VerilogCodegen {
                 let total_width = dims[0] * elem_w;
                 if phase != LocalEmitPhase::Init {
                     self.write_indent();
-                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, Self::verilog_safe_identifier(&node.name)));
+                    // A zero-length array has no bits, and `0 - 1` on a usize is
+                    // 18446744073709551615. `[0]Notebook` is a legal spec
+                    // construct -- an empty list -- and it emitted
+                    // `reg [18446744073709551615:0] notebooks;` at exit 0
+                    // (#2566). Clamped the way `range_decl` clamps: a one-bit
+                    // placeholder for a type that occupies none, which is a legal
+                    // declaration rather than an impossible one.
+                    self.write_line(&format!("reg [{}:0] {};", total_width.saturating_sub(1), Self::verilog_safe_identifier(&node.name)));
                 }
                 if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                     let child = &node.children[0];
@@ -15007,7 +15014,14 @@ impl VerilogCodegen {
                 let total_width: usize = dims.iter().product::<usize>() * elem_w;
                 if phase != LocalEmitPhase::Init {
                     self.write_indent();
-                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, Self::verilog_safe_identifier(&node.name)));
+                    // A zero-length array has no bits, and `0 - 1` on a usize is
+                    // 18446744073709551615. `[0]Notebook` is a legal spec
+                    // construct -- an empty list -- and it emitted
+                    // `reg [18446744073709551615:0] notebooks;` at exit 0
+                    // (#2566). Clamped the way `range_decl` clamps: a one-bit
+                    // placeholder for a type that occupies none, which is a legal
+                    // declaration rather than an impossible one.
+                    self.write_line(&format!("reg [{}:0] {};", total_width.saturating_sub(1), Self::verilog_safe_identifier(&node.name)));
                 }
                 if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                     let child = &node.children[0];
