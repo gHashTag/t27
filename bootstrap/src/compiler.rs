@@ -4062,8 +4062,31 @@ impl Codegen {
         }
 
         if !node.children.is_empty() {
-            self.write(" = ");
-            self.gen_expr(&node.children[0]);
+            // `pub const mult_table: [9]i8 = [1,0,-1];` -- parse_const_decl
+            // collects a bracketed value as RAW TEXT into an ExprIdentifier, so
+            // the Rust/Python list syntax reaches the output verbatim. Zig spells
+            // it `[9]i8{1,0,-1}`: the type carries the brackets and the values go
+            // in braces.
+            //
+            // Only when the value has no brace of its own -- `[_]u8{0} ** 128` is
+            // already valid Zig and starts with `[` too.
+            let v = &node.children[0];
+            let raw = if v.name.is_empty() { &v.value } else { &v.name };
+            let is_list = raw.starts_with('[')
+                && raw.ends_with(']')
+                && !raw.contains('{')
+                && !node.extra_type.is_empty()
+                && node.extra_type.starts_with('[');
+            if is_list {
+                self.write(&format!(
+                    " = {}{{{}}}",
+                    Self::zig_type(&node.extra_type),
+                    &raw[1..raw.len() - 1]
+                ));
+            } else {
+                self.write(" = ");
+                self.gen_expr(v);
+            }
         }
 
         self.write_line(";");
