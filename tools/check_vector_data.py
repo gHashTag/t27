@@ -189,6 +189,53 @@ def _control_case(label, mutate, want, marker, code):
     return ok
 
 
+def _baselined_empty_file_case():
+    """A file that was empty when the ledger was written is not newly EMPTIED.
+
+    T109, and it needs its own function for the same reason the refusal above
+    does: WHEN the fault arrives. Every case in `self_check` plants after the
+    ledger is written, so `old[0]` is never zero for any of them and the
+    boundary in `total == 0 and old[0] > 0` is never approached from below.
+
+    Here the empty file is present at RECORD time. Nothing then changes. The
+    gate must say nothing at all -- an emptying is a transition, and a file that
+    was already empty did not make one. Under `old[0] >= 0` it is announced as
+    EMPTIED on every run forever, which is the shape of a gate that cries wolf
+    until it is switched off.
+
+    The record line is asserted too, and it carries the other boundary: the
+    prose count in --update-baseline's header uses the same `v[0] > 0`, and this
+    is the only fixture where a file has zero cases at record time. One planted
+    tree, two boundaries, because they are the same question asked on either
+    side of the ledger.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        t = pathlib.Path(td)
+        (t / "conformance").mkdir()
+        (t / "tools").mkdir()
+        for name, cases in FIXTURE.items():
+            _write_vectors(t / "conformance", name, cases)
+        _write_vectors(t / "conformance", "fpga_hollow.json", [])
+        rec = _run_gate(t, "--update-baseline")
+        recorded = "baseline updated: 3 files, 1 prose-only" in rec.stdout
+        r = _run_gate(t)
+    want = ["vector files: 3 (1 prose-only, baseline 3)",
+            "OK: no vector file lost data, emptied, departed or stopped parsing"]
+    missing = [s for s in want if s not in r.stdout]
+    leaked = [m for m in MARKERS if m in r.stdout]
+    ok = recorded and not missing and not leaked and r.returncode == 0
+    print(f"  {'empty at record':<10} exit {r.returncode} (want 0); "
+          f"recorded 1 prose-only = {recorded}; said it = {not missing}; "
+          f"no branch fired = {not leaked}")
+    for s in missing:
+        print(f"             MISSING  {s!r}")
+    for s in leaked:
+        print(f"             LEAKED   {s!r}  (an already-empty file is not a transition)")
+    if not recorded:
+        print(f"             RECORD SAID {rec.stdout.strip()[:100]!r}")
+    return ok
+
+
 def _record_refusal_case():
     """--update-baseline over an unreadable file must refuse AND go red.
 
@@ -267,7 +314,13 @@ def self_check():
          "LOST DATA  ", 1),
         ("EMPTIED",
          lambda c: _write_vectors(c, "fpga_alpha.json", []),
-         ["EMPTIED    fpga_alpha.json: had 3 cases, now has none", DEBT_EPILOGUE],
+         # T109: the census line, and it is not decoration here. An emptied file
+         # is the only fixture where a file has ZERO total cases, which is the
+         # single input separating `v[0] > 0` from `v[0] >= 0` in the prose
+         # count. Without this string the boundary moves and every case stays
+         # green while the header miscounts every emptied file as prose.
+         ["EMPTIED    fpga_alpha.json: had 3 cases, now has none",
+          "vector files: 2 (1 prose-only, baseline 2)", DEBT_EPILOGUE],
          "EMPTIED    ", 1),
         ("UNREADABLE",
          lambda c: (c / "fpga_alpha.json").write_text('{"vectors": {"g": '),
@@ -283,6 +336,15 @@ def self_check():
                                   [{"id": "g1", "description": "prose"}]),
          ["NEW        fpga_gamma.json: 1 cases, none carrying data", DEBT_EPILOGUE],
          "NEW        ", 1),
+        # T109: a NEW file with no cases at all is not prose-only, it is empty --
+        # and `total > 0` is what says so. Every other case here plants a file
+        # with cases in it, so nothing asked. Under `>=` this file is announced
+        # as NEW prose-only and the run goes red on a tree with nothing wrong.
+        ("new but empty",
+         lambda c: _write_vectors(c, "fpga_delta.json", []),
+         ["vector files: 3 (1 prose-only, baseline 2)",
+          "OK: no vector file lost data, emptied, departed or stopped parsing"],
+         None, 0),
         ("BETTER",
          lambda c: _write_vectors(c, "fpga_alpha.json",
                                   [DATA_A, DATA_B, {"id": "a3", "expect": 0}]),
@@ -296,6 +358,7 @@ def self_check():
     # --update-baseline is the one failure path they cannot reach, because they
     # need that same path to succeed first in order to have a ledger at all.
     ok = _record_refusal_case() and ok
+    ok = _baselined_empty_file_case() and ok
     print(f"  self-check: {len(cases) - 1} verify-path failing classes plus the "
           f"--update-baseline refusal, each reported by name, "
           f"clean planted tree silent = {ok}")
