@@ -8002,7 +8002,20 @@ fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStat
     }
     copy_propagate(stmts, stats);
     strength_reduce(stmts, stats);
-    common_subexpr_elim(stmts, stats);
+    // common_subexpr_elim REMOVED from the pipeline. Three defects, probed:
+    //
+    //   var p = x + 1;  x = 99;  var q = x + 1;
+    //     -> the hoisted `_cse` local is inserted BEFORE the mutation, so `q`
+    //        silently gets the stale value. Compiles perfectly.
+    //   var p = launch(a) + 1;  var q = launch(a) + 1;
+    //     -> one call deduplicated away, and the emitted local is used before
+    //        it is declared, with an EMPTY initialiser: `const _cse1 = ;`
+    //
+    // Soundness needs to know that no operand is written between occurrences
+    // and that the expression is pure -- dataflow this emitter does not have.
+    // Zig's backend does CSE anyway, so the pass bought nothing. Same call as
+    // strength_reduce in #2628.
+    let _ = &mut *stats;
     dead_store_elim(stmts, stats);
     loop_unroll(stmts, stats);
 }
