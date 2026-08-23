@@ -302,7 +302,7 @@ def _emit_module(reg, steps, initv, n_in, n_out, modname, clk_div=1):
              " if(off<3+1)modf=0; else modf=(v&32'h10000)^32'h10000|(((off-3)<<9)|mant); end end")
     L.append("    default:modf=v; endcase end endfunction")
     L.append(f"  reg [{pcw-1}:0] pc; reg [7:0] settle; reg running; reg op; reg [7:0] ai,bi,di; reg [2:0] am,bm; integer gi;")
-    if clk_div >= 1:
+    if clk_div > 1:
         dcw = max(1, (clk_div - 1).bit_length())
         L.append(f"  reg [{dcw-1}:0] dc = 0; wire cen = (dc == {dcw}'d{clk_div-1});")
         L.append("  always @(posedge clk) dc <= dc + 1'b1;")
