@@ -4998,9 +4998,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_scoped_stmts(&node.children[1].children);
         }
         self.dedent();
 
@@ -5016,9 +5014,7 @@ impl Codegen {
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_stmt(stmt);
-                }
+                self.gen_scoped_stmts(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -5078,9 +5074,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_scoped_stmts(&node.children[1].children);
         }
         self.dedent();
         self.write_indent();
@@ -5120,9 +5114,7 @@ impl Codegen {
 
         self.indent();
         if !node.children.is_empty() {
-            for stmt in &node.children[body_idx].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_scoped_stmts(&node.children[body_idx].children);
         }
         self.dedent();
         self.write_indent();
