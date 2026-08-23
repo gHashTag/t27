@@ -4615,6 +4615,36 @@ impl Codegen {
             }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
+                    // `cfg.name == ""` and `env_vars[0].key == "PHI"` are value
+                    // comparisons -- the spec means "is this string equal to
+                    // that one" -- and Zig rejects `==` on slices. std.mem.eql is
+                    // the rendering.
+                    //
+                    // #2545 filed this under corpus-side, meaning the spec was
+                    // wrong. Reading the 21 sites shows otherwise: every one
+                    // compares against a string literal, so the intent is
+                    // unambiguous and translating it is the emitter's job. The
+                    // classification was the error, not the specs.
+                    //
+                    // Detected by a literal operand, not by type inference, which
+                    // this compiler does not do. A comparison between two string
+                    // VARIABLES is not caught here and stays broken -- narrower
+                    // than the real rule, and narrow in the safe direction.
+                    let is_eq = node.extra_op == "==" || node.extra_op == "!=";
+                    let lit = |n: &Node| {
+                        n.kind == NodeKind::ExprLiteral && n.value.starts_with('"')
+                    };
+                    if is_eq && (lit(&node.children[0]) || lit(&node.children[1])) {
+                        if node.extra_op == "!=" {
+                            self.write("!");
+                        }
+                        self.write("std.mem.eql(u8, ");
+                        self.gen_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
                     self.gen_expr_maybe_paren(&node.children[0]);
                     self.write(&format!(" {} ", node.extra_op));
                     self.gen_expr_maybe_paren(&node.children[1]);
