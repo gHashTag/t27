@@ -3900,3 +3900,84 @@ that wraps `GatesCmd` directly — and *every* flag came back unaccepted,
 including the three that already worked. `--loud` failing was the tell that the
 harness was wrong rather than the parser. A test whose failure names something
 you know to be true is reporting on itself.
+
+## 100. The tool for this existed, and I typed my own loop instead
+
+Yesterday I merged a pull request with two checks still running, and wrote it up
+as a discipline failure. It is worse than that.
+
+`tri pr ready <N>` already:
+
+* counts checks that have not completed and prints
+  `VERDICT: WAIT — N check(s) still running, the list is incomplete`;
+* classifies each failure against the default branch, so a pre-existing red
+  does not read as a new one;
+* carries a `--merge` flag whose own help says why:
+
+> *"The verdict cannot gate anything if the caller puts `gh pr merge` in the
+> same batch as this command: it prints WAIT, the merge runs anyway, and nobody
+> reads the line. **That happened four times in one session.** Handing the merge
+> to the command makes the two inseparable."*
+
+An earlier me built the defence, measured the failure mode, and wrote it into
+the flag's documentation. I then hand-rolled a bash polling loop every tick and
+reproduced the failure the flag exists to prevent.
+
+**§89 said a probe retyped each time is a new instrument with new defects. This
+is the sharper case: the instrument was already in the tree, correct, and
+documented — and I typed past it.** Writing a tool does not make you use it;
+nothing in the repository could have stopped a bare `gh pr merge`.
+
+## 101. And the verdict never reached the exit code
+
+Reading it to use it turned up a real defect: `ready` ends in `Ok(())`. **WAIT,
+CANNOT TELL, DO NOT MERGE and "safe to merge" all exited 0.**
+
+So `tri pr ready N && gh pr merge N` merges on WAIT. The flag's help says the
+verdict "cannot gate anything" when the merge is a separate command — and part
+of why it cannot is that the exit code carried nothing. An honest line under a
+zero exit is §83 again, now in the tool that decides whether to merge the
+gates.
+
+```
+0  safe        every failure is failing elsewhere too
+1  DO NOT      a failure appears only here
+2  WAIT        the list is incomplete
+3  CANNOT TELL a failure has no baseline to compare against
+```
+
+With a test that the four are **distinct** — two verdicts sharing a code is a
+caller that cannot tell them apart — and that **pending outranks everything**,
+including a clean failure list. An incomplete list must win over anything
+computed from it.
+
+The general rule, and this campaign keeps arriving at it from new directions:
+**a verdict that lives only in stdout gates nothing except a human reading
+carefully.** Print the sentence *and* return the code.
+
+## 102. The live control caught me measuring with the wrong binary, again
+
+Having fixed `tri pr ready` to return its verdict, I ran it against the very
+pull request carrying the fix, while 19 checks were still running. It printed
+`VERDICT: WAIT` and **exited 0**.
+
+The fix was correct. `./scripts/tri` dispatched to `target/release/tri`, seven
+hours old, because the front door tried release first and `cargo build -p tri`
+writes debug. Running the debug binary directly gave the expected `2`.
+
+**Third time this campaign that a measurement ran against a binary that did not
+contain the change** — and the first time the front door itself was the cause
+rather than my command line.
+
+Two fixes, both in the wrapper:
+
+* **Newest wins, not release-first.** Preferring a profile means preferring
+  whichever one you did not just build.
+* **Say so when the binary predates its source.** `find cli/tri/src -name '*.rs'
+  -newer "$BIN" -print -quit` is one call; silence there is indistinguishable
+  from "your edit did nothing".
+
+The habit worth keeping is smaller than either: **run the new behaviour against
+something real before believing it.** A unit test on the verdict table passed
+the whole time. What caught this was pointing the command at a live pull
+request with checks in flight — the one situation the change exists for.

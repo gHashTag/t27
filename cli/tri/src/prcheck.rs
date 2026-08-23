@@ -546,12 +546,29 @@ fn ready(
         }
     }
     println!();
+    // The verdict reaches the EXIT CODE, not only the screen.
+    //
+    // This printed `VERDICT: WAIT` and returned Ok(()) -- success -- so
+    // `tri pr ready N && gh pr merge N` merged on WAIT, and so did a caller who
+    // read the line and merged anyway. The --merge flag's own help says the
+    // verdict "cannot gate anything" when the merge is a separate command; part
+    // of why it cannot is that the exit code said nothing. An honest line under
+    // a zero exit is the same defect this campaign has been finding in gates,
+    // in the tool that decides whether to merge them.
+    //
+    //   0  safe        every failure is failing elsewhere too
+    //   1  DO NOT      a failure appears only here
+    //   2  WAIT        the list is incomplete
+    //   3  CANNOT TELL a failure has no baseline to compare against
+    let mut code = 0;
     if pending > 0 {
+        code = 2;
         println!("VERDICT: WAIT — {pending} check(s) still running, the list is incomplete.");
         if merge {
             println!("Not merging: the list is incomplete. Re-run with --wait.");
         }
     } else if !no_baseline.is_empty() {
+        code = 3;
         println!(
             "VERDICT: CANNOT TELL — {} failure(s) have no baseline to compare against:",
             no_baseline.len()
@@ -612,11 +629,15 @@ fn ready(
             "VERDICT: DO NOT MERGE — {} failure(s) appear only here:",
             new_here.len()
         );
+        code = 1;
         for name in &new_here {
             println!("  - {name}");
         }
         println!("\nRead the log before deciding they are unrelated. A summary line");
         println!("is not the list; that mistake is why this command exists.");
+    }
+    if code != 0 {
+        std::process::exit(code);
     }
     Ok(())
 }
@@ -678,6 +699,40 @@ mod tests {
         let pending = 0usize;
         let finished = total > 0 && pending == 0;
         assert!(!finished, "zero of zero must not read as complete");
+    }
+
+    /// Every verdict reaches the exit code, and only one of them is zero.
+    ///
+    /// This command printed WAIT and returned success, so `tri pr ready N &&
+    /// gh pr merge N` merged on WAIT -- and so did I, by hand, with the line
+    /// on the screen. A verdict that lives only in stdout gates nothing that
+    /// is not a human reading carefully at 3am.
+    #[test]
+    fn each_verdict_has_its_own_exit_code() {
+        fn code(pending: usize, no_baseline: usize, new_here: usize) -> i32 {
+            if pending > 0 {
+                2
+            } else if no_baseline > 0 {
+                3
+            } else if new_here > 0 {
+                1
+            } else {
+                0
+            }
+        }
+        assert_eq!(code(0, 0, 0), 0, "safe");
+        assert_eq!(code(3, 0, 0), 2, "WAIT outranks an empty failure list");
+        assert_eq!(code(0, 2, 0), 3, "CANNOT TELL");
+        assert_eq!(code(0, 0, 1), 1, "DO NOT MERGE");
+        // Precedence: an incomplete list must win over anything computed from
+        // it, including a clean one.
+        assert_eq!(code(3, 2, 1), 2, "pending outranks every other verdict");
+        // And the codes must be distinct, or a caller cannot tell them apart.
+        let all = [code(0, 0, 0), code(3, 0, 0), code(0, 2, 0), code(0, 0, 1)];
+        let mut sorted: Vec<i32> = all.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), all.len(), "two verdicts share an exit code");
     }
 
     /// A verdict computed from a partial list is worse than no verdict: it

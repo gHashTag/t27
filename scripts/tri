@@ -382,9 +382,24 @@ fi
 if [[ "$cmd" =~ ^[a-z][a-z0-9-]*$ ]]; then
   TRI_BIN="${TRI_BIN:-}"
   if [[ -z "$TRI_BIN" ]]; then
+    # Newest wins, not release-first. `cargo build -p tri` writes debug; the
+    # front door preferred release, so an edit built in debug was dispatched to
+    # a seven-hour-old release binary and the change appeared not to work. That
+    # is measuring with the wrong instrument, and it happened three times in
+    # this campaign before the front door was the suspect.
     for p in "$REPO_ROOT/target/release/tri" "$REPO_ROOT/target/debug/tri"; do
-      [[ -x "$p" ]] && TRI_BIN="$p" && break
+      [[ -x "$p" ]] || continue
+      if [[ -z "$TRI_BIN" || "$p" -nt "$TRI_BIN" ]]; then TRI_BIN="$p"; fi
     done
+  fi
+  # And say so when the binary predates the source it was built from. Silence
+  # here is indistinguishable from "your edit did nothing".
+  if [[ -n "$TRI_BIN" && -d "$REPO_ROOT/cli/tri/src" ]]; then
+    newer_src="$(find "$REPO_ROOT/cli/tri/src" -name '*.rs' -newer "$TRI_BIN" -print -quit 2>/dev/null || true)"
+    if [[ -n "$newer_src" ]]; then
+      echo "tri: ${TRI_BIN#"$REPO_ROOT/"} is older than cli/tri/src -- rebuild before trusting the result:" >&2
+      echo "tri:     cargo build --release -p tri" >&2
+    fi
   fi
   # Ask each binary what it implements rather than hard-coding the split: a
   # baked-in list of seventeen names is a second source of truth that goes
