@@ -1744,3 +1744,43 @@ instrument that works because everything it has ever seen was arranged one way.
 auditor at it, especially then — and when a prediction cannot be tested, say
 which precondition failed rather than letting the attempt read as a confirmation.
 
+## 44. Feeding the degenerate inputs to my own new flag
+
+§42 said the boundary operator's yield is the empty case, the equal case, and
+the one off the edge — the inputs nobody plants. §43 said a tool you wrote from
+the lessons is still a tool. This is what happened when the two were applied to
+`--dir`, one iteration after shipping it.
+
+Four degenerate inputs. **Two of them exited 0.**
+
+| input | before | after |
+|---|---|---|
+| a directory that does not exist | refused, names the flag | unchanged |
+| a **file** instead of a directory | died with `git status failed` | refused as *not a directory* |
+| an **empty** directory | header, no rows, **exit 0** | refused: nothing measured is not nothing wrong |
+| a directory **outside any git work tree** | ran, **exit 0** | refused |
+
+**The empty directory is the vacuous pass, in the command whose subject is
+vacuous passes.** A table with a header and no rows reads exactly like a clean
+suite. I had widened the file filter the day before *because* a wrong filter
+produced this table — and never made the empty result say so, so the hazard
+survived the fix that was aimed at it.
+
+**The one outside a work tree has teeth.** This command rewrites each gate file
+in place and restores it afterwards, and that restore is only a promise because
+`git checkout` can undo an interrupted run. Outside a repository there is no
+undo — and the dirty-tree guard that exists for exactly this passed silently,
+because `git status` *fails* there and its empty stdout reads as clean. **A guard
+whose failure mode is indistinguishable from its success.**
+
+**And then I wrote the bug into its own fix.** The first version of the
+empty-directory refusal printed `FAIL: no gate scripts under …` and returned
+`Ok(())` — announcing that nothing had been measured, and exiting 0. Measured,
+not noticed by reading: `exit 0` before, `exit 1` after. A message is not a
+verdict, and this is the third time this campaign that the two got confused.
+
+**The rule.** After adding an option, spend one iteration giving it the inputs
+you had no reason to try: nothing, empty, wrong type, wrong place. The author of
+an option builds the case that motivated it — which is, by construction, not any
+of those.
+
