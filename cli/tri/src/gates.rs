@@ -1733,11 +1733,33 @@ fn mutate(
         let mut survived_here: Vec<String> = Vec::new();
         for (dir, _, _, survivors) in &scores {
             if !survivors.is_empty() {
+                // For boundary, the line number alone is unreadable: a reader
+                // cannot tell `while len(v) < N` -- where a survivor is the
+                // correct answer -- from a comparison that decides an exit
+                // code. Printing the source makes the two populations visible
+                // without opening the file, which is the only honest way to
+                // present a column whose denominator mixes them (the filter
+                // that tried to separate them removed proven kills).
+                let src_lines: Vec<&str> = pristine.lines().collect();
+                let with_src = matches!(dir, Direction::Boundary);
                 let shown: Vec<String> = survivors
                     .iter()
-                    .map(|l| match equiv_lines.get(l) {
-                        Some(why) => format!("{} (claims equivalent: {})", l, why),
-                        None => l.to_string(),
+                    .map(|l| {
+                        let base = match equiv_lines.get(l) {
+                            Some(why) => format!("{} (claims equivalent: {})", l, why),
+                            None => l.to_string(),
+                        };
+                        if !with_src {
+                            return base;
+                        }
+                        match src_lines.get(l.saturating_sub(1)) {
+                            Some(text) => {
+                                let t = text.trim();
+                                let t: String = t.chars().take(46).collect();
+                                format!("{base}  `{t}`")
+                            }
+                            None => base,
+                        }
                     })
                     .collect();
                 survived_here.push(format!(
@@ -1839,6 +1861,36 @@ fn mutate(
         println!("A survivor means the gate stopped being able to fail and its own");
         println!("control still passed. Usually the control exercises the checking");
         println!("FUNCTION but not the wiring from that function to the exit code.");
+    }
+
+    // The boundary column's denominator holds two populations, and only one of
+    // them is about gates.
+    //
+    // The other four operators mutate something that reaches a verdict by
+    // construction: a return of a verdict literal, a SystemExit, an assert, or
+    // a condition whose body carries one. `boundary` moves EVERY comparison,
+    // including `while len(v) < N` and `if len(out) > 6` -- loop bounds and
+    // display cutoffs, where a survivor is the correct answer and says nothing
+    // about the gate.
+    //
+    // Filtering them out was tried and is wrong: the filter removed sites whose
+    // mutants were being KILLED (6/6 in check_vector_data, 3/3 in
+    // check_seal_coverage, 1/1 in check_catalog_integrity), and a kill is proof
+    // that the comparison reaches a verdict. Verdict-reachability is a dataflow
+    // property -- `if x > t: problems.append(...)` decides an exit code several
+    // statements later -- and no line-local pattern decides it.
+    //
+    // So the killed count is a LOWER BOUND on the verdict-bearing population,
+    // established after the fact, which is the only way it can be established.
+    // A ratio over a mixed denominator is not a rate, and printing one invites
+    // exactly the conclusion this file exists to prevent.
+    if directions.contains(&Direction::Boundary) {
+        println!();
+        println!("On the boundary column: its denominator counts EVERY comparison,");
+        println!("including loop bounds and display cutoffs, where a survivor is the");
+        println!("right answer. The killed count is a lower bound on the comparisons");
+        println!("that reach a verdict -- proven by the kill itself. Do not read");
+        println!("killed/total there as a rate; the denominator is two populations.");
     }
     Ok(())
 }
