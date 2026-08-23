@@ -4227,6 +4227,9 @@ impl Codegen {
                 self.write(" = ");
                 self.gen_expr(v);
             }
+        } else if !node.extra_type.is_empty() {
+            // Same as StmtLocal, and with the same restriction to a named type.
+            self.write(" = undefined");
         }
 
         self.write_line(";");
@@ -4533,6 +4536,15 @@ impl Codegen {
                 if !node.children.is_empty() {
                     self.write(" = ");
                     self.gen_expr(&node.children[0]);
+                } else if !node.extra_type.is_empty() {
+                    // `var keys : [27]i32` with no value. Zig has no bare
+                    // declaration -- the storage has to be spelled, and
+                    // `undefined` is how it spells "not assigned yet".
+                    //
+                    // Only with the type in hand: `var x = undefined` alone is
+                    // itself an error, so writing it unconditionally trades a
+                    // syntax error for a semantic one.
+                    self.write(" = undefined");
                 }
                 self.write_line(";");
             }
