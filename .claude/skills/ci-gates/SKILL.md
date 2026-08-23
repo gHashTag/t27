@@ -3334,3 +3334,59 @@ the subject.
 The third control — remove the whole directory — worked first time, and that
 is not reassuring. It is the easy one. The controls that pass immediately are
 the ones least likely to be testing anything.
+
+## 83. Sweeping for the empty-corpus zero, and what the sweep got wrong first
+
+§81 gives a two-line test: run a counting tool against a path that does not
+exist and against the real corpus, and compare. I ran it across the ten loop
+tools. **The first sweep measured nothing**, and the way it failed is worth
+more than the table it produced.
+
+Five tools "did not distinguish" — identical output both ways. They also
+returned **exit 2 on the real corpus**, which I printed in the same table and
+did not read. They were rejecting the argument shape entirely: `corpus-parse`
+wants `<binary> <dir> --out`, `diffbin` wants two binaries, `damage-repair`
+demands `--snapshot` and says so at length. Identical output, because both runs
+hit the same usage error. **A uniform invocation across tools with different
+signatures compares error messages, not behaviour.**
+
+The tell was in my own output. When a sweep reports "no difference" *and* an
+error code on the input that should work, the sweep is broken, not the subject.
+
+With valid invocations per tool, six take a corpus and the result was:
+
+| tool | on a path that does not exist, before |
+|---|---|
+| `cost` | `no .t27 files matched`, exit 2 — correct already |
+| `diffbin` | `no .t27 files under …`, exit 2 — correct already |
+| `damage` | said `files scanned: 0` (from §81) but **exited 0** |
+| `damage-freeze` | said nothing, exited 0, wrote a snapshot |
+| `corpus-parse` | `total 0`, exited 0, wrote an artifact |
+| `diffmodes` | printed `joined: 0` **and** "loss on the clean corpus: 0", exit 0 |
+
+`diffmodes` is the sharpest and the most instructive. Every number it printed
+was honest — `diffbin rows: 0`, `joined: 0`, `0 file(s)` — and it closes with a
+careful paragraph about the limits of what it claims: *"a scoped claim, not a
+clearance."* It hedges about **what** it asserts and not about **how much it
+looked at**, and the exit code carried only the second. Green step, zeros on
+the screen, scope of nothing.
+
+All six now exit 2 on an empty corpus, with the reason in words. Three
+consequences worth keeping:
+
+* **The honest number and the honest verdict are separate things.** Printing
+  `0 files` and returning 0 is still a green CI step, and the step is what gets
+  read.
+* **Put the denominator in the artifact, not only on the terminal.**
+  `damage-freeze` now records `files_scanned` in the snapshot, so a reader
+  months later can tell a clean corpus from an absent one without re-running
+  anything. The terminal output is gone by then.
+* **Write the file, change the verdict.** Refusing to write on empty would hide
+  *which* path was empty from whoever reads the artifact afterwards. The
+  artifact is evidence; the exit code is the claim.
+
+And one on process: I introduced two guards that could never fire while writing
+this — `if joined == 0` on a list, and an `empty` I referenced before defining.
+Both were caught in seconds because I ran three states after each change
+(empty, clean, damaged) instead of one. **A guard is code, and untested code in
+a guard is worse than no guard: it looks like coverage.**

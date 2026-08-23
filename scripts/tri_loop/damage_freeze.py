@@ -111,6 +111,12 @@ def freeze(corpus):
     return {
         "tool": "tri damage-freeze",
         "corpus": corpus,
+        # The denominator, in the artifact and not only on the terminal.
+        # `files` counts files WITH damage, so a snapshot of a clean corpus and
+        # a snapshot of a path that does not exist had identical shapes and
+        # identical zeros. Whoever reads this file later can now tell them
+        # apart without re-running anything.
+        "files_scanned": scanned,
         "lines": len(out),
         "files": len(digests),
         "classes": len(classes),
@@ -174,6 +180,15 @@ def main(argv):
     print(f"\nwrote {out_path}")
     print("Class IDs are keyed on the shape text, so they survive a change to the")
     print("class set. Cite the class_id and corpus_sha256, never a rank.")
+    # A snapshot of nothing is a snapshot, and it looks exactly like a
+    # snapshot of a clean corpus: same shape, same zero counts. The file is
+    # still written so the recorded `corpus` field says WHICH path was empty,
+    # but the verdict is 2, matching cost, corpus-parse, diffbin and damage.
+    if snap["files_scanned"] == 0:
+        print()
+        print(f"NOTHING WAS SCANNED under {corpus}.")
+        print("This snapshot records the size of a corpus that was not there.")
+        return 2
     return 0
 
 

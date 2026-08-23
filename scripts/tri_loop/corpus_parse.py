@@ -128,6 +128,23 @@ def main() -> int:
 
     print(f"total {len(results)}: " + " ".join(f"{k}={v}" for k, v in counts.items()))
     print(f"written {args.out}")
+
+    # A parse of nothing is not a parse with nothing wrong.
+    #
+    # Pointed at a directory that does not exist, this printed
+    # `total 0: ok=0 fail=0 timeout=0`, wrote a well-formed artifact, and
+    # exited 0. The artifact records `total` and `spec_dir`, so the scope IS
+    # carried -- but neither consumer reads them, and a downstream step that
+    # joins two of these sees a corpus with no failures.
+    #
+    # The file is still written, deliberately: refusing to write would hide
+    # WHICH directory was empty from anyone reading the artifact afterwards.
+    # Only the verdict changes.
+    if not results:
+        print()
+        print(f"NOTHING WAS PARSED under {args.spec_dir}.")
+        print("The counts above are the size of the corpus, not its health.")
+        return 2
     return 0
 
 
