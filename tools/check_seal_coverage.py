@@ -399,6 +399,34 @@ def self_check():
              "Fresh.json": ("specs/x.t27", WRONG)},
             ledger="Stale.json | stale | specs/x.t27\n")
 
+    # T109: a ledger line with no `|` at all. `parts[1] if len(parts) > 1` is
+    # the guard; under `>= 1` the index raises and the gate dies with a
+    # traceback on a tree where nothing is wrong. Every ledger in the cases
+    # above is well-formed, so nothing asked -- and a hand-edited ledger losing
+    # its pipe is the likeliest malformation this file will ever see.
+    #
+    # A bare name means "baselined, kind not recorded", which is a legal ledger
+    # and is measured here rather than assumed: the gate exits 0 and counts it
+    # as known-broken. `Traceback` is named absent because the mutant's failure
+    # is a crash, and a crash reaching a non-zero exit would otherwise read as
+    # a branch doing its job.
+    spawned("ledger line without a pipe", 0,
+            ("OK: 2 seals, 1 hold, 1 known-broken (1 stale)",),
+            ("FAIL:", "Traceback", "IndexError", DRIFT, CHANGED, DEPARTED, WROTE),
+            ONE_STALE, ledger="Stale.json\n")
+
+    # T109: exactly FIVE repaired seals, which is the boundary of the
+    # "(+N more)" continuation and not a value any other case reaches. Under
+    # `len(fixed) >= 5` the line reads "(+0 more)" -- harmless, and closed
+    # anyway: this campaign has twice found a limitation written down as
+    # cosmetic to be worth a case, and a declared exception costs a reader more
+    # than a case costs to write.
+    spawned("exactly five repaired seals", 0,
+            (NOTE, "S1.json, S2.json, S3.json, S4.json, S5.json"),
+            ("(+", "FAIL:", DRIFT, CHANGED, DEPARTED, WROTE),
+            {f"S{i}.json": ("specs/x.t27", None) for i in range(1, 6)},
+            ledger="".join(f"S{i}.json | stale | specs/x.t27\n" for i in range(1, 6)))
+
     # NOT covered here, so that "everything else is covered" is not available as
     # a reading: the `dangling` kind, and the compare() path where a seal is
     # both baselined and repaired in the same run. `phantom`/`dangling`
