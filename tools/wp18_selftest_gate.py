@@ -327,6 +327,38 @@ def main():
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
+    # ---------- TD_tol: the tolerance's own BOUNDARY ----------
+    # T107: `_diff > REDERIVE_TOL` rewritten to `>=` passed this entire control.
+    # Every case here sits far from the tolerance -- a clean row has _diff 0.0
+    # and TD_nan's row has none at all -- so nothing ever asked what happens AT
+    # it. Found by the boundary operator (`tri gates mutate --all`), which is
+    # the whole reason a fourth operator was written.
+    #
+    # The arithmetic is exact on purpose: row 0 decodes to its own input, so
+    # `rederived = abs(dec - inp)` is 0.0, and an abs_error of exactly
+    # REDERIVE_TOL makes `_diff = abs(0.0 - 1e-12)` the tolerance itself with no
+    # rounding anywhere. Equal to the tolerance is WITHIN it: the check asks
+    # whether the re-derivation disagrees by MORE than tol.
+    #
+    # Asserted on D's own dict rather than the exit code. A nonzero abs_error
+    # also trips E, the honesty allow-list, and an exit-code assertion could
+    # not tell the two branches apart -- which is the confusion this whole file
+    # exists to prevent.
+    root = tempfile.mkdtemp(prefix="wp18st_Dtol_")
+    try:
+        ssot, vec, allow = build_clean_corpus(root)
+
+        def at_tolerance(pack):
+            pack["vectors"][0]["abs_error"] = G.REDERIVE_TOL
+        _edit_pack(vec, "fp8_e4m3_conformance_v0.json", at_tolerance)
+        _reindex_sha(vec)
+        code, rep = G.run_gate(ssot, vec, allow)
+        d = rep["checks"]["D_rederive_abs_error"]
+        check("TDtol_exactly_the_tolerance_is_within_it",
+              d["ok"] is True and not d.get("mismatch"))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
     # ---------- TD_nan: a comparison that is not a number is a failure ----------
     root = tempfile.mkdtemp(prefix="wp18st_Dnan_")
     try:
