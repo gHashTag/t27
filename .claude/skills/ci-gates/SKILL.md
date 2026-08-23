@@ -1446,3 +1446,37 @@ Static reference-counting cannot express the defect. The flag was used, in a
 tell a working mode from a decorated one — which is why §36's check is a
 behavioural assertion and not a lint.
 
+## 37. The last survivor was a frame, not a limit
+
+The suite's final surviving mutant was `check_elab_ratchet.py`'s "no baseline"
+branch, declared `UNCOVERED` with a reason that had stood for a week:
+
+> Reaching it needs `t27c fpga-build --smoke` to SUCCEED and then find no
+> baseline, and a smoke build that succeeds needs the real spec tree — not
+> something an empty directory can be given.
+
+**Every clause is true. The conclusion does not follow.** A control does not
+have to use an empty directory. The note reasoned entirely inside the frame of
+`run_on_empty_tree()` — the helper that file happens to be built around — and
+never asked whether a stage could keep the *real corpus* and empty only the
+thing under test.
+
+Splitting the two does it: `cwd=ROOT` so the smoke build finds real specs and
+succeeds, `T27_ELAB_ROOT` pointed at a planted tree holding a built compiler, an
+empty `generated/` and no baseline. The branch is reached in under a second, and
+the real tree is only ever read — `git status` clean before and after.
+
+This is §36's check paying out immediately. The justification sounded mechanical
+and no measurement had produced it; one command falsified it. **When a
+limitation is stated in terms of the helper you already have, the limit is
+probably the helper.**
+
+**End state, and its exact boundary.** 90 mutants across 13 gates — 36 silent,
+21 loud, 33 invert — every one killed by the gate's own control. What that does
+*not* say: that the gates are correct, or that their checks are the right
+checks. It says no mutant in these three families survives, and the families are
+narrow by construction (verdict literals, and conditions whose body carries a
+verdict). A fourth operator would be a fourth question, and the honest prior
+after this campaign is that a new question finds something — twice now the
+instrument itself was what it found.
+
