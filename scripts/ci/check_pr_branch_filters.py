@@ -68,6 +68,7 @@ MERGE_CRITICAL = (
     "seal-coverage.yml",
     "secret-scan.yml",
     "verilog-widths.yml",
+    "damage-negatives.yml",
 )
 
 # Not merge-critical, and each exclusion is stated with its reason so that a

@@ -3265,3 +3265,72 @@ rounds and printed each one.
 The same caution applies to reading a gate's output through `head`, `tail`,
 `grep -m`, or a truncating pipe of your own: you chose the truncation, so the
 missing part is on you and not on the tool.
+
+## 81. A flag's value became the thing the tool measured
+
+`tri damage --json /tmp/out.json` scanned `/tmp/out.json` as the corpus. The
+argument parser was one line:
+
+```python
+args = [a for a in argv if not a.startswith("--")]
+corpus = args[0] if args else "specs"
+```
+
+It strips the **flag** and leaves the flag's **value**, so every valued flag
+donates its argument to the positional list. `--out`, `--json`,
+`--emit-fixtures`, `--class` — five flags across two tools, each of which
+silently redirected the corpus to a path with no specs in it.
+
+Alone that is a bug. What made it invisible is what it produced:
+
+```
+damaged lines: 0 in 0 files, 0 distinct shapes
+```
+
+**The same line the tool prints over a clean 650-spec corpus.** The "0 files"
+counts files *with* damage, so a scan of nothing and a scan that found nothing
+were byte-identical. Two defects, and each one hid the other: the parser sent
+the tool somewhere empty, and the report could not say it had been nowhere.
+
+**Print the denominator.** Any tool that reports "N found" must also report how
+many things it looked at, and say so loudly when that is zero:
+
+```
+files scanned: 0
+NOTHING WAS SCANNED. A zero below is the absence of a corpus,
+not the absence of damage. Check the path.
+```
+
+This is §3 for reports rather than gates. A gate that cannot fail is useless; a
+report that cannot distinguish *empty* from *clean* is worse, because it reads
+as good news. The failure mode is not silence — it is **a reassuring number**.
+
+The two-line test, on any tool that counts things: run it against a path that
+does not exist, and against the real corpus. If the output is the same, the
+tool cannot be trusted in either direction.
+
+## 82. My own negative control was tautological
+
+I salvaged six fixtures that say "this is not damage, report zero here", wired
+a gate, and ran three controls on it. Two of the three found defects **in my
+gate**:
+
+* **Planted damage went undetected** — because I invented a damaged-looking
+  shape instead of reading what the detector actually matches. `f : [u8,`
+  contains nothing it looks for. The real signals are a doubled bracket `[[]`
+  and an odd
+  quote count; planting those, the gate failed as it should.
+* **Removing a fixture still passed** — because I computed the expected count
+  *from the directory being checked*. Delete a fixture and both sides fall to
+  five and agree. That is §69 in a new costume: **an expectation derived from
+  the thing under test cannot detect a change in it.** Pinned to a literal `6`,
+  the loss fails.
+
+Both mistakes have the same root: I wrote the control from what I imagined the
+subject does, instead of from what it does. **Read the detector's source before
+writing its negative control**, and pin every expectation to something outside
+the subject.
+
+The third control — remove the whole directory — worked first time, and that
+is not reassuring. It is the easy one. The controls that pass immediately are
+the ones least likely to be testing anything.

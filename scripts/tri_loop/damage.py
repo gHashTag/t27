@@ -83,7 +83,22 @@ def is_damaged(rhs):
 
 
 def scan(corpus):
+    """Return (rows, files_scanned).
+
+    The count is returned, not just the rows, because zero rows has two
+    meanings and the output could not tell them apart: over the 650-spec
+    corpus and over a directory that does not exist, this printed the SAME
+    line -- `damaged lines: 0 in 0 files, 0 distinct shapes`. The "0 files"
+    there counts files WITH damage, so a scan of nothing and a scan that found
+    nothing read identically.
+
+    That matters most where it is used as a negative control. A fixture set
+    saying "tri damage must report zero here" passes vacuously if the path is
+    wrong, misspelled, or never merged -- and the fixtures for this tool were
+    in fact never merged (#2161), so the control has never run.
+    """
     rows = []
+    scanned = 0
     for root, _dirs, names in os.walk(corpus):
         for n in sorted(names):
             if not n.endswith(".t27"):
@@ -94,6 +109,7 @@ def scan(corpus):
                     lines = fh.readlines()
             except OSError:
                 continue
+            scanned += 1
             for ln, line in enumerate(lines, 1):
                 m = FIELD_LINE.match(line.rstrip("\n"))
                 if not m:
@@ -107,11 +123,35 @@ def scan(corpus):
                                  "rhs": rhs, "shape": shape(rhs),
                                  "reasons": reasons,
                                  "family": os.path.dirname(path)})
-    return rows
+    return rows, scanned
+
+
+# Flags that take a value. `[a for a in argv if not a.startswith("--")]` strips
+# the FLAG and leaves its VALUE, so `tri damage --json /tmp/x.json` read
+# /tmp/x.json as the corpus directory and scanned nothing. With the file count
+# absent from the output, that printed exactly what a clean 650-spec corpus
+# prints. Two defects, and each one hid the other.
+VALUE_FLAGS = ("--json", "--emit-fixtures", "--class", "--out", "--snapshot")
+
+
+def positionals(argv):
+    """argv minus flags and minus the values those flags consume."""
+    out, skip = [], False
+    for a in argv:
+        if skip:
+            skip = False
+            continue
+        if a in VALUE_FLAGS:
+            skip = True
+            continue
+        if a.startswith("--"):
+            continue
+        out.append(a)
+    return out
 
 
 def main(argv):
-    args = [a for a in argv if not a.startswith("--")]
+    args = positionals(argv)
     corpus = args[0] if args else "specs"
     out_json = None
     emit = None
@@ -124,7 +164,7 @@ def main(argv):
         if a == "--class" and i + 1 < len(argv):
             only = argv[i + 1]
 
-    rows = scan(corpus)
+    rows, scanned = scan(corpus)
     if only:
         rows = [r for r in rows if r["shape"] == only]
 
@@ -137,6 +177,10 @@ def main(argv):
         fams[r["family"]] = fams.get(r["family"], 0) + 1
 
     print(f"corpus: {corpus}")
+    print(f"files scanned: {scanned}")
+    if scanned == 0:
+        print("NOTHING WAS SCANNED. A zero below is the absence of a corpus,")
+        print("not the absence of damage. Check the path.")
     print(f"damaged lines: {len(rows)} in {len(files)} files, "
           f"{len(shapes)} distinct shapes\n")
     print("by shape (this is the repair unit -- one reviewable diff per row):")

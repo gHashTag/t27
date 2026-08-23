@@ -61,7 +61,9 @@ def file_digest(path):
 
 
 def freeze(corpus):
-    rows = scan(corpus)
+    # `scan` returns the denominator too: zero rows over a path that does not
+    # exist used to be indistinguishable from zero rows over a clean corpus.
+    rows, scanned = scan(corpus)
     digests = {}
     cache = {}
     out = []
@@ -119,8 +121,32 @@ def freeze(corpus):
     }
 
 
+# Flags that take a value. `[a for a in argv if not a.startswith("--")]` strips
+# the FLAG and leaves its VALUE, so `tri damage --json /tmp/x.json` read
+# /tmp/x.json as the corpus directory and scanned nothing. With the file count
+# absent from the output, that printed exactly what a clean 650-spec corpus
+# prints. Two defects, and each one hid the other.
+VALUE_FLAGS = ("--json", "--emit-fixtures", "--class", "--out", "--snapshot")
+
+
+def positionals(argv):
+    """argv minus flags and minus the values those flags consume."""
+    out, skip = [], False
+    for a in argv:
+        if skip:
+            skip = False
+            continue
+        if a in VALUE_FLAGS:
+            skip = True
+            continue
+        if a.startswith("--"):
+            continue
+        out.append(a)
+    return out
+
+
 def main(argv):
-    args = [a for a in argv if not a.startswith("--")]
+    args = positionals(argv)
     corpus = args[0] if args else "specs"
     out_path = None
     for i, a in enumerate(argv):
