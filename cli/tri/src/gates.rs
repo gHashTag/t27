@@ -106,6 +106,35 @@ pub enum GatesCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Open pull requests whose path-filtered CI never ran.
+    ///
+    /// T133: a pull request that is CONFLICTING when an event fires does not
+    /// get its path-filtered workflows for that event -- GitHub cannot compute
+    /// the merge diff, so `paths:` cannot be evaluated, and only the path-less
+    /// workflows run.
+    ///
+    /// The first version of this comment said "a CONFLICTING pull request loses
+    /// most of its checks", on a correlation measured once: four conflicting
+    /// pull requests had 3, 3, 9 and 7 checks while the rest had 21 to 35. An
+    /// hour later two of those four reported 21 and 26 -- they had been
+    /// mergeable when their events fired, kept those results, and only
+    /// conflicted afterwards. **A conflict does not retract past runs.**
+    ///
+    /// So the detectable shape is not "conflicting". It is conflicting AND a
+    /// check list far shorter than its siblings', which is why this command
+    /// computes a reference from the non-conflicting pull requests rather than
+    /// asserting from the state alone.
+    ///
+    /// The danger is not that the checks are red. It is that they are ABSENT,
+    /// and a short list of green checks reads like a passing pull request. Two
+    /// of the affected ones change `bootstrap/src/compiler.rs` -- the exact
+    /// file whose gate carries the comment "a PR that rewrites the C emitter
+    /// merges with the cross-target proof never running".
+    Prs {
+        /// owner/repo. Defaults to the repository of the working directory.
+        #[arg(long)]
+        repo: Option<String>,
+    },
     /// List active workflows whose lifetime success count is zero.
     Dead {
         /// owner/repo, repeatable. Defaults to the three this fleet uses.
@@ -1085,6 +1114,115 @@ fn save_cache(root: &std::path::Path, c: &std::collections::HashMap<String, Cach
     }
 }
 
+/// Open pull requests, with how much CI each one actually got.
+fn prs(repo: Option<&str>) -> Result<()> {
+    let mut base = vec!["pr", "list", "--state", "open", "--limit", "50", "--json",
+                        "number,title,mergeable"];
+    if let Some(r) = repo {
+        base.push("--repo");
+        base.push(r);
+    }
+    let out = Command::new("gh")
+        .args(&base)
+        .output()
+        .context("gh pr list failed -- is the GitHub CLI installed and authenticated?")?;
+    if !out.status.success() {
+        anyhow::bail!(
+            "gh pr list exited {}: {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    let list: serde_json::Value = serde_json::from_slice(&out.stdout).context("parse gh json")?;
+    let items = list.as_array().cloned().unwrap_or_default();
+    if items.is_empty() {
+        println!("No open pull requests.");
+        return Ok(());
+    }
+
+    println!("{:<7} {:<13} {:>7}  {}", "pr", "mergeable", "checks", "title");
+    let mut blind = Vec::new();
+    let mut rows: Vec<(i64, String, usize)> = Vec::new();
+    for it in &items {
+        let n = it["number"].as_i64().unwrap_or(0);
+        let m = it["mergeable"].as_str().unwrap_or("?").to_string();
+        let title = it["title"].as_str().unwrap_or("");
+        let mut cargs = vec!["pr".into(), "checks".into(), n.to_string(),
+                             "--json".into(), "name".into()];
+        if let Some(r) = repo {
+            cargs.push("--repo".into());
+            cargs.push(r.to_string());
+        }
+        // `gh pr checks` exits non-zero when a check has failed, so the count is
+        // read from stdout regardless of status -- an exit code here is about
+        // the checks' colours, not about whether the listing worked.
+        let c = Command::new("gh").args(&cargs).output();
+        let count = c
+            .ok()
+            .and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok())
+            .and_then(|v| v.as_array().map(|a| a.len()))
+            .unwrap_or(0);
+        println!(
+            "#{:<6} {:<13} {:>7}  {}",
+            n,
+            m,
+            count,
+            // By CHARS, not bytes. Slicing a String by byte index panics in the
+            // middle of a multi-byte character, and the first title this
+            // command ever printed contained an em dash -- from a pull request
+            // this campaign opened.
+            title.chars().take(46).collect::<String>()
+        );
+        rows.push((n, m, count));
+    }
+
+    // The reference is what a pull request in this repository normally gets.
+    // Asserting from the CONFLICTING state alone was wrong: a conflict does not
+    // retract runs that already happened, so a pull request can be conflicting
+    // now and still carry a full list from when it was not.
+    let mut healthy: Vec<usize> = rows
+        .iter()
+        .filter(|(_, m, _)| m != "CONFLICTING")
+        .map(|(_, _, c)| *c)
+        .collect();
+    healthy.sort_unstable();
+    let reference = healthy.get(healthy.len() / 2).copied().unwrap_or(0);
+
+    for (n, m, c) in &rows {
+        if m == "CONFLICTING" && reference > 0 && *c * 2 < reference {
+            blind.push((*n, *c));
+        }
+    }
+
+    println!();
+    if reference == 0 {
+        println!("No non-conflicting pull request to compare against, so no reference.");
+        return Ok(());
+    }
+    println!("Reference: a non-conflicting pull request here gets {} checks (median).", reference);
+    if blind.is_empty() {
+        println!("No pull request has a check list far below it.");
+        return Ok(());
+    }
+    println!();
+    println!(
+        "{} pull request(s) CONFLICTING with a check list far below the reference:",
+        blind.len()
+    );
+    for (n, c) in &blind {
+        println!("  #{}  {} check(s) against a reference of {}", n, c, reference);
+    }
+    println!();
+    println!("A pull request that is conflicting when an event fires cannot have its merge");
+    println!("diff computed, so every workflow with a `paths:` filter is skipped for that");
+    println!("event. The checks that remain are the ones that never look at the diff -- and");
+    println!("they are green, which reads exactly like a passing pull request.");
+    println!();
+    println!("A conflict does NOT retract earlier runs: a pull request that was mergeable");
+    println!("when it was last pushed keeps that list. Rebase to get a real one.");
+    Ok(())
+}
+
 fn label(d: Direction) -> &'static str {
     match d {
         Direction::Silent => "silent",
@@ -1630,6 +1768,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             *all,
             dir.as_deref(),
         ),
+        GatesCmd::Prs { repo } => prs(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]

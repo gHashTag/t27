@@ -2593,3 +2593,47 @@ The new one has 25 checks and `emit-bitexact` running.
 Count the checks against a sibling before reading the colours — a gate that never
 ran is invisible in exactly the way a gate that passed is.
 
+## 66. A conflicting pull request loses its path-filtered CI — and my first rule for it was wrong
+
+§65 left one pull request's missing CI undiagnosed. Checking every open pull
+request found the mechanism, and then the mechanism corrected itself.
+
+**Three more pull requests have the same shape.** Two of them change
+`bootstrap/src/compiler.rs` and got **three checks** — `check-linked-issue`,
+GitGuardian, NotebookLM. Every one path-less.
+
+That file's gate carries this comment, written to prevent exactly this:
+
+> Without `bootstrap/**` here, a PR that rewrites the C emitter merges with the
+> cross-target proof never running.
+
+The path was added. **The gate is defeated by a merge conflict instead.**
+
+**The mechanism.** A pull request that is CONFLICTING when an event fires cannot
+have its merge diff computed, so `paths:` filters cannot be evaluated and only
+path-less workflows run. The checks that remain are green — because they are the
+ones that never look at the diff — which reads exactly like a passing pull
+request.
+
+### And the rule I first wrote was wrong
+
+The correlation looked exact: four conflicting pull requests with 3, 3, 9 and 7
+checks; everything else 21 to 35. I wrote *"a CONFLICTING pull request loses most
+of its checks"* into the tool's own documentation.
+
+**An hour later two of those four reported 21 and 26.** They had been mergeable
+when their events fired, kept those results, and only conflicted afterwards.
+**A conflict does not retract past runs.**
+
+So the detectable shape is not the state. It is *conflicting **and** a check list
+far below its siblings'*, and `tri gates prs` now computes a reference from the
+non-conflicting pull requests rather than asserting from the state alone. Three
+flagged, two correctly excluded.
+
+**Caught by re-running the command on fresher data**, not by thinking harder —
+which is the argument for putting a finding into a tool rather than a document.
+A sentence cannot disagree with tomorrow's data; a command can.
+
+**And it crashed on its first run**, slicing a title by byte index in the middle
+of an em dash — in a pull request this campaign had opened. Truncate by chars.
+
