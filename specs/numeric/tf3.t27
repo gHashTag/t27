@@ -1331,7 +1331,6 @@ bench "bench_tf3_from_f32_latency" {
     for (0..1000) |_| {
         result = tf3_from_f32(1.5);
     }
-    _ = result;
 }
 
 bench "bench_tf3_to_f32_latency" {
@@ -1342,7 +1341,6 @@ bench "bench_tf3_to_f32_latency" {
     for (0..1000) |_| {
         result = tf3_to_f32(0x48);
     }
-    _ = result;
 }
 
 bench "bench_tf3_is_zero_latency" {
@@ -1353,7 +1351,6 @@ bench "bench_tf3_is_zero_latency" {
     for (0..1000) |_| {
         result = tf3_is_zero(0);
     }
-    _ = result;
 }
 
 bench "bench_tf3_lookup_table_latency" {
@@ -1364,7 +1361,6 @@ bench "bench_tf3_lookup_table_latency" {
     for (0..1000) |_| {
         result = mant_lookup_table[16];
     }
-    _ = result;
 }
 
 bench "bench_tf3_extract_sign_latency" {
@@ -1375,7 +1371,6 @@ bench "bench_tf3_extract_sign_latency" {
     for (0..1000) |_| {
         result = tf3_extract_sign(0x80);
     }
-    _ = result;
 }
 
 bench "bench_tf3_extract_exponent_latency" {
@@ -1386,7 +1381,6 @@ bench "bench_tf3_extract_exponent_latency" {
     for (0..1000) |_| {
         result = tf3_extract_exponent(0x78);
     }
-    _ = result;
 }
 
 bench "bench_tf3_negate_latency" {
@@ -1397,7 +1391,6 @@ bench "bench_tf3_negate_latency" {
     for (0..1000) |_| {
         result = tf3_negate(0x48);
     }
-    _ = result;
 }
 
 bench "bench_tf3_abs_latency" {
@@ -1408,7 +1401,6 @@ bench "bench_tf3_abs_latency" {
     for (0..1000) |_| {
         result = tf3_abs(0xC8);
     }
-    _ = result;
 }
 
 bench "bench_tf3_is_negative_latency" {
@@ -1419,7 +1411,6 @@ bench "bench_tf3_is_negative_latency" {
     for (0..1000) |_| {
         result = tf3_is_negative(0xC8);
     }
-    _ = result;
 }
 
 bench "bench_tf3_is_positive_latency" {
@@ -1430,7 +1421,6 @@ bench "bench_tf3_is_positive_latency" {
     for (0..1000) |_| {
         result = tf3_is_positive(0x48);
     }
-    _ = result;
 }
 
 bench "bench_tf3_copy_sign_latency" {
@@ -1443,7 +1433,6 @@ bench "bench_tf3_copy_sign_latency" {
     for (0..1000) |_| {
         result = tf3_copy_sign(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_max_latency" {
@@ -1456,7 +1445,6 @@ bench "bench_tf3_max_latency" {
     for (0..1000) |_| {
         result = tf3_max(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_min_latency" {
@@ -1469,7 +1457,6 @@ bench "bench_tf3_min_latency" {
     for (0..1000) |_| {
         result = tf3_min(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_from_f32_phi_latency" {
@@ -1480,7 +1467,6 @@ bench "bench_tf3_from_f32_phi_latency" {
     for (0..1000) |_| {
         result = tf3_from_f32_phi(1.618);
     }
-    _ = result;
 }
 
 bench "bench_tf3_eq_latency" {
@@ -1493,7 +1479,6 @@ bench "bench_tf3_eq_latency" {
     for (0..1000) |_| {
         result = tf3_eq(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_ne_latency" {
@@ -1506,7 +1491,6 @@ bench "bench_tf3_ne_latency" {
     for (0..1000) |_| {
         result = tf3_ne(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_lt_latency" {
@@ -1519,7 +1503,6 @@ bench "bench_tf3_lt_latency" {
     for (0..1000) |_| {
         result = tf3_lt(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_le_latency" {
@@ -1532,7 +1515,6 @@ bench "bench_tf3_le_latency" {
     for (0..1000) |_| {
         result = tf3_le(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_gt_latency" {
@@ -1545,7 +1527,6 @@ bench "bench_tf3_gt_latency" {
     for (0..1000) |_| {
         result = tf3_gt(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_ge_latency" {
@@ -1558,7 +1539,6 @@ bench "bench_tf3_ge_latency" {
     for (0..1000) |_| {
         result = tf3_ge(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_add_latency" {
@@ -1571,7 +1551,6 @@ bench "bench_tf3_add_latency" {
     for (0..1000) |_| {
         result = tf3_add(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_sub_latency" {
@@ -1584,7 +1563,6 @@ bench "bench_tf3_sub_latency" {
     for (0..1000) |_| {
         result = tf3_sub(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_mul_latency" {
@@ -1597,7 +1575,6 @@ bench "bench_tf3_mul_latency" {
     for (0..1000) |_| {
         result = tf3_mul(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_div_latency" {
@@ -1610,7 +1587,6 @@ bench "bench_tf3_div_latency" {
     for (0..1000) |_| {
         result = tf3_div(a, b);
     }
-    _ = result;
 }
 
 bench "bench_tf3_is_nan_latency" {
@@ -1622,7 +1598,6 @@ bench "bench_tf3_is_nan_latency" {
     for (0..1000) |_| {
         result = tf3_is_nan(val);
     }
-    _ = result;
 }
 
 bench "bench_tf3_is_finite_latency" {
@@ -1634,7 +1609,6 @@ bench "bench_tf3_is_finite_latency" {
     for (0..1000) |_| {
         result = tf3_is_finite(val);
     }
-    _ = result;
 }
 
 bench "bench_tf3_signbit_latency" {
@@ -1646,7 +1620,6 @@ bench "bench_tf3_signbit_latency" {
     for (0..1000) |_| {
         result = tf3_signbit(val);
     }
-    _ = result;
 }
 
 bench "bench_tf3_sign_latency" {
@@ -1658,7 +1631,6 @@ bench "bench_tf3_sign_latency" {
     for (0..1000) |_| {
         result = tf3_sign(val);
     }
-    _ = result;
 }
 
 bench "bench_tf3_clamp_latency" {
@@ -1672,7 +1644,6 @@ bench "bench_tf3_clamp_latency" {
     for (0..1000) |_| {
         result = tf3_clamp(x, min_val, max_val);
     }
-    _ = result;
 }
 
 bench "bench_tf3_lerp_latency" {
@@ -1686,6 +1657,5 @@ bench "bench_tf3_lerp_latency" {
     for (0..1000) |_| {
         result = tf3_lerp(a, b, t);
     }
-    _ = result;
 }
 

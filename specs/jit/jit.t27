@@ -850,7 +850,6 @@ bench "jit_compiler_code_size_latency" {
     for (0..10000) |_| {
         size = compiler.code_size();
     }
-    _ = size;
 }
 
 bench "jit_cache_init_latency" {

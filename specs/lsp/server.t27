@@ -511,7 +511,6 @@ bench "lsp_server_capabilities_default_latency" {
     for (0..1000) |_| {
         result = server_capabilities_default();
     }
-    _ = result;
 }
 
 bench "lsp_initialize_result_create_latency" {
@@ -522,7 +521,6 @@ bench "lsp_initialize_result_create_latency" {
     for (0..1000) |_| {
         result = initialize_result_create();
     }
-    _ = result;
 }
 
 bench "lsp_document_state_create_latency" {
@@ -533,7 +531,6 @@ bench "lsp_document_state_create_latency" {
     for (0..1000) |_| {
         result = document_state_create("test://uri", 1, "content", "t27");
     }
-    _ = result;
 }
 
 bench "lsp_completion_context_create_latency" {
@@ -544,7 +541,6 @@ bench "lsp_completion_context_create_latency" {
     for (0..1000) |_| {
         result = completion_context_create(.invoked);
     }
-    _ = result;
 }
 
 bench "lsp_server_state_to_string_latency" {
@@ -555,5 +551,4 @@ bench "lsp_server_state_to_string_latency" {
     for (0..1000) |_| {
         result = server_state_to_string(.running);
     }
-    _ = result;
 }
