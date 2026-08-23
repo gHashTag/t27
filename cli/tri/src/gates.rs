@@ -545,6 +545,38 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
     sites
 }
 
+/// Lines carrying a `# mutant-equivalent: <why>` claim, mapped to the reason.
+///
+/// The marker may sit on the code line itself or anywhere in the contiguous
+/// comment block above it; it names the first following line that is neither a
+/// comment nor blank. A fixed offset would break the moment the proof needed
+/// more than one line -- which is the first thing it needed.
+fn equivalence_claims(src: &str) -> std::collections::HashMap<usize, String> {
+    const MARK: &str = "mutant-equivalent:";
+    let lines: Vec<&str> = src.lines().collect();
+    let mut out = std::collections::HashMap::new();
+    for (i, l) in lines.iter().enumerate() {
+        let Some(pos) = l.find(MARK) else { continue };
+        if !l.trim_start().starts_with('#') {
+            continue;
+        }
+        let why = l[pos + MARK.len()..].trim().to_string();
+        // Walk to the first line that is code.
+        let mut j = i + 1;
+        while j < lines.len() {
+            let t = lines[j].trim();
+            if !t.is_empty() && !t.starts_with('#') {
+                break;
+            }
+            j += 1;
+        }
+        if j < lines.len() {
+            out.insert(j + 1, why);
+        }
+    }
+    out
+}
+
 fn label(d: Direction) -> &'static str {
     match d {
         Direction::Silent => "silent",
@@ -764,18 +796,36 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()>
             continue;
         }
 
+        // T107: a survivor whose line CLAIMS to be a functional equivalence.
+        // The claim is PRINTED, never acted on: the row still reads SURVIVED
+        // and still counts, because suppressing a row on the strength of a
+        // comment is how a declared UNCOVERED stood for a week while being
+        // false. The marker's job is to stop the next reader re-deriving a
+        // proof that is already written beside the code.
+        //
+        // The marker applies to the first CODE line after it, not to a fixed
+        // offset. The first version of this took marker+2 -- the proof it was
+        // written for is a fifteen-line comment block, so it named a line in
+        // the middle of its own explanation. A ruler measured against one
+        // example, in the file whose subject is rulers measured against one
+        // example.
+        let equiv_lines = equivalence_claims(&pristine);
+
         let mut survived_here: Vec<String> = Vec::new();
         for (dir, _, _, survivors) in &scores {
             if !survivors.is_empty() {
+                let shown: Vec<String> = survivors
+                    .iter()
+                    .map(|l| match equiv_lines.get(l) {
+                        Some(why) => format!("{} (claims equivalent: {})", l, why),
+                        None => l.to_string(),
+                    })
+                    .collect();
                 survived_here.push(format!(
                     "{} line{} {}",
                     label(*dir),
                     if survivors.len() == 1 { "" } else { "s" },
-                    survivors
-                        .iter()
-                        .map(|l| l.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
+                    shown.join(", ")
                 ));
             }
         }
@@ -1169,6 +1219,30 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // `def` at column zero changes which region we are in.
         let src = "def self_check():\n    def case(x):\n        return 1\n    return 0\n";
         assert!(mutable_sites(src).is_empty());
+    }
+
+    #[test]
+    fn an_equivalence_claim_names_the_line_it_describes() {
+        // T107. The first version used marker+2, and the proof it was written
+        // for is a fifteen-line comment block -- so it named a line in the
+        // middle of its own explanation. A one-line proof would have passed.
+        let one = "# mutant-equivalent: guards force it\nif a > b:\n";
+        assert_eq!(equivalence_claims(one).get(&2).map(String::as_str),
+                   Some("guards force it"));
+
+        let many = "# mutant-equivalent: proven below\n# line two\n# line three\n\
+                    # line four\nif a > b:\n";
+        let c = equivalence_claims(many);
+        assert_eq!(c.get(&5).map(String::as_str), Some("proven below"),
+                   "a multi-line proof lost its target: {c:?}");
+        assert!(c.get(&3).is_none(), "named a line inside its own comment block");
+
+        // A blank line between proof and code is still the same claim.
+        assert!(equivalence_claims("# mutant-equivalent: x\n\nif a > b:\n").contains_key(&3));
+        // The words in running prose are not a claim; only a comment is.
+        assert!(equivalence_claims("s = \"mutant-equivalent: no\"\nif a > b:\n").is_empty());
+        // A marker with nothing after it names nothing rather than panicking.
+        assert!(equivalence_claims("# mutant-equivalent: x\n").is_empty());
     }
 
     #[test]

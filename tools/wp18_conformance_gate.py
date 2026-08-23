@@ -450,6 +450,22 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
                 if math.isnan(inp):
                     roundtrip_ok = (math.isnan(dec))
                 elif math.isinf(inp):
+                    # mutant-equivalent: both guards force infinity, so >= is >
+                    #
+                    # T107. The boundary operator reports two surviving mutants
+                    # on this line and both are functional equivalences, proven
+                    # by the two guards rather than assumed. `inp` is infinite
+                    # by the elif one line up; `dec` is infinite by the `and`
+                    # that short-circuits before the comparison runs. For a
+                    # value in {+inf, -inf}, `x > 0` and `x >= 0` agree, because
+                    # the only input that separates them is zero and neither
+                    # value can be zero here.
+                    #
+                    # Recorded because it was first classified as a CANDIDATE
+                    # theorem "resting on a property of the codec that has not
+                    # been checked" -- written after reading the comparison and
+                    # not the elif above it. It rests on nothing but this line's
+                    # own guards.
                     roundtrip_ok = (math.isinf(dec) and (inp > 0) == (dec > 0))
                 elif math.isinf(dec):
                     # finite input overflowed to inf (declared overflow_to_inf etc.):
