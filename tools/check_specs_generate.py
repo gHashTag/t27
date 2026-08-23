@@ -49,6 +49,9 @@ import shutil
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import plant as plant_script  # noqa: E402
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tools/specs_generate_baseline.txt"
 # The Zig backend is `gen`, not `gen-zig` -- there is no gen-zig subcommand, so the
@@ -169,7 +172,7 @@ def _self_check_plant(td, files, baseline_lines=None, args=()):
     root = pathlib.Path(td)
     me = pathlib.Path(__file__).resolve()
     (root / "tools").mkdir(parents=True)
-    shutil.copy(me, root / "tools" / me.name)
+    plant_script(me, root / "tools")
     (root / "target/release").mkdir(parents=True)
     shutil.copy(t27c(), root / "target/release/t27c")
     for rel, body in files.items():

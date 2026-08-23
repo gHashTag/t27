@@ -3461,3 +3461,48 @@ Two habits:
   and got *nothing at all* did not observe a wrong answer; it observed no
   answer. Those are different bugs, and the second one is usually in the
   harness.
+
+## 86. Eleven controls would have gone silent, and none of them would have said why
+
+§85 found one gate whose plant copied the script and not its imports. I checked
+whether that was one file's oversight by injecting a single unused sibling
+import into each self-planting gate and re-running its own self-check in the
+real tree:
+
+| gate | controls broken by one import |
+|---|---|
+| `check_specs_parse` | 5 |
+| `check_catalog_integrity` | 4 |
+| `check_gate_preconditions` | 2 |
+
+**Eleven, and not one of them would have said "your plant is incomplete."**
+They all report the same way — `exit 1 (want 1)`, then `stdout ''`, then every
+expected string listed as absent. That reads as a gate that stopped working, on
+a day when only the harness did.
+
+The fix is one shared helper, `plant(script, dest)` in `_prereq.py`: copy the
+script, then copy every sibling module it imports, transitively. It copies
+`_prereq` itself, so the dependency it introduces is one it satisfies.
+
+**Three things the sweep taught that the fix did not.**
+
+* **A detector keyed on a literal finds the instances that share the literal.**
+  I grepped `shutil.copy(__file__` and found four gates. The guard I then wrote
+  keyed on the *destination* being a planted `tools/` directory and found
+  **six** — two more used `shutil.copy(me, ...)` with `me` a variable. Same
+  mistake as the widths sweep (§76), one iteration later.
+* **A control that does not run is not a control that passed.** One gate came
+  back "unaffected" by the injection. Its planted case had simply not executed
+  in this environment — it is gated behind a tool that is absent — so the sweep
+  recorded a clean where it had measured nothing. `grep` the output for the
+  case's own label before believing a null result.
+* **A shared helper can collide with a local name.** `check_seal_coverage`
+  already had its own `plant(td, seals, ledger)` that builds a whole world.
+  Importing the shared one under the same name shadowed it, and the planted
+  world became the script's own path — `NotADirectoryError` on
+  `<script>.py/.trinity/seals`. Imported under an alias. **Before adding an
+  import, grep the file for the name you are about to bind.**
+
+The guard now runs inside `check_gate_preconditions` and reports `BARE` with
+the file and line. Negative control: reintroduce one bare copy, and it goes
+red naming it.

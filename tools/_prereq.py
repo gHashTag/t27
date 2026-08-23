@@ -55,3 +55,51 @@ def broken(msg):
     print("  the thing under test -- a compiler that would not emit, or a spec")
     print("  this repository tracks and no longer has.")
     sys.exit(1)
+
+
+def plant(script, dest_tools):
+    """Copy `script` into `dest_tools`, together with what it imports.
+
+    T-planting. Four gates plant themselves into a temporary tree to prove
+    their own controls can fail, and every one of them copied `__file__` and
+    nothing else. That works exactly until the gate acquires a sibling import,
+    at which point the planted copy dies on ImportError, prints nothing, and
+    every expectation in every control reads as "expected text absent".
+
+    Measured by injecting one unused import into each and re-running its
+    self-check in the real tree:
+
+        check_specs_parse         5 controls broken
+        check_catalog_integrity   4 controls broken
+        check_gate_preconditions  2 controls broken
+
+    Eleven controls, none of which would have said "your plant is incomplete".
+    They would have said the gate was broken, on a day when only the plant was.
+
+    Copies transitively, because a sibling can import a sibling. Only modules
+    that exist NEXT TO the script are copied: `json` and `subprocess` come from
+    the interpreter and a planted tree has them already.
+    """
+    import pathlib
+    import re
+    import shutil
+
+    src = pathlib.Path(script).resolve()
+    here = src.parent
+    dest = pathlib.Path(dest_tools)
+    dest.mkdir(parents=True, exist_ok=True)
+
+    seen, queue = set(), [src]
+    while queue:
+        f = queue.pop()
+        if f.name in seen or not f.is_file():
+            continue
+        seen.add(f.name)
+        shutil.copy(f, dest / f.name)
+        text = f.read_text(errors="replace")
+        for name in re.findall(r"^\s*(?:from|import)\s+([A-Za-z_][A-Za-z0-9_]*)",
+                               text, re.M):
+            sib = here / f"{name}.py"
+            if sib.is_file() and sib.name not in seen:
+                queue.append(sib)
+    return sorted(seen)

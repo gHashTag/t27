@@ -36,7 +36,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _prereq import broken  # noqa: E402
+from _prereq import broken, plant  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tools/json_parse_baseline.txt"
@@ -117,17 +117,7 @@ def self_check():
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
             (root / "tools").mkdir()
-            shutil.copy(__file__, root / "tools" / me)
-            # And its imports. A plant that copies the gate but not what the
-            # gate imports runs a DIFFERENT program: the copy dies on
-            # ImportError, prints nothing to stdout, and every expectation
-            # below reads as "expected text absent" -- which looks like a
-            # broken gate rather than a broken plant. Found by adding an
-            # import to this file and watching four controls fail at once.
-            for dep in ("_prereq.py",):
-                src = pathlib.Path(__file__).resolve().parent / dep
-                if src.is_file():
-                    shutil.copy(src, root / "tools" / dep)
+            plant(__file__, root / "tools")
             for rel, body in files.items():
                 (root / rel).write_text(body, encoding="utf-8")
             # tracked_json() asks git first and only falls back to rglob when
