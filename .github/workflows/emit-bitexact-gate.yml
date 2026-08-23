@@ -135,7 +135,17 @@ jobs:
       - name: Prove the WHOLE trainer bit-exact in C (== model == Verilog)
         run: python3 tools/verify_trainer_c.py --require
 
-      - name: Prove the trainer LEARNS (XOR 4/4 + nonlinear held-out >=90%, incl. deep 3-layer)
+      # The step name is the claim most people read. This one said "Prove the
+      # trainer LEARNS", and a reader of a green run took that for the
+      # compiler, the RTL, or the board. It is none of those: the tool is pure
+      # Python. It generates backprop microcode, runs it on a bit-faithful GF-T
+      # INTERPRETER, and asserts on the text of the Verilog it emits. No t27c,
+      # no .t27 spec, no iverilog -- it passes unchanged in a tree containing
+      # nothing but itself, which is how this was found.
+      #
+      # That is a real result and worth gating on. It is not the result the old
+      # name promised.
+      - name: Generated microcode learns on the GF-T interpreter (XOR 4/4, held-out >=90%, deep 3-layer)
         run: python3 tools/gft_backprop_microcode.py
 
       - name: Differential-fuzz the trainer (random topologies, edge inputs)

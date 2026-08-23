@@ -3607,3 +3607,56 @@ The three habits this cost me, in order of how expensive each was:
 3. **A tool that is not committed does not exist.** `loop-tools-tracked.sh`
    refused the new command until it was `git add`ed, naming the state that
    "already destroyed two of these scripts and every number they produced".
+
+## 90. The sweep selected by name, so it measured the naming convention
+
+`tri gate-sweep` picked files matching `check_*` or `*gate*`. Seventeen files.
+There are thirty checkers in `tools/`; the other thirteen — every `verify_*`,
+the fuzzer, the demos, the generators — had never been swept at all.
+
+**Selecting by name measures the naming convention.** The sweep now takes every
+`.py` in `tools/` that is not a private module and lets the reader judge what
+belongs, which is the same call §—made for gate selection: choose by
+**property**, not by what someone happened to call the file.
+
+What the thirteen contained:
+
+* **Five correct skips.** `verify_emit_bitexact`, `verify_multitarget`,
+  `verify_igla_race`, `verify_trainer_c`, `fuzz_trainer` — all `SKIP … t27c not
+  found`, all fatal under `--require`. Checked, because a skip that is not
+  fatal under `--require` is a pass wearing a different word.
+* **One traceback**, in a generator reading the catalog it generates from. Now
+  a verdict naming the file.
+* **One claim worth more than the rest of the sweep.**
+
+## 91. The step name is the claim, and it was bigger than the file
+
+`emit-bitexact-gate.yml` ran a step called:
+
+> **Prove the trainer LEARNS (XOR 4/4 + nonlinear held-out >=90%, incl. deep 3-layer)**
+
+The tool it runs is **pure Python**. No `t27c`, no `.t27` spec, no `iverilog`.
+It generates backprop microcode, runs it on a bit-faithful GF-T *interpreter*,
+and asserts on the *text* of the Verilog it emits. It passes unchanged in a
+directory containing nothing but itself — which is exactly how the scope was
+noticed, and could not have been noticed by reading the step.
+
+The file's own docstring was **honest and precise** about all of this. The
+overclaim lived entirely in the step name, and:
+
+**The step name is the claim most people read.** Nobody opens the tool. They
+read a green check and a sentence, and the sentence said the trainer learns —
+which a reader takes for the compiler, the RTL, or the board. It is none of
+those; it is a Python interpreter of generated microcode, which is a real
+result and worth gating on, and is not that result.
+
+Renamed to what it proves, with the reason in a comment above it, and a "what
+this does not establish" block added to the tool listing the three claims it is
+NOT: that the compiler produces this microcode, that the emitted Verilog
+simulates, that any of it works on silicon.
+
+**Two habits.** When a tool passes in an empty tree, read its CI step name
+before deciding the pass is fine — an honest tool under an overclaiming name is
+the most durable kind of wrong number, because every individual artefact is
+accurate. And when writing a step name, write what would still be true if the
+environment were bare.

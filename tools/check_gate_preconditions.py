@@ -536,8 +536,15 @@ def sweep():
     to a reader, and encoding it here would be a second list to drift out of
     date against GATES.
     """
+    # Every checker in tools/, not only the ones named check_ or *gate*. The
+    # first version of this swept those two patterns and left thirteen
+    # verifiers outside it -- including one wired into a CI step called
+    # "Prove the trainer LEARNS" that passes in an empty tree because it never
+    # touches the compiler. A sweep that selects by NAME measures the naming
+    # convention; this one selects by "is a python file in tools/ that is not
+    # a private module", and lets the reader judge what belongs.
     gates = sorted(q.name for q in (ROOT / "tools").glob("*.py")
-                   if q.name.startswith("check_") or "gate" in q.name)
+                   if not q.name.startswith("_"))
     rows = []
     for g in gates:
         with tempfile.TemporaryDirectory() as td:
