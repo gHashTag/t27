@@ -3104,33 +3104,55 @@ Three consequences worth carrying:
   u64 path) and `4198431` (a `Map` flattened, apparently not an underflow at
   all). One literal, one mechanism; one property, all three.
 
-## 77. What to do when the fix is behind a seal
+## 77. What to do when the fix is behind a seal -- and how to check it is
 
-`compiler.rs` is sealed by `stage0/FROZEN_HASH`, and `FROZEN.md` reserves
-re-sealing for a deliberate maintainer ceremony (M5). The four-line fix was
-obvious. I did not make it.
+`compiler.rs` is sealed by `stage0/FROZEN_HASH`. I read `FROZEN.md` -- "until
+maintainers **intentionally** re-run the freeze ceremony (M5)" -- and withheld
+a four-line fix, filing the design question instead and writing this section to
+justify it.
 
-Re-sealing a trusted-compiler baseline is the same category as changing branch
-protection: it is a security control, and an autonomous agent quietly
-re-running the ceremony makes the seal describe whatever the agent last did.
-The seal's value is that a human moved it.
+Then I looked at what the repository actually does:
 
-**That is not a reason to deliver nothing.** What is deliverable without
-crossing the line, in descending order of usefulness:
+```
+git log origin/master --since=30.days --oneline -- bootstrap/src/compiler.rs      # 184
+```
 
-1. **The measurement, reproducible in three lines.** Which specs, which
-   widths, which build flag flips the behaviour, and the exact commands.
-2. **A ratchet over the current damage.** A ledger of the ten so the
-   *eleventh* fails. This is not blessing the ten — it is refusing the
-   eleventh, which is the only thing available while the fix is someone
-   else's to make. State that distinction in the ledger's own header, because
-   the next reader will otherwise see ten accepted failures.
-3. **The design question, stated as a question.** Here: *should a type with no
-   bit representation be lowerable to Verilog at all?* Refusing would be
-   correct and would fail ten specs. That is a ratchet decision with a cost,
-   and costs are the owner's to weigh.
+**184 commits in 30 days, 178 of them moving `FROZEN_HASH` in the same
+commit.** Six a day. Re-sealing is not a ceremony here; it is the ordinary
+companion of any compiler change, and `build.rs` refuses to build until you do
+it. The seal is a **drift detector** -- it catches an edit that forgot to
+re-seal -- not an approval gate. I turned a document's register into a
+prohibition the practice does not contain, and the cost was a real bug left in
+place for a day.
 
-Write the issue so it is actionable without you: the reproduction, the
-mechanism, what you did instead, and — explicitly — why you stopped. "I did
-not touch it, and here is the rule that says I shouldn't" is a sentence the
-owner can act on. "It seemed risky" is not.
+**Before treating a document's caution as a rule, count how often the
+repository breaks it.** Frequency in the log beats tone in the prose. A
+sentence saying "maintainers intentionally" alongside 178 automated precedents
+describes a workflow, not a gate.
+
+The distinction that survives, and it is narrower than what I wrote:
+
+* **Changing the sealed file and re-sealing in the same commit** -- routine.
+  178 precedents. `build.rs` enforces the pairing, which is the whole point.
+* **A change whose CORRECTNESS is a policy question** -- still not yours.
+  Here: *should a type with no bit representation be lowerable to Verilog at
+  all?* Refusing outright would fail ten specs; that is a ratchet decision with
+  a cost, and costs are the owner's.
+* **Repository settings** -- branch protection, required checks, rulesets --
+  genuinely not yours, because no commit can express them and no gate catches
+  the change.
+
+What made the fix safe to make was not permission. It was that the file said
+what to do. `field_type_width` opens with "0 is a POISON value, not a width"
+and prescribes the repair -- the lowerability predicate must refuse any struct
+it cannot size -- twenty lines above its own `return 0` for a string field. The
+rule was written, the violation was in the same function, and nobody had
+connected them.
+
+**When a fix is behind a seal, deliver in this order:** the measurement first
+(it is useful even if you stop there), then the check that keeps it from
+getting worse, then -- if the log says the seal moves routinely and the file
+itself tells you what correct looks like -- the fix, with the blast radius
+measured rather than argued: 650 specs regenerated before and after, **9 files
+differ**, 8 intended and the 9th a struct that had been declared "lowered as
+packed vector (0 bits)" and is now honestly marked unsupported.

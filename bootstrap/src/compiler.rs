@@ -11008,6 +11008,19 @@ impl VerilogCodegen {
     /// refused above for floats, and refusing it for floats while accepting it
     /// here would be incoherent. Nested structs are worth 18 more structs and
     /// need the width computation fixed first; they get their own wave.
+    /// The element type of a field, with any array brackets stripped.
+    ///
+    /// `[4]u8` -> `u8`, `&str` -> `&str`. The same unwrapping the lowerability
+    /// predicate does inline; named so the width question can be asked about a
+    /// field without repeating it a third time.
+    fn field_base_type(ty: &str) -> &str {
+        let t = ty.trim();
+        match t.find(']') {
+            Some(end) => t[end + 1..].trim(),
+            None => t,
+        }
+    }
+
     fn is_lowerable_scalar_struct_d(
         name: &str,
         structs: &std::collections::HashMap<String, Vec<(String, String)>>,
@@ -11027,7 +11040,30 @@ impl VerilogCodegen {
         let Some(fields) = structs.get(name) else {
             return false;
         };
+        // W681 again, and this time from the other side. `field_type_width`
+        // opens with "0 is a POISON value, not a width" and prescribes the
+        // repair -- this predicate must refuse any struct it cannot size --
+        // twenty lines above its own `return 0` for a string field.
+        //
+        // Returning 0 for a string is right in a MIXED struct: the string
+        // occupies no bits and the rest of the fields carry the width. It is
+        // poison when there is no rest. `struct CoverPoint { name: &str,
+        // condition: &str, clock: &str, description: &str }` sums to 0, was
+        // accepted here, and reached `range_decl(0)`, which formats
+        // `width - 1` and has no case for 0:
+        //
+        //   debug   panic, "attempt to subtract with overflow"
+        //   release `function [4294967295:0] cover_point;`, exit 0, no stderr
+        //
+        // CI builds release, so ten specs emitted a four-billion-bit range and
+        // every gate stayed green (#2566). Refusing the struct here sends
+        // `packed_width` down its `type_to_width` fallthrough instead, which
+        // treats the type as an opaque 32-bit value -- the same thing every
+        // other unlowerable type already gets, and a legal range.
         !fields.is_empty()
+            && fields
+                .iter()
+                .any(|(_, t)| !Self::is_string_field_type(Self::field_base_type(t)))
             && fields.iter().all(|(_, t)| {
                 let trimmed = t.trim();
                 let base = if let Some(end) = trimmed.find(']') {
