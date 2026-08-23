@@ -1,0 +1,59 @@
+# No emitted Verilog signal is four billion bits wide.
+#
+# `range_decl(width: u32)` formats `[width - 1 : 0]` and guards only width 1, so
+# a packed width of 0 underflows. What that produces depends on a build flag,
+# and CI picks the quiet one:
+#
+#   debug   (overflow-checks on)   panic, "attempt to subtract with overflow"
+#   release (overflow-checks off)  `function [4294967295:0] cover_point;`,
+#                                  exit 0, stderr empty
+#
+# This job builds --release deliberately, because that is the build whose
+# output reaches anyone, and the build under which the defect is silent. The
+# checker treats a debug panic as the same finding, so running it either way
+# reports rather than hides.
+#
+# No `paths:` filter. A filtered workflow is skipped on a PR whose merge diff
+# cannot be computed -- which is exactly the conflicting PR that most needs a
+# gate -- and a filter without a matching `push:` trigger means zero runs on
+# master, where "never failed" and "never ran" read identically.
+name: Verilog Widths
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verilog-widths-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  widths:
+    runs-on: ubuntu-latest
+    name: Verilog widths (absurd-width ledger)
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-widths-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-widths-
+
+      - name: Build t27c (release -- the build that emits rather than panics)
+        run: cargo build --release -p t27c
+
+      - name: Check that this checker can fail
+        run: python3 tools/check_verilog_widths.py --self-check
+
+      - name: Scan the corpus
+        run: python3 tools/check_verilog_widths.py --require

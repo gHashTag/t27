@@ -2968,13 +2968,32 @@ The two possible answers look identical in the file and completely different
 in the log:
 
 ```
-git log --oneline -S'## 63. ' -- path/to/file.md
+git log --all --oneline -S'## 63. ' -- path/to/file.md
 ```
 
-* no commits — the number was never used. Nothing is missing. (`## 24` here.)
+* no commits — the number was never used. Nothing is missing.
 * two commits — one that added it, one that removed it. Something is missing,
   and the second commit tells you which one to blame. The parent of the
   removing commit still has the text: `git show <sha>^:path | ...`
+* **one commit, on a branch that is not merged** — the section exists and is
+  waiting in a pull request.
+
+**`--all` is not optional, and leaving it out is how I got this wrong.** The
+first version of this section said the gap at `## 24` was a number never used,
+citing an empty `git log -S` as proof. I ran it twice, on master, and read
+"nothing here" as "nothing anywhere". Section 24 was sitting in PR #2487,
+authored days earlier and unmerged.
+
+`git log -S` searches the history of the **current branch**. A section that
+exists only on an unmerged branch is byte-for-byte indistinguishable from one
+that never existed — same empty output, opposite meaning. The scope of the
+search is part of the claim, and I omitted it from the claim while omitting it
+from the command.
+
+Widen it further when the answer still looks empty: `git log --reflog`,
+`git fsck --lost-found` for a section dropped by an abandoned rebase, and — for
+a repository with more than one worktree, which this one has — the branches
+those worktrees hold.
 
 Recovery cost nothing because git had it. The cost was the sessions in
 between, where the experience was simply absent and I could have re-learned it
@@ -3044,3 +3063,74 @@ for c in $SHARED; do cmp -s before-$c after-$c || echo "MOVED: $c"; done
 
 Eight shared names here, eight byte-identical. "I don't think that changed" is
 not a result; `cmp` is.
+
+## 76. The build flag decided which bug you get, and CI picked the quiet one
+
+Running the corpus ratchet locally panicked: `attempt to subtract with
+overflow`, in `range_decl(width: u32)`, which formats `[width - 1 : 0]` and
+guards only `width == 1`. On master. On a gate that is green in CI.
+
+Both halves of that are true, and the reason is a build flag:
+
+| build | overflow-checks | outcome |
+|---|---|---|
+| debug | on | panic, loud, stops everything |
+| release | **off** | `function [4294967295:0] cover_point;` — **exit 0, stderr empty** |
+
+CI builds `--release`. So the gate has been green over Verilog no synthesiser
+can accept, and **the loud version of the bug is the one CI structurally
+cannot see.** Ten specs, exit 0 on every one.
+
+The general shape, which is not specific to Rust: **a defect can have two
+faces, and the build you verify under decides which face you meet.** Debug
+turns silent corruption into a crash. Release turns a crash into silent
+corruption. Verifying only under one of them is half a measurement, and the
+half CI runs is usually the quiet one, because release is what ships.
+
+Three consequences worth carrying:
+
+* **Run the corpus under both profiles at least once.** In Rust, one flag does
+  it without a full rebuild of a different profile — one variable, changed
+  alone: `CARGO_PROFILE_DEV_OVERFLOW_CHECKS=false cargo build`.
+* **A checker for this must treat both faces as the same finding.** Mine scans
+  emitted text for absurd widths *and* treats a compiler that panicked as a
+  hit. Otherwise it reports CLEAN against a debug compiler — which emitted
+  nothing to scan, because it died. **Absence of the string is not absence of
+  the defect.**
+* **Do not key the detector on the value you happened to see.** I searched for
+  `4294967295` by hand and found eight specs. A check keyed on the *property*
+  — no real bus is a million bits wide — found **ten**, and the two extra were
+  a different mechanism each: `18446744073709551615` (the same underflow on a
+  u64 path) and `4198431` (a `Map` flattened, apparently not an underflow at
+  all). One literal, one mechanism; one property, all three.
+
+## 77. What to do when the fix is behind a seal
+
+`compiler.rs` is sealed by `stage0/FROZEN_HASH`, and `FROZEN.md` reserves
+re-sealing for a deliberate maintainer ceremony (M5). The four-line fix was
+obvious. I did not make it.
+
+Re-sealing a trusted-compiler baseline is the same category as changing branch
+protection: it is a security control, and an autonomous agent quietly
+re-running the ceremony makes the seal describe whatever the agent last did.
+The seal's value is that a human moved it.
+
+**That is not a reason to deliver nothing.** What is deliverable without
+crossing the line, in descending order of usefulness:
+
+1. **The measurement, reproducible in three lines.** Which specs, which
+   widths, which build flag flips the behaviour, and the exact commands.
+2. **A ratchet over the current damage.** A ledger of the ten so the
+   *eleventh* fails. This is not blessing the ten — it is refusing the
+   eleventh, which is the only thing available while the fix is someone
+   else's to make. State that distinction in the ledger's own header, because
+   the next reader will otherwise see ten accepted failures.
+3. **The design question, stated as a question.** Here: *should a type with no
+   bit representation be lowerable to Verilog at all?* Refusing would be
+   correct and would fail ten specs. That is a ratchet decision with a cost,
+   and costs are the owner's to weigh.
+
+Write the issue so it is actionable without you: the reproduction, the
+mechanism, what you did instead, and — explicitly — why you stopped. "I did
+not touch it, and here is the rule that says I shouldn't" is a sentence the
+owner can act on. "It seemed risky" is not.
