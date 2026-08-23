@@ -2234,3 +2234,40 @@ rather than a constant, so `SKIP verify_multitarget` became
 `SKIP verify_multitarget.py`. A control asserting exact text is a control that
 notices a message changing — which is the point, even when the change is mine.
 
+## 56. A null result, and a selector that was right by accident
+
+Two measurements this iteration, and the honest one is the boring one.
+
+**The assert blind spot costs nothing here.** `is_gate_by_property` recognises
+`return`, `sys.exit` and `raise SystemExit`; a tool that fails only through an
+uncaught `AssertionError` is invisible to it. I expected that to be costing
+coverage. Measured across every CI-invoked tool: **zero** fail only that way —
+every one has an explicit or ternary exit as well. The hole is real and empty,
+and saying so is worth more than the fix I was about to write.
+
+**But the selector has a false positive, and it fired.**
+`gft_backprop_microcode.py` was classified as a gate on the strength of
+
+    return 0 if ys[0] >= ys[1] else 1
+
+which is a **class label from a classifier**, not a verdict. `verdict_literals`
+was built to recognise return statements that carry verdicts; using it to answer
+*"can this file exit non-zero"* conflates a returned value with an exit code.
+The file is a gate anyway — sixteen `assert`s — so the classification is right
+**by accident**, which is the least useful way to be right.
+
+**The last of the four verifiers now has a control.** `verify_trainer_c.py` —
+the one whose `skip()` every other copied — is 1/1, 1/1, 3/3, with a planted
+divergence in its C arm and the clean direction asserted beside it. The plant
+scopes its edit to the text after `def run_c(`, because the same plant in
+`fuzz_trainer.py` hit `run_model` three functions earlier and a case passed on a
+divergence planted where it was never meant to be.
+
+Gates with no control in any form: **1**, and it is the file the selector was
+right about by accident.
+
+**The rule.** A predicate reused outside the question it was written for will be
+right often enough to look correct. `verdict_literals` answers *"is this return a
+verdict?"*; it does not answer *"can this program fail?"*, and the difference
+only shows up on a classifier that returns 1 for a class.
+
