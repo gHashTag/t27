@@ -3169,3 +3169,60 @@ The prescription in the comment was right about the *diagnosis* and wrong
 about the *dose*. A repair that follows a file's stated intent is still a
 change with a blast radius, and the intent was written before the fallback
 path it routes into was known to be incomplete.
+
+## 78. The one conflict you must not resolve by choosing a side
+
+`bootstrap/stage0/FROZEN_HASH` holds `sha256(bootstrap/src/compiler.rs)`. When
+two branches both change the compiler, git conflicts the seal and offers two
+hashes. **Both are wrong.** Each describes its own side's file; the merged file
+is a third thing. Measured on a real conflict:
+
+```
+ours   8e62cacb81c6e84d
+theirs 4f003654a44a4348
+merged 6e2bad56817414a6
+```
+
+Every reflex a conflict trains — take ours, take theirs, read both and pick the
+newer — produces a seal for a file that does not exist. The right move is to
+ignore both candidates and **recompute from the merged bytes**.
+
+`build.rs` verifies the seal on every build, so a picked side fails loudly
+rather than shipping. The cost is confusion, not corruption. But the class is
+worth naming, because it generalises: **a derived value in conflict has no
+correct side.** Lockfiles, checksums, generated indices, line counts in a
+header — anything whose content is a function of other content in the same
+merge. Resolve those by re-deriving, never by selecting.
+
+The tell is one question: *is this file's content computed from something else
+in the repository?* If yes, both sides are stale the moment the merge exists.
+
+`tri reseal write` does it, and `tri reseal check` reports the three states
+separately — matching, mismatched, and conflicted — because a conflicted seal
+trimmed into a comparison reports a plain mismatch and sends the reader to fix
+the wrong thing. The first line of a conflicted file is `<<<<<<< HEAD`, which
+compares against a hash exactly as unhelpfully as any other wrong string.
+
+## 79. A ratchet that fails because you fixed something
+
+The corpus ratchet went red on a branch that **repairs** seventeen specs. Not a
+regression: the ledger still listed them as broken, and a ledger that overstates
+the damage is itself a defect (§—the same rule the widths ledger states in its
+own header).
+
+What the run actually said, once read rather than counted:
+
+* **17 unexpected passes** — specs that now parse. Remove them.
+* **5 unexpected failures** — and every one of the five was *in that list of
+  seventeen*, now failing `parse-no-discard` instead of `parse`.
+
+That second group looks like new damage in the summary line and is not. The
+same specs moved **one stage deeper**: they used to fail before the parser
+finished; now they parse and the next check catches what the parser discarded.
+Twelve cleared entirely, five relocated.
+
+**Read a ratchet's two lists against each other before treating either as a
+verdict.** A path in both is a spec that advanced, and recording it as a fresh
+failure — or refusing to add it, and reverting the fix — both get the sign
+wrong. Net here: 220 entries to 208, and the five carry a reason saying which
+stage they came from, so the next reader is not told they are new.
