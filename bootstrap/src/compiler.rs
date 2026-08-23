@@ -2000,6 +2000,47 @@ impl Parser {
         if self.current.kind == TokenKind::Equals {
             self.advance(); // consume =
 
+            // A TAGGED UNION: `pub const Operand = union(enum) { A: struct {...}, ... };`
+            // `union` is not a keyword in this lexer, so it arrives as an
+            // identifier and `union(enum)` parsed as a CALL -- whose argument
+            // is the keyword `enum`, reported as "Unexpected token in
+            // expression: KwEnum" pointing into the middle of a type.
+            //
+            // Captured verbatim rather than lowered to a struct. Its variants
+            // carry payload types (`RegOperand: struct { reg_num: u8 }`) and a
+            // union is not a struct: emitting one as the other would give every
+            // variant its own storage and silently change the layout. A backend
+            // that cannot read this text refuses the declaration, which is the
+            // outcome to want.
+            if self.current.kind == TokenKind::Ident && self.current.lexeme == "union" {
+                let mut text = String::new();
+                let mut depth = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            depth += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => depth -= 1,
+                        _ => {}
+                    }
+                    if !text.is_empty() {
+                        text.push(' ');
+                    }
+                    text.push_str(&self.current.lexeme);
+                    self.advance();
+                    if seen && depth == 0 {
+                        break;
+                    }
+                }
+                decl.value = text;
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                return Ok(decl);
+            }
+
             // [BUG 8 FIX] Check what follows: enum(...), struct { }, [N]T{ }, identifier, number, etc.
             if self.current.kind == TokenKind::KwEnum {
                 // pub const Trit = enum(i8) { ... };
@@ -2292,7 +2333,25 @@ impl Parser {
     fn parse_enum_body(&mut self, decl: &mut Node) -> Result<(), String> {
         // We are inside { ... } of an enum. Parse variant = value pairs.
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
-            if self.current.kind == TokenKind::Ident {
+            // A variant whose name is a KEYWORD: `then`, `and`, `assert`,
+            // `expect` are all real members of ClauseKind in
+            // contrib/backend/zig/legacy/main_zig_handwritten.t27. Requiring
+            // Ident dropped them, the loop fell through to the skip below, and
+            // the enum's own `}` ended something else -- reported 60 lines on
+            // as "Unexpected token in expression: Semicolon".
+            //
+            // Same predicate the struct-literal parser uses for a keyword field
+            // label and the `.Variant` shorthand uses for a keyword value: in a
+            // position where only a name can appear, any word-shaped token is a
+            // name. A language whose own token names are keywords will keep
+            // producing this.
+            let word_shaped = !self.current.lexeme.is_empty()
+                && self
+                    .current
+                    .lexeme
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_');
+            if self.current.kind == TokenKind::Ident || word_shaped {
                 let name = self.current.lexeme.clone();
                 self.advance();
 
@@ -2346,6 +2405,44 @@ impl Parser {
             // modifier and missed on the one with it.
             if self.current.kind == TokenKind::KwPub {
                 self.advance();
+            }
+            // A NESTED TYPE declaration: `const Kind = enum { ... };` inside a
+            // struct body. Nothing here consumed it, so the walk reached the
+            // ENUM's closing brace -- and this loop stops at any RBrace, so the
+            // struct ended there. The module then ended at the struct's own
+            // brace and the error surfaced sixty lines later on a `;`.
+            //
+            // Third appearance of one shape: a nested brace group ending the
+            // construct that contains it (W577 for methods, gap 5 for an
+            // anonymous return type, this for a nested type). Consumed
+            // brace-balanced; the members are not lowered, and the point is
+            // only that the struct still ends where it should.
+            if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+                let mut d = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            d += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => d -= 1,
+                        TokenKind::Semicolon if !seen => {
+                            // A plain `const N = 3;` with no brace group.
+                            self.advance();
+                            break;
+                        }
+                        _ => {}
+                    }
+                    self.advance();
+                    if seen && d == 0 {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        break;
+                    }
+                }
+                continue;
             }
             if self.current.kind == TokenKind::Ident {
                 let field_name = self.current.lexeme.clone();
@@ -2495,10 +2592,43 @@ impl Parser {
                 // part of what the backends emit today. What matters is that
                 // the skip is BRACE-BALANCED so the struct still ends where it
                 // should.
-                while self.current.kind != TokenKind::LBrace
-                    && self.current.kind != TokenKind::Eof
-                    && self.current.kind != TokenKind::RBrace
-                {
+                // Scan to the method's BODY brace. An anonymous struct type in
+                // return position -- `fn f(...) struct { u64, []const u8 } {`
+                // -- puts a brace in front of it, and stopping at that one made
+                // the balanced skip below close on the TYPE. The struct then
+                // ended at its first such method and the module ended at the
+                // struct's own `}`: exactly the W577 failure this comment block
+                // records, recurring on a construct it did not anticipate. It
+                // cost compiler/parser/lexer.t27 everything after line 362
+                // while reporting a parse error 144 lines further on.
+                loop {
+                    if matches!(
+                        self.current.kind,
+                        TokenKind::Eof | TokenKind::RBrace | TokenKind::LBrace
+                    ) {
+                        break;
+                    }
+                    if matches!(self.current.kind, TokenKind::KwStruct | TokenKind::KwEnum) {
+                        // Consume the whole type, braces included, so the scan
+                        // resumes looking for the body.
+                        let mut d = 0i32;
+                        let mut seen = false;
+                        while self.current.kind != TokenKind::Eof {
+                            match self.current.kind {
+                                TokenKind::LBrace => {
+                                    d += 1;
+                                    seen = true;
+                                }
+                                TokenKind::RBrace => d -= 1,
+                                _ => {}
+                            }
+                            self.advance();
+                            if seen && d == 0 {
+                                break;
+                            }
+                        }
+                        continue;
+                    }
                     self.advance();
                 }
                 if self.current.kind == TokenKind::LBrace {
@@ -2779,7 +2909,44 @@ impl Parser {
         // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
         // W581: an OPTIONAL return type, `-> ?u32`. The shared type parser
         // handles the `?`; this header has its own paths and needed telling.
-        if self.current.kind == TokenKind::Question {
+        if self.current.kind == TokenKind::KwStruct {
+            // An ANONYMOUS STRUCT TYPE in return position: Zig's tuple type,
+            // `fn f(...) struct { u64, []const u8 } { ... }`. The dispatch
+            // below knows `?`, `(`, an identifier and the slice forms, and
+            // nothing else, so `struct` fell through to the body and the
+            // header died on "Expected LBrace, got KwStruct" -- which is
+            // exactly where compiler/parser/lexer.t27 stopped once the
+            // anonymous braced LITERAL was understood. Captured verbatim, the
+            // way a local `const T = struct {...}` already is: the backends
+            // that can lower it read the text, and the ones that cannot refuse
+            // on a type they can see rather than on a header they could not
+            // parse.
+            let mut text = String::new();
+            let mut depth: i32 = 0;
+            let mut seen = false;
+            loop {
+                if self.current.kind == TokenKind::Eof {
+                    break;
+                }
+                match self.current.kind {
+                    TokenKind::LBrace => {
+                        depth += 1;
+                        seen = true;
+                    }
+                    TokenKind::RBrace => depth -= 1,
+                    _ => {}
+                }
+                if !text.is_empty() {
+                    text.push(' ');
+                }
+                text.push_str(&self.current.lexeme);
+                self.advance();
+                if seen && depth == 0 {
+                    break;
+                }
+            }
+            decl.extra_return_type = text;
+        } else if self.current.kind == TokenKind::Question {
             decl.extra_return_type = self.parse_type_annotation();
         } else if self.current.kind == TokenKind::LParen {
             // Tuple return type: (u32, u32)
@@ -3045,6 +3212,47 @@ impl Parser {
 
     /// Parse a single statement inside a function body
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
+        // `defer <stmt>;` / `errdefer <stmt>;` -- Zig's scope-exit hook. Not
+        // keywords in this lexer, so the statement parsed as the expression
+        // `defer` and whatever followed became "unexpected token after
+        // expression statement".
+        //
+        // ATTACHED, not skipped -- unlike `inline` below. `inline` is a hint a
+        // non-unrolling parser can ignore with nothing lost; a dropped `defer`
+        // silently removes a release, a close or a free. The distinction is the
+        // same one the `while` continue expression got: skip what carries no
+        // meaning, keep what does, and let a backend refuse a marker it does
+        // not know rather than emit code missing a step.
+        if self.current.kind == TokenKind::Ident
+            && (self.current.lexeme == "defer" || self.current.lexeme == "errdefer")
+        {
+            let name = self.current.lexeme.clone();
+            let line = self.current.line as u32;
+            self.advance();
+            let inner = self.parse_body_stmt()?;
+            let mut node = Node::new(NodeKind::StmtExpr);
+            node.name = name;
+            node.extra_op = "scope_exit".to_string();
+            node.line = line;
+            node.children.push(inner);
+            return Ok(node);
+        }
+
+        // `inline for (...)` / `inline while (...)` -- Zig's unroll hint. It is
+        // not a keyword in this lexer, so it arrived as an identifier, the
+        // statement was parsed as the expression `inline`, and the loop keyword
+        // behind it became "unexpected token after expression statement".
+        //
+        // Skipped, not recorded: `inline` asks the compiler to unroll, and a
+        // parser that does not unroll loses nothing by ignoring it. The loop
+        // itself is parsed normally, which is the part that carries meaning.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "inline"
+            && matches!(self.peek.kind, TokenKind::KwFor | TokenKind::KwWhile)
+        {
+            self.advance();
+        }
+
         // W914: a Rust-dialect `match` block. The grammar has no match; the
         // frozen parser ATE it through an uncounted channel and called the fn
         // parsed, and this parser hard-errored -- both wrong. Capture the
@@ -3485,6 +3693,30 @@ impl Parser {
         };
         if_node.children.push(cond);
 
+        // PAYLOAD CAPTURE: `if (opt) |value| { ... }` -- Zig's optional
+        // unwrap. The for-loop parser has handled `|x|` since W-something;
+        // `if` never learned it, so the `|` was read as bitwise-or, its right
+        // operand demanded, and the body brace arrived instead. Stored the
+        // same way `for` stores its capture -- in params, not lowered -- so
+        // this changes what PARSES and nothing about what is emitted.
+        if self.current.kind == TokenKind::Pipe {
+            self.advance(); // consume |
+            while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Star {
+                    self.advance(); // pointer capture |*x|
+                }
+                if self.current.kind == TokenKind::Ident {
+                    if_node
+                        .params
+                        .push((self.current.lexeme.clone(), String::new()));
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::Pipe {
+                self.advance(); // consume closing |
+            }
+        }
+
         // Then branch: { ... }
         if self.current.kind == TokenKind::LBrace {
             self.advance(); // consume {
@@ -3567,6 +3799,34 @@ impl Parser {
             c?
         };
         while_node.children.push(cond);
+
+        // Zig's CONTINUE EXPRESSION: `while (i < n) : (i += 1) { ... }`, the
+        // step that runs after every iteration. Without it the `:` arrived
+        // where the body brace was expected and the fn died on "Expected
+        // LBrace, got Colon".
+        //
+        // Parsed and attached, not discarded: dropping it would leave a loop
+        // whose counter never advances, which is a WORSE outcome than refusing
+        // the file -- an infinite loop that compiles is the kind of silence
+        // this project keeps finding. Backends that do not know the marker
+        // refuse the node; they do not quietly emit a loop missing its step.
+        if self.current.kind == TokenKind::Colon {
+            self.advance(); // consume :
+            let step = if self.current.kind == TokenKind::LParen {
+                self.advance();
+                let e = self.parse_body_stmt()?;
+                if self.current.kind == TokenKind::RParen {
+                    self.advance();
+                }
+                e
+            } else {
+                self.parse_body_stmt()?
+            };
+            let mut cont = Node::new(NodeKind::Module);
+            cont.name = "continue_expr".to_string();
+            cont.children.push(step);
+            while_node.children.push(cont);
+        }
 
         // Body: { ... }
         self.expect(TokenKind::LBrace)?;
@@ -3882,6 +4142,17 @@ impl Parser {
                 | TokenKind::Gte
                 | TokenKind::DotDot
         ) {
+            // `..` is in this chain as a range operator, which makes the
+            // OPEN-ENDED slice `x[a..]` unparseable: the operator is consumed,
+            // a right operand is demanded, and the `]` arrives instead --
+            // reported as "Unexpected token in expression: RBracket" pointing
+            // at a bracket that is exactly where it belongs. Leave the `..` for
+            // the slice parser when nothing can follow it.
+            if self.current.kind == TokenKind::DotDot
+                && matches!(self.peek.kind, TokenKind::RBracket | TokenKind::RParen)
+            {
+                break;
+            }
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_bitor()?;
@@ -4218,15 +4489,32 @@ impl Parser {
                 // The corpus ALSO contains 78 `[7:0]` bit-ranges -- Verilog,
                 // inside string literals -- which are not slices and are not
                 // reached here, because a string literal is one token.
-                if self.current.kind == TokenKind::Colon {
-                    self.advance(); // consume :
-                    let end = self.parse_expr()?;
+                // Zig spells the same slice `x[a..b]`, and also has an
+                // OPEN-ENDED form `x[a..]` with no end index -- which is what
+                // `for (ident[1..]) |c|` uses in the lexer's own spec. Without
+                // it the `..` was consumed as a binary operator, the end
+                // operand was demanded, and the parser reported "Unexpected
+                // token in expression: RBracket" pointing at the `]`.
+                //
+                // The open form gets its own marker rather than a synthesised
+                // end. A backend that has never heard of it then refuses on a
+                // node it does not recognise, instead of lowering a bounded
+                // slice whose bound nobody wrote.
+                if self.current.kind == TokenKind::Colon
+                    || self.current.kind == TokenKind::DotDot
+                {
+                    self.advance(); // consume : or ..
+                    let open = self.current.kind == TokenKind::RBracket;
+                    let end = if open { None } else { Some(self.parse_expr()?) };
                     self.expect(TokenKind::RBracket)?;
                     let mut slice_node = Node::new(NodeKind::ExprIndex);
-                    slice_node.extra_op = "slice".to_string();
+                    slice_node.extra_op =
+                        if open { "slice_open" } else { "slice" }.to_string();
                     slice_node.children.push(expr);
                     slice_node.children.push(index);
-                    slice_node.children.push(end);
+                    if let Some(e) = end {
+                        slice_node.children.push(e);
+                    }
                     expr = slice_node;
                     continue;
                 }
@@ -4235,10 +4523,66 @@ impl Parser {
                 idx_node.children.push(expr);
                 idx_node.children.push(index);
                 expr = idx_node;
+            } else if self.current.kind == TokenKind::LBrace
+                && self.no_struct_literal == 0
+                && expr.kind == NodeKind::ExprCall
+            {
+                // `Type(args){}` -- a call that RETURNS a type, initialised on
+                // the spot: `GeneralPurposeAllocator(.{}){}`. The call itself is
+                // built in primary, so this has to live in the postfix chain to
+                // see it; putting it beside the expression-call branch missed,
+                // because `ident(...)` never reaches that branch.
+                //
+                // Two guards, both load-bearing. `no_struct_literal` is the
+                // same counter that stops `if cond {` being read as a struct
+                // literal -- inside a paren-less condition this brace opens the
+                // BODY. And the left side must already BE a call: a bare
+                // `name {` is a struct literal or a block and is not this.
+                let mut init = String::new();
+                let mut depth = 0i32;
+                let mut seen = false;
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBrace => {
+                            depth += 1;
+                            seen = true;
+                        }
+                        TokenKind::RBrace => depth -= 1,
+                        _ => {}
+                    }
+                    if !init.is_empty() {
+                        init.push(' ');
+                    }
+                    init.push_str(&self.current.lexeme);
+                    self.advance();
+                    if seen && depth == 0 {
+                        break;
+                    }
+                }
+                expr.value = init;
             } else if self.current.kind == TokenKind::LParen {
-                // Function call on an expression: shouldn't normally happen here
-                // since calls are handled in primary for ident(...) and @builtin(...)
-                break;
+                // A call on an ARBITRARY expression. The comment this replaces
+                // said it "shouldn't normally happen", and `func.?(a, b)` in
+                // specs/jit/jit.t27 is exactly it: the optional is unwrapped by
+                // the branch above, and the call on the result arrived here and
+                // was left unconsumed -- so the statement parser met a bare
+                // `(` and reported "unexpected token after expression
+                // statement: LParen", pointing past the construct rather than
+                // at it.
+                self.advance(); // consume (
+                let mut call = Node::new(NodeKind::ExprCall);
+                call.children.push(expr);
+                call.extra_op = "callee_expr".to_string();
+                while self.current.kind != TokenKind::RParen
+                    && self.current.kind != TokenKind::Eof
+                {
+                    call.children.push(self.parse_expr()?);
+                    if self.current.kind == TokenKind::Comma {
+                        self.advance();
+                    }
+                }
+                self.expect(TokenKind::RParen)?;
+                expr = call;
             } else {
                 break;
             }
@@ -4414,7 +4758,23 @@ impl Parser {
             // Enum value: .variant
             TokenKind::Dot => {
                 self.advance(); // consume .
-                if self.current.kind == TokenKind::Ident {
+                if self.current.kind == TokenKind::LBrace {
+                    return self.parse_anon_braced();
+                }
+                // An enum-value shorthand whose name is a KEYWORD: `.use`,
+                // `.const`, `.data`. The lexer classifies those as keywords,
+                // so requiring Ident here rejected them -- and a language
+                // whose own token names are keywords will keep producing this.
+                // Same predicate the struct-literal parser already uses for a
+                // keyword FIELD LABEL (W906): any word-shaped token in a
+                // position where only a name can appear is a name.
+                let word_shaped = !self.current.lexeme.is_empty()
+                    && self
+                        .current
+                        .lexeme
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_');
+                if self.current.kind == TokenKind::Ident || word_shaped {
                     let name = self.current.lexeme.clone();
                     self.advance();
                     Ok(Node {
@@ -4556,6 +4916,50 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
         Ok(call)
+    }
+
+    /// Parse the anonymous braced literal `.{ ... }` -- Zig's anonymous struct
+    /// and its tuple, which share one spelling:
+    ///
+    /// ```text
+    /// .{}                       empty
+    /// .{ a, b }                 positional tuple
+    /// .{ .field = a, ... }      named anonymous struct
+    /// ```
+    ///
+    /// Primary-expression position understood `.Variant` and nothing else, so
+    /// every spec using this form died at its first occurrence: seven of them,
+    /// including the lexer's own `return .{ value, buf[0..i] }`. They had been
+    /// failing on master since 9 August without anything reporting it, because
+    /// the compile-debt ledger that would have named them was measured on a
+    /// branch whose compiler predated the change that broke them.
+    ///
+    /// The two shapes are separated by the token after `{`. A named field opens
+    /// with `.`, and a positional element cannot -- except for a bare enum
+    /// value, `.{ .Variant, x }`, where the two are genuinely ambiguous at two
+    /// tokens of lookahead and this parser has no third and no backtracking.
+    /// That shape is therefore read as a struct literal and rejected by the
+    /// closing `expect(RBrace)` with a parse error naming the position. Loud is
+    /// the requirement here: a silently wrong parse of a literal would emit
+    /// wrong code for every backend, which is worse than not compiling.
+    fn parse_anon_braced(&mut self) -> Result<Node, String> {
+        // Positioned on `{`; `peek` is the first token inside it.
+        if self.peek.kind == TokenKind::Dot {
+            // `parse_struct_literal` consumes the brace itself and handles the
+            // `.field = expr` loop. An empty name is what makes it anonymous --
+            // the Zig emitter writes the leading `.` when the name is empty.
+            return self.parse_struct_literal(String::new());
+        }
+        self.advance(); // consume {
+        let mut tup = Node::new(NodeKind::ExprTuple);
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            tup.children.push(self.parse_expr()?);
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
+        Ok(tup)
     }
 
     /// Parse struct literal: Name{ .field = expr, ... }
@@ -8782,7 +9186,14 @@ impl Codegen {
                 }
             }
             NodeKind::ExprStructLit => {
-                self.write(&node.name);
+                // An anonymous struct carries no type name and MUST keep the
+                // leading dot: `.{ .x = 1 }`. Writing an empty name produced
+                // `{ .x = 1 }`, which is a block, not a value.
+                if node.name.is_empty() {
+                    self.write(".");
+                } else {
+                    self.write(&node.name);
+                }
                 self.write("{ ");
                 for (i, field) in node.children.iter().enumerate() {
                     if i > 0 {

@@ -7,9 +7,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-mod cibase;
 mod depin;
-mod elab;
+mod cibase;
 mod fleet;
 mod fpga;
 mod gates;
@@ -21,8 +20,8 @@ mod prcheck;
 mod red;
 mod rtl;
 mod sweep;
-mod synth;
 mod vectors;
+mod synth;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
@@ -137,11 +136,6 @@ enum Commands {
     Vectors {
         #[command(subcommand)]
         action: vectors::VectorsCmd,
-    },
-    /// Classify a compiler's error output before quoting a number from it.
-    Elab {
-        #[command(subcommand)]
-        action: elab::ElabCmd,
     },
 }
 
@@ -746,7 +740,6 @@ fn main() -> Result<()> {
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
-        Commands::Elab { action } => elab::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
