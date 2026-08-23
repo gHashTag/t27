@@ -10,6 +10,9 @@ serde_json::from_str(..).ok()    corrupt file     -> empty map
 let _ = fs::write(..)            failed write     -> next run starts empty
 ```
 
+- Each of the three is a reasonable idiom on its own, and together they make the cache unable to report its own damage.
+- **The `check-now-freshness` gate rejected the first version of this entry** because it had a code block, paragraphs and bold text but no bullet — the same requirement that caught an entry two days ago, which I wrote down and then walked into again. A rule I have recorded is not a rule I have learned.
+
 **Each degrades to "no data", which is indistinguishable from "nothing measured yet".** A corrupt cache looked exactly like a first run — the same shape as a gate that cannot fail, one layer down in the tooling that measures gates.
 
 **The cause was mine, repeatedly.** `fs::write` truncates in place, and I killed `--all` runs on a ten-minute timeout three times. Each kill landed some chance between the truncate and the write and left half a JSON document, which the next run swallowed.
