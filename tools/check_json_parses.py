@@ -78,6 +78,7 @@ def baseline():
 
 def self_check():
     """Plant a malformed file and prove the scan reports it."""
+    import shutil
     import tempfile
     with tempfile.TemporaryDirectory() as td:
         t = pathlib.Path(td)
@@ -88,6 +89,104 @@ def self_check():
         ok = ([b[0] for b in bad] == ["bad.json"]) and (empty == ["empty.json"])
     print(f"  self-check: malformed caught = {[b[0] for b in bad] == ['bad.json']}, "
           f"empty caught = {empty == ['empty.json']}, good file silent = {len(bad) + len(empty) == 2}")
+
+    # Everything above proves scan(). Nothing above proves that a non-empty
+    # result becomes a non-zero EXIT CODE -- that wiring is main()'s `return 1`,
+    # which no case above reaches. Measured on check_catalog_integrity.py: with
+    # main()'s `return 1` rewritten to `return 0` the gate printed OK on a
+    # broken catalog while its control still reported every branch red.
+    #
+    # So run the WHOLE program. The script is COPIED into the planted tree, so
+    # its module-level ROOT resolves there by the ordinary parent.parent rule --
+    # no --root flag and no environment override, either of which would add a
+    # way to aim the LIVE gate at somewhere harmless.
+    def spawned(label, want, expect, absent, files, args=()):
+        """Run the whole program on a planted tree; demand the exit AND the text.
+
+        `expect` is text that must appear and `absent` names the markers of the
+        sibling branches. main() reaches its exit code from four places -- the
+        OK line, the FAIL list, `--update-baseline`, and this control -- and the
+        exit code alone cannot tell them apart, so a fault reaching the right
+        code through the wrong branch would otherwise pass.
+        """
+        nonlocal ok
+        me = pathlib.Path(__file__).name
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            (root / "tools").mkdir()
+            shutil.copy(__file__, root / "tools" / me)
+            for rel, body in files.items():
+                (root / rel).write_text(body, encoding="utf-8")
+            # tracked_json() asks git first and only falls back to rglob when
+            # that raises, so the planted tree is made a real repository and the
+            # control exercises the path the gate actually takes here. `-f`
+            # because a global ignore rule must not silently empty the tree. If
+            # git is missing both calls fail, `git ls-files` then raises inside
+            # the gate, and the rglob fallback finds the same files.
+            for argv in (["git", "init", "-q"], ["git", "add", "-A", "-f"]):
+                subprocess.run(argv, cwd=root, capture_output=True)
+            proc = subprocess.run([sys.executable, str(root / "tools" / me), *args],
+                                  capture_output=True, text=True)
+        missing = [e for e in expect if e not in proc.stdout]
+        leaked = [a for a in absent if a in proc.stdout]
+        good = proc.returncode == want and not missing and not leaked
+        print("  %-26s %s" % (label, "exit %d, says it" % want if good else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print("       exit %r (want %r)" % (proc.returncode, want))
+            if missing:
+                print("       expected text absent: %r" % (missing,))
+            if leaked:
+                print("       neighbouring marker leaked: %r" % (leaked,))
+            print("       stdout %r" % (proc.stdout[:400],))
+
+    # A clean planted tree must exit 0 and say OK, or the two red cases below
+    # would pass for a gate that is red on everything.
+    spawned("end-to-end clean tree", 0,
+            ["OK: 1 tracked JSON files, none newly unparseable"],
+            ("FAIL:", "baseline written:", "empty file"),
+            {"good.json": '{"a": 1}'})
+
+    # main()'s `return 1`, reached through the malformed list. The closing
+    # advice is asserted too: it is what distinguishes this branch's text from
+    # every other non-zero exit the file can produce.
+    spawned("end-to-end malformed", 1,
+            ["FAIL: 1 JSON file(s) do not parse",
+             "  broken.json",
+             "rename it (.jsonc, .md) rather than adding it to the baseline"],
+            ("OK:", "baseline written:", "empty file"),
+            {"good.json": '{"a": 1}', "broken.json": '{"a": 1,,}'})
+
+    # The same `return 1` reached through the OTHER list. Both prints funnel to
+    # one return, so each case names the other's marker as forbidden -- the
+    # shared "FAIL:" prefix cannot tell them apart.
+    spawned("end-to-end empty file", 1,
+            ["FAIL: 1 JSON file(s) do not parse",
+             "  hollow.json",
+             "empty file — a build that died, or a placeholder never filled"],
+            ("OK:", "baseline written:", "Expecting"),
+            {"good.json": '{"a": 1}', "hollow.json": ""})
+
+    # T100: the LEDGER-WRITING path, which nothing exercised. Every case above
+    # runs the verify path and demands a specific exit; `--update-baseline`
+    # writes the ledger and returns success, and `tri gates mutate --loud`
+    # showed that success return could be rewritten to a failure with no
+    # assertion anywhere noticing. The same site survived in four gates.
+    #
+    # Asserted together: the exit code AND the effect. Exit alone would pass a
+    # run that returned 0 without writing, and the marker alone would pass one
+    # that wrote and then reported failure -- which is the mutation that found
+    # this.
+    spawned("end-to-end --update-baseline", 0,
+            ["baseline written: 1 entries"],
+            ("FAIL:", "OK:", "Expecting"),
+            {"good.json": '{"a": 1}', "bad.json": "{not json"},
+            args=("--update-baseline",))
+
+    # NOT covered here: that a file already listed in the baseline is filtered
+    # OUT of new_bad. Breaking that filter turns baselined debt into a false
+    # RED, not a false green, and it is not a return site -- so it is named
+    # rather than tested, instead of being left for a reader to infer.
     return 0 if ok else 1
 
 

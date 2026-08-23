@@ -97,7 +97,11 @@ fn gh(args: &[&str]) -> Result<String> {
         .output()
         .context("failed to run gh; is the GitHub CLI installed and logged in?")?;
     if !out.status.success() {
-        anyhow::bail!("gh {:?}: {}", args, String::from_utf8_lossy(&out.stderr).trim());
+        anyhow::bail!(
+            "gh {:?}: {}",
+            args,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
     }
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
@@ -287,7 +291,14 @@ fn is_pr_gated(body: &str) -> bool {
 fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
-        None => gh(&["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])?,
+        None => gh(&[
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "--jq",
+            ".nameWithOwner",
+        ])?,
     };
     let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
 
@@ -392,7 +403,10 @@ fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
 
     println!("{repo} (default branch {branch})");
     println!("  PR-gated workflows: {pr_gates}");
-    println!("  of those, never run on {branch} by any event: {}", holes.len());
+    println!(
+        "  of those, never run on {branch} by any event: {}",
+        holes.len()
+    );
     for h in &holes {
         println!("     {}", h.file);
         println!("       {}", h.name);
@@ -407,7 +421,10 @@ fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
         }
     }
     if !unmeasured.is_empty() {
-        println!("  workflows the sweep could not measure: {}", unmeasured.len());
+        println!(
+            "  workflows the sweep could not measure: {}",
+            unmeasured.len()
+        );
         for u in &unmeasured {
             println!("     {}", u.file);
             println!("       {}", u.why);
@@ -456,7 +473,10 @@ fn baseline(repo: Option<&str>, strict: bool) -> Result<()> {
 /// Minimal base64 for the contents API, which returns wrapped base64.
 fn decode_b64(s: &str) -> String {
     const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let cleaned: Vec<u8> = s.bytes().filter(|b| !b.is_ascii_whitespace() && *b != b'=').collect();
+    let cleaned: Vec<u8> = s
+        .bytes()
+        .filter(|b| !b.is_ascii_whitespace() && *b != b'=')
+        .collect();
     let mut out = Vec::new();
     let mut acc: u32 = 0;
     let mut bits = 0u32;
@@ -620,12 +640,18 @@ mod tests {
     /// parser walks into, and must not fire on the word appearing in prose.
     #[test]
     fn pr_trigger_is_found_in_every_spelling() {
-        assert!(is_pr_gated("on:\n  pull_request:\n    branches: [master]\n"));
+        assert!(is_pr_gated(
+            "on:\n  pull_request:\n    branches: [master]\n"
+        ));
         assert!(is_pr_gated("on: [push, pull_request]\n"));
         assert!(is_pr_gated("on:\n  - pull_request\n"));
-        assert!(is_pr_gated("on:\n  pull_request_target:\n    types: [opened]\n"));
+        assert!(is_pr_gated(
+            "on:\n  pull_request_target:\n    types: [opened]\n"
+        ));
         assert!(!is_pr_gated("on:\n  push:\n    branches: [main]\n"));
-        assert!(!is_pr_gated("# this gate matters for every pull_request we open\n"));
+        assert!(!is_pr_gated(
+            "# this gate matters for every pull_request we open\n"
+        ));
     }
 
     /// A workflow with a push: trigger whose paths have simply never changed on

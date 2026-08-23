@@ -1,12 +1,14 @@
 use crate::depin::phi_challenge::{
-    compute_epoch_hash, derive_phi_challenge, verify_phi_response,
-    derive_phi_challenge_v2, verify_phi_response_v2, pack_gf16_matrix,
+    compute_epoch_hash, derive_phi_challenge, derive_phi_challenge_v2, pack_gf16_matrix,
+    verify_phi_response, verify_phi_response_v2,
 };
-use crate::depin::types::{AppState, EpochChallengeResponse, ProveRequest, ProveResponse};
 use crate::depin::types::sha2_hash;
+use crate::depin::types::{AppState, EpochChallengeResponse, ProveRequest, ProveResponse};
 
 pub async fn post_prove(
-    axum::extract::State(state): axum::extract::State<std::sync::Arc<tokio::sync::RwLock<AppState>>>,
+    axum::extract::State(state): axum::extract::State<
+        std::sync::Arc<tokio::sync::RwLock<AppState>>,
+    >,
     axum::Json(req): axum::Json<ProveRequest>,
 ) -> axum::Json<ProveResponse> {
     let node_id = match hex::decode(&req.node_id) {
@@ -149,7 +151,12 @@ pub async fn post_prove(
     }
 
     let phi_response_bytes = hex::decode(&req.phi_response).unwrap_or_default();
-    if !verify_ed25519_signature(&node_id, &phi_response_bytes, &req.peer_sample_sig, phi_version) {
+    if !verify_ed25519_signature(
+        &node_id,
+        &phi_response_bytes,
+        &req.peer_sample_sig,
+        phi_version,
+    ) {
         return axum::Json(ProveResponse {
             valid: false,
             reward_lamports: 0,
@@ -195,15 +202,13 @@ pub async fn post_prove(
 }
 
 pub async fn get_epoch_challenge(
-    axum::extract::State(state): axum::extract::State<std::sync::Arc<tokio::sync::RwLock<AppState>>>,
+    axum::extract::State(state): axum::extract::State<
+        std::sync::Arc<tokio::sync::RwLock<AppState>>,
+    >,
 ) -> axum::Json<EpochChallengeResponse> {
     let guard = state.read().await;
     let epoch = &guard.epoch;
-    let seed_hash = sha2_hash(&[
-        b"PHI_SEED",
-        &epoch.epoch_id.to_le_bytes(),
-        &epoch.phi_seed,
-    ]);
+    let seed_hash = sha2_hash(&[b"PHI_SEED", &epoch.epoch_id.to_le_bytes(), &epoch.phi_seed]);
 
     let challenge = derive_phi_challenge(epoch.epoch_id, &[0u8; 32]);
 
@@ -215,7 +220,12 @@ pub async fn get_epoch_challenge(
     })
 }
 
-fn verify_ed25519_signature(node_id: &[u8], phi_response: &[u8], sig_hex: &str, version: u8) -> bool {
+fn verify_ed25519_signature(
+    node_id: &[u8],
+    phi_response: &[u8],
+    sig_hex: &str,
+    version: u8,
+) -> bool {
     let sig_bytes = match hex::decode(sig_hex) {
         Ok(v) => v,
         Err(_) => return false,
@@ -224,7 +234,11 @@ fn verify_ed25519_signature(node_id: &[u8], phi_response: &[u8], sig_hex: &str, 
         return false;
     }
 
-    let domain = if version == 2 { b"TRI_PROVE_V2" } else { b"TRI_PROVE_V1" };
+    let domain = if version == 2 {
+        b"TRI_PROVE_V2"
+    } else {
+        b"TRI_PROVE_V1"
+    };
     let mut message = Vec::new();
     message.extend_from_slice(domain);
     message.extend_from_slice(node_id);
@@ -255,12 +269,14 @@ pub async fn health_check() -> &'static str {
 mod tests {
     use super::*;
     use crate::depin::merkle::merkle_root;
-    use crate::depin::phi_challenge::{derive_phi_challenge, gf16_dot4, compute_phi_response_v2, derive_phi_challenge_v2};
-    use crate::depin::types::{AppState, ProveRequest, MerkleProof};
+    use crate::depin::phi_challenge::{
+        compute_phi_response_v2, derive_phi_challenge, derive_phi_challenge_v2, gf16_dot4,
+    };
+    use crate::depin::types::{AppState, MerkleProof, ProveRequest};
     use axum::body::Body;
     use axum::routing::{get, post};
     use axum::Router;
-    use ed25519_dalek::{SigningKey, Signer};
+    use ed25519_dalek::{Signer, SigningKey};
     use http_body_util::BodyExt;
     use std::sync::Arc;
     use tokio::sync::RwLock;
@@ -283,11 +299,8 @@ mod tests {
             .header("content-type", "application/json")
             .body(Body::from(body))
             .unwrap();
-        let response: axum::http::Response<axum::body::Body> = app
-            .clone()
-            .oneshot(request)
-            .await
-            .unwrap();
+        let response: axum::http::Response<axum::body::Body> =
+            app.clone().oneshot(request).await.unwrap();
         let bytes = response.into_body().collect().await.unwrap().to_bytes();
         serde_json::from_slice(&bytes).unwrap()
     }
@@ -333,7 +346,11 @@ mod tests {
         let app = build_test_app();
         let req = make_valid_proof_request(0);
         let resp = call_prove(&app, req).await;
-        assert!(resp.valid, "expected valid proof, got reason: {:?}", resp.reason);
+        assert!(
+            resp.valid,
+            "expected valid proof, got reason: {:?}",
+            resp.reason
+        );
         assert_eq!(resp.reward_lamports, 50_000_000);
         assert!(!resp.epoch_hash.is_empty());
         assert!(!resp.next_challenge.is_empty());
@@ -425,7 +442,11 @@ mod tests {
             version: 0,
         };
         let resp = call_prove(&app, req).await;
-        assert!(resp.valid, "expected valid proof with 4-leaf merkle tree, got reason: {:?}", resp.reason);
+        assert!(
+            resp.valid,
+            "expected valid proof with 4-leaf merkle tree, got reason: {:?}",
+            resp.reason
+        );
     }
 
     #[tokio::test]
@@ -466,7 +487,11 @@ mod tests {
             version: 2,
         };
         let resp = call_prove(&app, req).await;
-        assert!(resp.valid, "expected valid V2 proof, got reason: {:?}", resp.reason);
+        assert!(
+            resp.valid,
+            "expected valid V2 proof, got reason: {:?}",
+            resp.reason
+        );
         assert_eq!(resp.reward_lamports, 50_000_000);
         assert!(!resp.epoch_hash.is_empty());
         assert!(!resp.next_challenge.is_empty());
@@ -525,7 +550,11 @@ mod tests {
             let mut i = 0;
             while i < layer.len() {
                 let left = layer[i];
-                let right = if i + 1 < layer.len() { layer[i + 1] } else { left };
+                let right = if i + 1 < layer.len() {
+                    layer[i + 1]
+                } else {
+                    left
+                };
                 next.push(crate::depin::merkle::hash_pair_test(&left, &right));
                 i += 2;
             }

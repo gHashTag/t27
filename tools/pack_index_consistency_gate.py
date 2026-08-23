@@ -17,7 +17,9 @@ promotion the packs themselves record, with no gate to catch it.
 
 This gate closes that class rather than that instance. It is stdlib-only, needs no
 network, and is falsifiable: --selftest plants a mutant for every check and fails
-if any mutant survives.
+if any mutant survives, and then runs the whole SCRIPT against a planted tree --
+clean, failing, and index-less -- because a mutant inside check() cannot tell you
+whether check()'s answer still reaches the process exit code.
 
 CHECKS
 ------
@@ -42,7 +44,10 @@ import copy
 import hashlib
 import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_VECTORS = os.path.join(REPO, "conformance", "vectors")
@@ -74,8 +79,15 @@ def check(index: dict, packs: dict, on_disk: set, notes: list | None = None) -> 
         # B -- digest matches
         recorded = e.get("sha256")
         actual = pack["__sha256__"]
-        if recorded is not None and recorded != actual:
-            fails.append(f"B {cid}: sha256 {recorded[:12]}... recorded, "
+        # T72: `is not None` caught an empty string but not an ABSENT key, so
+        # `del entry["sha256"]` turned a caught tamper into CLEAN here and in
+        # wp18 both. The condition alone is not enough -- `recorded[:12]` on
+        # None raises -- so the message names which of the two states it is.
+        if recorded != actual:
+            shown = ("<no sha256 key>" if recorded is None
+                     else "<empty sha256>" if recorded == ""
+                     else f"{recorded[:12]}...")
+            fails.append(f"B {cid}: sha256 {shown} recorded, "
                          f"{actual[:12]}... on disk")
 
         # C -- tier agrees with the pack's own state.
@@ -241,8 +253,130 @@ def selftest() -> int:
     bad += mutate("E header total drift is caught", "E", m_header)
     bad += mutate("F pack absent from the index is caught", "F", m_orphan)
 
+    # -----------------------------------------------------------------------
+    # The six mutants above prove check(). They do NOT prove that check()'s
+    # answer reaches the process exit code, and they never call load() at all,
+    # so both of this gate's own verdicts were unexercised:
+    #
+    #   load()'s `raise SystemExit(3)`      -- nothing above builds a world
+    #                                          without an index in it
+    #   main()'s `return 0 if not fails else 1`
+    #                                       -- forced to `return 0` the gate
+    #                                          still prints "verdict: FAIL",
+    #                                          exits 0, and every mutant above
+    #                                          stays red
+    #
+    # The measured version of that second class: check_catalog_integrity.py with
+    # main()'s `return 1` rewritten to `return 0` printed OK on a broken catalog
+    # while its control reported every branch red. So the cases below run the
+    # SCRIPT and read its exit status, not just its findings list.
+    #
+    # No new lever is introduced to aim it: the script is COPIED into the planted
+    # tree, so the copy's module-level REPO/DEFAULT_VECTORS resolve inside that
+    # tree by the ordinary dirname(dirname(__file__)) rule and it runs with no
+    # arguments at all.
+    #
+    # NOT covered here, said plainly rather than left to be inferred from a
+    # green: the --json output file, the JSONDecodeError skip and the
+    # kind=="instance" skip in load(), and the "pack declares no bitexact flag"
+    # notes branch in check(). None of those is a verdict site, so no mutant is
+    # generated for them, but neither is any of them exercised end to end.
+    def plant(root, index):
+        """Build tools/ + conformance/vectors/ under root; return the script."""
+        tools = os.path.join(root, "tools")
+        vectors = os.path.join(root, "conformance", "vectors")
+        os.makedirs(tools)
+        os.makedirs(vectors)
+        me = os.path.basename(os.path.abspath(__file__))
+        shutil.copyfile(os.path.abspath(__file__), os.path.join(tools, me))
+        digests = {}
+        for fname, pack in (("alpha.json", {"bitexact": True,
+                                            "witnesses": [{"kind": "sw"}],
+                                            "vectors": []}),
+                            ("beta.json", {"bitexact": False, "vectors": []})):
+            blob = json.dumps(pack, indent=2).encode()
+            with open(os.path.join(vectors, fname), "wb") as fh:
+                fh.write(blob)
+            digests[fname] = hashlib.sha256(blob).hexdigest()
+        # index is None => a well-formed world that is simply missing its index,
+        # which is the only way to reach load()'s SystemExit(3).
+        if index is not None:
+            for e in index["packs"]:
+                e["sha256"] = digests[e["file"]]
+            with open(os.path.join(vectors, INDEX_NAME), "w") as fh:
+                json.dump(index, fh, indent=2)
+        return os.path.join(tools, me)
+
+    def run_planted(index):
+        root = tempfile.mkdtemp(prefix="pack-index-selftest-")
+        try:
+            proc = subprocess.run([sys.executable, plant(root, index)],
+                                  capture_output=True, text=True)
+            return proc.returncode, proc.stdout, proc.stderr
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def planted_index():
+        return {"total_packs": 2, "bitexact_packs": 1, "structural_packs": 1,
+                "witnessed_packs": 1,
+                "packs": [
+                    {"id": "alpha", "file": "alpha.json", "kind": "bitexact",
+                     "sha256": "", "witnesses": 1},
+                    {"id": "beta", "file": "beta.json", "kind": "structural",
+                     "sha256": "", "witnesses": 0},
+                ]}
+
+    def report(name, checks):
+        """checks: (holds, what-was-required). Every one of them must hold.
+
+        An exit code alone is not enough: these paths reach one code from
+        several branches, and a crash reaches most of them too. So each case
+        below names the message it demands AND the sibling messages that must
+        stay silent.
+        """
+        missing = [why for holds, why in checks if not holds]
+        print(f"  [{'PASS' if not missing else 'FAIL'}] {name}")
+        for why in missing:
+            print(f"         required {why}")
+        return 1 if missing else 0
+
+    print("\nwhole-program -- check() reaching the process exit code:")
+
+    rc, out, err = run_planted(planted_index())
+    bad += report("a clean planted tree exits 0 and reports CLEAN", [
+        (rc == 0, f"exit 0, got {rc}"),
+        ("verdict: CLEAN" in out, "'verdict: CLEAN' on stdout"),
+        ("failures      : 0" in out, "a failure count of zero"),
+        ("verdict: FAIL" not in out, "no FAIL verdict alongside it"),
+        ("Traceback" not in err, f"no traceback; stderr was {err.strip()!r}"),
+    ])
+
+    broken = planted_index()
+    broken["packs"][0]["witnesses"] = 7      # D alone: witnessed_packs stays 1
+    rc, out, err = run_planted(broken)
+    siblings = [ltr for ltr in "ABCEF" if f"\n    {ltr} " in out]
+    bad += report("a failing planted tree exits 1 and reports FAIL", [
+        (rc == 1, f"exit 1, got {rc} -- main()'s verdict must reach the caller"),
+        ("verdict: FAIL" in out, "'verdict: FAIL' on stdout"),
+        ("\n    D alpha: index says 7 witness(es), pack has 1" in out,
+         "the D line naming the planted mismatch"),
+        ("failures      : 1" in out, "a failure count of exactly one"),
+        (not siblings, f"every sibling check silent; {siblings} fired too"),
+        ("verdict: CLEAN" not in out, "no CLEAN verdict alongside it"),
+        ("Traceback" not in err, f"no traceback; stderr was {err.strip()!r}"),
+    ])
+
+    rc, out, err = run_planted(None)
+    bad += report("a vectors dir with no index exits 3 and reports nothing", [
+        (rc == 3, f"exit 3, got {rc} -- load() must abort, not fall through"),
+        (f"no {INDEX_NAME} in " in err, "the missing-index line on stderr"),
+        ("verdict:" not in out, "no verdict; load() never returned"),
+        ("index entries" not in out, "no report; the run never got that far"),
+        ("Traceback" not in err, f"no traceback; stderr was {err.strip()!r}"),
+    ])
+
     print("\n" + ("selftest OK: the gate is falsifiable."
-                  if not bad else f"selftest FAILED: {bad} mutant(s) survived."))
+                  if not bad else f"selftest FAILED: {bad} case(s) survived."))
     return 1 if bad else 0
 
 

@@ -26,6 +26,10 @@ on:
       - "cli/**"
       - "tools/check_specs_parse.py"
       - "tools/check_specs_generate.py"
+      # T77: the LEDGER, not just the script that reads it. Without this, the
+      # PR the gate's own NOTE tells you to open -- the one that edits
+      # specs_generate_baseline.txt -- does not run the gate that validates it.
+      - "tools/specs_generate_baseline.txt"
       - "specs/**"
       - "tools/verify_exhaustive.py"
       - "tools/check_duplicate_agreement.py"
@@ -104,29 +108,38 @@ jobs:
       - name: Exhaustive cross-target agreement
         run: python3 tools/verify_exhaustive.py
 
-      # tmul is defined in 14 specs, dot27 in 9, quantize in 7. Nothing checked that
+      # tmul is defined in 14 specs, dot27 in 13, quantize in 9. Nothing checked that
       # the copies still compute the same thing, and copies drift. Compares BEHAVIOUR,
       # not text: hashing the source reported three "divergences" that were all
       # artefacts of the comparison rather than facts about the tree.
       - name: Duplicated functions agree (negative control)
         run: python3 tools/check_duplicate_agreement.py --self-check
+
+      # T79: a SECOND control, on a different branch. --self-check exercises the
+      # digest split; this exercises the drop join, where a copy the harness
+      # cannot build against used to vanish with no output -- 6 of 36 pairs did.
+      # Mutation-tested: neutering the drop accounting leaves --self-check green
+      # and takes this one red; inverting the divergence verdict does the
+      # opposite. Two controls, disjoint branches.
+      - name: Duplicated functions agree (drop control)
+        run: python3 tools/check_duplicate_agreement.py --self-check-drop
       - name: Duplicated functions agree
         run: python3 tools/check_duplicate_agreement.py
 
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
-        run: python3 tools/verify_emit_bitexact.py
+        run: python3 tools/verify_emit_bitexact.py --require
 
       - name: Prove GF-T primitives bit-exact across C + Rust + model
         run: python3 tools/verify_multitarget.py --require
 
       - name: Prove the WHOLE trainer bit-exact in C (== model == Verilog)
-        run: python3 tools/verify_trainer_c.py
+        run: python3 tools/verify_trainer_c.py --require
 
       - name: Prove the trainer LEARNS (XOR 4/4 + nonlinear held-out >=90%, incl. deep 3-layer)
         run: python3 tools/gft_backprop_microcode.py
 
       - name: Differential-fuzz the trainer (random topologies, edge inputs)
-        run: python3 tools/fuzz_trainer.py 40
+        run: python3 tools/fuzz_trainer.py 40 --require
 
       - name: Cross-check IGLA RACE ternary MAC (C + Rust == model)
-        run: python3 tools/verify_igla_race.py
+        run: python3 tools/verify_igla_race.py --require

@@ -89,6 +89,7 @@ enum Commands {
         json: bool,
     },
 
+
     /// Generate Zig code from .t27 file
     /// THE SERVICE: run the whole path from a spec to gates, judging every
     /// stage by its exit code and its artefact -- never by elapsed time.
@@ -474,6 +475,13 @@ enum Commands {
         /// only reading says whether any of it mattered.
         #[arg(long)]
         show: Option<String>,
+
+        /// Name the top-level items whose removal changes the discard count.
+        ///
+        /// `--show` prints WHAT was dropped; this says WHICH construct the
+        /// parser stops on, by re-parsing with one item removed at a time.
+        #[arg(long)]
+        bisect: Option<String>,
     },
     /// Check call sites against the signatures they call (arity and
     /// aggregate-vs-scalar), across a spec tree
@@ -3509,6 +3517,41 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
 // Command Handlers
 // ============================================================================
 
+/// Top-level items of a module body, as (label, first line, last line).
+///
+/// Line-based, and it says so: the suite's own phase is the authority on the
+/// COUNT, and this only has to point at the construct. An item starts at a line
+/// whose indentation is one level in and whose first word is a keyword, and ends
+/// where the next one starts.
+fn top_level_items(src: &str) -> Vec<(String, usize, usize)> {
+    const KEYWORDS: &[&str] = &[
+        "fn", "test", "invariant", "bench", "type", "const", "let", "use", "spec",
+        "struct", "enum", "impl", "on", "mem", "port", "wire", "reg", "assert",
+    ];
+    let lines: Vec<&str> = src.lines().collect();
+    let mut starts: Vec<(String, usize)> = Vec::new();
+    for (i, ln) in lines.iter().enumerate() {
+        let t = ln.trim_start();
+        let indent = ln.len() - t.len();
+        if indent == 0 || indent > 8 {
+            continue;
+        }
+        let first = t.split_whitespace().next().unwrap_or("");
+        if KEYWORDS.contains(&first) {
+            let name = t.split_whitespace().nth(1).unwrap_or("").trim_matches(|c: char| {
+                !c.is_alphanumeric() && c != '_'
+            });
+            starts.push((format!("{first} {name}"), i));
+        }
+    }
+    let mut out = Vec::new();
+    for k in 0..starts.len() {
+        let end = if k + 1 < starts.len() { starts[k + 1].1 } else { lines.len() };
+        out.push((starts[k].0.clone(), starts[k].1, end));
+    }
+    out
+}
+
 fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
@@ -3834,11 +3877,64 @@ fn run_parse_conform() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Name the top-level items the parser stops on, by removing one at a time.
+///
+/// `--show` prints WHAT was dropped and is the direct answer; this is for the
+/// case where the dropped tokens alone do not say which construct owns them.
+/// It exists because a command that answered this did not, and I built a whole
+/// second command around it before finding `parse-complete --show`, which had
+/// been printing the tokens with their source line all along -- better than the
+/// version I wrote. Two commands answering one question is the same defect as
+/// two seal-naming conventions: the second one is where the drift lives.
+fn run_bisect(path: &str) -> anyhow::Result<()> {
+    let src = std::fs::read_to_string(path)
+        .with_context(|| format!("reading {path}"))?;
+    let base = match compiler::Compiler::parse_ast_accounted(&src) {
+        Err(e) => {
+            println!("{path} does not parse at all -- that is `parse`'s question, not this one");
+            println!("  {e}");
+            return Ok(());
+        }
+        Ok((_, n)) => n,
+    };
+    println!("{path}: {base} top-level token(s) discarded");
+    if base == 0 {
+        println!("  the parser consumed everything it was given");
+        return Ok(());
+    }
+    let lines: Vec<&str> = src.lines().collect();
+    let items = top_level_items(&src);
+    println!("  {} top-level item(s) to try", items.len());
+    let mut named = 0usize;
+    for (label, a, b) in &items {
+        let mut kept: Vec<&str> = Vec::with_capacity(lines.len());
+        kept.extend_from_slice(&lines[..*a]);
+        kept.extend_from_slice(&lines[*b..]);
+        // A removal that breaks parsing entirely says nothing about the
+        // discard: an item that cannot be tested is not evidence.
+        if let Ok((_, n)) = compiler::Compiler::parse_ast_accounted(&kept.join("\n")) {
+            if n < base {
+                println!("  -{:>4} without `{}`  (lines {}-{})", base - n, label, a + 1, b);
+                named += 1;
+            }
+        }
+    }
+    if named == 0 {
+        println!("  no single top-level item accounts for it: the discard is inside");
+        println!("  one of them, or in text this line-based split does not see.");
+    }
+    Ok(())
+}
+
 fn run_parse_complete(
     specs_dir: &str,
     include_scratch: bool,
     show: Option<&str>,
+    bisect: Option<&str>,
 ) -> anyhow::Result<()> {
+    if let Some(path) = bisect {
+        return run_bisect(path);
+    }
     // W634: single-file mode -- print what was discarded, grouped by line, so a
     // human can decide whether any of it is content a theorem depends on.
     if let Some(path) = show {
@@ -6821,25 +6917,37 @@ fn run_fpga_build(
     let synth_dir = build_dir.join("synth");
     fs::create_dir_all(&synth_dir).context("create build/fpga/synth")?;
 
-    let modules = [
-        "mac", "uart", "spi", "bridge", "top_level",
-        "hir", "hw_types", "memory", "clock_domain", "fifo",
-        "axi4", "apb_bridge", "gf16_accel", "formal",
-        "ternary_isa", "stdlib", "simulator", "assembler", "testbench", "vcd_trace",
-        "e2e_demo", "linker", "timing", "power", "placement", "partition",
-        "router", "dft", "cts", "crossopt", "bootrom",
-        "sv_emit", "firrtl", "cdc", "lint", "coverage",
-    ];
+    // T75: the set is the DIRECTORY, not a literal. It used to be a hardcoded
+    // array of 36 names, and it had drifted in both directions: five names had
+    // no spec and printed `SKIP (spec not found)` without failing, while four
+    // specs sat in specs/fpga/ and were never generated at all -- bpsk (the
+    // merged BPSK modem core), power_analysis, ternary_link and
+    // vcd_conformance_compare. Measured with this same t27c and the
+    // elaboration ratchet's own iverilog invocation, those four carry 14 real
+    // errors the ratchet had never counted, and nothing bounded their growth.
+    //
+    // Reading the directory makes "the fpga module set" mean what it says, and
+    // a spec added tomorrow is covered without anyone remembering this list.
+    let mut modules: Vec<String> = fs::read_dir(&specs_dir)
+        .with_context(|| format!("read {}", specs_dir.display()))?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("t27"))
+        .filter_map(|e| e.path().file_stem().and_then(|s| s.to_str()).map(String::from))
+        .collect();
+    modules.sort();
+    if modules.is_empty() {
+        anyhow::bail!(
+            "no .t27 spec found under {} -- the scan is broken, not the tree",
+            specs_dir.display()
+        );
+    }
 
     println!("=== FPGA Build: Verilog generation{}===", if use_hir { " (HIR path) " } else { " " });
+    println!("  {} spec(s) under {}", modules.len(), specs_dir.display());
     let mut generated_count = 0u32;
     for module in &modules {
         let spec_file = specs_dir.join(format!("{}.t27", module));
         let out_file = gen_dir.join(format!("{}.v", module));
-        if !spec_file.exists() {
-            println!("  SKIP {} (spec not found)", module);
-            continue;
-        }
         let gen_cmd = if use_hir { "gen-verilog-hir" } else { "gen-verilog" };
         let status = std::process::Command::new(&t27c)
             .arg(gen_cmd)
@@ -10527,8 +10635,8 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show } => {
-            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref(), bisect.as_deref())?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
@@ -10932,8 +11040,8 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show } => {
-            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref(), bisect.as_deref())?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
@@ -11425,8 +11533,19 @@ fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow
     println!("  {:<48}{:>7}", "total .t27 files", total);
     println!("  {:<48}{:>7}", "HONEST DENOMINATOR (source only)", source);
     println!();
-    println!("  A .t27 extension is a filename, not a type declaration. Anything");
-    println!("  outside SOURCE cannot parse, and counting it as a failing spec");
-    println!("  inflates every corpus ratio in a knowable direction.");
+    println!("  A .t27 extension is a filename, not a type declaration. Counting a");
+    println!("  Markdown document as a failing spec inflates every corpus ratio in a");
+    println!("  knowable direction, which is what this denominator is for.");
+    println!();
+    // T94: this used to read "Anything outside SOURCE cannot parse". Measured
+    // 2026-08-24 against `parse-complete`: 5 of the 28 non-SOURCE files DO
+    // parse -- 3 ALT-SYNTAX (specs/ar/coa_planning, proof_trace, restraint) and
+    // 2 UNCLASSIFIED (specs/physics/formula_registry, lqg_entropy). The
+    // direction of the correction was right and its stated reason was not, so
+    // the sentence claimed more than the classifier can see: this reads the
+    // opening of a file, and parsing is a different question about the rest.
+    println!("  It does NOT follow that everything outside SOURCE fails to parse.");
+    println!("  Measured: 5 of the non-SOURCE files parse. `parse-complete` is the");
+    println!("  authority on parsing; this one is the authority on what is code.");
     Ok(())
 }

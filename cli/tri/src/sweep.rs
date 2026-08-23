@@ -67,7 +67,11 @@ fn count(log: &str, needle: &str, exact: bool) -> u64 {
             (Some(a), Some(b)) => (a, b),
             _ => continue,
         };
-        let hit = if exact { name == needle } else { name.starts_with(needle) };
+        let hit = if exact {
+            name == needle
+        } else {
+            name.starts_with(needle)
+        };
         if hit {
             if let Ok(v) = n.parse::<u64>() {
                 total += v;
@@ -147,7 +151,11 @@ fn verdict(values: &[i64], areas: &[u64]) -> Vec<String> {
                  the parameter by more than 2.5x usually means a structure was \
                  inferred that should not have been -- N read ports instead of a \
                  memory, or an unrolled loop instead of a shared resource.",
-                aratio, "the parameter", pratio, values[i - 1], values[i]
+                aratio,
+                "the parameter",
+                pratio,
+                values[i - 1],
+                values[i]
             ));
         }
     }

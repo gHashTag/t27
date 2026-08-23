@@ -15,6 +15,12 @@ real divergence exits 1. Run:  python3 tools/verify_trainer_c.py
 """
 import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
 
+
+_pq = importlib.util.spec_from_file_location(
+    "_prereq", os.path.join(os.path.dirname(os.path.abspath(__file__)), "_prereq.py"))
+_prereq = importlib.util.module_from_spec(_pq); _pq.loader.exec_module(_prereq)
+skip, broken = _prereq.skip, _prereq.broken
+
 def _run_bin(cmd, what, cwd=None):
     """Run a built binary and return its stdout, or None with the reason printed.
 
@@ -27,6 +33,14 @@ def _run_bin(cmd, what, cwd=None):
                        capture_output=True, text=True, cwd=cwd)
     if r.returncode == 0:
         return r.stdout
+    # mutant-equivalent: the guard above forces returncode != 0, so < is <=
+    #
+    # T132. Five copies of this line across five verifiers, and the boundary
+    # operator reports each as a survivor. All five are reached only after a
+    # returncode check -- three via `if returncode == 0: return`, two via
+    # `if returncode != 0:` -- so at this point the value cannot be zero, and
+    # `< 0` and `<= 0` agree on every value it can hold. Proven from the line
+    # above, not assumed from the shape.
     sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
     print(f"  {what}: exited {r.returncode}{sig}")
     for line in (r.stderr or "").strip().splitlines()[:4]:
@@ -91,10 +105,6 @@ static uint32_t modf_(uint32_t v, int m){
   return v;
 }
 """
-
-
-def skip(msg):
-    print(f"SKIP verify_trainer_c: {msg}"); sys.exit(0)
 
 
 def find_t27c():
@@ -220,7 +230,90 @@ def check(g, arch, t27c, wd):
     return True
 
 
+def self_check():
+    """Plant a divergence in the C arm and prove this whole program reports it.
+
+    T123. The last of the four cross-target verifiers to get one, and the one
+    whose skip() every other copied.
+
+    The plant is a real tree -- tools/ copied, target/ and specs/ symlinked --
+    with THIS FILE's own run_c edited so its result is one step off. The gate
+    under test is the copy in that tree, so the divergence arrives through the
+    arm being compared rather than through a stub of it.
+
+    The edit is scoped to the text after `def run_c(`, for the reason the same
+    plant in fuzz_trainer.py needed it: a bare replace hit run_model's return
+    three functions earlier, and one case then PASSED on a divergence planted
+    somewhere it was never meant to be.
+
+    NOT COVERED, said rather than inferred: the per-architecture "C produced N
+    of M steps" branch, which needs a C arm that truncates rather than one that
+    disagrees.
+    """
+    ok = True
+
+    def spawned(label, edit, want, expect, absent):
+        nonlocal ok
+        import shutil as _sh
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, "tools"))
+            for f in os.listdir(os.path.join(ROOT, "tools")):
+                if f.endswith(".py"):
+                    src = open(os.path.join(ROOT, "tools", f), encoding="utf-8").read()
+                    if f == os.path.basename(__file__) and edit:
+                        src = edit(src)
+                    open(os.path.join(td, "tools", f), "w", encoding="utf-8").write(src)
+            for extra in ("target", "specs"):
+                s = os.path.join(ROOT, extra)
+                if os.path.exists(s):
+                    os.symlink(s, os.path.join(td, extra))
+            r = subprocess.run(
+                [sys.executable, os.path.join(td, "tools", os.path.basename(__file__))],
+                capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<46} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[:320]!r}")
+
+    def perturb_run_c(replacement):
+        anchor = "    return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]"
+        def edit(src):
+            head, sep, tail = src.partition("def run_c(")
+            assert sep, "run_c disappeared"
+            assert anchor in tail, "run_c's result line moved; the plant must move with it"
+            return head + sep + tail.replace(anchor, replacement, 1)
+        return edit
+
+    # The clean direction first, or the case below passes for free on a gate
+    # that reds unconditionally.
+    spawned("an unperturbed tree is bit-exact", None, 0,
+            ["WHOLE TRAINER BIT-EXACT ACROSS TARGETS"],
+            ["TRAINER CROSS-TARGET MISMATCH", "FAIL", "Traceback"])
+
+    spawned("a perturbed C arm is a mismatch",
+            perturb_run_c("    _o = [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]\n"
+                          "    return ([(_o[0][0] + 1,) + _o[0][1:]] + _o[1:]) if _o else _o"),
+            1, ["C != model", "TRAINER CROSS-TARGET MISMATCH"],
+            ["WHOLE TRAINER BIT-EXACT", "Traceback"])
+
+    print(f"  self-check: both directions of the cross-target verdict; the step-count "
+          f"branch is NOT covered here = {ok}")
+    return 0 if ok else 1
+
+
 def main():
+    if "--self-check" in sys.argv:
+        sys.exit(self_check())
     t27c = find_t27c()
     if not t27c:
         skip("t27c binary not found")
