@@ -172,12 +172,52 @@ def verilog_program(vsrc, fn, args, ret_signed, ret_bits):
     """A testbench that enumerates the whole domain and folds the same FNV-1a digest.
 
     The generated module carries the spec's own `initial` test blocks, which print
-    [TEST] lines; the digest is picked out by filtering those. Its four ports are
-    unused by the functions, so the body is lifted into a bare `module tb;` with the
-    ports declared as constants rather than instantiated -- these primitives are
+    [TEST] lines; the digest is picked out by filtering those. Its ports are unused by
+    the functions, so the body is lifted into a bare `module tb;` with the ports
+    declared as constants rather than instantiated -- these primitives are
     combinational, and giving them a clock would only add a way to be wrong.
+
+    T93: "the ports declared as constants" was true of four hardcoded names and of
+    nothing else. TernaryRippleAdder's header also carries a0, a1, b0 and b1, and the
+    lifted body's `assign result = on_comb(a0, a1, b0, b1);` referred to identifiers
+    that no longer existed:
+
+        negate_tb.v:264: error: Unable to bind wire/reg/memory `a0' in `tb'
+
+    Three of the eight targets never ran because of it, and the gate reported them
+    under "did not agree OR DID NOT RUN" -- a verdict that reads as a codegen
+    disagreement. The generated module is correct; `t27c gen-verilog` declares all
+    nine ports. It was this wrapper that dropped them. The ports are read from the
+    header now, so a spec that grows one does not silently stop being verified.
     """
+    head = vsrc[vsrc.index("module "):vsrc.index(");", vsrc.index("module ")) + 2]
     body = vsrc[vsrc.index(");", vsrc.index("module ")) + 2: vsrc.rindex("endmodule")]
+    # Inputs get a constant; outputs are DRIVEN by the lifted body's own `assign`, so
+    # they get a bare wire. Declaring an output as a constant would fight the body.
+    # The three control ports keep the values the hardcoded version gave them --
+    # rst_n and en HELD, not released. Changing them here would be a silent semantic
+    # edit riding along with a syntax fix. Everything else is tied low.
+    HELD = {"clk": "1'b0", "rst_n": "1'b1", "en": "1'b1"}
+    ports = []
+    for ln in head.splitlines():
+        m = re.match(r"\s*(input|output)\s+wire\s*(\[[^\]]*\])?\s*([A-Za-z_]\w*)\s*,?\s*$", ln)
+        if not m:
+            continue
+        direction, width, nm = m.group(1), (m.group(2) or ""), m.group(3)
+        if direction == "output":
+            # Driven by the lifted body's own `assign`. A constant here would fight it.
+            ports.append(f"  wire {width} {nm};")
+            continue
+        if nm in HELD:
+            ports.append(f"  wire {width} {nm} = {HELD[nm]};")
+            continue
+        # Sized zero, not `'0`: that is SystemVerilog, and this file is fed to
+        # iverilog in its default Verilog-2005 mode.
+        n = 1
+        if width:
+            hi = width.strip("[]").split(":")[0].strip()
+            n = int(hi) + 1 if hi.isdigit() else 1
+        ports.append(f"  wire {width} {nm} = {n}'b0;")
     loops, close = [], []
     for i in range(len(args)):
         loops.append(f"    for (i{i} = {args[i][2]}; i{i} <= {args[i][3]}; i{i} = i{i} + 1)")
@@ -194,7 +234,7 @@ def verilog_program(vsrc, fn, args, ret_signed, ret_bits):
            else f"{{{32 - ret_bits}'b0, r}}")
     return "\n".join([
         "`timescale 1ns/1ps", "module tb;",
-        "  wire clk = 1'b0; wire rst_n = 1'b1; wire en = 1'b1; wire ready;",
+        *ports,
         body,
         f"  {decl}",
         "  reg [31:0] h;",
@@ -226,13 +266,19 @@ VERILOG_RATE = {"tmul": 330_000, "negate": 330_000, "maj3": 21_061, "full_adder"
 DEFAULT_RATE = 20_000
 
 
+# T93: three outcomes, not two. `False` meant BOTH "ran and disagreed" and "could
+# not be run at all", so the tally printed one sentence for two facts and a broken
+# testbench read as six disagreeing backends. UNRUN is the third.
+UNRUN = "UNRUN"
+
+
 def verilog_digest(spec, fn, args, ret, wd, full=False):
     """Fourth opinion: the target that actually goes to silicon."""
     if ret is None:
         return None
     vsrc = gen("verilog", spec)
     if vsrc is None:
-        return False
+        return UNRUN
     signed, bits = ret
     space = 1
     for _, _, lo, hi in args:
@@ -253,16 +299,16 @@ def verilog_digest(spec, fn, args, ret, wd, full=False):
         print(f"  {fn} Verilog: iverilog exited {b.returncode}")
         for l in (errs or (b.stderr or "").splitlines())[:4]:
             print(f"      {l}")
-        return False
+        return UNRUN
     r = subprocess.run(["vvp", os.path.join(wd, f"{fn}.vvp")], cwd=wd,
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(f"  {fn} Verilog: vvp exited {r.returncode} -- nothing was compared")
-        return False
+        return UNRUN
     m = re.search(r"^DIGEST ([0-9a-f]{8})$", r.stdout, re.M)
     if not m:
         print(f"  {fn} Verilog: no DIGEST line in {len(r.stdout.splitlines())} lines of output")
-        return False
+        return UNRUN
     return (m.group(1), covered, space)
 
 
@@ -298,6 +344,8 @@ def check(spec, fn, args, wd, ret=None):
               f"which two-way agreement could never have shown")
         return False
     vres = verilog_digest(spec, fn, args, ret, wd, full="--verilog-full" in sys.argv)
+    if vres is UNRUN:
+        return UNRUN
     if vres is False:
         return False
     if vres is None:
@@ -388,7 +436,23 @@ def main():
             print("FAIL: no targets selected")
             return 1
         if bad:
-            print(f"FAIL: {len(bad)} of {len(results)} targets did not agree or did not run")
+            # T93: these were one sentence, and the sentence hid the defect that
+            # produced it. check() already distinguishes them -- None is "could not
+            # run", False is "ran and disagreed" -- and the tally threw that away.
+            # For three days the gate said "6 of 8 did not agree or did not run",
+            # which reads as six disagreeing backends. Every one of the six was the
+            # second kind, caused by this file's own testbench wrapper dropping the
+            # module's ports. A gate that reports "could not measure" in the same
+            # breath as "measured and found wrong" leaves its reader no way to tell
+            # a broken instrument from a broken product.
+            disagreed = [r for r in results if r is False]
+            unrun = [r for r in results if r is UNRUN]
+            if disagreed:
+                print(f"FAIL: {len(disagreed)} of {len(results)} targets DISAGREED")
+            if unrun:
+                print(f"FAIL: {len(unrun)} of {len(results)} targets COULD NOT RUN "
+                      f"-- nothing was compared for them, which is not the same as "
+                      f"a disagreement")
             return 1
         # The summary must not claim more than the lines above it. model/C/Rust are
         # exhaustive for every target; the Verilog arm is exhaustive only where its
