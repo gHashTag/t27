@@ -247,8 +247,67 @@ def self_check():
           "--require was given, so a missing prerequisite is a failure"],
          ["SKIP", "ALL TARGETS BIT-EXACT", "CROSS-TARGET MISMATCH"])
 
-    print("  self-check: both exits of the skip pair reached, each by its own message; "
-          f"the cross-target mismatch verdict is NOT covered here = {ok}")
+    # T131: the gate's OWN verdict, which the two cases above never reach. The
+    # five-operator table scored this gate 0 killed of 7 -- `sys.exit(0 if ok
+    # else 1)` survived both return operators and all three comparison FAIL
+    # branches survived inversion, because both cases leave through skip().
+    #
+    # Identical in shape to verify_emit_bitexact.py, which scored 0 of 17 for
+    # the same reason. Two gates, one mistake, made twice by the same author.
+    #
+    # The plant moves ONE arm: py_ref reads the Python model, while C and Rust
+    # come from t27c. Perturbing py_ref makes the model disagree with backends
+    # that are unchanged -- a real cross-target divergence. Perturbing the spec
+    # or the emitter would move every arm together and plant nothing.
+    def whole_program(label, edit, want, expect, absent):
+        nonlocal ok
+        import shutil as _sh
+        with tempfile.TemporaryDirectory() as td:
+            tools = os.path.join(td, "tools")
+            os.makedirs(tools)
+            for f in os.listdir(os.path.join(ROOT, "tools")):
+                if f.endswith(".py"):
+                    src = open(os.path.join(ROOT, "tools", f), encoding="utf-8").read()
+                    if f == os.path.basename(__file__) and edit:
+                        before = src
+                        src = edit(src)
+                        assert src != before, f"{label}: the plant changed nothing"
+                    open(os.path.join(tools, f), "w", encoding="utf-8").write(src)
+            for extra in ("target", "specs"):
+                s = os.path.join(ROOT, extra)
+                if os.path.exists(s):
+                    os.symlink(s, os.path.join(td, extra))
+            r = subprocess.run(
+                [sys.executable, os.path.join(tools, os.path.basename(__file__))],
+                capture_output=True, text=True, cwd=ROOT)
+        out = r.stdout + r.stderr
+        missing = [s for s in expect if s not in out]
+        leaked = [s for s in absent if s in out]
+        good = r.returncode == want and not missing and not leaked
+        print(f"  {label:<44} " + (f"exit {want}, right branch" if good
+                                   else "CONTROL FAILED"))
+        if not good:
+            ok = False
+            print(f"       exit {r.returncode!r} (want {want!r})")
+            if missing:
+                print(f"       the branch never said: {missing!r}")
+            if leaked:
+                print(f"       neighbouring marker leaked: {leaked!r}")
+            print(f"       said {out[-300:]!r}")
+
+    whole_program("a clean tree agrees across targets", None, 0,
+                  ["ALL TARGETS BIT-EXACT"],
+                  ["CROSS-TARGET MISMATCH", "FAIL", "SKIP", "Traceback"])
+
+    whole_program("a perturbed model diverges from both backends",
+                  lambda s: s.replace(
+                      "    return [f(a, b) & 0xFFFFFFFF for a, b in pairs]",
+                      "    return [(f(a, b) ^ 1) & 0xFFFFFFFF for a, b in pairs]", 1),
+                  1, ["!= model", "CROSS-TARGET MISMATCH"],
+                  ["ALL TARGETS BIT-EXACT", "SKIP", "Traceback"])
+
+    print("  self-check: the skip pair and the gate's own verdict in both "
+          f"directions = {ok}")
     return 0 if ok else 1
 
 
