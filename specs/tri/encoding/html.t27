@@ -11,10 +11,10 @@ module TriHtml;
     // ═══════════════════════════════════════════════════════════
 
     pub const HtmlNode = struct {
-        tag : [[]Const u8",
-        attributes : [std.StringHashMap([]Const u8)",
-        children : [[]HtmlNode",
-        inner_text : [[]Const u8",
+        tag : "[]Const u8",
+        attributes : "std.StringHashMap([]Const u8)",
+        children : "[]HtmlNode",
+        inner_text : "[]Const u8",
     };
 
     // ═══════════════════════════════════════════════════════════
