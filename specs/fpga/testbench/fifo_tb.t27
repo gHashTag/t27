@@ -121,6 +121,7 @@ module FIFO_Testbench {
 
     test test_fill_drain_cycle {
         reset();
+        var i : u32 = 0;
         while i < 3 {
             fill_fifo();
             var drained : u32 = drain_fifo();
@@ -147,6 +148,7 @@ module FIFO_Testbench {
 
     bench bench_fifo_throughput {
         reset();
+        var i : u32 = 0;
         while i < 1000 {
             write_word(i);
             i = i + 1;

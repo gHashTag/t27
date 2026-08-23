@@ -98,6 +98,7 @@ module APB_Bridge_Testbench {
 
     test test_multiple_apb_writes {
         reset();
+        var i : u32 = 0;
         while i < 8 {
             apb_write(0x000 + i * 4, i * 0x10);
             i = i + 1;
@@ -128,6 +129,7 @@ module APB_Bridge_Testbench {
 
     bench bench_apb_throughput {
         reset();
+        var i : u32 = 0;
         while i < 64 {
             apb_write(i * 4, i);
             i = i + 1;

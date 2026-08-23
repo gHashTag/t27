@@ -99,6 +99,7 @@ module Stdlib_Testbench {
 
     bench bench_stdlib {
         reset();
+        var i : u32 = 0;
         while i < 100 {
             clog2(i + 1);
             max_val(i, 50);

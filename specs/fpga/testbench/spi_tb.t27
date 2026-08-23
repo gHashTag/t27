@@ -114,6 +114,7 @@ module SPI_Testbench {
 
     bench bench_spi_throughput {
         reset();
+        var i : u32 = 0;
         while i < 100 {
             spi_transfer(i);
             i = i + 1;

@@ -108,6 +108,7 @@ module Power_Testbench {
 
     bench bench_power_analysis {
         reset();
+        var i : u32 = 0;
         while i < 100 {
             estimate_power(i, 10, 1000, 50);
             i = i + 1;

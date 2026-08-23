@@ -84,6 +84,7 @@ module Partition_Testbench {
 
     bench bench_partition {
         reset();
+        var i : u32 = 0;
         while i < 16 {
             budget_resources(TOTAL_RESOURCES, i + 1);
             i = i + 1;

@@ -72,6 +72,7 @@ module ClockDomain_Testbench {
 
     test test_multiple_cdc_transfers {
         reset();
+        var i : u32 = 0;
         while i < 4 {
             send_async(i * 0x11111111);
             i = i + 1;
@@ -97,6 +98,7 @@ module ClockDomain_Testbench {
 
     bench bench_cdc_throughput {
         reset();
+        var i : u32 = 0;
         while i < 50 {
             send_async(i);
             receive_async();

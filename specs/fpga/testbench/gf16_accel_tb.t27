@@ -126,6 +126,7 @@ module GF16_Accel_Testbench {
 
     bench bench_gf16_throughput {
         reset();
+        var i : u16 = 0;
         while i < 100 {
             gf16_mul(i, 0x3C00);
             i = i + 1;

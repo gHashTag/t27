@@ -86,6 +86,8 @@ module Timing_Testbench {
 
     bench bench_timing_analysis {
         reset();
+        var delay : u32 = 1000;
+        var i : u32 = 0;
         while i < 100 {
             compute_slack(delay + i * 100, 20000);
             compute_fmax(delay + i * 100);

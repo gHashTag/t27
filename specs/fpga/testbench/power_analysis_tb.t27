@@ -120,6 +120,7 @@ module PowerAnalysis_Testbench {
 
     bench bench_power_analysis {
         reset();
+        var i : u32 = 0;
         while i < 1000 {
             tick();
             i = i + 1;

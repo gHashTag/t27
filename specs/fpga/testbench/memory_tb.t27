@@ -72,6 +72,7 @@ module Memory_Testbench {
 
     test test_write_read_multiple {
         reset();
+        var i : u32 = 0;
         while i < 16 {
             mem_write(MEM_BASE + i * 4, i * 0x11);
             i = i + 1;
@@ -120,6 +121,7 @@ module Memory_Testbench {
 
     bench bench_memory_bandwidth {
         reset();
+        var i : u32 = 0;
         while i < 256 {
             mem_write(i * 4, i);
             i = i + 1;
