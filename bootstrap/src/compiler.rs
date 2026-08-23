@@ -1945,6 +1945,53 @@ impl Parser {
                 ty.push_str("const ");
                 self.advance();
             }
+            // A function-pointer type: `?*const fn (*anyopaque, *anyopaque) void`.
+            // `fn` arrives as KwFn, not Ident, so the guard below returned here
+            // with `?*const ` and the caller then expected `{` and found `fn`.
+            //
+            // Inert against today's tree: the skip in #2529 means parse_fn_decl
+            // is never called on a method, so nothing reaches this. It is the
+            // first of the three ordered steps in #2532 -- measured WITH
+            // reentrant struct parsing applied, it takes the gate from 156 events
+            // back to 154 and the emitted test blocks from 1253 back to 1269.
+            // Landing it alone, ahead of the change that needs it, is what makes
+            // that change measurable rather than another revert.
+            if self.current.kind == TokenKind::KwFn {
+                ty.push_str("fn ");
+                self.advance();
+                if self.current.kind == TokenKind::LParen {
+                    let mut depth = 0usize;
+                    loop {
+                        match self.current.kind {
+                            TokenKind::LParen => depth += 1,
+                            TokenKind::RParen => {
+                                depth -= 1;
+                                ty.push(')');
+                                self.advance();
+                                if depth == 0 {
+                                    break;
+                                }
+                                continue;
+                            }
+                            TokenKind::Eof => break,
+                            _ => {}
+                        }
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+                // The pointee's own return type, e.g. the `void` in `fn () void`.
+                if self.current.kind != TokenKind::LBrace
+                    && self.current.kind != TokenKind::Semicolon
+                    && self.current.kind != TokenKind::Comma
+                    && self.current.kind != TokenKind::RParen
+                {
+                    ty.push(' ');
+                    ty.push_str(&self.parse_type_annotation());
+                }
+                return ty;
+            }
+
             // Prop. 158: this returned here, before the generic-application
             // handling below, so `*HashSet(T)` lost its parameters and the
             // enclosing declaration was discarded. Fall through instead.
