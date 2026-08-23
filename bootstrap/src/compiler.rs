@@ -4366,7 +4366,9 @@ impl Codegen {
         // Check if this is a method (first param is "self")
         let is_method = node.params.iter().any(|(name, _)| name == "self");
 
-        self.write(&format!("fn {}(", node.name));
+        // Fifth site that binds a name. `fn union(a: *Bitset)` -- set union is
+        // the natural spelling and `union` is a Zig keyword.
+        self.write(&format!("fn {}(", zig_ident(&node.name)));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
             if i > 0 {
                 self.write(", ");
