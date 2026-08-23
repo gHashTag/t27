@@ -1434,3 +1434,15 @@ signature of a fall-through.
 `check_elab_ratchet.py`'s no-baseline branch under the silent operator, declared
 `UNCOVERED` by message.
 
+**A sweep that could not find its own founding case.** After fixing `--invert`
+I swept all 55 boolean CLI flags for the same shape, scoring "declared but
+barely used" as suspicious at two or fewer references. Seven flags surfaced;
+every one was a correct forward — declaration plus the call it feeds, which is
+what two references *means*. And `--invert` with the bug in place had **three**:
+signature, `if invert`, destructure. The threshold would have cleared it.
+
+Static reference-counting cannot express the defect. The flag was used, in a
+`println!`. Only a test that demands the mode produce a *different result* can
+tell a working mode from a decorated one — which is why §36's check is a
+behavioural assertion and not a lint.
+
