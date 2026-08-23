@@ -3825,6 +3825,13 @@ impl Codegen {
             if needs_assert {
                 self.write_line("const assert = std.debug.assert;");
             }
+            // `pow` cannot be a plain binding: std.math.pow takes the type as its
+            // first argument, so a wrapper is needed. Every call site passes
+            // float literals or f64 constants, so f64 is the assumption -- and it
+            // IS an assumption, not something the spec states.
+            if uses("pow") {
+                self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
+            }
             self.write_line("");
         }
 
@@ -3911,6 +3918,13 @@ impl Codegen {
             }
             if needs_assert {
                 self.write_line("const assert = std.debug.assert;");
+            }
+            // `pow` cannot be a plain binding: std.math.pow takes the type as its
+            // first argument, so a wrapper is needed. Every call site passes
+            // float literals or f64 constants, so f64 is the assumption -- and it
+            // IS an assumption, not something the spec states.
+            if uses("pow") {
+                self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
             }
             self.write_line("");
         }
