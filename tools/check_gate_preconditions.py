@@ -34,6 +34,9 @@ import pathlib
 import shutil
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import plant  # noqa: E402
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -113,9 +116,17 @@ def run_on_empty_tree(script, stage=BARE, source=None):
     with tempfile.TemporaryDirectory() as td:
         tree = pathlib.Path(td)
         (tree / "tools").mkdir()
-        if source is None:
-            shutil.copy(ROOT / "tools" / script, tree / "tools" / script)
-        else:
+        # Plant unconditionally: the mutated-source branch needs the same
+        # siblings, and writing only the mutant left the copy dying on
+        # ImportError -- scored WRONG ("red, but not through the branch
+        # that explains why") when the case wanted VACUOUS.
+            # plant(), not copy(): a gate that imports a sibling dies on
+            # ImportError here, and a traceback is scored WRONG -- "it went
+            # red, but not through the branch that explains why". The
+            # verdict would be about this planting, and would name the
+            # gate.
+        plant(ROOT / "tools" / script, tree / "tools")
+        if source is not None:
             (tree / "tools" / script).write_text(source, encoding="utf-8")
         if stage in (WITH_T27C, WITH_IVERILOG):
             (tree / "target/release").mkdir(parents=True)
@@ -158,6 +169,12 @@ def run_with_real_corpus(script, source=None):
         if source is None:
             target = ROOT / "tools" / script
         else:
+            # Plant the siblings first, then overwrite the script with the
+            # mutant. Writing only the mutant left the copy importing a module
+            # that was not there, so the case that wanted VACUOUS got a
+            # traceback and was scored WRONG -- a verdict about this planting,
+            # wearing the gate's name.
+            plant(ROOT / "tools" / script, tree / "tools")
             target = tree / "tools" / script
             target.write_text(source, encoding="utf-8")
         return subprocess.run(
@@ -192,9 +209,49 @@ def classify(r, want):
     return None
 
 
+def bare_plants():
+    """Files that copy a script into a planted tree without its imports.
+
+    Measured before this existed, by injecting one unused sibling import into
+    each self-planting gate and re-running its own self-check in the real tree:
+
+        check_specs_parse         5 controls broken
+        check_catalog_integrity   4 controls broken
+        check_gate_preconditions  2 controls broken
+
+    Eleven controls, every one of them reporting `stdout ''` and "expected text
+    absent" -- which reads as a broken gate on a day when only the plant was
+    broken. `plant()` copies the script together with the siblings it imports;
+    a bare `shutil.copy` of the script alone is the defect, and it is invisible
+    until the day someone adds an import.
+    """
+    out = []
+    for f in sorted((ROOT / "tools").glob("*.py")):
+        text = f.read_text(errors="replace")
+        for i, line in enumerate(text.splitlines(), 1):
+            t = line.strip()
+            if not t.startswith("shutil.copy("):
+                continue
+            # Only copies whose DESTINATION is a planted tools/ directory. A
+            # copy of a binary into target/release, or of a fixture, is not a
+            # plant and needs no imports.
+            if '/ "tools"' in t or "/ 'tools'" in t:
+                out.append(f"{f.name}:{i}  {t[:64]}")
+    return out
+
+
 def check():
     """Returns a list of problems. Empty means every precondition is loud."""
     problems = []
+
+    for hit in bare_plants():
+        problems.append(
+            f"BARE      {hit}\n"
+            f"            plants a script without the siblings it imports; use\n"
+            f"            plant() from _prereq, or the controls below go silent\n"
+            f"            the day that script gains an import"
+        )
+
     for script, stage, want in GATES:
         if not (ROOT / "tools" / script).exists():
             problems.append(f"GONE      tools/{script} is in the table and not on disk")
@@ -347,9 +404,14 @@ def self_check():
         tree = pathlib.Path(td)
         (tree / "tools").mkdir()
         me = pathlib.Path(__file__).name
-        shutil.copy(__file__, tree / "tools" / me)
+        plant(__file__, tree / "tools")
         for script, _, _ in GATES:
-            shutil.copy(ROOT / "tools" / script, tree / "tools" / script)
+            # plant(), not copy(): a gate that imports a sibling dies on
+            # ImportError here, and a traceback is scored WRONG -- "it went
+            # red, but not through the branch that explains why". The
+            # verdict would be about this planting, and would name the
+            # gate.
+            plant(ROOT / "tools" / script, tree / "tools")
         victim = tree / "tools" / "check_vector_data.py"
         victim.write_text(
             victim.read_text(encoding="utf-8").replace(
@@ -395,9 +457,14 @@ def self_check():
         tree = pathlib.Path(td)
         (tree / "tools").mkdir()
         me = pathlib.Path(__file__).name
-        shutil.copy(__file__, tree / "tools" / me)
+        plant(__file__, tree / "tools")
         for script, _, _ in GATES:
-            shutil.copy(ROOT / "tools" / script, tree / "tools" / script)
+            # plant(), not copy(): a gate that imports a sibling dies on
+            # ImportError here, and a traceback is scored WRONG -- "it went
+            # red, but not through the branch that explains why". The
+            # verdict would be about this planting, and would name the
+            # gate.
+            plant(ROOT / "tools" / script, tree / "tools")
         if T27C.exists():
             (tree / "target/release").mkdir(parents=True)
             shutil.copy(T27C, tree / "target/release/t27c")

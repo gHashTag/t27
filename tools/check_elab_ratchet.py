@@ -40,6 +40,9 @@ import re
 import shutil
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import plant  # noqa: E402
 import tempfile
 
 # T88: overridable so the negative control can aim the WHOLE program at a
@@ -430,7 +433,7 @@ def self_check():
         with tempfile.TemporaryDirectory() as bare:
             b = pathlib.Path(bare)
             (b / "tools").mkdir()
-            shutil.copy(__file__, b / "tools" / pathlib.Path(__file__).name)
+            plant(__file__, b / "tools")
             o = _run(b, "--allow-missing-tools")
             said = "reporting nothing, deliberately" in o.stdout
             good = o.returncode == 0 and said

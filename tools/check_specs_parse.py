@@ -39,6 +39,9 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import plant  # noqa: E402
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Specs the cross-target bit-exactness proof consumes. These must parse; a PR
@@ -190,7 +193,7 @@ def self_check(t27c):
         with tempfile.TemporaryDirectory() as td:
             root = _self_check_plant(td, **kw)
             (root / "tools").mkdir(parents=True, exist_ok=True)
-            shutil.copy(__file__, root / "tools" / name)
+            plant(__file__, root / "tools")
             (root / "target/release").mkdir(parents=True, exist_ok=True)
             # Linked, not copied: find_t27c() asks only whether the path is
             # there, and the compiler that parses the planted specs has to be

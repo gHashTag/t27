@@ -12,9 +12,13 @@ Exits non-zero on any failure.
   tools/check_catalog_integrity.py                gate
   tools/check_catalog_integrity.py --self-check   negative control
 """
+import os
 import pathlib
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _prereq import plant  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SSOT_REL = "specs/numeric/formats_catalog.t27"
@@ -274,7 +278,11 @@ def self_check():
         with tempfile.TemporaryDirectory() as td:
             root = _plant(td, **kw)
             (root / "tools").mkdir(exist_ok=True)
-            shutil.copy(__file__, root / "tools" / pathlib.Path(__file__).name)
+            # plant() copies what this file imports, not only this file.
+            # A copy of the script alone dies on ImportError the day a
+            # sibling import is added, and every control below then reads
+            # as "expected text absent" -- four of them, here.
+            plant(__file__, root / "tools")
             proc = subprocess.run(
                 [sys.executable, str(root / "tools" / pathlib.Path(__file__).name)],
                 capture_output=True, text=True)

@@ -52,6 +52,12 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Aliased: this file already has a local `plant(td, seals, ledger)` that
+# builds a whole world, and importing the shared one under the same name
+# shadowed it -- the planted world became the script's own path.
+from _prereq import plant as plant_script  # noqa: E402
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tools/seal_baseline.txt"
 
@@ -327,7 +333,7 @@ def self_check():
         nonlocal ok
         with tempfile.TemporaryDirectory() as td:
             t = plant(td, seals, ledger)
-            shutil.copy(me, t / "tools" / me.name)
+            plant_script(me, t / "tools")
             r = subprocess.run([sys.executable, str(t / "tools" / me.name), *args],
                                capture_output=True, text=True, cwd=t, timeout=120)
         missing = [p for p in present if p not in r.stdout]
