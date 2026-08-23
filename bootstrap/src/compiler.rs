@@ -1449,15 +1449,31 @@ impl Parser {
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
-                // Extract the last segment as the import name
+                // Extract the last segment as the import name.
+                //
+                // `use math::sacred_physics::{PHI, PHI_INV};` has a brace LIST as
+                // its final segment, and taking it verbatim emitted
+                // `const {PHI,PHI_INV} = @import("{PHI,PHI_INV}.zig");` -- Zig
+                // reports `expected 'an identifier', found '{'`. The braces name
+                // what is imported FROM a module; Zig imports the module, so the
+                // segment before them is the name. 34 such lines in 13 specs.
+                //
+                // Hyphens are then not valid in a Zig identifier and reach this
+                // only through the brace path, because every other use-decl ends
+                // in a bare segment: `use tritype-base::Trit;` already yields
+                // `Trit`. Mapped to underscore rather than dropped, so two
+                // modules differing only by separator stay distinct.
                 let import_name = if !alias_name.is_empty() {
                     alias_name
                 } else {
-                    full_path
-                        .rsplit("::")
-                        .next()
-                        .unwrap_or(&full_path)
-                        .to_string()
+                    let mut segs = full_path.rsplit("::");
+                    let last = segs.next().unwrap_or(&full_path);
+                    let chosen = if last.trim_start().starts_with('{') {
+                        segs.next().unwrap_or(last)
+                    } else {
+                        last
+                    };
+                    chosen.trim().replace('-', "_")
                 };
                 let mut use_node = Node::new(NodeKind::UseDecl);
                 use_node.name = import_name; // e.g. "types" or alias
