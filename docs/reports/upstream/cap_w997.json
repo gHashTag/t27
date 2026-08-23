@@ -1,0 +1,41 @@
+{
+ "wave": "W997",
+ "cap_raised_from_the_worst_rate": {
+  "from_s": 1800,
+  "to_s": 7200,
+  "old_basis": "the MEAN slope, 50.7 ms/LUT (W988)",
+  "why_the_mean_is_the_wrong_statistic": "W988 itself measured that the spread is at least 1.9x and NOT monotonic in size. A limit chosen from the mean of a quantity like that fails exactly on the largest thing you own -- and the largest thing is where the measurement matters most.",
+  "new_basis": "the WORST observed rate and the largest design in the corpus",
+  "arithmetic": {
+   "largest_design": "gft_xorpercep",
+   "LUT": 28609,
+   "worst_observed_ms_per_lut": 100,
+   "single_pnr_s": 2861,
+   "chain_fixed_point_can_run_pnr_twice": "T848",
+   "two_pnr_s": 5722,
+   "cap_s": 7200,
+   "margin": 1.26
+  },
+  "measured_lower_bound_that_triggered_it": {
+   "design": "gft_xorpercep",
+   "LUT": 28609,
+   "elapsed_s": 2904,
+   "ms_per_lut": 101.5,
+   "times_the_mean": 2.0,
+   "note": "a LOWER bound -- the run had not returned when this was written"
+  },
+  "rule_followed": "W823: raise a limit on a CHANGED MEASUREMENT, never because something failed. The measurement changed.",
+  "env_override": "T27_STAGE_TIMEOUT_S, so the next wave to meet the cap does not have to rebuild the compiler to test whether the cap is the problem"
+ },
+ "bench_gate_deferred_again": {
+  "wave_count": 2,
+  "why": "scripts/tri has been executing the sweep across both waves; editing a running bash script risks corrupting its parse mid-run",
+  "note": "recorded rather than quietly dropped -- a deferral with a reason is a plan, a deferral without one is a leak"
+ },
+ "in_flight": {
+  "design": "gft_xorpercep",
+  "elapsed_s": 2904,
+  "cap_this_run_s": 5400,
+  "note": "the running sweep carries T27_STAGE_TIMEOUT_S=5400 in its environment, so the new 7200 default does not apply to it"
+ }
+}

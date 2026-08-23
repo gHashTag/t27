@@ -106,6 +106,23 @@ impl Stage {
 /// corrected slope, which covers every design this corpus contains including
 /// `gft_xorpercep` with its clause logic no longer folded away (T844).
 ///
+/// W997 (T861): raised 1800 -> 7200 on a CHANGED MEASUREMENT, not on a failure.
+/// W988 set 1800 from the MEAN slope of 50.7 ms/LUT, having already measured that
+/// the spread is at least 1.9x and not monotonic in size -- which is the wrong
+/// statistic for a limit. W996 watched `gft_xorpercep` (28,609 LUT, the largest
+/// design in the corpus) pass **94.8 ms/LUT without finishing**, a lower bound
+/// 1.87x the mean the cap came from. At 1800 s that build dies at thirty minutes
+/// and reports ABSENT -- a bench limit read as a property of the design, exactly
+/// the error W994 had to retract.
+///
+/// The arithmetic, from the WORST observed rate and the largest design:
+///   28,609 LUT x 100 ms/LUT            = 2,861 s
+///   x2, because the BSCAN chain fixed-point can run nextpnr twice (T848)
+///                                      = 5,722 s
+///   rounded up                         = 7,200 s, 1.26x margin
+///
+/// A limit set from a mean fails exactly on the largest thing you own.
+///
 /// It is also an environment variable now, so that the next wave to meet the cap
 /// does not have to rebuild the compiler to test whether the cap is the problem.
 fn stage_timeout() -> Duration {
@@ -113,7 +130,7 @@ fn stage_timeout() -> Duration {
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .filter(|v| *v >= 30 && *v <= 21_600)
-        .unwrap_or(1800);
+        .unwrap_or(7200);
     Duration::from_secs(secs)
 }
 

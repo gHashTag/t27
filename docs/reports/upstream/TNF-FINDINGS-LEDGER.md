@@ -2731,3 +2731,40 @@ you own.
 The bench-liveness gate is deferred with its reason: `scripts/tri` was executing
 the sweep for the whole wave, and editing a running shell script risks corrupting
 its parse mid-run.
+
+## 66. The limit belonged to the worst rate all along (W997)
+
+W988 rederived the place-and-route slope as 50.7 ms/LUT and set the stage cap from
+it. In the same wave it measured that the spread is **at least 1.9x and not
+monotonic in size**. Those two facts do not sit together: a limit chosen from the
+mean of a quantity with that spread will fail on the tail, and the tail here is
+the largest design -- the one that matters most and that nobody can afford to
+re-run casually.
+
+W996 watched `gft_xorpercep`, 28 609 LUT, pass **94.8 ms/LUT without finishing**.
+This wave it crossed **101.5 ms/LUT**, still running: **2.0x the mean the cap came
+from**, and still a lower bound. At the 1 800 s cap that build dies at thirty
+minutes and reports `ABSENT` -- a bench limit read as a property of the design,
+which is exactly what W994 had to retract one wave earlier and exactly the
+confusion this project has spent four waves learning to see.
+
+The cap is now derived from the worst observed rate and the largest design:
+
+| step | value |
+|------|-------|
+| largest design | `gft_xorpercep`, 28 609 LUT |
+| worst observed rate | 100 ms/LUT |
+| one place-and-route | 2 861 s |
+| x2, because the BSCAN chain fixed-point can run nextpnr twice (T848) | 5 722 s |
+| **cap** | **7 200 s**, 1.26x margin |
+
+W823's rule holds: a limit is raised on a **changed measurement**, never because
+something failed. The measurement changed -- the corpus now contains a design
+whose rate is double the mean the old cap was derived from. And it remains
+overridable by `T27_STAGE_TIMEOUT_S`, so the next wave to meet the cap does not
+have to rebuild the compiler to find out whether the cap is the problem.
+
+The bench-liveness gate is deferred a second time, with its reason on the record:
+`scripts/tri` has been executing the sweep across both waves, and editing a
+running shell script risks corrupting its parse. A deferral with a reason is a
+plan; a deferral without one is a leak.

@@ -12649,6 +12649,8 @@ a worktree in the same wave its branch merges.
 
 **1531. A LIMIT SET FROM A MEAN FAILS ON THE LARGEST THING YOU OWN.** W988 rederived the place-and-route slope as 50.7 ms/LUT and set the cap from it, having already measured that the spread is at least 1.9x and not monotonic in size. W996 watched gft_xorpercep at 28609 LUT spend 2470 s without finishing -- 86.3 ms/LUT and still climbing, 1.70x the slope the cap came from, on the largest design in the corpus. The 1800 s cap would have killed it at thirty minutes and reported ABSENT, which reads as a property of the design. When a quantity's spread is a factor of two and its worst case sits at the top of the size range, set the limit from the worst observed rate, not the mean, or the limit will bite precisely where the measurement matters most. (T859a, W996)
 
+**1532. SET A LIMIT FROM THE WORST RATE YOU HAVE SEEN, NOT THE MEAN.** W988 rederived the place-and-route slope as 50.7 ms/LUT and set the cap from it, in the same wave that measured the spread at 1.9x and non-monotonic in size. W996 and W997 then watched the largest design in the corpus pass 94.8 and then 101.5 ms/LUT without finishing -- both lower bounds, both about double the mean the cap came from. At the old cap that build dies at thirty minutes and reports ABSENT, which reads as a property of the design rather than of the bench: the exact error retracted one wave earlier. The cap now comes from the worst observed rate times the largest design times two, because the chain fixed-point can run place-and-route twice. A limit chosen from a mean fails precisely on the largest thing you own, which is the thing nobody can afford to re-run. (T861, W997)
+
 ### How to update this tracker
 
 After closing a wave:

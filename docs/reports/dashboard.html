@@ -1,4 +1,4 @@
-<title>t27 - TNF: волна W995</title>
+<title>t27 - TNF: волна W996</title>
 <style>
 :root {
   --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
@@ -55,18 +55,18 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="wrap">
 <header>
   <h1>TNF - публикационная готовность</h1>
-  <span class="live">*W995 — THE LADDER NAME IS A SYMBOL COUNT READ AS A BIT COUNT.** Raised by the Architect:</span>
+  <span class="live">*W996 — CORRECT FORWARD, ANNOTATE BACKWARD, NEVER REWRITE THE RECORD.** The W995 mapping box now</span>
 </header>
 
 <div class="kpis">
   <div class="kpi"><div class="lbl">готовность</div><div class="val">98%</div>
-    <div class="sub">оценка волны W995</div></div>
-  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">581</div>
+    <div class="sub">оценка волны W996</div></div>
+  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">590</div>
     <div class="sub">расхождений 0</div></div>
   <div class="kpi"><div class="lbl">чтений с кристалла</div><div class="val">47</div>
     <div class="sub">8 схем, 36 с ok=1</div></div>
-  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1114/757</div>
-    <div class="sub">старшие T857, и 1529</div></div>
+  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1116/759</div>
+    <div class="sub">старшие T859a, и 1531</div></div>
 </div>
 
 <h2>Операторы на кремнии - выведено из записей</h2>
@@ -85,6 +85,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 </tbody></table></div>
 
 <h2>Журнал итераций</h2>
+<div class="row"><span class="w">W996</span><span class="t"><b>Correct forward, annotate backward.</b> The rename of W995 could have been swept through the corpus. It was not. Measured first: <b>1 344 legacy citations across 107 files</b> -- <code>TNF4</code> 629, <code>TNF16</code> 299, <code>TNF8</code> 247, <code>TNF32</code> 59, <code>TNF64</code> 45, and a tail. Rewriting them would break every cross-reference, touch every committed record that is indexed by the old name, and <b>change no measurement</b>, because each figure was already computed at the physical width. The records were written when the name meant what it meant. What a reader needs is the mapping at the point of entry, so that is where it went: the top of the referee page, the theory document and this ledger.</span></div>
 <div class="row"><span class="w">W995</span><span class="t"><b>The name was in the wrong unit, and that is why it never tripped.</b> The Architect asked the obvious question nobody in 63 chapters had asked: *<code>TNF4</code> occupies 6 bits, not 4 -- then logically it should be called <code>TNF6</code>.* It should. And the mechanism turns out to be sharper than a careless label. <code>spec_ladder</code> does not merely happen to use those numbers; it <b>asserts</b> <code>1 + E_t + M == N</code>, with <code>E_t</code> counting <b>trits</b>. So <code>TNF16</code> genuinely is sixteen storage *elements* -- one sign, four trits, eleven mantissa bits. Packed into binary, four trits need seven bits, and the format is nineteen bits wide.</span></div>
 <div class="row"><span class="w">W994</span><span class="t"><b>The regression was the bench, and the previous wave published it as the design.</b> W993 read <code>ABSENT</code> on three placements across two designs, wrote *an unexplained regression in <code>gft_train1</code>* into the status board and the ledger, and docked a readiness point for it. One build with the full stage table settled it. Every stage green: 15 946 LUT and 2 725 CARRY4 out of yosys, the datapath check finding 3.82 DUT-equivalents of arithmetic in the fabric, place-and-route in <b>540.55 s</b> -- well inside the cap the previous wave had raised -- with <code>slowclk</code> at 2.92 MHz against 2.21 required, <code>JTAG_CHAIN(2)</code> agreeing with BSCAN2, FASM written, bitstream written at 9 730 822 bytes. Then:</span></div>
 <div class="row"><span class="w">W993</span><span class="t"><b>The tool ate a run, and fixing it exposed the next defect.</b> Two designs were run to completion -- one of them more than half an hour of place-and-route -- and <code>tri seeds</code> printed a header with nothing under it. Under <code>set -o pipefail</code>, a build that fails produces no <code>at BSCAN</code> line, <code>grep</code> exits 1, the pipeline fails, the command substitution fails, and <code>set -e</code> ends the run <b>before the row is printed</b>. The tool discarded the result in exactly the case the row exists to report, and reported nothing rather than <code>ABSENT</code>.</span></div>
@@ -98,8 +99,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="row"><span class="w">W985</span><span class="t"><b>The sweep came back clean, and that is the loss.</b> W984 closed the folded-clause class and read two designs at one placement each -- which cannot distinguish *the failure is gone* from *the failure is absent here*. This is the sweep: four placements per design, each read bracketed by a wrong-part bitstream forcing <code>Done=0</code>. | design | LUT (was) | seeds 1 / 7 / 42 / 1234 | |--------|-----------|--------------------------| | <code>gft_smul</code> | 1877 (1312) | <code>1111</code> <code>1111</code> <code>1111</code> <code>1111</code> | | <code>gft_dup</code> | 1763 (798) | <code>1111</code> <code>1111</code> <code>1111</code> <code>1111</code> |</span></div>
 <div class="row"><span class="w">W984</span><span class="t"><b>The class closed in the wave after it was named.</b> W983 found that 14 of 28 on-die clauses were constants folded at synthesis, repaired one wrapper and left the rest as a named debt. Clearing all eight took one wave and one primitive: ``<code>verilog reg [31:0] opq_a = 32'd1, opq_b = 32'd1; always @(posedge slowclk) begin opq_a &lt;= opq_a + 1; opq_b &lt;= opq_b + 1; end wire [31:0] Z0 = opq_a - opq_b; </code>``</span></div>
 <div class="row"><span class="w">W983</span><span class="t"><b>The control was a constant, and when it finally ran it refuted the story.</b> <code>tri clauses</code> reads the synthesised netlist and asks, of every <code>c_*</code> clause, whether it is driven by logic or is the literal 1. Across seven wrappers: <b>28 clauses, 14 folded</b>. Three mechanisms -- a probe register nothing writes collapses to its <code>INIT</code>; two structurally identical instances with identical operands are *merged*, so comparing them is a tautology; and a clause whose operands are all constants is evaluated at compile time. T555 put live counters on the clause <b>operands</b> for exactly this reason and nobody looked at the <b>comparison</b>. What it reinterprets, where sources have not changed since the reads: <code>gft_sadd</code>'s *PASS -- 4 of 4 clauses on the die* is <b>one measured clause</b>; <code>gft_train1</code> the same; and <code>gft_smul</code>'s <code>1010</code>, published as two of four failing, is <b>two of two measured clauses failing</b>. It does not reinterpret <code>gft_signed_mac</code>'s <code>0011</code>, which was read against the pre-W978 spec -- the guard added then is precisely what makes that clause fold today.</span></div>
-<div class="row"><span class="w">W982</span><span class="t"><b>The reproducer shrank, and the proof moved to the artefact that fails.</b> Two things had been outstanding since W977: a minimal case, and a proof about the right object. <b>The minimal case.</b> <code>gft_dup_jtag</code> carries five <code>GftSmul</code> instances in 798 LUT. Keeping only what discriminates -- two instances with the same operand order as a control, one with them swapped as the test -- gives <code>gft_commmin_jtag</code> at 430-452 LUT, and it reproduces <code>c_self</code> TRUE with <code>c_comm</code> FALSE exactly. <b>The smaller case immediately showed something the larger one hid</b>: both 430-LUT builds pass and both 452-LUT builds fail, so the verdict follows the *netlist*, and the two netlists differ only because <code>t27c</code> forced <code>JTAG_CHAIN</code> to the site nextpnr chose -- a parameter that selects a BSCAN site and cannot reach the arithmetic, yet moves 22 LUTs and 7 CARRY4. The seed mapping also <b>inverts</b> between the two designs: 1 and 42 pass in the big one, 7 and 42 in the small one.</span></div>
 
-<footer><span>обновлено: <b>W995 - 2026-08-23</b></span>
+<footer><span>обновлено: <b>W996 - 2026-08-23</b></span>
 <span>сгенерировано <code>tri dashboard</code> из записей репозитория</span></footer>
 </div>

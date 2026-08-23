@@ -31235,6 +31235,37 @@ run was given is what let it continue.
 quantity whose spread is a factor of two and whose worst case sits at the top of
 the size range, will fail exactly on the largest thing you own.
 
+### T861 -- A limit belongs to the worst rate, not the mean one [measured]
+
+W988 rederived the place-and-route slope as **50.7 ms/LUT** and set the stage cap
+from it -- **having measured in the same wave** that the spread is at least
+**1.9x** and **not monotonic in size**. That is the wrong statistic for a limit.
+
+W996 then watched `gft_xorpercep` -- 28 609 LUT, the largest design in the corpus
+-- pass **94.8 ms/LUT without finishing**, and this wave saw it cross
+**101.5 ms/LUT**, still running. Both are *lower* bounds. At the 1 800 s cap that
+build dies at thirty minutes and reports `ABSENT`: **a bench limit read as a
+property of the design**, which is precisely the error W994 had to retract one
+wave earlier.
+
+The cap is now derived from the worst observed rate and the largest design:
+
+| step | value |
+|------|-------|
+| largest design | `gft_xorpercep`, 28 609 LUT |
+| worst observed rate | 100 ms/LUT |
+| one place-and-route | 2 861 s |
+| x2 -- the BSCAN chain fixed-point can run nextpnr twice (T848) | 5 722 s |
+| **cap** | **7 200 s**, 1.26x margin |
+
+W823's rule is that a limit is raised on a **changed measurement**, never because
+something failed. The measurement changed: the corpus now contains a design whose
+rate is nearly double the mean the old cap came from.
+
+**A limit set from a mean fails exactly on the largest thing you own** -- and the
+largest thing is where the measurement matters most, because it is the one nobody
+can afford to re-run casually.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

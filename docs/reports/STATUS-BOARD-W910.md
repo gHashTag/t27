@@ -1,4 +1,19 @@
-# Full status, both tracks — one page for whoever wakes up (W996, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W997, 2026-08-23)
+
+> **W997 — THE LIMIT MOVES OFF THE MEAN AND ONTO THE WORST RATE.** W988 set the stage cap at
+> 1 800 s from the **mean** slope of 50.7 ms/LUT — **in the same wave that measured the spread at
+> ≥1.9× and not monotonic in size**, which is the wrong statistic for a limit. `gft_xorpercep`
+> (28 609 LUT, the largest design in the corpus) has now passed **101.5 ms/LUT without finishing** —
+> a *lower* bound, **2.0× the mean the cap came from**. At 1 800 s that build dies at thirty minutes
+> and reports `ABSENT`: **a bench limit read as a property of the design**, precisely the error W994
+> had to retract. **Cap raised 1 800 → 7 200 s** on a *changed measurement*, per W823's rule, and
+> derived from the **worst** observed rate: 28 609 LUT × 100 ms/LUT = 2 861 s, ×2 because the BSCAN
+> chain fixed-point can run nextpnr twice (T848) = 5 722 s, rounded to 7 200 with 1.26× margin.
+> Still overridable by `T27_STAGE_TIMEOUT_S`. **A limit set from a mean fails exactly on the largest
+> thing you own** — the one nobody can afford to re-run. T861, lesson 1532, **601 derived checks**.
+> **Deferred a second time, with its reason:** the bench-liveness gate — `scripts/tri` has been
+> executing the sweep across both waves. **IN FLIGHT:** `gft_xorpercep` at 2 963 s under this run's
+> own 5 400 s cap, then the `gft_train1` sweep. **Readiness 98 %.**
 
 > **W996 — CORRECT FORWARD, ANNOTATE BACKWARD, NEVER REWRITE THE RECORD.** The W995 mapping box now
 > heads all three forward-facing documents. It does **not** go through the **1 344** legacy

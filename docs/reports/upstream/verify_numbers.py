@@ -1112,5 +1112,24 @@ if nt:
     check("гейт стенда отложен с причиной",
           "executing the sweep" in nt["bench_gate_deferred"]["why"], True, tol=0)
 
+# W997: the stage cap moves off the mean and onto the worst observed rate.
+cw = rec("cap_w997.json")
+if cw:
+    print("\n== потолок стадии: от среднего к худшему (W997)")
+    c = cw["cap_raised_from_the_worst_rate"]
+    check("потолок был, с", c["from_s"], 1800, tol=0)
+    check("потолок стал, с", c["to_s"], 7200, tol=0)
+    a = c["arithmetic"]
+    check("одно размещение, с", a["single_pnr_s"], round(a["worst_observed_ms_per_lut"] * a["LUT"] / 1000), tol=1)
+    check("два размещения, с", a["two_pnr_s"], 2 * a["single_pnr_s"], tol=1)
+    check("потолок покрывает два размещения", a["cap_s"] > a["two_pnr_s"], True, tol=0)
+    check("запас", a["cap_s"] / a["two_pnr_s"], a["margin"], tol=0.01)
+    m = c["measured_lower_bound_that_triggered_it"]
+    check("измеренная граница, мс/LUT", 1000 * m["elapsed_s"] / m["LUT"], m["ms_per_lut"], tol=0.2)
+    check("во сколько раз выше среднего", m["ms_per_lut"] / 50.7, m["times_the_mean"], tol=0.02)
+    check("это нижняя граница", "LOWER bound" in m["note"], True, tol=0)
+    check("правило W823 соблюдено", "CHANGED MEASUREMENT" in c["rule_followed"], True, tol=0)
+    check("гейт отложен второй раз и назван", cw["bench_gate_deferred_again"]["wave_count"], 2, tol=0)
+
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)
