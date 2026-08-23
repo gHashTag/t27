@@ -329,6 +329,18 @@ def self_check():
                             "specs/fixed.t27 | parse error in fn"],
             args=("--update-baseline",))
 
+    # T101: --summary is a REPORT mode, not a gate, and its success return was
+    # unasserted like the four ledger writers before it. A report that prints
+    # its table and then reports failure would break any script reading it, and
+    # nothing here would have said so. The distinction between a report and a
+    # gate is worth keeping; leaving the report's exit code unmeasured is not
+    # part of it.
+    spawned("report mode --summary", 0, "specs, ",
+            (NEW, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/known.t27": SPEC_BROKEN},
+            baseline_lines=["specs/known.t27 | parse error in fn"],
+            args=("--summary",))
+
     print("  self-check: %s" % ("every verdict reaches the exit code"
                                 if ok else "FAILED"))
     return 0 if ok else 1
