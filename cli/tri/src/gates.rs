@@ -202,25 +202,35 @@ fn is_control_fn(name: &str) -> bool {
     name.contains("self_check") || name.contains("selftest") || name.contains("self_test")
 }
 
-/// Does this return expression carry a non-zero verdict? `1` and `2` do;
-/// `0` does not; `1 if bad else 0` does, and so does `0 if killed else 1`.
-/// A bare identifier does not -- `return fails` is a value the caller decides
-/// about, and forcing it to 0 mutates a helper rather than a failure path.
-fn yields_a_verdict(expr: &str) -> bool {
-    let mut prev_alnum = false;
-    let mut chars = expr.chars().peekable();
-    while let Some(c) = chars.next() {
-        let is_digit_1_4 = matches!(c, '1'..='4');
-        let next_alnum = chars
-            .peek()
-            .map(|n| n.is_alphanumeric() || *n == '_' || *n == '.')
-            .unwrap_or(false);
-        if is_digit_1_4 && !prev_alnum && !next_alnum {
-            return true;
+/// Is this return expression a VERDICT LITERAL, or a ternary of them?
+///
+/// T103: both predicates used to scan for a standalone digit anywhere in the
+/// expression, which is not the same question. `return v == 0` is a boolean
+/// comparison; `return out.splitlines()[0][:88] if out else "(nothing)"` is a
+/// string with an index in it. Both were taken as verdicts, and the loud
+/// operator reported two helper functions as gates that nothing keeps silent.
+///
+/// A return is a verdict when the whole expression is a literal, or a ternary
+/// whose two arms are literals. Anything else is a value the caller decides
+/// about, and mutating it perturbs a helper rather than a failure path.
+fn verdict_literals(expr: &str) -> Option<Vec<i32>> {
+    fn lit(s: &str) -> Option<i32> {
+        let s = s.trim();
+        if s.len() == 1 && s.chars().all(|c| c.is_ascii_digit()) {
+            s.parse().ok()
+        } else {
+            None
         }
-        prev_alnum = c.is_alphanumeric() || c == '_' || c == '.';
     }
-    false
+    let e = expr.trim();
+    if let Some(v) = lit(e) {
+        return Some(vec![v]);
+    }
+    // `A if C else B` -- arms must both be literals; the condition may be
+    // anything, since neither mutation preserves it.
+    let (a, rest) = e.split_once(" if ")?;
+    let (_cond, b) = rest.rsplit_once(" else ")?;
+    Some(vec![lit(a)?, lit(b)?])
 }
 
 /// Every failure path that belongs to the gate's own logic: byte offset, the
@@ -276,14 +286,15 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
             // entirely rather than having one of its arms edited.
             if let Some(expr) = body.strip_prefix("return ") {
                 match dir {
-                    Direction::Silent if yields_a_verdict(expr) => {
+                    Direction::Silent
+                        if verdict_literals(expr)
+                            .is_some_and(|v| v.iter().any(|&x| (1..=4).contains(&x))) =>
+                    {
                         sites.push((off + col, body.len(), "return 0".to_string()));
                     }
-                    // Only a BARE `return 0` is a success return. A ternary can
-                    // yield 0 on one arm and a verdict on the other; forcing the
-                    // whole line to 1 there is the Silent operator's job seen
-                    // backwards, and would be scored against the wrong control.
-                    Direction::Loud if expr.trim() == "0" => {
+                    // A bare `return 0`, or a ternary that can yield 0. Both
+                    // become an unconditional failure, which is what LOUD means.
+                    Direction::Loud if verdict_literals(expr).is_some_and(|v| v.contains(&0)) => {
                         sites.push((off + col, body.len(), "return 1".to_string()));
                     }
                     _ => {}
@@ -292,10 +303,15 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
                 // `raise SystemExit(main())` is a dispatch, not a verdict.
                 if let Some(inner) = rest.strip_suffix(')') {
                     match dir {
-                        Direction::Silent if yields_a_verdict(inner) => {
+                        Direction::Silent
+                            if verdict_literals(inner)
+                                .is_some_and(|v| v.iter().any(|&x| (1..=4).contains(&x))) =>
+                        {
                             sites.push((off + col, body.len(), "raise SystemExit(0)".to_string()));
                         }
-                        Direction::Loud if inner.trim() == "0" => {
+                        Direction::Loud
+                            if verdict_literals(inner).is_some_and(|v| v.contains(&0)) =>
+                        {
                             sites.push((off + col, body.len(), "raise SystemExit(1)".to_string()));
                         }
                         _ => {}
@@ -776,10 +792,24 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         assert_eq!(s.len(), 1);
         assert_eq!(s[0].2, "return 1");
 
+        // A ternary that can yield 0 IS a success path: forcing the whole line
+        // to 1 makes the gate fail unconditionally, which is what loud means.
+        // Excluding it printed "no success path to break" for a gate whose
+        // every verdict is a ternary -- a clean-looking row that was an absence
+        // of measurement.
+        for src in [
+            "def main():\n    return 0 if ok else 1\n",
+            "def main():\n    return 1 if bad else 0\n",
+        ] {
+            let s = sites_in_direction(src, Direction::Loud);
+            assert_eq!(s.len(), 1, "loud missed a ternary success path in {src:?}");
+            assert_eq!(s[0].2, "return 1");
+        }
         for src in [
             "def main():\n    return 1\n",
-            "def main():\n    return 0 if ok else 1\n",
+            "def main():\n    return 2\n",
             "def main():\n    return fails\n",
+            "def main():\n    return code0\n",
         ] {
             assert!(
                 sites_in_direction(src, Direction::Loud).is_empty(),
@@ -824,11 +854,19 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // `return t27c_failures` and `return code2` contain a 1..4 character.
         // Reading them as verdicts would invent sites, and an invented site
         // that survives is an invented finding.
-        assert!(!yields_a_verdict("t27c_failures"));
-        assert!(!yields_a_verdict("code2"));
-        assert!(!yields_a_verdict("x.f1"));
-        assert!(yields_a_verdict("1"));
-        assert!(yields_a_verdict("1 if bad else 0"));
+        // A verdict is a LITERAL, or a ternary of two literals. Anything else
+        // is a value the caller decides about.
+        assert!(verdict_literals("t27c_failures").is_none());
+        assert!(verdict_literals("code2").is_none());
+        assert!(verdict_literals("x.f1").is_none());
+        assert_eq!(verdict_literals("1"), Some(vec![1]));
+        assert_eq!(verdict_literals("1 if bad else 0"), Some(vec![1, 0]));
+
+        // T103: these two were taken as verdicts and were not. `v == 0` is a
+        // comparison; the second is a string with an index in it. The loud
+        // operator reported both helpers as gates nothing keeps silent.
+        assert!(verdict_literals("v == 0").is_none());
+        assert!(verdict_literals(r#"out.splitlines()[0][:88] if out else "(nothing)""#).is_none());
     }
 
     #[test]
