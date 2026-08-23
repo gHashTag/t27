@@ -312,6 +312,23 @@ def self_check():
             baseline_lines=["specs/known.t27 | parse error in fn"],
             args=("--update-baseline",))
 
+    # T100: the same command's SUCCESS path, which nothing asserted. The case
+    # above proves --update-baseline refuses to GROW the ledger; nothing proved
+    # that a legitimate blessing writes it and returns 0. `tri gates mutate
+    # --loud` rewrote that success return to a failure and no assertion here
+    # noticed -- the same site survived in four gates.
+    #
+    # The ledger SHRINKS here (two recorded, one still broken), which is the
+    # direction the gate permits. Exit and effect are asserted together: exit
+    # alone would pass a run that returned 0 without writing, and the marker
+    # alone would pass one that wrote and then reported failure.
+    spawned("blessing command shrinks ledger", 0, "baseline written: 1 entries",
+            (GREEN, NEW, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/known.t27": SPEC_BROKEN},
+            baseline_lines=["specs/known.t27 | parse error in fn",
+                            "specs/fixed.t27 | parse error in fn"],
+            args=("--update-baseline",))
+
     print("  self-check: %s" % ("every verdict reaches the exit code"
                                 if ok else "FAILED"))
     return 0 if ok else 1

@@ -1184,3 +1184,38 @@ Eight sites across seven gates were left open. Fixing them in the same commit
 that introduced the tool that found them would leave nobody able to tell whether
 the tool or the fixes were doing the work — and the tool is the part that has to
 survive being wrong.
+
+## 31. Assert the exit AND the effect
+
+Four gates had the same unguarded site: the success return of
+`--update-baseline`, right after "baseline written: N entries". **Nothing in the
+tree ran the ledger-writing path at all.**
+
+A case for it needs both halves:
+
+- **Exit alone** passes a run that returns 0 without writing anything.
+- **The marker alone** passes a run that writes and then reports failure — which
+  is precisely the mutation that found the gap.
+
+One gate scored clean here only because a case added days earlier for an
+unrelated reason happened to run `--update-baseline`. One already had an
+`--update-baseline` case, and it asserts the **refusal** to grow the ledger —
+the opposite branch. A command with two outcomes needs a case for each; having
+"a case for `--update-baseline`" is not the same as having covered it.
+
+### Distinguish report modes from verdicts before counting them
+
+Three survivors were behind flags CI never passes, and each file says so in its
+own words: `--all` is *"a report, not a gate"*; `--allow-missing-tools` is
+*"reporting nothing, deliberately"*. Those are a different finding from an
+unguarded verdict, and folding them into one number makes the number mean less.
+
+Name them with their reason. Eight survivors was accurate and "one class of
+four, one mirror, three report modes" is what a reader can act on.
+
+### The tool groups; the reading classifies
+
+`--loud` put the same line in four reports, which is what made the shape
+visible. It could not tell that those four were one fix and the other four were
+three different things. **A tool that surfaces N instances has done its job;
+deciding whether N is one finding or four is still reading.**
