@@ -136,7 +136,6 @@ module AXI4_Testbench {
 
     test test_multiple_writes {
         reset();
-        var i : u32 = 0;
         while i < 8 {
             axi_write_single(0x1000 + i * 4, i);
             i = i + 1;
@@ -164,7 +163,6 @@ module AXI4_Testbench {
 
     bench bench_axi_throughput {
         reset();
-        var i : u32 = 0;
         while i < 64 {
             axi_write_single(0x4000 + i * 4, i * i);
             i = i + 1;

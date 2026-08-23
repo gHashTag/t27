@@ -108,7 +108,6 @@ module CTS_Testbench {
 
     bench bench_cts {
         reset();
-        var i : u32 = 0;
         while i < 100 {
             estimate_latency(i % 10 + 1, BUFFER_DELAY_PS);
             balance_tree(i % 32 + 1);

@@ -104,7 +104,6 @@ module Placement_Testbench {
 
     bench bench_placement {
         reset();
-        var i : u32 = 0;
         while i < 100 {
             estimate_wirelength(i % 50, (i + 5) % 40, (i + 10) % 50, (i + 15) % 40);
             utilization_pct(i, 2000);

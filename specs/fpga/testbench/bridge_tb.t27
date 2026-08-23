@@ -80,7 +80,6 @@ module Bridge_Testbench {
 
     test test_multiple_transfers {
         reset();
-        var i : u32 = 0;
         while i < 8 {
             send_packet(i * 0x1111);
             i = i + 1;
@@ -114,7 +113,6 @@ module Bridge_Testbench {
 
     bench bench_bridge_throughput {
         reset();
-        var i : u32 = 0;
         while i < 100 {
             send_packet(i);
             i = i + 1;

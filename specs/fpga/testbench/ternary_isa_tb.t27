@@ -135,7 +135,6 @@ module Ternary_ISA_Testbench {
 
     bench bench_ternary_alu {
         reset();
-        var i : i32 = 0;
         while i < 100 {
             operand_a = i;
             operand_b = i + 1;

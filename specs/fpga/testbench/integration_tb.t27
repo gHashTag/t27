@@ -90,7 +90,6 @@ module Integration_Testbench {
 
     test test_stress_pipeline {
         reset();
-        var i : u32 = 0;
         while i < 10 {
             mac_busy = true;
             tick();
@@ -112,7 +111,6 @@ module Integration_Testbench {
 
     bench bench_integration_throughput {
         reset();
-        var i : u32 = 0;
         while i < 50 {
             mac_busy = true;
             tick();

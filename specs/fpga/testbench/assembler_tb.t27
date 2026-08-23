@@ -100,7 +100,6 @@ module Assembler_Testbench {
 
     bench bench_assembly {
         reset();
-        var i : u32 = 0;
         while i < 100 {
             encode_r_type(0x01, (i % 8) as u8, ((i + 1) % 8) as u8, ((i + 2) % 8) as u8);
             encode_i_type(0x02, (i % 8) as u8, ((i + 1) % 8) as u8, (i * 4) as u16);
