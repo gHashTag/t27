@@ -4368,7 +4368,30 @@ impl Codegen {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&format!("{}: {}", pname, Self::zig_type(ptype)));
+            // #2576: a free function using a generic parameter the enclosing
+            // type declared -- `fn slice(arr: []const T)` where `T` comes from
+            // `ArrayView(T)`. Zig needs the function to declare it, and adding
+            // `comptime T: type` fixes 103 declarations while breaking the 103
+            // call sites, which the spec does not say how to fill.
+            //
+            // `anytype` needs no call-site change. It is the user's call, taken
+            // after I argued against it: it compiles and it drops the constraint
+            // the spec wrote down, so the generated Zig says less than the spec
+            // does. Recorded as their decision, not a derivation.
+            //
+            // Single uppercase letters only. `Trit` and `PackedBigInt` are real
+            // missing types (#2578), not parameters, and must keep failing.
+            let is_generic_param = |s: &str| {
+                let core = s.trim_start_matches(['[', ']', '*', '?', '&'])
+                    .trim_start_matches("const ")
+                    .trim();
+                core.len() == 1 && core.chars().all(|c| c.is_ascii_uppercase())
+            };
+            if is_generic_param(ptype) {
+                self.write(&format!("{}: anytype", pname));
+            } else {
+                self.write(&format!("{}: {}", pname, Self::zig_type(ptype)));
+            }
         }
         self.write(")");
 
