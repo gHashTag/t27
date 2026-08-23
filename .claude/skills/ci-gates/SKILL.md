@@ -2498,6 +2498,49 @@ cache means the next run finishes them rather than starting over. A partial tabl
 reported as partial is a measurement; the same table reported as complete is the
 thing this campaign is about.
 
+## 63. Why that control killed nothing, and what fixing it cost
+
+`verify_emit_bitexact.py` scored **0 killed of 17**. The reason, once the survivor
+lines were read rather than counted:
+
+- `sys.exit(0 if ok else 1)` survived **both** return operators
+- every FAIL branch of the comparison — timeout, step count, mismatch, resource
+  count, synth error — survived inversion
+
+**All three of my cases leave through `skip()` or `broken()`.** The gate's own
+verdict was never observed at all. A control that covers only preconditions is a
+control *for* preconditions, and I wrote those three knowing that class.
+
+**The plant that reaches the verdict moves one arm only.** The Python side comes
+from the interpreter `g.run()`; the Verilog is emitted from the microcode
+`steps`, not from `run()`. Perturbing the interpreter makes the model disagree
+with an RTL that is unchanged — which is what a real bit-exactness failure looks
+like. Perturbing shared arithmetic instead would move both arms together and
+plant nothing.
+
+Two cases now: a clean tree exits 0 saying `RTL == model BIT-EXACT`, and a
+perturbed model exits 1 naming the disagreeing step. Five cases in the file, both
+directions of the verdict.
+
+### And the cost is real, and worth stating plainly
+
+The mutation loop runs a gate's **whole control per mutant**. This control now
+spawns two ~45-second whole-program runs, so seventeen sites cost roughly half an
+hour — the measurement timed out at ten minutes and the marker caught the
+interrupted tree, cleanly, with nothing leaked.
+
+**That is not a reason to make the control cheaper.** A control that exercises
+only what is fast to exercise is how this gate got to 0/17 in the first place.
+The tension is inherent: *a control worth having is expensive, and the mutation
+loop pays that cost once per mutant.* The cache is the answer — measure once,
+reuse until the gate or its control changes — and `[cached]` is what keeps a
+reused row honest.
+
+**The guard chain worked end to end for the first time.** Timeout → marker names
+the gate → `git checkout -- tools/` → tree clean → committed diff contains only
+the intended change. Three iterations ago the same sequence leaked two mutants
+into a branch.
+
 ## 64. Two gates, one mistake, made twice by the same author
 
 `verify_multitarget.py` scored **0 killed of 7** — and the survivor lines are
@@ -2792,3 +2835,173 @@ expected — a missing cache file genuinely is a first run — but the *present 
 broken* case has to be told apart from the *absent* one, and only the code that
 opens the file can tell them apart.
 
+
+## 72. A verification recipe is scoped to the repository that taught it
+
+I keep a note that says: reproduce CI locally by exit code, `cargo fmt --all
+--check` then `cargo clippy --all-targets -D warnings`. It is a good note. It
+was learned in a different repository.
+
+Run in this one, `cargo fmt --all` rewrote **150 files**, including
+`bootstrap/src/compiler.rs` — which is frozen, with `bootstrap/stage0/FROZEN_HASH`
+holding its sha256. The freeze gate went red. I broke a real gate with a check
+that this repository does not run: `grep -c "cargo fmt" .github/workflows/*.yml`
+returns nothing, and `cargo fmt -p tri -- --check` was already exit 1 on clean
+master, untouched, for however long.
+
+So the check I ran was not a gate here, and the gate it broke was.
+
+Before running a "standard" check, ask the repository which checks it actually
+has. The workflows are the answer, and they are two greps away:
+
+```
+grep -rhoE "cargo (fmt|clippy|test|build)[^|&;]*" .github/workflows/*.yml | sort -u
+```
+
+The tell that a check is not a gate: **it is already failing on untouched
+master.** A check nobody runs drifts red and nobody notices — the same
+condition as a gate that cannot fail (§3), one layer out. Two consequences,
+and they point opposite ways:
+
+* Do not "fix" that drift as a side effect of unrelated work. The diff buries
+  your actual change, and here it also broke the freeze.
+* Do not trust it as verification either. It says nothing about your change.
+
+Recovery, when the formatter has already run: `git checkout -- .`, then restore
+only your file from a copy made **before** the formatter. Keep that copy — I
+had `/tmp/gates_fixed.rs` from the negative-control step by luck, not by plan,
+and it is the only reason the recovery was one command. Then re-verify the
+freeze explicitly rather than assuming the checkout covered it:
+
+```
+shasum -a 256 bootstrap/src/compiler.rs | cut -c1-16
+cat bootstrap/stage0/FROZEN_HASH | tr -d '[:space:]' | cut -c1-16
+```
+
+## 73. A cache key that maps two different inputs to one key
+
+`.ok()` and `let _ =` lose data loudly enough once you look for them (§71).
+The quieter relative is a key function that **collides**. Both directions are
+possible and only one hurts:
+
+* same input, different key — the cache misses. Wasteful, self-announcing.
+* **different input, same key — the cache serves a row measured against
+  something else.** Silent, and it corrupts the measurement.
+
+Four lines of `sha_of` had two collisions of the second kind:
+
+```rust
+for p in paths {
+    h.update(std::fs::read(p).unwrap_or_default());  // gone == empty
+}                                                     // and "ab"+"c" == "a"+"bc"
+```
+
+The first is §71 wearing a different hat: an unreadable file hashes as the
+empty string, so *missing* and *empty* share a key, and any two unreadable
+paths share a key with each other. The second is structural — concatenating
+without separators lets the boundary move. It needs a list to be reachable,
+and the control list is a list, so any gate declaring more than one control
+could hit it.
+
+Both close the same way: **one length-prefixed record per element**, covering
+the path, the read outcome, and the bytes. Length prefixes pin the boundaries;
+a status byte keeps an absence from impersonating an emptiness.
+
+Test it by asserting the collisions are gone, then **plant the old function and
+watch the test go red**. Mine printed `ba7816bf8f01cfea` on both sides — the
+sha256 of `"abc"`, arriving from two different inputs. Without that step the
+test only proves the new code is self-consistent.
+
+## 74. The section that was overwritten by the section after it
+
+This file is append-only by intent. It still lost a section.
+
+`## 63` was written in `d3005bda6` and gone by `456c6b08f` — a commit about a
+different gate entirely, whose diff on this file reads `38 insertions, 42
+deletions`. Not an append. Section 64 landed *on top of* 63 instead of after
+it, and the numbering hid it: sections still ran 62, 64, 65, and nothing about
+that looks wrong at a glance. It survived several sessions.
+
+I found it by accident, checking the numbering after an unrelated append.
+
+**A gap in a numbered sequence is a question, and the history answers it.**
+The two possible answers look identical in the file and completely different
+in the log:
+
+```
+git log --oneline -S'## 63. ' -- path/to/file.md
+```
+
+* no commits — the number was never used. Nothing is missing. (`## 24` here.)
+* two commits — one that added it, one that removed it. Something is missing,
+  and the second commit tells you which one to blame. The parent of the
+  removing commit still has the text: `git show <sha>^:path | ...`
+
+Recovery cost nothing because git had it. The cost was the sessions in
+between, where the experience was simply absent and I could have re-learned it
+the expensive way.
+
+Cheap standing check, worth running whenever this file is touched:
+
+```
+python3 -c "
+import re,pathlib
+n=[int(m) for m in re.findall(r'^## (\d+)\.', pathlib.Path('SKILL.md').read_text(), re.M)]
+print('ascending:', n==sorted(n), '| gaps:', [i for i in range(1,max(n)+1) if i not in n])"
+```
+
+Every gap it prints needs an answer from the log, once, recorded here — not a
+shrug. A file whose whole purpose is to carry experience forward is exactly
+the file where a silent deletion costs the most.
+
+## 75. The gate told me how to fix it, and the command did not exist
+
+`now-sync-gate-diff.sh` fails a PR that adds no `docs/now/` entry, and prints
+the cure:
+
+```
+    ./scripts/tri now add "<title>" --bullet "<what changed>" --closes <N>
+```
+
+Running it printed `error: unrecognized subcommand 'now'`.
+
+The command was not missing. `tri now` is implemented, tested, and documented
+— in `cli/tri`, a Rust binary. `./scripts/tri` is a **different** program, a
+bash front door that dispatches its own helpers and forwards everything else
+to `t27c`, a **third** binary. Three things named `tri`-ish, and the
+documented path went to the one that didn't have it. Seventeen subcommands
+were in this state; `now` is simply the one a gate names out loud.
+
+This is §3 one layer out. A gate that cannot fail is useless; a gate that
+fails correctly and hands you a cure that doesn't run **costs more than
+silence**, because the failure looks handled. I hand-wrote `docs/now/` entries
+twice and got them wrong twice — bulletless, rejected — while a command that
+makes a bulletless entry impossible sat one broken route away.
+
+Two checks, both cheap:
+
+* **Run the remediation text.** Any gate that prints a command should have
+  that command executed once, from a clean checkout, by someone who did not
+  write it. Copy-paste is the test.
+* **Ask what is reachable, not what exists.** For a multi-binary front door,
+  the reachable set is what the dispatcher routes, not what any binary
+  implements:
+
+```
+comm -23 <(BIN --help | sed -n 's/^  \([a-z][a-z0-9-]*\).*/\1/p' | sort -u) \
+         <(FRONT_DOOR_TARGET --help | sed -n 's/^  \([a-z][a-z0-9-]*\).*/\1/p' | sort -u)
+```
+
+Everything it prints exists and cannot be run by name.
+
+When fixing the routing, reroute **only** what the fallback target does not
+implement, and prove the untouched routes byte-for-byte:
+
+```
+for c in $SHARED; do front $c --help > after-$c; done
+git stash -- scripts/tri; for c in $SHARED; do front $c --help > before-$c; done; git stash pop
+for c in $SHARED; do cmp -s before-$c after-$c || echo "MOVED: $c"; done
+```
+
+Eight shared names here, eight byte-identical. "I don't think that changed" is
+not a result; `cmp` is.
