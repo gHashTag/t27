@@ -36,7 +36,31 @@ import subprocess
 import sys
 import tempfile
 
-import wp18_conformance_gate as G
+# T96: drop any cached bytecode for the gate BEFORE importing it.
+#
+# Python keys a .pyc on (source mtime in whole seconds, source size). Editing
+# the gate's `return 1` to `return 0` preserves the size, and an edit-run-edit
+# loop finishes well inside one second -- so this control can be handed the
+# PREVIOUS state's bytecode and go red on a tree that matches git exactly.
+#
+# Measured here, on this file, while testing this gate: five hand mutations in
+# quick succession left a .pyc that made the control report five failures with
+# `git status` clean and the source sha matching HEAD. `tri gates mutate` clears
+# this between mutants; a person at a terminal does not, and neither did this
+# control. Three lines remove the whole class.
+def _drop_stale_bytecode():
+    import pathlib
+    here = pathlib.Path(__file__).resolve().parent / "__pycache__"
+    for p in here.glob("wp18_conformance_gate.*.pyc"):
+        try:
+            p.unlink()
+        except OSError:
+            pass
+
+
+_drop_stale_bytecode()
+
+import wp18_conformance_gate as G  # noqa: E402
 
 # The gate file as a SCRIPT. `G.__file__` is the module this control already
 # imported, so a mutant of the gate is the thing that gets run -- no --root
