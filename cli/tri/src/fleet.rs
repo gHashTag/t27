@@ -217,42 +217,82 @@ fn probe_usb() -> Result<Vec<Bridge>> {
     if !cfg!(target_os = "macos") {
         anyhow::bail!("bus probe is implemented for macOS only; cannot tell what is attached");
     }
+    // -r -c IOUSBHostDevice lists USB DEVICES rather than the whole tree, which
+    // matters because a device's interfaces repeat its idVendor and serial: a
+    // whole-tree walk counts one board three times.
     let out = Command::new("ioreg")
-        .args(["-p", "IOUSB", "-l", "-w0"])
+        .args(["-r", "-c", "IOUSBHostDevice", "-l", "-w0"])
         .output()
         .context("ioreg is not available")?;
     let text = String::from_utf8_lossy(&out.stdout);
 
-    let mut found = Vec::new();
-    let mut pending: Option<String> = None;
-    for line in text.lines() {
-        let l = line.trim();
-        // Device nodes appear as `+-o <name>@<addr>`; the serial follows in
-        // that node's property block a few lines later.
-        if l.starts_with("+-o") {
-            let name = l.trim_start_matches("+-o").trim();
-            let lower = name.to_ascii_lowercase();
-            pending = if lower.contains("ft232")
-                || lower.contains("ftdi")
-                || lower.contains("usb serial")
-                || lower.contains("jtag")
-            {
-                Some(name.split('@').next().unwrap_or(name).trim().to_string())
-            } else {
-                None
-            };
-            if let Some(kind) = pending.clone() {
-                found.push(Bridge { kind, serial: None });
+    // IDENTIFY BY VENDOR, NOT BY LABEL. This probe used to match device names
+    // against "ft232", "ftdi", "usb serial" and "jtag" -- and reported ZERO
+    // bridges on a bench with three AX7203 boards plugged in, because macOS
+    // calls them "Digilent USB Device". The board vendor brands the string;
+    // only the vendor ID says what the chip is. 1027 == 0x0403 == FTDI, which
+    // is the bridge every one of these carries.
+    //
+    // The old spelling failed in the direction that costs most: it said NO
+    // HARDWARE while hardware was attached, which is the sentence this whole
+    // command exists to get right.
+    const FTDI: &str = "1027";
+
+    let mut found: Vec<Bridge> = Vec::new();
+    let mut name: Option<String> = None;
+    let mut is_ftdi = false;
+    let mut serial: Option<String> = None;
+
+    // A device node opens with `+-o <name>@<addr>` and its properties follow
+    // until the next node, so the vendor and the serial are collected across
+    // that block and committed when the block ends.
+    let mut flush = |name: &mut Option<String>,
+                     is_ftdi: &mut bool,
+                     serial: &mut Option<String>,
+                     found: &mut Vec<Bridge>| {
+        if *is_ftdi {
+            if let Some(n) = name.clone() {
+                found.push(Bridge {
+                    kind: n,
+                    serial: serial.clone(),
+                });
             }
-        } else if pending.is_some() && l.contains("\"USB Serial Number\"") {
+        }
+        *name = None;
+        *is_ftdi = false;
+        *serial = None;
+    };
+
+    for line in text.lines() {
+        // ioreg draws the tree with `|` and spaces, so a NESTED node reads
+        // `| | +-o Name...`. Trimming whitespace alone leaves the pipes, and
+        // `starts_with("+-o")` then matched only TOP-LEVEL nodes -- which is
+        // every controller and hub, and no board: an FT232H on a hub port is
+        // always nested. That is why this probe reported an empty bus with
+        // three AX7203s plugged in.
+        let l = line.trim_start_matches(|c| c == '|' || c == ' ').trim();
+        if l.starts_with("+-o") {
+            flush(&mut name, &mut is_ftdi, &mut serial, &mut found);
+            // Only a DEVICE node counts. Its interfaces carry the same vendor
+            // and serial, and an FT232H presents several -- so matching every
+            // node reported one board as three.
+            if l.contains("class IOUSBHostDevice") {
+                let n = l.trim_start_matches("+-o").trim();
+                name = Some(n.split('@').next().unwrap_or(n).trim().to_string());
+            }
+        } else if l.contains("\"idVendor\"") {
             if let Some(v) = l.split('=').nth(1) {
-                if let Some(b) = found.last_mut() {
-                    b.serial = Some(v.trim().trim_matches('"').to_string());
+                if v.trim() == FTDI {
+                    is_ftdi = true;
                 }
             }
-            pending = None;
+        } else if l.contains("\"USB Serial Number\"") {
+            if let Some(v) = l.split('=').nth(1) {
+                serial = Some(v.trim().trim_matches('"').to_string());
+            }
         }
     }
+    flush(&mut name, &mut is_ftdi, &mut serial, &mut found);
     Ok(found)
 }
 
