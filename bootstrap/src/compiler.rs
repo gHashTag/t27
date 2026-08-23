@@ -4748,28 +4748,31 @@ impl Codegen {
             self.write_indent();
             self.write_line("@compileError(\"not yet implemented\");");
         } else {
-            for stmt in &node.children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_scoped_stmts(&node.children);
         }
 
         self.dedent();
         self.write_line("}");
     }
 
-    fn gen_test_block(&mut self, node: &Node) {
-        self.write(&format!("test \"{}\"", node.name));
-        self.write_line(" {");
-
-        self.indent();
-
-        for (i, stmt) in node.children.iter().enumerate() {
+    /// Emit a statement list with knowledge of what follows each statement.
+    ///
+    /// Zig rejects a local nothing reads and a `var` nothing assigns, and both
+    /// questions are answered by the following siblings -- which `gen_stmt`,
+    /// called one statement at a time, cannot see.
+    ///
+    /// #2618 did this in gen_test_block alone and justified the scope with
+    /// "all the errors were in test bodies". That came from an instrument that
+    /// only looked inside test blocks. Measured properly afterwards: 58 in
+    /// function bodies, 12 in invariants, 4 in test blocks.
+    fn gen_scoped_stmts(&mut self, stmts: &[Node]) {
+        for (i, stmt) in stmts.iter().enumerate() {
             if matches!(stmt.extra_kind.as_str(), "given" | "when" | "then") {
                 let bound = top_level_assign(&stmt.name)
                     .map(|i| stmt.name[..i].trim().to_string())
                     .unwrap_or_default();
                 let used_later = !bound.is_empty()
-                    && node.children[i + 1..].iter().any(|later| {
+                    && stmts[i + 1..].iter().any(|later| {
                         later.name.split(|c: char| !c.is_alphanumeric() && c != '_')
                             .any(|tok| tok == bound)
                     });
@@ -4778,7 +4781,7 @@ impl Codegen {
                 // Zig rejects a local nothing reads, and a `var` nothing
                 // assigns. 126 and 50 errors, all inside test bodies, and both
                 // answerable from the statements that follow this one.
-                let rest = &node.children[i + 1..];
+                let rest = &stmts[i + 1..];
                 let read = rest.iter().any(|n| node_mentions(n, &stmt.name));
                 let assigned = rest.iter().any(|n| node_assigns(n, &stmt.name));
                 let mut fixed = stmt.clone();
@@ -4795,6 +4798,15 @@ impl Codegen {
             }
         }
 
+    }
+
+    fn gen_test_block(&mut self, node: &Node) {
+        self.write(&format!("test \"{}\"", node.name));
+        self.write_line(" {");
+
+        self.indent();
+
+        self.gen_scoped_stmts(&node.children);
         self.dedent();
         self.write_line("}");
     }
@@ -4851,9 +4863,7 @@ impl Codegen {
         self.write_indent();
         self.write_line(&format!("// invariant: {}", node.name));
 
-        for stmt in &node.children {
-            self.gen_stmt(stmt);
-        }
+        self.gen_scoped_stmts(&node.children);
 
         if node.children.is_empty() {
             self.write_indent();
@@ -4882,9 +4892,7 @@ impl Codegen {
         self.write_indent();
         self.write_line(&format!("// bench: {}", node.name));
 
-        for stmt in &node.children {
-            self.gen_stmt(stmt);
-        }
+        self.gen_scoped_stmts(&node.children);
 
         if node.children.is_empty() {
             self.write_indent();
