@@ -235,7 +235,21 @@ def bare_plants():
             # Only copies whose DESTINATION is a planted tools/ directory. A
             # copy of a binary into target/release, or of a fixture, is not a
             # plant and needs no imports.
-            if '/ "tools"' in t or "/ 'tools'" in t:
+            # Both spellings of the destination. The first version of this
+            # matched only `/ "tools"` as a separate component and missed
+            # `t / "tools/check_withdrawn_live.py"`, where the directory is
+            # inside one string -- a detector keyed on a shape finding the
+            # instances that share the shape, for the third time in this
+            # campaign. Caught when adding an import to that very file broke
+            # four of its own controls.
+            # Keyed on BOTH ends. Destination alone was wrong twice, in
+            # opposite directions: `/ "tools"` as a separate component missed
+            # `t / "tools/withdrawn.txt"`, and matching `tools/` anywhere then
+            # flagged that same line -- which copies a DATA file and needs no
+            # imports. A plant is a copy of a SCRIPT into a planted tools/.
+            dest_planted = 'tools/' in t or '/ "tools"' in t or "/ 'tools'" in t
+            copies_script = "__file__" in t or '.py"' in t or ".py'" in t
+            if dest_planted and copies_script:
                 out.append(f"{f.name}:{i}  {t[:64]}")
     return out
 

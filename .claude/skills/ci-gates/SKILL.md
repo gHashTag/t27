@@ -3506,3 +3506,59 @@ script, then copy every sibling module it imports, transitively. It copies
 The guard now runs inside `check_gate_preconditions` and reports `BARE` with
 the file and line. Negative control: reintroduce one bare copy, and it goes
 red naming it.
+
+## 87. A crash is loud, and it is still not a verdict
+
+Five gates crashed rather than passed when run in an empty tree, which I filed
+as survivable and came back for. `check_gate_preconditions` already has the
+right word for it — **WRONG**: *"it goes red, but not through the branch that
+explains why."*
+
+Three raised `FileNotFoundError` on a file the repository tracks. That is
+`broken()` by the §—`skip` vs `broken` rule: a missing **tool** is the
+environment, a missing **tracked file** is the repository. One line each, and
+the reader learns which file and that it is tracked, instead of a stack.
+
+Two were self-tests of another gate. They build their own corpora, so passing
+in an empty tree is correct — but with the gate under test absent they raised
+`ModuleNotFoundError`. Same conversion: say that the subject is missing and
+nothing was proved falsifiable.
+
+**The measurement I trusted yesterday was wrong, by the defect I was fixing.**
+Yesterday's sweep planted each gate alone and recorded five tracebacks. Today,
+planting the whole `tools/` directory, two of those five **pass** — they had
+been dying on an import, not on the repository. §86 fixed incomplete planting
+in the gates; my own probe had it too, and it silently changed a table I then
+reasoned from.
+
+## 88. Widening a detector traded a miss for a false positive
+
+The `BARE` guard from §86 keyed on the destination being a planted `tools/`
+directory, spelled `/ "tools"`. It missed
+`t / "tools/check_withdrawn_live.py"`, where the directory lives inside one
+string — **the third time this campaign that a detector keyed on a shape found
+only the instances sharing that shape.**
+
+I found it the hard way: I added an import to that gate, four of its own
+controls went red, and the guard written the previous day to catch exactly this
+had stayed silent.
+
+So I widened it to match `tools/` anywhere. It then flagged
+`shutil.copy(REGISTRY, t / "tools/withdrawn.txt")` — a **data** file, which
+needs no imports and is not a plant.
+
+**Both errors come from keying on one end of the operation.** A plant is a copy
+*of a script* *into a planted tools/*. The guard now requires both:
+
+```python
+dest_planted  = 'tools/' in t or '/ "tools"' in t or "/ 'tools'" in t
+copies_script = "__file__" in t or '.py"' in t or ".py'" in t
+```
+
+Zero hits today; one hit when a bare copy is reintroduced in either spelling.
+
+The general rule: **when a widened pattern starts firing on new things, do not
+narrow it back — add the second condition that distinguishes them.** Narrowing
+returns you to the miss you just fixed. And when a guard you wrote yesterday
+stays silent on exactly what it was written for, the guard is the thing to
+re-measure, not the code it cleared.

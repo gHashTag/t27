@@ -60,6 +60,12 @@ def _drop_stale_bytecode():
 
 _drop_stale_bytecode()
 
+if not os.path.isfile(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "wp18_conformance_gate.py")):
+    print("FAIL " + os.path.basename(__file__) + ": wp18_conformance_gate.py is "
+          "not next to this file. It is the gate under test and it is tracked "
+          "in git; without it nothing was proved falsifiable.")
+    sys.exit(1)
 import wp18_conformance_gate as G  # noqa: E402
 
 # The gate file as a SCRIPT. `G.__file__` is the module this control already
