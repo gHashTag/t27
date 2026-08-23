@@ -1109,19 +1109,6 @@ fn mutate(
     dir: Option<&str>,
 ) -> Result<()> {
     let (root, tools) = resolve_target(dir)?;
-    let dirty = Command::new("git")
-        .args(["status", "--porcelain", "--", "."])
-        .current_dir(&tools)
-        .output()
-        .context("git status failed")?;
-    if !String::from_utf8_lossy(&dirty.stdout).trim().is_empty() {
-        anyhow::bail!(
-            "tools/ has uncommitted changes. This command rewrites those files in \
-             place and restores them; starting from a dirty tree means an \
-             interrupted run cannot be told from your own edits. Commit or stash first."
-        );
-    }
-
     // T126: a marker for an INTERRUPTED run. The loop writes a mutant, runs the
     // control, and restores; a kill lands between the first and the third and
     // leaves the tree mutated. The docstring says that is recoverable with
@@ -1155,6 +1142,24 @@ fn mutate(
     }
     if let Some(d) = marker.parent() {
         let _ = std::fs::create_dir_all(d);
+    }
+
+    // T128: BEFORE the dirty-tree check, not after. The marker exists for the
+    // interrupted case, and in that case the tree IS dirty -- so the older,
+    // less informative guard spoke first and the message naming the gate and
+    // the recovery commands was never seen. Found by hitting a real interrupt
+    // and watching the wrong error come out.
+    let dirty = Command::new("git")
+        .args(["status", "--porcelain", "--", "."])
+        .current_dir(&tools)
+        .output()
+        .context("git status failed")?;
+    if !String::from_utf8_lossy(&dirty.stdout).trim().is_empty() {
+        anyhow::bail!(
+            "tools/ has uncommitted changes. This command rewrites those files in \
+             place and restores them; starting from a dirty tree means an \
+             interrupted run cannot be told from your own edits. Commit or stash first."
+        );
     }
 
     let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&tools)?
