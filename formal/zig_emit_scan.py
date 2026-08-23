@@ -8,7 +8,13 @@ so the numbers were briefly unreproducible. This is that rig, in the repo.
 Two questions it answers, which move independently:
 
   validity  -- how many specs produce Zig that `zig ast-check` accepts
+  errors    -- how many errors it reports in total
   classes   -- what the FIRST error is for each spec that fails
+
+Validity went blind once defects started layering: four consecutive fixes
+(#2527, #2529, #2537, #2539) each removed a real defect from many specs and moved
+the valid count by zero, because each spec still failed on what sat underneath.
+Total errors is the sensitive one; validity is the one that matters at the end.
 
 The class histogram UNDERCOUNTS any common defect: a defect is only visible
 where nothing else beats it to the line. Fixing `unused function parameter`
@@ -51,14 +57,24 @@ def specs():
 
 
 def classify(rel):
-    """Return (rel, verdict) where verdict is 'VALID', 'EMPTY', or the first error."""
+    """Return (rel, {"first": ..., "count": n}).
+
+    `first` is 'VALID', 'EMPTY', 'TIMEOUT', or the first ast-check error.
+    `count` is how many errors ast-check reported in total.
+
+    Every path returns the same shape deliberately. When `count` was added, the
+    early returns still yielded bare strings, so a single EMPTY spec would have
+    crashed the caller on `v["first"]` -- latent, because no spec was EMPTY that
+    run. A measurement tool that crashes on an input it has not seen yet is the
+    same failure as the rig that lived in /tmp.
+    """
     src = ROOT / rel
     try:
         gen = subprocess.run([str(BIN), "gen", str(src)], capture_output=True, timeout=60)
     except subprocess.TimeoutExpired:
-        return rel, "TIMEOUT"
+        return rel, {"first": "TIMEOUT", "count": 0}
     if not gen.stdout.strip():
-        return rel, "EMPTY"
+        return rel, {"first": "EMPTY", "count": 0}
     with tempfile.NamedTemporaryFile("wb", suffix=".zig", delete=False) as fh:
         fh.write(gen.stdout)
         tmp = fh.name
@@ -66,11 +82,20 @@ def classify(rel):
         chk = subprocess.run(["zig", "ast-check", tmp], capture_output=True, timeout=60)
         text = (chk.stdout + chk.stderr).decode("utf-8", "replace")
     except subprocess.TimeoutExpired:
-        return rel, "TIMEOUT"
+        return rel, {"first": "TIMEOUT", "count": 0}
     finally:
         pathlib.Path(tmp).unlink(missing_ok=True)
-    m = re.search(r"error: .*", text)
-    return rel, (m.group(0) if m else "VALID")
+    errors = re.findall(r"error: .*", text)
+    return rel, {
+        "first": errors[0] if errors else "VALID",
+        # ast-check reports every error it can reach, not just the first. The
+        # first-error view was the only one for twenty iterations and went blind
+        # once the defects started layering: four consecutive fixes (#2527,
+        # #2529, #2537, #2539) each removed a real defect from many specs and
+        # moved the valid count by zero, because the spec still failed on
+        # whatever sat underneath. Total errors is the sensitive instrument.
+        "count": len(errors),
+    }
 
 
 def normalise(err):
@@ -97,7 +122,9 @@ def main():
         results = dict(ex.map(classify, files))
 
     rusty = rust_dialect()
-    valid = {f for f, v in results.items() if v == "VALID"}
+    first = {f: v["first"] for f, v in results.items()}
+    total_errors = sum(v["count"] for v in results.values())
+    valid = {f for f, v in first.items() if v == "VALID"}
     pure = [f for f in files if f not in rusty]
 
     print(f"  specs scanned          {len(files)}")
@@ -110,8 +137,10 @@ def main():
     else:
         print("  specs/RUST_DIALECT.json absent -- rates are NOT split by dialect")
 
+    pure_errors = sum(v["count"] for k, v in results.items() if k not in rusty)
+    print(f"  total ast-check errors  {total_errors}   (pure t27: {pure_errors})")
     counts = collections.Counter(
-        normalise(v) for f, v in results.items() if v != "VALID" and f not in rusty
+        normalise(v) for f, v in first.items() if v != "VALID" and f not in rusty
     )
     print(f"\n  first-error classes, pure t27 only (lower bounds, not shares)")
     for err, n in counts.most_common(args.classes):
