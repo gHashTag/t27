@@ -65,6 +65,15 @@ pub enum GatesCmd {
         /// broken one passes both of them.
         #[arg(long)]
         invert: bool,
+
+        /// Run all three operators in one pass and print them as columns.
+        ///
+        /// Three commands answering one question is the same shape as two
+        /// naming conventions or two parse commands: the operators are only
+        /// comparable when read together, and read separately nobody noticed
+        /// that `--invert` was printing the silent operator's numbers.
+        #[arg(long)]
+        all: bool,
     },
     /// List active workflows whose lifetime success count is zero.
     Dead {
@@ -289,6 +298,17 @@ fn mutable_sites(src: &str) -> Vec<(usize, usize, String)> {
 }
 
 fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> {
+    // T105: this delegation is the whole of `--invert`, and for one merged
+    // commit it did not exist. `Direction::Invert` was declared and documented,
+    // `invert_sites` was written and unit-tested, and NOTHING joined them:
+    // mutate() chose `if loud { Loud } else { Silent }`, so the flag printed an
+    // invert banner over a silent run. The result published from it -- "one
+    // invert survivor, the same declared branch" -- was the silent survivor
+    // relabelled, and it looked right precisely BECAUSE it was a real
+    // measurement of the wrong thing.
+    if matches!(dir, Direction::Invert) {
+        return invert_sites(src);
+    }
     let mut sites = Vec::new();
     let mut in_control = false;
     let mut off = 0usize;
@@ -410,11 +430,19 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
     sites
 }
 
+fn label(d: Direction) -> &'static str {
+    match d {
+        Direction::Silent => "silent",
+        Direction::Loud => "loud",
+        Direction::Invert => "invert",
+    }
+}
+
 fn line_of(src: &str, byte: usize) -> usize {
     src[..byte].matches('\n').count() + 1
 }
 
-fn mutate(only: Option<&str>, loud: bool, invert: bool) -> Result<()> {
+fn mutate(only: Option<&str>, loud: bool, invert: bool, all: bool) -> Result<()> {
     let root = repo_root()?;
     let dirty = Command::new("git")
         .args(["status", "--porcelain", "--", "tools/"])
@@ -438,12 +466,32 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool) -> Result<()> {
         .collect();
     files.sort();
 
-    println!("{:<38} {:>9}  {}", "gate", "mutants", "verdict");
-    if invert {
-        println!("(invert: `if C:` -> `if not (C):` where the body carries a verdict.");
-        println!(" A survivor means the gate can reach the WRONG verdict unnoticed.)");
+    let directions: &[Direction] = if all {
+        &[Direction::Silent, Direction::Loud, Direction::Invert]
+    } else if invert {
+        &[Direction::Invert]
     } else if loud {
-        println!("(loud: `return 0` -> `return 1`. A survivor means NOTHING requires this gate to be silent.)");
+        &[Direction::Loud]
+    } else {
+        &[Direction::Silent]
+    };
+
+    if all {
+        println!(
+            "{:<38}{:>9}{:>9}{:>9}  {}",
+            "gate", "silent", "loud", "invert", "verdict"
+        );
+        println!("(silent: `return 1..4` -> `return 0`  -- can the gate still FAIL?)");
+        println!("(loud:   `return 0`    -> `return 1`  -- does anything require it to be SILENT?)");
+        println!("(invert: `if C:` -> `if not (C):`     -- does it reach the RIGHT verdict?)");
+    } else {
+        println!("{:<38} {:>9}  {}", "gate", "mutants", "verdict");
+        if invert {
+            println!("(invert: `if C:` -> `if not (C):` where the body carries a verdict.");
+            println!(" A survivor means the gate can reach the WRONG verdict unnoticed.)");
+        } else if loud {
+            println!("(loud: `return 0` -> `return 1`. A survivor means NOTHING requires this gate to be silent.)");
+        }
     }
     let mut total_survived: Vec<String> = Vec::new();
 
@@ -481,22 +529,6 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool) -> Result<()> {
             .map(|(_, c)| c.to_string());
         if flags.is_empty() && external.is_none() {
             println!("{:<38} {:>9}  {}", name, "-", "no control to run");
-            continue;
-        }
-
-        let dir = if loud {
-            Direction::Loud
-        } else {
-            Direction::Silent
-        };
-        let sites = sites_in_direction(&pristine, dir);
-        if sites.is_empty() {
-            let what = if loud {
-                "no success path to break"
-            } else {
-                "no failure path to break"
-            };
-            println!("{:<38} {:>9}  {}", name, 0, what);
             continue;
         }
 
@@ -542,6 +574,9 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool) -> Result<()> {
             continue;
         }
 
+        let mut scores: Vec<(Direction, usize, usize, Vec<usize>)> = Vec::new();
+        for dir in directions {
+        let sites = sites_in_direction(&pristine, *dir);
         let mut killed = 0usize;
         let mut survivors: Vec<usize> = Vec::new();
         for (at, len, replacement) in &sites {
@@ -588,27 +623,72 @@ fn mutate(only: Option<&str>, loud: bool, invert: bool) -> Result<()> {
             }
         }
         debug_assert_eq!(std::fs::read_to_string(f).unwrap_or_default(), pristine);
+        scores.push((*dir, killed, sites.len(), survivors));
+        }
 
-        let verdict = if survivors.is_empty() {
-            "all killed".to_string()
-        } else {
+        // A gate with no sites in a direction has nothing to say about it. In
+        // single-operator mode that is the whole row; in --all it is one column,
+        // and it must not read as a clean score -- "0/0" is printed, never a
+        // blank or a dash that a reader could take for a pass.
+        if scores.iter().all(|(_, _, t, _)| *t == 0) {
+            let what = match directions {
+                [Direction::Loud] => "no success path to break",
+                [Direction::Invert] => "no verdict-bearing condition to invert",
+                [Direction::Silent] => "no failure path to break",
+                _ => "no mutable site in any direction",
+            };
+            println!("{:<38} {:>9}  {}", name, 0, what);
+            continue;
+        }
+
+        let mut survived_here: Vec<String> = Vec::new();
+        for (dir, _, _, survivors) in &scores {
+            if !survivors.is_empty() {
+                survived_here.push(format!(
+                    "{} line{} {}",
+                    label(*dir),
+                    if survivors.len() == 1 { "" } else { "s" },
+                    survivors
+                        .iter()
+                        .map(|l| l.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+        }
+        if !survived_here.is_empty() {
             total_survived.push(name.clone());
-            format!(
-                "SURVIVED at line{} {}",
-                if survivors.len() == 1 { "" } else { "s" },
-                survivors
-                    .iter()
-                    .map(|l| l.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        };
-        println!(
-            "{:<38} {:>9}  {}",
-            name,
-            format!("{}/{}", killed, sites.len()),
-            verdict
-        );
+        }
+
+        if directions.len() == 1 {
+            let (_, killed, total, _) = &scores[0];
+            let verdict = if survived_here.is_empty() {
+                "all killed".to_string()
+            } else {
+                format!("SURVIVED at {}", survived_here[0])
+            };
+            println!(
+                "{:<38} {:>9}  {}",
+                name,
+                format!("{}/{}", killed, total),
+                verdict
+            );
+        } else {
+            let cols: String = scores
+                .iter()
+                .map(|(_, k, t, _)| format!("{:>9}", format!("{}/{}", k, t)))
+                .collect();
+            println!(
+                "{:<38}{}  {}",
+                name,
+                cols,
+                if survived_here.is_empty() {
+                    "all killed".to_string()
+                } else {
+                    format!("SURVIVED: {}", survived_here.join("; "))
+                }
+            );
+        }
     }
 
     println!();
@@ -670,7 +750,9 @@ fn repo_root() -> Result<std::path::PathBuf> {
 pub fn run(cmd: &GatesCmd) -> Result<()> {
     match cmd {
         GatesCmd::Sweep { controls_only } => sweep(*controls_only),
-        GatesCmd::Mutate { only, loud, invert } => mutate(only.as_deref(), *loud, *invert),
+        GatesCmd::Mutate { only, loud, invert, all } => {
+            mutate(only.as_deref(), *loud, *invert, *all)
+        }
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
@@ -964,6 +1046,38 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // `def` at column zero changes which region we are in.
         let src = "def self_check():\n    def case(x):\n        return 1\n    return 0\n";
         assert!(mutable_sites(src).is_empty());
+    }
+
+    #[test]
+    fn each_direction_reaches_its_own_operator() {
+        // T105: the wiring test the ten tests above did not contain. Every one
+        // of them exercised invert_sites() or sites_in_direction() alone, and
+        // all ten passed while the two were not joined: Direction::Invert was
+        // declared, documented and never constructed, invert_sites() had zero
+        // callers, and `--invert` printed its banner over a silent run.
+        //
+        // This is the same shape as the defect the whole command exists to
+        // find -- the checking FUNCTION is covered and the path from it to the
+        // answer is not -- arriving one level up, in the auditor.
+        let src = "def main():\n    if bad:\n        return 1\n    return 0\n";
+        let s = sites_in_direction(src, Direction::Silent);
+        let l = sites_in_direction(src, Direction::Loud);
+        let i = sites_in_direction(src, Direction::Invert);
+
+        assert_eq!(s.len(), 1, "silent lost its site");
+        assert_eq!(l.len(), 1, "loud lost its site");
+        assert_eq!(i.len(), 1, "invert lost its site");
+        assert_eq!(s[0].2, "return 0");
+        assert_eq!(l[0].2, "return 1");
+        assert!(i[0].2.starts_with("if not ("), "invert wrote {:?}", i[0].2);
+
+        // Three DISTINCT sites on one fixture. Equality here is the bug: it is
+        // what a direction silently falling through to another produces, and
+        // it is what shipped.
+        assert_ne!(s, l, "silent and loud returned one operator's sites");
+        assert_ne!(s, i, "invert fell through to the silent operator");
+        assert_ne!(l, i, "invert fell through to the loud operator");
+        assert_eq!(i[0].0, invert_sites(src)[0].0, "Invert is not invert_sites");
     }
 
     #[test]
