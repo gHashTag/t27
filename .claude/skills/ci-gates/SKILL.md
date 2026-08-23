@@ -2727,3 +2727,31 @@ beside it, seen a moment earlier — which the output now says.
 makes a detector that reports the weather rather than the climate — and the
 first symptom is a finding that comes and goes without anything changing.
 
+## 70. A finding recorded as a line number expires on the next edit
+
+Three boundary survivors were carried forward from §65's triage as "possibly real
+thresholds", identified by file and line. Reading those lines today gave three
+completely unrelated statements — a `subprocess.run` argument, a `None` guard,
+and a random-vector append.
+
+**The files had been edited in between.** Five equivalence markers went in, two
+controls grew whole-program cases, and every line below each insertion moved. The
+triage note was measurably false about its own repository within a day of being
+written.
+
+This campaign already knows the fix in one place: `check_gate_preconditions.py`
+names its uncovered branch **by message**, with a comment explaining that an
+earlier version said `:346` and `:390` and was wrong before it was ever pushed.
+The same discipline did not reach my own notes.
+
+**The rule.** A survivor list is a snapshot of one run against one tree. Carry
+forward the *file and the expression*, or re-run and re-read — never the line
+number alone. And when a triage spans iterations that edit the files, the
+re-run is the cheap half.
+
+**And I caught myself with a truncated view first.** Reading the fresh table
+through `awk` that printed six columns, I concluded the cache was not working —
+the marker lives in the seventh. The conclusion was drawn from a ruler I had cut
+short myself, which is the third time this campaign that a display choice became
+a finding.
+
