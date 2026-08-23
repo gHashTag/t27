@@ -987,6 +987,27 @@ fn zig_string_body(s: &str) -> String {
 /// Zig has no `==` for strings; it spells the test `std.mem.eql`. Only when one
 /// side is a string literal -- everything else keeps `==`, which is correct for
 /// every other type.
+fn node_mentions(node: &Node, name: &str) -> bool {
+    for field in [&node.name, &node.value] {
+        if field
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .any(|tok| tok == name)
+        {
+            return true;
+        }
+    }
+    node.children.iter().any(|c| node_mentions(c, name))
+}
+
+fn node_assigns(node: &Node, name: &str) -> bool {
+    if node.kind == NodeKind::StmtAssign
+        && node.children.first().map_or(false, |lhs| lhs.name == name)
+    {
+        return true;
+    }
+    node.children.iter().any(|c| node_assigns(c, name))
+}
+
 fn string_compare(text: &str) -> Option<String> {
     for (op, neg) in [("==", false), ("!=", true)] {
         if let Some(i) = text.find(op) {
@@ -4753,6 +4774,22 @@ impl Codegen {
                             .any(|tok| tok == bound)
                     });
                 self.gen_behavior_clause(stmt, used_later);
+            } else if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
+                // Zig rejects a local nothing reads, and a `var` nothing
+                // assigns. 126 and 50 errors, all inside test bodies, and both
+                // answerable from the statements that follow this one.
+                let rest = &node.children[i + 1..];
+                let read = rest.iter().any(|n| node_mentions(n, &stmt.name));
+                let assigned = rest.iter().any(|n| node_assigns(n, &stmt.name));
+                let mut fixed = stmt.clone();
+                if !assigned {
+                    fixed.extra_mutable = false;
+                }
+                self.gen_stmt(&fixed);
+                if !read {
+                    self.write_indent();
+                    self.write_line(&format!("_ = {};", zig_ident(&stmt.name)));
+                }
             } else {
                 self.gen_stmt(stmt);
             }
