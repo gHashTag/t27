@@ -18,7 +18,7 @@ module TriHelp;
 
     pub const HelpSystem = struct {
         registry : *const CommandRegistry,
-        allocator : Std.mem.Allocator,
+        allocator : std.mem.Allocator,
         terminal_width : Usize  # default: 80,
     };
 

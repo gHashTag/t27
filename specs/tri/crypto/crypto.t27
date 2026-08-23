@@ -19,8 +19,8 @@ module TriCrypto;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // generate_key_pair(allocator: Std.mem.Allocator) → void
-    fn generate_key_pair(allocator: Std.mem.Allocator) -> void {
+    // generate_key_pair(allocator: std.mem.Allocator) → void
+    fn generate_key_pair(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

@@ -21,8 +21,8 @@ module TriMatrix;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: Std.mem.Allocator) → void
-    fn init(allocator: Std.mem.Allocator) -> void {
+    // init(allocator: std.mem.Allocator) → void
+    fn init(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -46,8 +46,8 @@ module TriMatrix;
         // TODO: Implement from .tri spec
     }
 
-    // identity(allocator: Std.mem.Allocator) → void
-    fn identity(allocator: Std.mem.Allocator) -> void {
+    // identity(allocator: std.mem.Allocator) → void
+    fn identity(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

@@ -26,8 +26,8 @@ module TriFilesystem;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // join(allocator: Std.mem.Allocator) → void
-    fn join(allocator: Std.mem.Allocator) -> void {
+    // join(allocator: std.mem.Allocator) → void
+    fn join(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -56,8 +56,8 @@ module TriFilesystem;
         // TODO: Implement from .tri spec
     }
 
-    // normalize(allocator: Std.mem.Allocator) → void
-    fn normalize(allocator: Std.mem.Allocator) -> void {
+    // normalize(allocator: std.mem.Allocator) → void
+    fn normalize(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

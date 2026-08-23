@@ -27,8 +27,8 @@ module TriTerminal;
         // TODO: Implement from .tri spec
     }
 
-    // colorize(allocator: Std.mem.Allocator) → void
-    fn colorize(allocator: Std.mem.Allocator) -> void {
+    // colorize(allocator: std.mem.Allocator) → void
+    fn colorize(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

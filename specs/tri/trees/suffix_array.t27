@@ -19,8 +19,8 @@ module TriSuffixArray;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // build(allocator: Std.mem.Allocator) → void
-    fn build(allocator: Std.mem.Allocator) -> void {
+    // build(allocator: std.mem.Allocator) → void
+    fn build(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 
