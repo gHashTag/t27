@@ -117,6 +117,14 @@ enum Commands {
         /// in the tree before inventing a coarser one.
         #[arg(long, default_value_t = false)]
         spans: bool,
+
+        /// How many discarded lines `--spans` prints. 0 means all of them.
+        ///
+        /// The default truncates, and a census built on truncated output
+        /// undercounts every file with more than this many discarded lines --
+        /// which is exactly the files a census is about. Machine readers pass 0.
+        #[arg(long, default_value_t = 40)]
+        limit: usize,
     },
 
     /// Generate Zig code from .t27 file
@@ -3574,7 +3582,7 @@ fn top_level_items(src: &str) -> Vec<(String, usize, usize)> {
     out
 }
 
-fn run_parse_accounted(input_path: &str, bisect: bool, spans: bool) -> anyhow::Result<()> {
+fn run_parse_accounted(input_path: &str, bisect: bool, spans: bool, limit: usize) -> anyhow::Result<()> {
     let src = std::fs::read_to_string(input_path)
         .with_context(|| format!("reading {input_path}"))?;
     let base = match compiler::Compiler::parse_ast_accounted(&src) {
@@ -3604,11 +3612,13 @@ fn run_parse_accounted(input_path: &str, bisect: bool, spans: bool) -> anyhow::R
                     }
                 }
                 println!("  discarded on {} line(s):", by_line.len());
-                for (line, lexemes) in by_line.iter().take(40) {
+                let show = if limit == 0 { by_line.len() } else { limit };
+                for (line, lexemes) in by_line.iter().take(show) {
                     println!("    {:>5}: {}", line, lexemes.join(" "));
                 }
-                if by_line.len() > 40 {
-                    println!("    ... and {} more line(s)", by_line.len() - 40);
+                if by_line.len() > show {
+                    println!("    ... and {} more line(s) -- pass --limit 0 for all",
+                             by_line.len() - show);
                 }
             }
         }
@@ -10657,7 +10667,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
-        Commands::ParseAccounted { input, bisect, spans } => run_parse_accounted(&input, bisect, spans)?,
+        Commands::ParseAccounted { input, bisect, spans, limit } => run_parse_accounted(&input, bisect, spans, limit)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
@@ -11064,7 +11074,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
-        Commands::ParseAccounted { input, bisect, spans } => run_parse_accounted(&input, bisect, spans)?,
+        Commands::ParseAccounted { input, bisect, spans, limit } => run_parse_accounted(&input, bisect, spans, limit)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
