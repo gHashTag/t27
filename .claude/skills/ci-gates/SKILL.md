@@ -2498,3 +2498,46 @@ cache means the next run finishes them rather than starting over. A partial tabl
 reported as partial is a measurement; the same table reported as complete is the
 thing this campaign is about.
 
+## 63. Why that control killed nothing, and what fixing it cost
+
+`verify_emit_bitexact.py` scored **0 killed of 17**. The reason, once the survivor
+lines were read rather than counted:
+
+- `sys.exit(0 if ok else 1)` survived **both** return operators
+- every FAIL branch of the comparison — timeout, step count, mismatch, resource
+  count, synth error — survived inversion
+
+**All three of my cases leave through `skip()` or `broken()`.** The gate's own
+verdict was never observed at all. A control that covers only preconditions is a
+control *for* preconditions, and I wrote those three knowing that class.
+
+**The plant that reaches the verdict moves one arm only.** The Python side comes
+from the interpreter `g.run()`; the Verilog is emitted from the microcode
+`steps`, not from `run()`. Perturbing the interpreter makes the model disagree
+with an RTL that is unchanged — which is what a real bit-exactness failure looks
+like. Perturbing shared arithmetic instead would move both arms together and
+plant nothing.
+
+Two cases now: a clean tree exits 0 saying `RTL == model BIT-EXACT`, and a
+perturbed model exits 1 naming the disagreeing step. Five cases in the file, both
+directions of the verdict.
+
+### And the cost is real, and worth stating plainly
+
+The mutation loop runs a gate's **whole control per mutant**. This control now
+spawns two ~45-second whole-program runs, so seventeen sites cost roughly half an
+hour — the measurement timed out at ten minutes and the marker caught the
+interrupted tree, cleanly, with nothing leaked.
+
+**That is not a reason to make the control cheaper.** A control that exercises
+only what is fast to exercise is how this gate got to 0/17 in the first place.
+The tension is inherent: *a control worth having is expensive, and the mutation
+loop pays that cost once per mutant.* The cache is the answer — measure once,
+reuse until the gate or its control changes — and `[cached]` is what keeps a
+reused row honest.
+
+**The guard chain worked end to end for the first time.** Timeout → marker names
+the gate → `git checkout -- tools/` → tree clean → committed diff contains only
+the intended change. Three iterations ago the same sequence leaked two mutants
+into a branch.
+
