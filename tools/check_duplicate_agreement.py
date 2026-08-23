@@ -202,7 +202,34 @@ def self_check():
     split = "FAIL tmul" in r.stdout and "DIFFERENT behaviours" in r.stdout
     print(f"  self-check: planted divergence reported as a split = {split}")
     print(f"  self-check: the gate's exit code on it = {r.returncode} (want 1)")
-    return 0 if (split and r.returncode == 1) else 1
+    # T98: the AGREEING direction. Every assertion above demands RED, and a
+    # control made only of those is blind to every mutation that makes the gate
+    # LOUDER -- the one-group branch rewritten to a constant false reports a
+    # split on a tree where the copies agree, and every assertion above is still
+    # satisfied. Measured: two such mutations passed this control and were
+    # caught only by --self-check-drop, which exists for something else.
+    # Coverage by a sibling's accident is not coverage.
+    #
+    # The branch is described rather than quoted on purpose: the first version
+    # of this comment carried the line verbatim, and a text-replacing mutation
+    # harness then hit the COMMENT instead of the code -- reporting the case as
+    # blind when the gate had never been mutated at all.
+    #
+    # Same fixture for both copies, so they genuinely agree.
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "specs/ternary"))
+        os.makedirs(os.path.join(td, "target/release"))
+        os.symlink(t, os.path.join(td, "target/release/t27c"))
+        for tag in ("A", "B"):
+            with open(os.path.join(td, "specs/ternary/%s.t27" % tag.lower()), "w") as fh:
+                fh.write(FIXTURE.format(tag=tag, agree="1", differ="-1"))
+        q = subprocess.run([sys.executable, os.path.abspath(__file__)],
+                           capture_output=True, text=True,
+                           env={**os.environ, "T27_DUP_ROOT": td})
+    quiet = ("DIFFERENT behaviours" not in q.stdout) and q.returncode == 0
+    print("  self-check: agreeing copies reported as one behaviour = %s (exit %d, want 0)"
+          % (quiet, q.returncode))
+    return 0 if (split and r.returncode == 1 and quiet) else 1
 
 
 DROP_FIXTURE = """module DupFixtureDrop

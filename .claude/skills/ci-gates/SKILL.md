@@ -1103,3 +1103,37 @@ the control dies there and every later case silently never runs.
 
 A guard nobody has seen fire is the same evidential state as a gate nobody has
 seen go red. Both are one planted fault away from being real.
+
+## 29. Do not quote the line you are about to mutate
+
+The comment explaining a new silence case quoted the branch it was about,
+verbatim. A text-replacing mutation harness then hit the **comment** instead of
+the code: the gate ran unmutated, the case reported itself blind, and I nearly
+wrote up "the silence case does not work".
+
+`str.replace(needle, mut, 1)` takes the first occurrence in the file, and prose
+usually comes before code.
+
+**Describe the branch, do not quote it** — "the one-group branch rewritten to a
+constant false" reads as well and cannot be hit. If a literal is genuinely
+needed, mutate **by line number** rather than by text, which is what settled it
+here.
+
+### Applying yesterday's rule found exactly one gate, and reading found it
+
+A count of "silence-shaped" strings per control flagged one of thirteen.
+`check_duplicate_agreement` had two controls and **neither required silence** —
+both assert `returncode == 1`, so a gate reporting a split on a tree where every
+copy agrees satisfies both.
+
+Measured before the fix: two such mutations were caught **only** by
+`--self-check-drop`, a control written to exercise a different branch. The
+primary control passed them. **Coverage by a sibling's accident is not
+coverage**, and nothing in a green report distinguishes the two.
+
+### Say what the sweep did not look at
+
+The count is a proxy. One file was read and confirmed; the other twelve were
+scored by a regex and left there. The write-up says so. A sweep reported without
+that sentence reads as twelve clean results, and twelve unexamined counts is a
+different claim.
