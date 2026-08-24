@@ -8837,10 +8837,21 @@ fn assign_root(node: &Node) -> Option<String> {
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     // Every name written to anywhere in this statement list, following field
     // and index chains to the variable that actually changes.
-    let written: std::collections::HashSet<String> = stmts
-        .iter()
-        .filter_map(assign_root)
-        .collect();
+    // Recursively: a write inside a loop or `if` body counts. Looking only at
+    // siblings let `var result = undefined; for (..) { result[i] = f(); }
+    // return result;` propagate to `return undefined` -- which COMPILES, and
+    // returns garbage. That is the failure mode this pass keeps producing:
+    // silently wrong output, not a diagnostic.
+    fn collect_written(stmts: &[Node], out: &mut std::collections::HashSet<String>) {
+        for s in stmts {
+            if let Some(r) = assign_root(s) {
+                out.insert(r);
+            }
+            collect_written(&s.children, out);
+        }
+    }
+    let mut written: std::collections::HashSet<String> = std::collections::HashSet::new();
+    collect_written(stmts, &mut written);
 
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
@@ -8864,6 +8875,8 @@ fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             // have compiled and been wrong.
             && !written.contains(&stmt.name)
             && !written.contains(&stmt.children[0].name)
+            // `undefined` is the absence of a value, not a copy of one.
+            && stmt.children[0].name != "undefined"
         {
             replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
         }
