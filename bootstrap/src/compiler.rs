@@ -4629,15 +4629,19 @@ impl Codegen {
                 // The module's file name keeps its real spelling; only the
                 // binding needs quoting. `const opaque = @import("opaque.zig")`
                 // is a Zig keyword in binding position.
-                let target = match &self.rel_path {
-                    Some(rel) => resolve_import_path(
-                        &decl.value,
-                        &decl.name,
-                        rel,
-                        &std::collections::HashMap::new(),
-                    ),
-                    None => format!("{}.zig", decl.name),
-                };
+                // A basename, NOT a path relative to the spec tree.
+                //
+                // `@import("../../base/types.zig")` is what the module path
+                // means and Zig rejects it outright: "import of file outside
+                // module path", for every cross-directory import, because a
+                // module may not reach above its root source file's directory.
+                // Emitting it traded 92 absent siblings for 92 illegal paths.
+                //
+                // A basename resolves iff the output is FLAT. That is a real
+                // arrangement, but 22 basenames collide, so it needs unique
+                // names -- or real modules. Either is a decision, #2680.
+                let _ = &self.rel_path;
+                let target = format!("{}.zig", decl.name);
                 self.write_line(&format!(
                     "const {} = @import(\"{}\");",
                     zig_ident(&decl.name),
