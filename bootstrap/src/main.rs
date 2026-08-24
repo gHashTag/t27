@@ -3062,7 +3062,15 @@ fn spec_module_paths(input_path: &Path) -> std::collections::HashMap<String, Str
                         for line in text.lines().take(40) {
                             let t = line.trim();
                             if let Some(rest) = t.strip_prefix("module ") {
-                                let name = rest.trim().trim_end_matches(';').trim();
+                                // Two forms: `module hybrid_bigint;` and
+                                // `module PackedTrit {`. Reading only the
+                                // first missed 187 of 469 declarations, and
+                                // the count I published as 281 was that floor.
+                                let name = rest
+                                    .split(|c: char| c == ';' || c == '{')
+                                    .next()
+                                    .unwrap_or("")
+                                    .trim();
                                 if !name.is_empty() {
                                     out.insert(name.to_string(), rel.clone());
                                 }
