@@ -768,8 +768,18 @@ impl Lexer {
                 // Don't consume '.' if it's part of a '..' range operator
                 let is_dot_not_range = c == b'.'
                     && (self.pos + 1 >= self.source.len() || self.source[self.pos + 1] != b'.');
+                // `o` was missing from this list, so `0o777` lexed as `0`
+                // and `o777` walked off as an identifier -- a SILENT WRONG
+                // VALUE, not a syntax error. Zero occurrences in this corpus;
+                // found with a synthetic probe, kept because producing the
+                // wrong number quietly is the worst failure a lexer has.
+                //
+                // Stricter than the `x`/`b` branches beside it: only directly
+                // after a leading zero, so nothing else changes.
+                let octal_prefix = (c == b'o' || c == b'O') && number == "0";
                 if c.is_ascii_digit()
                     || is_dot_not_range
+                    || octal_prefix
                     || c == b'x'
                     || c == b'X'
                     || c == b'b'
