@@ -453,9 +453,29 @@ def self_check():
     # check_duplicate_agreement.py carries a comment warning about exactly this,
     # written after the same thing happened there. I read that comment, wrote a
     # control, and reproduced the defect it describes in the same repository.
-    port = "input [31:0] x" + "0i"
+    # T211: assembling the needle was not enough, and the case passed for a
+    # reason unrelated to its name.
+    #
+    # `input [31:0] x0i` spelled out occurs EXACTLY ONCE in this file -- at the
+    # assertion that checks for it. The emitter never writes it: line 336 builds
+    # ports as an f-string, `f"input [31:0] x{k}i"`. So planting the spelled-out
+    # form rewrote THE ASSERTION'S OWN EXPECTED STRING, the emitted Verilog was
+    # untouched, and the assertion duly failed -- proving only that corrupting a
+    # check's expected text makes the check fail.
+    #
+    # T124 above fixed the case where the needle's first occurrence was the
+    # control's own source. This is the next one along: the needle's only
+    # occurrence is the SUBJECT'S check rather than the subject. A plant has to
+    # edit the thing under test, and "assembled, so it is not in my source" does
+    # not establish that.
+    #
+    # The needle is now the emitter's format string, whose first occurrence is
+    # line 336 -- above this control, so `replace(.., 1)` reaches the emitter.
+    # Still assembled, so this line can never become the first occurrence if the
+    # file is ever reordered.
+    port_fmt = 'f"input [31:0] x' + '{k}i"'
     spawned("a renamed port is caught by the emitter check",
-            lambda s: s.replace(port, "input [31:0] xRENAMED", 1),
+            lambda s: s.replace(port_fmt, 'f"input [31:0] RENAMED{k}"', 1),
             1, ["AssertionError"],
             ["emit_verilog: clk_div=16"])
 

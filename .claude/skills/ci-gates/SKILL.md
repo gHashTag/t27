@@ -2345,7 +2345,10 @@ exactly this, written after it happened there. I had read that comment. The fix
 is to assemble the needle — `"input [31:0] x" + "0i"` — so it does not exist as a
 literal anywhere.
 
-**Named and left:** the boundary column reads 5/31. Those sites are arithmetic
+**Named and left:** the boundary column read 5/31 *(erratum: that denominator
+came from the scanner bug §121 fixed -- the file has 62 boundary sites, not 31.
+The killed count is unaffected; every number of the form `k/31` in this file
+should be read as `k/62`.)* Those sites are arithmetic
 internals — encodings, magnitude comparisons — where moving a comparison is a
 numerical change rather than a verdict change. A different kind of surface,
 larger than anything else outstanding, and not this campaign's question.
@@ -4291,7 +4294,8 @@ the binade where it is.**
 
 Three assertions pin it: the magnitude, the sign, and the value one binade
 lower which *is* legitimately zero. Negative control: with `<=` planted the tool
-exits 1 naming the new assertion; restored, 0. The column moved **5/31 → 6/31**.
+exits 1 naming the new assertion; restored, 0. The column moved **5 → 6 killed**
+*(published as 5/31 → 6/31; the denominator was half the real one -- see §121)*.
 
 ## 111. "Boundary survivors are loop bounds" was too broad, measured
 
@@ -4493,7 +4497,11 @@ real one and three duplicates wearing different arguments — indistinguishable
 from the outside, and a maintainer deleting "the redundant ones" would have been
 right three times and catastrophically wrong once.
 
-Boundary column for the file, measured: **killed 8/31 → 12/31**.
+Boundary column for the file, measured: **killed 8 → 12** *(published as 8/31 →
+12/31. The denominator was wrong: the scanner stopped at `def self_check()` and
+never resumed, so it saw 31 of the file's 62 comparisons. §121. Measured again
+after the fix: 14/62 -- the killed count never moved, the denominator doubled,
+and every extra site is in the `__main__` block where surviving is correct.)*
 
 ## 117. A dead branch and a dead signal are different defects
 
@@ -4884,3 +4892,74 @@ writing to the tree.
 And the detector, when it finally came, was not a test. It was `mutate`
 refusing to start on a dirty tree the next time I ran it — the guard catching
 the consequence of its own bypass, one tick late.
+
+## 123. The weakest operator was measuring the control, not the gate
+
+`--assert` scores **2 of 34** on `gft_backprop_microcode.py` — by far the worst
+of the five operators, deferred three iterations running as "the column to fix".
+
+It is not a column about assertions. It is arithmetic on the number of planted
+faults.
+
+`self_check()` spawns exactly **three** whole-program runs: one clean, two with
+a fault planted. A neutered assertion changes nothing on the clean run, so it
+can only be noticed on a run where **that specific assertion would have fired** —
+and only if it is the **first** to fire, because Python stops at the first
+failing assert.
+
+Measured, one variable at a time:
+
+- plant 1 (a sign flip in `smul`) falsifies **both** line 632 and line 660;
+- the program dies at 632, so neutering 660 alone is **invisible**;
+- neuter 632 and the same plant now dies at 660 — *"real-task held-out too low:
+  32/60"*.
+
+**One kill per plant, and the kill set is exactly `{632, 668}`** — precisely the
+two lines missing from the survivor list. Two plants, two kills, ceiling reached.
+
+Three things follow, and none of them is about the survivors' quality:
+
+1. **The survivors are not unreachable.** All 34 sites execute on a clean run
+   (34/34), and replacing one with `assert False` fires it. They are invisible,
+   not dead.
+2. **Iterating on the operator cannot move the number.** Only adding a
+   `spawned()` case can — one per *assertion*, not per family, because fail-fast
+   shadowing means a plant that falsifies a whole family still surfaces its
+   first member only.
+3. **This file is the only gate in `tools/` with any assert site**, so the
+   repo-wide assert column *is* this one file's row. "2 of 34 across the tree"
+   and "2 of 34 in one file" are the same sentence wearing different clothes.
+
+### My published explanation was wrong for at least 26 of the 32
+
+`docs/now/2026-08-24-the-weakest-mutation-operator-was-the-one-with-no-flag.md`
+accounts for the six held-out-threshold assertions — *"thresholds with margin:
+floor 54, measured 58 56 59 59 55 55"* — and offers a boundary-operator
+rationale for the column. That explanation is true of six rows and silent about
+the other twenty-six, and it was published as an account of the column.
+
+**A partial explanation presented as a complete one is the most expensive kind
+of wrong**, because it closes the question. Three iterations then deferred the
+column as "known and understood" rather than "unexplained".
+
+### The second plant does not test what it says
+
+The control's second case is *"a renamed port is caught by the emitter check"*.
+The string `input [31:0] x0i` appears literally **only inside the assertion** —
+the emitter builds ports at line 336 as `f"input [31:0] x{k}i"`. So the plant's
+`str.replace` rewrites **the assertion's own expected string** and the emitted
+Verilog is untouched. The case passes for a reason unrelated to its name.
+
+This is the self-referential-plant class the comment at lines 447-455 was
+written about — **fixed one line short.** A plant must edit the thing under
+test; when the literal it targets exists only in the check, it edits the check.
+
+### What made this findable
+
+Not a better operator. A question about the **shape of the control** rather than
+the contents of the column. The number had been read four times as a statement
+about 34 assertions; it was a statement about 2 plants, and nothing in the
+output distinguished the two readings.
+
+**When a score is stuck at a small integer, count the things that can produce a
+kill before you look at the things being killed.**

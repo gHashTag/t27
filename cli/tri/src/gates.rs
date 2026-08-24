@@ -88,10 +88,20 @@ pub enum GatesCmd {
         /// Move the comparison in a boundary: `>` <-> `>=`, `<` <-> `<=`.
         ///
         /// The only operator that had no flag of its own, reachable solely
-        /// through `--all` -- and it is the one with the worst kill rate of the
-        /// five (26 of 77 across the tree), so it is the one you most want to
-        /// iterate on alone. Four operators selectable and the weakest not is
-        /// exactly backwards.
+        /// through `--all`, so it is the one you most want to iterate on alone.
+        /// Four operators selectable and this one not was exactly backwards.
+        ///
+        /// This text used to advertise a score -- "the worst kill rate of the
+        /// five (26 of 77 across the tree)". Both halves went stale in one
+        /// commit: fixing the scanner that stopped at `def self_check()`
+        /// DOUBLED the site count, so the denominator was wrong and the rate
+        /// was arithmetic on it. A number frozen in help text has no way to
+        /// learn that, and a reader has no way to tell.
+        ///
+        /// The denominator here also mixes two populations -- every comparison,
+        /// including loop bounds where surviving is correct -- so a rate was
+        /// never the right summary anyway. Run the command; it prints what it
+        /// found, today.
         #[arg(long)]
         boundary: bool,
 
@@ -389,6 +399,68 @@ fn is_control_fn(name: &str) -> bool {
     name.contains("self_check") || name.contains("selftest") || name.contains("self_test")
 }
 
+/// Whether a line's text is prose inside a triple-quoted string.
+///
+/// The three LINE-oriented site finders had no string state at all, and
+/// `leaves_function` decides on the first byte of a line. So a flush-left line
+/// inside a control function's docstring -- ordinary prose, wrapped -- read as a
+/// top-level statement and cleared `in_control`, handing the operators the
+/// control's own `assert` and `return 1` as mutable sites. Neutering a control
+/// makes it pass, so those sites are recorded as survivors nobody can ever kill,
+/// and the doc comment on `leaves_function` says exactly why that is the worst
+/// outcome: it breaks the instrument instead of the thing being measured.
+///
+/// Measured on two files differing by four spaces of indentation on ONE
+/// docstring line: 3 assert sites versus 0, and every extra site was inside the
+/// control function.
+///
+/// The same blindness scored `assert anything.` -- word-wrapped prose in a
+/// module docstring -- as an assertion to neuter.
+///
+/// `boundary_sites` already tracked this, because it is byte-oriented and had to.
+struct Docstring {
+    open: Option<[u8; 3]>,
+}
+
+impl Docstring {
+    fn new() -> Self {
+        Self { open: None }
+    }
+
+    /// True when this line BEGINS inside a triple-quoted string, i.e. its text
+    /// is prose. Advances the state past whatever the line opens or closes.
+    ///
+    /// A line that opens a docstring is still code up to the quote, so it
+    /// returns false and lets the caller read it; only the lines after it are
+    /// prose. That is the same rule a reader applies.
+    fn is_prose(&mut self, line: &str) -> bool {
+        let started_inside = self.open.is_some();
+        let b = line.as_bytes();
+        let mut i = 0usize;
+        while i + 3 <= b.len() {
+            let t = [b[i], b[i + 1], b[i + 2]];
+            if t == [b'"', b'"', b'"'] || t == [b'\'', b'\'', b'\''] {
+                match self.open {
+                    Some(o) if o == t => {
+                        self.open = None;
+                        i += 3;
+                        continue;
+                    }
+                    // A `'''` inside a `"""` block is text, not a delimiter.
+                    Some(_) => {}
+                    None => {
+                        self.open = Some(t);
+                        i += 3;
+                        continue;
+                    }
+                }
+            }
+            i += 1;
+        }
+        started_inside
+    }
+}
+
 /// Is this return expression a VERDICT LITERAL, or a ternary of them?
 ///
 /// T103: both predicates used to scan for a standalone digit anywhere in the
@@ -500,7 +572,12 @@ fn assert_sites(src: &str) -> Vec<(usize, usize, String)> {
     let mut sites = Vec::new();
     let mut in_control = false;
     let mut off = 0usize;
+    let mut doc = Docstring::new();
     for line in src.split_inclusive('\n') {
+        if doc.is_prose(line) {
+            off += line.len();
+            continue;
+        }
         if let Some(rest) = line.strip_prefix("def ") {
             let fname: String = rest.chars().take_while(|c| *c != '(').collect();
             in_control = is_control_fn(&fname);
@@ -532,10 +609,30 @@ fn assert_sites(src: &str) -> Vec<(usize, usize, String)> {
                     // is the condition.
                     let b = rest.as_bytes();
                     let (mut depth, mut quote, mut cut) = (0i32, None::<u8>, None);
+                    // A backslash escapes the NEXT byte, so it must skip two.
+                    // `continue` alone advanced one, and the escaped quote then
+                    // closed the string. Measured on two real shapes:
+                    //   assert s == "a\",b", "the header row must be quoted"
+                    //     -> mutant `assert True,b", "the header ...` -- which
+                    //        does not parse, so python exits 1 and the site is
+                    //        scored KILLED. A false green in the one column this
+                    //        command exists to make trustworthy.
+                    //   assert t == 'it\'s', "the label must carry an apostrophe"
+                    //     -> `quote` stays Some for the rest of the line, no
+                    //        top-level comma is found, and the MESSAGE IS
+                    //        DROPPED -- violating the invariant stated three
+                    //        lines above this loop.
+                    // `boundary_sites`, byte-oriented, had `i += 2` all along.
+                    let mut skip_next = false;
                     for (i, &c) in b.iter().enumerate() {
+                        if skip_next {
+                            skip_next = false;
+                            continue;
+                        }
                         match quote {
                             Some(q) => {
                                 if c == b'\\' {
+                                    skip_next = true;
                                     continue;
                                 }
                                 if c == q {
@@ -708,7 +805,12 @@ fn sites_in_direction(src: &str, dir: Direction) -> Vec<(usize, usize, String)> 
     let mut sites = Vec::new();
     let mut in_control = false;
     let mut off = 0usize;
+    let mut doc = Docstring::new();
     for line in src.split_inclusive('\n') {
+        if doc.is_prose(line) {
+            off += line.len();
+            continue;
+        }
         if let Some(rest) = line.strip_prefix("def ") {
             let fname: String = rest.chars().take_while(|c| *c != '(').collect();
             in_control = is_control_fn(&fname);
@@ -816,8 +918,12 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
         }
         v
     };
+    let mut doc = Docstring::new();
     for (i, line) in lines.iter().enumerate() {
         off = offsets[i];
+        if doc.is_prose(line) {
+            continue;
+        }
         if let Some(rest) = line.strip_prefix("def ") {
             let fname: String = rest.chars().take_while(|c| *c != '(').collect();
             in_control = is_control_fn(&fname);
@@ -2882,6 +2988,64 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
             "the __main__ block is not part of self_check: {lines:?}"
         );
         assert_eq!(lines.len(), 2, "exactly two sites: {lines:?}");
+    }
+
+    #[test]
+    fn an_escaped_quote_in_an_assert_message_keeps_the_message() {
+        // The mutant must stay parseable AND keep the message. With the
+        // backslash advancing one byte instead of two, the escaped quote closed
+        // the string: the first line produced `assert True,b", "..."` (does not
+        // parse -- python exits 1 and the site scores as KILLED), and the second
+        // stranded the quote state so no top-level comma was found and the
+        // message was silently dropped.
+        let src = "assert s == \"a\\\",b\", \"the header row must be quoted\"\n";
+        let sites = super::sites_in_direction(src, super::Direction::Assert);
+        assert_eq!(sites.len(), 1, "one assertion: {sites:?}");
+        let rep = &sites[0].2;
+        assert!(
+            rep.contains("the header row must be quoted"),
+            "the message must survive: {rep}"
+        );
+        assert!(
+            !rep.contains("b\","),
+            "the mutant must not carry half of the old condition: {rep}"
+        );
+
+        let src2 = "assert t == 'it\\'s', \"the label must carry an apostrophe\"\n";
+        let sites2 = super::sites_in_direction(src2, super::Direction::Assert);
+        assert_eq!(sites2.len(), 1);
+        assert!(
+            sites2[0].2.contains("the label must carry an apostrophe"),
+            "an apostrophe escape must not drop the message: {}",
+            sites2[0].2
+        );
+    }
+
+    #[test]
+    fn prose_in_a_docstring_is_not_an_assertion() {
+        // Word-wrapped prose that happens to begin a line with the word
+        // `assert` was scored as an assertion to neuter. It is not code.
+        let src = "\"\"\"A gate that documents itself.\n\nassert anything.\n\"\"\"\nx = 1\n";
+        let sites = super::sites_in_direction(src, super::Direction::Assert);
+        assert!(sites.is_empty(), "prose is not an assertion: {sites:?}");
+    }
+
+    #[test]
+    fn a_flush_left_docstring_line_does_not_end_the_control_function() {
+        // Two sources differing by the indentation of ONE docstring line. The
+        // flush-left one used to clear `in_control`, handing the operators the
+        // control's own assert -- a site nobody can kill, because neutering a
+        // control makes it pass.
+        let flush = "def self_check():\n    \"\"\"Doc.\n\nWrapped prose at column zero.\n\"\"\"\n    assert 1 == 1, \"a control assert must never be a mutation site\"\n";
+        let indented = "def self_check():\n    \"\"\"Doc.\n\n    Wrapped prose, indented.\n    \"\"\"\n    assert 1 == 1, \"a control assert must never be a mutation site\"\n";
+        let a = super::sites_in_direction(flush, super::Direction::Assert);
+        let b = super::sites_in_direction(indented, super::Direction::Assert);
+        assert!(b.is_empty(), "indented control body yields no sites: {b:?}");
+        assert_eq!(
+            a.len(),
+            b.len(),
+            "indentation of a docstring line must not change the site count: {a:?} vs {b:?}"
+        );
     }
 
     #[test]

@@ -20,16 +20,22 @@ looking; a wrong one makes them stop.
 
 WHY ONLY "see <path>" AND NOT EVERY PATH
 ----------------------------------------
-Every path-shaped string was the obvious first attempt. Measured: 873 distinct
-paths mentioned across .py and .rs, and 409 of them do not resolve -- because
-that population is dominated by paths a program CREATES (build outputs, temp
-fixtures) and by workflow filenames inside unit tests, none of which are
-references to anything. A report that is 95% noise gets switched off, and then
-the 5% is gone too.
+Every path-shaped string was the obvious first attempt, and it was measured
+before it was discarded: roughly nine hundred distinct paths are mentioned
+across .py and .rs, and nearly half do not resolve -- because that population is
+dominated by paths a program CREATES (build outputs, temp fixtures) and by
+workflow filenames inside unit tests, none of which are references to anything.
+A report that is mostly noise gets switched off, and then the signal goes too.
 
-Narrowing to a prose pointer -- "see X", "cf. X", "documented in X" -- gives
-193 mentions and 16 that do not resolve. That is a list a person can read, and
-each row is a claim someone wrote on purpose.
+Narrowing to a prose pointer -- "see X", "cf. X", "documented in X" -- cuts the
+population by a factor and leaves a list a person can read, where each row is a
+claim someone wrote on purpose.
+
+THE EXACT COUNTS ARE DELIBERATELY NOT WRITTEN HERE. The first draft said "193
+mentions and 16 that do not resolve", and within a day the tool printed 191 and
+12 -- because two of them got fixed and a regex guard was restored. So running
+this file refuted its own documentation, which is the failure it exists to find,
+one level up. Run it; the numbers it prints are today's.
 
 The narrowing was chosen by measuring both, not by taste. Run it against the
 commit before the fix and that pointer shows up, which is the

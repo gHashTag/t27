@@ -10,4 +10,4 @@
 
 ## Outputs
 
-Third-party trees; routine product work should **not** patch here (see `docs/GOLDEN-RINGS-CANON.md`).
+Third-party trees; routine product work should **not** patch here (see `docs/nona-01-foundation/GOLDEN-RINGS-CANON.md`).
