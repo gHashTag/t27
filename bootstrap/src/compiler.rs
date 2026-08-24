@@ -4586,14 +4586,27 @@ impl Codegen {
         // Bound only when referenced, or the binding is itself an unused
         // declaration and one error is traded for another.
         let uses = |n: &str| ast.children.iter().any(|c| mentions_identifier(c, n));
-        let needs_expect = uses("expect");
-        let needs_assert = uses("assert");
+        // ...and only when the spec does NOT declare the name itself.
+        //
+        // `specs/math/constants.t27` writes its own `fn pow`, so the helper
+        // below made `duplicate struct member name 'pow'` and the file did not
+        // compile. 29 specs import it, every one of them clean in its own
+        // file: a spec runs only if its whole import closure compiles, so one
+        // duplicate here held down the largest group in the corpus.
+        let declares = |n: &str| {
+            ast.children
+                .iter()
+                .any(|c| c.kind != NodeKind::UseDecl && c.name == n)
+        };
+        let needs = |n: &str| uses(n) && !declares(n);
+        let needs_expect = needs("expect");
+        let needs_assert = needs("assert");
 
         // `needs_pow` belongs in this guard, not only in the body. It was
         // inside the block, so a spec that uses pow but has no tests, no expect
         // and no assert never entered it -- 20 of the 21 remaining pow errors sit
         // in one such spec. The check was right and unreachable.
-        let needs_pow = uses("pow");
+        let needs_pow = needs("pow");
 
         let mut auto_std = false;
         if has_tests || needs_expect || needs_assert || needs_pow {
@@ -4772,14 +4785,27 @@ impl Codegen {
         // Bound only when referenced, or the binding is itself an unused
         // declaration and one error is traded for another.
         let uses = |n: &str| ast.children.iter().any(|c| mentions_identifier(c, n));
-        let needs_expect = uses("expect");
-        let needs_assert = uses("assert");
+        // ...and only when the spec does NOT declare the name itself.
+        //
+        // `specs/math/constants.t27` writes its own `fn pow`, so the helper
+        // below made `duplicate struct member name 'pow'` and the file did not
+        // compile. 29 specs import it, every one of them clean in its own
+        // file: a spec runs only if its whole import closure compiles, so one
+        // duplicate here held down the largest group in the corpus.
+        let declares = |n: &str| {
+            ast.children
+                .iter()
+                .any(|c| c.kind != NodeKind::UseDecl && c.name == n)
+        };
+        let needs = |n: &str| uses(n) && !declares(n);
+        let needs_expect = needs("expect");
+        let needs_assert = needs("assert");
 
         // `needs_pow` belongs in this guard, not only in the body. It was
         // inside the block, so a spec that uses pow but has no tests, no expect
         // and no assert never entered it -- 20 of the 21 remaining pow errors sit
         // in one such spec. The check was right and unreachable.
-        let needs_pow = uses("pow");
+        let needs_pow = needs("pow");
 
         let mut auto_std = false;
         if has_tests || needs_expect || needs_assert || needs_pow {
