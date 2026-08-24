@@ -3048,7 +3048,16 @@ impl Parser {
         self.advance(); // consume const/var
 
         // Name
-        if self.current.kind == TokenKind::Ident {
+        //
+        // A keyword is a legal variable name in a spec: `var module = ...` in
+        // specs/compiler/parser.t27 lexes as KwModule, the Ident test failed,
+        // and the name was silently left empty -- the emitter then printed
+        // `var ;`, which is not a Zig declaration at all. 4 sites in 3 specs,
+        // and one of them blocked 4 more through the import graph.
+        //
+        // Taken by lexeme rather than by token kind, for any token whose text
+        // is a valid identifier.
+        if self.current.kind == TokenKind::Ident || is_identifier_text(&self.current.lexeme) {
             decl.name = self.current.lexeme.clone();
             self.advance();
         }
@@ -8729,6 +8738,17 @@ fn is_zig_primitive(name: &str) -> bool {
         let (head, rest) = name.split_at(1);
         matches!(head, "u" | "i" | "f") && !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit())
     }
+}
+
+/// Is this token's text usable as an identifier? Keywords are: a spec may
+/// name a variable `module` or `test`, and the lexer hands those back as Kw*.
+fn is_identifier_text(lexeme: &str) -> bool {
+    let mut chars = lexeme.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 fn node_has_cast(node: &Node) -> bool {
