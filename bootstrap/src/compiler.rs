@@ -4698,6 +4698,13 @@ impl Codegen {
                 // other. The harness was the thing that had to change.
                 // `use std;` is the standard library, not a file. It was
                 // emitting `@import("std.zig")` in 13 specs.
+                // `use tritype-base::usize;` imports a PRIMITIVE. There is
+                // no module to load and `const @"usize" = @import(...)`
+                // shadows the builtin, so the import is meaningless twice
+                // over. 6 specs were blocked on `usize.zig: FileNotFound`.
+                if is_zig_primitive(&decl.name) {
+                    continue;
+                }
                 if decl.value == "std" || decl.name == "std" {
                     self.write_line("const std = @import(\"std\");");
                     has_imports = true;
@@ -4737,11 +4744,18 @@ impl Codegen {
                     if fresh.is_empty() {
                         continue;
                     }
-                    if !taken.contains(&module_name) {
-                        taken.insert(module_name.clone());
+                    // Bound under the name the SPEC uses, not the module's
+                    // last segment. `use runtime-process::{ProcessID, ...}`
+                    // is referred to in the body as `runtime_process::...`,
+                    // and binding it as `process` left 14 undeclared-identifier
+                    // errors in one spec -- a regression the hyphen-as-separator
+                    // change introduced and the VALID count did not show.
+                    let bind = decl.name.clone();
+                    if !taken.contains(&bind) {
+                        taken.insert(bind.clone());
                         self.write_line(&format!(
                             "const {} = @import(\"{}\");",
-                            zig_ident(&module_name),
+                            zig_ident(&bind),
                             target
                         ));
                     }
@@ -4749,7 +4763,7 @@ impl Codegen {
                         self.write_line(&format!(
                             "const {} = {}.{};",
                             zig_ident(sym),
-                            zig_ident(&module_name),
+                            zig_ident(&bind),
                             zig_expr_name(sym)
                         ));
                     }
@@ -8638,6 +8652,30 @@ fn split_use_path(
         cut -= 1;
     }
     if cut == 0 {
+        // A hyphen in a `use` target is a path separator: `provider-schema`
+        // is `provider/schema`, `lsp-schema` is `lsp/schema`. Verified against
+        // the tree for provider, lsp, bus, sync, config and runtime -- six of
+        // the seven hyphenated targets in the corpus resolve this way.
+        //
+        // Only as a FALLBACK, because a spec file may legitimately carry a
+        // hyphen: `specs/physics/gamma-conflict.t27` would otherwise be split
+        // into a directory that does not exist.
+        let expanded: Vec<String> = segs
+            .iter()
+            .flat_map(|s| s.split('-').map(String::from).collect::<Vec<_>>())
+            .collect();
+        let mut ecut = expanded.len();
+        while ecut > 0 && !known.contains(&expanded[..ecut].join("/")) {
+            ecut -= 1;
+        }
+        if ecut > 0 {
+            let symbols: Vec<String> = if braced.is_empty() {
+                expanded[ecut..].to_vec()
+            } else {
+                braced
+            };
+            return (expanded[..ecut].to_vec(), symbols);
+        }
         return (segs, braced);
     }
     let symbols: Vec<String> = if braced.is_empty() {
@@ -8650,6 +8688,19 @@ fn split_use_path(
 
 /// Does this subtree contain a cast? `x as T` parses to an ExprFieldAccess
 /// named `as_T`, and the helper it needs is a file-scope declaration.
+/// Type names Zig already provides. Importing one names no file and binding
+/// it shadows the builtin.
+fn is_zig_primitive(name: &str) -> bool {
+    matches!(
+        name,
+        "usize" | "isize" | "bool" | "void" | "anyopaque" | "anyerror" | "type"
+            | "comptime_int" | "comptime_float" | "noreturn"
+    ) || {
+        let (head, rest) = name.split_at(1);
+        matches!(head, "u" | "i" | "f") && !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit())
+    }
+}
+
 fn node_has_cast(node: &Node) -> bool {
     if node.kind == NodeKind::ExprFieldAccess && node.name.starts_with("as_") {
         return true;
