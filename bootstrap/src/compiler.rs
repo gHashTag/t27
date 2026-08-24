@@ -4735,6 +4735,22 @@ impl Codegen {
         // blockers), so they are dispatched on kind rather than printed as
         // `name: Type,` -- which is what produced `Self: void` and `zero: void`.
         for child in &node.children {
+            // `generic: K, V` is a spec-level annotation saying the struct is
+            // generic over K and V -- not a member. Emitted as a field it is
+            // `tuple field has a name`: 8 sites in 4 files.
+            //
+            // Guarded on the shape of the type, not the name alone. A struct
+            // may legitimately have a field called `generic`; it will not have
+            // one whose type is a list of single uppercase letters.
+            if child.name == "generic"
+                && !child.extra_type.is_empty()
+                && child.extra_type.split(',').all(|t| {
+                    let t = t.trim();
+                    t.len() == 1 && t.chars().all(|c| c.is_ascii_uppercase())
+                })
+            {
+                continue;
+            }
             if child.kind == NodeKind::ExprIdentifier {
                 self.write_indent();
                 let ty = if !child.extra_type.is_empty() {

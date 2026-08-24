@@ -37,6 +37,7 @@ import concurrent.futures
 import json
 import pathlib
 import re
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -173,6 +174,33 @@ def main():
           f"-- these stop at their first parse error; true count is unknown and higher")
     strict = [f for f in pure if f in valid and results[f].get("hollow", 0) == 0]
     hollow_valid = len([f for f in pure if f in valid]) - len(strict)
+    # Audit the wall classifier against evidence, every run.
+    #
+    # The classifier matches WORDS, which is the failure this work keeps
+    # hitting -- and #2636 caught it missing `duplicate struct member name`. A
+    # halting error caps its file's count, so a class whose specs sit at one or
+    # two errors is halting whatever its wording says. Anything the word list
+    # misses is printed here rather than waiting for the next accident.
+    #
+    # This detects; it does not define. A class can have a low median because
+    # those files really do have one error, so a hit here is a prompt to fix a
+    # spec in that class and see whether its siblings jump -- not a licence to
+    # add the word.
+    by_class = collections.defaultdict(list)
+    for f in pure:
+        e = first.get(f, "")
+        if e not in ("VALID", "EMPTY", "TIMEOUT", ""):
+            by_class[normalise(e)].append(results[f]["count"])
+    suspects = [
+        (k, len(v), statistics.median(v))
+        for k, v in by_class.items()
+        if len(v) >= 3 and statistics.median(v) <= 2 and not is_parse_error(k)
+    ]
+    if suspects:
+        print("  classifier audit -- these halt the check but the word list misses them:")
+        for k, n, med in sorted(suspects, key=lambda x: -x[1]):
+            print(f"    {n:4d} specs, median {med:.0f} errors   {k[:56]}")
+
     print(f"  valid AND no empty test {len(strict)}/{len(pure)}   "
           f"({hollow_valid} more are valid with an empty test block -- #2593)")
     counts = collections.Counter(
