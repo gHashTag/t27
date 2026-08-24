@@ -777,9 +777,24 @@ impl Lexer {
                 // Stricter than the `x`/`b` branches beside it: only directly
                 // after a leading zero, so nothing else changes.
                 let octal_prefix = (c == b'o' || c == b'O') && number == "0";
+                let dec_exponent = !is_hex
+                    && (c == b'e' || c == b'E')
+                    && !number.is_empty()
+                    && !number.contains(['e', 'E'])
+                    && {
+                        let n1 = self.source.get(self.pos + 1).copied().unwrap_or(0);
+                        n1.is_ascii_digit()
+                            || ((n1 == b'+' || n1 == b'-')
+                                && self.source.get(self.pos + 2).copied().unwrap_or(0).is_ascii_digit())
+                    };
+                let exponent_sign = !is_hex
+                    && (c == b'+' || c == b'-')
+                    && number.chars().last().map_or(false, |p| p == 'e' || p == 'E');
                 if c.is_ascii_digit()
                     || is_dot_not_range
                     || octal_prefix
+                    || dec_exponent
+                    || exponent_sign
                     || c == b'x'
                     || c == b'X'
                     || c == b'b'

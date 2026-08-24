@@ -26,6 +26,7 @@ ARTIFACTS. Reads `specs/**/*.t27` and runs `./target/release/t27c`. WRITES
 Prop. 143.
 """
 import pathlib
+import json
 import re
 import subprocess
 import sys
@@ -227,8 +228,36 @@ def main():
 
     old_total = sum(v[0] for v in was.values())
     old_lost = sum(v[1] for v in was.values())
+    # Rust-dialect specs are exempt from the RECOVERY-EVENT half of the ratchet.
+    #
+    # #2658 reverted a correct lexer fix because this spec went 0 -> 4 events:
+    #
+    #   specs/test_framework/property_test_template.t27
+    #       fn for_all<F>(...) -> TestResult
+    #           where F: Fn(T) -> bool
+    #
+    # `where` is Rust. The file is one of the 66 in RUST_DIALECT.json that t27
+    # is documented as unable to parse. The fix let the parser get FURTHER into
+    # a Rust file, and further in was more Rust -- so the count rose because
+    # the parser improved.
+    #
+    # Recovery events are therefore not monotone in parser correctness, exactly
+    # as total error count is not monotone in emitter correctness (#2603). On a
+    # file the project has already written off, a rise carries no information.
+    #
+    # I wrote in #2646 that coupling this gate to RUST_DIALECT.json would be
+    # "no gain". That was wrong, and the cost was a reverted fix.
+    #
+    # `declarations swallowed` and `declaring but capturing nothing` stay
+    # ratcheted for every file, dialect or not: those mean lost content, which
+    # is a real regression wherever it happens.
+    rusty = set()
+    manifest = ROOT / "specs" / "RUST_DIALECT.json"
+    if manifest.exists():
+        rusty = {r["path"] for r in json.loads(manifest.read_text())["files"]}
+
     regressions = [(k, was.get(k, (0, 0, 0)), v) for k, v in sorted(now.items())
-                   if v[0] > was.get(k, (0, 0, 0))[0]
+                   if (v[0] > was.get(k, (0, 0, 0))[0] and k not in rusty)
                    or v[1] > was.get(k, (0, 0, 0))[1]
                    or v[2] > was.get(k, (0, 0, 0))[2]]
     if regressions:
