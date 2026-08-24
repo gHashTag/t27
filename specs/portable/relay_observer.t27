@@ -63,7 +63,7 @@ pub struct ObserverConfig {
 // Functions - State Management
 // ============================================================================
 
-pub fn websocket_state_new() WebSocketState WebSocketState {
+pub fn websocket_state_new() WebSocketState {
     return .ready;
 }
 

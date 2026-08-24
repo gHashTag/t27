@@ -3958,8 +3958,20 @@ impl Parser {
         if self.current.kind == TokenKind::RBracket {
             self.advance();
         } else {
+            // Nesting-aware. The loop used to stop at the FIRST `]`, so a
+            // literal whose element contains one -- `[ A{ .p = [X; N] }, ... ]`
+            // -- ended at the inner bracket and everything after it was
+            // dropped. Zig then reported `expected ']', found ';'`, pointing at
+            // the repeat syntax when the defect was truncation.
             let mut bracket_content = String::new();
-            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+            let mut depth = 0usize;
+            while self.current.kind != TokenKind::Eof {
+                match self.current.kind {
+                    TokenKind::LBracket => depth += 1,
+                    TokenKind::RBracket if depth == 0 => break,
+                    TokenKind::RBracket => depth -= 1,
+                    _ => {}
+                }
                 bracket_content.push_str(&self.current.lexeme);
                 self.advance();
             }
@@ -4303,8 +4315,25 @@ impl Parser {
             };
             last_kind = kind.clone();
 
+            // A clause runs to the end of its line UNLESS its brackets are
+            // still open. 13 clauses in 8 specs wrap:
+            //
+            //   and weights = [Trit.pos, Trit.zero, Trit.zero,
+            //                  Trit.zero, Trit.neg]
+            //
+            // and the line bound truncated them. Brackets and parens only: a
+            // `{` opens a BLOCK, and continuing across it would swallow the
+            // block's declarations.
             let mut text = String::new();
-            while self.current.kind != TokenKind::Eof && self.current.line == line {
+            let mut depth = 0i32;
+            while self.current.kind != TokenKind::Eof
+                && (self.current.line == line || depth > 0)
+            {
+                match self.current.kind {
+                    TokenKind::LBracket | TokenKind::LParen => depth += 1,
+                    TokenKind::RBracket | TokenKind::RParen => depth -= 1,
+                    _ => {}
+                }
                 // A space goes between two word-like tokens and nowhere else.
                 // Joining everything with spaces split `ErrorCode::Unexpected`
                 // into `ErrorCode : : Unexpected`, which no later rule can
@@ -5081,7 +5110,10 @@ impl Codegen {
             // element list is several.
             let raw = node.extra_size.trim().trim_end_matches(',');
             if !raw.is_empty() && node.extra_size.contains(',') {
-                self.write(&zig_path(raw));
+                // An element may itself be a repeat: `[A{..}; N]` nested in a
+                // comma list. The list is raw text here, so the rewrite runs
+                // on it too.
+                self.write(&rewrite_array_repeats(&zig_path(raw)));
             } else if let Some((val, count)) = raw.split_once(';') {
                 // Rust's repeat literal, `[0.0; EMBED_DIM]`, also lands in the
                 // size field. Zig repeats a tuple with `**`, so `.{0.0} ** N`
@@ -5640,7 +5672,11 @@ impl Codegen {
                 // files, and I looked for them in gen_const_decl and StmtLocal
                 // first: the census names the emitted line, not the code that
                 // wrote it, and this one comes from here.
-                if val.starts_with('[') && val.ends_with(']') && !val.contains('{') {
+                // The `{` exclusion was too strong: `[A{..}, B{..}]` is
+                // still a list. A Zig array literal ends in `}` -- `[_]u8{1,2}`
+                // -- so ending in `]` already rules that out, and the brace
+                // test only blocked lists whose ELEMENTS are struct literals.
+                if val.starts_with('[') && val.ends_with(']') {
                     val = format!(".{{{}}}", &val[1..val.len() - 1]);
                 }
                 self.write_line(&format!("const {} = {};", zig_ident(lhs.trim()), val));
@@ -5768,7 +5804,6 @@ impl Codegen {
                     let raw = if v.name.is_empty() { &v.value } else { &v.name };
                     let bracketed = raw.starts_with('[')
                         && raw.ends_with(']')
-                        && !raw.contains('{')
                         && node.extra_type.is_empty();
                     if bracketed {
                         self.write(&format!(".{{{}}}", &raw[1..raw.len() - 1]));
