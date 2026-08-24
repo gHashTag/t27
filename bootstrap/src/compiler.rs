@@ -5629,6 +5629,31 @@ impl Codegen {
     }
 
     fn gen_test_block(&mut self, node: &Node) {
+        // A generated stub asserts nothing, so it emits nothing.
+        //
+        //   given input = default_input()
+        //   when result = <fn>(input)
+        //   then result != undefined
+        //
+        // `default_input` is declared nowhere: 526 of the corpus's 895
+        // `use of undeclared identifier` errors are this one name, 59% of the
+        // class. tools/converter wrote one per function and its source was
+        // closed in #2623; these are the ones already in the tree.
+        //
+        // Counted by structure: 571 blocks in 169 specs, and every one matches
+        // the skeleton exactly -- zero blocks share the `given` and differ
+        // after it -- so no real test is being dropped.
+        //
+        // Declaring `default_input` instead would compile and assert nothing,
+        // trading a loud error for a silent no-op test. A comment says what is
+        // true: the spec states no behaviour here.
+        if is_generated_stub(node) {
+            self.write_line(&format!(
+                "// {}: generated stub, asserts nothing -- no test emitted (#2623)",
+                node.name
+            ));
+            return;
+        }
         let tname = self.unique_name(format!("test:{}", node.name));
         let tname = tname.strip_prefix("test:").unwrap_or(&tname).to_string();
         self.write(&format!("test \"{}\"", tname));
@@ -8835,6 +8860,22 @@ fn rewrite_array_repeats(text: &str) -> String {
         }
     }
     out
+}
+
+/// The `default_input` / `!= undefined` skeleton, and nothing else.
+fn is_generated_stub(node: &Node) -> bool {
+    let clauses: Vec<&Node> = node.children.iter().collect();
+    if clauses.len() != 3 {
+        return false;
+    }
+    let text: Vec<String> = clauses
+        .iter()
+        .map(|c| c.name.replace(' ', ""))
+        .collect();
+    text[0] == "input=default_input()"
+        && text[1].starts_with("result=")
+        && text[1].ends_with("(input)")
+        && text[2] == "result!=undefined"
 }
 
 fn is_identifier_text(lexeme: &str) -> bool {
