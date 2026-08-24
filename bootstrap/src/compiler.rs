@@ -4640,6 +4640,13 @@ impl Codegen {
                 // it can. Verified on a two-file fixture both ways -- the same
                 // import is an error under one root and passes under the
                 // other. The harness was the thing that had to change.
+                // `use std;` is the standard library, not a file. It was
+                // emitting `@import("std.zig")` in 13 specs.
+                if decl.value == "std" || decl.name == "std" {
+                    self.write_line("const std = @import(\"std\");");
+                    has_imports = true;
+                    continue;
+                }
                 let target = match &self.rel_path {
                     Some(rel) => resolve_import_path(
                         &decl.value,
