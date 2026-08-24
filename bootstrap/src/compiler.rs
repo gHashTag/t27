@@ -5086,11 +5086,43 @@ impl Codegen {
                 .unwrap_or_else(|| n.to_string())
         };
 
+        // A free generic in the RETURN type: `fn empty() Queue(T)`.
+        //
+        // #2597 renders such a name as `anytype` in PARAMETER position, which
+        // Zig does not allow in a return type, so `T` stayed unbound and 5
+        // specs failed on it alone. Here the name becomes an explicit
+        // `comptime T: type` parameter.
+        //
+        // #2576 rejected exactly this for parameters because it broke 103 call
+        // sites. Measured for these: **zero** real call sites -- the two my
+        // first count found were a comment and the declaration itself.
+        let mut type_params: Vec<String> = Vec::new();
+        for tok in node
+            .extra_return_type
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+        {
+            if tok.len() == 1
+                && tok.chars().next().map_or(false, |c| c.is_ascii_uppercase())
+                && !self.declared_top.contains(tok)
+                && !node.params.iter().any(|(n, _)| n == tok)
+                && !type_params.iter().any(|t| t == tok)
+            {
+                type_params.push(tok.to_string());
+            }
+        }
+
         // Fifth site that binds a name. `fn union(a: *Bitset)` -- set union is
         // the natural spelling and `union` is a Zig keyword.
         self.write(&format!("fn {}(", zig_ident(&node.name)));
-        for (i, (pname, ptype)) in node.params.iter().enumerate() {
+        for (i, tp) in type_params.iter().enumerate() {
             if i > 0 {
+                self.write(", ");
+            }
+            self.write(&format!("comptime {}: type", tp));
+        }
+        let had_type_params = !type_params.is_empty();
+        for (i, (pname, ptype)) in node.params.iter().enumerate() {
+            if i > 0 || had_type_params {
                 self.write(", ");
             }
             // #2576: a free function using a generic parameter the enclosing
