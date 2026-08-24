@@ -4540,8 +4540,10 @@ and the copy did not.**
 So the function is correct *because* a branch never runs. Nothing in the tree
 records that, and any future change to the alignment or the normalisation loop
 that lets `sticky` reach a tie turns a dormant copy-paste into a live rounding
-error with no test in front of it. Reported as #2652 rather than fixed — the
-Python mirrors `board/bpseq.v`, and I have not measured the RTL.
+error with no test in front of it. Reported as #2652 rather than fixed. **Measured the next tick:** the
+counterpart is `specs/ternary/gft_sadd.t27`, not `board/bpseq.v` — that path
+has never existed in this repository. The spec carries the rule line for line,
+30 specs carry a copy, and the arm is dead there too. See §120.
 
 ### Equivalent mutants are worth proving, once
 
@@ -4678,3 +4680,77 @@ silent loss into an immediate one. A destructive git operation deserves the same
 suspicion as a destructive shell command — and the doctrine already says
 *destructive tools last, never on the last working copy*; I had been reading
 that as being about hardware.
+
+## 120. The reference I cited was to a file that never existed
+
+Closing §117 I wrote, in a merged pull request, that the sticky arm was
+*"reported, not changed — this mirrors `board/bpseq.v`, and I have not measured
+the RTL."*
+
+`git log --all -- board/bpseq.v` is **empty**. The path has never existed in
+this repository. I had repeated a pointer out of the file's own docstring
+without checking it resolved, and then used it as the reason **not** to fix a
+rule I had just shown to be wrong.
+
+**A wrong pointer is worse than a missing one.** A missing one sends a reader
+looking; a wrong one makes them stop — and it stopped me at exactly the moment I
+was deciding whether a defect was real.
+
+The actual counterpart is `specs/ternary/gft_sadd.t27`. Measured this tick:
+
+| question | answer |
+|---|---|
+| does the spec carry the same rule? | **yes, line for line** |
+| how many specs carry a copy? | **30** under `specs/ternary/` |
+| is the arm dead there too? | **yes** — exhaustive over every `(hm, lm, d)` |
+| do the two normalisations agree? | **yes** — bit-for-bit over 2,193,075 points |
+
+The spec's barrel shift (`8/4/2/1` capped) and the Python's 12-step loop are
+different code reaching identical results. So the generated Verilog, C and Rust
+all carry the same dormant wrong rule.
+
+### The bit-exactness suite cannot see this, by construction
+
+`verify_multitarget` and `verify_emit_bitexact` prove Verilog, C and Rust agree
+with the Python model. **They prove the compiler faithful to the spec; they can
+never say the spec is right.** A defect written in the spec propagates to every
+target and the suite stays green — that is the suite working, not failing.
+
+`ALL TARGETS BIT-EXACT` is a true sentence that a reader takes for "the
+arithmetic is verified". It is worth exactly what it says.
+
+### One narrowness that WAS fixable
+
+The suite's operands come from `uniform(-4, 4)` — measured, that is `off` 35..41,
+**six of the format's 81 exponents**. A divergence that only shows when operands
+are decades apart had never been in front of it. Widened to 16 of 81 across the
+full range, appending pairs rather than reseeding so the existing 600 stay
+byte-identical: **1744 pairs, still green**, and the negative control confirms it
+still reddens (12 mismatches on a mutated model).
+
+I had also guessed the suite was blind to rounding **ties**. Measured: 20 of 256
+pairs land on `rem == half`. **The guess was wrong and the measurement was
+cheap** — the blind spot was one dimension over from where I expected it.
+
+### `tri pointers`, and how it caught its own docstring
+
+The obvious version — check every path-shaped string — was measured first: 873
+mentions, **409 unresolved**, dominated by paths a program *creates* and
+fixture names inside unit tests. A report that is 95% noise gets switched off,
+and the 5% goes with it. Narrowing to a prose pointer (`see X`, `cf. X`,
+`documented in X`) gives 193 mentions and **16** unresolved — a list a person
+can read, each row written on purpose.
+
+**The narrowing was chosen by measuring both, not by taste.**
+
+Then the first run reported the new tool's own docstring, which quoted
+*"see `board/bpseq.v`"* while explaining the bug. **Second time in two days that
+a checker read its own documentation as data** (§118 was the first). A special
+case for the tool's own file would have hidden the same thing in the next
+document that discusses pointers, so the fix went where it belongs: the
+docstring no longer spells the path after a cue word, and it says why.
+
+Two instances in two days is not a coincidence — it is what happens when tools
+scan prose for their own vocabulary. **Expect it, and expect the count, not the
+list, to be what tells you.** Both times the tell was a number that was one
+higher than it should have been.
