@@ -26,7 +26,7 @@
   "cap_was_set_from_ms_per_lut": 50.7,
   "expected_at_that_slope_s": 1450,
   "reading": "place-and-route on this design has already spent 1.70x the time the corrected slope predicts, and has not finished. T846 said the slope is not one number and the spread is at least 1.9x and not monotonic in size; this is a fresh lower bound at the top of the corpus, obtained by waiting.",
-  "status": "IN FLIGHT under a 5400 s cap"
+  "status": "RESOLVED in W998: the build completed and the operator read 1111. The lower bound stands as a measurement -- the design needed more than 1.70x the mean slope -- and it is what moved the cap in W997."
  },
  "bench_gate_deferred": {
   "why": "scripts/tri was executing the sweep for the whole wave, and editing a running bash script risks corrupting its parse mid-run",

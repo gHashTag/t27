@@ -16,7 +16,7 @@
  "the_second_defect_the_first_one_exposed": {
   "symptom": "with the rows printing, two ABSENT results produced 'tri seeds: 0 pass, 0 fail over 2 placement(s)' followed by 'One verdict across every placement tried'",
   "why_it_is_wrong": "ABSENT is not a verdict, it is the absence of one, and the closing sentence reads as reassurance. This project established the ABSENT/FAIL distinction in W977 -- 'the ABSENT/FAIL split matters: one genuine timing miss, not three' -- and the tool collapses it.",
-  "status": "found this wave, not yet repaired -- the script was executing while the run was in flight and editing a running bash script risks corrupting its parse"
+  "status": "REPAIRED in W994: ABSENT no longer counts as a verdict. tri seeds now reports three states -- pass, fail, NO VERDICT -- with a distinct sentence for each, and exits 2 on 'NOTHING WAS MEASURED'. Validated on all four combinations."
  },
  "train1_regression": {
   "observed": "gft_train1 ABSENT at seeds 42 and 1234, BSCAN sites 2 and 4 captured, no die word",

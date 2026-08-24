@@ -1,4 +1,4 @@
-<title>t27 - TNF: волна W997</title>
+<title>t27 - TNF: волна W998</title>
 <style>
 :root {
   --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
@@ -55,18 +55,18 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="wrap">
 <header>
   <h1>TNF - публикационная готовность</h1>
-  <span class="live">*W997 — THE LIMIT MOVES OFF THE MEAN AND ONTO THE WORST RATE.** W988 set the stage cap at</span>
+  <span class="live">*W998 — THE TABLE CLOSES AT 8 OF 8, AND THE GATE IMMEDIATELY CONTRADICTED A PUBLISHED CENSUS.**</span>
 </header>
 
 <div class="kpis">
   <div class="kpi"><div class="lbl">готовность</div><div class="val">98%</div>
-    <div class="sub">оценка волны W997</div></div>
-  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">621</div>
+    <div class="sub">оценка волны W998</div></div>
+  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">627</div>
     <div class="sub">расхождений 0</div></div>
   <div class="kpi"><div class="lbl">чтений с кристалла</div><div class="val">50</div>
     <div class="sub">9 схем, 39 с ok=1</div></div>
-  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1119/762</div>
-    <div class="sub">старшие T863a, и 1534</div></div>
+  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1119/763</div>
+    <div class="sub">старшие T863a, и 1535</div></div>
 </div>
 
 <h2>Операторы на кремнии - выведено из записей</h2>
@@ -86,6 +86,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 </tbody></table></div>
 
 <h2>Журнал итераций</h2>
+<div class="row"><span class="w">W998</span><span class="t"><b>The table closes, and the new gate contradicts a published census.</b> <code>gft_xorpercep</code> has been read off silicon for the first time in this project's history: word <code>0xa5a5313f</code>, <code>1111</code>, <code>ok=1</code>, <code>beat=1</code>, 28 609 LUT, about fifty minutes of place-and-route. It had reported <code>ABSENT</code> since W977, and the causes were <b>four different things, none of them the design</b> -- a 600 s cap, then an 1 800 s cap, then a JTAG cable that had left the bus, then a bus address that moved on replug. Every one of them printed the same word, and twice that word was written into the record as a property of the operator. <code>gft_train1</code> returned <code>1111</code> at seeds 42 and 1234, reproducing W988's word <code>0xa5a5317f</code> exactly at two placements it had not been read at, which retracts the W993 "unexplained regression" completely. <b>The table is 9 designs, 50 die reads, 39 with <code>ok=1</code></b>, all derived from the records rather than transcribed.</span></div>
 <div class="row"><span class="w">W997</span><span class="t"><b>The limit belonged to the worst rate all along.</b> W988 rederived the place-and-route slope as 50.7 ms/LUT and set the stage cap from it. In the same wave it measured that the spread is <b>at least 1.9x and not monotonic in size</b>. Those two facts do not sit together: a limit chosen from the mean of a quantity with that spread will fail on the tail, and the tail here is the largest design -- the one that matters most and that nobody can afford to re-run casually. W996 watched <code>gft_xorpercep</code>, 28 609 LUT, pass <b>94.8 ms/LUT without finishing</b>. This wave it crossed <b>101.5 ms/LUT</b>, still running: <b>2.0x the mean the cap came from</b>, and still a lower bound. At the 1 800 s cap that build dies at thirty minutes and reports <code>ABSENT</code> -- a bench limit read as a property of the design, which is exactly what W994 had to retract one wave earlier and exactly the confusion this project has spent four waves learning to see.</span></div>
 <div class="row"><span class="w">W996</span><span class="t"><b>Correct forward, annotate backward.</b> The rename of W995 could have been swept through the corpus. It was not. Measured first: <b>1 344 legacy citations across 107 files</b> -- <code>TNF4</code> 629, <code>TNF16</code> 299, <code>TNF8</code> 247, <code>TNF32</code> 59, <code>TNF64</code> 45, and a tail. Rewriting them would break every cross-reference, touch every committed record that is indexed by the old name, and <b>change no measurement</b>, because each figure was already computed at the physical width. The records were written when the name meant what it meant. What a reader needs is the mapping at the point of entry, so that is where it went: the top of the referee page, the theory document and this ledger.</span></div>
 <div class="row"><span class="w">W995</span><span class="t"><b>The name was in the wrong unit, and that is why it never tripped.</b> The Architect asked the obvious question nobody in 63 chapters had asked: *<code>TNF4</code> occupies 6 bits, not 4 -- then logically it should be called <code>TNF6</code>.* It should. And the mechanism turns out to be sharper than a careless label. <code>spec_ladder</code> does not merely happen to use those numbers; it <b>asserts</b> <code>1 + E_t + M == N</code>, with <code>E_t</code> counting <b>trits</b>. So <code>TNF16</code> genuinely is sixteen storage *elements* -- one sign, four trits, eleven mantissa bits. Packed into binary, four trits need seven bits, and the format is nineteen bits wide.</span></div>
@@ -99,8 +100,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="row"><span class="w">W987</span><span class="t"><b>The table those repairs were for.</b> Every operator, re-read on the die with every clause real. | operator | LUT | placements | clauses | verdict | |----------|-----|-----------|---------|---------| | <code>gft_smul</code> | 1877 | 4 | <code>1111</code> x4 | PASS | | <code>gft_dup</code> | 1763 | 4 | <code>1111</code> x4 | PASS | | <code>gft_sadd</code> | 4231 | 2 | <code>1111</code> x2 | PASS | | <code>gft_signed_dot4</code> | 7851 | 1 | <code>1111</code> | PASS -- first time on silicon | | <code>gft_signed_mac</code> | 9465 | 1 | <code>1111</code> | PASS -- confirms the W978 fix | | <code>gft_train1</code> | 16188 | 2 | -- | ABSENT, 600 s cap | | <code>gft_xorpercep</code> | 28217 | 1 | -- | ABSENT, 600 s cap |</span></div>
 <div class="row"><span class="w">W986</span><span class="t"><b>The comparison that was called impossible took four builds.</b> W985 ended on a loss: repairing the folded clauses was correct and it destroyed this project's only reproducible hardware anomaly, so *the failure is gone* and *the failure is absent in a design this different* could never be separated. It also froze a copy of the broken wrappers, out of the corpus, marked do-not-fix. That copy answers the question in four builds.</span></div>
 <div class="row"><span class="w">W985</span><span class="t"><b>The sweep came back clean, and that is the loss.</b> W984 closed the folded-clause class and read two designs at one placement each -- which cannot distinguish *the failure is gone* from *the failure is absent here*. This is the sweep: four placements per design, each read bracketed by a wrong-part bitstream forcing <code>Done=0</code>. | design | LUT (was) | seeds 1 / 7 / 42 / 1234 | |--------|-----------|--------------------------| | <code>gft_smul</code> | 1877 (1312) | <code>1111</code> <code>1111</code> <code>1111</code> <code>1111</code> | | <code>gft_dup</code> | 1763 (798) | <code>1111</code> <code>1111</code> <code>1111</code> <code>1111</code> |</span></div>
-<div class="row"><span class="w">W984</span><span class="t"><b>The class closed in the wave after it was named.</b> W983 found that 14 of 28 on-die clauses were constants folded at synthesis, repaired one wrapper and left the rest as a named debt. Clearing all eight took one wave and one primitive: ``<code>verilog reg [31:0] opq_a = 32'd1, opq_b = 32'd1; always @(posedge slowclk) begin opq_a &lt;= opq_a + 1; opq_b &lt;= opq_b + 1; end wire [31:0] Z0 = opq_a - opq_b; </code>``</span></div>
 
-<footer><span>обновлено: <b>W997 - 2026-08-23</b></span>
+<footer><span>обновлено: <b>W998 - 2026-08-23</b></span>
 <span>сгенерировано <code>tri dashboard</code> из записей репозитория</span></footer>
 </div>

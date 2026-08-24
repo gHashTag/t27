@@ -134,5 +134,6 @@
    "site": 1
   }
  ],
- "schema_note": "W989 convention: every die read in this record, machine-locatable."
+ "schema_note": "W989 convention: every die read in this record, machine-locatable.",
+ "SETTLED_W999": "the dot4 sweep completed: 5 die reads on record, all 1111 with ok=1 (tri table). Nothing in this record remains in flight."
 }

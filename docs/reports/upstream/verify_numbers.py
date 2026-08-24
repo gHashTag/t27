@@ -1043,10 +1043,24 @@ if tw:
         check("итог стал 15", cw["corrected_total"]["now"].startswith("15"), True, tol=0)
         check("шесть строк не проверяемы и не отозваны",
               "neither confirmed nor withdrawn" in cw["corrected_total"]["note"], True, tol=0)
+        # W999: and then the "unverifiable" rows were verified, from git.
+        sv = cw.get("SETTLED_W999")
+        check("перепись доведена до измерения", sv is not None, True, tol=0)
+        if sv:
+            r = sv["result"]
+            check("перемерено строк", len(r), 7, tol=0)
+            check("сумма перемеренного", sum(r.values()), 15, tol=0)
+            check("dot4 расходится", r["gft_signed_dot4"], 1, tol=0)
+            check("шесть из семи совпали", "six of seven" in sv["agreement"], True, tol=0)
+            check("детерминировано", "deterministic" in sv["agreement"], True, tol=0)
+            check("W998 сам был неверен", "That was wrong" in sv["second_correction"], True, tol=0)
         check("класс дефекта воспроизведён независимо",
               "gft_bitnet_neuron" in cw["second_finding_same_gate"], True, tol=0)
-    check("второй дефект не выдан за починенный",
-          d2["status"].startswith("found this wave, not yet repaired"), True, tol=0)
+    # W999: this asserted the defect was still open. It was closed in W994, and
+    # the check now asserts the closure -- a verifier that pins a record to its
+    # unfixed state turns every repair into a false alarm.
+    check("второй дефект закрыт в W994",
+          d2["status"].startswith("REPAIRED in W994"), True, tol=0)
     tr = tw["train1_regression"]
     check("локализовано ниже проверки цепочки",
           "downstream" in tr["what_that_locates"], True, tol=0)
@@ -1120,8 +1134,8 @@ if nt:
           b["lower_bound_ms_per_lut"] / b["cap_was_set_from_ms_per_lut"], 1.70, tol=0.02)
     check("ожидание по наклону, с",
           b["cap_was_set_from_ms_per_lut"] * b["LUT"] / 1000, b["expected_at_that_slope_s"], tol=1)
-    check("статус назван, а не выдан за результат",
-          b["status"].startswith("IN FLIGHT"), True, tol=0)
+    check("нижняя граница разрешена в W998",
+          b["status"].startswith("RESOLVED in W998"), True, tol=0)
     check("гейт стенда отложен с причиной",
           "executing the sweep" in nt["bench_gate_deferred"]["why"], True, tol=0)
 
@@ -1181,6 +1195,31 @@ if rp:
           "standalone rigs" in rp["what_is_NOT_affected"], True, tol=0)
     check("кривая МГц/kLUT НЕ пересчитана -- и так сказано",
           "has NOT been recomputed" in rp["honest_status"], True, tol=0)
+
+# W999: the finishing pass, and what 100 % actually contained.
+fw = rec("finish_w999.json")
+if fw:
+    print("\n== доводка до 100 % (W999)")
+    c = fw["closed_this_wave"]
+    ce = c["the_census"]
+    check("итог переписи измерен", ce["total"].startswith("15 of 28"), True, tol=0)
+    check("шесть из семи воспроизвели", "six of seven" in ce["result"], True, tol=0)
+    check("W998 сам был неверен", "was false" in ce["second_correction"], True, tol=0)
+    check("устаревших флагов закрыто", len(c["stale_flags"]), 4, tol=0)
+    check("класс свёрнутых клауз закрыт по корпусу",
+          "closed across all 10 operator wrappers" in c["last_two_folded_wrappers"], True, tol=0)
+    check("дефектов инструмента исправлено", len(c["tool_defects"]), 2, tol=0)
+    ip = fw["in_progress"]
+    check("кривая невыводима из записей -- и сказано почему",
+          "no honest (area, frequency) pair" in ip["why_it_cannot_come_from_records"], True, tol=0)
+    pairs = ip["first_honest_pairs"]
+    check("честных пар уже снято", len(pairs), 3, tol=0)
+    for k, v in pairs.items():
+        check(f"{k}: МГц/kLUT сходится",
+              v["fmax_mhz"] / (v["LUT"] / 1000.0), v["mhz_per_klut"], tol=0.02)
+    check("CARRY4 снят с публикации, а не подогнан",
+          "worse than omitting it" in ip["carry4_column_dropped"], True, tol=0)
+    check("не моих пунктов", len(fw["not_mine"]), 2, tol=0)
 
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)

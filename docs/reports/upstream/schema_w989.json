@@ -100,7 +100,7 @@
  "in_flight": {
   "design": "gft_xorpercep",
   "cap_s": 3600,
-  "status": "running at the time this record was written",
+  "status": "LANDED in W998: 1111, ok=1, word 0xa5a5313f, 28609 LUT, BSCAN site 4 -- the first silicon read of this operator in the project's history.",
   "why": "28609 LUT needing more than 62.9 ms/LUT; the 1800 s cap of W988 killed it. It is the one operator never read off silicon.",
   "note": "recorded as IN FLIGHT rather than omitted, so the next wave does not rediscover the question"
  },

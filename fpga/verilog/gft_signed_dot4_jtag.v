@@ -81,32 +81,46 @@ module gft_signed_dot4_jtag #(parameter integer JTAG_CHAIN_N = 3);
     wire y_can, y_ann, y_ab, y_ba, y_one;
     wire [31:0] r_can, r_ann, r_ab, r_ba, r_one;
 
+    // W999 (T839, T863a): every constant operand below reached the DUT as a
+    // literal, so yosys evaluated the clause at compile time and the die read a
+    // folded 1 -- a PASS in every build, including the failing ones (T836).
+    // `Z0` is identically zero at runtime and opaque to the optimiser: two
+    // counters with the same seed and step, whose equality no mapper will try to
+    // prove. `K + Z0` is K on silicon and an unknown to `opt`.
+    reg [31:0] opq_a = 32'd1;
+    reg [31:0] opq_b = 32'd1;
+    always @(posedge slowclk) begin
+        opq_a <= opq_a + 32'd1;
+        opq_b <= opq_b + 32'd1;
+    end
+    wire [31:0] Z0 = opq_a - opq_b;
+
     // 1. CANCELLATION, on a LIVE operand so the datapath cannot be folded away
     GftSignedDot4 u_can (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(P1), .b1(live), .a2(N1), .b2(live),
-        .a3(P1), .b3(live), .a4(N1), .b4(live),
+        .a1(P1 + Z0), .b1(live), .a2(N1 + Z0), .b2(live),
+        .a3(P1 + Z0), .b3(live), .a4(N1 + Z0), .b4(live),
         .ready(y_can), .result(r_can));
 
     // 2. ANNIHILATION
     GftSignedDot4 u_ann (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(Z), .b1(live), .a2(Z), .b2(live2),
-        .a3(Z), .b3(live), .a4(Z), .b4(live2),
+        .a1(Z + Z0), .b1(live), .a2(Z + Z0), .b2(live2),
+        .a3(Z + Z0), .b3(live), .a4(Z + Z0), .b4(live2),
         .ready(y_ann), .result(r_ann));
 
     // 3. COMMUTATIVITY: the same four products with each pair swapped
     GftSignedDot4 u_ab (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(live), .b1(N1),    .a2(Z),     .b2(live2),
-        .a3(N1),   .b3(live2), .a4(live), .b4(live),
+        .a1(live), .b1(N1 + Z0),    .a2(Z + Z0),     .b2(live2),
+        .a3(N1 + Z0),   .b3(live2), .a4(live), .b4(live),
         .ready(y_ab), .result(r_ab));
     GftSignedDot4 u_ba (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(N1),    .b1(live), .a2(live2), .b2(Z),
-        .a3(live2), .b3(N1),  .a4(live), .b4(live),
+        .a1(N1 + Z0),    .b1(live), .a2(live2), .b2(Z + Z0),
+        .a3(live2), .b3(N1 + Z0),  .a4(live), .b4(live),
         .ready(y_ba), .result(r_ba));
 
     // 4. NON-TRIVIALITY: one product, and it must not be zero
     GftSignedDot4 u_one (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
-        .a1(live), .b1(P1), .a2(Z), .b2(Z),
-        .a3(Z),    .b3(Z),  .a4(Z), .b4(Z),
+        .a1(live), .b1(P1 + Z0), .a2(Z + Z0), .b2(Z + Z0),
+        .a3(Z + Z0),    .b3(Z + Z0),  .a4(Z + Z0), .b4(Z + Z0),
         .ready(y_one), .result(r_one));
 
     wire can_ok = (r_can == 32'd0);

@@ -31313,6 +31313,56 @@ recomputed. It still stands on the folded areas. Naming a wrong number is not
 fixing it: the fix is eight designs at several placements each, at up to fifty
 minutes a build, and that is the next wave's work rather than a line in this one.
 
+### T865 -- Most of the last two percent was bookkeeping [measured]
+
+Asked to finish to 100 %, the first act was to enumerate what was open. Five
+items. **Three of the five were stale flags on work already done**: a defect
+marked *not yet repaired* that W994 had repaired, an operator marked *IN FLIGHT*
+that W998 had read off silicon, a placement bound marked *IN FLIGHT* that had
+resolved. The debt was in the bookkeeping, not the work.
+
+**A record that says OPEN and a thing that is open are different objects, and the
+first accumulates faster.** Before spending a wave closing a gap, check whether
+the gap is still there.
+
+### T865a -- An unverified claim of unverifiability is still an unverified claim [measured]
+
+W998 corrected one row of the W983 clause census and wrote that the other six
+*cannot be rechecked, the wrappers having been repaired in W984*. That sentence
+was never tested.
+
+Git preserved every pre-repair source at `6ae9296ff`, the parent of the repair
+commit. All six re-measured in one pass:
+
+| wrapper | published | re-measured |
+|---------|-----------|-------------|
+| `gft_smul` | 2 | **2** |
+| `gft_sadd` | 3 | **3** |
+| `gft_train1` | 3 | **3** |
+| `gft_dup` | 2 | **2** |
+| `gft_xorpercep` | 3 | **3** |
+| `gft_signed_mac` | 1 | **1** |
+| `gft_signed_dot4` | 0 | **1** |
+
+**Six of seven reproduce exactly.** `gft_signed_dot4` does not -- published 0,
+measured 1 (`c_ann`), deterministic across three runs on a file git shows was
+never modified between W983 and W998. The corrected total is **15 of 28**, now
+measured rather than asserted.
+
+So the W998 correction was right and **the reason it gave for stopping was
+wrong**. That matters more than the arithmetic: a claim of unverifiability is the
+only kind of claim that ends an investigation *by being believed*. It deserves the
+same standard of evidence as the claim it excuses.
+
+### T865b -- A verifier pinned to the unfixed state punishes the repair [measured]
+
+Closing the four stale flags made two derived checks fail. They asserted that the
+records still read *not yet repaired* and *IN FLIGHT*. The verifier fired
+correctly -- the records had changed -- but the checks had been written to pin the
+defect **open** rather than to pin the fact. Write a check against the invariant
+that should hold **after** the fix, not against the sentence that happens to be
+there before it, or the corpus penalises every improvement.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

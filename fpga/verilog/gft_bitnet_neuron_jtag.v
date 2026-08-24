@@ -73,32 +73,46 @@ module gft_bitnet_neuron_jtag #(parameter integer JTAG_CHAIN_N = 3);
     wire rdy_c, rdy_z, rdy_s, rdy_n;
     wire [31:0] r_cancel, r_zeroes, r_single, r_neg;
 
+    // W999 (T839, T863a): every constant operand below reached the DUT as a
+    // literal, so yosys evaluated the clause at compile time and the die read a
+    // folded 1 -- a PASS in every build, including the failing ones (T836).
+    // `Z0` is identically zero at runtime and opaque to the optimiser: two
+    // counters with the same seed and step, whose equality no mapper will try to
+    // prove. `K + Z0` is K on silicon and an unknown to `opt`.
+    reg [31:0] opq_a = 32'd1;
+    reg [31:0] opq_b = 32'd1;
+    always @(posedge cfgmclk) begin
+        opq_a <= opq_a + 32'd1;
+        opq_b <= opq_b + 32'd1;
+    end
+    wire [31:0] Z0 = opq_a - opq_b;
+
     // 1. CANCELLATION: (+1,+1,-1,-1) on 1.0 each -> 0
     GftBitnetNeuron u_cancel (
         .clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
-        .w1(W_POS), .a1(live),    .w2(W_POS), .a2(live),
-        .w3(W_NEG), .a3(live),    .w4(W_NEG), .a4(live),
+        .w1(W_POS + Z0), .a1(live),    .w2(W_POS + Z0), .a2(live),
+        .w3(W_NEG + Z0), .a3(live),    .w4(W_NEG + Z0), .a4(live),
         .ready(rdy_c), .result(r_cancel));
 
     // 2. ANNIHILATION: every weight zero -> 0, whatever the activations
     GftBitnetNeuron u_zeroes (
         .clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
-        .w1(W_ZER), .a1(TNF_ONE), .w2(W_ZER), .a2(32'd511),
-        .w3(W_ZER), .a3(32'd40960), .w4(W_ZER), .a4(32'd65536),
+        .w1(W_ZER + Z0), .a1(TNF_ONE + Z0), .w2(W_ZER + Z0), .a2(32'd511 + Z0),
+        .w3(W_ZER + Z0), .a3(32'd40960 + Z0), .w4(W_ZER + Z0), .a4(32'd65536 + Z0),
         .ready(rdy_z), .result(r_zeroes));
 
     // 3. NON-TRIVIALITY: one positive tap returns that activation, non-zero
     GftBitnetNeuron u_single (
         .clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
-        .w1(W_POS), .a1(TNF_ONE), .w2(W_ZER), .a2(TNF_ONE),
-        .w3(W_ZER), .a3(TNF_ONE), .w4(W_ZER), .a4(TNF_ONE),
+        .w1(W_POS + Z0), .a1(TNF_ONE + Z0), .w2(W_ZER + Z0), .a2(TNF_ONE + Z0),
+        .w3(W_ZER + Z0), .a3(TNF_ONE + Z0), .w4(W_ZER + Z0), .a4(TNF_ONE + Z0),
         .ready(rdy_s), .result(r_single));
 
     // 4. ANTISYMMETRY: one negative tap returns the sign-flipped activation
     GftBitnetNeuron u_neg (
         .clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
-        .w1(W_NEG), .a1(TNF_ONE), .w2(W_ZER), .a2(TNF_ONE),
-        .w3(W_ZER), .a3(TNF_ONE), .w4(W_ZER), .a4(TNF_ONE),
+        .w1(W_NEG + Z0), .a1(TNF_ONE + Z0), .w2(W_ZER + Z0), .a2(TNF_ONE + Z0),
+        .w3(W_ZER + Z0), .a3(TNF_ONE + Z0), .w4(W_ZER + Z0), .a4(TNF_ONE + Z0),
         .ready(rdy_n), .result(r_neg));
 
     wire cancels   = (r_cancel == 32'd0);

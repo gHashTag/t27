@@ -1,0 +1,53 @@
+{
+ "wave": "W999",
+ "goal": "the Architect asked to finish to 100 %",
+ "what_100_percent_actually_contained": "five open items were on record. Four were mine. Three of those turned out to be STALE FLAGS on work already done -- the debt was in the bookkeeping, not the work.",
+ "closed_this_wave": {
+  "the_census": {
+   "was": "'14 of 28 folded clauses' rested on six rows W998 declared unverifiable, plus one now known wrong",
+   "did": "recovered every pre-repair wrapper from git at 6ae9296ff (parent of the W984 repair) and re-measured all seven",
+   "result": "six of seven reproduce the published census EXACTLY; gft_signed_dot4 does not -- published 0, measured 1 (c_ann), deterministic across three runs on a file git shows never changed",
+   "total": "15 of 28, MEASURED rather than asserted",
+   "second_correction": "W998's own claim that the six 'cannot be rechecked' was false. Git preserved every source. An assertion of unverifiability that was itself unverified."
+  },
+  "stale_flags": [
+   "tooling_w993 'not yet repaired' -- repaired in W994",
+   "schema_w989 xorpercep IN FLIGHT -- landed in W998",
+   "naming_text_w996 placement bound IN FLIGHT -- resolved in W998",
+   "confirm_w990 dot4 sweep still placing -- completed, 5 reads on record"
+  ],
+  "last_two_folded_wrappers": "gft_signed_dot4 (c_ann) and gft_bitnet_neuron (3 of 4) repaired with the W984 opaque-zero recipe; both now 0 folded. The class is closed across all 10 operator wrappers.",
+  "tool_defects": [
+   "tri curve and tri clauses now DERIVE the spec from the wrapper's instantiated Gft* module instead of defaulting to gft_smul.t27 -- the default is how a census row can be measured against the wrong elaboration and still print a plausible number",
+   "tri curve skips non-operator wrappers with a stated reason instead of 'no spec'"
+  ]
+ },
+ "in_progress": {
+  "item": "the honest MHz/kLUT curve",
+  "why_it_cannot_come_from_records": "every Fmax on record is paired with a FOLDED area -- gft_sadd 18.24 MHz at 1312 LUT against an honest 4304, gft_signed_mac 9.14 at 6466 against 9465. There is no honest (area, frequency) pair anywhere in the corpus, so the curve is unrecomputable and must be re-measured.",
+  "method": "tri curve: one build per wrapper, area and frequency from the SAME build so they cannot drift apart again",
+  "first_honest_pairs": {
+   "gft_bitnet_neuron": {
+    "LUT": 12841,
+    "fmax_mhz": 9.75,
+    "mhz_per_klut": 0.76
+   },
+   "gft_commmin": {
+    "LUT": 696,
+    "fmax_mhz": 46.89,
+    "mhz_per_klut": 67.37
+   },
+   "gft_sadd": {
+    "LUT": 4304,
+    "fmax_mhz": 20.1,
+    "mhz_per_klut": 4.67
+   }
+  },
+  "carry4_column_dropped": "the CARRY4 parse reports values above the LUT count (1604 where the yosys line says 160). It is not part of the curve and publishing a number I cannot explain would be worse than omitting it."
+ },
+ "not_mine": {
+  "origin_master": "orphaned, no merge-base. A force-push was attempted in W971 with the orphan preserved to a branch first, and repository protection rejected it. Needs a human in the GitHub UI.",
+  "credentials": "three leaked credentials await rotation by a human. Not a paper blocker unless the repository is made public, which it would then become."
+ },
+ "honest_position": "everything that is mine reaches 100 % when the curve lands. Two items are physically not mine and no amount of further work moves them."
+}

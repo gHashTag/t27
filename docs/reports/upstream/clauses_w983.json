@@ -172,6 +172,22 @@
   },
   "what_this_costs_the_W983_headline": "the '14 of 28' figure rests on six numbers that can no longer be checked plus one now known to be wrong. It is not retracted -- the CLASS of defect it found is real, reproduced independently on gft_bitnet_neuron below -- but the count should be read as approximate, and the corrected count as a floor.",
   "second_finding_same_gate": "gft_bitnet_neuron_jtag.v -- never in the census at all, because it had never been read off silicon -- carries 3 of 4 clauses folded to constants. Unrepaired.",
-  "lesson": "a census taken once and never re-run is a claim, not a measurement. This one became checkable only when it was turned into a gate that runs every audit."
+  "lesson": "a census taken once and never re-run is a claim, not a measurement. This one became checkable only when it was turned into a gate that runs every audit.",
+  "SETTLED_W999": {
+   "method": "the pre-repair wrappers were recovered from git at 6ae9296ff (the parent of the W984 repair) and re-measured with tri clauses",
+   "result": {
+    "gft_smul": 2,
+    "gft_sadd": 3,
+    "gft_train1": 3,
+    "gft_dup": 2,
+    "gft_xorpercep": 3,
+    "gft_signed_mac": 1,
+    "gft_signed_dot4": 1
+   },
+   "agreement": "six of seven rows reproduce the published census EXACTLY. gft_signed_dot4 does not: published 0, measured 1 (c_ann), deterministic across three runs on a file git shows was never modified between W983 and W998.",
+   "corrected_total": "15 of 28, now MEASURED rather than asserted",
+   "second_correction": "W998 stated that the other six rows 'cannot be rechecked, the wrappers having been repaired in W984'. That was wrong -- git preserves every pre-repair source, and all six were re-measured here. The claim of unverifiability was itself unverified.",
+   "what_this_settles": "the W983 headline stands with one row corrected. The defect class was real, the count was one short, and the corpus can now re-derive both."
+  }
  }
 }

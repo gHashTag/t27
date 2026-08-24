@@ -35,6 +35,7 @@ Local commands (no compiler needed):
   tri clauses WRAPPER.v       which on-die clauses survive synthesis, and which folded to a constant
   tri seeds SPEC WRAPPER      one netlist, several placements: does the die give one answer or several?
   tri cable                   is a JTAG probe on the bus, at what address, and does the part answer?
+  tri curve [OUT.json]        honest area and Fmax from ONE build per wrapper, for the MHz/kLUT curve
   tri slope                   place-and-route seconds per LUT, re-derived from the records
   tri table                   the operator table, derived from every die read on record
   tri compare [WIDTH]         head-to-head against posit/takum/fp at one width, computed from the oracles
@@ -75,6 +76,20 @@ origin_slug() {
   url="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || true)"
   [ -n "$url" ] || return 1
   printf '%s\n' "$url" | sed -E 's#^git@[^:]+:##; s#^https?://[^/]+/##; s#\.git$##'
+}
+
+# W999: the spec a wrapper needs is derivable FROM THE WRAPPER -- find the Gft*
+# module it instantiates, then the spec that declares it. `tri clauses` defaulted
+# to gft_smul.t27 for every wrapper, which is how a census row can be measured
+# against the wrong elaboration and still print a plausible number (W998).
+spec_for_wrapper() {
+  local v="$1" mod spec
+  mod="$(grep -oE '^[[:space:]]*(\(\* keep \*\) )?Gft[A-Za-z0-9_]+' "$v" 2>/dev/null \
+         | grep -oE 'Gft[A-Za-z0-9_]+' | head -1 || true)"
+  [ -n "$mod" ] || return 1
+  spec="$(grep -rl "^module ${mod};" "$REPO_ROOT"/specs/ternary/*.t27 2>/dev/null | head -1 || true)"
+  [ -n "$spec" ] || return 1
+  printf '%s\n' "$spec"
 }
 
 cmd="${1:-}"
@@ -599,6 +614,61 @@ PYSLOPE
     exit 0
     ;;
 
+  curve)
+    # W999: the MHz-per-kLUT curve stands on numbers that cannot be rescued. Every
+    # Fmax on record is paired with a FOLDED LUT count -- gft_sadd 18.24 MHz at
+    # 1312 LUT against an honest 4231, gft_signed_mac 9.14 at 6466 against 9465 --
+    # so the curve is not merely wrong, it is unrecomputable from the records:
+    # there is no honest (area, frequency) pair anywhere in the corpus.
+    #
+    # This takes them. One build per wrapper, `--skip-hardware` because the curve
+    # needs area and timing rather than a verdict, and both numbers come out of the
+    # same build so they cannot drift apart again.
+    #
+    #   tri curve [OUT.json] [WRAPPER ...]     default: every *_jtag.v with a spec
+    OUT="${2:-$REPO_ROOT/docs/reports/upstream/curve_honest.json}"
+    shift 2 2>/dev/null || shift $# 
+    T27C="${TRI_T27C:-$REPO_ROOT/target/release/t27c}"
+    [ -x "$T27C" ] || die "t27c not found at $T27C"
+    W="$REPO_ROOT/fpga/verilog"
+    LIST="$*"
+    if [ -z "$LIST" ]; then
+      LIST="$(ls "$W"/*_jtag.v 2>/dev/null | grep -v legacy || true)"
+    fi
+    printf '%-26s %8s %8s %10s %10s\n' wrapper LUT CARRY4 "Fmax MHz" "MHz/kLUT"
+    ROWS=""
+    for v in $LIST; do
+      base="$(basename "$v" _jtag.v)"
+      if ! spec="$(spec_for_wrapper "$v")"; then
+        printf '%-26s %-10s %s\n' "$base" "SKIP" "no Gft* operator instantiated -- not part of this curve"
+        continue
+      fi
+      out="$("$T27C" silicon "$spec" --top "$v" --skip-hardware 2>&1 || true)"
+      pick() { printf '%s' "$1" | grep -oE "$2" 2>/dev/null | tail -1 || true; }
+      lut="$(pick "$out" '[0-9]+ LUT' | tr -dc '0-9')"
+      # the datapath stage prints "N CARRY4 in the fabric, M per DUT" AFTER the
+      # yosys line, so the last match is that one, not the cell count. Take the
+      # yosys stage line explicitly.
+      c4="$(printf '%s' "$out" | grep -oE '[0-9]+ LUT, [0-9]+ CARRY4' | tail -1 \
+            | grep -oE '[0-9]+ CARRY4' | tr -dc '0-9' || true)"
+      fm="$(pick "$out" "Max frequency for clock 'slowclk': [0-9.]+" | grep -oE '[0-9.]+$' || true)"
+      [ -n "$fm" ] || fm="$(pick "$out" "Max frequency for clock 'cfgmclk': [0-9.]+" | grep -oE '[0-9.]+$' || true)"
+      if [ -n "$lut" ] && [ -n "$fm" ]; then
+        r="$(python3 -c "print(f'{$fm/($lut/1000.0):.2f}')" 2>/dev/null || echo '?')"
+      else
+        r="?"
+      fi
+      printf '%-26s %8s %8s %10s %10s\n' "$base" "${lut:-ABSENT}" "${c4:-?}" "${fm:-?}" "$r"
+      ROWS="$ROWS{\"wrapper\":\"$base\",\"LUT\":${lut:-null},\"CARRY4\":${c4:-null},\"fmax_mhz\":${fm:-null},\"mhz_per_klut\":${r/\?/null}},"
+    done
+    printf '{"wave":"W999","note":"area and frequency from the SAME build, every clause real","rows":[%s]}\n' "${ROWS%,}" > "$OUT"
+    echo
+    echo "tri curve: written to $OUT"
+    echo "Both numbers come from one build, so they cannot drift apart the way the"
+    echo "old curve did -- every Fmax on record was paired with a folded area."
+    exit 0
+    ;;
+
   cable)
     # W998: deferred twice with a reason, now built. W994 spent an hour of
     # place-and-route to discover the JTAG cable had left the bus -- every stage
@@ -745,7 +815,9 @@ PYSLOPE
     # instead of the source, because the source looks like a measurement either way.
     #
     #   tri clauses <wrapper.v> [spec.t27]
-    W_V="${2:-}"; SPEC="${3:-specs/ternary/gft_smul.t27}"
+    W_V="${2:-}"; SPEC="${3:-}"
+    [ -n "$W_V" ] && [ -z "$SPEC" ] && SPEC="$(spec_for_wrapper "$W_V" || echo "")"
+    [ -n "$SPEC" ] || SPEC="specs/ternary/gft_smul.t27"
     [ -n "$W_V" ] || die "usage: tri clauses <wrapper.v> [spec.t27]"
     [ -f "$W_V" ] || die "no such wrapper: $W_V"
     T27C="${TRI_T27C:-$REPO_ROOT/target/release/t27c}"
