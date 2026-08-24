@@ -4771,12 +4771,19 @@ impl Codegen {
             // already valid Zig and starts with `[` too.
             let v = &node.children[0];
             let raw = if v.name.is_empty() { &v.value } else { &v.name };
-            let is_list = raw.starts_with('[')
-                && raw.ends_with(']')
-                && !raw.contains('{')
+            let bracketed = raw.starts_with('[') && raw.ends_with(']') && !raw.contains('{');
+            let is_list = bracketed
                 && !node.extra_type.is_empty()
                 && node.extra_type.starts_with('[');
-            if is_list {
+            // With no declared type the rule above declines and the brackets
+            // reach the output verbatim -- 80 emitted lines in 11 files.
+            //
+            // `.{a, b, c}` is a Zig tuple and needs no element type, which is
+            // just as well because there is none to be had here. Indexing with
+            // a literal is comptime-known, so `params[0]` still works.
+            if bracketed && node.extra_type.is_empty() {
+                self.write(&format!(" = .{{{}}}", &raw[1..raw.len() - 1]));
+            } else if is_list {
                 self.write(&format!(
                     " = {}{{{}}}",
                     Self::zig_type(&node.extra_type),
@@ -5198,11 +5205,16 @@ impl Codegen {
         match top_level_assign(&text) {
             Some(i) => {
                 let (lhs, rhs) = text.split_at(i);
-                self.write_line(&format!(
-                    "const {} = {};",
-                    zig_ident(lhs.trim()),
-                    rhs[1..].trim()
-                ));
+                let mut val = rhs[1..].trim().to_string();
+                // `given trits = [TRIT_POS, TRIT_ZERO]` -- a bracketed list on
+                // the value side, emitted with its brackets. 80 lines in 11
+                // files, and I looked for them in gen_const_decl and StmtLocal
+                // first: the census names the emitted line, not the code that
+                // wrote it, and this one comes from here.
+                if val.starts_with('[') && val.ends_with(']') && !val.contains('{') {
+                    val = format!(".{{{}}}", &val[1..val.len() - 1]);
+                }
+                self.write_line(&format!("const {} = {};", zig_ident(lhs.trim()), val));
             }
             // Zig rejects a discarded-free expression statement, so an action
             // clause is bound to `_`.
@@ -5310,7 +5322,18 @@ impl Codegen {
                 if !node.children.is_empty() {
                     self.write(" = ");
                     let v = &node.children[0];
-                    if v.kind == NodeKind::ExprArrayLiteral
+                    // The same raw-text bracket list as gen_const_decl, on the
+                    // other path. `const x = [0.0,0.0,0.0];` inside a function
+                    // body kept its brackets -- 80 emitted lines in 11 files,
+                    // and fixing only the top-level path moved none of them.
+                    let raw = if v.name.is_empty() { &v.value } else { &v.name };
+                    let bracketed = raw.starts_with('[')
+                        && raw.ends_with(']')
+                        && !raw.contains('{')
+                        && node.extra_type.is_empty();
+                    if bracketed {
+                        self.write(&format!(".{{{}}}", &raw[1..raw.len() - 1]));
+                    } else if v.kind == NodeKind::ExprArrayLiteral
                         && !node.extra_type.is_empty()
                         && v.extra_type.is_empty()
                     {
@@ -5532,6 +5555,10 @@ impl Codegen {
                 self.write(" }).f");
             }
             NodeKind::ExprLiteral => self.write(&node.value),
+            // `const Self = @This;` -- @This is a builtin and must be called.
+            // 3 lines in 2 files. Only this one: the other builtins in the
+            // corpus already carry their arguments.
+            NodeKind::ExprIdentifier if node.name == "@This" => self.write("@This()"),
             NodeKind::ExprIdentifier => self.write(&zig_expr_name(&node.name)),
             NodeKind::ExprEnumValue => {
                 self.write(".");
