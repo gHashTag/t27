@@ -5437,8 +5437,18 @@ impl Codegen {
 
         if node.children.is_empty() {
             self.write_indent();
+            // A comment, not `@compileLog`.
+            //
+            // Zig treats @compileLog as an ERROR by design -- "found compile
+            // log statement" -- so every empty invariant block guaranteed a
+            // failed build. ast-check never saw it because ast-check does not
+            // do semantic analysis; `zig test` did, in 13 of 40 sampled specs
+            // that ast-check calls VALID.
+            //
+            // An invariant with no body asserts nothing, so the honest output
+            // says that and compiles.
             self.write_line(&format!(
-                "@compileLog(\"invariant: {} verified\");",
+                "// invariant {}: no body in the spec, nothing asserted",
                 node.name
             ));
         }
