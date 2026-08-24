@@ -1,2 +1,0 @@
-tri-mining	contrib/solana/programs/tri-mining
-trinity-core	backend/trinity-core

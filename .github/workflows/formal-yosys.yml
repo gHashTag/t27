@@ -917,6 +917,19 @@ jobs:
       - name: Converter check (outside the workspace, hence explicit)
         run: cargo check --manifest-path tools/converter/Cargo.toml --all-targets
 
+      # The last two crates the baseline exempted. Both `cargo check` clean
+      # today with zero errors, so the exemption was never technical -- they
+      # were simply never wired to a workflow, and the baseline recorded that
+      # as acceptable rather than as a gap.
+      #
+      # tri-mining is a Solana program and takes ~45s to check; that is the
+      # whole cost of knowing it still compiles.
+      - name: Backend check (outside the workspace)
+        run: cargo check --manifest-path backend/trinity-core/Cargo.toml --all-targets
+
+      - name: Solana program check (outside the workspace)
+        run: cargo check --manifest-path contrib/solana/programs/tri-mining/Cargo.toml --all-targets
+
       - name: Crate coverage scan — every crate must be built by some workflow
         run: python3 formal/crate_coverage_scan.py
 
