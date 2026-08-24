@@ -4269,3 +4269,50 @@ person who computed it.
 The killed count keeps its meaning either way: it is a **lower bound**,
 established after the fact, on how many comparisons reach a verdict. That is a
 smaller claim than a percentage and it is true.
+
+## 110. The first survivor I read was real, and it was in the encoder
+
+Printing the source beside the line number (§109) paid for itself on the first
+survivor that did not classify itself: `if off < 0: return 0`, in the GF-T
+encoder every trained weight passes through.
+
+`off = e + 40`, so **`off == 0` is the smallest normal binade, `[2^-40, 2^-39)`**.
+The mutant `off <= 0` encodes every value there as `0` — which is the **zero
+sentinel**. A non-zero magnitude, silently reported as zero.
+
+**The obvious witness does not work, and that is why the mutant lived.** At
+exactly `2^-40` the mantissa is 0, so the value *already* encodes as 0 and the
+mutation changes nothing. A witness needs a non-zero mantissa in that binade:
+`1.5 * 2^-40` encodes `256` and would become `0`.
+
+Anyone testing "the boundary" by reaching for the boundary value would have
+concluded the mutant was equivalent. **The boundary value was the one point in
+the binade where it is.**
+
+Three assertions pin it: the magnitude, the sign, and the value one binade
+lower which *is* legitimately zero. Negative control: with `<=` planted the tool
+exits 1 naming the new assertion; restored, 0. The column moved **5/31 → 6/31**.
+
+## 111. "Boundary survivors are loop bounds" was too broad, measured
+
+§106 concluded that boundary survivors are loop bounds and display cutoffs where
+a survivor is the right answer. That was drawn from one gate's six survivors.
+Classifying all four `if x < 0:` sites across the tools:
+
+| site | source of the value | `<=` equivalent? |
+|---|---|---|
+| `verify_igla_race:223` | `src.find("{", start)` | **yes** — `find` returns −1 or ≥ start, and every caller passes a match start whose first character is a keyword, so 0 is unreachable |
+| `gft_backprop_microcode:50` | `off = e + 40` | **no** — 0 is the smallest normal binade |
+| `gft_backprop_microcode:203` | `d = ho - lo_o` | **no** — 0 is equal exponents, a normal case |
+| `diffbin:148` | `rest.rfind('"')` | **no** — 0 is an empty quoted string, `""` |
+
+**One of four.** Three are real boundaries where zero is a valid value, and the
+`rfind` one is real *despite* being the same idiom as the equivalent one — the
+difference is whether index 0 is reachable in that string, not what function
+produced it.
+
+So the earlier generalization was a sample of one gate promoted to a rule about
+an operator. The correction is not "survivors are real" either: it is that
+**each survivor is a separate question, and the source line is what makes
+answering it a minute's work instead of an afternoon's.** That is the whole
+value of §109, and it showed up on the first reading.
