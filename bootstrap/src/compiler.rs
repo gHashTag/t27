@@ -394,7 +394,14 @@ impl Lexer {
             "switch" => TokenKind::KwSwitch,
             "return" => TokenKind::KwReturn,
             "var" => TokenKind::KwVar,
-            "using" => TokenKind::KwUsing,
+            // `using` is NOT an import keyword. It never starts a line
+            // anywhere in the corpus -- measured, 0 of 497 specs -- and
+            // appears only inside prose: "Compares accuracy degradation when
+            // using different number formats." became
+            // `const different = @import("../different.zig");`, an import of
+            // a file that does not and should not exist. It also sat in the
+            // declaration-start set, so a sentence containing the word ended
+            // error recovery early.
             "use" => TokenKind::KwUse,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
@@ -1460,7 +1467,6 @@ impl Parser {
                 | TokenKind::KwInvariant
                 | TokenKind::KwBench
                 | TokenKind::KwUse
-                | TokenKind::KwUsing
                 | TokenKind::KwModule
                 | TokenKind::RBrace
                 | TokenKind::Eof
@@ -1687,8 +1693,8 @@ impl Parser {
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
         while self.current.kind != TokenKind::Eof && self.current.kind != TokenKind::RBrace {
             // Parse use/using statements into UseDecl nodes
-            if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
-                self.advance(); // consume 'use'/'using'
+            if self.current.kind == TokenKind::KwUse {
+                self.advance(); // consume 'use'
                                 // Collect the full path: e.g. "base::types" or just "datalog_solve"
                 let mut full_path = String::new();
                 let mut alias_name = String::new();
