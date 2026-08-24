@@ -4222,14 +4222,26 @@ impl Parser {
             // Clauses first, then the ordinary parser for whatever follows --
             // 22 of the 95 blocks mix the two, and stopping at the first
             // statement would drop the rest of the body.
-            if matches!(
-                self.current.lexeme.as_str(),
-                "given" | "when" | "then" | "and"
-            ) {
-                self.parse_behavior_clauses(&mut block, hdr_col);
-            }
-            if self.current.kind != TokenKind::RBrace {
-                self.parse_fn_body(&mut block)?;
+            // Interleaved, not clauses-then-statements. 22 of the 95 braced
+            // blocks put a clause AFTER a statement, and the one-pass version
+            // handed over to the body parser and never came back -- 18 clauses
+            // still emitted as `given;` plus a bare expression.
+            while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                if matches!(
+                    self.current.lexeme.as_str(),
+                    "given" | "when" | "then" | "and"
+                ) {
+                    let before = block.children.len();
+                    self.parse_behavior_clauses(&mut block, hdr_col, true);
+                    if block.children.len() == before {
+                        break; // captured nothing: do not spin
+                    }
+                    continue;
+                }
+                match self.parse_body_stmt() {
+                    Ok(stmt) => block.children.push(stmt),
+                    Err(_) => self.recover_to_stmt_boundary(),
+                }
             }
             self.expect(TokenKind::RBrace)?;
         } else {
@@ -4237,7 +4249,7 @@ impl Parser {
             // given/when/then/and clauses. These were skipped outright, so
             // 6540 clauses across the corpus reached no backend and 173 specs
             // counted as valid while asserting nothing (#2593, #2601).
-            self.parse_behavior_clauses(&mut block, hdr_col);
+            self.parse_behavior_clauses(&mut block, hdr_col, false);
         }
         Ok(block)
     }
@@ -4253,9 +4265,15 @@ impl Parser {
     /// The clause body is kept as text rather than parsed. A parse would be a
     /// second place to get the boundary wrong for no gain: the emitter renders
     /// it into a Zig expression either way.
-    fn parse_behavior_clauses(&mut self, block: &mut Node, hdr_col: usize) {
+    fn parse_behavior_clauses(&mut self, block: &mut Node, hdr_col: usize, in_braces: bool) {
         let mut last_kind = String::new();
-        while self.current.kind != TokenKind::Eof && self.current.col > hdr_col {
+        while self.current.kind != TokenKind::Eof
+            && (if in_braces {
+                self.current.kind != TokenKind::RBrace
+            } else {
+                self.current.col > hdr_col
+            })
+        {
             let kw = self.current.lexeme.clone();
             if !matches!(kw.as_str(), "given" | "when" | "then" | "and") {
                 break; // not a behaviour body -- leave it to the skip below
@@ -4305,7 +4323,10 @@ impl Parser {
             clause.line = line as u32;
             block.children.push(clause);
         }
-        if self.current.kind != TokenKind::Eof && self.current.col > hdr_col {
+        // The skip only belongs to the brace-less form. Inside braces the
+        // caller keeps parsing, so swallowing to the next declaration would
+        // take the rest of the body with it.
+        if !in_braces && self.current.kind != TokenKind::Eof && self.current.col > hdr_col {
             self.skip_out_of_block(hdr_col);
         }
     }
@@ -4320,7 +4341,27 @@ impl Parser {
         if self.current.kind == TokenKind::LBrace {
             // Brace-style invariant: invariant "name" { ... }
             self.advance(); // consume {
-            self.parse_fn_body(&mut block)?;
+            // Same interleaving as parse_test_block: an invariant or bench body
+            // can hold behaviour clauses, and 11 of them were still emitting
+            // `given;` plus a bare expression because the fix landed only in
+            // the test branch.
+            while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                if matches!(
+                    self.current.lexeme.as_str(),
+                    "given" | "when" | "then" | "and"
+                ) {
+                    let before = block.children.len();
+                    self.parse_behavior_clauses(&mut block, hdr_col, true);
+                    if block.children.len() == before {
+                        break;
+                    }
+                    continue;
+                }
+                match self.parse_body_stmt() {
+                    Ok(stmt) => block.children.push(stmt),
+                    Err(_) => self.recover_to_stmt_boundary(),
+                }
+            }
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style invariant: skip until next top-level
@@ -4339,7 +4380,27 @@ impl Parser {
         if self.current.kind == TokenKind::LBrace {
             // Brace-style bench: bench "name" { ... }
             self.advance(); // consume {
-            self.parse_fn_body(&mut block)?;
+            // Same interleaving as parse_test_block: an invariant or bench body
+            // can hold behaviour clauses, and 11 of them were still emitting
+            // `given;` plus a bare expression because the fix landed only in
+            // the test branch.
+            while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                if matches!(
+                    self.current.lexeme.as_str(),
+                    "given" | "when" | "then" | "and"
+                ) {
+                    let before = block.children.len();
+                    self.parse_behavior_clauses(&mut block, hdr_col, true);
+                    if block.children.len() == before {
+                        break;
+                    }
+                    continue;
+                }
+                match self.parse_body_stmt() {
+                    Ok(stmt) => block.children.push(stmt),
+                    Err(_) => self.recover_to_stmt_boundary(),
+                }
+            }
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style bench: skip until next top-level
