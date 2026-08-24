@@ -408,6 +408,30 @@ def self_check():
                 before = src
                 src = edit(src)
                 assert src != before, f"{label}: the plant changed nothing"
+                # T212: and it must have changed the SUBJECT. Twice now a plant
+                # has passed while editing something else -- once this control's
+                # own source (T124), once the assertion that checks the result
+                # (T211, where the literal it targeted existed nowhere but
+                # inside that assertion). Both times the case went green and
+                # both times its name was a lie.
+                #
+                # Every piece of subject code in this file -- enc, the _mag*
+                # arithmetic, gen, emit_verilog -- sits ABOVE this function, and
+                # every assertion under test sits BELOW it in `__main__`. So one
+                # comparison decides it: the first byte the plant changed must
+                # come before this function starts.
+                #
+                # This is the check that would have caught both, and neither was
+                # caught by reading.
+                cut = next((i for i, (a, b) in enumerate(zip(before, src)) if a != b),
+                           min(len(before), len(src)))
+                guard = before.index("def self_ch" + "eck(")
+                assert cut < guard, (
+                    f"{label}: the plant edited the control or an assertion "
+                    f"(byte {cut}), not the subject (which ends at {guard}). "
+                    f"A plant that edits the check proves only that corrupting "
+                    f"a check makes it fail."
+                )
             me = os.path.join(tools, os.path.basename(__file__))
             open(me, "w", encoding="utf-8").write(src)
             r = subprocess.run([sys.executable, me], capture_output=True, text=True)
@@ -478,6 +502,93 @@ def self_check():
             lambda s: s.replace(port_fmt, 'f"input [31:0] RENAMED{k}"', 1),
             1, ["AssertionError"],
             ["emit_verilog: clk_div=16"])
+
+    # T212: RAISING THE CEILING. The assert operator scored 2 of 34 for three
+    # iterations, read each time as a verdict on 32 weak assertions. It was
+    # nothing of the kind: this control planted exactly TWO faults, and Python
+    # stops at the first failing assert, so each plant can surface exactly one
+    # assertion. Two plants, two kills -- the number was arithmetic on the
+    # length of this list.
+    #
+    # So the list grows. One plant per ASSERTION, not per family: a plant that
+    # falsifies a whole family still surfaces only its first member. Measured:
+    # plant a sign flip in smul and the program dies at the XOR assertion, and
+    # the held-out assertion it ALSO falsifies stays invisible until the first
+    # one is neutered.
+    #
+    # These cost nothing. Each fires in the arithmetic block at the top of
+    # `__main__`, long before any training runs: 0.06s apiece against 11.8s for
+    # the three whole-program cases below.
+    spawned("enc: the smallest normal binade is not zero",
+            lambda s: s.replace("    if off < 0: return 0",
+                                "    if off <= 0: return 0", 1),
+            1, ["smallest normal binade must not encode as zero"], [])
+    spawned("enc: the sign bit survives",
+            lambda s: s.replace("    s = 1 if x < 0 else 0;", "    s = 0;", 1),
+            1, ["sign survives the smallest binade"], [])
+    spawned("enc: below the smallest binade is zero",
+            lambda s: s.replace("    if off < 0: return 0",
+                                "    if off < -1: return 0", 1),
+            1, ["below the smallest binade IS zero"], [])
+    spawned("add: round-half-to-EVEN, not half-to-odd",
+            lambda s: s.replace("        elif t == hf and (s & 1): mant += 1",
+                                "        elif t == hf and not (s & 1): mant += 1", 1),
+            1, ["tie with even s must NOT round up"], [])
+    spawned("mul: round-half-to-EVEN, not half-to-odd",
+            lambda s: s.replace("    elif r == half and (q & 1): mant += 1",
+                                "    elif r == half and not (q & 1): mant += 1", 1),
+            1, ["mul: tie, even q, no carry"], [])
+    spawned("enc: renormalisation carries into the exponent",
+            lambda s: s.replace("    if m >= 512: m = 0; off += 1",
+                                "    if m > 512: m = 0; off += 1", 1),
+            1, ["mantissa rounding to 512 must carry"], [])
+    spawned("sub: round-half-to-EVEN, not half-to-odd",
+            lambda s: s.replace("        elif q & 1: mant += 1",
+                                "        elif not (q & 1): mant += 1", 1),
+            1, ["sub: tie, odd q"], [])
+
+    # Seven more, and these had to be SURGICAL. Within one family the
+    # assertions test adjacent cases of the same code, so the obvious fault
+    # breaks all of them and only the first is ever seen. To surface the second
+    # member, the fault must falsify it while leaving the first true:
+    #
+    #   `elif t == hf and (s & 1)` -> `... and False`  kills the ODD tie only;
+    #   the even tie still correctly declines to round up, so it passes and the
+    #   odd one speaks.
+    #
+    # One resisted and is left alone deliberately. Disabling `_magsub`'s
+    # `if rem > half` to surface "strictly above half" also breaks the
+    # renormalisation-carry case, which is checked EARLIER -- so the plant fires
+    # that one instead. That is the shadowing this whole list is about, arriving
+    # in the list itself; a plant narrow enough to separate them would have to
+    # encode the exact remainders, which makes the control a second copy of the
+    # thing it checks.
+    spawned("sub: the sticky guard is not decoration",
+            lambda s: s.replace("if (ls - (la << d)) > 0: sticky = 1",
+                                "if (ls - (la << d)) >= 0: sticky = 1", 1),
+            1, ["a tie was reached with bits discarded"], [])
+    spawned("add: the ODD tie rounds up (the even one is a different case)",
+            lambda s: s.replace("        elif t == hf and (s & 1): mant += 1",
+                                "        elif t == hf and (s & 1) and False: mant += 1", 1),
+            1, ["tie with odd s must round up"], [])
+    spawned("add: strictly above half is not a tie",
+            lambda s: s.replace("        if t > hf: mant += 1", "        if False: mant += 1", 1),
+            1, ["strictly above half must round up"], [])
+    spawned("mul: the ODD tie rounds to even",
+            lambda s: s.replace("    elif r == half and (q & 1): mant += 1",
+                                "    elif r == half and (q & 1) and False: mant += 1", 1),
+            1, ["mul: tie, odd q, no carry"], [])
+    spawned("mul: the carry path has its own half",
+            lambda s: s.replace("if carry: q = prod >> 10; r = prod & 1023; half = 512",
+                                "if carry: q = prod >> 10; r = prod & 1023; half = 511", 1),
+            1, ["mul: tie, even q, carry"], [])
+    spawned("mul: renormalisation carries into the exponent",
+            lambda s: s.replace("    if mant >= 512: mant = 0; oo = min(oo + 1, 80)",
+                                "    if mant > 512: mant = 0; oo = min(oo + 1, 80)", 1),
+            1, ["mul: mant == 512 must carry"], [])
+    spawned("sub: the EVEN tie does not round up",
+            lambda s: s.replace("    if rem > half: mant += 1", "    if rem >= half: mant += 1", 1),
+            1, ["sub: tie, even q -- must NOT round up"], [])
 
     print(f"  self-check: the training verdict and an emitter verdict both go red, "
           f"and a clean tree stays green = {ok}")
