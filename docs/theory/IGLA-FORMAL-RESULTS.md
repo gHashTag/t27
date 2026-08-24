@@ -31266,6 +31266,53 @@ rate is nearly double the mean the old cap came from.
 largest thing is where the measurement matters most, because it is the one nobody
 can afford to re-run casually.
 
+### T863 -- The operator table closes: eight of eight, every clause real [measured]
+
+`gft_xorpercep` has been read off silicon for the **first time in this project's
+history**: word `0xa5a5313f`, design 4, **`1111`, `ok=1`, `beat=1`**, at BSCAN
+site 4, 28 609 LUT, roughly fifty minutes of place-and-route.
+
+It had read `ABSENT` since W977, and the causes were **four different things,
+none of them the design**: the 600 s cap, then the 1 800 s cap, then a cable that
+had left the bus (W994), then an address that had moved on replug (W995). Every
+one of them printed the same word.
+
+`gft_train1` returned `1111` at seeds 42 and 1234 -- word `0xa5a5317f`,
+reproducing W988 exactly at two placements it had not been read at -- which
+retracts the "unexplained regression" of W993 completely.
+
+**The table is now 9 designs, 50 die reads, 39 with `ok=1`**, all machine-derived
+from `die_reads_canonical`. Every operator in the corpus has answered on silicon
+with **all four clauses real**, which was not true of a single one of them before
+W984.
+
+### T863a -- What the clause repair repriced, and what it did not [measured]
+
+Every LUT figure recorded for a **JTAG wrapper** before W984 measured a design
+with its checks folded away:
+
+| wrapper | folded | honest | ratio |
+|---------|--------|--------|-------|
+| `gft_sadd` | 1 312 | 4 231 | **3.22x** |
+| `gft_xorpercep` | 10 799 | 28 609 | 2.65x |
+| `gft_dup` | 798 | 1 763 | 2.21x |
+| `gft_signed_mac` | 6 466 | 9 465 | 1.46x |
+| `gft_smul` | 1 312 | 1 877 | 1.43x |
+
+**1.43x to 3.22x, mean 2.20x.**
+
+**What this does not touch is the format cost.** `structural_w942` and
+`oracle_rtl_w941` measure decoder and consumer cells from standalone rigs that
+contain no wrapper, no clause logic and no BSCAN -- TNF4 at 51.29 cells, fp8 e4m3
+at 152.57, posit16 decode at 125 against TNF's 2. None of those numbers passes
+through a folded clause, and the W991 competitor table is computed from oracles
+rather than from silicon builds at all.
+
+**What it does touch is the MHz-per-kLUT curve**, and that curve has **not** been
+recomputed. It still stands on the folded areas. Naming a wrong number is not
+fixing it: the fix is eight designs at several placements each, at up to fifty
+minutes a build, and that is the next wave's work rather than a line in this one.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

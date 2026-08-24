@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W997, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W998, 2026-08-23)
+
+> **W998 — THE TABLE CLOSES AT 8 OF 8, AND THE GATE IMMEDIATELY CONTRADICTED A PUBLISHED CENSUS.**
+> `gft_xorpercep` read off silicon **for the first time in this project's history**: `0xa5a5313f`,
+> **`1111`, `ok=1`**, 28 609 LUT, ~50 minutes of place-and-route. It had said `ABSENT` since W977
+> through **four different causes, none of them the design** — a 600 s cap, an 1 800 s cap, a cable
+> off the bus, an address moved on replug — and every one printed the same word. `gft_train1`
+> returned `1111` at two more placements, reproducing W988's word exactly and retracting the W993
+> "regression" completely. **Table: 9 designs, 50 die reads, 39 with `ok=1`**, all machine-derived.
+> **`tri cable` built at last** (deferred twice with reasons): reports presence, address and part
+> ID *before* a build, refuses a sweep when the bench cannot answer, and catches **address drift** —
+> validated both ways. **And wiring `tri clauses` into the audit contradicted W983 the same hour:**
+> `gft_signed_dot4`, published as **0 folded**, has `c_ann` folded — and it is the **only census row
+> still checkable**, the other six repaired in W984. **14 of 28 → 15 of 28**, with six entries
+> neither confirmed nor withdrawn; the defect class holds, reproduced on `gft_bitnet_neuron`
+> (3 of 4 folded, never censused). **Repriced:** wrapper areas move **1.43×–3.22×**, mean 2.20× —
+> **format cost untouched**, and the **MHz/kLUT curve is NOT recomputed** and says so.
+> T863/T863a, lessons 1533–1535, **627 derived checks**. **Readiness 98 %.**
 
 > **W997 — THE LIMIT MOVES OFF THE MEAN AND ONTO THE WORST RATE.** W988 set the stage cap at
 > 1 800 s from the **mean** slope of 50.7 ms/LUT — **in the same wave that measured the spread at

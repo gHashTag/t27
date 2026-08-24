@@ -1,0 +1,57 @@
+{
+ "wave": "W998",
+ "what_is_repriced": "every LUT figure recorded for a JTAG WRAPPER before the clause repair of W984 measured a design with its checks folded away",
+ "table": [
+  {
+   "wrapper": "gft_sadd",
+   "folded_LUT": 1312,
+   "honest_LUT": 4231,
+   "ratio": 3.22
+  },
+  {
+   "wrapper": "gft_smul",
+   "folded_LUT": 1312,
+   "honest_LUT": 1877,
+   "ratio": 1.43
+  },
+  {
+   "wrapper": "gft_dup",
+   "folded_LUT": 798,
+   "honest_LUT": 1763,
+   "ratio": 2.21
+  },
+  {
+   "wrapper": "gft_signed_mac",
+   "folded_LUT": 6466,
+   "honest_LUT": 9465,
+   "ratio": 1.46
+  },
+  {
+   "wrapper": "gft_signed_dot4",
+   "folded_LUT": null,
+   "honest_LUT": 7851,
+   "ratio": null
+  },
+  {
+   "wrapper": "gft_train1",
+   "folded_LUT": null,
+   "honest_LUT": 15946,
+   "ratio": null
+  },
+  {
+   "wrapper": "gft_xorpercep",
+   "folded_LUT": 10799,
+   "honest_LUT": 28609,
+   "ratio": 2.65
+  }
+ ],
+ "multiplier_range": {
+  "min": 1.43,
+  "max": 3.22,
+  "mean": 2.2
+ },
+ "what_is_NOT_affected": "the FORMAT cost figures. structural_w942 and oracle_rtl_w941 measure decoder and consumer cells from standalone rigs that contain no JTAG wrapper, no clause logic and no BSCAN -- TNF4 51.29 cells, fp8 e4m3 152.57, posit16 decode 125, TNF decode 2. None of those numbers passes through a folded clause. The competitor comparison of W991 is likewise computed from oracles, not from silicon builds.",
+ "what_IS_affected": "the MHz-per-kLUT curve and any statement of the form 'operator X costs N LUT on this part', because those were read off wrapper builds",
+ "honest_status": "the corrected wrapper areas are recorded here; the MHz/kLUT curve has NOT been recomputed and is still standing on the folded numbers. Naming it is not fixing it.",
+ "why_not_fixed_now": "recomputing the curve means rebuilding every operator at several placements to get Fmax alongside the honest area -- roughly 8 designs x 2 placements at up to 50 minutes each. It is the next wave's work, not a line item in this one."
+}

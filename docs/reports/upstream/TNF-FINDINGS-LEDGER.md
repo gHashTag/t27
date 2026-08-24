@@ -2768,3 +2768,47 @@ The bench-liveness gate is deferred a second time, with its reason on the record
 `scripts/tri` has been executing the sweep across both waves, and editing a
 running shell script risks corrupting its parse. A deferral with a reason is a
 plan; a deferral without one is a leak.
+
+## 67. The table closes, and the new gate contradicts a published census (W998)
+
+`gft_xorpercep` has been read off silicon for the first time in this project's
+history: word `0xa5a5313f`, `1111`, `ok=1`, `beat=1`, 28 609 LUT, about fifty
+minutes of place-and-route. It had reported `ABSENT` since W977, and the causes
+were **four different things, none of them the design** -- a 600 s cap, then an
+1 800 s cap, then a JTAG cable that had left the bus, then a bus address that
+moved on replug. Every one of them printed the same word, and twice that word was
+written into the record as a property of the operator.
+
+`gft_train1` returned `1111` at seeds 42 and 1234, reproducing W988's word
+`0xa5a5317f` exactly at two placements it had not been read at, which retracts the
+W993 "unexplained regression" completely. **The table is 9 designs, 50 die reads,
+39 with `ok=1`**, all derived from the records rather than transcribed.
+
+`tri cable`, deferred twice with its reason on the record, is built: it reports
+presence, bus address and part IDCODE *before* a build, refuses a sweep when the
+bench cannot answer, and catches address drift against `T27_BUSDEV`. Validated in
+both directions. Its first output also caught a plausible-looking wrong value in
+itself -- it printed the manufacturer where the serial belonged -- which is the
+same class of defect this project keeps finding by reading its own output.
+
+**And wiring `tri clauses` into the audit contradicted W983 within the hour.**
+`gft_signed_dot4` was published in the W983 census as four clauses, none folded.
+Re-measured against its own spec: `c_ann` is a constant. It is also the **only row
+of that census still checkable** -- the other six wrappers were repaired in W984,
+so their pre-repair sources no longer exist, and dot4 survived unrepaired
+*precisely because* the census said it was clean. One verifiable row, and it
+disagrees.
+
+The count becomes **15 of 28**, and the six unverifiable entries are neither
+confirmed nor withdrawn. The defect **class** is not in doubt: an eighth wrapper
+the census never covered, `gft_bitnet_neuron`, carries three of four clauses
+folded. But a census taken once and never re-run is a claim rather than a
+measurement, and this one became checkable only when it was turned into a gate.
+
+The clause repair also repriced every wrapper area -- `gft_sadd` 1 312 to 4 231,
+`gft_xorpercep` 10 799 to 28 609, mean **2.20x**, range 1.43x to 3.22x. The
+**format** cost figures are untouched: they come from standalone rigs with no
+wrapper, no clause logic and no BSCAN. The **MHz-per-kLUT curve** is affected and
+has **not** been recomputed; it still stands on the folded areas, and the record
+says so in those words rather than letting a corrected area table imply the
+derived curve moved with it.

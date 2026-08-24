@@ -160,5 +160,18 @@
    "site": 1
   }
  ],
- "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it."
+ "schema_note": "W989: a canonical, machine-readable list of every die read in this record. The records grew ad-hoc schemas over twenty waves and `tri table` could place only 10 of 38 reads; this key is the fix, and new records must carry it.",
+ "CORRECTION_W998": {
+  "found_by": "tri clauses wired into tri audit as a gate (W998)",
+  "discrepancy": "the census recorded gft_signed_dot4_jtag.v as 4 clauses, 0 folded, all four real. Re-measured against its own spec today: c_ann is a CONSTANT 1. 1 of 4 folded.",
+  "why_dot4_is_the_only_row_that_can_be_rechecked": "the other six wrappers were repaired in W984, so their pre-repair sources no longer exist to measure. dot4 was never repaired -- precisely BECAUSE the census said it had nothing to repair -- so it is the one row still measurable, and it disagrees.",
+  "corrected_total": {
+   "was": "14 of 28 folded",
+   "now": "15 of 28 folded",
+   "note": "the other six entries cannot be verified and are neither confirmed nor withdrawn"
+  },
+  "what_this_costs_the_W983_headline": "the '14 of 28' figure rests on six numbers that can no longer be checked plus one now known to be wrong. It is not retracted -- the CLASS of defect it found is real, reproduced independently on gft_bitnet_neuron below -- but the count should be read as approximate, and the corrected count as a floor.",
+  "second_finding_same_gate": "gft_bitnet_neuron_jtag.v -- never in the census at all, because it had never been read off silicon -- carries 3 of 4 clauses folded to constants. Unrepaired.",
+  "lesson": "a census taken once and never re-run is a claim, not a measurement. This one became checkable only when it was turned into a gate that runs every audit."
+ }
 }

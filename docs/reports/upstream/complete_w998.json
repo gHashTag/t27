@@ -1,0 +1,67 @@
+{
+ "wave": "W998",
+ "board": "1:4",
+ "idcode": "0x3636093",
+ "milestone": "gft_xorpercep read off silicon for the FIRST TIME in the project's history. The operator table is complete: 8 of 8.",
+ "die_reads_canonical": [
+  {
+   "design": "gft_xorpercep",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W998",
+   "seed": 1,
+   "site": 4,
+   "LUT": 28609
+  },
+  {
+   "design": "gft_train1",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W998",
+   "seed": 42,
+   "site": 2
+  },
+  {
+   "design": "gft_train1",
+   "clauses": "1111",
+   "ok": 1,
+   "wave": "W998",
+   "seed": 1234,
+   "site": 4
+  }
+ ],
+ "xorpercep": {
+  "word": "0xa5a5313f",
+  "design_id": 4,
+  "clauses": "1111",
+  "ok": 1,
+  "beat": 1,
+  "site": 4,
+  "LUT": 28609,
+  "history": "ABSENT since W977 -- first behind the 600 s cap, then the 1800 s cap, then a cable that had left the bus (W994). Four separate causes, each of which read as ABSENT and none of which was about the design.",
+  "what_it_took": "the cap raised twice on measured slopes (W988, W997), the cable restored, and roughly 50 minutes of place-and-route in one build",
+  "clause_note": "all four clauses real -- gft_xorpercep had 3 of 4 folded to constants until W984, and its ind clause was fed a non-representable LFSR word until W981"
+ },
+ "train1": {
+  "word": "0xa5a5317f",
+  "design_id": 5,
+  "clauses": "1111",
+  "ok": 1,
+  "placements": [
+   {
+    "seed": 42,
+    "site": 2
+   },
+   {
+    "seed": 1234,
+    "site": 4
+   }
+  ],
+  "reproduces": "W988's word 0xa5a5317f exactly, at two placements it had not been read at before",
+  "retracts": "the W993 'unexplained regression' fully -- W994 identified the missing cable, and this is the confirmation that nothing about the design had changed"
+ },
+ "tool_behaviour_confirmed": {
+  "summary_line": "tri seeds: 1 placement(s) -- 1 pass, 0 fail, 0 with NO VERDICT; verdicts seen: 1111",
+  "note": "the three-state summary added in W994 reports correctly on a real pass, and the closing sentence still refuses to call one read a proof: 'the absence of a counterexample in 1 reads'"
+ }
+}

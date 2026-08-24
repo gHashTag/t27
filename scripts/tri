@@ -34,6 +34,7 @@ Local commands (no compiler needed):
   tri miter SPEC [CONST]      SAT-prove commutativity on the MAPPED netlist the die runs
   tri clauses WRAPPER.v       which on-die clauses survive synthesis, and which folded to a constant
   tri seeds SPEC WRAPPER      one netlist, several placements: does the die give one answer or several?
+  tri cable                   is a JTAG probe on the bus, at what address, and does the part answer?
   tri slope                   place-and-route seconds per LUT, re-derived from the records
   tri table                   the operator table, derived from every die read on record
   tri compare [WIDTH]         head-to-head against posit/takum/fp at one width, computed from the oracles
@@ -598,6 +599,48 @@ PYSLOPE
     exit 0
     ;;
 
+  cable)
+    # W998: deferred twice with a reason, now built. W994 spent an hour of
+    # place-and-route to discover the JTAG cable had left the bus -- every stage
+    # green, then `usb_open rc=-3 device not found` -- and W995 found the address
+    # had silently moved from 1:5 to 1:4 on replug, so a run pinned to the old
+    # address would have failed the same way with the cable present.
+    #
+    # This asks the two questions a build should not have to discover an hour in:
+    # is a cable there, and at what address.
+    OUT="$(openFPGALoader --scan-usb 2>&1 || true)"
+    LINE="$(printf '%s' "$OUT" | grep -E '^[0-9]{3} +[0-9]{3} ' | tail -1 || true)"
+    if [ -z "$LINE" ]; then
+      echo "tri cable: NO CABLE on the bus"
+      echo "  openFPGALoader --scan-usb found no device. Every silicon stage below"
+      echo "  place-and-route will still succeed and the read will fail last, which"
+      echo "  is how W994 lost an hour. Plug the probe in before starting a build."
+      exit 1
+    fi
+    BUS="$(printf '%s' "$LINE" | awk '{print $1+0}')"
+    DEV="$(printf '%s' "$LINE" | awk '{print $2+0}')"
+    # field 5 is the manufacturer, 6 is the serial -- the first version printed
+    # "Digilent" as the serial, which is exactly the kind of plausible-looking
+    # wrong value this project keeps catching by reading its own output.
+    SER="$(printf '%s' "$LINE" | awk '{print $6}')"
+    echo "tri cable: present at --busdev-num ${BUS}:${DEV}  (serial ${SER:-?})"
+    WANT="${T27_BUSDEV:-}"
+    if [ -n "$WANT" ] && [ "$WANT" != "${BUS}:${DEV}" ]; then
+      echo "  ADDRESS DRIFT -- T27_BUSDEV says $WANT, the bus says ${BUS}:${DEV}."
+      echo "  The address changes on replug (W995). A run pinned to the old one"
+      echo "  fails exactly like a missing cable, with the cable present."
+      exit 1
+    fi
+    DET="$(openFPGALoader -c digilent_hs2 --detect 2>&1 || true)"
+    ID="$(printf '%s' "$DET" | grep -oE 'idcode 0x[0-9a-f]+' | tail -1 || true)"
+    if [ -z "$ID" ]; then
+      echo "  cable opens but the part does not answer -- JTAG init failed"
+      exit 1
+    fi
+    echo "  part answers: $ID  $(printf '%s' "$DET" | grep -oE 'family .*' | tail -1 || true)"
+    exit 0
+    ;;
+
   seeds)
     # W985: a verdict from ONE placement is one placement's opinion (T616), and
     # W984 closed a defect class and then read two designs at a single seed each --
@@ -613,6 +656,15 @@ PYSLOPE
     [ -x "$T27C" ] || die "t27c not found at $T27C"
     BUS="${T27_BUSDEV:-1:5}"
     CTRL="${T27_WRONGPART:-$REPO_ROOT/fpga/verilog/ternary_mac_demo_top.bit}"
+    # W998: check the bench BEFORE spending an hour per placement. W994's sweep
+    # ran two designs to completion against a cable that was not there.
+    if ! T27_BUSDEV="$BUS" "$0" cable >/dev/null 2>&1; then
+      "$0" cable || true
+      echo
+      echo "tri seeds: refusing to build -- the bench cannot answer. Nothing here"
+      echo "would be about the designs."
+      exit 3
+    fi
     printf '%-8s %-10s %-8s %-10s %-12s %s\n' seed clauses ok site word "stage that stopped"
     P=0; F=0; WORDS=""
     for sd in $SEEDS; do
@@ -1647,6 +1699,11 @@ PYGRID
       case "$o" in *", 0 folded"*) ;; *) CLF=$((CLF+1)); echo "FAIL  clauses   $(basename "$w"): $o"; bad=1 ;; esac
     done
     [ "$CLF" = "0" ] && echo "ok    clauses   $CLW wrapper(s), none folded to a constant"
+    if out="$("$0" cable 2>&1)"; then
+      echo "ok    cable     $(printf '%s' "$out" | grep -E '^tri cable:' | sed 's/^tri cable: //')"
+    else
+      echo "warn  cable     $(printf '%s' "$out" | grep -E '^tri cable:|DRIFT' | tail -1 | sed 's/^tri cable: //')"
+    fi
     if [ -n "${T27_DASHBOARD:-}" ]; then
       if out="$("$0" dashboard --check 2>&1)"; then
         echo "ok    dash      $(printf '%s' "$out" | grep -E '^tri dashboard:' | tail -1 | sed 's/^tri dashboard: //')"

@@ -1032,6 +1032,19 @@ if tw:
     d2 = tw["the_second_defect_the_first_one_exposed"]
     check("ABSENT назван не-вердиктом",
           "ABSENT is not a verdict" in d2["why_it_is_wrong"], True, tol=0)
+    # W998: and the census itself did not survive being turned into a gate.
+    cw = cl.get("CORRECTION_W998")
+    check("перепись W983 исправлена в W998", cw is not None, True, tol=0)
+    if cw:
+        check("dot4 -- единственная перемеримая строка",
+              "one row still measurable" in cw["why_dot4_is_the_only_row_that_can_be_rechecked"],
+              True, tol=0)
+        check("итог был 14", cw["corrected_total"]["was"].startswith("14"), True, tol=0)
+        check("итог стал 15", cw["corrected_total"]["now"].startswith("15"), True, tol=0)
+        check("шесть строк не проверяемы и не отозваны",
+              "neither confirmed nor withdrawn" in cw["corrected_total"]["note"], True, tol=0)
+        check("класс дефекта воспроизведён независимо",
+              "gft_bitnet_neuron" in cw["second_finding_same_gate"], True, tol=0)
     check("второй дефект не выдан за починенный",
           d2["status"].startswith("found this wave, not yet repaired"), True, tol=0)
     tr = tw["train1_regression"]
@@ -1130,6 +1143,44 @@ if cw:
     check("это нижняя граница", "LOWER bound" in m["note"], True, tol=0)
     check("правило W823 соблюдено", "CHANGED MEASUREMENT" in c["rule_followed"], True, tol=0)
     check("гейт отложен второй раз и назван", cw["bench_gate_deferred_again"]["wave_count"], 2, tol=0)
+
+# W998: the table closes at eight of eight, and the clause repair is repriced.
+cp = rec("complete_w998.json")
+if cp:
+    print("\n== таблица закрыта: восемь из восьми (W998)")
+    check("канонических чтений", len(cp["die_reads_canonical"]), 3, tol=0)
+    check("все три прошли",
+          all(r["ok"] == 1 and r["clauses"] == "1111" for r in cp["die_reads_canonical"]), True, tol=0)
+    x = cp["xorpercep"]
+    check("xorpercep: клаузы", x["clauses"] == "1111", True, tol=0)
+    check("xorpercep: ok", x["ok"], 1, tol=0)
+    check("xorpercep: LUT", x["LUT"], 28609, tol=0)
+    check("xorpercep: причин ABSENT было четыре",
+          "Four separate causes" in x["history"], True, tol=0)
+    t = cp["train1"]
+    check("train1: два размещения", len(t["placements"]), 2, tol=0)
+    check("train1: слово воспроизводит W988",
+          "0xa5a5317f" in t["reproduces"], True, tol=0)
+    check("train1: регрессия отозвана",
+          t["retracts"].startswith("the W993"), True, tol=0)
+
+rp = rec("reprice_w998.json")
+if rp:
+    print("\n== переоценка площадей после починки клауз (W998)")
+    rows = [r for r in rp["table"] if r["ratio"]]
+    check("обёрток с обоими числами", len(rows), 5, tol=0)
+    for r in rows:
+        check(f"{r['wrapper']}: множитель",
+              r["honest_LUT"] / r["folded_LUT"], r["ratio"], tol=0.01)
+    m = rp["multiplier_range"]
+    check("минимальный множитель", min(r["ratio"] for r in rows), m["min"], tol=0.01)
+    check("максимальный множитель", max(r["ratio"] for r in rows), m["max"], tol=0.01)
+    check("средний множитель",
+          sum(r["ratio"] for r in rows) / len(rows), m["mean"], tol=0.01)
+    check("цена ФОРМАТА не затронута",
+          "standalone rigs" in rp["what_is_NOT_affected"], True, tol=0)
+    check("кривая МГц/kLUT НЕ пересчитана -- и так сказано",
+          "has NOT been recomputed" in rp["honest_status"], True, tol=0)
 
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)
