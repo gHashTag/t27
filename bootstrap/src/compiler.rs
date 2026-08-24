@@ -4607,9 +4607,11 @@ impl Codegen {
         // and no assert never entered it -- 20 of the 21 remaining pow errors sit
         // in one such spec. The check was right and unreachable.
         let needs_pow = needs("pow");
+        // `x as T` builds an ExprFieldAccess named `as_T`, anywhere in the tree.
+        let needs_cast = ast.children.iter().any(node_has_cast);
 
         let mut auto_std = false;
-        if has_tests || needs_expect || needs_assert || needs_pow {
+        if has_tests || needs_expect || needs_assert || needs_pow || needs_cast {
             self.write_line("const std = @import(\"std\");");
             auto_std = true;
             if needs_expect {
@@ -4625,6 +4627,25 @@ impl Codegen {
             if needs_pow {
                 self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
             }
+        if needs_cast {
+            self.write_line("fn t27_cast(comptime T: type, v: anytype) T {");
+            self.write_line("    const V = @TypeOf(v);");
+            self.write_line("    return switch (@typeInfo(T)) {");
+            self.write_line("        .int, .comptime_int => switch (@typeInfo(V)) {");
+            self.write_line("            .float, .comptime_float => @intFromFloat(v),");
+            self.write_line("            .@\"enum\" => @intFromEnum(v),");
+            self.write_line("            .bool => @intFromBool(v),");
+            self.write_line("            else => @intCast(v),");
+            self.write_line("        },");
+            self.write_line("        .float, .comptime_float => switch (@typeInfo(V)) {");
+            self.write_line("            .int, .comptime_int => @floatFromInt(v),");
+            self.write_line("            else => @floatCast(v),");
+            self.write_line("        },");
+            self.write_line("        .@\"enum\" => @enumFromInt(v),");
+            self.write_line("        else => @as(T, v),");
+            self.write_line("    };");
+            self.write_line("}");
+        }
             self.write_line("");
         }
 
@@ -4806,9 +4827,11 @@ impl Codegen {
         // and no assert never entered it -- 20 of the 21 remaining pow errors sit
         // in one such spec. The check was right and unreachable.
         let needs_pow = needs("pow");
+        // `x as T` builds an ExprFieldAccess named `as_T`, anywhere in the tree.
+        let needs_cast = ast.children.iter().any(node_has_cast);
 
         let mut auto_std = false;
-        if has_tests || needs_expect || needs_assert || needs_pow {
+        if has_tests || needs_expect || needs_assert || needs_pow || needs_cast {
             self.write_line("const std = @import(\"std\");");
             auto_std = true;
             if needs_expect {
@@ -4824,6 +4847,25 @@ impl Codegen {
             if needs_pow {
                 self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
             }
+        if needs_cast {
+            self.write_line("fn t27_cast(comptime T: type, v: anytype) T {");
+            self.write_line("    const V = @TypeOf(v);");
+            self.write_line("    return switch (@typeInfo(T)) {");
+            self.write_line("        .int, .comptime_int => switch (@typeInfo(V)) {");
+            self.write_line("            .float, .comptime_float => @intFromFloat(v),");
+            self.write_line("            .@\"enum\" => @intFromEnum(v),");
+            self.write_line("            .bool => @intFromBool(v),");
+            self.write_line("            else => @intCast(v),");
+            self.write_line("        },");
+            self.write_line("        .float, .comptime_float => switch (@typeInfo(V)) {");
+            self.write_line("            .int, .comptime_int => @floatFromInt(v),");
+            self.write_line("            else => @floatCast(v),");
+            self.write_line("        },");
+            self.write_line("        .@\"enum\" => @enumFromInt(v),");
+            self.write_line("        else => @as(T, v),");
+            self.write_line("    };");
+            self.write_line("}");
+        }
             self.write_line("");
         }
 
@@ -6082,7 +6124,17 @@ impl Codegen {
             }
             NodeKind::ExprFieldAccess => {
                 if node.name.starts_with("as_") {
+                    // `x as u32` was DROPPED here, keeping only `x`. Not a
+                    // blocked spec -- silently different code: in
+                    // math/constants an i64 stayed an f64 and the complaint
+                    // arrived five lines later as `remainder division with
+                    // 'f64'`. 645 casts in 67 specs, 9 of them already VALID.
+                    //
+                    // The source type is not known here, so the dispatch is
+                    // left to comptime in `t27_cast`.
+                    self.write(&format!("t27_cast({}, ", node.extra_type));
                     self.gen_expr(&node.children[0]);
+                    self.write(")");
                 } else {
                     if !node.children.is_empty() {
                         self.gen_expr(&node.children[0]);
@@ -8594,6 +8646,15 @@ fn split_use_path(
         braced
     };
     (segs[..cut].to_vec(), symbols)
+}
+
+/// Does this subtree contain a cast? `x as T` parses to an ExprFieldAccess
+/// named `as_T`, and the helper it needs is a file-scope declaration.
+fn node_has_cast(node: &Node) -> bool {
+    if node.kind == NodeKind::ExprFieldAccess && node.name.starts_with("as_") {
+        return true;
+    }
+    node.children.iter().any(node_has_cast)
 }
 
 fn resolve_import_path(
