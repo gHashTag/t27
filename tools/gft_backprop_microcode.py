@@ -190,7 +190,7 @@ def _magadd(a, b):
     else: ho, hm, lo, lm = bo, bm, ao, am
     hs = 512 + hm; ls = 512 + lm; d = min(ho - lo, 11)
     losh = ls >> d; rem = ls - (losh << d); s = hs + losh; off = ho; mant = s - 512
-    if s > 1024:
+    if s >= 1024:
         g = s & 1; pre = s >> 1; mant = pre - 512
         if g == 1:
             if rem > 0: mant += 1
@@ -208,7 +208,7 @@ def _magsub(hi, lo):
     if d < 0: return 0
     hs = (512 + hm) << 14; la = 0; sticky = 0
     # mutant-equivalent: at d == 26 the else branch computes la = ls >> 26 == 0 (ls is at most 1023 << 14, below 2**26) and sticky = 1 -- exactly what this branch assigns. 0 differences over 525918 points.
-    if d >= 26: la = 0; sticky = 1
+    if d > 26: la = 0; sticky = 1
     else:
         ls = (512 + lm) << 14; la = ls >> d
         if (ls - (la << d)) > 0: sticky = 1
