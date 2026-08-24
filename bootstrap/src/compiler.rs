@@ -5576,7 +5576,14 @@ impl Codegen {
                     if i > 0 {
                         self.write(", ");
                     }
-                    self.write(&format!(".{} = ", field.name));
+                    // Eighth binding site. `return Result{ .error = "" }` --
+                    // `error` and `align` are Zig keywords and the natural
+                    // names for those fields. 39 sites in 13 files, 34 of them
+                    // `.error`.
+                    //
+                    // zig_ident, not zig_expr_name: this is a binding, so a
+                    // field called `usize` needs quoting too.
+                    self.write(&format!(".{} = ", zig_ident(&field.name)));
                     if !field.children.is_empty() {
                         self.gen_expr(&field.children[0]);
                     }
