@@ -3037,6 +3037,55 @@ fn spec_rel_path(path: &Path) -> Option<String> {
 /// `use fpga::spi::SPI_Master;` names a symbol out of a module and
 /// `use base::types;` names a module, and the syntax does not say which. The
 /// emitter needs the tree to tell them apart.
+type ModuleMaps = (
+    std::collections::HashMap<String, String>,
+    std::collections::HashMap<String, Vec<String>>,
+);
+
+/// Public names each module declares, keyed by the same aliases as the path
+/// map. `use base::types;` binds the module, and the spec then writes `Trit`
+/// bare -- Rust's `use` brings names into scope and Zig's `@import` does not.
+/// 139 of the 369 remaining undeclared-identifier errors are that gap, and
+/// `usingnamespace` was removed in Zig 0.16, so each name has to be bound.
+fn spec_module_decls(input_path: &Path) -> ModuleMaps {
+    let paths = spec_module_paths(input_path);
+    let mut decls: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    let parts: Vec<_> = input_path.components().collect();
+    let Some(idx) = parts.iter().rposition(|c| c.as_os_str() == "specs") else {
+        return (paths, decls);
+    };
+    let root: std::path::PathBuf = parts[..=idx].iter().collect();
+    for (alias, rel) in &paths {
+        for ext in ["t27", "vibee"] {
+            let f = root.join(format!("{}.{}", rel, ext));
+            let Ok(text) = fs::read_to_string(&f) else { continue };
+            let mut names = Vec::new();
+            for line in text.lines() {
+                let t = line.trim_start();
+                let Some(rest) = t.strip_prefix("pub ") else { continue };
+                for kw in ["fn ", "const ", "type ", "struct ", "enum "] {
+                    if let Some(after) = rest.strip_prefix(kw) {
+                        let n: String = after
+                            .chars()
+                            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                            .collect();
+                        if !n.is_empty() {
+                            names.push(n);
+                        }
+                        break;
+                    }
+                }
+            }
+            names.sort();
+            names.dedup();
+            decls.insert(alias.clone(), names);
+            break;
+        }
+    }
+    (paths, decls)
+}
+
 fn spec_module_paths(input_path: &Path) -> std::collections::HashMap<String, String> {
     let mut out = std::collections::HashMap::new();
     let parts: Vec<_> = input_path.components().collect();
@@ -3094,11 +3143,8 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     // location. Outside the tree there is no location to resolve against, and
     // the old last-segment behaviour is kept.
     let rel = spec_rel_path(path);
-    let result = compiler::Compiler::compile_in_tree(
-        &source,
-        rel.as_deref(),
-        &spec_module_paths(path),
-    );
+    let (paths, decls) = spec_module_decls(path);
+    let result = compiler::Compiler::compile_in_tree(&source, rel.as_deref(), &paths, &decls);
     match result {
         Ok(zig_code) => print!("{}", zig_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),

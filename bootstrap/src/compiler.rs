@@ -76,6 +76,25 @@ pub struct Node {
 /// on every node. A false positive suppresses a `_ = param;` that Zig would
 /// have accepted; a false negative emits a discard for a parameter that IS
 /// used, which Zig rejects outright. Over-approximating fails safe.
+/// Does this subtree mention `name` as a whole word, anywhere -- including
+/// inside text a node carries verbatim, such as a behaviour clause.
+fn node_mentions_word(node: &Node, name: &str) -> bool {
+    let has = |hay: &str| {
+        hay.match_indices(name).any(|(i, _)| {
+            let before = hay[..i].chars().next_back();
+            let after = hay[i + name.len()..].chars().next();
+            let boundary = |c: Option<char>| {
+                c.map_or(true, |c| !c.is_ascii_alphanumeric() && c != '_')
+            };
+            boundary(before) && boundary(after)
+        })
+    };
+    if has(&node.name) || has(&node.value) || has(&node.extra_field) {
+        return true;
+    }
+    node.children.iter().any(|c| node_mentions_word(c, name))
+}
+
 fn mentions_identifier(node: &Node, name: &str) -> bool {
     if node.name == name || node.value == name || node.extra_field == name {
         return true;
@@ -4515,6 +4534,13 @@ pub struct Codegen {
     /// Capitalisation nearly works as a test and then `use base::math::normalize_l2`
     /// breaks it.
     module_paths: std::collections::HashMap<String, String>,
+    /// Public names each module declares, by the same aliases.
+    ///
+    /// `use base::types;` binds the module and the spec then writes `Trit`
+    /// bare, because Rust's `use` brings names into scope. Zig's `@import`
+    /// does not, and `usingnamespace` was removed in 0.16, so each name the
+    /// file actually mentions is bound explicitly.
+    module_decls: std::collections::HashMap<String, Vec<String>>,
 }
 
 impl Codegen {
@@ -4529,6 +4555,7 @@ impl Codegen {
             in_test_block: false,
             rel_path: None,
             module_paths: std::collections::HashMap::new(),
+            module_decls: std::collections::HashMap::new(),
         }
     }
 
@@ -4772,6 +4799,36 @@ impl Codegen {
                         zig_ident(&decl.name),
                         target
                     ));
+                    taken.insert(decl.name.clone());
+                    // ...and bind the names this file uses bare. Only names it
+                    // actually mentions: a binding nothing reads is an error of
+                    // its own, which is how the expect/assert prelude was
+                    // wrong before.
+                    let key = module_value.replace("::", "/");
+                    let pool = self
+                        .module_decls
+                        .get(&module_value)
+                        .or_else(|| self.module_decls.get(&key))
+                        .cloned()
+                        .unwrap_or_default();
+                    for name in pool {
+                        if taken.contains(&name) {
+                            continue;
+                        }
+                        // Word-aware, not equality. A behaviour clause holds
+                        // its whole text in `name` -- `err = abs(g - pdg) / pdg`
+                        // -- so an exact match never sees the call inside it.
+                        if !ast.children.iter().any(|c| node_mentions_word(c, &name)) {
+                            continue;
+                        }
+                        taken.insert(name.clone());
+                        self.write_line(&format!(
+                            "const {} = {}.{};",
+                            zig_ident(&name),
+                            zig_ident(&decl.name),
+                            zig_expr_name(&name)
+                        ));
+                    }
                 } else if symbols.len() == 1 && !taken.contains(&symbols[0]) {
                     // `use fpga::spi::SPI_Master;` binds the symbol, not the
                     // module, so there is no second name to invent.
@@ -8987,7 +9044,12 @@ impl Compiler {
     /// to it cost nine valid specs. The emitters need merging; until then the
     /// current one takes the path.
     pub fn compile_at(source: &str, rel_path: Option<&str>) -> Result<String, String> {
-        Self::compile_in_tree(source, rel_path, &std::collections::HashMap::new())
+        Self::compile_in_tree(
+            source,
+            rel_path,
+            &std::collections::HashMap::new(),
+            &std::collections::HashMap::new(),
+        )
     }
 
     /// As `compile_at`, plus the set of modules that exist, so a `use` path can
@@ -8996,6 +9058,7 @@ impl Compiler {
         source: &str,
         rel_path: Option<&str>,
         module_paths: &std::collections::HashMap<String, String>,
+        module_decls: &std::collections::HashMap<String, Vec<String>>,
     ) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
@@ -9004,6 +9067,7 @@ impl Compiler {
         let mut codegen = Codegen::new();
         codegen.rel_path = rel_path.map(|s| s.to_string());
         codegen.module_paths = module_paths.clone();
+        codegen.module_decls = module_decls.clone();
         codegen.gen_zig(&ast);
         Ok(codegen.into_string())
     }
