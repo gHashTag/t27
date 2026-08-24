@@ -109,11 +109,16 @@ def normalise(err):
     return re.sub(r"'[^']*'", "X", re.sub(r"\d+", "N", err))
 
 
-# A parse error stops ast-check dead; a semantic one does not. Only the first
-# kind caps a file's error count, so only the first kind hides an unknown
-# remainder behind it. Everything ast-check phrases as a thwarted expectation
-# is the parse kind.
-_WALL = re.compile(r"\b(expected|invalid|unexpected|extra|missing)\b", re.I)
+# An error that stops ast-check dead caps its file's error count and hides an
+# unknown remainder behind it.
+#
+# The list is EMPIRICAL and under-reports. It began as "errors ast-check
+# phrases as a thwarted expectation", which missed `duplicate struct member
+# name`: 9 specs sat at 1 error behind one and went to 4-19 once it was fixed
+# (#2636). Nothing in the message says it halts the check -- only measurement
+# does. Add a class here when a fix makes its specs jump, never on a guess.
+_WALL = re.compile(
+    r"\b(expected|invalid|unexpected|extra|missing|duplicate)\b", re.I)
 
 
 def is_parse_error(err):

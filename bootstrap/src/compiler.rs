@@ -4219,8 +4219,10 @@ impl Codegen {
         // in one such spec. The check was right and unreachable.
         let needs_pow = uses("pow");
 
+        let mut auto_std = false;
         if has_tests || needs_expect || needs_assert || needs_pow {
             self.write_line("const std = @import(\"std\");");
+            auto_std = true;
             if needs_expect {
                 self.write_line("const expect = std.testing.expect;");
             }
@@ -4245,7 +4247,12 @@ impl Codegen {
         // a redeclaration, so the whole file failed on a line that was correct
         // the first time it appeared. `lsp/server.t27` emitted `const lsp` six
         // times; 19 pure-t27 specs carry a duplicate and none of them were valid.
-        let mut emitted: Vec<&str> = Vec::new();
+        // Seeded with the automatic import above. The dedup below caught
+        // `use lsp::server; use lsp::client;` but not a spec that imports
+        // `std` itself, because that binding was written before this loop
+        // began -- 12 specs failed with `duplicate struct member name 'std'`,
+        // a file-scope declaration being reported in Zig's terms for a file.
+        let mut emitted: Vec<&str> = if auto_std { vec!["std"] } else { Vec::new() };
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
@@ -4319,8 +4326,10 @@ impl Codegen {
         // in one such spec. The check was right and unreachable.
         let needs_pow = uses("pow");
 
+        let mut auto_std = false;
         if has_tests || needs_expect || needs_assert || needs_pow {
             self.write_line("const std = @import(\"std\");");
+            auto_std = true;
             if needs_expect {
                 self.write_line("const expect = std.testing.expect;");
             }
@@ -4339,8 +4348,13 @@ impl Codegen {
 
         // Emit @import for UseDecl nodes with resolved paths
         let mut has_imports = false;
+        let mut emitted: Vec<&str> = if auto_std { vec!["std"] } else { Vec::new() };
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
+                if emitted.contains(&decl.name.as_str()) {
+                    continue;
+                }
+                emitted.push(&decl.name);
                 let import_path = resolve_import_path(
                     &decl.value, // e.g. "base::types"
                     &decl.name,  // e.g. "types"
