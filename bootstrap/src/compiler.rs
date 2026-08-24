@@ -2003,6 +2003,7 @@ impl Parser {
                 self.expect(TokenKind::LBrace)?;
                 self.parse_struct_body(&mut decl)?;
                 self.expect(TokenKind::RBrace)?;
+                fold_sole_enum_field(&mut decl);
             } else if self.current.kind == TokenKind::LBracket {
                 // pub const TernaryWord = [WORD_BYTES]u8; or [_]u8{...} ** N
                 // Collect the full expression as value text
@@ -2261,7 +2262,27 @@ impl Parser {
                 continue;
             }
 
-            if self.current.kind == TokenKind::Ident {
+            // A keyword is a legal FIELD name, but only when a colon follows.
+            //
+            // `specs/tools/schema.t27` declares a JSON-Schema record with a
+            // field literally called `enum`; the name was dropped and the
+            // element type became the field name, giving `any: void`. 23 such
+            // fields across 21 specs, 22 of them `enum`.
+            //
+            // The colon is the discriminator and it must be there: `enum` and
+            // `struct` also START a declaration in the braced dialect, and
+            // `enum ErrorCode {` taken as a field would name the field `enum`
+            // and its type `ErrorCode`. A field is `name :`; a declaration is
+            // `keyword Name {`.
+            //
+            // This lands WITH fold_sole_enum_field below. Alone it costs five
+            // specs: their `enum : [A, B]` currently survives only because the
+            // name is thrown away and the leftover list becomes `A: void,
+            // B: void`, a struct that compiles.
+            if self.current.kind == TokenKind::Ident
+                || (is_identifier_text(&self.current.lexeme)
+                    && self.peek.kind == TokenKind::Colon)
+            {
                 let field_name = self.current.lexeme.clone();
                 self.advance();
 
@@ -8961,6 +8982,94 @@ fn is_identifier_text(lexeme: &str) -> bool {
         _ => return false,
     }
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// `const X = struct { enum : [A, B] }` is an ENUM, written by a generator
+/// that had no enum syntax to hand.
+///
+/// The discriminator is measured, not chosen: across all 497 specs, `enum` is
+/// the SOLE field with a bare-identifier list in 9 declarations, the sole field
+/// with an empty or quoted value in 13, and appears ALONGSIDE other fields
+/// exactly once -- `specs/tools/schema.t27`'s ParameterSchema, a genuine
+/// JSON-Schema record whose `enum` field holds a TYPE. Zero overlap, so a
+/// sole-field rule cannot touch the one real record.
+///
+/// Only the bare-identifier form is folded. A quoted list would need the
+/// quotes stripped and an empty one carries no variant names at all, so
+/// neither can be recovered here without inventing meaning.
+fn fold_sole_enum_field(decl: &mut Node) {
+    fold_enum_type_marker(decl);
+    if decl.children.len() != 1 {
+        return;
+    }
+    let field = &decl.children[0];
+    if field.name != "enum" {
+        return;
+    }
+    let raw = field.extra_type.trim();
+    let inner = match raw.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+        Some(i) => i,
+        None => return,
+    };
+    let variants: Vec<&str> = inner
+        .split(',')
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .collect();
+    if variants.is_empty() || !variants.iter().all(|v| is_identifier_text(v)) {
+        return;
+    }
+    decl.kind = NodeKind::EnumDecl;
+    decl.children = variants
+        .iter()
+        .map(|v| {
+            let mut m = Node::new(NodeKind::EnumVariant);
+            m.name = (*v).to_string();
+            m
+        })
+        .collect();
+}
+
+/// The other generator shape for an enum:
+///
+///     const PaddingMode = struct {
+///         enum_type : "enum",
+///         values : ,
+///         Zeros : Auto,
+///         Reflect : Auto,
+///     }
+///
+/// `enum_type` and `values` are markers, and every remaining field typed `Auto`
+/// is a variant. 4 declarations, and unlike the `enum : [A, B]` shape none of
+/// them can have a dependent today: they emit `enum_type: enum, values: void`,
+/// which is not valid Zig at all -- `expected '{', found ','`.
+fn fold_enum_type_marker(decl: &mut Node) {
+    let marks_enum = decl
+        .children
+        .iter()
+        .any(|c| c.name == "enum_type" && c.extra_type.trim_matches('"') == "enum");
+    if !marks_enum {
+        return;
+    }
+    let variants: Vec<String> = decl
+        .children
+        .iter()
+        .filter(|c| c.name != "enum_type" && c.name != "values")
+        .filter(|c| c.extra_type.trim() == "Auto")
+        .map(|c| c.name.clone())
+        .collect();
+    if variants.is_empty() {
+        return;
+    }
+    decl.kind = NodeKind::EnumDecl;
+    decl.children = variants
+        .iter()
+        .map(|v| {
+            let mut m = Node::new(NodeKind::EnumVariant);
+            m.name = v.clone();
+            m
+        })
+        .collect();
 }
 
 fn node_has_cast(node: &Node) -> bool {
