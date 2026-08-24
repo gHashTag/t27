@@ -3477,6 +3477,19 @@ impl Parser {
     /// Parse primary expressions
     fn parse_expr_primary(&mut self) -> Result<Node, String> {
         match self.current.kind {
+            // `.on_message = fn(e: SSEEvent) void { }` -- a function literal in
+            // expression position. Nothing consumed `fn` here, so the
+            // struct-literal field loop broke, `expect(RBrace)` failed, and the
+            // enclosing declaration was swallowed along with every declaration
+            // after it. server/sse.t27 lost 20 of its 38.
+            //
+            // Same shape as `++` in #2650: a construct the lexer produces and
+            // no expression rule consumes.
+            TokenKind::KwFn => {
+                let mut lit = self.parse_fn_decl(false)?;
+                lit.extra_kind = "fnlit".to_string();
+                Ok(lit)
+            }
             // Number literal
             TokenKind::Number => {
                 let val = self.current.lexeme.clone();
@@ -4963,8 +4976,15 @@ impl Codegen {
         }
 
         if children.is_empty() {
-            self.write_indent();
-            self.write_line("@compileError(\"not yet implemented\");");
+            // An empty body in a spec function means "not written yet", and
+            // @compileError says so loudly. In a function LITERAL it means the
+            // opposite -- `.on_close = fn() void { }` is a deliberate no-op
+            // callback, and a compileError there fires the moment it is
+            // referenced.
+            if node.extra_kind != "fnlit" {
+                self.write_indent();
+                self.write_line("@compileError(\"not yet implemented\");");
+            }
         } else {
             self.gen_scoped_stmts(children);
         }
@@ -5359,6 +5379,17 @@ impl Codegen {
 
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
+            // Zig has no anonymous function expression. The idiom is a struct
+            // holding one function, projected immediately -- exact, inline, and
+            // requiring no invented top-level name.
+            NodeKind::FnDecl if node.extra_kind == "fnlit" => {
+                let mut inner = node.clone();
+                inner.name = "f".to_string();
+                inner.extra_pub = false;
+                self.write("(struct { ");
+                self.gen_fn_decl(&inner);
+                self.write(" }).f");
+            }
             NodeKind::ExprLiteral => self.write(&node.value),
             NodeKind::ExprIdentifier => self.write(&zig_expr_name(&node.name)),
             NodeKind::ExprEnumValue => {
