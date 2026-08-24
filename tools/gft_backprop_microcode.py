@@ -442,6 +442,26 @@ def self_check():
 if __name__ == "__main__":
     if "--self-check" in sys.argv:
         sys.exit(self_check())
+    # The smallest normal binade, [2^-40, 2^-39). `off = e + 40` is 0 there, and
+    # nothing else here reaches it: every value the training self-tests below
+    # encode sits many binades higher.
+    #
+    # Found by reading a surviving boundary mutant rather than by suspecting the
+    # encoder. `if off < 0: return 0` survived `<` -> `<=`, and the survivor is
+    # real: with `<=`, a value in this binade encodes as 0, which is the ZERO
+    # sentinel. 1.5*2^-40 encodes 256 and would become 0 -- a non-zero magnitude
+    # silently reported as zero, in the encoder every trained weight goes
+    # through.
+    #
+    # The exact power 2^-40 is NOT a witness: its mantissa is 0, so it already
+    # encodes as 0 and the mutant changes nothing. A witness needs a non-zero
+    # mantissa in that binade, which is why this pins 1.5*2^-40 and not the
+    # boundary value itself.
+    assert enc(1.5 * 2.0**-40) == 256, "smallest normal binade must not encode as zero"
+    assert enc(-1.5 * 2.0**-40) == (1 << 16) | 256, "sign survives the smallest binade"
+    assert enc(2.0**-41) == 0, "below the smallest binade IS zero (off < 0)"
+    print("self-test: smallest normal binade encodes non-zero (off == 0) -- OK")
+
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)
         print(f"arch {arch}: {len(reg)} regs, {len(steps)} microcode steps")
