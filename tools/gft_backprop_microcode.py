@@ -462,6 +462,23 @@ if __name__ == "__main__":
     assert enc(2.0**-41) == 0, "below the smallest binade IS zero (off < 0)"
     print("self-test: smallest normal binade encodes non-zero (off == 0) -- OK")
 
+    # Round-half-to-EVEN, on exact ties. `_magadd` decides with
+    #
+    #     if t > hf: mant += 1                    strictly above half
+    #     elif t == hf and (s & 1): mant += 1     exactly half -> to even
+    #
+    # and `t > hf` survived `>` -> `>=`, which turns the pair into round-half-UP
+    # and ignores the parity test entirely. The self-tests below did not notice:
+    # they train a net and check ACCURACY, and an optimiser absorbs a last-bit
+    # error in every addition without changing whether XOR reaches 4/4.
+    #
+    # An outcome test cannot see an arithmetic defect that outcomes tolerate.
+    # These three pin the decision itself, one per branch:
+    assert _magadd(25600, 20480) == 25600, "tie with even s must NOT round up"
+    assert _magadd(20992, 20483) == 21250, "tie with odd s must round up (to even)"
+    assert _magadd(25600, 20481) == 25601, "strictly above half must round up"
+    print("self-test: round-half-to-even on exact ties -- OK")
+
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)
         print(f"arch {arch}: {len(reg)} regs, {len(steps)} microcode steps")
