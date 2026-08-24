@@ -4438,6 +4438,13 @@ pub struct Codegen {
     /// name at all sanitises to the same one every time -- `fn bench_() void`
     /// appeared twice in one file and Zig calls that a duplicate member.
     emitted_names: std::collections::HashSet<String>,
+    /// Return type of every function this spec declares, by name.
+    ///
+    /// A call in statement position whose value is thrown away is an error in
+    /// Zig -- `value of type X ignored`, or `error union is ignored`. Knowing
+    /// which local functions return something is enough to bind those to `_`.
+    /// 84 such calls across 37 files.
+    fn_returns: std::collections::HashMap<String, String>,
 }
 
 impl Codegen {
@@ -4448,6 +4455,7 @@ impl Codegen {
             declared: std::collections::HashSet::new(),
             declared_top: std::collections::HashSet::new(),
             emitted_names: std::collections::HashSet::new(),
+            fn_returns: std::collections::HashMap::new(),
         }
     }
 
@@ -4501,6 +4509,15 @@ impl Codegen {
             }
         }
         collect(ast, &mut self.declared);
+        fn collect_returns(node: &Node, out: &mut std::collections::HashMap<String, String>) {
+            for d in node.children.iter() {
+                if d.kind == NodeKind::FnDecl && !d.name.is_empty() {
+                    out.insert(d.name.clone(), d.extra_return_type.clone());
+                }
+                collect_returns(d, out);
+            }
+        }
+        collect_returns(ast, &mut self.fn_returns);
         for decl in ast.children.iter() {
             if matches!(
                 decl.kind,
@@ -5598,6 +5615,22 @@ impl Codegen {
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
+                // A call whose value is dropped. Zig rejects it, and the spec
+                // clearly means "run this", so bind it to `_`.
+                //
+                // Only for functions THIS spec declares with a non-void return:
+                // for an imported or unknown callee the return type is not
+                // here, and `_ = f()` on a void function is an error of its
+                // own. Guessing either way trades one error for another.
+                if let Some(call) = node.children.first() {
+                    if call.kind == NodeKind::ExprCall {
+                        if let Some(ret) = self.fn_returns.get(&call.name) {
+                            if !ret.is_empty() && ret != "void" {
+                                self.write("_ = ");
+                            }
+                        }
+                    }
+                }
                 if !node.children.is_empty() {
                     self.gen_expr(&node.children[0]);
                 }

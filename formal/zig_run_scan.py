@@ -31,11 +31,15 @@ import json
 import pathlib
 import re
 import subprocess
+import shutil
+import tempfile
 
 ROOT = pathlib.Path("/Users/playom/t27")
 BIN = ROOT / "target/release/t27c"
-WORK = pathlib.Path(__file__).parent / "ztest"
-WORK.mkdir(parents=True, exist_ok=True)
+# A temp directory OUTSIDE the repo. The first version used
+# `Path(__file__).parent / "ztest"`, which wrote 497 generated .zig files and a
+# Zig build cache into formal/ the moment this moved into the repo.
+WORK = pathlib.Path(tempfile.mkdtemp(prefix="t27_run_scan_"))
 
 r = json.load(open("/tmp/emit_i98.json"))
 allspecs = [f for f in r if f.startswith("specs/")]
@@ -99,3 +103,5 @@ zero = sum(1 for k, n in rows if k == "passed" and n == 0)
 print(f"\n  specs that compiled and ran:      {c.get('passed', 0)}")
 print(f"    of those, running ZERO tests:   {zero}")
 print(f"  assertions actually executed:     {executed}")
+
+shutil.rmtree(WORK, ignore_errors=True)
