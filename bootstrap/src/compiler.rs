@@ -1034,9 +1034,67 @@ fn node_assigns(node: &Node, name: &str) -> bool {
     node.children.iter().any(|c| node_assigns(c, name))
 }
 
+/// Byte offset of `sep` at bracket depth zero, if present.
+fn split_at_top_level(text: &str, sep: &str) -> Option<usize> {
+    let b = text.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i + sep.len() <= b.len() {
+        match b[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            _ => {}
+        }
+        if depth == 0 && &text[i..i + sep.len()] == sep {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
 fn string_compare(text: &str) -> Option<String> {
+    // Only a WHOLE comparison, never one buried in a larger expression.
+    //
+    // The first version split on the first `==` and took the rest of the line
+    // as the right-hand side, so `a == "R5" and b == "T9"` became
+    // `std.mem.eql(u8, a, "R5" and b == "T9")` -- 6 sites, and every one of
+    // them was a comparison this function had made worse.
+    //
+    // A conjunction is split and each side rewritten. Declining instead cost
+    // a valid spec: the greedy version produced
+    // `std.mem.eql(u8, a, "R5" and b == "T9")`, which is nonsense that
+    // ast-check happens to accept, and declining left a bare `==` on strings,
+    // which it does not.
+    for sep in [" and ", " or "] {
+        if let Some(i) = split_at_top_level(text, sep) {
+            let l = string_compare(&text[..i]).unwrap_or_else(|| text[..i].trim().to_string());
+            let r = string_compare(&text[i + sep.len()..])
+                .unwrap_or_else(|| text[i + sep.len()..].trim().to_string());
+            return Some(format!("{}{}{}", l, sep, r));
+        }
+    }
     for (op, neg) in [("==", false), ("!=", true)] {
-        if let Some(i) = text.find(op) {
+        let mut found = None;
+        let b = text.as_bytes();
+        let mut depth = 0i32;
+        let mut i = 0;
+        while i + 1 < b.len() {
+            match b[i] {
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => depth -= 1,
+                _ => {}
+            }
+            if depth == 0 && &text[i..i + 2] == op {
+                if found.is_some() {
+                    return None; // more than one comparison: not ours
+                }
+                found = Some(i);
+                i += 1;
+            }
+            i += 1;
+        }
+        if let Some(i) = found {
             let lhs = text[..i].trim();
             let rhs = text[i + 2..].trim();
             if (lhs.starts_with('"') || rhs.starts_with('"')) && !lhs.is_empty() && !rhs.is_empty() {
