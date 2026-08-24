@@ -13,7 +13,7 @@ specs could never build, and ast-check reported them clean. Removing that one
 line took the sample from 7 compiling to 20, and from 12 assertions executed
 to 229.
 
-CAVEATS, because this is a sample tool and not a gate:
+CAVEATS, because this reports and does not gate:
 
   - Every spec is emitted into ONE directory so `@import("x.zig")` resolves by
     basename. 22 basenames collide and the last write wins, so a few files are
@@ -71,13 +71,13 @@ _before = len(valid)
 valid = [f for f in valid if _stems[pathlib.Path(f).stem] == 1]
 print(f"  excluded {_before - len(valid)} valid specs whose basename collides")
 
-# Evenly spaced across the sorted set, not the first 40.
+# EVERY collision-free valid spec. No sampling.
 #
-# `valid[:40]` is alphabetical, so it was a sample of `api/`, `automation/`,
-# `base/` and `boards/` -- four subtrees out of thirty. Every number reported
-# from it in #2673 describes those, not the corpus.
-STEP = max(1, len(valid) // 40)
-sample = valid[::STEP][:40]
+# It was 40, first alphabetically -- `api/`, `automation/`, `base/`, `boards/`,
+# four subtrees out of thirty -- and every number reported from it in #2673
+# described those, not the corpus. A stride fixed the bias but kept the
+# inference. The full set costs a few minutes and removes the last step
+# between the number and the claim.
 
 
 def run(f):
@@ -107,10 +107,10 @@ def run(f):
 
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-    rows = list(ex.map(run, sample))
+    rows = list(ex.map(run, valid))
 
 c = collections.Counter(k for k, _ in rows)
-print(f"\n  `zig test` on {len(sample)} specs that ast-check calls VALID:")
+print(f"\n  `zig test` on all {len(valid)} collision-free specs ast-check calls VALID:")
 for k, n in c.most_common():
     print(f"    {n:4d}  {k}")
 executed = sum(n for k, n in rows if k == "passed")
