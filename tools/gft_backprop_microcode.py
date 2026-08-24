@@ -202,6 +202,7 @@ def _magsub(hi, lo):
     ho = hi >> 9; hm = hi & 511; lo_o = lo >> 9; lm = lo & 511; d = ho - lo_o
     if d < 0: return 0
     hs = (512 + hm) << 14; la = 0; sticky = 0
+    # mutant-equivalent: at d == 26 the else branch computes la = ls >> 26 == 0 (ls is at most 1023 << 14, below 2**26) and sticky = 1 -- exactly what this branch assigns. 0 differences over 525918 points.
     if d >= 26: la = 0; sticky = 1
     else:
         ls = (512 + lm) << 14; la = ls >> d
@@ -562,6 +563,10 @@ if __name__ == "__main__":
     # chasing: at d == 26 the else branch computes `la = ls >> 26 == 0` (ls is
     # at most 1023 << 14, below 2**26) and `sticky = 1`, which is exactly what
     # the taken branch assigns. 0 differences over the same 525_918 points.
+    # That reasoning now sits on the line itself as a `# mutant-equivalent:`
+    # claim, which `tri gates mutate` will CONTRADICT if the mutant ever dies --
+    # so if a later change makes d == 26 behave differently, the note stops
+    # being a note and becomes a finding.
     #
     # The three assertions below catch three DIFFERENT operator classes, and
     # each catches only its own -- measured, not assumed:

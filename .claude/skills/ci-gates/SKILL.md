@@ -4569,3 +4569,112 @@ question. The right one is whether they cover different **operator classes** —
 here boundary, dead-branch, and deletion — because an assertion set can be
 non-redundant against every mutant one tool generates and still be blind to the
 whole class that tool does not emit.
+## 118. Six claims that nothing had ever tried to refute
+
+`# mutant-equivalent: <why>` marks a survivor as unkillable by construction,
+and `tri gates mutate` prints it as *"claims equivalent: …"*. The word `claims`
+was doing real work: **nothing had ever checked one.** Six sat in `tools/`.
+
+A claim is a statement about the code. It ages with the code. And the run best
+placed to notice it has gone stale is the mutation run itself — it already
+built the mutant and already knows the verdict. The missing step was one
+comparison.
+
+Now a claimed line whose mutant **dies** is reported as contradicted. Measured
+against the six that already existed: five checked, **none contradicted** —
+which is worth exactly as much as the run that could have refuted them and did
+not, and nothing more.
+
+**An unfalsifiable claim is prose wearing the costume of an analysis.** It reads
+like settled work to everyone who comes after, and the cost of leaving it
+unchecked is not that it is wrong today — it is that nothing will say so on the
+day it becomes wrong.
+
+### The counting detail that matters
+
+A line can hold more than one mutable site: `if a < 1 or b < 1:` holds two. So
+the check compares **counts**, not membership — a claimed line with two sites of
+which one survived has been contradicted **once**. Keying on *"did this line
+vanish from the survivor list"* would call that claim intact, and a half-true
+claim is the hardest kind to catch by eye.
+
+### Writing about the marker created a claim
+
+The extractor matched `mutant-equivalent:` **anywhere inside** any comment. So
+the sentence *"that reasoning now sits on the line as a `# mutant-equivalent:`
+claim"* — prose describing the mechanism — registered as a claim of its own,
+bound to whatever code line happened to follow it.
+
+Caught because the count printed **2** where I had written **1**. Nothing else
+would have caught it: a claim nobody made, attached to a line it says nothing
+about, silently waiting to be reported as *contradicted* the day that unrelated
+line's mutant died. **A false positive in the extractor becomes a false
+refutation in the checker** — the new check gave the old bug a way to lie.
+
+The marker must now OPEN the comment. Every real claim in the tree already did.
+
+The general shape: **a scanner that matches a marker anywhere cannot tell a use
+from a mention**, and documentation is exactly where mentions live. Any tool
+that greps the tree for its own vocabulary will eventually read its own
+documentation as data — and the count is the cheapest place to notice, which is
+an argument for printing counts nobody asked for.
+
+### The claim marker names no operator, and that is a real gap
+
+Every claim in the tree argues about a comparison (*"so `>=` is `>`"*), so they
+are all about `boundary` — but the marker cannot say so. A line legitimately
+equivalent under `boundary` may well die under `invert`, and the check would
+report that as a contradiction. It names the direction rather than pretending to
+judge. **The ambiguity is in the marker's design, not in the check**, and
+reporting it is what makes it visible enough to fix.
+
+### The positive control, and how it nearly did not run
+
+Planting a false claim over a line whose mutant is known to die must produce a
+contradiction. My first attempt printed **nothing** — and I read that as "the
+check does not fire".
+
+It fired at nothing. Planting the claim made `tools/` dirty, `mutate` refuses to
+start on a dirty tree, and I was reading its output through
+`grep -i "CONTRADICTED"` — a filter that cannot show a refusal. **The verdict
+and the error went to the same stream and I had filtered out the half that was
+speaking.** Same shape as §85 and §115: the control could not do its job and
+said so, into a channel I had closed.
+
+The fix was to satisfy the guard rather than bypass it — commit the plant on a
+throwaway branch. Then it fired, exactly once, naming the line and the claim.
+
+## 119. Two commits I destroyed with git, in one session
+
+Neither was a merge conflict or a lost stash. Both were a command that means
+something adjacent to what I wanted.
+
+**`git checkout master -- <file>`** — I wanted to *branch* from master while
+keeping an edit. That form restores master's copy of the file **over** the edit.
+It came from a different recipe in this same campaign (measuring what master's
+version does), where it is exactly right.
+
+**`git checkout -b tmp` → commit → `git branch -D tmp`** — `checkout -b` carries
+uncommitted work onto the new branch. I committed there to satisfy a clean-tree
+guard, then deleted the branch, and my *unrelated* uncommitted edits to
+`cli/tri/src/gates.rs` went with it.
+
+Both were recoverable — the second from `git reflog`, which still held the
+commit. Neither was noticed by a test, because in both cases the tree was
+*consistent*, just missing work.
+
+**The pattern is a command borrowed from a neighbouring recipe, where the verb
+matches and the object does not.** `cargo fmt --all` (§ earlier) was the same
+mistake with a different tool: right command, wrong repository.
+
+The cheap guard is to name what you expect to still be there, and check:
+
+```
+grep -c "<the thing I just wrote>" <the file I wrote it in>
+```
+
+after any git command that moves branches or paths. Two seconds, and it turns a
+silent loss into an immediate one. A destructive git operation deserves the same
+suspicion as a destructive shell command — and the doctrine already says
+*destructive tools last, never on the last working copy*; I had been reading
+that as being about hardware.

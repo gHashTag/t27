@@ -859,16 +859,79 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
 /// comment block above it; it names the first following line that is neither a
 /// comment nor blank. A fixed offset would break the moment the proof needed
 /// more than one line -- which is the first thing it needed.
+/// Equivalence claims this run refutes.
+///
+/// A claim says the mutant at that line cannot die. If it died, the claim is
+/// false -- either it was wrong when written, or the code moved out from under
+/// it. Both read as settled analysis to whoever comes next.
+///
+/// A line can hold more than one mutable site (`if a < 1 or b < 1:` holds two),
+/// so this compares COUNTS: a claimed line with two sites of which one survived
+/// has been contradicted once. Reporting only when the line vanishes from the
+/// survivor list entirely would miss exactly that case, and a partially-true
+/// claim is the harder one to spot by eye.
+///
+/// Separate from the run loop so it can be tested without a repository, a
+/// mutant, or a subprocess -- the check exists because nothing had ever
+/// falsified one of these claims, and a checker nobody can test is the same
+/// failure one level up.
+fn contradicted_claims(
+    gate: &str,
+    dir: &str,
+    site_lines: &[usize],
+    survivors: &[usize],
+    claims: &std::collections::HashMap<usize, String>,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    // Sorted so the report is stable: a HashMap's order would reshuffle the
+    // block between runs and make a diff of two reports unreadable.
+    let mut lines: Vec<&usize> = claims.keys().collect();
+    lines.sort();
+    for line in lines {
+        let n_sites = site_lines.iter().filter(|l| *l == line).count();
+        if n_sites == 0 {
+            continue;
+        }
+        let n_surv = survivors.iter().filter(|l| *l == line).count();
+        if n_surv < n_sites {
+            out.push(format!(
+                "{}:{} -- {} of {} {} mutant(s) DIED, but the line claims: {}",
+                gate,
+                line,
+                n_sites - n_surv,
+                n_sites,
+                dir,
+                claims[line]
+            ));
+        }
+    }
+    out
+}
+
 fn equivalence_claims(src: &str) -> std::collections::HashMap<usize, String> {
     const MARK: &str = "mutant-equivalent:";
     let lines: Vec<&str> = src.lines().collect();
     let mut out = std::collections::HashMap::new();
     for (i, l) in lines.iter().enumerate() {
-        let Some(pos) = l.find(MARK) else { continue };
-        if !l.trim_start().starts_with('#') {
+        // The marker must OPEN the comment, not merely appear inside it.
+        //
+        // This used to be `l.find(MARK)` anywhere in any comment, and prose
+        // that MENTIONS the marker -- "that reasoning now sits on the line as a
+        // `# mutant-equivalent:` claim" -- registered as a claim of its own,
+        // bound to whatever code line happened to follow. A claim nobody made,
+        // attached to a line it says nothing about, which the refutation check
+        // would then report as contradicted the moment that line's mutant died.
+        //
+        // Found by writing exactly that sentence and watching the count go to
+        // two. Every real claim in the tree already opens its comment this way.
+        let t = l.trim_start();
+        let Some(rest) = t.strip_prefix('#') else {
             continue;
-        }
-        let why = l[pos + MARK.len()..].trim().to_string();
+        };
+        let Some(why) = rest.trim_start().strip_prefix(MARK) else {
+            continue;
+        };
+        let why = why.trim().to_string();
         // Walk to the first line that is code.
         let mut j = i + 1;
         while j < lines.len() {
@@ -1500,6 +1563,16 @@ fn mutate(
         }
     }
     let mut total_survived: Vec<String> = Vec::new();
+    // Equivalence claims that this run CONTRADICTS.
+    //
+    // `# mutant-equivalent: <why>` annotates a survivor as unkillable by
+    // construction, and until now nothing ever checked one. Six sit in tools/.
+    // A claim is a statement about the code, it ages with the code, and the
+    // run best placed to notice it has gone stale is this one: it already
+    // built the mutant and already knows the verdict. An unfalsifiable claim
+    // is prose wearing the costume of an analysis.
+    let mut claims_broken: Vec<String> = Vec::new();
+    let mut claims_seen = 0usize;
     let mut cache = if fresh {
         std::collections::HashMap::new()
     } else {
@@ -1730,6 +1803,31 @@ fn mutate(
         // example.
         let equiv_lines = equivalence_claims(&pristine);
 
+        // Contradict the claims. A claimed line whose mutant DIED is a false
+        // statement sitting in the source, and it reads as settled analysis to
+        // everyone after it.
+        //
+        // Claims are NOT operator-scoped -- the marker names no direction, and
+        // every one in the tree today argues about a comparison ("so >= is >").
+        // So a line legitimately equivalent under `boundary` may well die under
+        // `invert`, and this names the direction rather than pretending to
+        // judge. That ambiguity is in the marker's design, not in the check;
+        // reporting it is what makes it visible enough to fix.
+        claims_seen += equiv_lines.len();
+        for (dir, _, _, survivors) in &scores {
+            let site_lines: Vec<usize> = sites_in_direction(&pristine, *dir)
+                .into_iter()
+                .map(|(at, _, _)| line_of(&pristine, at))
+                .collect();
+            claims_broken.extend(contradicted_claims(
+                &name,
+                label(*dir),
+                &site_lines,
+                survivors,
+                &equiv_lines,
+            ));
+        }
+
         let mut survived_here: Vec<String> = Vec::new();
         for (dir, _, _, survivors) in &scores {
             if !survivors.is_empty() {
@@ -1861,6 +1959,37 @@ fn mutate(
         println!("A survivor means the gate stopped being able to fail and its own");
         println!("control still passed. Usually the control exercises the checking");
         println!("FUNCTION but not the wiring from that function to the exit code.");
+    }
+
+    println!();
+    if claims_seen == 0 {
+        println!("No `# mutant-equivalent:` claim was in scope for this run.");
+    } else if claims_broken.is_empty() {
+        println!(
+            "{} equivalence claim(s) in scope, none contradicted.",
+            claims_seen
+        );
+        println!("Each says its mutant cannot die, and each mutant survived. That is");
+        println!("the whole check -- a claim about the FUTURE of the code is worth");
+        println!("only the run that could have refuted it and did not.");
+    } else {
+        println!(
+            "{} of {} equivalence claim(s) CONTRADICTED:",
+            claims_broken.len(),
+            claims_seen
+        );
+        for c in &claims_broken {
+            println!("  {}", c);
+        }
+        println!();
+        println!("A `# mutant-equivalent:` comment says the mutant at that line cannot");
+        println!("die. These died. Either the reasoning was wrong when it was written,");
+        println!("or the code moved out from under it -- and both read as settled");
+        println!("analysis to everyone who comes after.");
+        println!();
+        println!("Claims name no operator, and every one in the tree argues about a");
+        println!("comparison. A line equivalent under `boundary` can be killable under");
+        println!("`invert`, so read the direction named above before believing this.");
     }
 
     // The boundary column's denominator holds two populations, and only one of
@@ -2702,5 +2831,65 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
                 "{c} claims to be a gate with its own control and declares no control flag"
             );
         }
+    }
+
+    fn claim(line: usize, why: &str) -> std::collections::HashMap<usize, String> {
+        let mut m = std::collections::HashMap::new();
+        m.insert(line, why.to_string());
+        m
+    }
+
+    #[test]
+    fn prose_that_mentions_the_marker_is_not_a_claim() {
+        // The sentence that found this: a comment ABOUT the mechanism, which
+        // registered as a claim bound to the next code line.
+        let src = "# that reasoning sits on the line as a `# mutant-equivalent:` claim\nx = 1\n";
+        assert!(
+            super::equivalence_claims(src).is_empty(),
+            "a mention is not a claim"
+        );
+    }
+
+    #[test]
+    fn a_marker_opening_the_comment_is_a_claim() {
+        let src = "# mutant-equivalent: the guard forces it\nif a >= 1:\n";
+        let c = super::equivalence_claims(src);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[&2], "the guard forces it");
+    }
+
+    #[test]
+    fn a_claim_whose_mutant_survived_is_not_contradicted() {
+        // The ordinary case, and the one that must stay silent: one site on
+        // the claimed line, and it survived.
+        let out = super::contradicted_claims("g.py", "boundary", &[7], &[7], &claim(7, "forced"));
+        assert!(out.is_empty(), "a surviving mutant refutes nothing: {out:?}");
+    }
+
+    #[test]
+    fn a_claim_whose_mutant_died_is_contradicted() {
+        let out = super::contradicted_claims("g.py", "boundary", &[7], &[], &claim(7, "forced"));
+        assert_eq!(out.len(), 1);
+        assert!(out[0].contains("g.py:7"), "{}", out[0]);
+        assert!(out[0].contains("DIED"), "{}", out[0]);
+        assert!(out[0].contains("forced"), "the WHY must survive into the report: {}", out[0]);
+    }
+
+    #[test]
+    fn a_partially_true_claim_is_still_contradicted() {
+        // Two sites on one line -- `if a < 1 or b < 1:` -- one dead, one alive.
+        // Keying on "did the line vanish from the survivor list" would call
+        // this claim intact, and a half-true claim is the hardest to see by eye.
+        let out = super::contradicted_claims("g.py", "boundary", &[7, 7], &[7], &claim(7, "forced"));
+        assert_eq!(out.len(), 1, "one of two mutants died: {out:?}");
+        assert!(out[0].contains("1 of 2"), "{}", out[0]);
+    }
+
+    #[test]
+    fn a_claim_on_a_line_with_no_site_in_this_direction_is_silent() {
+        // The claim is real but this operator does not mutate that line. Saying
+        // anything here would report the OPERATOR's scope as a false claim.
+        let out = super::contradicted_claims("g.py", "invert", &[9], &[9], &claim(7, "forced"));
+        assert!(out.is_empty(), "no site, no verdict: {out:?}");
     }
 }
