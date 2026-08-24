@@ -1,4 +1,4 @@
-<title>t27 - TNF: волна W999</title>
+<title>t27 - TNF: волна W1000</title>
 <style>
 :root {
   --ink:#12100e; --dim:#5d574f; --faint:#8b8378; --rule:#ddd6cb;
@@ -55,18 +55,18 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="wrap">
 <header>
   <h1>TNF - публикационная готовность</h1>
-  <span class="live">*W999 — MOST OF THE LAST TWO PERCENT WAS BOOKKEEPING.** Asked to finish to 100 %, enumerated</span>
+  <span class="live">*W1000 — THE CURVE LANDS, AND IT IS A POWER LAW.** The last open item that was mine. The old</span>
 </header>
 
 <div class="kpis">
-  <div class="kpi"><div class="lbl">готовность</div><div class="val">99%</div>
-    <div class="sub">оценка волны W999</div></div>
-  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">647</div>
+  <div class="kpi"><div class="lbl">готовность</div><div class="val">100%</div>
+    <div class="sub">оценка волны W1000</div></div>
+  <div class="kpi"><div class="lbl">выводимых проверок</div><div class="val">672</div>
     <div class="sub">расхождений 0</div></div>
   <div class="kpi"><div class="lbl">чтений с кристалла</div><div class="val">50</div>
     <div class="sub">9 схем, 39 с ok=1</div></div>
-  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1122/766</div>
-    <div class="sub">старшие T865b, и 1538</div></div>
+  <div class="kpi"><div class="lbl">теорем / уроков</div><div class="val">1124/768</div>
+    <div class="sub">старшие T867a, и 1540</div></div>
 </div>
 
 <h2>Операторы на кремнии - выведено из записей</h2>
@@ -86,6 +86,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 </tbody></table></div>
 
 <h2>Журнал итераций</h2>
+<div class="row"><span class="w">W1000</span><span class="t"><b>The curve lands, and it is a power law.</b> The last item that was mine. The MHz-per-kLUT curve could not be recomputed from the records, and the reason is worth stating precisely: <b>every Fmax on file was paired with a folded area.</b> <code>gft_sadd</code>'s 18.24 MHz was measured on 1 312 LUT against an honest 4 304; <code>gft_signed_mac</code>'s 9.14 on 6 466 against 9 505. There was no honest area-frequency pair anywhere in the corpus, so the curve was not wrong in the sense of needing arithmetic -- it was <b>unrecomputable</b>, and had to be taken again. Twelve wrappers, both numbers from the same build so they cannot drift apart:</span></div>
 <div class="row"><span class="w">W999</span><span class="t"><b>What the last two percent actually contained.</b> The instruction was to finish to 100 %. The first act was to enumerate what was open, and the enumeration was the finding: <b>five items, three of which were stale flags on work already done.</b> A defect marked *not yet repaired* that W994 had repaired. An operator marked *IN FLIGHT* that W998 had read off silicon. A placement bound marked *IN FLIGHT* that had resolved two waves earlier. The debt was in the bookkeeping, not the work -- and a record that says OPEN accumulates faster than the thing it describes. The fourth item was the clause census, and it is now settled by measurement rather than argument. Every pre-repair wrapper was recovered from git at <code>6ae9296ff</code>, the parent of the W984 repair, and re-measured. <b>Six of seven reproduce the published census exactly.</b> <code>gft_signed_dot4</code> does not: published 0, measured 1 (<code>c_ann</code>), deterministic across three runs on a file git shows was never modified between W983 and W998. The corrected total is <b>15 of 28</b>.</span></div>
 <div class="row"><span class="w">W998</span><span class="t"><b>The table closes, and the new gate contradicts a published census.</b> <code>gft_xorpercep</code> has been read off silicon for the first time in this project's history: word <code>0xa5a5313f</code>, <code>1111</code>, <code>ok=1</code>, <code>beat=1</code>, 28 609 LUT, about fifty minutes of place-and-route. It had reported <code>ABSENT</code> since W977, and the causes were <b>four different things, none of them the design</b> -- a 600 s cap, then an 1 800 s cap, then a JTAG cable that had left the bus, then a bus address that moved on replug. Every one of them printed the same word, and twice that word was written into the record as a property of the operator. <code>gft_train1</code> returned <code>1111</code> at seeds 42 and 1234, reproducing W988's word <code>0xa5a5317f</code> exactly at two placements it had not been read at, which retracts the W993 "unexplained regression" completely. <b>The table is 9 designs, 50 die reads, 39 with <code>ok=1</code></b>, all derived from the records rather than transcribed.</span></div>
 <div class="row"><span class="w">W997</span><span class="t"><b>The limit belonged to the worst rate all along.</b> W988 rederived the place-and-route slope as 50.7 ms/LUT and set the stage cap from it. In the same wave it measured that the spread is <b>at least 1.9x and not monotonic in size</b>. Those two facts do not sit together: a limit chosen from the mean of a quantity with that spread will fail on the tail, and the tail here is the largest design -- the one that matters most and that nobody can afford to re-run casually. W996 watched <code>gft_xorpercep</code>, 28 609 LUT, pass <b>94.8 ms/LUT without finishing</b>. This wave it crossed <b>101.5 ms/LUT</b>, still running: <b>2.0x the mean the cap came from</b>, and still a lower bound. At the 1 800 s cap that build dies at thirty minutes and reports <code>ABSENT</code> -- a bench limit read as a property of the design, which is exactly what W994 had to retract one wave earlier and exactly the confusion this project has spent four waves learning to see.</span></div>
@@ -99,8 +100,7 @@ footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
 <div class="row"><span class="w">W989</span><span class="t"><b>The table stops being transcribed.</b> Six consecutive waves assembled the operator table by hand. This one asked a script to derive it instead, and the script could place <b>10 of 38 die reads</b>. The rest sit in records that name the design differently -- <code>operators.&lt;name&gt;</code>, <code>die_reads[]</code>, <code>reads[]</code>, <code>sweep.&lt;wrapper&gt;.reads[]</code> -- because twenty-odd measurement files were each written in whatever shape suited the wave that wrote them. The numbers were never wrong. The path from record to table ran through a person, which is the same defect as the conformance oracles that lived only in a session scratchpad: correct, and not reproducible. <b>A referee re-deriving this table by script would have got a quarter of it.</b></span></div>
 <div class="row"><span class="w">W988</span><span class="t"><b>The cap, and the model underneath it.</b> Two operators were ABSENT behind a 600 s place-and-route cap. The obvious move is to raise it, and W823's standing rule forbids raising a limit because something failed. So the question was what the limit had been derived from. It was derived from a rate of <b>21 ms/LUT</b> (T560, W827). Builds that completed give the rate directly: 50.4 for <code>gft_signed_dot4</code>, 51.0 for <code>gft_signed_mac</code>, 33.7 for <code>gft_train1</code>, and more than 62.9 for <code>gft_xorpercep</code>, which is a lower bound because it was killed. The aggregate is <b>50.7 -- 2.4x the documented figure</b>. A 600 s cap looked like 28,600 LUT and bought 11,800. Neither timed-out design was ever going to fit, and both were carried in the table as ABSENT, which reads like a property of the design rather than of the harness.</span></div>
 <div class="row"><span class="w">W987</span><span class="t"><b>The table those repairs were for.</b> Every operator, re-read on the die with every clause real. | operator | LUT | placements | clauses | verdict | |----------|-----|-----------|---------|---------| | <code>gft_smul</code> | 1877 | 4 | <code>1111</code> x4 | PASS | | <code>gft_dup</code> | 1763 | 4 | <code>1111</code> x4 | PASS | | <code>gft_sadd</code> | 4231 | 2 | <code>1111</code> x2 | PASS | | <code>gft_signed_dot4</code> | 7851 | 1 | <code>1111</code> | PASS -- first time on silicon | | <code>gft_signed_mac</code> | 9465 | 1 | <code>1111</code> | PASS -- confirms the W978 fix | | <code>gft_train1</code> | 16188 | 2 | -- | ABSENT, 600 s cap | | <code>gft_xorpercep</code> | 28217 | 1 | -- | ABSENT, 600 s cap |</span></div>
-<div class="row"><span class="w">W986</span><span class="t"><b>The comparison that was called impossible took four builds.</b> W985 ended on a loss: repairing the folded clauses was correct and it destroyed this project's only reproducible hardware anomaly, so *the failure is gone* and *the failure is absent in a design this different* could never be separated. It also froze a copy of the broken wrappers, out of the corpus, marked do-not-fix. That copy answers the question in four builds.</span></div>
 
-<footer><span>обновлено: <b>W999 - 2026-08-23</b></span>
+<footer><span>обновлено: <b>W1000 - 2026-08-23</b></span>
 <span>сгенерировано <code>tri dashboard</code> из записей репозитория</span></footer>
 </div>
