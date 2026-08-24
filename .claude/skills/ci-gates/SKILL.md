@@ -4963,3 +4963,85 @@ output distinguished the two readings.
 
 **When a score is stuck at a small integer, count the things that can produce a
 kill before you look at the things being killed.**
+
+## 124. Raising a ceiling you have finally understood
+
+§123 established that `--assert`'s 2 of 34 was the *number of planted faults*,
+not a verdict on 32 assertions. This tick tested that model the only way a model
+can be tested: **predict the number before measuring it.**
+
+| plants | predicted | measured |
+|---|---|---|
+| 2 | 2 | 2/34 |
+| +7 | 9 | **9/34** |
+| +7 more | 16 | **16/34** |
+
+Three for three. A model that survives being used to predict is worth more than
+one that survives being argued for.
+
+### Cost was never the obstacle, and nobody had checked
+
+Each new plant fires in the arithmetic block at the top of `__main__`, long
+before any training runs: **0.06s apiece**. The whole control went 11.8s → 12.5s
+for **eight times** the coverage.
+
+Three iterations deferred this column partly on an unexamined assumption that
+more plants meant more whole-program runs. The two existing plants *are*
+full runs, so the assumption generalised from a sample of two. **A cost you have
+not measured is a reason you have not checked.**
+
+### Within a family, the fault has to be surgical
+
+Adjacent assertions test adjacent cases of the same code, so the obvious fault
+breaks them all and only the first is ever seen. To surface the second member,
+the fault must falsify it while leaving the first **true**:
+
+```python
+elif t == hf and (s & 1): mant += 1       # clean
+elif t == hf and (s & 1) and False: ...   # kills the ODD tie only
+```
+
+The even tie still correctly declines to round up, passes, and lets the odd one
+speak. Seven of eight designed this way hit their target exactly.
+
+### The eighth is the lesson arriving inside the lesson
+
+Disabling `_magsub`'s `if rem > half` to surface *"strictly above half"* also
+breaks the renormalisation-carry case — which is checked **earlier**. The plant
+fires that one instead.
+
+It is left alone on purpose. A plant narrow enough to separate them would have
+to encode the exact remainders, and then **the control becomes a second copy of
+the thing it checks**, which fails for its own reasons and agrees with the
+subject about all of them.
+
+### The guard that mechanises two earlier lessons
+
+T124 caught a plant whose needle's first occurrence was the control's own
+source. T211 caught one whose needle's only occurrence was the **assertion**
+checking the result. Both went green; both had names that were lies.
+
+Every piece of subject code in that file sits **above** the control, and every
+assertion under test sits **below** it. So one comparison decides it:
+
+```python
+cut = first byte where the plant's output differs from the input
+assert cut < src.index("def self_check(")
+```
+
+Positive control: a plant that edits an assertion's text is now refused with
+*"the plant edited the control or an assertion (byte 28218), not the subject
+(which ends at 20179)"*. **Neither of the two earlier cases was caught by
+reading; both would have been caught by this line.**
+
+### A smaller one worth keeping
+
+Listing the file's assertions with a throwaway `line.strip().startswith("assert ")`
+scored **prose inside the control's docstring** as an assertion — the exact bug
+fixed in `assert_sites` one tick earlier. The tool had learned; my one-off script
+had not.
+
+**A fix that lives only in the tool does not protect the scratch commands you
+reach for while using it**, and those are where a wrong list quietly becomes a
+wrong plan. The tell was the classification coming out nonsensical — zero
+training assertions in a file that is mostly training assertions.
