@@ -2409,6 +2409,49 @@ impl Parser {
             return ty;
         }
 
+        // An anonymous aggregate used as a type: `-> struct { entities: u32 }`.
+        //
+        // Nothing here consumed `struct`, so the declaration was dropped --
+        // with a `;` it lost only itself, with a body it took the next
+        // declaration too. 6 sites in 3 specs.
+        //
+        // Zig accepts an anonymous struct as a return type verbatim, so the
+        // body is carried through as text rather than lifted to a named
+        // declaration; lifting is what produced `const  = struct {` with no
+        // name (#2646).
+        if matches!(
+            self.current.kind,
+            // No KwUnion in this lexer -- `union` arrives as an Ident, and
+            // guessing a variant that does not exist is how the last build
+            // broke. Only the two that are real.
+            TokenKind::KwStruct | TokenKind::KwEnum
+        ) && self.peek.kind == TokenKind::LBrace
+        {
+            ty.push_str(&self.current.lexeme);
+            ty.push(' ');
+            self.advance();
+            let mut depth = 0i32;
+            while self.current.kind != TokenKind::Eof {
+                match self.current.kind {
+                    TokenKind::LBrace => depth += 1,
+                    TokenKind::RBrace => depth -= 1,
+                    _ => {}
+                }
+                if !ty.ends_with(['{', ' ', '(', '[']) && !matches!(
+                    self.current.kind,
+                    TokenKind::Comma | TokenKind::RBrace | TokenKind::Colon
+                ) {
+                    ty.push(' ');
+                }
+                ty.push_str(&self.current.lexeme);
+                self.advance();
+                if depth == 0 {
+                    break;
+                }
+            }
+            return ty;
+        }
+
         // Main type identifier with namespace support (lexer::Lexer, base::types)
         if self.current.kind == TokenKind::Ident {
             ty.push_str(&self.current.lexeme);

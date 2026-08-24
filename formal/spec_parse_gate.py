@@ -138,7 +138,7 @@ def measure():
 #
 # This check is deliberately OUTSIDE the parser -- source names against tree
 # names -- so it cannot be fooled the same way the self-report can.
-LOST_CEILING = 38
+LOST_CEILING = 37
 
 DECL_RE = re.compile(r'^\s*pub\s+(?:fn|const|struct|enum|type)\s+([A-Za-z_]\w*)', re.M)
 TREE_NAME_RE = re.compile(r'name: "([^"]*)"')
