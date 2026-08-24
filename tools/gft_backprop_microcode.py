@@ -202,6 +202,7 @@ def _magsub(hi, lo):
     ho = hi >> 9; hm = hi & 511; lo_o = lo >> 9; lm = lo & 511; d = ho - lo_o
     if d < 0: return 0
     hs = (512 + hm) << 14; la = 0; sticky = 0
+    # mutant-equivalent: at d == 26 the else branch computes la = ls >> 26 == 0 (ls is at most 1023 << 14, below 2**26) and sticky = 1 -- exactly what this branch assigns. 0 differences over 525918 points.
     if d >= 26: la = 0; sticky = 1
     else:
         ls = (512 + lm) << 14; la = ls >> d
@@ -527,6 +528,55 @@ if __name__ == "__main__":
     assert _magadd(10241, 11007) == 11264, "add: mant == 512 must carry"
     assert _magsub(14338, 10241) == 14336, "sub: mant == 512 must carry"
     print("self-test: renormalisation carries at all four sites -- OK")
+
+    # `_magsub` is the third and last site with round-half-to-even, and the only
+    # one whose tie is resolved THREE ways:
+    #
+    #     if rem > half: mant += 1
+    #     elif rem == half:
+    #         if sticky: mant += 1        # <-- never taken; see below
+    #         elif q & 1: mant += 1
+    #
+    # Only two of those arms are live. Measured over 525_918 points (ho in
+    # {2, 3, 40, 79}, hm and lm swept, d in 0..30):
+    #
+    #   forcing `sticky = 0` at BOTH producers      0 differences
+    #   deleting the `if sticky: mant += 1` arm     0 differences
+    #   forcing the sticky detector to always fire  9851 differences
+    #
+    # So the arm is not dead code the way an unreachable statement is dead --
+    # it is wired, and waking the SIGNAL wakes the arm. It is the value
+    # `sticky` actually takes that never reaches the tie: an exhaustive search
+    # over every (hm, lm, d) for those four `ho` finds no input at all where
+    # `rem == half` and `sticky == 1` hold together.
+    #
+    # AND THAT IS WHAT KEEPS THIS FUNCTION CORRECT. `if sticky: mant += 1` is
+    # the ADDITION rule sitting in the SUBTRACTION path. Discarded bits of the
+    # subtrahend make the true difference SMALLER than the computed one -- with
+    # hm=300, lm=401, d=20 the code's `diff` is 13303794 against an exact
+    # 13303793.734375 -- so a tie with lost bits sits strictly BELOW half and
+    # must round DOWN. The arm rounds up. It has never been wrong only because
+    # it has never run. Reported, not changed: this mirrors board/bpseq.v, and
+    # the two must move together.
+    #
+    # `if d >= 26` -> `if d > 26` is an EQUIVALENT mutant, not a survivor worth
+    # chasing: at d == 26 the else branch computes `la = ls >> 26 == 0` (ls is
+    # at most 1023 << 14, below 2**26) and `sticky = 1`, which is exactly what
+    # the taken branch assigns. 0 differences over the same 525_918 points.
+    # That reasoning now sits on the line itself as a `# mutant-equivalent:`
+    # claim, which `tri gates mutate` will CONTRADICT if the mutant ever dies --
+    # so if a later change makes d == 26 behave differently, the note stops
+    # being a note and becomes a finding.
+    #
+    # The three assertions below catch three DIFFERENT operator classes, and
+    # each catches only its own -- measured, not assumed:
+    #   q-even tie   -> `rem > half` becoming `>=`, and the woken sticky detector
+    #   q-odd tie    -> the parity arm going dead
+    #   above-half   -> the primary rounding branch being deleted entirely
+    assert _magsub(10240, 9217) == 9984, "sub: tie, odd q -- must round up (to even)"
+    assert _magsub(10240, 9219) == 9982, "sub: tie, even q -- must NOT round up"
+    assert _magsub(10240, 8705) == 10112, "sub: strictly above half -- must round up"
+    print("self-test: subtractor round-half-to-even, all three tie arms -- OK")
 
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)

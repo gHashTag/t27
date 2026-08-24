@@ -4495,6 +4495,80 @@ right three times and catastrophically wrong once.
 
 Boundary column for the file, measured: **killed 8/31 → 12/31**.
 
+## 117. A dead branch and a dead signal are different defects
+
+`_magsub` resolves a rounding tie three ways, and only two of the arms run:
+
+```python
+elif rem == half:
+    if sticky: mant += 1      # never taken
+    elif q & 1: mant += 1
+```
+
+Deleting the `sticky` arm changes **0** of 525,918 outputs. A mutation tool
+that only mutates *branches* reports it equivalent and moves on.
+
+Mutating the **producer** instead tells a different story:
+
+| change | differences |
+|---|---|
+| force `sticky = 0` at both producers | 0 |
+| delete the `if sticky: mant += 1` arm | 0 |
+| **force the sticky detector to always fire** | **9851** |
+
+The third row is the finding. The arm is *wired* — waking the signal wakes the
+arm. What never happens is the **value**: an exhaustive search over every
+`(hm, lm, d)` finds no input where `rem == half` and `sticky == 1` hold
+together. So this is not unreachable code; it is **live code behind a signal
+that never asserts**, and the two look identical from the branch.
+
+**The mutation that distinguishes them is upstream of the branch.** Branch-level
+mutation can only ask "does anything notice if this arm stops running?" Both
+defects answer *no*. Only mutating the producer asks "does anything notice if
+this arm *starts* running?", and there the answers diverge.
+
+### The stakes are not cosmetic
+
+The arm is the **addition** rule sitting in the **subtraction** path. Discarded
+bits of the subtrahend make the true difference *smaller*, so a tie with lost
+bits sits strictly below half and must round **down** — measured with exact
+rationals: the code's `diff` is `13303794` against a true `13303793.734375`.
+The arm rounds up. In `_magadd` the mirrored rule is correct, because there the
+discarded bits make the true sum *larger*. **The sign flips with the operation
+and the copy did not.**
+
+So the function is correct *because* a branch never runs. Nothing in the tree
+records that, and any future change to the alignment or the normalisation loop
+that lets `sticky` reach a tie turns a dormant copy-paste into a live rounding
+error with no test in front of it. Reported as #2652 rather than fixed — the
+Python mirrors `board/bpseq.v`, and I have not measured the RTL.
+
+### Equivalent mutants are worth proving, once
+
+`if d >= 26` → `if d > 26` is a permanent survivor: at `d == 26` the else branch
+computes `la = ls >> 26 == 0` (`ls` is at most `1023 << 14`, below `2**26`) and
+`sticky = 1` — exactly what the taken branch assigns. 0 differences over the
+same 525,918 points.
+
+**An equivalent mutant proven equivalent is closed work; an equivalent mutant
+assumed equivalent is an excuse.** The difference is one measurement, and
+writing the proof down is what stops the next tick from re-chasing it. Three
+ticks of this campaign each re-examined a survivor an earlier tick had already
+looked at, because looking left no trace.
+
+### Redundancy is a claim about operators, not about assertions
+
+Three assertions went in, and the third caught none of the five mutants the
+other two were written against. That looked like a redundant assertion until it
+was tested against a sixth: **deleting the primary rounding branch**, which the
+boundary operator cannot express and which the first two assertions do not
+notice.
+
+§116 checked that four assertions catch different *mutants*. That is the weaker
+question. The right one is whether they cover different **operator classes** —
+here boundary, dead-branch, and deletion — because an assertion set can be
+non-redundant against every mutant one tool generates and still be blind to the
+whole class that tool does not emit.
 ## 118. Six claims that nothing had ever tried to refute
 
 `# mutant-equivalent: <why>` marks a survivor as unkillable by construction,
