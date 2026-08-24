@@ -10,8 +10,8 @@ module Avgpool2d;
     // 1. Constants
     // ═══════════════════════════════════════════════════════════
 
-    const DEFAULT_KERNEL : []u32 = "[2, 2]";
-    const DEFAULT_STRIDE : []u32 = "[2, 2]";
+    const DEFAULT_KERNEL : []u32 = [2, 2];
+    const DEFAULT_STRIDE : []u32 = [2, 2];
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types

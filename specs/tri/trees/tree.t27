@@ -13,8 +13,8 @@ module TriTree;
     pub const Tree(T) = struct {
         is_leaf : bool,
         value : T,
-        left : "Tree(T)",
-        right : "Tree(T)",
+        left : "?*Tree(T)",
+        right : "?*Tree(T)",
     };
 
     // ═══════════════════════════════════════════════════════════

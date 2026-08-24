@@ -13,8 +13,8 @@ module TriKdTree;
     pub const KDNode = struct {
         point : []f64,
         axis : "usize",
-        left : "?KDNode",
-        right : "?KDNode",
+        left : "?*KDNode",
+        right : "?*KDNode",
     };
 
     pub const KDTree = struct {
