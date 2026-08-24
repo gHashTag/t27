@@ -191,15 +191,26 @@ def main():
         e = first.get(f, "")
         if e not in ("VALID", "EMPTY", "TIMEOUT", ""):
             by_class[normalise(e)].append(results[f]["count"])
+    # The statistic is the SHARE of specs reporting exactly one error, not the
+    # median. Median was the first cut and it produced two false positives the
+    # day after it shipped: dropping the generated stubs (#2639) removed other
+    # errors from the same files, so `use of undeclared identifier` and
+    # `function parameter shadows` had their medians fall to 2 and 1 with
+    # nothing halting anything. A composition effect, not a property.
+    #
+    # If an error halts the check, its file can report nothing else -- so every
+    # spec in the class sits at exactly one. Measured, the separation is total:
+    # all eight known wall classes are at 100%, and the highest non-wall is 71%.
     suspects = [
-        (k, len(v), statistics.median(v))
+        (k, len(v), sum(1 for x in v if x == 1) / len(v))
         for k, v in by_class.items()
-        if len(v) >= 3 and statistics.median(v) <= 2 and not is_parse_error(k)
+        if len(v) >= 3 and not is_parse_error(k)
     ]
+    suspects = [x for x in suspects if x[2] >= 0.95]
     if suspects:
         print("  classifier audit -- these halt the check but the word list misses them:")
-        for k, n, med in sorted(suspects, key=lambda x: -x[1]):
-            print(f"    {n:4d} specs, median {med:.0f} errors   {k[:56]}")
+        for k, n, share in sorted(suspects, key=lambda x: -x[1]):
+            print(f"    {n:4d} specs, {share*100:.0f}% at exactly 1 error   {k[:52]}")
 
     print(f"  valid AND no empty test {len(strict)}/{len(pure)}   "
           f"({hollow_valid} more are valid with an empty test block -- #2593)")
