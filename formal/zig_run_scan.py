@@ -47,7 +47,7 @@ r = json.load(open(src))
 specs = [f for f in r if f.startswith("specs/")]
 
 for f in specs:
-    dst = WORK / pathlib.Path(f).with_suffix(".zig")
+    dst = WORK / pathlib.Path(f).with_suffix(".zig").relative_to("specs")
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(subprocess.run([str(BIN), "gen", str(ROOT / f)],
                                    capture_output=True).stdout)
@@ -58,10 +58,22 @@ print(f"  emitted {len(specs)} specs, mirroring the spec tree")
 
 
 def run(f):
+    # Compiled through a shim at the TREE ROOT, not as its own root.
+    #
+    # Zig forbids an import that leaves the module's root directory, and the
+    # root is whatever file the compilation starts from. `zig test <spec>.zig`
+    # makes the spec's own directory the root, so `@import("../../base/...")`
+    # is an error -- which is what made a correct emitter change look wrong for
+    # a whole iteration. Starting from a shim at the top of the tree puts the
+    # root where the spec paths are written against.
     z = pathlib.Path(f).with_suffix(".zig")
+    shim = WORK / f"__root_{z.as_posix().replace('/', '_')}"
+    # `comptime`, not `test`: a test block in the shim would be counted in
+    # "All N tests passed" and inflate the assertion figure by one per spec.
+    shim.write_text(f'comptime {{ _ = @import("{z.relative_to("specs").as_posix()}"); }}\n')
     try:
-        res = subprocess.run(["zig", "test", z.name], capture_output=True,
-                             cwd=WORK / z.parent, timeout=120)
+        res = subprocess.run(["zig", "test", shim.name], capture_output=True,
+                             cwd=WORK, timeout=120)
     except subprocess.TimeoutExpired:
         return ("timeout", 0, "")
     txt = (res.stdout + res.stderr).decode("utf-8", "replace")
@@ -73,7 +85,7 @@ def run(f):
     miss = re.findall(r"unable to load '([^']+)'", txt)
     if miss:
         return ("missing sibling", 0, miss[0])
-    own = any(re.match(rf'{re.escape(z.name)}:\d+:\d+: error:', line)
+    own = any(re.search(rf'(^|/){re.escape(z.name)}:\d+:\d+: error:', line)
               for line in txt.splitlines())
     return ("compile: own file" if own else "compile: imported sibling", 0, "")
 
