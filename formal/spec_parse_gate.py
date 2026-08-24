@@ -118,6 +118,47 @@ def measure():
     return out, None
 
 
+
+# Declarations the parser drops while believing it succeeded.
+#
+# The counter above comes from t27c and lives INSIDE the recovery skip
+# (Prop. 186). A declaration lost with no recovery event is invisible to it,
+# and the coarse fallback -- does a file that declares something capture
+# ANYTHING -- passes as long as the rest of the file survives.
+#
+# `pub fn stats(g: &KG) -> struct { entities: u32 }` is one such loss: the
+# whole function is absent from the tree, no recovery, gate green. Measured
+# corpus-wide: 78 public declarations gone, of which 50 are in pure-t27 specs
+# and 28 in the 66 Rust-dialect files, which t27 is not expected to parse. The
+# ceiling covers both because this gate globs specs/ and has no dialect
+# manifest; splitting it would couple the gate to RUST_DIALECT.json for no
+# gain, since the ratchet only has to stop the number rising.
+#
+# This check is deliberately OUTSIDE the parser -- source names against tree
+# names -- so it cannot be fooled the same way the self-report can.
+LOST_CEILING = 78
+
+DECL_RE = re.compile(r'^\s*pub\s+(?:fn|const|struct|enum|type)\s+([A-Za-z_]\w*)', re.M)
+TREE_NAME_RE = re.compile(r'name: "([^"]*)"')
+
+
+def lost_declarations(specs):
+    total = 0
+    worst = []
+    for p in specs:
+        want = set(DECL_RE.findall(p.read_text(errors="ignore")))
+        if not want:
+            continue
+        r = subprocess.run([str(T27C), "parse", str(p)], capture_output=True)
+        have = set(TREE_NAME_RE.findall(r.stdout.decode("utf-8", "replace")))
+        gone = want - have
+        if gone:
+            total += len(gone)
+            worst.append((len(gone), str(p.relative_to(ROOT))))
+    worst.sort(reverse=True)
+    return total, worst
+
+
 def main():
     if not T27C.exists():
         print(f"::error::spec parse gate: no such file "
@@ -141,6 +182,17 @@ def main():
     print(f"spec parse gate: {len(now)} specs, {dirty} recovering, "
           f"{total} recovery events, {lost} declarations swallowed, "
           f"{blind} specs declaring but capturing nothing")
+
+    gone, worst = lost_declarations(specs)
+    print(f"spec parse gate: {gone} public declarations absent from the tree "
+          f"with no recovery event (ceiling {LOST_CEILING})")
+    if gone > LOST_CEILING:
+        for n, f in worst[:5]:
+            print(f"    {n:3d} lost  {f}")
+        print(f"::error::spec parse gate: {gone} declarations lost silently, "
+              f"above the ceiling of {LOST_CEILING}. The parser reports no "
+              f"recovery for these, so the swallowed counter cannot see them.")
+        return 1
 
     if not BASELINE.exists():
         # Prop. 211c: writing a baseline is an explicit act, never a fallback.
