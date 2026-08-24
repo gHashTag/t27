@@ -1,7 +1,7 @@
 # CANON.md — Golden rings, seals, and project dashboard
 
 **Status:** Active (root standard — read with `AGENTS.md`, `SOUL.md`, `CLAUDE.md`)  
-**Companion:** `FROZEN.md` (normative freeze standard), `docs/SEED-RINGS.md`, `**docs/RINGS.md` (Rings 32+ review-grade roadmap — constitutional law)**, `stage0/FROZEN_HASH`, `docs/T27-CONSTITUTION.md`, `docs/TECHNOLOGY-TREE.md`
+**Companion:** `FROZEN.md` (normative freeze standard), `docs/nona-01-foundation/SEED-RINGS.md`, `**docs/RINGS.md` (Rings 32+ review-grade roadmap — constitutional law)**, `stage0/FROZEN_HASH`, `docs/T27-CONSTITUTION.md`, `docs/TECHNOLOGY-TREE.md`
 
 This file is the **single source and dashboard** for: where **GOLD** lives, what **REFACTOR-HEAP** must be migrated out, **recorded compiler seals**, and the **ring roadmap**. **Nothing outside the golden cycle is product truth.**
 
@@ -105,7 +105,7 @@ Each **ring increment** is a **micro-iteration**. Minimum bar before a commit cl
 | M2   | `./target/release/t27c parse <new-or-touched.t27>` | **Parse OK** for every spec touched in the PR.                                                                         |
 | M3   | `cargo test` in `bootstrap/`                                 | **All tests green** for compiler changes.                                                                              |
 | M4   | `bash tests/run_all.sh` (CI)                                 | Full spec parse/gen sweep as defined by the repo.                                                                      |
-| M5   | Update `**stage0/FROZEN_HASH`**                              | **Only when intentionally sealing a ring** — SHA-256 of `bootstrap/src/compiler.rs` (see `docs/SEED-RINGS.md` step 8). |
+| M5   | Update `**stage0/FROZEN_HASH`**                              | **Only when intentionally sealing a ring** — SHA-256 of `bootstrap/src/compiler.rs` (see `docs/nona-01-foundation/SEED-RINGS.md` step 8). |
 | M6   | Seal / experience                                            | `.trinity/seals/*.json` updated where required; optional `.trinity/experience/` record.                                |
 
 
@@ -122,7 +122,7 @@ If **M1–M4** are not green, the change is **not gold** — use a draft branch 
 | `**bootstrap/src/compiler.rs` (+ lexer/parser/codegen in `bootstrap/src/`)** | **Only** allowed hand-written compiler implementation until self-host ring.        |
 | `**stage0/FROZEN_HASH`**                                                     | Cryptographic **seal** of the compiler snapshot for the current ring baseline.     |
 | `**.trinity/seals/*.json`**                                                  | Module seals — gold for verified spec revisions.                                   |
-| `**docs/SEED-RINGS.md` + this file (`CANON.md`)**                            | Process gold — rings, micro-iterations, dashboard.                                 |
+| `**docs/nona-01-foundation/SEED-RINGS.md` + this file (`CANON.md`)**                            | Process gold — rings, micro-iterations, dashboard.                                 |
 | `**docs/RINGS.md`**                                                          | Process gold — **Rings 32+** review-grade repository law (epics, tasks, timeline). |
 | `**docs/T27-CONSTITUTION.md` + `docs/SOUL.md` Law #1**                       | Policy gold — language and SSOT.                                                   |
 
@@ -218,7 +218,7 @@ under `tests/` (L7 UNITY); the Rust runner is the only sweep entry point.
 
 ## 10. RINGS law — review-grade repository (constitutional)
 
-**Article RINGS.** For **Ring 31 and below**, closure is defined by `**docs/SEED-RINGS.md`**, `**CANON.md` §§0–8**, and `**FROZEN.md`**. For **Ring 32 and above**, closure **also** requires progress against `**docs/RINGS.md`**: reproducibility, persistent citation identity, explicit **claim status** for physics-adjacent material, formal spec depth, numeric validation, testing maturity, and supply-chain documentation — as enumerated in that file’s EPICs.
+**Article RINGS.** For **Ring 31 and below**, closure is defined by `**docs/nona-01-foundation/SEED-RINGS.md`**, `**CANON.md` §§0–8**, and `**FROZEN.md`**. For **Ring 32 and above**, closure **also** requires progress against `**docs/RINGS.md`**: reproducibility, persistent citation identity, explicit **claim status** for physics-adjacent material, formal spec depth, numeric validation, testing maturity, and supply-chain documentation — as enumerated in that file’s EPICs.
 
 **Binding rules:**
 

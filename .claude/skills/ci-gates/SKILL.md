@@ -4770,3 +4770,60 @@ then know better; **the trigger lives in the vocabulary, so every document that
 teaches the vocabulary carries it.** The only durable defence is the one that
 caught all three: run the checker after writing about the checker, and read the
 count.
+
+## 121. The count was right for the wrong reason, and that is why I believed it
+
+`tri gates mutate --boundary` reported **31 sites** for
+`tools/gft_backprop_microcode.py`. An independent tokeniser counted **31**
+comparisons before the `if __name__ == "__main__":` block. Two numbers agreed,
+and the story wrote itself: the operator sensibly declines to mutate a file's
+own self-test.
+
+Both numbers were real. **The agreement was a coincidence.** A direct probe of
+the site list showed it ending at line **371** — nine lines before `__main__`,
+at `def self_check():`.
+
+`is_control_fn` sets `in_control` on a control-named function, and
+`boundary_sites` **never resets it**. So everything from line 380 to the end of
+the file — including the `__main__` block, where the accuracy thresholds live —
+had silently never been mutated. After the fix: **31 → 62 sites**, which is
+exactly the tokeniser's count for the whole file.
+
+Three of the four site finders already carried this fix, in these words:
+
+> a function ends at the next TOP-LEVEL statement, not only at the next `def`
+
+`assert_sites`, `mutable_sites` and `invert_sites` are **line-oriented** and got
+it. `boundary_sites` is **byte-oriented** — it tracks quotes and comments
+character by character — so when `--boundary` was added the fix had no line to
+attach to and was not ported. **A bug fixed three times in one file can still be
+live in the fourth place, when the fourth place is shaped differently.**
+
+### The lesson is about the agreement, not the bug
+
+A cross-check between two instruments is supposed to be the strong move. Here
+both instruments were correct and the conclusion was still wrong, because
+**they were answering different questions and I read the matching numbers as
+agreement on mine.** The tokeniser answered *"how many comparisons precede
+`__main__`"*; the tool answered *"how many sites did I find before I stopped"*.
+Nothing connected the two but a number.
+
+What broke the tie was not a third opinion — it was asking the tool for the
+**line numbers** rather than the count. A total can coincide; a range cannot
+lie about where it stopped.
+
+**When two measurements agree, check that they agree about a shared object, not
+a shared integer.** Prefer the answer with more structure: a list over a count,
+a range over a total, a witness over a verdict.
+
+### And the fix needed its own test, because the file could not exercise it
+
+After the change the file yields 62 sites and **none inside `self_check`'s
+body** — correct. But `self_check` in that file contains **zero comparisons**,
+so the exclusion half of the logic was never exercised by the very file that
+motivated the fix. A synthetic three-region source (helper / control / `__main__`)
+covers all three answers, and reverting the fix makes it fail with `[2]` —
+proving the test is load-bearing rather than decorative.
+
+**A regression test written from the motivating file tests only the half that
+was broken.**

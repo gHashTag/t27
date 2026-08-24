@@ -190,7 +190,7 @@ def _magadd(a, b):
     else: ho, hm, lo, lm = bo, bm, ao, am
     hs = 512 + hm; ls = 512 + lm; d = min(ho - lo, 11)
     losh = ls >> d; rem = ls - (losh << d); s = hs + losh; off = ho; mant = s - 512
-    if s >= 1024:
+    if s > 1024:
         g = s & 1; pre = s >> 1; mant = pre - 512
         if g == 1:
             if rem > 0: mant += 1
@@ -218,6 +218,25 @@ def _magsub(hi, lo):
     q = diff >> 14; rem = diff - (q << 14); half = 8192; mant = q - 512
     if rem > half: mant += 1
     elif rem == half:
+        # The arm below is the ADDITION rule in the SUBTRACTION path: discarded
+        # bits of the subtrahend make the true difference SMALLER, so a tie with
+        # lost bits sits strictly below half and must round DOWN, not up. It has
+        # never been wrong only because it has never run -- `sticky` is 0 at
+        # every reachable tie (exhaustive over every (hm, lm, d); the same holds
+        # in specs/ternary/gft_sadd.t27, which 30 specs copy).
+        #
+        # That makes this function correct BY AN ACCIDENT NOTHING RECORDS, and
+        # a change to the alignment or the normalisation could wake the arm
+        # silently. This guard is the cheap half of #2652: it does not decide
+        # what the rule should be -- that is a datapath call across 30 specs --
+        # it only makes waking up loud. It costs one comparison on the rare tie
+        # branch and nothing at all on the common paths.
+        assert not sticky, (
+            "sub: a tie was reached with bits discarded (sticky=1). The arm "
+            "below rounds UP, which is the addition rule; for subtraction the "
+            "true remainder is strictly below half and must round DOWN. See "
+            "issue #2652 before changing either."
+        )
         if sticky: mant += 1
         elif q & 1: mant += 1
     if mant >= 512: mant = 0; off += 1; off = min(off, 80)
