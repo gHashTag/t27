@@ -1137,6 +1137,36 @@ fn rename_ident(node: &mut Node, from: &str, to: &str) {
     }
 }
 
+/// Turn arbitrary text into a Zig identifier.
+///
+/// A bench block is named in prose -- `bench GF16 vs BF16 NMSE over D_NORM,
+/// D_LOG` -- and only `-` was being replaced, so the name landed in a function
+/// signature with its spaces and commas intact. 538 emitted lines across 138
+/// files, the largest single defect left in the emitter.
+fn zig_fn_ident(name: &str) -> String {
+    let mut out = String::new();
+    let mut last_us = false;
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() || c == '_' {
+            out.push(c);
+            last_us = c == '_';
+        } else if !last_us && !out.is_empty() {
+            out.push('_');
+            last_us = true;
+        }
+    }
+    while out.ends_with('_') {
+        out.pop();
+    }
+    if out.is_empty() {
+        return "unnamed".to_string();
+    }
+    if out.starts_with(|c: char| c.is_ascii_digit()) {
+        out.insert(0, '_');
+    }
+    out
+}
+
 fn zig_expr_name(name: &str) -> String {
     let folded = zig_path(name);
     if folded.starts_with('@') {
@@ -4222,6 +4252,12 @@ pub struct Codegen {
     /// methods of unrelated structs, which are not in scope and would cause
     /// renames that change output for no reason.
     declared_top: std::collections::HashSet<String>,
+    /// Names already emitted for bench blocks and tests.
+    ///
+    /// Two prose names can sanitise to the same identifier, and a block with no
+    /// name at all sanitises to the same one every time -- `fn bench_() void`
+    /// appeared twice in one file and Zig calls that a duplicate member.
+    emitted_names: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -4231,6 +4267,7 @@ impl Codegen {
             indent: 0,
             declared: std::collections::HashSet::new(),
             declared_top: std::collections::HashSet::new(),
+            emitted_names: std::collections::HashSet::new(),
         }
     }
 
@@ -5082,7 +5119,9 @@ impl Codegen {
     }
 
     fn gen_test_block(&mut self, node: &Node) {
-        self.write(&format!("test \"{}\"", node.name));
+        let tname = self.unique_name(format!("test:{}", node.name));
+        let tname = tname.strip_prefix("test:").unwrap_or(&tname).to_string();
+        self.write(&format!("test \"{}\"", tname));
         self.write_line(" {");
 
         self.indent();
@@ -5158,14 +5197,29 @@ impl Codegen {
         self.write_line("}");
     }
 
+    /// A name not yet emitted in this file, suffixed if it collides.
+    fn unique_name(&mut self, base: String) -> String {
+        if self.emitted_names.insert(base.clone()) {
+            return base;
+        }
+        let mut n = 2;
+        loop {
+            let cand = format!("{}_{}", base, n);
+            if self.emitted_names.insert(cand.clone()) {
+                return cand;
+            }
+            n += 1;
+        }
+    }
+
     fn gen_bench_block(&mut self, node: &Node) {
-        // Convert bench block name to valid Zig identifier
-        let fn_name = node.name.replace('-', "_");
-        let fn_name = if fn_name.starts_with("bench_") {
-            fn_name
+        let base = zig_fn_ident(&node.name);
+        let base = if base.starts_with("bench_") {
+            base
         } else {
-            format!("bench_{}", fn_name)
+            format!("bench_{}", base)
         };
+        let fn_name = self.unique_name(base);
 
         self.write_line(&format!("fn {}() void {{", fn_name));
 
