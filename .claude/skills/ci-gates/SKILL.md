@@ -4494,3 +4494,92 @@ from the outside, and a maintainer deleting "the redundant ones" would have been
 right three times and catastrophically wrong once.
 
 Boundary column for the file, measured: **killed 8/31 → 12/31**.
+
+## 118. Six claims that nothing had ever tried to refute
+
+`# mutant-equivalent: <why>` marks a survivor as unkillable by construction,
+and `tri gates mutate` prints it as *"claims equivalent: …"*. The word `claims`
+was doing real work: **nothing had ever checked one.** Six sat in `tools/`.
+
+A claim is a statement about the code. It ages with the code. And the run best
+placed to notice it has gone stale is the mutation run itself — it already
+built the mutant and already knows the verdict. The missing step was one
+comparison.
+
+Now a claimed line whose mutant **dies** is reported as contradicted. Measured
+against the six that already existed: five checked, **none contradicted** —
+which is worth exactly as much as the run that could have refuted them and did
+not, and nothing more.
+
+**An unfalsifiable claim is prose wearing the costume of an analysis.** It reads
+like settled work to everyone who comes after, and the cost of leaving it
+unchecked is not that it is wrong today — it is that nothing will say so on the
+day it becomes wrong.
+
+### The counting detail that matters
+
+A line can hold more than one mutable site: `if a < 1 or b < 1:` holds two. So
+the check compares **counts**, not membership — a claimed line with two sites of
+which one survived has been contradicted **once**. Keying on *"did this line
+vanish from the survivor list"* would call that claim intact, and a half-true
+claim is the hardest kind to catch by eye.
+
+### The claim marker names no operator, and that is a real gap
+
+Every claim in the tree argues about a comparison (*"so `>=` is `>`"*), so they
+are all about `boundary` — but the marker cannot say so. A line legitimately
+equivalent under `boundary` may well die under `invert`, and the check would
+report that as a contradiction. It names the direction rather than pretending to
+judge. **The ambiguity is in the marker's design, not in the check**, and
+reporting it is what makes it visible enough to fix.
+
+### The positive control, and how it nearly did not run
+
+Planting a false claim over a line whose mutant is known to die must produce a
+contradiction. My first attempt printed **nothing** — and I read that as "the
+check does not fire".
+
+It fired at nothing. Planting the claim made `tools/` dirty, `mutate` refuses to
+start on a dirty tree, and I was reading its output through
+`grep -i "CONTRADICTED"` — a filter that cannot show a refusal. **The verdict
+and the error went to the same stream and I had filtered out the half that was
+speaking.** Same shape as §85 and §115: the control could not do its job and
+said so, into a channel I had closed.
+
+The fix was to satisfy the guard rather than bypass it — commit the plant on a
+throwaway branch. Then it fired, exactly once, naming the line and the claim.
+
+## 119. Two commits I destroyed with git, in one session
+
+Neither was a merge conflict or a lost stash. Both were a command that means
+something adjacent to what I wanted.
+
+**`git checkout master -- <file>`** — I wanted to *branch* from master while
+keeping an edit. That form restores master's copy of the file **over** the edit.
+It came from a different recipe in this same campaign (measuring what master's
+version does), where it is exactly right.
+
+**`git checkout -b tmp` → commit → `git branch -D tmp`** — `checkout -b` carries
+uncommitted work onto the new branch. I committed there to satisfy a clean-tree
+guard, then deleted the branch, and my *unrelated* uncommitted edits to
+`cli/tri/src/gates.rs` went with it.
+
+Both were recoverable — the second from `git reflog`, which still held the
+commit. Neither was noticed by a test, because in both cases the tree was
+*consistent*, just missing work.
+
+**The pattern is a command borrowed from a neighbouring recipe, where the verb
+matches and the object does not.** `cargo fmt --all` (§ earlier) was the same
+mistake with a different tool: right command, wrong repository.
+
+The cheap guard is to name what you expect to still be there, and check:
+
+```
+grep -c "<the thing I just wrote>" <the file I wrote it in>
+```
+
+after any git command that moves branches or paths. Two seconds, and it turns a
+silent loss into an immediate one. A destructive git operation deserves the same
+suspicion as a destructive shell command — and the doctrine already says
+*destructive tools last, never on the last working copy*; I had been reading
+that as being about hardware.
