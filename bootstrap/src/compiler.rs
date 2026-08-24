@@ -4445,6 +4445,16 @@ pub struct Codegen {
     /// which local functions return something is enough to bind those to `_`.
     /// 84 such calls across 37 files.
     fn_returns: std::collections::HashMap<String, String>,
+    /// Are we emitting the body of a `test` block?
+    ///
+    /// `expect` is bound to `std.testing.expect`, which returns `!void`, so a
+    /// bare `expect(true);` is `error union is ignored` -- the largest single
+    /// blocker among specs that are otherwise ready to run: it is the ONLY
+    /// error in 27 of them.
+    ///
+    /// `try` needs a function that can return an error, which a test block is
+    /// and an ordinary void function is not, so the fix has to know where it is.
+    in_test_block: bool,
 }
 
 impl Codegen {
@@ -4456,6 +4466,7 @@ impl Codegen {
             declared_top: std::collections::HashSet::new(),
             emitted_names: std::collections::HashSet::new(),
             fn_returns: std::collections::HashMap::new(),
+            in_test_block: false,
         }
     }
 
@@ -5399,7 +5410,9 @@ impl Codegen {
 
         self.indent();
 
+        self.in_test_block = true;
         self.gen_scoped_stmts(&node.children);
+        self.in_test_block = false;
         self.dedent();
         self.write_line("}");
     }
@@ -5624,6 +5637,13 @@ impl Codegen {
                 // own. Guessing either way trades one error for another.
                 if let Some(call) = node.children.first() {
                     if call.kind == NodeKind::ExprCall {
+                        // `expect` is std.testing.expect and returns `!void`.
+                        // Only inside a test block, where `try` is legal.
+                        // `assert` is std.debug.assert and returns void --
+                        // `try` there would be an error of its own.
+                        if self.in_test_block && call.name == "expect" {
+                            self.write("try ");
+                        }
                         if let Some(ret) = self.fn_returns.get(&call.name) {
                             if !ret.is_empty() && ret != "void" {
                                 self.write("_ = ");

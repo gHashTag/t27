@@ -56,6 +56,21 @@ print(f"  emitted {len(allspecs)} specs into one directory")
 print(f"  basename collisions (last wins): {dupes}")
 
 valid = sorted(f for f, v in r.items() if v.get("first") == "VALID" and f.startswith("specs/"))
+
+# Specs whose basename is shared are EXCLUDED from the tested set.
+#
+# Everything is emitted as <basename>.zig so imports resolve, and 22 basenames
+# are used by more than one spec -- last write wins. Testing such a file
+# measures whichever spec happened to be written last, which attributed an
+# error in isa/ternary_encoding to base/ternary_encoding for a whole iteration.
+#
+# They are still WRITTEN, because other specs import them; they are just not
+# reported on.
+_stems = collections.Counter(pathlib.Path(f).stem for f in allspecs)
+_before = len(valid)
+valid = [f for f in valid if _stems[pathlib.Path(f).stem] == 1]
+print(f"  excluded {_before - len(valid)} valid specs whose basename collides")
+
 # Evenly spaced across the sorted set, not the first 40.
 #
 # `valid[:40]` is alphabetical, so it was a sample of `api/`, `automation/`,
