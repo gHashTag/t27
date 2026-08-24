@@ -3564,6 +3564,35 @@ impl Parser {
 
     /// Parse primary expressions
     fn parse_expr_primary(&mut self) -> Result<Node, String> {
+        // A keyword in call position: `test(input)`, `type(x)`, `when(c)`.
+        //
+        // The token is KwTest/KwType/..., no branch below accepts it, and the
+        // whole STATEMENT is dropped -- `const result = test(input);` vanished
+        // while `return result;` on the next line survived. Same class as `++`
+        // (#2650) and function literals (#2651): something the lexer produces
+        // and no expression rule consumes.
+        //
+        // Retagged as an identifier so the existing branch handles the call,
+        // the namespace path and the arguments. The emitter quotes it back
+        // (#2631), so `test(x)` emits `@"test"(x)`.
+        //
+        // Guarded on the following `(` -- a real `test "name" { }` block is
+        // followed by a string, never a paren -- and KwFn is excluded because
+        // `fn(...)` in expression position is a function literal with its own
+        // branch below.
+        //
+        // An ALLOWLIST, not "any keyword before a paren". That first cut also
+        // caught `if (`, `while (`, `for (` and `switch (` -- control flow
+        // became a call, 7 specs stopped being valid and the gate's lost
+        // declarations went 37 -> 52. Only the names measured in call
+        // position across the corpus are here.
+        const CALLABLE_KEYWORDS: &[&str] = &["test", "type", "when", "error", "bench", "invariant"];
+        if self.peek.kind == TokenKind::LParen
+            && self.current.kind != TokenKind::Ident
+            && CALLABLE_KEYWORDS.contains(&self.current.lexeme.as_str())
+        {
+            self.current.kind = TokenKind::Ident;
+        }
         match self.current.kind {
             // `.on_message = fn(e: SSEEvent) void { }` -- a function literal in
             // expression position. Nothing consumed `fn` here, so the
