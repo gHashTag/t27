@@ -2,13 +2,6 @@
 
 Last updated: 2026-08-09
 
-## gft interpreter: renormalisation carries at all four sites (Refs #2161)
-
-- `enc`, `_magmul`, `_magadd` and `_magsub` all end in `if mant >= 512: mant = 0; <exponent> += 1`, and all four survived the `>=` -> `>` mutant. One reason for all four: the mutant leaves `mant == 512`, and `(off << 9) | 512` is IDENTICAL to `((off + 1) << 9)` whenever `off` is EVEN, because `512 == 1 << 9` is the low bit of the exponent field. The stuck mantissa renormalises the value by accident on half the exponent space
-- Two further reasons a sweep misses it, both measured: `mant == 512` is reached only by rounding UP from 511, so exactly-representable inputs never enter the branch; and in `_magmul` the carry path cannot reach it in principle -- the largest product `1023 * 1023 == 1046529` gives `q == 1022`, `mant == 510`
-- Four assertions added, each checked both ways: it holds clean, it fails when its own site is mutated, and it catches no other site's mutant. Boundary column for this file, measured: killed 8/31 -> 12/31
-- Three probes in a row read "no difference" for reasons that were about the PROBE, not the subject: a sweep confined to one binade, a sweep of exactly-representable values only, and a stale `__pycache__` -- the mutant changes one character, so the file SIZE is unchanged and Python reused the previous build's bytecode
-
 ## typecheck: warnings are PRINTED, and the unused-variable false positive is fixed (Refs #1948)
 
 - `typecheck` built every warning message and then dropped it: the OK branch printed only the total, so a warning was unactionable -- you could watch the number grow and never learn what it was. The messages were already in `result.errors`; they are printed now. Some are real correctness findings downgraded to warnings (a call to an undefined function, an argument type mismatch), so the silence actively hid defects
