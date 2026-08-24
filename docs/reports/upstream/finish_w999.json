@@ -43,7 +43,14 @@
     "mhz_per_klut": 4.67
    }
   },
-  "carry4_column_dropped": "the CARRY4 parse reports values above the LUT count (1604 where the yosys line says 160). It is not part of the curve and publishing a number I cannot explain would be worse than omitting it."
+  "carry4_column_dropped": "the CARRY4 parse reports values above the LUT count (1604 where the yosys line says 160). It is not part of the curve and publishing a number I cannot explain would be worse than omitting it.",
+  "contention_incident_W1000": {
+   "found": "the curve had produced 2 rows in 46 minutes. Two `tri curve` loops were running: the legitimate one, and an orphan of the run killed in W999 whose bash loop survived the kill of its wrapper script and its current child, and kept spawning builds.",
+   "hazard": "both were writing the same output JSON -- a race for one file, not just for the machine",
+   "effect_on_numbers": "none. LUT and Fmax are deterministic for a given placement; contention costs wall-clock only. nextpnr went 41.6 % -> 86.9 % CPU when the orphan died.",
+   "checked_backwards": "the placement lower bounds that moved the cap in W997 (86.3 and 101.5 ms/LUT) were taken when ps showed a SINGLE nextpnr at ~100 % CPU, so they were not contended. Verified rather than assumed.",
+   "fix": "kill the process TREE and verify by walking ps for descendants of the script"
+  }
  },
  "not_mine": {
   "origin_master": "orphaned, no merge-base. A force-push was attempted in W971 with the orphan preserved to a branch first, and repository protection rejected it. Needs a human in the GitHub UI.",

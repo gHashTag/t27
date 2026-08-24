@@ -31363,6 +31363,52 @@ defect **open** rather than to pin the fact. Write a check against the invariant
 that should hold **after** the fix, not against the sentence that happens to be
 there before it, or the corpus penalises every improvement.
 
+### T867 -- The MHz-per-kLUT curve, re-measured, is a power law [measured]
+
+The old curve could not be recomputed. **Every Fmax on record was paired with a
+folded area** -- `gft_sadd`'s 18.24 MHz was measured on 1 312 LUT against an
+honest 4 304, `gft_signed_mac`'s 9.14 on 6 466 against 9 505 -- so there was no
+honest area-frequency pair anywhere in the corpus. It had to be re-measured, with
+both numbers taken from the **same build** so they cannot drift apart again.
+
+| wrapper | LUT | Fmax MHz | MHz/kLUT |
+|---------|-----|----------|----------|
+| `gft_commmin` | 696 | 46.89 | **67.37** |
+| `gft_sadd_sweep` | 1 576 | 25.42 | 16.13 |
+| `gft_dup` | 1 763 | 22.57 | 12.80 |
+| `gft_dup2` | 1 790 | 21.95 | 12.26 |
+| `gft_smul` | 1 877 | 21.67 | 11.55 |
+| `gft_dup3` | 2 141 | 21.42 | 10.00 |
+| `gft_sadd` | 4 304 | 20.10 | 4.67 |
+| `gft_signed_mac` | 9 505 | 10.17 | 1.07 |
+| `gft_dot4_comm` | 10 823 | 7.20 | 0.67 |
+| `gft_bitnet_neuron` | 12 841 | 9.75 | 0.76 |
+| `gft_train1` | 15 946 | 4.46 | 0.28 |
+| `gft_signed_dot4` | 19 300 | 6.78 | 0.35 |
+
+Three forms were fitted. Linear reaches R² = 0.648, semi-log 0.852, and the power
+law **0.919**:
+
+**Fmax ≈ 2 050 · LUT^(−0.592)** — **doubling the area costs 34 % of the
+frequency.**
+
+Over a 28× span of area the frequency falls 10.5×, and MHz/kLUT falls from 67.37
+to 0.28.
+
+### T867a -- Structure matters beyond size, in time as in frequency [measured]
+
+The residuals span a factor of two: `gft_train1` sits at **0.67×** the law and
+`gft_sadd` at **1.38×**. Size explains 92 % of the frequency and no more.
+
+That is the same shape T846 measured about place-and-route **time** -- a spread of
+at least 1.9×, not monotonic in size. **Both are properties of the logic cone
+rather than of the LUT count**, and a project that predicts either from area alone
+will be wrong by a factor of two on its largest and its smallest designs at once.
+
+The `CARRY4` column is omitted rather than published: its parse reports values
+above the LUT count (1 604 where the yosys line reads 160). It is not part of the
+curve, and a number I cannot explain is worse than a gap.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

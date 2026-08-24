@@ -2856,3 +2856,42 @@ recomputed from the records: every Fmax on file is paired with a folded area --
 `gft_sadd` at 18.24 MHz was measured on 1 312 LUT against an honest 4 304 -- so
 there is no honest area-frequency pair anywhere in the corpus. `tri curve` takes
 both from the same build so they cannot drift apart again.
+
+## 69. The curve lands, and it is a power law (W1000)
+
+The last item that was mine. The MHz-per-kLUT curve could not be recomputed from
+the records, and the reason is worth stating precisely: **every Fmax on file was
+paired with a folded area.** `gft_sadd`'s 18.24 MHz was measured on 1 312 LUT
+against an honest 4 304; `gft_signed_mac`'s 9.14 on 6 466 against 9 505. There was
+no honest area-frequency pair anywhere in the corpus, so the curve was not wrong
+in the sense of needing arithmetic -- it was **unrecomputable**, and had to be
+taken again.
+
+Twelve wrappers, both numbers from the same build so they cannot drift apart:
+
+**Fmax ≈ 2 050 · LUT^(−0.592), R² = 0.919.**
+
+Linear reaches 0.648 and semi-log 0.852, so the power law is not a preference but
+the fit the data chose. **Doubling the area costs 34 % of the frequency.** Across
+a 28x span of area, frequency falls 10.5x and MHz/kLUT falls from 67.37 to 0.28.
+
+The residuals are the second finding. They span a factor of two -- `gft_train1` at
+0.67x the law, `gft_sadd` at 1.38x -- so **size explains 92 % of the frequency and
+no more.** That is the same shape T846 measured about place-and-route *time*: a
+spread of at least 1.9x, not monotonic in size. Both are properties of the logic
+cone rather than of the LUT count, and anything that predicts either from area
+alone will be wrong by a factor of two at both ends of its range at once.
+
+The `CARRY4` column was dropped rather than published. Its parse reports values
+above the LUT count -- 1 604 where the yosys line reads 160 -- and nothing depended
+on it, which made publishing it the easy path. A table with a stated gap invites
+the reader to fill it; a table with an unexplained number invites them to trust it,
+and everything beside it.
+
+One piece of housekeeping belongs in the record. An orphaned `tri curve` loop had
+survived the kill in W999 -- killing the wrapper script and the running child left
+the bash loop between iterations, which simply spawned the next build -- and it was
+racing the live run **for the same output file**. nextpnr went from 41.6 % to
+86.9 % CPU the moment it died. The W997 cap measurements were checked backwards
+against this and were not contended: `ps` showed a single nextpnr at ~100 % in both
+cases. Verified rather than assumed.

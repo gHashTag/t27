@@ -1221,5 +1221,42 @@ if fw:
           "worse than omitting it" in ip["carry4_column_dropped"], True, tol=0)
     check("не моих пунктов", len(fw["not_mine"]), 2, tol=0)
 
+# W1000: the MHz/kLUT curve, re-measured with area and frequency from one build.
+cv = rec("curve_w1000.json")
+if cv:
+    print("\n== честная кривая МГц/kLUT (W1000)")
+    import math as _m
+    rows = cv["rows"]
+    check("строк в кривой", len(rows), 12, tol=0)
+    for r in rows:
+        check(f"{r['wrapper']}: МГц/kLUT сходится",
+              r["fmax_mhz"] / (r["LUT"] / 1000.0), r["mhz_per_klut"], tol=0.02)
+    f = cv["fit"]
+    # refit from the published rows -- the fit must be re-derivable, not quoted
+    X = [_m.log(r["LUT"]) for r in rows]; Y = [_m.log(r["fmax_mhz"]) for r in rows]
+    n = len(X); mx = sum(X)/n; my = sum(Y)/n
+    b1 = sum((a-mx)*(b-my) for a, b in zip(X, Y)) / sum((a-mx)**2 for a in X)
+    b0 = my - b1*mx
+    ssr = sum((b-my)**2 for b in Y); rss = sum((b-(b0+b1*a))**2 for a, b in zip(X, Y))
+    check("показатель степени", b1, f["b"], tol=0.002)
+    check("коэффициент", _m.exp(b0), f["a"], tol=0.5)
+    check("R^2", 1 - rss/ssr, f["r2"], tol=0.002)
+    check("степенная лучше полулога", f["r2"] > f["alternatives_tried"]["semilog"], True, tol=0)
+    check("полулог лучше линейной",
+          f["alternatives_tried"]["semilog"] > f["alternatives_tried"]["linear"], True, tol=0)
+    check("удвоение площади стоит, %", 100*(1 - 2**b1), 34, tol=1)
+    sp = cv["spread"]
+    check("разброс площадей", max(r["LUT"] for r in rows) / min(r["LUT"] for r in rows),
+          sp["area_ratio"], tol=0.5)
+    check("разброс частот", max(r["fmax_mhz"] for r in rows) / min(r["fmax_mhz"] for r in rows),
+          sp["fmax_ratio"], tol=0.05)
+    res = cv["residuals"]
+    check("остатков", len(res), len(rows), tol=0)
+    check("разброс остатков вдвое", max(res.values()) / min(res.values()), 2.06, tol=0.06)
+    check("CARRY4 снят с публикации",
+          "worse than omitting it" in cv["carry4_omitted"], True, tol=0)
+    check("почему старая была невосстановима",
+          "no honest (area, frequency) pair" in cv["why_the_old_one_was_unrecoverable"], True, tol=0)
+
 print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
 sys.exit(1 if bad else 0)

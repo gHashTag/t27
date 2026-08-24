@@ -1,4 +1,19 @@
-# Full status, both tracks — one page for whoever wakes up (W999, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W1000, 2026-08-23)
+
+> **W1000 — THE CURVE LANDS, AND IT IS A POWER LAW.** The last open item that was mine. The old
+> curve was **unrecomputable, not merely wrong**: every Fmax on record was paired with a **folded**
+> area — `gft_sadd`'s 18.24 MHz was measured on 1 312 LUT against an honest 4 304 — so there was no
+> honest area-frequency pair anywhere in the corpus. Re-measured with **both numbers from the same
+> build**, twelve wrappers: **`Fmax ≈ 2 050 · LUT^(−0.592)`, R² = 0.919** (linear 0.648, semi-log
+> 0.852). **Doubling the area costs 34 % of the frequency.** MHz/kLUT spans **67.37 → 0.28** across
+> a 28× area range. **Residuals span a factor of two** — `gft_train1` 0.67×, `gft_sadd` 1.38× — so
+> size explains 92 % of the frequency and no more, the same shape T846 found for place-and-route
+> *time*. **`CARRY4` is omitted**, its parse reporting values above the LUT count: an unexplained
+> number is worse than a gap. Also cleaned: an **orphaned `tri curve` loop** had survived the W999
+> kill and was racing the live one **for the same output file** — nextpnr went 41.6 % → 86.9 % CPU
+> when it died; the W997 cap measurements were checked backwards and were **not** contended.
+> T867/T867a, lesson 1540, **672 derived checks**. **Readiness 100 % of what is mine.**
+> **Yours, and only yours:** `origin/master` (protection rejects the push) and three credentials.
 
 > **W999 — MOST OF THE LAST TWO PERCENT WAS BOOKKEEPING.** Asked to finish to 100 %, enumerated
 > what was open: **five items, and three were stale flags on work already done** — a defect marked

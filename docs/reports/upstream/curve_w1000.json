@@ -1,0 +1,124 @@
+{
+ "wave": "W1000",
+ "what": "the MHz-per-kLUT curve, re-measured. Area and frequency come from the SAME build for every row, so they cannot drift apart the way the old curve did.",
+ "why_the_old_one_was_unrecoverable": "every Fmax on record was paired with a FOLDED area -- gft_sadd 18.24 MHz measured on 1312 LUT against an honest 4304, gft_signed_mac 9.14 on 6466 against 9505. There was no honest (area, frequency) pair anywhere in the corpus, so the curve could not be recomputed, only re-measured.",
+ "rows": [
+  {
+   "wrapper": "gft_commmin",
+   "LUT": 696,
+   "fmax_mhz": 46.89,
+   "mhz_per_klut": 67.37
+  },
+  {
+   "wrapper": "gft_sadd_sweep",
+   "LUT": 1576,
+   "fmax_mhz": 25.42,
+   "mhz_per_klut": 16.13
+  },
+  {
+   "wrapper": "gft_dup",
+   "LUT": 1763,
+   "fmax_mhz": 22.57,
+   "mhz_per_klut": 12.8
+  },
+  {
+   "wrapper": "gft_dup2",
+   "LUT": 1790,
+   "fmax_mhz": 21.95,
+   "mhz_per_klut": 12.26
+  },
+  {
+   "wrapper": "gft_smul",
+   "LUT": 1877,
+   "fmax_mhz": 21.67,
+   "mhz_per_klut": 11.55
+  },
+  {
+   "wrapper": "gft_dup3",
+   "LUT": 2141,
+   "fmax_mhz": 21.42,
+   "mhz_per_klut": 10.0
+  },
+  {
+   "wrapper": "gft_sadd",
+   "LUT": 4304,
+   "fmax_mhz": 20.1,
+   "mhz_per_klut": 4.67
+  },
+  {
+   "wrapper": "gft_signed_mac",
+   "LUT": 9505,
+   "fmax_mhz": 10.17,
+   "mhz_per_klut": 1.07
+  },
+  {
+   "wrapper": "gft_dot4_comm",
+   "LUT": 10823,
+   "fmax_mhz": 7.2,
+   "mhz_per_klut": 0.67
+  },
+  {
+   "wrapper": "gft_bitnet_neuron",
+   "LUT": 12841,
+   "fmax_mhz": 9.75,
+   "mhz_per_klut": 0.76
+  },
+  {
+   "wrapper": "gft_train1",
+   "LUT": 15946,
+   "fmax_mhz": 4.46,
+   "mhz_per_klut": 0.28
+  },
+  {
+   "wrapper": "gft_signed_dot4",
+   "LUT": 19300,
+   "fmax_mhz": 6.78,
+   "mhz_per_klut": 0.35
+  }
+ ],
+ "fit": {
+  "form": "Fmax = a * LUT^b",
+  "a": 2050.3,
+  "b": -0.592,
+  "r2": 0.919,
+  "reading": "a power law. Doubling the area costs 34 % of the frequency.",
+  "alternatives_tried": {
+   "linear": 0.6476,
+   "semilog": 0.8518,
+   "power": 0.919
+  }
+ },
+ "spread": {
+  "area_lut": [
+   696,
+   19300
+  ],
+  "area_ratio": 28,
+  "fmax_mhz": [
+   4.46,
+   46.89
+  ],
+  "fmax_ratio": 10.5,
+  "mhz_per_klut": [
+   0.28,
+   67.37
+  ]
+ },
+ "residuals": {
+  "gft_bitnet_neuron": 1.28,
+  "gft_commmin": 1.1,
+  "gft_dot4_comm": 0.86,
+  "gft_dup2": 0.9,
+  "gft_dup3": 0.98,
+  "gft_dup": 0.92,
+  "gft_sadd": 1.38,
+  "gft_sadd_sweep": 0.97,
+  "gft_signed_dot4": 1.13,
+  "gft_signed_mac": 1.12,
+  "gft_smul": 0.91,
+  "gft_train1": 0.67
+ },
+ "residual_note": "gft_train1 sits at 0.67x the law and gft_sadd at 1.38x -- a factor of two either side. Structure matters beyond size, which is the same thing T846 measured about place-and-route TIME. Both are properties of the cone, not of the LUT count.",
+ "carry4_omitted": "the CARRY4 column parses to values above the LUT count (1604 where the yosys line reads 160). It is not part of the curve, and publishing a number I cannot explain would be worse than omitting it.",
+ "xorpercep": "running separately -- its build hung for 74 minutes with no child process and no CPU after nextpnr exited, and was killed so the loop could finish. Re-running alone."
+}
