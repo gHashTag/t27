@@ -4462,6 +4462,15 @@ pub struct Codegen {
     /// no path, every import collapsed to its last segment and 92 of 144 valid
     /// specs imported a sibling they do not have.
     rel_path: Option<String>,
+    /// Every module that exists as a spec, as "fpga/spi", "base/types".
+    ///
+    /// `use fpga::spi::SPI_Master;` names a SYMBOL out of module `fpga/spi`,
+    /// and `use base::types;` names the module itself. Nothing in the syntax
+    /// distinguishes them, so the split has to be looked up: the longest
+    /// prefix that is a real spec is the module and the rest are symbols.
+    /// Capitalisation nearly works as a test and then `use base::math::normalize_l2`
+    /// breaks it.
+    module_paths: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -4475,6 +4484,7 @@ impl Codegen {
             fn_returns: std::collections::HashMap::new(),
             in_test_block: false,
             rel_path: None,
+            module_paths: std::collections::HashSet::new(),
         }
     }
 
@@ -4619,6 +4629,18 @@ impl Codegen {
         // began -- 12 specs failed with `duplicate struct member name 'std'`,
         // a file-scope declaration being reported in Zig's terms for a file.
         let mut emitted: Vec<&str> = if auto_std { vec!["std"] } else { Vec::new() };
+        // Names the file declares itself, plus symbol bindings already made.
+        //
+        // `use math::sacred_physics::{PHI, PHI_INV};` in a spec that also
+        // writes `pub const PHI` emits both and Zig reports `duplicate struct
+        // member name 'PHI'`. The spec's own declaration wins: it is the one
+        // with a value in front of the reader.
+        let mut taken: std::collections::HashSet<String> = ast
+            .children
+            .iter()
+            .filter(|d| d.kind != NodeKind::UseDecl && !d.name.is_empty())
+            .map(|d| d.name.clone())
+            .collect();
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
@@ -4647,20 +4669,60 @@ impl Codegen {
                     has_imports = true;
                     continue;
                 }
+                let (module, symbols) = split_use_path(&decl.value, &self.module_paths);
+                let module_value = module.join("::");
+                let module_name = module.last().cloned().unwrap_or_else(|| decl.name.clone());
                 let target = match &self.rel_path {
                     Some(rel) => resolve_import_path(
-                        &decl.value,
-                        &decl.name,
+                        &module_value,
+                        &module_name,
                         rel,
                         &std::collections::HashMap::new(),
                     ),
-                    None => format!("{}.zig", decl.name),
+                    None => format!("{}.zig", module_name),
                 };
-                self.write_line(&format!(
-                    "const {} = @import(\"{}\");",
-                    zig_ident(&decl.name),
-                    target
-                ));
+                if symbols.is_empty() {
+                    self.write_line(&format!(
+                        "const {} = @import(\"{}\");",
+                        zig_ident(&decl.name),
+                        target
+                    ));
+                } else if symbols.len() == 1 && !taken.contains(&symbols[0]) {
+                    // `use fpga::spi::SPI_Master;` binds the symbol, not the
+                    // module, so there is no second name to invent.
+                    taken.insert(symbols[0].clone());
+                    self.write_line(&format!(
+                        "const {} = @import(\"{}\").{};",
+                        zig_ident(&symbols[0]),
+                        target,
+                        zig_expr_name(&symbols[0])
+                    ));
+                } else {
+                    let fresh: Vec<&String> =
+                        symbols.iter().filter(|s| !taken.contains(*s)).collect();
+                    if fresh.is_empty() {
+                        continue;
+                    }
+                    if !taken.contains(&module_name) {
+                        taken.insert(module_name.clone());
+                        self.write_line(&format!(
+                            "const {} = @import(\"{}\");",
+                            zig_ident(&module_name),
+                            target
+                        ));
+                    }
+                    for sym in fresh {
+                        self.write_line(&format!(
+                            "const {} = {}.{};",
+                            zig_ident(sym),
+                            zig_ident(&module_name),
+                            zig_expr_name(sym)
+                        ));
+                    }
+                    for sym in &symbols {
+                        taken.insert(sym.clone());
+                    }
+                }
                 has_imports = true;
             }
         }
@@ -8470,6 +8532,44 @@ impl CCodegen {
 ///   - `module_map`: maps "base::types" → "base/types"
 ///
 /// Returns a relative .zig path like "../base/types.zig"
+/// Split `use` path into the module that exists and the symbols taken from it.
+///
+/// `fpga::spi::SPI_Master` with `fpga/spi` a real spec gives
+/// (["fpga","spi"], ["SPI_Master"]). A trailing `{A, B}` is a symbol list, not
+/// a path segment -- it was reaching the file name and emitting
+/// `@import("{PHI,PHI_INV}.zig")` verbatim. When no prefix is known the whole
+/// path is treated as the module, which is the behaviour this replaces.
+fn split_use_path(
+    value: &str,
+    known: &std::collections::HashSet<String>,
+) -> (Vec<String>, Vec<String>) {
+    let raw = value.replace(' ', "");
+    let mut segs: Vec<String> = raw.split("::").filter(|s| !s.is_empty()).map(String::from).collect();
+    let mut braced: Vec<String> = Vec::new();
+    if segs.last().map(|s| s.starts_with('{')).unwrap_or(false) {
+        let last = segs.pop().unwrap();
+        braced = last
+            .trim_matches(|c| c == '{' || c == '}')
+            .split(',')
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
+    }
+    let mut cut = segs.len();
+    while cut > 0 && !known.contains(&segs[..cut].join("/")) {
+        cut -= 1;
+    }
+    if cut == 0 {
+        return (segs, braced);
+    }
+    let symbols: Vec<String> = if braced.is_empty() {
+        segs[cut..].to_vec()
+    } else {
+        braced
+    };
+    (segs[..cut].to_vec(), symbols)
+}
+
 fn resolve_import_path(
     use_value: &str,
     use_name: &str,
@@ -8563,12 +8663,23 @@ impl Compiler {
     /// to it cost nine valid specs. The emitters need merging; until then the
     /// current one takes the path.
     pub fn compile_at(source: &str, rel_path: Option<&str>) -> Result<String, String> {
+        Self::compile_in_tree(source, rel_path, &std::collections::HashSet::new())
+    }
+
+    /// As `compile_at`, plus the set of modules that exist, so a `use` path can
+    /// be split into module and symbols. See `split_use_path`.
+    pub fn compile_in_tree(
+        source: &str,
+        rel_path: Option<&str>,
+        module_paths: &std::collections::HashSet<String>,
+    ) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = Codegen::new();
         codegen.rel_path = rel_path.map(|s| s.to_string());
+        codegen.module_paths = module_paths.clone();
         codegen.gen_zig(&ast);
         Ok(codegen.into_string())
     }

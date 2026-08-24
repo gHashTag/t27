@@ -3032,6 +3032,35 @@ fn spec_rel_path(path: &Path) -> Option<String> {
     Some(rel.join("/"))
 }
 
+/// Every module that exists as a spec, relative to the tree root: "fpga/spi".
+///
+/// `use fpga::spi::SPI_Master;` names a symbol out of a module and
+/// `use base::types;` names a module, and the syntax does not say which. The
+/// emitter needs the tree to tell them apart.
+fn spec_module_paths(input_path: &Path) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    let parts: Vec<_> = input_path.components().collect();
+    let Some(idx) = parts.iter().rposition(|c| c.as_os_str() == "specs") else {
+        return out;
+    };
+    let root: std::path::PathBuf = parts[..=idx].iter().collect();
+    let mut stack = vec![root.clone()];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if matches!(p.extension().and_then(|x| x.to_str()), Some("t27") | Some("vibee")) {
+                if let Ok(rel) = p.with_extension("").strip_prefix(&root) {
+                    out.insert(rel.to_string_lossy().replace('\\', "/"));
+                }
+            }
+        }
+    }
+    out
+}
+
 fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
@@ -3039,7 +3068,12 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     // A spec inside the tree gets its imports resolved against its own
     // location. Outside the tree there is no location to resolve against, and
     // the old last-segment behaviour is kept.
-    let result = compiler::Compiler::compile_at(&source, spec_rel_path(path).as_deref());
+    let rel = spec_rel_path(path);
+    let result = compiler::Compiler::compile_in_tree(
+        &source,
+        rel.as_deref(),
+        &spec_module_paths(path),
+    );
     match result {
         Ok(zig_code) => print!("{}", zig_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),
