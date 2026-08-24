@@ -4470,7 +4470,7 @@ pub struct Codegen {
     /// prefix that is a real spec is the module and the rest are symbols.
     /// Capitalisation nearly works as a test and then `use base::math::normalize_l2`
     /// breaks it.
-    module_paths: std::collections::HashSet<String>,
+    module_paths: std::collections::HashMap<String, String>,
 }
 
 impl Codegen {
@@ -4484,7 +4484,7 @@ impl Codegen {
             fn_returns: std::collections::HashMap::new(),
             in_test_block: false,
             rel_path: None,
-            module_paths: std::collections::HashSet::new(),
+            module_paths: std::collections::HashMap::new(),
         }
     }
 
@@ -4710,7 +4710,7 @@ impl Codegen {
                     has_imports = true;
                     continue;
                 }
-                let (module, symbols) = split_use_path(&decl.value, &self.module_paths);
+                let (module, symbols) = split_use_path(&self.module_paths, &decl.value);
                 let module_value = module.join("::");
                 let module_name = module.last().cloned().unwrap_or_else(|| decl.name.clone());
                 let target = match &self.rel_path {
@@ -8632,9 +8632,21 @@ impl CCodegen {
 /// `@import("{PHI,PHI_INV}.zig")` verbatim. When no prefix is known the whole
 /// path is treated as the module, which is the behaviour this replaces.
 fn split_use_path(
+    known: &std::collections::HashMap<String, String>,
     value: &str,
-    known: &std::collections::HashSet<String>,
 ) -> (Vec<String>, Vec<String>) {
+    // A prefix resolves either as a path (`base/types`) or as a name the spec
+    // DECLARES for itself (`module tritype-base;` at the top of
+    // specs/base/types.t27). 281 specs declare a name and 237 of those differ
+    // from their path, so path-only lookup could not see them.
+    let lookup = |segs: &[String]| -> Option<Vec<String>> {
+        for key in [segs.join("/"), segs.join("::")] {
+            if let Some(path) = known.get(&key) {
+                return Some(path.split('/').map(String::from).collect());
+            }
+        }
+        None
+    };
     let raw = value.replace(' ', "");
     let mut segs: Vec<String> = raw.split("::").filter(|s| !s.is_empty()).map(String::from).collect();
     let mut braced: Vec<String> = Vec::new();
@@ -8648,8 +8660,21 @@ fn split_use_path(
             .collect();
     }
     let mut cut = segs.len();
-    while cut > 0 && !known.contains(&segs[..cut].join("/")) {
+    let mut resolved: Option<Vec<String>> = None;
+    while cut > 0 {
+        resolved = lookup(&segs[..cut]);
+        if resolved.is_some() {
+            break;
+        }
         cut -= 1;
+    }
+    if let Some(module) = resolved {
+        let symbols: Vec<String> = if braced.is_empty() {
+            segs[cut..].to_vec()
+        } else {
+            braced
+        };
+        return (module, symbols);
     }
     if cut == 0 {
         // A hyphen in a `use` target is a path separator: `provider-schema`
@@ -8665,25 +8690,24 @@ fn split_use_path(
             .flat_map(|s| s.split('-').map(String::from).collect::<Vec<_>>())
             .collect();
         let mut ecut = expanded.len();
-        while ecut > 0 && !known.contains(&expanded[..ecut].join("/")) {
+        let mut eres: Option<Vec<String>> = None;
+        while ecut > 0 {
+            eres = lookup(&expanded[..ecut]);
+            if eres.is_some() {
+                break;
+            }
             ecut -= 1;
         }
-        if ecut > 0 {
+        if let Some(module) = eres {
             let symbols: Vec<String> = if braced.is_empty() {
                 expanded[ecut..].to_vec()
             } else {
                 braced
             };
-            return (expanded[..ecut].to_vec(), symbols);
+            return (module, symbols);
         }
-        return (segs, braced);
     }
-    let symbols: Vec<String> = if braced.is_empty() {
-        segs[cut..].to_vec()
-    } else {
-        braced
-    };
-    (segs[..cut].to_vec(), symbols)
+    (segs, braced)
 }
 
 /// Does this subtree contain a cast? `x as T` parses to an ExprFieldAccess
@@ -8801,7 +8825,7 @@ impl Compiler {
     /// to it cost nine valid specs. The emitters need merging; until then the
     /// current one takes the path.
     pub fn compile_at(source: &str, rel_path: Option<&str>) -> Result<String, String> {
-        Self::compile_in_tree(source, rel_path, &std::collections::HashSet::new())
+        Self::compile_in_tree(source, rel_path, &std::collections::HashMap::new())
     }
 
     /// As `compile_at`, plus the set of modules that exist, so a `use` path can
@@ -8809,7 +8833,7 @@ impl Compiler {
     pub fn compile_in_tree(
         source: &str,
         rel_path: Option<&str>,
-        module_paths: &std::collections::HashSet<String>,
+        module_paths: &std::collections::HashMap<String, String>,
     ) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);

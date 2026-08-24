@@ -3037,8 +3037,8 @@ fn spec_rel_path(path: &Path) -> Option<String> {
 /// `use fpga::spi::SPI_Master;` names a symbol out of a module and
 /// `use base::types;` names a module, and the syntax does not say which. The
 /// emitter needs the tree to tell them apart.
-fn spec_module_paths(input_path: &Path) -> std::collections::HashSet<String> {
-    let mut out = std::collections::HashSet::new();
+fn spec_module_paths(input_path: &Path) -> std::collections::HashMap<String, String> {
+    let mut out = std::collections::HashMap::new();
     let parts: Vec<_> = input_path.components().collect();
     let Some(idx) = parts.iter().rposition(|c| c.as_os_str() == "specs") else {
         return out;
@@ -3053,7 +3053,24 @@ fn spec_module_paths(input_path: &Path) -> std::collections::HashSet<String> {
                 stack.push(p);
             } else if matches!(p.extension().and_then(|x| x.to_str()), Some("t27") | Some("vibee")) {
                 if let Ok(rel) = p.with_extension("").strip_prefix(&root) {
-                    out.insert(rel.to_string_lossy().replace('\\', "/"));
+                    let rel = rel.to_string_lossy().replace('\\', "/");
+                    // A spec also answers to the name it DECLARES for itself:
+                    // `module tritype-base;` at the top of specs/base/types.t27.
+                    // 281 specs declare one and 237 differ from their path, so
+                    // a path-only map cannot resolve `use tritype-base::Trit`.
+                    if let Ok(text) = fs::read_to_string(&p) {
+                        for line in text.lines().take(40) {
+                            let t = line.trim();
+                            if let Some(rest) = t.strip_prefix("module ") {
+                                let name = rest.trim().trim_end_matches(';').trim();
+                                if !name.is_empty() {
+                                    out.insert(name.to_string(), rel.clone());
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    out.insert(rel.clone(), rel);
                 }
             }
         }
