@@ -32,8 +32,21 @@ pub enum NowCmd {
         #[arg(long = "bullet", required = true, allow_hyphen_values = true)]
         bullets: Vec<String>,
         /// Issue number for the section's "(Closes #N)" suffix.
+        ///
+        /// This AUTOCLOSES the issue on merge, which LOOP-RULES R11 bans for
+        /// tracking issues. Use `--refs` for those.
         #[arg(long)]
         closes: Option<u64>,
+        /// Issue number for the section's "(Refs #N)" suffix -- cites the
+        /// issue without closing it.
+        ///
+        /// Added because the command could express only the autoclosing form,
+        /// so an entry that had to cite a long-lived tracking issue had three
+        /// options: autoclose it (banned), hand-edit the generated file (the
+        /// drift this command exists to prevent), or cite nothing. All three
+        /// were taken at least once before the flag existed.
+        #[arg(long, conflicts_with = "closes")]
+        refs: Option<u64>,
     },
 }
 
@@ -43,7 +56,21 @@ pub fn run(cmd: &NowCmd) -> Result<()> {
             title,
             bullets,
             closes,
-        } => add(title, bullets, *closes),
+            refs,
+        } => add(title, bullets, *closes, *refs),
+    }
+}
+
+/// The section heading's issue suffix.
+///
+/// Separate from `add` so it can be tested without touching the filesystem:
+/// the bug this guards against is a one-character difference between two
+/// strings that both look right in a diff.
+fn issue_suffix(closes: Option<u64>, refs: Option<u64>) -> String {
+    match (closes, refs) {
+        (Some(n), _) => format!(" (Closes #{n})"),
+        (None, Some(n)) => format!(" (Refs #{n})"),
+        (None, None) => String::new(),
     }
 }
 
@@ -102,7 +129,7 @@ fn slugify(title: &str) -> String {
     out
 }
 
-fn add(title: &str, bullets: &[String], closes: Option<u64>) -> Result<()> {
+fn add(title: &str, bullets: &[String], closes: Option<u64>, refs: Option<u64>) -> Result<()> {
     let date = today()?;
     let slug = slugify(title);
     if slug.is_empty() {
@@ -126,10 +153,7 @@ fn add(title: &str, bullets: &[String], closes: Option<u64>) -> Result<()> {
         );
     }
 
-    let suffix = match closes {
-        Some(n) => format!(" (Closes #{n})"),
-        None => String::new(),
-    };
+    let suffix = issue_suffix(closes, refs);
     // No `Last updated:` line: the filename carries the date, and a second copy
     // inside the file is exactly the duplicated line the old layout fought over.
     let mut entry = format!("# NOW -- {title} ({date})\n\n## {title}{suffix}\n\n");
@@ -143,7 +167,21 @@ fn add(title: &str, bullets: &[String], closes: Option<u64>) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::slugify;
+    use super::{issue_suffix, slugify};
+
+    #[test]
+    fn refs_cites_without_closing() {
+        // The whole point of the flag: the word must be "Refs", because
+        // "Closes" is what GitHub acts on.
+        assert_eq!(issue_suffix(None, Some(2161)), " (Refs #2161)");
+        assert!(!issue_suffix(None, Some(2161)).contains("Closes"));
+    }
+
+    #[test]
+    fn closes_still_autocloses_and_no_suffix_stays_empty() {
+        assert_eq!(issue_suffix(Some(141), None), " (Closes #141)");
+        assert_eq!(issue_suffix(None, None), "");
+    }
 
     #[test]
     fn slug_lowercases_and_joins_words() {
