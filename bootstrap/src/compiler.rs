@@ -4516,6 +4516,19 @@ impl Codegen {
             let raw = node.extra_size.trim().trim_end_matches(',');
             if !raw.is_empty() && node.extra_size.contains(',') {
                 self.write(&zig_path(raw));
+            } else if let Some((val, count)) = raw.split_once(';') {
+                // Rust's repeat literal, `[0.0; EMBED_DIM]`, also lands in the
+                // size field. Zig repeats a tuple with `**`, so `.{0.0} ** N`
+                // gives the same array and needs no element type -- which is
+                // just as well, because the element type is not here either.
+                //
+                // 17 emitted lines in 8 files.
+                self.write(&format!(
+                    "{}}} ** {}",
+                    zig_path(val.trim()),
+                    zig_path(count.trim())
+                ));
+                return;
             }
         } else {
             for (i, elem) in node.children.iter().enumerate() {
@@ -5429,7 +5442,12 @@ impl Codegen {
                 // extra_size holds the element list when the literal was
                 // written out longhand -- see gen_inferred_array. A real size
                 // is a plain integer.
-                let elements_in_size = node.extra_size.contains(',');
+                // A comma means an element list; a semicolon means a repeat.
+                // Checking only the comma covered 3 of the 20 emitted lines --
+                // the rest reach the output through this path, where the size
+                // field was written out verbatim as `[0.0;5]{}`.
+                let elements_in_size =
+                    node.extra_size.contains(',') || node.extra_size.contains(';');
                 if elements_in_size && node.children.is_empty() {
                     self.gen_inferred_array(node);
                     return;
