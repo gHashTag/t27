@@ -74,48 +74,49 @@ module TriArray;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test slice_basic_case
-        given input = default_input()
-        when result = slice(input)
-        then result != undefined
+    test array_view_reads_straight_through_to_the_backing_storage
+        // Verify: the view is zero-copy — it holds a pointer, not a duplicate, so
+        // reads through it land on the original array's bytes
+        given data = [_]u8{ 10, 20, 30 }
+        when view = ArrayView(u8){ .ptr = @constCast(&data), .len = data.len }
+        and first_element = view.ptr[0]
+        and last_element = view.ptr[view.len - 1]
+        then view.len == 3 and first_element == 10 and last_element == 30
 
-    test slice_from_basic_case
-        given input = default_input()
-        when result = slice_from(input)
-        then result != undefined
+    test an_empty_array_view_has_zero_length
+        // Verify: the boundary case — a view of nothing reports len 0
+        given data = [_]u8{}
+        when view = ArrayView(u8){ .ptr = @constCast(&data), .len = 0 }
+        then view.len == 0
 
-    test first_basic_case
-        given input = default_input()
-        when result = first(input)
-        then result != undefined
+    test array_view_is_one_type_per_element_type
+        // Verify: ArrayView is generic over T, so two instantiations at the same
+        // element type are the same type and different element types are not
+        given same = ArrayView(u8) == ArrayView(u8)
+        and different = ArrayView(u8) == ArrayView(u16)
+        then same and different == false
 
-    test last_basic_case
-        given input = default_input()
-        when result = last(input)
-        then result != undefined
+    test slice_range_start_is_inclusive_and_end_is_exclusive
+        // Verify: the field pair matches Zig's own slice syntax, so a range of
+        // 1..4 over five elements selects three of them starting at index 1
+        given data = [_]u8{ 0, 1, 2, 3, 4 }
+        and range = SliceRange{ .start = 1, .end = 4, .step = 1 }
+        when window = data[range.start..range.end]
+        and window_matches = std.mem.eql(u8, window, &[_]u8{ 1, 2, 3 })
+        then window.len == 3 and window_matches
 
-    test is_empty_basic_case
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
+    test an_empty_slice_range_has_equal_bounds
+        // Verify: start == end selects nothing, which is how is_empty distinguishes
+        // an empty view from a one-element one
+        given data = [_]u8{ 0, 1, 2 }
+        and range = SliceRange{ .start = 2, .end = 2, .step = 1 }
+        when window = data[range.start..range.end]
+        then window.len == 0
 
-    test contains_basic_case
-        given input = default_input()
-        when result = contains(input)
-        then result != undefined
-
-    test index_of_basic_case
-        given input = default_input()
-        when result = index_of(input)
-        then result != undefined
-
-    test reverse_basic_case
-        given input = default_input()
-        when result = reverse(input)
-        then result != undefined
-
-    test concat_basic_case
-        given input = default_input()
-        when result = concat(input)
-        then result != undefined
+    test slice_range_step_is_signed_so_it_can_run_backwards
+        // Verify: step is i64, not usize — a negative step is representable, which
+        // is what reverse traversal needs
+        given forward = SliceRange{ .start = 0, .end = 3, .step = 1 }
+        and backward = SliceRange{ .start = 0, .end = 3, .step = -1 }
+        then forward.step == 1 and backward.step == -1 and backward.step < 0
 

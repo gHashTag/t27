@@ -275,7 +275,7 @@ module SgdMomentum;
         then result.velocities[0] == 0.5
 
     invariant phi_damped_momentum_constant
-        then approximately_equal(PHI_DAMPED_MOMENTUM, 0.9 / PHI, 1e-6)
+        then approximately_equal_within(PHI_DAMPED_MOMENTUM, 0.9 / PHI, 1e-6)
 
     invariant dampening_equals_one_minus_momentum_by_default
         given config = SgdMomentumConfig{.momentum = 0.9, .dampening = 0.0}

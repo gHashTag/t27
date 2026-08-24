@@ -45,18 +45,24 @@ module TriSkipList;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // init, insert and search have empty bodies, so the random level selection
+    // in the header cannot be exercised. These pin the node shape it will use.
 
-    test insert_basic_case
-        given input = default_input()
-        when result = insert(input)
-        then result != undefined
+    test forward_links_are_optional_nodes_held_by_value
+        // a level-k node carries k forward slots, each either a node or null
+        given node = SkipNode(i64)
+        and forward_type = @FieldType(node, "forward")
+        then forward_type == []?SkipNode(i64)
 
-    test search_basic_case
-        given input = default_input()
-        when result = search(input)
-        then result != undefined
+    test a_list_holds_its_head_node_inline
+        // head is a node by value, not a pointer, so an empty list still owns
+        // one node's worth of storage
+        given list = SkipList(i64)
+        and head_type = @FieldType(list, "head")
+        then head_type == SkipNode(i64)
+
+    test levels_are_unsigned
+        given node_level_type = @FieldType(SkipNode(i64), "level")
+        and list_max_level_type = @FieldType(SkipList(i64), "max_level")
+        then node_level_type == usize and list_max_level_type == usize
 

@@ -43,20 +43,23 @@ module SiluSwish;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // forward(), forward_batch() and derivative() have no body yet, so they
+    // panic when called. The default beta and the config type are the only
+    // things this module states, and they are what these tests check.
 
-    test forward_batch_basic_case
-        given input = default_input()
-        when result = forward_batch(input)
-        then result != undefined
+    test silu_default_beta_is_the_swish_beta_one_case
+        // SiLU is Swish with beta = 1 (Elfwing 2017 / Ramachandran 2017)
+        given beta = DEFAULT_BETA
+        then @abs(beta - 1.0) < 0.0000005
 
-    test derivative_basic_case
-        given input = default_input()
-        when result = derivative(input)
-        then result != undefined
+    test silu_default_beta_satisfies_the_positivity_constraint
+        // constraint silu_swish_constraint_0: beta > 0
+        given beta = DEFAULT_BETA
+        then beta > 0.0
+
+    test silu_config_carries_a_beta_other_than_the_default
+        given cfg = SiLUConfig{.beta=2.5}
+        then @abs(cfg.beta - 2.5) < 0.0000005
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)

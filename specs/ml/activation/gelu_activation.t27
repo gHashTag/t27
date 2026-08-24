@@ -39,13 +39,29 @@ module Gelu;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // forward() and backward() have no body yet, so they panic when called.
+    // What this module does state is its two GELU constants and its config
+    // type, and those carry properties that hold or do not.
 
-    test backward_basic_case
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+    test gelu_sqrt_constants_are_reciprocals
+        // sqrt(2/pi) * sqrt(pi/2) = 1 exactly; a typo in either literal
+        // moves the product off 1
+        given product = SQRT_2_OVER_PI * SQRT_PI_OVER_2
+        then @abs(product - 1.0) < 0.0000005
+
+    test gelu_sqrt_2_over_pi_squares_to_2_over_pi
+        // 2/pi = 0.6366197724
+        given squared = SQRT_2_OVER_PI * SQRT_2_OVER_PI
+        then @abs(squared - 0.63661977) < 0.0000003
+
+    test gelu_sqrt_pi_over_2_squares_to_pi_over_2
+        // pi/2 = 1.5707963268
+        given squared = SQRT_PI_OVER_2 * SQRT_PI_OVER_2
+        then @abs(squared - 1.5707963) < 0.0000005
+
+    test gelu_config_records_the_approximation_choice
+        given exact = GELUConfig{.approximate=false}
+        and approx = GELUConfig{.approximate=true}
+        then !exact.approximate
+        and approx.approximate
 

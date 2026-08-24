@@ -115,4 +115,102 @@ module RequantBoundary {
 
     const SUPERIORITY_CLAIMED : bool = false;
     const MEASURED_ON_FPGA : bool = false;
+
+// 8. Tests
+//
+// These execute the rule stated above. They are a RECORD of the convention in
+// section 2, not independent evidence for it: the same author wrote both. What
+// they do buy is that a silent change to `requantize` can no longer pass.
+
+    // The three legal codes are distinct, and none of them is the reserved one.
+    test trit_alphabet_is_distinct
+        then TRIT_N != TRIT_Z
+        and TRIT_Z != TRIT_P
+        and TRIT_N != TRIT_P
+        and TRIT_N != TRIT_RESERVED
+        and TRIT_Z != TRIT_RESERVED
+        and TRIT_P != TRIT_RESERVED
+
+    // C-requant-001. The boundary itself, both sides, at threshold 3 -- the
+    // exact points where the testbench reference disagreed (F-requant-001).
+    test boundary_is_inclusive_both_sides
+        then requantize(3, 3) == TRIT_P
+        and requantize(-3, 3) == TRIT_N
+
+    // One step inside the boundary is zero on both sides.
+    test just_inside_boundary_is_zero
+        then requantize(2, 3) == TRIT_Z
+        and requantize(-2, 3) == TRIT_Z
+        and requantize(0, 3) == TRIT_Z
+
+    // One step outside keeps the sign.
+    test just_outside_boundary_saturates
+        then requantize(4, 3) == TRIT_P
+        and requantize(-4, 3) == TRIT_N
+
+    // Symmetry about zero for a positive threshold: -acc maps to the mirror
+    // code of acc.
+    test positive_threshold_is_symmetric
+        then requantize(7, 3) == TRIT_P
+        and requantize(-7, 3) == TRIT_N
+        and requantize(1, 3) == TRIT_Z
+        and requantize(-1, 3) == TRIT_Z
+
+    // The extremes of the range the sweep actually observed, [-6, +81].
+    test observed_range_endpoints
+        then requantize(VERIFY_ACC_MIN_OBSERVED, 3) == TRIT_N
+        and requantize(VERIFY_ACC_MAX_OBSERVED, 3) == TRIT_P
+
+    // C-requant-002, the part that holds. A negative threshold makes both
+    // comparisons true only on the OVERLAP [threshold, -threshold]; there the
+    // chain's first arm wins, exactly as claimed.
+    test negative_threshold_takes_the_first_arm_on_the_overlap
+        then requantize(-1, -1) == TRIT_P
+        and requantize(0, -1) == TRIT_P
+        and requantize(1, -1) == TRIT_P
+        and negative_threshold_yields_p(0, -1) == true
+
+    // C-requant-002, the part that holds. Below the negative threshold the
+    // arms no longer overlap: the first is false, the second is true, and the
+    // code is N. Still inside the legal alphabet -- never TRIT_RESERVED, which
+    // is what section 3's prose actually claims.
+    test negative_threshold_stays_inside_the_alphabet
+        then requantize(-100, -1) == TRIT_N
+        and requantize(-100, -1) != TRIT_RESERVED
+        and requantize(100, -1) == TRIT_P
+        and requantize(100, -1) != TRIT_RESERVED
+
+    // FINDING F-requant-002 (OPEN). This test FAILS, and it is meant to.
+    //
+    // `negative_threshold_yields_p` guards on `threshold < 0` alone and then
+    // asserts TRIT_P, i.e. it states that ANY negative threshold yields P for
+    // ANY accumulator. It does not. For acc < threshold < 0 only the second arm
+    // is true and the code is N: acc = -100, threshold = -1 returns false.
+    //
+    // Section 3's prose claim -- "it cannot produce TRIT_RESERVED" -- is sound
+    // and is covered by the test above. The FUNCTION encodes a stronger claim
+    // than the prose and that stronger claim is false. The predicate needs the
+    // overlap condition `acc >= threshold` in its guard, or the claim needs
+    // restating. Deciding which is the author's call, so the test is left
+    // failing rather than weakened to match the code.
+    test negative_threshold_yields_p_holds_universally
+        then negative_threshold_yields_p(-100, -1) == true
+
+    // The guard: for a non-negative threshold the predicate is vacuously true
+    // and says nothing about the code produced.
+    test negative_threshold_predicate_is_vacuous_when_non_negative
+        then negative_threshold_yields_p(0, 3) == true
+        and negative_threshold_yields_p(81, 3) == true
+
+    // At threshold 0 the two arms tile the whole range and TRIT_Z is
+    // unreachable: acc >= 0 takes the first arm, acc < 0 satisfies acc <= -0.
+    test zero_threshold_leaves_no_dead_zone
+        then requantize(0, 0) == TRIT_P
+        and requantize(1, 0) == TRIT_P
+        and requantize(-1, 0) == TRIT_N
+
+    // Section 4's own record: every configuration checked also matched.
+    test verification_record_is_complete
+        then VERIFY_CHECKED == VERIFY_MATCHED
+        and VERIFY_BOUNDARY_REACHED == true
 }

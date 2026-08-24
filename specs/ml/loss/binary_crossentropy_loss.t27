@@ -54,25 +54,36 @@ module BinaryCe;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sigmoid_basic_case
-        given input = default_input()
-        when result = sigmoid(input)
-        then result != undefined
+    // sigmoid/forward/forward_batch/gradient are unimplemented stubs -- each
+    // emits `@panic("not yet implemented")`, so sigmoid(0) == 0.5 and the loss
+    // itself cannot be checked here. The declared constants and config shape
+    // are what remain testable.
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    test default_epsilon_satisfies_the_stated_constraint
+        // binary_ce_constraint_1 states 0 < epsilon << 1. The clamp exists so
+        // log(0) is never evaluated, which needs epsilon strictly positive and
+        // far below the 0/1 targets it guards.
+        then DEFAULT_EPSILON > 0.0
+        and DEFAULT_EPSILON < 0.001
+        and @abs(DEFAULT_EPSILON - 1e-7) < 1e-12
 
-    test forward_batch_basic_case
-        given input = default_input()
-        when result = forward_batch(input)
-        then result != undefined
+    test epsilon_is_stored_at_the_same_precision_as_the_default
+        // A f64 field would silently widen the f32 default and change the
+        // clamp point.
+        then @FieldType(BinaryCEConfig, "epsilon") == f32
+        and @TypeOf(DEFAULT_EPSILON) == f32
 
-    test gradient_basic_case
-        given input = default_input()
-        when result = gradient(input)
-        then result != undefined
+    test from_logits_selects_the_fused_path
+        // A bool, so the caller chooses between raw logits and probabilities;
+        // sigmoid() exists to serve the from_logits == true case.
+        then @FieldType(BinaryCEConfig, "from_logits") == bool
+
+    test reduction_can_represent_a_choice
+        // FAILING ON PURPOSE. Reduction is written `enum : ,` in this spec and
+        // lands as an empty struct, so it is zero-sized: it has exactly one
+        // value and cannot distinguish none from mean from sum. The reduction
+        // field of BinaryCEConfig therefore carries no information.
+        then @sizeOf(Reduction) > 0
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)

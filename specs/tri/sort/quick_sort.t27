@@ -24,13 +24,17 @@ module TriQuickSort;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    // Both functions have empty bodies, so neither the ordering nor the
+    // last-element pivot rule in the header can be exercised: calling either
+    // one panics. The single decision the module has made is its signature.
 
-    test sort_range_basic_case
-        given input = default_input()
-        when result = sort_range(input)
-        then result != undefined
+    test sorting_is_in_place
+        // a mutable slice in, nothing out -- the caller's array is reordered
+        // rather than copied into a freshly allocated one
+        given sort_type = @TypeOf(sort)
+        then sort_type == fn ([]i64) void
+
+    test sort_range_shares_the_in_place_signature
+        given sort_range_type = @TypeOf(sort_range)
+        then sort_range_type == fn ([]i64) void
 

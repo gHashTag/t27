@@ -42,18 +42,41 @@ module TriAsyncStream;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test from_basic_case
-        given input = default_input()
-        when result = from(input)
-        then result != undefined
+    // from()/map()/filter() have no body yet, so they panic when called and the
+    // lazy pipeline -- from(xs) mapped then filtered -- cannot be stated. What
+    // the module states is its two types.
+    //
+    // Note on StreamState: the `enum : [...]` line inside a struct does not
+    // make an enum -- it lands as three void-typed struct fields, so Ready,
+    // Pending and Done are declared but are not yet mutually exclusive tags. A
+    // value of this type is all three at once. The count is what holds today;
+    // the tag-ness does not.
 
-    test map_basic_case
-        given input = default_input()
-        when result = map(input)
-        then result != undefined
+    test stream_state_declares_the_three_stream_kinds
+        // Ready, Pending, Done
+        given kinds = std.meta.fields(StreamState).len
+        then kinds == 3
 
-    test filter_basic_case
-        given input = default_input()
-        when result = filter(input)
-        then result != undefined
+    test stream_state_kinds_carry_no_payload_yet
+        // three void fields occupy no storage; a real tag would need at least
+        // one bit to tell Pending from Done
+        given size = @sizeOf(StreamState)
+        then size == 0
+
+    test stream_pairs_a_generator_with_a_state
+        // Verify: the two declared field names, which is what makes the stream
+        // resumable rather than a plain slice
+        then (@hasField(Stream(u8), "generator")) and (@hasField(Stream(u8), "state"))
+
+    test stream_is_generic_over_its_element_type
+        // Verify: T is a real parameter, so instantiations do not collapse
+        then Stream(u8) != Stream(i64)
+
+    test generator_signals_exhaustion_by_returning_null
+        // Verify: the generator yields ?T, not T -- null is the only end-of-
+        // stream marker the type provides, which is what Done would otherwise
+        // have to encode
+        given Gen = @FieldType(Stream(u8), "generator")
+        and ret = @typeInfo(Gen).@"fn".return_type.?
+        then ret == ?u8
 

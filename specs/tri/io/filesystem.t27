@@ -65,38 +65,38 @@ module TriFilesystem;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test join_basic_case
-        given input = default_input()
-        when result = join(input)
-        then result != undefined
+    // All seven path functions are unimplemented stubs returning void, so no
+    // join/basename/dirname round trip can be asserted yet. FileInfo, the one
+    // well-formed declaration in this module, is tested here.
+    //
+    // PathError is NOT tested: its body `enum : ,` is malformed and the parser
+    // drops it silently, so the type emits as an empty struct with no variants.
 
-    test basename_basic_case
-        given input = default_input()
-        when result = basename(input)
-        then result != undefined
+    test directory_entry_is_not_also_a_file
+        // Verify: FileInfo has the declared field names, and the two kind flags
+        // are mutually exclusive for a directory
+        given info = FileInfo{.path="/usr/local",.size=4096,.is_dir=true,.is_file=false,.modified=0}
+        then info.is_dir and info.is_file == false
 
-    test dirname_basic_case
-        given input = default_input()
-        when result = dirname(input)
-        then result != undefined
+    test regular_file_entry_is_not_a_directory
+        // Verify: the same exclusion the other way round
+        given info = FileInfo{.path="/usr/local/bin/t27c",.size=1024,.is_dir=false,.is_file=true,.modified=1700000000}
+        then info.is_file and info.is_dir == false
 
-    test ext_basic_case
-        given input = default_input()
-        when result = ext(input)
-        then result != undefined
+    test size_field_reaches_past_four_gigabytes
+        // Verify: the declared u64 size holds a file a u32 could not address
+        given info = FileInfo{.path="/big.bin",.size=5000000000,.is_dir=false,.is_file=true,.modified=0}
+        then info.size > 4294967295
 
-    test has_ext_basic_case
-        given input = default_input()
-        when result = has_ext(input)
-        then result != undefined
+    test absolute_path_is_stored_verbatim
+        // Verify: the path field keeps the bytes it was built from, leading
+        // separator included
+        given info = FileInfo{.path="/usr/local/bin/t27c",.size=0,.is_dir=false,.is_file=true,.modified=0}
+        and stored = std.mem.eql(u8, info.path, "/usr/local/bin/t27c")
+        then stored
 
-    test is_absolute_basic_case
-        given input = default_input()
-        when result = is_absolute(input)
-        then result != undefined
-
-    test normalize_basic_case
-        given input = default_input()
-        when result = normalize(input)
-        then result != undefined
+    test empty_size_is_representable_for_an_empty_file
+        // Verify: zero, the boundary value, is a legal size
+        given info = FileInfo{.path="/empty",.size=0,.is_dir=false,.is_file=true,.modified=0}
+        then info.size == 0 and info.is_file
 

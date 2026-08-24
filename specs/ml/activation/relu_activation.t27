@@ -39,15 +39,13 @@ module Relu;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // forward and backward have no bodies, so the rectifier itself cannot be
+    // exercised. The one value the module fixes is the threshold.
 
-    test backward_basic_case
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+    test zero_is_the_rectifier_threshold
+        // ReLU hinges at exactly 0, not near it -- the constant is the cut
+        given threshold = ZERO
+        then threshold == 0.0
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)

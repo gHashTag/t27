@@ -197,6 +197,55 @@ module Constants {
         return @as(f64, @floatFromInt(xi - 1));
     }
 
+    // Default tolerance for approximately_equal/2.
+    //
+    // ABSOLUTE, not relative. The corpus already writes a third argument at 18
+    // call sites and every one of them only makes sense as an absolute bound:
+    // ml/transformer/feed_forward passes 1.0 against a value near 828, and
+    // ml/transformer/positional_enc passes 1e-6 against 5000.0. Reading the
+    // third argument as a relative factor would turn those into a 100% window
+    // and a 5e-3 window respectively. One name must mean one thing, so the
+    // default is absolute too.
+    //
+    // 1e-9 and not another value, from the magnitudes actually compared:
+    //   - Smallest 2-argument target in the corpus is 1e-6 (a learning rate;
+    //     ml/optimizer/lr_scheduler compares against 1e-6 and against
+    //     config.min_lr). At 1e-9 that check still rejects anything wrong by
+    //     more than 0.1%, so it is not vacuous. A 1e-6 default would have made
+    //     those three tests accept zero, which is the failure mode that makes a
+    //     tolerance worse than none.
+    //   - Largest 2-argument target is 50.0 (ml/transformer/positional_enc).
+    //     One f64 ulp there is 7.1e-15, so 1e-9 leaves ~140,000 ulp of headroom
+    //     -- far more than the handful of roundings in these expressions needs.
+    //   - It is exactly the tightest tolerance the corpus asks for by hand
+    //     (1e-9 at the phi identities, PHI*PHI == PHI + 1.0). So dropping the
+    //     third argument never loosens a comparison below what some author here
+    //     has already declared acceptable.
+    //
+    // At zero this reads as "|a| <= 1e-9", i.e. zero to within a nanounit. That
+    // is deliberate: nine 2-argument call sites compare against a literal 0.0
+    // (ml/transformer/norm beta[0], ml/optimizer/sgd_momentum velocities), and a
+    // relative rule divides by zero there and would reject every value except an
+    // exact bit-identical 0.0. Absolute is the only rule that is defined at 0.0.
+    //
+    // To change it, change it here: every unqualified comparison in the ml/
+    // specs moves with it.
+    pub const APPROX_TOLERANCE : f64 = 1e-9;
+
+    // approximately_equal(a, b) -> a and b agree to within APPROX_TOLERANCE.
+    // Absolute: |a - b| <= APPROX_TOLERANCE. NaN on either side is never equal,
+    // because every comparison with NaN is false and <= is no exception.
+    pub fn approximately_equal(a: f64, b: f64) -> bool {
+        return abs(a - b) <= APPROX_TOLERANCE;
+    }
+
+    // Same rule with the bound supplied by the caller, for the sites that
+    // already know what precision they can hold. Zig has neither default
+    // arguments nor overloading, so the two arities need two names.
+    pub fn approximately_equal_within(a: f64, b: f64, tolerance: f64) -> bool {
+        return abs(a - b) <= tolerance;
+    }
+
     // =============================================================================
     // TDD-Inside-Spec: Tests and Invariants for Sacred Physics Constants
     // =========================================================================================
@@ -286,6 +335,51 @@ module Constants {
     test floor_function_integer
         given result = floor(5.0)
         then result == 5.0
+
+    test approximately_equal_accepts_exact_equality
+        given result = approximately_equal(0.1, 0.1)
+        then result == true
+
+    test approximately_equal_accepts_just_inside_the_bound
+        given result = approximately_equal(1.0, 1.0 + 5e-10)
+        then result == true
+
+    test approximately_equal_rejects_just_outside_the_bound
+        given result = approximately_equal(1.0, 1.0 + 5e-9)
+        then result == false
+
+    test approximately_equal_is_symmetric_in_its_arguments
+        given forward = approximately_equal(2.0, 2.0 + 5e-9)
+        and   backward = approximately_equal(2.0 + 5e-9, 2.0)
+        then forward == backward
+
+    // At zero the rule is |a| <= APPROX_TOLERANCE, not a relative test.
+    test approximately_equal_at_zero_accepts_a_nanounit
+        given result = approximately_equal(0.0, 1e-12)
+        then result == true
+
+    test approximately_equal_at_zero_rejects_a_microunit
+        given result = approximately_equal(0.0, 1e-6)
+        then result == false
+
+    // The reason the default is 1e-9 and not 1e-6: ml/optimizer/lr_scheduler
+    // compares learning rates against 1e-6, and at a 1e-6 tolerance that check
+    // would accept a learning rate of zero.
+    test approximately_equal_is_not_vacuous_at_learning_rate_scale
+        given result = approximately_equal(1e-6, 0.0)
+        then result == false
+
+    test approximately_equal_holds_at_the_largest_compared_magnitude
+        given result = approximately_equal(50.0, 50.0 + 1e-12)
+        then result == true
+
+    test approximately_equal_within_honours_a_looser_bound
+        given result = approximately_equal_within(828.0, 828.5, 1.0)
+        then result == true
+
+    test approximately_equal_within_honours_a_tighter_bound
+        given result = approximately_equal_within(1.0, 1.0 + 1e-10, 1e-12)
+        then result == false
 
     invariant phi_squared_plus_inverse_squared_equals_3
         assert |PHI*PHI + 1.0/(PHI*PHI) - 3.0| < 1e-12

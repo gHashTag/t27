@@ -32,13 +32,25 @@ module TriSort;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    test sort_order_names_exactly_two_directions
+        // Verify: SortOrder offers Ascending and Descending and nothing else, so
+        // a comparator only ever has to pick a sign
+        given has_ascending = @hasField(SortOrder, "Ascending")
+        and has_descending = @hasField(SortOrder, "Descending")
+        and variant_count = @typeInfo(SortOrder).@"struct".fields.len
+        then has_ascending and has_descending and variant_count == 2
 
-    test sort_by_basic_case
-        given input = default_input()
-        when result = sort_by(input)
-        then result != undefined
+    test sort_order_still_emits_as_a_struct_rather_than_an_enum
+        // Verify: this records a defect, not an intention. The spec declares
+        // SortOrder as an enum of two variants, but t27c lowers it to a struct
+        // with two void fields, so the two directions are fields of one value
+        // instead of alternatives. Delete this test once the emitter is fixed.
+        given kind = @typeInfo(SortOrder)
+        and ascending_type = @FieldType(SortOrder, "Ascending")
+        then ascending_type == void
+
+    // NOTE: sort() and sort_by() are unimplemented — both bodies lower to
+    // @panic("not yet implemented"). There is no stability, ordering or
+    // permutation property to test until they have a body. The two tests above
+    // cover the only thing this module currently declares.
 

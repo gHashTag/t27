@@ -54,28 +54,41 @@ module TriLogging;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test level_to_string_basic_case
-        given input = default_input()
-        when result = level_to_string(input)
-        then result != undefined
+    // Every function above is an unimplemented stub: each one emits
+    // `@panic("not yet implemented")`, so calling any of them aborts the test
+    // binary rather than failing a test. The assertions below are therefore
+    // about the representation the module actually declares.
 
-    test level_from_string_basic_case
-        given input = default_input()
-        when result = level_from_string(input)
-        then result != undefined
+    test an_entry_is_a_level_a_message_a_timestamp_and_an_optional_tag
+        // Four fields and no more: no allocator, no formatted buffer. The tag
+        // is the only optional one -- an untagged entry is still an entry.
+        then @typeInfo(LogEntry).@"struct".fields.len == 4
+        and @FieldType(LogEntry, "level") == LogLevel
+        and @FieldType(LogEntry, "message") == []const u8
+        and @FieldType(LogEntry, "timestamp") == u64
+        and @typeInfo(@FieldType(LogEntry, "tag")).optional.child == []const u8
+        and @hasField(LogEntry, "allocator") == false
 
-    test level_color_basic_case
-        given input = default_input()
-        when result = level_color(input)
-        then result != undefined
+    test the_timestamp_is_wide_enough_for_nanoseconds
+        // u64 nanoseconds since the epoch runs past year 2500; u32 seconds
+        // would have wrapped in 2106. The declared width is the deciding fact.
+        given ns_per_year = 31536000000000000
+        then @FieldType(LogEntry, "timestamp") == u64
+        and std.math.maxInt(u64) / ns_per_year > 500
+        and std.math.maxInt(u32) / ns_per_year == 0
 
-    test format_entry_basic_case
-        given input = default_input()
-        when result = format_entry(input)
-        then result != undefined
+    test an_untagged_entry_is_constructible
+        // format_entry is a stub, so this builds the value directly: the point
+        // is that the declared type admits a null tag at all.
+        given e = LogEntry{ .level = LogLevel{}, .message = "boot", .timestamp = 0, .tag = null }
+        then e.tag == null
+        and e.timestamp == 0
+        and std.mem.eql(u8, e.message, "boot")
 
-    test should_log_basic_case
-        given input = default_input()
-        when result = should_log(input)
-        then result != undefined
+    test log_level_lists_its_severities
+        // FAILING ON PURPOSE. The spec declares `enum : ,` -- an empty variant
+        // list -- so LogLevel emits as a struct with no fields. There is no
+        // DEBUG, no ERROR, and nothing for level_to_string to name or for
+        // should_log to compare, which makes every LogEntry.level identical.
+        then @typeInfo(LogLevel).@"struct".fields.len >= 1
 

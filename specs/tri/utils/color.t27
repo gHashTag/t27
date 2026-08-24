@@ -44,18 +44,47 @@ module TriColor;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test rgb_basic_case
-        given input = default_input()
-        when result = rgb(input)
-        then result != undefined
+    // rgb, to_hex and blend are all unimplemented stubs: each one emits
+    // `@panic("not yet implemented")`, so calling any of them aborts the test
+    // binary rather than failing a test. The assertions below are therefore
+    // about the representation the module actually declares.
 
-    test to_hex_basic_case
-        given input = default_input()
-        when result = to_hex(input)
-        then result != undefined
+    test a_color_is_four_eight_bit_channels
+        // "Alpha channel support": alpha is a full u8, so opacity has 256
+        // levels rather than the two a bool would give. Four u8 fields pack
+        // into exactly 32 bits with no padding.
+        given opaque_red = Color{ .r = 255, .g = 0, .b = 0, .a = 255 }
+        then @typeInfo(Color).@"struct".fields.len == 4
+        and @FieldType(Color, "a") == u8
+        and @sizeOf(Color) == 4
+        and @bitSizeOf(Color) == 32
+        and opaque_red.r == 255
+        and opaque_red.a == 255
 
-    test blend_basic_case
-        given input = default_input()
-        when result = blend(input)
-        then result != undefined
+    test a_hex_string_needs_two_digits_per_channel
+        // to_hex has to render each u8 as 4 bits + 4 bits, so "#rrggbbaa" is
+        // one '#' plus eight nibbles: nine bytes, and 255 is the widest value
+        // any single channel can reach.
+        given digits_per_channel = @bitSizeOf(u8) / 4
+        given hex_len = 1 + 4 * digits_per_channel
+        then digits_per_channel == 2
+        and hex_len == 9
+        and std.math.maxInt(u8) == 255
+
+    test color_space_names_four_models_but_stores_no_discriminant
+        // The four names survive as void fields of a struct, not as variants
+        // of an enum -- so a ColorSpace value occupies zero bytes and cannot
+        // tell RGB from LAB at runtime. The names are all it carries.
+        then @typeInfo(ColorSpace).@"struct".fields.len == 4
+        and std.mem.eql(u8, @typeInfo(ColorSpace).@"struct".fields[0].name, "RGB")
+        and std.mem.eql(u8, @typeInfo(ColorSpace).@"struct".fields[3].name, "LAB")
+        and @sizeOf(ColorSpace) == 0
+
+    test the_constructors_take_all_of_their_operands
+        // FAILING ON PURPOSE. `rgb(r: u8)` declares one parameter, so it
+        // cannot receive g, b or a; `blend(a: Color)` declares one, so it has
+        // nothing to blend with. Both spec signatures keep only their first
+        // parameter, which is why neither is called above.
+        then @typeInfo(@TypeOf(rgb)).@"fn".params.len >= 3
+        and @typeInfo(@TypeOf(blend)).@"fn".params.len >= 2
 

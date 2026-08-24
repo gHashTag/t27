@@ -33,13 +33,25 @@ module TriCompress;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test compress_basic_case
-        given input = default_input()
-        when result = compress(input)
-        then result != undefined
+    test original_len_is_the_uncompressed_size_not_the_payload_size
+        // Verify: the field that makes decompress possible -- original_len
+        // records how many bytes to restore, and for a record that actually
+        // compressed it is larger than data.len
+        given payload = [_]u8{ 0, 1, 2, 3 }
+        and c = Compressed{ .data = @constCast(&payload), .original_len = 10 }
+        then c.data.len == 4 and c.original_len == 10 and c.original_len > c.data.len
 
-    test decompress_basic_case
-        given input = default_input()
-        when result = decompress(input)
-        then result != undefined
+    test empty_input_gives_an_empty_record
+        // Verify: the boundary -- nothing to compress means no payload and a
+        // recorded original length of zero
+        given c = Compressed{ .data = &[_]u8{}, .original_len = 0 }
+        then c.data.len == 0 and c.original_len == 0
+
+    test incompressible_input_may_be_no_smaller_than_the_original
+        // Verify: lossless compression cannot shrink every input, so the type
+        // must also represent a record whose payload is not smaller than the
+        // original -- original_len is not an upper bound on data.len
+        given payload = [_]u8{ 7, 7, 7, 7 }
+        and c = Compressed{ .data = @constCast(&payload), .original_len = 4 }
+        then c.data.len == c.original_len
 

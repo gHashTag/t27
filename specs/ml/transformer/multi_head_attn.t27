@@ -276,7 +276,7 @@ module MultiHeadAttention;
     test softmax_sums_to_one
         given scores = [1.0, 2.0, 3.0]
         when result = softmax_attention(scores, 0)
-        then approximately_equal(sum(result), 1.0, 1e-4)
+        then approximately_equal_within(sum(result), 1.0, 1e-4)
 
     test phi_scale_smaller_than_standard
         given head_dim = 64
@@ -288,7 +288,7 @@ module MultiHeadAttention;
         given head_dim = 64
         when result = compute_phi_scale(head_dim)
         and   expected = 1.0 / (sqrt(64.0) * PHI)
-        then approximately_equal(result, expected, 1e-6)
+        then approximately_equal_within(result, expected, 1e-6)
 
     test flash_attention_no_memory_explosion
         given config = MHAConfig{.hidden_size = 128, .num_heads = 8, .use_flash_attention = true}

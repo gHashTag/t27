@@ -54,33 +54,24 @@ module TriPriorityQueue;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // Every function above is an unimplemented stub emitting
+    // `@panic("not yet implemented")`, so no heap ordering can be exercised.
+    // What the module states is the layout, and that is what is asserted.
 
-    test enqueue_basic_case
-        given input = default_input()
-        when result = enqueue(input)
-        then result != undefined
+    test priorities_are_signed
+        // []i64, not []u64: a negative priority is representable, so callers
+        // may order by cost as well as by rank.
+        then @FieldType(PriorityQueue, "data") == []i64
 
-    test dequeue_basic_case
-        given input = default_input()
-        when result = dequeue(input)
-        then result != undefined
+    test size_is_tracked_separately_from_the_buffer
+        // data.len is the allocated capacity; size is the number of live
+        // elements. Two distinct numbers, hence the separate field.
+        then @hasField(PriorityQueue, "size")
+        and @FieldType(PriorityQueue, "size") == usize
 
-    test peek_basic_case
-        given input = default_input()
-        when result = peek(input)
-        then result != undefined
-
-    test is_empty_basic_case
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    test the_queue_owns_its_allocator
+        // init takes an allocator and the struct stores it, which is why
+        // deinit exists at all.
+        then @FieldType(PriorityQueue, "allocator") == std.mem.Allocator
+        and @typeInfo(PriorityQueue).@"struct".fields.len == 3
 

@@ -71,38 +71,56 @@ module TriHttp;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test method_to_string_basic_case
-        given input = default_input()
-        when result = method_to_string(input)
-        then result != undefined
+    // Every function above is an unimplemented stub: each one emits
+    // `@panic("not yet implemented")`, so calling any of them aborts the test
+    // binary rather than failing a test. The assertions below are therefore
+    // about the representation the module actually declares.
 
-    test status_from_code_basic_case
-        given input = default_input()
-        when result = status_from_code(input)
-        then result != undefined
+    test a_status_is_a_numeric_code_plus_a_reason_phrase
+        // RFC 9110 status-line: a three-digit code and a textual reason. u16
+        // covers the whole 100..599 range with room to spare, and the reason
+        // is borrowed, not owned -- status_from_code can hand back a literal.
+        then @typeInfo(HttpStatus).@"struct".fields.len == 2
+        and @FieldType(HttpStatus, "code") == u16
+        and @FieldType(HttpStatus, "reason") == []const u8
+        and std.math.maxInt(u16) >= 599
 
-    test is_success_basic_case
-        given input = default_input()
-        when result = is_success(input)
-        then result != undefined
+    test the_class_predicates_partition_the_code_space
+        // is_success / is_redirect / is_client_error / is_server_error are the
+        // 2xx / 3xx / 4xx / 5xx classes: four disjoint hundreds-blocks, so a
+        // code belongs to at most one of them and 200/301/404/500 land apart.
+        given ok = 200 / 100
+        given moved = 301 / 100
+        given not_found = 404 / 100
+        given server = 500 / 100
+        then ok == 2
+        and moved == 3
+        and not_found == 4
+        and server == 5
 
-    test is_redirect_basic_case
-        given input = default_input()
-        when result = is_redirect(input)
-        then result != undefined
+    test every_url_component_but_the_path_is_optional
+        // A bare "/index.html" is a legal Url: no scheme, host, port, query or
+        // fragment. The path is the one field that is always present.
+        then @typeInfo(Url).@"struct".fields.len == 6
+        and @FieldType(Url, "path") == []const u8
+        and @typeInfo(@FieldType(Url, "scheme")).optional.child == []const u8
+        and @typeInfo(@FieldType(Url, "host")).optional.child == []const u8
+        and @typeInfo(@FieldType(Url, "port")).optional.child == u16
+        and @typeInfo(@FieldType(Url, "query")).optional.child == []const u8
+        and @typeInfo(@FieldType(Url, "fragment")).optional.child == []const u8
 
-    test is_client_error_basic_case
-        given input = default_input()
-        when result = is_client_error(input)
-        then result != undefined
+    test a_path_only_url_is_constructible
+        // parse_url is a stub, so this builds the value directly: the point is
+        // that the declared type admits a relative reference at all.
+        given rel = Url{ .scheme = null, .host = null, .port = null, .path = "/index.html", .query = null, .fragment = null }
+        then rel.scheme == null
+        and rel.port == null
+        and std.mem.eql(u8, rel.path, "/index.html")
 
-    test is_server_error_basic_case
-        given input = default_input()
-        when result = is_server_error(input)
-        then result != undefined
-
-    test parse_url_basic_case
-        given input = default_input()
-        when result = parse_url(input)
-        then result != undefined
+    test http_method_lists_its_verbs
+        // FAILING ON PURPOSE. The spec declares `enum : ,` -- an empty variant
+        // list -- so HttpMethod emits as a struct with no fields and cannot
+        // represent GET, POST or anything else. method_to_string therefore has
+        // nothing to switch on. This test states what the type should carry.
+        then @typeInfo(HttpMethod).@"struct".fields.len >= 1
 
