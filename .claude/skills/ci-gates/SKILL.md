@@ -4827,3 +4827,60 @@ proving the test is load-bearing rather than decorative.
 
 **A regression test written from the motivating file tests only the half that
 was broken.**
+
+## 122. I committed a live mutant, and the merge carried it to master
+
+`tri gates mutate` rewrites files in `tools/` in place and restores them after
+each site. It refuses to START on a dirty tree, and it drops a marker so an
+interrupted run is recoverable. Both guards work. Neither protects **me**.
+
+I launched a full boundary sweep in the background, kept working, and later ran
+`git add -A && git commit --amend`. At that instant the sweep was holding
+`tools/gft_backprop_microcode.py` mutated. The mutant went into the commit, into
+the pull request, through 30 green checks, and onto master:
+
+```
+-    if d >= 26: la = 0; sticky = 1
++    if d > 26:  la = 0; sticky = 1
+```
+
+Nothing broke — that is the mutant I had *proved equivalent* two ticks earlier,
+0 differences over 525,918 points, and the line even carries a
+`# mutant-equivalent:` comment saying so. **The code stopped matching the
+comment directly above it and every test stayed green**, which is exactly the
+condition under which a wrong line survives indefinitely.
+
+### The guard protects the run, not the operator
+
+`mutate`'s dirty-tree refusal answers *"is the tree clean before I start?"*. The
+question nobody was asking is *"is a sweep running while I stage?"* — and
+`git add -A` cannot tell a mutant from an edit. **A background process that
+mutates the working tree turns every `git add -A` into a lottery**, and the
+odds scale with how many files the sweep touches and how long it runs.
+
+Three cheap defences, in order of how much they cost:
+
+1. **Stage paths, not `-A`,** while any sweep is running. `git add <the files I
+   actually changed>` cannot pick up a file I did not touch.
+2. **Check the marker before staging** — `test -f target/.tri-mutating` already
+   answers "is a sweep in flight", and it exists precisely because an
+   interrupted sweep is otherwise invisible. It was sitting right there.
+3. **Diff the staged set against what you meant to change.** One line: the
+   commit said `20 insertions, 1 deletion` and I had written only insertions.
+   **A deletion I did not intend was in the summary git printed me**, and I read
+   past it.
+
+### Third self-inflicted git loss this session
+
+§119 catalogued two: `git checkout master -- <file>` restoring over an edit, and
+`checkout -b` + `branch -D` carrying unrelated work away. This is the third, and
+it is the only one that reached **master** — the other two were caught locally.
+
+The shape is the same each time: **a command whose blast radius is the whole
+tree, run while my attention was on one file.** `-A`, `--all`, `.` — the
+arguments that mean *everything* are the ones to distrust when anything else is
+writing to the tree.
+
+And the detector, when it finally came, was not a test. It was `mutate`
+refusing to start on a dirty tree the next time I ran it — the guard catching
+the consequence of its own bypass, one tick late.
