@@ -4316,3 +4316,57 @@ an operator. The correction is not "survivors are real" either: it is that
 **each survivor is a separate question, and the source line is what makes
 answering it a minute's work instead of an afternoon's.** That is the whole
 value of §109, and it showed up on the first reading.
+
+## 112. An outcome test cannot see an arithmetic defect that outcomes tolerate
+
+`if t > hf: mant += 1` survived. Reading it: this is the round-half-to-even
+decision in the GF-T adder.
+
+```python
+if t > hf: mant += 1                  # strictly above half
+elif t == hf and (s & 1): mant += 1   # exactly half -> to even
+```
+
+With `>=` the pair becomes **round-half-up** and the parity test on the next
+line is dead code. Measured, not predicted:
+
+```
+_magadd(25600, 20480)   clean 25600    mutated 25601
+_magadd(20992, 20481)   clean 21248    mutated 21249
+```
+
+**256 such witnesses exist, and the self-tests notice none of them.** They train
+a network and assert on **accuracy**. An optimiser absorbs a last-bit error in
+every addition without changing whether XOR reaches 4/4 — planted, the mutant
+passes every training assertion in the file.
+
+That is the shape worth carrying: **a test that checks an outcome cannot see a
+defect the outcome tolerates.** Accuracy, throughput, "it still converges" —
+each is a real property and each is a filter that removes exactly the errors an
+adaptive process routes around. Arithmetic needs assertions on arithmetic.
+
+Three now pin the decision, one per branch. Negative controls: weakening `>` to
+`>=` fails the even-tie assertion; disabling the parity test fails the odd-tie
+one. Each control hits the assertion aimed at it, which is what makes them three
+tests rather than one repeated.
+
+## 113. I planned a tick around a line number I never checked
+
+This tick's plan was "close `microcode:203` and `diffbin:148`", carried from
+yesterday's classification table. `203` is **not a survivor** — with `<=` the
+XOR self-test reports 1/4 and the mutant dies loudly.
+
+I had listed it among four `if x < 0:` sites found by grep, classified it as a
+real boundary, and then silently promoted "real boundary" to "surviving
+boundary". They are different claims: one is about the code, the other about
+what the tests reach.
+
+**§70 is mine: a finding recorded as a line number expires on the next edit.**
+This is worse — it never was a finding, and the line number gave it enough
+shape to look like one. A grep hit is a candidate; a survivor is a measurement;
+and the plan for the next tick should be built from the second.
+
+The tick recovered because the first thing I did was reproduce the survivor
+rather than fix it. **Reproduce before repairing** costs one command and is the
+only thing standing between a plan item and an afternoon spent on a defect that
+is not there.
