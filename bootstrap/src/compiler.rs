@@ -1117,6 +1117,16 @@ const ZIG_KEYWORDS_ALL: &[&str] = &[
 ///
 /// Segment by segment because `mod.union` needs `mod.@"union"`, not a quoted
 /// whole. Builtins keep their `@` and are never touched.
+/// Rewrite every identifier `from` to `to` in this subtree.
+fn rename_ident(node: &mut Node, from: &str, to: &str) {
+    if node.kind == NodeKind::ExprIdentifier && node.name == from {
+        node.name = to.to_string();
+    }
+    for c in node.children.iter_mut() {
+        rename_ident(c, from, to);
+    }
+}
+
 fn zig_expr_name(name: &str) -> String {
     let folded = zig_path(name);
     if folded.starts_with('@') {
@@ -4123,6 +4133,13 @@ pub struct Codegen {
     /// 14 uses that expect the operator, so an unguarded rewrite would break 9
     /// to fix 14. #2611.
     declared: std::collections::HashSet<String>,
+    /// Only the names declared at FILE scope.
+    ///
+    /// Zig forbids a parameter shadowing a declaration in scope, and file scope
+    /// is what a function body sees. `declared` is recursive and includes
+    /// methods of unrelated structs, which are not in scope and would cause
+    /// renames that change output for no reason.
+    declared_top: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -4131,6 +4148,7 @@ impl Codegen {
             output: String::new(),
             indent: 0,
             declared: std::collections::HashSet::new(),
+            declared_top: std::collections::HashSet::new(),
         }
     }
 
@@ -4184,6 +4202,19 @@ impl Codegen {
             }
         }
         collect(ast, &mut self.declared);
+        for decl in ast.children.iter() {
+            if matches!(
+                decl.kind,
+                NodeKind::ConstDecl
+                    | NodeKind::EnumDecl
+                    | NodeKind::StructDecl
+                    | NodeKind::FnDecl
+                    | NodeKind::UseDecl
+            ) && !decl.name.is_empty()
+            {
+                self.declared_top.insert(decl.name.clone());
+            }
+        }
 
         // Header with module name
         let module_name = if !ast.name.is_empty() {
@@ -4791,6 +4822,42 @@ impl Codegen {
         // Check if this is a method (first param is "self")
         let is_method = node.params.iter().any(|(name, _)| name == "self");
 
+        // Zig forbids a parameter shadowing a file-scope declaration, and
+        // `fn est_static(total_resources: u32)` in a spec that also declares
+        // `total_resources` is the natural way to write both. 8 specs.
+        //
+        // Renaming is invisible to callers: Zig has no named arguments. The
+        // body's references are rewritten to match, or the rename would trade
+        // a shadow error for an undeclared one.
+        let renames: Vec<(String, String)> = node
+            .params
+            .iter()
+            .filter(|(n, _)| self.declared_top.contains(n))
+            .map(|(n, _)| (n.clone(), format!("{}_arg", n)))
+            .collect();
+        let body: Vec<Node> = if renames.is_empty() {
+            Vec::new()
+        } else {
+            node.children
+                .iter()
+                .map(|c| {
+                    let mut c = c.clone();
+                    for (from, to) in &renames {
+                        rename_ident(&mut c, from, to);
+                    }
+                    c
+                })
+                .collect()
+        };
+        let children: &[Node] = if renames.is_empty() { &node.children } else { &body };
+        let pname_of = |n: &str| -> String {
+            renames
+                .iter()
+                .find(|(f, _)| f == n)
+                .map(|(_, t)| t.clone())
+                .unwrap_or_else(|| n.to_string())
+        };
+
         // Fifth site that binds a name. `fn union(a: *Bitset)` -- set union is
         // the natural spelling and `union` is a Zig keyword.
         self.write(&format!("fn {}(", zig_ident(&node.name)));
@@ -4826,7 +4893,7 @@ impl Codegen {
             // Sixth and seventh binding sites. `fn f(error: Err)` and
             // `fn update(key: K, fn: anytype)` -- `error` and `fn` are Zig
             // keywords and these are the natural names for those parameters.
-            let pn = zig_ident(pname);
+            let pn = zig_ident(&pname_of(pname));
             if use_anytype {
                 self.write(&format!("{}: anytype", pn));
             } else {
@@ -4861,7 +4928,7 @@ impl Codegen {
             if pname == "self" || pname.starts_with('_') {
                 continue;
             }
-            if !node.children.iter().any(|c| mentions_identifier(c, pname)) {
+            if !children.iter().any(|c| mentions_identifier(c, &pname_of(pname))) {
                 // Same spelling as the declaration above, or the discard names
                 // something that does not exist.
                 self.write_indent();
@@ -4869,11 +4936,11 @@ impl Codegen {
             }
         }
 
-        if node.children.is_empty() {
+        if children.is_empty() {
             self.write_indent();
             self.write_line("@compileError(\"not yet implemented\");");
         } else {
-            self.gen_scoped_stmts(&node.children);
+            self.gen_scoped_stmts(children);
         }
 
         self.dedent();
