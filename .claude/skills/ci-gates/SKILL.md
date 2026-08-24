@@ -4370,3 +4370,59 @@ The tick recovered because the first thing I did was reproduce the survivor
 rather than fix it. **Reproduce before repairing** costs one command and is the
 only thing standing between a plan item and an afternoon spent on a defect that
 is not there.
+
+## 114. The same defect, one function over
+
+`_magadd`'s tie rounding was fixed last tick. `_magmul` carries the **identical
+pair** — over a product instead of a sum — and its `if r > half` survived for
+the identical reason.
+
+```python
+if r > half: mant += 1
+elif r == half and (q & 1): mant += 1
+```
+
+Two paths, carry and no-carry, with different `half`, so **four** cases are
+needed rather than three:
+
+| case | clean | `r >= half` | parity off |
+|---|---|---|---|
+| carry=0, q even | 20610 | **20611** | 20610 |
+| carry=0, q odd | 20738 | 20738 | **20737** |
+| carry=1, q even | 20998 | **20999** | 20998 |
+| carry=1, q odd | 21016 | 21016 | **21015** |
+
+Only the even-q rows distinguish `>=`. Only the odd-q rows distinguish a dead
+parity branch. A test set that covered one parity would have looked thorough
+and caught one mutant of two.
+
+**When a fix lands, grep the file for the shape rather than the line.** The
+adder and the multiplier are different functions with different variables over
+different arithmetic, and the defect is the same five tokens. The survivor list
+had already named it; I only had to read the next row.
+
+## 115. A negative control that silently did not apply
+
+My first control reported the `>=` mutant as **surviving** the new assertions —
+which would have meant the assertions were useless.
+
+Nothing had been planted. The replacement string was built in a shell loop and
+lost the leading `if `, so `str.replace` matched nothing and rewrote the file
+unchanged. The "mutated" run was the clean run.
+
+**A no-op substitution reads as the strongest possible evidence for the wrong
+conclusion.** Not silence — a confident *"your assertion does not catch this"*,
+in the voice of a measurement. It nearly cost the four assertions that had just
+been shown, by direct measurement, to work.
+
+The fix is one line in every plant:
+
+```python
+assert old in s, "anchor not found -- the replacement would be a no-op"
+```
+
+The general rule this campaign keeps circling: **a control must fail when it
+cannot do its job.** A plant that cannot find its anchor has not tested a
+weaker version of the subject; it has tested nothing, and must say so rather
+than return a verdict. §85 found the same thing in a planted *tree* dying on an
+import; this is the same defect in a planted *edit*.

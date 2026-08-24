@@ -479,6 +479,29 @@ if __name__ == "__main__":
     assert _magadd(25600, 20481) == 25601, "strictly above half must round up"
     print("self-test: round-half-to-even on exact ties -- OK")
 
+    # The MULTIPLIER carries the same decision, and it had the same gap.
+    # `_magmul` rounds with the identical pair, over a product rather than a
+    # sum, and its `r > half` survived `>` -> `>=` for the same reason: the
+    # training self-tests check accuracy, and an optimiser absorbs a last-bit
+    # error in every multiply too.
+    #
+    # It has TWO paths -- carry and no-carry -- with different `half`, so four
+    # cases are needed rather than three. Only the even-q rows distinguish
+    # `>=`, and only the odd-q rows distinguish a dead parity branch:
+    #
+    #   case                 clean   r >= half   parity off
+    #   carry=0, q even      20610     20611       20610
+    #   carry=0, q odd       20738     20738       20737
+    #   carry=1, q even      20998     20999       20998
+    #   carry=1, q odd       21016     21016       21015
+    #
+    # Measured by planting each mutant, not derived.
+    assert _magmul(20482, 20608) == 20610, "mul: tie, even q, no carry -- must NOT round up"
+    assert _magmul(20481, 20736) == 20738, "mul: tie, odd q, no carry -- must round to even"
+    assert _magmul(20512, 20944) == 20998, "mul: tie, even q, carry -- must NOT round up"
+    assert _magmul(20512, 20976) == 21016, "mul: tie, odd q, carry -- must round to even"
+    print("self-test: multiplier round-half-to-even, both carry paths -- OK")
+
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)
         print(f"arch {arch}: {len(reg)} regs, {len(steps)} microcode steps")
