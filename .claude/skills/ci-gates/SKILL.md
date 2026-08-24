@@ -4744,7 +4744,7 @@ can read, each row written on purpose.
 **The narrowing was chosen by measuring both, not by taste.**
 
 Then the first run reported the new tool's own docstring, which quoted
-*"see `board/bpseq.v`"* while explaining the bug. **Second time in two days that
+the dead path after a cue word, while explaining the bug. **Second time in two days that
 a checker read its own documentation as data** (§118 was the first). A special
 case for the tool's own file would have hidden the same thing in the next
 document that discusses pointers, so the fix went where it belongs: the
@@ -4754,3 +4754,19 @@ Two instances in two days is not a coincidence — it is what happens when tools
 scan prose for their own vocabulary. **Expect it, and expect the count, not the
 list, to be what tells you.** Both times the tell was a number that was one
 higher than it should have been.
+
+### Third instance: this section
+
+The paragraph above originally quoted the dead path after the word "see" — and
+`tri pointers` flagged **this file**, the moment §120 landed on master. The
+count went 16 → 17 and the row named the skill.
+
+So: the section that names the pattern, warns you to expect it, and prescribes
+fixing the writer rather than the tool — **committed the pattern in the act of
+describing it**, and was caught by the check it was documenting.
+
+Which is the honest form of the lesson. It is not a mistake you make once and
+then know better; **the trigger lives in the vocabulary, so every document that
+teaches the vocabulary carries it.** The only durable defence is the one that
+caught all three: run the checker after writing about the checker, and read the
+count.
