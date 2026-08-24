@@ -4213,7 +4213,24 @@ impl Parser {
         if self.current.kind == TokenKind::LBrace {
             // Brace-style test: test "name" { ... }
             self.advance(); // consume {
-            self.parse_fn_body(&mut block)?;
+            // A braced body can hold behaviour clauses too. #2615 captured
+            // them only in the brace-LESS form, so `test "x" { given u = f() }`
+            // went through the statement parser and emitted three statements:
+            // `given;`, `u = f();`, and a bare expression. 232 clauses across
+            // 95 blocks in 5 files.
+            //
+            // Clauses first, then the ordinary parser for whatever follows --
+            // 22 of the 95 blocks mix the two, and stopping at the first
+            // statement would drop the rest of the body.
+            if matches!(
+                self.current.lexeme.as_str(),
+                "given" | "when" | "then" | "and"
+            ) {
+                self.parse_behavior_clauses(&mut block, hdr_col);
+            }
+            if self.current.kind != TokenKind::RBrace {
+                self.parse_fn_body(&mut block)?;
+            }
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style test: `test name` followed by indented
