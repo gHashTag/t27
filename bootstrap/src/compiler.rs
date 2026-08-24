@@ -5194,6 +5194,32 @@ impl Codegen {
     /// function bodies, 12 in invariants, 4 in test blocks.
     fn gen_scoped_stmts(&mut self, stmts: &[Node]) {
         for (i, stmt) in stmts.iter().enumerate() {
+            // A spec-authored `_ = x;` where x is used anyway.
+            //
+            // Zig rejects it as a pointless discard: 101 sites, and I spent an
+            // iteration assuming they were mine before checking -- every one is
+            // written verbatim in a spec, and the emitter produces none of
+            // them. 5 specs have this as their ONLY remaining error.
+            //
+            // The statement carries no meaning beyond suppressing an
+            // unused-variable warning, so dropping it when the variable is
+            // used changes nothing and removes an error. When it is NOT used
+            // the discard is doing its job and stays.
+            if stmt.kind == NodeKind::StmtAssign
+                && stmt.children.len() == 2
+                && stmt.children[0].kind == NodeKind::ExprIdentifier
+                && stmt.children[0].name == "_"
+                && stmt.children[1].kind == NodeKind::ExprIdentifier
+            {
+                let name = &stmt.children[1].name;
+                let used_elsewhere = stmts
+                    .iter()
+                    .enumerate()
+                    .any(|(j, other)| j != i && node_mentions(other, name));
+                if used_elsewhere {
+                    continue;
+                }
+            }
             if matches!(stmt.extra_kind.as_str(), "given" | "when" | "then") {
                 let bound = top_level_assign(&stmt.name)
                     .map(|i| stmt.name[..i].trim().to_string())
