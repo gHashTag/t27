@@ -13,7 +13,7 @@ The identity **φ² + 1/φ² = 3** (golden ratio φ) is treated as a **single or
 
 | Reading | Role |
 |--------|------|
-| **Mathematical** | A constraint on recursive self-similar structure (scales, stability, numeric families — see `docs/NUMERIC-STANDARD-001.md`, `specs/math/sacred_physics.t27`). |
+| **Mathematical** | A constraint on recursive self-similar structure (scales, stability, numeric families — see `docs/nona-02-organism/NUMERIC-STANDARD-001.md`, `specs/math/sacred_physics.t27`). |
 | **Architectural** | A rule that **three coupled strands** must stay in balance: no strand grows as an unbounded “side repo” of ad-hoc code. |
 | **Process** | **Ring discipline** (`CANON.md`, `docs/SEED-RINGS.md`): each increment closes a loop (parse → gen → test → seal) so the system remains **self-consistent** like a fixed point. |
 
@@ -153,7 +153,7 @@ Observations from public layout of **[gHashTag/trinity](https://github.com/gHash
 3. `FROZEN.md` — bootstrap seal discipline.  
 4. `docs/SEED-RINGS.md` — incremental compiler pattern.  
 5. `docs/TECHNOLOGY-TREE.md` — ring roadmap (may lag; prefer CANON for seal state).  
-6. `docs/NUMERIC-STANDARD-001.md` — Strand I numerics.  
+6. `docs/nona-02-organism/NUMERIC-STANDARD-001.md` — Strand I numerics.  
 7. `docs/PHD-RESEARCH-PROGRAM-AND-DISSERTATION.md` — academic program & dissertation roadmap (WPs, chapters, RU/international tracks).  
 8. `docs/REPO_MAP.md`, `docs/RESEARCH_CLAIMS.md`, `docs/EXTERNAL_AUDIT_PACKAGE.md` — reviewer-grade traceability and ~1h audit path.  
 9. `docs/REPOSITORY_EXCELLENCE_PROGRAM.md` — hardening roadmap (P0/P1/P2).  

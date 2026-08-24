@@ -586,6 +586,29 @@ fn boundary_sites(src: &str) -> Vec<(usize, usize, String)> {
             if triple.is_none() && src[i..].starts_with("def ") {
                 let fname: String = src[i + 4..].chars().take_while(|c| *c != '(').collect();
                 in_control = is_control_fn(&fname);
+            } else if triple.is_none() {
+                // T125 again, in the one scanner that never got it. A function
+                // ends at the next TOP-LEVEL statement, not only at the next
+                // `def` -- and the other three site finders say so in these
+                // exact words, because they are line-oriented and this one is
+                // byte-oriented, so the fix did not transfer when `--boundary`
+                // was added.
+                //
+                // Cost, measured on tools/gft_backprop_microcode.py: it holds
+                // `def self_check()` at line 380 and drops EVERYTHING after it,
+                // to the end of the file. The boundary column read 31 sites
+                // where the file has more, and the missing region is the
+                // `if __name__ == "__main__":` block -- which is where its
+                // accuracy thresholds live.
+                //
+                // The count looked right by coincidence: 31 also happens to be
+                // the number of comparisons before `__main__`, so the totals
+                // matched a plausible story and the scan had actually stopped
+                // nine lines earlier.
+                let line: &str = src[i..].split('\n').next().unwrap_or("");
+                if leaves_function(line) {
+                    in_control = false;
+                }
             }
         }
         let c = b[i];
@@ -2837,6 +2860,28 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         let mut m = std::collections::HashMap::new();
         m.insert(line, why.to_string());
         m
+    }
+
+    #[test]
+    fn boundary_leaves_the_control_function_at_the_next_top_level_statement() {
+        // Three regions, three answers. The middle one is a control and must
+        // stay excluded; the third is the `__main__` block, which the byte
+        // scanner used to swallow along with it because it never reset the
+        // flag -- T125, fixed in the other three site finders and not in this
+        // one until now.
+        let src = "def helper():\n    if a > 1: pass\n\n\ndef self_check():\n    if b > 2: pass\n\n\nif __name__ == \"__main__\":\n    if c > 3: pass\n";
+        let sites = super::sites_in_direction(src, super::Direction::Boundary);
+        let lines: Vec<usize> = sites.iter().map(|(at, _, _)| super::line_of(src, *at)).collect();
+        assert!(lines.contains(&2), "helper's comparison is a site: {lines:?}");
+        assert!(
+            !lines.contains(&6),
+            "self_check's comparison is CONTROL and must not be a site: {lines:?}"
+        );
+        assert!(
+            lines.contains(&10),
+            "the __main__ block is not part of self_check: {lines:?}"
+        );
+        assert_eq!(lines.len(), 2, "exactly two sites: {lines:?}");
     }
 
     #[test]

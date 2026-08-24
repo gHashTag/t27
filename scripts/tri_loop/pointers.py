@@ -61,8 +61,13 @@ EXT = r"py|t27|v|rs|md|toml|yml|sh|txt|json|xdc|tcl|zig"
 # The cue words this repository actually uses when pointing at a file.
 POINTER = re.compile(
     r"\b(?:see|See|SEE|cf\.|documented in|described in)\s+(?:also\s+)?[`'\"]?"
-    r"((?:[\w.-]+/)+[\w.-]+\.(?:" + EXT + r"))[`'\"]?"
+    r"((?:[\w.-]+/)+[\w.-]+\.(?:" + EXT + r"))(?![\w])"
 )
+# `(?![\w])` is not decoration. Without it `.v` matches inside
+# `docker/Dockerfile.vivado`, and the first run of this tool reported
+# `docker/Dockerfile.v` as a dead pointer to a file nobody had ever named. The
+# exploratory version had the guard; the shipped one lost it in the rewrite,
+# which is the cheapest kind of regression and the hardest to see in a diff.
 
 
 def tracked_files(root):
@@ -132,12 +137,37 @@ def main(argv):
             if not resolves(m, f, root, tracked):
                 dead.append((m, str(f.relative_to(root))))
 
+    # Two different diagnoses wear the same symptom, and the fix differs.
+    #
+    #   REMOVED  -- the file existed and was deleted. The pointer is stale; the
+    #               content may have moved, and the history says where to look.
+    #   NEVER    -- the path has no commit at all. Nobody deleted anything; the
+    #               pointer was wrong when it was written, and whatever claim it
+    #               supports was never backed by the thing it names.
+    #
+    # `board/bpseq.v`, which occasioned this tool, was NEVER -- and I had read
+    # it as REMOVED without checking, which is why it took a decision with it.
+    ever = {}
+    for m, _ in dead:
+        if m in ever:
+            continue
+        r = subprocess.run(
+            ["git", "-C", str(root), "log", "--all", "--oneline", "--", m],
+            capture_output=True,
+            text=True,
+        )
+        ever[m] = bool(r.returncode == 0 and r.stdout.strip())
+
+    n_never = sum(1 for m, _ in dead if not ever.get(m))
     print(f"files read:                 {len(files)}")
     print(f'"see <path>" pointers:      {total}')
     print(f"  of those, resolving:      {total - len(dead)}")
-    print(f"  of those, NOT resolving:  {len(dead)}\n")
+    print(f"  of those, NOT resolving:  {len(dead)}")
+    print(f"      never in the history: {n_never}   (the pointer was wrong when written)")
+    print(f"      removed since:        {len(dead) - n_never}   (stale; history says where it went)\n")
     for m, where in sorted(dead):
-        print(f"  {m:<52} <- {where}")
+        tag = "REMOVED" if ever.get(m) else "NEVER  "
+        print(f"  {tag}  {m:<48} <- {where}")
     if unreadable:
         print(f"\n  {unreadable} file(s) could not be read and were NOT scanned.")
         print("  A file this cannot read is not a file without pointers.")
