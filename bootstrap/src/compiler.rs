@@ -4455,6 +4455,13 @@ pub struct Codegen {
     /// `try` needs a function that can return an error, which a test block is
     /// and an ordinary void function is not, so the fix has to know where it is.
     in_test_block: bool,
+    /// Where this spec lives in the tree, e.g. "ml/activation/silu".
+    ///
+    /// `use base::types` has to become `@import("../../base/types.zig")`, and
+    /// the number of `..` depends on the importing file's own directory. With
+    /// no path, every import collapsed to its last segment and 92 of 144 valid
+    /// specs imported a sibling they do not have.
+    rel_path: Option<String>,
 }
 
 impl Codegen {
@@ -4467,6 +4474,7 @@ impl Codegen {
             emitted_names: std::collections::HashSet::new(),
             fn_returns: std::collections::HashMap::new(),
             in_test_block: false,
+            rel_path: None,
         }
     }
 
@@ -4621,10 +4629,19 @@ impl Codegen {
                 // The module's file name keeps its real spelling; only the
                 // binding needs quoting. `const opaque = @import("opaque.zig")`
                 // is a Zig keyword in binding position.
+                let target = match &self.rel_path {
+                    Some(rel) => resolve_import_path(
+                        &decl.value,
+                        &decl.name,
+                        rel,
+                        &std::collections::HashMap::new(),
+                    ),
+                    None => format!("{}.zig", decl.name),
+                };
                 self.write_line(&format!(
-                    "const {} = @import(\"{}.zig\");",
+                    "const {} = @import(\"{}\");",
                     zig_ident(&decl.name),
-                    decl.name
+                    target
                 ));
                 has_imports = true;
             }
@@ -8516,11 +8533,24 @@ pub struct Compiler;
 #[allow(dead_code)]
 impl Compiler {
     pub fn compile(source: &str) -> Result<String, String> {
+        Self::compile_at(source, None)
+    }
+
+    /// Compile knowing where the spec sits in the tree, e.g. "ml/activation/silu".
+    ///
+    /// Only imports differ: `use base::types` resolves against `rel_path`
+    /// instead of collapsing to its last segment. `compile_project_file` also
+    /// resolves imports, but it drives `gen_zig_project`, which has drifted --
+    /// it does not rename a parameter that shadows a declaration, so switching
+    /// to it cost nine valid specs. The emitters need merging; until then the
+    /// current one takes the path.
+    pub fn compile_at(source: &str, rel_path: Option<&str>) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = Codegen::new();
+        codegen.rel_path = rel_path.map(|s| s.to_string());
         codegen.gen_zig(&ast);
         Ok(codegen.into_string())
     }

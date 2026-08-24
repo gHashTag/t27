@@ -3017,11 +3017,30 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Relative path of a spec inside the spec tree, e.g. "ml/activation/silu".
+///
+/// `use base::types` has to become `@import("../../base/types.zig")`, and the
+/// number of `..` depends on where the importing file sits. Without this,
+/// every import collapsed to its last segment: `@import("types.zig")`, a
+/// sibling that 92 of 144 valid specs do not have.
+fn spec_rel_path(path: &Path) -> Option<String> {
+    let parts: Vec<_> = path.components().map(|c| c.as_os_str().to_string_lossy().to_string()).collect();
+    let idx = parts.iter().rposition(|c| c == "specs")?;
+    let mut rel: Vec<String> = parts[idx + 1..].to_vec();
+    let last = rel.pop()?;
+    rel.push(last.trim_end_matches(".t27").trim_end_matches(".vibee").to_string());
+    Some(rel.join("/"))
+}
+
 fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
-    match compiler::Compiler::compile(&source) {
+    // A spec inside the tree gets its imports resolved against its own
+    // location. Outside the tree there is no location to resolve against, and
+    // the old last-segment behaviour is kept.
+    let result = compiler::Compiler::compile_at(&source, spec_rel_path(path).as_deref());
+    match result {
         Ok(zig_code) => print!("{}", zig_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),
     }

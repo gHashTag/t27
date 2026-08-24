@@ -2,121 +2,100 @@
 """Do the generated assertions actually pass?
 
 A SECOND instrument, beside zig_emit_scan.py. That one runs `zig ast-check`,
-
 which is syntax and early semantics and never runs anything. 2758 emitted
 `try std.testing.expect(...)` calls had never been executed by iteration 98.
 
-The gap is not small. Measured on 40 ast-check-VALID specs: 29 failed to
-compile. The largest single cause was the emitter writing `@compileLog` for
+The gap is not small. The first run found 29 of 40 ast-check-VALID specs failed
+to compile. The largest single cause was the emitter writing `@compileLog` for
 every empty invariant block -- Zig treats that as an error by design, so those
-specs could never build, and ast-check reported them clean. Removing that one
-line took the sample from 7 compiling to 20, and from 12 assertions executed
-to 229.
+specs could never build, and ast-check reported them clean.
 
-CAVEATS, because this reports and does not gate:
+TWO HARNESS DEFECTS ARE FIXED HERE, both of which flattered the numbers:
 
-  - Every spec is emitted into ONE directory so `@import("x.zig")` resolves by
-    basename. 22 basenames collide and the last write wins, so a few files are
-    testing against the wrong sibling.
-  - It runs 40 valid specs spaced evenly across the sorted set, not all of
-    them. `zig test` builds a
-    binary per spec and the disk on this machine has been the binding
-    constraint all week.
+  - It emitted every spec into ONE directory so `@import("x.zig")` would
+    resolve by basename. But Zig resolves an import relative to the importing
+    file, so a flat tree does not approximate the real build -- it silently
+    hands each spec whichever spec of that basename was written last. It
+    attributed isa/ternary_encoding's error to base/ternary_encoding for a
+    whole iteration. The tree is now mirrored, which is what the emitted
+    `@import("../../base/types.zig")` actually means, and no spec has to be
+    excluded for a colliding basename.
+  - It reported on 40 specs, at first the first 40 alphabetically -- `api/`,
+    `automation/`, `base/`, `boards/`, four subtrees out of thirty. Every
+    figure published from it in #2673 described those, not the corpus. It now
+    runs all of them.
 
-Read the numbers as a lower bound on what is wrong, never as a pass rate.
+Read the numbers as a lower bound on what is wrong, never as a pass rate: a
+spec that compiles and runs zero tests counts as passing to `zig test`.
 """
 import collections
 import concurrent.futures
 import json
 import pathlib
 import re
-import subprocess
 import shutil
+import subprocess
+import sys
 import tempfile
 
-ROOT = pathlib.Path("/Users/playom/t27")
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 BIN = ROOT / "target/release/t27c"
-# A temp directory OUTSIDE the repo. The first version used
-# `Path(__file__).parent / "ztest"`, which wrote 497 generated .zig files and a
-# Zig build cache into formal/ the moment this moved into the repo.
-WORK = pathlib.Path(tempfile.mkdtemp(prefix="t27_run_scan_"))
+WORK = pathlib.Path(tempfile.mkdtemp(prefix="t27_run_"))
 
-r = json.load(open("/tmp/emit_i98.json"))
-allspecs = [f for f in r if f.startswith("specs/")]
+src = sys.argv[1] if len(sys.argv) > 1 else "/tmp/emit.json"
+r = json.load(open(src))
+specs = [f for f in r if f.startswith("specs/")]
 
-collide = collections.Counter()
-for f in allspecs:
-    base = pathlib.Path(f).stem
-    collide[base] += 1
-    out = subprocess.run([str(BIN), "gen", str(ROOT / f)], capture_output=True).stdout
-    (WORK / f"{base}.zig").write_bytes(out)
+for f in specs:
+    dst = WORK / pathlib.Path(f).with_suffix(".zig")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_bytes(subprocess.run([str(BIN), "gen", str(ROOT / f)],
+                                   capture_output=True).stdout)
 
-dupes = sum(1 for v in collide.values() if v > 1)
-print(f"  emitted {len(allspecs)} specs into one directory")
-print(f"  basename collisions (last wins): {dupes}")
-
-valid = sorted(f for f, v in r.items() if v.get("first") == "VALID" and f.startswith("specs/"))
-
-# Specs whose basename is shared are EXCLUDED from the tested set.
-#
-# Everything is emitted as <basename>.zig so imports resolve, and 22 basenames
-# are used by more than one spec -- last write wins. Testing such a file
-# measures whichever spec happened to be written last, which attributed an
-# error in isa/ternary_encoding to base/ternary_encoding for a whole iteration.
-#
-# They are still WRITTEN, because other specs import them; they are just not
-# reported on.
-_stems = collections.Counter(pathlib.Path(f).stem for f in allspecs)
-_before = len(valid)
-valid = [f for f in valid if _stems[pathlib.Path(f).stem] == 1]
-print(f"  excluded {_before - len(valid)} valid specs whose basename collides")
-
-# EVERY collision-free valid spec. No sampling.
-#
-# It was 40, first alphabetically -- `api/`, `automation/`, `base/`, `boards/`,
-# four subtrees out of thirty -- and every number reported from it in #2673
-# described those, not the corpus. A stride fixed the bias but kept the
-# inference. The full set costs a few minutes and removes the last step
-# between the number and the claim.
+valid = sorted(f for f, v in r.items()
+               if v.get("first") == "VALID" and f.startswith("specs/"))
+print(f"  emitted {len(specs)} specs, mirroring the spec tree")
 
 
 def run(f):
-    base = pathlib.Path(f).stem
+    z = pathlib.Path(f).with_suffix(".zig")
     try:
-        res = subprocess.run(["zig", "test", f"{base}.zig"],
-                             capture_output=True, cwd=WORK, timeout=180)
+        res = subprocess.run(["zig", "test", z.name], capture_output=True,
+                             cwd=WORK / z.parent, timeout=120)
     except subprocess.TimeoutExpired:
-        return ("timeout", 0)
+        return ("timeout", 0, "")
     txt = (res.stdout + res.stderr).decode("utf-8", "replace")
     if res.returncode == 0:
         m = re.search(r"All (\d+) tests passed", txt)
-        return ("passed", int(m.group(1)) if m else 0)
-    if "unable to load" in txt or "FileNotFound" in txt:
-        return ("missing import", 0)
+        return ("passed", int(m.group(1)) if m else 0, "")
     if "test failure" in txt or "TestUnexpectedResult" in txt:
-        return ("ASSERTION FAILED", 0)
-    # Name the cause. A bare "compile error" count says a class exists and
-    # nothing about which one, and the whole point of this instrument is to see
-    # what ast-check cannot.
-    m = re.search(r'([\w./-]+\.zig):\d+:\d+: error: (.*)', txt)
-    if m:
-        own = m.group(1).startswith(base)
-        msg = re.sub(r"'[^']*'", "X", m.group(2))[:46]
-        return (f"compile: {'own' if own else 'import'} | {msg}", 0)
-    return ("compile error", 0)
+        return ("ASSERTION FAILED", 0, "")
+    miss = re.findall(r"unable to load '([^']+)'", txt)
+    if miss:
+        return ("missing sibling", 0, miss[0])
+    own = any(re.match(rf'{re.escape(z.name)}:\d+:\d+: error:', line)
+              for line in txt.splitlines())
+    return ("compile: own file" if own else "compile: imported sibling", 0, "")
 
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
     rows = list(ex.map(run, valid))
 
-c = collections.Counter(k for k, _ in rows)
-print(f"\n  `zig test` on all {len(valid)} collision-free specs ast-check calls VALID:")
-for k, n in c.most_common():
+counts = collections.Counter(k for k, _, _ in rows)
+print(f"\n  `zig test` on all {len(valid)} specs ast-check calls VALID:")
+for k, n in counts.most_common():
     print(f"    {n:4d}  {k}")
-executed = sum(n for k, n in rows if k == "passed")
-zero = sum(1 for k, n in rows if k == "passed" and n == 0)
-print(f"\n  specs that compiled and ran:      {c.get('passed', 0)}")
-print(f"    of those, running ZERO tests:   {zero}")
-print(f"  assertions actually executed:     {executed}")
+
+ran = counts.get("passed", 0)
+zero = sum(1 for k, n, _ in rows if k == "passed" and n == 0)
+print(f"\n  compiled and ran:               {ran}")
+print(f"    of those, running ZERO tests: {zero}")
+print(f"  assertions actually executed:   {sum(n for k, n, _ in rows if k == 'passed')}")
+
+missing = collections.Counter(m for k, _, m in rows if k == "missing sibling")
+if missing:
+    print("\n  siblings imported but absent:")
+    for m, n in missing.most_common(8):
+        print(f"    {n:3d}  {m}")
 
 shutil.rmtree(WORK, ignore_errors=True)
