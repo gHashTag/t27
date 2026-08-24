@@ -4598,6 +4598,27 @@ which one survived has been contradicted **once**. Keying on *"did this line
 vanish from the survivor list"* would call that claim intact, and a half-true
 claim is the hardest kind to catch by eye.
 
+### Writing about the marker created a claim
+
+The extractor matched `mutant-equivalent:` **anywhere inside** any comment. So
+the sentence *"that reasoning now sits on the line as a `# mutant-equivalent:`
+claim"* — prose describing the mechanism — registered as a claim of its own,
+bound to whatever code line happened to follow it.
+
+Caught because the count printed **2** where I had written **1**. Nothing else
+would have caught it: a claim nobody made, attached to a line it says nothing
+about, silently waiting to be reported as *contradicted* the day that unrelated
+line's mutant died. **A false positive in the extractor becomes a false
+refutation in the checker** — the new check gave the old bug a way to lie.
+
+The marker must now OPEN the comment. Every real claim in the tree already did.
+
+The general shape: **a scanner that matches a marker anywhere cannot tell a use
+from a mention**, and documentation is exactly where mentions live. Any tool
+that greps the tree for its own vocabulary will eventually read its own
+documentation as data — and the count is the cheapest place to notice, which is
+an argument for printing counts nobody asked for.
+
 ### The claim marker names no operator, and that is a real gap
 
 Every claim in the tree argues about a comparison (*"so `>=` is `>`"*), so they

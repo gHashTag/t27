@@ -913,11 +913,25 @@ fn equivalence_claims(src: &str) -> std::collections::HashMap<usize, String> {
     let lines: Vec<&str> = src.lines().collect();
     let mut out = std::collections::HashMap::new();
     for (i, l) in lines.iter().enumerate() {
-        let Some(pos) = l.find(MARK) else { continue };
-        if !l.trim_start().starts_with('#') {
+        // The marker must OPEN the comment, not merely appear inside it.
+        //
+        // This used to be `l.find(MARK)` anywhere in any comment, and prose
+        // that MENTIONS the marker -- "that reasoning now sits on the line as a
+        // `# mutant-equivalent:` claim" -- registered as a claim of its own,
+        // bound to whatever code line happened to follow. A claim nobody made,
+        // attached to a line it says nothing about, which the refutation check
+        // would then report as contradicted the moment that line's mutant died.
+        //
+        // Found by writing exactly that sentence and watching the count go to
+        // two. Every real claim in the tree already opens its comment this way.
+        let t = l.trim_start();
+        let Some(rest) = t.strip_prefix('#') else {
             continue;
-        }
-        let why = l[pos + MARK.len()..].trim().to_string();
+        };
+        let Some(why) = rest.trim_start().strip_prefix(MARK) else {
+            continue;
+        };
+        let why = why.trim().to_string();
         // Walk to the first line that is code.
         let mut j = i + 1;
         while j < lines.len() {
@@ -2823,6 +2837,25 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         let mut m = std::collections::HashMap::new();
         m.insert(line, why.to_string());
         m
+    }
+
+    #[test]
+    fn prose_that_mentions_the_marker_is_not_a_claim() {
+        // The sentence that found this: a comment ABOUT the mechanism, which
+        // registered as a claim bound to the next code line.
+        let src = "# that reasoning sits on the line as a `# mutant-equivalent:` claim\nx = 1\n";
+        assert!(
+            super::equivalence_claims(src).is_empty(),
+            "a mention is not a claim"
+        );
+    }
+
+    #[test]
+    fn a_marker_opening_the_comment_is_a_claim() {
+        let src = "# mutant-equivalent: the guard forces it\nif a >= 1:\n";
+        let c = super::equivalence_claims(src);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[&2], "the guard forces it");
     }
 
     #[test]
