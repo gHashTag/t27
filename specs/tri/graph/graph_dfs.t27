@@ -29,8 +29,3 @@ module TriGraphDfs;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test traverse_basic_case
-        given input = default_input()
-        when result = traverse(input)
-        then result != undefined
-

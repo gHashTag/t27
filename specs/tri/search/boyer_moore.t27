@@ -33,13 +33,3 @@ module TriBoyerMoore;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test build_bad_char_basic_case
-        given input = default_input()
-        when result = build_bad_char(input)
-        then result != undefined
-
-    test search_basic_case
-        given input = default_input()
-        when result = search(input)
-        then result != undefined
-

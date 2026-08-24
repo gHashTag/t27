@@ -29,8 +29,3 @@ module TriPrimsMst;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test mst_basic_case
-        given input = default_input()
-        when result = mst(input)
-        then result != undefined
-

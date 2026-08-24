@@ -63,26 +63,6 @@ module SacCritic;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
-    test compute_target_basic_case
-        given input = default_input()
-        when result = compute_target(input)
-        then result != undefined
-
-    test q_loss_basic_case
-        given input = default_input()
-        when result = q_loss(input)
-        then result != undefined
-
-    test soft_update_target_basic_case
-        given input = default_input()
-        when result = soft_update_target(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

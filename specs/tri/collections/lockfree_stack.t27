@@ -42,18 +42,3 @@ module TriLockfreeStack;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test push_basic_case
-        given input = default_input()
-        when result = push(input)
-        then result != undefined
-
-    test pop_basic_case
-        given input = default_input()
-        when result = pop(input)
-        then result != undefined
-

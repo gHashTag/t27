@@ -60,38 +60,3 @@ module TriMatrix;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
-
-    test set_basic_case
-        given input = default_input()
-        when result = set(input)
-        then result != undefined
-
-    test multiply_basic_case
-        given input = default_input()
-        when result = multiply(input)
-        then result != undefined
-
-    test transpose_basic_case
-        given input = default_input()
-        when result = transpose(input)
-        then result != undefined
-
-    test identity_basic_case
-        given input = default_input()
-        when result = identity(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
-

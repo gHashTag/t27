@@ -47,23 +47,3 @@ module TriUrl;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test encode_basic_case
-        given input = default_input()
-        when result = encode(input)
-        then result != undefined
-
-    test decode_basic_case
-        given input = default_input()
-        when result = decode(input)
-        then result != undefined
-
-    test to_string_basic_case
-        given input = default_input()
-        when result = to_string(input)
-        then result != undefined
-

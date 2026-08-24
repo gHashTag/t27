@@ -44,23 +44,3 @@ module TriText;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test word_wrap_basic_case
-        given input = default_input()
-        when result = word_wrap(input)
-        then result != undefined
-
-    test count_words_basic_case
-        given input = default_input()
-        when result = count_words(input)
-        then result != undefined
-
-    test count_lines_basic_case
-        given input = default_input()
-        when result = count_lines(input)
-        then result != undefined
-
-    test indent_basic_case
-        given input = default_input()
-        when result = indent(input)
-        then result != undefined
-

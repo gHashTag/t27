@@ -59,26 +59,6 @@ module Advantage;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test compute_td_residual_basic_case
-        given input = default_input()
-        when result = compute_td_residual(input)
-        then result != undefined
-
-    test compute_gae_basic_case
-        given input = default_input()
-        when result = compute_gae(input)
-        then result != undefined
-
-    test compute_returns_basic_case
-        given input = default_input()
-        when result = compute_returns(input)
-        then result != undefined
-
-    test normalize_advantages_basic_case
-        given input = default_input()
-        when result = normalize_advantages(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

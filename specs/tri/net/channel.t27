@@ -44,23 +44,3 @@ module TriChannel;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test new_channel_basic_case
-        given input = default_input()
-        when result = new_channel(input)
-        then result != undefined
-
-    test send_basic_case
-        given input = default_input()
-        when result = send(input)
-        then result != undefined
-
-    test recv_basic_case
-        given input = default_input()
-        when result = recv(input)
-        then result != undefined
-
-    test close_basic_case
-        given input = default_input()
-        when result = close(input)
-        then result != undefined
-

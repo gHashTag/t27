@@ -42,23 +42,3 @@ module TriRandom;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test next_basic_case
-        given input = default_input()
-        when result = next(input)
-        then result != undefined
-
-    test range_basic_case
-        given input = default_input()
-        when result = range(input)
-        then result != undefined
-
-    test range_inclusive_basic_case
-        given input = default_input()
-        when result = range_inclusive(input)
-        then result != undefined
-

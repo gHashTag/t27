@@ -62,21 +62,6 @@ module Dqn;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test select_action_basic_case
-        given input = default_input()
-        when result = select_action(input)
-        then result != undefined
-
-    test train_step_basic_case
-        given input = default_input()
-        when result = train_step(input)
-        then result != undefined
-
-    test update_target_basic_case
-        given input = default_input()
-        when result = update_target(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

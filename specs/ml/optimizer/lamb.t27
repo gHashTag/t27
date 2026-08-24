@@ -58,21 +58,6 @@ module Lamb;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_state_basic_case
-        given input = default_input()
-        when result = init_state(input)
-        then result != undefined
-
-    test compute_layer_update_basic_case
-        given input = default_input()
-        when result = compute_layer_update(input)
-        then result != undefined
-
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

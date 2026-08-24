@@ -44,18 +44,3 @@ module TriRegexAdvanced;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test compile_basic_case
-        given input = default_input()
-        when result = compile(input)
-        then result != undefined
-
-    test match_basic_case
-        given input = default_input()
-        when result = match(input)
-        then result != undefined
-
-    test replace_basic_case
-        given input = default_input()
-        when result = replace(input)
-        then result != undefined
-

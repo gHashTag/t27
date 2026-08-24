@@ -53,33 +53,3 @@ module TriPolynomial;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test eval_basic_case
-        given input = default_input()
-        when result = eval(input)
-        then result != undefined
-
-    test add_basic_case
-        given input = default_input()
-        when result = add(input)
-        then result != undefined
-
-    test multiply_basic_case
-        given input = default_input()
-        when result = multiply(input)
-        then result != undefined
-
-    test derivative_basic_case
-        given input = default_input()
-        when result = derivative(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
-

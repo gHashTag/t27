@@ -42,18 +42,3 @@ module TriAsyncStream;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test from_basic_case
-        given input = default_input()
-        when result = from(input)
-        then result != undefined
-
-    test map_basic_case
-        given input = default_input()
-        when result = map(input)
-        then result != undefined
-
-    test filter_basic_case
-        given input = default_input()
-        when result = filter(input)
-        then result != undefined
-

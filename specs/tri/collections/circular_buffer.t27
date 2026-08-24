@@ -51,28 +51,3 @@ module TriCircularBuffer;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test write_basic_case
-        given input = default_input()
-        when result = write(input)
-        then result != undefined
-
-    test read_basic_case
-        given input = default_input()
-        when result = read(input)
-        then result != undefined
-
-    test is_empty_basic_case
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
-

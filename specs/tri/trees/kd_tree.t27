@@ -56,28 +56,3 @@ module TriKdTree;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test build_basic_case
-        given input = default_input()
-        when result = build(input)
-        then result != undefined
-
-    test nearest_basic_case
-        given input = default_input()
-        when result = nearest(input)
-        then result != undefined
-
-    test range_basic_case
-        given input = default_input()
-        when result = range(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
-

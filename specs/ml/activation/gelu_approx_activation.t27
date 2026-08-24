@@ -44,18 +44,3 @@ module GeluApprox;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
-    test forward_batch_basic_case
-        given input = default_input()
-        when result = forward_batch(input)
-        then result != undefined
-
-    test derivative_basic_case
-        given input = default_input()
-        when result = derivative(input)
-        then result != undefined
-

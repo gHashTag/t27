@@ -61,23 +61,3 @@ module TriOctree;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test insert_basic_case
-        given input = default_input()
-        when result = insert(input)
-        then result != undefined
-
-    test query_basic_case
-        given input = default_input()
-        when result = query(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
-

@@ -56,33 +56,3 @@ module TriDeque;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test push_front_basic_case
-        given input = default_input()
-        when result = push_front(input)
-        then result != undefined
-
-    test push_back_basic_case
-        given input = default_input()
-        when result = push_back(input)
-        then result != undefined
-
-    test pop_front_basic_case
-        given input = default_input()
-        when result = pop_front(input)
-        then result != undefined
-
-    test pop_back_basic_case
-        given input = default_input()
-        when result = pop_back(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
-

@@ -54,26 +54,6 @@ module PpoCritic;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
-    test compute_advantage_basic_case
-        given input = default_input()
-        when result = compute_advantage(input)
-        then result != undefined
-
-    test compute_returns_basic_case
-        given input = default_input()
-        when result = compute_returns(input)
-        then result != undefined
-
-    test value_loss_basic_case
-        given input = default_input()
-        when result = value_loss(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

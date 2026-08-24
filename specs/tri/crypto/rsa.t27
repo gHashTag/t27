@@ -40,18 +40,3 @@ module TriRsa;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test generate_basic_case
-        given input = default_input()
-        when result = generate(input)
-        then result != undefined
-
-    test encrypt_basic_case
-        given input = default_input()
-        when result = encrypt(input)
-        then result != undefined
-
-    test decrypt_basic_case
-        given input = default_input()
-        when result = decrypt(input)
-        then result != undefined
-

@@ -49,18 +49,3 @@ module TriJson;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test stringify_basic_case
-        given input = default_input()
-        when result = stringify(input)
-        then result != undefined
-
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
-

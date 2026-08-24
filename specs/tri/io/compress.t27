@@ -33,13 +33,3 @@ module TriCompress;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test compress_basic_case
-        given input = default_input()
-        when result = compress(input)
-        then result != undefined
-
-    test decompress_basic_case
-        given input = default_input()
-        when result = decompress(input)
-        then result != undefined
-

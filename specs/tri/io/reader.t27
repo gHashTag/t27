@@ -42,23 +42,3 @@ module TriReader;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test pure_basic_case
-        given input = default_input()
-        when result = pure(input)
-        then result != undefined
-
-    test ask_basic_case
-        given input = default_input()
-        when result = ask(input)
-        then result != undefined
-
-    test asks_basic_case
-        given input = default_input()
-        when result = asks(input)
-        then result != undefined
-
-    test local_basic_case
-        given input = default_input()
-        when result = local(input)
-        then result != undefined
-

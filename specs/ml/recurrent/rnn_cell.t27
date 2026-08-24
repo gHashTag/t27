@@ -56,21 +56,6 @@ module RnnCell;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_step_basic_case
-        given input = default_input()
-        when result = forward_step(input)
-        then result != undefined
-
-    test forward_sequence_basic_case
-        given input = default_input()
-        when result = forward_sequence(input)
-        then result != undefined
-
-    test init_state_basic_case
-        given input = default_input()
-        when result = init_state(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

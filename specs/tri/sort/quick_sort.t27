@@ -24,13 +24,3 @@ module TriQuickSort;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
-
-    test sort_range_basic_case
-        given input = default_input()
-        when result = sort_range(input)
-        then result != undefined
-

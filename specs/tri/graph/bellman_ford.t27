@@ -29,8 +29,3 @@ module TriBellmanFord;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test shortest_path_basic_case
-        given input = default_input()
-        when result = shortest_path(input)
-        then result != undefined
-

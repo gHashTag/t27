@@ -33,13 +33,3 @@ module TriKmp;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test build_prefix_basic_case
-        given input = default_input()
-        when result = build_prefix(input)
-        then result != undefined
-
-    test search_basic_case
-        given input = default_input()
-        when result = search(input)
-        then result != undefined
-

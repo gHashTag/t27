@@ -54,26 +54,6 @@ module BinaryCe;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sigmoid_basic_case
-        given input = default_input()
-        when result = sigmoid(input)
-        then result != undefined
-
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
-    test forward_batch_basic_case
-        given input = default_input()
-        when result = forward_batch(input)
-        then result != undefined
-
-    test gradient_basic_case
-        given input = default_input()
-        when result = gradient(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

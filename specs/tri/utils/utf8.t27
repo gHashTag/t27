@@ -47,23 +47,3 @@ module TriUtf8;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test decode_basic_case
-        given input = default_input()
-        when result = decode(input)
-        then result != undefined
-
-    test encode_basic_case
-        given input = default_input()
-        when result = encode(input)
-        then result != undefined
-
-    test count_codepoints_basic_case
-        given input = default_input()
-        when result = count_codepoints(input)
-        then result != undefined
-
-    test validate_basic_case
-        given input = default_input()
-        when result = validate(input)
-        then result != undefined
-

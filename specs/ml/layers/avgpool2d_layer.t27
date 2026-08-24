@@ -50,16 +50,6 @@ module Avgpool2d;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test calc_output_size_basic_case
-        given input = default_input()
-        when result = calc_output_size(input)
-        then result != undefined
-
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

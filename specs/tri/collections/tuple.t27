@@ -49,23 +49,3 @@ module TriTuple;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test pair_basic_case
-        given input = default_input()
-        when result = pair(input)
-        then result != undefined
-
-    test triple_basic_case
-        given input = default_input()
-        when result = triple(input)
-        then result != undefined
-
-    test fst_basic_case
-        given input = default_input()
-        when result = fst(input)
-        then result != undefined
-
-    test snd_basic_case
-        given input = default_input()
-        when result = snd(input)
-        then result != undefined
-

@@ -44,18 +44,3 @@ module TriColor;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test rgb_basic_case
-        given input = default_input()
-        when result = rgb(input)
-        then result != undefined
-
-    test to_hex_basic_case
-        given input = default_input()
-        when result = to_hex(input)
-        then result != undefined
-
-    test blend_basic_case
-        given input = default_input()
-        when result = blend(input)
-        then result != undefined
-

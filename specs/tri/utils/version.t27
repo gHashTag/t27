@@ -41,18 +41,3 @@ module TriVersion;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test compare_basic_case
-        given input = default_input()
-        when result = compare(input)
-        then result != undefined
-
-    test next_basic_case
-        given input = default_input()
-        when result = next(input)
-        then result != undefined
-

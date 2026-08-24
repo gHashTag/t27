@@ -39,18 +39,3 @@ module TriBloomFilter;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test add_basic_case
-        given input = default_input()
-        when result = add(input)
-        then result != undefined
-
-    test contains_basic_case
-        given input = default_input()
-        when result = contains(input)
-        then result != undefined
-

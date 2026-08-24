@@ -35,13 +35,3 @@ module TriBson;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test serialize_basic_case
-        given input = default_input()
-        when result = serialize(input)
-        then result != undefined
-

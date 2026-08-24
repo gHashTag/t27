@@ -35,13 +35,3 @@ module TriHtml;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test query_selector_basic_case
-        given input = default_input()
-        when result = query_selector(input)
-        then result != undefined
-

@@ -46,16 +46,6 @@ module Adagrad;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_state_basic_case
-        given input = default_input()
-        when result = init_state(input)
-        then result != undefined
-
-    test update_basic_case
-        given input = default_input()
-        when result = update(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

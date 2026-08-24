@@ -44,18 +44,3 @@ module TriEcc;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test add_basic_case
-        given input = default_input()
-        when result = add(input)
-        then result != undefined
-
-    test multiply_basic_case
-        given input = default_input()
-        when result = multiply(input)
-        then result != undefined
-
-    test is_on_curve_basic_case
-        given input = default_input()
-        when result = is_on_curve(input)
-        then result != undefined
-

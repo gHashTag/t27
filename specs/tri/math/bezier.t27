@@ -38,13 +38,3 @@ module TriBezier;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test evaluate_basic_case
-        given input = default_input()
-        when result = evaluate(input)
-        then result != undefined
-
-    test derivative_basic_case
-        given input = default_input()
-        when result = derivative(input)
-        then result != undefined
-

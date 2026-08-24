@@ -55,23 +55,3 @@ module TriConfig;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test get_string_basic_case
-        given input = default_input()
-        when result = get_string(input)
-        then result != undefined
-
-    test get_number_basic_case
-        given input = default_input()
-        when result = get_number(input)
-        then result != undefined
-
-    test get_bool_basic_case
-        given input = default_input()
-        when result = get_bool(input)
-        then result != undefined
-

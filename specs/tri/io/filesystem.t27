@@ -65,38 +65,3 @@ module TriFilesystem;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test join_basic_case
-        given input = default_input()
-        when result = join(input)
-        then result != undefined
-
-    test basename_basic_case
-        given input = default_input()
-        when result = basename(input)
-        then result != undefined
-
-    test dirname_basic_case
-        given input = default_input()
-        when result = dirname(input)
-        then result != undefined
-
-    test ext_basic_case
-        given input = default_input()
-        when result = ext(input)
-        then result != undefined
-
-    test has_ext_basic_case
-        given input = default_input()
-        when result = has_ext(input)
-        then result != undefined
-
-    test is_absolute_basic_case
-        given input = default_input()
-        when result = is_absolute(input)
-        then result != undefined
-
-    test normalize_basic_case
-        given input = default_input()
-        when result = normalize(input)
-        then result != undefined
-

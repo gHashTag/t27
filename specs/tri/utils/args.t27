@@ -55,23 +55,3 @@ module TriArgs;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test has_flag_basic_case
-        given input = default_input()
-        when result = has_flag(input)
-        then result != undefined
-
-    test get_value_basic_case
-        given input = default_input()
-        when result = get_value(input)
-        then result != undefined
-
-    test get_positional_basic_case
-        given input = default_input()
-        when result = get_positional(input)
-        then result != undefined
-

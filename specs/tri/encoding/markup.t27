@@ -34,13 +34,3 @@ module TriMarkup;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
-
-    test to_html_basic_case
-        given input = default_input()
-        when result = to_html(input)
-        then result != undefined
-

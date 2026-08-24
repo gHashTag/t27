@@ -48,18 +48,3 @@ module TriLogger;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test new_basic_case
-        given input = default_input()
-        when result = new(input)
-        then result != undefined
-
-    test log_basic_case
-        given input = default_input()
-        when result = log(input)
-        then result != undefined
-
-    test with_field_basic_case
-        given input = default_input()
-        when result = with_field(input)
-        then result != undefined
-

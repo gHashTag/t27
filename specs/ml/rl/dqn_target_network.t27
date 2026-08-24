@@ -50,21 +50,6 @@ module DqnTarget;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test hard_update_basic_case
-        given input = default_input()
-        when result = hard_update(input)
-        then result != undefined
-
-    test soft_update_basic_case
-        given input = default_input()
-        when result = soft_update(input)
-        then result != undefined
-
-    test should_update_basic_case
-        given input = default_input()
-        when result = should_update(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

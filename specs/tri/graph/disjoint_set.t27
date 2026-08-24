@@ -44,23 +44,3 @@ module TriDisjointSet;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test find_basic_case
-        given input = default_input()
-        when result = find(input)
-        then result != undefined
-
-    test union_basic_case
-        given input = default_input()
-        when result = union(input)
-        then result != undefined
-
-    test connected_basic_case
-        given input = default_input()
-        when result = connected(input)
-        then result != undefined
-

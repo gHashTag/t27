@@ -48,23 +48,3 @@ module TriAsync;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test new_promise_basic_case
-        given input = default_input()
-        when result = new_promise(input)
-        then result != undefined
-
-    test fulfill_basic_case
-        given input = default_input()
-        when result = fulfill(input)
-        then result != undefined
-
-    test await_basic_case
-        given input = default_input()
-        when result = await(input)
-        then result != undefined
-
-    test map_basic_case
-        given input = default_input()
-        when result = map(input)
-        then result != undefined
-

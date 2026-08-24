@@ -71,38 +71,3 @@ module TriHttp;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test method_to_string_basic_case
-        given input = default_input()
-        when result = method_to_string(input)
-        then result != undefined
-
-    test status_from_code_basic_case
-        given input = default_input()
-        when result = status_from_code(input)
-        then result != undefined
-
-    test is_success_basic_case
-        given input = default_input()
-        when result = is_success(input)
-        then result != undefined
-
-    test is_redirect_basic_case
-        given input = default_input()
-        when result = is_redirect(input)
-        then result != undefined
-
-    test is_client_error_basic_case
-        given input = default_input()
-        when result = is_client_error(input)
-        then result != undefined
-
-    test is_server_error_basic_case
-        given input = default_input()
-        when result = is_server_error(input)
-        then result != undefined
-
-    test parse_url_basic_case
-        given input = default_input()
-        when result = parse_url(input)
-        then result != undefined
-

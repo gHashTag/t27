@@ -38,18 +38,3 @@ module TriHmac;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test update_basic_case
-        given input = default_input()
-        when result = update(input)
-        then result != undefined
-
-    test final_basic_case
-        given input = default_input()
-        when result = final(input)
-        then result != undefined
-

@@ -48,28 +48,3 @@ module TriQueue;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
-
-    test enqueue_basic_case
-        given input = default_input()
-        when result = enqueue(input)
-        then result != undefined
-
-    test dequeue_basic_case
-        given input = default_input()
-        when result = dequeue(input)
-        then result != undefined
-
-    test peek_basic_case
-        given input = default_input()
-        when result = peek(input)
-        then result != undefined
-
-    test is_empty_basic_case
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
-

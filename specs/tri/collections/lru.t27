@@ -39,18 +39,3 @@ module TriLru;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
-
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
-

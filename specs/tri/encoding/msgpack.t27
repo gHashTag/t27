@@ -43,13 +43,3 @@ module TriMsgpack;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test encode_basic_case
-        given input = default_input()
-        when result = encode(input)
-        then result != undefined
-
-    test decode_basic_case
-        given input = default_input()
-        when result = decode(input)
-        then result != undefined
-

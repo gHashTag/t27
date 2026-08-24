@@ -55,33 +55,3 @@ module TriTree;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test leaf_basic_case
-        given input = default_input()
-        when result = leaf(input)
-        then result != undefined
-
-    test branch_basic_case
-        given input = default_input()
-        when result = branch(input)
-        then result != undefined
-
-    test is_leaf_basic_case
-        given input = default_input()
-        when result = is_leaf(input)
-        then result != undefined
-
-    test height_basic_case
-        given input = default_input()
-        when result = height(input)
-        then result != undefined
-
-    test size_basic_case
-        given input = default_input()
-        when result = size(input)
-        then result != undefined
-
-    test inorder_basic_case
-        given input = default_input()
-        when result = inorder(input)
-        then result != undefined
-

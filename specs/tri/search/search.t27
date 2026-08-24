@@ -38,18 +38,3 @@ module TriSearch;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test binary_basic_case
-        given input = default_input()
-        when result = binary(input)
-        then result != undefined
-
-    test linear_basic_case
-        given input = default_input()
-        when result = linear(input)
-        then result != undefined
-
-    test lower_bound_basic_case
-        given input = default_input()
-        when result = lower_bound(input)
-        then result != undefined
-

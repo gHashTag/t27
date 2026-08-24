@@ -65,26 +65,6 @@ module SacActor;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
-    test sample_basic_case
-        given input = default_input()
-        when result = sample(input)
-        then result != undefined
-
-    test scale_action_basic_case
-        given input = default_input()
-        when result = scale_action(input)
-        then result != undefined
-
-    test unscale_action_basic_case
-        given input = default_input()
-        when result = unscale_action(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

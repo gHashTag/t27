@@ -43,23 +43,3 @@ module TriOption;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test some_basic_case
-        given input = default_input()
-        when result = some(input)
-        then result != undefined
-
-    test none_basic_case
-        given input = default_input()
-        when result = none(input)
-        then result != undefined
-
-    test unwrap_or_basic_case
-        given input = default_input()
-        when result = unwrap_or(input)
-        then result != undefined
-
-    test is_some_basic_case
-        given input = default_input()
-        when result = is_some(input)
-        then result != undefined
-

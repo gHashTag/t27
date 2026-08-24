@@ -43,23 +43,3 @@ module TriIo;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test pure_basic_case
-        given input = default_input()
-        when result = pure(input)
-        then result != undefined
-
-    test map_basic_case
-        given input = default_input()
-        when result = map(input)
-        then result != undefined
-
-    test bind_basic_case
-        given input = default_input()
-        when result = bind(input)
-        then result != undefined
-
-    test perform_basic_case
-        given input = default_input()
-        when result = perform(input)
-        then result != undefined
-

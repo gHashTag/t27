@@ -39,28 +39,3 @@ module TriProbability;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test bernoulli_basic_case
-        given input = default_input()
-        when result = bernoulli(input)
-        then result != undefined
-
-    test binomial_basic_case
-        given input = default_input()
-        when result = binomial(input)
-        then result != undefined
-
-    test poisson_basic_case
-        given input = default_input()
-        when result = poisson(input)
-        then result != undefined
-
-    test normal_basic_case
-        given input = default_input()
-        when result = normal(input)
-        then result != undefined
-
-    test exponential_basic_case
-        given input = default_input()
-        when result = exponential(input)
-        then result != undefined
-

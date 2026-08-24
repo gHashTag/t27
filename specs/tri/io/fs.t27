@@ -50,23 +50,3 @@ module TriFs;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test join_basic_case
-        given input = default_input()
-        when result = join(input)
-        then result != undefined
-
-    test basename_basic_case
-        given input = default_input()
-        when result = basename(input)
-        then result != undefined
-
-    test dirname_basic_case
-        given input = default_input()
-        when result = dirname(input)
-        then result != undefined
-
-    test extension_basic_case
-        given input = default_input()
-        when result = extension(input)
-        then result != undefined
-

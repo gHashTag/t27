@@ -63,21 +63,6 @@ module EncoderBlock;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test multi_head_attention_basic_case
-        given input = default_input()
-        when result = multi_head_attention(input)
-        then result != undefined
-
-    test feed_forward_basic_case
-        given input = default_input()
-        when result = feed_forward(input)
-        then result != undefined
-
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

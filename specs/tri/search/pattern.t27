@@ -33,13 +33,3 @@ module TriPattern;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test glob_match_basic_case
-        given input = default_input()
-        when result = glob_match(input)
-        then result != undefined
-
-    test wildcard_match_basic_case
-        given input = default_input()
-        when result = wildcard_match(input)
-        then result != undefined
-

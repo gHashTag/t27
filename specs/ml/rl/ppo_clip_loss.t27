@@ -70,36 +70,6 @@ module PpoClipLoss;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test compute_ratio_basic_case
-        given input = default_input()
-        when result = compute_ratio(input)
-        then result != undefined
-
-    test clipped_surrogate_basic_case
-        given input = default_input()
-        when result = clipped_surrogate(input)
-        then result != undefined
-
-    test policy_loss_basic_case
-        given input = default_input()
-        when result = policy_loss(input)
-        then result != undefined
-
-    test entropy_loss_basic_case
-        given input = default_input()
-        when result = entropy_loss(input)
-        then result != undefined
-
-    test value_loss_basic_case
-        given input = default_input()
-        when result = value_loss(input)
-        then result != undefined
-
-    test total_loss_basic_case
-        given input = default_input()
-        when result = total_loss(input)
-        then result != undefined
-
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════

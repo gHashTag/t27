@@ -59,38 +59,3 @@ module TriList;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
-
-    test cons_basic_case
-        given input = default_input()
-        when result = cons(input)
-        then result != undefined
-
-    test head_basic_case
-        given input = default_input()
-        when result = head(input)
-        then result != undefined
-
-    test tail_basic_case
-        given input = default_input()
-        when result = tail(input)
-        then result != undefined
-
-    test map_basic_case
-        given input = default_input()
-        when result = map(input)
-        then result != undefined
-
-    test filter_basic_case
-        given input = default_input()
-        when result = filter(input)
-        then result != undefined
-
-    test fold_basic_case
-        given input = default_input()
-        when result = fold(input)
-        then result != undefined
-

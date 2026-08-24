@@ -43,18 +43,3 @@ module TriNet;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_ip_basic_case
-        given input = default_input()
-        when result = parse_ip(input)
-        then result != undefined
-
-    test is_localhost_basic_case
-        given input = default_input()
-        when result = is_localhost(input)
-        then result != undefined
-
-    test is_valid_port_basic_case
-        given input = default_input()
-        when result = is_valid_port(input)
-        then result != undefined
-

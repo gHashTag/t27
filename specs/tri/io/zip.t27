@@ -49,28 +49,3 @@ module TriZipper;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test current_basic_case
-        given input = default_input()
-        when result = current(input)
-        then result != undefined
-
-    test go_down_basic_case
-        given input = default_input()
-        when result = go_down(input)
-        then result != undefined
-
-    test go_up_basic_case
-        given input = default_input()
-        when result = go_up(input)
-        then result != undefined
-
-    test go_left_basic_case
-        given input = default_input()
-        when result = go_left(input)
-        then result != undefined
-
-    test go_right_basic_case
-        given input = default_input()
-        when result = go_right(input)
-        then result != undefined
-

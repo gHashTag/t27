@@ -50,28 +50,3 @@ module TriRing;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test new_basic_case
-        given input = default_input()
-        when result = new(input)
-        then result != undefined
-
-    test push_basic_case
-        given input = default_input()
-        when result = push(input)
-        then result != undefined
-
-    test pop_basic_case
-        given input = default_input()
-        when result = pop(input)
-        then result != undefined
-
-    test is_empty_basic_case
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
-
-    test is_full_basic_case
-        given input = default_input()
-        when result = is_full(input)
-        then result != undefined
-

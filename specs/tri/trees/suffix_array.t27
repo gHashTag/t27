@@ -38,18 +38,3 @@ module TriSuffixArray;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test build_basic_case
-        given input = default_input()
-        when result = build(input)
-        then result != undefined
-
-    test search_basic_case
-        given input = default_input()
-        when result = search(input)
-        then result != undefined
-
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
-

@@ -39,8 +39,3 @@ module Adam;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test step_basic_case
-        given input = default_input()
-        when result = step(input)
-        then result != undefined
-

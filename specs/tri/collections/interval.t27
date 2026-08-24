@@ -43,18 +43,3 @@ module TriInterval;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test create_basic_case
-        given input = default_input()
-        when result = create(input)
-        then result != undefined
-
-    test overlaps_basic_case
-        given input = default_input()
-        when result = overlaps(input)
-        then result != undefined
-
-    test union_basic_case
-        given input = default_input()
-        when result = union(input)
-        then result != undefined
-

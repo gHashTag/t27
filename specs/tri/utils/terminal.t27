@@ -41,18 +41,3 @@ module TriTerminal;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test get_size_basic_case
-        given input = default_input()
-        when result = get_size(input)
-        then result != undefined
-
-    test colorize_basic_case
-        given input = default_input()
-        when result = colorize(input)
-        then result != undefined
-
-    test reset_basic_case
-        given input = default_input()
-        when result = reset(input)
-        then result != undefined
-

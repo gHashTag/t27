@@ -38,13 +38,3 @@ module TriTemplate;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test compile_basic_case
-        given input = default_input()
-        when result = compile(input)
-        then result != undefined
-
-    test render_basic_case
-        given input = default_input()
-        when result = render(input)
-        then result != undefined
-

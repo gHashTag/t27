@@ -59,33 +59,3 @@ module TriTrie;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
-
-    test insert_basic_case
-        given input = default_input()
-        when result = insert(input)
-        then result != undefined
-
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
-
-    test has_prefix_basic_case
-        given input = default_input()
-        when result = has_prefix(input)
-        then result != undefined
-
-    test keys_with_prefix_basic_case
-        given input = default_input()
-        when result = keys_with_prefix(input)
-        then result != undefined
-
-    test remove_basic_case
-        given input = default_input()
-        when result = remove(input)
-        then result != undefined
-

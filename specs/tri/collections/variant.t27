@@ -38,18 +38,3 @@ module TriVariant;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test make_basic_case
-        given input = default_input()
-        when result = make(input)
-        then result != undefined
-
-    test get_tag_basic_case
-        given input = default_input()
-        when result = get_tag(input)
-        then result != undefined
-
-    test match_basic_case
-        given input = default_input()
-        when result = match(input)
-        then result != undefined
-

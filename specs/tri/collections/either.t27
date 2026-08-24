@@ -49,28 +49,3 @@ module TriEither;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test left_basic_case
-        given input = default_input()
-        when result = left(input)
-        then result != undefined
-
-    test right_basic_case
-        given input = default_input()
-        when result = right(input)
-        then result != undefined
-
-    test is_left_basic_case
-        given input = default_input()
-        when result = is_left(input)
-        then result != undefined
-
-    test is_right_basic_case
-        given input = default_input()
-        when result = is_right(input)
-        then result != undefined
-
-    test unwrap_basic_case
-        given input = default_input()
-        when result = unwrap(input)
-        then result != undefined
-

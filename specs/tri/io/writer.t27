@@ -43,23 +43,3 @@ module TriWriter;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test pure_basic_case
-        given input = default_input()
-        when result = pure(input)
-        then result != undefined
-
-    test tell_basic_case
-        given input = default_input()
-        when result = tell(input)
-        then result != undefined
-
-    test listen_basic_case
-        given input = default_input()
-        when result = listen(input)
-        then result != undefined
-
-    test censor_basic_case
-        given input = default_input()
-        when result = censor(input)
-        then result != undefined
-

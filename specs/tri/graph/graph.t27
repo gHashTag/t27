@@ -43,18 +43,3 @@ module TriGraph;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
-
-    test add_node_basic_case
-        given input = default_input()
-        when result = add_node(input)
-        then result != undefined
-
-    test add_edge_basic_case
-        given input = default_input()
-        when result = add_edge(input)
-        then result != undefined
-

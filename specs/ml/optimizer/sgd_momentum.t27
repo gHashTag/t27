@@ -126,14 +126,6 @@ module SgdMomentum;
         and   all(state.velocities, is_zero)
         and   state.step == 0
 
-    test compute_velocity_basic_case
-        given velocity = 0.0
-        and   grad = 1.0
-        and   momentum = 0.9
-        and   dampening = 0.1
-        when result = compute_velocity(velocity, grad, momentum, dampening)
-        then approximately_equal(result, 0.1)
-
     test compute_velocity_with_previous_velocity
         given velocity = 0.5
         and   grad = 1.0

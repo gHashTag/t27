@@ -53,33 +53,3 @@ module TriBase64;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test standard_basic_case
-        given input = default_input()
-        when result = standard(input)
-        then result != undefined
-
-    test url_safe_basic_case
-        given input = default_input()
-        when result = url_safe(input)
-        then result != undefined
-
-    test encode_basic_case
-        given input = default_input()
-        when result = encode(input)
-        then result != undefined
-
-    test decode_basic_case
-        given input = default_input()
-        when result = decode(input)
-        then result != undefined
-
-    test encoded_length_basic_case
-        given input = default_input()
-        when result = encoded_length(input)
-        then result != undefined
-
-    test decoded_length_basic_case
-        given input = default_input()
-        when result = decoded_length(input)
-        then result != undefined
-

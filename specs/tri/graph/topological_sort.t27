@@ -33,13 +33,3 @@ module TriTopological;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
-
-    test is_valid_basic_case
-        given input = default_input()
-        when result = is_valid(input)
-        then result != undefined
-

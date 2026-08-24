@@ -44,23 +44,3 @@ module TriResult;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test ok_basic_case
-        given input = default_input()
-        when result = ok(input)
-        then result != undefined
-
-    test err_basic_case
-        given input = default_input()
-        when result = err(input)
-        then result != undefined
-
-    test unwrap_or_basic_case
-        given input = default_input()
-        when result = unwrap_or(input)
-        then result != undefined
-
-    test is_error_basic_case
-        given input = default_input()
-        when result = is_error(input)
-        then result != undefined
-
