@@ -5604,7 +5604,12 @@ impl Codegen {
                             if is_numeric {
                                 self.write(&case_node.name);
                             } else {
-                                self.write(&format!(".{}", case_node.name));
+                                // Ninth binding site. `.error => "error"` --
+                                // an enum literal in a switch prong, and Zig
+                                // reports it on the PRECEDING prong, which is
+                                // why it read as a switch defect rather than a
+                                // keyword one. 7 sites in 5 files, all `.error`.
+                                self.write(&format!(".{}", zig_ident(&case_node.name)));
                             }
                         } else {
                             self.write("else");
