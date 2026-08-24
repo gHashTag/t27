@@ -3322,7 +3322,23 @@ impl Parser {
         let mut left = self.parse_expr_unary()?;
         while matches!(
             self.current.kind,
-            TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power
+            TokenKind::Star
+                | TokenKind::Slash
+                | TokenKind::Percent
+                | TokenKind::Power
+                // `++` was lexed and then never mentioned in the parser, so no
+                // precedence level consumed it. At statement level the damage
+                // is contained -- recovery skips to the `;`. Inside a struct
+                // literal the field loop breaks, `expect(RBrace)` fails, and
+                // the ENCLOSING DECLARATION is swallowed along with every
+                // declaration after it: lsp/protocol declares 23 public
+                // functions and the tree held 3.
+                //
+                // Placed at the multiplicative level, where Zig puts it. The
+                // emitter writes `left op right` without parentheses, so a
+                // different level here would silently change the meaning of a
+                // mixed expression.
+                | TokenKind::PlusPlus
         ) {
             let op = self.current.lexeme.clone();
             self.advance();

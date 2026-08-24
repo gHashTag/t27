@@ -128,15 +128,16 @@ def measure():
 #
 # `pub fn stats(g: &KG) -> struct { entities: u32 }` is one such loss: the
 # whole function is absent from the tree, no recovery, gate green. Measured
-# corpus-wide: 78 public declarations gone, of which 50 are in pure-t27 specs
-# and 28 in the 66 Rust-dialect files, which t27 is not expected to parse. The
+# corpus-wide: 78 when this gate was added, 58 after #2648 gave `++` a
+# precedence level -- lsp/protocol alone was losing 20. Of the 58, 30 are in
+# pure-t27 specs and 28 in the 66 Rust-dialect files, which t27 is not expected to parse. The
 # ceiling covers both because this gate globs specs/ and has no dialect
 # manifest; splitting it would couple the gate to RUST_DIALECT.json for no
 # gain, since the ratchet only has to stop the number rising.
 #
 # This check is deliberately OUTSIDE the parser -- source names against tree
 # names -- so it cannot be fooled the same way the self-report can.
-LOST_CEILING = 78
+LOST_CEILING = 58
 
 DECL_RE = re.compile(r'^\s*pub\s+(?:fn|const|struct|enum|type)\s+([A-Za-z_]\w*)', re.M)
 TREE_NAME_RE = re.compile(r'name: "([^"]*)"')
