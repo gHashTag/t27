@@ -1,3 +1,2 @@
 tri-mining	contrib/solana/programs/tri-mining
-tri_to_t27	tools/converter
 trinity-core	backend/trinity-core

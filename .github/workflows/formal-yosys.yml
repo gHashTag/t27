@@ -904,6 +904,19 @@ jobs:
       - name: Workspace check (all crates, all targets)
         run: cargo check --workspace --all-targets
 
+      # tools/converter is OUTSIDE the workspace (Cargo.toml `exclude`), so the
+      # --workspace check above cannot see it. It was one of three crates the
+      # coverage baseline recorded as knowingly ungated, and #2623 measured what
+      # that cost: the converter wrote `given input = default_input()` into
+      # every stub test it generated, defining `default_input` nowhere, and
+      # #2668 measured that one name blocking 150 specs.
+      #
+      # Checked by manifest path rather than made a workspace member: promoting
+      # it rewrites Cargo.lock, which currently carries someone else's
+      # uncommitted work.
+      - name: Converter check (outside the workspace, hence explicit)
+        run: cargo check --manifest-path tools/converter/Cargo.toml --all-targets
+
       - name: Crate coverage scan — every crate must be built by some workflow
         run: python3 formal/crate_coverage_scan.py
 
