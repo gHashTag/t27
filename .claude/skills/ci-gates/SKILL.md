@@ -4426,3 +4426,71 @@ cannot do its job.** A plant that cannot find its anchor has not tested a
 weaker version of the subject; it has tested nothing, and must say so rather
 than return a verdict. §85 found the same thing in a planted *tree* dying on an
 import; this is the same defect in a planted *edit*.
+
+## 116. Three sweeps, three ways of never reaching the branch
+
+Four sites carry the same renormalisation line — `enc`, `_magmul`, `_magadd`,
+`_magsub`, each ending in `if mant >= 512: mant = 0; <exponent> += 1` — and all
+four survived `>=` → `>`. Three probes in a row reported **no difference**, and
+every one of them was wrong about the probe, not about the subject.
+
+| probe | why it read clean |
+|---|---|
+| swept `1.0 + k/4096` | every value in one binade, so `off = 40` throughout — **even** |
+| swept `(512+k)·2^(e−9)` | exactly representable, and the branch is reached **only** by rounding up from 511 |
+| four separate builds | one character changed, so file **size** was unchanged and Python reused the first build's `__pycache__` |
+
+The mechanism the first two miss: the mutant leaves `mant == 512`, and
+`(off << 9) | 512` is **identical** to `((off + 1) << 9)` whenever `off` is
+**even**, because `512 == 1 << 9` is the low bit of the exponent field. The
+stuck mantissa renormalises the value *by accident* on half the exponent space.
+So the defect is not rare — it is **invisible on half the inputs**, and a sweep
+that holds the exponent fixed lands entirely inside the invisible half.
+
+**A sweep that varies one coordinate finely proves nothing about the coordinate
+it holds fixed.** Fine resolution inside one binade reads as thoroughness and
+is not: 4096 samples of a single `off` answer one question 4096 times. What was
+needed was the exponent's **parity** — a property the sweep never varied because
+it never occurred to me that the exponent was a coordinate at all.
+
+### The stale-bytecode run is the one worth keeping
+
+It reported all four sites with the **same** difference count at the **same**
+position — inside a function three of them do not touch. That is impossible,
+and impossible is cheap to notice. Had the cache produced a merely *plausible*
+table, it would have shipped.
+
+`-B` (or clearing `__pycache__`) is the fix, but the transferable part is the
+precondition: **mutation harnesses generate same-size files by construction.**
+`>=` → `>`, `<` → `<=`, `return 1` → `return 0` all preserve or barely move the
+length, and same-size plus coarse mtime is exactly the case Python's bytecode
+cache resolves in favour of the stale copy. A harness that rebuilds a module
+in place is the one place this hits hardest, and it hits silently.
+
+### What actually established the harness worked
+
+A **positive control on the harness**: plant a mutant already proven live
+(§114's `r > half`) and require differences. It reported 66 — so the harness was
+sound while its answers were still wrong, which localised the fault to the input
+space rather than the machinery. Without it I would have concluded the sites
+were unreachable and closed them as equivalent mutants.
+
+### One site was structurally different and the count said so
+
+In `_magmul` the carry path cannot reach `mant == 512` **in principle**: the
+largest product is `1023 * 1023 == 1046529`, giving `q == 1022`, `mant == 510`.
+Only the no-carry path distinguishes that site. My hand-derivation said
+`q == 1021`. The computation said `1022`. Both support the same conclusion, and
+that is the point — **the conclusion surviving does not make the derivation
+right**, and only the one I ran was checked. This is the second time this
+campaign a hand-derived intermediate was off while its conclusion held.
+
+### The four assertions are load-bearing, and that was measured too
+
+Each holds clean, fails when its own site is mutated, and **catches no other
+site's mutant**. Without the third check, four assertions could have been one
+real one and three duplicates wearing different arguments — indistinguishable
+from the outside, and a maintainer deleting "the redundant ones" would have been
+right three times and catastrophically wrong once.
+
+Boundary column for the file, measured: **killed 8/31 → 12/31**.

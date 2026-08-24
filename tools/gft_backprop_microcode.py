@@ -502,6 +502,32 @@ if __name__ == "__main__":
     assert _magmul(20512, 20976) == 21016, "mul: tie, odd q, carry -- must round to even"
     print("self-test: multiplier round-half-to-even, both carry paths -- OK")
 
+    # RENORMALISATION AFTER ROUNDING, at all four sites that carry it: `enc`,
+    # `_magmul`, `_magadd`, `_magsub` each end in
+    #     if mant >= 512: mant = 0; <exponent> += 1
+    # and each survived `>=` -> `>` for the same reason. The mutant leaves
+    # mant == 512, and `(off << 9) | 512` is IDENTICAL to `((off + 1) << 9)`
+    # whenever `off` is EVEN -- 512 == 1 << 9 is the low bit of the exponent
+    # field, so the stuck mantissa renormalises the value by accident. HALF THE
+    # EXPONENT SPACE HIDES THE DEFECT, and a sweep that does not vary the
+    # exponent's PARITY reads a correct answer every single time.
+    #
+    # Two further reasons a sweep misses this, both measured:
+    #   * mant == 512 is reached only by rounding UP from 511, so a sweep of
+    #     exactly-representable inputs never enters the branch at all;
+    #   * in `_magmul` the carry path cannot reach it even in principle -- the
+    #     largest product is 1023 * 1023 == 1046529, giving q == 1022 and
+    #     mant == 510. Only the no-carry path distinguishes that site.
+    #
+    # Each line below was checked both ways: it holds here, and it fails when
+    # its own site is mutated. None of them catches any other site's mutant,
+    # so all four are load-bearing.
+    assert enc(0.062469482421875) == 18432, "enc: mantissa rounding to 512 must carry into the exponent"
+    assert _magmul(10241, 11262) == 1024, "mul: mant == 512 must carry (odd exponent makes it visible)"
+    assert _magadd(10241, 11007) == 11264, "add: mant == 512 must carry"
+    assert _magsub(14338, 10241) == 14336, "sub: mant == 512 must carry"
+    print("self-test: renormalisation carries at all four sites -- OK")
+
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)
         print(f"arch {arch}: {len(reg)} regs, {len(steps)} microcode steps")
