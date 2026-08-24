@@ -5619,7 +5619,7 @@ impl Codegen {
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
     fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
-        let text = zig_path(&node.name);
+        let text = rewrite_array_repeats(&zig_path(&node.name));
         self.write_indent();
         if node.extra_kind == "then" {
             // Zig has no `==` for strings. `then name == "Arty A7"` is 45 of
@@ -8742,6 +8742,66 @@ fn is_zig_primitive(name: &str) -> bool {
 
 /// Is this token's text usable as an identifier? Keywords are: a spec may
 /// name a variable `module` or `test`, and the lexer hands those back as Kw*.
+/// Rust's repeat literal `[X; N]` as Zig's `.{X} ** N`.
+///
+/// A behaviour clause is rendered from captured text, not from a node, so the
+/// array-literal emitter that already handles this form never sees it:
+/// `given m2 = MemDesc{ .ports = [empty_mem_port(); 8] }` reached the output
+/// verbatim and Zig reported `expected ']', found ';'`. 57 sites in 8 specs
+/// that are not in the Rust-dialect manifest.
+///
+/// `.{X} ** N` and not `[_]T{X} ** N`: the element type is not available here,
+/// and a tuple coerces to the array the context expects. Checked on the
+/// compiler for an annotated local, a struct-literal field, a call element and
+/// an enum element before being used.
+fn rewrite_array_repeats(text: &str) -> String {
+    let bytes: Vec<char> = text.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != '[' {
+            out.push(bytes[i]);
+            i += 1;
+            continue;
+        }
+        // find the matching ] and a top-level ; inside it
+        let mut depth = 0usize;
+        let mut semi: Option<usize> = None;
+        let mut close: Option<usize> = None;
+        for (j, c) in bytes.iter().enumerate().skip(i) {
+            match c {
+                '[' | '(' | '{' => depth += 1,
+                ']' | ')' | '}' => {
+                    depth -= 1;
+                    if depth == 0 && *c == ']' {
+                        close = Some(j);
+                        break;
+                    }
+                }
+                ';' if depth == 1 => semi = Some(j),
+                _ => {}
+            }
+        }
+        match (semi, close) {
+            (Some(sc), Some(cl)) => {
+                let elem: String = bytes[i + 1..sc].iter().collect();
+                let count: String = bytes[sc + 1..cl].iter().collect();
+                out.push_str(&format!(
+                    ".{{{}}} ** {}",
+                    rewrite_array_repeats(elem.trim()),
+                    count.trim()
+                ));
+                i = cl + 1;
+            }
+            _ => {
+                out.push(bytes[i]);
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
 fn is_identifier_text(lexeme: &str) -> bool {
     let mut chars = lexeme.chars();
     match chars.next() {
