@@ -118,7 +118,30 @@ def gen_pairs(g):
     random.seed(202)
     vals = [g.enc(round(random.uniform(-4, 4), 3)) for _ in range(48)]
     vals += [g.enc(0.0), g.enc(1.0), g.enc(-1.0), g.enc(2.0), g.enc(0.5), g.enc(-2.0), g.enc(0.25)]
-    return [(random.choice(vals), random.choice(vals)) for _ in range(N)]
+    pairs = [(random.choice(vals), random.choice(vals)) for _ in range(N)]
+
+    # Everything above lives in [-4, 4], which is `off` 35..41 -- SIX of the
+    # format's 81 exponents. Measured, not estimated: the 600 pairs touch no
+    # value outside that band, so a divergence that only appears when the two
+    # operands are decades apart has never been in front of this gate.
+    #
+    # The pairs below are APPENDED rather than mixed into `vals`: drawing from
+    # a longer list under the same seed would replace all 600 existing pairs,
+    # which trades coverage for coverage instead of adding it. The old rows
+    # stay byte-identical; these are new rows.
+    #
+    # `d = ho - lo_o` is what selects the alignment path, so the grid varies
+    # BOTH exponents independently -- a sweep that moves them together holds
+    # the interesting variable fixed, which is how iteration 207's binade
+    # mistake happened.
+    wide = []
+    for e in range(-40, 41, 8):
+        for m in (1.0, 1.5, 1.0 + 1.0 / 512, 2.0 - 1.0 / 512):
+            wide.append(g.enc(m * 2.0**e))
+            wide.append(g.enc(-m * 2.0**e))
+    step = max(1, len(wide) // 12)
+    pairs += [(a, b) for a in wide for b in wide[::step]]
+    return pairs
 
 
 def py_ref(g, fn, pairs):

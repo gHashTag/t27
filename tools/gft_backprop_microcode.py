@@ -10,8 +10,13 @@ same ~3K-LUT datapath; only the microcode length (= time) and register file grow
 This tool GENERATES the backprop microcode for a 2-layer net (n_in inputs, n_hid
 ReLU hidden with fixed biases, n_out linear outputs) and self-tests it with a
 bit-faithful GF-T interpreter (trains XOR to 4/4), proving the generated program
-is correct. Emitting the Verilog case-ROM from `steps` is mechanical (see
-board/bpseq.v for the hand-written (2,2,1) version this reproduces).
+is correct. Emitting the Verilog case-ROM from `steps` is mechanical.
+
+This docstring used to point at `board/bpseq.v` for "the hand-written (2,2,1)
+version this reproduces". That path has never existed in this repository --
+`git log --all -- board/bpseq.v` is empty. The arithmetic this file mirrors is
+`specs/ternary/gft_sadd.t27`, which is what t27c compiles to Verilog, C and
+Rust, and which 30 specs under specs/ternary/ carry a copy of.
 
 Op: 'MUL'|'ADD'|'MOV'.  Operand mod: 0 none, 1 relu, 2 relu', 3 neg, 4 -eta*x
 (neg . scale_q, eta=2^-k). Hidden biases fixed at c=[0,-1,-1,...] (the XOR trick).
@@ -556,8 +561,19 @@ if __name__ == "__main__":
     # hm=300, lm=401, d=20 the code's `diff` is 13303794 against an exact
     # 13303793.734375 -- so a tie with lost bits sits strictly BELOW half and
     # must round DOWN. The arm rounds up. It has never been wrong only because
-    # it has never run. Reported, not changed: this mirrors board/bpseq.v, and
-    # the two must move together.
+    # it has never run. Reported as #2652, not changed.
+    #
+    # MEASURED SINCE: the counterpart is `specs/ternary/gft_sadd.t27`, not
+    # `board/bpseq.v` -- that path has never existed in this repository. The
+    # spec carries the rule line for line, and 30 specs under specs/ternary/
+    # carry a copy of it. The arm is dead there too: an exhaustive search over
+    # every (hm, lm, d) for ho in {2, 3, 4, 13, 40, 79} finds no tie with
+    # sticky == 1, and the spec's barrel-shift normalisation agrees with this
+    # file's 12-step loop bit-for-bit over 2_193_075 points.
+    #
+    # So the generated Verilog, C and Rust all carry the same dormant rule, and
+    # the cross-target bit-exactness gates cannot see it: they prove the
+    # COMPILER faithful to the spec, never the spec correct.
     #
     # `if d >= 26` -> `if d > 26` is an EQUIVALENT mutant, not a survivor worth
     # chasing: at d == 26 the else branch computes `la = ls >> 26 == 0` (ls is
