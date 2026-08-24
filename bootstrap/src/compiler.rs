@@ -2149,7 +2149,14 @@ impl Parser {
     fn parse_enum_body(&mut self, decl: &mut Node) -> Result<(), String> {
         // We are inside { ... } of an enum. Parse variant = value pairs.
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
-            if self.current.kind == TokenKind::Ident {
+            // Must land WITH the switch-arm fix above, not after it: with the
+            // arm alone the emitted Zig still fails with `enum 'SymbolKind'
+            // has no member named 'module'`, because the member is dropped
+            // here independently. 8 members across 4 specs -- `module`, `enum`,
+            // `struct`, `continue`.
+            if self.current.kind == TokenKind::Ident
+                || is_identifier_text(&self.current.lexeme)
+            {
                 let name = self.current.lexeme.clone();
                 self.advance();
 
@@ -4110,7 +4117,19 @@ impl Parser {
             // Pattern
             if self.current.kind == TokenKind::Dot {
                 self.advance(); // consume .
-                if self.current.kind == TokenKind::Ident {
+                // A keyword is a legal enum member, so it is a legal switch
+                // arm. `.module => "module",` in specs/lsp/language.t27 made
+                // the parser abandon the enclosing function AND recovery then
+                // consumed the rest of the file: 14 real behaviour tests, 12
+                // invariants and 5 benches never reached the output. It is the
+                // only whole-file kill of this class in 497 specs.
+                //
+                // The Zig backend is already keyword-safe -- zig_ident wraps a
+                // Zig keyword in `@"..."` at every emit site, including switch
+                // arms -- and `module` is not a Zig keyword, so it emits bare.
+                if self.current.kind == TokenKind::Ident
+                    || is_identifier_text(&self.current.lexeme)
+                {
                     arm.name = self.current.lexeme.clone();
                     self.advance();
                 }

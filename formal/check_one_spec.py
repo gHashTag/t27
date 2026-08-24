@@ -49,7 +49,10 @@ def main() -> int:
 
     rel = spec.relative_to(ROOT / "specs").with_suffix(".zig")
     shim = tree / f"__root_{str(rel).replace('/', '_')}"
-    shim.write_text(f'comptime {{ _ = @import("{rel.as_posix()}"); }}\n')
+    # `test`, not `comptime`: a comptime reference does not force full
+    # analysis, and reported "All 0 tests passed" for a file with 14 tests.
+    # The shim's own test is subtracted from the count below.
+    shim.write_text(f'test {{ _ = @import("{rel.as_posix()}"); }}\n')
 
     res = subprocess.run(
         ["zig", "test", shim.name], capture_output=True, cwd=tree, timeout=180
@@ -63,7 +66,7 @@ def main() -> int:
     print(f"  spec: {sys.argv[1]}")
     print(f"  exit: {res.returncode}")
     if passed:
-        print(f"  tests passed: {passed.group(1)}")
+        print(f"  tests passed: {max(0, int(passed.group(1)) - 1)}")
     if failed:
         print(f"  tests passed: {failed.group(1)}   FAILED: {failed.group(2)}")
     if own:

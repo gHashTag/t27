@@ -68,9 +68,14 @@ def run(f):
     # root where the spec paths are written against.
     z = pathlib.Path(f).with_suffix(".zig")
     shim = WORK / f"__root_{z.as_posix().replace('/', '_')}"
-    # `comptime`, not `test`: a test block in the shim would be counted in
-    # "All N tests passed" and inflate the assertion figure by one per spec.
-    shim.write_text(f'comptime {{ _ = @import("{z.relative_to("specs").as_posix()}"); }}\n')
+    # `test`, not `comptime`, and the shim's own test subtracted below.
+    #
+    # A `comptime` reference does not force full analysis: for
+    # specs/lsp/language.t27 -- 14 tests in the emitted file -- it reported
+    # exit 0 and "All 0 tests passed", while the `test` form reported a real
+    # error in the file. A shim that can answer "fine, nothing to run" about a
+    # file it never analysed is not an instrument.
+    shim.write_text(f'test {{ _ = @import("{z.relative_to("specs").as_posix()}"); }}\n')
     try:
         res = subprocess.run(["zig", "test", shim.name], capture_output=True,
                              cwd=WORK, timeout=120)
@@ -79,7 +84,8 @@ def run(f):
     txt = (res.stdout + res.stderr).decode("utf-8", "replace")
     if res.returncode == 0:
         m = re.search(r"All (\d+) tests passed", txt)
-        return ("passed", int(m.group(1)) if m else 0, "")
+        # minus the shim's own test
+        return ("passed", max(0, int(m.group(1)) - 1) if m else 0, "")
     if "test failure" in txt or "TestUnexpectedResult" in txt:
         return ("ASSERTION FAILED", 0, "")
     miss = re.findall(r"unable to load '([^']+)'", txt)
