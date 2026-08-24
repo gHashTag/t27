@@ -4228,3 +4228,44 @@ This is the whole campaign's subject arriving in the shell one-liner used to
 investigate it. Before suspecting the subject, look at how many times the
 question was asked -- and against a moving system, asking twice is already a
 different question.
+
+## 109. When you cannot separate two populations, show them
+
+§106 established that the boundary column's denominator holds two populations —
+comparisons that decide a verdict, and loop bounds and display cutoffs that
+cannot — and that no line-local filter can separate them, because a kill is the
+only proof of verdict-reachability and the filter removed proven kills.
+
+That leaves the column unreadable rather than wrong. `SURVIVED at boundary
+lines 45, 91, 214, 223, 226, 409` tells a reader nothing they can act on.
+
+Two changes, neither of which touches the measurement:
+
+**Print the source beside the line number**, for this operator only:
+
+```
+91   `if len(out) > 6:`          <- a display cutoff
+214  `while len(v) < N:`         <- a loop bound
+226  `while j < len(src):`       <- a scan bound
+223  `if b < 0:`                 <- the only one worth reading
+```
+
+Five of six classify themselves at a glance. The reader does the separation the
+tool cannot, and does it in seconds instead of opening the file.
+
+**Say what the denominator is**, in the summary, only when this operator ran:
+
+> *"its denominator counts EVERY comparison, including loop bounds and display
+> cutoffs, where a survivor is the right answer. The killed count is a lower
+> bound on the comparisons that reach a verdict — proven by the kill itself. Do
+> not read killed/total there as a rate; the denominator is two populations."*
+
+The general rule, and it is the honest alternative to a filter that lies:
+**when a metric mixes populations you cannot separate, do not report a ratio —
+report the members.** A rate over a mixed denominator invites exactly the
+conclusion this whole file exists to prevent, and it invites it most from the
+person who computed it.
+
+The killed count keeps its meaning either way: it is a **lower bound**,
+established after the fact, on how many comparisons reach a verdict. That is a
+smaller claim than a percentage and it is true.
