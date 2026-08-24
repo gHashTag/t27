@@ -5282,7 +5282,18 @@ impl Codegen {
             // referenced.
             if node.extra_kind != "fnlit" {
                 self.write_indent();
-                self.write_line("@compileError(\"not yet implemented\");");
+                // `@panic`, not `@compileError`.
+                //
+                // An unwritten spec function should fail loudly, and both do --
+                // but @compileError fails at COMPILE time, which takes the
+                // whole file with it. 963 of these across 233 files, every one
+                // of them unbuildable by construction, and ast-check never said
+                // so because it does no semantic analysis (#2673).
+                //
+                // @panic is noreturn too, so a non-void return type is still
+                // satisfied. The file compiles, its other tests run, and any
+                // call to this function still fails.
+                self.write_line("@panic(\"not yet implemented\");");
             }
         } else {
             self.gen_scoped_stmts(children);

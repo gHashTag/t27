@@ -18,7 +18,8 @@ CAVEATS, because this is a sample tool and not a gate:
   - Every spec is emitted into ONE directory so `@import("x.zig")` resolves by
     basename. 22 basenames collide and the last write wins, so a few files are
     testing against the wrong sibling.
-  - It runs the first 40 valid specs, not all of them. `zig test` builds a
+  - It runs 40 valid specs spaced evenly across the sorted set, not all of
+    them. `zig test` builds a
     binary per spec and the disk on this machine has been the binding
     constraint all week.
 
@@ -51,7 +52,13 @@ print(f"  emitted {len(allspecs)} specs into one directory")
 print(f"  basename collisions (last wins): {dupes}")
 
 valid = sorted(f for f, v in r.items() if v.get("first") == "VALID" and f.startswith("specs/"))
-sample = valid[:40]
+# Evenly spaced across the sorted set, not the first 40.
+#
+# `valid[:40]` is alphabetical, so it was a sample of `api/`, `automation/`,
+# `base/` and `boards/` -- four subtrees out of thirty. Every number reported
+# from it in #2673 describes those, not the corpus.
+STEP = max(1, len(valid) // 40)
+sample = valid[::STEP][:40]
 
 
 def run(f):
@@ -69,6 +76,14 @@ def run(f):
         return ("missing import", 0)
     if "test failure" in txt or "TestUnexpectedResult" in txt:
         return ("ASSERTION FAILED", 0)
+    # Name the cause. A bare "compile error" count says a class exists and
+    # nothing about which one, and the whole point of this instrument is to see
+    # what ast-check cannot.
+    m = re.search(r'([\w./-]+\.zig):\d+:\d+: error: (.*)', txt)
+    if m:
+        own = m.group(1).startswith(base)
+        msg = re.sub(r"'[^']*'", "X", m.group(2))[:46]
+        return (f"compile: {'own' if own else 'import'} | {msg}", 0)
     return ("compile error", 0)
 
 
