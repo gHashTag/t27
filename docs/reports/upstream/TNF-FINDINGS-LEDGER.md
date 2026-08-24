@@ -2812,3 +2812,47 @@ wrapper, no clause logic and no BSCAN. The **MHz-per-kLUT curve** is affected an
 has **not** been recomputed; it still stands on the folded areas, and the record
 says so in those words rather than letting a corrected area table imply the
 derived curve moved with it.
+
+## 68. What the last two percent actually contained (W999)
+
+The instruction was to finish to 100 %. The first act was to enumerate what was
+open, and the enumeration was the finding: **five items, three of which were stale
+flags on work already done.** A defect marked *not yet repaired* that W994 had
+repaired. An operator marked *IN FLIGHT* that W998 had read off silicon. A
+placement bound marked *IN FLIGHT* that had resolved two waves earlier. The debt
+was in the bookkeeping, not the work -- and a record that says OPEN accumulates
+faster than the thing it describes.
+
+The fourth item was the clause census, and it is now settled by measurement rather
+than argument. Every pre-repair wrapper was recovered from git at `6ae9296ff`, the
+parent of the W984 repair, and re-measured. **Six of seven reproduce the published
+census exactly.** `gft_signed_dot4` does not: published 0, measured 1 (`c_ann`),
+deterministic across three runs on a file git shows was never modified between
+W983 and W998. The corrected total is **15 of 28**.
+
+That settles the arithmetic, and it also corrects something worse. W998 wrote that
+the other six rows *cannot be rechecked, the wrappers having been repaired in
+W984*. The sentence was never tested, and it was false -- git had preserved every
+source the whole time. **A claim of unverifiability is the only kind of claim that
+ends an investigation by being believed**, and it deserves the same standard of
+evidence as the claim it excuses.
+
+Closing the four stale flags then broke two derived checks, which had been written
+to assert that the records still said *not yet repaired* and *IN FLIGHT*. The
+verifier fired correctly and the checks were wrong: they pinned the defect open
+rather than pinning the fact. A check written against the sentence that happens to
+be there before a fix will punish the fix.
+
+Two pieces of real work also closed. The last two wrappers carrying folded clauses
+-- `gft_signed_dot4` and `gft_bitnet_neuron`, three of four -- were repaired with
+the W984 recipe, so **all ten operator wrappers now carry zero folded clauses**.
+And `tri curve` and `tri clauses` now derive the spec from the wrapper's own
+instantiated module instead of defaulting to `gft_smul.t27`, which is precisely
+how a census row can be measured against the wrong elaboration and still print a
+plausible number.
+
+The last mile is the MHz-per-kLUT curve, and it is running. It **cannot** be
+recomputed from the records: every Fmax on file is paired with a folded area --
+`gft_sadd` at 18.24 MHz was measured on 1 312 LUT against an honest 4 304 -- so
+there is no honest area-frequency pair anywhere in the corpus. `tri curve` takes
+both from the same build so they cannot drift apart again.

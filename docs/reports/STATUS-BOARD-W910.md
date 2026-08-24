@@ -1,4 +1,23 @@
-# Full status, both tracks — one page for whoever wakes up (W998, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W999, 2026-08-23)
+
+> **W999 — MOST OF THE LAST TWO PERCENT WAS BOOKKEEPING.** Asked to finish to 100 %, enumerated
+> what was open: **five items, and three were stale flags on work already done** — a defect marked
+> *not yet repaired* that W994 repaired, an operator marked *IN FLIGHT* that W998 read off silicon,
+> a bound marked *IN FLIGHT* that had resolved. **A record that says OPEN and a thing that is open
+> are different objects, and the first accumulates faster.** **The census is now settled by
+> measurement:** every pre-repair wrapper recovered from git at `6ae9296ff` and re-measured — **six
+> of seven reproduce the published numbers exactly**, `gft_signed_dot4` does not (published **0**,
+> measured **1**, deterministic on a file git shows never changed). **15 of 28, measured rather
+> than asserted.** And **W998's own claim that the six 'cannot be rechecked' was false** — git
+> preserved every source. *A claim of unverifiability is the only kind that ends an investigation by
+> being believed.* **The folded-clause class is closed corpus-wide:** last two wrappers repaired,
+> **all 10 operator wrappers at 0 folded**. `tri curve`/`tri clauses` now **derive the spec from the
+> wrapper's instantiated module** rather than defaulting to `gft_smul.t27`. **Last mile, running:**
+> the MHz/kLUT curve **cannot be recomputed from records** — every Fmax on record is paired with a
+> **folded** area — so it is being re-measured with area and frequency from the *same* build.
+> T865/T865a/T865b, lessons 1536–1538, **647 derived checks**. **Readiness 99 %** — the last point
+> is the curve, in flight. **Not mine:** `origin/master` (protection rejects the push) and three
+> credentials (rotation).
 
 > **W998 — THE TABLE CLOSES AT 8 OF 8, AND THE GATE IMMEDIATELY CONTRADICTED A PUBLISHED CENSUS.**
 > `gft_xorpercep` read off silicon **for the first time in this project's history**: `0xa5a5313f`,
