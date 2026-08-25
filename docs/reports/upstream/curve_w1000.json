@@ -74,51 +74,77 @@
    "LUT": 19300,
    "fmax_mhz": 6.78,
    "mhz_per_klut": 0.35
+  },
+  {
+   "wrapper": "gft_xorpercep",
+   "LUT": 28217,
+   "fmax_mhz": 2.77,
+   "mhz_per_klut": 0.1
   }
  ],
  "fit": {
   "form": "Fmax = a * LUT^b",
-  "a": 2050.3,
-  "b": -0.592,
-  "r2": 0.919,
-  "reading": "a power law. Doubling the area costs 34 % of the frequency.",
+  "a": 3173.7,
+  "b": -0.648,
+  "r2": 0.918,
+  "reading": "a power law. Doubling the area costs 36 % of the frequency.",
   "alternatives_tried": {
    "linear": 0.6476,
    "semilog": 0.8518,
    "power": 0.919
-  }
+  },
+  "fit_at_12_points": {
+   "a": 2050.3,
+   "b": -0.592,
+   "r2": 0.919
+  },
+  "note_13th": "gft_xorpercep was added last and it EXTENDS the range rather than confirming it: at 28217 LUT it is 1.46x the previous widest point. The exponent moved from -0.592 to -0.648 and R^2 from 0.9190 to 0.9180."
  },
  "spread": {
   "area_lut": [
    696,
-   19300
+   28217
   ],
-  "area_ratio": 28,
+  "area_ratio": 41,
   "fmax_mhz": [
-   4.46,
+   2.77,
    46.89
   ],
-  "fmax_ratio": 10.5,
+  "fmax_ratio": 16.9,
   "mhz_per_klut": [
-   0.28,
+   0.1,
    67.37
   ]
  },
  "residuals": {
-  "gft_bitnet_neuron": 1.28,
-  "gft_commmin": 1.1,
-  "gft_dot4_comm": 0.86,
-  "gft_dup2": 0.9,
-  "gft_dup3": 0.98,
-  "gft_dup": 0.92,
-  "gft_sadd": 1.38,
-  "gft_sadd_sweep": 0.97,
-  "gft_signed_dot4": 1.13,
-  "gft_signed_mac": 1.12,
-  "gft_smul": 0.91,
-  "gft_train1": 0.67
+  "gft_commmin": 1.03,
+  "gft_sadd_sweep": 0.95,
+  "gft_dup": 0.9,
+  "gft_dup2": 0.89,
+  "gft_smul": 0.9,
+  "gft_dup3": 0.97,
+  "gft_sadd": 1.43,
+  "gft_signed_mac": 1.21,
+  "gft_dot4_comm": 0.93,
+  "gft_bitnet_neuron": 1.41,
+  "gft_train1": 0.74,
+  "gft_signed_dot4": 1.28,
+  "gft_xorpercep": 0.67
  },
  "residual_note": "gft_train1 sits at 0.67x the law and gft_sadd at 1.38x -- a factor of two either side. Structure matters beyond size, which is the same thing T846 measured about place-and-route TIME. Both are properties of the cone, not of the LUT count.",
  "carry4_omitted": "the CARRY4 column parses to values above the LUT count (1604 where the yosys line reads 160). It is not part of the curve, and publishing a number I cannot explain would be worse than omitting it.",
- "xorpercep": "running separately -- its build hung for 74 minutes with no child process and no CPU after nextpnr exited, and was killed so the loop could finish. Re-running alone."
+ "xorpercep": {
+  "LUT": 28217,
+  "CARRY4": 5023,
+  "fmax_mhz": 2.77,
+  "how": "t27c silicon HUNG on this design twice -- 74 min and 62 min, both with no child process and 0 % CPU after nextpnr exited. Deterministic. The row was taken by running yosys stat and nextpnr directly on the same netlist, which keeps the discipline that both numbers come from one build while skipping the stage that hangs.",
+  "two_slowclk_readings": "nextpnr prints slowclk twice, 1.96 and 2.77 MHz; the last is taken, the same rule the other twelve rows used."
+ },
+ "pdf_rebuild": {
+  "status": "the PDF at paper/tnf_paper.pdf is a 148-page build carrying every edit of this wave EXCEPT one line: the abstract's law still reads 2050*LUT^-0.592 over a 28x span rather than the thirteen-point 3174*LUT^-0.648 over 41x. The .tex source is current.",
+  "why_not_rebuilt": "tectonic's cache was cleared as a remedy for a font-load failure, and the 2.82 GB bundle it refills from times out after 64 KB from this machine. GitHub is reachable; that host is not.",
+  "my_error": "the cache was cleared without first checking it could be refilled -- T851 three waves after the theorem was written, and taken as a FIX, which is how such acts get past the check",
+  "recovery": "the working PDF was copied aside before the clear and restored afterwards, so nothing was lost but the one line",
+  "to_finish": "one tectonic run on any machine that can reach data1b.fullyjustified.net"
+ }
 }

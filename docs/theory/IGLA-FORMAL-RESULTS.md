@@ -31409,6 +31409,32 @@ The `CARRY4` column is omitted rather than published: its parse reports values
 above the LUT count (1 604 where the yosys line reads 160). It is not part of the
 curve, and a number I cannot explain is worse than a gap.
 
+### T869 -- The thirteenth point extended the law rather than confirming it [measured]
+
+`gft_xorpercep` was the last row of the honest curve and the hardest to take.
+`t27c silicon` **hung on it twice** -- 74 minutes and 62 minutes, both with no
+child process and 0 % CPU after nextpnr had exited. Deterministic, on the largest
+design in the corpus. The row was taken by running `yosys stat` and `nextpnr`
+directly on the same netlist: **28 217 LUT, 2.77 MHz**, which keeps the rule that
+both numbers come from one build while skipping the stage that hangs.
+
+Adding it moved the fit:
+
+| points | law | R² | area span |
+|--------|-----|-----|-----------|
+| 12 | Fmax = 2050 · LUT^(−0.592) | 0.9190 | 28× |
+| **13** | **Fmax = 3174 · LUT^(−0.648)** | **0.9180** | **41×** |
+
+The exponent moved by 9 % and **R² did not move at all**. That is the useful
+reading: the thirteenth point sits 1.46× beyond the previous widest, so it was an
+extrapolation test rather than another interior sample, and the law survived it.
+Doubling the area now costs **36 %** of the frequency, and the residuals still
+span roughly a factor of two.
+
+**Both fits are kept in the record.** A refit that erases its predecessor hides
+how much the last point moved it, which is exactly the number a reader needs in
+order to judge whether the next point will move it again.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

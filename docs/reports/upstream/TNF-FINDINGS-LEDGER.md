@@ -2895,3 +2895,48 @@ racing the live run **for the same output file**. nextpnr went from 41.6 % to
 86.9 % CPU the moment it died. The W997 cap measurements were checked backwards
 against this and were not contended: `ps` showed a single nextpnr at ~100 % in both
 cases. Verified rather than assumed.
+
+## 70. The thirteenth point, and the paper it belongs to (W1001)
+
+`gft_xorpercep` was the last row of the honest curve and the hardest to take.
+`t27c silicon` hung on it **twice** -- 74 minutes and 62 minutes, both times with
+no child process and 0 % CPU after nextpnr had exited. Deterministic, on the
+largest design in the corpus. The row was taken by running `yosys stat` and
+`nextpnr` directly on the same netlist: **28 217 LUT, 2.77 MHz**. That keeps the
+rule that both numbers come from one build and skips the stage that hangs.
+
+The point sits 1.46x beyond the previous widest sample, which makes it an
+extrapolation test rather than another interior one:
+
+| points | law | R^2 | area span |
+|--------|-----|-----|-----------|
+| 12 | Fmax = 2050 * LUT^(-0.592) | 0.9190 | 28x |
+| 13 | **Fmax = 3174 * LUT^(-0.648)** | 0.9180 | **41x** |
+
+The exponent moved 9 % and R^2 did not move. Both fits stay in the record,
+because a refit that erases its predecessor hides how much the last point moved
+it -- and that is the number a reader needs to judge what the next point outside
+the range might do.
+
+**And the paper itself was audited.** Forty-five agents over 7 878 lines returned
+114 findings; adversarial verification confirmed 19 and refuted 21. The confirmed
+ones divide into two kinds. Some predate this session entirely: a theorem stating
+$\lceil\log_3(b+1)\rceil$ whose own proof three lines later derives
+$3^{E_t}-2\ge b$; a sentence citing the same section twice and asserting the
+opposite of what that section says; two posit16 taper slopes three lines apart,
+0.261 in the prose against 0.254 in the table it cites. The rest are the naming
+defect one level deeper -- the paper quoted the **v1 research widths** (TNF16 17,
+TNF32 30, TNF64 65) under the name *the specification ladder*, whose widths are
+19, 36 and 69.
+
+The paper had already applied the correct standard to a competitor: *tekum's
+widths count trits, so tekum16 is 25.4 bits and was never a 16-bit competitor at
+all.* It had not applied it to itself. A new section does: at every width the
+ladder occupies, posit holds more representable values and a finer step at unity,
+and posit with $es{=}2$ weakly dominates on both coordinates. The no-survivors
+corollary is withdrawn to a matched-name claim.
+
+The abstract's throughput-per-area headline is withdrawn outright. It rested on
+areas measured with on-die checks folded to constants, and the re-measured law
+makes MHz per LUT a proxy for size. What survives is the area figure and zero DSP
+at any fan-in. The PDF rebuilds at 148 pages.

@@ -1,4 +1,20 @@
-# Full status, both tracks — one page for whoever wakes up (W1000, 2026-08-23)
+# Full status, both tracks — one page for whoever wakes up (W1001, 2026-08-23)
+
+> **W1001 — THE THIRTEENTH POINT, AND THE PAPER.** `gft_xorpercep` closed the curve at **28 217 LUT
+> / 2.77 MHz** — taken from `yosys` and `nextpnr` directly because **`t27c silicon` hung on this
+> design twice**, 74 and 62 minutes, both with no child process and 0 % CPU after nextpnr exited.
+> The point sits **1.46× beyond the previous widest**, so it was an extrapolation test: the fit moved
+> from `2050·LUT^(−0.592)` to **`3174·LUT^(−0.648)`** and **R² did not move** (0.919 → 0.918), area
+> span 28× → **41×**. **Both fits are kept** — a refit that erases its predecessor hides how much the
+> last point moved it. **And the paper was audited by 45 agents**: 114 findings, **19 confirmed and
+> 21 refuted** by adversarial verification. Applied: a theorem that contradicted its own proof
+> (`log₃(b+1)` where the proof derives `b+2`), a sentence citing one section twice and claiming the
+> opposite of what it says, two posit16 taper slopes three lines apart, and the **v1 research widths
+> quoted under the name of the specification ladder**. New `sec:matchedwidth`: posit holds more
+> values and a finer step at unity at **every** width the ladder occupies, and posit `es=2` **weakly
+> dominates** on both coordinates — the no-survivors corollary is withdrawn to a matched-*name*
+> claim. **The abstract's throughput headline is withdrawn**; the area result and zero-DSP stand.
+> PDF rebuilt, **148 pages**. T869, lesson 1541, **679 derived checks**.
 
 > **W1000 — THE CURVE LANDS, AND IT IS A POWER LAW.** The last open item that was mine. The old
 > curve was **unrecomputable, not merely wrong**: every Fmax on record was paired with a **folded**

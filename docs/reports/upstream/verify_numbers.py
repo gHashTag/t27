@@ -1227,7 +1227,7 @@ if cv:
     print("\n== честная кривая МГц/kLUT (W1000)")
     import math as _m
     rows = cv["rows"]
-    check("строк в кривой", len(rows), 12, tol=0)
+    check("строк в кривой", len(rows), 13, tol=0)
     for r in rows:
         check(f"{r['wrapper']}: МГц/kLUT сходится",
               r["fmax_mhz"] / (r["LUT"] / 1000.0), r["mhz_per_klut"], tol=0.02)
@@ -1244,7 +1244,18 @@ if cv:
     check("степенная лучше полулога", f["r2"] > f["alternatives_tried"]["semilog"], True, tol=0)
     check("полулог лучше линейной",
           f["alternatives_tried"]["semilog"] > f["alternatives_tried"]["linear"], True, tol=0)
-    check("удвоение площади стоит, %", 100*(1 - 2**b1), 34, tol=1)
+    check("удвоение площади стоит, %", 100*(1 - 2**b1), 36, tol=1)
+    # W1001: the 13th point EXTENDED the range rather than confirming it, so the
+    # fit at 12 is kept beside the fit at 13 -- a refit that erases its
+    # predecessor hides how much the last point moved it.
+    o = f["fit_at_12_points"]
+    check("прежний показатель", o["b"], -0.592, tol=0.001)
+    check("показатель сдвинулся", abs(f["b"] - o["b"]) > 0.05, True, tol=0)
+    check("R^2 практически не изменился", abs(f["r2"] - o["r2"]), 0.001, tol=0.002)
+    check("xorpercep: LUT", cv["xorpercep"]["LUT"], 28217, tol=0)
+    check("xorpercep: Fmax", cv["xorpercep"]["fmax_mhz"], 2.77, tol=0.01)
+    check("зависание t27c зафиксировано",
+          "HUNG on this design twice" in cv["xorpercep"]["how"], True, tol=0)
     sp = cv["spread"]
     check("разброс площадей", max(r["LUT"] for r in rows) / min(r["LUT"] for r in rows),
           sp["area_ratio"], tol=0.5)
@@ -1252,7 +1263,7 @@ if cv:
           sp["fmax_ratio"], tol=0.05)
     res = cv["residuals"]
     check("остатков", len(res), len(rows), tol=0)
-    check("разброс остатков вдвое", max(res.values()) / min(res.values()), 2.06, tol=0.06)
+    check("разброс остатков вдвое", max(res.values()) / min(res.values()), 2.13, tol=0.06)
     check("CARRY4 снят с публикации",
           "worse than omitting it" in cv["carry4_omitted"], True, tol=0)
     check("почему старая была невосстановима",
