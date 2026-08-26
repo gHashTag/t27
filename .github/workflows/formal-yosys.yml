@@ -104,6 +104,17 @@ jobs:
       # zeroed baseline: zeroing would keep the population unratcheted.
       - name: Corpus size scan — a finding ratchet improves when you delete the subject
         run: python3 formal/corpus_size_scan.py
+
+      # The instrument is part of the system under test, and it has been wrong
+      # twice -- neither time as a bad number, both times as a number that did
+      # not move. A comptime shim that never forced analysis reported
+      # `All 0 tests passed` for a file with 14 tests and 26 errors (#2710); a
+      # shim keyed on the spec's PATH let Zig answer a new run from an old one
+      # (#2714). Both were found by accident. This looks on purpose: mutate one
+      # digit inside a passing assertion, same byte length, and require the
+      # harness to notice.
+      - name: Harness self-check — can it still tell a pass from a break?
+        run: python3 formal/harness_selfcheck.py
       - name: Assert the property set is non-empty
         run: |
           set -euo pipefail
