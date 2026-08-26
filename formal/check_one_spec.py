@@ -15,6 +15,8 @@ re-emitted, so a second call costs one `t27c gen` plus one `zig test` instead of
 Exit code is `zig test`'s. The output names the spec's own diagnostics first,
 because an error in an imported sibling is not this spec's to fix.
 """
+import hashlib
+import os
 import pathlib
 import re
 import subprocess
@@ -54,8 +56,28 @@ def main() -> int:
     # The shim's own test is subtracted from the count below.
     shim.write_text(f'test {{ _ = @import("{rel.as_posix()}"); }}\n')
 
+    # A CACHE KEYED ON THE TREE'S CONTENT.
+    #
+    # The shim's bytes depend only on the spec's PATH, so two trees holding
+    # different emitted code produce byte-identical roots and Zig answers the
+    # second from the first. Demonstrated on a two-file fixture: a file
+    # asserting `V == 1` with `V = 2` reported "All 2 tests passed", exit 0.
+    #
+    # Hashing the whole tree, not just this spec, because a spec's result also
+    # depends on the siblings it imports. Unchanged tree -> same key -> the
+    # cache is reused and iteration stays fast; anything changes -> new key.
+    digest = hashlib.sha256()
+    for f in sorted(tree.rglob("*.zig")):
+        digest.update(f.relative_to(tree).as_posix().encode())
+        digest.update(f.read_bytes())
+    key = digest.hexdigest()[:16]
+    env = dict(os.environ)
+    env["ZIG_GLOBAL_CACHE_DIR"] = f"/tmp/t27_zcache_{key}/g"
+    env["ZIG_LOCAL_CACHE_DIR"] = f"/tmp/t27_zcache_{key}/l"
+
     res = subprocess.run(
-        ["zig", "test", shim.name], capture_output=True, cwd=tree, timeout=180
+        ["zig", "test", shim.name], capture_output=True, cwd=tree, env=env,
+        timeout=300
     )
     txt = (res.stdout + res.stderr).decode("utf-8", "replace")
 
@@ -68,7 +90,11 @@ def main() -> int:
     if passed:
         print(f"  tests passed: {max(0, int(passed.group(1)) - 1)}")
     if failed:
-        print(f"  tests passed: {failed.group(1)}   FAILED: {failed.group(2)}")
+        # The shim's own test is in this count too. Subtracting it only on the
+        # all-passed branch reported "14 passed, 1 failed" for a file with 14
+        # real tests of which 13 pass.
+        print(f"  tests passed: {max(0, int(failed.group(1)) - 1)}"
+              f"   FAILED: {failed.group(2)}")
     if own:
         print(f"  own-file diagnostics: {len(own)}")
         for line in own[:8]:

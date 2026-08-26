@@ -31,6 +31,7 @@ spec that compiles and runs zero tests counts as passing to `zig test`.
 import collections
 import concurrent.futures
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -56,6 +57,22 @@ valid = sorted(f for f, v in r.items()
                if v.get("first") == "VALID" and f.startswith("specs/"))
 print(f"  emitted {len(specs)} specs, mirroring the spec tree")
 
+# A CACHE OF ITS OWN, thrown away with the tree.
+#
+# The shim's bytes depend only on the spec's PATH, so two runs over different
+# emitted content produce byte-identical roots and Zig answers the second from
+# the first. Demonstrated on a two-file fixture: a file asserting `V == 1` with
+# `V = 2` reported "All 2 tests passed", exit 0, because a sibling directory
+# had compiled the passing version moments earlier. Every "tests passed" this
+# harness has ever printed was open to that.
+#
+# Within one run each spec has a distinct shim, so the shared cache is safe;
+# it is only reuse ACROSS runs that lies. A fresh cache per run costs one
+# rebuild of std and buys a number that means what it says.
+ENV = dict(os.environ)
+ENV["ZIG_GLOBAL_CACHE_DIR"] = str(WORK / ".zig-global")
+ENV["ZIG_LOCAL_CACHE_DIR"] = str(WORK / ".zig-local")
+
 
 def run(f):
     # Compiled through a shim at the TREE ROOT, not as its own root.
@@ -78,7 +95,7 @@ def run(f):
     shim.write_text(f'test {{ _ = @import("{z.relative_to("specs").as_posix()}"); }}\n')
     try:
         res = subprocess.run(["zig", "test", shim.name], capture_output=True,
-                             cwd=WORK, timeout=120)
+                             cwd=WORK, env=ENV, timeout=120)
     except subprocess.TimeoutExpired:
         return ("timeout", 0, "")
     txt = (res.stdout + res.stderr).decode("utf-8", "replace")
