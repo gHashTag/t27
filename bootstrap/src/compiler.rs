@@ -4210,7 +4210,33 @@ impl Parser {
             }
             let op = self.current.lexeme.clone();
             self.advance();
+            // `a..=b` -- the INCLUSIVE range. The lexer emits `..` and then a
+            // separate `=`, so the right operand parser met `=b` and answered
+            // "Unexpected token in expression: Equals". 12 specs write this
+            // form, one of them specs/math/constants.t27, which 259 of 746
+            // specs import.
+            //
+            // Lowered to the EXCLUSIVE range over `b + 1` rather than carried
+            // as a new operator: every backend already lowers `..`, and none
+            // would know `..=`. For the integer loops this grammar has the two
+            // are the same range, and the alternative is a fifth spelling that
+            // four emitters must each be taught.
+            let inclusive = op == ".." && self.current.kind == TokenKind::Equals;
+            if inclusive {
+                self.advance();
+            }
             let right = self.parse_expr_bitor()?;
+            let right = if inclusive {
+                let mut plus = Node::new(NodeKind::ExprBinary);
+                plus.extra_op = "+".to_string();
+                plus.children.push(right);
+                let mut one = Node::new(NodeKind::ExprLiteral);
+                one.value = "1".to_string();
+                plus.children.push(one);
+                plus
+            } else {
+                right
+            };
             left = Node {
                 kind: NodeKind::ExprBinary,
                 extra_op: op,
