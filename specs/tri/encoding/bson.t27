@@ -39,10 +39,9 @@ module TriBson;
     // the serialize(parse(x)) == x round trip cannot be stated. What the
     // module states is its two types.
     //
-    // Note on BsonValue: the `enum : [...]` line inside a struct does not
-    // make an enum -- it lands as eleven void-typed struct fields, so the
-    // eleven BSON kinds are declared but are not yet distinguishable tags.
-    // The count is what holds today; the tag-ness does not.
+    // Note on BsonValue: the `enum : [...]` line now lowers to a real enum, so
+    // the eleven BSON kinds are mutually exclusive tags. Both the count and the
+    // tag-ness hold. What is still missing is the payload.
 
     test bson_value_declares_the_eleven_bson_value_kinds
         // Double, String, Document, Array, Binary, ObjectId, Boolean,
@@ -50,11 +49,19 @@ module TriBson;
         given kinds = std.meta.fields(BsonValue).len
         then kinds == 11
 
-    test bson_value_kinds_carry_no_payload_yet
-        // eleven void fields occupy no storage; a real BSON value would
-        // carry a double, a string, a document, ...
-        given size = @sizeOf(BsonValue)
-        then size == 0
+    test bson_value_kinds_are_distinct_tags_but_still_carry_no_payload
+        // The eleven kinds are alternatives, not simultaneous fields: a value
+        // is exactly one of them and can tell Double from Int64 at runtime.
+        // The discriminant is a u4 -- the narrowest that holds eleven tags --
+        // so a BsonValue is one byte of tag and nothing else. It is a bare
+        // enum, not a tagged union, so a real BSON value's double, string or
+        // document still has nowhere to live.
+        given first = @intFromEnum(BsonValue.Double)
+        and last = @intFromEnum(BsonValue.Int64)
+        and tag = @typeInfo(BsonValue).@"enum".tag_type
+        then first == 0 and last == 10
+        and tag == u4
+        and @sizeOf(BsonValue) == 1
 
     test bson_document_is_still_an_empty_placeholder
         given doc = BsonDocument{}

@@ -46,7 +46,7 @@ module TriMsgpack;
     test msgpack_type_names_the_nine_families
         // Verify: MessagePack sorts every value into nil, bool, int, uint, float,
         // str, bin, array or map — nine families and no tenth
-        given family_count = @typeInfo(MsgPackType).@"struct".fields.len
+        given family_count = @typeInfo(MsgPackType).@"enum".fields.len
         and has_nil = @hasField(MsgPackType, "Nil")
         and has_map = @hasField(MsgPackType, "Map")
         then family_count == 9 and has_nil and has_map
