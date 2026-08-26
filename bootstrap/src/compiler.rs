@@ -21342,18 +21342,37 @@ impl RustCodegen {
                     NodeKind::StmtFor => {
                         self.write_indent();
                         self.write("for ");
-                        if child.children.len() > 1 {
-                            self.write(&child.children[1].name);
-                        }
+                        // The capture lives in `params` in BOTH shapes the parser builds:
+                        // `for (xs) |x| { }` pushes it there and so does the bare
+                        // `for x in xs { }` collection form. This read `children[1].name`,
+                        // and for the bare form children[1] is the BODY BLOCK, whose name is
+                        // the literal "body" -- so every range loop emitted `for body in ..`.
+                        let capture = child
+                            .params
+                            .first()
+                            .map(|(n, _)| n.clone())
+                            .unwrap_or_else(|| {
+                                if child.children.len() > 1 {
+                                    child.children[1].name.clone()
+                                } else {
+                                    String::new()
+                                }
+                            });
+                        self.write(&capture);
                         self.write(" in ");
                         if !child.children.is_empty() {
                             self.write(&self.expr_to_rust(&child.children[0]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
-                        if child.children.len() > 2 {
-                            for stmt in &child.children[2].children {
-                                self.gen_rust_stmt(stmt);
+                        // The body is the LAST child, not children[2]. The bare form builds
+                        // two children -- iterable, body -- so the body was dropped entirely
+                        // and the loop emitted empty, with exit code 0.
+                        if child.children.len() > 1 {
+                            if let Some(body) = child.children.last() {
+                                for stmt in &body.children {
+                                    self.gen_rust_stmt(stmt);
+                                }
                             }
                         }
                         self.indent -= 1;
@@ -21489,18 +21508,37 @@ impl RustCodegen {
             NodeKind::StmtFor => {
                 self.write_indent();
                 self.write("for ");
-                if stmt.children.len() > 1 {
-                    self.write(&stmt.children[1].name);
-                }
+                // The capture lives in `params` in BOTH shapes the parser builds:
+                // `for (xs) |x| { }` pushes it there and so does the bare
+                // `for x in xs { }` collection form. This read `children[1].name`,
+                // and for the bare form children[1] is the BODY BLOCK, whose name is
+                // the literal "body" -- so every range loop emitted `for body in ..`.
+                let capture = stmt
+                    .params
+                    .first()
+                    .map(|(n, _)| n.clone())
+                    .unwrap_or_else(|| {
+                        if stmt.children.len() > 1 {
+                            stmt.children[1].name.clone()
+                        } else {
+                            String::new()
+                        }
+                    });
+                self.write(&capture);
                 self.write(" in ");
                 if !stmt.children.is_empty() {
                     self.write(&self.expr_to_rust(&stmt.children[0]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
-                if stmt.children.len() > 2 {
-                    for s in &stmt.children[2].children {
-                        self.gen_rust_stmt(s);
+                // The body is the LAST child, not children[2]. The bare form builds
+                // two children -- iterable, body -- so the body was dropped entirely
+                // and the loop emitted empty, with exit code 0.
+                if stmt.children.len() > 1 {
+                    if let Some(body) = stmt.children.last() {
+                        for s in &body.children {
+                            self.gen_rust_stmt(s);
+                        }
                     }
                 }
                 self.indent -= 1;
