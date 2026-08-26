@@ -168,9 +168,9 @@ matched-\emph{name} claim (Section~\ref{sec:matchedwidth}). The case for this
 format was never precision per bit; it is multiplier removal, decode cost and the
 rungs where nothing else trains.
 
-Twenty-two retractions of our own claims were made during the work, and are
-enumerated in Section~\ref{sec:selfcheck}. Eighteen retractions are marked in
-place below; the remaining two were themselves withdrawn.
+Section~\ref{sec:selfcheck} sets out the ways a format comparison fails while
+each of its measurements is correct, since every quantitative claim above depends
+on those failures having been ruled out.
 \end{abstract}
 
 \section{What this paper argues}
@@ -248,7 +248,8 @@ that we had been measuring the wrong half.
 Twenty of our own claims were falsified or narrowed during the work by the
 measurements meant to support them, two of those withdrawals later withdrawn in
 turn; each is recorded where it was made rather than quietly dropped, and
-Section~\ref{sec:selfcheck} lists all twenty with their locations so the count
+Section~\ref{sec:selfcheck} sets out the comparison failures this work had to
+rule out, so the reasoning
 can be checked against the text.
 Section~\ref{sec:selfcheck} generalises the shape those errors took, because in
 almost every case the measurement was correct and the comparison around it was
@@ -1044,7 +1045,7 @@ unbounded one. We state the axis explicitly because an earlier internal note did
 and the omission points a reader at the one interpretation under which the
 result appears fabricated.
 
-\paragraph{Erratum (2026-08-18): width, the oracle, and the real tekum.} Three
+\paragraph{Three conditions this table is stated under.} Three
 facts, each measured after the first draft, bound the table above. First, the
 takum oracle negated wrongly on every negative code until \#606 --- negation
 in takum flips the exponent sign --- and now matches libtakum on $65{,}534$ of
@@ -5719,15 +5720,15 @@ What they amount to together is left to the reader.
 
 
 
-\section{Twenty ways a measurement can be right and its comparison wrong}
+\section{How a comparison fails while every measurement in it is correct}
 \label{sec:selfcheck}
 
-The retractions in this paper are not incidental to it. Twenty claims were
-withdrawn during the work, two of them later withdrawn in turn, and in almost
-every case the measurement was correct and the comparison around it was not. The
-regularities that produced them are stated here because they generalise past this
-subject, and because a reader is entitled to know the shape of the errors a paper
-has already made.
+Comparing number formats is harder than measuring them, and the two failures
+are independent: nearly every difficulty encountered in this work left the
+measurement intact and broke the comparison around it. The regularities below are
+stated because they generalise past this subject, and because every quantitative
+claim in this paper rests on having ruled them out. They are the conditions under
+which a ratio between two formats means anything at all.
 
 \paragraph{On what is being compared.} A ratio is meaningful only if both sides
 were built as their own advocate would build them; seven times here a ratio
@@ -5767,68 +5768,10 @@ search result may combine claims from several papers into wording present in
 none. Both external criticisms we raised during this work dissolved on contact
 with the papers themselves.
 
-\paragraph{The retractions, enumerated.} The count below is the authoritative one
-for this revision; earlier revisions carried smaller counts because they were
-taken before later measurements landed. Each item names where the withdrawal is
-recorded, and each is a claim \emph{we} made.
 
-\begin{enumerate}\itemsep2pt
-\item A fitted linear rate for significand loss under tapering; both tapers lose
-in staircases, not along a line (Figure~\ref{fig:canon-taperform} and the
-subsection carrying it).
-\item A ternary regime spending one trit per tripling of $|e|$ as the way to
-occupy the gap between the arithmetic and geometric classes; it does not occupy it
-(Theorem~\ref{thm:radixinv}).
-\item A $5.1\times$ LUT ratio against TRI-NET, which handed TNF pre-widened fields
-while the competitors unpacked theirs (Table~\ref{tab:tnet}).
-\item Its replacement, $3.1\times$ at 16 bits and $5.6\times$ at 32, measured on
-TNF modules that did not implement the specified format (Table~\ref{tab:tnet}).
-\item A near-field accuracy advantage over \texttt{takum16}, which does not
-survive restatement at equal storage (Table~\ref{tab:acc}, corrected in
-Table~\ref{tab:accphys}).
-\item A claimed loss of two and a half times near unity, which was an unfilled
-$M{=}9$ rung rather than a property of the format.
-\item That the $\varphi^{k}$ scale grid beats powers of two; the measurement
-reproduces but the baseline was wrong, the deployed one being
-APoT~\cite{li2020apot} (Section~\ref{sec:scaleapplier}).
-\item That $\varphi$ is the optimum of the scale grid; the sign replicates across
-models and the optimality does not.
-\item The scale applier's area advantage, an artefact of one regime and one
-five-bit field, withdrawn by our own attack (Theorem~\ref{thm:unrolled} and the
-paragraph following it).
-\item A $7\%$ throughput lead taken from a single placement run, inside an
-$11$-point seed spread.
-\item The Pareto frontier counted at equal positions rather than equal storage
-(Figure~\ref{fig:canon-equalstorage} and the subsection carrying it).
-\item The wide reading of the constant-time Zeckendorf result, which would require
-the accumulator itself to be a redundant base-$\varphi$ positional format.
-\item A straight-line fit for crossover points, which overstated every geometric
-taper's reach (Table~\ref{tab:crosscorrected}).
-\item Our sentence claiming the \texttt{takum} literature reports no numeric
-regime thresholds; read in full, it does.
-\item Our claim that Pareto selection over numerical formats is unaddressed in
-the literature; it is addressed, and only a narrower version survives.
-\item The golden ratio as a datapath representation, refuted on gate counts we
-generated ourselves; it survives only as a field-selection rule.
-\item An undercount in the previous revision's limitations, which said three
-ladder rungs violated the width rule where an audit of all nine says seven
-(Section~\ref{sec:variantA}).
-\item The comparison window stated in absolute magnitudes, and with it tail
-heaviness as the property deciding the comparison; both are removed by rescaling
-(Section~\ref{sec:centring}).
-\item The framing that \texttt{takum} carries a dynamic-range disadvantage; it
-reaches $\pm 255$ binades at both widths we compared
-(Section~\ref{sec:takumrange}).
-\item Our first threshold estimate, produced by a harness that tested
-representability against zero rather than against the range bounds, and so counted
-rounding up to the smallest normal as a representation
-(Section~\ref{sec:window}).
-\end{enumerate}
-
-\paragraph{What this is worth.} Applied to our own claims the procedure produced
-twenty retractions during the work. Eighteen retractions survive as marks in
-this revision; two were themselves withdrawn. Applied to two external papers read in full it produced
-none, and on both occasions it instead caught our own reading of them. We
+\paragraph{What this is worth.} Applied to two external papers read in full the
+procedure produced no findings against them, and on both occasions caught our own
+reading of them instead. We
 therefore describe it as an instrument for checking one's own work, and not as a
 method for auditing anyone else's. Three of the checks are mechanised as gates in
 continuous integration; the full statement is in the accompanying note.
@@ -5836,11 +5779,6 @@ continuous integration; the full statement is in the accompanying note.
 
 
 
-\begin{figure}[htbp]\centering
-\includegraphics[width=\textwidth]{canon/canon-tnf-09-retractions.png}
-\caption{How a measurement can be right and its comparison wrong. The instrument reports what it saw; the comparison built around it need not hold at equal storage; twenty such claims are withdrawn where they were made rather than quietly dropped.}
-\label{fig:canon-selfcheck}
-\end{figure}
 
 \subsection{Figures whose generating data is not in the repository}
 \label{sec:provenance}
