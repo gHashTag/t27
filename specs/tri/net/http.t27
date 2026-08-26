@@ -11,7 +11,9 @@ module TriHttp;
     // ═══════════════════════════════════════════════════════════
 
     pub const HttpMethod = struct {
-        enum : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/tri_http.tri:7. The converter dropped bare `- name` bullets.
+        enum : [GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS],
     };
 
     pub const HttpStatus = struct {
@@ -118,9 +120,15 @@ module TriHttp;
         and std.mem.eql(u8, rel.path, "/index.html")
 
     test http_method_lists_its_verbs
-        // FAILING ON PURPOSE. The spec declares `enum : ,` -- an empty variant
-        // list -- so HttpMethod emits as a struct with no fields and cannot
-        // represent GET, POST or anything else. method_to_string therefore has
-        // nothing to switch on. This test states what the type should carry.
-        then @typeInfo(HttpMethod).@"struct".fields.len >= 1
+        // The spec used to declare `enum : ,` -- an empty variant list -- so
+        // HttpMethod emitted as `struct { enum: void }` and could not represent
+        // GET, POST or anything else; method_to_string had nothing to switch
+        // on. (The old assertion here was `@typeInfo(...).@"struct".fields.len
+        // >= 1`, which passed on that marker field and so read green for a type
+        // with no verbs in it.) The seven verbs were recovered from the upstream
+        // spec this file was converted from: trinity-fpga tri_http.tri:7.
+        then @typeInfo(HttpMethod).@"enum".fields.len == 7
+        and std.mem.eql(u8, @typeInfo(HttpMethod).@"enum".fields[0].name, "GET")
+        and std.mem.eql(u8, @typeInfo(HttpMethod).@"enum".fields[1].name, "POST")
+        and std.mem.eql(u8, @typeInfo(HttpMethod).@"enum".fields[6].name, "OPTIONS")
 

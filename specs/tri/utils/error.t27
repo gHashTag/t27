@@ -11,7 +11,9 @@ module TriError;
     // ═══════════════════════════════════════════════════════════
 
     pub const TriError = struct {
-        enum : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/tri_error.tri:8. The converter dropped bare `- name` bullets.
+        enum : [command_not_found, invalid_arguments, missing_argument, file_not_found, io_error, permission_denied, parse_error, validation_error, out_of_memory],
     };
 
     // ═══════════════════════════════════════════════════════════

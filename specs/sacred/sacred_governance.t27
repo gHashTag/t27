@@ -16,7 +16,9 @@ module SacredGovernance;
     };
 
     pub const SacredRuleType = struct {
-        enum : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/sacred_governance.tri:32. The converter dropped bare `- name` bullets.
+        enum : [phi_rule, trinity_rule, gematria_rule, evolution_rule, safety_rule],
     };
 
     pub const RuleViolation = struct {
@@ -30,7 +32,9 @@ module SacredGovernance;
     };
 
     pub const ViolationSeverity = struct {
-        enum : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/sacred_governance.tri:52. The converter dropped bare `- name` bullets.
+        enum : [warning, error, critical],
     };
 
     pub const GovernanceState = struct {

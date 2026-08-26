@@ -11,11 +11,15 @@ module SwarmAgents;
     // ═══════════════════════════════════════════════════════════
 
     pub const AgentType = struct {
-        variants : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/swarm_agents.tri:31. The converter dropped bare `- name` bullets.
+        enum : [architect, codex, evolver, oracle, guardian, herald],
     };
 
     pub const AgentStatus = struct {
-        variants : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/swarm_agents.tri:40. The converter dropped bare `- name` bullets.
+        enum : [idle, active, thinking, waiting_consensus, blocked],
     };
 
     pub const Agent = struct {
@@ -39,7 +43,9 @@ module SwarmAgents;
     };
 
     pub const TaskStatus = struct {
-        variants : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/swarm_agents.tri:69. The converter dropped bare `- name` bullets.
+        enum : [pending, assigned, in_progress, completed, failed, awaiting_consensus],
     };
 
     pub const SwarmState = struct {
@@ -54,7 +60,9 @@ module SwarmAgents;
     };
 
     pub const CoordinationMode = struct {
-        variants : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/swarm_agents.tri:89. The converter dropped bare `- name` bullets.
+        enum : [parallel, consensus, hierarchical, sacred_circle],
     };
 
     pub const ConsensusProposal = struct {
@@ -76,7 +84,9 @@ module SwarmAgents;
     };
 
     pub const ConsensusStatus = struct {
-        variants : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/swarm_agents.tri:114. The converter dropped bare `- name` bullets.
+        enum : [pending, approved, rejected, tie],
     };
 
     pub const SwarmHarmonyMetrics = struct {
@@ -97,7 +107,9 @@ module SwarmAgents;
     };
 
     pub const MessageType = struct {
-        variants : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/swarm_agents.tri:138. The converter dropped bare `- name` bullets.
+        enum : [task_request, task_result, consensus_request, consensus_vote, broadcast, alert],
     };
 
     pub const SacredPattern = struct {

@@ -27,7 +27,9 @@ module PpoActor;
     };
 
     pub const ActionSpace = struct {
-        enum : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/algo/ppo_actor.tri:30. The converter dropped bare `- name` bullets.
+        enum : [DISCRETE, CONTINUOUS],
     };
 
     pub const PolicyOutput = struct {
@@ -110,14 +112,14 @@ module PpoActor;
     test config_carries_one_log_std_per_action_dimension
         // Verify: ActorConfig and PolicyOutput agree on the action dimension,
         // which is what makes the diagonal Gaussian well formed
-        given cfg = ActorConfig{.state_dim=4,.action_dim=2,.hidden_dims=@constCast(&[_]u32{64,64}),.action_space=ActionSpace{},.init_log_std=DEFAULT_INIT_LOG_STD}
+        given cfg = ActorConfig{.state_dim=4,.action_dim=2,.hidden_dims=@constCast(&[_]u32{64,64}),.action_space=ActionSpace.DISCRETE,.init_log_std=DEFAULT_INIT_LOG_STD}
         and out = PolicyOutput{.logits=@constCast(&[_]f32{0.0,0.0}),.log_std=@constCast(&[_]f32{DEFAULT_INIT_LOG_STD,DEFAULT_INIT_LOG_STD})}
         then (out.log_std.len == cfg.action_dim) and (out.logits.len == cfg.action_dim)
 
     test hidden_dims_is_non_empty_for_a_usable_config
         // Verify: ppo_actor_constraint_2 (len(hidden_dims) >= 1) and
         // constraint_1 (action_dim >= 1) hold for the config above
-        given cfg = ActorConfig{.state_dim=4,.action_dim=2,.hidden_dims=@constCast(&[_]u32{64,64}),.action_space=ActionSpace{},.init_log_std=DEFAULT_INIT_LOG_STD}
+        given cfg = ActorConfig{.state_dim=4,.action_dim=2,.hidden_dims=@constCast(&[_]u32{64,64}),.action_space=ActionSpace.DISCRETE,.init_log_std=DEFAULT_INIT_LOG_STD}
         then (cfg.hidden_dims.len >= 1) and (cfg.action_dim >= 1)
 
     // ═══════════════════════════════════════════════════════════

@@ -11,7 +11,9 @@ module TriLogging;
     // ═══════════════════════════════════════════════════════════
 
     pub const LogLevel = struct {
-        enum : ,
+        // Recovered from the upstream spec this file was converted from:
+        // trinity-fpga specs/tri/tri_logging.tri:7. The converter dropped bare `- name` bullets.
+        enum : [debug, info, warn, error],
     };
 
     pub const LogEntry = struct {
@@ -80,15 +82,22 @@ module TriLogging;
     test an_untagged_entry_is_constructible
         // format_entry is a stub, so this builds the value directly: the point
         // is that the declared type admits a null tag at all.
-        given e = LogEntry{ .level = LogLevel{}, .message = "boot", .timestamp = 0, .tag = null }
+        given e = LogEntry{ .level = LogLevel.debug, .message = "boot", .timestamp = 0, .tag = null }
         then e.tag == null
         and e.timestamp == 0
         and std.mem.eql(u8, e.message, "boot")
 
     test log_level_lists_its_severities
-        // FAILING ON PURPOSE. The spec declares `enum : ,` -- an empty variant
-        // list -- so LogLevel emits as a struct with no fields. There is no
-        // DEBUG, no ERROR, and nothing for level_to_string to name or for
-        // should_log to compare, which makes every LogEntry.level identical.
-        then @typeInfo(LogLevel).@"struct".fields.len >= 1
+        // The spec used to declare `enum : ,` -- an empty variant list -- so
+        // LogLevel emitted with no severities at all: nothing for
+        // level_to_string to name or for should_log to compare, which made
+        // every LogEntry.level identical. The four names were recovered from
+        // the upstream spec this file was converted from: trinity-fpga
+        // specs/tri/tri_logging.tri:7. `error` is a Zig keyword, so the emitter
+        // escapes it -- the variant is spelled @"error" in the emitted enum but
+        // its reflected name is still "error".
+        then @typeInfo(LogLevel).@"enum".fields.len == 4
+        and std.mem.eql(u8, @typeInfo(LogLevel).@"enum".fields[0].name, "debug")
+        and std.mem.eql(u8, @typeInfo(LogLevel).@"enum".fields[3].name, "error")
+        and @intFromEnum(LogLevel.debug) < @intFromEnum(LogLevel.warn)
 
