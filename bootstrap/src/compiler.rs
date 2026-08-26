@@ -21906,22 +21906,62 @@ impl RustCodegen {
                     return "/* switch */".to_string();
                 }
                 let scrutinee = self.expr_to_rust(&node.children[0]);
+                // The arms carry Zig-shaped `.variant` shorthand, and Rust has
+                // no rule that resolves it from context. The scrutinee's
+                // declared type IS the enum, and `var_types` already holds
+                // every parameter and local with its Rust type, so a
+                // bare-identifier scrutinee resolves exactly. Anything else
+                // falls back to the function's return type -- the same rule
+                // ExprEnumValue uses for the shorthand a few arms above.
+                let arm_enum = self
+                    .var_types
+                    .get(&scrutinee)
+                    .filter(|t| self.enum_names.contains(*t))
+                    .cloned()
+                    .or_else(|| {
+                        if self.enum_names.contains(&self.fn_ret_type) {
+                            Some(self.fn_ret_type.clone())
+                        } else {
+                            None
+                        }
+                    });
                 let mut s = format!("match {} {{\n", scrutinee);
                 for i in 1..node.children.len() {
                     let arm = &node.children[i];
-                    if arm.kind == NodeKind::Module {
-                        let pattern = if !arm.name.is_empty() {
-                            arm.name.clone()
-                        } else {
-                            "_".to_string()
-                        };
-                        let body = if !arm.children.is_empty() {
-                            self.expr_to_rust(&arm.children[0])
-                        } else {
-                            "()".to_string()
-                        };
-                        s.push_str(&format!("{} => {},\n", pattern, body));
+                    // The parser builds EVERY arm as ConstDecl. This tested for
+                    // Module, which no arm is ever built as, so the loop
+                    // matched nothing and the emitter printed `match x { }` --
+                    // an empty match, with exit code 0, for a construct the
+                    // other three backends lower correctly. Leaving the pattern
+                    // unqualified would have been worse than the empty match:
+                    // `match a { neg => .. }` is a BINDING in Rust, it compiles
+                    // and it matches everything.
+                    if arm.kind != NodeKind::ConstDecl {
+                        continue;
                     }
+                    // `else` is t27's catch-all; numbers and char literals are
+                    // patterns in their own right and must not be qualified.
+                    let names_a_variant = arm
+                        .name
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_alphabetic() || c == '_');
+                    let pattern = if arm.name.is_empty() || arm.name == "else" {
+                        "_".to_string()
+                    } else if names_a_variant {
+                        match &arm_enum {
+                            Some(e) => format!("{}::{}", e, arm.name),
+                            None => arm.name.clone(),
+                        }
+                    } else {
+                        arm.name.clone()
+                    };
+                    let body = if !arm.children.is_empty() {
+                        self.expr_to_rust(&arm.children[0])
+                    } else {
+                        "()".to_string()
+                    };
+                    s.push_str(&format!("{} => {},\n", pattern, body));
                 }
                 s.push('}');
                 s
