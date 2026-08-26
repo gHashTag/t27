@@ -148,6 +148,47 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                         }
                     }
                     t.fields.push(field);
+                } else if trimmed == "enum:" {
+                    // A VARIANT LIST, not a field.
+                    //
+                    // The ancestor writes
+                    //
+                    //     LogLevel:
+                    //       enum:
+                    //         - debug
+                    //         - info
+                    //
+                    // and until now `enum:` fell through to the direct-field
+                    // branch below: it contains a colon, so split_once gave the
+                    // field name `enum` and an EMPTY type. That is literally
+                    // the `enum : ,` seen in 31 converted specs -- and the
+                    // bullets beneath it match no branch at all, having no
+                    // colon of their own, so every variant name was dropped in
+                    // silence.
+                    //
+                    // specs/tri/utils/exit_codes.t27 is why this went unnoticed
+                    // for four months: ITS bullets are written `- success: 0`,
+                    // with a value, so they parsed as fields and survived. The
+                    // bug only fires on a bare bullet.
+                    t.is_enum = true;
+                } else if t.is_enum && trimmed.starts_with("- ") && !trimmed.contains(':') {
+                    // Strip a trailing `# comment`. Without this,
+                    // `- warning      # Minor violation, logged but not
+                    // blocking` becomes a variant carrying the whole comment,
+                    // and the comma inside it splits off a second bogus
+                    // variant. Caught by cross-checking this converter's
+                    // output against a hand recovery of the same ancestors:
+                    // 16 of 18 declarations matched, and the one that differed
+                    // was mine, not theirs.
+                    let value = trimmed[2..]
+                        .split('#')
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    if !value.is_empty() {
+                        t.enum_values.push(value);
+                    }
                 } else if trimmed.contains(':') && !trimmed.starts_with("description:") && !trimmed.starts_with("fields:") {
                     // Direct field declaration without dash: "name: type"
                     if let Some((field_name, field_type)) = trimmed.split_once(':') {
@@ -636,6 +677,14 @@ fn generate_t27(spec: &TriSpec) -> String {
 
         for tri_type in &spec.types {
             let pascal_name = to_pascal_case(&tri_type.name);
+            if tri_type.is_enum && !tri_type.enum_values.is_empty() {
+                output.push_str(&format!(
+                    "    pub const {} = struct {{\n        enum : [{}],\n    }};\n\n",
+                    pascal_name,
+                    tri_type.enum_values.join(", ")
+                ));
+                continue;
+            }
             output.push_str(&format!("    pub const {} = struct {{\n", pascal_name));
             for field in &tri_type.fields {
                 let field_type = convert_type_name(&field.type_val);
