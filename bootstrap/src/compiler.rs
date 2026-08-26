@@ -5347,10 +5347,27 @@ impl Parser {
     fn parse_if_expr(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition, with or without parentheses -- the same rule
+        // `parse_if_stmt` was given in W578, applied to expression position,
+        // which was left behind. 14 specs still failed with the identical
+        // "Expected LParen, got Ident" the comment up there says was fixed,
+        // so a reader who greps that diagnostic finds a note claiming the
+        // opposite of what the code does.
+        //
+        // Without parentheses, `Name {` opens the THEN branch, so
+        // struct-literal parsing is suppressed for the condition exactly as
+        // it is for the statement form.
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance();
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal += 1;
+            let c = self.parse_expr();
+            self.no_struct_literal -= 1;
+            c?
+        };
 
         // Then expression
         let then_expr = self.parse_branch_value()?;
