@@ -368,6 +368,20 @@ test "lsp_message_buffer_create" {
     try std.testing.expect(buf.capacity == 1024);
 }
 
+// FAILS ON PURPOSE. message_buffer_create reports whatever capacity it is
+// asked for and backs it with nothing: `.data = ""`, an empty slice, for any
+// argument. The test above passes because it only reads `capacity`, which is
+// the field the function copies rather than the one it would have to earn.
+//
+// Left red rather than fixed, because the fix is an API decision and not
+// mine: the signature takes no allocator, so backing the buffer means
+// changing what callers pass. Until then this states the truth -- a buffer
+// that claims room for 1024 bytes and can hold none.
+test "lsp_message_buffer_has_the_room_it_claims" {
+    const buf = message_buffer_create(1024);
+    try std.testing.expect(buf.data.len >= buf.capacity);
+}
+
 test "lsp_initialize_request_create" {
     const req = initialize_request_create(1, "{}");
     try std.testing.expectEqual(@as(usize, req.method.len), @as(usize, 10));
