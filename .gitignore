@@ -91,6 +91,12 @@ docker/Xilinx_Unified_*.bin
 # the specification it claims to be about. Do not commit.
 fpga/formal/mvp_classifier_dut.v
 paper/canon/
-paper/*.pdf
+# W1002: the built paper IS committed -- the Architect asked for it, and a
+# 22 MB blob in history is the price. The figure PNGs stay out: they live
+# upstream and committing both would double the cost for no gain.
+paper/canon/*.png
 paper/*.log
 paper/*.xdv
+arxiv_submission/canon/
+arxiv_submission/*.pdf
+arxiv_tnf_submission.tar.gz
