@@ -5618,6 +5618,13 @@ impl Codegen {
             // already valid Zig and starts with `[` too.
             let v = &node.children[0];
             let raw = if v.name.is_empty() { &v.value } else { &v.name };
+            // Applied at EVERY site that writes a value verbatim. A struct
+            // literal nested inside a list only becomes visible after the
+            // `[...]` -> `.{...}` conversion below, which happens here at
+            // emission rather than in the clause-text pipeline. Idempotent:
+            // a name already carrying its dot is preceded by `.`, not by
+            // `{` or `,`, so a second pass leaves it alone.
+            let raw = &rewrite_struct_literal_fields(raw);
             let bracketed = raw.starts_with('[') && raw.ends_with(']') && !raw.contains('{');
             let is_list = bracketed
                 && !node.extra_type.is_empty()
@@ -6195,7 +6202,9 @@ impl Codegen {
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
     fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
-        let text = rewrite_list_literals(&rewrite_array_repeats(&zig_path(&node.name)));
+        let text = rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(
+            &zig_path(&node.name),
+        )));
         self.write_indent();
         if node.extra_kind == "then" {
             // Zig has no `==` for strings. `then name == "Arty A7"` is 45 of
@@ -6223,6 +6232,12 @@ impl Codegen {
                 if val.starts_with('[') && val.ends_with(']') {
                     val = format!(".{{{}}}", &val[1..val.len() - 1]);
                 }
+                // Applied again HERE because the `[...]` -> `.{...}` conversion
+                // above happens at EMISSION, after the text rewrites, and a
+                // struct literal nested inside a list only becomes visible once
+                // that has run. Idempotent: a name already carrying its dot is
+                // preceded by `.`, not by `{` or `,`, so it is left alone.
+                let val = rewrite_struct_literal_fields(&val);
                 self.write_line(&format!("const {} = {};", zig_ident(lhs.trim()), val));
             }
             // Zig rejects a discarded-free expression statement, so an action
@@ -6388,6 +6403,13 @@ impl Codegen {
                     // body kept its brackets -- 80 emitted lines in 11 files,
                     // and fixing only the top-level path moved none of them.
                     let raw = if v.name.is_empty() { &v.value } else { &v.name };
+                    // Applied at EVERY site that writes a value verbatim. A struct
+                    // literal nested inside a list only becomes visible after the
+                    // `[...]` -> `.{...}` conversion below, which happens here at
+                    // emission rather than in the clause-text pipeline. Idempotent:
+                    // a name already carrying its dot is preceded by `.`, not by
+                    // `{` or `,`, so a second pass leaves it alone.
+                    let raw = &rewrite_struct_literal_fields(raw);
                     let bracketed = raw.starts_with('[')
                         && raw.ends_with(']')
                         && node.extra_type.is_empty();
@@ -9411,6 +9433,93 @@ fn is_zig_primitive(name: &str) -> bool {
 ///
 /// Recurses, so a list inside a list converts too. String literals are skipped
 /// entirely: a bracket inside quotes is data.
+/// `T{field=value}` is a struct literal in the corpus's spelling; Zig writes
+/// `T{ .field = value }`.
+///
+/// Without the dot Zig reads `field` as an expression and `=` as an assignment
+/// inside an initializer, which is `expected ',' after initializer` -- a parse
+/// error, and a wall over the whole file:
+///
+///     GF4{raw=0b0000}
+///     IgnorePattern{pattern=node_modules,isDir=true,}
+///     DynkinPhysicsMapping{dynkin_node=1,mark=2,physics_domain=electroweak}
+///
+/// A name is rewritten only when it sits at a FIELD POSITION: directly after
+/// the `{` or after a `,` at the same brace depth, with no `.` already in
+/// front of it, and followed by a single `=` that is not part of `==`, `!=`,
+/// `<=` or `>=`. That leaves comparisons and already-correct `.field =` alone.
+///
+/// Values that are bare words -- `node_modules`, `electroweak` -- stay bare.
+/// They are missing quotes, which is a different defect and a SEMANTIC error
+/// once this parse error is gone; guessing quotes around them would be
+/// inventing data.
+fn rewrite_struct_literal_fields(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut i = 0usize;
+    let mut in_str = false;
+    // depth of `{` groups that follow an identifier, i.e. struct literals
+    let mut lit_depth: Vec<bool> = Vec::new();
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if in_str {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '{' {
+            let prev = out.trim_end().chars().last();
+            lit_depth.push(prev.map_or(false, |p| p.is_alphanumeric() || p == '_'));
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '}' {
+            lit_depth.pop();
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let inside_literal = *lit_depth.last().unwrap_or(&false);
+        if inside_literal && (c.is_alphabetic() || c == '_') {
+            let before = out.trim_end().chars().last();
+            let at_field = matches!(before, Some('{') | Some(','));
+            if at_field {
+                let mut j = i;
+                while j < b.len() && (b[j].is_alphanumeric() || b[j] == '_') {
+                    j += 1;
+                }
+                let mut k = j;
+                while k < b.len() && b[k] == ' ' {
+                    k += 1;
+                }
+                let single_eq = b.get(k) == Some(&'=')
+                    && b.get(k + 1) != Some(&'=')
+                    && !matches!(b.get(k.wrapping_sub(1)), Some('!') | Some('<') | Some('>'));
+                if single_eq {
+                    out.push('.');
+                    out.push_str(&b[i..j].iter().collect::<String>());
+                    out.push_str(" = ");
+                    i = k + 1;
+                    while i < b.len() && b[i] == ' ' {
+                        i += 1;
+                    }
+                    continue;
+                }
+            }
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
+}
+
 fn rewrite_list_literals(s: &str) -> String {
     let b: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len() + 8);
@@ -9461,6 +9570,14 @@ fn rewrite_list_literals(s: &str) -> String {
         // TYPES in expression position, and converting `[]` to `.{}` left
         // `const u8` and `?SkipNode(i64)` dangling.
         let next = b[j + 1..].iter().find(|c| !c.is_whitespace()).copied();
+        // A ONE-ELEMENT list is still a list: `fits(c,[s1],1)` and
+        // `changes_at_timestamp([c1],1,999)`. The first version of this rule
+        // required a comma or emptiness, on the reasoning that a lone `[x]` is
+        // likelier an index or a length -- but both of those are already
+        // excluded by the two POSITIONAL tests: indexing has an identifier,
+        // `)` or `]` before the bracket, and an array type has a type after
+        // it. What is left cannot be either.
+        let single = closed && !empty && !comma;
         let ok = if empty {
             // `[]` alone is a slice-type prefix unless the expression ends
             // right there: `f([], 0)` and `f([])` are lists, `[]const u8` and
@@ -9471,7 +9588,7 @@ fn rewrite_list_literals(s: &str) -> String {
             // either -- the brackets belong to whatever follows.
             !matches!(next, Some(c) if c.is_alphanumeric() || c == '_' || c == '?' || c == '*' || c == '[')
         };
-        if closed && (comma || empty) && ok {
+        if closed && (comma || empty || single) && ok {
             let inner: String = b[i + 1..j].iter().collect();
             out.push_str(".{");
             out.push_str(&rewrite_list_literals(&inner));
