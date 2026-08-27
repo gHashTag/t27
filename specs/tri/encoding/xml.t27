@@ -12,7 +12,7 @@ module TriXml;
 
     pub const XmlNode = struct {
         tag : []const u8,
-        attributes : [std.StringHashMap([]Const u8)],
+        attributes : std.StringHashMap([]const u8),
         children : []XmlNode,
         text : []const u8,
     };

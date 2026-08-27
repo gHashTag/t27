@@ -699,6 +699,17 @@ fn to_snake_case(s: &str) -> String {
 }
 
 fn convert_type_name(tri_type: &str) -> String {
+    // STRIP HERE, not at the call sites. A quoted type reaches this function
+    // still wearing its quotes, and then matches none of the prefix arms:
+    // `"?[]const u8"` does not start with `?`, does not start with `[]`, but
+    // DOES contain `[`, so it falls into the array-syntax arm, which slices
+    // around the first `]` and PascalCases the remainder. That is the whole of
+    // `?[]const u8` -> `[?[]Const u8]`, seen in five specs.
+    //
+    // #2154 fixed this for one branch by stripping at its call site. One call
+    // site is not the grammar; a type never legitimately contains a quote, so
+    // the strip belongs where every caller gets it.
+    let tri_type = tri_type.trim().trim_matches('"').trim_matches('\'').trim();
     match tri_type {
         "f32" => "f32".to_string(),
         "f64" => "f64".to_string(),

@@ -33,7 +33,7 @@ module SpecWriter;
         spec_path : []const u8,
         generated_path : []const u8,
         compile_ok : "bool",
-        error_msg : [?[]Const u8],
+        error_msg : ?[]const u8,
     };
 
     // ═══════════════════════════════════════════════════════════

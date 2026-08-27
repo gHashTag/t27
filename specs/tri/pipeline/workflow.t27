@@ -13,7 +13,7 @@ module Workflow;
     pub const WorkflowStep = struct {
         command : String,
         depends_on : []const []const u8,
-        condition : [?[]Const u8],
+        condition : ?[]const u8,
     };
 
     pub const Workflow = struct {

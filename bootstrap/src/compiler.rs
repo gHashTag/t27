@@ -95,6 +95,71 @@ fn node_mentions_word(node: &Node, name: &str) -> bool {
     node.children.iter().any(|c| node_mentions_word(c, name))
 }
 
+/// Bare maths the corpus writes without importing anything.
+///
+/// Measured across every spec, grouping ALL occurrences of `use of undeclared
+/// identifier` by name rather than taking each file's first error:
+///
+///     5 specs  23x  abs      1 spec   2x  ln
+///     3 specs   7x  PI       1 spec   1x  E
+///     3 specs   3x  sqrt
+///
+/// 35 occurrences across 9 specs -- and only TWO of those specs come out
+/// clean, because the other seven carry undeclared names that are not maths.
+/// The class as a whole is 99 distinct names over 76 specs: a long tail with
+/// no single lever, and saying so is more useful than implying five names
+/// fixed nine files.
+///
+/// `max` is deliberately absent. It appears once, and integer max is the
+/// common case, so an f64 shim would trade `use of undeclared identifier` for
+/// a type mismatch -- a moved error, not a fixed one.
+///
+/// `abs` already has an expression-level rewrite to `@abs`, and it does not
+/// reach these sites: radix_economy.t27 emits `abs(...)` verbatim in all 23.
+/// A declaration works wherever the call is emitted from, and the two coexist
+/// because an unused container-level fn is legal Zig.
+///
+/// f64 throughout -- the same assumption the `pow` shim makes, and the same
+/// one the specs do not state.
+fn math_shims_for(ast: &Node) -> Vec<&'static str> {
+    const SHIMS: [(&str, &str); 5] = [
+        ("abs", "fn abs(x: f64) f64 { return @abs(x); }"),
+        ("sqrt", "fn sqrt(x: f64) f64 { return @sqrt(x); }"),
+        ("ln", "fn ln(x: f64) f64 { return @log(x); }"),
+        ("PI", "const PI: f64 = std.math.pi;"),
+        ("E", "const E: f64 = std.math.e;"),
+    ];
+    SHIMS
+        .iter()
+        .filter(|(name, _)| {
+            // Used, and NOT declared by the spec itself -- the guard that had
+            // to be added for `pow` after specs/math/constants.t27 defined its
+            // own and the shim made `duplicate struct member name`, holding
+            // down all 29 specs that import it.
+            //
+            // A PARAMETER counts as a declaration here, which the `pow` guard
+            // never had to learn. specs/compiler/diagnostics.t27 takes an
+            // argument named `ln` (a line number), and a container-level
+            // `fn ln` turns that into `error: function parameter shadows
+            // declaration of 'ln'` -- one spec valid before this change and
+            // invalid after. Caught by diffing per spec: the totals moved the
+            // right way (+3 valid) and would have buried it.
+            ast.children.iter().any(|c| mentions_identifier(c, name))
+                && !ast
+                    .children
+                    .iter()
+                    .any(|c| c.kind != NodeKind::UseDecl && c.name == *name)
+                && !ast
+                    .children
+                    .iter()
+                    .any(|c| c.params.iter().any(|(p, _)| {
+                        p == *name || p.split(':').next().map(str::trim) == Some(*name)
+                    }))
+        })
+        .map(|(_, body)| *body)
+        .collect()
+}
+
 fn mentions_identifier(node: &Node, name: &str) -> bool {
     // Exact equality alone misses a RECEIVER. `allocator.alloc(u8, n)` lands
     // with `allocator.alloc` in one field, which is not equal to `allocator`,
@@ -3383,6 +3448,28 @@ impl Parser {
             && self.current.kind != TokenKind::Eof
         {
             let iter_expr = self.parse_expr()?;
+            // `for part in parts { ... }` -- the Rust/Python/Swift spelling.
+            //
+            // `in` is not a TokenKind, so it lexed as an identifier and this
+            // loop simply collected THREE iterables: `part`, `in`, `parts`,
+            // which emitted `for (part, in, parts) {` and stopped ast-check
+            // dead at `expected loop payload, found '{'`. Two specs sat behind
+            // that, each reporting a single error and hiding whatever follows.
+            //
+            // Zig writes the same loop as `for (parts) |part|`, so what was
+            // parsed before the `in` is the CAPTURE and what follows is the
+            // iterable -- the two swap places.
+            if self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "in"
+                && for_node.children.is_empty()
+                && !iter_expr.name.is_empty()
+            {
+                self.advance(); // consume `in`
+                for_node.params.push((iter_expr.name.clone(), String::new()));
+                let iterable = self.parse_expr()?;
+                for_node.children.push(iterable);
+                continue;
+            }
             for_node.children.push(iter_expr);
             if self.current.kind == TokenKind::Comma {
                 self.advance();
@@ -4805,9 +4892,21 @@ impl Codegen {
         let needs_pow = needs("pow");
         // `x as T` builds an ExprFieldAccess named `as_T`, anywhere in the tree.
         let needs_cast = ast.children.iter().any(node_has_cast);
+        // In the GUARD, not only in the body. The same mistake was made with
+        // `pow`: a spec that uses a shimmed name but has no tests, no expect
+        // and no assert never entered this block, so the check was right and
+        // unreachable. PI and E also need the `const std` line that only this
+        // block writes.
+        let math_shims = math_shims_for(ast);
 
         let mut auto_std = false;
-        if has_tests || needs_expect || needs_assert || needs_pow || needs_cast {
+        if has_tests
+            || needs_expect
+            || needs_assert
+            || needs_pow
+            || needs_cast
+            || !math_shims.is_empty()
+        {
             self.write_line("const std = @import(\"std\");");
             auto_std = true;
             if needs_expect {
@@ -4822,6 +4921,9 @@ impl Codegen {
             // IS an assumption, not something the spec states.
             if needs_pow {
                 self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
+            }
+            for shim in &math_shims {
+                self.write_line(shim);
             }
         if needs_cast {
             self.write_line("fn t27_cast(comptime T: type, v: anytype) T {");
@@ -5069,9 +5171,21 @@ impl Codegen {
         let needs_pow = needs("pow");
         // `x as T` builds an ExprFieldAccess named `as_T`, anywhere in the tree.
         let needs_cast = ast.children.iter().any(node_has_cast);
+        // In the GUARD, not only in the body. The same mistake was made with
+        // `pow`: a spec that uses a shimmed name but has no tests, no expect
+        // and no assert never entered this block, so the check was right and
+        // unreachable. PI and E also need the `const std` line that only this
+        // block writes.
+        let math_shims = math_shims_for(ast);
 
         let mut auto_std = false;
-        if has_tests || needs_expect || needs_assert || needs_pow || needs_cast {
+        if has_tests
+            || needs_expect
+            || needs_assert
+            || needs_pow
+            || needs_cast
+            || !math_shims.is_empty()
+        {
             self.write_line("const std = @import(\"std\");");
             auto_std = true;
             if needs_expect {
@@ -5086,6 +5200,9 @@ impl Codegen {
             // IS an assumption, not something the spec states.
             if needs_pow {
                 self.write_line("fn pow(x: f64, y: f64) f64 { return std.math.pow(f64, x, y); }");
+            }
+            for shim in &math_shims {
+                self.write_line(shim);
             }
         if needs_cast {
             self.write_line("fn t27_cast(comptime T: type, v: anytype) T {");
@@ -5212,6 +5329,43 @@ impl Codegen {
                 }
                 if (ctor == "Option" || ctor == "Optional") && args.len() == 1 {
                     return format!("?{}", Self::zig_type(&args[0]));
+                }
+                // `Map<K, V>` has exactly one Zig reading, so it converts
+                // without the argument that holds `List` back: there is no
+                // slice form of an associative container. A string key needs
+                // StringHashMap -- AutoHashMap cannot hash a slice.
+                if (ctor == "Map" || ctor == "map" || ctor == "HashMap") && args.len() == 2 {
+                    let k = Self::zig_type(&args[0]);
+                    let v = Self::zig_type(&args[1]);
+                    if k == "[]const u8" {
+                        return format!("std.StringHashMap({})", v);
+                    }
+                    return format!("std.AutoHashMap({}, {})", k, v);
+                }
+                // `List<T>` -> `[]T`, and this reverses an earlier refusal.
+                //
+                // It was left failing on the ground that `[]T` and
+                // `std.ArrayList(T)` are both defensible and the spec does not
+                // say which -- a guessed semantic being worse than a visible
+                // syntax error. That was right, and the specs were never
+                // asked. They have now been: of the 18 fields in the corpus
+                // declared with a generic container, the number on which ANY
+                // method is ever called -- append, push, insert, pop, len,
+                // anything -- is ZERO.
+                //
+                // So the distinction is not merely undecided, it is
+                // UNOBSERVABLE within the corpus: no spec can tell the two
+                // readings apart, and holding five specs behind a wall to
+                // preserve a difference nothing can detect is the worse trade.
+                // `[]T` is the weaker claim of the two -- it carries no
+                // allocator and no ownership -- which is the right default for
+                // a spec that says nothing.
+                //
+                // The moment a spec calls `.append` on one of these, this
+                // becomes wrong and should be revisited; the measurement above
+                // is the trigger to re-run, not a permanent finding.
+                if ctor == "List" && args.len() == 1 {
+                    return format!("[]{}", Self::zig_type(&args[0]));
                 }
             }
         }
@@ -5792,9 +5946,29 @@ impl Codegen {
                 // Zig rejects a local nothing reads, and a `var` nothing
                 // assigns. 126 and 50 errors, all inside test bodies, and both
                 // answerable from the statements that follow this one.
+                // A behaviour clause carries its TYPE inside the name.
+                // `given lr : u32 = 0` arrives with `stmt.name == "lr:u32"`,
+                // and the emitted `const lr:u32 = 0;` is valid Zig only by
+                // accident -- Zig reads it as a name plus a type annotation.
+                //
+                // Both uses of the name below need the bare identifier:
+                //
+                //   * the read check asked whether anything mentions
+                //     `lr:u32`, which nothing ever does, so it concluded the
+                //     binding was unused even where `lr` is read on the next
+                //     line;
+                //   * the discard then wrote `_ = lr:u32;`, which is not an
+                //     expression at all. That is a PARSE error, so it capped
+                //     the file's error count and hid everything after it --
+                //     three specs sat behind this one line reporting a single
+                //     error each.
+                //
+                // Fixing only the discard would have left the read check
+                // wrong and kept emitting a discard for a variable in use.
+                let bare = stmt.name.split(':').next().unwrap_or(&stmt.name).trim();
                 let rest = &stmts[i + 1..];
-                let read = rest.iter().any(|n| node_mentions(n, &stmt.name));
-                let assigned = rest.iter().any(|n| node_assigns(n, &stmt.name));
+                let read = rest.iter().any(|n| node_mentions(n, bare));
+                let assigned = rest.iter().any(|n| node_assigns(n, bare));
                 let mut fixed = stmt.clone();
                 if !assigned {
                     fixed.extra_mutable = false;
@@ -5802,7 +5976,7 @@ impl Codegen {
                 self.gen_stmt(&fixed);
                 if !read {
                     self.write_indent();
-                    self.write_line(&format!("_ = {};", zig_ident(&stmt.name)));
+                    self.write_line(&format!("_ = {};", zig_ident(bare)));
                 }
             } else {
                 self.gen_stmt(stmt);
