@@ -782,6 +782,17 @@ pub fn run_path(_repo_root: &Path, spec: &str, to_bitstream: bool) -> anyhow::Re
 struct SpecOutcome {
     zig_gen: bool,
     zig_build: bool,
+    /// Does gen-rust produce something rustc accepts?
+    ///
+    /// `corpus` calls itself "the only corpus metric that does not lie" and
+    /// reported TWO of the four backends. The Rust backend had no compile gate
+    /// anywhere in the repository, and gen-c had none either -- which is how an
+    /// empty `match`, a dropped loop body, and a `u64` typed as `int` all
+    /// shipped with a green exit.
+    rust_gen: bool,
+    rust_build: bool,
+    c_gen: bool,
+    c_build: bool,
     v_gen: bool,
     v_build: bool,
     /// W707: does `yosys synth_xilinx` accept it?
@@ -911,6 +922,50 @@ pub fn run_corpus(
         let mut o = SpecOutcome::default();
         let sp = p.to_string_lossy().to_string();
 
+        // ---- Rust ----
+        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen-rust", &sp]), 15) {
+            if text == "__TIMEOUT__" {
+                o.timed_out = true;
+            } else if c == Some(0) && !text.trim().is_empty() {
+                o.rust_gen = true;
+                let rp = tmp.join("c.rs");
+                if std::fs::write(&rp, &text).is_ok() {
+                    if let Some((rc, rt)) = run_timed(
+                        Command::new("rustc").args([
+                            "--edition", "2021", "--crate-type", "lib",
+                            "--emit=metadata", "-A", "warnings",
+                            "-o", "/dev/null", &rp.to_string_lossy(),
+                        ]),
+                        30,
+                    ) {
+                        if rt == "__TIMEOUT__" { o.timed_out = true; }
+                        o.rust_build = rc == Some(0);
+                    }
+                }
+            }
+        }
+
+        // ---- C ----
+        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen-c", &sp]), 15) {
+            if text == "__TIMEOUT__" {
+                o.timed_out = true;
+            } else if c == Some(0) && !text.trim().is_empty() {
+                o.c_gen = true;
+                let cp = tmp.join("c.c");
+                if std::fs::write(&cp, &text).is_ok() {
+                    if let Some((cc, ct)) = run_timed(
+                        Command::new("cc").args([
+                            "-fsyntax-only", "-std=gnu11", &cp.to_string_lossy(),
+                        ]),
+                        30,
+                    ) {
+                        if ct == "__TIMEOUT__" { o.timed_out = true; }
+                        o.c_build = cc == Some(0);
+                    }
+                }
+            }
+        }
+
         // ---- Zig ----
         if let Some((c, text)) = run_timed(Command::new(&me).args(["gen", &sp]), 15) {
             if text == "__TIMEOUT__" {
@@ -993,11 +1048,21 @@ pub fn run_corpus(
     // T180: the column the instrument does not control.
     let vdp = out.iter().filter(|(_, o)| o.v_build && o.v_data_port).count();
     let vsy = out.iter().filter(|(_, o)| o.v_synth).count();
+    let rg = c(|o| o.rust_gen);
+    let rb = c(|o| o.rust_build);
+    let cg = c(|o| o.c_gen);
+    let cb = c(|o| o.c_build);
     let both = out.iter().filter(|(_, o)| o.zig_build && o.v_build).count();
+    // The row the two-backend table could not show: does ONE spec satisfy all
+    // four toolchains? That is what "one spec, four targets" claims.
+    let all4 = out
+        .iter()
+        .filter(|(_, o)| o.zig_build && o.v_build && o.rust_build && o.c_build)
+        .count();
     let to = c(|o| o.timed_out);
 
     if json {
-        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"verilog_synth\":{vsy},\"both_build\":{both},\"timed_out\":{to}}}");
+        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"verilog_synth\":{vsy},\"rust_gen\":{rg},\"rust_build\":{rb},\"c_gen\":{cg},\"c_build\":{cb},\"both_build\":{both},\"all_four_build\":{all4},\"timed_out\":{to}}}");
         return Ok(());
     }
 
@@ -1007,13 +1072,18 @@ pub fn run_corpus(
     println!("  {}", "-".repeat(52));
     println!("  {:<26} {:>5}  {:>6}", "generates Zig", zg, format!("{:.1}%", pct(zg)));
     println!("  {:<26} {:>5}  {:>6}", "  ... and Zig accepts it", zb, format!("{:.1}%", pct(zb)));
+    println!("  {:<26} {:>5}  {:>6}", "generates Rust", rg, format!("{:.1}%", pct(rg)));
+    println!("  {:<26} {:>5}  {:>6}", "  ... and rustc accepts it", rb, format!("{:.1}%", pct(rb)));
+    println!("  {:<26} {:>5}  {:>6}", "generates C", cg, format!("{:.1}%", pct(cg)));
+    println!("  {:<26} {:>5}  {:>6}", "  ... and cc accepts it", cb, format!("{:.1}%", pct(cb)));
     println!("  {:<26} {:>5}  {:>6}", "generates Verilog", vg, format!("{:.1}%", pct(vg)));
     println!("  {:<26} {:>5}  {:>6}", "  ... and iverilog accepts", vb, format!("{:.1}%", pct(vb)));
     println!("  {:<26} {:>5}  {:>6}", "  ... AND has a data port", vdp, format!("{:.1}%", pct(vdp)));
     if synth {
         println!("  {:<26} {:>5}  {:>6}", "  ... AND yosys SYNTHESISES", vsy, format!("{:.1}%", pct(vsy)));
     }
-    println!("  {:<26} {:>5}  {:>6}", "BOTH backends accept", both, format!("{:.1}%", pct(both)));
+    println!("  {:<26} {:>5}  {:>6}", "Zig AND Verilog accept", both, format!("{:.1}%", pct(both)));
+    println!("  {:<26} {:>5}  {:>6}", "ALL FOUR accept", all4, format!("{:.1}%", pct(all4)));
     if to > 0 {
         println!("  {:<26} {:>5}", "timed out (hang)", to);
     }
