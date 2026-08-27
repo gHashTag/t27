@@ -17850,7 +17850,20 @@ impl CCodegen {
                         // unsigned comparison against it inverts (the same
                         // class the Zig backend fixed as comptime_int).
                         if w == "u64" { "uint64_t".to_string() } else { "uint32_t".to_string() }
+                    } else if !node.children.is_empty() {
+                        // GNU `__auto_type`: the type follows the INITIALISER,
+                        // which is what Rust's `let` and Zig's `const` do.
+                        // The `int` fallback below caught everything the two
+                        // arms above miss -- a CALL among them -- and silently
+                        // truncated it: `const v = big()` with `big() -> u64`
+                        // made C print 1 where Rust and Zig print 4294967297,
+                        // and the C compiled without a diagnostic.
+                        //
+                        // Same builtin the tuple-destructure paths above
+                        // already emit, so it costs no new portability.
+                        "__auto_type".to_string()
                     } else {
+                        // No initialiser: `__auto_type` has nothing to follow.
                         "int".to_string()
                     };
                     self.write(&format!("{} {}", c_type, node.name));
