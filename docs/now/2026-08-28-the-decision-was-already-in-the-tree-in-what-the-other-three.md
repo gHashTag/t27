@@ -1,0 +1,8 @@
+# NOW -- The decision was already in the tree, in what the other three backends do (2026-08-28)
+
+## The decision was already in the tree, in what the other three backends do (Refs #2161)
+
+- Refs #2161, #2731. I filed #2731 saying gen-rust needed an owner decision because Rust has no safe mutable global. Re-reading the other three settles it: gen-verilog lowers a module-level var to a reg, gen-c to a static, Zig to a var -- all three mean SHARED mutable state. Of the three Rust candidates only `static mut` means that; AtomicU32 changes the API and thread_local! changes the semantics to per-thread. The repository had already answered the question I asked it
+- Every access to a static mut is unsafe, so the function body is wrapped. static_mut_names is collected in a PRE-PASS because a function can be emitted before the declaration it reads. Verified end to end: the generated Rust compiles and prints 1 2, the same answer the C does
+- Measured over the 43 specs whose Rust changes: rustc errors 921 -> 760, specs fully clean 0 -> 0. The second number is the honest one -- none of them compiles yet because of other defects, Zig builtins leaking into Rust chief among them. What this fixes is the declaration and its readers, which were wrong on their own terms
+- Separately: a hyphen is now part of the name in a `use` path, as it already was in a module declaration. `use tritype-base::Trit;` read the import as `tritype` and left `-base::Trit` as a module-level statement that reached gen-verilog as `-base_Trit;`. Phantom statements in generated Verilog 28 -> 0 across 11 specs; no diagnostic had ever mentioned them because from the parser side nothing went wrong
