@@ -606,9 +606,14 @@ known before it is built.
 \paragraph{The error does not move with magnitude, and cannot.} The derivation
 above removes $e$ from the expression, so magnitude-independence is a property of
 the layout rather than a happy measurement. Empirically flatness stays between
-$1.05$ and $1.07$ --- at most a $7\%$ difference between the closest and furthest
-parts of a workload spanning 76 binary decades (Figure~\ref{fig:ladderacc} plots
-those bands rung by rung). This is the property fixed fields
+$1.03$ and $1.11$ on every rung whose range covers the workload --- at most an
+$11\%$ difference between the closest and furthest parts of a workload spanning
+76 binary decades (Figure~\ref{fig:ladderacc} plots those bands rung by rung).
+TNF8 is the exception at $1.883$, and it is not a counterexample to the
+derivation but a rung whose six binades cannot hold the workload: the far band
+leaves range, and what the ratio measures there is overflow rather than rounding.
+An earlier version of this sentence gave the interval as $1.05$ to $1.07$, which
+seven of the eight rows of Table~\ref{tab:law} fall outside. This is the property fixed fields
 buy and the one a tapered format cannot have: spending mantissa bits on range is
 exactly what makes precision depend on where you are.
 
@@ -5121,7 +5126,7 @@ down what the competitor would build if it were trying to win, and measure that.
 \subsection{The post-route FPGA table, evaluated on an audited harness}\label{sec:cleantable}
 \begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth]{canon/canon-tnf-46-audited.png}
-\caption{Canon plate. With every decoder bit folded into one observed output, a tapered format is paid in delay rather than in area: 1.43 times the area against 19.9 times the frequency.}
+\caption{Canon plate. With every decoder bit folded into one observed output, a tapered format is paid in delay rather than in area: the two families overlap on area, posit8 at 214 LUT against IBM hexadecimal's 243, while every fixed field leads every taper on frequency -- by 1.43 times at the boundary and 19.9 times at the extremes.}
 \label{fig:canon-audited}
 \end{figure}
 
@@ -5369,8 +5374,11 @@ per-channel scale; without one it is the integers $-128\ldots127$. By
 Corollary~\ref{cor:escape} that is the non-uniformity escape --- the scale has
 been moved outside the word --- so \texttt{int8} is a block format wearing a
 scalar's name, and scoring it against formats that carry their own range measures
-the wrong thing. It leads the table precisely because it declines the task the
-table sets.
+the wrong thing. It is reported apart because it declines the task the table
+sets, not because of where it would place: on the surviving numbers this flow
+does not separate the two, \texttt{int8} at $0.1736$\,MHz/LUT against
+GFTernary's $0.1797$. The claim that it led the table rested on the $7\%$ lead
+withdrawn seven lines above.
 
 The consequence matters more for training than for inference. Gradients span many
 orders of magnitude, and a format with zero dynamic range cannot hold them: every
@@ -5918,7 +5926,7 @@ continuous integration; the full statement is in the accompanying note.
 \label{sec:provenance}
 \begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth]{canon/canon-tnf-52-provenance.png}
-\caption{Canon plate. The substring gate reports 882 of 885 distinctive literals as tracing to the tree; a stricter registry restricted to frequencies finds 16 of 40 with no record file, every one of them marked in place, and five document-to-code pairs still have no gate.}
+\caption{Canon plate. The substring gate reports 882 of 885 distinctive literals as tracing to the tree; a stricter registry restricted to frequencies finds 12 of 44 with no record file (16 of 40 before that registry was committed and could be re-run), every one of them marked in place, and five document-to-code pairs still have no gate.}
 \label{fig:canon-provenance}
 \end{figure}
 
