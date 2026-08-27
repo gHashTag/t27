@@ -96,16 +96,16 @@
     },
     {
       "path": "specs/base/ternary_encoding.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/base/ternary_memory.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
@@ -628,16 +628,16 @@
     },
     {
       "path": "specs/isa/ternary_arithmetic.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/isa/ternary_bitwise.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
@@ -649,9 +649,9 @@
     },
     {
       "path": "specs/isa/ternary_deque.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
@@ -663,9 +663,9 @@
     },
     {
       "path": "specs/isa/ternary_gates.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
@@ -677,9 +677,9 @@
     },
     {
       "path": "specs/isa/ternary_shift.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
