@@ -13,6 +13,38 @@ struct TriField {
     description: String,
 }
 
+/// Is the right-hand side of `- tag: rhs` a TYPE, or a value?
+///
+/// The distinction decides whether a variant becomes a `union(enum)` payload
+/// or stays a plain field. `0` and `"OK"` are values; `ParsedCommand`,
+/// `[]const u8` and `i64` are types. Getting this wrong in the permissive
+/// direction emits `success : 0`, which does not compile.
+fn is_payload_type(rhs: &str) -> bool {
+    let r = rhs.trim();
+    // A QUOTED right-hand side is a value, not a type. Stripping the quotes
+    // first made `- status: "OK"` read as the type `OK` and emit
+    // `status : OK` inside a union(enum) -- a payload whose type does not
+    // exist. Across all 366 ancestors not one variant bullet quotes its type
+    // (`- sacred_score: SacredScoreData`, `- string: []const u8`), so this
+    // costs nothing on real input and closes the case that does not.
+    if r.starts_with('"') || r.starts_with('\'') {
+        return false;
+    }
+    if r.is_empty() || r.parse::<i64>().is_ok() || r.parse::<f64>().is_ok() {
+        return false;
+    }
+    r.starts_with("[]")
+        || r.starts_with('*')
+        || r.starts_with('?')
+        || r.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+        || matches!(
+            r,
+            "bool" | "void" | "usize" | "isize" | "f32" | "f64"
+                | "i8" | "i16" | "i32" | "i64"
+                | "u8" | "u16" | "u32" | "u64"
+        )
+}
+
 #[derive(Debug, Clone)]
 struct TriType {
     name: String,
@@ -20,6 +52,10 @@ struct TriType {
     fields: Vec<TriField>,
     is_enum: bool,
     enum_values: Vec<String>,
+    /// Variants that carry a payload: `- namespaced: ParsedCommand`.
+    /// Bare variants live in `enum_values`; a type with any of these emits as
+    /// `union(enum)` rather than as a variant list.
+    enum_payloads: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone)]
@@ -115,6 +151,7 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                 fields: Vec::new(),
                 is_enum: false,
                 enum_values: Vec::new(),
+                enum_payloads: Vec::new(),
             });
         } else if section == "types" && (indent == 4 || indent == 6) {
             if let Some(ref mut t) = current_type {
@@ -148,7 +185,11 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                         }
                     }
                     t.fields.push(field);
-                } else if trimmed == "enum:" || trimmed == "variants:" {
+                } else if trimmed == "enum:"
+                    || trimmed == "variants:"
+                    || trimmed == "union:"
+                    || trimmed == "cases:"
+                {
                     // A VARIANT LIST, not a field.
                     //
                     // The ancestor writes
@@ -177,12 +218,31 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                     // their ancestors have no route (#2723) -- so the count
                     // that matters for a future conversion is 41, not 3.
                     //
-                    // Two keys are handled here and at least two are NOT:
-                    // `union:` (2 blocks) and `cases:` carry nested maps per
-                    // case rather than bare names, which this flat grammar
-                    // cannot express at all. Left open deliberately.
+                    // All four keys the ancestors use are handled here, and
+                    // the earlier claim that `union:`/`cases:` "carry nested
+                    // maps this grammar cannot express" was simply wrong --
+                    // measured across all 366 ancestors, there is not one
+                    // nested map under any of them:
+                    //
+                    //     key        blocks  bare  payload
+                    //     enum:          31   162        0
+                    //     variants:      43   204       12
+                    //     union:          2     0       15
+                    //     cases:          2    10        0
+                    //
+                    // `union:` needs one guard that is not visible here: the
+                    // same word is also a FUNCTION name in tri_bitset.tri and
+                    // tri_disjoint_set.tri, where `union:` at indent 2 is a
+                    // method with `params:`/`returns:`. Counting by the text
+                    // `union:` alone reports 6 blocks and 27 pairs; 4 of those
+                    // blocks are the homonym and 12 of the pairs are its
+                    // parameters. This arm is reachable only under
+                    // `section == "types"` at indent 4 or 6, so the method
+                    // cannot arrive here -- but any future count of these
+                    // shapes must ask WHERE the key sits, not just what it
+                    // says.
                     t.is_enum = true;
-                } else if t.is_enum && trimmed.starts_with("- ") && !trimmed.contains(':') {
+                } else if t.is_enum && trimmed.starts_with("- ") {
                     // Strip a trailing `# comment`. Without this,
                     // `- warning      # Minor violation, logged but not
                     // blocking` becomes a variant carrying the whole comment,
@@ -197,7 +257,28 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                         .unwrap_or("")
                         .trim()
                         .to_string();
-                    if !value.is_empty() {
+                    if value.is_empty() {
+                        // nothing but a comment
+                    } else if let Some((tag, rhs)) = value.split_once(':') {
+                        // A PAYLOAD, or a value assignment wearing the same
+                        // punctuation. `- namespaced: ParsedCommand` is the
+                        // first; `- success: 0` in exit_codes.tri is the
+                        // second, and it must keep falling through to the
+                        // field branch below -- emitting `success : 0` inside
+                        // a union(enum) would be invalid Zig, and that spec's
+                        // declaration is correct today precisely because this
+                        // arm does not claim it.
+                        let (tag, rhs) = (tag.trim(), rhs.trim().trim_matches('"'));
+                        if is_payload_type(rhs) {
+                            t.enum_payloads.push((tag.to_string(), rhs.to_string()));
+                        } else {
+                            t.fields.push(TriField {
+                                name: tag.to_string(),
+                                type_val: rhs.to_string(),
+                                description: String::new(),
+                            });
+                        }
+                    } else {
                         t.enum_values.push(value);
                     }
                 } else if trimmed.contains(':') && !trimmed.starts_with("description:") && !trimmed.starts_with("fields:") {
@@ -688,6 +769,17 @@ fn generate_t27(spec: &TriSpec) -> String {
 
         for tri_type in &spec.types {
             let pascal_name = to_pascal_case(&tri_type.name);
+            if tri_type.is_enum && !tri_type.enum_payloads.is_empty() {
+                output.push_str(&format!("    pub const {} = union(enum) {{\n", pascal_name));
+                for (tag, ty) in &tri_type.enum_payloads {
+                    output.push_str(&format!("        {} : {},\n", tag, convert_type_name(ty)));
+                }
+                for value in &tri_type.enum_values {
+                    output.push_str(&format!("        {} : void,\n", value));
+                }
+                output.push_str("    };\n\n");
+                continue;
+            }
             if tri_type.is_enum && !tri_type.enum_values.is_empty() {
                 output.push_str(&format!(
                     "    pub const {} = struct {{\n        enum : [{}],\n    }};\n\n",
@@ -868,4 +960,106 @@ fn main() -> Result<()> {
     println!("  Skipped: {} files", skipped);
 
     Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════
+// Tests
+// ═══════════════════════════════════════════════════════════
+//
+// These exist because the union/cases work has NO routed input. `get_route` is
+// a hardcoded table and 206 of the 366 ancestors are absent from it, including
+// both files that hold a `union:` type block (dashboard_agent.tri) and the
+// only one whose `variants:` carry payload types (tracer.tri). So on the real
+// corpus the payload branch emits nothing and a green conversion proves
+// nothing about it. Feeding the shapes in directly is the difference between
+// "the code compiles" and "the code works".
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn emit(src: &str) -> String {
+        generate_t27(&parse_tri_file(src).expect("parse"))
+    }
+
+    /// `union:` with `- tag: Type` bullets, the dashboard_agent.tri shape.
+    #[test]
+    fn union_block_becomes_a_tagged_union() {
+        let out = emit(concat!(
+            "name: t\n",
+            "types:\n",
+            "  WidgetData:\n",
+            "    union:\n",
+            "      - sacred_score: SacredScoreData\n",
+            "      - logs: LogData\n",
+        ));
+        assert!(out.contains("pub const WidgetData = union(enum) {"), "{out}");
+        assert!(out.contains("sacred_score : SacredScoreData,"), "{out}");
+        assert!(out.contains("logs : LogData,"), "{out}");
+    }
+
+    /// `cases:` is the same bare-name list as `enum:`, under a third spelling.
+    /// Two blocks upstream, ten variants; both were emitted as `cases : ,`.
+    #[test]
+    fn cases_block_becomes_a_variant_list() {
+        let out = emit(concat!(
+            "name: t\n",
+            "types:\n",
+            "  ErrorSeverity:\n",
+            "    variant: enum\n",
+            "    cases:\n",
+            "      - error\n",
+            "      - warning\n",
+            "      - info\n",
+        ));
+        assert!(out.contains("enum : [error, warning, info]"), "{out}");
+        assert!(!out.contains("cases : ,"), "the flattened shape came back: {out}");
+    }
+
+    /// A comment on a bullet is not part of the variant name. Without the
+    /// strip, `- warning  # Minor violation, logged but not blocking` becomes
+    /// one variant carrying the prose and the comma splits off a second.
+    #[test]
+    fn a_trailing_comment_is_not_a_variant() {
+        let out = emit(concat!(
+            "name: t\n",
+            "types:\n",
+            "  Sev:\n",
+            "    enum:\n",
+            "      - warning      # Minor violation, logged but not blocking\n",
+            "      - critical\n",
+        ));
+        assert!(out.contains("enum : [warning, critical]"), "{out}");
+    }
+
+    /// THE NON-REGRESSION. `- success: 0` in exit_codes.tri wears the same
+    /// punctuation as a payload but is a value assignment. Reading it as a
+    /// payload would emit `success : 0` inside a `union(enum)`, which is not
+    /// valid Zig. It must stay on the field path.
+    #[test]
+    fn a_numeric_value_is_not_a_payload_type() {
+        let out = emit(concat!(
+            "name: t\n",
+            "types:\n",
+            "  ExitCode:\n",
+            "    enum:\n",
+            "      - success: 0\n",
+            "      - command_error: 1\n",
+        ));
+        assert!(!out.contains("union(enum)"), "value list read as a union: {out}");
+        assert!(out.contains("success : 0"), "{out}");
+    }
+
+    /// Lowercase primitives are types too -- tracer.tri's `variants:` carry
+    /// `[]const u8`, `i64`, `f64`, `bool`. An uppercase-only test would miss
+    /// every one of them.
+    #[test]
+    fn primitive_payloads_are_recognised() {
+        for ty in ["[]const u8", "i64", "f64", "bool", "*Bitset", "?Foo"] {
+            assert!(is_payload_type(ty), "{ty} should be a payload type");
+        }
+        for v in ["0", "-1", "3.5", "\"OK\"", ""] {
+            assert!(!is_payload_type(v), "{v} should NOT be a payload type");
+        }
+    }
 }
