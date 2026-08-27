@@ -264,21 +264,28 @@ pub const CASES: &[Case] = &[
         note: "W604: an unterminated single quote is an ERROR, not silent garbage (W577's rule, one layer down)",
         boundary: false,
     },
-    // ---- silently dropped input ------------------------------------------
+    // ---- `#` opens a comment ---------------------------------------------
+    //
+    // These two rows described `#` as an unrecognised character the lexer drops
+    // without a diagnostic. That mechanism is not there: `#` runs to end of line
+    // as a comment, on purpose, and the decision carries its measurement -- 42
+    // occurrences in struct field positions across 8 specs, plus files with a
+    // .t27 extension whose contents are Markdown headings.
+    //
+    // So the rows were failing while describing a cause that did not exist. They
+    // now assert the decided behaviour, which keeps them load-bearing -- change
+    // how `#` lexes and they go red -- and the hazard they were reaching for is
+    // written where it can be read rather than inferred from a wrong mechanism.
     Case {
         input: "1 # 2",
-        expect: &[(Number, "1"), (Number, "2")],
-        note: "BOUNDARY: the lexer DISCARDS an unrecognised character with no diagnostic -- `#` vanishes",
+        expect: &[(Number, "1")],
+        note: "`#` opens a comment to end of line, so the `2` is inside it. Not a dropped character: the unknown-character path (which does skip, continue and record) never sees `#`",
         boundary: true,
     },
     Case {
         input: "#[test]",
-        expect: &[
-            (TokenKind::LBracket, "["),
-            (TokenKind::KwTest, "test"),
-            (TokenKind::RBracket, "]"),
-        ],
-        note: "BOUNDARY: consequence of the above -- a Rust attribute arrives as a bare bracket group, and `test` inside it is the KEYWORD (W579)",
+        expect: &[],
+        note: "consequence of the row above: a Rust attribute is a comment, so the WHOLE line vanishes -- anything written after `#[test]` on that line goes with it. That is the price of `#`-as-comment and it is charged here so a reader meets it (W579)",
         boundary: true,
     },
     Case {
