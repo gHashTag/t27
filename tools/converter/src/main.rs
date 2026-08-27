@@ -283,6 +283,22 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                     }
                 } else if trimmed.contains(':') && !trimmed.starts_with("description:") && !trimmed.starts_with("fields:") {
                     // Direct field declaration without dash: "name: type"
+                    //
+                    // STRIP THE TRAILING `#` COMMENT FIRST. It is a comment in
+                    // the source language and has no business in a type, and
+                    // without this
+                    //
+                    //     pas_score: float      # phi-weighted priority
+                    //
+                    // reaches the emitter as the type `float      # phi-weighted
+                    // priority`, which PascalCases to `Float-weighted priority`
+                    // and is a parse error in the generated Zig -- a wall over
+                    // the whole file. 38 fields across 9 specs carry it.
+                    //
+                    // The enum-bullet branch above learned this today; this
+                    // branch never did. Same defect, one arm over.
+                    let trimmed = trimmed.split(" #").next().unwrap_or(trimmed).trim_end();
+                    let trimmed = trimmed.split('\t').next().unwrap_or(trimmed).trim_end();
                     if let Some((field_name, field_type)) = trimmed.split_once(':') {
                         let field_name = field_name.trim().to_string();
                         // The dashed branch above strips quotes; this one did not,

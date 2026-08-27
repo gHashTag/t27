@@ -35,7 +35,7 @@ module SwarmAgents;
 
     pub const Task = struct {
         task_id : String,
-        priority : Float              # φ-weighted 0-1,
+        priority : Float,  // φ-weighted 0-1
         assigned_to : Option<AgentType>,
         status : TaskStatus,
         result : Option<String>,
@@ -51,8 +51,8 @@ module SwarmAgents;
     pub const SwarmState = struct {
         agents : List<Agent>,
         coordination_mode : CoordinationMode,
-        phi_harmony_score : Float       # 0-1, target ≥0.95,
-        consensus_threshold : Float     # Default 0.95,
+        phi_harmony_score : Float,  // 0-1, target ≥0.95
+        consensus_threshold : Float,  // Default 0.95
         active_tasks : List<Task>,
         completed_tasks : List<Task>,
         iteration_count : Int,
@@ -90,11 +90,11 @@ module SwarmAgents;
     };
 
     pub const SwarmHarmonyMetrics = struct {
-        cosine_similarity : Float       # VSA cosine similarity,
-        consensus_rate : Float          # Approved / Total,
-        task_success_rate : Float       # Completed / Total,
-        phi_alignment : Float           # How aligned with sacred math,
-        overall_harmony : Float         # Combined score 0-1,
+        cosine_similarity : Float,  // VSA cosine similarity
+        consensus_rate : Float,  // Approved / Total
+        task_success_rate : Float,  // Completed / Total
+        phi_alignment : Float,  // How aligned with sacred math
+        overall_harmony : Float,  // Combined score 0-1
     };
 
     pub const AgentCommunication = struct {

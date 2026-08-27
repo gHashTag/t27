@@ -21,7 +21,7 @@ module TriAutonomousLifecycle;
         from_state : LifecycleState,
         to_state : LifecycleState,
         timestamp : i64,
-        pas_score : Float      # φ-weighted priority,
+        pas_score : Float,  // φ-weighted priority
         trigger : String,
     };
 

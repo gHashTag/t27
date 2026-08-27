@@ -5399,6 +5399,25 @@ impl Codegen {
         if t == "&str" || t == "str" {
             return "[]const u8".to_string();
         }
+        // The ANCESTORS' type vocabulary. specs/tri/*.tri write `String`,
+        // `Float`, `Bool`, `Int` -- their own spelling, not damage -- and once
+        // the welded-on comments were stripped these became the visible error
+        // in five specs: String 14, Float 5, Int 1, Bool 1.
+        //
+        // Three of the four are unambiguous. `Int` is not: the width is a real
+        // choice and the ancestors never state it. Both uses are struct fields
+        // on which no arithmetic is ever performed, so nothing in the corpus
+        // can tell one width from another -- the same test that settled
+        // `List<T>`. i64 is the default a use site can overturn; the day one
+        // indexes with it, usize becomes the right answer and this line is
+        // where to change it.
+        match t {
+            "String" | "string" => return "[]const u8".to_string(),
+            "Float" | "float" => return "f64".to_string(),
+            "Bool" | "boolean" => return "bool".to_string(),
+            "Int" | "int" => return "i64".to_string(),
+            _ => {}
+        }
         if let Some(rest) = t.strip_prefix("&mut ") {
             // A mutable reference is a plain pointer.
             return format!("*{}", Self::zig_type(rest));
