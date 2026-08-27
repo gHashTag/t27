@@ -6124,7 +6124,7 @@ impl Codegen {
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
     fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
-        let text = rewrite_array_repeats(&zig_path(&node.name));
+        let text = rewrite_list_literals(&rewrite_array_repeats(&zig_path(&node.name)));
         self.write_indent();
         if node.extra_kind == "then" {
             // Zig has no `==` for strings. `then name == "Arty A7"` is 45 of
@@ -9318,6 +9318,102 @@ fn is_zig_primitive(name: &str) -> bool {
 /// and a tuple coerces to the array the context expects. Checked on the
 /// compiler for an annotated local, a struct-literal field, a call element and
 /// an enum element before being used.
+/// `[a, b, c]` in EXPRESSION position is a list literal; Zig writes `.{a, b, c}`.
+///
+/// Zig reads a leading `[` as an ARRAY TYPE prefix and wants a length, so
+/// `path_delay([a1,a2,a3],3)` is `expected ']', found ','` -- a parse error, and
+/// therefore a wall over its whole file. Five specs sit behind exactly this, all
+/// of them assertions in test blocks:
+///
+///     fits(c,[s1,s2],2)          total_domain_power([],0)
+///     path_delay([a1,a2,a3],3)   changes_at_timestamp([c1,c2,c3],3,100)
+///     run_compare([],0,[],0)
+///
+/// Three conditions, all necessary:
+///
+///   * the `[` is NOT preceded by an identifier character, `)` or `]` -- those
+///     are `xs[i]`, `f()[0]`, `a[b][c]`, which are INDEXING and must not move;
+///   * the group is empty or holds a top-level comma -- a lone `[x]` is far
+///     likelier an index or a length than a one-element list;
+///   * the `]` is not followed by an identifier character -- that rules out
+///     `[]const u8` and `[]T`, which are TYPES.
+///
+/// Recurses, so a list inside a list converts too. String literals are skipped
+/// entirely: a bracket inside quotes is data.
+fn rewrite_list_literals(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if in_str || c != '[' {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let prev = out.trim_end().chars().last();
+        let indexing = prev.map_or(false, |p| p.is_alphanumeric() || p == '_' || p == ')' || p == ']');
+        if indexing {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let (mut depth, mut j, mut comma, mut sq) = (0i32, i, false, false);
+        while j < b.len() {
+            match b[j] {
+                '"' => sq = !sq,
+                '[' if !sq => depth += 1,
+                ']' if !sq => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                ',' if !sq && depth == 1 => comma = true,
+                _ => {}
+            }
+            j += 1;
+        }
+        let closed = j < b.len();
+        let empty = closed && j == i + 1;
+        // What follows the `]`, SKIPPING SPACES. Looking at the very next
+        // character was wrong and cost four specs that had been valid:
+        // `positional_type == []const u8` has a space in `[] const u8` often
+        // enough, and `[]?SkipNode(i64)` is followed by `?`. Both are slice
+        // TYPES in expression position, and converting `[]` to `.{}` left
+        // `const u8` and `?SkipNode(i64)` dangling.
+        let next = b[j + 1..].iter().find(|c| !c.is_whitespace()).copied();
+        let ok = if empty {
+            // `[]` alone is a slice-type prefix unless the expression ends
+            // right there: `f([], 0)` and `f([])` are lists, `[]const u8` and
+            // `[]T` are types.
+            matches!(next, None | Some(',') | Some(')') | Some(']') | Some('}'))
+        } else {
+            // `[a, b, c]` followed by a type-ish character is not a list
+            // either -- the brackets belong to whatever follows.
+            !matches!(next, Some(c) if c.is_alphanumeric() || c == '_' || c == '?' || c == '*' || c == '[')
+        };
+        if closed && (comma || empty) && ok {
+            let inner: String = b[i + 1..j].iter().collect();
+            out.push_str(".{");
+            out.push_str(&rewrite_list_literals(&inner));
+            out.push('}');
+            i = j + 1;
+        } else {
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
+
 fn rewrite_array_repeats(text: &str) -> String {
     let bytes: Vec<char> = text.chars().collect();
     let mut out = String::new();
