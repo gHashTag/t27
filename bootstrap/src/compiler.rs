@@ -4210,7 +4210,33 @@ impl Parser {
             }
             let op = self.current.lexeme.clone();
             self.advance();
+            // `a..=b` -- the INCLUSIVE range. The lexer emits `..` and then a
+            // separate `=`, so the right operand parser met `=b` and answered
+            // "Unexpected token in expression: Equals". 12 specs write this
+            // form, one of them specs/math/constants.t27, which 259 of 746
+            // specs import.
+            //
+            // Lowered to the EXCLUSIVE range over `b + 1` rather than carried
+            // as a new operator: every backend already lowers `..`, and none
+            // would know `..=`. For the integer loops this grammar has the two
+            // are the same range, and the alternative is a fifth spelling that
+            // four emitters must each be taught.
+            let inclusive = op == ".." && self.current.kind == TokenKind::Equals;
+            if inclusive {
+                self.advance();
+            }
             let right = self.parse_expr_bitor()?;
+            let right = if inclusive {
+                let mut plus = Node::new(NodeKind::ExprBinary);
+                plus.extra_op = "+".to_string();
+                plus.children.push(right);
+                let mut one = Node::new(NodeKind::ExprLiteral);
+                one.value = "1".to_string();
+                plus.children.push(one);
+                plus
+            } else {
+                right
+            };
             left = Node {
                 kind: NodeKind::ExprBinary,
                 extra_op: op,
@@ -5347,10 +5373,27 @@ impl Parser {
     fn parse_if_expr(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition, with or without parentheses -- the same rule
+        // `parse_if_stmt` was given in W578, applied to expression position,
+        // which was left behind. 14 specs still failed with the identical
+        // "Expected LParen, got Ident" the comment up there says was fixed,
+        // so a reader who greps that diagnostic finds a note claiming the
+        // opposite of what the code does.
+        //
+        // Without parentheses, `Name {` opens the THEN branch, so
+        // struct-literal parsing is suppressed for the condition exactly as
+        // it is for the statement form.
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance();
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal += 1;
+            let c = self.parse_expr();
+            self.no_struct_literal -= 1;
+            c?
+        };
 
         // Then expression
         let then_expr = self.parse_branch_value()?;
@@ -21299,18 +21342,37 @@ impl RustCodegen {
                     NodeKind::StmtFor => {
                         self.write_indent();
                         self.write("for ");
-                        if child.children.len() > 1 {
-                            self.write(&child.children[1].name);
-                        }
+                        // The capture lives in `params` in BOTH shapes the parser builds:
+                        // `for (xs) |x| { }` pushes it there and so does the bare
+                        // `for x in xs { }` collection form. This read `children[1].name`,
+                        // and for the bare form children[1] is the BODY BLOCK, whose name is
+                        // the literal "body" -- so every range loop emitted `for body in ..`.
+                        let capture = child
+                            .params
+                            .first()
+                            .map(|(n, _)| n.clone())
+                            .unwrap_or_else(|| {
+                                if child.children.len() > 1 {
+                                    child.children[1].name.clone()
+                                } else {
+                                    String::new()
+                                }
+                            });
+                        self.write(&capture);
                         self.write(" in ");
                         if !child.children.is_empty() {
                             self.write(&self.expr_to_rust(&child.children[0]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
-                        if child.children.len() > 2 {
-                            for stmt in &child.children[2].children {
-                                self.gen_rust_stmt(stmt);
+                        // The body is the LAST child, not children[2]. The bare form builds
+                        // two children -- iterable, body -- so the body was dropped entirely
+                        // and the loop emitted empty, with exit code 0.
+                        if child.children.len() > 1 {
+                            if let Some(body) = child.children.last() {
+                                for stmt in &body.children {
+                                    self.gen_rust_stmt(stmt);
+                                }
                             }
                         }
                         self.indent -= 1;
@@ -21446,18 +21508,37 @@ impl RustCodegen {
             NodeKind::StmtFor => {
                 self.write_indent();
                 self.write("for ");
-                if stmt.children.len() > 1 {
-                    self.write(&stmt.children[1].name);
-                }
+                // The capture lives in `params` in BOTH shapes the parser builds:
+                // `for (xs) |x| { }` pushes it there and so does the bare
+                // `for x in xs { }` collection form. This read `children[1].name`,
+                // and for the bare form children[1] is the BODY BLOCK, whose name is
+                // the literal "body" -- so every range loop emitted `for body in ..`.
+                let capture = stmt
+                    .params
+                    .first()
+                    .map(|(n, _)| n.clone())
+                    .unwrap_or_else(|| {
+                        if stmt.children.len() > 1 {
+                            stmt.children[1].name.clone()
+                        } else {
+                            String::new()
+                        }
+                    });
+                self.write(&capture);
                 self.write(" in ");
                 if !stmt.children.is_empty() {
                     self.write(&self.expr_to_rust(&stmt.children[0]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
-                if stmt.children.len() > 2 {
-                    for s in &stmt.children[2].children {
-                        self.gen_rust_stmt(s);
+                // The body is the LAST child, not children[2]. The bare form builds
+                // two children -- iterable, body -- so the body was dropped entirely
+                // and the loop emitted empty, with exit code 0.
+                if stmt.children.len() > 1 {
+                    if let Some(body) = stmt.children.last() {
+                        for s in &body.children {
+                            self.gen_rust_stmt(s);
+                        }
                     }
                 }
                 self.indent -= 1;
@@ -21906,22 +21987,62 @@ impl RustCodegen {
                     return "/* switch */".to_string();
                 }
                 let scrutinee = self.expr_to_rust(&node.children[0]);
+                // The arms carry Zig-shaped `.variant` shorthand, and Rust has
+                // no rule that resolves it from context. The scrutinee's
+                // declared type IS the enum, and `var_types` already holds
+                // every parameter and local with its Rust type, so a
+                // bare-identifier scrutinee resolves exactly. Anything else
+                // falls back to the function's return type -- the same rule
+                // ExprEnumValue uses for the shorthand a few arms above.
+                let arm_enum = self
+                    .var_types
+                    .get(&scrutinee)
+                    .filter(|t| self.enum_names.contains(*t))
+                    .cloned()
+                    .or_else(|| {
+                        if self.enum_names.contains(&self.fn_ret_type) {
+                            Some(self.fn_ret_type.clone())
+                        } else {
+                            None
+                        }
+                    });
                 let mut s = format!("match {} {{\n", scrutinee);
                 for i in 1..node.children.len() {
                     let arm = &node.children[i];
-                    if arm.kind == NodeKind::Module {
-                        let pattern = if !arm.name.is_empty() {
-                            arm.name.clone()
-                        } else {
-                            "_".to_string()
-                        };
-                        let body = if !arm.children.is_empty() {
-                            self.expr_to_rust(&arm.children[0])
-                        } else {
-                            "()".to_string()
-                        };
-                        s.push_str(&format!("{} => {},\n", pattern, body));
+                    // The parser builds EVERY arm as ConstDecl. This tested for
+                    // Module, which no arm is ever built as, so the loop
+                    // matched nothing and the emitter printed `match x { }` --
+                    // an empty match, with exit code 0, for a construct the
+                    // other three backends lower correctly. Leaving the pattern
+                    // unqualified would have been worse than the empty match:
+                    // `match a { neg => .. }` is a BINDING in Rust, it compiles
+                    // and it matches everything.
+                    if arm.kind != NodeKind::ConstDecl {
+                        continue;
                     }
+                    // `else` is t27's catch-all; numbers and char literals are
+                    // patterns in their own right and must not be qualified.
+                    let names_a_variant = arm
+                        .name
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_alphabetic() || c == '_');
+                    let pattern = if arm.name.is_empty() || arm.name == "else" {
+                        "_".to_string()
+                    } else if names_a_variant {
+                        match &arm_enum {
+                            Some(e) => format!("{}::{}", e, arm.name),
+                            None => arm.name.clone(),
+                        }
+                    } else {
+                        arm.name.clone()
+                    };
+                    let body = if !arm.children.is_empty() {
+                        self.expr_to_rust(&arm.children[0])
+                    } else {
+                        "()".to_string()
+                    };
+                    s.push_str(&format!("{} => {},\n", pattern, body));
                 }
                 s.push('}');
                 s
