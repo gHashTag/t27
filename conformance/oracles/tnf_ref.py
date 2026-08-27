@@ -118,13 +118,21 @@ def encode(fmt: TNFFormat, value) -> int:
 
 
 def is_special(fmt: TNFFormat, raw: int) -> bool:
-    return ((raw >> fmt.exp_shift) & ((1 << fmt.exp_bits) - 1)) == fmt.offset_max
+    # >= rather than ==: the exponent field is ceil(Et*log2 3) bits wide, so it can
+    # hold offsets the Et trits cannot name. Offsets above offset_max have no
+    # balanced-ternary preimage and are not members of the format.
+    return ((raw >> fmt.exp_shift) & ((1 << fmt.exp_bits) - 1)) >= fmt.offset_max
 
 
 def decode(fmt: TNFFormat, raw: int):
     sign = (raw >> fmt.sign_shift) & 1
     offset = (raw >> fmt.exp_shift) & ((1 << fmt.exp_bits) - 1)
     m = raw & (fmt.mant - 1)
+    if offset > fmt.offset_max:
+        # Unencodable: four trits reach 81 of the 128 codes a 7-bit field holds, and
+        # decoding the other 47 as normal numbers is what inflated the value counts
+        # and the binade span of every TNF row in the matched-width comparison.
+        return math.nan
     if offset == fmt.offset_max:
         return math.nan if m else (-math.inf if sign else math.inf)
     if offset == 0:

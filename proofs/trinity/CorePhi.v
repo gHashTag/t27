@@ -1,112 +1,156 @@
 (* CorePhi.v - Exact Algebraic Identities for Phi *)
-(* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
+(* Part of Trinity S3AI Coq Proof Base *)
+
+(* This file did not compile before 2026-08-27, and three of its statements were
+   false. phi_cubed read phi^3 = 2*sqrt 5 + 3 (7.472) against the true 2 + sqrt 5
+   (4.236); phi_fourth and phi_fifth carried the same shape of error. The pattern
+   phi^n = F(n)*phi + F(n-1) had been written as F(n)*sqrt 5 + F(n+1), dropping a
+   division by two and shifting the index. The proofs were not proofs either:
+   phi_square read "apply phi_quadratic; ring", which does not derive one equation
+   from another, and phi_quadratic called `field` on a goal needing sqrt 5 * sqrt 5
+   = 5, which `field` cannot know. Nothing was machine-checked, because nothing
+   type-checked. Statements corrected and proofs rewritten; the file now closes
+   under coqc with no admitted lemmas. *)
 
 Require Import Reals.Reals.
+Require Import Lra.
 Open Scope R_scope.
 
-(** Golden ratio definition: φ = (1 + √5) / 2 *)
-Definition phi : R := (1 + sqrt(5)) / 2.
+(** Golden ratio definition: phi = (1 + sqrt 5) / 2 *)
+Definition phi : R := (1 + sqrt 5) / 2.
 
-(** φ is positive *)
+(** The one fact about sqrt that every identity below rests on. *)
+Lemma sqrt5_sq : sqrt 5 * sqrt 5 = 5.
+Proof.
+  apply sqrt_sqrt; lra.
+Qed.
+
+Lemma sqrt5_nonneg : 0 <= sqrt 5.
+Proof.
+  apply sqrt_pos.
+Qed.
+
+(** phi is positive *)
 Lemma phi_pos : 0 < phi.
 Proof.
-  unfold phi.
-  apply Rmult_lt_pos_pos.
-  - apply (Rlt_trans 0 2). lra.
-  - apply Rle_lt_trans with (sqrt(5) + 0).
-    + apply sqrt_pos.
-      lra.
-    + lra.
+  unfold phi. pose proof sqrt5_nonneg. lra.
 Qed.
 
-(** φ is non-zero *)
+(** phi is non-zero *)
 Lemma phi_nonzero : phi <> 0.
 Proof.
-  apply Rgt_not_eq, Rlt_gt; exact phi_pos.
+  pose proof phi_pos. lra.
 Qed.
 
-(** φ satisfies the quadratic equation: φ² - φ - 1 = 0 *)
-Lemma phi_quadratic : phi^2 - phi - 1 = 0.
-Proof.
-  unfold phi.
-  field.
-Qed.
-
-(** φ² = φ + 1 (fundamental golden ratio identity) *)
+(** phi^2 = phi + 1 (fundamental golden ratio identity) *)
 Lemma phi_square : phi^2 = phi + 1.
 Proof.
-  apply phi_quadratic; ring.
+  unfold phi. pose proof sqrt5_sq. simpl. nra.
 Qed.
 
-(** φ⁻¹ = φ - 1 (reciprocal identity) *)
+(** phi satisfies the quadratic equation: phi^2 - phi - 1 = 0 *)
+Lemma phi_quadratic : phi^2 - phi - 1 = 0.
+Proof.
+  pose proof phi_square. lra.
+Qed.
+
+(** phi^-1 = phi - 1 (reciprocal identity) *)
 Lemma phi_inv : / phi = phi - 1.
 Proof.
-  apply phi_square; ring.
+  pose proof phi_nonzero as Hn. pose proof phi_square as Hs.
+  apply (Rmult_eq_reg_l phi); [| exact Hn].
+  rewrite Rinv_r by exact Hn. simpl in Hs. nra.
 Qed.
 
-(** φ⁻² = 2 - φ (squared reciprocal) *)
-Lemma phi_inv_sq : /phi^2 = 2 - phi.
+(** phi^-2 = 2 - phi (squared reciprocal) *)
+Lemma phi_inv_sq : / phi^2 = 2 - phi.
 Proof.
-  apply phi_inv; ring.
+  pose proof phi_nonzero as Hn. pose proof phi_square as Hs.
+  assert (Hsq : phi^2 <> 0) by (simpl; nra).
+  apply (Rmult_eq_reg_l (phi^2)); [| exact Hsq].
+  rewrite Rinv_r by exact Hsq. simpl in Hs |- *. nra.
 Qed.
 
-(** Trinity identity: φ² + φ⁻² = 3 *)
+(** Trinity identity: phi^2 + phi^-2 = 3 *)
 (** This is the fundamental root identity from which all formulas descend *)
-Lemma trinity_identity : phi^2 + /phi^2 = 3.
+Lemma trinity_identity : phi^2 + / phi^2 = 3.
 Proof.
-  apply phi_square, phi_inv_sq; ring.
+  pose proof phi_square as Hs. pose proof phi_inv_sq as Hi.
+  rewrite Hi, Hs. lra.
 Qed.
 
-(** φ⁻³ = √5 - 2 (negative cubic power) *)
-Lemma phi_neg3 : /phi^3 = sqrt(5) - 2.
+(** The Fibonacci form first: applying a weight is the step (a,b) |-> (b, a+b),
+    so phi^n = F(n)*phi + F(n-1). Each step is one rewrite by phi_square, which
+    is why the datapath needs an adder and no multiplier. *)
+Lemma phi_cubed_fib : phi^3 = 2 * phi + 1.
 Proof.
-  unfold phi; field.
+  pose proof phi_square as Hs.
+  replace (phi^3) with (phi * phi^2) by ring.
+  rewrite Hs.
+  replace (phi * (phi + 1)) with (phi^2 + phi) by ring.
+  rewrite Hs. ring.
 Qed.
 
-(** φ³ = 2√5 + 3 (positive cubic power) *)
-Lemma phi_cubed : phi^3 = 2 * sqrt(5) + 3.
+Lemma phi_fourth_fib : phi^4 = 3 * phi + 2.
 Proof.
-  unfold phi; field.
+  pose proof phi_square as Hs. pose proof phi_cubed_fib as H3.
+  replace (phi^4) with (phi * phi^3) by ring.
+  rewrite H3.
+  replace (phi * (2 * phi + 1)) with (2 * phi^2 + phi) by ring.
+  rewrite Hs. ring.
 Qed.
 
-(** φ⁴ = 3√5 + 5 (fourth power) *)
-Lemma phi_fourth : phi^4 = 3 * sqrt(5) + 5.
+Lemma phi_fifth_fib : phi^5 = 5 * phi + 3.
 Proof.
-  rewrite phi_cubed, phi_square.
-  unfold phi at 1.
-  field.
+  pose proof phi_square as Hs. pose proof phi_fourth_fib as H4.
+  replace (phi^5) with (phi * phi^4) by ring.
+  rewrite H4.
+  replace (phi * (3 * phi + 2)) with (3 * phi^2 + 2 * phi) by ring.
+  rewrite Hs. ring.
 Qed.
 
-(** φ⁵ = 5√5 + 8 (fifth power, Fibonacci pattern) *)
-Lemma phi_fifth : phi^5 = 5 * sqrt(5) + 8.
+(** phi^3 = 2 + sqrt 5 *)
+Lemma phi_cubed : phi^3 = 2 + sqrt 5.
 Proof.
-  rewrite phi_fourth, phi_square.
-  unfold phi at 1.
-  field.
+  pose proof phi_cubed_fib as H. unfold phi in H |- *. lra.
 Qed.
 
-(** Bounds for φ as rational approximations *)
-Lemma phi_between_1_618_and_1_619 :
-  1.618 < phi < 1.619.
+(** phi^-3 = sqrt 5 - 2 (negative cubic power) *)
+Lemma phi_neg3 : / phi^3 = sqrt 5 - 2.
+Proof.
+  pose proof sqrt5_sq as H5. pose proof phi_cubed as Hc.
+  assert (Hne : phi^3 <> 0).
+  { rewrite Hc. pose proof sqrt5_nonneg. lra. }
+  apply (Rmult_eq_reg_l (phi^3)); [| exact Hne].
+  rewrite Rinv_r by exact Hne. rewrite Hc.
+  assert (E : (2 + sqrt 5) * (sqrt 5 - 2) = sqrt 5 * sqrt 5 - 4) by ring.
+  rewrite E, H5. lra.
+Qed.
+
+(** phi^4 = (7 + 3*sqrt 5)/2 *)
+Lemma phi_fourth : phi^4 = (7 + 3 * sqrt 5) / 2.
+Proof.
+  pose proof phi_fourth_fib as H. unfold phi in H |- *. lra.
+Qed.
+
+(** phi^5 = (11 + 5*sqrt 5)/2 *)
+Lemma phi_fifth : phi^5 = (11 + 5 * sqrt 5) / 2.
+Proof.
+  pose proof phi_fifth_fib as H. unfold phi in H |- *. lra.
+Qed.
+
+(** Numeric bracket *)
+Lemma phi_between_1_618_and_1_619 : 1.618 < phi < 1.619.
 Proof.
   unfold phi.
-  split.
-  - apply Rlt_lt_1.
-    unfold Rdiv.
-    (* sqrt(5) > 2.23606 *)
-    assert (sqrt(5) > 2.23606) by (apply sqrt_lt_cancel; lra).
-    (* (1 + sqrt(5))/2 > (1 + 2.23606)/2 = 1.61803 *)
-    lra.
-  - apply Rlt_lt_1.
-    unfold Rdiv.
-    (* sqrt(5) < 2.23607 *)
-    assert (sqrt(5) < 2.23607) by (apply sqrt_lt_cancel; lra).
-    (* (1 + sqrt(5))/2 < (1 + 2.23607)/2 = 1.618035 < 1.619 *)
-    lra.
+  (* 2.236^2 = 4.999696 < 5 < 5.004169 = 2.237^2, and sqrt is strictly
+     increasing, so the bracket follows by monotonicity rather than by any
+     numeric evaluation of sqrt. *)
+  assert (A : sqrt (2.236 * 2.236) < sqrt 5).
+  { apply sqrt_lt_1_alt. split; lra. }
+  assert (B : sqrt 5 < sqrt (2.237 * 2.237)).
+  { apply sqrt_lt_1_alt. split; lra. }
+  rewrite sqrt_square in A by lra.
+  rewrite sqrt_square in B by lra.
+  lra.
 Qed.
-
-(** Note: φ is irrational (requires classical axioms). *)
-(* The proof that φ is irrational follows from the quadratic equation
-   φ² = φ + 1. If φ = p/q were rational, then √5 = 2φ - 1 = 2p/q - 1
-   would also be rational, contradicting the irrationality of √5.
-   A complete proof requires classical axioms and is omitted here. *)

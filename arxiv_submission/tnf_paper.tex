@@ -85,7 +85,7 @@ ADC-native. The accumulator alone has a range to spend, and Ternary Network
 Floats spend it --- a sign, a balanced-ternary exponent of $E_t$ trits, an
 $M$-bit mantissa, $1+E_t+M=N$.
 
-\paragraph{Budget convention, stated once and binding throughout.}\label{sec:budget}
+\paragraph{Budget convention, stated once and binding throughout.}
 $1+E_t+M=N$ counts the exponent as $E_t$ \emph{trit positions}. It is a
 specification convention, not a storage claim, and this paper uses two budgets
 under two explicit names. The \textbf{nominal} budget is $1+E_t+M=N$; the
@@ -112,10 +112,14 @@ applying a weight is the Fibonacci step $(a,b)\mapsto(b,a+b)$, accumulation is
 componentwise, and a layer's linear path is exact. Machine-checked in Coq.
 
 Closure does not single out $\varphi$; enumeration does. A scale is
-multiplier-free exactly when it is an algebraic integer whose companion matrix
-has entries in $\{0,\pm1\}$. Degree two admits $\varphi$ alone, and nothing lies
-between the shift and $\varphi$. The family $r^d=r+1$ reaches any granularity at
-\emph{one addition} and $d$ registers: fineness costs registers, not adders.
+multiplier-free at \emph{one addition and no shifter} whenever it is an
+algebraic integer whose companion matrix has entries in $\{0,\pm1\}$ --- a
+sufficient condition, not a characterisation, since $\{0,\pm2^k\}$ coefficients
+are shifts and stay multiplier-free too. Under that budget degree two admits
+$\varphi$ alone, and nothing lies between the shift and $\varphi$ at two
+registers; at three the tribonacci constant does. The family $r^d=r+1$ reaches
+any granularity at \emph{one addition} and $d$ registers: fineness costs
+registers, not adders.
 
 \textbf{The throughput-per-area ranking is withdrawn.} It read
 $0.1797$\,MHz/LUT for GFTernary against $0.1631$ for the next entry, and it
@@ -162,8 +166,12 @@ the committed reference implementations, posit holds more representable values
 than TNF and a finer step at unity at every width the ladder occupies --- $12\times$
 finer at 19 bits, $4\times$ at 10, $2\times$ at 6 --- and posit with $es{=}2$ weakly
 dominates on both coordinates at all three. A ternary exponent does not tile a
-binary field: four trits use $81$ of $128$ codes, leaving $8{,}190$ of the $2^{19}$
-words unreachable. The no-survivors corollary is accordingly withdrawn to a
+binary field: four trits use $81$ of $128$ codes, leaving $200{,}704$ of the
+$2^{19}$ words unreachable. That figure read $8{,}190$ in v1, because the oracle
+behind the table decoded all $128$ exponent codes rather than the $81$ the trits
+name; the correction enlarges the deficit against us and leaves the step at
+unity, and so the ratios above, unchanged. The no-survivors corollary is
+accordingly withdrawn to a
 matched-\emph{name} claim (Section~\ref{sec:matchedwidth}). The case for this
 format was never precision per bit; it is multiplier removal, decode cost and the
 rungs where nothing else trains.
@@ -213,13 +221,16 @@ compare-and-subtract per stage, so its floor lies above a closed path's single
 addition. The closure half of the argument is machine-checked.
 
 Closure does not single out $\varphi$ by itself, and Section~\ref{sec:hierarchy}
-says what it does single out. A scale is applicable without a multiplier exactly
-when it is an algebraic integer whose companion matrix has entries in
-$\{0,\pm1\}$, which is a finite condition and therefore enumerable rather than
-arguable. Degree one gives the shift; degree two gives $\varphi$ and nothing
-else; degree three gives three more, finer. Between the shift and $\varphi$
-there is nothing, and $\varphi$ is the only multiply-free refinement of the
-power-of-two ladder available at two registers. The hierarchy continues --- and
+says what it does single out. A scale is applicable without a multiplier at one
+addition and no shifter whenever it is an algebraic integer whose companion
+matrix has entries in $\{0,\pm1\}$, which is a finite condition and therefore
+enumerable rather than arguable; it is sufficient and not necessary, since
+$\{0,\pm2^k\}$ coefficients are shifts. Degree one gives the shift; degree two
+gives $\varphi$ and nothing else; degree three gives three more --- plastic
+$1.3247$ and supergolden $1.4656$ finer than $\varphi$, tribonacci $1.8393$
+coarser. Between the shift and $\varphi$ there is nothing at two registers, and
+$\varphi$ is the only multiply-free refinement of the power-of-two ladder
+available there. The hierarchy continues --- and
 stops being cheap at degree four, where the coefficient vector loses its
 sparsity and the cost doubles.
 
@@ -1245,17 +1256,17 @@ neighbours, which bounds the rounding error in the working range.}
 \toprule
 bits & format & values & binades & step at $1.0$ \\
 \midrule
-19 & TNF16 $(4t,11m)$ & $516{,}096$          & $127.0$ & $0.024\%$ \\
+19 & TNF16 $(4t,11m)$ & $323{,}584$          & $79.0$  & $0.024\%$ \\
 19 & posit19 $es{=}1$ & $\mathbf{524{,}286}$ & $68.0$  & $\mathbf{0.002\%}$ \\
 19 & posit19 $es{=}2$ & $\mathbf{524{,}286}$ & $\mathbf{136.0}$ & $\mathbf{0.003\%}$ \\
 19 & takum19          & $\mathbf{524{,}286}$ & $\mathbf{510.0}$ & $\mathbf{0.003\%}$ \\
 \midrule
-10 & TNF8 $(3t,4m)$   & $960$              & $31.0$ & $3.125\%$ \\
-10 & posit10 $es{=}1$ & $\mathbf{1{,}022}$ & $32.0$ & $\mathbf{0.781\%}$ \\
+10 & TNF8 $(3t,4m)$   & $800$              & $25.0$ & $3.125\%$ \\
+10 & posit10 $es{=}1$ & $\mathbf{1{,}022}$ & $\mathbf{32.0}$ & $\mathbf{0.781\%}$ \\
 10 & posit10 $es{=}2$ & $\mathbf{1{,}022}$ & $\mathbf{64.0}$ & $\mathbf{1.562\%}$ \\
 \midrule
-6  & TNF4 $(2t,1m)$   & $56$          & $14.6$ & $25.0\%$ \\
-6  & posit6 $es{=}1$  & $\mathbf{62}$ & $16.0$ & $\mathbf{12.5\%}$ \\
+6  & TNF4 $(2t,1m)$   & $28$          & $6.6$ & $25.0\%$ \\
+6  & posit6 $es{=}1$  & $\mathbf{62}$ & $\mathbf{16.0}$ & $\mathbf{12.5\%}$ \\
 6  & posit6 $es{=}2$  & $\mathbf{62}$ & $\mathbf{32.0}$ & $25.0\%$ \\
 \bottomrule
 \end{tabular}
@@ -1272,8 +1283,23 @@ claim.
 
 The value deficit is not an encoding accident. A ternary exponent does not tile
 a binary field: four trits need seven bits and use $81$ of $128$ codes, so
-$8{,}190$ of the $2^{19}$ words are unreachable. No packing repairs this; it is
-what a ternary exponent costs in a binary container.
+$200{,}704$ of the $2^{19}$ words --- $38.3\%$ of the container --- are
+unreachable. No packing repairs this; it is what a ternary exponent costs in a
+binary container.
+
+\paragraph{This table was wrong in v1, and the error inflated our own numbers.}
+The row above read $516{,}096$ values and $127.0$ binades until the oracle
+behind it was re-read. Its decoder masked the exponent to the seven bits the
+field occupies and accepted all $128$ codes, including the $47$ that no
+four-trit word names; those extra codes decoded as ordinary normals. The
+published row therefore described a format with a seven-bit \emph{binary}
+exponent, not the balanced-ternary one Section~\ref{sec:format} defines, and
+$127.0$ binades is $2^7-1$ --- a number that should have been caught against the
+$24$ decades this paper reports for the same rung everywhere else. Recomputed
+against the trits, the rung holds $323{,}584$ values across $79.0$ binades.
+The correction moves the deficit against us: the gap to posit19 was reported as
+$8{,}190$ values and is $200{,}702$. The step at unity is untouched, so the
+$12\times$, $4\times$ and $2\times$ ratios above are the same numbers they were.
 
 \paragraph{What the negative result does not touch.} None of the above is a
 cost figure, and the case for this format was never precision per bit. The
@@ -1566,7 +1592,7 @@ as Theorem~\ref{thm:law} predicts; nothing in any row is worse than the unfilled
 rung. The published version of this table read $3.37\mathrm{e}{-4}$,
 $8.63\mathrm{e}{-5}$ and $5.46\times$ from an earlier harness, which is why it did
 not agree with the accuracy table a few pages earlier. The \emph{positions} column
-is the nominal budget of Section~\ref{sec:budget}: the adopted rung occupies
+is the nominal budget of the convention stated in the abstract: the adopted rung occupies
 $1+\lceil 4\log_2 3\rceil+11=19$ physical cells and the two $E_t{=}5,6$ variants
 occupy $20$ and $22$. Section~\ref{sec:window} measures what happens when the
 comparison is held to sixteen cells instead.}
@@ -3658,12 +3684,24 @@ Closure explains why $\varphi$ works. It does not by itself say $\varphi$ is the
 only choice, and the honest answer is that it is not --- it is the only choice at
 its size.
 
-A scale $r$ can be applied without a multiplier exactly when $r$ is an algebraic
+A scale $r$ is applied without a multiplier \emph{whenever} $r$ is an algebraic
 integer whose companion matrix has entries in $\{0,\pm1\}$: writing
 $r^{d}=a_{d-1}r^{d-1}+\dots+a_0$, multiplication by $r$ maps the coordinate
-vector $(x_0,\dots,x_{d-1})$ to $(a_0x_{d-1},\;x_0+a_1x_{d-1},\;\dots)$, and any
-$|a_i|>1$ reintroduces a constant multiply. The condition is finite, so the
-scales can be enumerated rather than argued about.
+vector $(x_0,\dots,x_{d-1})$ to $(a_0x_{d-1},\;x_0+a_1x_{d-1},\;\dots)$, in which
+every product is a select and every combination an addition. The condition is
+finite, so the scales meeting it can be enumerated rather than argued about, and
+the rest of this section enumerates them.
+
+\textbf{The converse is false, and we do not claim it.} An earlier version of
+this section wrote ``exactly when'' and justified the necessity in one clause:
+that any $|a_i|>1$ reintroduces a constant multiply. It does not. Coefficients
+in $\{0,\pm2^{k}\}$ are shifts, so they stay multiply-free at the cost of a
+shifter, and Section~\ref{sec:scaleradix} spends adders to reach ratios no
+$\{0,\pm1\}$ companion matrix names. What $\{0,\pm1\}$ characterises is not
+multiplier-freedom in general but multiplier-freedom \emph{at one addition and
+no shifter}, and every enumeration below is to be read under that budget. The
+biconditional is withdrawn; the sufficiency, which is what the datapath uses, is
+unaffected.
 
 \begin{theorem}[The multiply-free scales, by degree]\label{thm:hierarchy}
 Over coefficients in $\{0,\pm1\}$:
@@ -3681,13 +3719,18 @@ Over coefficients in $\{0,\pm1\}$:
 \end{theorem}
 \begin{proof}
 Exhaustive over the nine degree-2 and twenty-seven degree-3 coefficient triples;
-the degree-2 discriminants $a^2+4b$ are negative for four cases, and the
-remaining five give roots in $\{0,\pm1\}$ except for $b=1,a=\pm1$.
+the degree-2 discriminants $a^2+4b$ are negative for three cases
+($b=-1$ at $a\in\{0,\pm1\}$), and the remaining six give roots in $\{0,\pm1\}$
+except for $b=1,a=\pm1$.
 \end{proof}
 
 \begin{corollary}\label{cor:nothing-between}
-Nothing lies between the shift and $\varphi$. $\varphi$ is the unique
-multiply-free refinement of the power-of-two ladder available at two registers.
+Nothing lies between the shift and $\varphi$ \emph{at two registers}: $\varphi$
+is the unique multiply-free refinement of the power-of-two ladder available
+there. At three registers something does --- the tribonacci constant $1.8393$ of
+Theorem~\ref{thm:hierarchy} sits between $\varphi$ and the shift --- so the
+corollary is a statement about the two-register budget and not about the
+interval.
 \end{corollary}
 \begin{proof}
 At degree two the companion polynomial has the form
