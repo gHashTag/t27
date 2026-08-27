@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Parser and instruments, W699 (2026-08-28)
+
+#### Fixed
+- **A leading `(` was taken as proof of a parenthesised condition.**
+  `if (i >> j) & 1 == 1 {` read `(i >> j)` as the whole condition and died at the
+  brace. Three byte-identical copies of that code stood in `parse_if_stmt`,
+  `parse_while_stmt` and `parse_if_expr`; they are now one `parse_condition`.
+  Corpus specs parsing: **558 -> 559**.
+- **`specs/ar/asp_solver.t27:369`** opened a list and never closed it, so the
+  parser ran to EOF looking for `]` — a typo in the spec that cost 186 lines.
+- **Zig builtins leaked into generated Rust.** `gen-rust` passed `@as`,
+  `@intCast`, `@min`, `@sqrt`, `@rem`, `@intFromEnum` through verbatim. They are
+  translated now. The earlier claim that these were *the* reason 43 specs do not
+  compile is withdrawn: rustc reports 499 distinct error classes and the builtins
+  account for 40 errors; the largest class is 688 occurrences of a missing
+  `serde`.
+- **A test body may open with `var`**, and `const (a, b) = f()` is a statement.
+
+#### Changed
+- **The Rust/Lean completeness test reported 1 disagreement out of 73.** It
+  asserted agreement one spec at a time and aborted on the first. It now collects
+  all of them into `docs/reports/lean_completeness_mismatches.json`, an
+  identity-keyed ledger that moves down only. **40 of the 73 are theorems about
+  an EMPTY module** — `native_decide` proving that nothing is lowerable. The
+  ledger makes the number visible and monotonic; it does not repair it.
+- **A conformance case can now demand "accepted, and nothing dropped".**
+  `Case` gains `discards`, so `stray_closing_brace` asserts Full with 2 decls and
+  exactly 1 discarded instead of demanding a rejection that would have thrown
+  `fn b` away. Suite: **1629 passed / 6 failed -> 1630 passed / 5 failed**.
+
+#### Removed
+- Two guards that had been unreachable behind the early abort: `specs/scratch`
+  envs (untracked since #2283) counted as Lean-only witnesses, and a `>= 245`
+  floor that a deliberate skip could walk under. The floor now holds on
+  `checked + skipped`.
+
 ### FPGA — measured, W746-W761 (2026-08-14/15)
 
 #### Added
