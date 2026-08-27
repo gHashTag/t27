@@ -3925,7 +3925,28 @@ impl Parser {
             let ident = self.current.lexeme.clone();
             self.advance(); // consume ident
             self.advance(); // consume 'in'
-            return self.parse_for_range(ident);
+            return self.parse_for_range(ident, false);
+        }
+
+        // PARENTHESISED range for: `for (i in a..b) { body }`. `if (...)` and
+        // `while (...)` both accept the parenthesised form; `for` did not, and
+        // the diagnostic landed on the `(` as "Expected LBrace, got LParen" --
+        // which reads as a missing body rather than a rejected spelling.
+        //
+        // Checkpointed rather than looked ahead: the parser holds only
+        // `current` and `peek`, and Zig's capture form `for (xs) |x| { }`
+        // opens with the same `(`. On anything but IDENT + `in` the state is
+        // restored and that branch runs unchanged.
+        if self.current.kind == TokenKind::LParen {
+            let checkpoint = self.save_state();
+            self.advance(); // consume '('
+            if self.current.kind == TokenKind::Ident && self.peek.kind == TokenKind::KwIn {
+                let ident = self.current.lexeme.clone();
+                self.advance(); // consume ident
+                self.advance(); // consume 'in'
+                return self.parse_for_range(ident, true);
+            }
+            self.restore_state(checkpoint);
         }
 
         let mut for_node = Node::new(NodeKind::StmtFor);
@@ -3987,7 +4008,10 @@ impl Parser {
     }
 
     /// Parse range for body: start_expr .. end_expr { body }
-    fn parse_for_range(&mut self, var_name: String) -> Result<Node, String> {
+    /// `paren` -- the caller consumed a `(` before the loop variable, so the
+    /// matching `)` sits immediately before the body brace and must be eaten
+    /// on BOTH paths out of this function.
+    fn parse_for_range(&mut self, var_name: String, paren: bool) -> Result<Node, String> {
         let mut node = Node::new(NodeKind::StmtForRange);
         node.name = var_name;
 
@@ -4018,6 +4042,9 @@ impl Parser {
             // Captures live in `params`, exactly as the parenthesised
             // `for (xs) |x| { ... }` form stores them.
             coll.params.push((node.name.clone(), String::new()));
+            if paren {
+                self.expect(TokenKind::RParen)?;
+            }
             self.expect(TokenKind::LBrace)?;
             let mut body_block = Node::new(NodeKind::Module);
             body_block.name = "body".to_string();
@@ -4073,6 +4100,9 @@ impl Parser {
         };
         node.children.push(end);
 
+        if paren {
+            self.expect(TokenKind::RParen)?;
+        }
         self.expect(TokenKind::LBrace)?;
         let mut body_block = Node::new(NodeKind::Module);
         body_block.name = "body".to_string();
