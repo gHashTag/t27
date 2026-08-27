@@ -94,9 +94,14 @@ packed binary word costs. The two differ by
 $\lceil E_t\log_2 3\rceil - E_t$ cells, three at $E_t=4$ and seven at $E_t=11$, so
 the adopted 16-bit rung $(E_t,M)=(4,11)$ occupies $19$ physical bits.
 \textbf{The canonical name of a rung is now its bit width}: TNF4, TNF8, TNF16,
-TNF32 and TNF64 are 6, 10, 19, 36 and 69 bits, and the nominal names are retained
-only as aliases, because the sequence $4,8,16,32,64$ is exactly the IEEE width
-sequence and a row reading ``TNF16 against binary16'' looks matched and is not.
+TNF32 and TNF64 are 6, 10, 19, 36 and 69 bits. The nominal names are
+\emph{deprecated}, not merely secondary, and the rule this paper binds itself to
+is that no comparison may be stated in them: a row reading ``TNF16 against
+binary16'' looks matched and is not, because $4,8,16,32,64$ is exactly the IEEE
+width sequence and the coincidence does the arguing. Where a nominal name appears
+below it names a module that was built, and its stored width is printed beside
+it. A reader who sees a nominal name in a comparison anywhere in this paper has
+found a defect.
 Every accuracy comparison against a binary format is stated with its budget named.
 Under the physical budget TNF holds no advantage at $16$ or $32$ bits ---
 Section~\ref{sec:threeresults} measures this, Table~\ref{tab:accphys} states it
@@ -1329,8 +1334,43 @@ claim.
 The value deficit is not an encoding accident. A ternary exponent does not tile
 a binary field: four trits need seven bits and use $81$ of $128$ codes, so
 $200{,}704$ of the $2^{19}$ words --- $38.3\%$ of the container --- are
-unreachable. No packing repairs this; it is what a ternary exponent costs in a
-binary container.
+unreachable. That is what a ternary exponent costs \emph{in a word of its own},
+and it is the cost this paper measured throughout.
+
+\paragraph{Most of that deficit is recoverable, and we did not recover it.} An
+earlier version of this paragraph said no packing repairs the loss. That is true
+per word and false per block, and the difference is worth stating because it
+bounds how much of the negative result above is structural.
+
+One value of the adopted rung carries
+$\log_2(2\cdot 3^4\cdot 2^{11}) = 18.340$ bits of information in a $19$-bit word,
+so the word is $63.3\%$ used. The waste is a rounding-up, $\lceil 4\log_2
+3\rceil = 7$ bits for a field that needs $6.340$, and rounding up once per value
+is what makes it expensive. Pack the exponents of a block of $K$ values as a
+single base-3 integer and the rounding happens once per block: at $K=32$ the
+block costs $587$ bits, $18.344$ per value, which is $0.004$ bits above the
+information-theoretic floor and $99.7\%$ utilisation.
+
+Base-3 packing decodes by division and is not worth its area. The implementable
+point is coarser and nearly as good: \textbf{five trits in eight bits}, since
+$3^5=243$ fits $2^8=256$ at $94.9\%$, decoded by one $256\times8$ table lookup
+per five values and a field slice thereafter. Applied to the adopted rung it
+gives $18.400$ bits per value against $19$ --- $95.9\%$ utilisation, $0.6$ bits
+per value recovered, a $3.2\%$ reduction in stored width. Among group sizes, five is the first whose table is small enough to be free and
+whose utilisation exceeds ninety per cent: three trits reach $84.4\%$ in five
+bits, four reach only $63.3\%$ in seven, and ten reach $90.1\%$ but need a
+$65{,}536$-row table for a further $0.0\%$ over five.
+
+What this does \emph{not} do is close the comparison. Spending the recovered
+$0.6$ bits on the mantissa moves the step at unity from $0.024\%$ to about
+$0.015\%$, which narrows the gap to posit19 from $12\times$ to roughly
+$7.6\times$. Posit still wins on precision per bit at every width; the deficit
+was overstated by a factor of about two by our own choice to round the exponent
+field up once per value, and stating the negative result honestly means saying
+how much of it was ours to fix. It also costs the property that makes the format
+cheap to decode: within a group of five, values are no longer independently
+addressable without the table. Section~\ref{sec:cleantable} is where that trade belongs, and it is not a trade
+this paper measured.
 
 \paragraph{This table was wrong in v1, and the error inflated our own numbers.}
 The row above read $516{,}096$ values and $127.0$ binades until the oracle
@@ -1345,6 +1385,40 @@ against the trits, the rung holds $323{,}584$ values across $79.0$ binades.
 The correction moves the deficit against us: the gap to posit19 was reported as
 $8{,}190$ values and is $200{,}702$. The step at unity is untouched, so the
 $12\times$, $4\times$ and $2\times$ ratios above are the same numbers they were.
+
+\paragraph{The axis this format is for.} Precision per bit is the axis posit
+wins, and we have now stated by how much. It is worth saying plainly which axis
+runs the other way, because the two are bought with the same bits.
+
+A tapered format buys its precision with a variable-length regime, and a
+variable-length regime is decoded by counting leading zeros and then shifting by
+the count. A fixed field is decoded by slicing it. The difference is measured in
+Section~\ref{sec:cleantable} and it is not small: all fourteen fixed fields sit
+above all three tapers on estimated maximum frequency, the worst fixed field
+leading the best taper by $1.43\times$, and against posit32 the gap is
+$7.8\times$ on area and $19.9\times$ on frequency. A format that is $12\times$
+coarser at unity and decodes without a shifter is not strictly worse than one
+that is finer and does not; it is a different point on a trade, and which point
+is right depends on whether the design is starved of precision or of area.
+
+\paragraph{Exactness is the property that has no competitor.} The linear path of
+a layer in $\mathbb{Z}[\varphi]$ is exact --- not accurate to some tolerance,
+exact --- and this is machine-checked rather than asserted. Every competing
+low-precision format rounds at the accumulator. The consequence worth naming is
+not accuracy, where the difference is small and we do not claim otherwise: it is
+that a layer's output is a deterministic function of its inputs with no rounding
+step to audit, identical bit for bit on any device that implements the same
+integer arithmetic. Where a result has to be reproduced, or certified, or
+compared across two implementations, that is a property no tapered format and no
+rounded accumulator can offer at any width.
+
+\paragraph{Zero DSP is a contention argument, not only an area one.} DSP slices
+are a fixed count on a part, and a design that uses none of them does not compete
+for them. That is the claim behind putting a radio and a transformer in the same
+sentence: the filter bank takes the DSP columns, the network takes LUTs, and the
+two fit on one device because they are starved of different things. Every
+fan-in in Table~\ref{tab:node} reads zero DSP, so the property holds across the
+range measured rather than at one operating point.
 
 \paragraph{What the negative result does not touch.} None of the above is a
 cost figure, and the case for this format was never precision per bit. The
@@ -5774,7 +5848,9 @@ modern formats live: Table~\ref{tab:packloss} counts what is lost at four widths
 
 \begin{table}[t]\centering
 \caption{Codes lost to packing when a ternary exponent is stored in a binary
-word. The loss is a property of the integers, not of an implementation.}
+word \emph{of its own}. The rounding-up is a property of the integers; paying it
+once per value rather than once per block is an implementation choice, and
+Section~\ref{sec:matchedwidth} prices the alternative.}
 \label{tab:packloss}
 \begin{tabular}{rlrr}
 \toprule
