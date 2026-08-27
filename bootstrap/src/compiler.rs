@@ -96,7 +96,23 @@ fn node_mentions_word(node: &Node, name: &str) -> bool {
 }
 
 fn mentions_identifier(node: &Node, name: &str) -> bool {
-    if node.name == name || node.value == name || node.extra_field == name {
+    // Exact equality alone misses a RECEIVER. `allocator.alloc(u8, n)` lands
+    // with `allocator.alloc` in one field, which is not equal to `allocator`,
+    // so the parameter read as unused and the emitter wrote `_ = allocator;`
+    // above a body that uses it -- `error: pointless discard of function
+    // parameter`, the exact error the discard exists to prevent.
+    //
+    // Matching the head up to a `.`, `[` or `(` covers `x.f()`, `x[i]` and
+    // `x()` without the false positives a substring search would bring: a
+    // string literal keeps its quotes in `value`, so `"allocator"` does not
+    // start with `allocator`.
+    let head_matches = |s: &str| {
+        s == name
+            || (s.starts_with(name)
+                && s[name.len()..]
+                    .starts_with(|c: char| c == '.' || c == '[' || c == '('))
+    };
+    if head_matches(&node.name) || head_matches(&node.value) || head_matches(&node.extra_field) {
         return true;
     }
     node.children.iter().any(|c| mentions_identifier(c, name))
@@ -2860,6 +2876,19 @@ impl Parser {
             decl.extra_return_type = self.parse_type_annotation();
         }
 
+        // Put the `!` back on. It was consumed above into `has_error_union` and
+        // then never read -- a dead local, and the quietest possible way to
+        // lose a construct: `-> !MessageBuffer` emitted as `MessageBuffer`, so
+        // the signature compiled and every `try` inside it became
+        // `error: expected type 'X', found 'error{...}!X'` somewhere else. The
+        // spec said fallible, the Zig said infallible, and nothing said why.
+        //
+        // No spec in the corpus returns an error union today, which is why
+        // this survived: the construct was unreachable rather than unwritten.
+        if has_error_union {
+            decl.extra_return_type = format!("!{}", decl.extra_return_type);
+        }
+
         // Skip optional 'const' qualifier before the body
         if self.current.kind == TokenKind::KwConst {
             self.advance();
@@ -2947,6 +2976,33 @@ impl Parser {
         // for statement
         if self.current.kind == TokenKind::KwFor {
             return self.parse_for_stmt();
+        }
+
+        // defer / errdefer statement
+        //
+        // Neither is a TokenKind, so both arrive as plain identifiers and the
+        // expression parser took `defer` as the whole statement: the emitted
+        // Zig was `@"defer";` followed by the guarded call on its own line.
+        // That is worse than a parse error -- it CHANGES THE MEANING. The call
+        // ran immediately instead of at scope exit, so a `defer free(x)` would
+        // have freed x before its first use, and only the stray `@"defer";`
+        // made it visible at all.
+        //
+        // The payload goes through parse_body_stmt, so it is a statement rather
+        // than only a call. `defer { a(); b(); }` is legal Zig and is NOT
+        // covered: parse_body_stmt has no bare-block arm, so a braced payload
+        // would still fail. No spec uses that form (measured: zero), so it is
+        // left unhandled rather than half-handled -- but it is unhandled, not
+        // handled, and this comment says so because the next reader will
+        // otherwise assume the general case from the general-sounding name.
+        if self.current.kind == TokenKind::Ident
+            && (self.current.lexeme == "defer" || self.current.lexeme == "errdefer")
+        {
+            let keyword = self.current.lexeme.clone();
+            self.advance();
+            let mut inner = self.parse_body_stmt()?;
+            inner.extra_op = keyword;
+            return Ok(inner);
         }
 
         // break statement
@@ -5922,6 +5978,25 @@ impl Codegen {
     }
 
     fn gen_stmt(&mut self, node: &Node) {
+        // `defer` / `errdefer` wrap a whole statement, and every arm below
+        // writes its own indent. Rather than teach each of them a prefix, emit
+        // the statement, take back what it wrote, and put it out again behind
+        // the keyword. One place to change, and it works for `defer x.deinit()`
+        // and `defer { a(); b(); }` alike.
+        if node.extra_op == "defer" || node.extra_op == "errdefer" {
+            let keyword = node.extra_op.clone();
+            let mut inner = node.clone();
+            inner.extra_op = String::new(); // or this recurses forever
+            let start = self.output.len();
+            self.gen_stmt(&inner);
+            let body = self.output[start..].to_string();
+            self.output.truncate(start);
+            self.write_indent();
+            self.write(&keyword);
+            self.write(" ");
+            self.write(body.trim_start());
+            return;
+        }
         match node.kind {
             NodeKind::ExprReturn => {
                 self.write_indent();

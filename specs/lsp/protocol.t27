@@ -134,8 +134,14 @@ pub const ConnectionState = enum(u8) {
 };
 
 /// Message buffer
+/// A message buffer that owns its storage.
+///
+/// `data` is `[]u8`, not `[]const u8`: a buffer whose bytes cannot be written
+/// is not a buffer. The previous shape paired a mutable-sounding `capacity`
+/// with an immutable empty slice, which is how it managed to claim room for
+/// 1024 bytes while holding none.
 pub const MessageBuffer = struct {
-    data : []const u8,
+    data : []u8,
     length : usize,
     capacity : usize,
 };
@@ -219,13 +225,27 @@ pub fn json_rpc_error_create(code: i32, message: []const u8) JsonRpcError {
     };
 }
 
-/// Create message buffer
-pub fn message_buffer_create(capacity: usize) MessageBuffer {
+/// Create a message buffer with room for `capacity` bytes.
+///
+/// Takes an allocator and returns an error union because it genuinely can
+/// fail: asking for room is not the same as having it. The old signature
+/// promised a buffer it could not deliver, and no signature without an
+/// allocator can deliver one -- that is why the honest test was left red
+/// rather than patched.
+///
+/// Caller owns the result; pass it to message_buffer_destroy.
+pub fn message_buffer_create(allocator: std.mem.Allocator, capacity: usize) !MessageBuffer {
+    const data = try allocator.alloc(u8, capacity);
     return MessageBuffer{
-        .data = "",
+        .data = data,
         .length = 0,
         .capacity = capacity,
     };
+}
+
+/// Release a buffer's storage. Pair with message_buffer_create.
+pub fn message_buffer_destroy(allocator: std.mem.Allocator, buf: MessageBuffer) void {
+    allocator.free(buf.data);
 }
 
 /// Create initialize request
@@ -364,22 +384,45 @@ test "lsp_json_rpc_error_create" {
 }
 
 test "lsp_message_buffer_create" {
-    const buf = message_buffer_create(1024);
+    const buf = try message_buffer_create(std.testing.allocator, 1024);
+    defer message_buffer_destroy(std.testing.allocator, buf);
     try std.testing.expect(buf.capacity == 1024);
 }
 
-// FAILS ON PURPOSE. message_buffer_create reports whatever capacity it is
-// asked for and backs it with nothing: `.data = ""`, an empty slice, for any
-// argument. The test above passes because it only reads `capacity`, which is
-// the field the function copies rather than the one it would have to earn.
+// This was red on purpose until 2026-08-27: message_buffer_create reported
+// whatever capacity it was asked for and backed it with nothing -- `.data =
+// ""`, an empty slice, for any argument. The test above passed because it
+// read only `capacity`, the field the function copied rather than the one it
+// would have had to earn.
 //
-// Left red rather than fixed, because the fix is an API decision and not
-// mine: the signature takes no allocator, so backing the buffer means
-// changing what callers pass. Until then this states the truth -- a buffer
-// that claims room for 1024 bytes and can hold none.
+// The signature now takes an allocator and returns an error union, so the
+// claim is backed or the call fails. std.testing.allocator is deliberate: it
+// fails the test on a leak, so this also pins that message_buffer_destroy
+// actually frees.
 test "lsp_message_buffer_has_the_room_it_claims" {
-    const buf = message_buffer_create(1024);
+    const buf = try message_buffer_create(std.testing.allocator, 1024);
+    defer message_buffer_destroy(std.testing.allocator, buf);
     try std.testing.expect(buf.data.len >= buf.capacity);
+}
+
+// The other half of the promise: a buffer that cannot be written is not a
+// buffer, whatever its length says.
+test "lsp_message_buffer_is_writable" {
+    const buf = try message_buffer_create(std.testing.allocator, 8);
+    defer message_buffer_destroy(std.testing.allocator, buf);
+    buf.data[0] = 0xAB;
+    buf.data[7] = 0xCD;
+    try std.testing.expect(buf.data[0] == 0xAB);
+    try std.testing.expect(buf.data[7] == 0xCD);
+}
+
+// A zero-capacity buffer is legal and must still round-trip through destroy
+// without the allocator complaining.
+test "lsp_message_buffer_zero_capacity" {
+    const buf = try message_buffer_create(std.testing.allocator, 0);
+    defer message_buffer_destroy(std.testing.allocator, buf);
+    try std.testing.expect(buf.data.len == 0);
+    try std.testing.expect(buf.capacity == 0);
 }
 
 test "lsp_initialize_request_create" {
