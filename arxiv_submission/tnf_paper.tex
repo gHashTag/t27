@@ -5901,7 +5901,10 @@ continuous integration; the full statement is in the accompanying note.
 
 Twenty claims were withdrawn during this work, and a withdrawn claim's number
 does not remove itself from a paper. A traceability check
-(\texttt{tools/check\_paper\_numbers.py}) extracts every distinctive numeric
+(\texttt{docs/}\allowbreak\texttt{reports/}\allowbreak\texttt{gates/}\allowbreak\texttt{check\_paper\_numbers.py};
+ an earlier draft cited it as \texttt{tools/check\_paper\_numbers.py}, where it has never
+ been, and the script's own input path pointed inside \texttt{docs/reports/}, so the
+ gate could not run at all until this revision) extracts every distinctive numeric
 literal here and asks whether it appears in any file under \texttt{research/},
 \texttt{fpga/} or \texttt{conformance/}. It excludes two classes rather than
 tolerating them: constants stated beside the formula that produces them ($23$ of
@@ -5931,8 +5934,24 @@ takes only prose and script files --- \texttt{*.md} and \texttt{*.py} under
 \texttt{research/}, \texttt{fpga/}, \texttt{conformance/}, \texttt{docs/} and the
 repository root, the places where a measurement is actually written down --- and it
 requires a delimited match rather than a substring. Its result on this revision:
-of \textbf{40} frequency literals in this paper, \textbf{16} are stated in no
-record file; Table~\ref{tab:untraced} lists them. Every one of the sixteen is
+of \textbf{44} frequency literals in this paper, \textbf{12} are stated in no
+record file.
+
+That reading was \textbf{16} of \textbf{40} until this revision, and the
+discrepancy is worth stating rather than reconciling away, because the earlier
+figure came from a script that was not in the repository and could not be re-run.
+The registry is now committed at the path named above and reports the numbers
+here. Six literals the table below marks untraced --- $318.47$, $78.83$, $77.00$,
+$73.51$, $67.06$ and $43.04$ --- the committed registry does find, in
+\texttt{docs/theory/}\allowbreak\texttt{IGLA-FORMAL-RESULTS.md} and two audit
+notes. That is not a repair: those documents \emph{restate this paper's own
+numbers}, and a restatement is not a measurement record, which is precisely the
+conclusion the next paragraph reaches for the whole column. The registry counts
+any delimited match in a prose or script file, so its ``traced'' is the weakest
+sense of the word and is reported as such. Two literals it adds, $66.28$ and
+$66.91$, appear in no file at all. Table~\ref{tab:untraced} is left as first
+published, marked against the committed run rather than rewritten to agree with
+it. Every one of the sixteen is
 marked $^{\ast}$ where it appears, and
 carries no hardware-performance claim.
 
@@ -5950,9 +5969,12 @@ ordering, and is presented here as illustrative.
 Worse, and decisive for the release question: \textbf{no place-and-route log is in
 the repository tree at all}. \texttt{git ls-files} finds zero \texttt{*.log} files;
 the only one in the working tree is the \LaTeX{} log of this document. A
-withdrawal note in \texttt{research/frontier/} states that the ladder frequencies
-rest on $298$ \texttt{nextpnr-xilinx} logs under \texttt{fpga/phiscale/}; that
-directory holds $145$ files and none of them is a log. So even the twenty-four
+withdrawal note said to be in \texttt{research/frontier/} states that the ladder
+frequencies rest on $298$ \texttt{nextpnr-xilinx} logs under
+\texttt{fpga/phiscale/}. Neither survives: there is no \texttt{research/frontier/}
+in the repository at this revision, so the note and its count of $298$ cannot be
+checked either, and \texttt{fpga/phiscale/} holds $145$ files of which none is a
+log. So even the twenty-four
 sourced frequencies are sourced to a \emph{document that reports a measurement},
 not to the tool output that produced it. Under the standard this paper applies
 elsewhere --- a claim is closed by a command, its inputs, its log and a hash --- the
@@ -7547,7 +7569,12 @@ softened: on the metric this experiment was built to measure, the format did not
 win. It is reported because it was run, not because it agrees.
 
 \begin{sloppypar}
-The run is a closed artefact rather than a claim about one. Command:
+The run was a closed artefact when it was made, and is not one now: neither the
+generator nor the record named below is in the repository at this revision, so the
+paragraph that follows describes an artefact a reader cannot fetch. It is left
+stated rather than deleted, on the same principle as
+Section~\ref{sec:provenance}: an unreachable artefact is a marked gap, not a
+quietly dropped claim. Command as run:
 \texttt{python3}\ \texttt{research/}\allowbreak\texttt{arxiv\_tnf/}\allowbreak\texttt{measurements/}\allowbreak\texttt{gen\_downstream\_}\allowbreak\texttt{linear\_cg.py}
 from the repository root. The record
 (\texttt{measurements/}\allowbreak\texttt{tnf\_downstream\_}\allowbreak\texttt{linear\_cg\_}\allowbreak\texttt{2026-08-14.json}) carries $A$ in
@@ -7603,7 +7630,13 @@ negative code word, which no hardware can produce. Those rows were unsatisfiable
 Rather than overwrite files whose digests are cited, we bumped the vector
 specification version: the affected files remain in place under
 \texttt{tnf-vectors-2} and the repaired set is published alongside them as
-\texttt{tnf-vectors-3}, with its own manifest of SHA-256 digests. Any transcript
+\texttt{tnf-vectors-3}, with its own manifest of SHA-256 digests. Neither name is
+resolvable at this revision --- \texttt{git ls-remote --tags} returns no
+\texttt{tnf-vectors} tag and no manifest is committed --- so a reader cannot today
+check a digest against either set. The vectors themselves are under
+\texttt{conformance/vectors/}; the versioned manifests are the part that is
+missing, and until they are published this paragraph records an intent rather
+than a released artefact. Any transcript
 claiming conformance against the older manifest should be re-read with this in
 mind.
 

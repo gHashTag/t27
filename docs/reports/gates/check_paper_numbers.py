@@ -15,8 +15,12 @@ strictly weaker and still useful thing.
 """
 import re, pathlib, sys, collections
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-PAPER = ROOT / "research" / "arxiv_tnf" / "tnf_paper.tex"
+# parents[3] is the repository root: gates -> reports -> docs -> root. This read
+# parents[1], which is docs/reports, and looked for the paper under
+# docs/reports/research/arxiv_tnf/ -- a path that has never existed, so the gate
+# the paper cites could not run at all.
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+PAPER = ROOT / "arxiv_submission" / "tnf_paper.tex"
 
 # Where a number in the paper could legitimately come from
 SOURCES = [p for pat in ("research/**/*.md", "research/**/*.py", "research/**/*.json",
