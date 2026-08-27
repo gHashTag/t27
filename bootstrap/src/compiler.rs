@@ -1614,9 +1614,8 @@ impl Parser {
                 let mut full_path = String::new();
                 let mut alias_name = String::new();
                 if self.current.kind == TokenKind::Ident {
-                    let first_ident = self.current.lexeme.clone();
+                    let first_ident = self.read_hyphenated_ident();
                     full_path.push_str(&first_ident);
-                    self.advance();
 
                     // Check for aliased import: using name: @import("path");
                     if self.current.kind == TokenKind::Colon && self.peek.kind != TokenKind::Colon {
@@ -1662,8 +1661,7 @@ impl Parser {
                                 break;
                             }
                             if self.current.kind == TokenKind::Ident {
-                                full_path.push_str(&self.current.lexeme);
-                                self.advance();
+                                full_path.push_str(&self.read_hyphenated_ident());
                             } else {
                                 break;
                             }
@@ -3917,6 +3915,34 @@ impl Parser {
 
     /// Parse for statement: for (iterable) |capture| { body }
     /// Also: for i in start..end { body }  (range for)
+    /// Read an identifier that may carry hyphens: `tritype-base`.
+    ///
+    /// Module NAMES have accepted this since the module-declaration parser was
+    /// written; `use` paths never did. `use tritype-base::Trit;` therefore read
+    /// the import as `tritype`, left `-base::Trit` behind as a module-level
+    /// expression statement, and that phantom reached gen-verilog as
+    /// `-base_Trit;` -- a line the simulator rejects and that no diagnostic
+    /// mentions, because from the parser's side nothing went wrong.
+    ///
+    /// Assumes `self.current` is the leading Ident and consumes it.
+    fn read_hyphenated_ident(&mut self) -> String {
+        let mut name = String::new();
+        if self.current.kind != TokenKind::Ident {
+            return name;
+        }
+        name.push_str(&self.current.lexeme);
+        self.advance();
+        while self.current.kind == TokenKind::Minus
+            && matches!(self.peek.kind, TokenKind::Ident | TokenKind::Number)
+        {
+            name.push('-');
+            self.advance(); // consume '-'
+            name.push_str(&self.current.lexeme);
+            self.advance();
+        }
+        name
+    }
+
     fn parse_for_stmt(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'for'
 
