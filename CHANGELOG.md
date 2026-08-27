@@ -91,6 +91,16 @@ t27c only. Seven defects, five of them a green exit that was not a result.
     Verified by running: C now prints 8 for a loop over `0..8`; iverilog accepts
     the Verilog; the seven `for_range` unit tests that already encoded this
     lowering and were red now pass.
+- **A module-level `var` was emitted as a constant by `gen-c` and `gen`.** The
+  parser records mutability in `extra_mutable` and both backends already branch
+  on it for function *locals*; the module-level paths never read it. `gen-c`
+  emitted `#define counter 0`, which turns `counter = counter + 1` into
+  `0 = (0 + 1)` — not C at all — and Zig emitted `const`, which refuses the
+  assignment. `gen-verilog` emitted a `reg` and was right all along. Measured
+  over the 42 affected specs: C compile errors **537 → 277**, specs whose
+  generated C is clean **0 → 19**; `specs/fpga/bpsk.t27` goes 7 errors to 0.
+  `gen-rust` is unchanged and tracked in #2731: Rust has no safe module-level
+  mutable and the three candidate lowerings each change the generated API.
 - **`gen-rust` emitted an empty `match` for every `switch`.** The arm loop
   tested for a node kind the parser never builds, so `match a { }` shipped with
   exit code 0 while `gen-c` and `gen-verilog` lowered the same construct.
