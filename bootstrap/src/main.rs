@@ -71,6 +71,9 @@ use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(name = "t27c")]
+// `t27c version` existed; `--version` and `-V` did not, so the flag every
+// other CLI answers returned "unexpected argument". One attribute.
+#[command(version)]
 #[command(about = "T27 Bootstrap Compiler for Trinity S³AI Framework", long_about = None)]
 struct Cli {
     #[command(subcommand)]
