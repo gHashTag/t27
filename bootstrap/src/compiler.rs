@@ -2628,6 +2628,22 @@ impl Parser {
             self.advance();
         }
 
+        // `[]const ?u8` -- an OPTIONAL ELEMENT after the const qualifier.
+        //
+        // The `?` handler at the top of this function covers only a LEADING
+        // optional (`?T`). An optional element ended the parse right here: the
+        // parameter came out as `shards: []const` and `?u8` was read as the
+        // start of the NEXT parameter, so the signature emitted
+        //
+        //     fn decode(shards: []const, @"u8": ) void
+        //
+        // -- a parameter with an empty type, which is `expected type
+        // expression`, a parse error, and a wall over the whole file.
+        if self.current.kind == TokenKind::Question {
+            ty.push('?');
+            self.advance();
+        }
+
         // Handle pointer after brackets
         if self.current.kind == TokenKind::Star {
             ty.push('*');
