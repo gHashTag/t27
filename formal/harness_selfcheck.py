@@ -26,6 +26,14 @@ has produced since the last clean run is unverifiable.
 
     python3 formal/harness_selfcheck.py [spec-path]
 """
+# `str | None` below is 3.10+ syntax and is evaluated when the def is
+# executed, i.e. at import. The CI step is a bare
+# `python3 formal/harness_selfcheck.py` with no Python pinned, so on a
+# runner with 3.9 this file would raise TypeError before running one
+# check. Deferring annotations makes it import back to 3.7.
+from __future__ import annotations
+
+import glob
 import hashlib
 import os
 import pathlib
@@ -37,6 +45,23 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BIN = ROOT / "target/release/t27c"
+
+# Every Zig cache this check creates lives under here, and dies with it.
+#
+# Reaped at STARTUP as well as in `finally`, because a `finally` does not
+# run when the process is killed -- and being killed is not the exotic
+# case here. This check compiles the whole corpus, so it is precisely the
+# job a supervisor stops when disk gets tight, which is precisely when the
+# space needs returning. An exit handler cannot cover that; a sweep on the
+# next run can.
+# gettempdir(), not "/tmp": mkdtemp writes to TMPDIR, which on macOS is
+# /var/folders/<hash>/T. A sweep hardcoded to /tmp finds nothing and says
+# so confidently while the directories sit elsewhere -- which is what the
+# first version of this sweep did.
+for _stale in glob.glob(os.path.join(tempfile.gettempdir(),
+                                     "t27_selfcheck_caches_*")):
+    shutil.rmtree(_stale, ignore_errors=True)
+CACHE_ROOT = tempfile.mkdtemp(prefix="t27_selfcheck_caches_")
 
 # Numbers Zig will accept in either form, so the swap cannot fail to compile.
 SWAP = {"0": "9", "1": "7", "2": "8", "3": "6", "4": "5",
@@ -70,8 +95,16 @@ def run_spec(tree: pathlib.Path, rel: pathlib.Path, isolate: bool = True):
     else:
         key = "shared_negative_control"
     env = dict(os.environ)
-    env["ZIG_GLOBAL_CACHE_DIR"] = f"/tmp/t27_selfcheck_{key}/g"
-    env["ZIG_LOCAL_CACHE_DIR"] = f"/tmp/t27_selfcheck_{key}/l"
+    # Under ONE root per invocation, so the whole lot goes away at the end.
+    # These used to be bare /tmp/t27_selfcheck_<key> paths that nothing ever
+    # removed: one directory per distinct tree content, ~45 MB each, and nine
+    # had accumulated by the time free disk went under the working floor.
+    # Both properties that matter survive the move -- the isolated path still
+    # keys on tree CONTENT, and the negative control still shares one cache
+    # across two runs WITHIN this invocation, which is what makes it a
+    # control at all.
+    env["ZIG_GLOBAL_CACHE_DIR"] = f"{CACHE_ROOT}/{key}/g"
+    env["ZIG_LOCAL_CACHE_DIR"] = f"{CACHE_ROOT}/{key}/l"
 
     res = subprocess.run(["zig", "test", shim.name], capture_output=True,
                          cwd=tree, env=env, timeout=300)
@@ -173,6 +206,7 @@ def main() -> int:
         return 1
     finally:
         shutil.rmtree(tree, ignore_errors=True)
+        shutil.rmtree(CACHE_ROOT, ignore_errors=True)
 
 
 if __name__ == "__main__":

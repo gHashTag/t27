@@ -1019,6 +1019,13 @@ jobs:
           python3 formal/faith_check.py --self-test
           python3 formal/faith_check.py
 
+      # orphan_scan.py and absence_sweep.py both `import yaml`, and nothing
+      # in this job installed it -- so the step below could only ever have
+      # raised ModuleNotFoundError. Pinned rather than floating: a gate whose
+      # dependency can change under it grades a moving target.
+      - name: Install PyYAML for the scan scripts
+        run: pip install "pyyaml==6.0.2"
+
       - name: Every property file is run by some workflow
         run: |
           set -euo pipefail

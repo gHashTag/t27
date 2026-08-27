@@ -4,6 +4,7 @@
     python3 formal/check_one_spec.py <spec-path> [tree-id]
 
 `zig test <file>` makes that file its own module root, so a cross-directory
+import shutil
 import is rejected outright (#2682). The spec is therefore compiled through a
 `comptime` shim at the top of the tree, which is where the emitted paths are
 written against.
@@ -24,6 +25,32 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BIN = ROOT / "target/release/t27c"
+
+
+# Unlike the run scan, this tool WANTS its cache to outlive the process -- that
+# is exactly what makes single-spec iteration fast, and removing it would make
+# the tool useless. But one directory per distinct tree content, kept forever,
+# is a leak whatever the intent: the sibling self-check had nine at ~45 MB each
+# when free disk went under the working floor twice in one session.
+# Persistence is the feature; unboundedness is the bug.
+KEEP_CACHES = 6
+
+
+def _reap_old_caches() -> None:
+    """Keep the newest few caches, drop the rest."""
+    import glob as _glob
+
+    caches = sorted(
+        # Literal /tmp, matching the ZIG_*_CACHE_DIR paths set below.
+        # If those ever move to tempfile.mkdtemp, this glob must move to
+        # tempfile.gettempdir() with them or it will sweep an empty
+        # directory forever and report success.
+        _glob.glob("/tmp/t27_zcache_*"),
+        key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0,
+        reverse=True,
+    )
+    for stale in caches[KEEP_CACHES:]:
+        shutil.rmtree(stale, ignore_errors=True)
 
 
 def emit(spec: pathlib.Path, tree: pathlib.Path) -> None:
@@ -72,6 +99,7 @@ def main() -> int:
         digest.update(f.read_bytes())
     key = digest.hexdigest()[:16]
     env = dict(os.environ)
+    _reap_old_caches()
     env["ZIG_GLOBAL_CACHE_DIR"] = f"/tmp/t27_zcache_{key}/g"
     env["ZIG_LOCAL_CACHE_DIR"] = f"/tmp/t27_zcache_{key}/l"
 
