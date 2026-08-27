@@ -6520,8 +6520,22 @@ impl Codegen {
         }
         self.write(")");
 
-        // Capture variables from params
-        if !node.params.is_empty() {
+        // Capture variables from params.
+        //
+        // Zig REQUIRES the payload: `for (xs) { ... }` is
+        // `expected loop payload, found '{'`, a parse error and therefore a
+        // wall over the whole file. The corpus writes the bare form when the
+        // body does not use the element --
+        //
+        //     for (bench_section.benchmarks) { ... }
+        //
+        // -- which is a legitimate thing to mean, and `|_|` is exactly how Zig
+        // spells it. Emitting the discard is the whole of the fix; inventing a
+        // NAME would be a guess, and an unused named capture is an error of its
+        // own.
+        if node.params.is_empty() {
+            self.write(" |_|");
+        } else {
             self.write(" |");
             for (i, (name, _)) in node.params.iter().enumerate() {
                 if i > 0 {
