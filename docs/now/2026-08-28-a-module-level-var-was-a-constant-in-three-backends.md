@@ -1,0 +1,8 @@
+# NOW -- A module-level var was a constant in three backends (2026-08-28)
+
+## A module-level var was a constant in three backends (Refs #2161)
+
+- Refs #2161. The parser records mutability in extra_mutable and both backends already branch on it for function LOCALS -- Zig var/const, Rust let mut/let. The module-level paths never read it, so `var counter: u32 = 0` came out as `#define counter 0` in C, which turns `counter = counter + 1` into `0 = (0 + 1)` -- not C at all -- and as `const` in Zig, which refuses the assignment. gen-verilog emitted a reg and was right all along
+- Measured over the 42 specs whose C output changes: compile errors 537 -> 277, specs with clean C 0 -> 19. specs/fpga/bpsk.t27, the BPSK modem merged in #1250, goes 7 errors to 0. A probe spec compiles and RUNS: two calls incrementing a module-level counter print 1 2
+- gen-rust deliberately NOT fixed: Rust has no safe module-level mutable. static mut needs unsafe at every access, AtomicU32 changes the API to load/store, thread_local! changes the semantics -- three different generated interfaces, which is a datapath decision and not an oversight. Measured first that all 43 such specs already emit non-compiling Rust for other reasons, so nothing regresses by leaving it
+- Mid-task the worktree stopped being a git repository -- a parallel session pruned it while I held uncommitted edits. The FILES survived; recovery was to copy compiler.rs aside, prune, re-add the worktree on the same branch, and restore. Worth noting because the first symptom was a scan that printed "0 changed": git ls-files had failed and the empty selection read as a clean result, which is the empty-scan lie one more time

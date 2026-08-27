@@ -7381,7 +7381,13 @@ impl Codegen {
             return;
         }
 
-        self.write(&format!("const {}", node.name));
+        // A module-level `var` is MUTABLE. The parser records that in
+        // `extra_mutable`, and the Zig local path already branches on it
+        // (`var` vs `const`); this path never did, so a spec that assigns to a
+        // module-level name emitted `const` and Zig refused the assignment.
+        // gen-verilog got this right all along -- it emits a `reg`.
+        let kw = if node.extra_mutable { "var" } else { "const" };
+        self.write(&format!("{} {}", kw, node.name));
 
         if !node.extra_type.is_empty() {
             self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
@@ -17304,6 +17310,29 @@ impl CCodegen {
         }
 
         // Regular constant with expression value
+        // A module-level `var` is MUTABLE, and neither spelling below can hold
+        // an assignment: `#define counter 0` turns `counter = counter + 1`
+        // into `0 = (0 + 1)`, which is not C at all, and `static const` is
+        // rejected by the compiler. The parser records mutability in
+        // `extra_mutable`; this path never read it. gen-verilog has always
+        // emitted a `reg` here.
+        let c_type = if !node.extra_type.is_empty() {
+            Self::type_to_c(&node.extra_type).to_string()
+        } else {
+            "int".to_string()
+        };
+        if node.extra_mutable {
+            self.write(&format!("static {} {} = ", c_type, node.name));
+            if let Some(child) = node.children.first() {
+                self.gen_c_expr(child);
+            } else if !node.value.is_empty() {
+                self.write(&node.value);
+            } else {
+                self.write("0");
+            }
+            self.write_line(";");
+            return;
+        }
         if !node.children.is_empty() {
             let child = &node.children[0];
             // Simple literal → #define
@@ -17311,11 +17340,6 @@ impl CCodegen {
                 self.write_line(&format!("#define {} {}", node.name, child.value));
             } else {
                 // Complex expression → static const
-                let c_type = if !node.extra_type.is_empty() {
-                    Self::type_to_c(&node.extra_type).to_string()
-                } else {
-                    "int".to_string()
-                };
                 self.write(&format!("static const {} {} = ", c_type, node.name));
                 self.gen_c_expr(child);
                 self.write_line(";");
