@@ -180,6 +180,18 @@ Section~\ref{sec:selfcheck} sets out the ways a format comparison fails while
 each of its measurements is correct, since every quantitative claim above depends
 on those failures having been ruled out.
 
+\textbf{The third contribution is methodological and is not about ternary.}
+Section~\ref{sec:checklist} states six ways an arithmetic-hardware result dies
+while reporting success, each found in our own numbers and each costing us a
+published claim: a synthesiser that folds away the on-die checks whose area is
+being measured; a frequency column that is a size proxy rather than a figure of
+merit; a proof base with no admitted lemmas that never type-checked; a decoder
+that accepts codes its format cannot name and so flatters it; substring matching
+that sources a figure to unrelated digits; and a provenance chain that ends at a
+document restating the number rather than at the tool that produced it. Each is
+given as a procedure a reader can run against their own corpus. None was caught
+by review; all six were caught by re-running something that had already passed.
+
 The artefacts are at \url{https://github.com/gHashTag/ternary-network-floats}:
 \texttt{python3 verify.py} recomputes the tables above from the reference
 oracle and fails if any number moves, and \texttt{coqc proofs/CorePhi.v}
@@ -192,6 +204,14 @@ checks the algebra.
 The results below were found in the order a measurement campaign finds things.
 They compose into one argument, and the argument is easier to follow stated
 first.
+
+\paragraph{The third thread.} Two of the three results here are about a number
+format. The third is not: Section~\ref{sec:checklist} collects six ways an
+arithmetic-hardware measurement reports success while having failed, each of
+which cost this paper a published claim before it was caught. They are stated as
+procedures because they are properties of synthesis tools, proof checkers and
+provenance matchers rather than of this format, and a reader building any
+arithmetic datapath is exposed to all six.
 
 \paragraph{A word on the plates.} Seventy of the figures here carry captions
 opening ``Canon plate''. They are a companion series rather than evidence: each
@@ -4808,11 +4828,14 @@ backpropagation in the placed design & \textbf{0} & XOR $4/4$, 24--25 epochs & t
 \caption{Throughput per area among formats that carry their own range, with
 conformance. One ternary-neuron datapath, XC7A200T, no DSP, every accumulator
 bit observed, median of five placement seeds. \texttt{int8} is in
-Table~\ref{tab:rejected}. \textbf{Three of the four TNF rungs are at their
-specified parameters here; the TNF64 row is not}. Its $65$ bits are the
-pre-reconciliation module at $M{=}52$, where the reconciled rung is $69$ bits
-and has not been placed --- so that row is named by its stored width and should
-not be read against a specified TNF64. The other three moved: the modules
+Table~\ref{tab:rejected}. \textbf{Two of the four TNF rungs are at their
+specified parameters here; two are not}. TNF8 at $10$ bits and TNF32 at $36$
+bits are the reconciled rungs. TNF16 reads $17$ bits and TNF64 reads $65$: both
+are pre-reconciliation modules, at $M{=}9$ and $M{=}52$ against the specified
+$M{=}11$ and $M{=}56$, whose reconciled packed words are $19$ and $69$ bits and
+have not been placed. Each is named here by the width of the module that was
+actually placed, and neither row should be read against a specified rung of the
+same name. All four moved from where they were: the modules
 previously measured
 implemented different formats --- TNF16 one mantissa bit short, TNF32 with twelve
 trits and eleven mantissa bits where the specification gives six and
@@ -7639,6 +7662,92 @@ missing, and until they are published this paragraph records an intent rather
 than a released artefact. Any transcript
 claiming conformance against the older manifest should be re-read with this in
 mind.
+
+\section{Six ways an arithmetic-hardware result dies quietly}\label{sec:checklist}
+
+Every finding in this section was found the expensive way, in our own numbers,
+and none of it is about ternary. Each cost us a published claim; each is cheap to
+check once you know to look; and each is stated here as a procedure rather than a
+confession, because the failure modes are properties of the tools and not of this
+format. A reader who never intends to build a ternary datapath can still run all
+six against their own corpus in an afternoon.
+
+\paragraph{1. Synthesis deletes the thing you are measuring.} We embedded checks
+in the datapath so that a wrong result could not be silently produced, then
+measured the area of the result. The synthesiser folded fifteen of twenty-eight
+on-die clauses to constants and removed them, so every area figure we published
+measured a design with its checks already deleted --- and the smaller the design,
+the more of it had been removed, which biases exactly the comparison an area
+table is for.
+\emph{Procedure:} synthesise twice, once with the checks and once with them cut
+by hand, and compare cell counts. If the two agree, the checks were folded in the
+first build. Read the synthesis log for constant propagation into assertion
+clauses and report the count, as a fraction, beside the area.
+
+\paragraph{2. Frequency across designs of different size is a size proxy.} We
+ranked formats by MHz per LUT and took the ranking for a figure of merit. Over
+our own corpus, across a $41\times$ span of area, achieved frequency follows
+$F_{\max}\approx 3174\cdot\mathrm{LUT}^{-0.648}$ at $R^2=0.92$: size explains
+$92\%$ of frequency, so MHz per LUT is close to a restatement of area, and the
+ranking it produced was a ranking by smallness.
+\emph{Procedure:} before reporting frequency per area, fit $F_{\max}$ against
+area over your own rows. An exponent near $-0.65$ with high $R^2$ means the
+quantity is measuring size. Residuals are where the structure is: ours span a
+factor of two, and that factor is the only part of the frequency column that
+carries information about the design.
+
+\paragraph{3. A proof base with no admitted lemmas can be checking nothing.} Our
+Coq development closed every lemma with \texttt{Qed} and contained zero
+\texttt{Admitted} and zero \texttt{Axiom}. It also did not compile, and three of
+its statements were false --- $\varphi^3=2\sqrt5+3$ is $7.472$ where $\varphi^3$
+is $4.236$. ``No admitted lemmas'' is a grep over a file, and a grep cannot
+distinguish a proof from a file that was never type-checked.
+\emph{Procedure:} report the checker, its version, the command and its exit
+status, not a count of \texttt{Admitted}. Put the command in the paper so a
+referee can run it. An artefact claim that cannot be executed in one line is not
+an artefact claim.
+
+\paragraph{4. An oracle that decodes what the format cannot name inflates the
+format.} A ternary exponent of $E_t$ trits occupies
+$\lceil E_t\log_2 3\rceil$ bits, so the field holds more code points than the
+trits can name: at $E_t=4$ it holds $128$ and the trits reach $81$. Our decoder
+masked to the field width and returned ordinary normals for the other $47$, which
+put our own format at $516{,}096$ values and $127.0$ binades where the trits give
+$323{,}584$ and $79.0$. The error flattered us by $1.6\times$.
+\emph{Procedure:} the tell is a metric that comes out as a power of two minus one.
+A four-trit exponent reporting $127.0$ binades is reporting $2^7-1$, which is a
+binary field wearing a ternary label. Check that the value count is divisible by
+the number of code points the format actually names, and check every derived
+range against the format's own definition rather than against the decoder.
+
+\paragraph{5. Substring provenance is worthless for short literals.} Our
+traceability gate matched a figure as a substring of a data file with separators
+stripped. A frequency of $307.69$ passed because the digits $30769$ occur inside
+an unrelated conformance-vector column, and two figures reading $3.15$ passed
+with no generating file at all.
+\emph{Procedure:} require a delimited match, bounded by non-digit characters, and
+treat any literal of three or four significant characters as unmatched until it
+is. Then \emph{audit the passes.} Failures are already visible and will be
+investigated; a false pass is silent, and it was auditing our passes rather than
+our failures that exposed this.
+
+\paragraph{6. A restatement is not a record.} Even after the strict registry, a
+figure counted as sourced when it appeared in a prose document --- and prose
+documents in a project restate the project's own numbers. Twenty-four of our
+frequencies were ``sourced'' in this sense, to a document reporting a
+measurement, never to the tool output that produced it. Not one
+place-and-route log is in the repository: \texttt{git ls-files} finds zero.
+\emph{Procedure:} a claim is closed by a command, its inputs, its log and a hash,
+and by nothing weaker. Where the log is absent, say so at the point of use rather
+than at the end. Sections~\ref{sec:selfcheck} and~\ref{sec:provenance} carry ours.
+
+\paragraph{What the six have in common.} None was caught by review, and all six
+were caught by re-running something that had already passed. A published number
+is a claim that a procedure was executed, and the procedures above all failed
+while reporting success --- a folded check, a compiling-looking proof, a decoder
+answering out of range, a matcher matching the wrong thing. That is the class of
+error that survives peer review, because peer review reads the paper and not the
+build. The only defence we found is to distrust the passes.
 
 \section{Limitations}\label{sec:limits}
 
