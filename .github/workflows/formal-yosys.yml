@@ -154,13 +154,29 @@ jobs:
 
       - name: Harness self-check — can it still tell a pass from a break?
         run: python3 formal/harness_selfcheck.py
+      # COUNTS BOTH `$check` AND `$assert`, and the difference is a Yosys
+      # version.
+      #
+      # `$check` is the newer cell; `chformal -lower` is what turns it into
+      # `$assert`/`$assume`. The Yosys `apt-get install -y yosys` provides has
+      # NEITHER -- no `-lower` option and no `$check` cell -- and emits
+      # `$assert` directly. The first run of this workflow in its existence
+      # printed exactly that while failing: `$assert 1`, `$assume 1`.
+      #
+      # So counting only `$check` returns zero on the Yosys this job actually
+      # runs, and this step -- whose entire purpose is to distinguish "all
+      # properties hold" from "there are no properties" -- could never pass.
+      # Wrong in the direction that makes the gate impossible, which is how it
+      # stayed invisible: the workflow had never run.
+      #
+      # Summing both is correct on either version.
       - name: Assert the property set is non-empty
         run: |
           set -euo pipefail
           n=$(yosys -p "read_verilog -sv -formal build/rtl/interrupt_controller.sv \
                         formal/interrupt_controller_props.sv; \
                         prep -top irq_props -flatten; stat" \
-                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+                | grep -oE '[0-9]+ +\$(check|assert)' | awk '{s+=$1} END {print s+0}')
           echo "check cells: ${n:-0}"
           if [ "${n:-0}" -lt 6 ]; then
             echo "::error::Expected >=6 \$check cells, found ${n:-0} — the run would be vacuous or properties were dropped."
@@ -182,7 +198,7 @@ jobs:
           n=$(yosys -p "read_verilog -sv -formal build/rtl/axi_lite_slave.sv \
                         formal/axi_lite_slave_props.sv; \
                         prep -top axi_props -flatten; stat" \
-                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+                | grep -oE '[0-9]+ +\$(check|assert)' | awk '{s+=$1} END {print s+0}')
           echo "axi check cells: ${n:-0}"
           # 7 -> 6 in Wave 591: a_sanity was `X == X`, folded to constant true,
           # and it still emitted a $check cell. This gate exists to catch an
@@ -208,7 +224,7 @@ jobs:
                         formal/axi4_read_slave_model.sv \
                         formal/dma_controller_props.sv; \
                         prep -top dma_props -flatten; stat" \
-                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+                | grep -oE '[0-9]+ +\$(check|assert)' | awk '{s+=$1} END {print s+0}')
           echo "dma check cells: ${n:-0}"
           # 8 -> 7 in Wave 591, same reason as axi_props above (Prop. 41).
           # 7 -> 8 in Wave 618: the AXI4 read-slave model contributes
@@ -279,7 +295,7 @@ jobs:
           n=$(yosys -p "read_verilog -sv -formal build/rtl/double_buffer_ctrl.sv \
                         formal/double_buffer_props.sv; \
                         prep -top db_props -flatten; stat" \
-                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+                | grep -oE '[0-9]+ +\$(check|assert)' | awk '{s+=$1} END {print s+0}')
           echo "db check cells: ${n:-0}"
           if [ "${n:-0}" -lt 4 ]; then
             echo "::error::Expected >=4 \$check cells for db_props, found ${n:-0}."
@@ -1091,7 +1107,7 @@ jobs:
           n=$(yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN_AXI \
                         build/rtl/dma_controller.sv; \
                         prep -top dma_controller -flatten; stat" \
-              | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+              | grep -oE '[0-9]+ +\$(check|assert)' | awk '{s+=$1} END {print s+0}')
           if [ "${n:-0}" -lt 2 ]; then
             echo "::error::Expected >=2 \$check cells for the DMA drain properties,"
             echo "::error::found ${n:-0} -- they were not compiled and this proves nothing."
@@ -1153,7 +1169,7 @@ jobs:
           n=$(yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
                         build/rtl/weight_prefetch_ctrl.sv; \
                         prep -top weight_prefetch_ctrl -flatten; stat" \
-              | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+              | grep -oE '[0-9]+ +\$(check|assert)' | awk '{s+=$1} END {print s+0}')
           if [ "${n:-0}" -lt 2 ]; then
             echo "::error::Expected >=2 \$check cells, found ${n:-0} -- the inline"
             echo "::error::drain properties were not compiled and this step proves nothing."
