@@ -5045,3 +5045,78 @@ had not.
 reach for while using it**, and those are where a wrong list quietly becomes a
 wrong plan. The tell was the classification coming out nonsensical — zero
 training assertions in a file that is mostly training assertions.
+
+## 125. "The most recent N" cannot answer "has X happened since T"
+
+I opened an issue asserting a repository-wide CI outage: *required checks have
+not fired since 2026-08-24 11:06; every PR since is permanently BLOCKED.* It had
+a measurement, a five-row table of refuted hypotheses, and a sharp closing
+observation. **It was wrong.** The checks had not started yet. Twenty minutes
+later both branches showed 30+ checks.
+
+Two instrument errors compounded, and neither was visible from inside the
+conclusion.
+
+### `gh run list --limit N` is a recency window
+
+The last 10, then 60, runs were dominated by two workflows that fire on every
+push. I read *"the only workflows running are NotebookLM"* off a list that had
+simply not reached back far enough. The API's own filter says otherwise:
+
+```
+gh api "repos/…/actions/runs?created=>2026-08-25" → 103 runs
+   pull_request: 39   push: 31   schedule: 14   issues: 10
+```
+
+**A query that returns the most recent N cannot answer a question about a time
+range.** It answers "what is newest", and if something noisy is newest,
+everything else is invisible at any N you are willing to read.
+
+### I queried the wrong workflow and believed the answer
+
+`--workflow=now-sync-gate.yml` returned runs ending 08-24, which I took as *"the
+required check stopped firing"*. The required context `check-now-freshness` is
+produced by **two** files, and the run that satisfies it displays as
+**"Check Now Freshness"** — a name I never searched for, because I had gone
+looking by filename.
+
+One file answered honestly. The check came from somewhere else.
+
+### The shape of the error
+
+Every row of my "what is NOT the cause" table was **correct**. Actions enabled,
+workflows active, files present, no branch filter, no path filter, identical
+trigger on a workflow that did run. I eliminated hypotheses carefully and
+thoroughly — around a premise I never tested.
+
+**A well-run elimination over a false premise produces more confidence than a
+sloppy one.** The table was what made the issue persuasive, including to me.
+
+### What would have caught it, and it is embarrassing
+
+Waiting. The difference between "has not started" and "will never start" is
+time, and nothing else. I had already written §116's lesson — *prefer the answer
+with more structure* — and the structured answer here was available the whole
+time: `created=>` returns a range, `--limit` returns a window.
+
+The check that costs nothing: **before reporting an absence, ask the same
+question with a different instrument.** Not a second opinion on the conclusion —
+a second instrument for the observation.
+
+### One thing in it was true and worth keeping
+
+`gh pr checks` on a PR whose checks have not started shows a short **green**
+list: two successes, zero failures, indistinguishable at a glance from a PR that
+passed thirty-three gates. Both of the workflows I wrongly accused carry a
+comment saying exactly that — *"An absent check is not a passing check"* — which
+is why the outage reading was plausible enough to write down.
+
+The hazard is real. The outage was not. **A true observation is not evidence for
+the theory it made you think of.**
+
+### Withdrawal is cheap; a standing wrong issue is not
+
+Closed within the hour with the correction as the closing comment, because the
+issue named an owner action that did not exist. The campaign rule stands: a
+finding that survives a genuine attempt to kill it is worth acting on, and I
+never attempted to kill this one — I only attacked its alternatives.
