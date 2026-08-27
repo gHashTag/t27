@@ -3745,6 +3745,40 @@ impl Parser {
     }
 
     /// Parse if / else if / else statement
+    /// The condition of an `if`, a `while`, or an `if` expression.
+    ///
+    /// Three byte-identical copies of this stood in the parser and all three
+    /// carried the same defect, so the fix lives in one place.
+    ///
+    /// A leading `(` is NOT proof of the parenthesised form: it may be the
+    /// first factor of a bare condition, as in `if (i >> j) & 1 == 1 {`
+    /// (specs/ar/asp_solver.t27:154). Reading `(i >> j)` as the whole
+    /// condition leaves `& 1 == 1` sitting where the body belongs, and the
+    /// enclosing function dies at the brace -- which is how one real spec
+    /// stopped parsing while a Lean theorem went on asserting it lowerable.
+    ///
+    /// The two forms are told apart by what FOLLOWS the closing paren: the
+    /// body `{`, or a payload capture `|x|`. Anything else means the
+    /// condition continued, so the checkpoint rewinds and the bare path
+    /// re-reads it whole. Without parentheses, `Name {` would open the BODY,
+    /// so struct-literal parsing is suppressed there.
+    fn parse_condition(&mut self) -> Result<Node, String> {
+        if self.current.kind == TokenKind::LParen {
+            let checkpoint = self.save_state();
+            self.advance();
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            if self.current.kind == TokenKind::LBrace || self.current.kind == TokenKind::Pipe {
+                return Ok(c);
+            }
+            self.restore_state(checkpoint);
+        }
+        self.no_struct_literal += 1;
+        let c = self.parse_expr();
+        self.no_struct_literal -= 1;
+        c
+    }
+
     fn parse_if_stmt(&mut self) -> Result<Node, String> {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
@@ -3753,17 +3787,7 @@ impl Parser {
         // `if cond { ... }` and it was "Expected LParen, got Ident" -- 1,002
         // assertion clauses (W578). Without parentheses, `Name {` opens the
         // BODY, so struct-literal parsing is suppressed for the condition.
-        let cond = if self.current.kind == TokenKind::LParen {
-            self.advance();
-            let c = self.parse_expr()?;
-            self.expect(TokenKind::RParen)?;
-            c
-        } else {
-            self.no_struct_literal += 1;
-            let c = self.parse_expr();
-            self.no_struct_literal -= 1;
-            c?
-        };
+        let cond = self.parse_condition()?;
         if_node.children.push(cond);
 
         // PAYLOAD CAPTURE: `if (opt) |value| { ... }` -- Zig's optional
@@ -3860,17 +3884,7 @@ impl Parser {
         // (W578). `while e > 0 {` is the Rust form and 22 specs use it. Without
         // parentheses a `Name {` opens the BODY, so struct-literal parsing is
         // suppressed while reading the condition.
-        let cond = if self.current.kind == TokenKind::LParen {
-            self.advance();
-            let c = self.parse_expr()?;
-            self.expect(TokenKind::RParen)?;
-            c
-        } else {
-            self.no_struct_literal += 1;
-            let c = self.parse_expr();
-            self.no_struct_literal -= 1;
-            c?
-        };
+        let cond = self.parse_condition()?;
         while_node.children.push(cond);
 
         // Zig's CONTINUE EXPRESSION: `while (i < n) : (i += 1) { ... }`, the
@@ -5494,17 +5508,7 @@ impl Parser {
         // Without parentheses, `Name {` opens the THEN branch, so
         // struct-literal parsing is suppressed for the condition exactly as
         // it is for the statement form.
-        let cond = if self.current.kind == TokenKind::LParen {
-            self.advance();
-            let c = self.parse_expr()?;
-            self.expect(TokenKind::RParen)?;
-            c
-        } else {
-            self.no_struct_literal += 1;
-            let c = self.parse_expr();
-            self.no_struct_literal -= 1;
-            c?
-        };
+        let cond = self.parse_condition()?;
 
         // Then expression
         let then_expr = self.parse_branch_value()?;

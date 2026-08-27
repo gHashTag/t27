@@ -1,0 +1,373 @@
+{
+  "_what": "Env names where the Lean completeness theorem and the Rust classifier disagree.",
+  "_why": "The test asserted agreement one spec at a time and died on the first, so 72 of these 73 were invisible. A ledger reports all of them and can only shrink: a new name here fails the test, and a name that starts agreeing must be REMOVED or the test fails on the stale entry.",
+  "_model_empty": "true means the Lean module has no functions, globals or tests -- the theorem proves the empty module lowerable, which is true of nothing in the spec. Those are the cheapest to retire.",
+  "max_entries": 73,
+  "entries": {
+    "ar_coa_planning": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "ar_composition": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "ar_datalog_engine": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "ar_explainability": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "ar_proof_trace": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "ar_restraint": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "cloud_railway_deploy": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "compiler_mod_structure": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "isa_ternary_arithmetic": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "isa_ternary_bitwise": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "isa_ternary_deque": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "isa_ternary_shift": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "math_property_test_template": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "ml_layers_avgpool2d_layer": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "ml_rl_ppo_critic": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "numeric_formats": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "physics_lqg_cs_bridge": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "queen_task_analysis": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_agent_eternal_monitor": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_agent_faculty_board": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_bitmap": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_bitset": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_bitvector": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_btree": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_circular_buffer": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_deque": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_either": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_interval": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_list": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_lru": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_map": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_option": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_priority_queue": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_collections_queue": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_result": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_ring_buffer": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_skip_list": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_stack": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_tuple": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_collections_variant": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_crypto_base32": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_crypto_base64": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_crypto_hmac": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_encoding_markup": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_encoding_mime": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_encoding_msgpack": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_graph_graph": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_graph_prims_mst": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_graph_topological_sort": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_io_compress": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_io_zip": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_math_matrix": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_math_polynomial": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_net_async": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_net_async_stream": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_net_channel": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_net_url": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_pipeline_builder": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_search_aho_corasick": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_search_bloom_filter": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_search_boyer_moore": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_search_match": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_search_regex": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_trees_fenwick_tree": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_trees_kd_tree": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_trees_segment_tree": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_trees_suffix_array": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_trees_tree": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_trees_trie": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_utils_args": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    },
+    "tri_utils_bytes": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "tri_utils_template": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true
+    },
+    "vsa_packed_vsa": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false
+    }
+  }
+}

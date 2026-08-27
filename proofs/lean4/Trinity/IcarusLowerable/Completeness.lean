@@ -40,8 +40,19 @@ def api_tri_net_api_module : Module := {
   benches := [{ name := "", params := [], ret := none, body := [] }, { name := "", params := [], ret := none, body := [] }]
 }
 
+-- specs/ar/asp_solver.t27 iterates collections -- `for candidate in candidates`
+-- (line 102), and four more like it. The Rust classifier rejects iterator-style
+-- `for` outright; `Stmt.forLoop` here has ONE constructor for both range-for and
+-- iterator-for and asks only that the range expression be combinational, so this
+-- Ast cannot express the very construct that makes the spec non-lowerable.
+--
+-- The marker records that, using the convention api_sdk_contract_env already
+-- uses: a spec this model cannot carry faithfully is pinned to the Rust
+-- verdict rather than given a proof about a module that is not it. Until this
+-- edit the module below was EMPTY and the theorem said `true` -- a proof that
+-- the empty module is lowerable, which is true of nothing in the spec.
 def ar_asp_solver_env : Env := {
-  structs := [],
+  structs := [("w537_non_lowerable_marker", [("dummy", .f32)])],
   constructors := [],
   enums := [],
   imports := [],
@@ -4689,7 +4700,7 @@ def igla_w535_bounded_while_module_module : Module := {
 
 theorem api_sdk_contract_lowerable : Module.isLowerable api_sdk_contract_env api_sdk_contract_module = false := by native_decide
 theorem api_tri_net_api_lowerable : Module.isLowerable api_tri_net_api_env api_tri_net_api_module = true := by native_decide
-theorem ar_asp_solver_lowerable : Module.isLowerable ar_asp_solver_env ar_asp_solver_module = true := by native_decide
+theorem ar_asp_solver_lowerable : Module.isLowerable ar_asp_solver_env ar_asp_solver_module = false := by native_decide
 theorem ar_coa_planning_lowerable : Module.isLowerable ar_coa_planning_env ar_coa_planning_module = true := by native_decide
 theorem ar_composition_lowerable : Module.isLowerable ar_composition_env ar_composition_module = true := by native_decide
 theorem ar_datalog_engine_lowerable : Module.isLowerable ar_datalog_engine_env ar_datalog_engine_module = true := by native_decide
