@@ -5933,8 +5933,15 @@ impl Codegen {
                 }
             }
             if matches!(stmt.extra_kind.as_str(), "given" | "when" | "then") {
+                // The NAME, without the type annotation `given` carries with
+                // it. `given lr : u32 = 0` puts `lr : u32` on the left of the
+                // `=`, and the check below tokenises later clauses and
+                // compares each token to this string -- so a bound of
+                // `lr : u32` matches nothing, ever, and every such binding
+                // read as unused no matter how often `lr` appears.
                 let bound = top_level_assign(&stmt.name)
                     .map(|i| stmt.name[..i].trim().to_string())
+                    .map(|b| b.split(':').next().unwrap_or(&b).trim().to_string())
                     .unwrap_or_default();
                 let used_later = !bound.is_empty()
                     && stmts[i + 1..].iter().any(|later| {
@@ -6072,7 +6079,18 @@ impl Codegen {
         // clause mentions.
         if !used_later {
             if let Some(i) = top_level_assign(&text) {
-                let name = zig_ident(text[..i].trim());
+                // Strip the type annotation, for the same reason as the
+                // `bound` above: `given lr : u32 = 0` emitted `_ = lr:u32;`,
+                // which is not an expression. That is a PARSE error, so it
+                // capped its file's error count and hid everything after it --
+                // three specs each reported exactly one error because of this
+                // line.
+                //
+                // The `const lr:u32 = 0;` on the line before is valid only by
+                // accident: Zig reads it as a name plus a type annotation. The
+                // discard has no such reading available.
+                let lhs = text[..i].trim();
+                let name = zig_ident(lhs.split(':').next().unwrap_or(lhs).trim());
                 self.write_indent();
                 self.write_line(&format!("_ = {};", name));
             }
