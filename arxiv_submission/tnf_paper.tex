@@ -179,6 +179,11 @@ rungs where nothing else trains.
 Section~\ref{sec:selfcheck} sets out the ways a format comparison fails while
 each of its measurements is correct, since every quantitative claim above depends
 on those failures having been ruled out.
+
+The artefacts are at \url{https://github.com/gHashTag/ternary-network-floats}:
+\texttt{python3 verify.py} recomputes the tables above from the reference
+oracle and fails if any number moves, and \texttt{coqc proofs/CorePhi.v}
+checks the algebra.
 \end{abstract}
 
 \section{What this paper argues}
@@ -4614,7 +4619,8 @@ multiply but equal to it (Theorem~\ref{thm:exact}).
 
 The closure half of this argument is machine-checked, and the artefact is named
 so it can be run rather than believed. In
-\texttt{proofs/trinity/CorePhi.v}, theorem \texttt{fib\_step\_is\_phi\_mul}
+\texttt{proofs/CorePhi.v} of the artefact repository named in the
+Reproducibility section, theorem \texttt{fib\_step\_is\_phi\_mul}
 proves that $(a,b)\mapsto(b,a+b)$ computes multiplication by $\varphi$ on the
 reals; \texttt{zphi\_add\_closed}, \texttt{zphi\_opp\_closed} and
 \texttt{zphi\_zero} close the lattice under the three arms of the
@@ -7699,17 +7705,33 @@ Icarus Verilog 13.0 and Python 3.14 --- all open-source, none requiring a
 licence, which is the point: a result nobody can reproduce without buying
 something is not a public result.
 
-\paragraph{Where the artefacts are.} Everything this paper measures is in one
-repository, \url{https://github.com/gHashTag/t27}, at commit
-\texttt{0bf0a309d}. Every occurrence of ``this revision'' below and above means
-that commit. An earlier draft pinned the tag \texttt{v4.0-trinity}, which does
-not exist on that remote and never did, so each of the twelve provenance claims
-in this paper resolved to nothing; a commit hash is used here because it cannot
-drift.
+\paragraph{Where the artefacts are.} The artefacts of this paper have their own
+repository: \url{https://github.com/gHashTag/ternary-network-floats}, at commit
+\texttt{f29b29b}. It holds the reference oracle, the Coq development, the
+matched-width data and the formal-equivalence modules, and nothing else, so a
+reader can check this paper without cloning the monorepo it was developed in
+(\url{https://github.com/gHashTag/t27}, commit \texttt{0bf0a309d}, where
+``this revision'' below and above points).
+
+Two commands settle the quantitative claims:
+
+\begin{quote}
+\texttt{python3 verify.py} \\
+\texttt{coqc -Q proofs Trinity proofs/CorePhi.v}
+\end{quote}
+
+\noindent The first recomputes the matched-width table, the one-adder family
+roots and the node area \emph{from the oracle} rather than reading them from a
+stored record, and exits non-zero if any number moves; its twenty checks are
+listed against the claims they settle in the repository's \textsc{readme}. The
+second returns $0$. An earlier draft pinned the tag \texttt{v4.0-trinity},
+which does not exist on either remote and never did, so each of the twelve
+provenance claims in this paper resolved to nothing; commit hashes are used here
+because they cannot drift.
 
 \paragraph{What is machine-checked, and where.} The $\varphi$ identities on
-which the closure argument rests are in
-\texttt{proofs/trinity/CorePhi.v}: \texttt{phi\_square} ($\varphi^2=\varphi+1$),
+which the closure argument rests are in \texttt{proofs/CorePhi.v} of that
+repository: \texttt{phi\_square} ($\varphi^2=\varphi+1$),
 \texttt{trinity\_identity} ($\varphi^2+\varphi^{-2}=3$), and the Fibonacci
 powers \texttt{phi\_cubed\_fib}, \texttt{phi\_fourth\_fib},
 \texttt{phi\_fifth\_fib} ($\varphi^n=F(n)\varphi+F(n-1)$, which is the step the
