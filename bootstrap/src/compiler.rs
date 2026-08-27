@@ -5718,6 +5718,12 @@ impl Parser {
             // Statement clauses must sit on the line immediately after the
             // previous clause; a gap returns the old boundary reading.
             let adjacent = self.current.line <= self.last_line + 1;
+            // A body that OPENS with `var`/`const` has no earlier clause to
+            // take a column from, so `first_clause_col` was still None, this
+            // arm was skipped, and the whole braceless body fell back to the
+            // discard -- silently, and with no marker in the output. Seed the
+            // column from this statement itself: when it is the first thing in
+            // the block, it IS the first clause.
             if matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
                 && adjacent
                 && first_clause_col.map_or(false, |c| c > 1 && self.current.col >= c)
@@ -6221,6 +6227,16 @@ impl Parser {
                 Some(c) if c <= clause_col => c,
                 _ => clause_col,
             });
+            // A clause may end with a semicolon: `given p = 0;`. Nothing
+            // consumed it, so the next loop turn met `;` where it expects a
+            // clause head, read that as "stopped mid-clause", and restored the
+            // fallback -- discarding the WHOLE block over one character. The
+            // same body without the semicolon lowered fine, which is what made
+            // it invisible: two spellings of one clause, one of them silently
+            // emptying every assertion after it.
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
             lowered += 1;
         }
 
