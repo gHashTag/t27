@@ -1,0 +1,10 @@
+# NOW -- A well-run elimination over a false premise (2026-08-27)
+
+## A well-run elimination over a false premise (Refs #2161)
+
+- Refs #2161. I opened an issue asserting a repository-wide CI outage -- required checks not fired since 2026-08-24, every PR permanently BLOCKED -- with a measurement and a five-row table of refuted hypotheses. It was WRONG. The checks had not started yet; twenty minutes later both branches showed 30+ checks. Closed within the hour
+- Two instrument errors compounded. `gh run list --limit N` is a RECENCY WINDOW, not a census: the last 60 runs were all NotebookLM, which fires on every push, so everything else was invisible at any N I was willing to read. The API `created=>` filter returns 103 runs over the same span, 39 of them pull_request
+- And I queried by FILENAME. `--workflow=now-sync-gate.yml` returned runs ending 08-24; the required context check-now-freshness is produced by two files, and the run that satisfies it displays as "Check Now Freshness" -- a name I never searched for. One file answered honestly; the check came from elsewhere
+- EVERY ROW of my "what is NOT the cause" table was correct. Actions enabled, workflows active, files present, no filters, identical trigger on a workflow that did run. I eliminated hypotheses carefully around a premise I never tested -- and a well-run elimination over a false premise produces MORE confidence than a sloppy one. The table is what made it persuasive, including to me
+- The cheap check: before reporting an ABSENCE, ask the same question with a different instrument. Not a second opinion on the conclusion -- a second instrument for the observation. A query returning "the most recent N" cannot answer "has X happened since T"
+- One thing in it was true and worth keeping: `gh pr checks` on a PR whose checks have not started shows a short GREEN list, indistinguishable at a glance from a PR that passed 33 gates. Both workflows I wrongly accused carry the comment "An absent check is not a passing check". The hazard is real; the outage was not. A true observation is not evidence for the theory it made you think of
