@@ -1614,9 +1614,8 @@ impl Parser {
                 let mut full_path = String::new();
                 let mut alias_name = String::new();
                 if self.current.kind == TokenKind::Ident {
-                    let first_ident = self.current.lexeme.clone();
+                    let first_ident = self.read_hyphenated_ident();
                     full_path.push_str(&first_ident);
-                    self.advance();
 
                     // Check for aliased import: using name: @import("path");
                     if self.current.kind == TokenKind::Colon && self.peek.kind != TokenKind::Colon {
@@ -1662,8 +1661,7 @@ impl Parser {
                                 break;
                             }
                             if self.current.kind == TokenKind::Ident {
-                                full_path.push_str(&self.current.lexeme);
-                                self.advance();
+                                full_path.push_str(&self.read_hyphenated_ident());
                             } else {
                                 break;
                             }
@@ -3917,6 +3915,34 @@ impl Parser {
 
     /// Parse for statement: for (iterable) |capture| { body }
     /// Also: for i in start..end { body }  (range for)
+    /// Read an identifier that may carry hyphens: `tritype-base`.
+    ///
+    /// Module NAMES have accepted this since the module-declaration parser was
+    /// written; `use` paths never did. `use tritype-base::Trit;` therefore read
+    /// the import as `tritype`, left `-base::Trit` behind as a module-level
+    /// expression statement, and that phantom reached gen-verilog as
+    /// `-base_Trit;` -- a line the simulator rejects and that no diagnostic
+    /// mentions, because from the parser's side nothing went wrong.
+    ///
+    /// Assumes `self.current` is the leading Ident and consumes it.
+    fn read_hyphenated_ident(&mut self) -> String {
+        let mut name = String::new();
+        if self.current.kind != TokenKind::Ident {
+            return name;
+        }
+        name.push_str(&self.current.lexeme);
+        self.advance();
+        while self.current.kind == TokenKind::Minus
+            && matches!(self.peek.kind, TokenKind::Ident | TokenKind::Number)
+        {
+            name.push('-');
+            self.advance(); // consume '-'
+            name.push_str(&self.current.lexeme);
+            self.advance();
+        }
+        name
+    }
+
     fn parse_for_stmt(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'for'
 
@@ -18975,6 +19001,7 @@ impl Compiler {
         // and sufficient here. Verilog/Zig/C backends keep their own pipelines.
         // Fixes gHashTag/t27#1455.
         let mut codegen = RustCodegen::new();
+        codegen.collect_static_muts(&ast);
         codegen.gen_rust(&ast);
         Ok(codegen.into_string())
     }
@@ -21078,6 +21105,14 @@ pub struct RustCodegen {
     /// `Verdict::escalate`. Without knowing which identifiers name enums the
     /// emitter cannot tell that access apart from a struct field.
     enum_names: std::collections::HashSet<String>,
+    /// Module-level names declared `var`, i.e. MUTABLE.
+    ///
+    /// Rust has no safe mutable global. gen-verilog lowers this to a `reg`,
+    /// gen-c to a `static`, Zig to a `var` -- all three mean SHARED mutable
+    /// state, so Rust's answer has to be `static mut`, and every access to one
+    /// needs `unsafe`. Collected in a pre-pass because a function may be
+    /// emitted before the declaration it reads.
+    static_mut_names: std::collections::HashSet<String>,
 }
 
 #[allow(dead_code)]
@@ -21094,6 +21129,7 @@ impl RustCodegen {
             const_types: std::collections::HashMap::new(),
             fn_ret_types: std::collections::HashMap::new(),
             enum_names: std::collections::HashSet::new(),
+            static_mut_names: std::collections::HashSet::new(),
         }
     }
 
@@ -21239,6 +21275,25 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// Record every module-level `var` before anything is emitted.
+    fn collect_static_muts(&mut self, node: &Node) {
+        if node.kind == NodeKind::ConstDecl && node.extra_mutable && !node.name.is_empty() {
+            self.static_mut_names.insert(node.name.clone());
+        }
+        for c in &node.children {
+            self.collect_static_muts(c);
+        }
+    }
+
+    /// Does this subtree name a module-level mutable? Then its enclosing
+    /// function body has to be `unsafe` in Rust.
+    fn touches_static_mut(&self, node: &Node) -> bool {
+        if self.static_mut_names.contains(&node.name) {
+            return true;
+        }
+        node.children.iter().any(|c| self.touches_static_mut(c))
+    }
+
     fn gen_enum(&mut self, node: &Node) {
         // Recorded before the body is written, so a member referenced inside
         // the same module resolves however the declarations are ordered.
@@ -21272,9 +21327,18 @@ impl RustCodegen {
         } else {
             self.expr_to_rust(&node.children[0])
         };
+        // A module-level `var` is MUTABLE. gen-verilog lowers it to a `reg`,
+        // gen-c to a `static`, Zig to a `var` -- all three mean shared mutable
+        // state, so Rust's answer is `static mut`, and accesses need `unsafe`
+        // (added around the body of any function that touches one).
+        let kw = if node.extra_mutable {
+            "pub static mut"
+        } else {
+            "pub const"
+        };
         self.write_line(&format!(
-            "pub const {}: {} = {};",
-            node.name, const_type, value
+            "{} {}: {} = {};",
+            kw, node.name, const_type, value
         ));
         self.blank_line();
     }
@@ -21332,9 +21396,18 @@ impl RustCodegen {
         // type always wins over an inferred one.
         self.record_inferred_locals(&node.children);
 
+        // Any access to a `static mut` is unsafe in Rust. Wrapping the whole
+        // body is the smallest correct answer: the alternative is an `unsafe`
+        // block around every read and write, which needs the expression
+        // emitter to know the set at each site.
+        let body_unsafe = node.children.iter().any(|c| self.touches_static_mut(c));
         if has_body {
             self.output.push('\n');
             self.indent += 1;
+            if body_unsafe {
+                self.write_line("unsafe {");
+                self.indent += 1;
+            }
             for child in &node.children {
                 match child.kind {
                     NodeKind::ExprReturn => {
@@ -21498,6 +21571,10 @@ impl RustCodegen {
                     }
                     _ => {}
                 }
+            }
+            if body_unsafe {
+                self.indent -= 1;
+                self.write_line("}");
             }
             self.indent -= 1;
             self.write_line("}");
