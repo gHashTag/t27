@@ -121,6 +121,46 @@ t27c only. Seven defects, five of them a green exit that was not a result.
   had not named. Now refuses a non-directory, prints the oracle and gate counts
   separately, and refuses when the oracle count is zero.
 
+- **A hyphen in a `use` path derailed the parser.** Module *names* accepted
+  hyphens; `use` paths did not, so `use tritype-base::Trit;` imported `tritype`
+  and left `-base::Trit` as a module-level statement that reached gen-verilog as
+  `-base_Trit;`. Phantom statements in generated Verilog **28 → 0** across 11
+  specs, and no diagnostic had ever mentioned them.
+- **`gen-rust` emitted `pub const` for a module-level `var`.** The other three
+  backends all mean shared mutable state (`reg`, `static`, `var`), so Rust's
+  answer is `static mut` with the reading function's body wrapped in `unsafe`.
+  rustc errors across the 43 affected specs **921 → 760**.
+- **`gen-c` typed an un-annotated local as `int`.** `const v = big()` with
+  `big() -> u64` made C print 1 where Rust and Zig print 4294967297 — and the C
+  compiled without a diagnostic. Now GNU `__auto_type` follows the initialiser.
+  Over 396 affected specs: `cc` errors **6163 → 5958**, clean specs 19 → 20,
+  and **zero** specs went from clean to broken.
+- **A trailing `;` on a clause emptied the whole test body.** Nothing consumed
+  it, so the next loop turn read `;` as "stopped mid-clause" and discarded the
+  block. Discarded tokens **35,224 → 35,070**.
+- **A `forall` took its checkable neighbours with it.** Clauses lowered before
+  an unmodellable one are now kept, and the block is marked so a partial
+  lowering cannot report as fully verified. Assertions in generated Zig
+  **11,704 → 11,712**, with zero specs losing one.
+
+### Changed
+
+- **`corpus` reports all four backends.** It called itself *"the only corpus
+  metric that does not lie"* and measured two; Rust had no compile gate anywhere
+  in the repository and neither did C. New rows for `rustc` and `cc`, plus the
+  one the two-backend table could not show: how many specs satisfy **all four**
+  toolchains. On a 39-spec sample that number is **0**.
+- **The C and Rust backends have behavioural tests.** Seven of them: generate,
+  compile with the real toolchain, **run**, check the printed answer. Every
+  defect above was invisible to the 1,600-test suite because those tests read
+  the emitted text and none handed it to a compiler. A test that cannot find its
+  compiler skips *loudly*.
+- **A missing test input skips loudly instead of failing into a baseline.**
+  `specs/scratch/` is gitignored, so 358 tests panicked in a fresh clone and were
+  recorded as "known failing" — 15% of the suite, disabled by a .gitignore line
+  and made invisible by a ledger. Now 357 skip with a named reason, leaving the
+  **one real failure** visible.
+
 ### Added
 
 - **The inclusive range `a..=b`.** The lexer emits `..` and a separate `=`;
