@@ -62,6 +62,30 @@ jobs:
       - name: Install Yosys
         run: sudo apt-get update && sudo apt-get install -y yosys
 
+      # `${CHFORMAL_LOWER}` exists only in newer Yosys, and this job installs
+      # whatever the runner image ships. The first run of this workflow died on
+      # `ERROR: Command syntax error: Unknown option` at that flag -- while the
+      # same log listed `$assert 1` and `$assume 1`, which is the proof that
+      # this Yosys emits the lowered cells directly and the flag is a no-op for
+      # it.
+      #
+      # Detected rather than chosen. Removing it outright would pass VACUOUSLY
+      # on a newer Yosys, where the properties arrive as `$check` cells that
+      # `sat` does not see -- the exact failure the vacuity counter below
+      # exists to catch.
+      - name: Does this Yosys accept the chformal lowering flag?
+        run: |
+          if yosys -p "read_verilog -sv -formal formal/assume_liveness_check.sv; \
+                       prep -top assume_liveness_check; chformal -lower" >/dev/null 2>&1
+          then
+            echo 'CHFORMAL_LOWER=chformal -lower;' >> "$GITHUB_ENV"
+            echo "yosys accepts -lower; using it"
+          else
+            echo "CHFORMAL_LOWER=" >> "$GITHUB_ENV"
+            echo "yosys does not accept -lower; omitting (this build emits \$assert directly)"
+          fi
+          yosys -V
+
       - name: Build t27c
         run: cargo build --release --manifest-path bootstrap/Cargo.toml
 
@@ -75,7 +99,7 @@ jobs:
       - name: Assumptions are active in the proof flow
         run: |
           yosys -p "read_verilog -sv -formal formal/assume_liveness_check.sv; \
-                    prep -top assume_liveness_check; async2sync; chformal -lower; \
+                    prep -top assume_liveness_check; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 4 -set-init-zero -set-assumes"
 
       - name: Emit the BitNet RTL bundle
@@ -149,7 +173,7 @@ jobs:
         run: |
           yosys -p "read_verilog -sv -formal build/rtl/interrupt_controller.sv \
                     formal/interrupt_controller_props.sv; \
-                    prep -top irq_props -flatten; async2sync; chformal -lower; \
+                    prep -top irq_props -flatten; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 6 -tempinduct -set-assumes"
 
       - name: Prove axi_lite_slave properties
@@ -174,7 +198,7 @@ jobs:
           # a reachable state is what separated it from the real defects.
           yosys -p "read_verilog -sv -formal build/rtl/axi_lite_slave.sv \
                     formal/axi_lite_slave_props.sv; \
-                    prep -top axi_props -flatten; async2sync; chformal -lower; \
+                    prep -top axi_props -flatten; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 10 -set-init-zero -set-assumes"
 
       - name: Prove dma_controller properties
@@ -229,7 +253,7 @@ jobs:
               r = subprocess.run(["yosys", "-q", "-p",
                   f"read_verilog -sv -formal build/rtl/dma_controller.sv {MODEL} "
                   "build/dma_one.sv; prep -top dma_props -flatten; async2sync; "
-                  f"chformal -lower; sat -verify -prove-asserts -seq {seq} "
+                  f"${CHFORMAL_LOWER} sat -verify -prove-asserts -seq {seq} "
                   "-set-init-zero -set-assumes"], capture_output=True, text=True)
               out = r.stdout + r.stderr
               if r.returncode == 0:
@@ -263,7 +287,7 @@ jobs:
           fi
           yosys -p "read_verilog -sv -formal build/rtl/double_buffer_ctrl.sv \
                     formal/double_buffer_props.sv; \
-                    prep -top db_props -flatten; async2sync; chformal -lower; \
+                    prep -top db_props -flatten; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 20 -set-init-zero -set-assumes"
 
       # Wave 626. Prop. 76 classified this INDIRECT: the memory the prefetch
@@ -277,7 +301,7 @@ jobs:
                     formal/weight_bram_props.sv; \
                     chparam -set DEPTH 4 weight_bram; chparam -set DEPTH 4 wb_props; \
                     prep -top wb_props -flatten; memory_map; async2sync; \
-                    chformal -lower; \
+                    ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
       # Wave 627. Third INDIRECT module from Prop. 76 and the last non-trivial
@@ -289,7 +313,7 @@ jobs:
           set -euo pipefail
           yosys -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
                     build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
-                    prep -top ps2_props -flatten; async2sync; chformal -lower; \
+                    prep -top ps2_props -flatten; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
       # Wave 631. The 16-bit accumulator's sufficiency, which nothing checked:
@@ -305,7 +329,7 @@ jobs:
           set -euo pipefail
           yosys -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
                     build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
-                    prep -top ps2_bound -flatten; async2sync; chformal -lower; \
+                    prep -top ps2_bound -flatten; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 4 -tempinduct -set-init-zero -set-assumes"
           echo "ok       ps2_bound (k-induction, no depth caveat)"
           # The contract is the only assumption, and one that emptied the state
@@ -313,7 +337,7 @@ jobs:
           # asserts the accumulator is always zero, so it must REFUTE.
           if yosys -q -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
                           build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
-                          prep -top ps2_bound_alive -flatten; async2sync; chformal -lower; \
+                          prep -top ps2_bound_alive -flatten; async2sync; ${CHFORMAL_LOWER} \
                           sat -verify -prove-asserts -seq 6 -set-init-zero -set-assumes"; then
             echo "::error::the chunk-count contract freezes the accumulator, so the bound proofs are vacuous"
             exit 1
@@ -332,7 +356,7 @@ jobs:
           for top in tha_props tfa_props tpm_props at27_props dot_props dot_range_props; do
             yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                       formal/trit_stdlib_props.sv; \
-                      prep -top ${top} -flatten; async2sync; chformal -lower; \
+                      prep -top ${top} -flatten; async2sync; ${CHFORMAL_LOWER} \
                       sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
             echo "ok       ${top} (exhaustive over all inputs)"
           done
@@ -341,7 +365,7 @@ jobs:
           # in the only form that makes sense for stateless logic.
           if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                           formal/trit_stdlib_props.sv; \
-                          prep -top at27_alive -flatten; async2sync; chformal -lower; \
+                          prep -top at27_alive -flatten; async2sync; ${CHFORMAL_LOWER} \
                           sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
             echo "::error::the validity assumption admits no inputs, so every proof above is vacuous"
             exit 1
@@ -360,14 +384,14 @@ jobs:
                      add3_abstract; do
             yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                       formal/trit_algebra_props.sv; \
-                      prep -top ${top} -flatten; async2sync; chformal -lower; \
+                      prep -top ${top} -flatten; async2sync; ${CHFORMAL_LOWER} \
                       sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
             echo "ok       ${top} (exhaustive over all inputs)"
           done
           if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                           formal/trit_algebra_props.sv; \
                           prep -top algebra_alive -flatten; async2sync; \
-                          chformal -lower; \
+                          ${CHFORMAL_LOWER} \
                           sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
             echo "::error::the validity assumption admits no words, so every theorem above is vacuous"
             exit 1
@@ -382,7 +406,7 @@ jobs:
           if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                           formal/trit_algebra_props.sv; \
                           prep -top abstract_alive -flatten; async2sync; \
-                          chformal -lower; \
+                          ${CHFORMAL_LOWER} \
                           sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
             echo "::error::lemma F admits no adder at all, so the composition proof is vacuous"
             exit 1
@@ -398,7 +422,7 @@ jobs:
           yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                     formal/trit_algebra_props.sv; \
                     prep -top abstract_is_inhabited -flatten; async2sync; \
-                    chformal -lower; \
+                    ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
           echo "ok       lemma F is inhabited for every input (proves)"
           # The composition proof duplicates trit3_add's wiring rather than
@@ -412,7 +436,7 @@ jobs:
         run: |
           yosys -p "read_verilog -sv -formal build/rtl/layer_sequencer.sv \
                     formal/layer_sequencer_props.sv; \
-                    prep -top ls_props -flatten; async2sync; chformal -lower; \
+                    prep -top ls_props -flatten; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 48 -set-init-zero -set-assumes"
 
       # Proved one property per invocation, not as a batch. `-prove-asserts`
@@ -440,7 +464,7 @@ jobs:
               open("build/wp_one.sv", "w").write(s)
               r = subprocess.run(["yosys", "-q", "-p",
                   "read_verilog -sv -formal build/rtl/weight_prefetch_ctrl.sv build/wp_one.sv; "
-                  "prep -top wp_props -flatten; async2sync; chformal -lower; "
+                  "prep -top wp_props -flatten; async2sync; ${CHFORMAL_LOWER} "
                   "sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"],
                   capture_output=True, text=True)
               if r.returncode != 0:
@@ -454,7 +478,7 @@ jobs:
       - name: Prove activation_requant properties
         run: |
           yosys -p "read_verilog -sv -formal -DT27_FORMAL build/rtl/activation_requant.sv; \
-                    prep -top activation_requant; async2sync; chformal -lower; \
+                    prep -top activation_requant; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
 
       # First multi-module proof in this repo. Everything above is
@@ -481,7 +505,7 @@ jobs:
                       build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
                     chparam -set DEPTH 4 weight_bram; \
                     prep -top bitnet_engine_top -flatten; memory_map; \
-                    async2sync; chformal -lower; \
+                    async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 80 -set-init-zero -set-assumes"
 
       - name: Prove integration properties (all 28, tracker-backed included)
@@ -495,7 +519,7 @@ jobs:
                       build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
                     chparam -set DEPTH 4 weight_bram; \
                     prep -top bitnet_engine_top -flatten; memory_map; \
-                    async2sync; chformal -lower; \
+                    async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
 
       # Maximum-sized requests (Prop. 29). Counts are much wider than the
@@ -536,7 +560,7 @@ jobs:
           def run(dut, wrap, d):
               return subprocess.run(["yosys", "-q", "-p",
                   f"read_verilog -sv -formal {d}/{dut}.sv build/ms_props.sv; "
-                  f"prep -top {wrap} -flatten; async2sync; chformal -lower; "
+                  f"prep -top {wrap} -flatten; async2sync; ${CHFORMAL_LOWER} "
                   "sat -verify -prove-asserts -seq 30 -set-init-zero -set-assumes"],
                   capture_output=True, text=True).returncode == 0
 
@@ -633,7 +657,7 @@ jobs:
                   open("build/zs_one.sv", "w").write(s)
                   r = subprocess.run(["yosys", "-q", "-p",
                       f"read_verilog -sv -formal build/rtl/{dut}.sv build/zs_one.sv; "
-                      f"prep -top {top} -flatten; async2sync; chformal -lower; "
+                      f"prep -top {top} -flatten; async2sync; ${CHFORMAL_LOWER} "
                       f"sat -verify -prove-asserts -seq {SEQ} -set-init-zero -set-assumes"],
                       capture_output=True, text=True)
                   out = r.stdout + r.stderr
@@ -679,7 +703,7 @@ jobs:
 
           refuted, trace = tr.run_and_read(
               "read_verilog -sv -formal build/known/weight_prefetch_ctrl.sv build/known_props.sv; "
-              "prep -top ms_prefetch -flatten; async2sync; chformal -lower; "
+              "prep -top ms_prefetch -flatten; async2sync; ${CHFORMAL_LOWER} "
               "sat -verify -prove-asserts -seq 30 -set-init-zero -set-assumes "
               "-show-all -dump_json build/known.json", "build/known.json")
 
@@ -828,7 +852,7 @@ jobs:
                   r = subprocess.run(["yosys", "-q", "-p",
                       f"read_verilog -sv -formal build/rtl/{dut}.sv {extra} build/live.sv; {prep}"
                       f"prep -top {top} -flatten; memory_map; "
-                      f"async2sync; chformal -lower; "
+                      f"async2sync; ${CHFORMAL_LOWER} "
                       f"sat -verify -prove-asserts -seq {seq} {mode} -set-assumes"],
                       capture_output=True, text=True)
                   out = r.stdout + r.stderr
@@ -861,7 +885,7 @@ jobs:
                       build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
                     chparam -set DEPTH 4 weight_bram; \
                     prep -top bitnet_engine_top -flatten; memory_map; \
-                    async2sync; chformal -lower; \
+                    async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes"
 
       # Prop. 39e stood open for eight waves, gated here as an expected
@@ -1076,7 +1100,7 @@ jobs:
           yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN_AXI \
                     build/rtl/dma_controller.sv formal/dma_controller_props.sv \
                     formal/axi4_read_slave_model.sv; \
-                    prep -top dma_props -flatten; async2sync; chformal -lower; \
+                    prep -top dma_props -flatten; async2sync; ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes"
           echo "ok       bytes_remaining is sane wherever beats_owed reads it"
 
@@ -1138,7 +1162,7 @@ jobs:
           yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
                     build/rtl/weight_prefetch_ctrl.sv; \
                     prep -top weight_prefetch_ctrl -flatten; async2sync; \
-                    chformal -lower; \
+                    ${CHFORMAL_LOWER} \
                     sat -verify -prove-asserts -seq 8 -tempinduct -set-init-zero -set-assumes"
           echo "ok       words_remaining reaches 0 only as the FSM leaves FETCH"
 
@@ -1193,7 +1217,7 @@ jobs:
             yosys -p "read_verilog -sv -formal build/probe.sv $rest; \
                       chparam -set DEPTH 4 weight_bram; \
                       prep -top bitnet_engine_top -flatten; memory_map; \
-                      async2sync; chformal -lower; \
+                      async2sync; ${CHFORMAL_LOWER} \
                       sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" \
                  > build/probe.log 2>&1
             rc=$?
@@ -1262,7 +1286,7 @@ jobs:
           run_witness() {
             top="$1"; mod="$2"; seq="$3"
             out=$(yosys -p "read_verilog -sv -formal build/rtl/${mod}.sv formal/witnesses.sv; \
-                            prep -top ${top} -flatten; async2sync; chformal -lower; \
+                            prep -top ${top} -flatten; async2sync; ${CHFORMAL_LOWER} \
                             sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" 2>&1 || true)
             # printf, not echo. Yosys prints signal names backslash-prefixed
             # ("\chunk_id"), and a shell whose echo expands escapes reads \c as
