@@ -5502,6 +5502,30 @@ impl Codegen {
     }
 
     fn gen_const_decl(&mut self, node: &Node) {
+        // A const with NO NAME or NO VALUE is not a declaration Zig can accept:
+        // `const  = ...` is `expected 'an identifier'` and `const u8;` is
+        // `variables must be initialized`. Both are PARSE errors, so both are
+        // walls -- they cap their file at one visible error and hide the rest.
+        //
+        // Neither is a real declaration. They are fragments of a line the
+        // declaration parser did not recognise. specs/benchmarks/bench_nn.t27
+        // writes its signatures WITHOUT the `fn` keyword --
+        //
+        //     readMnistImages(filename, allocator) -> struct { data: []f32 }
+        //     readMnistLabels(filename, allocator) -> []u8
+        //
+        // -- so the parser falls through and the trailing pieces arrive here as
+        // a nameless struct and a valueless `u8`.
+        //
+        // Dropping them is not moving an error: nothing can refer to a
+        // declaration with no name, and a `const` with no value declares
+        // nothing. It removes a wall and adds nothing. The real repair is to
+        // parse the bare-signature form, which is a larger change and is not
+        // what stands between these files and their first honest error count.
+        if node.name.trim().is_empty() || node.children.is_empty() {
+            return;
+        }
+
         if node.extra_pub {
             self.write("pub ");
         }
@@ -5560,6 +5584,19 @@ impl Codegen {
     }
 
     fn gen_enum_decl(&mut self, node: &Node) {
+        // A declaration with NO NAME cannot be emitted and cannot be
+        // referenced by anything, so emitting it can only produce invalid Zig.
+        //
+        // Same shape as the nameless struct above: an aggregate that reached the
+        // emitter without a name emits `const  = enum`, a parse error, a wall.
+        //
+        // Skipping is not moving the error elsewhere. The declaration has no
+        // name, so nothing downstream can refer to it; dropping it removes a
+        // wall and adds nothing.
+        if node.name.trim().is_empty() {
+            return;
+        }
+
         if node.extra_pub {
             self.write("pub ");
         }
@@ -5629,6 +5666,27 @@ impl Codegen {
     }
 
     fn gen_struct_decl(&mut self, node: &Node) {
+        // A declaration with NO NAME cannot be emitted and cannot be
+        // referenced by anything, so emitting it can only produce invalid Zig.
+        //
+        // `readMnistImages(filename, allocator) -> struct { data: []f32, ... }`
+        // in specs/benchmarks/bench_nn.t27 is a bare signature -- no `fn`
+        // keyword -- so the declaration parser does not recognise the line and
+        // the trailing aggregate arrives here nameless. What came out was
+        //
+        //     const  = struct {
+        //
+        // which is `expected 'an identifier', found '='`: a PARSE error, and
+        // therefore a wall. It capped its file at one visible error and hid
+        // everything after it.
+        //
+        // Skipping is not moving the error elsewhere. The declaration has no
+        // name, so nothing downstream can refer to it; dropping it removes a
+        // wall and adds nothing.
+        if node.name.trim().is_empty() {
+            return;
+        }
+
         if node.extra_pub {
             self.write("pub ");
         }
@@ -6225,6 +6283,18 @@ impl Codegen {
                 self.write_line(";");
             }
             NodeKind::StmtLocal => {
+                // Same rule as the container-level const: a local with NO NAME
+                // emits `const ;`, which is `expected 'an identifier'` -- a
+                // parse error, and therefore a wall over the whole file.
+                //
+                // compiler/parser/lexer.t27 produced one at line 160, INDENTED,
+                // which is why the container-level guard did not cover it: two
+                // emitters, one shape. A nameless local declares nothing and
+                // nothing can read it, so dropping it removes a wall and adds
+                // no error elsewhere.
+                if node.name.trim().is_empty() {
+                    return;
+                }
                 self.write_indent();
                 if node.extra_mutable {
                     self.write("var ");
