@@ -148,7 +148,7 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                         }
                     }
                     t.fields.push(field);
-                } else if trimmed == "enum:" {
+                } else if trimmed == "enum:" || trimmed == "variants:" {
                     // A VARIANT LIST, not a field.
                     //
                     // The ancestor writes
@@ -170,6 +170,17 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                     // for four months: ITS bullets are written `- success: 0`,
                     // with a value, so they parsed as fields and survived. The
                     // bug only fires on a bare bullet.
+                    //
+                    // `variants:` is the SAME shape under a different key, and
+                    // is the commoner of the two upstream: 41 blocks against
+                    // enum's 31. Only 3 reached this corpus, because most of
+                    // their ancestors have no route (#2723) -- so the count
+                    // that matters for a future conversion is 41, not 3.
+                    //
+                    // Two keys are handled here and at least two are NOT:
+                    // `union:` (2 blocks) and `cases:` carry nested maps per
+                    // case rather than bare names, which this flat grammar
+                    // cannot express at all. Left open deliberately.
                     t.is_enum = true;
                 } else if t.is_enum && trimmed.starts_with("- ") && !trimmed.contains(':') {
                     // Strip a trailing `# comment`. Without this,

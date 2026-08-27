@@ -394,7 +394,12 @@ test "lsp_shutdown_request_create" {
 
 test "lsp_completion_request_create" {
     const req = completion_request_create(1, "{}");
-    try std.testing.expectEqual(@as(usize, req.method.len), @as(usize, 21));
+    // 23, not 21. METHOD_COMPLETION is "textDocument/completion", and the
+    // same wrong number was written into its declared type ([21]u8) AND into
+    // this assertion. Neither could be checked while the file did not compile,
+    // so the two agreed with each other and with nothing else. The string is
+    // right; the count was wrong in both places.
+    try std.testing.expectEqual(@as(usize, req.method.len), @as(usize, 23));
 }
 
 test "lsp_response_is_success" {

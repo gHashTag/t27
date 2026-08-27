@@ -339,7 +339,11 @@ test "lsp_language_info_python" {
 
 test "lsp_language_info_zig" {
     const info = language_info_zig();
-    try std.testing.expectEqual(@as(usize, info.id.len), @as(usize, 4));
+    // 3, not 4. LANG_ZIG is "zig" and its declared type was [4]u8 -- four
+    // slots for three characters. The assertion inherited the 4 from the
+    // declaration. Its two siblings of identical shape, expecting 3 for "t27"
+    // and 6 for "python", passed all along.
+    try std.testing.expectEqual(@as(usize, info.id.len), @as(usize, 3));
 }
 
 test "lsp_language_configuration_default" {

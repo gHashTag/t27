@@ -113,6 +113,21 @@ jobs:
       # (#2714). Both were found by accident. This looks on purpose: mutate one
       # digit inside a passing assertion, same byte length, and require the
       # harness to notice.
+      # 0.16.0 deliberately: it is the Zig every figure in the run scan was
+      # measured against. phi-loop-ci.yml pins 0.13.0 and the two are not
+      # interchangeable here -- `usingnamespace` was removed in 0.16 and the
+      # @typeInfo tags were renamed -- so a gate run on 0.13 would grade a
+      # different language than the numbers describe.
+      #
+      # This step is the reason the gate above it can run at all: it was
+      # added earlier in the same session at a point in this job where Zig
+      # is never installed, so it had never executed once. A gate without
+      # its tool is the decoration it was written to prevent.
+      - name: Install Zig for the harness self-check
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.16.0
+
       - name: Harness self-check — can it still tell a pass from a break?
         run: python3 formal/harness_selfcheck.py
       - name: Assert the property set is non-empty
@@ -877,6 +892,7 @@ jobs:
 
       - name: Spec parse gate — "parses OK" must mean the parser read the spec
         run: python3 formal/spec_parse_gate.py
+
 
       - name: Runaway string scan — an odd quote swallows the rest of its file
         run: python3 formal/runaway_string_scan.py
