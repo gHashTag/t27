@@ -5120,3 +5120,131 @@ Closed within the hour with the correction as the closing comment, because the
 issue named an owner action that did not exist. The campaign rule stands: a
 finding that survives a genuine attempt to kill it is worth acting on, and I
 never attempted to kill this one — I only attacked its alternatives.
+
+## 127. A check that aborts on the first failure reports one defect, not the count
+
+`corpus_classifier_matches_lean_completeness` asserted Rust/Lean agreement one
+spec at a time inside a loop. It had been reporting **one** disagreement for as
+long as it has existed. There were **73**, and the other 72 had never been
+printed by anything.
+
+The shape to look for is an `assert_eq!` inside a `for` over a corpus. It answers
+"is there a defect" and reads like it answers "how many". Collect into a map,
+compare against an identity-keyed ledger that moves down only, and print the
+count every run:
+
+```
+Rust/Lean completeness: 225 theorems compared, 73 disagree (ledger holds 73)
+```
+
+Both directions of the ledger must be load-bearing, and both must be checked by
+breaking them: a name that appears and is not in the ledger fails as a
+regression, and a name in the ledger that has started agreeing must be **removed**
+or the stale entry fails. Without the second direction, a fixed entry leaves
+slack for the next real regression to hide in.
+
+### Removing an early abort exposes what was standing behind it
+
+Two more guards in the same test had been unreachable: `specs/scratch` envs
+(untracked since #2283, so absent on any fresh checkout) were counted as
+Lean-only witnesses, and a `>= 245` floor could be walked under by any
+deliberate skip. Budget for this. Fixing the first defect in a function is how
+you find the second.
+
+## 128. Forty of the 73 were theorems about an empty module
+
+`native_decide` proved `Module.isLowerable env module = true` for a `Module` with
+no functions, no globals and no tests. True, and true of nothing in the spec it
+is named after. A proof over a hand-written model is only as good as the
+transcription, and `Completeness.lean` has **250** models with no generator in
+the tree — nothing can re-derive them from the specs.
+
+Check the model is non-empty before believing the theorem. It is the proof-layer
+form of the vacuous-invariant phase the suite already runs on specs.
+
+## 129. Check whether the note's MECHANISM still exists, not just the verdict
+
+Three stale rows this session, and each described a cause that was no longer
+there:
+
+- `stray_closing_brace` demanded `Rejected` because `Rejected` was the only way
+  the table could call an input unclean. The parser had since stopped ending the
+  file at a stray `}` and started counting it as a discarded token. Fix: give the
+  table the vocabulary it lacked (a `discards` field), not the verdict it could
+  express.
+- Two lexer rows said `#` is "an unrecognised character DISCARDED with no
+  diagnostic". The unknown-character path does skip, continue and record — and it
+  never sees `#`, which opens a comment to end of line by an explicit, measured
+  decision.
+- A spec comment claimed "Verified end to end: `on_comb` ... takes [511:0]". The
+  emitter does not emit `on_comb` at all.
+
+A row whose *note* is wrong is worse than a row that is merely failing: it sends
+the next reader after a mechanism that does not exist.
+
+## 130. Rulers that break: substring counts and pinned shapes
+
+- `v.matches("module ").count() == 1` found two, because the emitter's own
+  comment says "this **module** cannot move a value across its boundary". Count
+  declarations: a line whose first token is `module`.
+- A test pinned `reg [15:0] \buf [0:3];`. The emitter now packs the array into
+  one vector. The escaping the test exists to protect was working the whole
+  time. Assert the invariant — *no mention of the name appears unescaped,
+  anywhere* — which is stricter than the two literals it replaced and survives
+  the next change of shape.
+- A test pinned `if (!(` for an assert; the emitter writes `if (((x) != (y)))`
+  now. Assert what a real check must DO: branch on the expected value **and**
+  emit the failure path. A comparison that cannot fail is not a check.
+- Two tests asked `gen-verilog` to lower a test block. That backend deliberately
+  does not — `gen-verilog-for-simulation` does. A test asking the wrong component
+  can only ever fail.
+
+## 131. The suite was green while six specs regressed
+
+A parser fix rewound to re-read a condition when what followed the closing paren
+was not a body. It was right for `if`/`while` and wrong for the `if` EXPRESSION,
+where `if (c) a else b` is legitimate: `base/ops`, `base/ternary_add`,
+`base/types`, `numeric/gf16`, `numeric/gfternary`, `numeric/tf3` all died on
+`Unexpected token in expression: KwElse`. **Every test passed.**
+
+The only control that catches this is parsing the whole corpus with the binary
+from before the change and the binary after, and diffing **per spec**:
+
+```
+558 -> 553   # the broken version, all tests green
+558 -> 559   # the fixed version, one spec moved, and it is the one the fix was for
+```
+
+An aggregate count would have shown 553 vs 558 and told you nothing about which.
+Build the baseline binary from `HEAD~1` — commit your work first, so a checkout
+of the previous file cannot take uncommitted edits with it.
+
+### Rebuild the baseline ledger after fixing a regression
+
+The 73-entry ledger was generated while the six-spec regression was live. A
+baseline baked from a broken state enshrines your own bug as known debt.
+Regenerate and diff the two: here it was 73 either way, no entry added or
+removed, so the regression had not polluted it — but that was measured, not
+assumed.
+
+## 132. `$?` after a pipeline is the last command's status
+
+Third time this session. `python3 tools/check_seal_coverage.py | tail -12` then
+`echo $?` prints `tail`'s zero while the gate exited 1. Redirect to a file, then
+read `$?`:
+
+```bash
+python3 tools/check_seal_coverage.py > /tmp/seal.out 2>&1
+echo $?
+```
+
+## 133. Improving a broken thing is not the same as fixing it
+
+A partial fix for #2743 cut iverilog's errors from 7 to 2 and left `layer2`
+emitting a call to a function that had been refused — a module that looks
+complete and is not. Corpus acceptance was identical before and after: Zig 217,
+cc 157, Zig-AND-Verilog 194.
+
+Reverted, and filed with the measurement. A loud refusal beats a plausible
+half-lowered artefact, and "no measured improvement" is a reason to stop, not a
+reason to ship the diff you already wrote.
