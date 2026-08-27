@@ -1996,6 +1996,35 @@ impl Parser {
                 // Parse enum body with brace-skip for safety
                 self.parse_enum_body(&mut decl)?;
                 self.expect(TokenKind::RBrace)?;
+            } else if self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "union"
+                && self.peek.kind == TokenKind::LParen
+            {
+                // `pub const ParsedCommand = union(enum) { ... };`
+                //
+                // A TAGGED UNION, whose cases carry payload types -- so it is
+                // not an enum and gen_enum_decl cannot render it. The body is
+                // `name : Type` throughout, which parse_struct_body already
+                // reads, so only the keyword differs and a flag carries it.
+                //
+                // There is no KwUnion in this lexer: `union` arrives as an
+                // Ident, and the `(` is what distinguishes the type
+                // constructor from a field or variable of that name.
+                //
+                // One declaration in the corpus needs this today, recovered
+                // from an upstream spec in #2718. Small demand, but the
+                // alternative was leaving recovered data unlandable.
+                decl.kind = NodeKind::StructDecl;
+                decl.extra_kind = "union".to_string();
+                self.advance(); // consume 'union'
+                self.expect(TokenKind::LParen)?;
+                if self.current.kind == TokenKind::KwEnum {
+                    self.advance();
+                }
+                self.expect(TokenKind::RParen)?;
+                self.expect(TokenKind::LBrace)?;
+                self.parse_struct_body(&mut decl)?;
+                self.expect(TokenKind::RBrace)?;
             } else if self.current.kind == TokenKind::KwStruct {
                 // pub const Foo = struct { ... };
                 decl.kind = NodeKind::StructDecl;
@@ -5414,7 +5443,8 @@ impl Codegen {
             return;
         }
 
-        self.write_line(&format!("const {} = struct {{", node.name));
+        let keyword = if node.extra_kind == "union" { "union(enum)" } else { "struct" };
+        self.write_line(&format!("const {} = {} {{", node.name, keyword));
         self.indent();
 
         // Children are a mix: plain fields, and the declarations a Zig struct
