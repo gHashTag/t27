@@ -5886,6 +5886,24 @@ impl Parser {
                 // An identifier that is not a clause means this body has a shape
                 // we do not model. Falling through with the parser positioned
                 // mid-block is what broke 19 specs on the first attempt.
+                // But when clauses BEFORE it lowered, throwing them away is a second
+                // loss on top of the one that is defensible. An invariant reading
+                //
+                //     assert g(1) == 111
+                //     forall x: i32 . g(x) == x
+                //     assert g(2) == 222
+                //
+                // lost BOTH asserts to the `forall` between them. Skipping an unbounded
+                // `forall` is a language decision; taking its neighbours with it is not.
+                // Keep them, and MARK the block -- the emitter's NOT CHECKED notice keys
+                // on `children.is_empty()`, so without the mark a partial block would
+                // report as fully verified.
+                if block.children.len() > start_children {
+                    block.extra_field = "partial".to_string();
+                    self.restore_state(entry);
+                    self.skip_to_next_top_level();
+                    return;
+                }
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
             }
@@ -6437,7 +6455,22 @@ impl Parser {
                     | TokenKind::KwUsing
             );
         if !clean_end {
-            self.restore_bdd_fallback(block, start_children, entry);
+            // A block that lowered SOMETHING and then met a clause it cannot
+            // model used to lose the lot: two checkable `assert`s on either
+            // side of a `forall` both vanished, and only the `forall` was
+            // defensible to skip.
+            //
+            // Keep what lowered, and MARK the block, because the emitter's
+            // "NOT CHECKED" notice keys on `children.is_empty()` -- without
+            // the mark a partial block would report as fully verified, which
+            // is the exact claim W635 was written to stop.
+            if block.children.len() > start_children {
+                block.extra_field = "partial".to_string();
+                self.restore_state(entry);
+                self.skip_to_next_top_level();
+            } else {
+                self.restore_bdd_fallback(block, start_children, entry);
+            }
         }
     }
 
@@ -8213,7 +8246,7 @@ impl Codegen {
             self.gen_stmt(stmt);
         }
 
-        if node.children.is_empty() {
+        if node.children.is_empty() || node.extra_field == "partial" {
             self.write_indent();
             // A comment, not @compileLog: @compileLog is a hard compile error
             // under `zig test` ("found compile log statement"), so the marker
