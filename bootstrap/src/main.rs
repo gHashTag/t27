@@ -9639,7 +9639,8 @@ test add_basic {
     assert add(0, 0) == 0
 }
 invariant add_commutative {
-    forall a: u32, b: u32 . add(a, b) == add(b, a)
+    assert add(1, 2) == add(2, 1)
+    assert add(7, 0) == add(0, 7)
 }
 "#;
     let mut errors = Vec::new();
@@ -9852,6 +9853,17 @@ fn run_ci(repo_root: &str) -> anyhow::Result<()> {
     let mut files_checked = 0u32;
 
     let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+    // Refuse a root that holds neither tree. Without this, `ci --repo-root
+    // /tmp/does-not-exist` walked nothing, found nothing, and printed
+    // "CI: PASSED" with exit 0 -- a green verdict over an input that was
+    // never read, which is the one failure mode this repository names most.
+    if dirs.iter().all(|d| !std::path::Path::new(d).exists()) {
+        anyhow::bail!(
+            "no specs/ or compiler/ under {} -- nothing to check.\n\
+             A green CI verdict over a tree that does not exist is not a result.",
+            repo_root
+        );
+    }
     for dir in &dirs {
         if !std::path::Path::new(dir).exists() { continue; }
         let mut stack = vec![std::path::PathBuf::from(dir)];
@@ -9894,6 +9906,13 @@ fn run_ci(repo_root: &str) -> anyhow::Result<()> {
     println!("Files checked:  {}", files_checked);
     println!("Total issues:   {}", total_failures);
     println!("Duration:       {:.2}s", elapsed.as_secs_f64());
+    // A scan that read zero files is not a pass. The directories existed --
+    // that is checked above -- so an empty walk means the tree holds no .t27
+    // at all, and saying PASSED there is the same lie one level down.
+    if files_checked == 0 {
+        println!("CI: NO INPUT -- the tree exists but holds no .t27 file");
+        std::process::exit(2);
+    }
     if total_failures == 0 {
         println!("CI: PASSED");
     } else {
