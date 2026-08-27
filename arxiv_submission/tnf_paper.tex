@@ -193,8 +193,17 @@ The results below were found in the order a measurement campaign finds things.
 They compose into one argument, and the argument is easier to follow stated
 first.
 
+\paragraph{A word on the plates.} Seventy of the figures here carry captions
+opening ``Canon plate''. They are a companion series rather than evidence: each
+sits in the section whose argument it draws, states that argument in its own
+caption, and carries no number in the running text, because the text it
+illustrates is on the facing page. Every other figure and every table in this
+paper is referred to by number at the point its evidence is used, so a claim
+that rests on a measurement can always be traced to the float that holds it.
+
 A ternary node has three sites where a number format could live, and only one of
-them needs one. The weight is a code and multiplying by it is a sign-select; the
+them needs one. Figure~\ref{fig:canon-sites} names them: the weight is a code and
+multiplying by it is a sign-select; the
 sample arrives ADC-native; the accumulator is the only object carrying a range
 that must be spent. So the design question is not which format to use but which
 \emph{two} objects to close --- an alphabet for the weight and a float for the
@@ -465,7 +474,8 @@ property of the evaluation order, not of the format.
 \end{aligned}
 \end{equation}
 
-Three properties follow from the layout rather than from tuning.
+Three properties follow from the layout rather than from tuning, and
+Figure~\ref{fig:canon-field} reads the sixteen bits off one field at a time.
 
 \paragraph{No regime decode.} The dominant cost in a tapered format is the
 variable-length regime: it must be located, its length counted, and the
@@ -577,7 +587,8 @@ known before it is built.
 above removes $e$ from the expression, so magnitude-independence is a property of
 the layout rather than a happy measurement. Empirically flatness stays between
 $1.05$ and $1.07$ --- at most a $7\%$ difference between the closest and furthest
-parts of a workload spanning 76 binary decades. This is the property fixed fields
+parts of a workload spanning 76 binary decades (Figure~\ref{fig:ladderacc} plots
+those bands rung by rung). This is the property fixed fields
 buy and the one a tapered format cannot have: spending mantissa bits on range is
 exactly what makes precision depend on where you are.
 
@@ -649,7 +660,10 @@ takum16  & ---  & $9.62$  & $8.17$ & $7.34$ & $7.04$ & $\mathbf{-0.113}$ \\
 \paragraph{The law recovers what the formats declare.} TNF16 and GF16 return
 $8.99$--$9.01$ against a declared 9; bfloat16 returns $7.00$--$7.04$ against a
 declared 7. A law that reconstructs a format's own parameter to a hundredth of a
-bit, from nothing but its round-trip error, is doing more than curve-fitting.
+bit, from nothing but its round-trip error, is doing more than curve-fitting: it
+inverts. Figure~\ref{fig:canon-law} draws that inversion beside the two relations
+it rests on --- a rung buying fine steps with range, and an error that moves with
+the mantissa alone.
 
 \paragraph{Tapering becomes a number.} posit16 sheds $0.254$ bits of significand
 per binade ($R^2 = 0.999$), the figure Table~\ref{tab:meff} reports and takum16 appears to shed $0.113$ over the thirty
@@ -1166,7 +1180,7 @@ TNF1024 & $53{,}326$ & $2.53\mathrm{e}{-304}$ & $2.65\mathrm{e}{-304}$ & $2.70\m
 
 \begin{figure}[t]\centering
 \includegraphics[width=\textwidth]{tnf_ladder_acc.pdf}
-\caption{The same data. The three bars on each rung are the magnitude bands
+\caption{The data of Table~\ref{tab:ladderacc}, redrawn. The three bars on each rung are the magnitude bands
 $|e|<8$, $|e|\,8\text{--}20$ and $|e|\,20\text{--}38$, left to right. Flatness
 across them is the property a fixed-field format is built for; a starred rung is
 one the workload overruns.}
@@ -1176,7 +1190,7 @@ one the workload overruns.}
 
 \begin{figure}[t]\centering
 \includegraphics[width=\textwidth]{tnf_competition.pdf}
-\caption{The same data. A starred count marks values that overflowed; TNF16,
+\caption{The data of Table~\ref{tab:ladderacc} again, by count. A starred count marks values that overflowed; TNF16,
 takum16, posit16, bfloat16 and LNS16 overflow nothing on this workload.}
 \label{fig:field}
 \end{figure}
@@ -1190,7 +1204,8 @@ sixteen times the error, and LNS16 is flat and clip-free at roughly eight times
 it --- an earlier draft of this table reported LNS16 as clipping throughout,
 which its 15-bit log field does not do inside $|e|\le38$. The formats that do
 lose the band are the tapered and the narrow-exponent ones: binary16 loses three
-decimal orders and discards 2{,}413 values, and GF16's 6-bit exponent clips 465.
+decimal orders and discards 2{,}413 values, and GF16's 6-bit exponent clips 465
+(Figure~\ref{fig:field}).
 
 \paragraph{At 32 bits the binary formats win outright.} Running the same
 workload on the 32-bit class: GF32 is flat at $3.4\mathrm{e}{-7}$ with no
@@ -1322,6 +1337,9 @@ nextpnr-xilinx~(1743d0f)~\cite{nextpnr} on a
 Xilinx XC7A200T, hard multipliers disabled so the figures describe fabric alone.
 Bitstream generation uses Project X-Ray. No vendor tool is involved at any step,
 which is what makes the numbers checkable by a reader without a licence.
+Figure~\ref{fig:canon-fabric} collects what that fabric costs, down to the
+assembled ternary neuron of Table~\ref{tab:node}, which stays DSP-free at every
+fan-in measured.
 
 \begin{table}[t]\centering
 \caption{TNF multiplier, post-route, one harness across the whole lineup so the
@@ -1464,7 +1482,7 @@ caught by a testbench written against the tested configuration.
 
 
 Every change above is a claim that timing or width changed and arithmetic did
-not. Each was checked rather than argued.
+not. Each was checked rather than argued (Table~\ref{tab:equiv}).
 
 \begin{table}[t]\centering
 \caption{Equivalence evidence. The reference for each rung is the module already
@@ -1507,7 +1525,7 @@ Theorem~\ref{thm:law} makes the design space arithmetic rather than a matter of
 taste. Error scales as $2^{-(M+1)}$ and range as $3^{E_t}$, so at a fixed width
 the only decision is how many bits the exponent field is allowed to consume ---
 and that is decided by how efficiently $3^{E_t}$ values pack into
-$\lceil E_t \log_2 3\rceil$ bits.
+$\lceil E_t \log_2 3\rceil$ bits (Table~\ref{tab:pack}).
 
 \begin{table}[t]\centering
 \caption{Packing efficiency of the exponent field. The theoretical floor is
@@ -1614,7 +1632,8 @@ $E_t{=}6$, $M{=}9$            & $16$ & $3.39\mathrm{e}{-4}$ & $\mathbf{219}$ & $
 \end{tabular}
 \end{table}
 
-The last row is the law's own consistency check: adding two trits of exponent
+The last row of Table~\ref{tab:tnf16-fill} is the law's own consistency check:
+adding two trits of exponent
 while holding $M$ leaves the error bit-identical and multiplies the range
 ninefold.
 
@@ -1825,7 +1844,8 @@ the layout depends on $M$.
 \end{proof}
 
 Theorem~\ref{thm:alloc} converts the slack of Section~\ref{sec:design} into a
-number without any measurement, and the measurement then confirms it. Against a
+number without any measurement, and the measurement then confirms it
+(Table~\ref{tab:alloc}). Against a
 workload built in exact arithmetic --- necessary above TNF32, where a
 double-precision probe measures its own resolution rather than the format's ---
 the predicted and observed factors are:
@@ -2020,7 +2040,7 @@ not change what it costs to encode.
 conjecture.} Growth rates strictly between $\log_2|e|$ and $|e|$ do exist and are
 Kraft-feasible --- $\ell(e) = \lceil\sqrt{|e|}\rceil$ is one --- and such a code
 is not dominated. At $N = 16$, normalised so that all three are legal prefix
-codes:
+codes (Table~\ref{tab:codes}):
 
 \begin{table}[t]\centering
 \caption{$M_{\mathrm{eff}}$ by $|e|$ and usable range for three regime codes at
@@ -2203,7 +2223,8 @@ $M = 7, 9, \ldots, 25$ under one harness --- gives $285$, $372$, $443$, $567$,
 $696$, $870$, $1238$ and $1683$ LUTs. The marginal cost is not constant: it rises
 from $35.5$ LUTs per bit between $M{=}9$ and $M{=}11$ to $111.2$ between $M{=}21$
 and $M{=}25$. Taking the local value at each class, $\lambda = 48.8$ at the
-16-bit class and $111.2$ at the 32-bit one:
+16-bit class and $111.2$ at the 32-bit one, Table~\ref{tab:convert} prices the two
+regime round trips in mantissa bits:
 
 \begin{table}[t]\centering
 \caption{Regime area converted into mantissa bits through
@@ -2375,7 +2396,8 @@ the length-prefixed regime and $438/(2\cdot2.4455\cdot115)=0.7787\ldots$ for
 the unary regime, as stated.
 \end{proof}
 
-Corollary~\ref{cor:breakeven} is the exact form of what
+Table~\ref{tab:oneoverm} values the same two regime codecs at five mantissa
+widths; Corollary~\ref{cor:breakeven} is the exact form of what
 Corollary~\ref{cor:narrow} below could only say qualitatively, and it is the sharpest
 statement we can make about where a fixed field pays for itself in area: against
 posit, almost everywhere; against takum, only at the very bottom of the ladder.
@@ -2719,7 +2741,9 @@ increasing throughout $(1, \infty)$.}
 \end{figure}
 
 The claim is verified by enumeration rather than resting on the monotonicity of
-$\kappa$ alone. Sweeping $r$ continuously over $[1.1, 16]$ with $E$ integral and
+$\kappa$ alone. Figure~\ref{fig:radix} draws $\kappa$ against the radix and marks
+every radix whose scaling is a shift. Sweeping $r$ continuously over $[1.1, 16]$
+with $E$ integral and
 $M$ taking the remaining width, at eight combinations of width and required range
 from $(P,R) = (8, 24)$ to $(32, 5925)$, the best implementable radix is $r = 2$ in
 every case, and the penalty against the unreachable optimum is $1.09\times$ at all
@@ -3137,7 +3161,8 @@ percentile protected & span, binades & $E^{*}$ & element \\
 \end{table}
 
 Protecting the median returns E1M2; protecting the 90th percentile or beyond
-returns E2M1, which is the element the OCP microscaling specification fixes. The
+returns E2M1 (Table~\ref{tab:blockpct}), which is the element the OCP microscaling
+specification fixes. The
 correct statement is therefore a threshold rather than a derivation: \emph{the
 width rule returns the MX element for any design protecting the 90th percentile
 of blocks or more, and a different element below that.} Which is right is a
@@ -3378,6 +3403,8 @@ are independent. It is withdrawn.
 
 TNF is one corner of a square, and the square is worth drawing because the two
 rules that define its axes were derived separately and for unrelated reasons.
+Figure~\ref{fig:canon-families} draws it: the two rules crossed with the two
+radices exhaust the corners, and there is no fifth cell.
 
 One axis is the \emph{rule that fixes the exponent budget}. The golden-ratio
 rule takes $E=\operatorname{round}\!\bigl((N-1)/\varphi^{2}\bigr)$ and produces
@@ -3434,9 +3461,11 @@ rung & \multicolumn{2}{c}{GF-T $(E_t, M)$} & \multicolumn{2}{c}{TNF $(E_t, M)$} 
 \end{tabular}
 \end{table}
 
-This is why the FPGA post-route tables carry TNF rows and no separate GF-T ones: at
+Table~\ref{tab:gftvstnf} sets the two ladders side by side, rung by rung. This is
+why the FPGA post-route tables carry TNF rows and no separate GF-T ones: at
 every rung but 32 they would be the same numbers twice. It is also why the
-eight-bit measurement below reports GF-T8 and ``TNF8 at $E_t=3$'' as one line
+eight-bit measurement in Table~\ref{tab:fourfam} reports GF-T8 and ``TNF8 at
+$E_t=3$'' as one line
 of $109$ magnitudes and $15.5147$ --- they are the same format, reached from two
 directions. BNF is measured too, at $97$ LUT and $388.35$\,MHz, but on the
 isolated-decoder harness of Section~\ref{sec:hardware} rather than the
@@ -3657,7 +3686,10 @@ reports $45\%$ and $44\%$ savings in multiplier power and area: the multiplier i
 made cheaper, not removed.
 
 The machinery in the first is not an artefact of implementation. It follows from
-a property of the number set.
+a property of the number set, and Figure~\ref{fig:canon-closure} draws that
+property against its absence: the step $(a,b)\mapsto(b,a+b)$ stays inside
+$\mathbb{Z}[\varphi]$, while $F_4F_4=9$ is already outside the Fibonacci
+integers.
 
 \begin{corollary}[Closure removes the transformation stage]\label{cor:closure}
 Let $A$ be a weight alphabet and let $s$ be the operation that applies a weight.
@@ -3751,6 +3783,8 @@ Theorem~\ref{thm:hierarchy}.
 
 So the multiply-free scale is not a point but a hierarchy indexed by algebraic
 degree, and each degree buys finer granularity for one more register.
+Figure~\ref{fig:canon-hierarchy} draws the hierarchy by degree, with $\varphi$
+the only scale at two and the plastic step one register further on.
 Table~\ref{tab:hierarchy} measures the trade at the first two rungs where it is
 a trade at all. The plastic step
 $(a,b,c)\mapsto(c,\,a+c,\,b)$ costs the same single addition as the Fibonacci
@@ -3984,7 +4018,8 @@ designing element formats for this axis cannot recover more than that.
 \end{theorem}
 
 The ranking does not merely fail to transfer; it inverts. Every two-segment
-ladder here beats MXFP4 on squared error by factors of three to ten, and every
+ladder in Table~\ref{tab:blockbound} beats MXFP4 on squared error by factors of
+three to ten, and every
 one loses on perplexity by $21\%$ to $146\%$.
 
 The reason is what a block is. Thirty-two weights share one scale, and squared
@@ -4001,7 +4036,9 @@ refuses to concentrate, and it wins on perplexity for the same reason.
 We record this as the competition's result, not ours. Three of our own attacks
 failed here --- a ternary-exponent float, constant-ratio ladders, and
 two-segment ladders built to imitate E2M1's spacing --- and the bound explains
-why a fourth is not warranted.
+why a fourth is not warranted. Figure~\ref{fig:canon-block} puts that ceiling
+beside the axis it does not close: the element codebook and the one scale a
+block carries are separate decisions.
 
 
 \begin{figure}[htbp]\centering
@@ -4028,7 +4065,8 @@ occupy is $8.32$ binades on SmolLM2-135M ($3{,}317{,}760$ blocks) and $9.12$
 on Qwen2.5-0.5B ($11{,}182{,}080$), so four bits suffice
 (\texttt{measurements/weight\_ranges\_2026-08-20.json}). At four bits $2^{k}$ needs $8.3$ steps of
 the sixteen available and $\varphi^{k}$ needs $12.0$, with half the step. The
-choice at equal width is between exactly those two.
+choice at equal width is between exactly those two, and
+Table~\ref{tab:scalegrid} measures both on both models.
 
 \begin{table}[t]\centering
 \caption{Block scale grid, K=32, E2M1 elements, 40 windows. At equal bits
@@ -4481,8 +4519,8 @@ fan-in & LUT/weight & $F_{\max}$ (MHz) & MHz per LUT \\
 \end{tabular}
 \end{table}
 
-At fan-in 8 and 16 the cut buys $45\%$ more frequency for $16\%$ and $5\%$ more
-area; at 32 it buys $30\%$ for $42\%$. The crossover is where $N/2$ registers
+Table~\ref{tab:nodepipe} measures the trade: at fan-in 8 and 16 the cut buys $45\%$
+more frequency for $16\%$ and $5\%$ more area; at 32 it buys $30\%$ for $42\%$. The crossover is where $N/2$ registers
 stop being cheap relative to the tree they cut. The configuration to quote is
 therefore fan-in 8 or 16 with one stage: $32.4$ LUT per weight at $126.73$\,MHz,
 or $34.9$ at $106.38$, both at zero DSP. We report the unfolded column beside it because that number was
@@ -4509,7 +4547,7 @@ $r^6{=}r{+}1$, 6-bit      & $31\times6\times5$b & $122$ & $612.00$ & $\mathbf{14
 The middle rung is the one a budget would choose: five bits and $95$ LUT for
 $+10.9\%$, a six-LUT premium over $\varphi$ for a sixfold reduction in error.
 Applying the scale remains one addition throughout and the datapath remains free
-of DSP.
+of DSP, and Table~\ref{tab:oneadder} prices that step on its own.
 
 \begin{table}[t]\centering
 \caption{One scale application, 16-bit components, xc7a200t, median of five
@@ -4745,8 +4783,8 @@ $\varphi$.
 \end{figure}
 
 
-Post-route estimated for an XC7A200T through a fully open flow, with no DSP blocks used
-anywhere:
+Table~\ref{tab:zerodsp} is post-route estimated for an XC7A200T through a fully
+open flow, with no DSP blocks used anywhere.
 
 \begin{table}[t]\centering
 \caption{The zero-DSP stack. One sign-select primitive builds both halves of a
@@ -5070,8 +5108,9 @@ harness that
 combined the decoder with a shared accumulator and observed part of its output.
 Three separate defects in that arrangement are described in
 Section~\ref{sec:selfcheck}; each changed a headline number by 10 to 50 percent
-without any individual measurement being wrong. The table below is measured on
-the only harness that passes the observation gate we wrote afterwards: decoder
+without any individual measurement being wrong. Table~\ref{tab:cleandecode} is
+measured on the only harness that passes the observation gate we wrote
+afterwards: decoder
 alone, every output bit folded into the observed reduction, median of five
 placement seeds.
 
@@ -5139,7 +5178,7 @@ remains is a statement about operation profiles, and it is the first in this
 section that names its own boundary rather than being pushed to it.
 
 A number system is used through two operations, and the three candidates each buy
-one cheaply and pay for the other.
+one cheaply and pay for the other (Table~\ref{tab:bothops}).
 
 \begin{table}[t]\centering
 \caption{Cost of each operation, one harness, XC7A200T, DSP inference off. The
@@ -5700,7 +5739,7 @@ $2^{N-1}$, so the binary packing leaves a non-zero remainder.
 \end{proof}
 
 The remainder is arithmetic, not engineering, and it is largest exactly where
-modern formats live:
+modern formats live: Table~\ref{tab:packloss} counts what is lost at four widths.
 
 \begin{table}[t]\centering
 \caption{Codes lost to packing when a ternary exponent is stored in a binary
@@ -5893,7 +5932,8 @@ takes only prose and script files --- \texttt{*.md} and \texttt{*.py} under
 repository root, the places where a measurement is actually written down --- and it
 requires a delimited match rather than a substring. Its result on this revision:
 of \textbf{40} frequency literals in this paper, \textbf{16} are stated in no
-record file. Every one of the sixteen is marked $^{\ast}$ where it appears, and
+record file; Table~\ref{tab:untraced} lists them. Every one of the sixteen is
+marked $^{\ast}$ where it appears, and
 carries no hardware-performance claim.
 
 The distribution of the sixteen is the part that matters. All fifteen marked rows
@@ -5902,7 +5942,8 @@ never written down; the six unmarked rows are all ours. The same asymmetry holds
 Table~\ref{tab:tnet}, where all three posit frequencies are unsourced and all three
 TNF frequencies trace to
 \texttt{TNF\_SPEC\_CORRECTION\_2026-08-11.md} or
-\texttt{BROKEN\_IS\_SMALL\_2026-08-11.md}. An ordering by MHz per LUT in which our
+\texttt{BROKEN\_IS\_SMALL\_2026-08-11.md}. An ordering by MHz per LUT --- the ordering
+Figure~\ref{fig:fullthroughput} draws --- in which our
 rows have records and the rows they are ranked above do not is not evidence of the
 ordering, and is presented here as illustrative.
 
@@ -6075,7 +6116,7 @@ takum8, takum-layout ``tekum8'' & geometric & TNF everywhere \\
 \end{table}
 
 Six figures previously reported as ranges were computed by the wrong model and
-are corrected here: takum32 moves from $5.9$--$10.2$ to an exact $2.6$, the
+are corrected in Table~\ref{tab:crosscorrected}: takum32 moves from $5.9$--$10.2$ to an exact $2.6$, the
 takum-layout ``tekum16'' oracle
 from $4.2$--$6.5$ to $2.1$. (True tekum, arXiv:2512.10964, counts its width in
 trits and has no 16-bit member.) The remaining window dependence is confined to
@@ -6292,7 +6333,7 @@ model to be the wrong model, not for the algebra to be wrong. The third kind is 
 resource and frequency figures, perplexity comparisons, and error measurements
 over sampled distributions. These can be falsified by rerunning them, and the
 places where our own earlier runs were falsified in exactly this way are recorded
-in Section~\ref{sec:limitations-anchor} and in the erratum discussion.
+in Section~\ref{sec:limits} and in the erratum discussion.
 
 \paragraph{Eight conclusions this work supports.} The following are the load-bearing
 conclusions, each with the status it actually has.
@@ -6702,7 +6743,8 @@ canonical form must be restored by a linear-depth cascade after every operation.
 \textbf{[measured]}
 \end{observation}
 
-This is a negative result and we report it as one. It does not touch the closure
+Table~\ref{tab:zeckcost} measures both adders through the same technology
+mapping. This is a negative result and we report it as one. It does not touch the closure
 result of Section~\ref{sec:closure} --- the reason a $\mathbb{Z}[\varphi]$
 accumulation is cheap is precisely that it \emph{avoids} normalisation, and
 Table~\ref{tab:closure} measures the same asymmetry from the other side. What
@@ -7424,7 +7466,7 @@ format & $\hat\mu$ (SI) & rel.\ error vs \texttt{float64} & iterations to $10^{-
 
 \paragraph{What it shows, and only that.} TNF32 lands $1.60\times$ closer to the
 \texttt{float64} solution than \texttt{takum32} does, and settles in $21$
-iterations against that format's $27$. This is a task-level number in this paper
+iterations against that format's $27$ (Table~\ref{tab:downstream}). This is a task-level number in this paper
 about the result of a computation rather than about the storage of a value, and it
 points the same way as the representation measurements on a workload that meets
 the condition of Section~\ref{sec:window}. That is the whole of the positive
@@ -7565,7 +7607,7 @@ specification version: the affected files remain in place under
 claiming conformance against the older manifest should be re-read with this in
 mind.
 
-\section{Limitations}\label{sec:limitations-anchor}\label{sec:limits}
+\section{Limitations}\label{sec:limits}
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth]{canon/canon-tnf-32-limits.png}
@@ -7659,7 +7701,8 @@ significands, which is what lets the upper rungs be quoted at all; the hardware
 limit below is separate and unchanged.
 
 \item \textbf{Five of nine rungs have post-route implementation results.} TNF4 through TNF64 fit
-the device, TNF64 at $7{,}479$ LUTs and $48.20$\,MHz. TNF128 at its reconciled
+the device, TNF64 at $7{,}479$ LUTs and $48.20$\,MHz, and Figure~\ref{fig:ladder}
+plots those five rungs in area and achieved frequency. TNF128 at its reconciled
 $M = 119$ does not
 converge in routing on this part and is not claimed; TNF256 upwards exceed a
 single Artix-7 fabric entirely. Table~\ref{tab:spec} is the specification at the
