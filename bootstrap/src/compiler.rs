@@ -5411,6 +5411,42 @@ impl Codegen {
         // `List<T>`. i64 is the default a use site can overturn; the day one
         // indexes with it, usize becomes the right answer and this line is
         // where to change it.
+        // `[K: V]` is a DICTIONARY type -- the Swift/Kotlin spelling, and the
+        // one this corpus uses:
+        //
+        //     env: [str: str]                 permissions: [ToolID: ToolPermission]
+        //     tools: [ToolID: ToolDefinition]
+        //
+        // Zig reads the leading `[` as an array-type prefix and wants a length,
+        // so every one of these is `expected ']'` -- a parse error, and a wall.
+        //
+        // Unambiguous against every other bracketed form in the corpus: an
+        // array `[N]T` and a slice `[]T` have no colon inside the brackets, and
+        // a slice EXPRESSION `xs[a:b]` never appears in type position. So the
+        // colon is the whole discriminator.
+        //
+        // A string key needs StringHashMap -- AutoHashMap cannot hash a slice.
+        if let Some(inner) = t.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
+            let mut depth = 0i32;
+            let split = inner.char_indices().find(|(_, c)| {
+                match c {
+                    '[' | '(' | '<' => depth += 1,
+                    ']' | ')' | '>' => depth -= 1,
+                    ':' if depth == 0 => return true,
+                    _ => {}
+                }
+                false
+            });
+            if let Some((i, _)) = split {
+                let k = Self::zig_type(inner[..i].trim());
+                let v = Self::zig_type(inner[i + 1..].trim());
+                if k == "[]const u8" {
+                    return format!("std.StringHashMap({})", v);
+                }
+                return format!("std.AutoHashMap({}, {})", k, v);
+            }
+        }
+
         match t {
             "String" | "string" => return "[]const u8".to_string(),
             "Float" | "float" => return "f64".to_string(),
