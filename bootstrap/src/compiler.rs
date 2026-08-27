@@ -1857,6 +1857,15 @@ impl Parser {
         }
 
         match self.current.kind {
+            // `const (a, b) = f();` is the tuple-destructure STATEMENT, and the
+            // corpus writes it inside test bodies. When a braceless block stops
+            // on one, the parser hands it here, where `parse_const_decl`
+            // demands a name and dies with "Expected identifier after 'const',
+            // got LParen" -- a hard error on a form the statement parser has
+            // handled all along. Route it to the parser that knows it.
+            TokenKind::KwConst if self.peek.kind == TokenKind::LParen => {
+                self.parse_let_destructuring()
+            }
             TokenKind::KwConst => self.parse_const_decl(is_pub),
             TokenKind::KwVar => self.parse_var_decl(is_pub),
             TokenKind::KwFn => self.parse_fn_decl(is_pub),
@@ -5718,6 +5727,11 @@ impl Parser {
             // Statement clauses must sit on the line immediately after the
             // previous clause; a gap returns the old boundary reading.
             let adjacent = self.current.line <= self.last_line + 1;
+            let eff_col = if lowered == 0 && self.peek.kind == TokenKind::Ident {
+                first_clause_col.or(Some(self.current.col))
+            } else {
+                first_clause_col
+            };
             // A body that OPENS with `var`/`const` has no earlier clause to
             // take a column from, so `first_clause_col` was still None, this
             // arm was skipped, and the whole braceless body fell back to the
@@ -5726,8 +5740,17 @@ impl Parser {
             // the block, it IS the first clause.
             if matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
                 && adjacent
-                && first_clause_col.map_or(false, |c| c > 1 && self.current.col >= c)
+                // The arm models `const NAME ...` only. `const (a, b) = f()` is the
+                // tuple-destructure statement, and letting the arm swallow the
+                // keyword leaves the parser on `(` at module level, where
+                // parse_const_decl demands a name and dies -- a hard error where the
+                // old path fell back safely.
+                && self.peek.kind == TokenKind::Ident
+                && eff_col.map_or(false, |c| c > 1 && self.current.col >= c)
             {
+                if first_clause_col.is_none() {
+                    first_clause_col = eff_col;
+                }
                 let st_entry = self.save_state();
                 let _st_line = self.current.line;
                 let mutable = self.current.kind == TokenKind::KwVar;
@@ -6446,14 +6469,23 @@ impl Parser {
         // invariant followed by any of those dropped its OWN assert. They end
         // the block here as cleanly as const/fn do; the GLOBAL boundary set is
         // left alone (adding KwVar there would hoist keyword-test-body vars).
-        let clean_end = Self::is_block_boundary(self.current.kind)
-            || matches!(
-                self.current.kind,
-                TokenKind::KwVar
-                    | TokenKind::KwEnum
-                    | TokenKind::KwStruct
-                    | TokenKind::KwUsing
-            );
+        // `const` opens a module-level DECLARATION and is a boundary -- unless
+        // it is followed by `(`, which is the tuple-destructure STATEMENT form
+        // `const (a, b) = f();`. Treating that as a clean end hands it to the
+        // module parser, which requires a name after `const` and dies with
+        // "Expected identifier after 'const', got LParen". The block has not
+        // ended; the clause parser simply stopped inside it.
+        let const_destructure =
+            self.current.kind == TokenKind::KwConst && self.peek.kind == TokenKind::LParen;
+        let clean_end = !const_destructure
+            && (Self::is_block_boundary(self.current.kind)
+                || matches!(
+                    self.current.kind,
+                    TokenKind::KwVar
+                        | TokenKind::KwEnum
+                        | TokenKind::KwStruct
+                        | TokenKind::KwUsing
+                ));
         if !clean_end {
             // A block that lowered SOMETHING and then met a clause it cannot
             // model used to lose the lot: two checkable `assert`s on either
