@@ -6202,8 +6202,8 @@ impl Codegen {
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
     fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
-        let text = rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(
-            &zig_path(&node.name),
+        let text = rewrite_as_casts(&rewrite_struct_literal_fields(&rewrite_list_literals(
+            &rewrite_array_repeats(&zig_path(&node.name)),
         )));
         self.write_indent();
         if node.extra_kind == "then" {
@@ -9453,6 +9453,109 @@ fn is_zig_primitive(name: &str) -> bool {
 /// They are missing quotes, which is a different defect and a SEMANTIC error
 /// once this parse error is gone; guessing quotes around them would be
 /// inventing data.
+/// `x as T` written out longhand in clause text; Zig has no such operator.
+///
+/// The expression parser already turns a PARSED `x as T` into an
+/// ExprFieldAccess named `as_T`, and the emitter writes `t27_cast(T, x)` for
+/// it. Behaviour clauses never go through that path -- they are carried as
+/// text -- so 31 casts across 11 specs reached the output verbatim:
+///
+///     const ratio = (EXP_BITS as f64)/(MANT_BITS as f64);
+///     const phi = 1.6180339887498948 as f32;
+///     const ratio = result.exp_bits as f64/result.mant_bits as f64;
+///
+/// The value is the primary expression immediately to the LEFT: a
+/// parenthesised group, or a run of identifier/number/dot characters, which
+/// covers `result.exp_bits` and `1.618...` alike. Walking left rather than
+/// guessing at precedence is what keeps `a + b as f64` from becoming
+/// `t27_cast(f64, a + b)` -- it becomes `a + t27_cast(f64, b)`, which is what
+/// Rust means by it.
+///
+/// `t27_cast`, not `@as`: `@as(f64, some_u32)` is a compile error in Zig, and
+/// integer-to-float is exactly what these specs are doing. The helper
+/// dispatches on the two types at comptime and already exists for the parsed
+/// path.
+fn rewrite_as_casts(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 16);
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let word_here = !in_str
+            && b[i] == 'a'
+            && b.get(i + 1) == Some(&'s')
+            && matches!(b.get(i.wrapping_sub(1)), Some(' ') | Some('\t'))
+            && matches!(b.get(i + 2), Some(' ') | Some('\t'));
+        if !word_here {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        // the TYPE that follows
+        let mut k = i + 2;
+        while k < b.len() && b[k] == ' ' {
+            k += 1;
+        }
+        let ts = k;
+        while k < b.len() && (b[k].is_alphanumeric() || b[k] == '_' || b[k] == '.') {
+            k += 1;
+        }
+        if k == ts {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let ty: String = b[ts..k].iter().collect();
+        // the VALUE immediately to the left, taken off what has been emitted
+        let trimmed = out.trim_end();
+        let cut = trimmed.len();
+        let tb: Vec<char> = trimmed.chars().collect();
+        let start = if tb.last() == Some(&')') {
+            let mut d = 0i32;
+            let mut j = tb.len();
+            loop {
+                if j == 0 {
+                    break 0;
+                }
+                j -= 1;
+                match tb[j] {
+                    ')' => d += 1,
+                    '(' => {
+                        d -= 1;
+                        if d == 0 {
+                            break j;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        } else {
+            let mut j = tb.len();
+            while j > 0 && (tb[j - 1].is_alphanumeric() || tb[j - 1] == '_' || tb[j - 1] == '.') {
+                j -= 1;
+            }
+            j
+        };
+        if start == tb.len() {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let value: String = tb[start..].iter().collect();
+        out.truncate(out.char_indices().nth(start).map_or(cut, |(p, _)| p));
+        out.push_str(&format!("t27_cast({}, {})", ty, value));
+        i = k;
+    }
+    out
+}
+
 fn rewrite_struct_literal_fields(s: &str) -> String {
     let b: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len() + 8);
@@ -9765,6 +9868,13 @@ fn fold_enum_type_marker(decl: &mut Node) {
 
 fn node_has_cast(node: &Node) -> bool {
     if node.kind == NodeKind::ExprFieldAccess && node.name.starts_with("as_") {
+        return true;
+    }
+    // The TEXT form too. A behaviour clause carries `x as T` as a string,
+    // never as an as_T node, so a spec whose only casts are in clauses
+    // rewrote them to `t27_cast(...)` and then did not emit the helper --
+    // trading a parse error for an undeclared identifier.
+    if node.name.contains(" as ") || node.value.contains(" as ") {
         return true;
     }
     node.children.iter().any(node_has_cast)
