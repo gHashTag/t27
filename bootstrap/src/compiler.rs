@@ -2429,14 +2429,40 @@ impl Parser {
                     // operators as often as generic brackets, and one unbalanced `>`
                     // would swallow the rest of the struct. `Map<K, V>` still truncates
                     // at the first comma -- the older, narrower bug, left standing.
+                    // ANGLE BRACKETS ARE COUNTED NOW, and the note above asked
+                    // for the counterexample rather than a third guess. Here it
+                    // is. Scanning only the lines that are genuinely inside a
+                    // `= struct {` body -- 4124 of them across the corpus --
+                    // there are 23 field types carrying an angle bracket:
+                    //
+                    //     22 BALANCED   List<Task> x5, List<String> x3,
+                    //                   Option<String> x2, List<RuleViolation> x2,
+                    //                   Option<Task>, List<Agent>, List<Vote>, ...
+                    //      1 UNBALANCED tri/io/reader.t27  run: "fn(R) -> T"
+                    //
+                    // The single counterexample is a `>` belonging to an ARROW,
+                    // inside a STRING LITERAL. Both are single tokens to this
+                    // lexer -- `->` is Arrow and the string is one Str -- so a
+                    // TOKEN-level counter cannot see either, where the textual
+                    // one that was tried before could not avoid them.
+                    //
+                    // That is the difference from the two reverted attempts:
+                    // not a better guess, a different level. Measured per spec
+                    // before landing, not by the totals.
                     let mut depth: i32 = 0;
+                    let mut angle: i32 = 0;
                     loop {
                         match self.current.kind {
                             TokenKind::Eof => break,
                             TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace => depth += 1,
                             TokenKind::RParen | TokenKind::RBracket => depth -= 1,
-                            TokenKind::RBrace => { if depth == 0 { break; } depth -= 1; }
-                            TokenKind::Comma | TokenKind::Semicolon if depth == 0 => break,
+                            TokenKind::RBrace => { if depth == 0 && angle == 0 { break; } depth -= 1; }
+                            TokenKind::Lt => angle += 1,
+                            // Only ever closes one that was opened. A stray `>`
+                            // in a comparison must not drive this negative and
+                            // start consuming the struct.
+                            TokenKind::Gt if angle > 0 => angle -= 1,
+                            TokenKind::Comma | TokenKind::Semicolon if depth == 0 && angle == 0 => break,
                             _ => {}
                         }
                         // Lexemes are concatenated raw, so a multi-word type came
