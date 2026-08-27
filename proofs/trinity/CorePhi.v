@@ -14,6 +14,8 @@
 
 Require Import Reals.Reals.
 Require Import Lra.
+Require Import List.
+Import ListNotations.
 Open Scope R_scope.
 
 (** Golden ratio definition: phi = (1 + sqrt 5) / 2 *)
@@ -137,6 +139,66 @@ Qed.
 Lemma phi_fifth : phi^5 = (11 + 5 * sqrt 5) / 2.
 Proof.
   pose proof phi_fifth_fib as H. unfold phi in H |- *. lra.
+Qed.
+
+(** * Closure of Z[phi] under weight application and accumulation.
+
+    An element of Z[phi] is carried as a coordinate pair (a,b) standing for
+    a + b*phi. These are the two facts the datapath rests on: applying the weight
+    phi is the Fibonacci step (a,b) |-> (b, a+b), which contains no multiplication,
+    and accumulation is componentwise. Together they give exactness of a whole
+    linear path by induction on its length. *)
+
+Definition Zphi (a b : R) : R := a + b * phi.
+
+(** Applying the weight phi is the Fibonacci step. No multiplier appears: the
+    new coordinates are a previous coordinate and one addition. *)
+Theorem fib_step_is_phi_mul : forall a b : R,
+  Zphi a b * phi = Zphi b (a + b).
+Proof.
+  intros a b. unfold Zphi.
+  pose proof phi_square as Hs.
+  replace ((a + b * phi) * phi) with (a * phi + b * phi^2) by ring.
+  rewrite Hs. ring.
+Qed.
+
+(** Accumulation is componentwise, so the lattice is closed under it. *)
+Theorem zphi_add_closed : forall a b c d : R,
+  Zphi a b + Zphi c d = Zphi (a + c) (b + d).
+Proof.
+  intros. unfold Zphi. ring.
+Qed.
+
+(** Negation, which is what the -phi arm of the {-phi,0,+phi} alphabet needs. *)
+Theorem zphi_opp_closed : forall a b : R,
+  - Zphi a b = Zphi (-a) (-b).
+Proof.
+  intros. unfold Zphi. ring.
+Qed.
+
+(** The zero arm. *)
+Theorem zphi_zero : Zphi 0 0 = 0.
+Proof.
+  unfold Zphi. ring.
+Qed.
+
+(** A whole linear path is exact: folding the three alphabet arms over any list
+    of coordinate pairs stays inside Z[phi], with no rounding step anywhere. The
+    fold below is the dot product a layer computes. *)
+Fixpoint dot (ws : list (R * R)) (acc : R * R) : R * R :=
+  match ws with
+  | nil => acc
+  | cons (a, b) tl => dot tl (fst acc + a, snd acc + b)
+  end.
+
+Theorem dot_exact : forall ws a b,
+  Zphi (fst (dot ws (a, b))) (snd (dot ws (a, b))) =
+  Zphi a b + Zphi (fst (dot ws (0, 0))) (snd (dot ws (0, 0))).
+Proof.
+  induction ws as [| [x y] tl IH]; intros a b.
+  - simpl. unfold Zphi. ring.
+  - simpl. rewrite (IH (a + x) (b + y)), (IH (0 + x) (0 + y)).
+    unfold Zphi. ring.
 Qed.
 
 (** Numeric bracket *)

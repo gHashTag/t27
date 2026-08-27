@@ -1,0 +1,391 @@
+DIGEST 4215a20912cb373badc975cab25f4b6d
+FTrinity.CorePhi
+R886:896 Stdlib.Reals.Reals <> <> lib
+R914:916 Stdlib.micromega.Lra <> <> lib
+R934:937 Stdlib.Lists.List <> <> lib
+R947:959 Stdlib.Lists.List ListNotations <> mod
+def 1049:1051 <> phi
+R1055:1055 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R1060:1060 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R1071:1074 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R1062:1064 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R1065:1068 Stdlib.Reals.R_sqrt <> sqrt def
+prf 1152:1159 <> sqrt5_sq
+R1178:1180 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1169:1171 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R1163:1166 Stdlib.Reals.R_sqrt <> sqrt def
+R1172:1175 Stdlib.Reals.R_sqrt <> sqrt def
+R1199:1207 Stdlib.Reals.R_sqrt <> sqrt_sqrt thm
+prf 1227:1238 <> sqrt5_nonneg
+R1243:1246 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R1247:1250 Stdlib.Reals.R_sqrt <> sqrt def
+R1270:1277 Stdlib.Reals.R_sqrt <> sqrt_pos thm
+prf 1315:1321 <> phi_pos
+R1326:1328 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x not
+R1329:1331 Trinity.CorePhi <> phi def
+R1350:1352 Trinity.CorePhi <> phi def
+R1366:1377 Trinity.CorePhi <> sqrt5_nonneg thm
+prf 1420:1430 <> phi_nonzero
+R1437:1440 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1434:1436 Trinity.CorePhi <> phi def
+R1464:1470 Trinity.CorePhi <> phi_pos thm
+prf 1549:1558 <> phi_square
+R1567:1569 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1565:1565 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R1562:1564 Trinity.CorePhi <> phi def
+R1573:1575 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R1570:1572 Trinity.CorePhi <> phi def
+R1595:1597 Trinity.CorePhi <> phi def
+R1611:1618 Trinity.CorePhi <> sqrt5_sq thm
+prf 1710:1722 <> phi_quadratic
+R1741:1743 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1737:1739 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R1731:1733 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R1729:1729 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R1726:1728 Trinity.CorePhi <> phi def
+R1734:1736 Trinity.CorePhi <> phi def
+R1767:1776 Trinity.CorePhi <> phi_square thm
+prf 1842:1848 <> phi_inv
+R1857:1859 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1852:1853 Stdlib.Reals.Rdefinitions <> ::R_scope:'/'_x not
+R1854:1856 Trinity.CorePhi <> phi def
+R1863:1865 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R1860:1862 Trinity.CorePhi <> phi def
+R1889:1899 Trinity.CorePhi <> phi_nonzero thm
+R1919:1928 Trinity.CorePhi <> phi_square thm
+R1946:1959 Stdlib.Reals.RIneq <> Rmult_eq_reg_l thm
+R1961:1963 Trinity.CorePhi <> phi def
+R1991:1996 Stdlib.Reals.RIneq <> Rinv_r thm
+prf 2086:2095 <> phi_inv_sq
+R2106:2108 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2099:2100 Stdlib.Reals.Rdefinitions <> ::R_scope:'/'_x not
+R2104:2104 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2101:2103 Trinity.CorePhi <> phi def
+R2110:2112 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R2113:2115 Trinity.CorePhi <> phi def
+R2138:2148 Trinity.CorePhi <> phi_nonzero thm
+R2168:2177 Trinity.CorePhi <> phi_square thm
+R2207:2210 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2205:2205 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2202:2204 Trinity.CorePhi <> phi def
+R2240:2253 Stdlib.Reals.RIneq <> Rmult_eq_reg_l thm
+R2259:2259 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2256:2258 Trinity.CorePhi <> phi def
+R2290:2295 Stdlib.Reals.RIneq <> Rinv_r thm
+prf 2467:2482 <> trinity_identity
+R2501:2503 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2491:2493 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R2489:2489 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2486:2488 Trinity.CorePhi <> phi def
+R2494:2495 Stdlib.Reals.Rdefinitions <> ::R_scope:'/'_x not
+R2499:2499 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2496:2498 Trinity.CorePhi <> phi def
+R2527:2536 Trinity.CorePhi <> phi_square thm
+R2556:2565 Trinity.CorePhi <> phi_inv_sq thm
+prf 2830:2842 <> phi_cubed_fib
+R2851:2853 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2849:2849 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2846:2848 Trinity.CorePhi <> phi def
+R2861:2863 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R2855:2857 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2858:2860 Trinity.CorePhi <> phi def
+R2887:2896 Trinity.CorePhi <> phi_square thm
+R2919:2919 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2916:2918 Trinity.CorePhi <> phi def
+R2932:2934 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2929:2931 Trinity.CorePhi <> phi def
+R2938:2938 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2935:2937 Trinity.CorePhi <> phi def
+R2979:2982 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2990:2990 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2976:2978 Trinity.CorePhi <> phi def
+R2986:2988 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R2983:2985 Trinity.CorePhi <> phi def
+R3004:3006 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3002:3002 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R2999:3001 Trinity.CorePhi <> phi def
+R3007:3009 Trinity.CorePhi <> phi def
+prf 3053:3066 <> phi_fourth_fib
+R3075:3077 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3073:3073 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3070:3072 Trinity.CorePhi <> phi def
+R3085:3087 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3079:3081 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3082:3084 Trinity.CorePhi <> phi def
+R3111:3120 Trinity.CorePhi <> phi_square thm
+R3140:3152 Trinity.CorePhi <> phi_cubed_fib thm
+R3175:3175 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3172:3174 Trinity.CorePhi <> phi def
+R3188:3190 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3185:3187 Trinity.CorePhi <> phi def
+R3194:3194 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3191:3193 Trinity.CorePhi <> phi def
+R3235:3238 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3250:3250 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3232:3234 Trinity.CorePhi <> phi def
+R3246:3248 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3240:3242 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3243:3245 Trinity.CorePhi <> phi def
+R3268:3270 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3260:3262 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3266:3266 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3263:3265 Trinity.CorePhi <> phi def
+R3271:3273 Trinity.CorePhi <> phi def
+prf 3317:3329 <> phi_fifth_fib
+R3338:3340 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3336:3336 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3333:3335 Trinity.CorePhi <> phi def
+R3348:3350 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3342:3344 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3345:3347 Trinity.CorePhi <> phi def
+R3374:3383 Trinity.CorePhi <> phi_square thm
+R3403:3416 Trinity.CorePhi <> phi_fourth_fib thm
+R3439:3439 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3436:3438 Trinity.CorePhi <> phi def
+R3452:3454 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3449:3451 Trinity.CorePhi <> phi def
+R3458:3458 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3455:3457 Trinity.CorePhi <> phi def
+R3499:3502 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3514:3514 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3496:3498 Trinity.CorePhi <> phi def
+R3510:3512 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3504:3506 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3507:3509 Trinity.CorePhi <> phi def
+R3532:3534 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3524:3526 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3530:3530 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3527:3529 Trinity.CorePhi <> phi def
+R3536:3538 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3539:3541 Trinity.CorePhi <> phi def
+prf 3611:3619 <> phi_cubed
+R3628:3630 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3626:3626 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3623:3625 Trinity.CorePhi <> phi def
+R3632:3634 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R3635:3638 Stdlib.Reals.R_sqrt <> sqrt def
+R3663:3675 Trinity.CorePhi <> phi_cubed_fib thm
+R3690:3692 Trinity.CorePhi <> phi def
+prf 3772:3779 <> phi_neg3
+R3790:3792 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3783:3784 Stdlib.Reals.Rdefinitions <> ::R_scope:'/'_x not
+R3788:3788 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3785:3787 Trinity.CorePhi <> phi def
+R3799:3801 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R3793:3796 Stdlib.Reals.R_sqrt <> sqrt def
+R3825:3832 Trinity.CorePhi <> sqrt5_sq thm
+R3852:3860 Trinity.CorePhi <> phi_cubed thm
+R3890:3893 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3888:3888 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3885:3887 Trinity.CorePhi <> phi def
+R3925:3936 Trinity.CorePhi <> sqrt5_nonneg thm
+R3955:3968 Stdlib.Reals.RIneq <> Rmult_eq_reg_l thm
+R3974:3974 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3971:3973 Trinity.CorePhi <> phi def
+R4005:4010 Stdlib.Reals.RIneq <> Rinv_r thm
+R4079:4081 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4052:4052 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4063:4067 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4078:4078 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4054:4056 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R4057:4060 Stdlib.Reals.R_sqrt <> sqrt def
+R4074:4076 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R4068:4071 Stdlib.Reals.R_sqrt <> sqrt def
+R4097:4099 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R4088:4090 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4082:4085 Stdlib.Reals.R_sqrt <> sqrt def
+R4091:4094 Stdlib.Reals.R_sqrt <> sqrt def
+prf 4178:4187 <> phi_fourth
+R4196:4198 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4194:4194 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R4191:4193 Trinity.CorePhi <> phi def
+R4199:4199 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4214:4217 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4201:4203 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R4205:4207 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4208:4211 Stdlib.Reals.R_sqrt <> sqrt def
+R4241:4254 Trinity.CorePhi <> phi_fourth_fib thm
+R4269:4271 Trinity.CorePhi <> phi def
+prf 4334:4342 <> phi_fifth
+R4351:4353 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4349:4349 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R4346:4348 Trinity.CorePhi <> phi def
+R4354:4354 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4370:4373 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4357:4359 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R4361:4363 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4364:4367 Stdlib.Reals.R_sqrt <> sqrt def
+R4397:4409 Trinity.CorePhi <> phi_fifth_fib thm
+R4424:4426 Trinity.CorePhi <> phi def
+def 4898:4901 <> Zphi
+R4910:4910 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 4904:4904 <> a:1
+binder 4906:4906 <> b:2
+R4915:4915 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R4921:4923 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R4920:4920 Trinity.CorePhi <> a:1 var
+R4925:4927 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4924:4924 Trinity.CorePhi <> b:2 var
+R4928:4930 Trinity.CorePhi <> phi def
+prf 5087:5105 <> fib_step_is_phi_mul
+R5122:5122 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 5116:5116 <> a:3
+binder 5118:5118 <> b:4
+R5141:5143 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5135:5137 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5127:5130 Trinity.CorePhi <> Zphi def
+R5132:5132 Trinity.CorePhi <> a:3 var
+R5134:5134 Trinity.CorePhi <> b:4 var
+R5138:5140 Trinity.CorePhi <> phi def
+R5144:5147 Trinity.CorePhi <> Zphi def
+R5149:5149 Trinity.CorePhi <> b:4 var
+R5153:5155 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R5152:5152 Trinity.CorePhi <> a:3 var
+R5156:5156 Trinity.CorePhi <> b:4 var
+R5188:5191 Trinity.CorePhi <> Zphi def
+R5207:5216 Trinity.CorePhi <> phi_square thm
+R5236:5236 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5248:5251 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5238:5240 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R5242:5244 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5245:5247 Trinity.CorePhi <> phi def
+R5252:5254 Trinity.CorePhi <> phi def
+R5270:5272 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R5264:5266 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5267:5269 Trinity.CorePhi <> phi def
+R5274:5276 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5280:5280 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R5277:5279 Trinity.CorePhi <> phi def
+prf 5400:5414 <> zphi_add_closed
+R5435:5435 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 5425:5425 <> a:5
+binder 5427:5427 <> b:6
+binder 5429:5429 <> c:7
+binder 5431:5431 <> d:8
+R5459:5461 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5448:5450 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R5440:5443 Trinity.CorePhi <> Zphi def
+R5445:5445 Trinity.CorePhi <> a:5 var
+R5447:5447 Trinity.CorePhi <> b:6 var
+R5451:5454 Trinity.CorePhi <> Zphi def
+R5456:5456 Trinity.CorePhi <> c:7 var
+R5458:5458 Trinity.CorePhi <> d:8 var
+R5462:5465 Trinity.CorePhi <> Zphi def
+R5469:5471 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R5468:5468 Trinity.CorePhi <> a:5 var
+R5472:5472 Trinity.CorePhi <> c:7 var
+R5477:5479 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R5476:5476 Trinity.CorePhi <> b:6 var
+R5480:5480 Trinity.CorePhi <> d:8 var
+R5508:5511 Trinity.CorePhi <> Zphi def
+prf 5615:5629 <> zphi_opp_closed
+R5646:5646 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 5640:5640 <> a:9
+binder 5642:5642 <> b:10
+R5661:5663 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5651:5652 Stdlib.Reals.Rdefinitions <> ::R_scope:'-'_x not
+R5653:5656 Trinity.CorePhi <> Zphi def
+R5658:5658 Trinity.CorePhi <> a:9 var
+R5660:5660 Trinity.CorePhi <> b:10 var
+R5664:5667 Trinity.CorePhi <> Zphi def
+R5670:5670 Stdlib.Reals.Rdefinitions <> ::R_scope:'-'_x not
+R5671:5671 Trinity.CorePhi <> a:9 var
+R5675:5675 Stdlib.Reals.Rdefinitions <> ::R_scope:'-'_x not
+R5676:5676 Trinity.CorePhi <> b:10 var
+R5704:5707 Trinity.CorePhi <> Zphi def
+prf 5751:5759 <> zphi_zero
+R5771:5773 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5763:5766 Trinity.CorePhi <> Zphi def
+R5793:5796 Trinity.CorePhi <> Zphi def
+def 6036:6038 <> dot
+R6046:6049 Corelib.Init.Datatypes <> list ind
+R6053:6055 Corelib.Init.Datatypes <> ::type_scope:x_'*'_x not
+R6052:6052 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R6056:6056 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 6041:6042 <> ws:11
+R6068:6070 Corelib.Init.Datatypes <> ::type_scope:x_'*'_x not
+R6067:6067 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R6071:6071 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 6061:6063 <> acc:12
+R6077:6079 Corelib.Init.Datatypes <> ::type_scope:x_'*'_x not
+R6076:6076 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R6080:6080 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R6093:6094 Trinity.CorePhi <> ws:11 var
+R6105:6107 Corelib.Init.Datatypes <> nil constr
+R6112:6114 Trinity.CorePhi <> acc:12 var
+R6120:6123 Corelib.Init.Datatypes <> cons constr
+R6125:6125 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6127:6128 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6130:6130 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6138:6140 Trinity.CorePhi <> dot:13 def
+R6145:6145 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6157:6158 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6170:6170 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6153:6155 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6146:6148 Corelib.Init.Datatypes <> fst def
+R6150:6152 Trinity.CorePhi <> acc:12 var
+R6166:6168 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6159:6161 Corelib.Init.Datatypes <> snd def
+R6163:6165 Trinity.CorePhi <> acc:12 var
+prf 6188:6196 <> dot_exact
+binder 6207:6208 <> ws:15
+binder 6210:6210 <> a:16
+binder 6212:6212 <> b:17
+R6265:6269 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6217:6220 Trinity.CorePhi <> Zphi def
+R6223:6225 Corelib.Init.Datatypes <> fst def
+R6228:6230 Trinity.CorePhi <> dot def
+R6232:6233 Trinity.CorePhi <> ws:15 var
+R6235:6235 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6237:6238 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6240:6240 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6236:6236 Trinity.CorePhi <> a:16 var
+R6239:6239 Trinity.CorePhi <> b:17 var
+R6245:6247 Corelib.Init.Datatypes <> snd def
+R6250:6252 Trinity.CorePhi <> dot def
+R6254:6255 Trinity.CorePhi <> ws:15 var
+R6257:6257 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6259:6260 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6262:6262 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6258:6258 Trinity.CorePhi <> a:16 var
+R6261:6261 Trinity.CorePhi <> b:17 var
+R6278:6280 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6270:6273 Trinity.CorePhi <> Zphi def
+R6275:6275 Trinity.CorePhi <> a:16 var
+R6277:6277 Trinity.CorePhi <> b:17 var
+R6281:6284 Trinity.CorePhi <> Zphi def
+R6287:6289 Corelib.Init.Datatypes <> fst def
+R6292:6294 Trinity.CorePhi <> dot def
+R6296:6297 Trinity.CorePhi <> ws:15 var
+R6299:6299 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6301:6302 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6304:6304 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6309:6311 Corelib.Init.Datatypes <> snd def
+R6314:6316 Trinity.CorePhi <> dot def
+R6318:6319 Trinity.CorePhi <> ws:15 var
+R6321:6321 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6323:6324 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6326:6326 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R6403:6406 Trinity.CorePhi <> Zphi def
+R6440:6442 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6448:6450 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6462:6464 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6470:6472 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6489:6492 Trinity.CorePhi <> Zphi def
+prf 6536:6562 <> phi_between_1_618_and_1_619
+R6571:6573 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
+R6577:6579 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
+R6574:6576 Trinity.CorePhi <> phi def
+R6603:6605 Trinity.CorePhi <> phi def
+R6824:6826 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x not
+R6804:6807 Stdlib.Reals.R_sqrt <> sqrt def
+R6815:6817 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6827:6830 Stdlib.Reals.R_sqrt <> sqrt def
+R6846:6858 Stdlib.Reals.R_sqrt <> sqrt_lt_1_alt thm
+R6895:6897 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x not
+R6889:6892 Stdlib.Reals.R_sqrt <> sqrt def
+R6898:6901 Stdlib.Reals.R_sqrt <> sqrt def
+R6909:6911 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6931:6943 Stdlib.Reals.R_sqrt <> sqrt_lt_1_alt thm
+R6970:6980 Stdlib.Reals.R_sqrt <> sqrt_square thm
+R7005:7015 Stdlib.Reals.R_sqrt <> sqrt_square thm

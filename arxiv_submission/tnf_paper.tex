@@ -1389,7 +1389,7 @@ carry test, a saturating exponent add and a bit select.
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth]{canon/canon-tnf-08-fabric.png}
-\caption{What the datapath costs. The folded ternary neuron measures $28.0$ LUT per weight at fan-in $8$ and $33.1$--$33.2$ at fan-in $16$--$32$, with no DSP at any of the three, which is what makes area and precision commensurable in the fitted cost model of this section and places the format highest on throughput per LUT among the twenty-one measured formats that carry their own range.}
+\caption{What the datapath costs. The folded ternary neuron measures $28.0$ LUT per weight at fan-in $8$ and $33.1$--$33.2$ at fan-in $16$--$32$, with no DSP at any of the three, which is what makes area and precision commensurable in the fitted cost model of this section. The throughput-per-LUT ranking this caption previously drew from the same table is withdrawn: the frequencies it rested on were measured on builds whose on-die checks had been folded to constants at synthesis.}
 \label{fig:canon-fabric}
 \end{figure}
 
@@ -1830,7 +1830,7 @@ the predicted and observed factors are:
 predicts, and the loss measured against the reconciled rung
 $M = N - 1 - E_t$. Exact-arithmetic workload, 800 probes per rung.}
 \label{tab:alloc}
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrr}
 \toprule
 rung & $k$ & predicted & measured \\
 \midrule
@@ -3696,8 +3696,8 @@ the rest of this section enumerates them.
 this section wrote ``exactly when'' and justified the necessity in one clause:
 that any $|a_i|>1$ reintroduces a constant multiply. It does not. Coefficients
 in $\{0,\pm2^{k}\}$ are shifts, so they stay multiply-free at the cost of a
-shifter, and Section~\ref{sec:scaleradix} spends adders to reach ratios no
-$\{0,\pm1\}$ companion matrix names. What $\{0,\pm1\}$ characterises is not
+shifter, and any ratio at all is reachable multiply-free once enough adders are
+spent. What $\{0,\pm1\}$ characterises is not
 multiplier-freedom in general but multiplier-freedom \emph{at one addition and
 no shifter}, and every enumeration below is to be read under that budget. The
 biconditional is withdrawn; the sufficiency, which is what the datapath uses, is
@@ -4601,10 +4601,18 @@ adders and the routing scheme, and what closure buys is that neither is needed:
 one integer addition, and the multiply-free path is not an approximation of a
 multiply but equal to it (Theorem~\ref{thm:exact}).
 
-The closure half of this argument is machine-checked. In the accompanying
-development the map $(a,b)\mapsto(b,a+b)$ is proved to compute multiplication by
-$\varphi$ on the reals, and the exactness of an entire dot product follows from
-it, in Coq with no admitted lemmas.
+The closure half of this argument is machine-checked, and the artefact is named
+so it can be run rather than believed. In
+\texttt{proofs/trinity/CorePhi.v}, theorem \texttt{fib\_step\_is\_phi\_mul}
+proves that $(a,b)\mapsto(b,a+b)$ computes multiplication by $\varphi$ on the
+reals; \texttt{zphi\_add\_closed}, \texttt{zphi\_opp\_closed} and
+\texttt{zphi\_zero} close the lattice under the three arms of the
+$\{-\varphi,0,+\varphi\}$ alphabet; and \texttt{dot\_exact} carries the result
+along a whole dot product by induction on its length. The file compiles under
+\texttt{coqc} (Rocq 9.2) with twenty-two theorems, twenty-two \texttt{Qed} and
+no \texttt{Admitted} or \texttt{Axiom}. Until the revision named in the
+Reproducibility section that file did not compile at all and stated three false
+power identities; the correction is described there.
 
 \paragraph{The stage costs an order of magnitude, and it runs per accumulation.}
 Corollary~\ref{cor:closure} says a stage is required; the fabric says what it
@@ -7675,6 +7683,44 @@ commands are public. The toolchain is Yosys 0.65, nextpnr-xilinx 1743d0f,
 Icarus Verilog 13.0 and Python 3.14 --- all open-source, none requiring a
 licence, which is the point: a result nobody can reproduce without buying
 something is not a public result.
+
+\paragraph{Where the artefacts are.} Everything this paper measures is in one
+repository, \url{https://github.com/gHashTag/t27}, at commit
+\texttt{d9f7e9687}. Every occurrence of ``this revision'' below and above means
+that commit. An earlier draft pinned the tag \texttt{v4.0-trinity}, which does
+not exist on that remote and never did, so each of the twelve provenance claims
+in this paper resolved to nothing; a commit hash is used here because it cannot
+drift.
+
+\paragraph{What is machine-checked, and where.} The $\varphi$ identities on
+which the closure argument rests are in
+\texttt{proofs/trinity/CorePhi.v}: \texttt{phi\_square} ($\varphi^2=\varphi+1$),
+\texttt{trinity\_identity} ($\varphi^2+\varphi^{-2}=3$), and the Fibonacci
+powers \texttt{phi\_cubed\_fib}, \texttt{phi\_fourth\_fib},
+\texttt{phi\_fifth\_fib} ($\varphi^n=F(n)\varphi+F(n-1)$, which is the step the
+datapath performs). The closure results are there too:
+\texttt{fib\_step\_is\_phi\_mul}, \texttt{zphi\_add\_closed},
+\texttt{zphi\_opp\_closed}, \texttt{zphi\_zero} and \texttt{dot\_exact}. The
+file compiles under \texttt{coqc} (Rocq 9.2) with twenty-two theorems,
+twenty-two \texttt{Qed} and no \texttt{Admitted} or \texttt{Axiom}. It is checkable in one command and the reader is invited to run it rather
+than take the claim.
+
+That claim needed the correction. Until this revision the same file stated
+$\varphi^3=2\sqrt5+3$, which is $7.472$ where $\varphi^3$ is $4.236$, and two
+further powers with the same error --- the Fibonacci form written as
+$F(n)\sqrt5+F(n+1)$. It also did not compile: \texttt{phi\_square} read
+\texttt{apply phi\_quadratic; ring}, which derives nothing, and
+\texttt{phi\_quadratic} called \texttt{field} on a goal requiring
+$\sqrt5\cdot\sqrt5=5$, which \texttt{field} cannot know. Every lemma ended in
+\texttt{Qed} and none was ever checked, so ``no admitted lemmas'' was a true
+statistic over a file that type-checked nothing. Nothing outside those identities
+depended on the false statements, and the closure argument is unchanged; what
+changed is that it is now verified rather than asserted.
+
+\paragraph{What is not in the repository.} Section~\ref{sec:provenance} lists,
+by name, the figures whose generating data this repository does not contain.
+Those are the claims a reader cannot check, and they are marked rather than
+repaired.
 \begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth]{canon/canon-tnf-54-opentoolchain.png}
 \caption{Canon plate. The public oracle, RTL, tests, commands, and open-source toolchain make the reported work reproducible without a licence.}
@@ -7729,8 +7775,8 @@ vendor-neutral reference for FP8, BF16, MXFP4, and microscaling formats.
 \newblock arXiv:2606.09686, 2026; v1 8 June 2026, v2 22 June 2026.
 \newblock DOI \url{https://doi.org/10.48550/arXiv.2606.09686}.
 \newblock The shipped catalog contains 83 formats, matching the title of the
-current version. Source: \url{https://github.com/gHashTag/t27}, tag
-\texttt{v4.0-trinity}.
+current version. Source: \url{https://github.com/gHashTag/t27}, commit
+\texttt{d9f7e9687}.
 
 \bibitem{gustafson}
 J.~L.~Gustafson and I.~Yonemoto.
