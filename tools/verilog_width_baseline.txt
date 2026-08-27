@@ -19,3 +19,22 @@
 # subtraction that is not there. Two of the three mechanisms this ledger
 # once held WERE underflows (u32 and usize) and are fixed.
 specs/compiler/stdlib.t27
+#
+# specs/base/ternary_memory.t27 -- the SECOND line, and it is not new damage.
+# The spec could not parse at all until the source a counter overwrote was
+# restored, so it had never reached this gate. Same class as the line above,
+# and the arithmetic is likewise exact:
+#
+#   TritCell    { value: i32; state: u8; last_access: u64; access_count: u32 }
+#                                        = 32 + 8 + 64 + 32       =       136
+#   TernaryWord { trits: [27]TritCell; state: u8; checksum: u32 }
+#                                        = 27*136 + 8 + 32        =     3,712
+#   TernaryMemoryBank { words: [1024]TernaryWord; allocated: usize;
+#                       total_accesses: u64 }
+#                                        = 1024*3712 + 32 + 64    = 3,801,184
+#
+# `[3801183:0]`, derived independently and matching the emitter bit for bit.
+# 464 KiB in one packed register: the backend computed it faithfully and the
+# spec asked for something with no hardware form. TRIT_CAPACITY is 27, which
+# is 3^3 -- the size is deliberate, not a slip.
+specs/base/ternary_memory.t27
