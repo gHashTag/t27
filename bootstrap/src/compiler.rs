@@ -3747,6 +3747,14 @@ impl Parser {
     /// Parse if / else if / else statement
     /// The condition of an `if`, a `while`, or an `if` expression.
     ///
+    /// `body_follows` says whether a `{` block must come next. It is false for
+    /// the `if` EXPRESSION, whose then-branch is an expression: `if (c) a else
+    /// b` is legitimate and the paren really does close the condition there.
+    /// Rewinding in that context re-read `(c) a` as one expression and killed
+    /// six specs -- ops, ternary_add, types, gf16, gfternary, tf3 -- which a
+    /// before/after parse of the whole corpus caught and the green test did
+    /// not.
+    ///
     /// Three byte-identical copies of this stood in the parser and all three
     /// carried the same defect, so the fix lives in one place.
     ///
@@ -3762,13 +3770,16 @@ impl Parser {
     /// condition continued, so the checkpoint rewinds and the bare path
     /// re-reads it whole. Without parentheses, `Name {` would open the BODY,
     /// so struct-literal parsing is suppressed there.
-    fn parse_condition(&mut self) -> Result<Node, String> {
+    fn parse_condition(&mut self, body_follows: bool) -> Result<Node, String> {
         if self.current.kind == TokenKind::LParen {
             let checkpoint = self.save_state();
             self.advance();
             let c = self.parse_expr()?;
             self.expect(TokenKind::RParen)?;
-            if self.current.kind == TokenKind::LBrace || self.current.kind == TokenKind::Pipe {
+            if !body_follows
+                || self.current.kind == TokenKind::LBrace
+                || self.current.kind == TokenKind::Pipe
+            {
                 return Ok(c);
             }
             self.restore_state(checkpoint);
@@ -3787,7 +3798,7 @@ impl Parser {
         // `if cond { ... }` and it was "Expected LParen, got Ident" -- 1,002
         // assertion clauses (W578). Without parentheses, `Name {` opens the
         // BODY, so struct-literal parsing is suppressed for the condition.
-        let cond = self.parse_condition()?;
+        let cond = self.parse_condition(true)?;
         if_node.children.push(cond);
 
         // PAYLOAD CAPTURE: `if (opt) |value| { ... }` -- Zig's optional
@@ -3884,7 +3895,7 @@ impl Parser {
         // (W578). `while e > 0 {` is the Rust form and 22 specs use it. Without
         // parentheses a `Name {` opens the BODY, so struct-literal parsing is
         // suppressed while reading the condition.
-        let cond = self.parse_condition()?;
+        let cond = self.parse_condition(true)?;
         while_node.children.push(cond);
 
         // Zig's CONTINUE EXPRESSION: `while (i < n) : (i += 1) { ... }`, the
@@ -5508,7 +5519,7 @@ impl Parser {
         // Without parentheses, `Name {` opens the THEN branch, so
         // struct-literal parsing is suppressed for the condition exactly as
         // it is for the statement form.
-        let cond = self.parse_condition()?;
+        let cond = self.parse_condition(false)?;
 
         // Then expression
         let then_expr = self.parse_branch_value()?;
