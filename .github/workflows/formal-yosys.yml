@@ -180,12 +180,34 @@ jobs:
             cat /tmp/stat.$$.txt
             exit 1
           }
+          # MAX, not sum. `stat` prints the tally once per module and once for
+          # the design, so the observed output is
+          #
+          #     $assert                         6
+          #     $assert                         6
+          #
+          # for six properties. Summing gives 12 -- and inflating a VACUITY
+          # counter is the dangerous direction: it would let a shortfall pass.
+          # `-flatten` above guarantees a single module, so the maximum is the
+          # true count.
+          #
+          # `stat` prints the cell NAME first and its count second:
+          #
+          #     $assert                         6
+          #
+          # so the count is the field AFTER the name. The pattern this replaced,
+          # `grep -oE '[0-9]+ +\$check'`, wanted `6 $check` -- the count before
+          # the name -- and so could never match on ANY Yosys, whatever cell it
+          # emitted. Two independent errors in one counter, either of which
+          # alone forced it to report zero, and both invisible while the
+          # workflow had never run.
+          #
           # Show what was found before judging it. Four runs failed here
           # without ever printing a count, because yosys's output went into
           # a command substitution and a non-matching grep killed the step
           # under `set -e` before the echo below could run.
           grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
-          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) s += $(i-1)} END {print s+0}' /tmp/stat.$$.txt)
+          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) { v = $(i+1) + 0; if (v > m) m = v }} END {print m+0}' /tmp/stat.$$.txt)
           echo "check cells: ${n:-0}"
           if [ "${n:-0}" -lt 6 ]; then
             echo "::error::Expected >=6 \$check cells, found ${n:-0} — the run would be vacuous or properties were dropped."
@@ -216,7 +238,7 @@ jobs:
           # a command substitution and a non-matching grep killed the step
           # under `set -e` before the echo below could run.
           grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
-          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) s += $(i-1)} END {print s+0}' /tmp/stat.$$.txt)
+          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) { v = $(i+1) + 0; if (v > m) m = v }} END {print m+0}' /tmp/stat.$$.txt)
           echo "axi check cells: ${n:-0}"
           # 7 -> 6 in Wave 591: a_sanity was `X == X`, folded to constant true,
           # and it still emitted a $check cell. This gate exists to catch an
@@ -251,7 +273,7 @@ jobs:
           # a command substitution and a non-matching grep killed the step
           # under `set -e` before the echo below could run.
           grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
-          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) s += $(i-1)} END {print s+0}' /tmp/stat.$$.txt)
+          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) { v = $(i+1) + 0; if (v > m) m = v }} END {print m+0}' /tmp/stat.$$.txt)
           echo "dma check cells: ${n:-0}"
           # 8 -> 7 in Wave 591, same reason as axi_props above (Prop. 41).
           # 7 -> 8 in Wave 618: the AXI4 read-slave model contributes
@@ -331,7 +353,7 @@ jobs:
           # a command substitution and a non-matching grep killed the step
           # under `set -e` before the echo below could run.
           grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
-          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) s += $(i-1)} END {print s+0}' /tmp/stat.$$.txt)
+          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) { v = $(i+1) + 0; if (v > m) m = v }} END {print m+0}' /tmp/stat.$$.txt)
           echo "db check cells: ${n:-0}"
           if [ "${n:-0}" -lt 4 ]; then
             echo "::error::Expected >=4 \$check cells for db_props, found ${n:-0}."
@@ -1152,7 +1174,7 @@ jobs:
           # a command substitution and a non-matching grep killed the step
           # under `set -e` before the echo below could run.
           grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
-          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) s += $(i-1)} END {print s+0}' /tmp/stat.$$.txt)
+          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) { v = $(i+1) + 0; if (v > m) m = v }} END {print m+0}' /tmp/stat.$$.txt)
           if [ "${n:-0}" -lt 2 ]; then
             echo "::error::Expected >=2 \$check cells for the DMA drain properties,"
             echo "::error::found ${n:-0} -- they were not compiled and this proves nothing."
@@ -1223,7 +1245,7 @@ jobs:
           # a command substitution and a non-matching grep killed the step
           # under `set -e` before the echo below could run.
           grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
-          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) s += $(i-1)} END {print s+0}' /tmp/stat.$$.txt)
+          n=$(awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert)$/) { v = $(i+1) + 0; if (v > m) m = v }} END {print m+0}' /tmp/stat.$$.txt)
           if [ "${n:-0}" -lt 2 ]; then
             echo "::error::Expected >=2 \$check cells, found ${n:-0} -- the inline"
             echo "::error::drain properties were not compiled and this step proves nothing."
