@@ -34527,8 +34527,15 @@ mod tests_compiler_rejects {
             "the first module must be emitted, got:\n{}",
             v
         );
+        // Counting the substring "module " counted the comment
+        // "this module cannot move a value across its boundary" as a second
+        // module. The emitted Verilog was right the whole time -- one module,
+        // TFirst -- and the ruler was wrong. Count DECLARATIONS: a line whose
+        // first token is `module`.
         assert_eq!(
-            v.matches("module ").count(),
+            v.lines()
+                .filter(|l| l.trim_start().starts_with("module "))
+                .count(),
             1,
             "only the first module is currently lowered (one `module` keyword), got:\n{}",
             v
@@ -38217,15 +38224,32 @@ fn read_it() -> u16 {
 ";
         let v = Compiler::compile_verilog_for_simulation(src)
             .expect("keyword-named local must still compile");
+        // These two assertions used to pin the SHAPE of the lowering --
+        // `reg [15:0] \buf [0:3];` and `\buf [0] =`, an unpacked array with
+        // per-element initialisers. The emitter now packs the array into one
+        // vector (`reg [63:0] \buf ;`, indexed `\buf [31:16]`), so both
+        // assertions failed while the thing they exist to protect -- the
+        // escaping -- was working.
+        //
+        // W643 is about escaping, not about packing. So the requirement is
+        // stated over every occurrence: no mention of `buf` may appear
+        // unescaped, wherever the emitter chooses to put it. That is stricter
+        // than the two literals it replaces, which said nothing about the rest
+        // of the output.
+        let unescaped: Vec<&str> = v
+            .match_indices("buf")
+            .filter(|(i, _)| *i == 0 || v.as_bytes()[i - 1] != b'\\')
+            .map(|(i, _)| &v[i.saturating_sub(20)..(i + 8).min(v.len())])
+            .collect();
         assert!(
-            v.contains("reg [15:0] \\buf [0:3];"),
-            "the DECLARATION must be escaped:\n{}",
+            unescaped.is_empty(),
+            "every mention of the keyword-named local must be escaped; these are not: {:#?}\n{}",
+            unescaped,
             v
         );
         assert!(
-            v.contains("\\buf [0] ="),
-            "the INITIALISER must be escaped too -- escaping one and not the \
-             other is what produced the original defect:\n{}",
+            v.contains("\\buf "),
+            "the DECLARATION must be escaped:\n{}",
             v
         );
         assert!(
@@ -38480,11 +38504,23 @@ fn read_it() -> u16 {
                 pub fn set(arr: [4]u16, i: u32, v: u16) { arr[i] = v; }
                 test write_read { set(mem, 1, 0xABCD); assert_eq(mem[1], 0xABCD); }
             }"#;
-            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            // W459 asks that a call inside a test block reach the output as a
+            // real statement. It was asked of `gen-verilog`, which no longer
+            // lowers test blocks at all: it emits synthesizable RTL and names
+            // the test in a "NOT LOWERED BY THIS BACKEND" section, because
+            // yosys turns every `$display` into a `$print` cell that nextpnr
+            // has no BEL to place. Test blocks are carried by
+            // `gen-verilog-for-simulation`.
+            //
+            // So the requirement is unchanged and the backend it is asked of is
+            // corrected. Asked of `gen-verilog` it could only ever fail, which
+            // is why it had been failing.
+            let v = Compiler::compile_verilog_for_simulation(src)
+                .expect("compile should succeed");
             // The function should be emitted (not skipped with an error comment).
             assert!(
-                v.contains("set; // -> auto"),
-                "set should be emitted:\n{}",
+                v.contains("task set;"),
+                "set should be emitted as a task:\n{}",
                 v
             );
             // The test initial block should contain a real call, not a commented one.
@@ -38510,7 +38546,19 @@ fn read_it() -> u16 {
                 pub fn get(i: u32) -> u16 { return mem[i]; }
                 test write_read { set(1, 0xABCD); assert_eq(get(1), 0xABCD); }
             }"#;
-            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            // W459 asks that a call inside a test block reach the output as a
+            // real statement. It was asked of `gen-verilog`, which no longer
+            // lowers test blocks at all: it emits synthesizable RTL and names
+            // the test in a "NOT LOWERED BY THIS BACKEND" section, because
+            // yosys turns every `$display` into a `$print` cell that nextpnr
+            // has no BEL to place. Test blocks are carried by
+            // `gen-verilog-for-simulation`.
+            //
+            // So the requirement is unchanged and the backend it is asked of is
+            // corrected. Asked of `gen-verilog` it could only ever fail, which
+            // is why it had been failing.
+            let v = Compiler::compile_verilog_for_simulation(src)
+                .expect("compile should succeed");
             assert!(
                 v.contains("set(1, 43981);"),
                 "bare set call should be emitted as a real statement:\n{}",
@@ -38522,9 +38570,22 @@ fn read_it() -> u16 {
                 v
             );
             // assert_eq should also be emitted as a real check (if branch).
+            // This pinned the spelling `if (!(`; the emitter now writes the
+            // comparison directly, `if (((x) != (43981)))`. Same check, other
+            // words. So the requirement is stated as what a real check must DO:
+            // branch on the expected value and set the failure flag.
+            let checks_expected = v
+                .lines()
+                .any(|l| l.contains("if (") && l.contains("43981"));
             assert!(
-                v.contains("if (!("),
-                "assert_eq should emit a real comparison:\n{}",
+                checks_expected,
+                "assert_eq should emit a real comparison against the expected value:\n{}",
+                v
+            );
+            assert!(
+                v.contains("t27_failed = 1'b1;"),
+                "a comparison that cannot fail is not a check -- the failure path \
+                 must be emitted:\n{}",
                 v
             );
         }
