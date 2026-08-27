@@ -831,37 +831,37 @@
     },
     {
       "path": "specs/numeric/gf12.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf20.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf24.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf32.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf8.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
-      "issue": 1959,
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
+      "issue": 2474,
       "expires": "2026-11-30"
     },
     {

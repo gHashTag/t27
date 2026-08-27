@@ -1,0 +1,11 @@
+# NOW -- t27c 0.2.0: seven defects, five of them a green exit (2026-08-27)
+
+## t27c 0.2.0: seven defects, five of them a green exit (Refs #2161)
+
+- Refs #2161. StmtForRange was UNREACHABLE: parse_for_range parses its start bound with the full expression grammar, which carries `..` as a binary operator for slices, so every range loop was built as the collection form. 0 StmtForRange nodes across 746 specs against 383 StmtFor -- gen_c_for_range_stmt and gen_verilog_for_range_stmt had never run
+- Cost per backend: gen-c emitted NO loop header at all (391 sites, 48 specs) so the body lowered exactly once; gen-verilog emitted the range as the bound, `for (i = 0; i < (0 .. 8); ...)`, which iverilog rejects (32 sites, 14 specs). Fixed with a `no_range` suppression beside the existing no_struct_literal
+- The oracle was already in the tree and red: seven for_range unit tests encode exactly this lowering and were failing on master. 1622 passed/13 failed -> 1629 passed/6 failed, and the seven that turned green are exactly those
+- My first version of the fix regressed one spec: `for i in 0..len(s)` has a CALL as its end bound and parse_range_bound is deliberately restricted. The end bound now uses the full grammar under both suppressions
+- Three more green-exit-that-is-not-a-result, all in t27c own CLI: `health` was red because the compiler embedded self-check spec used a forall form its parser rejects; `ci --repo-root <nonexistent>` printed CI: PASSED and exited 0; `battery --dir` ignored its argument entirely and audited THIS repository instead, because repo_root.join(dir) replaces the base on an absolute path and the read failure was swallowed
+- Plus the parenthesised `for (i in a..b)` -- the only cluster in this corpus whose fix-yield equals its size, 5 specs of 5 -- and `--version`, which did not exist though `t27c version` did
+- Measured 0.1.0 -> 0.2.0: specs that parse 603 -> 620, suite parse failures 110 -> 92, gen-c dropped loop headers 48 -> 37, zero parse regressions at every step. parse-no-discard and seal-verify both ROSE, mechanically: a spec that could not parse now parses and reveals it discards tokens, and changed emitter output makes stored seals stop matching

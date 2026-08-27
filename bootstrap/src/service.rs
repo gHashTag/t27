@@ -2199,6 +2199,23 @@ pub fn run_battery(repo_root: &Path, dir: String) -> anyhow::Result<()> {
     let mut total = 0usize;
     let mut failed = Vec::new();
 
+    // `--dir` must name a directory that exists. `repo_root.join(dir)`
+    // REPLACES the base when `dir` is absolute, and the read below is a
+    // `if let Ok(..)` that swallows the failure -- so `battery --dir
+    // /tmp/does-not-exist` found no oracles there, fell through to
+    // `repo_root/tools`, ran this repository's own 13 gates, and reported on a
+    // tree the caller never asked about.
+    if !doc.is_dir() {
+        anyhow::bail!(
+            "--dir {} is not a directory.\n\
+             Refusing rather than falling back to {}/tools: a battery that \
+             silently audits a different tree than the one you named is worse \
+             than no battery.",
+            doc.display(),
+            repo_root.display()
+        );
+    }
+
     let mut scripts: Vec<std::path::PathBuf> = Vec::new();
     if let Ok(rd) = std::fs::read_dir(&doc) {
         for e in rd.filter_map(|e| e.ok()) {
@@ -2221,9 +2238,30 @@ pub fn run_battery(repo_root: &Path, dir: String) -> anyhow::Result<()> {
             }
         }
     }
+    let n_oracles = scripts
+        .iter()
+        .filter(|p| {
+            let n = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            n.starts_with("recompute_") || n.starts_with("adjudicate_")
+        })
+        .count();
+    let n_gates = scripts.len() - n_oracles;
     scripts.sort();
     if scripts.is_empty() {
         anyhow::bail!("no recompute_*/adjudicate_*/check_* scripts under {} or tools/", doc.display());
+    }
+    // Both counts, always. The union being non-empty says nothing about the
+    // directory you named: `tools/` alone supplies every `check_*` in this
+    // repository, so a run with zero oracles is a run about somewhere else.
+    println!("battery: {} oracle(s) under {}, {} gate(s) from tools/",
+             n_oracles, doc.display(), n_gates);
+    if n_oracles == 0 {
+        anyhow::bail!(
+            "no recompute_*/adjudicate_* oracle under {} -- the {} gate(s) below \
+             come from tools/ and say nothing about that directory.",
+            doc.display(),
+            n_gates
+        );
     }
 
     for s in &scripts {

@@ -1059,6 +1059,16 @@ pub struct Parser {
     /// the branch body, not a struct literal. Rust has the same ambiguity and
     /// resolves it the same way (W578).
     no_struct_literal: u32,
+    /// Suppress `..` as a binary operator while a RANGE BOUND is being parsed.
+    ///
+    /// `parse_for_range` parses its start bound with the full expression
+    /// grammar, and that grammar carries `..` in the comparison chain (for
+    /// slices). So `for i in 0..8` came back as ONE ExprBinary, the
+    /// `current.kind != DotDot` test below it never fired, and every range
+    /// loop was built as the COLLECTION form. `StmtForRange` was unreachable:
+    /// 0 nodes across 746 tracked specs against 383 `StmtFor`, and with it
+    /// `gen_c_for_range_stmt` and `gen_verilog_for_range_stmt` were dead code.
+    no_range: u32,
     /// W633: tokens DISCARDED by top-level drop-recovery. The parser resyncs
     /// past an unrecognised declaration and reaches EOF, so
     /// `parse_ast_strict`'s "did we reach EOF?" check reports "consumed all"
@@ -1131,6 +1141,7 @@ impl Parser {
             peek: second,
             pending_pragma: String::new(),
             no_struct_literal: 0,
+            no_range: 0,
             dropped_top_level_tokens: 0,
             hoisted_fns: Vec::new(),
             in_bdd_clause_value: false,
@@ -3914,7 +3925,28 @@ impl Parser {
             let ident = self.current.lexeme.clone();
             self.advance(); // consume ident
             self.advance(); // consume 'in'
-            return self.parse_for_range(ident);
+            return self.parse_for_range(ident, false);
+        }
+
+        // PARENTHESISED range for: `for (i in a..b) { body }`. `if (...)` and
+        // `while (...)` both accept the parenthesised form; `for` did not, and
+        // the diagnostic landed on the `(` as "Expected LBrace, got LParen" --
+        // which reads as a missing body rather than a rejected spelling.
+        //
+        // Checkpointed rather than looked ahead: the parser holds only
+        // `current` and `peek`, and Zig's capture form `for (xs) |x| { }`
+        // opens with the same `(`. On anything but IDENT + `in` the state is
+        // restored and that branch runs unchanged.
+        if self.current.kind == TokenKind::LParen {
+            let checkpoint = self.save_state();
+            self.advance(); // consume '('
+            if self.current.kind == TokenKind::Ident && self.peek.kind == TokenKind::KwIn {
+                let ident = self.current.lexeme.clone();
+                self.advance(); // consume ident
+                self.advance(); // consume 'in'
+                return self.parse_for_range(ident, true);
+            }
+            self.restore_state(checkpoint);
         }
 
         let mut for_node = Node::new(NodeKind::StmtFor);
@@ -3976,7 +4008,10 @@ impl Parser {
     }
 
     /// Parse range for body: start_expr .. end_expr { body }
-    fn parse_for_range(&mut self, var_name: String) -> Result<Node, String> {
+    /// `paren` -- the caller consumed a `(` before the loop variable, so the
+    /// matching `)` sits immediately before the body brace and must be eaten
+    /// on BOTH paths out of this function.
+    fn parse_for_range(&mut self, var_name: String, paren: bool) -> Result<Node, String> {
         let mut node = Node::new(NodeKind::StmtForRange);
         node.name = var_name;
 
@@ -3988,7 +4023,9 @@ impl Parser {
         // `for i in 0..max_iterations {` ate the body as a literal and the
         // whole fn fell. Same suppression as if/while conditions.
         self.no_struct_literal += 1;
+        self.no_range += 1;
         let start = self.parse_expr();
+        self.no_range -= 1;
         self.no_struct_literal -= 1;
         let start = start?;
 
@@ -4005,6 +4042,9 @@ impl Parser {
             // Captures live in `params`, exactly as the parenthesised
             // `for (xs) |x| { ... }` form stores them.
             coll.params.push((node.name.clone(), String::new()));
+            if paren {
+                self.expect(TokenKind::RParen)?;
+            }
             self.expect(TokenKind::LBrace)?;
             let mut body_block = Node::new(NodeKind::Module);
             body_block.name = "body".to_string();
@@ -4028,9 +4068,41 @@ impl Parser {
 
         self.expect(TokenKind::DotDot)?;
 
-        let end = self.parse_range_bound()?;
+        // `for i in a..=b`. With `no_range` active the chain no longer eats the
+        // `..`, so the inclusive `=` arrives here. Lowered to the exclusive
+        // range over `b + 1`: every backend lowers `..` already and none would
+        // know `..=`.
+        let inclusive = self.current.kind == TokenKind::Equals;
+        if inclusive {
+            self.advance();
+        }
+        // The END bound is a full expression: `for i in 0..len(s)` is real and
+        // `parse_range_bound` is deliberately restricted (it stops at `db` in
+        // `db.facts`). Both suppressions apply -- `no_range` so a following
+        // `..` is left alone, `no_struct_literal` because the `{` after the
+        // bound opens the loop BODY, not a struct literal.
+        self.no_struct_literal += 1;
+        self.no_range += 1;
+        let end = self.parse_expr();
+        self.no_range -= 1;
+        self.no_struct_literal -= 1;
+        let end = end?;
+        let end = if inclusive {
+            let mut plus = Node::new(NodeKind::ExprBinary);
+            plus.extra_op = "+".to_string();
+            plus.children.push(end);
+            let mut one = Node::new(NodeKind::ExprLiteral);
+            one.value = "1".to_string();
+            plus.children.push(one);
+            plus
+        } else {
+            end
+        };
         node.children.push(end);
 
+        if paren {
+            self.expect(TokenKind::RParen)?;
+        }
         self.expect(TokenKind::LBrace)?;
         let mut body_block = Node::new(NodeKind::Module);
         body_block.name = "body".to_string();
@@ -4206,6 +4278,10 @@ impl Parser {
             if self.current.kind == TokenKind::DotDot
                 && matches!(self.peek.kind, TokenKind::RBracket | TokenKind::RParen)
             {
+                break;
+            }
+            // A range BOUND must not swallow its own `..`; see `no_range`.
+            if self.current.kind == TokenKind::DotDot && self.no_range > 0 {
                 break;
             }
             let op = self.current.lexeme.clone();
