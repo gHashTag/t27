@@ -3436,7 +3436,7 @@ of $109$ magnitudes and $15.5147$ --- they are the same format, reached from two
 directions. BNF is measured too, at $97$ LUT and $388.35$\,MHz, but on the
 isolated-decoder harness of Section~\ref{sec:hardware} rather than the
 ternary-neuron datapath of Table~\ref{tab:fullthroughput}, which is where
-it now appears in Table~\ref{tab:fullthroughput} as row 2, measured on the
+it now appears in Table~\ref{tab:fullthroughput} as row 10, measured on the
 same harness as everything else.
 
 \paragraph{The two rules name the same format, and neither predicted it.}
@@ -4136,7 +4136,7 @@ the two excesses is
 For $y=x\ln 2\in(0,1)$ the numerator is
 $e^y(1-y)-1<0$, since $\ln(1-y)<-y$.  Thus $R$ decreases with $x$,
 while $2^{-k}$ decreases with $k$, so the ratio rises with $k$.  Finally,
-L'Hôpital's rule gives $\lim_{x\to0^+}R(x)=1/\ln 2$.
+L'H\^opital's rule gives $\lim_{x\to0^+}R(x)=1/\ln 2$.
 \end{proof}
 
 The defect is structural rather than a matter of tuning: a float grid is uniform
@@ -4294,7 +4294,7 @@ $21$-local, with memory $10$ and anticipation $10$. ``Constant time'' read as
 \caption{The multiply-free scales in one place. Level error is $(r-1)/(r+1)$,
 the worst relative gap on a ladder of ratio $r$; LUT area is one scale
 application at 16-bit components, xc7a200t, median of five seeds. Every rung
-below the shift costs exactly one addition; only the register count grows.}
+below the shift costs exactly one addition and only the register count grows, with the degree-4 minimum included as the exception at three.}
 \label{tab:allscales}
 \begin{tabular}{llrrrrl}
 \toprule
@@ -4442,12 +4442,13 @@ Two's complement is $(\lnot x)+1$ and the $+1$ of every lane is a single bit, so
 the fold is an exclusive-or with the weight's sign plus a narrow second tree
 carrying the ones, added once at the root. Equivalence was checked before
 synthesis: $0$ mismatches in $400$ random $(x,w)$ vectors. Area falls by
-$2.9$--$3.6\times$ and lands on the hand count --- a three-way select of a
+$2.6$--$3.6\times$ and lands on the hand count --- a three-way select of a
 16-bit value at roughly $16$ LUT6 plus a 16-bit add at roughly $8$, so $24$ to
 $30$ per lane --- which is what confirms the negation was the whole gap rather
-than part of it. Frequency falls about $20\%$, the carry tree's root addition
-sitting after the main one; on throughput per area the trade is worth
-$2.35$--$2.87\times$.
+than part of it. Frequency falls about $20\%$ at fan-in $8$ and $16$ and $12\%$
+at $32$, the carry tree's root addition sitting after the main one; on
+throughput per area the trade is worth $2.1$--$3.1\times$, the fan-in-$16$ row
+being the weakest at $2.11\times$ and fan-in $32$ the strongest at $3.14\times$.
 
 So a ternary neuron costs \textbf{28 LUT per weight at fan-in 8 and no DSP at
 any fan-in}.
@@ -4543,11 +4544,16 @@ $\{0,\pm1,\pm2\}$ --- still addition and wiring, since $\pm2$ is a shift ---
 degree $9$ reaches $1.026129$, within $0.003\%$, out of $734{,}533$ enumerated
 roots.
 
-What is a real limit is the one-adder family itself. At the same eight-bit
-target its best member is $1.0850702$ under $\{0,\pm1\}$ and $1.0510545$ under
-$\{0,\pm1,\pm2\}$, errors of $5.6\%$ and $2.4\%$, and these do not improve with
-degree. Any ratio is reachable multiply-free if adders are spent; a coarser set
-is reachable with one.
+What the one-adder family costs is registers, not granularity. At degree $9$ its
+best member is $1.0850702$ under $\{0,\pm1\}$, $5.7\%$ from the eight-bit target
+of $1.026159$; but the roots of $r^d=r+1$ descend monotonically towards $1$, as
+Theorem~\ref{thm:oneadder} states, and degree $27$ reaches $1.0265049$ ---
+within $0.034\%$ --- at the same single addition. An earlier version of this
+paragraph said these errors ``do not improve with degree'', which contradicts
+that theorem and is withdrawn. The target is reached; it is reached at $27$
+registers rather than the $9$ the unrestricted enumeration needs. Any ratio is
+reachable multiply-free if adders are spent; this family reaches any ratio with
+one adder, and pays in state.
 
 \paragraph{The hierarchy is cheap only as far as degree three.}
 Table~\ref{tab:deg4} adds the smallest degree-4 scale, the root of
@@ -4571,8 +4577,13 @@ $1.1787$ (deg 4)       & 469 & 320 & 184.98 & $\mathbf{8.20\%}$ & 3 \\
 \end{tabular}
 \end{table}
 
-This places the alphabet exactly. $\varphi$ is the right rung at four bits,
-where $r^{*}=1.4115$ falls between it and supergolden and the two tie. It is the
+This places the alphabet exactly. $\varphi$ is the right rung at four bits on
+the measured column, and the continuous optimum does not by itself say so:
+$r^{*}=1.4115$ falls between plastic $1.3247$ and supergolden $1.4656$, below
+$\varphi$ rather than beside it, so the nearest-ratio rule alone would select
+supergolden. An earlier version of this sentence placed $r^{*}$ between
+$\varphi$ and supergolden, which is arithmetically false. What selects $\varphi$
+here is the measurement, not the proximity. It is the
 wrong rung at five and above --- and by five, the affordable part of the
 hierarchy has been left behind too, since degree 4 costs $2.1\times$ the area.
 The regime in which a multiply-free datapath is worth building is the one where
@@ -4753,8 +4764,12 @@ backpropagation in the placed design & \textbf{0} & XOR $4/4$, 24--25 epochs & t
 \caption{Throughput per area among formats that carry their own range, with
 conformance. One ternary-neuron datapath, XC7A200T, no DSP, every accumulator
 bit observed, median of five placement seeds. \texttt{int8} is in
-Table~\ref{tab:rejected}. \textbf{All four TNF rungs are at their specified
-parameters here}, and all three moved: the modules previously measured
+Table~\ref{tab:rejected}. \textbf{Three of the four TNF rungs are at their
+specified parameters here; the TNF64 row is not}. Its $65$ bits are the
+pre-reconciliation module at $M{=}52$, where the reconciled rung is $69$ bits
+and has not been placed --- so that row is named by its stored width and should
+not be read against a specified TNF64. The other three moved: the modules
+previously measured
 implemented different formats --- TNF16 one mantissa bit short, TNF32 with twelve
 trits and eleven mantissa bits where the specification gives six and
 twenty-five, TNF64 likewise --- and none had a reference, which is how the
@@ -6835,7 +6850,7 @@ its mean error is contaminated by the survivors. At $\sigma=8$ it overflowed on
 $1{,}192$ and TNF itself began to clip. Range failures and accuracy losses are
 different failures and this paper does not trade one for the other silently.
 
-\subsection{The condition is where the bulk sits, and the threshold is $2^{12}$}
+\subsection{The condition is where the bulk sits, and the threshold is \texorpdfstring{$2^{12}$}{2\textasciicircum 12}}
 
 Table~\ref{tab:window} moves the bulk instead of the tail: $|x|\sim 2^{c\pm 2}$
 with $c$ swept, $9{,}000$ samples per row. The crossover against \texttt{takum16}
