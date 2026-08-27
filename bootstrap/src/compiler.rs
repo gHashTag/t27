@@ -21805,6 +21805,64 @@ impl RustCodegen {
         }
     }
 
+    /// Zig builtins, in Rust.
+    ///
+    /// t27's surface is Zig-shaped, so `@as`, `@intCast`, `@min` and friends
+    /// appear in specs. The Rust emitter passed them through verbatim -- 27
+    /// distinct builtins, ~250 occurrences across 43 specs -- and `@as(u32, x)`
+    /// is not Rust, so every one of those files failed to compile. Nothing
+    /// reported it, because `corpus` did not measure the Rust backend at all.
+    ///
+    /// Two groups, and the difference matters. Where Zig names the target type
+    /// the translation is exact. Where Zig INFERS it from context (`@intCast`,
+    /// `@floatFromInt`) the honest Rust is `as _`, which asks rustc to infer
+    /// from the same context -- a `let` with a declared type, or a `return` in
+    /// a typed fn. Guessing a concrete width instead would be a silent wrong
+    /// answer, which is the defect class this backend has just been cleared of.
+    fn zig_builtin_to_rust(name: &str, args: &[String]) -> Option<String> {
+        if !name.starts_with('@') {
+            return None;
+        }
+        let a = |i: usize| args.get(i).cloned().unwrap_or_default();
+        let two = args.len() == 2;
+        let one = args.len() == 1;
+        Some(match name {
+            // Target named by the source: exact.
+            "@as" if two => format!("({} as {})", a(1), Self::t27_type_to_rust(&a(0))),
+            "@intCast" | "@floatCast" | "@truncate" if two => {
+                format!("({} as {})", a(1), Self::t27_type_to_rust(&a(0)))
+            }
+            "@intFromFloat" | "@floatFromInt" if two => {
+                format!("({} as {})", a(1), Self::t27_type_to_rust(&a(0)))
+            }
+            // Target inferred from context, exactly as in Zig.
+            "@intCast" | "@floatCast" | "@truncate" | "@intFromFloat" | "@floatFromInt"
+                if one =>
+            {
+                format!("({} as _)", a(0))
+            }
+            // A fieldless enum casts to its discriminant in both languages.
+            "@intFromEnum" if one => format!("({} as i32)", a(0)),
+            // Method calls in Rust.
+            "@min" if two => format!("({}).min({})", a(0), a(1)),
+            "@max" if two => format!("({}).max({})", a(0), a(1)),
+            "@sqrt" | "@abs" | "@round" | "@floor" | "@ceil" | "@trunc" | "@exp" | "@log"
+            | "@sin" | "@cos" | "@tan"
+                if one =>
+            {
+                format!("({}).{}()", a(0), &name[1..])
+            }
+            // Operators in Rust.
+            "@rem" if two => format!("({} % {})", a(0), a(1)),
+            "@mod" if two => format!("({}).rem_euclid({})", a(0), a(1)),
+            "@divTrunc" if two => format!("({} / {})", a(0), a(1)),
+            "@divFloor" if two => format!("({}).div_euclid({})", a(0), a(1)),
+            // Anything else keeps its spelling: a wrong translation is worse
+            // than an untranslated one, because the first compiles.
+            _ => return None,
+        })
+    }
+
     fn t27_type_to_rust(t27_type: &str) -> String {
         let t = t27_type.trim();
         // Handle optional types. t27 writes the Zig spelling -- a LEADING `?`
@@ -22092,6 +22150,9 @@ impl RustCodegen {
                     .iter()
                     .map(|c| self.expr_to_rust(c))
                     .collect();
+                if let Some(built) = Self::zig_builtin_to_rust(&node.name, &args) {
+                    return built;
+                }
                 format!("{}({})", node.name, args.join(", "))
             }
             NodeKind::ExprArrayLiteral => {
