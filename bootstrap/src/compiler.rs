@@ -2810,6 +2810,22 @@ impl Parser {
                         break;
                     }
                 }
+                // A FUNCTION TYPE: `Fn(W) -> W`, `Fn(A) B`. Without this the
+                // paren group above ended the type and the `->` was left for
+                // the parameter loop, which skipped it and read the RETURN
+                // type as the name of the next parameter:
+                //
+                //     spec      fn censor(fn: Fn(W) -> W) -> void
+                //     emitted   fn censor(@"fn": anytype, W: ) void
+                //
+                // -- a parameter with no type, which is `expected type
+                // expression`, a parse error, and a wall. zig_type turns the
+                // captured text into `*const fn(W) W`.
+                if self.current.kind == TokenKind::Arrow {
+                    ty.push_str(" -> ");
+                    self.advance();
+                    ty.push_str(&self.parse_type_annotation());
+                }
             } else if self.current.kind == TokenKind::Lt {
                 // Prop. 178: with backtracking the argument is a full TYPE,
                 // recursively -- `Result<[T?], StorageError>`, which the shape
@@ -5427,6 +5443,77 @@ impl Codegen {
         // `List<T>`. i64 is the default a use site can overturn; the day one
         // indexes with it, usize becomes the right answer and this line is
         // where to change it.
+        // FUNCTION TYPES, in the four spellings the corpus uses:
+        //
+        //     fn censor(fn: Fn(W) -> W)        up: (str)->Result<void,E>
+        //     test_fn: ?fn()->bool             run: fn(S) -> (S, T)
+        //
+        // Zig writes a function type `fn(A) B`, and a STORABLE one -- a field,
+        // a parameter -- must be a pointer: a bare `fn (u8) u8` in a struct
+        // field is rejected for having no size, while `*const fn (u8) u8` and
+        // `?*const fn () bool` both compile. Verified against zig 0.16 rather
+        // than assumed.
+        //
+        // The arrow is optional because two of the four spellings omit it, and
+        // `Fn` is accepted alongside `fn` because the ancestors capitalise it.
+        // A bare `(A, B)` with no return type is NOT a function type -- it is a
+        // tuple, handled below -- so a return type is required to match here.
+        {
+            let body = t
+                .strip_prefix("fn")
+                .or_else(|| t.strip_prefix("Fn"))
+                .map(str::trim_start)
+                .unwrap_or(t);
+            if body.starts_with('(') {
+                let mut depth = 0i32;
+                let mut end = None;
+                for (i, c) in body.char_indices() {
+                    match c {
+                        '(' => depth += 1,
+                        ')' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                end = Some(i);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                if let Some(e) = end {
+                    let inner = &body[1..e];
+                    let rest = body[e + 1..].trim_start();
+                    let rest = rest.strip_prefix("->").unwrap_or(rest).trim_start();
+                    if !rest.is_empty() {
+                        let params: Vec<String> = if inner.trim().is_empty() {
+                            Vec::new()
+                        } else {
+                            split_generic_args(inner)
+                                .iter()
+                                .map(|a| Self::zig_type(a))
+                                .collect()
+                        };
+                        return format!(
+                            "*const fn({}) {}",
+                            params.join(", "),
+                            Self::zig_type(rest)
+                        );
+                    }
+                }
+            }
+        }
+
+        // A parenthesised list of types is a TUPLE. Zig spells it
+        // `struct { A, B }` -- there is no `(A, B)` type -- and it turns up as
+        // the return of `fn(S) -> (S, T)` and as `FileError!(DebounceMode,u64)`.
+        if let Some(inner) = t.strip_prefix('(').and_then(|x| x.strip_suffix(')')) {
+            let parts = split_generic_args(inner);
+            if parts.len() > 1 {
+                let mapped: Vec<String> = parts.iter().map(|a| Self::zig_type(a)).collect();
+                return format!("struct {{ {} }}", mapped.join(", "));
+            }
+        }
+
         // `[K: V]` is a DICTIONARY type -- the Swift/Kotlin spelling, and the
         // one this corpus uses:
         //
