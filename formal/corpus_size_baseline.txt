@@ -44,14 +44,34 @@
 # declarations are silently swallowed by the parser and would still leave the
 # other four gates red. This line is the one thing in this file that a clean
 # clone still fails on, and it is the only honest way to keep that visible.
+# RE-DERIVED FOR MASTER, in the commit that lands formal/ there.
+#
+# Everything above was measured on the branch this harness grew up on. This
+# lands formal/ on master, which is a DIFFERENT corpus -- and master is not
+# behind: it carries 650 specs to the branch's 497 and 47 workflows to 38.
+# Three populations are smaller there, and this change deletes nothing:
+#
+#     coq-sources-lines    3328 -> 3283    -45
+#     generated-rtl          13 -> 12       -1
+#     generated-rtl-lines  1247 -> 821    -426
+#
+# A baseline may only assume the files of the commit it ships in. This one now
+# does. It was caught by the scan itself, on the FIRST run of this workflow in
+# its existence -- which is the argument for merging it, not against.
+#
+# The `specs-lines 76092` note above is SUPERSEDED rather than answered. It
+# argued 76092 was right for the corpus and the corpus was behind, on the
+# evidence of 55 edited-but-uncommitted .t27 files in one working tree. That
+# argument is about that tree and does not transfer. 134602 is measured on
+# master.
 coq-sources	30
-coq-sources-lines	3328
-gate-invocations	47
-gate-scripts	38
-gate-scripts-lines	6225
-generated-rtl	13
-generated-rtl-lines	1247
-specs	497
-specs-lines	76092
-workflows	38
-workflows-lines	3848
+coq-sources-lines	3283
+gate-invocations	48
+gate-scripts	47
+gate-scripts-lines	7051
+generated-rtl	12
+generated-rtl-lines	821
+specs	650
+specs-lines	134602
+workflows	47
+workflows-lines	4169
