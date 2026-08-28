@@ -12307,14 +12307,15 @@ impl VerilogCodegen {
                     }
                 }
 
+                // NO CALL SITE is not a defect. An array parameter that cannot
+                // be bound to a module-level array is simply passed BY VALUE:
+                // it stays a real `input [W-1:0]` and the body indexes it by
+                // element slice (#1745). Refusing instead skipped the whole
+                // function, which is how specs/ternary/bitnet_layer came to
+                // print "function on_comb has array parameter(s) but no call
+                // site" four lines above `assign result = on_comb(...)` -- the
+                // emitter wrote the call and then denied it. t27#2743.
                 if call_sites.is_empty() {
-                    errors.insert(
-                        f.name.clone(),
-                        format!(
-                            "function {} has array parameter(s) but no call site",
-                            f.name
-                        ),
-                    );
                     continue;
                 }
 
@@ -12337,26 +12338,21 @@ impl VerilogCodegen {
                     }
                     let unique: std::collections::HashSet<String> =
                         arg_names.iter().cloned().collect();
+                    // CONFLICTING call sites are not a defect either: one
+                    // function used with two different arrays -- `neuronN(acts,
+                    // w0, ..)` and `neuronN(acts, w1, ..)` -- cannot be
+                    // specialised to one name, so it takes the by-value path
+                    // like any other unbindable parameter.
                     if unique.len() != 1 {
-                        errors.insert(
-                            f.name.clone(),
-                            format!(
-                                "function {} array parameter {} has conflicting call-site arguments",
-                                f.name, pname
-                            ),
-                        );
                         broken = true;
                         break;
                     }
                     let bound = arg_names.into_iter().next().unwrap();
+                    // An argument that is not a plain identifier -- an
+                    // expression, or absent -- names no module array to bind
+                    // to. Third form of the same situation, and the same
+                    // answer: pass the array by value.
                     if bound == "W458_NON_ID" || bound == "W458_MISSING" {
-                        errors.insert(
-                            f.name.clone(),
-                            format!(
-                                "function {} array parameter {} must be passed a module-level array identifier",
-                                f.name, pname
-                            ),
-                        );
                         broken = true;
                         break;
                     }
