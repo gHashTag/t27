@@ -521,16 +521,27 @@ def main():
     # compiler, and they exercise the ledger, not the gen_hash comparison.
     skip_gen = os.environ.get("T27_SEAL_SKIP_GEN") == "1"
     t27c = None if skip_gen else _find_t27c(ROOT)
+
+    # NOTHING TO CHECK is answered before MISSING TOOL. An empty tree needs no
+    # compiler -- there is nothing to recompute -- and the loud-failure gate
+    # asks this file what it says when handed one. Ordering the compiler check
+    # first made it answer "the compiler is not built", which is true and is
+    # not the diagnosis: the path is wrong. Found by fpga-conformance on the
+    # commit after #2746, which is the gate doing exactly its job.
+    if t27c is None and not skip_gen:
+        import glob as _g
+        total, bad = len(_g.glob(str(ROOT / ".trinity/seals/*.json"))), []
+    else:
+        total, bad = scan(t27c=t27c)
+    if total == 0:
+        print("FAIL: no seals found at all -- the path is wrong, not the tree")
+        return 1
     if t27c is None and not skip_gen:
         print("check_seal_coverage: the compiler is not built, so the four")
         print("  gen_hashes in every seal could not be recomputed. Reporting")
         print("  nothing rather than reporting a pass this run did not earn:")
         print("  build it with `cargo build --release -p t27c` and run again.")
         return 2
-    total, bad = scan(t27c=t27c)
-    if total == 0:
-        print("FAIL: no seals found at all -- the path is wrong, not the tree")
-        return 1
 
     if "--update-baseline" in sys.argv:
         BASELINE.write_text(
