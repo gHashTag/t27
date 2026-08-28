@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3184b515a374f1d7c24337b49fe8fc3ec2c393e7e81a70a444653af38d06dc46",
-  "gen_hash_rust": "sha256:313bc796093d70b34c8f56a9715f43e5f9fb853568711c25294da02401209d75",
-  "gen_hash_verilog": "sha256:c3557138a7a90790c4451dc06afcd225723fd9c70ae6cf442efd32946fb39dc3",
-  "gen_hash_zig": "sha256:1651d72ffa28e8657c527d144c187e3fde5ce6f3dd2d0699c99e33971a61d091",
+  "gen_hash_c": "sha256:d26eec1ee8fe63d88204c29c9b4d2938ff0109ee2a5d9072309a189243c8e8a5",
+  "gen_hash_rust": "sha256:7620adb07b9f5359a66395061e478b05811a928573762617c967b5ba05d880c8",
+  "gen_hash_verilog": "sha256:dbc342150039bf6fb179c10f4312936049174d1dc0d435b267090245dc4c5326",
+  "gen_hash_zig": "sha256:ec13443ccad9f9a7c2d3fa58f6ad07b4c97753a6b902e5f4560a81a8138b027d",
   "module": "Dropout",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:49Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:3d62664b21a7e9bd7b6d63879764780b5c5af3cf661f04eee7b90a8adbaa5d1d",
   "spec_path": "specs/ml/layers/dropout_layer.t27"
 }

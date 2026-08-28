@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:71296d58747c2261e835871834ba98f25875c78c324fd0fcee8ab136035aa24c",
-  "gen_hash_rust": "sha256:a0c1a1ebd73726f8f7f1314d441d8a60f52c1935914a51340be9e522e5356017",
-  "gen_hash_verilog": "sha256:0682b4d3a4169974c5ce51e4e5142a4f37bcf4ecd2408738a55bc4d6fa3f8f26",
-  "gen_hash_zig": "sha256:9b7b69bf77e98138a1ce2a2e9b794987f3fdfe95fd7397b7db210686b132aa8c",
+  "gen_hash_rust": "sha256:cb0fc81539c5d32154d41b54a447b2fa5b8ff0e3c174e06feb41a126274ef355",
+  "gen_hash_verilog": "sha256:784448cba8405b63f638e4c1b9625a69a37bcd1e768624bac98a27eb9a52f996",
+  "gen_hash_zig": "sha256:19faf50fb62a340ed133e84fb943b885d09c0cfddb94d9f998fbd67f6a2e492e",
   "module": "ring0",
   "ring": 12,
-  "sealed_at": "2026-06-17T01:12:42Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:9e53c7a141c31266e0b275bea41a46eaff276426ff85aadf52524de77c69ecf8",
   "spec_path": "tests/ring0_trivial.t27"
 }

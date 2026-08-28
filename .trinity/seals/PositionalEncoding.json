@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:da1b26f2054fe1e2ff05e2c50cdd9a40fcde9e240410401d7a50c912f1f1fbe2",
-  "gen_hash_rust": "sha256:8ad1d49b44944f465fd26cc4fddf9da9680f3148da2e98adc543ee8aad37cf81",
-  "gen_hash_verilog": "sha256:4a633dcdf2eb4ecf3b9961e08c9b1cfb8ce6475ace0d23aad242c45dd51486c3",
-  "gen_hash_zig": "sha256:28364130068d30921994b8fb7bda64bf4cebec9c7c300fc929cd251fc2d390c8",
+  "gen_hash_c": "sha256:6853aeec8cd57b01d433a802e5acf62f83912c5900d12b481b2740bd0e32c5be",
+  "gen_hash_rust": "sha256:653bf71766931a3d5a4e911148709933bc3d312b7e4169c33991b155365f97c2",
+  "gen_hash_verilog": "sha256:2fddda61f480d53b77e94f84e0f57ae6afd0cebf9395774afeb56adcee617167",
+  "gen_hash_zig": "sha256:0fc669237f47e2e8f61fcf89bc26ccf6c9d25715374c4c6837ec76dba356d691",
   "module": "PositionalEncoding",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:50Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:22b7fd16cc3e23432ab550205a19de7e72f9f80efb73a000a1c9ce56b3c136b6",
   "spec_path": "specs/ml/transformer/positional_enc.t27"
 }

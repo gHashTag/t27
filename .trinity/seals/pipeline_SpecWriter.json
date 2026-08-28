@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:aff7a3137f1e417d3286d8153bce716609dbe980c0e6627232227b53ffcaa72d",
-  "gen_hash_rust": "sha256:3220fb766cab16eef2c1a451bbec7366845434ff4d7412834c43df10db328b47",
+  "gen_hash_c": "sha256:ddda0a20708fce75745146c9a6868298d242935dfb636a17b85b8fa51b796fe5",
+  "gen_hash_rust": "sha256:6bb8e08fb4a7045cafe048150852da4e63373dfbaddddbba591e9d7ebb90c801",
   "gen_hash_verilog": "sha256:084019073c1e9140a3a1db342a3e3ebbdbb8f72d72c9f5e36c3fe8a57d9d0af2",
-  "gen_hash_zig": "sha256:376ef0ae6f254102b42831bae156bbba07e9408bdf469c052a9ad5fe5c663e3d",
+  "gen_hash_zig": "sha256:2738b7b48b4195b4a8f6a678487421ea34399dedc02837e3dceca662ac41473e",
   "module": "SpecWriter",
   "ring": 12,
-  "sealed_at": "2026-08-23T00:20:41Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:e667e57809adfe5076ba3c1eeb9ac53e5058dc7506a9a013919782ed8e55cef9",
+  "spec_hash": "sha256:870a3c6677f12a85daad3cc6e37e58ef25c098e3f7b650d979c48629e1d1bc31",
   "spec_path": "specs/tri/pipeline/spec_writer.t27"
 }

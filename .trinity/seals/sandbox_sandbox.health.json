@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7656133229b8dff92ad891786c9a01813b385640488ba1f3f627bbc37253ee26",
-  "gen_hash_rust": "sha256:874d5613534a2f8518a778fb046ce438c6b2a167b09f094035ff7d7dcc5e47b1",
-  "gen_hash_verilog": "sha256:7bef33b41a1180a237b711d52c9e60df9e481795512185b6b3bd4a9f1942a695",
-  "gen_hash_zig": "sha256:253464e2b4d082dedfca45da1774138a6ead191d5338bc048e4ee9dc961abcb8",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "sandbox.health",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:17Z",
-  "spec_hash": "sha256:240ee005d77e830f32a5e8bc7b49d4eb99b0ec4d6b15a24e40bcdf0e68159602",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:e3de31efd8a6ccd03a55b730897b5ed9b3d2e3ee895285fd3e28f80da22ad0f3",
   "spec_path": "specs/sandbox/health.t27"
 }

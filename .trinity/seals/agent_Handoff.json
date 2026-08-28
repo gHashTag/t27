@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:cdf6ce741a9d5d22cb1b28957c2200694638d03797d246efbd765378892817ee",
-  "gen_hash_rust": "sha256:6bd8b6d937824adfbd2654f12c21d3a22a173da97b6c17762e54080c85f371e4",
+  "gen_hash_c": "sha256:2908a8adcd3175cec230ad90ddac0b4cd4f271a84014fed26d4c9d1d9a41d1bd",
+  "gen_hash_rust": "sha256:0af6a847731f9a6112a502f34b0dc096810e2aa1a2c394270522865d72cd57a5",
   "gen_hash_verilog": "sha256:2f48eefb0b172baa464c31ab585b17739048819b081db705728d4176e0642f2d",
-  "gen_hash_zig": "sha256:9e37ca71070a8226e44da8be4ea03b7bccd894911998db10c4175433060ce329",
+  "gen_hash_zig": "sha256:7fcdfd90edd3dec1da124e351ff32cd6f9ef020ef6c5a5a41a8494a7d84cde49",
   "module": "Handoff",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:48Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+  "spec_hash": "sha256:9f891b9dce871c286742b33e8089874990eb119a0182a72554689bc958a94267",
   "spec_path": "specs/tri/agent/handoff.t27"
 }

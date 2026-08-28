@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e1f820c3cc5166e5dc3dd01e41bd688bba6898f2bab1994bfd98dc7aed505b22",
-  "gen_hash_rust": "sha256:e18b9b60a7b633ca423d53b30d464c6fb7e5183891a2962442583691cfd12098",
-  "gen_hash_verilog": "sha256:f00721ce4f3db1321d99debd4fa9135bc5f9f7ceda867116c11ba7edcad5083d",
-  "gen_hash_zig": "sha256:45fa938a2039dd0c84cd10dbfd8f38001e9665bdfd3e8385fc8b30541d9204fc",
+  "gen_hash_c": "sha256:7a0f04ab8515e02cefa1fd6059012f623d85137281cd9a489f80684b9c971137",
+  "gen_hash_rust": "sha256:3007d6e7f5b4855c70c2de7e0fcfafce40ae46cf01006c3be78cc00512d1fb7a",
+  "gen_hash_verilog": "sha256:1be9b6b2edd147b3ac70dd25df84facc452d179488029c516b1acea5669682fd",
+  "gen_hash_zig": "sha256:6b8120245a08d87cb551dfca423a6161c666358d2bf8ee07cfa71fabb8da64ba",
   "module": "server-http",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:b99a4a370a7660d821a5630a5e83b60efc678fb0818bde4692a17c57bcc45f8b",
   "spec_path": "specs/server/http.t27"

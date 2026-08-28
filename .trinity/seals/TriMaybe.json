@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:cf56d5690a36c9f8ae179b6931cce3208b9076633340000892b028bd7995a499",
-  "gen_hash_rust": "sha256:8e1cb72d45a81c049944c6412d9c011649302a394b965737fe0c894d1843f99a",
-  "gen_hash_verilog": "sha256:c96a3fa7b14b7dc2a18051ed94ed88a2613ab833367e423d63ab324e3914effe",
-  "gen_hash_zig": "sha256:c0d2c6f78d8344b7a79a190d71138d3f23a0700a07244398249a9d726e2cc5fd",
+  "gen_hash_c": "sha256:64e2b77cfeeb28f4534f1c9c7d8e61e72c8eebd03261f0ef776eb50332212204",
+  "gen_hash_rust": "sha256:bdc17f632d2226b730453b27182424269b065f678cfde3b059b90d843f36119a",
+  "gen_hash_verilog": "sha256:62f3cca22d5ceb3ac71c8cc4b9ff8e0222662ef8d0cc68d0f6e2fd050c6611a5",
+  "gen_hash_zig": "sha256:245b10d08c05cfa4eda803f29b91d75ee675456e40c9c536fbf94cb7bc366b50",
   "module": "TriMaybe",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:48Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:da83784231ce7b0004279a51913a711527f55d8b2150da9a39fb39b307fab17f",
   "spec_path": "specs/tri/collections/maybe.t27"
 }

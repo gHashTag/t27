@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b988769af5c7a18e2bcf83bc7524be0aa1c289ff65faea2b6e45ef69198ff1fa",
-  "gen_hash_rust": "sha256:dbda2a4ea684b48dd960692b19106092255451bc229e3fa38a5a4ef2fd9994f1",
-  "gen_hash_verilog": "sha256:97c0d5914396d3181cdcfab7aeb70531edbd1a37b4c5a2f8e301dd17a15dfc0d",
-  "gen_hash_zig": "sha256:23e93620b06310ef609ce66f19b75a39c1d34d7f807f9496dfabd4817e72574e",
+  "gen_hash_c": "sha256:b65a20fca4ff98c3ac61b6c35d13952c0a43816ad492ac97ccca497ca81cd6ac",
+  "gen_hash_rust": "sha256:787c14a705e6c983942fd4e4da13779485655f963f66c25e41affd995fa615b4",
+  "gen_hash_verilog": "sha256:8929b6f5b605d538a86594b85ef6efbe92537695f7426232d61762c49cffa146",
+  "gen_hash_zig": "sha256:6ab484ac3334803f978fa421d9ccd9fc82e32b7287f92f4a7f06063c7497f8ed",
   "module": "TernarySorting",
   "ring": 12,
-  "sealed_at": "2026-05-18T04:24:39Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:881cb1ecd624422cbe055e73272343e1fa48151ce41b680fa1b01eaed9a26319",
   "spec_path": "specs/isa/ternary_sorting.t27"
 }

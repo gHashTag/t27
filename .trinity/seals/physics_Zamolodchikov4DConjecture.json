@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:93fed2bbc466dac6cd16ce2826ab39dec92b4e80faa126e005f719d3d7875af2",
+  "gen_hash_c": "sha256:19acac813bb347cae3917154dd5fcd30d928c2a622e3362ce5d8d7ecde647f08",
   "gen_hash_rust": "sha256:642d716f0b273c51cc014b9cca49af4a81731fee5f24164e3bbd854f63ed2e69",
   "gen_hash_verilog": "sha256:d99979f3ddde4755153c6ff49aea121b76d574cb8e4b61789f6cc35eb2fe5f4e",
   "gen_hash_zig": "sha256:abd1b0c47759f5f20414516bc6a36940e76cb8e8f2931079ce00abe927c04463",
   "module": "Zamolodchikov4DConjecture",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:505e0f2cf22eb60531880d61224bb27249c5d3d7322b7f2c08c6bde958710cd2",
+  "spec_hash": "sha256:e805c111cc8f7dcdf826ad23f9ba35bc8d9426a9341cb6d084ad86a5b5afaaac",
   "spec_path": "specs/physics/zamolodchikov_4d_conjecture.t27"
 }

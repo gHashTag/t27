@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:1c10754a91ebe745c3211e60fcbe4bab3e8f83fa1eaf5fa378102d3942b7c0f8",
+  "gen_hash_c": "sha256:7b7fa48bb8dfb3751cc966994ebd0126943ce79b8c96493b201345305d388afd",
   "gen_hash_rust": "sha256:be651b87ffd0e37a7a72d3cca4c5e673793338238ed4e2e85ef076abc9101da5",
-  "gen_hash_verilog": "sha256:c7849261839b2fdaf86818525f52164de120936a781232badd98f172c1cac301",
+  "gen_hash_verilog": "sha256:9fd5727e8422e60fc9d85b5c8bc393cb8dbb9901c74e1a3c264d236672307a41",
   "gen_hash_zig": "sha256:3055e12750e8dfa3775c3f0e8c5f3f0fb3e3e4e728ead546cd26dc6c5031dc0a",
   "module": "GitDiff",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:44Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:074ceffdcdbb20f87faac69aa7920aeb54effef4b4ce543dd215c0c51fd96270",
+  "spec_hash": "sha256:6deb105682ed85d520e9ea126468db714fe5327c5e05ef27ebc160acdceca647",
   "spec_path": "specs/git/diff.t27"
 }

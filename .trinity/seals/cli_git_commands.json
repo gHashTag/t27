@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:eea895b79d95e709b335fc1e89825457c419e8706fa5fd723274f9a10bda5229",
-  "gen_hash_rust": "sha256:9916244ff049f00526ac589af675b6bc43e493479c35b602603060d31854b1fa",
-  "gen_hash_verilog": "sha256:28aae82e768fa402f0781751878dda55d117079b946fc4cda94f8d68e5e5f892",
-  "gen_hash_zig": "sha256:e4c595e43c60fa90d1cf208af60b8769287a97adbce08dd857a4ddae61d4cf3e",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "git_commands",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:17Z",
-  "spec_hash": "sha256:54eae5c75d362784b366bac2e49e59f8f8f8a75339bdf2022afd3157340338bb",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:a2ed7ccff916e322f238d01ec8a8ba31e0c24cbcd2bcabf7c36c190f8ad74c2e",
   "spec_path": "compiler/cli/git.t27"
 }

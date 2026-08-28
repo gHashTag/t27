@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e0168c73c542f96c3231bf2dc48c3a951040fe1661ada636c3b7f7bc3f7efde6",
+  "gen_hash_c": "sha256:d26eec1ee8fe63d88204c29c9b4d2938ff0109ee2a5d9072309a189243c8e8a5",
   "gen_hash_rust": "sha256:7620adb07b9f5359a66395061e478b05811a928573762617c967b5ba05d880c8",
   "gen_hash_verilog": "sha256:dbc342150039bf6fb179c10f4312936049174d1dc0d435b267090245dc4c5326",
   "gen_hash_zig": "sha256:ec13443ccad9f9a7c2d3fa58f6ad07b4c97753a6b902e5f4560a81a8138b027d",
   "module": "Dropout",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3d62664b21a7e9bd7b6d63879764780b5c5af3cf661f04eee7b90a8adbaa5d1d",
   "spec_path": "specs/ml/layers/dropout_layer.t27"

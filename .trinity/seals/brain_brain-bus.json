@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:ac411505e10903a63e532d529ca31bc2b541144c5b3a7d8613527dc86d80484a",
   "module": "brain-bus",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:42Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:fe1ec1d596d41c8681abd03703c6b2e1d6552752ad7ae9daa147bd5f68831403",
+  "spec_hash": "sha256:9f64b649f7135a01834a1565e2704b40c1aafb3119a5e79b7ec3f6bac4f4117d",
   "spec_path": "specs/brain/bus.t27"
 }

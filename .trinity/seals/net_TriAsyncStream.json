@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:23d5512d602d7aef561a0245b6e1d237a7b09f5269ff77a24116941205b812f9",
-  "gen_hash_rust": "sha256:c92e0e291b90c2d541cddbfcb2916fb0d8139eafb57c085f3346d3e70f1f9c21",
-  "gen_hash_verilog": "sha256:4b195699416bd81b089d680f35e6ff36048c022c7c5f108f47df8dbd1c7a83b5",
-  "gen_hash_zig": "sha256:9f0cfc412ff01848551fa0781b710611848c3cf76b5be27f7bfd409bb271cf79",
+  "gen_hash_c": "sha256:c461e264c08a2193454753d17c5accc5e8d6e864c70ec12c9b17b81c877f41ab",
+  "gen_hash_rust": "sha256:fbd3d52a5583d164785d54a89e5e958c27152ddc91bb1f6f95f6a4596c44a2e4",
+  "gen_hash_verilog": "sha256:fd334552b14280f5cf18c614f41557261dc3072620653ab704f7a9b3bd549cf3",
+  "gen_hash_zig": "sha256:9f55246fb15a6a1899c41dc65b1bc662dcdf69cafd6c589a915c26fd3e372b33",
   "module": "TriAsyncStream",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:1a9efda5c73821e94c0d937d952ca5a2c0c235792b7674716943a5275c14a011",
   "spec_path": "specs/tri/net/async_stream.t27"
 }

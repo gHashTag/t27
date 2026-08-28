@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:98f50d27f771e682ff636ae8fe6b02e22a3191af83febd9416cd53faf52459ee",
+  "gen_hash_c": "sha256:7f50e213dc838776212ee3b5bdbd46fa864d07017378b6283e1f950b5eefb958",
   "gen_hash_rust": "sha256:9a4fab42599e09a416a59a4de57b5c4d4fe7d82ef3b3ed17d1753c8eb823ce3a",
   "gen_hash_verilog": "sha256:7d6d34f766cd172558f73ae9e53def15d3b8925757af5cd1c62cda71df4ccbd2",
   "gen_hash_zig": "sha256:52be74f65c156482023cd9c8cacba969f0a23fb097f733879f630c57994e356f",
   "module": "TriNetEtx",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:49Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:52e2adbd19b94526511c5ceace12ae6a798212d379a78eacc965258c52983ee2",
   "spec_path": "specs/trinet/etx.t27"

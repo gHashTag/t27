@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d76df785974125cf7115a0b4e2f93c0291544d5facfae95eddb20da1ccda819d",
+  "gen_hash_c": "sha256:18aa9ed5e7d0cca6ca34e5264044b8b1a11871d6a5af511d6b4bab27309138f0",
   "gen_hash_rust": "sha256:12c95f16c6c1026a0f638898db1391b55be16ae2a81927ed0b4c8fe572fdd054",
   "gen_hash_verilog": "sha256:693f4ff6621ebe10b85e054849e0f7c55734775ace267dfe16c3991cb59d7959",
   "gen_hash_zig": "sha256:6c057186acaca4625ff17af246f3d846f118fb0012d3d0ee46c00dc6e0e5a4f1",
   "module": "E8M0",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:46Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8bf0c6be4c10d6fdbc01fc6734b5896c441985b50194520b6de1c45d88f56852",
   "spec_path": "specs/numeric/e8m0.t27"

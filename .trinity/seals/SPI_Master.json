@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7eaace21233a7e4bbb9b516bb504e4586e081b1f1b1b6d4fafecd7dc05cd769a",
-  "gen_hash_rust": "sha256:075fb31fd547b3cebabf8f4e27b8720c5d4000126d4e46105ff1f111dddab785",
-  "gen_hash_verilog": "sha256:c2a0ef4d768ae432d4fd8eb2d83bc202fd6d07673c38e5a95b12181488330c0e",
-  "gen_hash_zig": "sha256:9211739b96a3dc63d1dd6a8c74b4d40450d031170bbe0d83786500f77880730c",
+  "gen_hash_c": "sha256:16e2e94d67ea2a4ba39f56e56fb0570362c1a9ffa75c01bb28075dd16833170b",
+  "gen_hash_rust": "sha256:286660fec2b348cb8a07c418014abdd733b97efec6a99c953bc2b793be496864",
+  "gen_hash_verilog": "sha256:088d3c49c94b7b92818d55f5caa5f6cc481ac788fc08ba069cc79637c374a50a",
+  "gen_hash_zig": "sha256:58d47aa2542de32aa9e8af52332576548a02983e64ddaf58649f296a0ec75b94",
   "module": "SPI_Master",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:50Z",
-  "spec_hash": "sha256:ff4be233953f854d3a992da31e1751d9ef9a530891514866f365130f313ea5e9",
+  "sealed_at": "2026-08-28T00:22:25Z",
+  "spec_hash": "sha256:d38927db9b1e68fbaab5f384d68c1430cc6d5a1478121dc25cff128ffd1d7a22",
   "spec_path": "specs/fpga/spi.t27"
 }

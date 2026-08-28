@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:cd20454158fc96e745f5c988666691746469c0ccea42929ee3aa6cf11bec28d4",
-  "gen_hash_rust": "sha256:66f718899de95d46f583750044a0e9a0632dc54a0c60b15e153d23ea4067e71b",
-  "gen_hash_verilog": "sha256:b31b459aac4b6f0e1ef9646635cf5939dbdbec52c5bf016eac2adb0670781196",
-  "gen_hash_zig": "sha256:d3800cc5ed250afd87ea18aa11776ba1d147f9d89207ee2ecaa172b57c39b182",
+  "gen_hash_c": "sha256:f07dc9bfdcd050a28e58c0538829dce5a92de61a841c645f5d8801530ca96c1e",
+  "gen_hash_rust": "sha256:1c43416abd43f8412e23769f39c430682cba11eefa2ede74d335b8b1c00730ac",
+  "gen_hash_verilog": "sha256:954dd0061982280c269c73c9c64a5287ca0b5e0e6af872efcb77a2fd2182645a",
+  "gen_hash_zig": "sha256:0215a525a225e9b80dccb967a9dab6908da54bc61440e2b18257836a8ad89458",
   "module": "trilexer",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:17Z",
-  "spec_hash": "sha256:4ac60464bbd27dff67d448f27d90e180b69e11b224c84483e249a05e3565c4f1",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:cf665b400e73091057d195296506e68e8c16acff3adc70a1756b58cd88e30afc",
   "spec_path": "compiler/parser/lexer.t27"
 }

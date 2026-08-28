@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:043aede2294870cd8764833b64c5372cc9908f8d2c3e3ea46840f6fc81bedeee",
+  "gen_hash_c": "sha256:29332589631c5578c189d9efc5cb80f59fe70dd75acfa2f4a2de6ad1a3bfed0e",
   "gen_hash_rust": "sha256:331cdea818582ad0f2cda43093013d3bad43c2299f2572be0d67b213fb766061",
   "gen_hash_verilog": "sha256:c2cc571287bf158e812180ebe55fbd2e52724f7f5f374cd6b8cab20938435bd2",
   "gen_hash_zig": "sha256:579ef973adeda122d4cd770d2ad528931fd0a96b9ed1efb21e48a70808e99b86",
   "module": "IglaMvpTernaryClassifier",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:44Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:83697f2c0ddeafb4bdb3c87b327a2d663de93214f7fb8d10d485574ace9ac293",
   "spec_path": "specs/igla/race/mvp_ternary_classifier.t27"

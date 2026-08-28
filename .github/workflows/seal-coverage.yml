@@ -54,6 +54,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      # The gate now recomputes each seal's four gen_hashes, which needs the
+      # compiler. Before this it compared only spec_hash: setting gen_hash_zig
+      # to zeros passed, so a seal could assert false output indefinitely as
+      # long as nobody touched the spec. Without the binary the gate exits 2 and
+      # says so, rather than reporting a pass it did not earn.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the compiler the seals are checked against
+        run: cargo build --release -p t27c
+
       # A gate nobody has seen fail is not a gate: this plants a stale seal and a
       # dangling one in a temp tree and proves both are reported while a good one
       # stays silent.

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3a7c42a0e389cc25d33c1442710aee469ce6c928798a19a539db501380876d7e",
-  "gen_hash_rust": "sha256:85ffcbaabc3a742488a0eeb44d5d1677360e55fcf0a2580cdfcf5b5ac3a1457b",
-  "gen_hash_verilog": "sha256:7f5408d0427cde3d91c875b923a0f394d2684146f2f2e540e8644d5938b20ff7",
-  "gen_hash_zig": "sha256:0a6fef31c2d71091d11fc7d7ae6d3ca6c57f7388f89e67f7f633ed6d4b414f1d",
+  "gen_hash_c": "sha256:08c68e60cc266393c33aed230e3429c1c2e9f7ed3fcde45f40d630046f35b1f4",
+  "gen_hash_rust": "sha256:8d4cdf47582295e5b4807c5252b637e266bbe0dda22c30dd0e3cb3ffc3ac6b08",
+  "gen_hash_verilog": "sha256:7716f39dc3d0baf658917208a7c294da3ed66d8d849778e3a0d170e7083115b4",
+  "gen_hash_zig": "sha256:b008d99eeb24d35187a07ec7515d0f5fddf0ee578369a25ac602c9231ac650b0",
   "module": "NotebookLM",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:48Z",
-  "spec_hash": "sha256:5aaadc46b3e93b09bd9f4a5542010c102ddd404455b503f5e380581740304fbf",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:dc5b054f79d747598c75190379fe4a36400bb27af13dffe06d438f145c1af96f",
   "spec_path": "specs/memory/notebooklm.t27"
 }

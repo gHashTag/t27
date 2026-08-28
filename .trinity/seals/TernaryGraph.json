@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9587f3d0abea2d5f085b4b3f7f1397fdca03bc160a2bfc43a8d32d8cfc2316f7",
-  "gen_hash_rust": "sha256:600bd8a1446c6e527c19c504bdd1843359ac9f969fbe72e31aa36ebc1d4aef12",
-  "gen_hash_verilog": "sha256:11e0b09ba9452f04460e934dfa5ea75d9935463edda8d0034fa7b60d899a18cb",
-  "gen_hash_zig": "sha256:07d13d6566f056629f45b9c7fb83334600cfb0d5ffdce96d237b76560ec2ca69",
+  "gen_hash_c": "sha256:4a9ef192ff7569310e7bd28528da6db01a00d714f62609731f47b0ff1b5054d1",
+  "gen_hash_rust": "sha256:2b0d3faffbc84f1ed420f67dfb5e3c0c0d595af39bf402cfb2f3f8c140396e2e",
+  "gen_hash_verilog": "sha256:6553c3115af1150e1bed5bb9109294a2506caf40ff8004ef607f1351e55884a4",
+  "gen_hash_zig": "sha256:34712942e7b31fd29e03d59d64c9e1a69c8428c4c5f577d731da4e8672a7c458",
   "module": "TernaryGraph",
   "ring": 12,
-  "sealed_at": "2026-05-18T04:24:39Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:d3c98ac5e5aeec6beab3441ee587c77acebe467ab7773fdd7bd06e51dbf48106",
   "spec_path": "specs/isa/ternary_graph.t27"
 }

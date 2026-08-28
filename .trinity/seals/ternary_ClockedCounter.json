@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:27383948b87cfb14a1fe5b5188e45317648d51530c9fe657090d5c6d8011b318",
-  "gen_hash_rust": "sha256:ad02e62fbac89c519bd4b82b2ec3b8a5a24f76a0426f582ba831ecc965b462ac",
+  "gen_hash_c": "sha256:70f573c738b43f8335c6351ce2c0dd6b4db18e673d8d70998067ccc41c703444",
+  "gen_hash_rust": "sha256:65f580a031f624325e8f7a306fec1cd8fb33b218304f98f5a0e7e9f955fdb349",
   "gen_hash_verilog": "sha256:6300562c18fdb36c33a0ec302a1768e69616ac36eaa8e5b1ac848eb12c30707c",
-  "gen_hash_zig": "sha256:5a9ba60355b0f704522f385dda1f638e091f1c6a9ce3409a3094b872bbf846bb",
+  "gen_hash_zig": "sha256:2bad3c59d1d19a4701ea57cfb99313d4368fc5b9ebc04c8ced4e272524d2bd1c",
   "module": "ClockedCounter",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:12a5bb8e6d0975bfd72b3520ac83e9adaa6f52371be8ef101ef5fd39b8fcbf6f",
   "spec_path": "specs/ternary/clocked_counter.t27"

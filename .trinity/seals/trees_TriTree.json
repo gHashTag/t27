@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f1082d7bce10f96f0e21ba8e31ac5b7747adda51ebd1fcd0e09d3bbdcc6d3c77",
-  "gen_hash_rust": "sha256:a73ae28a63ba6254bf6a9a6fda4630bd2cc61ea74a016b5ddb2de3167a8c65db",
-  "gen_hash_verilog": "sha256:8a9509ae31e171d15a20f0925793f45768a14fe7371e2b6b0d094da88e1caad3",
-  "gen_hash_zig": "sha256:cd85e70ab76d9debbdbd469913040a6545ca3670a0c751c7ac77c490eb42861f",
+  "gen_hash_c": "sha256:7bc0d51074b141b2af7e028b73de528d3eebc99662bd3085632e0458f7ab60fb",
+  "gen_hash_rust": "sha256:c738c3ac6c7459306886f70f875970b3be80bed2c2f68e5724f3b5733a771de7",
+  "gen_hash_verilog": "sha256:718bcdc6b45c8b9482f38b97a951e5ffe3c31de68801dda557764f50935fee1e",
+  "gen_hash_zig": "sha256:027c83e372bf35d337e7ad962adf4003dda564d2ab1f36629259700272c0b5d2",
   "module": "TriTree",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:85a7e9a6f0716d535f5a19f0e3e67da32b8bc956f9cd620f5099ba4961d75b55",
   "spec_path": "specs/tri/trees/tree.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8be255d579bf57c77080bd1a92d93987f91d126eec13fbc68beba93596117531",
+  "gen_hash_c": "sha256:a53865288914a10299e1a7df79e9f8b740d3300d28083597fb737e1318cce17e",
   "gen_hash_rust": "sha256:e75a4e95ba30458f5f446f356e0be06352492690aaf631a8b7586fb325e54a77",
-  "gen_hash_verilog": "sha256:30f50373e10c6218686f25cdcdbe1db58d7e9a7c5b7b0a5d56759bf8852cc2e7",
+  "gen_hash_verilog": "sha256:60482ecd54200563947ad8e50c7fd85029d2334942c7333886a4d34399c65b66",
   "gen_hash_zig": "sha256:8c8966829baaf52fb138990a087bffa4650a906fcde88f79a723344ca219d039",
   "module": "Timing",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:44Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:a54d0047cea5a50fc70f0c4f93978243028d115b4578dcb5da59ca9d4bf117ed",
   "spec_path": "specs/fpga/timing.t27"

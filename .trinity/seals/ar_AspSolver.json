@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ee4d5233a3f9190718e132fb14951f02304eec803a2f004057f48059ca42be6b",
-  "gen_hash_rust": "sha256:de112c3e14b89ab96c3e0b77cd939d9828e9e6f8a87c165f42cd49321032ed4e",
-  "gen_hash_verilog": "sha256:4ebe70456a9e87de8b066dfc1fcd82ed45e478a48a534d119f5eafa38618100a",
-  "gen_hash_zig": "sha256:3c9c540ac9e7a4ebec2b211ae51d01dc98169378ad60069c5b0ea9c1e4e1bc68",
+  "gen_hash_c": "sha256:55419456ce808ff3f0baed2af64640584c30707bc1eaa6bc2eddc6be380a7ddc",
+  "gen_hash_rust": "sha256:1c6115d02a60911a8ae8ee86cd4e1047ea4cad9711c3466c8edb4ef9fb849d4f",
+  "gen_hash_verilog": "sha256:4a3aac88230f26e414bd206d0168d8063b891db31ae52d7ed63c02186a0d6944",
+  "gen_hash_zig": "sha256:78ef736ad5e3b4d39fc1ff3bcfe0accebcbc0fd090b10fb4941e32e6f6c3cb25",
   "module": "AspSolver",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:a379cf9cf81cebc5872166179666089ae0a45260f0d659497c54fb537d757e8e",
+  "sealed_at": "2026-08-28T00:22:25Z",
+  "spec_hash": "sha256:eca06ff812c61e2693f706b7389c71dcd769c30dfbb2cfb958e0416a5118b404",
   "spec_path": "specs/ar/asp_solver.t27"
 }

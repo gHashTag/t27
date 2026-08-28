@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:1ad11dafae6ff25b0c6952f025c7a84aadbbb89c3f4a43ee8bc4cfd728de1e18",
-  "gen_hash_rust": "sha256:53e7b99d2c69b9d3cfc83105b4176426680c18f90dee40f2b0e148f53629b36e",
-  "gen_hash_verilog": "sha256:3556aa82e6a8815de25ef4e201c4141b8d48c651d72f3363fd4d1f9df34296f8",
-  "gen_hash_zig": "sha256:c8199edda4967a9724ce7ece506a37b957172fc362e661afa3bc89ca6c5988c1",
+  "gen_hash_c": "sha256:22fafb033fc125a0e4b56b7fda0b739a523dd4b8d67c067e0b4f45e96cfe2584",
+  "gen_hash_rust": "sha256:abd581469d5ea06ce276cac202ab481cf929d7bc19018e44dac85240c3db4f6b",
+  "gen_hash_verilog": "sha256:b2034434f9b7c5cbe0b8d556377acb6f92752b7858e86812810b42b8425e4689",
+  "gen_hash_zig": "sha256:088b346bb2cbf2e97aacf52f1ddcf9c164f06e7d375ad2fc76be2182cab90c0c",
   "module": "Softmax",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:50Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:4ea7242baa7a03eeadf68af61c6d58551b24783880fa3319a2d0c34550ecdb44",
   "spec_path": "specs/ml/activation/softmax.t27"
 }

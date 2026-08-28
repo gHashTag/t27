@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3081cb227c6336d4859247524050404092f60bbbcd8286081036700acdc60c13",
+  "gen_hash_c": "sha256:44bf368636574ce14088d0ad1ef7366d88d68f254fb4becca3d2df02bf84f32a",
   "gen_hash_rust": "sha256:aad255ecc7d2c999c344c2c11a78f16b399bd47f1afcf95bcd30c739696f4fba",
   "gen_hash_verilog": "sha256:9fc14a810b0fed3b7eea242ec1da25e8c6d6ddbf746fb48fba9ca27a118dfb73",
   "gen_hash_zig": "sha256:72ea4c249d01c521169066ec2a3254dfa2b557066845bf188c60d5d96ee45a85",
   "module": "Embedding",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:90cb626e0465988603da5013588d2d56b237a09acccf0184d6050653ffef9407",
   "spec_path": "specs/ml/layers/embedding_layer.t27"

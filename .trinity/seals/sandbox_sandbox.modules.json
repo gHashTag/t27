@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3df311f9524d8866cdc72187604fa7a1b5972db40e5fcfc7cf4f2ec36c3c7520",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:df1049c9ad0ffff7c26e582aab6045020f708815a93af3ef44c7ae38631fc8b4",
-  "gen_hash_zig": "sha256:37e813e8418d81a979ca5414a7ddfc9376ce16f94fe7c52d45657b63abaacc52",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "sandbox.modules",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:17Z",
-  "spec_hash": "sha256:6f66bc2f462f1671aedd59cda7c323cd448739b2edbae3f9c386d2225bdebe3f",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:7a3c3be1e5396eb22e6cef48b76a8f2a428408f4f59d1911294d60759094ccd6",
   "spec_path": "specs/sandbox/modules.t27"
 }

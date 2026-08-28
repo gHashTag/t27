@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:bb08367956f0a29e31ff204ca21e72fd0719ab5570512a3b7673357d68bb3991",
-  "gen_hash_rust": "sha256:238c45ebc0be59e5f72a71fd93d4f816a065ffba6016de056177b39a30172841",
-  "gen_hash_verilog": "sha256:0d6d754cf5858722440f014b4f8550ad409787899f2deb7ea68bf5bd821f4a82",
-  "gen_hash_zig": "sha256:35a00d849dc6e8c9e9aa32629f8eeec614bdde455a9f698157025338df4edd8c",
+  "gen_hash_c": "sha256:92e83d22ef59c6737485218514ca40361fc46f1ae2fa0c74376852f7610bad0c",
+  "gen_hash_rust": "sha256:58a47a34c55773e16ef0822a7d2bf192f36e7736a36529caa541a3e5643465f7",
+  "gen_hash_verilog": "sha256:ef20a47e3fc1296bda60734bbe0b8255375a7c35752327385c1b586c354f863b",
+  "gen_hash_zig": "sha256:6c21ad8935405bdc5bc65965d807ed100c360d775496847b4e72de654f98c906",
   "module": "TriXml",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:48Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
+  "spec_hash": "sha256:58358f4a336737a98484bef7b68964808b32c676ceb462efdce7c283a16eddfd",
   "spec_path": "specs/tri/encoding/xml.t27"
 }

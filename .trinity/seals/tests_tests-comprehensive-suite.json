@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:586fd51e1e53bca13b9644d56143bc86a3f17c7217dab606c31ebdcc8d28c591",
-  "gen_hash_rust": "sha256:0326f595afcacad57e840a58662c1ce38b5aeb48aee23f9de4c0f08560c9bba7",
-  "gen_hash_verilog": "sha256:71052fe54d9279028bbbb1c6586a0b60582cfde8e81c2f9c396cdb536feb8c96",
-  "gen_hash_zig": "sha256:84afc2587821b1a9c63d4fa0489b46f175ee7f94e0abfa70e25889c7671e8709",
+  "gen_hash_c": "sha256:c3f164b81e107b673e25f8c4dfb9da0ca62e02ae33d35c69f2b729757073c956",
+  "gen_hash_rust": "sha256:87fbcc0906e80f2f019b87c24de79e4fa38365feb39e18a0927766d321c2c566",
+  "gen_hash_verilog": "sha256:1c4df7fe3a92800d2fd8d30b1077b2561500aa28bc3d743793b5e90c3ac1222c",
+  "gen_hash_zig": "sha256:6e0ea8aea2aa7a3f71c14340f1093d41a3fe041ecba6b3ab371b246524074602",
   "module": "tests-comprehensive-suite",
   "ring": 12,
-  "sealed_at": "2026-06-17T01:12:42Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:364119169fe8fa59b9f2ddc0edbcfd00bff4dc1e37af6b7626f40f093360f490",
   "spec_path": "tests/comprehensive_suite.t27"
 }

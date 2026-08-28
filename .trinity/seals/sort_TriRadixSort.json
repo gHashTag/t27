@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:2fd59ddd995e49ad0cdb852aa1108fe402d32b38c01bf901b8a89fef34b407dc",
+  "gen_hash_c": "sha256:a787cd1875495e25bae200138cecfff4d173c386cf23cf6de37867c830d6d621",
   "gen_hash_rust": "sha256:fb3a3a27bf5450416841225eab37bb3fea107bcb70a6624deb786be7dd54dfb7",
   "gen_hash_verilog": "sha256:6c15fe1a6e40bb733767cbfd974c5d0ffe515ac0eb3636efcd74d221e289df3d",
   "gen_hash_zig": "sha256:f06149bee6f29394e318714c0d2f1b973290145826d69b3f3fd30eedf3b1b040",
   "module": "TriRadixSort",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:b7538d332141732ec58bda9a10caf10a04d000aef901752fe67a03b1dbd73daa",
   "spec_path": "specs/tri/sort/radix_sort.t27"

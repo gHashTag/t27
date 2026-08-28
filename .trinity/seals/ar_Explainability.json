@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:bc789553d5845fb5da7807fabe1214b11021e40db3f72b4aee6faa0363bc6e05",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:a0f029e4f435a3996a91b60b3f0e7632c510e1d368462aacbc3c652b9eba0d56",
-  "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
+  "gen_hash_c": "sha256:e8413377d0368dd356f90d1f3d20ffdbc64b63db18ef7ba9b68df899f6267846",
+  "gen_hash_rust": "sha256:cbe579a8240f684a3208ccaac8a5b7da2b17241f77251f461fa75bcb3ab69320",
+  "gen_hash_verilog": "sha256:8b30f4d1cfe98d94d90eef8b4b8a8ca9d4f3c236c6b030dabce12066576661ac",
+  "gen_hash_zig": "sha256:d39c4e1843aedcdf39f183715e2657ad38b2d1c46ecd2e28848a9d8d0dcfc5be",
   "module": "explainability",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:80e970c2be2a313cfca43bc0bbb20397259952dd2d26af5b1359e1d26ea1a4b3",
   "spec_path": "specs/ar/explainability.t27"
 }

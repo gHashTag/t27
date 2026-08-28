@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b7323bf42e7bab7416082ee26fd90aef1883dc19404e58e28f79825fa92da327",
-  "gen_hash_rust": "sha256:f662dd8ef63f568dce9f5a39e8765cdadbef037e15e4f81351d398aea5b418b7",
-  "gen_hash_verilog": "sha256:2f2fc8679f413da562f33d7c779192cbca18af3647c1b948e03ea42e008f9302",
-  "gen_hash_zig": "sha256:b31d15fc37ade2309c0efc26b8fdd80ca2f2bd3285fb68f0f9178ebc2f51ec57",
+  "gen_hash_c": "sha256:ce54a2b6ba1d522c366f5860c347ecf4b22899cd413b39bc3a8eeada22281bae",
+  "gen_hash_rust": "sha256:3a4006d294c64d80fbb744d0536933be2ad52195aba13ca3d056e945c9cfa63b",
+  "gen_hash_verilog": "sha256:8d06d67bbe7cead9d820ee2986edf8248574009a4d534bbe2d53b44a8c7a0119",
+  "gen_hash_zig": "sha256:644dd8cb12f3c5343bd13ef94d0fab92951c2f69c003b5b56adf0e069d5b360c",
   "module": "Integration_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:cad3992fa6893a5467a5e01b6a63be0fa42916e661d32aa8a25412c627835b7c",
   "spec_path": "specs/fpga/testbench/integration_tb.t27"
