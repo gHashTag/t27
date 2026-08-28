@@ -5740,7 +5740,29 @@ impl Codegen {
             // a name already carrying its dot is preceded by `.`, not by
             // `{` or `,`, so a second pass leaves it alone.
             let raw = &rewrite_struct_literal_fields(raw);
-            let bracketed = raw.starts_with('[') && raw.ends_with(']') && !raw.contains('{');
+            // The `!contains('{')` guard was here to leave `[_]u8{0} ** 128`
+            // alone -- already valid Zig -- but it also excluded every list OF
+            // STRUCT LITERALS, which is the commoner shape:
+            //
+            //     const MIGRATIONS: [MigrationStep] = [ MigrationStep { ... }, ... ]
+            //
+            // Distinguish by the PREFIX instead. `[_]` and `[N]` are already
+            // Zig; a `[` followed by anything else is the corpus's list syntax.
+            // Already Zig if the leading bracket is an array-type LENGTH:
+            // `[_]`, `[8]`, `[MAX_TRITS]` -- a group with no comma in it,
+            // followed by a type. Testing only the first character inside was
+            // not enough: `[N]` where N is a named constant starts with a
+            // letter, and three specs that had been valid -- base/ops,
+            // avgpool2d_layer, ppo_critic -- were mangled into
+            // `expected ']', found ','` by exactly that.
+            let already_zig = raw.find(']').is_some_and(|close| {
+                !raw[..close].contains(',')
+                    && raw[close + 1..]
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '[' || c == '*' || c == '?')
+            });
+            let bracketed = raw.starts_with('[') && raw.ends_with(']') && !already_zig;
             let is_list = bracketed
                 && !node.extra_type.is_empty()
                 && node.extra_type.starts_with('[');
@@ -5752,6 +5774,11 @@ impl Codegen {
             // a literal is comptime-known, so `params[0]` still works.
             if bracketed && node.extra_type.is_empty() {
                 self.write(&format!(" = .{{{}}}", &raw[1..raw.len() - 1]));
+            } else if is_list && Self::zig_type(&node.extra_type).starts_with("[]") {
+                // A SLICE cannot be initialised by an array literal -- it needs
+                // an address. `const A: []const S = &.{ ... }` compiles;
+                // `[]S{ ... }` does not. Verified against zig 0.16.
+                self.write(&format!(" = &.{{{}}}", &raw[1..raw.len() - 1]));
             } else if is_list {
                 self.write(&format!(
                     " = {}{{{}}}",

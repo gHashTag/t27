@@ -91,6 +91,21 @@ module StorageMigrate {
         // into dedicated session_diff entries
     }
 
+    // No-op rollback, shared by every migration that declares one.
+    //
+    // Both steps wrote `down = |dir| { Result::ok(()) }  // No rollback`.
+    // Zig has NO CLOSURES -- not a lambda, not an anonymous fn -- so a closure
+    // in value position is a parse error and a wall over the whole file. A
+    // named function is the only form the language has, and it is what the
+    // comment already said this was.
+    //
+    // Naming it once rather than twice is not a liberty: the two closures were
+    // character-identical, and a shared no-op reads as deliberate where two
+    // copies read as an oversight.
+    fn migration_no_rollback(dir: str) -> Result<void, StorageError> {
+        return Result::ok(());
+    }
+
     // ====================================================================
     // Migration Registry
     // ====================================================================
@@ -100,13 +115,13 @@ module StorageMigrate {
             version = 1,
             name = "legacy_projects",
             up = migrate_1_legacy_projects,
-            down = |dir| { Result::ok(()) },  // No rollback
+            down = migration_no_rollback,  // No rollback
         },
         MigrationStep {
             version = 2,
             name = "session_diffs",
             up = migrate_2_session_diffs,
-            down = |dir| { Result::ok(()) },  // No rollback
+            down = migration_no_rollback,  // No rollback
         },
     ];
 
