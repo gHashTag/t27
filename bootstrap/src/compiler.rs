@@ -10255,11 +10255,90 @@ fn is_zig_primitive(name: &str) -> bool {
 /// form before list literals would rewrite the brackets away; casts and the
 /// `in` operator last, because both walk left over already-rewritten text.
 fn rewrite_all(text: &str) -> String {
-    rewrite_keyword_identifiers(&rewrite_not_operator(&rewrite_in_operator(&rewrite_as_casts(
-        &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_paren_destructuring(
-            &rewrite_array_repeats(text),
-        ))),
-    ))))
+    rewrite_keyword_identifiers(&rewrite_elided_struct_literal(&rewrite_not_operator(
+        &rewrite_in_operator(&rewrite_as_casts(
+            &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_paren_destructuring(
+                &rewrite_array_repeats(text),
+            ))),
+        )),
+    )))
+}
+
+/// `LayerBuffers{...}` -> `std.mem.zeroes(LayerBuffers)`.
+///
+/// The spec's way of saying "an instance of T whose fields do not matter here".
+/// It is not Zig, and it walls the file at `expected expression, found '...'`.
+///
+/// `T{}` would be the shorter lowering and is wrong whenever a field has no
+/// default -- which is the usual case, and would trade a parse wall for a
+/// missing-field error. `std.mem.zeroes(T)` is total: it produces a real value
+/// for any zeroable type, which is the honest reading of a literal that
+/// deliberately states nothing.
+///
+/// 11 sites, 3 specs. The other 10 `...` in the corpus are decimal ellipses in
+/// prose (`0.237532958...` in a physics document) and are excluded by the
+/// structure: this one requires a `{` immediately before.
+fn rewrite_elided_struct_literal(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if in_str || c != '{' {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        // `{` then only spaces, `...`, spaces, `}`
+        let mut j = i + 1;
+        while j < b.len() && b[j] == ' ' {
+            j += 1;
+        }
+        if j + 3 > b.len() || b[j..j + 3] != ['.', '.', '.'] {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let mut k = j + 3;
+        while k < b.len() && b[k] == ' ' {
+            k += 1;
+        }
+        if k >= b.len() || b[k] != '}' {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        // walk back over the type name already written to `out`
+        let name_end = out.len();
+        let name_start = out
+            .char_indices()
+            .rev()
+            .take_while(|(_, ch)| ch.is_alphanumeric() || *ch == '_' || *ch == '.')
+            .last()
+            .map(|(idx, _)| idx);
+        let Some(start) = name_start else {
+            out.push(c);
+            i += 1;
+            continue;
+        };
+        let name = out[start..name_end].to_string();
+        if name.is_empty() || !name.chars().next().is_some_and(|ch| ch.is_alphabetic()) {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        out.truncate(start);
+        out.push_str(&format!("std.mem.zeroes({})", name));
+        i = k + 1;
+    }
+    out
 }
 
 /// `not x` -> `!x`. Two sites, both walls.
