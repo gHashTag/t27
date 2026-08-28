@@ -24,6 +24,11 @@ name: Release Pipeline
 on:
   release:
     types: [published]
+  # Without this the missing reading cannot be taken on purpose: a gate with
+  # a `paths:` filter that nothing has matched in months is unmeasured, not
+  # passing, and there was no way to fire it at the default branch and find
+  # out. `tri gates unmeasured` reports the gap; this is what closes it.
+  workflow_dispatch:
 
 # Two runs for one tag could interleave four registry writes. They cannot
 # overlap now, and a queued one is never cancelled -- cancelling mid-publish is

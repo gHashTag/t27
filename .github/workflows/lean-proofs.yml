@@ -1,0 +1,87 @@
+# Lean proofs — the first job in this repository that compiles them.
+#
+# proofs/lean4/ holds a lakefile, a pinned toolchain and 250 theorems. Across
+# the other 44 workflow files there is no `lake build`, no `elan`, and no
+# mention of the directory: every `by native_decide` in the tree is a claim no
+# instrument has ever checked. Forty of those theorems are known to be about an
+# EMPTY module, which `native_decide` proves and which says nothing about the
+# spec each is named after (docs/reports/lean_completeness_mismatches.json,
+# `max_vacuous`).
+#
+# DELIBERATELY NOT GATING master YET. There is no `push:` block, because whether
+# these 250 theorems still compile is unknown — and a gate that lands red on the
+# default branch is one nobody can merge past, so it gets reverted or baselined
+# into silence within a day. The order is: get the reading, then decide whether
+# to gate on it. `workflow_dispatch` is how the reading is taken.
+#
+# When a dispatch against master comes back green, add:
+#
+#   push:
+#     branches: [master]
+#     paths: ["proofs/lean4/**", ".github/workflows/lean-proofs.yml"]
+#
+# and the claim stops being unchecked. If it comes back red, that is the finding
+# — see #2747.
+
+name: Lean proofs
+
+on:
+  pull_request:
+    # No `branches:` filter, matching the rest of this repository: a branch
+    # filter makes a gate silent on any PR whose base is not listed, and a
+    # stacked PR then shows a green check list a master-based PR would not get.
+    paths:
+      - "proofs/lean4/**"
+      - ".github/workflows/lean-proofs.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: lean-proofs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lake:
+    name: lake build
+    runs-on: ubuntu-latest
+    # mathlib is a dependency; a cold build of it is measured in hours. The
+    # cache normally makes this minutes, and the timeout is what tells us the
+    # difference rather than letting a run sit for six hours.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the proofs
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: proofs/lean4
+          build-args: "--wfail"
+          use-mathlib-cache: true
+
+      # `lake build` succeeding is not the same as the theorems being checked:
+      # a `sorry` compiles. Five sit in the tree today -- three in
+      # GoldenFloatRoundTrip.lean, one in IcarusLowerable/Equivalence.lean, one
+      # in TernaryInference.lean. One of them carries the comment "REQUIRES lake
+      # build", written by someone who knew it needed the very job that did not
+      # exist.
+      #
+      # A down-only ratchet, not a refusal: a gate that lands red on the default
+      # branch is one nobody can merge past, and it gets reverted or baselined
+      # into silence within a day. Five may not become six. Lower the number
+      # with the commit that discharges one.
+      - name: No proof may be admitted without saying so
+        working-directory: proofs/lean4
+        env:
+          MAX_SORRY: 5
+        run: |
+          set -euo pipefail
+          N=$(grep -RIn --include='*.lean' -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . | wc -l | tr -d ' ')
+          echo "admitted proofs (sorry): $N   ceiling: $MAX_SORRY"
+          grep -RIn --include='*.lean' -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . || true
+          if [ "$N" -gt "$MAX_SORRY" ]; then
+            echo "::error::admitted proofs rose $MAX_SORRY -> $N. A sorry compiles, so the build above says nothing about these."
+            exit 1
+          fi
+          if [ "$N" -lt "$MAX_SORRY" ]; then
+            echo "::error::$N admitted proof(s) remain but the ceiling still says $MAX_SORRY. Lower MAX_SORRY in this file so the next one cannot hide in the slack."
+            exit 1
+          fi
