@@ -5248,3 +5248,93 @@ cc 157, Zig-AND-Verilog 194.
 Reverted, and filed with the measurement. A loud refusal beats a plausible
 half-lowered artefact, and "no measured improvement" is a reason to stop, not a
 reason to ship the diff you already wrote.
+
+## 134. `cargo test` stops at the first failing binary
+
+Every test total in this loop before the last hour — 1629/6, 1635/0, 1786/1 —
+came from the binaries that ran before the stop. None was the repository total.
+
+```
+cargo test -p t27c                    ->  1786 passed / 1 failed
+cargo test -p t27c --no-fail-fast     ->  2419 passed / 5 failed
+```
+
+Four of those five failures had never been printed by anything I ran, and they
+were the *interesting* ones: four generate Verilog, compile it with iverilog,
+**run** it and check numbers against a reference model.
+
+Use `--no-fail-fast` for any number you intend to report. A partial count that
+reads like a total is the same defect as an assert inside a loop (§127), one
+level up.
+
+## 135. Three refusals, one answer, and the smaller fix was the right one
+
+`gen-verilog` refused a whole function when an array parameter had no call
+site, or disagreeing call sites, or a non-identifier argument. Refusing is what
+made bitnet_layer print *"function on_comb has array parameter(s) but no call
+site"* four lines above `assign result = on_comb(...)`.
+
+I built the elaborate fix first: monomorphise the conflicting function into
+`neuronN__acts_w0` / `neuronN__acts_w1`, bind the entry point's parameters to
+their own ports, teach the index path that a bound name can be packed. It
+worked, and it closed **one** of five failures.
+
+The answer was to **delete** the three refusals. An array parameter that cannot
+be bound is passed BY VALUE — a real `input [W-1:0]`, indexed by element slice,
+which #1745 already implemented and which every one of those testbenches was
+already written against. 18 insertions, 22 deletions, five failures closed, no
+test file touched.
+
+When a fix needs three new mechanisms to make one check pass, the model is
+wrong. Ask what the callers already assume.
+
+## 136. A gate that only checks half of what it is named for
+
+`check_seal_coverage.py` runs as *"Every seal still describes its spec"* and its
+docstring says a seal breaks when *"gen_hashes no longer describe what it
+produces"*. It compared `spec_hash` and stopped.
+
+```
+spec_hash    := zeros   ->  exit 1, stale
+gen_hash_zig := zeros   ->  exit 0, SILENT
+```
+
+| | seals |
+|---|---|
+| the gate called broken | 418 |
+| actually not describing their output | **1,078** |
+| **only the output drifted — invisible** | **612** |
+
+Two controls, one per field, found it in a minute. Run one control per THING A
+GATE CLAIMS, not one per gate: this one passed the single control anyone had
+tried.
+
+### Re-seal first, then tighten
+
+All 1,078 were re-sealed from the compiler's current output, so tightening the
+gate landed GREEN rather than red-on-arrival. A stricter gate is only landable
+at the moment the tree satisfies it — otherwise it is a red gate nobody can
+merge past, and it gets reverted or baselined into silence.
+
+### The new check gave the gate a new way to lie
+
+With no seals at all it answered *"the compiler is not built"* instead of *"the
+path is wrong"*. `check_gate_preconditions.py` — which hands every gate an empty
+tree and asks what it says — caught it one commit later. **Order the diagnoses:
+nothing-to-check comes before tool-is-missing.**
+
+## 137. A proof nobody compiles
+
+`proofs/lean4/` has a `lakefile.lean` and 250 theorems. Across **45 workflow
+files**: no `lake build`, no `elan`, no mention of `proofs/lean4`. Every
+`by native_decide` there is a claim no instrument has checked.
+
+Before trusting any proof layer, grep the workflows for the thing that would
+build it. The absence is quick to establish and it reframes everything
+downstream — "40 vacuous theorems" is a detail when *none* of the 250 is
+checked.
+
+What is holdable without the toolchain is the **shape of the model**: a module
+with no functions, globals or tests makes its theorem vacuous, and that is
+readable from the source. Ratchet what you can read; file what you cannot run,
+with the job written out, rather than landing a gate you could not execute once.
