@@ -59,7 +59,7 @@ def fix_latex(content):
     return content
 
 # Read original file
-with open('/Users/playra/t27/research/trinity-pellis-paper/G2_ALPHA_S_PHI_FRAMEWORK_V0.9.tex', 'r') as f:
+with open(str(ROOT / "research/trinity-pellis-paper/G2_ALPHA_S_PHI_FRAMEWORK_V0.9.tex"), 'r') as f:
     original = f.read()
 
 # Apply fixes

@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-06-23T07:33:23Z",
   "spec_hash": "sha256:c784bd6931791d71f90cf3e33ffbfe8dfe7ae8aa1063ae41eb2fe5aadda3438a",
-  "spec_path": "/Users/playra/t27/specs/igla/race/systolic_array.t27"
+  "spec_path": "specs/igla/race/systolic_array.t27"
 }

@@ -3,7 +3,13 @@
 
 from pathlib import Path
 
-ROOT = Path("/Users/playra/t27")
+# The repository root, derived from where this file sits, not from the
+# machine it was written on. This was an absolute path into one
+# developer's home directory, so it could run for exactly one person --
+# and the secret-scan gate rejects that path, which is how it was found.
+# (The old literal is deliberately not quoted here: a comment naming it
+# trips the same gate.)
+ROOT = Path(__file__).resolve().parent.parent
 LEAN_FILE = ROOT / "proofs" / "lean4" / "Trinity" / "TernaryInference.lean"
 
 

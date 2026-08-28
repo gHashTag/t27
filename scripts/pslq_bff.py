@@ -10,6 +10,9 @@ import json
 import math
 from pathlib import Path
 
+# Repository root from this file's location, not from one machine.
+ROOT = Path(__file__).resolve().parent.parent
+
 # Trinity constants for PSLQ
 PHI = (1 + math.sqrt(5)) / 2  # Golden ratio
 PI = math.pi
@@ -146,7 +149,7 @@ def main():
     results.append(result6)
 
     # Save all results
-    output_dir = Path("/Users/playra/t27/scripts/output")
+    output_dir = Path(str(ROOT / "scripts/output"))
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "pslq_bff_results.json"
 

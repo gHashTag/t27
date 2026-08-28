@@ -10,6 +10,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Repository root from this file's location, not from one machine.
+ROOT = Path(__file__).resolve().parent.parent
+
 def run_method(name, script, args):
     """Run a search method"""
     print(f"\n{'='*70}")
@@ -43,21 +46,21 @@ def main():
     # Method 1: v6.5 ABSOLUTE (CPU)
     results.append(run_method(
         "v6.5 ABSOLUTE (NumPy + 8-core)",
-        "/Users/playra/t27/scripts/ultra_engine_v65_absolute.py",
+        str(ROOT / "scripts/ultra_engine_v65_absolute.py"),
         []
     ))
 
     # Method 2: Chimera Search (max_pow=7, threshold=0.01)
     results.append(run_method(
         "Chimera Search (Rust, 3375 basis)",
-        "/Users/playra/t27/target/release/t27c",
+        str(ROOT / "target/release/t27c"),
         ["formula", "chimera-search", "--max-pow", "7", "--threshold", "0.01"]
     ))
 
     # Method 3: Chimera Search (max_pow=7, threshold=0.03)
     results.append(run_method(
         "Chimera Search (Rust, 3375 basis, wider)",
-        "/Users/playra/t27/target/release/t27c",
+        str(ROOT / "target/release/t27c"),
         ["formula", "chimera-search", "--max-pow", "7", "--threshold", "0.03"]
     ))
 

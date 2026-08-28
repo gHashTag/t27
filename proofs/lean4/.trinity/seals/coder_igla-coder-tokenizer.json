@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-06-23T07:33:23Z",
   "spec_hash": "sha256:a082bceb80b41d6207340fb74d39e61b10de5d88dae7047b629b03adc2cf3fe6",
-  "spec_path": "/Users/playra/t27/specs/igla/coder/tokenizer.t27"
+  "spec_path": "specs/igla/coder/tokenizer.t27"
 }

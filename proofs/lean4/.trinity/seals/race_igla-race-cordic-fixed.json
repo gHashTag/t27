@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-06-23T07:33:22Z",
   "spec_hash": "sha256:08e4b454cd08143b5f79ac7da87c31536c5a528bffd448ccc8832887bbd30b9e",
-  "spec_path": "/Users/playra/t27/specs/igla/race/cordic_fixed.t27"
+  "spec_path": "specs/igla/race/cordic_fixed.t27"
 }

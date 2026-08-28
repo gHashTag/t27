@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-06-23T07:33:22Z",
   "spec_hash": "sha256:f357b3492de44f19257be21e9d5a75405e595e27d1f70a923538e6d065d7490b",
-  "spec_path": "/Users/playra/t27/specs/igla/race/adder_tree.t27"
+  "spec_path": "specs/igla/race/adder_tree.t27"
 }

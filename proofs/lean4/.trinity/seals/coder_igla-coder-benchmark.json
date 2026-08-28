@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-06-23T07:33:23Z",
   "spec_hash": "sha256:afce874ad5ea6d926adecae1bc996369d3f5aa96df1e9351517a993db8b333b2",
-  "spec_path": "/Users/playra/t27/specs/igla/coder/benchmark.t27"
+  "spec_path": "specs/igla/coder/benchmark.t27"
 }
