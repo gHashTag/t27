@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b7b6e38112d3de15c8ea16a42b120f5492093ca8335639de6b58a5ab272f1c7c",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:cc2eb5b646991f8b9b6ad6716d135fbbfe8e0bd97a37a37993ba6fc3ac73b72a",
-  "gen_hash_zig": "sha256:acbb4f0574948b8b1dc1c3ac6bba743b977c5dfef5badf7f4ff0b8d83f24f049",
+  "gen_hash_c": "sha256:e5911c8f5070ec6631c4595093978d8f12282e0c60e94d534a19a85a21366296",
+  "gen_hash_rust": "sha256:1bb36157c4fef38640d768568b4977c536e713ed136eaa42b8bb5e22ec30b462",
+  "gen_hash_verilog": "sha256:4dfb39cb8256ee127d93cb27b27070a6138cf060008b77fee817402594fad250",
+  "gen_hash_zig": "sha256:b4ae3ef25228ee7fb10a4f0ccb5e61c1ae75d19d2bc959e1e6178a9d86ea9258",
   "module": "compiler-mod-structure",
   "ring": 12,
-  "sealed_at": "2026-05-18T04:27:12Z",
-  "spec_hash": "sha256:aa68e993cc9415a7df4fda9e3366a8cb1c8de9e0f35f2b499f550f2bf45b2936",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:dee8a1c4e2ac49ff01ec4228a43bdcb4364d4e68fa2d1d439b27c2d5bac584a7",
   "spec_path": "specs/compiler/mod_structure.t27"
 }

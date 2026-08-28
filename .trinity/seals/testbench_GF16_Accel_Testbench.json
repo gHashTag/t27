@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6b1393a235ebc7250d5be6ac8f619a4136f9ed0ab5d2ef143a5e9e9817a8bb70",
-  "gen_hash_rust": "sha256:ce93741765a83a62e1feab1a68738ca6052136bf97021aa43460f940494f463c",
-  "gen_hash_verilog": "sha256:3f565b6a9c5136f77d803dcaf8b4aad0807df8495b488b3c1dd7490d4aa13249",
-  "gen_hash_zig": "sha256:c33fb190ac4c976553c23c1d234365306a98f80ae86337fbd9ac5e965359a929",
+  "gen_hash_c": "sha256:c0a9cedefca33af79952e10a90f098ae3cdc2067fc56be07c6767c35c794b8e3",
+  "gen_hash_rust": "sha256:5e0b55aca0f2f242a954971ed785c2f5b2391a21407a196f70f398012502ecda",
+  "gen_hash_verilog": "sha256:ce59698ac2129d78a5ded4763d9696ca215e3325d3a8d4d1a508239ca41c7f53",
+  "gen_hash_zig": "sha256:24f97b23844c164e03aaa4d3c5576b7b6a74282c85f50a59d15a408ee3563252",
   "module": "GF16_Accel_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3f487d270158277f2ba80e89b81dd3983c04568990e00f0014306d086b57077d",
   "spec_path": "specs/fpga/testbench/gf16_accel_tb.t27"

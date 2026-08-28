@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:201fcce5d11c9e62e46ee492b996837564b0118f86233ee9808f71e887faec6b",
-  "gen_hash_rust": "sha256:57ba9c24394222dae91ffcc63769c637586e67c88a3c3dadeac90ef6e9b54336",
-  "gen_hash_verilog": "sha256:0eaba7d82f2a69e53800cae0348aba10b905f11baceb25bd5cbb1f41451682da",
-  "gen_hash_zig": "sha256:d89d9a00c934abbbee26b0be2c5c16471d9fb213f39bbae0a753348e55b6f0e8",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "Project",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:245e1cb7d3316f672985f97d6430f6864e5a1b47a22a82ac59a39ad5d1bb1ce6",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:63ff5dffa64646a0575f4118a32c01ae5e759c332c2425d6850951f8466126f9",
   "spec_path": "specs/server/project.t27"
 }

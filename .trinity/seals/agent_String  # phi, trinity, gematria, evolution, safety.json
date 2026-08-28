@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:91cafb2b3c0d851d9ab9fe06e7e2254bb43db381e0fac33a2094b065b5d55095",
-  "gen_hash_rust": "sha256:5fb54e4d1dd119312051302df03b0a5a0d75255cdcd4c8afe93d87752d7910a7",
-  "gen_hash_verilog": "sha256:776f9b22726a7cf896432026b5c35445d430b43d89237e7cc16e57c793afa0ba",
-  "gen_hash_zig": "sha256:f38c7d71eef7953c70575666e41d627a00f14da64b4eb2843656853f18190acd",
+  "gen_hash_c": "sha256:57357d6d72bbdbcb6f405ca9dec498c61848adfb8f6ce29f5e07aa9f9ddc0ae1",
+  "gen_hash_rust": "sha256:07e1174c3b7ff233867f3f4ec5bb32d3a5424fdcde7f78c0a731e2130670a3fc",
+  "gen_hash_verilog": "sha256:ae882e51ff23437bc3b9cb5cba5860d53ee2e060d3434f11ad46f2aa8026802b",
+  "gen_hash_zig": "sha256:73bd645a1e35caca2c2ca4377a6561f5b6aed872b20038bf215d8ab45238d648",
   "module": "String  # phi, trinity, gematria, evolution, safety",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
-  "spec_hash": "sha256:a759b1a80fc9740f0daa0cf6a1382298f9769e6a4b09d9ed09309c0c58fba775",
+  "sealed_at": "2026-08-28T00:22:25Z",
+  "spec_hash": "sha256:3141c84ac07b0e0278a98f2c175f0eb68d499eca57a2a936bdc41cf5a0de85eb",
   "spec_path": "specs/tri/agent/governance_agent.t27"
 }

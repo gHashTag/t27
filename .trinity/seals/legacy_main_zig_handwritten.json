@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:68456034657607fd58c72be0e647e88ae0d4954f12b0037ca1109f54640ae5dc",
-  "gen_hash_rust": "sha256:168660ca3e44904edf8123c100f3308bfc87020dc3e259f9175d9758e3e62ff4",
-  "gen_hash_verilog": "sha256:0efb4a972b1f8297c5d19340625ecae0bf0dbeec2efa52417f6d4d04dbef2638",
-  "gen_hash_zig": "sha256:0fce0d2e338355bb0ba53f5e0a88fc176558f14ff11ea07326899dc54a198138",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "main_zig_handwritten",
   "ring": 12,
-  "sealed_at": "2026-06-17T01:12:38Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:6b7f2cbc1dcad4907338cb340fa8ae63b3d9c0e55243dd0fd6cda4a7c36c3f3c",
   "spec_path": "contrib/backend/zig/legacy/main_zig_handwritten.t27"
 }

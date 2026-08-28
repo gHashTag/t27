@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:52f227c66ca3d95f3eec8c7d7f8b9c52332b46f3ea70879919162df688457bc5",
+  "gen_hash_c": "sha256:4050c2066acdf24ea8e92f87b656de6fb44703764eb94a345b04feffb7865386",
   "gen_hash_rust": "sha256:60cf456a4f31da89e342b80c7b1dfd1dc4818bfc505488b401f5b649495acb54",
   "gen_hash_verilog": "sha256:bcb556abcabb1b6a1e164a62c3fcf1d1ffa37f4235af9679d5656e44baf46be4",
   "gen_hash_zig": "sha256:f1e3e0a0ef024d8af5504f574e598604e573ca76366bcfb0bffe0dd99255b79a",
   "module": "TriPriorityQueue",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:a1d8952a42208b161d951d524922fe049963a312a15721e7e5d5c95097729812",
   "spec_path": "specs/tri/collections/priority_queue.t27"

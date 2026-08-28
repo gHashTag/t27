@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:12c5173b54246f308cc28d245f5fbd058a33bd9562e5a1c8d8c5b8b4eb4531e5",
-  "gen_hash_rust": "sha256:36a3f22e0d446cd9a69ab40c9f49a88ae783b72aa4b1c37a90c4fa21acc14a7b",
-  "gen_hash_verilog": "sha256:571783d90cae4ba61be96e05b810350e1ecc523bed79e724a917bc684a3fbcf4",
-  "gen_hash_zig": "sha256:ab7d07d4cb278805704a2eae6cd7a09ebbd68ee1eacb90cc630b2e7e68e2139d",
+  "gen_hash_c": "sha256:e3014875c36dc9fb8f76e572d7140e4173b951ef4a1e02acba0d5335c9236047",
+  "gen_hash_rust": "sha256:c278e86d4ef263e52f104e67e7dbb27f012bf3a7ea7dbc0eae9f5141339e2977",
+  "gen_hash_verilog": "sha256:466e2318f353e5553aab0076dfe42c6f28bd7493322728490ea26da640d10e01",
+  "gen_hash_zig": "sha256:e8eacdd87a4e4288ac75c9d23bddb6c9affb1106ac848562e926cad29b87b11e",
   "module": "TernaryShift",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:f3c137216cf4a9131b60f44dc249b3df311276ac91d365fe4aa0f87848269237",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:bcf4922c76661955200baaf574ae4fda7a915b33ca6fa815fd24217b0cf845b2",
   "spec_path": "specs/isa/ternary_shift.t27"
 }

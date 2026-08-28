@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:88645bcfa1dc74189ae51d35f22025fbcd7d66571eb3919013924f6527c09be2",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:e7842943312c88fb35f69f0a248eb58699b481589d988be9426ae254ba52023e",
-  "gen_hash_zig": "sha256:314d386d717512222d9bc94255770d8bd18260037a5a3eea875ed755f02b126e",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "quantum",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:5dd605ea7076664bd065d02e14f724b3b75ea46be1b70adf914de7c8d9459f9b",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:93d4bbabdcde849e3e870082518f4e019cfa74ef6d07dc855b25cbee1e40c1b9",
   "spec_path": "specs/physics/quantum.t27"
 }

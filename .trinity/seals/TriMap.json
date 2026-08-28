@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:4b2a9eb9fc210ad0e0c1e6d3fdd769a57f09062bf219cfe84b6163ae62298876",
-  "gen_hash_rust": "sha256:34a580b17f31738546f5b22f2b29e63580b8004b9e66d10cd3e6fa71ec761f80",
-  "gen_hash_verilog": "sha256:218cf00254476e45218f4d81b89816d339f5773201d3a361230906603dfcc335",
-  "gen_hash_zig": "sha256:2eb602022e9d060ec63610274dab37498e0806b8f896bdf5121d743934f2268e",
+  "gen_hash_c": "sha256:2f9ddb483920a667c99794942f83b628113063c0c5dcc9f824b519a92f787c56",
+  "gen_hash_rust": "sha256:64cf1c172e169f458e10885a30a60cabcf494a6d00a0caa33055066c0e141fdd",
+  "gen_hash_verilog": "sha256:cb895d465f57afb4e1d3f3d2fc096e0665388c1c9cf0bf07b091a92090951603",
+  "gen_hash_zig": "sha256:96d17c65b67e04c6b4da3a4a62edbd986f97a9655e2b7a5d8203675c2e898355",
   "module": "TriMap",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:48Z",
-  "spec_hash": "sha256:7e0fdae860e6349fdb6e2951b1d7588b0861822f7675c669996d061899c95127",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:5feb63007768c9262c64e33e8fcab24e138067718da09184d0e21bdfa3204ef7",
   "spec_path": "specs/tri/collections/map.t27"
 }

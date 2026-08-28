@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:00a4c97d96cd08ad4cb1ab07c6ceaaa3f957661e1eadfea931371fcbdd811c9a",
+  "gen_hash_c": "sha256:ad01e6819bfc8504375d9b6746360876f2ea597e033ba28a27c1f1cbadb5ba99",
   "gen_hash_rust": "sha256:3ad1305b243ccf8abb3d233a693a67122dfebe78e4b30b96d44ac08849deec8a",
   "gen_hash_verilog": "sha256:af34b531a35c6a11c1d91acda715c81b4740415025f0a868d12be6ddb1aa470a",
   "gen_hash_zig": "sha256:6ef5bbf46be5098597db81736c14467adbe0238daed01454789f2fec04017b03",
   "module": "TriProbability",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:48Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ae64dc117c95217e11bbf10e7a52d5c474418a7600f6b0a7f4d58b79e1637193",
   "spec_path": "specs/tri/math/probability.t27"

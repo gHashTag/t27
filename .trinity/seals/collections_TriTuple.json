@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:46a87722f376e54c3f570ca21556d0cba7351ab43b4f845eec612b70665d4797",
-  "gen_hash_rust": "sha256:90358c7aaa6b7376b1f09c9989f14fc648f4f5dd3819e8cb10888271cb81cfcb",
-  "gen_hash_verilog": "sha256:ee9b4ceb6d54dbaeb2046543831860af95ee0c9f4ca0ed8715950dbd9aef0823",
-  "gen_hash_zig": "sha256:b57db3805f5ae17fd40039ce8117e502afdcbd23c5f7355addf3966092b7d2d4",
+  "gen_hash_c": "sha256:ecf013ef78373d3301bcb95d3069e5301795ccfbb0656fd1c5b41d6f418242ab",
+  "gen_hash_rust": "sha256:0c34b8a8fc4fcf9abaa449699335452b188d373b0d93074822cb64e2cb922f36",
+  "gen_hash_verilog": "sha256:e3bb9e3d3a2af1ebe72a8a62d64eefd85199775ac7bd86b20969bbb2b1a7e08c",
+  "gen_hash_zig": "sha256:08c33d9c1380af82130088df9ee805fe81595a6fa7a334d587dee8a51559acad",
   "module": "TriTuple",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:8fc1e6d391ef81cb63d49bc1d38dc95d6a20bc819fd8da94b111dac89e57990a",
   "spec_path": "specs/tri/collections/tuple.t27"
 }

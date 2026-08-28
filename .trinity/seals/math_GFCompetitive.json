@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:48a7df0229ebf1ef826cc40a6d333d27ed5c0c5f3283b1cc05fc4dcf8e6369d2",
-  "gen_hash_rust": "sha256:211f86379d7e8e8cdaed3de0add179d56ba00c9fb683a868eab135f9e1bed475",
-  "gen_hash_verilog": "sha256:cb2a67b5a01e778da089c5add9bfb5a55f2daabc58c3eb4b79b3fd392f6e9f65",
-  "gen_hash_zig": "sha256:c3b1c9fab68ff799d886c5055d852a9c54b2653597fa146afcb432f42a78d3f1",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "GFCompetitive",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:5552a07e096e60a67d0ee5e2a395c9fa2f9d092d28bca339aad05046dc579169",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:2e1c74a2e7066c74730a82673ed2d723555599bada8fa1122e0859a5bb24e3eb",
   "spec_path": "specs/math/gf_competitive.t27"
 }

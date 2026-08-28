@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:75d16c928037a68716e7bade0844051887667704db7eee7808a95727c1c43220",
-  "gen_hash_rust": "sha256:9823b90c4436a6e82ecaf2c9bb561a1daff9e410d89f289f81470f7569a52274",
-  "gen_hash_verilog": "sha256:51a2c23f4fb04d56a78a4e17df9612968c37e0560fac6a683c49e92d1de9497b",
-  "gen_hash_zig": "sha256:dd474280a37d5c62a38d7bf2e5bca6d67d855043244e1ffa2ab22db0645479a4",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "provider-adapters",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:1d2c8d2ce2773082a7e989f499de40c1dfd323677126d87853a231850ef6e25e",
   "spec_path": "specs/provider/adapters.t27"
 }

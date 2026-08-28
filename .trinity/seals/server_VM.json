@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:2265b4ccd7d3ebaf84b066a576d3df91a644f2b1b6478659660c2cc39b1759b8",
-  "gen_hash_rust": "sha256:1149c32032e8979f881ba241e6a5b9b2c45ccb5535f4a22b59caac9bd516930c",
-  "gen_hash_verilog": "sha256:317648f4051a934546fa047ea50def81959249b92376d4897c724c03c4df45ed",
-  "gen_hash_zig": "sha256:4d374439bf35da5e6f7f0731503590334560d72ca3cf87b02ca0180f38d9e9ac",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "VM",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:c0881e50f64cafa548394ab698a373f7c74c7626d021eb904e2a8e036bb6a091",
   "spec_path": "specs/server/vm.t27"
 }

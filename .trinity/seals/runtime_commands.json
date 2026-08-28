@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6033eaa94b9c134bccc452a0fc2a8d46df3d0ebad8d11268ec54714d4abc8660",
-  "gen_hash_rust": "sha256:c0a79b5395faf01ba4d821fde7123c5f5d30c858ee32d915eae5d30dd4dc983a",
-  "gen_hash_verilog": "sha256:a5dc458b91d9c4986bd800a50c44303fea9caecc93a84ed5892870025a0db6ee",
-  "gen_hash_zig": "sha256:5b172bb04c6bae3015bc10308a3e2e8e64ad86f14c128a579d7fd042369a52c7",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "commands",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:17Z",
-  "spec_hash": "sha256:12dccaef1d7f63586257e69d4df35e9b6214d5ab6625191abc8034daafb5613e",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:bddd8c89ee156b399270b7ff155003020a0e6229fdcea4c0f5d1126d0671803c",
   "spec_path": "compiler/runtime/commands.t27"
 }

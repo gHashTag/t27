@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3fbbb16893a5c9262bbcfcbf69332e0c71da05be9e66d854aed38e8a485ab32e",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:f6840df52c0d42e5c08062a8cd378316e9a84111f28d0f24962816c5e8e72f0c",
-  "gen_hash_zig": "sha256:71b31bf17a9b9ff8cc0d761c4452f801f0c46d663992b4142564ee3300c55739",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "c_api_contract",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:4f64c91d79a5246a2a7c5afc031caa78b5927f8ea06cdbf259e3bcbb2a93a2aa",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:ef174fdc7f09ffe1d7f0f377711f96c6fa06d417747d4c2ae2afb444b0a26606",
   "spec_path": "specs/api/c_api_contract.t27"
 }

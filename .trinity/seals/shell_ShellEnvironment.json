@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:f895524a9ece7d8f21423993ae53932f0d570298a017c954606e099f56d377b5",
+  "gen_hash_c": "sha256:ff12a99a92ed5492fc571423d8611daa2d010ae59476e671ffcb85dc448b91f8",
   "gen_hash_rust": "sha256:ba90e3cbf3ee7a52cda4907b30b5970f8b1568c25ba576a215393248b495a474",
   "gen_hash_verilog": "sha256:2481c6f3a2671b40a98f537e8d9d70398837671b790e74ef70c903754184b986",
   "gen_hash_zig": "sha256:a6bff890d2be65b0e66b50658366241b00bdd49d308e1937107fc13ce6d36f53",
   "module": "ShellEnvironment",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:d58fc71d9e69156a0b572eb290f73c0bbd5ac953a9abb7a5e2405924ba48f3f6",
+  "spec_hash": "sha256:051d7f2cf4839836609024f1e085e6f62fb14ca794d8ad779468c9b8974192ff",
   "spec_path": "specs/shell/environment.t27"
 }

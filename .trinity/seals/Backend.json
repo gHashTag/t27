@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:sha256:5817d85ad9b7d7300e9d348bb4265db4d1c7b2132f2ef88e12100b9b18c80106",
-  "gen_hash_rust": "sha256:sha256:184d70d2a1bb47ae7b53065ada6e21275b989e088191eea0f672b0e5f6f85968",
-  "gen_hash_verilog": "sha256:sha256:652ecee1f51f6c5219ea732c354ecb383fef147faa983d80d96ea77c44321dd0",
-  "gen_hash_zig": "sha256:sha256:8a7943bb09de43215a21794ddf0fba5f5131604424e49f3bd0317c5174dbc70d",
+  "gen_hash_c": "sha256:65f87260a7f2744ebf06d32dc9f4ced2185a8e7cef2849ab056f090ab555b330",
+  "gen_hash_rust": "sha256:81ccfdba38e3ef4964b4ca8acc5049919c4d0c05a3cc9ceecaf84ad336f6784e",
+  "gen_hash_verilog": "sha256:a9d64159297b926cc1d3f1c8760f25f5e325495620e99d4b959b9f9a2f699df4",
+  "gen_hash_zig": "sha256:da68a0284c02e33b15201029060202d81a344d440e0f3abcb9bdcb8ac8f92d18",
   "module": "Backend",
   "ring": 32,
-  "sealed_at": "2026-06-17T07:35:00Z",
-  "spec_hash": "sha256:sha256:0586e12ea1521d38f1c9ced383eae02c007e1dc19cd394c933a0df03cefaed4c",
+  "sealed_at": "2026-08-28T00:22:25Z",
+  "spec_hash": "sha256:1262feb6bf7fe0c0672a7985bd86b2b07a3e1e9eccf6226d47c6ee7c9ca5d2ca",
   "spec_path": "specs/igla/race/backend.t27"
 }

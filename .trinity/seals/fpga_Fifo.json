@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e3b88e0669529d2ba892792874e4d48cfc7d8f0bb9f5544444d09ab7fa8547e0",
+  "gen_hash_c": "sha256:4274ad60e66b08c8dca0cea0aaf7b68de0c8393b837845a745bc8d5527e0aca0",
   "gen_hash_rust": "sha256:ced3a74c87cb563c37eca48558c67cb99f07deb59933d21d296da09f9b8dc36a",
-  "gen_hash_verilog": "sha256:0fe37ecea05b11b8f6bef79aa64487fa441e0333048a2f8676d27fd7f1cdd347",
+  "gen_hash_verilog": "sha256:1d36767bb1657b3f8baa3deb6988f91d2f85fa3008eab7318de5bbc03835ed8f",
   "gen_hash_zig": "sha256:f040a175c3950ba8cad74f32aee9fa95bacb8e95632a078971859d8833b55501",
   "module": "Fifo",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:9988e4ba66ce159c60fcf384d153cd0819729c109768529d978dd6463fa69393",
   "spec_path": "specs/fpga/fifo.t27"

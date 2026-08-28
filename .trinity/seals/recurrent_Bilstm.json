@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f0510b84ee0769688500ece9a86216ef2149ba9367a140edc267e4d322b97259",
+  "gen_hash_c": "sha256:b5511052cc6b22158de628bdfac768a290dd380e14e3ccd9b73058ab8b3db3c6",
   "gen_hash_rust": "sha256:1eac61a7d1f31d39547ed7ec7bb7ba60587e000fae54c571549aab0c38190126",
   "gen_hash_verilog": "sha256:ce84bf0099fe527f71d3245d5d875e15fca0737f10d30c3f0a3a89deac059b00",
   "gen_hash_zig": "sha256:fce4211d992296676372c737a050e0134146aac63138c94519a32434be2346c1",
   "module": "Bilstm",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:46Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:d2e4055108ee38da5e3e5cf5c999c6381ebd57c1d6c1ee7ada868b15cccb77d4",
   "spec_path": "specs/ml/recurrent/bilstm.t27"

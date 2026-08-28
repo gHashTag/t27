@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e28e35535c035187c20edabf57361c0b27800f0ff7e2e150eebf624df5baa959",
-  "gen_hash_rust": "sha256:bbceb6a1c2a387cf2f0e8da13fd794090869b185e45fdbabe5a789163c9463d8",
-  "gen_hash_verilog": "sha256:9ecc61d0c339bbea24e60c48d32e27d5b5e88ad4a5f4108444498a430f358264",
-  "gen_hash_zig": "sha256:8811d957884f985c4b8be3db1424f4ade7685e7733d814e2cc5e8278fdc18a25",
+  "gen_hash_c": "sha256:c2bb7bd593300a1d45cd36acccc15e8428173c177e25f189e9eaac8378364655",
+  "gen_hash_rust": "sha256:0540c749509d31edf81203c51ed68c71d7cb952afdbc6b6592301a6517cdd0dd",
+  "gen_hash_verilog": "sha256:81dadc7e5e5d8f3953d78bfa6f628c2880c7fb3fc32c821c2d3b74d822dcc476",
+  "gen_hash_zig": "sha256:8a86f192cb24bbdf8fbffe4f8b24c770c2789329430f1de448327ffc91d7cde2",
   "module": "BinaryCe",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:50Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:7ef7acd6dea18076e9b87ed6b1cc6fa16ef8c0de91a59ce03bb66cb5f4d01e48",
   "spec_path": "specs/ml/loss/binary_crossentropy_loss.t27"
 }

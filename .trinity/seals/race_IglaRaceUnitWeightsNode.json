@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:bf872a2c84269320f30060c423a22630182fa88fe9f205783047dab1128d9ff5",
+  "gen_hash_c": "sha256:3cc3c6a34b282ce279703906e7f766f8f368857836fcd0c495e6e7f8120459bd",
   "gen_hash_rust": "sha256:7478586ba21b74d8dd1538a5372799b7dc27c87f6e573cf01d4a7eed92ba9c2c",
   "gen_hash_verilog": "sha256:11601775546a6795223d927e650c0a7257091bd52e0edb1bce0eed733fe93e4b",
   "gen_hash_zig": "sha256:7868fd9760d7feafd8a4f1858917ff8c8216f4fcadbdb8ef0def1c76336b975d",
   "module": "IglaRaceUnitWeightsNode",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:f3b97da6289ecc13cd9efc132dc417b23dff4316a835d5f6d86875470f306c34",
   "spec_path": "specs/igla/race/unit_weights_node.t27"

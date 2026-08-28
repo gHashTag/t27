@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:20fb1890c5b30b7205263c35d0eb113578c3062e4f936439347edd2abcc12404",
   "module": "lqg_entropy",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:f2ce86f6dc75a68d23e993125d508a641f4bd6cb83383b147d13f9bc7eae1b60",
+  "spec_hash": "sha256:11055f7681ca0d5588ee71899ff6cfc2d374a4564f01d03669ff54f579d1777d",
   "spec_path": "specs/physics/lqg_entropy.t27"
 }

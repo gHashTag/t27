@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3d6f458b56c59340a5c944b72a1a84b3d021f019fa7023e0810bc02ea367435a",
+  "gen_hash_c": "sha256:952d73be0c711644c15418e5a6a73b9cab45fbd168cc71a19feafb130c5fa9da",
   "gen_hash_rust": "sha256:3fc1378951ce44be336b087e0c739d618e87b5a0382573e23054b228a02e9ae1",
-  "gen_hash_verilog": "sha256:4147a62f035427cc6b5a311831748bf772303b0deabe7de73ffc86a618e39f4c",
+  "gen_hash_verilog": "sha256:dc4d76d18b621c41a1d96ba9cb754165806de870b67a6b6ed060044a66894db0",
   "gen_hash_zig": "sha256:bb7ea5d06d2bce2d1f908f3fb060ddf99f65f8337e6a07621a5579cabb38713a",
   "module": "PinsIR",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8f46ba7ad0a214121f9f767a1d34411f435bf8fa19f3368b3182021b738bd4de",
   "spec_path": "specs/pins/ir.t27"

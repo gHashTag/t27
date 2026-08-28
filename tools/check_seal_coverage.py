@@ -62,7 +62,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tools/seal_baseline.txt"
 
 
-def scan(root=ROOT):
+def scan(root=ROOT, t27c=None):
     """(name, kind, detail) for every seal that does not hold."""
     bad = []
     seals = sorted(glob.glob(str(root / ".trinity/seals/*.json")))
@@ -111,7 +111,59 @@ def scan(root=ROOT):
         got = hashlib.sha256(full.read_bytes()).hexdigest()
         if got != digest:
             bad.append((name, "stale", f"{sp} changed since sealing"))
+            continue
+        # An UNCHANGED spec was the whole of this check, and the file above
+        # says a seal is broken when "gen_hashes no longer describe what it
+        # produces". It never looked at them. Measured with two controls:
+        # setting spec_hash to zeros fails the gate, and setting gen_hash_zig
+        # to zeros passes it. So a seal could assert false output for as long
+        # as nobody touched the spec -- which is most of them.
+        #
+        # The four hashes are checked by regenerating. That needs the compiler,
+        # so when it is absent this reports and exits 2 rather than returning a
+        # verdict it did not earn.
+        if t27c is not None:
+            fresh = _regenerate(t27c, sp)
+            if fresh is None:
+                bad.append((name, "gen-unreadable", f"t27c seal {sp} failed"))
+                continue
+            drifted = [
+                k
+                for k in ("gen_hash_zig", "gen_hash_verilog", "gen_hash_c", "gen_hash_rust")
+                if k in fresh and d.get(k) != fresh[k]
+            ]
+            if drifted:
+                bad.append(
+                    (name, "gen-drift", f"{sp} still hashes the same, but {', '.join(drifted)} do not")
+                )
     return len(seals), bad
+
+
+def _regenerate(t27c, spec_path):
+    """The five hashes `t27c seal` computes for a spec today, or None."""
+    try:
+        r = subprocess.run(
+            [str(t27c), "seal", spec_path], capture_output=True, text=True, timeout=120
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0 or "spec_hash=" not in r.stdout:
+        return None
+    out = {}
+    for line in r.stdout.strip().splitlines():
+        k, _, v = line.partition("=")
+        if v:
+            out[k.strip()] = v.strip()
+    return out
+
+
+def _find_t27c(root):
+    """The built compiler, or None. A missing binary is NOT a passing check."""
+    for rel in ("target/release/t27c", "bootstrap/target/release/t27c", "target/debug/t27c"):
+        cand = root / rel
+        if cand.is_file():
+            return cand
+    return None
 
 
 # hashlib.sha256().hexdigest() is exactly this and nothing else.
@@ -334,8 +386,16 @@ def self_check():
         with tempfile.TemporaryDirectory() as td:
             t = plant(td, seals, ledger)
             plant_script(me, t / "tools")
+            # These controls plant a SYNTHETIC tree whose specs are two lines long
+            # and whose compiler does not exist. They exercise the ledger and the
+            # reporting, not the gen_hash comparison, so that comparison is switched
+            # off EXPLICITLY here rather than by the script guessing from its
+            # surroundings -- a guess would also switch it off in a real checkout
+            # where the build merely failed.
+            env = dict(os.environ, T27_SEAL_SKIP_GEN="1")
             r = subprocess.run([sys.executable, str(t / "tools" / me.name), *args],
-                               capture_output=True, text=True, cwd=t, timeout=120)
+                               capture_output=True, text=True, cwd=t, timeout=120,
+                           env=env)
         missing = [p for p in present if p not in r.stdout]
         leaked = [a for a in absent if a in r.stdout]
         good = r.returncode == want_exit and not missing and not leaked
@@ -457,7 +517,17 @@ def self_check():
 def main():
     if "--self-check" in sys.argv:
         return self_check()
-    total, bad = scan()
+    # The self-check's controls set this: they plant synthetic trees with no
+    # compiler, and they exercise the ledger, not the gen_hash comparison.
+    skip_gen = os.environ.get("T27_SEAL_SKIP_GEN") == "1"
+    t27c = None if skip_gen else _find_t27c(ROOT)
+    if t27c is None and not skip_gen:
+        print("check_seal_coverage: the compiler is not built, so the four")
+        print("  gen_hashes in every seal could not be recomputed. Reporting")
+        print("  nothing rather than reporting a pass this run did not earn:")
+        print("  build it with `cargo build --release -p t27c` and run again.")
+        return 2
+    total, bad = scan(t27c=t27c)
     if total == 0:
         print("FAIL: no seals found at all -- the path is wrong, not the tree")
         return 1

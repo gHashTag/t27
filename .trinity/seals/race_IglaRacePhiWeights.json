@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ab88596a6206949cc371355625297d22513a6687b07778f5fc4313eb5c6b6d98",
+  "gen_hash_c": "sha256:e5c27151a3219437aa3f5009154c06f1381f4be01ee68fe04626c2a8d21b5d62",
   "gen_hash_rust": "sha256:8fcb82bf14ddafd51f1c74f6298cc3417e8de6466135234d82d5393d6ad47c11",
   "gen_hash_verilog": "sha256:ab1efda142ee9f9f39fff0e0952f95afe2ba0c649b1b5dea8d1afcf31bbf9932",
   "gen_hash_zig": "sha256:8e656cb5fb6ae46b0851dc5fdea0aa4868b2b7b379c1b0d8c71242e117131f40",
   "module": "IglaRacePhiWeights",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:44Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ba9ef1c2084a71ad72f7b8c536de5669835bf957c4aec2bd54bc6b3496c2184c",
   "spec_path": "specs/igla/race/phi_weights.t27"

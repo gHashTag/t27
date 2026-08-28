@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a1e8ea0ea4611a90b1607ce090c411b5133f43057286737e5756ee3606484372",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:8c63c1264e81cf198b72c567061a09120cdeda832281ba443086dcac36458f24",
-  "gen_hash_zig": "sha256:f1e06f3527cfbf1920dc9c0fc5bda38c3c2bf9b96c7e81e34d37adeb3fc82d9d",
+  "gen_hash_c": "sha256:d97a692019fc56e780a4559fbc27dd91a3f9a5ac0dc6f69f0a125f0503df7fd2",
+  "gen_hash_rust": "sha256:e7f76f4ec104c4cf1faaecd35f22300e459ee53b80dca215d5739265f2a6ce7f",
+  "gen_hash_verilog": "sha256:260fa3d81eeaa479e286aa5bdfb208c8158a7edfff0af4b5972e9c6d5445d7ca",
+  "gen_hash_zig": "sha256:20fb1890c5b30b7205263c35d0eb113578c3062e4f936439347edd2abcc12404",
   "module": "lqg_entropy",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:32:51Z",
-  "spec_hash": "sha256:f2ce86f6dc75a68d23e993125d508a641f4bd6cb83383b147d13f9bc7eae1b60",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:11055f7681ca0d5588ee71899ff6cfc2d374a4564f01d03669ff54f579d1777d",
   "spec_path": "specs/physics/lqg_entropy.t27"
 }

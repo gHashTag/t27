@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:61bb40e80b02cc94fb7b9dc2e8b9bd51854b82f63c0be3fb4c9f37974f0d6aa0",
-  "gen_hash_rust": "sha256:462c901d9f99c79944a6d813736d9f0ef2fa6a163708d1a2079b776a8624eda6",
-  "gen_hash_verilog": "sha256:3d2d844faf214b85a534814273e02149af1187a78e450225852e1afd7a1191ac",
-  "gen_hash_zig": "sha256:830078b332cd782ef1a38b8458ca89ab968d232968040a282259f069fd898556",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "Routes",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:16dbd9fb40f949a3534c28495f0d68f83ddd460d22f52a89ea70ff33e4c1ee7b",
   "spec_path": "specs/server/routes.t27"
 }

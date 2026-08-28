@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:27e30f28d3f3629f7102031a7268fe0612da0fd28cbb057bce947b7bae55b26d",
   "module": "brain-cognitive-loop",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:42Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:5b351c3e000c43e6307230a8bd4791330c231126e926225f91a72816aa2c651b",
+  "spec_hash": "sha256:71cddbc4cc0d1eb79a135a98431f85beac07183932a594b271eea011e6e2bbde",
   "spec_path": "specs/brain/cognitive_loop.t27"
 }

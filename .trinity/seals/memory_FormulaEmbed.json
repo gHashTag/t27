@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3fb96eb5c6e5e12263bc7b515c4985201edaf15fbbe835d1b98d8c385f56a196",
-  "gen_hash_rust": "sha256:ceb760fba1f149769c9fc8456909d2afe352f45828120c08123a6e3d69783eab",
-  "gen_hash_verilog": "sha256:32f542b77697fd652417e498b09f575fb7c25775fffdd9526f655d62cf62340b",
-  "gen_hash_zig": "sha256:42ae8fb591523507735da2b444b61200fea55dd97b2196675b85a720eda18518",
+  "gen_hash_c": "sha256:9b4d57de816fbecdeecca0074470e33e0538c33f643f3d5676180544a6c0c981",
+  "gen_hash_rust": "sha256:d876915acf1e444ba02d7dfb8b780fb54bcc304c02b3219e30f64d1afe62a9db",
+  "gen_hash_verilog": "sha256:3b301f1c34d0ec42814f37f95e63cb44b04fd8a4e38a89c1544e14708545bf73",
+  "gen_hash_zig": "sha256:d03db32eba341251d19d8688d06157469bb838b5b962085814caeb56600e3f69",
   "module": "FormulaEmbed",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:cd00efe30f02866b622344a58fd1bc8f5904edbbb0d457d2081ee87ad273a94d",
   "spec_path": "specs/memory/formula_embed.t27"
 }

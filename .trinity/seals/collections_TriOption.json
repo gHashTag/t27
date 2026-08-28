@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:24876ebc14b13ddb7bfc99d392a7ad0a39d47f585dfcfb08ce853ca04f934810",
-  "gen_hash_rust": "sha256:eacbb4e3024f795621ada0d424ce166374f64a8292139a88085dc09c48607b2d",
-  "gen_hash_verilog": "sha256:e5483d5ec253707e8a03e459c455389e2bdcad7f7d4360972229930e7faa3508",
-  "gen_hash_zig": "sha256:962400c732109508997dd82bb357a46311448f9c21748f16a783600569d07f83",
+  "gen_hash_c": "sha256:80c741fae0906c221ac21ea32a4270f7bc9660ada01e7c30d2c7706662f22ca5",
+  "gen_hash_rust": "sha256:ef548908ab1ba3f0badf28f296db8ed6e4fa6f415809213a6bc7ee7d1a41d887",
+  "gen_hash_verilog": "sha256:4a879cf3af794a3b6d0a6192331c1d07d7ef5a0f41ed3340502de4cc0d762fab",
+  "gen_hash_zig": "sha256:006a9d9ba4ec2708206b0b59ce67ac11291cb737f2e21ed9dfc7bbc2c017dd46",
   "module": "TriOption",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
+  "sealed_at": "2026-08-28T00:22:25Z",
   "spec_hash": "sha256:f4c734a4a68e2c20c6ff6824ee431d2ea1912898dc36072c2ee1229fbe79a688",
   "spec_path": "specs/tri/collections/option.t27"
 }

@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:ce565b59e4a6cdc1099b44c0dbf273b15e1034411cc8a7f7ea672e6a23bfc234",
-  "gen_hash_rust": "sha256:3f63e18eeb6f2e1aeed98dd3af104f2e9e2912bb646720cc86dcb7fc463efb06",
+  "gen_hash_c": "sha256:3bf048c13f05eb89c2fcae9b93a4dbe4188373b6017304fa54f1196fcaf3aa1e",
+  "gen_hash_rust": "sha256:00d7ad6146cd43b1e34503dd7133c7469a54912f61329bae8eddc249869bef8b",
   "gen_hash_verilog": "sha256:5cd58acb7191cb64cf0d7eca0fcabc706bbc02f5a3be5f002a6504d343efa77d",
-  "gen_hash_zig": "sha256:ad4e0b6292faac15853fd5ff2efbefaa52ce55fb17f329ed130a1d570bdf9454",
+  "gen_hash_zig": "sha256:7945828152aa265effa1fb87fd2383d75fd2be9ff81ea9036640c4db534cf94c",
   "module": "ZeroDSP_UART",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:44Z",
+  "sealed_at": "2026-08-28T00:21:37Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:25eaefeb5a55c9c97a0b93bd8632c072cb55a657334ff5b90b614123de7435df",
+  "spec_hash": "sha256:38b2b810c4473d7a655806ab7ec5621bb9fcbc9e3ec4a6139255d83fdaea7016",
   "spec_path": "specs/fpga/uart.t27"
 }

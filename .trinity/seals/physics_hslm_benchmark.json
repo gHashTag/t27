@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:95878b80f4142fd21958bb04227ab87aa4be71d0e5205b0ad0f12a3811f08113",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:14b22bb108dde38f4b016538d1f4cb68f96985a158735a10c9322329c12ac702",
-  "gen_hash_zig": "sha256:d2e58d926123c9ee96ba4529498c24f4d7cf87d4a3ee7aa5996acfb86b226a46",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "hslm_benchmark",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:ce1d606c0575295faaeaea42e61495a7d7ef0011317e15396a05d08ad1148941",
+  "sealed_at": "2026-08-28T00:21:37Z",
+  "spec_hash": "sha256:75412d3ca17d8e725265fcad1fa41119076e6557f9740dadc23d87d9d2ad3718",
   "spec_path": "specs/physics/hslm_benchmark.t27"
 }
