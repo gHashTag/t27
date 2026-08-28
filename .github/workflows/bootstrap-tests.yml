@@ -39,6 +39,11 @@ on:
       - 'scripts/ci/test_ratchet.py'
       - 'scripts/ci/test-baseline.txt'
       - '.github/workflows/bootstrap-tests.yml'
+  # Without this the missing reading cannot be taken on purpose: a gate with
+  # a `paths:` filter that nothing has matched in months is unmeasured, not
+  # passing, and there was no way to fire it at the default branch and find
+  # out. `tri gates unmeasured` reports the gap; this is what closes it.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

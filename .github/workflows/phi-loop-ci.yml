@@ -7,6 +7,11 @@ on:
     # shows a green check list that a master-based PR would not get. Enforced by
     # scripts/ci/check_pr_branch_filters.py. The `push` filter below, where one
     # exists, is left alone: restricting post-merge runs is a cost decision.
+  # Without this the missing reading cannot be taken on purpose: a gate with
+  # a `paths:` filter that nothing has matched in months is unmeasured, not
+  # passing, and there was no way to fire it at the default branch and find
+  # out. `tri gates unmeasured` reports the gap; this is what closes it.
+  workflow_dispatch:
 
 jobs:
   phi-loop-check:

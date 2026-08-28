@@ -26,6 +26,11 @@ on:
       - "scripts/tri_loop/**"
       - "scripts/ci/loop-tools-tracked.sh"
       - "scripts/ci/test_damage_repair_snapshot_required.py"
+  # Without this the missing reading cannot be taken on purpose: a gate with
+  # a `paths:` filter that nothing has matched in months is unmeasured, not
+  # passing, and there was no way to fire it at the default branch and find
+  # out. `tri gates unmeasured` reports the gap; this is what closes it.
+  workflow_dispatch:
 
 permissions:
   contents: read

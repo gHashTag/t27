@@ -7,6 +7,11 @@ on:
   # now-sync-gate.yml. An absent check is not a passing check.
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
+  # Without this the missing reading cannot be taken on purpose: a gate with
+  # a `paths:` filter that nothing has matched in months is unmeasured, not
+  # passing, and there was no way to fire it at the default branch and find
+  # out. `tri gates unmeasured` reports the gap; this is what closes it.
+  workflow_dispatch:
 
 permissions:
   issues: read
