@@ -6506,11 +6506,7 @@ impl Codegen {
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
     fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
-        let text = rewrite_keyword_identifiers(&rewrite_in_operator(&rewrite_as_casts(
-            &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(
-                &zig_path(&node.name),
-            ))),
-        )));
+        let text = rewrite_all(&zig_path(&node.name));
         self.write_indent();
         if node.extra_kind == "then" {
             // Zig has no `==` for strings. `then name == "Arty A7"` is 45 of
@@ -6697,7 +6693,11 @@ impl Codegen {
                     // const needed its own branch.
                     let raw = if v.name.is_empty() { &v.value } else { &v.name };
                     if v.kind == NodeKind::ExprIdentifier && raw.contains('{') {
-                        self.write(&rewrite_struct_literal_fields(raw));
+                        // The WHOLE pipeline, not one rewrite of it. A repeat
+                        // `[XDCLine{...}; 512]` in a return reached the output
+                        // untouched because rewrite_array_repeats ran only on
+                        // the clause path.
+                        self.write(&rewrite_all(raw));
                     } else {
                         self.gen_expr(v);
                     }
@@ -9861,6 +9861,23 @@ fn is_zig_primitive(name: &str) -> bool {
 /// itself, after this runs. The position test -- preceded by an opening or an
 /// operator, followed by a closing or an operator -- is what separates a
 /// variable called `error` from the keyword.
+/// Every text rewrite, in one place, in the order they depend on.
+///
+/// There are five, and until now the clause emitter applied all five while
+/// three other sites that also write text verbatim applied one, two, or none.
+/// That asymmetry is not academic: `[XDCLine{...}; 512]` in a `return` reached
+/// the output with its repeat unconverted, because rewrite_array_repeats ran
+/// only on the clause path.
+///
+/// Order matters. Repeats first, because they consume the `[a; N]` bracket
+/// form before list literals would rewrite the brackets away; casts and the
+/// `in` operator last, because both walk left over already-rewritten text.
+fn rewrite_all(text: &str) -> String {
+    rewrite_keyword_identifiers(&rewrite_in_operator(&rewrite_as_casts(
+        &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(text))),
+    )))
+}
+
 fn rewrite_keyword_identifiers(s: &str) -> String {
     const ESCAPABLE: [&str; 17] = [
         "error", "packed", "var", "const", "enum", "union", "struct", "test",
