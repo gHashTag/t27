@@ -5628,6 +5628,31 @@ impl Codegen {
             }
         }
 
+        // `[N]T` -- the ELEMENT type needs the same mapping as a bare one.
+        //
+        // A bare `str` has mapped to `[]const u8` for a long time, but
+        // `[4]str` did not: the bracket prefix is collected as text and the
+        // element then falls through to the plain-identifier branch, which
+        // pushes it verbatim. All six `str` sites in the corpus are of this
+        // shape -- `[4]str`, `[0]str`, `[5]str`, `[64]str` -- so the bare case
+        // was the one that never occurred.
+        //
+        // Runs AFTER the dictionary rule above, so `[K: V]` is already gone,
+        // and returns unchanged when the element maps to itself -- which is
+        // what keeps `[]const u8` alone: its "element" is `const u8`, which
+        // this function does not rewrite.
+        if t.starts_with('[') {
+            if let Some(close) = t.find(']') {
+                let elem = &t[close + 1..];
+                if !elem.is_empty() {
+                    let mapped = Self::zig_type(elem);
+                    if mapped != elem {
+                        return format!("{}{}", &t[..close + 1], mapped);
+                    }
+                }
+            }
+        }
+
         match t {
             "String" | "string" => return "[]const u8".to_string(),
             "Float" | "float" => return "f64".to_string(),
