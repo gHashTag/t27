@@ -3902,6 +3902,28 @@ impl Parser {
                     deref.name = "*".to_string();
                     deref.children.push(expr);
                     expr = deref;
+                } else if self.current.kind == TokenKind::Question {
+                    // Optional unwrap: `expr.?`, the sibling of `expr.*` and
+                    // ALREADY ZIG'S OWN SPELLING -- this parser simply did not
+                    // accept it. The `?` fell to the `break` below with the dot
+                    // already consumed, so the expression ended malformed and
+                    // its whole binding vanished:
+                    //
+                    //     spec      const dir = if (base != null) base.? else DEFAULT;
+                    //     emitted   const dir = ;
+                    //
+                    // Isolated with a three-function fixture rather than
+                    // inferred: `if (x > 1) 5 else 7` and
+                    // `if (base != null) base else DEF` both emit correctly, so
+                    // the if-expression was never the defect -- `base.?` was.
+                    // Four earlier attempts this evening were aimed at layers
+                    // that turned out not to carry the text at all, which is
+                    // what the fixture is for.
+                    self.advance(); // consume ?
+                    let mut unwrap = Node::new(NodeKind::ExprFieldAccess);
+                    unwrap.name = "?".to_string();
+                    unwrap.children.push(expr);
+                    expr = unwrap;
                 } else if self.current.kind == TokenKind::Ident {
                     let field = self.current.lexeme.clone();
                     self.advance();
