@@ -2645,7 +2645,22 @@ impl Parser {
             // Prop. 158: this returned here, before the generic-application
             // handling below, so `*HashSet(T)` lost its parameters and the
             // enclosing declaration was discarded. Fall through instead.
-            if self.current.kind != TokenKind::Ident {
+            //
+            // `[` too, for the same reason and with the same shape: the
+            // slice/array loop that handles `[N][M]u16` is THREE LINES BELOW
+            // this return, and `*const [HEBBIAN_CHARS][HEBBIAN_CHARS]u16` never
+            // reached it. The type stopped at `*const`, the caller's parameter
+            // loop then met `[` where a name belongs, skipped it, and read the
+            // array LENGTHS as further parameters:
+            //
+            //   pub fn hebbianLookup(counts: *const, HEBBIAN_CHARS_arg: ,
+            //                        HEBBIAN_CHARS_arg: , @"u16": , ...)
+            //
+            // One correct branch, unreachable because an earlier guard answered
+            // first. The same shape as the array-repeat branch in
+            // gen_inferred_array, found the same way -- by reading what sits
+            // below the test that wins.
+            if !matches!(self.current.kind, TokenKind::Ident | TokenKind::LBracket) {
                 return ty;
             }
         }
