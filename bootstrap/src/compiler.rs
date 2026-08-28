@@ -2153,8 +2153,37 @@ impl Parser {
                 // Type alias or expression start: pub const PackedTrit = u8;
                 let mut val_node = Node::new(NodeKind::ExprIdentifier);
                 val_node.name = self.current.lexeme.clone();
-                decl.children.push(val_node);
                 self.advance();
+                // A CALL, not a bare name. Taking one identifier and stopping
+                // dropped every argument list:
+                //
+                //     spec      const std = @import("std");
+                //     emitted   const std = @import;
+                //
+                // which is `expected parameter list, found ';'` -- a parse
+                // error, and a wall over the whole file.
+                //
+                // NOT specific to @import. A minimal fixture showed
+                // `@intCast(5)` -> `@intCast` and `@as(u8, 7)` -> `@as` in the
+                // same position, so the defect is "a call in a container
+                // const's value", and the corpus shows only one because few
+                // specs write one there.
+                if self.current.kind == TokenKind::LParen {
+                    let mut text = val_node.name.clone();
+                    let mut depth = 0i32;
+                    while self.current.kind != TokenKind::Eof {
+                        match self.current.kind {
+                            TokenKind::LParen => depth += 1,
+                            TokenKind::RParen => depth -= 1,
+                            TokenKind::Semicolon if depth == 0 => break,
+                            _ => {}
+                        }
+                        text.push_str(&self.current_text());
+                        self.advance();
+                    }
+                    val_node.name = text;
+                }
+                decl.children.push(val_node);
             } else if self.current.kind == TokenKind::KwTrue
                 || self.current.kind == TokenKind::KwFalse
             {
