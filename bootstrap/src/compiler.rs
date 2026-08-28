@@ -445,6 +445,11 @@ impl Lexer {
         }
     }
 
+    /// The source this lexer is reading. Shared, so this is a refcount bump.
+    pub(crate) fn source_bytes(&self) -> std::rc::Rc<[u8]> {
+        std::rc::Rc::clone(&self.source)
+    }
+
     pub fn next_token(&mut self) -> Token {
         // [BUG 2 + BUG 9 FIX] Combined whitespace and comment skipping
         self.skip_whitespace_and_comments();
@@ -1155,6 +1160,38 @@ impl Parser {
 
     /// Save the current parser state so it can be restored later. Used for
     /// lookahead that needs to inspect more than one token ahead.
+    /// Is every line strictly between `from` and `to` a comment?
+    ///
+    /// The braceless-block boundary asks whether a statement is ADJACENT to the
+    /// previous one, and asked it as `line <= last_line + 1`. A comment line
+    /// therefore read as a gap and the whole body went to the top-level
+    /// discard, silently. It reproduces in nine lines:
+    ///
+    ///     invariant has_comment
+    ///         // a comment between the header and the body
+    ///         const a = f(1);          <- discarded
+    ///
+    /// The rule this expresses is about a BLANK line -- the comment beside it
+    /// says "a blank line before the const meant module scope to every reader"
+    /// -- and a comment is not blank. A reader sees it as part of the block.
+    fn only_comment_lines_between(&self, from: usize, to: usize) -> bool {
+        if to <= from + 1 {
+            return true;
+        }
+        let src = self.lexer.source_bytes();
+        let text = String::from_utf8_lossy(&src);
+        let lines: Vec<&str> = text.lines().collect();
+        for i in from..(to - 1) {
+            match lines.get(i).map(|l| l.trim()) {
+                Some(l) if !l.is_empty() && l.starts_with("//") => {}
+                // A blank line, or a line this cannot read, keeps the old
+                // boundary: not adjacent.
+                _ => return false,
+            }
+        }
+        true
+    }
+
     fn save_state(&self) -> ParserCheckpoint {
         ParserCheckpoint {
             lexer: self.lexer.clone(),
@@ -5741,7 +5778,8 @@ impl Parser {
             // to every reader, and the arm captured it into the block anyway.
             // Statement clauses must sit on the line immediately after the
             // previous clause; a gap returns the old boundary reading.
-            let adjacent = self.current.line <= self.last_line + 1;
+            let adjacent = self.current.line <= self.last_line + 1
+                || self.only_comment_lines_between(self.last_line, self.current.line);
             let eff_col = if lowered == 0 && self.peek.kind == TokenKind::Ident {
                 first_clause_col.or(Some(self.current.col))
             } else {
@@ -5798,10 +5836,22 @@ impl Parser {
                             // minted statements. Clean means current OPENS its
                             // line: its line is beyond the last CONSUMED
                             // token's line.
+                            // W699: the boundary disjunct CONTRADICTED the rule
+                            // stated right above it, and `[]const u8` is where
+                            // that showed. `const backends = [_][]const u8{...}`
+                            // parses as `[_][]`, stops on the KwConst INSIDE the
+                            // type -- a block boundary -- and the statement was
+                            // minted as clean while the parser stood mid-type.
+                            // The next turn then read `const u8{` as a second
+                            // statement, failed, and left the wreckage at module
+                            // level, where a const is a HARD error. Because one
+                            // statement had already lowered, the whole-block
+                            // fallback below never fired.
+                            // A boundary keyword is a boundary only when it OPENS
+                            // its line; mid-line it is somebody's type.
                             let clean = self.current.kind == TokenKind::Semicolon
                                 || self.current.kind == TokenKind::Eof
-                                || self.current.line > self.last_line
-                                || Self::is_block_boundary(self.current.kind);
+                                || self.current.line > self.last_line;
                             if clean {
                                 if self.current.kind == TokenKind::Semicolon {
                                     self.advance();
@@ -6025,6 +6075,36 @@ impl Parser {
                 }
             } else if is_assertion {
                 self.advance();
+                // `then` takes an EXPRESSION, and specs write a STATEMENT after it:
+                //
+                //     then for (i in 0..100) {
+                //         assert t1 == -t2;
+                //     }
+                //
+                // `parse_expr` cannot read a `for`, so the clause returned false and the
+                // whole braceless block fell to the top-level discard -- taking the
+                // asserts INSIDE the loop with it. `then <expr>` alone was always fine,
+                // which is why this survived: the failing shape is `then` plus a block.
+                //
+                // The statement is pushed as itself rather than wrapped in `assert`: the
+                // assertions live inside the loop body, and asserting a `for` is not a
+                // thing.
+                if matches!(
+                    self.current.kind,
+                    TokenKind::KwFor | TokenKind::KwWhile | TokenKind::KwIf | TokenKind::LBrace
+                ) {
+                    let st = self.save_state();
+                    match self.parse_body_stmt() {
+                        Ok(stmt) => {
+                            block.children.push(stmt);
+                            lowered += 1;
+                            self.bdd_last_was_assertion = is_assertion;
+                            self.last_line = self.current.line;
+                            continue;
+                        }
+                        Err(_) => self.restore_state(st),
+                    }
+                }
                 self.in_bdd_clause_value = true;
                 let r = self.parse_expr();
                 self.in_bdd_clause_value = false;
