@@ -5405,3 +5405,59 @@ Two of this session's own changes were caught by gates added hours earlier:
 When you add a check, the first thing it catches will probably be yours. That is
 the strongest evidence it works, and it is worth saying out loud in the commit
 rather than quietly re-sealing.
+
+## 141. Read the verdict, not the list underneath it
+
+`corpus-ratchet` went red on `master` and stayed red for twelve runs and a full
+day. The cause was my own commit: it fixed a spec's parse and left that spec's
+entry in the expectation ledger. The gate said so on every single run —
+
+    UNEXPECTED PASSES  : 1
+      - specs/ar/asp_solver.t27 [parse] (fixed -- remove from the ledger)
+
+— and I had run the suite that day, seen `ACCEPTABLE: no`, and gone to read the
+list of ninety-seven parse failures instead of the three lines above it.
+
+The failure list is long and looks like work. The verdict is one line and IS the
+work. When a gate prints both, read the verdict first, and treat a red gate as
+unfinished business belonging to whoever last touched the thing it names —
+usually you.
+
+### The ratchet was enforcing what I had spent the day preaching
+
+An entry that starts passing must be REMOVED, or the slack is where the next
+regression hides. I wrote that into three other gates in the same session and
+broke it in a fourth without noticing. Being the author of a discipline is not
+the same as following it.
+
+### Slack accumulates silently
+
+`max_entries` had drifted to 219 against 179 entries — forty slots — so the
+"raising the cap is a reviewable event" arm had been inert since it decoupled.
+A cap is only a cap at zero slack. Set it to `len(entries)` in the same commit
+that blesses the ledger, and have the blesser write it rather than leaving the
+old value.
+
+## 142. A file rustc cannot PARSE has no error code, so no histogram sees it
+
+`gen-rust` emitted `Vec<const u8>` for the Zig slice spelling `[]const u8` --
+the `const` there qualifies the pointee and Rust has no such qualifier. 84 of
+559 generated files contained one.
+
+They were invisible to every first-error census, because those group by error
+CODE and a file that fails to parse never reaches one: 278 of 386 failures had
+no code at all. Fixing it moved rustc acceptance **173 → 214**.
+
+When ranking causes by first error, count the files with NO diagnosable error
+separately and look at them first. They are not a long tail; they are a
+different failure mode wearing the same column.
+
+## 143. Distrust a small sample when the population is generated
+
+Checking the `<const ` claim, I generated Rust for 120 specs, found ONE, and
+nearly dismissed a finding that was true of 84 of 559. Generated corpora cluster
+by construct, not uniformly: whether a spec has a slice-typed field depends on
+what it models, and the first 120 by path happened to be light on them.
+
+Sample the whole population, or sample randomly. `git ls-files | head -120` is
+neither.
