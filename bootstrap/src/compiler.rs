@@ -6542,7 +6542,18 @@ impl Codegen {
                 // that has run. Idempotent: a name already carrying its dot is
                 // preceded by `.`, not by `{` or `,`, so it is left alone.
                 let val = rewrite_struct_literal_fields(&val);
-                self.write_line(&format!("const {} = {};", zig_ident(lhs.trim()), val));
+                // A DOTTED or INDEXED left-hand side is an assignment to an
+                // existing place, not a new binding. `const state.gamma[0] = 2.0;`
+                // is `expected '=', found '.'` -- a parse error, and a wall.
+                //
+                // The clause means what it says: set that field. Two specs,
+                // ml/transformer/feed_forward and ml/transformer/norm.
+                let lhs_t = lhs.trim();
+                if lhs_t.contains('.') || lhs_t.contains('[') {
+                    self.write_line(&format!("{} = {};", zig_path(lhs_t), val));
+                    return;
+                }
+                self.write_line(&format!("const {} = {};", zig_ident(lhs_t), val));
             }
             // Zig rejects a discarded-free expression statement, so an action
             // clause is bound to `_`.
@@ -7222,8 +7233,21 @@ impl Codegen {
                 } else {
                     &node.extra_type
                 };
-                self.write(&format!("[{}]{}", size, typ));
-                self.write("{");
+                // An array literal with NO ELEMENT TYPE is not Zig: `[_]{}`
+                // is `expected type expression, found '{'`, a parse error and a
+                // wall. Zig spells an anonymous list `.{...}`, which is exactly
+                // what an untyped one is.
+                //
+                //     .env = [_]{}        .stdout = [_]{}, .stderr = [_]{}
+                //     .paths = ["/home/project"]{}
+                //
+                // Three specs: git/operations, git/schema, file/watcher.
+                if typ.is_empty() {
+                    self.write(".{");
+                } else {
+                    self.write(&format!("[{}]{}", size, typ));
+                    self.write("{");
+                }
                 for (i, elem) in node.children.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
