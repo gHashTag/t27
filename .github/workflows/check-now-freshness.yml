@@ -13,8 +13,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Check freshness
-        run: |
-          # Add freshness check logic here in future
-          echo "Checking repository freshness..."
+      # This job's name, `check`, is one of four required by the
+      # t27-master-protection ruleset. Its only step used to be
+      #
+      #     # Add freshness check logic here in future
+      #     echo "Checking repository freshness..."
+      #
+      # so one of the four gates protecting master asserted nothing, and had
+      # passed every pull request it ever ran on. The ruleset is not this
+      # file's to edit, so the job keeps its required name and is given
+      # something real to do.
+      #
+      # NOW Sync Gate already requires that an entry was ADDED; it does not
+      # read it. The two are complementary:
+      #     NOW Sync Gate  ->  "you wrote one"
+      #     this           ->  "what you wrote says something"
+      - name: Negative control
+        run: python3 tools/check_now_entry_shape.py --self-check
+
+      - name: The docs/now/ entry this PR adds must say something
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 tools/check_now_entry_shape.py
