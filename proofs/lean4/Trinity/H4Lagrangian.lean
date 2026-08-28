@@ -77,12 +77,15 @@ theorem L01_lagrangian_order_of_magnitude :
   -- `Real.exp 1`, so it never reached a number. The claim is true with room to
   -- spare -- L01 is 0.1695 against bounds of 0.1 and 1 -- and what was missing
   -- is bounds on e/pi, which mathlib states to nine digits.
+  -- `lt_div_iff`/`div_lt_iff` were renamed with a `₀` suffix when they moved to
+  -- the GroupWithZero order files; the toolchain here pins v4.31.0, where the
+  -- unsuffixed names no longer resolve.
   have hpi : (0:ℝ) < Real.pi := Real.pi_pos
   have hlo : (0.8:ℝ) < Real.exp 1 / Real.pi := by
-    rw [lt_div_iff hpi]
+    rw [lt_div_iff₀ hpi]
     nlinarith [Real.exp_one_gt_d9, Real.pi_lt_31415927]
   have hhi : Real.exp 1 / Real.pi < (0.9:ℝ) := by
-    rw [div_lt_iff hpi]
+    rw [div_lt_iff₀ hpi]
     nlinarith [Real.exp_one_lt_d9, Real.pi_gt_3141592]
   constructor <;> nlinarith [hlo, hhi]
 
@@ -119,7 +122,7 @@ theorem Koide_H4_test :
   have b549 : (23:ℝ) < Real.sqrt 549 := by nlinarith [q549, n549]
   rw [e1, div_lt_one (by norm_num), abs_sub_lt_iff]
   constructor <;>
-    rw [div_lt_iff (by nlinarith [b239, b549])] <;>
+    rw [div_lt_iff₀ (by nlinarith [b239, b549])] <;>
       nlinarith [b239, b549]
 
 -- ============================================================================
