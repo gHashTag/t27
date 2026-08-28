@@ -7734,18 +7734,30 @@ The consequence for the artefacts is the part worth stating. Between $47$ and
 $86$ of the $1038$ rows in each of the eighteen published vector files, five to
 eight per cent, are multiplications whose expected result was recorded as a
 negative code word, which no hardware can produce. Those rows were unsatisfiable.
-Rather than overwrite files whose digests are cited, we bumped the vector
-specification version: the affected files remain in place under
-\texttt{tnf-vectors-2} and the repaired set is published alongside them as
-\texttt{tnf-vectors-3}, with its own manifest of SHA-256 digests. Neither name is
-resolvable at this revision --- \texttt{git ls-remote --tags} returns no
-\texttt{tnf-vectors} tag and no manifest is committed --- so a reader cannot today
-check a digest against either set. The vectors themselves are under
-\texttt{conformance/vectors/}; the versioned manifests are the part that is
-missing, and until they are published this paragraph records an intent rather
-than a released artefact. Any transcript
-claiming conformance against the older manifest should be re-read with this in
-mind.
+The intention was to bump the vector specification version rather than overwrite
+files whose digests are cited, leaving the affected set as \texttt{tnf-vectors-2}
+and publishing the repaired one as \texttt{tnf-vectors-3}. That is what earlier
+drafts of this paragraph described, and it did not happen. No such tag exists on
+the remote, no second set of files is in the tree, and every vector file in
+\texttt{conformance/vectors/} carries the suffix \texttt{\_v0}: the lineage
+cannot be reconstructed from what was committed, so naming it here would be
+inventing a history to match a sentence.
+
+What does exist, from this revision, is a manifest of the set that is there.
+\texttt{conformance/vectors/SHA256SUMS} carries a SHA-256 digest for each of the
+$100$ files, written and checked by
+\texttt{conformance/}\allowbreak\texttt{make\_vector\_manifest.py}:
+
+\begin{quote}
+\texttt{python3 conformance/make\_vector\_manifest.py -{}-check}
+\end{quote}
+
+\noindent returns $0$ when every file matches and non-zero on the first drifted
+digest, a missing file, or a file present in the directory and absent from the
+manifest. A transcript claiming conformance should therefore quote the commit
+and this manifest, never a version name, and any transcript that cites a
+\texttt{tnf-vectors} tag should be re-read: the tag it names has never
+resolved.
 
 \section{Six ways an arithmetic-hardware result dies quietly}\label{sec:checklist}
 
