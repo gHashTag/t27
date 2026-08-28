@@ -116,11 +116,17 @@ lemma pow2_pos_lt {a b : ℝ} (ha : 0 < a) (hab : a < b) : a^2 < b^2 := by
 lemma seesaw_ordering {a b M_R : ℝ}
     (ha : 0 < a) (hab : a < b) (hM_R : 0 < M_R) :
     a^2 / M_R < b^2 / M_R := by
-  apply div_lt_div_of_pos_right
-  · exact hM_R
-  · apply pow2_pos_lt
-    · exact ha
-    · exact hab
+  -- This read `apply div_lt_div_of_pos_right` with the bullets in the order
+  -- (positivity, inequality). That lemma takes them the other way round, so the
+  -- first bullet was a type mismatch and the `apply` under it could not unify.
+  --
+  -- Written through `div_eq_mul_inv` instead: `inv_pos`,
+  -- `mul_lt_mul_of_pos_right` and `div_eq_mul_inv` are stable names, so this
+  -- does not depend on which argument order the division lemma happens to have
+  -- in the mathlib revision the toolchain pins.
+  have h2 : a ^ 2 < b ^ 2 := pow2_pos_lt ha hab
+  have hinv : 0 < M_R⁻¹ := inv_pos.mpr hM_R
+  simpa [div_eq_mul_inv] using mul_lt_mul_of_pos_right h2 hinv
 
 -- Normal ordering theorem
 lemma m_electron_lt_m_muon : m_electron < m_muon := by
