@@ -5732,24 +5732,58 @@ impl Codegen {
             // where the size is a named constant. A size is one term; an
             // element list is several.
             let raw = node.extra_size.trim().trim_end_matches(',');
-            if !raw.is_empty() && node.extra_size.contains(',') {
+
+            // TOP-LEVEL, not textual. Both tests below asked whether the field
+            // CONTAINS a comma or a semicolon, and a repeat whose element is a
+            // struct literal has commas inside it:
+            //
+            //     XDCLine{.text = "", .is_comment = false}; 512
+            //
+            // so the comma test won, the list branch ran, and the `; 512` --
+            // whose own branch was three lines further down, correct and
+            // unreachable -- passed through into the output as
+            // `.{XDCLine{...};512}`. Two specs sat behind that, and three
+            // separate attempts to fix it upstream in the text pipeline did
+            // nothing, because the text never goes through the pipeline: the
+            // parser stores an element list in extra_size, the ARRAY SIZE
+            // field, and this emitter writes it directly.
+            //
+            // Depth is counted over all three bracket kinds, so a `;` or `,`
+            // inside `{}`, `()` or `[]` belongs to the element, not to the
+            // list.
+            let top_level = |needle: char| -> Option<usize> {
+                let mut depth = 0i32;
+                for (i, c) in raw.char_indices() {
+                    match c {
+                        '{' | '(' | '[' => depth += 1,
+                        '}' | ')' | ']' => depth -= 1,
+                        _ if c == needle && depth == 0 => return Some(i),
+                        _ => {}
+                    }
+                }
+                None
+            };
+
+            if let Some(semi) = top_level(';') {
+                // Rust's repeat literal, `[0.0; EMBED_DIM]` and
+                // `[XDCLine{...}; 512]` alike. Zig repeats a tuple with `**`,
+                // so `.{elem} ** N` gives the same array and needs no element
+                // type -- which is just as well, because the element type is
+                // not here either.
+                let (val, count) = raw.split_at(semi);
+                self.write(&format!(
+                    "{}}} ** {}",
+                    rewrite_array_repeats(&zig_path(val.trim())),
+                    zig_path(count[1..].trim())
+                ));
+                return;
+            }
+
+            if !raw.is_empty() && top_level(',').is_some() {
                 // An element may itself be a repeat: `[A{..}; N]` nested in a
                 // comma list. The list is raw text here, so the rewrite runs
                 // on it too.
                 self.write(&rewrite_array_repeats(&zig_path(raw)));
-            } else if let Some((val, count)) = raw.split_once(';') {
-                // Rust's repeat literal, `[0.0; EMBED_DIM]`, also lands in the
-                // size field. Zig repeats a tuple with `**`, so `.{0.0} ** N`
-                // gives the same array and needs no element type -- which is
-                // just as well, because the element type is not here either.
-                //
-                // 17 emitted lines in 8 files.
-                self.write(&format!(
-                    "{}}} ** {}",
-                    zig_path(val.trim()),
-                    zig_path(count.trim())
-                ));
-                return;
             }
         } else {
             for (i, elem) in node.children.iter().enumerate() {
