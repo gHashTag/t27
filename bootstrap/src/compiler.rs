@@ -4856,6 +4856,7 @@ impl Parser {
                 break; // not a behaviour body -- leave it to the skip below
             }
             let line = self.current.line;
+            let clause_col = self.current.col;
             self.advance();
             // `and` continues whatever clause preceded it.
             let kind = if kw == "and" && !last_kind.is_empty() {
@@ -4874,11 +4875,78 @@ impl Parser {
             // and the line bound truncated them. Brackets and parens only: a
             // `{` opens a BLOCK, and continuing across it would swallow the
             // block's declarations.
+            //
+            // A DANGLING OPERATOR continues it too. `(scores[0] >= 0.0) and`
+            // has balanced parens and still cannot be the end of anything:
+            //
+            //   and all_positive = (buffers.scores[0] >= 0.0) and
+            //                     (buffers.scores[1] >= 0.0) and
+            //                     (buffers.scores[2] >= 0.0) and
+            //                     (buffers.scores[3] >= 0.0)
+            //
+            // The line bound cut it after the first `and`, emitting
+            // `(buffers.scores[0]>=0.0)and;` -- a wall at `expected
+            // expression, found ';'`, three lines of the condition simply not
+            // there. Depth cannot see this: the brackets are closed.
+            //
+            // Guarded against swallowing the NEXT clause: a continuation stops
+            // at a clause keyword that begins a line, so
+            // `given a = b and` / `and c = d` (malformed, but present in no
+            // spec) reads as two clauses rather than one.
+            // Tested in BOTH directions, because one is not enough. A trailing
+            // `and` on line 1 carries into line 2; but line 2 is
+            // `(scores[1] >= 0.0) and`, and by the time its own `and` is
+            // reached the parens have closed and the previous token is `)`.
+            // Continuing only on a dangling operator picked up exactly one of
+            // the three continuation lines. An operator also cannot BEGIN a
+            // clause, so a leading one continues the previous line just as a
+            // trailing one continues into the next.
+            let cont_op = |t: &Token| {
+                matches!(
+                    t.kind,
+                    TokenKind::Plus
+                        | TokenKind::Minus
+                        | TokenKind::Star
+                        | TokenKind::Slash
+                        | TokenKind::Eq
+                        | TokenKind::Neq
+                        | TokenKind::Lt
+                        | TokenKind::Gt
+                        | TokenKind::Lte
+                        | TokenKind::Gte
+                        | TokenKind::Comma
+                        | TokenKind::KwAnd
+                        | TokenKind::KwOr
+                ) || matches!(t.lexeme.as_str(), "and" | "or")
+            };
             let mut text = String::new();
             let mut depth = 0i32;
+            let mut dangling = false;
             while self.current.kind != TokenKind::Eof
-                && (self.current.line == line || depth > 0)
+                && (self.current.line == line
+                    || depth > 0
+                    || ((dangling || cont_op(&self.current))
+                        // COLUMN is what separates a continuation from the
+                        // next clause, and one token of lookahead is not.
+                        //
+                        //     and highest.port == 65535        `and` at col 9
+                        //     and !highest.ip.is_v6            `and` at col 9
+                        //
+                        //     and all_positive = (s[0] >= 0.0) and   col 9
+                        //                       (s[1] >= 0.0) and    col 27
+                        //
+                        // `and` heads a clause at the clause indentation and
+                        // joins an expression anywhere to the right of it. I
+                        // tried peeking past the `and` first -- a head is
+                        // `and NAME =`, an operator is `and (` -- and it cost
+                        // a VALID spec: `and !highest.ip.is_v6` peeks to `!`,
+                        // not an identifier, so the guard let it through and
+                        // emitted `highest.port==65535 and !`. Lookahead
+                        // describes the shapes I had thought of; the column
+                        // describes the thing.
+                        && self.current.col > clause_col))
             {
+                dangling = cont_op(&self.current);
                 match self.current.kind {
                     TokenKind::LBracket | TokenKind::LParen => depth += 1,
                     TokenKind::RBracket | TokenKind::RParen => depth -= 1,
@@ -4894,7 +4962,17 @@ impl Parser {
                         .next()
                         .map_or(false, |c| c.is_alphanumeric() || c == '_' || c == '"')
                 };
-                if wordish(text.chars().last().map(|c| c.to_string()).unwrap_or_default().as_str())
+                // A WORD operator needs its spaces whatever sits beside it.
+                // The wordish rule below only pads between two word-like
+                // tokens, so a continued condition joined as
+                // `(a>=0.0)and(b>=0.0)` -- `)` is not wordish -- and `and`
+                // glued to a paren is not an operator to Zig.
+                let word_op = matches!(self.current.lexeme.as_str(), "and" | "or" | "orelse");
+                if word_op && !text.is_empty() && !text.ends_with(' ') {
+                    text.push(' ');
+                }
+                if !word_op
+                    && wordish(text.chars().last().map(|c| c.to_string()).unwrap_or_default().as_str())
                     && wordish(&self.current.lexeme)
                 {
                     text.push(' ');
@@ -4905,6 +4983,9 @@ impl Parser {
                     text.push('"');
                 } else {
                     text.push_str(&self.current.lexeme);
+                }
+                if word_op {
+                    text.push(' ');
                 }
                 self.advance();
             }
