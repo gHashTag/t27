@@ -3471,6 +3471,41 @@ impl Parser {
     }
 
     /// Parse if / else if / else statement
+    /// A payload capture list -- `|x|`, `|x, y|`, `|*x|` -- if one is present.
+    ///
+    /// `for` read this inline and nothing else did, so `if (opt) |id| ...` and
+    /// `while (it.next()) |x| ...` both died on the `|`: the statement form lost
+    /// its whole function body to the panic stub, and the EXPRESSION form was
+    /// worse -- `const t = if (s.issue) |id| id else "";` emitted
+    /// `if (s.issue)  else ""`, a then-branch silently deleted, which no error
+    /// count can see because the file still parses right up to the `else`.
+    ///
+    /// Sitting on a `|` here is unambiguous: a bitwise-or would already have
+    /// been consumed by parse_expr as a binary operator before returning.
+    fn parse_capture_list(&mut self, out: &mut Vec<(String, String)>) -> Result<(), String> {
+        if self.current.kind != TokenKind::Pipe {
+            return Ok(());
+        }
+        self.advance(); // consume |
+        while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
+            // Skip pointer prefix *
+            if self.current.kind == TokenKind::Star {
+                self.advance();
+            }
+            if self.current.kind == TokenKind::Ident {
+                out.push((self.current.lexeme.clone(), String::new()));
+                self.advance();
+            } else if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                // Skip unknown tokens to prevent infinite loop
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::Pipe)?;
+        Ok(())
+    }
+
     fn parse_if_stmt(&mut self) -> Result<Node, String> {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
@@ -3497,6 +3532,10 @@ impl Parser {
             self.expect(TokenKind::RParen)?;
         }
         if_node.children.push(cond);
+
+        // `if (opt) |payload| { ... }` -- the capture goes in params, beside the
+        // for-loop's, and gen_if_stmt writes it back out.
+        self.parse_capture_list(&mut if_node.params)?;
 
         // Then branch: { ... }
         if self.current.kind == TokenKind::LBrace {
@@ -3580,6 +3619,10 @@ impl Parser {
         }
         while_node.children.push(cond);
 
+        // `while (it.next()) |x| { ... }` -- same loss as the `if` form, and the
+        // same fix.
+        self.parse_capture_list(&mut while_node.params)?;
+
         // Body: { ... }
         self.expect(TokenKind::LBrace)?;
         let mut body_block = Node::new(NodeKind::Module);
@@ -3656,27 +3699,7 @@ impl Parser {
         }
 
         // Capture variables: |x| or |x, y| or |*x| (pointer capture)
-        if self.current.kind == TokenKind::Pipe {
-            self.advance(); // consume |
-            while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
-                // Skip pointer prefix *
-                if self.current.kind == TokenKind::Star {
-                    self.advance();
-                }
-                if self.current.kind == TokenKind::Ident {
-                    for_node
-                        .params
-                        .push((self.current.lexeme.clone(), String::new()));
-                    self.advance();
-                } else if self.current.kind == TokenKind::Comma {
-                    self.advance();
-                } else {
-                    // Skip unknown tokens to prevent infinite loop
-                    self.advance();
-                }
-            }
-            self.expect(TokenKind::Pipe)?;
-        }
+        self.parse_capture_list(&mut for_node.params)?;
 
         // Body: { ... }
         self.expect(TokenKind::LBrace)?;
@@ -4466,11 +4489,13 @@ impl Parser {
         let cond = self.parse_expr()?;
         self.expect(TokenKind::RParen)?;
 
+        let mut if_node = Node::new(NodeKind::ExprIf);
+        self.parse_capture_list(&mut if_node.params)?;
+
         // Then expression
         let then_expr = self.parse_braced_or_bare_expr()?;
 
         // else expression
-        let mut if_node = Node::new(NodeKind::ExprIf);
         if_node.children.push(cond);
         if_node.children.push(then_expr);
 
@@ -6972,6 +6997,15 @@ impl Codegen {
         }
     }
 
+    /// ` |x, y|` when the node carries a payload capture, nothing otherwise.
+    fn write_capture(&mut self, node: &Node) {
+        if node.params.is_empty() {
+            return;
+        }
+        let names: Vec<&str> = node.params.iter().map(|(n, _)| n.as_str()).collect();
+        self.write(&format!(" |{}|", names.join(", ")));
+    }
+
     fn gen_if_stmt(&mut self, node: &Node) {
         // children[0] = condition, children[1] = then block, children[2] = optional else block
         self.write_indent();
@@ -6979,7 +7013,9 @@ impl Codegen {
         if !node.children.is_empty() {
             self.gen_expr(&node.children[0]);
         }
-        self.write_line(") {");
+        self.write(")");
+        self.write_capture(node);
+        self.write_line(" {");
 
         self.indent();
         if node.children.len() > 1 {
@@ -7016,7 +7052,9 @@ impl Codegen {
         if !node.children.is_empty() {
             self.gen_expr(&node.children[0]);
         }
-        self.write_line(") {");
+        self.write(")");
+        self.write_capture(node);
+        self.write_line(" {");
 
         self.indent();
         if node.children.len() > 1 {
@@ -7055,7 +7093,9 @@ impl Codegen {
         if !node.children.is_empty() {
             self.gen_expr(&node.children[0]);
         }
-        self.write_line(") {");
+        self.write(")");
+        self.write_capture(node);
+        self.write_line(" {");
 
         self.indent();
         if node.children.len() > 1 {
@@ -7355,7 +7395,9 @@ impl Codegen {
                 if !node.children.is_empty() {
                     self.gen_expr(&node.children[0]);
                 }
-                self.write(") ");
+                self.write(")");
+                self.write_capture(node);
+                self.write(" ");
                 if node.children.len() > 1 {
                     self.gen_expr(&node.children[1]);
                 }
