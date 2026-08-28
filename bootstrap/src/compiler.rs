@@ -3134,7 +3134,27 @@ impl Parser {
     /// Parse a single statement inside a function body
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
         // const / var declaration
-        if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+        // `let` is a BINDING, and the corpus writes 48 specs' worth of them.
+        //
+        // It is not a keyword in this lexer, so it arrived as an identifier and
+        // the expression parser took it as the whole statement:
+        //
+        //     spec      let trimmed = @trim(url);
+        //     emitted   let;
+        //
+        // Not merely the keyword lost -- the whole declaration, name, value and
+        // all. `let` is the single largest name in the undeclared-identifier
+        // class: 33 occurrences across 11 specs, ahead of anything that is
+        // actually a missing declaration.
+        //
+        // Read as MUTABLE, deliberately. The StmtLocal emitter already
+        // downgrades a `var` that nothing assigns to a `const`, so letting that
+        // rule decide is more faithful than guessing here -- and a `let` that
+        // IS reassigned stays legal, where a hard `const` would not.
+        if self.current.kind == TokenKind::KwConst
+            || self.current.kind == TokenKind::KwVar
+            || (self.current.kind == TokenKind::Ident && self.current.lexeme == "let")
+        {
             return self.parse_local_decl();
         }
 
@@ -3356,8 +3376,9 @@ impl Parser {
     fn parse_local_decl(&mut self) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::StmtLocal);
         decl.line = self.current.line as u32;
-        decl.extra_mutable = self.current.kind == TokenKind::KwVar;
-        self.advance(); // consume const/var
+        decl.extra_mutable =
+            self.current.kind == TokenKind::KwVar || self.current.lexeme == "let";
+        self.advance(); // consume const/var/let
 
         // Name
         //
