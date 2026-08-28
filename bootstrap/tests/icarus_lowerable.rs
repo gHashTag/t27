@@ -7700,6 +7700,39 @@ fn corpus_classifier_matches_lean_completeness() {
         retired
     );
 
+    // A SECOND ratchet, on the worst kind of entry. `model_empty` marks a Lean
+    // module with no functions, no globals and no tests: `native_decide` proved
+    // that the EMPTY module is lowerable, which is true, and true of nothing in
+    // the spec the theorem is named after.
+    //
+    // This count may only fall. It cannot be checked by running Lean here --
+    // nothing in this repository runs Lean at all: there is a lakefile under
+    // proofs/lean4 and not one of the 45 workflows builds it -- so what is held
+    // is the shape of the model, which is readable from the source. See #2747.
+    let vacuous = ledger["entries"]
+        .as_object()
+        .expect("ledger entries object")
+        .values()
+        .filter(|v| v["model_empty"].as_bool().unwrap_or(false))
+        .count();
+    let max_vacuous = ledger["max_vacuous"].as_u64().expect("max_vacuous") as usize;
+    assert!(
+        vacuous <= max_vacuous,
+        "vacuous completeness theorems rose {} -> {}. A theorem about an empty \
+         module says nothing about its spec; the ledger's max_vacuous moves down \
+         only.",
+        max_vacuous,
+        vacuous
+    );
+    assert_eq!(
+        vacuous, max_vacuous,
+        "max_vacuous is {} but {} entries are marked model_empty -- lower it in \
+         {} so the next one cannot hide in the slack",
+        max_vacuous,
+        vacuous,
+        ledger_path.display()
+    );
+
     let max_entries = ledger["max_entries"].as_u64().expect("max_entries") as usize;
     assert_eq!(
         max_entries,
