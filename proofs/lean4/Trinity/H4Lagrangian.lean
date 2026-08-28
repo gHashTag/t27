@@ -54,10 +54,10 @@ def yukawa_H4 (h4_coeff rg_factor hierarchy : ℝ) : ℝ :=
 def projection_defect_ratio : ℝ := 239.0
 
 /-- Hierarchy suppression: v_H4 / M_Pl ~ 10⁻³ -/
-def hierarchy_suppression : ℝ := 1e16 / 1.22e19
+noncomputable def hierarchy_suppression : ℝ := 1e16 / 1.22e19
 
 /-- Mass ratio formula from H4 coefficients -/
-def mass_ratio_H4 (h4_coeff : ℝ) : ℝ :=
+noncomputable def mass_ratio_H4 (h4_coeff : ℝ) : ℝ :=
   yukawa_H4 h4_coeff (exp 1 / Real.pi) hierarchy_suppression
 
 -- ============================================================================
@@ -65,7 +65,7 @@ def mass_ratio_H4 (h4_coeff : ℝ) : ℝ :=
 -- ============================================================================
 
 /-- m_μ/m_e prediction from Lagrangian framework -/
-def L01_from_lagrangian : ℝ :=
+noncomputable def L01_from_lagrangian : ℝ :=
   mass_ratio_H4 projection_defect_ratio
 
 /-- The framework gives the right order of magnitude (0.1 ≤ L01 ≤ 1) -/
@@ -80,7 +80,7 @@ theorem L01_lagrangian_order_of_magnitude :
 -- ============================================================================
 
 /-- Koide formula for H4-derived mass coefficients -/
-def Koide_H4 (c1 c2 c3 : ℝ) : ℝ :=
+noncomputable def Koide_H4 (c1 c2 c3 : ℝ) : ℝ :=
   let s := c1 + c2 + c3
   let t := Real.sqrt c1 + Real.sqrt c2 + Real.sqrt c3
   s / (t^2)
