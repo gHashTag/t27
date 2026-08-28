@@ -165,6 +165,26 @@ pub enum GatesCmd {
         #[arg(long, default_value_t = 50)]
         min_runs: u64,
     },
+    /// Workflows with no recent run on the default branch: their green is
+    /// about frequency, not health.
+    ///
+    /// `dead` asks "ran a lot and never passed". This asks the opposite and
+    /// harder question: "never ran, so nobody knows". Three gates in this
+    /// repository were in that state at once -- rings-rust, secret-scan and
+    /// cli-tri, all `paths:`-filtered on the root Cargo.toml, which nothing
+    /// had edited in months. Editing it woke all three: seventeen ring crates
+    /// had never compiled, 233 files carried a developer's home directory, and
+    /// `tri rtl check` had been dying on a submodule that was declared but not
+    /// registered. Every one of them had been reading as passing.
+    Unmeasured {
+        /// owner/repo, repeatable. Defaults to the repository you are in.
+        #[arg(long = "repo")]
+        repos: Vec<String>,
+        /// Call a workflow unmeasured when its last default-branch run is
+        /// older than this many days, or when it has none at all.
+        #[arg(long, default_value_t = 30)]
+        stale_days: u64,
+    },
 }
 
 /// Gate scripts whose control lives in a SEPARATE file, and the file that
@@ -2216,6 +2236,14 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             dir.as_deref(),
         ),
         GatesCmd::Prs { repo } => prs(repo.as_deref()),
+        GatesCmd::Unmeasured { repos, stale_days } => {
+            let list: Vec<String> = if repos.is_empty() {
+                vec![current_repo()?]
+            } else {
+                repos.clone()
+            };
+            unmeasured(&list, *stale_days)
+        }
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
@@ -2261,6 +2289,168 @@ fn count(repo: &str, id: &str, success_only: bool) -> Result<u64> {
 /// reaching the network — inline, it was reachable only through `gh`.
 fn too_few_runs_to_judge(total: u64, min_runs: u64) -> bool {
     total < min_runs
+}
+
+/// The repository this working tree belongs to, as `owner/name`.
+fn current_repo() -> Result<String> {
+    let s = gh(&["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])?;
+    let s = s.trim().to_string();
+    if s.is_empty() {
+        anyhow::bail!("`gh repo view` named no repository -- run this inside a checkout, or pass --repo");
+    }
+    Ok(s)
+}
+
+/// Does this workflow restrict itself with `paths:`? A path filter is what
+/// turns "has not failed" into "has not run", so it is reported beside the
+/// staleness rather than left for the reader to go and look up.
+fn has_path_filter(root: &std::path::Path, rel: &str) -> bool {
+    let p = root.join(rel);
+    match std::fs::read_to_string(&p) {
+        Ok(t) => t.lines().any(|l| {
+            let t = l.trim_start();
+            t.starts_with("paths:") || t.starts_with("paths-ignore:")
+        }),
+        Err(_) => false,
+    }
+}
+
+/// Can a human get the missing reading at all? Without `workflow_dispatch:`
+/// there is no way to fire it against the default branch on purpose, so the
+/// gap cannot be closed even by someone who wants to.
+fn has_dispatch(root: &std::path::Path, rel: &str) -> bool {
+    match std::fs::read_to_string(root.join(rel)) {
+        Ok(t) => t.lines().any(|l| l.trim_start().starts_with("workflow_dispatch:")),
+        Err(_) => false,
+    }
+}
+
+fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
+    let root = repo_root()?;
+    let mut rows: Vec<(String, String, String, bool, bool)> = Vec::new();
+    let mut checked = 0usize;
+    let mut unreadable = 0usize;
+
+    for repo in repos {
+        let default_branch = gh(&[
+            "api",
+            &format!("repos/{repo}"),
+            "--jq",
+            ".default_branch",
+        ])?
+        .trim()
+        .to_string();
+
+        let listing = gh(&[
+            "api",
+            &format!("repos/{repo}/actions/workflows?per_page=100"),
+            "--jq",
+            r#".workflows[]|select(.state=="active")|"\(.id)\t\(.name)\t\(.path)""#,
+        ])?;
+
+        for line in listing.lines() {
+            let mut it = line.splitn(3, '\t');
+            let (id, name, path) = match (it.next(), it.next(), it.next()) {
+                (Some(a), Some(b), Some(c)) => (a, b, c),
+                _ => continue,
+            };
+            checked += 1;
+
+            // The most recent run ON THE DEFAULT BRANCH. A run on a pull
+            // request says nothing about the branch everything merges into.
+            // The jq here was once written as a raw string with the closing
+            // `""` trimmed off at runtime, which produced `... // ` -- invalid
+            // jq. Every query then failed, `unwrap_or_default` turned each
+            // failure into an empty string, and the command reported that all
+            // 58 workflows had never run. A confident wrong answer, produced by
+            // the exact mechanism this command exists to find.
+            //
+            // So: no default on error. A query that did not run is not a
+            // workflow that did not run, and the two are now said differently.
+            let query = format!(
+                "repos/{repo}/actions/workflows/{id}/runs?branch={default_branch}&per_page=1"
+            );
+            let last = match gh(&["api", &query, "--jq", ".workflow_runs[0].created_at // \"\""]) {
+                Ok(v) => v.trim().to_string(),
+                Err(e) => {
+                    eprintln!("  ?  could not ask about {name}: {e}");
+                    unreadable += 1;
+                    continue;
+                }
+            };
+
+            let stale = if last.is_empty() {
+                true
+            } else {
+                match days_since(&last) {
+                    Some(d) => d > stale_days,
+                    // An unparseable date is not a fresh one. Saying "fine"
+                    // here is the same defect this command exists to find.
+                    None => true,
+                }
+            };
+            if stale {
+                rows.push((
+                    repo.clone(),
+                    name.to_string(),
+                    if last.is_empty() { "never".into() } else { last[..10].to_string() },
+                    has_path_filter(&root, path),
+                    has_dispatch(&root, path),
+                ));
+            }
+        }
+    }
+
+    if unreadable > 0 {
+        println!(
+            "  {unreadable} workflow(s) could not be asked about; they are NOT counted as \
+             either fresh or stale."
+        );
+    }
+    if rows.is_empty() {
+        println!(
+            "Every active workflow has run on the default branch within {stale_days} days \
+             ({checked} checked)."
+        );
+        return Ok(());
+    }
+
+    rows.sort_by(|a, b| a.2.cmp(&b.2).then(a.1.cmp(&b.1)));
+    println!(
+        "{} of {} active workflow(s) have no default-branch run within {} days.\n",
+        rows.len(),
+        checked,
+        stale_days
+    );
+    println!("  {:<10}  {:<7}  {:<9}  {}", "LAST", "paths:", "dispatch", "WORKFLOW");
+    for (repo, name, last, filtered, dispatch) in &rows {
+        println!(
+            "  {:<10}  {:<7}  {:<9}  {}  ({})",
+            last,
+            if *filtered { "yes" } else { "-" },
+            if *dispatch { "yes" } else { "NO" },
+            name,
+            repo
+        );
+    }
+    println!(
+        "\n  A gate that has not run on the default branch is not passing there; it is\n\
+           unmeasured. `paths: yes` is usually the reason. `dispatch: NO` means the\n\
+           reading cannot be taken on purpose -- add `workflow_dispatch:` first."
+    );
+    Ok(())
+}
+
+/// Whole days between an ISO-8601 timestamp and now, or None if it will not
+/// parse. Kept separate so the staleness rule can be tested without a network.
+fn days_since(iso: &str) -> Option<u64> {
+    let ts = chrono::DateTime::parse_from_rfc3339(iso).ok()?;
+    let now = chrono::Utc::now();
+    let secs = now.signed_duration_since(ts.with_timezone(&chrono::Utc)).num_seconds();
+    if secs < 0 {
+        return Some(0);
+    }
+    Some(secs as u64 / 86_400)
 }
 
 fn dead(repos: &[String], min_runs: u64) -> Result<()> {
@@ -2406,6 +2596,45 @@ mod tests {
 
     /// The floor `tri gates dead` actually ships with, read back out of clap
     /// rather than repeated as a literal here.
+    /// `days_since` is the whole staleness rule, so it is exercised without a
+    /// network. The case that matters is the LAST one: an unparseable date must
+    /// not read as fresh, because "I could not tell" and "it is fine" are the
+    /// two answers this command exists to keep apart.
+    #[test]
+    fn days_since_counts_whole_days_and_refuses_to_guess() {
+        let now = chrono::Utc::now();
+        let mk = |d: i64| (now - chrono::Duration::days(d)).to_rfc3339();
+
+        assert_eq!(super::days_since(&mk(0)), Some(0));
+        assert_eq!(super::days_since(&mk(1)), Some(1));
+        assert_eq!(super::days_since(&mk(45)), Some(45));
+
+        // A clock skewed into the future is 0 days old, not a negative number
+        // that would underflow the comparison.
+        let future = (now + chrono::Duration::days(3)).to_rfc3339();
+        assert_eq!(super::days_since(&future), Some(0));
+
+        // Not a date. None, so the caller treats it as stale.
+        assert_eq!(super::days_since("never"), None);
+        assert_eq!(super::days_since(""), None);
+        assert_eq!(super::days_since("2026-08-28"), None);
+    }
+
+    /// The staleness decision itself, spelled out: None must mean stale.
+    #[test]
+    fn an_unreadable_date_is_stale_not_fresh() {
+        let stale_days = 30u64;
+        let decide = |iso: &str| match super::days_since(iso) {
+            Some(d) => d > stale_days,
+            None => true,
+        };
+        let fresh = (chrono::Utc::now() - chrono::Duration::days(2)).to_rfc3339();
+        let old = (chrono::Utc::now() - chrono::Duration::days(200)).to_rfc3339();
+        assert!(!decide(&fresh), "a two-day-old run is not stale");
+        assert!(decide(&old), "a 200-day-old run is stale");
+        assert!(decide("garbage"), "an unreadable date must not read as fresh");
+    }
+
     fn shipped_floor() -> u64 {
         match Root::parse_from(["tri-gates", "dead"]).action {
             GatesCmd::Dead { min_runs, .. } => min_runs,
