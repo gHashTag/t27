@@ -3390,6 +3390,45 @@ impl Parser {
         //
         // Taken by lexeme rather than by token kind, for any token whose text
         // is a valid identifier.
+        // DESTRUCTURING: `const (x, y) = two();`
+        //
+        // Zig has this -- `const a, const b = two();` -- verified against 0.16.
+        // The name reader below wants a single identifier, so a `(` left the
+        // declaration nameless and the guard in the emitter, which drops a
+        // nameless local rather than emit `const ;`, threw the whole line away
+        // in silence. The names it bound were then undeclared everywhere below.
+        //
+        // The names go in `params`, the same place a for-loop capture list
+        // lives, and extra_kind carries the shape so the emitter can tell a
+        // destructuring from an ordinary binding.
+        if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Ident
+                    || is_identifier_text(&self.current.lexeme)
+                {
+                    decl.params.push((self.current.lexeme.clone(), String::new()));
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::RParen {
+                self.advance();
+            }
+            if let Some((first, _)) = decl.params.first() {
+                decl.name = first.clone();
+                decl.extra_kind = "destructure".to_string();
+            }
+            if self.current.kind == TokenKind::Equals {
+                self.advance();
+                let init = self.parse_expr()?;
+                decl.children.push(init);
+            }
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            return Ok(decl);
+        }
+
         if self.current.kind == TokenKind::Ident || is_identifier_text(&self.current.lexeme) {
             decl.name = self.current.lexeme.clone();
             self.advance();
@@ -6792,6 +6831,24 @@ impl Codegen {
                 // nothing can read it, so dropping it removes a wall and adds
                 // no error elsewhere.
                 if node.name.trim().is_empty() {
+                    return;
+                }
+                // `const (x, y) = f()` -- Zig writes each name with its own
+                // keyword: `const x, const y = f();`.
+                if node.extra_kind == "destructure" && !node.params.is_empty() {
+                    self.write_indent();
+                    let kw = if node.extra_mutable { "var" } else { "const" };
+                    let names: Vec<String> = node
+                        .params
+                        .iter()
+                        .map(|(n, _)| format!("{} {}", kw, zig_ident(n)))
+                        .collect();
+                    self.write(&names.join(", "));
+                    if let Some(v) = node.children.first() {
+                        self.write(" = ");
+                        self.gen_expr(v);
+                    }
+                    self.write_line(";");
                     return;
                 }
                 self.write_indent();
