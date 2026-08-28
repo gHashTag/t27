@@ -7532,8 +7532,45 @@ impl Codegen {
                 }
                 self.write(" }");
             }
-            _ => {}
+            // A node kind with no arm above USED to write nothing at all: the
+            // node and its whole subtree simply disappeared, with no error at
+            // any stage. ExprTry lived that way for its entire existence, and
+            // the emitted `std.mem.eql(u8, , "...")` -- a missing left operand
+            // -- was the only trace.
+            //
+            // The Verilog and C backends in this same file already emit
+            // `/* unsupported: {:?} */` here. Zig did not, which is why the
+            // corpus that is actually measured was the one that could hide a
+            // hole.
+            //
+            // A comment would be invisible to `zig ast-check`, which is the
+            // instrument this corpus is measured with. `@compileError` is a
+            // real expression of type noreturn, so it stands where the missing
+            // value stood, parses cleanly (leaving the validity metric honest
+            // about SYNTAX), and hard-fails anything that reaches `zig test`.
+            _ => {
+                unhandled_node("gen_expr", &format!("{:?}", node.kind), &node.name);
+                self.write(&format!(
+                    "@compileError(\"t27: no gen_expr arm for {:?}\")",
+                    node.kind
+                ));
+            }
         }
+    }
+}
+
+/// Report a node kind that reached a backend's catch-all.
+///
+/// stderr, not stdout: the emitted code is a measured artifact and a diagnostic
+/// inside it would corrupt every count taken from it. One line per occurrence,
+/// deliberately unaggregated -- the caller knows which spec it is compiling and
+/// the harness can group. Aggregating here would need state that this pass does
+/// not otherwise carry.
+pub fn unhandled_node(func: &str, kind: &str, name: &str) {
+    if name.is_empty() {
+        eprintln!("t27: UNHANDLED {} {}", func, kind);
+    } else {
+        eprintln!("t27: UNHANDLED {} {} ({})", func, kind, name);
     }
 }
 
@@ -8809,6 +8846,7 @@ impl VerilogCodegen {
                 }
             }
             _ => {
+                unhandled_node("gen_verilog_expr", &format!("{:?}", node.kind), &node.name);
                 self.write(&format!("/* unsupported expr: {:?} */", node.kind));
             }
         }
@@ -9807,6 +9845,7 @@ impl CCodegen {
                 }
             }
             _ => {
+                unhandled_node("gen_c_expr", &format!("{:?}", node.kind), &node.name);
                 self.write(&format!("/* unsupported: {:?} */", node.kind));
             }
         }
@@ -12789,7 +12828,13 @@ impl RustCodegen {
                 self.indent -= 1;
                 self.write_line("}");
             }
-            _ => {}
+            _ => {
+                unhandled_node("gen_rust_stmt", &format!("{:?}", stmt.kind), &stmt.name);
+                self.write_line(&format!(
+                    "compile_error!(\"t27: no gen_rust_stmt arm for {:?}\");",
+                    stmt.kind
+                ));
+            }
         }
     }
 
@@ -13003,7 +13048,17 @@ impl RustCodegen {
                 s.push('}');
                 s
             }
-            _ => "()".to_string(),
+            // `"()"` was the worst of the three fallbacks. A silent drop leaves
+            // a hole that something downstream trips over; `()` is a VALID Rust
+            // expression of unit type, so an unhandled node produced code that
+            // compiles and means something else.
+            _ => {
+                unhandled_node("expr_to_rust", &format!("{:?}", node.kind), &node.name);
+                format!(
+                    "compile_error!(\"t27: no expr_to_rust arm for {:?}\")",
+                    node.kind
+                )
+            }
         }
     }
 }
