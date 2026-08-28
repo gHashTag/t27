@@ -488,7 +488,7 @@ pub const BigInt = struct {
 
     /// Compare absolute values
     /// Returns: -1 if |a| < |b|, 0 if |a| == |b|, +1 if |a| > |b|
-    fn compare_abs(a: Self, b: Self) i8 {
+    pub fn compare_abs(a: Self, b: Self) i8 {
         const a_abs = a.abs();
         const b_abs = b.abs();
 
@@ -531,11 +531,6 @@ pub const BigInt = struct {
         }
 
         return cmp;
-    }
-
-    /// Compare absolute values (public wrapper)
-    pub fn compare_abs(a: Self, b: Self) i8 {
-        return a.compare_abs(b);
     }
 
     // ========================================================================

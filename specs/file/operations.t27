@@ -69,8 +69,8 @@ module FileOperations {
         // Implementation: Insert content at line
     }
 
-    // delete removes lines from a file
-    fn delete(path: str, startLine: u32, endLine: u32) -> Result<void, FileError> {
+    // delete_lines removes a line range from a file
+    fn delete_lines(path: str, startLine: u32, endLine: u32) -> Result<void, FileError> {
         // Implementation: Delete line range
     }
 
