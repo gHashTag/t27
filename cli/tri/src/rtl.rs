@@ -112,7 +112,26 @@ fn declared_sources(dir: &Path) -> Result<Vec<PathBuf>> {
 }
 
 fn top_from_info(dir: &Path) -> Result<String> {
-    let text = std::fs::read_to_string(dir.join("info.yaml"))?;
+    // `declared_sources` names the file it cannot read; this one did not, and it
+    // runs FIRST. So a missing design directory came out of the whole command as
+    //
+    //     Error: No such file or directory (os error 2)
+    //
+    // naming neither the path nor what was expected there. The CI step that
+    // points at chips/phi -- a submodule declared in .gitmodules with no gitlink
+    // committed, so it never materialises -- has been failing on exactly this,
+    // and the message told nobody why.
+    if !dir.is_dir() {
+        bail!(
+            "no design directory at {} -- `tri rtl check` expects a directory \
+             holding info.yaml and src/. If this is a submodule path, it is \
+             declared but not checked out.",
+            dir.display()
+        );
+    }
+    let info = dir.join("info.yaml");
+    let text = std::fs::read_to_string(&info)
+        .with_context(|| format!("no info.yaml at {}", info.display()))?;
     for line in text.lines() {
         let t = line.trim();
         if let Some(rest) = t.strip_prefix("top_module:") {
