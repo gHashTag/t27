@@ -34,8 +34,14 @@ pub fn cosine_sim(a: &[f64], b: &[f64]) -> f64 {
 // ============================================================================
 
 // Note: These files are generated from .t27 specs via:
-//   ./target/release/t27c gen-rust specs/memory/formula_embed.t27
-//   ./target/release/t27c gen-rust specs/memory/semantic_search.t27
+//   ./target/release/t27c gen-rust specs/memory/formula_embed.t27 -o src/memory/generated/
+//   ./target/release/t27c gen-rust specs/memory/semantic_search.t27 -o src/memory/generated/
+//
+// They live INSIDE the crate. They used to be included from ../../../gen/,
+// outside the package, and cargo cannot put a file outside the package into the
+// tarball: `cargo publish` got as far as compiling the packaged crate and then
+// died on "couldn't read src/memory/../../../gen/rust/memory/formula_embed.rs".
+// Nothing else in the tree referenced those two paths.
 
-include!("../../../gen/rust/memory/formula_embed.rs");
-include!("../../../gen/rust/memory/semantic_search.rs");
+include!("generated/formula_embed.rs");
+include!("generated/semantic_search.rs");

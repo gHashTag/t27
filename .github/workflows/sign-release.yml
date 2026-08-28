@@ -26,6 +26,12 @@ on:
 permissions:
   contents: read
 
+# One tag must not have two of these in flight; a cancelled run mid-upload is
+# how a release ends up half-attached.
+concurrency:
+  group: sign-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
   sign:
     name: Sign + attest release assets

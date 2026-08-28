@@ -96,6 +96,25 @@ fn main() {
         .parent()
         .expect("bootstrap crate must live one level below repo root")
         .to_path_buf();
+
+    // Everything below enforces REPOSITORY policy -- no Cyrillic in repo-owned
+    // Rust, the M5 freeze -- by reading files that live outside this package:
+    // ../docs/.legacy-non-english-docs and the like. A published crate is
+    // unpacked on its own, so `..` is a build directory and those files are not
+    // there. The script then died with a bare "No such file or directory" and
+    // took `cargo publish` with it, which is why t27c had never been published.
+    //
+    // Those checks are about this repository, not about the crate a downstream
+    // user is compiling. Outside the repository they are skipped, and said so.
+    let in_repo = root.join("Cargo.toml").is_file() && root.join("specs").is_dir();
+    if !in_repo {
+        println!(
+            "cargo:warning=t27c: built outside the t27 repository; repository policy checks skipped"
+        );
+        println!("cargo:rerun-if-changed=build.rs");
+        return;
+    }
+
     let allow = load_allowlist(&root);
 
     // --- Bootstrap compiler sources: no Cyrillic in repo-owned Rust ---
