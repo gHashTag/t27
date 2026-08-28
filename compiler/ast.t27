@@ -103,7 +103,7 @@ module ast {
         When = 96,
         Then = 97,
         Assert = 98,
-        And = 99,
+        KwAnd = 99,
         Expect = 100,
     };
 
