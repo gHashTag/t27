@@ -167,7 +167,7 @@ pub fn tf3_to_f32(tf3: TF3) f32 {
     // Calculate value: (-1)^s * (1 + m/16) * 2^(e-3)
     const sign_mult = if (sign != 0) -1.0 else 1.0;
     const mant_mult = 1.0 + @as(f32, @floatFromInt(mant)) / 16.0;
-    const exp_mult = @as(f32, @exp2(f32, @floatFromInt(exp - BIAS)));
+    const exp_mult = @as(f32, @exp2(@as(f32, @floatFromInt(exp - BIAS))));
 
     return sign_mult * mant_mult * exp_mult;
 }

@@ -180,7 +180,7 @@ pub fn gf16_decode_to_f32(gf16: GF16) f32 {
 
     const sign_mult = if (sign < 0) -1.0 else 1.0;
     const mant_mult = 1.0 + @as(f32, @floatFromInt(mant)) / 512.0;
-    const exp_mult = @as(f32, @exp2(f32, @floatFromInt(exp - BIAS)));
+    const exp_mult = @as(f32, @exp2(@as(f32, @floatFromInt(exp - BIAS))));
 
     return sign_mult * mant_mult * exp_mult;
 }
