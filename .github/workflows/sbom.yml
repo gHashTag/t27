@@ -22,6 +22,12 @@ on:
 permissions:
   contents: read
 
+# One tag must not have two of these in flight; a cancelled run mid-upload is
+# how a release ends up half-attached.
+concurrency:
+  group: sbom-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
   spdx:
     name: SPDX SBOM (dependency graph)

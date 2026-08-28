@@ -1,5 +1,23 @@
-# Release Pipeline: Publish to PyPI, npm, and crates.io
-# Triggered on GitHub release publication
+# Release Pipeline
+#
+# This repository releases TWO products, and every job below used to fire for
+# both. A tag reading t27c-v0.2.0 published `golden-float` and
+# `golden-float-ffi` -- a different project -- while `t27c` itself went nowhere.
+#
+# Nine runs of this pipeline, nine failures, zero successes. "Failed" did not
+# mean nothing happened: the 2026-04-07 run failed overall while its PyPI leg
+# SUCCEEDED and burned golden-float 0.1.0, and the 2026-05-15 run failed overall
+# while its crates.io leg SUCCEEDED and burned golden-float-ffi 0.1.0. Neither
+# number can ever be reused. Nothing sequenced the jobs, so a failure in one
+# left the other's publication standing.
+#
+# Three rules now hold:
+#   1. PRODUCT GATE  -- a tag names its product, and only that product's jobs run
+#   2. VERSION TRUTH -- every manifest must already say what the tag says
+#   3. DRY RUN FIRST -- no registry is written until all rehearsals pass
+#
+# Every publishing job needs: preflight. There is no path to a registry that
+# skips it.
 
 name: Release Pipeline
 
@@ -7,12 +25,123 @@ on:
   release:
     types: [published]
 
+# Two runs for one tag could interleave four registry writes. They cannot
+# overlap now, and a queued one is never cancelled -- cancelling mid-publish is
+# how a partial publish is made.
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
+  # ========================================================================
+  # Preflight: which product, does every manifest agree, and does each
+  # publish REHEARSE cleanly. Everything else needs this.
+  # ========================================================================
+  preflight:
+    name: Preflight -- product, versions, dry runs
+    runs-on: ubuntu-latest
+    outputs:
+      product: ${{ steps.identify.outputs.product }}
+      version: ${{ steps.identify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Identify the product and version from the tag
+        id: identify
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name }}"
+          echo "tag: $TAG"
+          case "$TAG" in
+            t27c-v*)         PRODUCT=t27c;         VERSION="${TAG#t27c-v}" ;;
+            golden-float-v*) PRODUCT=golden-float; VERSION="${TAG#golden-float-v}" ;;
+            v*)              PRODUCT=golden-float; VERSION="${TAG#v}" ;;
+            *)
+              echo "::error::Tag '$TAG' names no product. Use t27c-v<version> or golden-float-v<version>."
+              exit 1 ;;
+          esac
+          echo "product=$PRODUCT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "product: $PRODUCT   version: $VERSION"
+
+      - name: Every manifest must already say what the tag says
+        run: |
+          set -euo pipefail
+          V="${{ steps.identify.outputs.version }}"
+          fail=0
+          check() {  # file, found, label
+            if [ "$2" != "$V" ]; then
+              echo "::error file=$1::$3 is '$2' but the tag says '$V' -- edit $1"
+              fail=1
+            else
+              echo "ok  $1 = $2"
+            fi
+          }
+          if [ "${{ steps.identify.outputs.product }}" = "t27c" ]; then
+            check bootstrap/Cargo.toml \
+              "$(grep -m1 '^version' bootstrap/Cargo.toml | sed 's/.*"\(.*\)".*/\1/')" \
+              "crate t27c version"
+            # .zenodo.json describes T27, so it is checked against a T27 tag and
+            # not against golden-float's. A DOI is minted from it and is forever.
+            check .zenodo.json \
+              "$(python3 -c "import json;print(json.load(open('.zenodo.json')).get('version',''))")" \
+              ".zenodo.json version"
+          else
+            check ffi/Cargo.toml \
+              "$(grep -m1 '^version' ffi/Cargo.toml | sed 's/.*"\(.*\)".*/\1/')" \
+              "crate golden-float-ffi version"
+            check bindings/python/pyproject.toml \
+              "$(grep -m1 '^version' bindings/python/pyproject.toml | sed 's/.*"\(.*\)".*/\1/')" \
+              "PyPI golden-float version"
+            check bindings/javascript/package.json \
+              "$(python3 -c "import json;print(json.load(open('bindings/javascript/package.json'))['version'])")" \
+              "npm golden-float version"
+          fi
+          exit $fail
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rehearse the crates.io publish
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.identify.outputs.product }}" = "t27c" ]; then
+            cargo publish --dry-run --manifest-path bootstrap/Cargo.toml
+          else
+            cargo publish --dry-run --manifest-path ffi/Cargo.toml
+          fi
+
+      - name: Rehearse against the live registries
+        run: |
+          set -euo pipefail
+          V="${{ steps.identify.outputs.version }}"
+          UA="t27-release-preflight (github actions)"
+          if [ "${{ steps.identify.outputs.product }}" = "t27c" ]; then
+            CRATE=t27c
+          else
+            CRATE=golden-float-ffi
+          fi
+          # A version that already exists cannot be replaced, only failed on --
+          # and the failure would come AFTER some other leg had written.
+          if curl -sf -A "$UA" "https://crates.io/api/v1/crates/$CRATE/$V" > /dev/null; then
+            echo "::error::crates.io already has $CRATE $V. Versions are permanent; bump it."
+            exit 1
+          fi
+          echo "ok  crates.io has no $CRATE $V"
+          if [ "${{ steps.identify.outputs.product }}" != "t27c" ]; then
+            if curl -sf "https://pypi.org/pypi/golden-float/$V/json" > /dev/null; then
+              echo "::error::PyPI already has golden-float $V. Yanking hides a version, it never frees it."
+              exit 1
+            fi
+            echo "ok  PyPI has no golden-float $V"
+          fi
   # ========================================================================
   # Python: PyPI Publication via Maturin
   # ========================================================================
   python:
     name: Publish Python Package to PyPI
+    needs: preflight
+    if: needs.preflight.outputs.product == 'golden-float'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -77,7 +206,8 @@ jobs:
 
   python-publish:
     name: Publish to PyPI
-    needs: python
+    needs: [preflight, python]
+    if: needs.preflight.outputs.product == 'golden-float'
     runs-on: ubuntu-latest
     permissions:
       id-token: write  # IMPORTANT: required for Trusted Publisher (OIDC)
@@ -109,6 +239,8 @@ jobs:
   # ========================================================================
   javascript:
     name: Build and Publish to npm
+    needs: preflight
+    if: needs.preflight.outputs.product == 'golden-float'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -153,7 +285,9 @@ jobs:
   # Rust: crates.io Publication
   # ========================================================================
   crates:
-    name: Publish to crates.io
+    name: Publish golden-float-ffi to crates.io
+    needs: preflight
+    if: needs.preflight.outputs.product == 'golden-float'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -172,3 +306,18 @@ jobs:
   # ========================================================================
   # Note: Zenodo publication is handled by zenodo-publish.yml
   # This is triggered automatically on release publication
+
+  # ========================================================================
+  # t27c: the crate this repository's own tag is named for, and which no job
+  # published until now. The name is unclaimed on crates.io.
+  # ========================================================================
+  t27c:
+    name: Publish t27c to crates.io
+    needs: preflight
+    if: needs.preflight.outputs.product == 't27c'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish
+        run: cargo publish --manifest-path bootstrap/Cargo.toml --token ${{ secrets.CRATES_TOKEN }}
