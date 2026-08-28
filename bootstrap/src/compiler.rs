@@ -3924,6 +3924,27 @@ impl Parser {
                     unwrap.name = "?".to_string();
                     unwrap.children.push(expr);
                     expr = unwrap;
+                } else if self.current.kind == TokenKind::Number {
+                    // TUPLE INDEX: `row.id.0`, `t.1 + t.0`. Rust's tuple-struct
+                    // and tuple access, and the third sibling of `expr.*` and
+                    // `expr.?` that this loop did not accept.
+                    //
+                    // SILENT, unlike the other two. The `?` case ended the
+                    // expression and took its binding with it, which is loud;
+                    // a number after the dot left `row.id.0` as `row.id` and
+                    // `t.1 + t.0` as `t` -- code that COMPILES and means
+                    // something else. Isolated with a fixture, which is the
+                    // only way a silent loss shows itself.
+                    //
+                    // `.@"0"` rather than `[0]`: verified against zig 0.16, it
+                    // reads both an anonymous tuple `struct { u32, u32 }` and a
+                    // single-field newtype, and the corpus has both.
+                    let idx = self.current.lexeme.clone();
+                    self.advance();
+                    let mut tup = Node::new(NodeKind::ExprFieldAccess);
+                    tup.name = format!("@\"{}\"", idx);
+                    tup.children.push(expr);
+                    expr = tup;
                 } else if self.current.kind == TokenKind::Ident {
                     let field = self.current.lexeme.clone();
                     self.advance();
