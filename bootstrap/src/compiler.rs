@@ -6688,6 +6688,25 @@ impl Codegen {
                 // The clause means what it says: set that field. Two specs,
                 // ml/transformer/feed_forward and ml/transformer/norm.
                 let lhs_t = lhs.trim();
+                // `when (output, mask) = dropout(...)` -- a destructuring bind.
+                // Not the same code path as the statement parser, which already
+                // handles the form: clause text never reaches it. The fixture I
+                // used to check the parser fix therefore proved nothing about
+                // this, and feed_forward stayed walled at
+                // `expected 'an identifier', found '('` for a day.
+                if let Some(names) = paren_name_list(lhs_t) {
+                    self.write_line(&format!("{} = {};", bind_destructured(&names, "const"), val));
+                    // Discard every bound name unconditionally. `used_later` is
+                    // one flag for the whole clause, so it cannot say WHICH of
+                    // the two is read, and an unused one is a hard error.
+                    // `_ = x;` before a later use of `x` is legal Zig, so the
+                    // discard is safe where the guess would not be.
+                    for n in names.iter().filter(|n| *n != "_") {
+                        self.write_indent();
+                        self.write_line(&format!("_ = {};", n));
+                    }
+                    return;
+                }
                 if lhs_t.contains('.') || lhs_t.contains('[') {
                     self.write_line(&format!("{} = {};", zig_path(lhs_t), val));
                     return;
@@ -10050,8 +10069,131 @@ fn is_zig_primitive(name: &str) -> bool {
 /// `in` operator last, because both walk left over already-rewritten text.
 fn rewrite_all(text: &str) -> String {
     rewrite_keyword_identifiers(&rewrite_in_operator(&rewrite_as_casts(
-        &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(text))),
+        &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_paren_destructuring(
+            &rewrite_array_repeats(text),
+        ))),
     )))
+}
+
+/// `const (a, b) = f();` -> `const a, const b = f();`
+///
+/// parse_local_decl already handles this shape, and I stopped there -- but a
+/// `when (output, mask) = dropout(...)` clause never reaches the statement
+/// parser. Clause text is copied into the test body verbatim, so the same
+/// construct needed the same fix in two unrelated places, and measuring only
+/// the fixture hid that: the fixture went through the parser and passed.
+///
+/// Structural, not shaped: the line must open with the keyword, the parens must
+/// balance, every element must be a plain name (or `_`, or an already-escaped
+/// `@"..."`), and what follows must be a single `=`. `const (a + b) * c = ...`
+/// is not a declaration and does not match; neither does `if (a, b) == x`.
+fn rewrite_paren_destructuring(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 32);
+    for (n, line) in s.lines().enumerate() {
+        if n > 0 {
+            out.push('\n');
+        }
+        let indent_len = line.len() - line.trim_start().len();
+        let (indent, rest) = line.split_at(indent_len);
+        let kw = ["const ", "var ", "let "]
+            .into_iter()
+            .find(|k| rest.starts_with(k));
+        let Some(kw) = kw else {
+            out.push_str(line);
+            continue;
+        };
+        let after_kw = rest[kw.len()..].trim_start();
+        if !after_kw.starts_with('(') {
+            out.push_str(line);
+            continue;
+        }
+        // matching close paren, respecting nesting and strings
+        let chars: Vec<char> = after_kw.chars().collect();
+        let mut depth = 0i32;
+        let mut in_str = false;
+        let mut close = None;
+        for (i, &c) in chars.iter().enumerate() {
+            if c == '"' {
+                in_str = !in_str;
+            } else if !in_str && c == '(' {
+                depth += 1;
+            } else if !in_str && c == ')' {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(i);
+                    break;
+                }
+            }
+        }
+        let Some(close) = close else {
+            out.push_str(line);
+            continue;
+        };
+        let group: String = chars[..=close].iter().collect();
+        let tail: String = chars[close + 1..].iter().collect();
+        let tail_t = tail.trim_start();
+        // a single `=`, not `==` and not `=>`
+        if !tail_t.starts_with('=') || tail_t.starts_with("==") || tail_t.starts_with("=>") {
+            out.push_str(line);
+            continue;
+        }
+        let Some(names) = paren_name_list(&group) else {
+            out.push_str(line);
+            continue;
+        };
+        out.push_str(indent);
+        out.push_str(&bind_destructured(&names, kw.trim()));
+        out.push_str(&tail);
+    }
+    if s.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
+/// `(a, b)` -> the names, when every element really is a name.
+///
+/// `_` is kept as itself: Zig spells a discarded slot that way and giving it a
+/// `const` is an error.
+fn paren_name_list(s: &str) -> Option<Vec<String>> {
+    let t = s.trim();
+    if !t.starts_with('(') || !t.ends_with(')') || t.len() < 4 {
+        return None;
+    }
+    let inner = &t[1..t.len() - 1];
+    if inner.contains('(') || inner.contains(')') {
+        return None;
+    }
+    let names: Vec<&str> = inner.split(',').map(|p| p.trim()).collect();
+    if names.len() < 2 {
+        return None;
+    }
+    let plain = |x: &str| {
+        !x.is_empty()
+            && (x == "_"
+                || (x.starts_with("@\"") && x.ends_with('"') && x.len() > 3)
+                || x.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_')
+                    && x.chars().all(|c| c.is_alphanumeric() || c == '_'))
+    };
+    if !names.iter().all(|x| plain(x)) {
+        return None;
+    }
+    Some(names.into_iter().map(str::to_string).collect())
+}
+
+/// `["a", "_", "b"]` -> `const a, _, const b`
+fn bind_destructured(names: &[String], kw: &str) -> String {
+    names
+        .iter()
+        .map(|n| {
+            if n == "_" {
+                "_".to_string()
+            } else {
+                format!("{} {}", kw, n)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn rewrite_keyword_identifiers(s: &str) -> String {
