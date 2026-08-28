@@ -76,17 +76,19 @@ theorem L01_lagrangian_order_of_magnitude :
   -- `norm_num` alone left both goals open: it does not evaluate `Real.pi` or
   -- `Real.exp 1`, so it never reached a number. The claim is true with room to
   -- spare -- L01 is 0.1695 against bounds of 0.1 and 1 -- and what was missing
-  -- is bounds on e/pi, which mathlib states to nine digits.
+  -- is bounds on e/pi. `Real.pi_gt_314` and `Real.pi_lt_315` are the
+  -- long-standing pair; 0.8*3.15 = 2.52 < e and 0.9*3.14 = 2.826 > e, so
+  -- two decimal places are enough and no six-digit name is needed.
   -- `lt_div_iff`/`div_lt_iff` were renamed with a `₀` suffix when they moved to
   -- the GroupWithZero order files; the toolchain here pins v4.31.0, where the
   -- unsuffixed names no longer resolve.
   have hpi : (0:ℝ) < Real.pi := Real.pi_pos
   have hlo : (0.8:ℝ) < Real.exp 1 / Real.pi := by
     rw [lt_div_iff₀ hpi]
-    nlinarith [Real.exp_one_gt_d9, Real.pi_lt_31415927]
+    nlinarith [Real.exp_one_gt_d9, Real.pi_lt_315]
   have hhi : Real.exp 1 / Real.pi < (0.9:ℝ) := by
     rw [div_lt_iff₀ hpi]
-    nlinarith [Real.exp_one_lt_d9, Real.pi_gt_3141592]
+    nlinarith [Real.exp_one_lt_d9, Real.pi_gt_314]
   constructor <;> nlinarith [hlo, hhi]
 
 -- ============================================================================
@@ -103,27 +105,21 @@ noncomputable def Koide_H4 (c1 c2 c3 : ℝ) : ℝ :=
     This is a CONSISTENCY CHECK, not a derivation. -/
 theorem Koide_H4_test :
     |Koide_H4 1 239 549 - 2/3| / (2/3) < 1 := by
-  unfold Koide_H4
-  -- `norm_num [abs]` left the goal open: the expression contains
-  -- `Real.sqrt 239` and `Real.sqrt 549`, which it does not evaluate.
+  -- LEFT FAILING, DELIBERATELY, AND THIS IS THE ONLY ONE.
   --
-  -- No tight bound is needed. Dividing through by 2/3, the goal is
-  -- |K - 2/3| < 2/3, i.e. 0 < K < 4/3, and K = 789 / t^2 with t the sum of the
-  -- three roots. K < 4/3 needs only t^2 > 591.75, and t > 39 follows from the
-  -- crudest bounds on the roots -- which come from (sqrt x)^2 = x plus
-  -- non-negativity, true in any mathlib revision, so no digit-level lemma is
-  -- involved.
-  have e1 : Real.sqrt 1 = 1 := Real.sqrt_one
-  have q239 := Real.sq_sqrt (show (0:ℝ) ≤ 239 by norm_num)
-  have q549 := Real.sq_sqrt (show (0:ℝ) ≤ 549 by norm_num)
-  have n239 := Real.sqrt_nonneg 239
-  have n549 := Real.sqrt_nonneg 549
-  have b239 : (15:ℝ) < Real.sqrt 239 := by nlinarith [q239, n239]
-  have b549 : (23:ℝ) < Real.sqrt 549 := by nlinarith [q549, n549]
-  rw [e1, div_lt_one (by norm_num), abs_sub_lt_iff]
-  constructor <;>
-    rw [div_lt_iff₀ (by nlinarith [b239, b549])] <;>
-      nlinarith [b239, b549]
+  -- `norm_num [abs]` cannot close this: the expression contains `Real.sqrt 239`
+  -- and `Real.sqrt 549`, which it does not evaluate. The statement is TRUE --
+  -- numerically |K - 2/3|/(2/3) = 0.2562 against a bound of 1 -- and no tight
+  -- bound is needed: dividing through, the goal is 0 < K < 4/3, and
+  -- K = 789/t^2 needs only t^2 > 591.75, which the crudest root bounds give.
+  --
+  -- An attempt at that is not committed here. It got as far as unknown
+  -- identifiers and a rewrite that found no occurrence -- the `let` bindings in
+  -- Koide_H4 do not reduce the way the tactic assumed -- and half a proof in
+  -- the tree is worse than one named failure with the shape of the fix written
+  -- down. See #2747.
+  unfold Koide_H4
+  norm_num [abs]
 
 -- ============================================================================
 -- Section 7: Status Theorem
