@@ -19,6 +19,7 @@ mod reseal;
 mod prcheck;
 mod red;
 mod rtl;
+mod seals;
 mod sweep;
 mod vectors;
 mod synth;
@@ -125,6 +126,11 @@ enum Commands {
     Rtl {
         #[command(subcommand)]
         action: rtl::RtlCmd,
+    },
+    /// What `.trinity/seals` says about a spec, when it says it twice.
+    Seals {
+        #[command(subcommand)]
+        action: seals::SealsCmd,
     },
     /// Pure-Rust ports of repository commit / push gates.
     Hooks {
@@ -741,6 +747,7 @@ fn main() -> Result<()> {
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
+        Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
 
