@@ -14,13 +14,13 @@ Wave Loop 369 retried the physical validation path:
 
 1. Rebuilt the `dlc10` driver:
    ```bash
-   cd /Users/playra/t27/cli/dlc10
+   cd cli/dlc10
    cargo build --release -p dlc10
    ```
 
 2. Queried the JTAG IDCODE:
    ```bash
-   /Users/playra/t27/target/release/dlc10 idcode
+   target/release/dlc10 idcode
    ```
 
 ---

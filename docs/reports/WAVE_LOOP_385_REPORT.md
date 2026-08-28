@@ -94,7 +94,7 @@ All three pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`. The in-r
 
 ## Seal / conformance
 
-- 27 core IGLA seals plus all other spec seals regenerated from `/Users/playra/t27` using `t27c seal --save`.
+- 27 core IGLA seals plus all other spec seals regenerated from `.` using `t27c seal --save`.
 - Full suite result: **567/567 PASS**, zero seal mismatches, zero yosys smoke failures.
 
 ---

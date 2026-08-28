@@ -28,7 +28,7 @@ This directory contains:
 - Portable agent implementation
 - **A2A WebSocket port: 9001**
 
-**BrowserOS Workspace**: `/Users/playra/BrowserOS`
+**BrowserOS Workspace**: `~/BrowserOS`
 - Separate MCP server project
 - Different port configuration
 - **NOT** part of Trinity A2A development
@@ -83,7 +83,7 @@ These are intentionally separate to prevent confusion and maintain SSOT.
 
 ### Forbidden Actions
 
-❌ **NEVER** work in `/Users/playra/BrowserOS`
+❌ **NEVER** work in `~/BrowserOS`
    - This is a separate workspace
    - Do not edit, modify, or delete files in this directory
    - Do not run commands from this directory
@@ -117,4 +117,4 @@ echo ""
 echo "=== Инструкция ==="
 echo "1. ВСЕ A2A работа должна быть в ~/t27/packages/browseros-agent"
 echo "2. Использовать порт A2A: 9001"
-echo "3. НЕ работать в /Users/playra/BrowserOS"
+echo "3. НЕ работать в ~/BrowserOS"

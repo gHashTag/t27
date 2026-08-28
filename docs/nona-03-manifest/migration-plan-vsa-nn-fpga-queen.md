@@ -2,12 +2,12 @@
 
 ## Контекст
 
-Целевой репозиторий `/Users/playra/t27` уже содержит значительную часть структуры:
+Целевой репозиторий `.` уже содержит значительную часть структуры:
 - ✅ **Сделано**: specs/math/* (constants, sacred_physics), specs/numeric/* (GF4-32, TF3, phi_ratio), compiler/parser, compiler/codegen/zig/verilog, conformance/*, docs/*, architecture/*, .trinity/*
 - ✅ **Миграция завершена**: specs/vsa/ops.t27, specs/isa/registers.t27, specs/nn/attention.t27, specs/nn/hslm.t27, specs/fpga/mac.t27, specs/queen/lotus.t27, compiler/codegen/c/codegen.t27, compiler/runtime/runtime.t27, compiler/parser/lexer.t27
 - 📝 **Все .t27 файлы** теперь в каноническом формате (module/fn/test/invariant/bench)
 
-Исходный репозиторий `/Users/playra/trinity-w1` содержит Zig код который нужно экстрагировать в .t27 спецификации:
+Исходный репозиторий `~/trinity-w1` содержит Zig код который нужно экстрагировать в .t27 спецификации:
 - src/tri/math/ - sacred formula, constants
 - src/vsa/ - vector operations
 - src/hslm/ - HSLM attention

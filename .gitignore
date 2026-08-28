@@ -118,3 +118,13 @@ specs/scratch/
 # rather than into tools/seal_baseline.txt, which would turn a green invariant into
 # permanent debt.
 .trinity/seals/scratch_*.json
+
+# Coq build artifacts. 208 of these were committed, carrying the absolute build
+# path of the machine that produced them -- which is what secret-scan kept
+# finding. Nothing reads them: coq-proofs.yml builds from source with
+# `coqc -R . Trinity <file>.v`.
+*.vo
+*.vok
+*.vos
+*.glob
+*.aux

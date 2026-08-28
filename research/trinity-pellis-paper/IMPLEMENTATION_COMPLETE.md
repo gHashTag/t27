@@ -69,7 +69,7 @@ After normalization (dividing by P'(φ) = -147/784), the leading term becomes:
 
 ### Theoretical Analysis (4 LaTeX + 5 Python)
 ```
-/Users/playra/t27/research/trinity-pellis-paper/
+research/trinity-pellis-paper/
 ├── banks_zaks_fixed_point.tex          ✅ 3 pages
 ├── banks_zaks_verification.py           ✅ 300 lines
 ├── a5_su3_branching.tex               ✅ 8 pages
@@ -83,7 +83,7 @@ After normalization (dividing by P'(φ) = -147/784), the leading term becomes:
 
 ### Documentation Files
 ```
-/Users/playra/t27/research/trinity-pellis-paper/
+research/trinity-pellis-paper/
 ├── FOLLOW_UP_README.md                  (existing tracker)
 ├── FOLLOW_UP_SUMMARY.md                ✅ (this file)
 └── IMPLEMENTATION_COMPLETE.md              ✅ (this file)

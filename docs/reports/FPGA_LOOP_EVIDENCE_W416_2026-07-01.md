@@ -25,7 +25,7 @@ Because no hardware is available, Variant C was executed.
 ### 2.1 Envelope summary (no context)
 
 ```bash
-/Users/playra/t27/target/release/tri fpga pvt-envelope
+target/release/tri fpga pvt-envelope
 ```
 
 Output:
@@ -47,7 +47,7 @@ Use --pvt-context <ctx.json> to compute the bound for a specific context.
 cat > /tmp/worstcase.json <<'EOF'
 {"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}
 EOF
-/Users/playra/t27/target/release/tri fpga pvt-envelope --pvt-context /tmp/worstcase.json
+target/release/tri fpga pvt-envelope --pvt-context /tmp/worstcase.json
 ```
 
 Output:
@@ -93,7 +93,7 @@ Full result: **38/38 PASS**.
 ## 4. Lean 4 PVT monotonicity and OSCFSEL transaction theorems
 
 ```bash
-cd /Users/playra/t27/proofs/lean4
+cd proofs/lean4
 lake build Trinity.TernaryFPGABoot
 ```
 
@@ -125,7 +125,7 @@ established nominal measured-CCLK facts.
 ## 5. Full repo sweep
 
 ```bash
-/Users/playra/t27/scripts/tri test
+scripts/tri test
 ```
 
 Summary:

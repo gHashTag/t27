@@ -289,9 +289,12 @@ class RedTeamTestFramework:
         """
         import json
         import os
+import pathlib
 
         # Create results directory if needed
-        results_dir = "/Users/playra/t27/clara-bridge/test_vectors/ta2"
+        results_dir = str(
+        pathlib.Path(__file__).resolve().parents[3] / "clara-bridge/test_vectors/ta2"
+    )
         os.makedirs(results_dir, exist_ok=True)
 
         # Save results

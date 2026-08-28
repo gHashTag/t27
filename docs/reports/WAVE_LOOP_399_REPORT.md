@@ -47,7 +47,7 @@ default bitstream.
 
 ## Verification
 
-- `tri fpga cclk-sweep /Users/playra/t27/fpga/verilog/ternary_mac_demo_top_200t.bit --dry-run`
+- `tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit --dry-run`
   produced 6 synthetic JSON logs and a summary table identifying OSCFSEL=0 as the
   first working variant (expected deterministic dry-run behaviour).
 - `tri fpga sweep-report` produced a markdown report from the dry-run logs.

@@ -33,7 +33,7 @@ One planned item—**C backend local-array type inference** (Track A2)—was def
 ### Track B — Proofs
 
 #### B1. Coq toolchain normalization ✅
-- `proofs/trinity/Makefile` now exports `COQBIN=/Users/playra/.opam/coq-8.20/bin/` and propagates it to recursive `make -f Makefile.coq` calls.
+- `proofs/trinity/Makefile` now exports `COQBIN=~/.opam/coq-8.20/bin/` and propagates it to recursive `make -f Makefile.coq` calls.
 - All `.vo` files rebuilt cleanly with Coq 8.20; no Rocq 9.1.1 contamination.
 - CI risk: if CI image upgrades to Rocq 9, the pin will break. Recommended: containerize the Coq 8.20 environment or add a `coqc --version` gate in CI.
 

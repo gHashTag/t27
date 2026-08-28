@@ -111,7 +111,7 @@ The `dlc10 idcode` probe still fails with `DLC10 cable not found (VID=0x03FD)`. 
 ## 5. Conformance
 
 ```bash
-/Users/playra/t27/target/release/t27c suite --repo-root /Users/playra/t27
+target/release/t27c suite --repo-root .
 ```
 
 Result:

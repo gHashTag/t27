@@ -159,7 +159,7 @@ Stable at **100+ competitors** tracked. No new August 2026 competitors discovere
 ### 7.2 Known Compiler / Toolchain Items
 
 - No CRITICAL runtime bugs active (all 9/9 fixed in W43–W45)
-- Coq toolchain pinned at `/Users/playra/.opam/coq-8.20/bin/coqc`
+- Coq toolchain pinned at `~/.opam/coq-8.20/bin/coqc`
 - `cargo clippy --workspace --all-features` at zero code warnings
 - `t27c lint --ascii` CI gate active
 - 1 cosmetic workspace profile warning (non-actionable)

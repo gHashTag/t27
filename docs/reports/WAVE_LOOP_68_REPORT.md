@@ -21,7 +21,7 @@ Wave Loop 68 delivered the **first formally proven generation-dependent neutrino
 - **Track B (HIGH — Suite Integrity):**
   - **Coq:** `NeutrinoMasses.v` now contains **62 Qed lemmas** (was 54 at start of W68, +8 new theorems).
   - **Rust:** `548/548 PASS`, `0 seal mismatches`, `0 clippy warnings`.
-  - **Toolchain:** Resolved Coq 8.20 vs Rocq 9.1.1 version mismatch by enforcing `COQBIN=/Users/playra/.opam/coq-8.20/bin/`.
+  - **Toolchain:** Resolved Coq 8.20 vs Rocq 9.1.1 version mismatch by enforcing `COQBIN=~/.opam/coq-8.20/bin/`.
 
 - **Track C (ONGOING — Competitive Intelligence):**
   - **Stable landscape:** 65 competitors tracked. No new entrants detected in current cycle.

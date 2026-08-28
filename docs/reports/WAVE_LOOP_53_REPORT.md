@@ -27,14 +27,14 @@ Wave Loop 53 delivered **four tracks** of engineering hardening and intelligence
 
 **Problem:** System `coqc` upgraded to Rocq Prover 9.1.1 (version tag 90100). The OPAM `coq-8.20` switch contains Coq 8.20.1 binaries and `coq-interval` library compiled with version tag 82000. When `make` ran without `COQBIN`, it found system `coqc` (Rocq 9.1.1), which rejected all `.vo` files with `bad version number 82000 (expected 90100)`.
 
-**Fix:** Changed `proofs/trinity/Makefile` to default `COQBIN` to `/Users/playra/.opam/coq-8.20/bin/`:
+**Fix:** Changed `proofs/trinity/Makefile` to default `COQBIN` to `~/.opam/coq-8.20/bin/`:
 ```makefile
-COQBIN ?= /Users/playra/.opam/coq-8.20/bin/
+COQBIN ?= ~/.opam/coq-8.20/bin/
 ```
 
 **Verification:**
 ```
-$ make clean && make COQBIN=/Users/playra/.opam/coq-8.20/bin/ -j4
+$ make clean && make COQBIN=~/.opam/coq-8.20/bin/ -j4
 ... 44 .vo files rebuilt ...
 make[2]: Nothing to be done for `real-all'.
 ```

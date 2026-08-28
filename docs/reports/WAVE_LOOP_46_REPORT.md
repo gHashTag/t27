@@ -10,7 +10,7 @@
 
 Wave Loop 46 achieved three major milestones:
 
-1. **Coq toolchain resolved:** `NeutrinoMasses.v` compiles successfully using `/Users/playra/.opam/coq-8.20/bin/coqc`. The "version mismatch" was a PATH issue — the system `coqc` was Rocq 9.1.1, but the OPAM `coq-8.20` switch has Coq 8.20.1 with compatible `coq-interval` 4.11.4.
+1. **Coq toolchain resolved:** `NeutrinoMasses.v` compiles successfully using `~/.opam/coq-8.20/bin/coqc`. The "version mismatch" was a PATH issue — the system `coqc` was Rocq 9.1.1, but the OPAM `coq-8.20` switch has Coq 8.20.1 with compatible `coq-interval` 4.11.4.
 2. **Neutrino mass Coq file expanded:** Added muon/tau neutrino masses, mass-squared differences (Δm²₂₁, Δm²₃₁), sum of neutrino masses, and normal-ordering conjecture to `NeutrinoMasses.v`.
 3. **Parser stubs eliminated:** Only 1 `@compileError` remains in `compiler.rs`, and it is intentional (part of `@compileAssert` code generation, not a stub). All parser stubs are resolved.
 
@@ -27,13 +27,13 @@ Additional achievements:
 
 **Root cause:** The system `coqc` in `/opt/homebrew/bin/coqc` is Rocq 9.1.1 (version 90100), but the OPAM switch `coq-8.20` contains Coq 8.20.1 with `coq-interval` 4.11.4 compiled for version 82000. The `.vo` files in the repo and the `coq-interval` package were compiled with Coq 8.20.
 
-**Solution:** Use `/Users/playra/.opam/coq-8.20/bin/coqc` explicitly instead of relying on PATH.
+**Solution:** Use `~/.opam/coq-8.20/bin/coqc` explicitly instead of relying on PATH.
 
 **Verification:**
 ```bash
-/Users/playra/.opam/coq-8.20/bin/coqc -R . Trinity CorePhi.v          # PASS
-/Users/playra/.opam/coq-8.20/bin/coqc -R . Trinity SpectralAction600Cell.v  # PASS
-/Users/playra/.opam/coq-8.20/bin/coqc -R . Trinity NeutrinoMasses.v  # PASS
+~/.opam/coq-8.20/bin/coqc -R . Trinity CorePhi.v          # PASS
+~/.opam/coq-8.20/bin/coqc -R . Trinity SpectralAction600Cell.v  # PASS
+~/.opam/coq-8.20/bin/coqc -R . Trinity NeutrinoMasses.v  # PASS
 ```
 
 **Coq file expanded with:**
@@ -174,7 +174,7 @@ The most recent relevant publications remain:
 
 ## 7. Recommendations for Wave Loop 47
 
-1. **Priority 1 (Coq Proofs):** Prove the first lemma in `NeutrinoMasses.v`. Even a simple positivity lemma would be a milestone. Use `/Users/playra/.opam/coq-8.20/bin/coqc` for compilation.
+1. **Priority 1 (Coq Proofs):** Prove the first lemma in `NeutrinoMasses.v`. Even a simple positivity lemma would be a milestone. Use `~/.opam/coq-8.20/bin/coqc` for compilation.
 
 2. **Priority 2 (Suite Robustness):** Investigate and fix the suite-level issues from W69 (#941). The fixed-point check being a no-op is a potential source of hidden failures.
 

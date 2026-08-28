@@ -94,7 +94,7 @@ See `docs/reports/FPGA_EVIDENCE_W390.md` for exact commands, environment state, 
 
 ## Seal / conformance
 
-- 27 core IGLA seals regenerated from `/Users/playra/t27` using `t27c seal --save`.
+- 27 core IGLA seals regenerated from `.` using `t27c seal --save`.
 - Full suite result: **575/575 PASS**, zero seal mismatches, zero yosys smoke failures.
 - `t27c stats`: 13,831 tests, 6,097 invariants, 1,010 benchmarks.
 

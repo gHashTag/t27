@@ -62,7 +62,7 @@ This proves the `--standalone` output is a valid, buildable lake package snippet
 
 ```bash
 # Rust checks
-cd /Users/playra/t27
+cd .
 cargo check -p tri
 cargo test -p tri pvt
 cargo test -p tri vcd

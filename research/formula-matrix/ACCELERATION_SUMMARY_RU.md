@@ -23,7 +23,7 @@
 
 ### 1. ✅ NumPy векторизация + мультипроцессинг (v6.5)
 
-**Файл:** `/Users/playra/t27/scripts/ultra_engine_v65_absolute.py`
+**Файл:** `scripts/ultra_engine_v65_absolute.py`
 
 **Параметры:**
 - Коэффициенты: 1 до 50,000 (500× от базового)
@@ -54,7 +54,7 @@ python3 scripts/ultra_engine_v65_absolute.py
 
 ### 2. ✅ Rust Chimera Engine (9 операторов)
 
-**Файл:** `/Users/playra/t27/bootstrap/src/chimera_engine.rs`
+**Файл:** `bootstrap/src/chimera_engine.rs`
 
 **Операторы:** Mul, Div, Add, Sub, Sin, Cos, Log, Exp, Pow (9 штук)
 
@@ -84,7 +84,7 @@ Found 20 candidates:
 
 ### 3. ✅ GPU ускорение (v6.6) — ГОТОВО
 
-**Файл:** `/Users/playra/t27/scripts/ultra_engine_v66_gpu.py`
+**Файл:** `scripts/ultra_engine_v66_gpu.py`
 
 **Требования:**
 - CUDA GPU (NVIDIA)
@@ -105,7 +105,7 @@ python3 scripts/ultra_engine_v66_gpu.py
 
 ### 4. ✅ МАТРИЧНЫЙ ПОИСК (v6.7) — ПОЛНЫЙ
 
-**Файл:** `/Users/playra/t27/scripts/ultra_engine_v67_matrix.py`
+**Файл:** `scripts/ultra_engine_v67_matrix.py`
 
 **Методы:**
 1. **Матрицы 2×2** — детерминант, след, норма Фробениуса
@@ -121,11 +121,11 @@ python3 scripts/ultra_engine_v67_matrix.py
 
 ### 5. ✅ Единый поиск всех методов
 
-**Файл:** `/Users/playra/t27/scripts/unified_search_all.py`
+**Файл:** `scripts/unified_search_all.py`
 
 ### 6. ✅ v6.8 НОВЫЕ СТРУКТУРЫ ФОРМУЛ
 
-**Файл:** `/Users/playra/t27/scripts/ultra_engine_v68_new_structures.py`
+**Файл:** `scripts/ultra_engine_v68_new_structures.py`
 
 **НОВЫЕ СТРУКТУРЫ за пределами n·φ^a·π^b·e^c:**
 1. **sin(n·X)** — синус от n·значения

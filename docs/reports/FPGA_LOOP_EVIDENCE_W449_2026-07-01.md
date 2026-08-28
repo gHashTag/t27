@@ -69,7 +69,7 @@ Build completed successfully (2967 jobs).
 
 ```json
 {
-  "repo": "/Users/playra/t27",
+  "repo": ".",
   "phases": [ ... ],
   "fpga_smoke_passed": true,
   "fpga_smoke_gate_elapsed_ms": 10,

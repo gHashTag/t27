@@ -31,7 +31,7 @@ The physical flash performed in W389 completed to 100% and a subsequent SRAM rel
 ### Command
 
 ```bash
-/Users/playra/t27/target/release/tri fpga build-proxy-docker --install
+target/release/tri fpga build-proxy-docker --install
 ```
 
 ### Blocker
@@ -84,7 +84,7 @@ Yosys 0.63 (git sha1 70a11c6bf0e8dd669f56c7da3587f78b405138e2, ...)
 Only `yosys` is installed. The `tri` CLI can build the chipdb:
 
 ```bash
-/Users/playra/t27/target/release/tri fpga setup-openxc7-chipdb --family xc7a200t
+target/release/tri fpga setup-openxc7-chipdb --family xc7a200t
 ```
 
 but that command only produces the `.bba` chipdb. It does **not** provide `fasm2frames` or `xc7frames2bit`, which are part of the separate `prjxray` project. The build is also estimated at 20–40 minutes and downloads ~1 GiB of prjxray database.

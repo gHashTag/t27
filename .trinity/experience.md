@@ -13871,7 +13871,7 @@ Sources:
 
 ### Patterns to reuse
 - When adding a new backend feature, pair it with a scratch regression spec that exercises both read and write paths; the in-runner smoke gate will then enforce the behavior automatically.
-- Regenerate seals from the repo root (`/Users/playra/t27`) after any compiler change that affects generated-code hashes; `t27c seal --save <spec>` works on individual files for targeted resealing.
+- Regenerate seals from the repo root (`.`) after any compiler change that affects generated-code hashes; `t27c seal --save <spec>` works on individual files for targeted resealing.
 
 ### Anti-patterns to avoid
 - Do not emit array-literal syntax directly in Verilog (`localparam lut = [4]u16{...};`); always lower to a synthesizable memory declaration plus an `initial` block.
@@ -13885,7 +13885,7 @@ Sources:
 - `lake build Trinity.TernaryInference` isolates the IGLA proof module from pre-existing failures in physics modules (`H4Lagrangian`, `NeutrinoMasses`).
 
 ### What changed behavior
-- `t27c seal --save` writes seals relative to the current working directory, not the repo root. Regenerating seals must be done from `/Users/playra/t27` or the suite will read stale seals.
+- `t27c seal --save` writes seals relative to the current working directory, not the repo root. Regenerating seals must be done from `.` or the suite will read stale seals.
 - The Verilog backend is critically broken for ternary MAC generation; FPGA evidence sprint is now blocked on either a hand-written synthesis module or a backend fix in `bootstrap/src/compiler.rs`.
 
 ### Patterns to reuse
@@ -13923,7 +13923,7 @@ Sources:
 
 ### What worked
 - A 36-variable `simp+omega` accumulation theorem (`ternaryMacAccumulateThirtySixPlusGeneric`) built successfully in ~3.1 s, so the omega boundary is still linear at depth 36.
-- Forward-appending W360 blocks and regenerating all 27 seals from `/Users/playra/t27` returned **546/546 PASS** immediately after the Lean build.
+- Forward-appending W360 blocks and regenerating all 27 seals from `.` returned **546/546 PASS** immediately after the Lean build.
 - Creating a board-ready wrapper (`ternary_mac_demo_top.v`) with a ring-oscillator clock and LED outputs produced a clean `yosys` synthesis result: 34 cells, 12 CARRY4 total, estimated 10 LCs.
 
 ### What changed behavior
@@ -13968,7 +13968,7 @@ Sources:
 ## 2026-07-01 — Wave Loop 362 completion
 
 ### What worked
-- Forward-appending W362 blocks to all 27 IGLA specs with `scripts/gen_w362.py` and regenerating all 27 seals from `/Users/playra/t27` returned **546/546 PASS** immediately after the Lean build.
+- Forward-appending W362 blocks to all 27 IGLA specs with `scripts/gen_w362.py` and regenerating all 27 seals from `.` returned **546/546 PASS** immediately after the Lean build.
 - A 38-variable `simp+omega` accumulation theorem (`ternaryMacAccumulateThirtyEightPlusGeneric`) built successfully in **3.5 s**, so the omega boundary is still linear at depth 38.
 - The quindecuple cancellation theorem (depth-15 residual `mac(x,a,.plus)`) and zero-weight quintuple closure theorem both built without new lemmas.
 - The `dlc10` driver was rebuilt quickly with `cargo build --release -p dlc10` and is ready for the board flash once the QMTech Wukong V1 / Xilinx Platform Cable USB II is connected.
@@ -13991,7 +13991,7 @@ Sources:
 ## 2026-07-01 — Wave Loop 363 completion
 
 ### What worked
-- Reused `scripts/gen_w363.py` and `scripts/gen_w363_lean.py` to append W363 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.6 s**.
+- Reused `scripts/gen_w363.py` and `scripts/gen_w363_lean.py` to append W363 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.6 s**.
 - `ternaryMacAccumulateThirtyNinePlusGeneric` (`a+b+...+am`) pushed the accumulation boundary to **39 variables**, still within the linear `simp+omega` regime.
 - `ternaryMacSexdecupleCancellationGeneric` (depth-16 alternating plus/minus) collapsed cleanly to identity, confirming even-depth cancellation remains the safe default.
 - `dlc10 idcode` was retried and the failure was documented as a hardware-availability blocker rather than a regression.
@@ -14014,7 +14014,7 @@ Sources:
 ## 2026-07-01 — Wave Loop 364 completion
 
 ### What worked
-- Reused `scripts/gen_w364.py` and `scripts/gen_w364_lean.py` to append W364 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.8 s**.
+- Reused `scripts/gen_w364.py` and `scripts/gen_w364_lean.py` to append W364 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.8 s**.
 - `ternaryMacAccumulateFortyPlusGeneric` pushed the accumulation boundary to **40 variables**, still in the linear `simp+omega` regime.
 - `ternaryMacSeptendecupleCancellationGeneric` (depth-17) correctly collapsed to residual `mac(x, a, .plus)`; the Lean statement matched the odd-depth residual exactly.
 - A narrow, safe `gen_verilog` fix for binary literals (`0b...` → `N'b...`) landed in `bootstrap/src/compiler.rs` without regressions.
@@ -14038,7 +14038,7 @@ Sources:
 ## 2026-07-01 — Wave Loop 365 completion
 
 ### What worked
-- Reused `scripts/gen_w365.py` and `scripts/gen_w365_lean.py` to append W365 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.8 s**.
+- Reused `scripts/gen_w365.py` and `scripts/gen_w365_lean.py` to append W365 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.8 s**.
 - `ternaryMacAccumulateFortyOnePlusGeneric` pushed the accumulation boundary to **41 variables**, still in the linear `simp+omega` regime.
 - `ternaryMacOctodecupleCancellationGeneric` (depth-18) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
 - Created `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`, giving every remaining #1245 defect an exact reproduction command and a tentative root-cause note.
@@ -14062,7 +14062,7 @@ Sources:
 ## 2026-07-01 — Wave Loop 366 completion
 
 ### What worked
-- Reused `scripts/gen_w366.py` and `scripts/gen_w366_lean.py` to append W366 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.1 s**.
+- Reused `scripts/gen_w366.py` and `scripts/gen_w366_lean.py` to append W366 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.1 s**.
 - `ternaryMacAccumulateFortyTwoPlusGeneric` pushed the accumulation boundary to **42 variables**, still in the linear `simp+omega` regime.
 - `ternaryMacNovemdecupleCancellationGeneric` (depth-19) correctly collapsed to residual `mac(x, a, .plus)`; the Lean statement matched the odd-depth residual exactly.
 - Regenerated all 27 IGLA seals with the hyphen-to-underscore mapping; no manual seal edits were needed.
@@ -14087,7 +14087,7 @@ Sources:
 ## 2026-07-01 — Wave Loop 367 completion
 
 ### What worked
-- Reused `scripts/gen_w367.py` and `scripts/gen_w367_lean.py` to append W367 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.4 s**.
+- Reused `scripts/gen_w367.py` and `scripts/gen_w367_lean.py` to append W367 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.4 s**.
 - `ternaryMacAccumulateFortyThreePlusGeneric` pushed the accumulation boundary to **43 variables**, still in the linear `simp+omega` regime.
 - `ternaryMacVigintupleCancellationGeneric` (depth-20) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
 - Landed a safe `gen-verilog` sub-fix: positive hex literals in scalar `const` declarations are now padded to the declared type width (e.g. `u16 = 0x1` emits `16'h1`). The fix passed the full 546-spec conformance suite without requiring seal regeneration.
@@ -14112,7 +14112,7 @@ Sources:
 ## 2026-07-01 — Wave Loop 368 completion
 
 ### What worked
-- Reused the generator pattern (`scripts/gen_w368.py` and `scripts/gen_w368_lean.py`) to append W368 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **547/547 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.5 s**.
+- Reused the generator pattern (`scripts/gen_w368.py` and `scripts/gen_w368_lean.py`) to append W368 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **547/547 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.5 s**.
 - `ternaryMacAccumulateFortyFourPlusGeneric` pushed the accumulation boundary to **44 variables**; build time stayed flat, confirming `simp+omega` still scales linearly.
 - `ternaryMacVigintiunupleCancellationGeneric` (depth-21) correctly collapsed to residual `mac(x, a, .plus)`, continuing the odd-depth residual pattern.
 - Corrected the `zero_weight_closure` helper: it now counts the plus-weight activation (`total = before + 1 + after`), so `ternaryMacZeroWeightUndecupleClosureGeneric` truly has 10 zero-weight MACs around 1 plus-weight MAC (11 variables).
@@ -14139,7 +14139,7 @@ Sources:
 ## 2026-07-02 — Wave Loop 369 completion
 
 ### What worked
-- Reused `scripts/gen_w369.py` and `scripts/gen_w369_lean.py` to append W369 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **548/548 PASS** and `lake build Trinity.TernaryInference` succeeded in **~5.0 s**.
+- Reused `scripts/gen_w369.py` and `scripts/gen_w369_lean.py` to append W369 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **548/548 PASS** and `lake build Trinity.TernaryInference` succeeded in **~5.0 s**.
 - `ternaryMacAccumulateFortyFivePlusGeneric` pushed the accumulation boundary to **45 variables**; `simp+omega` remains in the linear regime.
 - `ternaryMacDuovigintupleCancellationGeneric` (depth-22) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
 - `ternaryMacZeroWeightDuodecupleClosureGeneric` uses 6 zero-weight MACs before and 6 zero-weight MACs after a plus-weight MAC (12 + 1 = 13 variables); the corrected `zero_weight_closure` helper from W368 was preserved.
@@ -14165,7 +14165,7 @@ Sources:
 ## 2026-07-02 — Wave Loop 370 completion
 
 ### What worked
-- Reused `scripts/gen_w370.py` and `scripts/gen_w370_lean.py` to append W370 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **549/549 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.8 s**.
+- Reused `scripts/gen_w370.py` and `scripts/gen_w370_lean.py` to append W370 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **549/549 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.8 s**.
 - `ternaryMacAccumulateFortySixPlusGeneric` pushed the accumulation boundary to **46 variables**; `simp+omega` remains in the linear regime.
 - `ternaryMacTresvigintupleCancellationGeneric` (depth-23) correctly collapsed to residual `mac(x, a, .plus)`, continuing the odd-depth residual pattern.
 - `ternaryMacZeroWeightTredecupleClosureGeneric` uses 6 zero-weight MACs before and 7 zero-weight MACs after a plus-weight MAC (13 closure size, 14 variables).
@@ -14193,7 +14193,7 @@ Sources:
 ## 2026-07-02 — Wave Loop 371 completion
 
 ### What worked
-- Reused `scripts/gen_w371.py` and `scripts/gen_w371_lean.py` to append W371 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **551/551 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- Reused `scripts/gen_w371.py` and `scripts/gen_w371_lean.py` to append W371 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **551/551 PASS** and `lake build Trinity.TernaryInference` succeeded.
 - `ternaryMacAccumulateFortySevenPlusGeneric` pushed the accumulation boundary to **47 variables**; `simp+omega` remains in the linear regime.
 - `ternaryMacQuattuorvigintupleCancellationGeneric` (depth-24) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
 - `ternaryMacZeroWeightQuattuordecupleClosureGeneric` uses 7 zero-weight MACs before and 7 zero-weight MACs after a plus-weight MAC (14 closure size, 15 variables).
@@ -14305,7 +14305,7 @@ Sources:
 ## 2026-07-03 — Wave Loop 375 completion
 
 ### What worked
-- Reused the generator pattern (`scripts/gen_w375.py`, `scripts/gen_w375_lean.py`) to append W375 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **555/555 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- Reused the generator pattern (`scripts/gen_w375.py`, `scripts/gen_w375_lean.py`) to append W375 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **555/555 PASS** and `lake build Trinity.TernaryInference` succeeded.
 - `ternaryMacAccumulateFiftyOnePlusGeneric` pushed the plus-accumulation boundary to **51 variables** without timeout, confirming the `simp+omega` regime still holds at depth 51.
 - `ternaryMacOctovigintupleCancellationGeneric` (depth-28) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
 - `ternaryMacZeroWeightOctodecupleClosureGeneric` uses 9 zero-weight MACs before and 9 zero-weight MACs after a plus-weight MAC (18 closure size, 19 variables).
@@ -14393,7 +14393,7 @@ Sources:
 ## 2026-07-03 — Wave Loop 378 completion
 
 ### What worked
-- Reused the generator pattern (`scripts/gen_w378.py`, `scripts/gen_w378_lean.py`) to append W378 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **558/558 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- Reused the generator pattern (`scripts/gen_w378.py`, `scripts/gen_w378_lean.py`) to append W378 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **558/558 PASS** and `lake build Trinity.TernaryInference` succeeded.
 - `ternaryMacAccumulateFiftyFourPlusGeneric` pushed the plus-accumulation boundary to **54 variables** without timeout, confirming the `simp+omega` regime still holds at depth 54.
 - `ternaryMacUntrigintupleCancellationGeneric` (depth-31) correctly collapsed to residual `mac(x, a, .plus)`, continuing the odd-depth residual pattern.
 - `ternaryMacZeroWeightDuovigintupleClosureGeneric` uses 12 zero-weight MACs before and 12 zero-weight MACs after a plus-weight MAC (24 closure size, 25 variables).
@@ -14423,7 +14423,7 @@ Sources:
 ## 2026-07-03 — Wave Loop 379 completion
 
 ### What worked
-- Reused the generator pattern (`scripts/gen_w379.py`, `scripts/gen_w379_lean.py`) to append W379 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **559/559 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- Reused the generator pattern (`scripts/gen_w379.py`, `scripts/gen_w379_lean.py`) to append W379 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root .` returned **559/559 PASS** and `lake build Trinity.TernaryInference` succeeded.
 - `ternaryMacAccumulateFiftyFivePlusGeneric` pushed the plus-accumulation boundary to **55 variables** without timeout, confirming the `simp+omega` regime still holds at depth 55.
 - `ternaryMacDuotrigintupleCancellationGeneric` (depth-32) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
 - `ternaryMacZeroWeightTrevigintupleClosureGeneric` uses 13 zero-weight MACs before and 13 zero-weight MACs after a plus-weight MAC (26 closure size, 27 variables).
@@ -14453,7 +14453,7 @@ Sources:
 
 ### What worked
 - Reached the W380 target of **264 generic ∀** by appending the original 4 W380 theorems plus 4 extra theorems (`AccumulateFiftySevenPlusGeneric`, `AccumulateFiftySixMinusGeneric`, `SextrigintupleCancellationGeneric`, `ZeroWeightFourteenPairClosureGeneric`). `lake build Trinity.TernaryInference` completed in ~12.5 s.
-- Extended the IGLA CODER+RACE zero-failure streak to **114 waves**; `t27c suite --repo-root /Users/playra/t27` returned **560/560 PASS**.
+- Extended the IGLA CODER+RACE zero-failure streak to **114 waves**; `t27c suite --repo-root .` returned **560/560 PASS**.
 - Began tuple-return generation scaffolding in `bootstrap/src/compiler.rs`: parser support for tuple return types and tuple literals, packed function result registers, and callee-type-aware `let` destructuring widths.
 - Added `specs/scratch/w380_tuple_return.t27` with mixed-width tuple returns `(u16, u32, u8)`; generated Verilog passes `yosys read_verilog -sv`.
 - Fixed a parser infinite loop on named/namespaced tuple return types (`(gf16::GF16, ...)` and `(added: u32, ...)`) introduced by the new tuple parser.
@@ -14481,7 +14481,7 @@ Sources:
 
 ### What worked
 - Reached the W381 target of **268 generic ∀** by appending 4 new theorems (`AccumulateFiftyNinePlusGeneric`, `AccumulateFiftyEightMinusGeneric`, `DuotrigintupleSeptemCancellationGeneric`, `ZeroWeightSixteenPairClosureGeneric`). `lake build Trinity.TernaryInference` completed successfully.
-- Extended the IGLA CODER+RACE zero-failure streak to **115 waves**; `t27c suite --repo-root /Users/playra/t27` returned **561/561 PASS**.
+- Extended the IGLA CODER+RACE zero-failure streak to **115 waves**; `t27c suite --repo-root .` returned **561/561 PASS**.
 - Completed slot-aware nested tuple-return call lowering in `bootstrap/src/compiler.rs`: function-call expressions that return tuples now emit a packed temporary sized to the callee's tuple width, and consuming tuple literals slice the temporary by slot.
 - Added `specs/scratch/w381_tuple_call_chain.t27` exercising a two-level tuple-return chain; generated Verilog passes `yosys read_verilog -sv`.
 - Batch-resealed the 28 specs with hash mismatches after appending W381 IGLA blocks and the new scratch spec, then reran the suite to 0 failures.
@@ -14508,7 +14508,7 @@ Sources:
 
 ### What worked
 - Reached the W382 target of **272 generic ∀** by appending 4 new theorems (`AccumulateSixtyPlusGeneric`, `AccumulateFiftyNineMinusGeneric`, `QuadragintupleCancellationGeneric`, `ZeroWeightSeventeenPairClosureGeneric`). `lake build Trinity.TernaryInference` completed successfully.
-- Extended the IGLA CODER+RACE zero-failure streak to **116 waves**; `t27c suite --repo-root /Users/playra/t27` returned **562/562 PASS**.
+- Extended the IGLA CODER+RACE zero-failure streak to **116 waves**; `t27c suite --repo-root .` returned **562/562 PASS**.
 - Landed the first incremental array/RAM lowering in `bootstrap/src/compiler.rs`: module-level `var mem : [N]T` now emits a true Verilog memory `reg [W-1:0] mem [0:N-1];`, so `mem[i]` reads and `mem[i] = x` writes resolve to memory accesses.
 - Added `specs/scratch/w382_ram_lowering.t27` exercising a 4-entry `u16` memory with write/read; generated Verilog passes `yosys read_verilog -sv`.
 - Batch-resealed the 27 IGLA specs plus the new scratch spec after appending W382 blocks and the compiler change, then reran the suite to 0 failures.

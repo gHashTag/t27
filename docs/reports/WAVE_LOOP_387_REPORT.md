@@ -102,7 +102,7 @@ Array-literal initialization for multi-dimensional arrays (`var m : [2][3]u16 = 
 
 ## Seal / conformance
 
-- 27 core IGLA seals plus all other spec seals regenerated from `/Users/playra/t27` using `t27c seal --save`.
+- 27 core IGLA seals plus all other spec seals regenerated from `.` using `t27c seal --save`.
 - Full suite result: **574/574 PASS**, zero seal mismatches, zero yosys smoke failures.
 
 ---

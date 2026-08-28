@@ -210,6 +210,6 @@ Dmitrii
 
 ---
 *Файлы для справки:*
-- `/Users/playra/t27/research/trinity-pellis-paper/G2_ALPHA_S_PHI_FRAMEWORK_V0.9.tex`
+- `research/trinity-pellis-paper/G2_ALPHA_S_PHI_FRAMEWORK_V0.9.tex`
 - `https://www.overleaf.com/project/69da50f5a7f91dccb2234a3b`
 - `MASTER_BIBLIOGRAPHY.tex` (Coldea 2010, Shechtman 1984 включены)

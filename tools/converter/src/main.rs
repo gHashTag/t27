@@ -728,7 +728,7 @@ fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 3 {
         eprintln!("Usage: {} <source-dir> <target-dir>", args[0]);
-        eprintln!("Example: {} /Users/playra/trinity-w1/specs /Users/playra/t27/specs", args[0]);
+        eprintln!("Example: {} <source>/specs <target>/specs", args[0]);
         std::process::exit(1);
     }
 

@@ -77,7 +77,7 @@ Yosys synthesis metrics for the demo top (including ring oscillator + counter):
 ### 4. Verification
 
 - `lake build Trinity.TernaryInference` — ✅ success (3.1 s).
-- `./target/release/t27c suite --repo-root /Users/playra/t27` — **546/546 PASS**, zero seal mismatches.
+- `./target/release/t27c suite --repo-root .` — **546/546 PASS**, zero seal mismatches.
 - All 27 IGLA seals regenerated from repo root.
 
 ---

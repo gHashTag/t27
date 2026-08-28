@@ -35,4 +35,4 @@ python3 scripts/unified_search_all.py
 
 ## ВСЕ методы полностью реализованы! 🚀
 
-См. `/Users/playra/t27/research/formula-matrix/ALL_METHODS_FINAL.md` для деталей.
+См. `research/formula-matrix/ALL_METHODS_FINAL.md` для деталей.

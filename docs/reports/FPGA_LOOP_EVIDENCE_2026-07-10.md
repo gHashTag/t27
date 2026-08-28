@@ -40,7 +40,7 @@ index 0:
 Canonical bitstream used for the flash-boot gate:
 
 ```text
-/Users/playra/t27/fpga/verilog/ternary_mac_demo_top_200t.bit
+fpga/verilog/ternary_mac_demo_top_200t.bit
 ```
 
 Bit-config audit asserts:
@@ -64,7 +64,7 @@ JTAG-to-SPI bridge:
 
 ```text
 [program-flash] bitstream expects SPI x1; ensure the flash QE bit and board straps match
-[openfpgaloader] $ /opt/homebrew/bin/openFPGALoader -c digilent_hs2 -f --freq 6000000 --fpga-part xc7a200tfgg676 --verify /Users/playra/t27/build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel00.bit
+[openfpgaloader] $ /opt/homebrew/bin/openFPGALoader -c digilent_hs2 -f --freq 6000000 --fpga-part xc7a200tfgg676 --verify build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel00.bit
 ...
 Erasing: [==================================================] 100.00%
 Writing: [==================================================] 100.00%
@@ -146,7 +146,7 @@ def boot_success (stat : StatRegister) : Prop :=
 ## 6. Smoke gate conclusion
 
 ```text
-=> First working variant: OSCFSEL=0 (/Users/playra/t27/build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel00.bit)
+=> First working variant: OSCFSEL=0 (build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel00.bit)
    Next: measure actual CCLK with `tri fpga measure-cclk` and commit this variant as the default.
 [smoke-gate] flash-boot check OK (DONE=HIGH, mode=001, no errors)
 [smoke-gate] yosys synthesis OK

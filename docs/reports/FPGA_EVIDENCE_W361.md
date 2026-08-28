@@ -136,6 +136,6 @@ Run `fasm2frames.py` with `PYTHONPATH=<prjxray repo>`.
 
 1. Connect QMTech Wukong V1 + Xilinx Platform Cable USB II to the host.
 2. `cargo build --release -p dlc10`
-3. `/Users/playra/t27/target/release/dlc10 idcode` → expect `0x13631093`
-4. `/Users/playra/t27/target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit`
+3. `target/release/dlc10 idcode` → expect `0x13631093`
+4. `target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit`
 5. Verify LEDs toggle and `DONE=HIGH`.

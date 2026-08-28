@@ -54,7 +54,7 @@ Total generic ∀ across Trinity Lean modules: **196**.
 The W361-generated bitstream `fpga/verilog/ternary_mac_demo_top.bit` (3.6 MB, valid Xilinx BIT data for `xc7a100tfgg676-1`) is still ready. The in-tree `dlc10` driver was rebuilt, but the board/cable were not detected:
 
 ```sh
-/Users/playra/t27/target/release/dlc10 idcode
+target/release/dlc10 idcode
 # Error: open DLC10
 # Caused by: DLC10 cable not found (VID=0x03FD)
 ```
@@ -66,7 +66,7 @@ Full details are in [`docs/reports/FPGA_EVIDENCE_W363.md`](FPGA_EVIDENCE_W363.md
 ## Verification
 
 - `lake build Trinity.TernaryInference` — ✅ success (3.6s)
-- `/Users/playra/t27/target/release/t27c suite --repo-root /Users/playra/t27` — ✅ 546/546 PASS
+- `target/release/t27c suite --repo-root .` — ✅ 546/546 PASS
 - 27 IGLA seals regenerated from repo root — ✅ all match
 
 ---

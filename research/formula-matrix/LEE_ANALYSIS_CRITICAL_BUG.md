@@ -87,9 +87,9 @@ Options:
 
 ## Files Involved
 
-- `/Users/playra/t27/scripts/ultra_engine_v69_lee_control_fixed.py` — FLAWED
+- `scripts/ultra_engine_v69_lee_control_fixed.py` — FLAWED
 - `/tmp/lee_control_20260410_083716.json` — INVALID results
-- `/Users/playra/t27/research/formula-matrix/ARXIV_ABSTRACT.md` — Contains invalid claim
+- `research/formula-matrix/ARXIV_ABSTRACT.md` — Contains invalid claim
 
 ---
 

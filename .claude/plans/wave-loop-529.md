@@ -10,7 +10,7 @@
 ## Weak points identified from W528
 
 1. **Missing IcarusLowerable source modules in the main worktree.**
-   - Only `Completeness.lean` exists in `/Users/playra/t27/proofs/lean4/Trinity/IcarusLowerable/`.
+   - Only `Completeness.lean` exists in `proofs/lean4/Trinity/IcarusLowerable/`.
    - The core modules (`Ast.lean`, `Predicate.lean`, `Emitter.lean`, `Soundness.lean`, etc.) are present in agent worktrees but not on `wave-loop-528`.
    - `lake build Trinity.IcarusLowerable.Soundness` fails immediately with missing files.
 
@@ -42,7 +42,7 @@ Sources: [Vericert paper](https://johnwickerson.github.io/papers/vericert_oopsla
 ## Decomposed implementation plan
 
 ### Phase 1 — Restore IcarusLowerable source modules
-- Extract the 10 core `IcarusLowerable/*.lean` files from the last commit that touched them (`33276d818`, W524) into `/Users/playra/t27/proofs/lean4/Trinity/IcarusLowerable/`.
+- Extract the 10 core `IcarusLowerable/*.lean` files from the last commit that touched them (`33276d818`, W524) into `proofs/lean4/Trinity/IcarusLowerable/`.
 - Keep the existing `Completeness.lean` as a generated artifact to be regenerated later.
 - Verify `lake build Trinity.IcarusLowerable.Soundness` reaches at least the compile phase.
 

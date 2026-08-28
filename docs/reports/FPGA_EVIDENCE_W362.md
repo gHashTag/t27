@@ -4,7 +4,7 @@
 **Issue:** #1246
 **Board:** QMTech Wukong V1 / XC7A100T-FGG676-1 (IDCODE `0x13631093`)
 **Bitstream:** `fpga/verilog/ternary_mac_demo_top.bit` (generated during Wave Loop 361)
-**JTAG driver:** in-tree `cli/dlc10` (`/Users/playra/t27/target/release/dlc10`)
+**JTAG driver:** in-tree `cli/dlc10` (`target/release/dlc10`)
 
 ---
 
@@ -25,11 +25,11 @@
 
 ```sh
 cargo build --release -p dlc10
-/Users/playra/t27/target/release/dlc10 idcode
+target/release/dlc10 idcode
 # Error: open DLC10
 # Caused by: DLC10 cable not found (VID=0x03FD)
 
-/Users/playra/t27/target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit
+target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit
 # Not attempted — no cable detected.
 ```
 
@@ -42,9 +42,9 @@ USB host inspection (`ioreg -rc IOUSBHostDevice`, `system_profiler SPUSBDataType
 The `.bit` file remains valid and ready to load once the board and Xilinx Platform Cable USB II are connected:
 
 ```sh
-cd /Users/playra/t27
-/Users/playra/t27/target/release/dlc10 idcode      # expect 0x13631093
-/Users/playra/t27/target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit
+cd .
+target/release/dlc10 idcode      # expect 0x13631093
+target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit
 ```
 
 Expected success indicators:

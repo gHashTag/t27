@@ -1,3 +1,4 @@
+import pathlib
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
@@ -105,7 +106,10 @@ def run_all_benchmarks():
 
     # Save results to JSON file
     import json
-    output_file = "/Users/playra/t27/clara-bridge/test_vectors/t27/vsa_bench_results.json"
+    output_file = str(
+        pathlib.Path(__file__).resolve().parents[2]
+        / "clara-bridge/test_vectors/t27/vsa_bench_results.json"
+    )
 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 

@@ -66,7 +66,7 @@ Use existing proof style: `simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternary
 ### 3. Build and verify
 
 - `lake build Trinity.TernaryInference` — must succeed.
-- `t27c suite --repo-root /Users/playra/t27` — must be 546/546 PASS.
+- `t27c suite --repo-root .` — must be 546/546 PASS.
 - Create GitHub issue #1247 for W363 with `env -u GH_TOKEN gh issue create`.
 
 ### 4. Seal regeneration
@@ -77,8 +77,8 @@ Use existing proof style: `simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternary
 ### 5. Board flash attempt
 
 - `cargo build --release -p dlc10` (already built).
-- `/Users/playra/t27/target/release/dlc10 idcode` — if connected, expect `0x13631093`.
-- If connected: `/Users/playra/t27/target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit`.
+- `target/release/dlc10 idcode` — if connected, expect `0x13631093`.
+- If connected: `target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit`.
 - Capture `STAT` register, confirm `DONE=HIGH`, `CRC_ERROR=0`, observe R23/T23 LEDs.
 - If still not connected, document the blocker; do not claim silicon verified.
 

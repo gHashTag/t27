@@ -17,7 +17,7 @@
   3. `ternaryMacSeptendecupleCancellationGeneric` — depth-17 alternating plus/minus residual `mac(x, a, .plus)`.
   4. `ternaryMacZeroWeightSeptupleClosureGeneric` — seven zero-weight MACs around a plus-weight MAC are transparent.
 - Regenerate 27 IGLA seals from repo root.
-- Run `lake build Trinity.TernaryInference` and `./target/release/t27c suite --repo-root /Users/playra/t27` → 546/546 PASS.
+- Run `lake build Trinity.TernaryInference` and `./target/release/t27c suite --repo-root .` → 546/546 PASS.
 
 ### 1.2 Silicon retry (must attempt)
 - Build `dlc10` (`cargo build --release -p dlc10`).
