@@ -5511,3 +5511,40 @@ pre-existing `format!` argument line for a variable named `probe_idx`, breaking
 the build in a place I was not working. Save the file before instrumenting and
 restore it after, or revert and re-apply the intended edit — a text filter over
 a 38,000-line file will find your word somewhere you did not put it.
+
+## 147. Two binaries, one name: measure with the one the gate uses
+
+I fixed a parse failure, ran `t27c gen` on the spec, got a clean generation, and
+then watched `check_specs_generate.py` report the SAME failure. The tool prefers
+`target/release/t27c` and falls back to `target/debug/t27c`. I had rebuilt only
+debug. My "measurement" was of a binary no gate ever runs.
+
+    for p in ("target/release/t27c", "target/debug/t27c"):
+
+**Before quoting a number, check which binary produced it.** A stale release
+build sitting beside a fresh debug build is a broken ruler with the right name.
+
+## 148. The gate's warning text was about me
+
+`check_seal_coverage.py` says, in its own failure output:
+
+> a spec that does not generate is not a source of truth for anything, and
+> `t27c seal --save` will still seal it with `gen_hash=none`
+
+My parser commit broke one spec's generation and, in the same commit, wrote
+`gen_hash_{zig,c,verilog,rust}: "none"` into its seal. I recorded the breakage
+as the reproducible truth, in the commit that caused it, under a warning I had
+written the wording of.
+
+Two gates caught it and I did not. **When a gate you built starts describing
+your own commit, read it as a finding about you, not as noise to clear.**
+
+## 149. A repair that passes can still fail on the twin
+
+Re-sealing the spec fixed one of the two seals. `coverage` stayed red, because
+547 specs in this repo carry TWO seals — one keyed by module name, one by path —
+and `seal --save` writes only the path-derived one (#2767). Thirty-one pairs
+already disagree with each other.
+
+**When a fix-then-verify cycle still fails, ask whether the record has more than
+one row for the thing you just fixed** before assuming the fix is wrong.
