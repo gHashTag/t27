@@ -6354,8 +6354,8 @@ impl Codegen {
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
     fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
-        let text = rewrite_as_casts(&rewrite_struct_literal_fields(&rewrite_list_literals(
-            &rewrite_array_repeats(&zig_path(&node.name)),
+        let text = rewrite_in_operator(&rewrite_as_casts(&rewrite_struct_literal_fields(
+            &rewrite_list_literals(&rewrite_array_repeats(&zig_path(&node.name))),
         )));
         self.write_indent();
         if node.extra_kind == "then" {
@@ -9627,6 +9627,92 @@ fn is_zig_primitive(name: &str) -> bool {
 /// integer-to-float is exactly what these specs are doing. The helper
 /// dispatches on the two types at comptime and already exists for the parsed
 /// path.
+/// `"needle" in haystack` -- membership, which Zig has no operator for.
+///
+/// COUNTED WITH THE EMITTER, not with a grep. The word `in` appears 101 times
+/// in the sources in prose alone -- `// given clause in test`,
+/// `"Expected variable name in given"` -- and a source count merged those with
+/// the 101 `for x in xs` loop headers that the for-parser already handles.
+/// Asking the emitter which lines reach the OUTPUT carrying a bare `in`, with
+/// comments and string bodies excluded, gives the real figure: THREE lines in
+/// two specs.
+///
+/// Two of the three are this construct. The third is
+/// `forall i in 0..N, predicate` -- a quantifier, a different construct, and
+/// not one a substring test can stand in for.
+///
+/// Restricted to a QUOTED left-hand side. `std.mem.indexOf(u8, hay, needle)`
+/// is unambiguously right for a string inside a string; for a value inside a
+/// container the choice between indexOfScalar, a map lookup and a loop is a
+/// guess, and the corpus has no such site to settle it. The restriction also
+/// excludes the `forall` line for free, since its left side is an identifier.
+fn rewrite_in_operator(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 32);
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let here = !in_str
+            && c == 'i'
+            && b.get(i + 1) == Some(&'n')
+            && matches!(b.get(i.wrapping_sub(1)), Some(' '))
+            && matches!(b.get(i + 2), Some(' '));
+        if !here {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        // left: must be a string literal, ending at the emitted tail
+        let trimmed = out.trim_end();
+        if !trimmed.ends_with('"') {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let tb: Vec<char> = trimmed.chars().collect();
+        let mut j = tb.len() - 1; // the closing quote
+        loop {
+            if j == 0 {
+                break;
+            }
+            j -= 1;
+            if tb[j] == '"' {
+                break;
+            }
+        }
+        let needle: String = tb[j..].iter().collect();
+        // right: an identifier / field-access run
+        let mut k = i + 3;
+        while k < b.len() && b[k] == ' ' {
+            k += 1;
+        }
+        let rs = k;
+        while k < b.len() && (b[k].is_alphanumeric() || b[k] == '_' || b[k] == '.') {
+            k += 1;
+        }
+        if k == rs {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let hay: String = b[rs..k].iter().collect();
+        out.truncate(out.char_indices().nth(j).map_or(out.len(), |(p, _)| p));
+        out.push_str(&format!(
+            "std.mem.indexOf(u8, {}, {}) != null",
+            hay, needle
+        ));
+        i = k;
+    }
+    out
+}
+
 fn rewrite_as_casts(s: &str) -> String {
     let b: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len() + 16);
