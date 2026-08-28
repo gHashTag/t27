@@ -43,18 +43,23 @@ noncomputable def m_nu_muon_eV : ℝ := m_nu_muon * 1e9
 
 noncomputable def m_nu_tau_eV : ℝ := m_nu_tau * 1e9
 
--- Positivity lemmas
-lemma h_H4_pos : 0 < h_H4 := by norm_num
+-- Positivity lemmas.
+--
+-- These read `by norm_num` and left unsolved goals in the first `lake build`
+-- this repository ever ran: `norm_num` does not unfold a `def`, so it never saw
+-- that h_H4 is 30. The values are not in question -- the tactic could not
+-- reach them.
+lemma h_H4_pos : 0 < h_H4 := by unfold h_H4; norm_num
 
-lemma M_Planck_pos : 0 < M_Planck := by norm_num
+lemma M_Planck_pos : 0 < M_Planck := by unfold M_Planck; norm_num
 
-lemma v_EW_pos : 0 < v_EW := by norm_num
+lemma v_EW_pos : 0 < v_EW := by unfold v_EW; norm_num
 
-lemma m_electron_pos : 0 < m_electron := by norm_num
+lemma m_electron_pos : 0 < m_electron := by unfold m_electron; norm_num
 
-lemma m_muon_pos : 0 < m_muon := by norm_num
+lemma m_muon_pos : 0 < m_muon := by unfold m_muon; norm_num
 
-lemma m_tau_pos : 0 < m_tau := by norm_num
+lemma m_tau_pos : 0 < m_tau := by unfold m_tau; norm_num
 
 lemma Lambda_600_pos : 0 < Lambda_600 := by
   unfold Lambda_600 M_Planck h_H4
@@ -118,9 +123,10 @@ lemma seesaw_ordering {a b M_R : ℝ}
     · exact hab
 
 -- Normal ordering theorem
-lemma m_electron_lt_m_muon : m_electron < m_muon := by norm_num
+lemma m_electron_lt_m_muon : m_electron < m_muon := by
+  unfold m_electron m_muon; norm_num
 
-lemma m_muon_lt_m_tau : m_muon < m_tau := by norm_num
+lemma m_muon_lt_m_tau : m_muon < m_tau := by unfold m_muon m_tau; norm_num
 
 theorem neutrino_normal_ordering :
     m_nu_electron < m_nu_muon ∧ m_nu_muon < m_nu_tau := by
