@@ -4033,6 +4033,25 @@ impl Parser {
                 // annotation and an expression never occupy the same slot.
                 self.advance();
                 let mut t = Node::new(NodeKind::ExprTry);
+                // Which of the two `?` means -- decided HERE, where the next
+                // token is still available. The census across 135 suffix `?`
+                // in the corpus says the following token separates them
+                // cleanly: `?.` and `?==` are optional unwraps (12 sites),
+                // everything else in expression position is Rust-style error
+                // propagation (`expect_keyword("module")?;`, 36 sites).
+                //
+                // A text rewrite cannot make this call: by then the clause is a
+                // string and the same distinction costs 70 TYPES their meaning.
+                // I wrote that rewrite first and it changed nothing, because
+                // this construct never reaches the text stage.
+                t.extra_op = if matches!(
+                    self.current.kind,
+                    TokenKind::Dot | TokenKind::Eq | TokenKind::Neq
+                ) {
+                    "unwrap".to_string()
+                } else {
+                    "try".to_string()
+                };
                 t.children.push(expr);
                 expr = t;
             } else if self.current.kind == TokenKind::LBracket {
@@ -7356,6 +7375,26 @@ impl Codegen {
                     }
                     self.write(".");
                     self.write(&zig_expr_name(&node.name));
+                }
+            }
+            NodeKind::ExprTry => {
+                // The node the parser has always built and no backend ever
+                // emitted. gen_expr's catch-all is `_ => {}`, so an arm that
+                // does not exist writes NOTHING -- the node and its whole
+                // subtree vanish, and the emitted line is
+                // `std.mem.eql(u8, , "https://...")` with the left operand
+                // simply gone. Not a parse failure, not an error: a hole.
+                //
+                // Every future node kind added without an arm here will do the
+                // same. That catch-all is why this one went unnoticed.
+                if node.children.is_empty() {
+                    // nothing to unwrap; say so rather than emit a bare `.?`
+                } else if node.extra_op == "unwrap" {
+                    self.gen_expr(&node.children[0]);
+                    self.write(".?");
+                } else {
+                    self.write("try ");
+                    self.gen_expr(&node.children[0]);
                 }
             }
             NodeKind::ExprIndex => {
