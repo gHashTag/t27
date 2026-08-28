@@ -10068,11 +10068,65 @@ fn is_zig_primitive(name: &str) -> bool {
 /// form before list literals would rewrite the brackets away; casts and the
 /// `in` operator last, because both walk left over already-rewritten text.
 fn rewrite_all(text: &str) -> String {
-    rewrite_keyword_identifiers(&rewrite_in_operator(&rewrite_as_casts(
+    rewrite_keyword_identifiers(&rewrite_not_operator(&rewrite_in_operator(&rewrite_as_casts(
         &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_paren_destructuring(
             &rewrite_array_repeats(text),
         ))),
-    )))
+    ))))
+}
+
+/// `not x` -> `!x`. Two sites, both walls.
+///
+/// Zig has no `not`, so a bare one in value position is always the t27 spelling
+/// of negation. Scanned by hand rather than by regex: `\w+` backtracking made
+/// an earlier census read `@import` as `@impor`, and a rewrite that misfires
+/// here changes meaning silently instead of failing.
+///
+/// Guarded on both sides. Not preceded by an identifier character, `.` or `@`,
+/// so a field or variable called `not` is untouched; and followed by whitespace
+/// then something an expression can start with, so `not` used as a value (`x =
+/// not;` -- nothing in the corpus, but cheap to exclude) is left alone.
+fn rewrite_not_operator(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let boundary_before = i == 0 || !(b[i - 1].is_alphanumeric() || matches!(b[i - 1], '_' | '.' | '@' | '"'));
+        if in_str || !boundary_before || c != 'n' || i + 3 > b.len() || b[i..i + 3] != ['n', 'o', 't'] {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let mut j = i + 3;
+        if j < b.len() && (b[j].is_alphanumeric() || b[j] == '_') {
+            // `nothing`, `notify` -- a longer word, not the operator
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let had_space = j < b.len() && b[j].is_whitespace();
+        while j < b.len() && b[j].is_whitespace() {
+            j += 1;
+        }
+        let starts_expr = j < b.len()
+            && (b[j].is_alphanumeric() || matches!(b[j], '_' | '@' | '(' | '!' | '"'));
+        if !(had_space && starts_expr) {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        out.push('!');
+        i = j;
+    }
+    out
 }
 
 /// `const (a, b) = f();` -> `const a, const b = f();`
