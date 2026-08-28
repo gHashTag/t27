@@ -101,7 +101,7 @@ sha256_seal = hashlib.sha256(seal_str.encode()).hexdigest()
 print(f"SHA256 seal: {sha256_seal}")
 
 import os
-seal_dir = "/Users/playra/t27/research/seals"
+seal_dir = str(ROOT / "research/seals")
 os.makedirs(seal_dir, exist_ok=True)
 seal_file = os.path.join(seal_dir, "all_152_v0.2.sha")
 with open(seal_file, "w") as f:

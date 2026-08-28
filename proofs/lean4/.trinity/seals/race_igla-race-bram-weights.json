@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-06-23T07:33:22Z",
   "spec_hash": "sha256:a15d813aa989904c22ed27ea4849db3f61165c6f8f239cb547e97468602d3795",
-  "spec_path": "/Users/playra/t27/specs/igla/race/bram_weights.t27"
+  "spec_path": "specs/igla/race/bram_weights.t27"
 }

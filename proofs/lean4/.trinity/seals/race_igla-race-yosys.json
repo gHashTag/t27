@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-06-23T07:33:23Z",
   "spec_hash": "sha256:0bc486f8ed0079fbcd856bc41564797e73b614ee9b7e0a5c03a7986a1b5f24a5",
-  "spec_path": "/Users/playra/t27/specs/igla/race/yosys.t27"
+  "spec_path": "specs/igla/race/yosys.t27"
 }
