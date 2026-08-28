@@ -2504,6 +2504,30 @@ impl Parser {
     }
 
     /// Parse a type annotation like `Trit`, `*Trit`, `[]u8`, `[N]u8`, `[]const u8`, `anytype`
+    /// The current token's text AS WRITTEN, for the ONE collector that rebuilds
+    /// an array-literal body verbatim.
+    ///
+    /// The lexer stores a string literal's CONTENT in `lexeme`, without quotes;
+    /// the expression parser puts them back when it builds an ExprLiteral, so a
+    /// parsed string is fine. parse_array_literal is not parsed -- it keeps the
+    /// bracket body as text -- so
+    ///
+    ///     spec      var patterns = [ IgnorePattern { pattern = "node_modules" } ]
+    ///     emitted   .{IgnorePattern{pattern=node_modules,}}
+    ///
+    /// SCOPE WAS MEASURED, TWICE, BOTH TIMES BY LOSING SPECS. Applying this to
+    /// all 24 raw collectors cost EIGHTY-FOUR specs -- valid 318 -> 234, walls
+    /// 40 -> 134 -- because the type collectors are most of them and a quoted
+    /// type is issue #2154 again. Narrowing to six "value" collectors still
+    /// cost 87. One site, the one the defect is actually in.
+    fn current_text(&self) -> String {
+        if self.current.kind == TokenKind::String {
+            format!("\"{}\"", zig_string_body(&self.current.lexeme))
+        } else {
+            self.current.lexeme.clone()
+        }
+    }
+
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
 
@@ -4249,7 +4273,7 @@ impl Parser {
                     TokenKind::RBracket => depth -= 1,
                     _ => {}
                 }
-                bracket_content.push_str(&self.current.lexeme);
+                bracket_content.push_str(&self.current_text());
                 self.advance();
             }
             node.extra_size = bracket_content.trim().to_string();
