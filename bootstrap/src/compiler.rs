@@ -6506,8 +6506,10 @@ impl Codegen {
     /// 184 calls, and 152 a bare name or boolean -- `then clk_ok and rx_ok`
     /// is already Zig, which spells conjunction with the same word.
     fn gen_behavior_clause(&mut self, node: &Node, used_later: bool) {
-        let text = rewrite_in_operator(&rewrite_as_casts(&rewrite_struct_literal_fields(
-            &rewrite_list_literals(&rewrite_array_repeats(&zig_path(&node.name))),
+        let text = rewrite_keyword_identifiers(&rewrite_in_operator(&rewrite_as_casts(
+            &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(
+                &zig_path(&node.name),
+            ))),
         )));
         self.write_indent();
         if node.extra_kind == "then" {
@@ -9822,6 +9824,80 @@ fn is_zig_primitive(name: &str) -> bool {
 /// container the choice between indexOfScalar, a map lookup and a loop is a
 /// guess, and the corpus has no such site to settle it. The restriction also
 /// excludes the `forall` line for free, since its left side is an identifier.
+/// A Zig KEYWORD used as a variable name in clause text.
+///
+///     sqrt(var + 1e-5)        word_extract_trit(packed, 5)
+///     expect(error < 0.1)     ensureUnpacked(packed)
+///
+/// The spec's own identifiers; Zig's escape for them is `@"var"`. zig_ident
+/// already produces that for names that pass through it, and clause text does
+/// not pass through it.
+///
+/// Measured with the emitter: 27 lines in 8 specs, and only five keywords --
+/// `error` 18, `packed` 5, `var` 2, `const` 1, `enum` 1.
+///
+/// ONLY IN VALUE POSITION, and only for keywords that cannot be operators.
+/// `and` and `or` are boolean operators in both languages and escaping one
+/// would break the expression it joins; `try` is introduced by the emitter
+/// itself, after this runs. The position test -- preceded by an opening or an
+/// operator, followed by a closing or an operator -- is what separates a
+/// variable called `error` from the keyword.
+fn rewrite_keyword_identifiers(s: &str) -> String {
+    const ESCAPABLE: [&str; 17] = [
+        "error", "packed", "var", "const", "enum", "union", "struct", "test",
+        "align", "export", "extern", "inline", "volatile", "threadlocal",
+        "noalias", "callconv", "anyframe",
+    ];
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 16);
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if in_str || !(c.is_alphabetic() || c == '_') {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let mut j = i;
+        while j < b.len() && (b[j].is_alphanumeric() || b[j] == '_') {
+            j += 1;
+        }
+        let word: String = b[i..j].iter().collect();
+        if !ESCAPABLE.contains(&word.as_str()) {
+            out.push_str(&word);
+            i = j;
+            continue;
+        }
+        // already escaped, or a member access -- `x.error` is a field name and
+        // Zig accepts `.@"error"` only, which zig_path handles elsewhere.
+        let prev = out.chars().last();
+        if matches!(prev, Some('@') | Some('"') | Some('.')) {
+            out.push_str(&word);
+            i = j;
+            continue;
+        }
+        let opens = matches!(prev, None | Some('(') | Some(',') | Some('[') | Some(' ')
+            | Some('+') | Some('-') | Some('*') | Some('/') | Some('=') | Some('<') | Some('>'));
+        let next = b[j..].iter().find(|c| !c.is_whitespace()).copied();
+        let closes = matches!(next, None | Some(')') | Some(',') | Some(']') | Some(';')
+            | Some('+') | Some('-') | Some('*') | Some('/') | Some('=') | Some('<') | Some('>'));
+        if opens && closes {
+            out.push_str(&format!("@\"{}\"", word));
+        } else {
+            out.push_str(&word);
+        }
+        i = j;
+    }
+    out
+}
+
 fn rewrite_in_operator(s: &str) -> String {
     let b: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len() + 32);
