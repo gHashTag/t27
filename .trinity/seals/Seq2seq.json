@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fbf3286597294a68c33991755baa53ac3670ef3c56ec820ae902f323094669eb",
-  "gen_hash_rust": "sha256:1555ddb07d6eccc78fca291d9aad6a7a580102f2ad773f4521ed68387ec23141",
+  "gen_hash_rust": "sha256:813716d6128fd9ca374497121dcef47beae429b90044ef1776abe44fab2bf53b",
   "gen_hash_verilog": "sha256:976c65fea04a88e66cf11859f43ea6a2a804f74a27fd25ed7f2d3283a099e49e",
   "gen_hash_zig": "sha256:b55c318c487aefeab0965fd937cd5ead450331059732c5cd8112863b111dc83b",
   "module": "Seq2seq",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-08-28T20:32:32Z",
   "spec_hash": "sha256:8e663bc28d1cce0a1eb38bc92ed95500f478f35c6a97cf1a0e07b062e284673e",
   "spec_path": "specs/ml/recurrent/seq2seq.t27"
 }

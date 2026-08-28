@@ -21942,7 +21942,18 @@ impl RustCodegen {
             "str" => "String".to_string(),
             "void" => "()".to_string(),
             t if t.starts_with("[]") => {
-                let inner = &t[2..];
+                // `[]const u8` is the Zig spelling of a slice of const u8, and
+                // the `const` qualifies the POINTEE. Rust's `Vec<T>` has no
+                // such qualifier, and carrying it through produced
+                //
+                //     pub reason: Option<Vec<const u8>>,
+                //
+                // which rustc cannot even parse. 84 of 559 generated files
+                // contained one; they were not among the specs any first-error
+                // histogram named, because rustc gives up before it reaches a
+                // diagnosable error code.
+                let inner = t[2..].trim_start();
+                let inner = inner.strip_prefix("const ").unwrap_or(inner);
                 format!("Vec<{}>", Self::t27_type_to_rust(inner))
             }
             // [T; N] form (Rust-style fixed array). Must stay a real array:

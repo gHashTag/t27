@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:7f43f131cab88753851a4f23888340ca11c23aec75c850512736a0763e0d81eb",
-  "gen_hash_rust": "sha256:9ce15d4eaf4e588e89005ce9afa950bc5be43675b9a894763235f1e42619ef36",
+  "gen_hash_rust": "sha256:d94cd9dc734ee5280995bc67480161e341d0f4224c4e06ed846a23023fa93c04",
   "gen_hash_verilog": "sha256:12f49d1fb5e2465ea56072b04a06aa1a7ab1b1f98d8751cc7f604cd19c9be947",
   "gen_hash_zig": "sha256:1d4fbafb4021c51db8589e0e46d7693a16dc1ca80e1f5e89615d10694ad3bbe4",
   "module": "FeedForward",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-08-28T20:32:32Z",
   "spec_hash": "sha256:f6130cb4fb3292dcf0c8a59031b018b2078fb1add5260b24a1f651af62834312",
   "spec_path": "specs/ml/transformer/feed_forward_network.t27"
 }

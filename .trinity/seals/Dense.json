@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:039447274f0699d0ec1a9f0d9181b4ce80fa3b5b74bfaf0673d8a21e29cae4a3",
-  "gen_hash_rust": "sha256:10f1b53ec986d025c7648324388fb55eda375cfb8ba0fe3150b4673340e61c8b",
+  "gen_hash_rust": "sha256:5c41fd156291fc5c31020fbed389c3732e08c13823df40413e47150ea2e2048c",
   "gen_hash_verilog": "sha256:558dcfe464018a5c3ae3d224f3c424d80899918c0f33c3a768b8e46c74e6160f",
   "gen_hash_zig": "sha256:8676940092787661c54d2a6944a1d7feb526254bd52c65bd83be58407a471c44",
   "module": "Dense",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-08-28T20:32:32Z",
   "spec_hash": "sha256:a3ba5541115a575b99fce7ab3b7cfb3742d11f6273c93a0050b05275a23033fc",
   "spec_path": "specs/ml/layers/dense_layer.t27"
 }

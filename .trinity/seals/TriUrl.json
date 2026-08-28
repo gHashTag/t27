@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d97ae7a1cf93b22a08cecfde92a6386c85c72b735c156e1fdb59f0e12e3372fa",
-  "gen_hash_rust": "sha256:7f4505daa141938631bf0022bbe12a384e508646c33f8391a9b4253bfb9e9d50",
+  "gen_hash_rust": "sha256:53a6ec6ec365c98763e7770dcdaade43abf9af0b0c78a4a799c0c46f86db39d4",
   "gen_hash_verilog": "sha256:717393c924c98de975a81d75e4de6f552a53bd32536c530e69141b13334e1a32",
   "gen_hash_zig": "sha256:2229036e131bd6411d223bf5700c2ccf73538b3cb626d85bb97538557c46cb43",
   "module": "TriUrl",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-08-28T20:32:32Z",
   "spec_hash": "sha256:7b2395a369c1777ca0333086c29266630d5335628190e6e46c253b9390af9f33",
   "spec_path": "specs/tri/net/url.t27"
 }
