@@ -1,5 +1,14 @@
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-FROM rust:1.82-bookworm AS builder
+# `rust:1.82` could no longer build this: a dependency now requires edition
+# 2024, which arrived in 1.85, and both Build Agent Runner and Build & Push
+# Sandbox Image died on
+#
+#     error: failed to parse manifest ... feature `edition2024` is required
+#
+# Neither had run since June, so the pin went stale unobserved. The floating
+# `rust:1` tag is what bootstrap/Dockerfile and Dockerfile already use, and it
+# cannot go stale the same way again.
+FROM rust:1-bookworm AS builder
 
 WORKDIR /app
 

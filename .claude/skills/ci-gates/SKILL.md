@@ -5338,3 +5338,70 @@ What is holdable without the toolchain is the **shape of the model**: a module
 with no functions, globals or tests makes its theorem vacuous, and that is
 readable from the source. Ratchet what you can read; file what you cannot run,
 with the job written out, rather than landing a gate you could not execute once.
+
+## 138. `-o /dev/null` is not a free way to discard output
+
+`t27c corpus` measured the Rust backend with
+
+    rustc --emit=metadata -A warnings -o /dev/null <file>
+
+and rustc writes metadata through a temp file **next to** the output path. It
+therefore tried to create `/dev/rmeta<random>` and died with `couldn't create a
+temp dir: Operation not permitted` — on every input, valid or not.
+
+The column read **0 of 559** for as long as it existed, and that zero was
+reported as a finding, published in a release note, and quoted to the owner.
+Fixing the flag alone: **0 → 144**. Fixing the largest real defect after it (an
+unconditional `serde` derive on every generated struct, compiled standalone with
+no `--extern`): **144 → 173**.
+
+The tell was available the whole time: the other three backends wrote to real
+files and had non-zero numbers. **A column at exactly zero while its siblings
+are not is a claim about the instrument, not the subject.** Reproduce it on a
+trivially valid input before believing it — twenty-three characters of Rust was
+enough.
+
+### The control that made the fix safe
+
+Zig 217 and cc 157 were unchanged across both fixes. A change to the Rust
+invocation must move the Rust number and nothing else; when it does, the two
+numbers you did not touch are the evidence.
+
+## 139. Dispatch every gate once; the readings are the payload
+
+`workflow_dispatch` was added to twenty workflows in one commit — a manual
+trigger causes no runs by itself, it only makes the question askable. Firing all
+27 unmeasured ones at the default branch took minutes and returned:
+
+- **12 refused**: their file is not in the tree. 13 of 59 workflows GitHub calls
+  *active* are deleted-but-registered ghosts. They can never run, so they can
+  never be measured, and they inflate the count of gates someone might fix.
+  Separate them in any tool that reports "unmeasured".
+- **8 ran and failed.** A Rust pin two editions stale, a workflow that pushes to
+  a branch its own ruleset forbids, a missing secret, a failed docker pull, and
+  three bare exit codes. Not one was new; every one had been true since June.
+- **2 failed correctly** — worth checking before filing. A PR-scoped gate has no
+  pull request on a dispatch, and the release pipeline refused an empty tag and
+  published nothing.
+
+### NOT APPLICABLE is a third answer
+
+A gate whose subject is absent should say so and exit 0 — not fail, and not
+pass silently. `check_now_entry_shape.py` reads the entry a *pull request* adds;
+on a dispatch there is no pull request, and failing there is failing at
+something outside its subject. Distinguish three states, not two: *checked and
+passed*, *checked and failed*, *nothing here to check, and here is why*.
+
+## 140. A gate catching its author is the gate working
+
+Two of this session's own changes were caught by gates added hours earlier:
+
+- The `serde` fix altered generated Rust while touching no spec. `spec_hash` was
+  unchanged, so before the `gen-drift` category existed it would have passed
+  without a word. It caught 668 seals.
+- Dispatching the release pipeline by accident hit the preflight that refuses an
+  empty tag — every publishing job skipped, no registry written.
+
+When you add a check, the first thing it catches will probably be yours. That is
+the strongest evidence it works, and it is worth saying out loud in the commit
+rather than quietly re-sealing.

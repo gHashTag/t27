@@ -166,10 +166,25 @@ def main():
 
     base = os.environ.get("PR_BASE_SHA", "")
     head = os.environ.get("PR_HEAD_SHA", "HEAD")
+
+    # A dispatched run has no pull request, so there is no set of added entries
+    # to read. That is NOT the same as a run that should have had one and did
+    # not: this check's subject is a pull request, and a dispatch is not one.
+    #
+    # Found by dispatching all 27 unmeasured workflows at master, which is
+    # exactly what a dispatch is for -- it took a reading, and the reading said
+    # this gate goes red when fired outside its subject.
+    event = os.environ.get("GITHUB_EVENT_NAME", "")
+    if not base and event and event != "pull_request":
+        print(f"NOT APPLICABLE: this check reads the docs/now/ entry a PULL REQUEST adds,")
+        print(f"  and the event here is `{event}`. There is no pull request to read.")
+        print("  Nothing was checked and nothing is claimed.")
+        return 0
+
     if not base:
-        print("check_now_entry_shape: PR_BASE_SHA is unset, so the set of entries this")
-        print("  change adds cannot be computed. Reporting nothing rather than a pass")
-        print("  this run did not earn -- set PR_BASE_SHA and PR_HEAD_SHA.")
+        print("check_now_entry_shape: PR_BASE_SHA is unset on a pull_request event, so")
+        print("  the set of entries this change adds cannot be computed. Reporting")
+        print("  nothing rather than a pass this run did not earn.")
         return 2
 
     entries = added_now_entries(base, head)

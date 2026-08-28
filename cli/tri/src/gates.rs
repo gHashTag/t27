@@ -1189,7 +1189,10 @@ fn is_gate_by_property(root: &std::path::Path, name: &str, src: &str) -> bool {
         let inner = t
             .strip_prefix("sys.exit(")
             .and_then(|r| r.strip_suffix(')'))
-            .or_else(|| t.strip_prefix("raise SystemExit(").and_then(|r| r.strip_suffix(')')))
+            .or_else(|| {
+                t.strip_prefix("raise SystemExit(")
+                    .and_then(|r| r.strip_suffix(')'))
+            })
             .or_else(|| t.strip_prefix("return "));
         match inner {
             Some(e) => verdict_literals(e).is_some_and(|v| v.iter().any(|&x| (1..=4).contains(&x))),
@@ -1270,7 +1273,9 @@ fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
                     return false;
                 }
                 lines.iter().enumerate().any(|(i, l)| {
-                    ["fixture", "expect_", "planted"].iter().any(|w| l.contains(w))
+                    ["fixture", "expect_", "planted"]
+                        .iter()
+                        .any(|w| l.contains(w))
                         && calls.iter().any(|c| i.abs_diff(*c) <= 30)
                 })
             })
@@ -1378,7 +1383,10 @@ fn load_cache(root: &std::path::Path) -> std::collections::HashMap<String, Cache
     }
     match std::fs::read_to_string(&p) {
         Err(e) => {
-            eprintln!("warning: the cache at {} exists and could not be read ({e}).", p.display());
+            eprintln!(
+                "warning: the cache at {} exists and could not be read ({e}).",
+                p.display()
+            );
             eprintln!("         Every row will be measured fresh.");
             std::collections::HashMap::new()
         }
@@ -1388,7 +1396,10 @@ fn load_cache(root: &std::path::Path) -> std::collections::HashMap<String, Cache
                 // The likely cause, and it is worth naming rather than
                 // shrugging at: the old writer truncated the file in place, so
                 // a run killed mid-write left half a JSON document behind.
-                eprintln!("warning: the cache at {} is unreadable JSON ({e}).", p.display());
+                eprintln!(
+                    "warning: the cache at {} is unreadable JSON ({e}).",
+                    p.display()
+                );
                 eprintln!("         A run killed mid-write can truncate it. Every row will be");
                 eprintln!("         measured fresh, and this run rewrites the file atomically.");
                 std::collections::HashMap::new()
@@ -1429,8 +1440,16 @@ fn save_cache(root: &std::path::Path, c: &std::collections::HashMap<String, Cach
 
 /// Open pull requests, with how much CI each one actually got.
 fn prs(repo: Option<&str>) -> Result<()> {
-    let mut base = vec!["pr", "list", "--state", "open", "--limit", "50", "--json",
-                        "number,title,mergeable"];
+    let mut base = vec![
+        "pr",
+        "list",
+        "--state",
+        "open",
+        "--limit",
+        "50",
+        "--json",
+        "number,title,mergeable",
+    ];
     if let Some(r) = repo {
         base.push("--repo");
         base.push(r);
@@ -1453,15 +1472,23 @@ fn prs(repo: Option<&str>) -> Result<()> {
         return Ok(());
     }
 
-    println!("{:<7} {:<13} {:>7}  {}", "pr", "mergeable", "checks", "title");
+    println!(
+        "{:<7} {:<13} {:>7}  {}",
+        "pr", "mergeable", "checks", "title"
+    );
     let mut blind: Vec<(i64, usize, String)> = Vec::new();
     let mut rows: Vec<(i64, String, usize)> = Vec::new();
     for it in &items {
         let n = it["number"].as_i64().unwrap_or(0);
         let m = it["mergeable"].as_str().unwrap_or("?").to_string();
         let title = it["title"].as_str().unwrap_or("");
-        let mut cargs = vec!["pr".into(), "checks".into(), n.to_string(),
-                             "--json".into(), "name".into()];
+        let mut cargs = vec![
+            "pr".into(),
+            "checks".into(),
+            n.to_string(),
+            "--json".into(),
+            "name".into(),
+        ];
         if let Some(r) = repo {
             cargs.push("--repo".into());
             cargs.push(r.to_string());
@@ -1523,7 +1550,10 @@ fn prs(repo: Option<&str>) -> Result<()> {
         println!("No pull request has any checks, so there is no reference to compare against.");
         return Ok(());
     }
-    println!("Reference: the median open pull request here gets {} checks.", reference);
+    println!(
+        "Reference: the median open pull request here gets {} checks.",
+        reference
+    );
     if blind.is_empty() {
         println!("No pull request has a check list far below it.");
         return Ok(());
@@ -1698,7 +1728,9 @@ fn mutate(
             "gate", "silent", "loud", "invert", "boundary", "assert", "verdict"
         );
         println!("(silent: `return 1..4` -> `return 0`  -- can the gate still FAIL?)");
-        println!("(loud:   `return 0`    -> `return 1`  -- does anything require it to be SILENT?)");
+        println!(
+            "(loud:   `return 0`    -> `return 1`  -- does anything require it to be SILENT?)"
+        );
         println!("(invert: `if C:` -> `if not (C):`     -- does it reach the RIGHT verdict?)");
         println!("(bound:  `>` <-> `>=`, `<` <-> `<=`    -- at the right PLACE?)");
         println!("(assert: `assert C` -> `assert True`   -- can the assertion still fail?)");
@@ -1821,89 +1853,90 @@ fn mutate(
         }
 
         // What this row depends on: the gate's bytes and its judges' bytes.
-        let mut judges: Vec<std::path::PathBuf> =
-            flags.iter().map(|_| f.clone()).take(1).collect();
+        let mut judges: Vec<std::path::PathBuf> = flags.iter().map(|_| f.clone()).take(1).collect();
         if let Some(c) = &external {
             judges.push(tools.join(c));
         }
         let gate_sha = sha_of(&[f.clone()]);
         let ctrl_sha = sha_of(&judges);
-        let tool_sha = std::env::current_exe().map(|p| sha_of(&[p])).unwrap_or_default();
+        let tool_sha = std::env::current_exe()
+            .map(|p| sha_of(&[p]))
+            .unwrap_or_default();
 
         let mut scores: Vec<(Direction, usize, usize, Vec<usize>)> = Vec::new();
         let (mut n_row_cached, mut n_row_fresh) = (0usize, 0usize);
         for dir in directions {
-        let key = format!("{}|{}", name, label(*dir));
-        if let Some(c) = cache.get(&key) {
-            if c.gate_sha == gate_sha && c.ctrl_sha == ctrl_sha && c.tool_sha == tool_sha {
-                scores.push((*dir, c.killed, c.total, c.survivors.clone()));
-                n_row_cached += 1;
-                n_cached += 1;
-                continue;
-            }
-        }
-        n_row_fresh += 1;
-        n_measured += 1;
-        let sites = sites_in_direction(&pristine, *dir);
-        let mut killed = 0usize;
-        let mut survivors: Vec<usize> = Vec::new();
-        for (at, len, replacement) in &sites {
-            let mut m = String::with_capacity(pristine.len());
-            m.push_str(&pristine[..*at]);
-            m.push_str(replacement);
-            m.push_str(&pristine[at + len..]);
-            std::fs::write(f, &m)?;
-            // T92: a fifth defect, and the one that makes the numbers above
-            // non-deterministic rather than merely incomplete. Python keys a
-            // cached .pyc on (source mtime in whole seconds, source size).
-            // `return 1` -> `return 0` preserves the size, and this loop writes
-            // mutant, restore, next mutant well inside one second -- so an
-            // IMPORTED gate can be served bytecode compiled from the previous
-            // state. tools/wp18_selftest_gate.py does
-            // `import wp18_conformance_gate as G`, and that .pyc is on disk.
-            //
-            // `tri mutate` already solved this and this command did not call
-            // it. Found by an adversarial reviewer who went looking in the
-            // sibling module rather than in the file under review.
-            crate::mutate::clear_derived_caches(f);
-            let mut noticed = false;
-            for fl in &flags {
-                if code(&root, &tools, &name, &[fl]) != "0" {
-                    noticed = true;
-                    break;
+            let key = format!("{}|{}", name, label(*dir));
+            if let Some(c) = cache.get(&key) {
+                if c.gate_sha == gate_sha && c.ctrl_sha == ctrl_sha && c.tool_sha == tool_sha {
+                    scores.push((*dir, c.killed, c.total, c.survivors.clone()));
+                    n_row_cached += 1;
+                    n_cached += 1;
+                    continue;
                 }
             }
-            if !noticed {
-                if let Some(c) = &external {
-                    noticed = code(&root, &tools, c, &[]) != "0";
+            n_row_fresh += 1;
+            n_measured += 1;
+            let sites = sites_in_direction(&pristine, *dir);
+            let mut killed = 0usize;
+            let mut survivors: Vec<usize> = Vec::new();
+            for (at, len, replacement) in &sites {
+                let mut m = String::with_capacity(pristine.len());
+                m.push_str(&pristine[..*at]);
+                m.push_str(replacement);
+                m.push_str(&pristine[at + len..]);
+                std::fs::write(f, &m)?;
+                // T92: a fifth defect, and the one that makes the numbers above
+                // non-deterministic rather than merely incomplete. Python keys a
+                // cached .pyc on (source mtime in whole seconds, source size).
+                // `return 1` -> `return 0` preserves the size, and this loop writes
+                // mutant, restore, next mutant well inside one second -- so an
+                // IMPORTED gate can be served bytecode compiled from the previous
+                // state. tools/wp18_selftest_gate.py does
+                // `import wp18_conformance_gate as G`, and that .pyc is on disk.
+                //
+                // `tri mutate` already solved this and this command did not call
+                // it. Found by an adversarial reviewer who went looking in the
+                // sibling module rather than in the file under review.
+                crate::mutate::clear_derived_caches(f);
+                let mut noticed = false;
+                for fl in &flags {
+                    if code(&root, &tools, &name, &[fl]) != "0" {
+                        noticed = true;
+                        break;
+                    }
+                }
+                if !noticed {
+                    if let Some(c) = &external {
+                        noticed = code(&root, &tools, c, &[]) != "0";
+                    }
+                }
+                // Restore before judging, so an early return can never leave the
+                // tree mutated. Clear again: the restore is the same
+                // same-size-same-second write in the other direction, and a stale
+                // mutant .pyc would poison the NEXT site's measurement.
+                std::fs::write(f, &pristine)?;
+                crate::mutate::clear_derived_caches(f);
+                if !noticed {
+                    survivors.push(line_of(&pristine, *at));
+                } else {
+                    killed += 1;
                 }
             }
-            // Restore before judging, so an early return can never leave the
-            // tree mutated. Clear again: the restore is the same
-            // same-size-same-second write in the other direction, and a stale
-            // mutant .pyc would poison the NEXT site's measurement.
-            std::fs::write(f, &pristine)?;
-            crate::mutate::clear_derived_caches(f);
-            if !noticed {
-                survivors.push(line_of(&pristine, *at));
-            } else {
-                killed += 1;
-            }
-        }
-        debug_assert_eq!(std::fs::read_to_string(f).unwrap_or_default(), pristine);
-        cache.insert(
-            key,
-            CachedRun {
-                gate_sha: gate_sha.clone(),
-                ctrl_sha: ctrl_sha.clone(),
-                tool_sha: tool_sha.clone(),
-                killed,
-                total: sites.len(),
-                survivors: survivors.clone(),
-            },
-        );
-        save_cache(&root, &cache);
-        scores.push((*dir, killed, sites.len(), survivors));
+            debug_assert_eq!(std::fs::read_to_string(f).unwrap_or_default(), pristine);
+            cache.insert(
+                key,
+                CachedRun {
+                    gate_sha: gate_sha.clone(),
+                    ctrl_sha: ctrl_sha.clone(),
+                    tool_sha: tool_sha.clone(),
+                    killed,
+                    total: sites.len(),
+                    survivors: survivors.clone(),
+                },
+            );
+            save_cache(&root, &cache);
+            scores.push((*dir, killed, sites.len(), survivors));
         }
 
         // A gate with no sites in a direction has nothing to say about it. In
@@ -2050,31 +2083,26 @@ fn mutate(
                 .iter()
                 .map(|(_, k, t, _)| format!("{:>8}", format!("{}/{}", k, t)))
                 .collect();
-            println!(
-                "{:<30}{}  {}",
-                name,
-                cols,
-                {
-                    let v = if survived_here.is_empty() {
-                        "all killed".to_string()
-                    } else {
-                        format!("SURVIVED: {}", survived_here.join("; "))
-                    };
-                    // T127: a reused row says so. A cached green that read like
-                    // a fresh one would be the same lie this command exists to
-                    // find.
-                    // T130: per-ROW precision. A row with two columns measured
-                    // and three reused was labelled `[cached]` wholesale --
-                    // under-claiming rather than over-claiming, so the safe
-                    // direction, and still wrong. The point of the marker is
-                    // that a reader can tell which it is.
-                    match (n_row_cached, n_row_fresh) {
-                        (0, _) => v,
-                        (_, 0) => format!("{} [cached]", v),
-                        (c, f) => format!("{} [{} cached, {} fresh]", v, c, f),
-                    }
+            println!("{:<30}{}  {}", name, cols, {
+                let v = if survived_here.is_empty() {
+                    "all killed".to_string()
+                } else {
+                    format!("SURVIVED: {}", survived_here.join("; "))
+                };
+                // T127: a reused row says so. A cached green that read like
+                // a fresh one would be the same lie this command exists to
+                // find.
+                // T130: per-ROW precision. A row with two columns measured
+                // and three reused was labelled `[cached]` wholesale --
+                // under-claiming rather than over-claiming, so the safe
+                // direction, and still wrong. The point of the marker is
+                // that a reader can tell which it is.
+                match (n_row_cached, n_row_fresh) {
+                    (0, _) => v,
+                    (_, 0) => format!("{} [cached]", v),
+                    (c, f) => format!("{} [{} cached, {} fresh]", v, c, f),
                 }
-            );
+            });
         }
     }
 
@@ -2293,10 +2321,19 @@ fn too_few_runs_to_judge(total: u64, min_runs: u64) -> bool {
 
 /// The repository this working tree belongs to, as `owner/name`.
 fn current_repo() -> Result<String> {
-    let s = gh(&["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])?;
+    let s = gh(&[
+        "repo",
+        "view",
+        "--json",
+        "nameWithOwner",
+        "--jq",
+        ".nameWithOwner",
+    ])?;
     let s = s.trim().to_string();
     if s.is_empty() {
-        anyhow::bail!("`gh repo view` named no repository -- run this inside a checkout, or pass --repo");
+        anyhow::bail!(
+            "`gh repo view` named no repository -- run this inside a checkout, or pass --repo"
+        );
     }
     Ok(s)
 }
@@ -2320,7 +2357,9 @@ fn has_path_filter(root: &std::path::Path, rel: &str) -> bool {
 /// gap cannot be closed even by someone who wants to.
 fn has_dispatch(root: &std::path::Path, rel: &str) -> bool {
     match std::fs::read_to_string(root.join(rel)) {
-        Ok(t) => t.lines().any(|l| l.trim_start().starts_with("workflow_dispatch:")),
+        Ok(t) => t
+            .lines()
+            .any(|l| l.trim_start().starts_with("workflow_dispatch:")),
         Err(_) => false,
     }
 }
@@ -2330,16 +2369,12 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     let mut rows: Vec<(String, String, String, bool, bool)> = Vec::new();
     let mut checked = 0usize;
     let mut unreadable = 0usize;
+    let mut ghosts: Vec<(String, String, String)> = Vec::new();
 
     for repo in repos {
-        let default_branch = gh(&[
-            "api",
-            &format!("repos/{repo}"),
-            "--jq",
-            ".default_branch",
-        ])?
-        .trim()
-        .to_string();
+        let default_branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?
+            .trim()
+            .to_string();
 
         let listing = gh(&[
             "api",
@@ -2356,6 +2391,18 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             };
             checked += 1;
 
+            // A workflow GitHub calls active whose file is not in the tree is a
+            // THIRD thing, and calling it unmeasured is wrong twice over: it can
+            // never run, so it will never be measured, and it inflates the count of
+            // gates someone might go and fix. Thirteen of the fifty-nine here are
+            // that -- deleted from the repository, still registered with Actions,
+            // still listed as active. Found by dispatching all 27 unmeasured
+            // workflows and having 12 refuse.
+            if !root.join(path).is_file() {
+                ghosts.push((repo.clone(), name.to_string(), path.to_string()));
+                continue;
+            }
+
             // The most recent run ON THE DEFAULT BRANCH. A run on a pull
             // request says nothing about the branch everything merges into.
             // The jq here was once written as a raw string with the closing
@@ -2370,7 +2417,12 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             let query = format!(
                 "repos/{repo}/actions/workflows/{id}/runs?branch={default_branch}&per_page=1"
             );
-            let last = match gh(&["api", &query, "--jq", ".workflow_runs[0].created_at // \"\""]) {
+            let last = match gh(&[
+                "api",
+                &query,
+                "--jq",
+                ".workflow_runs[0].created_at // \"\"",
+            ]) {
                 Ok(v) => v.trim().to_string(),
                 Err(e) => {
                     eprintln!("  ?  could not ask about {name}: {e}");
@@ -2393,7 +2445,11 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                 rows.push((
                     repo.clone(),
                     name.to_string(),
-                    if last.is_empty() { "never".into() } else { last[..10].to_string() },
+                    if last.is_empty() {
+                        "never".into()
+                    } else {
+                        last[..10].to_string()
+                    },
                     has_path_filter(&root, path),
                     has_dispatch(&root, path),
                 ));
@@ -2401,6 +2457,18 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
         }
     }
 
+    if !ghosts.is_empty() {
+        println!(
+            "{} workflow(s) are registered and active but have NO FILE in the tree.\n\
+             They cannot run, so they can never be measured -- delete the workflow in\n\
+             Actions, or restore the file:\n",
+            ghosts.len()
+        );
+        for (repo, name, path) in &ghosts {
+            println!("  {path}  ({name}, {repo})");
+        }
+        println!();
+    }
     if unreadable > 0 {
         println!(
             "  {unreadable} workflow(s) could not be asked about; they are NOT counted as \
@@ -2417,12 +2485,15 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
 
     rows.sort_by(|a, b| a.2.cmp(&b.2).then(a.1.cmp(&b.1)));
     println!(
-        "{} of {} active workflow(s) have no default-branch run within {} days.\n",
+        "{} of {} active workflow(s) with a file have no default-branch run within {} days.\n",
         rows.len(),
-        checked,
+        checked - ghosts.len(),
         stale_days
     );
-    println!("  {:<10}  {:<7}  {:<9}  {}", "LAST", "paths:", "dispatch", "WORKFLOW");
+    println!(
+        "  {:<10}  {:<7}  {:<9}  {}",
+        "LAST", "paths:", "dispatch", "WORKFLOW"
+    );
     for (repo, name, last, filtered, dispatch) in &rows {
         println!(
             "  {:<10}  {:<7}  {:<9}  {}  ({})",
@@ -2446,7 +2517,9 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
 fn days_since(iso: &str) -> Option<u64> {
     let ts = chrono::DateTime::parse_from_rfc3339(iso).ok()?;
     let now = chrono::Utc::now();
-    let secs = now.signed_duration_since(ts.with_timezone(&chrono::Utc)).num_seconds();
+    let secs = now
+        .signed_duration_since(ts.with_timezone(&chrono::Utc))
+        .num_seconds();
     if secs < 0 {
         return Some(0);
     }
@@ -2632,7 +2705,10 @@ mod tests {
         let old = (chrono::Utc::now() - chrono::Duration::days(200)).to_rfc3339();
         assert!(!decide(&fresh), "a two-day-old run is not stale");
         assert!(decide(&old), "a 200-day-old run is stale");
-        assert!(decide("garbage"), "an unreadable date must not read as fresh");
+        assert!(
+            decide("garbage"),
+            "an unreadable date must not read as fresh"
+        );
     }
 
     fn shipped_floor() -> u64 {
@@ -2825,15 +2901,23 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // for is a fifteen-line comment block -- so it named a line in the
         // middle of its own explanation. A one-line proof would have passed.
         let one = "# mutant-equivalent: guards force it\nif a > b:\n";
-        assert_eq!(equivalence_claims(one).get(&2).map(String::as_str),
-                   Some("guards force it"));
+        assert_eq!(
+            equivalence_claims(one).get(&2).map(String::as_str),
+            Some("guards force it")
+        );
 
         let many = "# mutant-equivalent: proven below\n# line two\n# line three\n\
                     # line four\nif a > b:\n";
         let c = equivalence_claims(many);
-        assert_eq!(c.get(&5).map(String::as_str), Some("proven below"),
-                   "a multi-line proof lost its target: {c:?}");
-        assert!(c.get(&3).is_none(), "named a line inside its own comment block");
+        assert_eq!(
+            c.get(&5).map(String::as_str),
+            Some("proven below"),
+            "a multi-line proof lost its target: {c:?}"
+        );
+        assert!(
+            c.get(&3).is_none(),
+            "named a line inside its own comment block"
+        );
 
         // A blank line between proof and code is still the same claim.
         assert!(equivalence_claims("# mutant-equivalent: x\n\nif a > b:\n").contains_key(&3));
@@ -2908,7 +2992,10 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
 
         // The flag, read from the source rather than from a comment.
         let f = control_forms(&base, "if \"--self-check\" in sys.argv:\n", "check_x.py");
-        assert!(f.iter().any(|s| s.starts_with("flag --self-check")), "{f:?}");
+        assert!(
+            f.iter().any(|s| s.starts_with("flag --self-check")),
+            "{f:?}"
+        );
         assert!(
             control_forms(&base, "# mentions --self-check in prose\n", "check_y.py").is_empty(),
             "a flag named only in a comment is not a control"
@@ -2995,7 +3082,10 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
             Err(e) => format!("{e:#}"),
         };
 
-        assert!(msg(&base.join("nope")).contains("--dir"), "a missing dir must name the flag");
+        assert!(
+            msg(&base.join("nope")).contains("--dir"),
+            "a missing dir must name the flag"
+        );
         assert!(
             msg(&base.join("afile")).contains("not a directory"),
             "a file must be refused as a file, not as a git failure"
@@ -3048,11 +3138,17 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
 
         assert!(s("x = a << 2\n").is_empty(), "took a left shift");
         assert!(s("x = a >> 2\n").is_empty(), "took a right shift");
-        assert!(s("def f(a) -> int:\n").is_empty(), "took a return annotation");
+        assert!(
+            s("def f(a) -> int:\n").is_empty(),
+            "took a return annotation"
+        );
         assert!(s("# a > b\n").is_empty(), "took a comment");
         assert!(s("x = 1  # a > b\n").is_empty(), "took a trailing comment");
         assert!(s("print(\"a > b\")\n").is_empty(), "took a string");
-        assert!(s("print('a > b')\n").is_empty(), "took a single-quoted string");
+        assert!(
+            s("print('a > b')\n").is_empty(),
+            "took a single-quoted string"
+        );
         // The control's own functions are off limits, same as every operator.
         assert!(s("def self_check():\n    if a > b:\n").is_empty());
 
@@ -3065,10 +3161,14 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
             "took a comparison out of a module docstring"
         );
         assert!(
-            s("def f():\n    \"\"\"doc: a > b\n    more: c < d\n    \"\"\"\n    return 0\n").is_empty(),
+            s("def f():\n    \"\"\"doc: a > b\n    more: c < d\n    \"\"\"\n    return 0\n")
+                .is_empty(),
             "took a comparison out of a function docstring"
         );
-        assert!(s("x = \'\'\'a > b\'\'\'\n").is_empty(), "took a single-quoted triple");
+        assert!(
+            s("x = \'\'\'a > b\'\'\'\n").is_empty(),
+            "took a single-quoted triple"
+        );
         // A `def` at column 0 INSIDE a docstring is prose, not a definition:
         // acting on it is how a scanner walks out of a string it is still in.
         assert!(
@@ -3206,8 +3306,14 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // one until now.
         let src = "def helper():\n    if a > 1: pass\n\n\ndef self_check():\n    if b > 2: pass\n\n\nif __name__ == \"__main__\":\n    if c > 3: pass\n";
         let sites = super::sites_in_direction(src, super::Direction::Boundary);
-        let lines: Vec<usize> = sites.iter().map(|(at, _, _)| super::line_of(src, *at)).collect();
-        assert!(lines.contains(&2), "helper's comparison is a site: {lines:?}");
+        let lines: Vec<usize> = sites
+            .iter()
+            .map(|(at, _, _)| super::line_of(src, *at))
+            .collect();
+        assert!(
+            lines.contains(&2),
+            "helper's comparison is a site: {lines:?}"
+        );
         assert!(
             !lines.contains(&6),
             "self_check's comparison is CONTROL and must not be a site: {lines:?}"
@@ -3301,7 +3407,10 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // The ordinary case, and the one that must stay silent: one site on
         // the claimed line, and it survived.
         let out = super::contradicted_claims("g.py", "boundary", &[7], &[7], &claim(7, "forced"));
-        assert!(out.is_empty(), "a surviving mutant refutes nothing: {out:?}");
+        assert!(
+            out.is_empty(),
+            "a surviving mutant refutes nothing: {out:?}"
+        );
     }
 
     #[test]
@@ -3310,7 +3419,11 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         assert_eq!(out.len(), 1);
         assert!(out[0].contains("g.py:7"), "{}", out[0]);
         assert!(out[0].contains("DIED"), "{}", out[0]);
-        assert!(out[0].contains("forced"), "the WHY must survive into the report: {}", out[0]);
+        assert!(
+            out[0].contains("forced"),
+            "the WHY must survive into the report: {}",
+            out[0]
+        );
     }
 
     #[test]
@@ -3318,7 +3431,8 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // Two sites on one line -- `if a < 1 or b < 1:` -- one dead, one alive.
         // Keying on "did the line vanish from the survivor list" would call
         // this claim intact, and a half-true claim is the hardest to see by eye.
-        let out = super::contradicted_claims("g.py", "boundary", &[7, 7], &[7], &claim(7, "forced"));
+        let out =
+            super::contradicted_claims("g.py", "boundary", &[7, 7], &[7], &claim(7, "forced"));
         assert_eq!(out.len(), 1, "one of two mutants died: {out:?}");
         assert!(out[0].contains("1 of 2"), "{}", out[0]);
     }
