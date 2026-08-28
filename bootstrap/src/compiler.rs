@@ -2121,7 +2121,11 @@ impl Parser {
                 while self.current.kind != TokenKind::Semicolon
                     && self.current.kind != TokenKind::Eof
                 {
-                    val_text.push_str(&self.current.lexeme);
+                    // Quotes too: this holds a CONTAINER const's value verbatim,
+                    // so `name = "legacy_projects"` came out `name=legacy_projects`.
+                    // Added ALONE -- the batch of six that included it cost 87
+                    // specs and the batch of 24 cost 84.
+                    val_text.push_str(&self.current_text());
                     self.advance();
                 }
                 let mut val_node = Node::new(NodeKind::ExprIdentifier);
@@ -5760,6 +5764,16 @@ impl Codegen {
             {
                 self.write(" = ");
                 self.gen_inferred_array(v);
+            } else if v.kind == NodeKind::ExprIdentifier && v.name.contains('{') {
+                // RAW TEXT carrying a struct literal. This branch exists
+                // because the rewrite applied to `raw` above never reached the
+                // output: the generic path regenerates from the NODE via
+                // gen_expr, which writes `v.name` verbatim and knows nothing
+                // of the repair. Three separate wirings of
+                // rewrite_struct_literal_fields missed for exactly that reason
+                // -- the value was rewritten and then thrown away.
+                self.write(" = ");
+                self.write(raw);
             } else {
                 self.write(" = ");
                 self.gen_expr(v);
