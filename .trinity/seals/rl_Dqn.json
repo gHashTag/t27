@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:205aba9f88237f663b5bed62ad8ff9e0b2332a1389c8214779e667f8a1686e42",
-  "gen_hash_rust": "sha256:f5ecc2bebd1b9ff616f02ea6c35f241a0569a9916b37e9eb4bb72640aeb8b931",
+  "gen_hash_rust": "sha256:980b5b3235102de50bcdc25475409fabb93cb33696c866088eba1cd651dc48a9",
   "gen_hash_verilog": "sha256:456d780f39aacb217fa405a4ccf0929c8a6d4a8ed627d6e614923edf7920dadd",
   "gen_hash_zig": "sha256:facced50759aa5b2a78ec8490d4a5d56603bf875ccc37c0d315e2bae5abec537",
   "module": "Dqn",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c7195be79157467c96d65abbf92dcaf4e20bc194e8a800cfcde8571cffecf4a2",
   "spec_path": "specs/ml/rl/dqn.t27"

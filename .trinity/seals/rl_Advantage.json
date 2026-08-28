@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:cdc9579aad04ad8d2fc9883624119b27bc3deb3405f18d9169a9358898a33b60",
-  "gen_hash_rust": "sha256:2763a420fa6740f3cc0c41a9dd2627175902ef625604eb96d7791f99e24f5533",
+  "gen_hash_rust": "sha256:de227e00a020cac2284286e5929a14fe1417c2524fdcbcae82b565ca7a483fc3",
   "gen_hash_verilog": "sha256:faf5035f1ea6924c67ae3b0aafd49929eba85481ba2ce6e6ba35bdac01a14b10",
   "gen_hash_zig": "sha256:f3110e19e83cff7d6b318c77a3932ea58dd0b645570bbdee418d97578f032d52",
   "module": "Advantage",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:7d41d9d1ab43028ea61e4c36eb6c0e40b525e6d0f456db95f0312c2d4d06fc62",
   "spec_path": "specs/ml/rl/advantage_estimator.t27"

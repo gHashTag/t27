@@ -1,12 +1,12 @@
 {
   "conformance_hash": "sha256:4c5d6e7f80910a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6071829",
   "gen_hash_c": "sha256:3bf048c13f05eb89c2fcae9b93a4dbe4188373b6017304fa54f1196fcaf3aa1e",
-  "gen_hash_rust": "sha256:00d7ad6146cd43b1e34503dd7133c7469a54912f61329bae8eddc249869bef8b",
+  "gen_hash_rust": "sha256:1ae88f8e2d20da85ef32a60b9f073ece3ed9c8a17ccd9c32b5e84ddabaa100f8",
   "gen_hash_verilog": "sha256:5cd58acb7191cb64cf0d7eca0fcabc706bbc02f5a3be5f002a6504d343efa77d",
   "gen_hash_zig": "sha256:7945828152aa265effa1fb87fd2383d75fd2be9ff81ea9036640c4db534cf94c",
   "module": "UART_Bridge",
   "ring": 43,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:38b2b810c4473d7a655806ab7ec5621bb9fcbc9e3ec4a6139255d83fdaea7016",
   "spec_path": "specs/fpga/uart.t27",
   "tests": {

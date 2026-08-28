@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3dfd6991ada84300d6f5024820aa2a88192c3c324018c0f3c359011a3098c39e",
-  "gen_hash_rust": "sha256:5f181fc86121e7072215a857e9f65bd87556adc7b5fad542d08238f7a65160fd",
+  "gen_hash_rust": "sha256:19110eae6c498ae0dff275e1415e4141ec0bf5e569e9da3aa7dc366667b744a1",
   "gen_hash_verilog": "sha256:3e2fb4ed167ac1510c1a86cfb3e824c778dccfaaa3b16baf9e6a7e97716bcc58",
   "gen_hash_zig": "sha256:1af19bf82a281d9b75e6b3e66185c4c0142da25af667e93c0b80cdb19331a5f2",
   "module": "tricgen-c",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:405fdea7d1fb2b058f76601757ce3b28a5c6667fdb68203b311c80d7f4db7407",
   "spec_path": "compiler/codegen/c/codegen.t27"
 }

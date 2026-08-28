@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:57c6ce6b8b90845c2130ae9d35d58b429d613b2e6c4427f29ce33cb9d6e5467e",
-  "gen_hash_rust": "sha256:4a35073ad985f49ea104cafc559f675104728023b9bf8942007c0cc1f32a9fce",
+  "gen_hash_rust": "sha256:697cb300ed82369b644fb20b115a1d33acdcbbab47fa5d1b8efbbad865f968fc",
   "gen_hash_verilog": "sha256:c8dbc89dc6c94614bdd2531b4bde12a78a745a572417266734acd8f6b49b0e77",
   "gen_hash_zig": "sha256:57d0eb78989415f3bd53292529a261de076fc216de6dae6723db686279035fec",
   "module": "StorageLock",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:5b2fc085c2a125373e585ceb74c7881bebc67e760a3469c84644dbac5257ee32",
   "spec_path": "specs/storage/lock.t27"

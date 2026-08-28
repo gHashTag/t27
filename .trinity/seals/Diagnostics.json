@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6257f752be02518f00e810f51b7cd0457639289688081c4115e4a64212876b6e",
-  "gen_hash_rust": "sha256:acf2ea7ae77bc707e45120be929329888ca5e3dc23a49e5a615acbf18e8b5e15",
+  "gen_hash_rust": "sha256:54af6c93190af7d9c3675630a83435bd7b6ef192d40cd09502880924c3b8a7ef",
   "gen_hash_verilog": "sha256:f87bd2cb2be0e95e479c63b94ac04e653e2df1aee4d84a7a8e45644926e691f4",
   "gen_hash_zig": "sha256:82b3ebac95efcc6ebdf2634225650fcea4b202fc6c4a5b1fec765b2d4fba8796",
   "module": "Diagnostics",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:4907c0a74ccaac2e6571cd2d00cd6f090d240cb1bbdc40eb1571e6944b209ec4",
   "spec_path": "specs/compiler/diagnostics.t27"
 }

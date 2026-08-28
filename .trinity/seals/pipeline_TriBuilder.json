@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1316dd1b50495ab2d40e2036a5cbc25a4ca4d18b545b1573ae702d70ff3db9b0",
-  "gen_hash_rust": "sha256:5c917ce584dfd128889f94d159bd39703c3785eff5e9b3389ef2e165a3467d37",
+  "gen_hash_rust": "sha256:5f39992220c04f8fcaaaf91c21f89ebcce9b56957adc2efbc025cda8730fe9e8",
   "gen_hash_verilog": "sha256:9bc9fbc0986175a715948ee8b4b9cd9a6f6957b97b344a77dc90f7159c60dcb1",
   "gen_hash_zig": "sha256:54c47abf28ec1f0c4b3885b5607b3bfd8b6cf289274aa0bfd390ca7bca86fb59",
   "module": "TriBuilder",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:796d838e8069befa45707a89b86aa34f7584ce5b80ad73ce8301fcdf479dd7be",
   "spec_path": "specs/tri/pipeline/builder.t27"
 }

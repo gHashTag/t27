@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f139f0baf6d69dbdaef23ab4f7ca5625b8955766d0d141cb01e82880de43d578",
-  "gen_hash_rust": "sha256:8ef036a19f4394295ba7ef8b0b730ab10011ab75410844735386a60885dbc124",
+  "gen_hash_rust": "sha256:51cb85c7cfd94ded2215f3aba669e4cc9759ccd462aa04f68e94cdbbd739bd5d",
   "gen_hash_verilog": "sha256:b58c480175e08b2573dda2b33826a033379ef17f4051c183f5f563633d8433f3",
   "gen_hash_zig": "sha256:cce4d213b7330d3e626714897018b4bdb29c72b8e1345edc1fa4da21a6d8134d",
   "module": "TriResult",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:979b29b19e25610e1bdaac20f03ff6c2f302cf6809ccdbdd6b6f900b91031202",
   "spec_path": "specs/tri/collections/result.t27"
 }

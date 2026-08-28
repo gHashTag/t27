@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:dbd54b79649b93e77ebce28f69a4704ad26e083de46b4c8302add04d4a7c954a",
-  "gen_hash_rust": "sha256:d722ee47cb6f9aec402955b698a1590e2fd0fa737bb118ae3902e465d11f88d4",
+  "gen_hash_rust": "sha256:2f503eff9c639c136358d88001941f4609cda4807c27e536eedaed09f08c6b0a",
   "gen_hash_verilog": "sha256:fadd0f6db53246c87800c208d4e31498a4ced134e9a36ffc86ed00ccfc9518e0",
   "gen_hash_zig": "sha256:a7e9df2140340529f10d2098b5291f093b2fea665c87e89d7b115e985c34591f",
   "module": "GF4",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:0839d483ebdbf439a28ee13f15b8879c53c4c85687d842164106e6991a12ed73",
   "spec_path": "specs/numeric/gf4.t27"
 }

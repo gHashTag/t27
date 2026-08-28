@@ -21364,7 +21364,20 @@ impl RustCodegen {
     }
 
     fn gen_struct(&mut self, node: &Node) {
-        self.write_line("#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]");
+        // The serde derives were unconditional, and the corpus compiles this
+        // output as a standalone `--crate-type lib` with no `--extern`. Every
+        // struct-bearing spec therefore failed with
+        //
+        //     error[E0433]: cannot find module or crate `serde`
+        //
+        // measured as the first error in 23 of 38 sampled specs -- the largest
+        // single cause in the Rust column. Behind a cfg the default output
+        // compiles against std alone, and anyone who wants serialisation turns
+        // the feature on and gets exactly what was emitted before.
+        self.write_line("#[derive(Debug, Clone)]");
+        self.write_line(
+            "#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]",
+        );
         self.write_line(&format!("pub struct {} {{", node.name));
         self.indent += 1;
         for child in &node.children {

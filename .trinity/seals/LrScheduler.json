@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b4539bead58fb225273917189b385b686c07ec1ae2f0705c6d09a26125622c3c",
-  "gen_hash_rust": "sha256:85a4b54ce5bdddaaafb3b67bfc6a514813b75fa2a54388d6754f24b506d88c6d",
+  "gen_hash_rust": "sha256:48ad64d3c305533c2c44806041519628329dfd231df9ef1daaf8dcea090a0f67",
   "gen_hash_verilog": "sha256:a89297d86d27c87d7983ac808fd7cc45977a0da55a801d067d880ea5aa5b9992",
   "gen_hash_zig": "sha256:e5d3ab94490c3211d9b5cb452cd0555a2491254d41de7da078eb6046b73c0bd8",
   "module": "LrScheduler",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:46e0eb2a3f596509c6a0aec1b64f2558db9c145c0865ca6b851faec29e9bf0df",
   "spec_path": "specs/ml/optimizer/lr_scheduler.t27"
 }

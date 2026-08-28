@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5b71413386b5f8260f672f2a22f517d6295988be3815d08c7af81445e3e485c0",
-  "gen_hash_rust": "sha256:4dacf99d80b0a46f229ce88430c169ab543ed73633e0c770c1a3804df83174b2",
+  "gen_hash_rust": "sha256:ee52675eb60f601d52f0b586f23cf09a7aa6f11cae03179103b147de5c830f0f",
   "gen_hash_verilog": "sha256:f9a8de8fae36a6ae1bf310d76e478b1805b037f57e9ad83108ec51cdc8431e9a",
   "gen_hash_zig": "sha256:c7a6bc4e2c5c6c99d7cced71d59f135d34a56a83f73feb89e81b434dc813befb",
   "module": "Router",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:802df073593e74b8a7840556d305d079c7f318b64ab7011cfc025c04cfd5c4f3",
   "spec_path": "specs/fpga/router.t27"
 }
