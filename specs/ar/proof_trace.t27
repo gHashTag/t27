@@ -3,6 +3,8 @@
 // Bounded proof trace mechanism for explainable neuro-symbolic reasoning
 
 spec ProofTrace {
+    use tritype-base::Trit;
+
     // Maximum number of steps allowed in proof trace
     // DARPA CLARA requirement: ≤10 steps
     const MAX_STEPS: int = 10

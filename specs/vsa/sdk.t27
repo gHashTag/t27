@@ -11,6 +11,7 @@ module SDK {
     use numeric::gf16;
     use vsa::core;
     use hybrid_arithmetic;
+    use tritype-base::Trit;
 
     // ========================================================================
     // 1. Hypervector - Main abstraction for developers

@@ -3,6 +3,8 @@
 // Bounded rationality and restraint mechanisms for neuro-symbolic reasoning
 
 spec Restraint {
+    use tritype-base::Trit;
+
     // Restraint type
     enum RestraintType {
         UNKNOWN_TO_FALSE = 0,  // K_UNKNOWN becomes K_FALSE

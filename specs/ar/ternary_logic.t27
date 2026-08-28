@@ -3,6 +3,8 @@
 // K3 Kleene ternary logic operations for neuro-symbolic reasoning
 
 spec TernaryLogic {
+    use tritype-base::Trit;
+
     // K3 ternary values: True, Unknown, False
     type Trit = Trit
 
