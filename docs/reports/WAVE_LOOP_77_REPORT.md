@@ -90,7 +90,7 @@ End CKM_CP_Violation_Ansatz.
 - **Falsifiable** by Belle-II, LHCb, or DUNE (δ_CP precision ±1° by 2030).
 - If falsified, the formula will be **withdrawn** per honest-math protocol, not deleted.
 
-**Compilation:** Verified with `/Users/playra/.opam/coq-8.20/bin/coqc`. Passes.
+**Compilation:** Verified with `~/.opam/coq-8.20/bin/coqc`. Passes.
 
 #### B2. Lean 4 Bridge Skeleton Created ✅
 

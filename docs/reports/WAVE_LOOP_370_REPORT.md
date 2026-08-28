@@ -127,7 +127,7 @@ Fixed point:    REACHED (ring-50)
 | `lake build Trinity.TernaryInference` | Success (4.8 s) |
 | `t27c gen-verilog specs/scratch/w370_const_order.t27` | Emits `A`, `B`, `C` localparams |
 | `yosys read_verilog /tmp/w370_const_order.v` | Pass |
-| `t27c suite --repo-root /Users/playra/t27` | **549/549 PASS** |
+| `t27c suite --repo-root .` | **549/549 PASS** |
 | `target/release/dlc10 idcode` | `DLC10 cable not found` |
 
 ---

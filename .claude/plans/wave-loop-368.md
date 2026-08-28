@@ -82,7 +82,7 @@ W367 landed as commit `1f3897b29` on `trinity-rust-rings` with `Closes #1253`:
 
 ### Phase E — Seal & Conformance (Verify)
 8. Regenerate all 27 IGLA seals and address #1254 duplicate-module-name disambiguation if needed.
-9. Run full conformance: `/Users/playra/t27/target/release/t27c suite --repo-root /Users/playra/t27`.
+9. Run full conformance: `target/release/t27c suite --repo-root .`.
    - Gate: 546/546 PASS.
 
 ### Phase F — Board Flash (Verify)

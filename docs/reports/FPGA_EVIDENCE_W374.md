@@ -23,7 +23,7 @@ Load the existing ternary MAC demo bitstream onto the FPGA and confirm device de
 ## Steps executed
 
 ```bash
-cd /Users/playra/t27
+cd .
 cargo build --release --bin dlc10
 ./target/release/dlc10 idcode
 ```

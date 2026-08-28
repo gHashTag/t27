@@ -94,7 +94,7 @@ W370 landed as commit `d5d6250ab` on `trinity-rust-rings` with `Closes #1259`:
 
 ### Phase E — Seal & Conformance (Verify)
 10. Regenerate all affected seals (27 IGLA + any non-IGLA specs whose Verilog output shifts).
-11. Run full conformance: `./target/release/t27c suite --repo-root /Users/playra/t27`.
+11. Run full conformance: `./target/release/t27c suite --repo-root .`.
     - Gate: 549/549 PASS minimum.
 
 ### Phase F — Board Flash (Verify)

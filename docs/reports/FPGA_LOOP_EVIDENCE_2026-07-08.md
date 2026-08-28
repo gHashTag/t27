@@ -12,7 +12,7 @@
 
 ```bash
 ./target/release/tri fpga cclk-sweep \
-    /Users/playra/t27/fpga/verilog/ternary_mac_demo_top_200t.bit \
+    fpga/verilog/ternary_mac_demo_top_200t.bit \
     --values 0,1,2,3,4,5 --wait-seconds 120
 ```
 
@@ -20,7 +20,7 @@ Generated report:
 
 ```bash
 ./target/release/tri fpga sweep-report --out \
-    /Users/playra/t27/build/fpga/sweep-report-w400-clean.md
+    build/fpga/sweep-report-w400-clean.md
 ```
 
 ---

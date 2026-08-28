@@ -37,7 +37,7 @@ Wave Loop 73 focused on **maintaining the zero-Admitted proof base**, **advancin
 - Added `completeness_exact_fraction` in `SMLagrangian.v`.
 - Proves `SM_Completeness_Percentage = 75 / 100` exactly via `field`.
 - Links the phenomenological 75% claim to the formal checklist counts.
-- Built successfully with `make -f Makefile.coq COQBIN=/Users/playra/.opam/coq-8.20/bin/`.
+- Built successfully with `make -f Makefile.coq COQBIN=~/.opam/coq-8.20/bin/`.
 
 #### B2. Neutrino oscillation mass-squared differences ⏳
 - Not started; deferred to W74 pending `coq-interval` bounds splitting analysis.

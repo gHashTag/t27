@@ -29,7 +29,7 @@
   - 2 `test` blocks
   - 1 `invariant` block
 - **+54 tests**, **+27 invariants**.
-- Regenerate all 27 IGLA seals from `/Users/playra/t27`.
+- Regenerate all 27 IGLA seals from `.`.
 
 ---
 
@@ -111,7 +111,7 @@ Produce:
 
 ## 8. Verification and land
 
-- `./target/release/t27c suite --repo-root /Users/playra/t27` → 546/546 PASS.
+- `./target/release/t27c suite --repo-root .` → 546/546 PASS.
 - `lake build Trinity.TernaryInference` → success.
 - `git commit` with message containing `Closes #1251`.
 - Push if authorized; otherwise leave on `trinity-rust-rings` for PR.

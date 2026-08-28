@@ -46,7 +46,7 @@ Proved 9 lemmas establishing physical validity of the Chamseddine-Dąbrowski ans
 4. Nested division `a / (b / c)` in Coq is NOT `a*c / b` — avoided by not unfolding `M_R_majorana` in neutrino lemmas
 5. Added missing `End LightNeutrinoMasses.` section closure
 
-**Toolchain:** Coq 8.20.1 via OPAM switch `/Users/playra/.opam/coq-8.20/bin/coqc`
+**Toolchain:** Coq 8.20.1 via OPAM switch `~/.opam/coq-8.20/bin/coqc`
 
 ### Track B: GitHub Issue Hygiene (Tasks #80-#81)
 

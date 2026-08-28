@@ -32,23 +32,23 @@ The physical chip reports `idcode 0x3636093` (XC7A200T). `prjxray-db` has no `xc
 | chipdb `.bin` | openXC7 / prjxray-db | Built for `xc7a200tfbg676-1` |
 
 Build directories and artifacts:
-- `/Users/playra/t27/target/nextpnr-xilinx` (source + build)
-- `/Users/playra/t27/target/prjxray`
-- `/Users/playra/t27/target/prjxray-db`
-- `/Users/playra/t27/target/prjxray-venv`
-- `/Users/playra/t27/build/nextpnr-xilinx` (symlink to `target/nextpnr-xilinx/build/nextpnr-xilinx`)
-- `/Users/playra/t27/build/xc7a200tfbg676-1.bin` (332 MiB chipdb)
-- `/Users/playra/t27/build/fpga/gf16/gf16_matmul4x4_top.bit` (9.3 MiB)
+- `target/nextpnr-xilinx` (source + build)
+- `target/prjxray`
+- `target/prjxray-db`
+- `target/prjxray-venv`
+- `build/nextpnr-xilinx` (symlink to `target/nextpnr-xilinx/build/nextpnr-xilinx`)
+- `build/xc7a200tfbg676-1.bin` (332 MiB chipdb)
+- `build/fpga/gf16/gf16_matmul4x4_top.bit` (9.3 MiB)
 
 ## tri CLI integration
 
 New subcommands added to `cli/tri/src/fpga.rs`:
 
 ```bash
-tri fpga synth-gf16 --chipdb /Users/playra/t27/build/xc7a200tfbg676-1.bin
-tri fpga load-sram /Users/playra/t27/build/fpga/gf16/gf16_matmul4x4_top.bit
+tri fpga synth-gf16 --chipdb build/xc7a200tfbg676-1.bin
+tri fpga load-sram build/fpga/gf16/gf16_matmul4x4_top.bit
 tri fpga stat
-tri fpga program-flash /Users/playra/t27/build/fpga/gf16/gf16_matmul4x4_top.bit --bulk-erase --verify --enable-quad
+tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit --bulk-erase --verify --enable-quad
 tri fpga dump-flash /tmp/flash_dump.bit
 tri fpga flash-status
 ```
@@ -66,7 +66,7 @@ Result:
 ```text
 4 warnings, 0 errors
 Max frequency for clock 'chain[19]': 302.76 MHz (PASS at 12.00 MHz)
-[synth-gf16] OK  /Users/playra/t27/build/fpga/gf16/gf16_matmul4x4_top.bit (9.3 MiB)
+[synth-gf16] OK  build/fpga/gf16/gf16_matmul4x4_top.bit (9.3 MiB)
 ```
 
 ### `tri fpga load-sram`

@@ -21,7 +21,7 @@
 
 ### v6.5 ABSOLUTE MAXIMUM (Completed)
 
-**File:** `/Users/playra/t27/scripts/ultra_engine_v65_absolute.py`
+**File:** `scripts/ultra_engine_v65_absolute.py`
 
 **Parameters:**
 - Coefficients: 1 to 50,000 (500× from baseline)
@@ -49,7 +49,7 @@
 
 ### v6.6 GPU ACCELERATION (Ready)
 
-**File:** `/Users/playra/t27/scripts/ultra_engine_v66_gpu.py`
+**File:** `scripts/ultra_engine_v66_gpu.py`
 
 **Parameters:**
 - Coefficients: 1 to 100,000 (2× from v6.5)
@@ -74,7 +74,7 @@ python3 scripts/ultra_engine_v66_gpu.py
 
 ### Chimera Engine CLI (Active)
 
-**Binary:** `/Users/playra/t27/target/release/t27c`
+**Binary:** `target/release/t27c`
 
 **Command:** `t27c formula chimera-search --max-pow <N> --threshold <X>%`
 

@@ -119,7 +119,7 @@ A: Post-submission work includes:
 5. Resolve any reviewer feedback: Address technical questions or issues raised during review
 6. Enhance Red Team protocol: Add more sophisticated attack patterns or improve detection algorithms
 
-See the detailed scientific strengthening plan in `/Users/playra/.claude/plans/distributed-twirling-hejlsberg.md` for complete roadmap.
+See the detailed scientific strengthening plan in `~/.claude/plans/distributed-twirling-hejlsberg.md` for complete roadmap.
 
 ---
 **φ² + 1/φ² = 3 | TRINITY**

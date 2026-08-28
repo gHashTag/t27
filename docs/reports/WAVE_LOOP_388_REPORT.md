@@ -81,7 +81,7 @@ Wave Loop 387 flattened multi-dimensional function-local arrays to per-element r
 
 ## Seal / conformance
 
-- 27 core IGLA seals plus all other affected spec seals regenerated from `/Users/playra/t27` using `t27c seal --save`.
+- 27 core IGLA seals plus all other affected spec seals regenerated from `.` using `t27c seal --save`.
 - Full suite result: **575/575 PASS**, zero seal mismatches, zero yosys smoke failures.
 
 ---

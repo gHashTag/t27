@@ -1060,7 +1060,7 @@ open Lake DSL
 package «MyTheorem» where
 
 -- Use the absolute path to the Trinity proofs package in your checkout.
-require Trinity from "/Users/playra/t27/proofs/lean4"
+require Trinity from "proofs/lean4"
 
 @[default_target]
 lean_lib «MyTheorem» where

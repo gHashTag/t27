@@ -130,7 +130,7 @@ Fixed point:    REACHED (ring-50)
 | `t27c gen-verilog specs/scratch/w371_verilog_keyword.t27` | Emits escaped `\task ` |
 | `yosys read_verilog /tmp/w371_verilog_keyword.v` | Pass |
 | `yosys read_verilog /tmp/benchmark.v` | Pass (previously failed) |
-| `t27c suite --repo-root /Users/playra/t27` | **551/551 PASS** |
+| `t27c suite --repo-root .` | **551/551 PASS** |
 | `target/release/dlc10 idcode` | `DLC10 cable not found` |
 
 ---

@@ -105,7 +105,7 @@ Create `specs/scratch/w573_bench_7d_aos_call_dedup.t27`:
 
 ### Step 3 — Verify structural lowerability
 
-Run `/Users/playra/t27/target/release/t27c icarus-lowerable` on the spec and
+Run `target/release/t27c icarus-lowerable` on the spec and
 inspect `lowerable: true`.
 
 ### Step 4 — Inspect generated Verilog

@@ -209,7 +209,7 @@ Configure MCP server for agent enforcement:
       "args": ["scripts/mcp-traceability-server.js"],
       "env": {
         "ENFORCE_L1": "true",
-        "PROJECT_ROOT": "/Users/playra/t27"
+        "PROJECT_ROOT": "."
       }
     }
   }

@@ -73,7 +73,7 @@ New tests specific to W414:
 ## 3. Lean build evidence
 
 ```bash
-$ cd /Users/playra/t27/proofs/lean4
+$ cd proofs/lean4
 $ lake build Trinity.TernaryFPGABoot
 
 ✔ [2967/2967] Built Trinity.TernaryFPGABoot (10s)
@@ -85,7 +85,7 @@ Build completed successfully.
 ## 4. Full tri-pipeline evidence
 
 ```bash
-$ cd /Users/playra/t27
+$ cd .
 $ ./scripts/tri test
 
 ...

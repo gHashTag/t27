@@ -57,11 +57,11 @@ Result excerpt:
 
 ```
 --- Phase 3c: FPGA Board-Less Smoke Gate ---
-  FPGA smoke gate: OK (report: /Users/playra/t27/build/fpga/smoke_gate_report.json)
+  FPGA smoke gate: OK (report: build/fpga/smoke_gate_report.json)
     phases: bit_config=Some("ok") dry_run_sweep=Some("ok")
             verify_lean=Some("ok") yosys_synthesis=Some("ok")
 --- Phase 3d: FPGA Board-Less Smoke Gate Replay ---
-  FPGA smoke gate: OK (report: /Users/playra/t27/build/fpga/smoke_gate_replay_report.json)
+  FPGA smoke gate: OK (report: build/fpga/smoke_gate_replay_report.json)
     phases: bit_config=Some("ok") dry_run_sweep=Some("ok")
             verify_lean=Some("ok") yosys_synthesis=Some("ok")
 --- Phase 5: Seal Verify ---
@@ -88,7 +88,7 @@ Machine-readable summary (`/tmp/suite_report_w446.json`):
 
 ```json
 {
-  "repo": "/Users/playra/t27",
+  "repo": ".",
   "phases": [
     {"name": "parse", "passed": 576, "failed": 0, "skipped": 0},
     {"name": "typecheck", "passed": 576, "failed": 0, "skipped": 0},
@@ -103,7 +103,7 @@ Machine-readable summary (`/tmp/suite_report_w446.json`):
     {"name": "seal-verify", "passed": 576, "failed": 0, "skipped": 0},
     {"name": "fixed-point", "passed": 0, "failed": 0, "skipped": 0}
   ],
-  "fpga_smoke_report": "/Users/playra/t27/build/fpga/smoke_gate_report.json",
+  "fpga_smoke_report": "build/fpga/smoke_gate_report.json",
   "fpga_smoke_passed": true,
   "fpga_smoke_gate_elapsed_ms": 9,
   "fpga_smoke_gate_replay_elapsed_ms": 7,

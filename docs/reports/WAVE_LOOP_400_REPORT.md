@@ -26,7 +26,7 @@ Command (run on the host connected to the board):
 
 ```bash
 ./target/release/tri fpga cclk-sweep \
-    /Users/playra/t27/fpga/verilog/ternary_mac_demo_top_200t.bit \
+    fpga/verilog/ternary_mac_demo_top_200t.bit \
     --values 0,1,2,3,4,5 \
     --wait-seconds 120
 ```

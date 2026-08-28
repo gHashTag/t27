@@ -564,10 +564,10 @@ For integer bases b ≥ 2, cost function C(b) = b/ln(b) has minimum at:
 
 ## Memory Links
 
-See `/Users/playra/t27/memory/math-corrections-2026-04-07.md` for formula corrections.
+See `memory/math-corrections-2026-04-07.md` for formula corrections.
 
-See `/Users/playra/t27/.claude/plans/snug-percolating-popcorn.md` for original plan.
+See `.claude/plans/snug-percolating-popcorn.md` for original plan.
 
-See `/Users/playra/t27/specs/math/phi_split_optimality.t27` for Self-Similarity Theorem.
+See `specs/math/phi_split_optimality.t27` for Self-Similarity Theorem.
 
-See `/Users/playra/t27/specs/numeric/gf_competitive.t27` for benchmark spec.
+See `specs/numeric/gf_competitive.t27` for benchmark spec.

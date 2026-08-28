@@ -98,7 +98,7 @@ This completes the function-local array story for one-dimensional arrays with ex
 
 ## Seal / conformance
 
-- 27 core IGLA seals plus affected non-IGLA seals regenerated from `/Users/playra/t27` using `t27c seal --save`.
+- 27 core IGLA seals plus affected non-IGLA seals regenerated from `.` using `t27c seal --save`.
 - Full suite result: **564/564 PASS**, zero seal mismatches, zero yosys smoke failures.
 
 ---

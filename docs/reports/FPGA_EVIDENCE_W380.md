@@ -15,7 +15,7 @@
 ## Result
 
 ```text
-$ /Users/playra/t27/target/release/dlc10 idcode
+$ target/release/dlc10 idcode
 Error: open DLC10
 
 Caused by:
@@ -39,7 +39,7 @@ Caused by:
 Obtain a Xilinx DLC10/Platform Cable USB adapter and rerun:
 
 ```bash
-cd /Users/playra/t27
+cd .
 target/release/dlc10 idcode
 target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit
 ```

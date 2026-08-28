@@ -102,7 +102,7 @@ This is still a narrow, closed subset of array support: one-dimensional arrays w
 
 ## Seal / conformance
 
-- 27 core IGLA seals regenerated from `/Users/playra/t27` using `t27c seal --save`.
+- 27 core IGLA seals regenerated from `.` using `t27c seal --save`.
 - Full suite result: **563/563 PASS**, zero seal mismatches, zero yosys smoke failures.
 
 ---

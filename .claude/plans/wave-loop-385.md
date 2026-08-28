@@ -71,7 +71,7 @@ These specs must contain `test` blocks so L4 TESTABILITY is satisfied and they e
 
 ## Seal regeneration
 
-- Regenerate all 27 IGLA seals from `/Users/playra/t27`.
+- Regenerate all 27 IGLA seals from `.`.
 - Regenerate new scratch seal(s).
 - Regenerate any non-IGLA seals whose generated code changed.
 

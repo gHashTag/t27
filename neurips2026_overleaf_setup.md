@@ -47,7 +47,7 @@ neurips_2026/
 
 ## Что уже сделано
 
-✅ Создан `/Users/playra/t27/docs/WHITEPAPER/latex/main.tex`:
+✅ Создан `docs/WHITEPAPER/latex/main.tex`:
 - Double-blind (no author names)
 - Theorem 3 added (Section 5.2)
 - §6 Cross-Language Availability added
@@ -59,7 +59,7 @@ neurips_2026/
 1. **Overleaf Integration** (выполняет пользователь вручную):
    - [ ] Создать проект из neurips_2026 template
    - [ ] Сохранить neurips_2026.sty
-   - [ ] Заменить main.tex содержимым из `/Users/playra/t27/docs/WHITEPAPER/latex/main.tex`
+   - [ ] Заменить main.tex содержимым из `docs/WHITEPAPER/latex/main.tex`
    - [ ] Сохранить шапку шаблона (documentclass + neurips_2026 package)
 
 2. **Optional Enhancements**:
@@ -71,7 +71,7 @@ neurips_2026/
 
 ```bash
 # Compile locally
-cd /Users/playra/t27/docs/WHITEPAPER/latex
+cd docs/WHITEPAPER/latex
 pdflatex main.tex
 pdflatex main.tex  # второй раз для references
 

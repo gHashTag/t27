@@ -90,7 +90,7 @@ xc7frames2bit --frm_file ternary_mac_demo_top.frames --output_file ternary_mac_d
 ### 5. Verification
 
 - `lake build Trinity.TernaryInference` — ✅ success.
-- `./target/release/t27c suite --repo-root /Users/playra/t27` — **546/546 PASS**, zero seal mismatches.
+- `./target/release/t27c suite --repo-root .` — **546/546 PASS**, zero seal mismatches.
 - All 27 IGLA seals regenerated from repo root.
 - `iverilog` self-checking testbench for `ternary_mac_top` — 6/6 vectors pass.
 

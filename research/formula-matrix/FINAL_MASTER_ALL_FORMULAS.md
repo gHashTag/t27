@@ -95,7 +95,7 @@
 ## ВСЕ ФАЙЛЫ РЕЗУЛЬТАТОВ
 
 - 📄 `/tmp/discovery_absolute_20260410_021222.txt` — 3.38M формул
-- 📄 `/Users/playra/t27/research/formula-matrix/ALL_METHODS_FINAL.md` — все методы
-- 📄 `/Users/playra/t27/research/formula-matrix/ACCELERATION_SUMMARY_RU.md` — сводка на русском
+- 📄 `research/formula-matrix/ALL_METHODS_FINAL.md` — все методы
+- 📄 `research/formula-matrix/ACCELERATION_SUMMARY_RU.md` — сводка на русском
 
 **ПОИСКОВЫЕ МЕТОДЫ ИССЧЕРПАНЫ!** 🎯🚀

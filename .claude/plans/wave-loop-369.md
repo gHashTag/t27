@@ -90,7 +90,7 @@ W368 landed as commit `705b24128` on `trinity-rust-rings` with `Closes #1256`:
 
 ### Phase E — Seal & Conformance (Verify)
 9. Regenerate all affected seals (27 IGLA + any non-IGLA specs whose Verilog output shifts).
-10. Run full conformance: `/Users/playra/t27/target/release/t27c suite --repo-root /Users/playra/t27`.
+10. Run full conformance: `target/release/t27c suite --repo-root .`.
     - Gate: 547/547 PASS (or 546/546 if scratch spec is removed).
 
 ### Phase F — Board Flash (Verify)

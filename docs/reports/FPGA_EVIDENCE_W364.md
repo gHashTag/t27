@@ -17,7 +17,7 @@ Load the previously-generated ternary MAC demo bitstream onto the QMTech Wukong 
 ## Commands executed
 
 ```sh
-cd /Users/playra/t27
+cd .
 cargo build --release -p dlc10
 ./target/release/dlc10 idcode
 ```

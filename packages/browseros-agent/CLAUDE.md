@@ -14,7 +14,7 @@ This directory contains:
 
 ## FORBIDDEN DIRECTORY
 
-**NEVER work in**: `/Users/playra/BrowserOS` (root directory)
+**NEVER work in**: `~/BrowserOS` (root directory)
 
 This is a DIFFERENT project with:
 - Different port configurations (9001, 9100, 3001)
@@ -31,7 +31,7 @@ A2A WebSocket port: **9001** (not 3000, not 9100)
 
 ## VIOLATION DETECTION
 
-If you find yourself working in `/Users/playra/BrowserOS`:
+If you find yourself working in `~/BrowserOS`:
 
 1. STOP immediately
 2. Switch to `~/t27/packages/browseros-agent`
@@ -40,7 +40,7 @@ If you find yourself working in `/Users/playra/BrowserOS`:
 ## AGENCY AGENT GUIDELINES
 
 1. **Trinity experience hooks** are ONLY in `~/t27/packages/browseros-agent`
-   - Do NOT try to add them to `/Users/playra/BrowserOS`
+   - Do NOT try to add them to `~/BrowserOS`
    - This would duplicate work and break single-source-of-truth
 
 2. **Port confusion**
@@ -64,13 +64,13 @@ Before making ANY changes to A2A code:
 
 ### FORBIDDEN ACTIONS (Do NOT do):
 
-❌ **NEVER edit files in `/Users/playra/BrowserOS`**:
+❌ **NEVER edit files in `~/BrowserOS`**:
    - Do NOT add Trinity experience hooks to BrowserOS relay-observer.ts
    - Do NOT modify port constants in BrowserOS
    - Do NOT try to "sync" the two workspaces
    - This violates single-provider verification
 
-❌ **NEVER investigate `/Users/playra/BrowserOS` structure**
+❌ **NEVER investigate `~/BrowserOS` structure**
    - Do NOT ls, find, grep in root directory
    - Do NOT try to understand BrowserOS architecture
    - This is NOT your workspace for Trinity A2A work
@@ -93,7 +93,7 @@ Before making ANY changes to A2A code:
 
 **STATUS**: ⚠️  WORKSPACE BOUNDARY - READ FIRST
 **CURRENT DIRECTORY**: `~/t27/packages/browseros-agent` ✅
-**FORBIDDEN DIRECTORY**: `/Users/playra/BrowserOS` ❌
+**FORBIDDEN DIRECTORY**: `~/BrowserOS` ❌
 
 **NOTE**: Read this boundary document before starting ANY work. All A2A work MUST stay in Trinity workspace.
 EOFMARKER
@@ -103,7 +103,7 @@ echo "📊 Текущая директория: $(pwd)"
 echo ""
 echo "=== Инструкция ==="
 echo "1. ВСЕ A2A работа должна быть в: ~/t27/packages/browseros-agent"
-echo "2. Никаких изменений в /Users/playra/BrowserOS"
+echo "2. Никаких изменений в ~/BrowserOS"
 echo "3. Использовать существующий порт A2A: 9001"
 echo ""
 echo "✅ Готово к продолжению работы"

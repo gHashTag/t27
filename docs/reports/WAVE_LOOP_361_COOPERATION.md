@@ -78,8 +78,8 @@ The primary strategic tension has shifted: from "no silicon evidence" to "silico
 **Steps:**
 1. Connect the board + Xilinx Platform Cable USB II to the host.
 2. `cargo build --release -p dlc10`
-3. `/Users/playra/t27/target/release/dlc10 idcode` → must return `0x13631093`
-4. `/Users/playra/t27/target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit`
+3. `target/release/dlc10 idcode` → must return `0x13631093`
+4. `target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top.bit`
 5. Capture `STAT` register and confirm `DONE=HIGH`, `CRC_ERROR=0`
 6. Verify the two LEDs (R23, T23) toggle with the MAC accumulator output.
 7. Document in `docs/reports/FPGA_EVIDENCE_W362.md`

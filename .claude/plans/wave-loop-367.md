@@ -56,7 +56,7 @@ Extend the Trinity ternary MAC proof lattice to **212 generic ∀ theorems**, ke
 
 ### Phase 3 — Seal regeneration and conformance
 - Regenerate all 27 IGLA seals from repo root using `t27c seal --save`, with hyphen-to-underscore mapping.
-- Run `./target/release/t27c suite --repo-root /Users/playra/t27` and verify **546/546 PASS**.
+- Run `./target/release/t27c suite --repo-root .` and verify **546/546 PASS**.
 
 ### Phase 4 — Board flash retry
 - Build `dlc10` driver: `cargo build --release -p dlc10`.
@@ -91,7 +91,7 @@ Extend the Trinity ternary MAC proof lattice to **212 generic ∀ theorems**, ke
 ## Exit criteria
 
 - [ ] `lake build Trinity.TernaryInference` succeeds.
-- [ ] `./target/release/t27c suite --repo-root /Users/playra/t27` returns **546/546 PASS**.
+- [ ] `./target/release/t27c suite --repo-root .` returns **546/546 PASS**.
 - [ ] 27 IGLA seals regenerated and matching.
 - [ ] Lean generic ∀ count at **212**.
 - [ ] IGLA totals at **7,934 tests, 2,977 invariants**.

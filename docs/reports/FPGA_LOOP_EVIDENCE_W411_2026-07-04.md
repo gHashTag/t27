@@ -87,7 +87,7 @@ New definitions in `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
 Build result:
 
 ```bash
-$ cd /Users/playra/t27/proofs/lean4 && lake build Trinity.TernaryFPGABoot
+$ cd proofs/lean4 && lake build Trinity.TernaryFPGABoot
 ✔ Built Trinity.TernaryFPGABoot
 Build completed successfully (2967 jobs)
 ```

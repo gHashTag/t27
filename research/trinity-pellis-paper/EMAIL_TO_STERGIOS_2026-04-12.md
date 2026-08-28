@@ -73,7 +73,7 @@ Dmitrii
 ---
 
 *Files created today:*
-- `/Users/playra/t27/research/trinity-pellis-paper/EMAIL_TO_STERGIOS_2026-04-12.md`
-- `/Users/playra/t27/research/trinity-pellis-paper/a5_coxeter_characteristic.tex`
-- `/Users/playra/t27/research/trinity-pellis-paper/FOLLOW_UP_README.md` (updated)
-- `/Users/playra/t27/research/trinity-pellis-paper/FOLLOW_UP_SUMMARY.md` (updated)
+- `research/trinity-pellis-paper/EMAIL_TO_STERGIOS_2026-04-12.md`
+- `research/trinity-pellis-paper/a5_coxeter_characteristic.tex`
+- `research/trinity-pellis-paper/FOLLOW_UP_README.md` (updated)
+- `research/trinity-pellis-paper/FOLLOW_UP_SUMMARY.md` (updated)

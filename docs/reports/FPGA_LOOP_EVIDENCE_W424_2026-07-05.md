@@ -17,7 +17,7 @@ paths were exercised via `--dry-run` or board-less smoke gates.
 ### `cargo build --release` (bootstrap compiler / Rust runner)
 
 ```bash
-cd /Users/playra/t27/bootstrap && cargo build --release
+cd bootstrap && cargo build --release
 ```
 
 Result: finished successfully (language checks in `build.rs` passed).
@@ -25,7 +25,7 @@ Result: finished successfully (language checks in `build.rs` passed).
 ### `cargo test -p tri fpga::tests`
 
 ```bash
-cd /Users/playra/t27 && cargo test -p tri -- fpga
+cd . && cargo test -p tri -- fpga
 ```
 
 Result: **60 passed; 0 failed**.
@@ -33,7 +33,7 @@ Result: **60 passed; 0 failed**.
 ### `lake build Trinity.TernaryFPGABoot`
 
 ```bash
-cd /Users/playra/t27/proofs/lean4 && lake build Trinity.TernaryFPGABoot
+cd proofs/lean4 && lake build Trinity.TernaryFPGABoot
 ```
 
 Result: **Build completed successfully (2967 jobs)**.
@@ -62,14 +62,14 @@ tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit --dry-run
 Partial output:
 
 ```
-[cclk-sweep] 8 variant(s) will be swept from /Users/playra/t27/fpga/verilog/ternary_mac_demo_top_200t.bit
+[cclk-sweep] 8 variant(s) will be swept from fpga/verilog/ternary_mac_demo_top_200t.bit
 [cclk-sweep] DRY RUN: no hardware will be touched; synthetic logs will be written.
 
-[cclk-sweep] variant 1/8: OSCFSEL=0 => /Users/playra/t27/build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel00.bit
-[cclk-sweep] log written to /Users/playra/t27/build/fpga/boot-log-20260705-140830-oscfsel00.json
+[cclk-sweep] variant 1/8: OSCFSEL=0 => build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel00.bit
+[cclk-sweep] log written to build/fpga/boot-log-20260705-140830-oscfsel00.json
 ...
-[cclk-sweep] variant 8/8: OSCFSEL=7 => /Users/playra/t27/build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel07.bit
-[cclk-sweep] log written to /Users/playra/t27/build/fpga/boot-log-20260705-140830-oscfsel07.json
+[cclk-sweep] variant 8/8: OSCFSEL=7 => build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel07.bit
+[cclk-sweep] log written to build/fpga/boot-log-20260705-140830-oscfsel07.json
 
 == CCLK sweep summary ==
 ----------------------------------------------------------------------
@@ -181,7 +181,7 @@ tri fpga smoke-gate
 Result:
 
 ```
-[smoke-gate] dry-run CCLK sweep: /Users/playra/t27/fpga/verilog/ternary_mac_demo_top_200t.bit
+[smoke-gate] dry-run CCLK sweep: fpga/verilog/ternary_mac_demo_top_200t.bit
 ...
 [smoke-gate] dry-run sweep report OK (6 variants)
 [smoke-gate] yosys synthesis OK
@@ -193,7 +193,7 @@ Result:
 ## 8. Lean ProcessCorner helpers
 
 ```bash
-cd /Users/playra/t27/proofs/lean4 && lake build Trinity.TernaryFPGABoot
+cd proofs/lean4 && lake build Trinity.TernaryFPGABoot
 ```
 
 Result:

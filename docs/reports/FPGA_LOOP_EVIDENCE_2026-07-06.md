@@ -58,7 +58,7 @@ W403.
 ## 3. Conformance suite
 
 ```bash
-cd /Users/playra/t27
+cd .
 ./scripts/tri test
 ```
 
