@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c15014e54980491f5674ef8b28a3e55c54b57c383a9d4d0993c764a83b988bf7",
-  "gen_hash_rust": "sha256:e6bcc6500401f0b429a994f810154e6d42a521a85d7770020ab448380f4fb440",
+  "gen_hash_rust": "sha256:ee2a32af4d0246d293fc221e0bb1029f86e0cf242c59c9c9590c53c0b1fb6f9c",
   "gen_hash_verilog": "sha256:194e346c1e13f180bde1d1f89d4ea822364d5879861b36c794da879f986dbea7",
   "gen_hash_zig": "sha256:1fba29bc901d350d8f27333375d2e940938837c461dcd46a109150f6c6c63b89",
   "module": "Adam",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-08-28T20:32:32Z",
   "spec_hash": "sha256:47fa62e4268cf8e79f4e4b7ed9972b705c79a74d31b428f88f237d1bc09a7eed",
   "spec_path": "specs/ml/optimizer/adam.t27"
 }

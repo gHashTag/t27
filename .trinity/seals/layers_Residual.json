@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:55371eb3f61ac2f812104bf746328ff27969af452903fbad7b3cb13a28f295f8",
-  "gen_hash_rust": "sha256:60346aef422a1c3a2ab6bcff747ab7218018300ea84bcf234398e00315b331b5",
+  "gen_hash_rust": "sha256:8283e1f1732789cfd53275914ea15f288db05a8d525a2ff00df1de1acafdc1f4",
   "gen_hash_verilog": "sha256:963ae6f27d2e5f8cf087df5c98046b2fd14c97def29c90fcb76c579f943a6d18",
   "gen_hash_zig": "sha256:16ad9ad9c9e55e616ddcce7e10bb843ea21953b58f4a065bf1e49046417eba3d",
   "module": "Residual",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T20:32:32Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c2cd77bcf1104c6158fcb0dc37e0533f063bf3836fedcbe3174681beae8f460b",
   "spec_path": "specs/ml/layers/residual_connection.t27"
