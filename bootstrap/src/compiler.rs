@@ -5282,6 +5282,23 @@ impl Codegen {
                     ),
                     None => format!("{}.zig", module_name),
                 };
+                // The file's OWN declaration wins over a module binding of the
+                // same name. `use base::math::phi_distance;` alongside
+                // `pub fn phi_distance(value: Float) Float` emitted both, and
+                // Zig calls that `duplicate struct member name 'phi_distance'`.
+                //
+                // `taken` was already built from the file's declarations and
+                // already consulted by the two SYMBOL branches below. This
+                // branch -- the one that binds a whole module under its last
+                // path segment -- wrote first and inserted into `taken`
+                // afterwards, so the set it maintained could never stop it.
+                //
+                // Skipping the binding means skipping the pool loop too: those
+                // names are reached through `{module}.{name}`, and a module
+                // that was never bound cannot be dereferenced.
+                if symbols.is_empty() && taken.contains(&decl.name) {
+                    continue;
+                }
                 if symbols.is_empty() {
                     self.write_line(&format!(
                         "const {} = @import(\"{}\");",
