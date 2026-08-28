@@ -5836,10 +5836,22 @@ impl Parser {
                             // minted statements. Clean means current OPENS its
                             // line: its line is beyond the last CONSUMED
                             // token's line.
+                            // W699: the boundary disjunct CONTRADICTED the rule
+                            // stated right above it, and `[]const u8` is where
+                            // that showed. `const backends = [_][]const u8{...}`
+                            // parses as `[_][]`, stops on the KwConst INSIDE the
+                            // type -- a block boundary -- and the statement was
+                            // minted as clean while the parser stood mid-type.
+                            // The next turn then read `const u8{` as a second
+                            // statement, failed, and left the wreckage at module
+                            // level, where a const is a HARD error. Because one
+                            // statement had already lowered, the whole-block
+                            // fallback below never fired.
+                            // A boundary keyword is a boundary only when it OPENS
+                            // its line; mid-line it is somebody's type.
                             let clean = self.current.kind == TokenKind::Semicolon
                                 || self.current.kind == TokenKind::Eof
-                                || self.current.line > self.last_line
-                                || Self::is_block_boundary(self.current.kind);
+                                || self.current.line > self.last_line;
                             if clean {
                                 if self.current.kind == TokenKind::Semicolon {
                                     self.advance();
