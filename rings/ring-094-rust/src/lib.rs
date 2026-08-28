@@ -765,7 +765,16 @@ impl Scheduler {
 
         let id = task.id;
         if task.is_expired() {
-            task.state = TaskState::Failed;
+            // `task.state = TaskState::Failed` stood here and was dead: the next
+            // line drops the task out of the queue, so the field was written on a
+            // value about to be discarded. `#![deny(warnings)]` caught it the
+            // moment this crate could compile at all -- it never could, because
+            // rings/ was in neither workspace.members nor workspace.exclude.
+            //
+            // Removed rather than kept: the behaviour is identical, and if an
+            // expired task is meant to be RECORDED as failed rather than
+            // forgotten, that is a change to what this function does and wants
+            // deciding on purpose.
             self.queue[idx] = None;
             self.len -= 1;
         } else {
