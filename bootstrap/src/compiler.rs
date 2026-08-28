@@ -6004,7 +6004,7 @@ impl Codegen {
         //
         // Zig spells a generic container as a function returning a type, so the
         // declaration form changes shape entirely rather than gaining a suffix.
-        let generic: Vec<String> = node
+        let mut generic: Vec<String> = node
             .extra_field
             .trim()
             .trim_start_matches('(')
@@ -6013,6 +6013,69 @@ impl Codegen {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_'))
             .collect();
+
+        // THE SECOND SPELLING. The corpus declares a generic container two
+        // ways, and only one of them reached the machinery above:
+        //
+        //     const BTree(K, V) = struct { ... }     -> extra_field, handled
+        //     const LRUCache = struct {              -> a FIELD, ignored
+        //         generic : "K, V",
+        //         map : "HashMap(K, *Node)",
+        //     }
+        //
+        // The field form is dropped further down as "not a member", which is
+        // right -- it is an annotation -- but dropping it also threw away the
+        // parameter list, so the body kept referring to K and V and nothing
+        // declared them. Four specs: lru_cache and the avl, red-black and splay
+        // trees.
+        //
+        // Same predicate as the drop site uses, so the two cannot disagree
+        // about what an annotation looks like: a field named `generic` whose
+        // type is a list of single uppercase letters. A struct may legitimately
+        // have a field called `generic`; it will not have one typed `K, V`.
+        if generic.is_empty() {
+            if let Some(ann) = node.children.iter().find(|c| {
+                c.name == "generic"
+                    && !c.extra_type.is_empty()
+                    && c.extra_type.split(',').all(|t| {
+                        let t = t.trim();
+                        t.len() == 1 && t.chars().all(|c| c.is_ascii_uppercase())
+                    })
+            }) {
+                generic = ann
+                    .extra_type
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    // A PARAMETER NOTHING READS IS NOT A PARAMETER. Zig
+                    // rejects an unused one outright, so declaring K and V for
+                    // a struct whose fields never mention them trades an
+                    // undeclared identifier for two `unused function
+                    // parameter` -- a moved error, and one per name.
+                    //
+                    // avl_tree, red_black_tree and splay_tree all annotate
+                    // `generic : "K, V"` and then declare only
+                    // `root : "?*AVLNode"` and `size : "usize"`. The annotation
+                    // is aspirational there; in lru_cache, whose map is
+                    // `HashMap(K, *Node)`, it is real. The body decides.
+                    .filter(|g| {
+                        // The field's TYPE is where a generic parameter lives:
+                        // `map : "HashMap(K, *Node)"` keeps K in extra_type,
+                        // which node_mentions_word does not read. Checking only
+                        // that helper dropped K and V from lru_cache -- the one
+                        // struct here that genuinely is generic -- while
+                        // correctly clearing them from the three trees.
+                        node.children.iter().any(|c| {
+                            c.name != "generic"
+                                && (node_mentions_word(c, g)
+                                    || c.extra_type.split(|ch: char| {
+                                        !ch.is_alphanumeric() && ch != '_'
+                                    }).any(|tok| tok == g))
+                        })
+                    })
+                    .collect();
+            }
+        }
 
         if !generic.is_empty() {
             let params = generic
@@ -6026,6 +6089,20 @@ impl Codegen {
             self.write_line("return struct {");
             self.indent();
             for child in &node.children {
+                // The annotation is not a member of the struct it annotates.
+                // The non-generic path below already drops it; this loop did
+                // not, so the very declaration that supplied K and V then
+                // emitted `generic: K, V,` as a field -- `expected type
+                // expression, found ','`. Two loops, one rule.
+                if child.name == "generic"
+                    && !child.extra_type.is_empty()
+                    && child.extra_type.split(',').all(|t| {
+                        let t = t.trim();
+                        t.len() == 1 && t.chars().all(|c| c.is_ascii_uppercase())
+                    })
+                {
+                    continue;
+                }
                 self.write_indent();
                 let ty = if !child.extra_type.is_empty() {
                     &child.extra_type
