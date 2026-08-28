@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:44e590421610a5a09952187afa800ddb529d2f6a829b8d95ef611e33b546ded4",
+  "gen_hash_c": "sha256:2185eae25e26eb0d4573db536ebbeee8179b667dc2b01814aed35e0d8d12c289",
   "gen_hash_rust": "sha256:435c49cc20b8f4f28f646a618d911957778077f7da844323420547627d5459b3",
   "gen_hash_verilog": "sha256:958a7f3e3014cb23157b2f171ddd6f09da8451b42a3f85f75fb243f11997ecea",
   "gen_hash_zig": "sha256:d8ac9bdc8b5cbad025c26352e21b52dbc3f443ee928f73c83b85c8d6063ba4ce",
   "module": "GitStatus",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-28T23:38:41Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:a56255eeb15ab34b0d17caf63b58447d0783b70a185941a8408766153d1ba575",
   "spec_path": "specs/git/status.t27"
 }

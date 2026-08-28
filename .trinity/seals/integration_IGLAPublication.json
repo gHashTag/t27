@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:0454e1ea058fc7b683f3309af6e4221e582b1c68bdf61394c5e1d86326ed949d",
+  "gen_hash_c": "sha256:3c2eeacf2d36aba538e914b0a3542989246734473ae95de664654034b620655a",
   "gen_hash_rust": "sha256:70f58925037983379ae0f33eba981dbc7c51a259c9cfb9467d7af4cec0133de1",
   "gen_hash_verilog": "sha256:8d1d05f3ff07323c5a47ca8e489fc3967f1a98d4df9a3d32c02fbad9ec4e7cb4",
   "gen_hash_zig": "sha256:9e14e42b849b32b1a01adbc9baca83fd77681f855e15ee3426bbc47a0d9d4c5d",
   "module": "IGLAPublication",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-28T23:38:42Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:3e203c4b90a1ef1483c84320fe17cee7a366467c3f49dfb90d785467cc48b5a1",
   "spec_path": "specs/igla/integration/publication.t27"
 }

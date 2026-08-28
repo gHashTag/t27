@@ -5778,8 +5778,31 @@ impl Parser {
             // to every reader, and the arm captured it into the block anyway.
             // Statement clauses must sit on the line immediately after the
             // previous clause; a gap returns the old boundary reading.
+            // W699 rung 2: a blank line INSIDE an indented block. The rule above
+            // reads a gap as "module scope", and that is right for a body that
+            // has not started -- but once a statement HAS lowered, the block's
+            // column is known, and a statement at or deeper than it is a
+            // continuation no matter how many blank lines precede it.
+            //
+            // What the old reading produced, measured: the block ended at the
+            // blank line, the head lowered INSIDE the invariant's `comptime {}`
+            // and the tail hoisted to module scope OUTSIDE it --
+            //
+            //     comptime { var valid_trits: [3]i32 = .{...}; }
+            //     const valid_info = get_encoding_info(&valid_trits, 3);
+            //
+            // -- which references a name that no longer exists, and collides
+            // with the next invariant's `const result` in specs that reuse the
+            // name. Zig rejected two specs for exactly this.
+            //
+            // `c > 1` keeps the W905 guard: in an UNINDENTED block, column
+            // cannot tell a body statement from a module declaration, and the
+            // arm must not steal module consts other tests read.
+            let indented_continuation = lowered > 0
+                && first_clause_col.is_some_and(|c| c > 1 && self.current.col >= c);
             let adjacent = self.current.line <= self.last_line + 1
-                || self.only_comment_lines_between(self.last_line, self.current.line);
+                || self.only_comment_lines_between(self.last_line, self.current.line)
+                || indented_continuation;
             let eff_col = if lowered == 0 && self.peek.kind == TokenKind::Ident {
                 first_clause_col.or(Some(self.current.col))
             } else {
@@ -18022,6 +18045,29 @@ impl CCodegen {
                     } else {
                         self.write(&format!("int {}", node.name));
                     }
+                } else if raw_type.is_empty()
+                    && node
+                        .children
+                        .first()
+                        .is_some_and(|c| {
+                            c.kind == NodeKind::ExprArrayLiteral
+                                && !c.extra_type.is_empty()
+                                && !c.children.is_empty()
+                        })
+                {
+                    // W699 rung 3: `const vals = [_]i32{...}` has no annotation,
+                    // so the arm below reached for GNU `__auto_type` -- and
+                    // `__auto_type x = { ... }` is not C: "cannot use
+                    // '__auto_type' with initializer list". The literal carries
+                    // its own element type and its own length; use them.
+                    let lit = node.children.first().unwrap();
+                    let elem = &lit.extra_type;
+                    let c_elem = if Self::is_primitive(elem) {
+                        Self::type_to_c(elem).to_string()
+                    } else {
+                        elem.to_string()
+                    };
+                    self.write(&format!("{} {}[{}]", c_elem, node.name, lit.children.len()));
                 } else {
                     let inferred_arr = if raw_type.is_empty() {
                         node.children
@@ -18562,10 +18608,39 @@ impl CCodegen {
                 // ("1,2,3" for a list, "0;4" for a repeat) with no children.
                 // Emit a brace initializer; the repeat form uses a GNU
                 // designated range (gcc and clang).
+                // W699 rung 3: TWO different nodes reach this arm, and only one
+                // of them keeps its elements in `extra_size`.
+                //
+                //   [1, 2, 3]        -> extra_size "1,2,3", no children
+                //   [_]i32{1, 2, 3}  -> extra_size "_" (the DIMENSION),
+                //                       extra_type "i32", elements in children
+                //
+                // Reading `extra_size` for the second form printed the dimension
+                // as the element list: `int32_t a[3] = { .v = { _ } };` -- "use
+                // of undeclared identifier '_'". The elements were parsed, held,
+                // and never emitted.
+                //
+                // The `{ .v = { ... } }` wrapper goes with them. It initialises a
+                // struct with a member `v`, and the declaration beside it is a
+                // plain C array. Measured before removing it: of the 156 specs
+                // whose generated C `cc` accepts, ZERO contain `.v = {` -- the
+                // wrapper has never appeared in a single piece of C this compiler
+                // produced that a C compiler would take.
+                if !node.children.is_empty() {
+                    self.write("{ ");
+                    for (i, e) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_c_expr(e);
+                    }
+                    self.write(" }");
+                    return;
+                }
                 let txt = node.extra_size.trim().to_string();
                 if let Some((val, count)) = txt.rsplit_once(';') {
                     self.write(&format!(
-                        "{{ .v = {{ [0 ... ({}) - 1] = {} }} }}",
+                        "{{ [0 ... ({}) - 1] = {} }}",
                         count.trim(),
                         val.trim()
                     ));
@@ -18593,9 +18668,9 @@ impl CCodegen {
                     if !cur.trim().is_empty() {
                         elems.push(cur.trim().to_string());
                     }
-                    self.write(&format!("{{ .v = {{ {} }} }}", elems.join(", ")));
+                    self.write(&format!("{{ {} }}", elems.join(", ")));
                 } else {
-                    self.write("{ .v = { 0 } }");
+                    self.write("{ 0 }");
                 }
             }
             NodeKind::ExprStructLit => {

@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:fd6aa3261b05efb384d95a38e75b8c44770c8996419f1047eeecf07153c3713b",
+  "gen_hash_c": "sha256:91cc00cef3883ebf64780d75e26516db234375524e9e541b234dd1c2b8acc419",
   "gen_hash_rust": "sha256:c763b8da4815bcceb5b7760bea3f96a88cb057f73f1dba2620879d91d2cf67ba",
   "gen_hash_verilog": "sha256:6bbf16bedbfb02e745828f53ea14d3609f31f713221dd8d2d160e840bb793589",
   "gen_hash_zig": "sha256:87503fa5b4a9ae50b1564aa0998f708c59dd8940926ee6e8fbafcb8bc0465e29",
   "module": "tritype-base",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-28T23:38:41Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:12d9ca3f44b081970a88c4d24c10ee9dbf36eb614cf18404ff571475552c10db",
   "spec_path": "specs/base/types.t27"
 }

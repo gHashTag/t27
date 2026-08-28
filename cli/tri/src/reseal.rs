@@ -59,7 +59,8 @@ pub fn run(cmd: &ResealCmd) -> Result<()> {
     let seal = root.join(SEAL);
 
     let want = sha_of(&sealed)?;
-    let raw = std::fs::read_to_string(&seal).with_context(|| format!("reading {}", seal.display()))?;
+    let raw =
+        std::fs::read_to_string(&seal).with_context(|| format!("reading {}", seal.display()))?;
     // A conflicted seal is not a hash that happens to be wrong; it is two
     // hashes and some markers. Say so, rather than letting a trim() produce a
     // nonsense comparison against the first line.
@@ -125,9 +126,8 @@ fn short(s: &str) -> String {
 /// fire on a file that merely mentions one, and the point of this function is
 /// to be trusted when it says the file is unusable.
 fn is_conflicted(raw: &str) -> bool {
-    raw.lines().any(|l| {
-        l.starts_with("<<<<<<<") || l.starts_with("=======") || l.starts_with(">>>>>>>")
-    })
+    raw.lines()
+        .any(|l| l.starts_with("<<<<<<<") || l.starts_with("=======") || l.starts_with(">>>>>>>"))
 }
 
 #[cfg(test)]
@@ -139,7 +139,8 @@ mod tests {
     /// than trimmed into a comparison against whichever line came first.
     #[test]
     fn a_conflicted_seal_is_not_a_hash() {
-        let conflict = "<<<<<<< HEAD\n8e62cacb81c6e84d\n=======\n4f003654a44a4348\n>>>>>>> master\n";
+        let conflict =
+            "<<<<<<< HEAD\n8e62cacb81c6e84d\n=======\n4f003654a44a4348\n>>>>>>> master\n";
         assert!(is_conflicted(conflict));
 
         // What `trim()` would have produced, had the marker gone unnoticed:

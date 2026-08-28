@@ -891,6 +891,7 @@ pub fn run_corpus(
     json: bool,
     synth: bool,
     synth_secs: u64,
+    per_spec: Option<&str>,
 ) -> anyhow::Result<()> {
     let me = std::env::current_exe()?;
     let tmp = std::env::temp_dir().join("t27-corpus");
@@ -1046,6 +1047,40 @@ pub fn run_corpus(
         }
         let rel = p.strip_prefix(repo_root).unwrap_or(p).to_string_lossy().to_string();
         out.push((rel, o));
+    }
+
+    // W699: the aggregate cannot name a spec, and a column that MOVES is
+    // exactly when the names are wanted. Recovering 1049 discarded tokens took
+    // Zig 217 -> 215 and cc 157 -> 156, and the three specs behind that could
+    // not be named from any output this command produced -- the reading was
+    // "three of them", with no way to open one.
+    //
+    // Sorted, one line per spec, `1`/`0` per column. Sorted because the point is
+    // `diff` against the same file from another binary, and directory-walk order
+    // is not stable enough to diff.
+    if let Some(path) = per_spec {
+        let mut rows: Vec<String> = out
+            .iter()
+            .map(|(rel, o)| {
+                let b = |x: bool| if x { '1' } else { '0' };
+                format!(
+                    "{}\t{}{}\t{}{}\t{}{}\t{}{}",
+                    rel,
+                    b(o.zig_gen), b(o.zig_build),
+                    b(o.rust_gen), b(o.rust_build),
+                    b(o.c_gen), b(o.c_build),
+                    b(o.v_gen), b(o.v_build),
+                )
+            })
+            .collect();
+        rows.sort();
+        let body = format!(
+            "# spec\tzig(gen,build)\trust\tc\tverilog\n{}\n",
+            rows.join("\n")
+        );
+        std::fs::write(path, body)
+            .map_err(|e| anyhow::anyhow!("writing per-spec table to {path}: {e}"))?;
+        eprintln!("  per-spec table: {} ({} specs)", path, out.len());
     }
 
     let n = out.len();

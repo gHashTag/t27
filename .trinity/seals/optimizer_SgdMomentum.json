@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:ae07774e2d259664d6b0fb2f573a27885dbf0500701748a5bd9c5e547ba557e1",
+  "gen_hash_c": "sha256:d806d0e696a715d3c63fba4e190daeadb4624f54d3270f2251ce4e2e2eb08b73",
   "gen_hash_rust": "sha256:f99fed337f4eec84766b5d09c089f742fe5bf2caf08ccc1d24db013c16257418",
   "gen_hash_verilog": "sha256:681f8a7a516d1a0a81471683b761ef8033873dfeadeb77d1a3ff72757f2abc49",
   "gen_hash_zig": "sha256:dc1fe1ec5d5a884a706a920e2ed755ed963e8c3beab49ffd2b5510b605c76485",
   "module": "SgdMomentum",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-28T23:38:44Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:e713662a43888a4304da49a3fa56934423615caec6edf983e2260fbb0123de3b",
   "spec_path": "specs/ml/optimizer/sgd_momentum.t27"
 }
