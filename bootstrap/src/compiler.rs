@@ -6680,8 +6680,27 @@ impl Codegen {
             NodeKind::ExprReturn => {
                 self.write_indent();
                 self.write("return ");
-                if !node.children.is_empty() {
-                    self.gen_expr(&node.children[0]);
+                if let Some(v) = node.children.first() {
+                    // FOURTH site that writes a value verbatim, and the third
+                    // to need the same repair. A `return` whose value is raw
+                    // text carries the corpus's `T{field=value}` spelling into
+                    // the output, where it is `expected ',' after initializer`
+                    // -- a parse error, and a wall.
+                    //
+                    //     return .{DynkinPhysicsMapping{dynkin_node=1,mark=2,...}}
+                    //     return XDCOutput{ .lines = .{XDCLine{.text="",...}} }
+                    //     return Design{ ... .bindings = .{Binding{.location=...}} }
+                    //
+                    // gen_expr regenerates from the NODE and knows nothing of
+                    // the rewrites, so the repair has to be applied to the text
+                    // BEFORE it is handed over -- the same reason the container
+                    // const needed its own branch.
+                    let raw = if v.name.is_empty() { &v.value } else { &v.name };
+                    if v.kind == NodeKind::ExprIdentifier && raw.contains('{') {
+                        self.write(&rewrite_struct_literal_fields(raw));
+                    } else {
+                        self.gen_expr(v);
+                    }
                 }
                 self.write_line(";");
             }
