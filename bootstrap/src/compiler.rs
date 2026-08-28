@@ -1217,6 +1217,44 @@ fn string_compare(text: &str) -> Option<String> {
 ///
 /// Skips `==`, `!=`, `<=`, `>=` and anything inside brackets, so
 /// `then nonzero == 0` is not mistaken for a binding.
+/// Split a clause on ` and ` at nesting depth zero, outside strings.
+///
+/// Only useful for `given`/`when`. In a `then`, ` and ` is Zig's own boolean
+/// conjunction and splitting it would change what the clause asserts.
+fn split_top_level_and(s: &str) -> Vec<String> {
+    let b: Vec<char> = s.chars().collect();
+    let mut parts = Vec::new();
+    let mut start = 0usize;
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut i = 0usize;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+        } else if !in_str {
+            match c {
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => depth -= 1,
+                _ => {}
+            }
+            if depth == 0
+                && c == ' '
+                && b[i..].starts_with(&[' ', 'a', 'n', 'd', ' '])
+                && i > start
+            {
+                parts.push(b[start..i].iter().collect());
+                i += 5;
+                start = i;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    parts.push(b[start..].iter().collect());
+    parts
+}
+
 fn top_level_assign(s: &str) -> Option<usize> {
     let b = s.as_bytes();
     let mut depth = 0i32;
@@ -2220,6 +2258,10 @@ impl Parser {
                 && !self.is_top_level_start()
                 && self.current.kind != TokenKind::Eof
             {
+                eprintln!(
+                    "PROBE2261 const `{}` discarding from token {:?} `{}` line {}",
+                    decl.name, self.current.kind, self.current.lexeme, self.current.line
+                );
                 self.skip_to_semicolon()?;
             }
             // Prop. 146: this path returned WITHOUT consuming the trailing
@@ -6710,6 +6752,41 @@ impl Codegen {
             }
             return;
         }
+        // `given a = PHASE_NORM and b = PHASE_ATTN and c = PHASE_FFN` -- ONE
+        // clause binding several names. It emitted as one declaration,
+        // `const a = PHASE_NORM and b=PHASE_ATTN and ...`, which stops at
+        // `expected ';' after statement` and walls the file.
+        //
+        // Guarded on EVERY part being an assignment. `given x = a and b` is a
+        // single binding whose value is a conjunction: its parts are `x = a`
+        // and `b`, the second is not an assignment, and it is left alone. The
+        // `then` case returned above and never reaches here -- there ` and ` is
+        // Zig's own boolean operator and splitting it would change the claim.
+        //
+        // 10 clauses, 4 specs. Each name gets an unconditional `_ = name;`:
+        // `used_later` is one flag for the whole clause and cannot say which of
+        // four names is read, and a discard before a later use is legal Zig.
+        let parts = split_top_level_and(&text);
+        if parts.len() > 1 && parts.iter().all(|p| top_level_assign(p).is_some()) {
+            for (n, p) in parts.iter().enumerate() {
+                if n > 0 {
+                    self.write_indent();
+                }
+                let k = top_level_assign(p).unwrap();
+                let (lhs, rhs) = p.split_at(k);
+                let val = rewrite_struct_literal_fields(rhs[1..].trim());
+                self.write_line(&format!("const {} = {};", zig_ident(lhs.trim()), val));
+            }
+            for p in &parts {
+                let k = top_level_assign(p).unwrap();
+                let lhs = p[..k].trim();
+                let name = zig_ident(lhs.split(':').next().unwrap_or(lhs).trim());
+                self.write_indent();
+                self.write_line(&format!("_ = {};", name));
+            }
+            return;
+        }
+
         match top_level_assign(&text) {
             Some(i) => {
                 let (lhs, rhs) = text.split_at(i);
