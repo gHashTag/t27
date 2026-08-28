@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d0618b6f98769551d2b8a1d9d3adc4c9a8f876d18011d489c1aa11829b5b03a1",
-  "gen_hash_rust": "sha256:df87df91ae57c6d1bad8e2a668c4198d570043b493a1464798499b36de4d5574",
+  "gen_hash_rust": "sha256:09b7af2e4b2a77cb14fe8822cea19cc4e96e80b77225f86de29fcbd0e1698806",
   "gen_hash_verilog": "sha256:802c92c797077113f131a1ebc41110d3c9818c5ed6bf5ea949f177c1153631a3",
   "gen_hash_zig": "sha256:39bdf97b07ec91ea4a32d7f3827601f32ddf45810943fe3244fd6cf81280a364",
   "module": "TriLruCache",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:346a15f33a83f1587b8c61955907f492ac291d4c687970a47a655ceb52d9be35",
   "spec_path": "specs/tri/collections/lru_cache.t27"

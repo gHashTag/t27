@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d25d3b134a84df881ab8c63d09ffe2f68298da3ec05264b0dfc3127933bbd3cc",
-  "gen_hash_rust": "sha256:a97b272885a4ec982a7928845818b5a0723056bc2c277d1afb204084e2a77d6e",
+  "gen_hash_rust": "sha256:f75f79594a5691dc6ff2c6dce3c10a06501aa7fb2617813f49584d6616617919",
   "gen_hash_verilog": "sha256:fcab04b03a5d109012914f6ded8ebce8b821eac825288c91c33ac7527f99fbfa",
   "gen_hash_zig": "sha256:cee12f33eb7567680cc6853f65cfa1a4ed28f3616b7bc8ec97fa4e1cc4b66e00",
   "module": "PpoCritic",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3f170da0db86ecb829c46e88c0a8fad260f37ad3de7a61d87b514c68c8d8c720",
   "spec_path": "specs/ml/rl/ppo_critic.t27"

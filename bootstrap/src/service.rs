@@ -934,7 +934,16 @@ pub fn run_corpus(
                         Command::new("rustc").args([
                             "--edition", "2021", "--crate-type", "lib",
                             "--emit=metadata", "-A", "warnings",
-                            "-o", "/dev/null", &rp.to_string_lossy(),
+                            // NOT /dev/null. rustc writes its metadata through a temp file
+                            // NEXT TO the output path, so `-o /dev/null` makes it try to
+                            // create /dev/rmeta<random> and fail with "couldn't create a
+                            // temp dir: Operation not permitted" -- on EVERY input, valid or
+                            // not. Reproduced on a 23-character valid file. The Rust column
+                            // therefore read 0 of 559 for as long as it has existed, and that
+                            // zero was published as a finding, including in a release note.
+                            "-o",
+                            &tmp.join("c.rmeta").to_string_lossy(),
+                            &rp.to_string_lossy(),
                         ]),
                         30,
                     ) {

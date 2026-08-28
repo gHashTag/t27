@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a8c45fefe97983da6632e6e938bdb29390edaa28b5f2c8157876e758174d5532",
-  "gen_hash_rust": "sha256:449d660177c8feff55920947893cf14d50c3f74771d66b3f843f08060aa4eb5e",
+  "gen_hash_rust": "sha256:c7c7dd461ac11a56faee23f181db3a3eb860c3fe3330e8aa05f91518aeb4b44e",
   "gen_hash_verilog": "sha256:646d1898ae62b350278089d84f4cbc10d70363b6e299c078eb4c99247cab9351",
   "gen_hash_zig": "sha256:2b1136eb2ab8c0bb9574d6e0f5978bde72f895fbf09d70fed45a0b11c66f861f",
   "module": "PpoClipLoss",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:1916b5ef79c7a277691bd89e85161a6c6eeb4496115c875708303ec88cf39bbe",
   "spec_path": "specs/ml/rl/ppo_clip_loss.t27"

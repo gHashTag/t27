@@ -1,12 +1,12 @@
 {
   "conformance_hash": "sha256:5d6e7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293",
   "gen_hash_c": "sha256:ef0ec521c493a5b6d8dff588ce504aeab266ee55fec383a2ce01b38f193968c6",
-  "gen_hash_rust": "sha256:8da64f19f8c306637286c99b89bd668c4b016d1c38209e654725548cfee332dd",
+  "gen_hash_rust": "sha256:5c8313d9a8ff484b60763ddb45bda5811df46a7acb645ff8d41109d4d404169e",
   "gen_hash_verilog": "sha256:23ce65bf68f1f2d4378f5489d78b11dd8293c4dde0d08482787ec7f569e6f5e9",
   "gen_hash_zig": "sha256:c4c9aa7ab746af4428202caddd4d265e637b551a49e6519b33f37902fa9cbe6a",
   "module": "Trinity_FPGA_Top",
   "ring": 43,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:bec81e5c6c9cb45fa4ff61087262e377d72bb012f6fd72bebacc81805e442c8c",
   "spec_path": "specs/fpga/top_level.t27",
   "tests": {

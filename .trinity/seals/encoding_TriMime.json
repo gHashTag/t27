@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:bdcda8492ff38a2163b32cfd8a18b600c372799738dcb8423fa92adcb782660a",
-  "gen_hash_rust": "sha256:78a71f1edc19d1feac1dee3b1fddd32404d089b2a24aa35a0228506c1a56b8d6",
+  "gen_hash_rust": "sha256:ebaf4a42eb49ff521c836e7416f1445e6b3fafd4f86047822e5246afb9a770b5",
   "gen_hash_verilog": "sha256:9cbcd319d16c12426bc6a1fba523b6556bea6aa3fdee6cbfb63afa2fe6c652d1",
   "gen_hash_zig": "sha256:32b82b02e902aa1eeb1bedbae58c89a3dbf4cde25cf446732c40392f877652b8",
   "module": "TriMime",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:692f9066a185b1a88057bee4805a8e37fe47f998150c6179414e921da0f904af",
   "spec_path": "specs/tri/encoding/mime.t27"
