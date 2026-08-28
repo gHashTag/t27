@@ -24,24 +24,24 @@ def m_muon : ℝ := 0.105658
 def m_tau : ℝ := 1.77686
 
 -- 600-cell spectral cutoff (postulated identification)
-def Lambda_600 : ℝ := M_Planck / (h_H4 * phi)
+noncomputable def Lambda_600 : ℝ := M_Planck / (h_H4 * phi)
 
 -- Majorana mass scale (NCG cutoff scale)
-def M_R_majorana : ℝ := Lambda_600
+noncomputable def M_R_majorana : ℝ := Lambda_600
 
 -- Light neutrino masses via seesaw
-def m_nu_electron : ℝ := m_electron^2 / M_R_majorana
+noncomputable def m_nu_electron : ℝ := m_electron^2 / M_R_majorana
 
-def m_nu_muon : ℝ := m_muon^2 / M_R_majorana
+noncomputable def m_nu_muon : ℝ := m_muon^2 / M_R_majorana
 
-def m_nu_tau : ℝ := m_tau^2 / M_R_majorana
+noncomputable def m_nu_tau : ℝ := m_tau^2 / M_R_majorana
 
 -- Convert to eV
-def m_nu_electron_eV : ℝ := m_nu_electron * 1e9
+noncomputable def m_nu_electron_eV : ℝ := m_nu_electron * 1e9
 
-def m_nu_muon_eV : ℝ := m_nu_muon * 1e9
+noncomputable def m_nu_muon_eV : ℝ := m_nu_muon * 1e9
 
-def m_nu_tau_eV : ℝ := m_nu_tau * 1e9
+noncomputable def m_nu_tau_eV : ℝ := m_nu_tau * 1e9
 
 -- Positivity lemmas
 lemma h_H4_pos : 0 < h_H4 := by norm_num
@@ -139,7 +139,7 @@ theorem neutrino_normal_ordering :
 -- Mass-squared differences
 noncomputable def Delta_m2_21 : ℝ := m_nu_muon_eV^2 - m_nu_electron_eV^2
 
-def Delta_m2_31 : ℝ := m_nu_tau_eV^2 - m_nu_electron_eV^2
+noncomputable def Delta_m2_31 : ℝ := m_nu_tau_eV^2 - m_nu_electron_eV^2
 
 lemma Delta_m2_21_pos : 0 < Delta_m2_21 := by
   unfold Delta_m2_21
