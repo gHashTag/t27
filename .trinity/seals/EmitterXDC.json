@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:aa0719e6d840592c001d29fcebfebc0df0cdf50429ff0985f01d96c14ddd6bab",
-  "gen_hash_rust": "sha256:1669a08ca53f3961be13e6e5ccc4c6f9136e3c260b08a4706b4e30229f6784ff",
+  "gen_hash_rust": "sha256:6b2272a70de5f6ff5633ddb7fb2ba8000f021bb2e4f4209b487770b620fca3a0",
   "gen_hash_verilog": "sha256:cde8b3da09478086d0bbe7f87fd950c2366b36c21e7bfb8d0bfc9718e995d1fb",
   "gen_hash_zig": "sha256:3f16baa3c8bd8fb3b2af6ceb5f59238e3646c841eec55979d286760c47211656",
   "module": "EmitterXDC",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:d9954ca190ee3e748ef8df7ce32bd183096f7f97003651aede1ccabe5c1b0e19",
   "spec_path": "specs/pins/emitter_xdc.t27"
 }

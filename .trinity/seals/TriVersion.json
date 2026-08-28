@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:160b522d64ae5e33633cf3cc7aef56b717e15ffd3afe1f5f0e56d7e5e310c307",
-  "gen_hash_rust": "sha256:2c250855ee19d047ef13e09a4ee79fa74b13789a8f9d9ccaf3c09e98480cbfa2",
+  "gen_hash_rust": "sha256:616b95dca4c1b328b86d4e61683f3eb75fbfed9fe0f4d97aefe1d0885003accc",
   "gen_hash_verilog": "sha256:5bf4f7446aae3bcb9eef1be666be8fcc82a75a3062f044b870a0f6a675a7bcb1",
   "gen_hash_zig": "sha256:a161a06bb528688a57b54399a45902da4b4b1acc700e755661f291c0b5ae15b6",
   "module": "TriVersion",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:6e6d50829c860bc9b518f082a70a91cdf099342e26c446808c22b896578a680c",
   "spec_path": "specs/tri/utils/version.t27"
 }

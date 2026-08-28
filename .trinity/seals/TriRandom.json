@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:465e7e9bae7e20ee636bca42cd33528c5552538f5b70d41c48c5ae94a8fe1bfc",
-  "gen_hash_rust": "sha256:e5a12e886ebd5e1e42f7d69cd214b79bd0e3ba71b1be428b4f914eabbca6627a",
+  "gen_hash_rust": "sha256:a42b402e5aac5786b788a593325a5b89a2da1668b46572fe035b4d22d75c11d6",
   "gen_hash_verilog": "sha256:280903b4e8c1efe592ff56d5adc048cc8dee7784076d499bf7251ba046e427ab",
   "gen_hash_zig": "sha256:bc8c982faeee5e4edf78b2274c8e26ca6a806247cb78c92837a1dc5f5aef33dd",
   "module": "TriRandom",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-28T18:19:55Z",
   "spec_hash": "sha256:1ac48181d58fe5733740c1cb738f315f5abfbd2d36b6c6cdfe2ff44bc5788573",
   "spec_path": "specs/tri/utils/random.t27"
 }
