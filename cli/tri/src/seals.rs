@@ -81,6 +81,27 @@ pub enum SealsCmd {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Seals that record `gen_hash=none` -- a spec that produced no output, sealed.
+    ///
+    /// Two commands already REFUSE to write one: `drift --fix` calls
+    /// `is_sealable`, and `sync-twins` will not propagate one. Nothing counts
+    /// the ones already on disk, and every check reads them as healthy: the
+    /// spec_hash matches, so freshness passes; `none` equals `none`, so drift
+    /// reports zero; the file exists, so coverage counts it as covered.
+    ///
+    /// What such a seal actually records is that generation did not happen.
+    /// Measured on this repository the day the command was written: 218 seals
+    /// of 1316, and the split is total -- either all four hashes are real or
+    /// all four are `none`, never a mix, because a spec that fails to parse
+    /// fails all four backends at once.
+    Hollow {
+        /// Also run the compiler on each spec and group the parse errors.
+        ///
+        /// Turns a list of specs into a list of CAUSES. Costs one compiler
+        /// invocation per distinct spec.
+        #[arg(long)]
+        why: bool,
+    },
 }
 
 /// The five fields a seal makes a claim with. A pair that agrees on all five is
@@ -197,7 +218,9 @@ pub fn binary_is_stale(root: &std::path::Path, bin: &std::path::Path) -> Option<
     let mut newest = bin_t;
     let mut stack = vec![root.join("bootstrap/src")];
     while let Some(d) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
         for e in rd.flatten() {
             let p = e.path();
             if p.is_dir() {
@@ -396,6 +419,174 @@ pub fn run(cmd: &SealsCmd) -> Result<()> {
             println!("  listed above is not consulted and its age decides nothing.");
             return Ok(());
         }
+        SealsCmd::Hollow { why } => {
+            let by = collect(&dir)?;
+            // claims[0] is spec_hash; the four that follow are the generation
+            // claims, and only those decide hollowness. A seal whose spec_hash
+            // is `none` is a different, louder kind and is not this command's.
+            let mut hollow: Vec<(&String, &String)> = Vec::new();
+            let mut total = 0usize;
+            for (spec, seals) in by.iter() {
+                for (name, c) in seals {
+                    total += 1;
+                    if c.len() == CLAIMS.len() && c[1..].iter().all(|v| v.trim() == "none") {
+                        hollow.push((spec, name));
+                    }
+                }
+            }
+            let mut specs: Vec<&String> = hollow.iter().map(|(s, _)| *s).collect();
+            specs.sort();
+            specs.dedup();
+            let (present, missing): (Vec<&String>, Vec<&String>) =
+                specs.iter().partition(|s| root.join(s.as_str()).is_file());
+
+            println!(
+                "  seals that claim no generation   {}  of {total}",
+                hollow.len()
+            );
+            println!("  distinct specs behind them       {}", specs.len());
+            if !missing.is_empty() {
+                println!(
+                    "  ... whose spec is gone           {}  (dangling: the gate's kind)",
+                    missing.len()
+                );
+            }
+            if hollow.is_empty() {
+                println!();
+                println!("  Every seal on disk names four hashes. Nothing here records a");
+                println!("  generation that did not happen.");
+                return Ok(());
+            }
+
+            println!();
+            println!("  A hollow seal passes every check this repository has. spec_hash");
+            println!("  matches the file, so `seals fresh` is green. `none` equals `none`,");
+            println!("  so `seals drift` reports zero. The file exists, so Seal Coverage");
+            println!("  counts the spec as covered. The one thing it does not record is");
+            println!("  the output, because there was none.");
+
+            // A seal on a file that is not a spec at all. Found by this census on
+            // its first run: two of them name Markdown. `none` is the honest
+            // answer for a .md, and the question should not have been asked.
+            let odd: Vec<&&String> = present.iter().filter(|s| !s.ends_with(".t27")).collect();
+            if !odd.is_empty() {
+                println!();
+                println!("  sealed, but not a spec  {}", odd.len());
+                for s in odd.iter().take(6) {
+                    println!("      {s}");
+                }
+                if odd.len() > 6 {
+                    println!("      ... and {} more", odd.len() - 6);
+                }
+            }
+
+            let mut dirs: BTreeMap<String, usize> = BTreeMap::new();
+            for s in &specs {
+                let top = s.split('/').take(2).collect::<Vec<_>>().join("/");
+                *dirs.entry(top).or_default() += 1;
+            }
+            let mut rows: Vec<(&String, &usize)> = dirs.iter().collect();
+            rows.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+            println!();
+            println!("  where they are");
+            for (d, n) in rows.iter().take(10) {
+                println!("      {n:>4}  {d}");
+            }
+            if rows.len() > 10 {
+                println!(
+                    "      ... and {} more director{}",
+                    rows.len() - 10,
+                    if rows.len() - 10 == 1 { "y" } else { "ies" }
+                );
+            }
+
+            if !*why {
+                println!();
+                println!("  --why runs the compiler on each and groups the errors: it turns");
+                println!(
+                    "  {} specs into the handful of parser gaps behind them.",
+                    present.len()
+                );
+                return Ok(());
+            }
+
+            let bin = ["target/release/t27c", "target/debug/t27c"]
+                .iter()
+                .map(|p| root.join(p))
+                .find(|p| p.is_file());
+            let Some(bin) = bin else {
+                anyhow::bail!(
+                    "--why needs a compiler, and its absence is not a clean bill.\n  \
+                     cargo build --release -p t27c"
+                );
+            };
+            let mut kinds: BTreeMap<String, usize> = BTreeMap::new();
+            let mut parsed_fine = 0usize;
+            for spec in &present {
+                let out = std::process::Command::new(&bin)
+                    .arg("check")
+                    .arg(spec.as_str())
+                    .current_dir(&root)
+                    .output();
+                let Ok(out) = out else { continue };
+                if out.status.success() {
+                    parsed_fine += 1;
+                    continue;
+                }
+                let text = String::from_utf8_lossy(&out.stderr);
+                let line = text.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+                *kinds.entry(error_kind(line)).or_default() += 1;
+            }
+            let mut ks: Vec<(&String, &usize)> = kinds.iter().collect();
+            ks.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+            let named: usize = ks.iter().take(12).map(|(_, n)| **n).sum();
+            println!();
+            println!(
+                "  why they are hollow -- {} spec{}, {} distinct error{}",
+                present.len(),
+                if present.len() == 1 { "" } else { "s" },
+                ks.len(),
+                if ks.len() == 1 { "" } else { "s" }
+            );
+            for (k, n) in ks.iter().take(12) {
+                println!("      {n:>4}  {k}");
+            }
+            if ks.len() > 12 {
+                println!(
+                    "      ... {} more kind{}, {} spec{} between them",
+                    ks.len() - 12,
+                    if ks.len() - 12 == 1 { "" } else { "s" },
+                    present
+                        .len()
+                        .saturating_sub(named)
+                        .saturating_sub(parsed_fine),
+                    if present
+                        .len()
+                        .saturating_sub(named)
+                        .saturating_sub(parsed_fine)
+                        == 1
+                    {
+                        ""
+                    } else {
+                        "s"
+                    }
+                );
+            }
+            if parsed_fine > 0 {
+                println!();
+                println!(
+                    "      {parsed_fine} of them PARSE today. Their seal was written when they"
+                );
+                println!("      did not, and no re-seal has happened since. `seals drift` cannot");
+                println!("      see it: it compares `none` against a fresh reading only when the");
+                println!("      compiler succeeds, and here the stored side is the stale one.");
+            }
+            println!();
+            println!("  This command reports. Which of these specs should generate and which");
+            println!("  are prose the compiler was never meant to accept is not a question a");
+            println!("  counter may answer.");
+            return Ok(());
+        }
         SealsCmd::Drift { fix } => {
             let bin = ["target/release/t27c", "target/debug/t27c"]
                 .iter()
@@ -436,7 +627,10 @@ pub fn run(cmd: &SealsCmd) -> Result<()> {
                 }
             }
 
-            println!("  specs whose seals no longer describe them   {}", drifted.len());
+            println!(
+                "  specs whose seals no longer describe them   {}",
+                drifted.len()
+            );
             if unreadable > 0 {
                 println!("  NOT COMPUTED, nothing claimed               {unreadable}");
             }
@@ -633,4 +827,99 @@ mod tests {
         let b = vec!["sha256:abc".to_string()];
         assert_ne!(a, b);
     }
+
+    // The invariant the hollow census rests on: the SAME cause at DIFFERENT
+    // coordinates is one kind. Without it, 104 specs read as 104 problems.
+    #[test]
+    fn same_cause_different_lines_is_one_kind() {
+        let a = "Error: parse error in fn 'git_commit' near line 38: Unexpected \
+                 token in expression: Pipe ('|') at line 38:45";
+        let b = "Error: parse error in fn 'spec_show' near line 912: Unexpected \
+                 token in expression: Pipe ('|') at line 912:7";
+        assert_eq!(error_kind(a), error_kind(b));
+        assert!(!error_kind(a).contains("38"), "{}", error_kind(a));
+        assert!(error_kind(a).contains("Pipe"));
+    }
+
+    // The compiler nests its own prefix; seen three deep on specs/hslm.
+    #[test]
+    fn nested_prefixes_collapse() {
+        let k = error_kind(
+            "Error: parse error in fn 'f' near line 100: parse error near line 100: \
+             parse error near line 100: Expected RParen, got Bang ('!')",
+        );
+        assert!(!k.contains("100"), "{k}");
+        assert!(k.contains("Expected RParen"), "{k}");
+        assert_eq!(k.matches("parse error").count(), 1, "{k}");
+    }
+
+    // A different cause must NOT collapse into the same bucket -- the control
+    // that makes the test above mean something.
+    #[test]
+    fn different_causes_stay_apart() {
+        let a = error_kind("Error: parse error near line 1: Expected LBrace, got Semicolon (';')");
+        let b = error_kind("Error: parse error near line 1: Expected LBrace, got LParen ('(')");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn a_message_without_coordinates_survives_whole() {
+        let m = "Error: unterminated string literal opened";
+        assert_eq!(error_kind(m), m);
+    }
+
+    // is_sealable is what REFUSES to write one; the census counts what is
+    // already written. They must agree on what "hollow" means.
+    #[test]
+    fn census_and_refusal_agree() {
+        let four_none: Vec<String> = vec!["none".into(); 4];
+        assert!(!is_sealable(&four_none));
+        assert!(four_none.iter().all(|v| v.trim() == "none"));
+    }
+}
+
+/// The shape of a parse error, with the coordinates removed.
+///
+/// Two specs failing at different lines for the same reason are ONE gap in the
+/// parser, and a census that reports them as two invites 98 fixes where a dozen
+/// would do. The compiler nests its own prefix -- "parse error near line 100:"
+/// appears three deep on some specs -- so every occurrence is stripped, not the
+/// first.
+fn error_kind(line: &str) -> String {
+    let mut s = line.trim().to_string();
+    // "near line 100: " and " at line 36:38", wherever and however often.
+    loop {
+        let Some(i) = s.find("near line ") else { break };
+        let rest = &s[i..];
+        let Some(j) = rest.find(": ") else {
+            s.truncate(i);
+            break;
+        };
+        s = format!("{}{}", &s[..i], &rest[j + 2..]);
+    }
+    if let Some(i) = s.find(" at line ") {
+        s.truncate(i);
+    }
+    // A function name is the location too.
+    while let Some(a) = s.find(" in fn '") {
+        let Some(b) = s[a + 8..].find("'") else { break };
+        s = format!("{} in fn X{}", &s[..a], &s[a + 8 + b + 1..]);
+    }
+    // The nested prefix collapses to one. The repeats are NOT adjacent -- the
+    // compiler interleaves context ("in fn X") between them -- so a
+    // neighbour-only collapse leaves two, which is how this was caught.
+    const P: &str = "parse error";
+    if let Some(first) = s.find(P) {
+        let head = s[..first + P.len()].to_string();
+        let mut tail = s[first + P.len()..].to_string();
+        while let Some(i) = tail.find(P) {
+            let mut rest = tail[i + P.len()..].to_string();
+            while rest.starts_with(' ') || rest.starts_with(':') {
+                rest.remove(0);
+            }
+            tail = format!("{} {}", tail[..i].trim_end(), rest);
+        }
+        s = format!("{head}{tail}");
+    }
+    s.trim().trim_end_matches(':').trim().to_string()
 }
