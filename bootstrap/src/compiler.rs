@@ -18610,9 +18610,54 @@ impl CCodegen {
     }
 
     fn gen_c_for_stmt(&mut self, node: &Node) {
-        // C doesn't have for-each natively; emit as a for loop with index
+        // The comment here used to say "emit as a for loop with index" and the
+        // code emitted `{ body }` -- no induction variable, no bound, no
+        // increment. `for (0..1000) |_| { ... }` ran its body ONCE, in output
+        // `cc` accepts without a diagnostic. 373 of the 531 `for` statements in
+        // the corpus iterate a literal range, so that is the case worth
+        // lowering properly.
+        let body_idx = node.children.len().saturating_sub(1);
+        // The range is an ExprBinary whose extra_op is "..", NOT the ExprRange
+        // variant -- that variant is declared in NodeKind and constructed
+        // nowhere, so matching on it matched nothing and the block below kept
+        // running.
+        if body_idx == 1
+            && node.children[0].kind == NodeKind::ExprBinary
+            && node.children[0].extra_op == ".."
+            && node.children[0].children.len() == 2
+        {
+            // A capture of `_` names nothing the body can read, so the counter
+            // gets a reserved name instead; anything else is the body's own
+            // variable and must keep its spelling.
+            let cap = node
+                .params
+                .first()
+                .map(|(n, _)| n.clone())
+                .unwrap_or_default();
+            let var = if cap.is_empty() || cap == "_" {
+                "__t27_i".to_string()
+            } else {
+                cap
+            };
+            self.write_indent();
+            self.write(&format!("for (int {var} = "));
+            self.gen_c_expr(&node.children[0].children[0]);
+            self.write(&format!("; {var} < "));
+            self.gen_c_expr(&node.children[0].children[1]);
+            self.write_line(&format!("; {var}++) {{"));
+            self.indent();
+            for stmt in &node.children[body_idx].children {
+                self.gen_c_stmt(stmt);
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("}");
+            return;
+        }
+        // Everything else still becomes a bare block, and the comment now says
+        // so rather than describing a loop that is not there.
         self.write_indent();
-        self.write_line("/* for-each loop (see t27 source) */");
+        self.write_line("/* for-each over a non-range iterable: body emitted ONCE, not looped */");
         self.write_indent();
         self.write_line("{");
         self.indent();
