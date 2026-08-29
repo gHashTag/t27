@@ -5958,3 +5958,43 @@ The fix was ten lines: let the census take `--show <spec>` and scope to one file
 **Any aggregate you build should have a per-item mode from the start** — you will
 need it the first time the aggregate says something interesting, which is
 immediately.
+
+## 176. Validate a detector against the past, not against today
+
+I built `tri abandoned` to find the pattern that produced four defects: a comment
+naming a construct beside a recovery that discards it. Run at master it found one
+site — which proves nothing, because the defects it was built for are fixed.
+
+The control is the commit before the fixes. There it names four sites, including
+`fn name() given ... then ...` verbatim.
+
+**A detector for a class you have already cleaned must be run against the commit
+where the class was still present.** Otherwise its output is consistent with
+"works perfectly" and with "matches nothing".
+
+## 177. Two of four, and do not widen the window until it says four
+
+The same control says the detector would have found **two** of the four. The
+other two comments sit at the top of the clause loop, hundreds of lines from the
+recovery they describe.
+
+The tempting move is to widen the search window until the count reaches four.
+That would be fitting the instrument to its own motivating examples — after which
+it measures nothing, because any window large enough to catch those will
+attribute unrelated comments to unrelated sites.
+
+**Report the miss rate and leave the window alone.** Two of four, stated, is an
+instrument. Four of four, tuned, is a story.
+
+## 178. Backticks say somebody quoted something; a keyword says what
+
+First version matched any backticked phrase containing a space or punctuation. It
+fired on `children.is_empty()` and `gibberish foo` — a Rust expression and a
+doc-comment fixture — and buried the one real hit.
+
+Requiring a t27 keyword as a whole word inside the quote took it from 5 hits (1
+real) to 1 hit (1 real), and from 9 to 4 on the historical control.
+
+**When a heuristic matches a marker, check whether the marker distinguishes the
+thing you want from the thing next to it.** Backticks separate quotes from prose;
+they do not separate one language from another.
