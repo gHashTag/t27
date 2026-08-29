@@ -4978,8 +4978,17 @@ impl Parser {
                     text.push(' ');
                 }
                 if self.current.kind == TokenKind::String {
+                    // RE-ESCAPED, not raw. The lexer decodes `\n` to a real
+                    // newline and `\"` to a real quote when it reads the
+                    // literal; putting that value straight back between quotes
+                    // emits a Zig string containing an actual newline, which is
+                    // `string literal contains invalid byte: '\n'`.
+                    //
+                    // zig_string_body exists for exactly this and is already
+                    // used by the ExprLiteral path. The clause collector was
+                    // the copy that never got it.
                     text.push('"');
-                    text.push_str(&self.current.lexeme);
+                    text.push_str(&zig_string_body(&self.current.lexeme));
                     text.push('"');
                 } else {
                     text.push_str(&self.current.lexeme);
