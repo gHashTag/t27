@@ -4,6 +4,21 @@
 #
 # A file that GROWS fails. A file that SHRINKS also fails -- re-bless, so
 # the slack cannot be banked against the next one.
+#
+# NOT EVERY LINE HERE IS A DEFECT TO FIX. Three kinds live in this list:
+#
+#   configuration  a script or source file that should take the path from
+#                  the environment. FIX THESE. bootstrap/src/service.rs,
+#                  scripts/fpga-build.sh and the qmtech example were.
+#   a record       docs/reports/data/W*-harness.sh and the .err capture are
+#                  transcripts of measurements that were actually run. The
+#                  path is part of what happened. Editing them rewrites the
+#                  record, which is worse than the literal.
+#   an experiment  experiments/ scripts written against one machine and not
+#                  claimed to be portable. Fix opportunistically, or leave.
+#
+# The count is what this gate holds. Which kind a file is, only a reader
+# can say -- so it is said here rather than guessed at by the tool.
 .trinity/state/dlc10_rust_spec.md	1
 docs/NOW.md	1
 docs/fpga/LOCAL-BITSTREAM-FLOW.md	3
@@ -12,7 +27,6 @@ docs/reports/data/W564-harness.sh	1
 docs/reports/data/W568-harness.sh	1
 docs/reports/data/W586-harness.sh	1
 docs/reports/pdf/build_pdf.sh	1
-examples/fpga/qmtech_minimal/build.sh	6
 experiments/gfternary-line/activation.py	1
 experiments/gfternary-line/balanced_connect.py	1
 experiments/gfternary-line/bases.py	1
@@ -35,4 +49,3 @@ experiments/gfternary-line/train_export.py	1
 experiments/gfternary-line/zeckendorf.py	1
 fasm2frames.err	2
 fpga/w690_bitstream_flow.sh	4
-scripts/fpga-build.sh	3

@@ -10,10 +10,24 @@
 # Usage: fpga-build.sh <top> <verilog...>   -- writes <top>.bit beside the json
 set -u
 R=${R:-$(git rev-parse --show-toplevel)}
-PNR=${PNR:-/Users/playom/t27/build/fpga/openxc7/nextpnr-openxc7/build/nextpnr-xilinx}
 DB=$R/build/fpga/openxc7/prjxray-db/artix7
-VPY=${VPY:-/Users/playom/t27/build/fpga/openxc7/venv/bin/python3}
-XR=${XR:-/Users/playom/t27/build/fpga/openxc7/prjxray}
+# W707: three defaults used to name one developer's home directory. A default
+# that is one machine's path is that literal wearing a fallback -- it is still in
+# the file, the guard still has to allowlist it, and the next reader still learns
+# somebody else's layout. The toolchain root comes from T27_OPENXC7, the same
+# variable `t27c preflight` and `t27c silicon` read since W706, and each of the
+# three derived paths stays individually overridable.
+if [ -z "${T27_OPENXC7:-}" ] && { [ -z "${PNR:-}" ] || [ -z "${VPY:-}" ] || [ -z "${XR:-}" ]; }; then
+  echo "T27_OPENXC7 is not set. It must name the directory holding the openXC7" >&2
+  echo "toolchain -- prjxray/, nextpnr-openxc7/ and venv/ -- which lives outside" >&2
+  echo "this repository because it is several gigabytes shared across worktrees." >&2
+  echo "  export T27_OPENXC7=/path/to/build/fpga/openxc7" >&2
+  echo "...or set PNR, VPY and XR individually." >&2
+  exit 1
+fi
+PNR=${PNR:-$T27_OPENXC7/nextpnr-openxc7/build/nextpnr-xilinx}
+VPY=${VPY:-$T27_OPENXC7/venv/bin/python3}
+XR=${XR:-$T27_OPENXC7/prjxray}
 TOP=$1; shift
 OUT=${OUT:-$(dirname $1)}
 set -e
