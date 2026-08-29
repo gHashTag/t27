@@ -284,11 +284,20 @@ pub fn defs_in(file: &str, src: &str) -> Vec<(String, Def)> {
         let mut fields = Vec::new();
         let mut j = i + 1;
         while j < lines.len() {
-            let l = lines[j].trim();
-            if l.starts_with('}') {
+            // W715: a `//` tail is not part of the type. Without this,
+            // `cell_count : u32,   // number of standard cells` records the
+            // comment IN the type, and `verdict()` -- which decides CONFLICTED
+            // vs DUPLICATED by comparing field lists -- calls two definitions
+            // that differ only in their comments a conflict.
+            //
+            // Measured before the fix: ZERO of the 80 conflicted names rest on
+            // a comment difference, so no published verdict moves. It is a
+            // latent defect, fixed now rather than on the day it decides one.
+            let l = lines[j].split("//").next().unwrap_or("").trim();
+            if lines[j].trim().starts_with('}') {
                 break;
             }
-            if !l.starts_with("//") {
+            {
                 if let Some((n, ty)) = l.split_once(':') {
                     // W707: a field may be `pub name: T`. Splitting on `:` then
                     // rejecting a name containing a space threw every such field
@@ -900,6 +909,27 @@ mod tests {
 
     fn parse(src: &str) -> Vec<(String, Def)> {
         defs_in("x.t27", src)
+    }
+
+    /// W715: a `//` tail is not part of the type. `verdict()` decides
+    /// CONFLICTED vs DUPLICATED by comparing field lists, so a comment inside
+    /// a type makes two identical definitions look like a disagreement.
+    ///
+    /// Measured before the fix: zero of the 80 conflicted names rested on a
+    /// comment difference. The defect was latent, not active -- and the pair
+    /// below is what it would have decided wrongly on the day it was not.
+    #[test]
+    fn a_comment_is_not_part_of_a_field_type() {
+        let a = defs_in(
+            "a.t27",
+            "pub struct S {\n    cell_count : u32,   // number of standard cells\n}\n",
+        );
+        let b = defs_in("b.t27", "pub struct S {\n    cell_count : u32,\n}\n");
+        assert_eq!(a.len(), 1);
+        assert_eq!(b.len(), 1);
+        assert_eq!(a[0].1.fields, b[0].1.fields, "the comment must not be in the type");
+        let both = vec![a[0].1.clone(), b[0].1.clone()];
+        assert_eq!(verdict(&both), "DUPLICATED", "same fields, one commented");
     }
 
     #[test]

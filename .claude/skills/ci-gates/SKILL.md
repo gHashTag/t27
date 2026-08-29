@@ -7338,3 +7338,27 @@ rather than a guess.
 **When you write a guard as a literal list, write down how you will find out it
 is short.** Here it was: count the clauses whose window crosses a construct
 boundary, and watch that number rather than the list.
+
+## 251. A latent defect, and the number that says how latent
+
+`tri types dup` decides CONFLICTED versus DUPLICATED by comparing field lists.
+It read `cell_count : u32,   // number of standard cells` and put the comment
+**inside the type**, so two definitions differing only in their comments would
+be called a conflict.
+
+Named by an agent in passing, three iterations after I wrote the code. The
+first question was not how to fix it but **how much it had already decided
+wrongly**:
+
+    of the 80 conflicted names, those resting on a comment difference:  0
+
+Zero. The published 46 DRIFT / 34 DISTINCT classification is untouched, and the
+fix moved no verdict — the ratchet stayed CLEAN at 80/80, which is the control.
+
+Fixed anyway. A latent defect is one that has not decided anything **yet**, and
+the fix is cheap now and a correction later.
+
+**Measure the blast radius before you fix it, not after.** The measurement is
+what turns "I found a bug" into "the bug changed nothing, and here is the
+number" — and it is the only version of that sentence anyone can check. Fixing
+first destroys the evidence that it was harmless.
