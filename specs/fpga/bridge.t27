@@ -309,8 +309,8 @@ module FPGA_Bridge;
     fn bridge_handle_status() -> void {
         // Send status response
         const status = [
-            if (bridge.spi_enabled) { 1u8 } else { 0u8 },
-            if (bridge.mac_enabled) { 1u8 } else { 0u8 },
+            if (bridge.spi_enabled) 1u8 else 0u8,
+            if (bridge.mac_enabled) 1u8 else 0u8,
             0u8, 0u8,  // Reserved
         ];
 
