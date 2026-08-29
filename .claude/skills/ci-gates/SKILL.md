@@ -5998,3 +5998,62 @@ real) to 1 hit (1 real), and from 9 to 4 on the historical control.
 **When a heuristic matches a marker, check whether the marker distinguishes the
 thing you want from the thing next to it.** Backticks separate quotes from prose;
 they do not separate one language from another.
+
+## 179. A `--limit` on a run list is a time window in disguise
+
+I opened a session by asking how healthy master was:
+
+    gh run list --branch master --limit 60
+
+Sixteen workflows, all green, one inconclusive. I nearly built an iteration on
+that. The window those 60 runs covered was **2 hours 28 minutes**.
+
+Widened to 1 000 runs over five days: 940 success / 60 failure across 40 distinct
+workflows, and **nine workflows whose most recent master run is a failure**.
+
+A busy repository can put 60 runs into an afternoon. **Ask for a time span, or
+ask for enough runs that the oldest one is older than the question you are
+asking** — and print the span beside the verdict so the next reader can see it.
+
+## 180. The gate that gates master printed its failures and returned success
+
+`suite --ratchet --corpus-only` runs on every push to master. It prints
+
+    GATE FAILURES:     42
+
+and exits 0, because the exit code was computed from the expectations ledger
+alone. Forty-two catalog findings, two conformance tables and four other checks
+were being written into a log nobody reads.
+
+Proven by planting a conformance case that cannot pass: the table read `24/25`,
+the count read 43, and the command still returned success.
+
+**Any number a gate prints and does not compare against something is decoration.**
+The fix is not to fail on 42 — that lands red and gets reverted — it is to pin 42
+and fail on 43, with a fall failing too so the slack cannot be banked.
+
+## 181. A test and the change it covers are one unit
+
+I committed a conformance case and left its parser fix uncommitted in the working
+tree. On master the case was a test for a fix that was not there, and
+`parse-conform` exited 1 while every PR check stayed green.
+
+Two failures in one: a red gate left behind, and a fix nobody could tell was
+load-bearing.
+
+**Stage them together or park them together.** When work has to be set aside,
+move the whole unit — I had to make a second commit on the parked branch to
+reunite them.
+
+## 182. "The tree is clean" is a reading with a timestamp, not a property
+
+I checked `git status`, saw a clean tree, built a binary, and reported numbers
+from it. The tree was not clean at build time, and four specs' discard counts
+moved with no code change — which is what exposed it.
+
+The check itself was sound; what was wrong was carrying its answer forward across
+a build.
+
+**Verify the binary, not the tree, and verify it at the moment you measure.** For
+any number that leaves the machine, build from a pristine worktree of the commit
+you are naming.
