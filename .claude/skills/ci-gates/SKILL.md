@@ -7734,3 +7734,57 @@ shape, and the first where the reading is the whole safety argument.
 All three are in my own notes with names. **Knowing a trap and recognising it in
 your own output are different skills**, and the second one only comes from
 reading the output — which is what the note should say and did not.
+
+## 270. Six red checks on six pull requests, all six merged
+
+Before adding anything, the question worth asking was whether the signal had
+ever reached the author. It had:
+
+    #2841  coverage=fail     #2849  coverage=fail
+    #2844  coverage=fail     #2856  coverage=fail
+    #2845  coverage=fail     #2859  coverage=fail
+
+Six emitter PRs, the seal gate red **on the pull request itself**, every one
+merged. So the barrier was not knowledge, not tooling, and not timing — the
+check fired in the right place at the right time, six times.
+
+The output is why. The legend explained `stale`, `dangling` and `phantom`. The
+kind that fired was **`gen-drift`, which had no entry**, and the only repair the
+page named was `--update-baseline` — which for that kind records the drift as
+accepted debt instead of recording what the compiler now produces. **The one
+actionable line on the page was the wrong action.**
+
+**A check nobody acts on may be a check nobody can act on.** Read the failure
+output as the author sees it before concluding they ignored it.
+
+## 271. Three kinds, five kinds, eight kinds
+
+The fix looked like two legend lines. Instead the legend became data and a
+`--self-check` guard read the **source** for every kind it can attach:
+
+    legend covers 5 of 8 kind(s)  MISSING: no-spec-hash, no-spec-path, unreadable
+
+Five, not five-of-five: the guard found **three more kinds** I had not seen
+while writing the fix for the two I had. The script attaches eight; the legend
+explained three.
+
+Second guard this session to earn itself on its first execution, after
+`tri types classified` reporting `HealthStatus` UNJUDGED.
+
+**Count the cases from the code, never from the reading that motivated you.** I
+grepped for the kind that was failing and found two; the source knew about
+eight.
+
+## 272. A legend that lists what did not happen
+
+While making the legend data, it also became **selective**: only the kinds
+actually present in this run are printed.
+
+Before, an author with 134 `gen-drift` rows read three paragraphs about stale,
+dangling and phantom seals — none of them theirs. Now they get one paragraph,
+which is theirs, and the command that fixes it.
+
+Controlled both ways: removing a kind's entry gives `MISSING: gen-drift` and
+exit 1; adding an entry nothing attaches gives `UNREACHABLE: invented-kind` and
+exit 1. **An explanation for a state that cannot occur is the same defect as a
+state with no explanation** — one wastes the reader, the other strands them.
