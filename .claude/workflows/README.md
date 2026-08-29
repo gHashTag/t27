@@ -75,3 +75,25 @@ silent drop is fixed was measuring the drop — on W699, recovering 1 049 discar
 tokens took Zig 217 to 215 because three specs had been accepted on less code
 than they contain. Two of three lenses must affirmatively establish that working
 behaviour was lost before a row is called a regression.
+
+## The rule both of these follow: measure against the past
+
+`column-forensics` takes two per-item dumps from two builds because an aggregate
+at HEAD says nothing about what a change did. The same rule applies to a
+DETECTOR, and it is easy to miss.
+
+`tri abandoned list` was written to find the pattern behind four parser defects.
+Run at HEAD it named one site — a result equally consistent with "works" and with
+"matches nothing", because the four defects it was built for are fixed. The
+control is the commit before the fixes; there it names four.
+
+```
+git worktree add /tmp/before <commit-before-the-fixes>
+tri abandoned list --file /tmp/before/bootstrap/src/compiler.rs
+```
+
+**A new instrument's first run should be against a commit where the thing it
+looks for was still there.** And when it finds only some of them — two of four,
+here — that number is the instrument's specification, not a bug to tune away. A
+detector adjusted until it hits its own motivating examples has stopped being
+evidence.
