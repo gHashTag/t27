@@ -8939,3 +8939,50 @@ check and it takes a second.
 It is the same shape as the fix that did not travel from one command to its
 neighbouring function, one level up: there the sibling was a function, here it
 is a file. Both were invisible because the gate I ran was green.
+
+## 356. The option you keep not picking
+
+`tri unparsed locate` confirmed 37 answers and refuted 37 -- exactly half. That
+line sat at the bottom of four consecutive iteration reports, and each time I
+picked one of the other two options.
+
+Half is not a plateau, it is a signal. The cause took twenty minutes: a file
+declaring `module NAME;` -- the SEMICOLON form -- has no wrapping brace, and
+`split_module` looked for "the first line that opens a brace at depth 1" and
+found the first `struct`. Everything after that struct's closing brace became
+the "tail", so every truncated prefix had a large orphan chunk glued onto it
+and failed for the chunk's own reasons.
+
+  confirmed  37 -> 60      refuted  37 -> 14
+
+**A number that has been stable across several reports is either finished or
+avoided.** Write down which, and if it is avoided, take it next.
+
+## 357. The base rate is what turned a hunch into a cause
+
+The hunch -- "the tail is too long" -- was available immediately: 32 of the 37
+refuted cases had a tail over 10 lines. On its own that is worth nothing; long
+tails might simply be common.
+
+```
+                tail > 10 lines   tail = 1 line
+  refuted            32                4
+  confirmed           4               33
+```
+
+A one-line tail is a real braced module's closing brace, and it lands almost
+exclusively in the confirmed column. THAT is the finding, and it costs one more
+measurement than the hunch did.
+
+**A distribution over the failing group is a hunch. The same distribution over
+the passing group is a cause.**
+
+## 358. Fourteen refusals that are correct
+
+The 14 still refuted point at lines 5 to 11 -- the first item in the file. Those
+are specs opening with `algorithm NAME {`, a construct the parser does not
+implement at all, so the very first prefix fails and there is nothing to bisect.
+
+The locator says so instead of naming that item, which is right: "the file is
+unsupported from its first declaration" is not the same claim as "this item
+causes the failure", and only the second one is what the command promises.
