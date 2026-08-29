@@ -6257,13 +6257,34 @@ impl Codegen {
         // rather than parsed; the element goes through zig_type so `[u8;32]`
         // and `[LQGCSymbol;8]` both land right.
         if let Some(inner) = t.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-            if let Some((elem, count)) = inner.split_once(';') {
-                let elem = elem.trim();
-                let count = count.trim();
-                let plain = |s: &str| {
-                    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
-                };
-                if plain(elem) && plain(count) && !elem.starts_with(|c: char| c.is_ascii_digit()) {
+            // Split at the `;` OUTSIDE any nested brackets, and recurse on the
+            // element. The first version split at the first `;` and demanded a
+            // bare identifier on each side, which is right for `[u8;32]` and
+            // wrong for `[&[u8;9];3]` -- an array of three pointers to `[9]u8`,
+            // where the first `;` belongs to the INNER type. Requiring the
+            // element to be plain is what made that case silently skip.
+            //
+            // The COUNT stays plain: it is a literal or a named constant, never
+            // a compound expression in this corpus.
+            let semi = {
+                let mut depth = 0i32;
+                let mut at = None;
+                for (i, c) in inner.char_indices() {
+                    match c {
+                        '[' | '(' => depth += 1,
+                        ']' | ')' => depth -= 1,
+                        ';' if depth == 0 => at = Some(i),
+                        _ => {}
+                    }
+                }
+                at
+            };
+            if let Some(i) = semi {
+                let elem = inner[..i].trim();
+                let count = inner[i + 1..].trim();
+                let plain_count = !count.is_empty()
+                    && count.chars().all(|c| c.is_alphanumeric() || c == '_');
+                if !elem.is_empty() && plain_count {
                     return format!("[{}]{}", count, Self::zig_type(elem));
                 }
             }
