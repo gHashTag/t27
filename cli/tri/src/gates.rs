@@ -2526,34 +2526,86 @@ fn days_since(iso: &str) -> Option<u64> {
     Some(secs as u64 / 86_400)
 }
 
+/// GitHub keeps a workflow registered as `active` after its file is deleted, so
+/// `state=="active"` is the API's word and not the repository's: 61 registrations
+/// here against 48 files, and 13 of the registrations have nothing left to fix.
+/// A deleted workflow with a zero success count is history, not a dead gate, and
+/// listing the two together makes the fixable ones harder to see.
+fn workflow_file_present(path: &str) -> bool {
+    std::path::Path::new(path).is_file()
+}
+
+/// Where a never-succeeded workflow belongs.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Bucket {
+    /// Has a file and enough runs to judge: a dead gate, reported.
+    Reported,
+    /// Has a file but fewer runs than the floor: named separately, never dropped.
+    Suppressed,
+    /// No file in the tree: history for a workflow that no longer exists.
+    Deleted,
+}
+
+/// The three-way split, without the network.
+///
+/// Deleted is decided FIRST. A registration with no file cannot be under- or
+/// over-run: there is nothing to fix either way, and letting the run count decide
+/// its bucket would file a phantom under whichever threshold it happened to meet.
+pub fn classify(on_disk: bool, total: u64, min_runs: u64) -> Bucket {
+    if !on_disk {
+        Bucket::Deleted
+    } else if too_few_runs_to_judge(total, min_runs) {
+        Bucket::Suppressed
+    } else {
+        Bucket::Reported
+    }
+}
+
 fn dead(repos: &[String], min_runs: u64) -> Result<()> {
     let mut rows: Vec<(String, String, u64)> = Vec::new();
+    let mut deleted: Vec<(String, String, u64)> = Vec::new();
+    // Every workflow the threshold hid, so a bounded report never reads as a
+    // complete one. `brain-seal-refresh.yml` fails structurally -- its last step
+    // is a `git push` this repository's own ruleset rejects -- and has 8 lifetime
+    // runs, so the shipped floor of 50 suppresses it entirely.
+    let mut suppressed: Vec<(String, String, u64)> = Vec::new();
+    let single_repo = repos.len() == 1;
     for repo in repos {
         let listing = gh(&[
             "api",
             &format!("repos/{repo}/actions/workflows?per_page=100"),
             "--jq",
-            r#".workflows[]|select(.state=="active")|"\(.id)\t\(.name)""#,
+            r#".workflows[]|select(.state=="active")|"\(.id)\t\(.path)\t\(.name)""#,
         ])?;
         for line in listing.lines() {
-            let mut it = line.splitn(2, '\t');
-            let (id, name) = match (it.next(), it.next()) {
-                (Some(a), Some(b)) => (a, b),
+            let mut it = line.splitn(3, '\t');
+            let (id, path, name) = match (it.next(), it.next(), it.next()) {
+                (Some(a), Some(b), Some(c)) => (a, b, c),
                 _ => continue,
             };
             let total = count(repo, id, false)?;
-            if too_few_runs_to_judge(total, min_runs) {
+            let never = count(repo, id, true)? == 0;
+            if !never {
                 continue;
             }
-            if count(repo, id, true)? == 0 {
-                rows.push((repo.clone(), name.to_string(), total));
+            // The path check only means anything for the repository we are standing
+            // in; for any other repo in the list, take the API at its word.
+            let on_disk = !single_repo || workflow_file_present(path);
+            let row = (repo.clone(), name.to_string(), total);
+            match classify(on_disk, total, min_runs) {
+                Bucket::Deleted => deleted.push(row),
+                Bucket::Suppressed => suppressed.push(row),
+                Bucket::Reported => rows.push(row),
             }
         }
     }
+    deleted.sort_by(|a, b| b.2.cmp(&a.2));
+    suppressed.sort_by(|a, b| b.2.cmp(&a.2));
 
     rows.sort_by(|a, b| b.2.cmp(&a.2));
     if rows.is_empty() {
-        println!("No active workflow with >= {min_runs} runs has a zero success count.");
+        println!("No workflow with a file and >= {min_runs} runs has a zero success count.");
+        report_suppressed_and_deleted(&suppressed, &deleted, min_runs);
         return Ok(());
     }
 
@@ -2572,13 +2624,81 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
     println!("your change and red after it. Decide per workflow — fix it, make it");
     println!("workflow_dispatch only, or delete it. Leaving it red is the one");
     println!("option that costs every other gate in the repository.");
+    report_suppressed_and_deleted(&suppressed, &deleted, min_runs);
     Ok(())
+}
+
+/// Say what was left out. A bounded report that does not name its bound reads as
+/// a complete one, and the four workflows below the shipped floor include the two
+/// whose failure is structural rather than situational.
+fn report_suppressed_and_deleted(
+    suppressed: &[(String, String, u64)],
+    deleted: &[(String, String, u64)],
+    min_runs: u64,
+) {
+    if !suppressed.is_empty() {
+        println!();
+        println!(
+            "{} more have never succeeded but fall under --min-runs {min_runs}:",
+            suppressed.len()
+        );
+        for (repo, name, runs) in suppressed {
+            let short: String = name.chars().take(44).collect();
+            println!("  {runs:>6}  {repo:<22} {short}");
+        }
+        println!("Few runs is not few enough to be safe: a workflow whose last step is");
+        println!("forbidden by this repository's own ruleset fails every time it runs,");
+        println!("and runs rarely.");
+    }
+    if !deleted.is_empty() {
+        println!();
+        println!(
+            "{} registration(s) are `active` to the API with no file in the tree --",
+            deleted.len()
+        );
+        println!("history, not a gate, and nothing to fix:");
+        for (repo, name, runs) in deleted {
+            let short: String = name.chars().take(44).collect();
+            println!("  {runs:>6}  {repo:<22} {short}");
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use clap::Parser;
+
+    /// A registration with no file is history, whatever its run count.
+    ///
+    /// GitHub keeps a workflow `active` after its file is deleted: 61 registrations
+    /// against 48 files here. Nine of them have never succeeded, and one has 31
+    /// failures -- more than four of the six real ones. Bucketing by run count
+    /// first would put that phantom above the workflow whose last step this
+    /// repository's own ruleset rejects.
+    #[test]
+    fn a_deleted_workflow_is_history_at_any_run_count() {
+        assert_eq!(classify(false, 1000, 50), Bucket::Deleted, "many runs");
+        assert_eq!(classify(false, 1, 50), Bucket::Deleted, "one run");
+        assert_eq!(classify(false, 0, 50), Bucket::Deleted, "none");
+    }
+
+    /// Below the floor is named, not dropped.
+    ///
+    /// `brain-seal-refresh.yml` has 8 lifetime runs across five months and fails
+    /// every one: its last step is a `git push` to master, which the ruleset
+    /// answers with GH013. The shipped floor of 50 hid it completely, and a
+    /// bounded report that does not name its bound reads as a complete one.
+    #[test]
+    fn under_the_floor_is_a_bucket_and_not_a_silence() {
+        assert_eq!(classify(true, 8, 50), Bucket::Suppressed);
+        assert_eq!(classify(true, 62, 50), Bucket::Reported);
+        assert_eq!(
+            classify(true, 50, 50),
+            Bucket::Reported,
+            "the floor is a minimum to judge, so meeting it is enough"
+        );
+    }
 
     /// Each operator has a flag, and each flag selects exactly one.
     ///
