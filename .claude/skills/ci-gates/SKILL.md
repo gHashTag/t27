@@ -6874,3 +6874,32 @@ the greps were written in one line to answer one question and never checked.
 **When a one-line grep disagrees with a tool that has tests, believe the tool
 and go find the bug in the grep.** The reverse — assuming the tool has drifted —
 has been wrong every time it has come up here.
+
+## 230. "Numbering holds in 5 file(s)" — four of them had no numbers
+
+My own gate printed that line for months. Reading the rows above it:
+
+    ci-gates    228 section(s)
+    phi-loop      0 section(s)
+    tri           0 section(s)
+    tri-pipeline  0 section(s)
+    wrap-up       0 section(s)
+
+Four of the five contributed nothing. "Holds in 5 files" counts four where there
+was nothing to check — the same shape as *13 gates green* when two of them never
+ran. And "numbering holds" was read as *the sequence is intact* while §126 has
+never existed in the history of the file.
+
+The gate is not wrong. Gaps are deliberately not a failure: a section can be
+deleted, and refusing would make an append-only log unmergeable. **The summary
+line was wrong** — it named a verdict the check had not earned.
+
+    No number is used twice: 228 section(s) across 1 of 5 file(s) read.
+    The other 4 contributed no numbered section, so nothing was checked in them.
+    ci-gates: 1 number(s) never used (126). Not a failure; stated so it is
+    not mistaken for one.
+
+**Write the summary as the sentence the check can defend.** A reader takes the
+last line as the verdict and never reads the rows above it, so the last line
+carries the whole claim — and a claim that a file passed is not the same as a
+claim that a file had anything in it.

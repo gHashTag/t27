@@ -129,6 +129,9 @@ fn skill_files(root: &std::path::Path) -> Vec<PathBuf> {
 
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let SkillCmd::Check { gaps: show_gaps } = cmd;
+    if *show_gaps {
+        println!("  --gaps is now the default: an unused number is always stated.");
+    }
     let root = repo_root()?;
     let files = skill_files(&root);
     if files.is_empty() {
@@ -139,6 +142,13 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
         );
     }
     let mut failed = 0usize;
+    // Files that actually CONTRIBUTED a numbered section. Four of the five
+    // SKILL.md files in this repository have none, and reporting "5 file(s)"
+    // counts four where there was nothing to check -- the same shape as
+    // "13 gates green" when two of them never ran.
+    let mut with_sections = 0usize;
+    let mut total_sections = 0usize;
+    let mut gapped: Vec<(String, Vec<usize>)> = Vec::new();
     for f in &files {
         let text =
             std::fs::read_to_string(f).with_context(|| format!("reading {}", f.display()))?;
@@ -150,6 +160,13 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
             .unwrap_or_default();
         let bad = problems(&secs);
         let g = gaps(&secs);
+        if !secs.is_empty() {
+            with_sections += 1;
+            total_sections += secs.len();
+        }
+        if !g.is_empty() {
+            gapped.push((name.clone(), g.clone()));
+        }
         println!(
             "  {:<24} {:>4} section(s){}",
             name,
@@ -160,15 +177,7 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
             println!("      {b}");
             failed += 1;
         }
-        if *show_gaps && !g.is_empty() {
-            println!(
-                "      gaps (reported, not a failure): {}",
-                g.iter()
-                    .map(|n| n.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-        }
+
     }
     println!();
     if failed > 0 {
@@ -176,7 +185,29 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
         println!("  merge that keeps BOTH sides produces, and nothing else notices it.");
         std::process::exit(1);
     }
-    println!("  Numbering holds in {} file(s).", files.len());
+    // Say what was checked, not how many files were opened. "Numbering holds"
+    // over a file with no numbers is true and worthless; a reader takes the
+    // summary as the verdict and never reads the rows above it.
+    println!(
+        "  No number is used twice: {total_sections} section(s) across {with_sections} of {} file(s) read.",
+        files.len()
+    );
+    if with_sections < files.len() {
+        println!(
+            "  The other {} contributed no numbered section, so nothing was checked in them.",
+            files.len() - with_sections
+        );
+    }
+    for (name, g) in &gapped {
+        // A gap is not a failure -- a section can be deleted, and refusing
+        // would make the log unmergeable. But the summary above must not read
+        // as "the sequence is intact" while a number is missing from it.
+        println!(
+            "  {name}: {} number(s) never used ({}). Not a failure; stated so it is not mistaken for one.",
+            g.len(),
+            g.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")
+        );
+    }
     Ok(())
 }
 
