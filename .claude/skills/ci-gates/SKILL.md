@@ -6953,3 +6953,55 @@ rediscovered by whoever opens the list next.
 
 **Without that note the next pass "fixes" a measurement record**, which is
 strictly worse than the literal it removes.
+
+## 234. A corpus with two indentation conventions has no indentation rule
+
+Asking "which names are defined twice in one file" needs a definition of
+*top level*. Four spaces of indentation looked like one, because the file
+that prompted the question — `specs/ml/optimizer/adamw.t27` — puts
+everything four spaces under `module AdamW;`.
+
+That rule reported **43 files** out of 650. Two of them were real.
+
+The other 41 were `const sign = ...` and `const a = ...` inside function
+bodies, because `specs/numeric/gf16.t27` writes the opposite convention:
+definitions at column 0, bodies at four. One number meant "top level" in
+one file and "inside a function" in the other, and a rule that reads
+columns cannot tell them apart.
+
+Bracket depth zero reports **2**, and gets both conventions right at once:
+`module M;` ends in a semicolon, so it opens no block and its indented
+contents are still depth zero.
+
+The tell was in the output and I nearly missed it. A hit list containing
+`a@828+838+901+914+924+932+940+950+959+967+975+983+991+999+1007...` — one
+letter, forty-odd lines — is not a corpus of forty-odd redefinitions of
+`a`. It is a local loop variable. **When a detector's own output looks
+like something no author would write, the detector is describing itself.**
+
+## 235. Two implementations of one question, and only that caught it
+
+The same question — do these copies state different numbers? — was
+answered twice: once by a throwaway Python scan while reading the file,
+once by the Rust that shipped. Python said five. Rust said zero.
+
+The Rust filtered field names to lowercase letters and underscore. The
+fields are `pass_at_1` and `pass_at_5`. Every field the check exists to
+compare has a digit in it, so it compared nothing and reported clean.
+
+A clean report is indistinguishable from a clean file. There was no error,
+no empty result, no zero-length list — the check ran over 650 specs, found
+the duplicated names correctly, classified all thirteen, and got the one
+sub-question that mattered exactly backwards. Nothing in the output said
+so. It was caught because a second implementation of the same question
+already had an answer and the two did not match.
+
+This is the cheap version of the discipline: when a reading is going to be
+committed, the exploratory scan that found it is a free second opinion, and
+comparing them costs one command. Throwing it away and trusting the
+rewrite is how a check ships that passes because it is blind.
+
+The regression is now a test — `a_field_name_may_contain_a_digit` — and
+removing the digit from the filter fails it and one other. Related: the
+verdict is split so text drift cannot mask numeric drift (§234 for the
+ruler, #2822 for what it found).
