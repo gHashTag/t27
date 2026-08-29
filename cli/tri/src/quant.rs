@@ -505,6 +505,138 @@ fn read_specs(root: &std::path::Path) -> Vec<(PathBuf, String)> {
     out
 }
 
+/// A call the corpus writes, and how many arguments it passes.
+///
+/// `args` is `None` when the parenthesis does not close inside the clause
+/// window -- the reader ABSTAINS there rather than scoring the call short.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Call {
+    pub name: String,
+    pub args: Option<usize>,
+    /// A `.` immediately left of the name: `x.len()`. The receiver IS an
+    /// argument, so 0-vs-1 is a convention, not a mismatch.
+    pub method: bool,
+}
+
+/// Every call in a clause body, with its argument count.
+///
+/// The count is a paren-depth walk, not a comma split: 80 clause windows carry
+/// a nested paren group, and `f(g(a, b), c)` has two arguments, not three.
+pub fn calls(body: &str) -> Vec<Call> {
+    const KW: [&str; 13] = [
+        "if", "while", "for", "return", "forall", "assert", "let", "match", "else", "and", "or",
+        "given", "then",
+    ];
+    let b: String = body
+        .lines()
+        .map(|l| l.split("//").next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let ch: Vec<char> = b.chars().collect();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < ch.len() {
+        if !(ch[i].is_ascii_lowercase() || ch[i] == '_') {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < ch.len() && (ch[i].is_ascii_alphanumeric() || ch[i] == '_') {
+            i += 1;
+        }
+        let name: String = ch[start..i].iter().collect();
+        let mut j = i;
+        while j < ch.len() && ch[j] == ' ' {
+            j += 1;
+        }
+        if j >= ch.len() || ch[j] != '(' || KW.contains(&name.as_str()) {
+            continue;
+        }
+        let method = start > 0 && ch[start - 1] == '.';
+        out.push(Call {
+            name,
+            args: count_args(&ch, j),
+            method,
+        });
+        i = j + 1;
+    }
+    out
+}
+
+/// Arguments between `open` and its matching close, or `None` if it never
+/// closes. An opening bracket counts as content: `f([])` passes ONE argument,
+/// and a walk that only notices non-space characters scores it zero.
+fn count_args(ch: &[char], open: usize) -> Option<usize> {
+    let (mut depth, mut n, mut seen) = (0i32, 0usize, false);
+    for (k, c) in ch.iter().enumerate().skip(open) {
+        match c {
+            '(' | '[' | '{' => {
+                depth += 1;
+                if depth > 1 {
+                    seen = true;
+                }
+            }
+            ')' | ']' | '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(if seen { n + 1 } else { 0 });
+                }
+                seen = true;
+            }
+            ',' if depth == 1 => n += 1,
+            c if !c.is_whitespace() => seen = true,
+            _ => {}
+        }
+        let _ = k;
+    }
+    None
+}
+
+/// Does this call pass a number of arguments no declaration in scope accepts?
+///
+/// Returns `(name, passed, declared)` per offending call. ABSTAINS -- returns
+/// nothing for that call -- when the paren does not close, when the name is in
+/// method position, when no declaration is visible, or when the visible scope
+/// offers more than one arity. Four of the six rules are abstentions.
+///
+/// The compiler cannot answer this. `parse_invariant_clause` discards a
+/// quantified clause on purpose (#2774), so the body produces no AST at all and
+/// every AST-based check -- including `t27c check-calls`, which finds 95 of
+/// these corpus-wide -- is blind to it by construction. Measured: 0 of the 20
+/// clause-site candidates appear in `check-calls` output; 15 of 15 partner
+/// sites outside clause bodies do.
+pub fn arity_mismatches(
+    scope: &Scope,
+    file: &str,
+    body: &str,
+) -> Vec<(String, usize, usize)> {
+    let empty = std::collections::BTreeSet::new();
+    let vis = scope.visible.get(file).unwrap_or(&empty);
+    let mut out = Vec::new();
+    for c in calls(body) {
+        if c.method {
+            continue;
+        }
+        let Some(passed) = c.args else { continue };
+        let mut arities = std::collections::BTreeSet::new();
+        for f in vis {
+            if let Some(a) = scope.arity.get(&(f.clone(), c.name.clone())) {
+                arities.extend(a.iter().copied());
+            }
+        }
+        // Exactly one declared arity, or the answer is a question about
+        // overloading that t27 has not settled.
+        if arities.len() != 1 {
+            continue;
+        }
+        let want = *arities.iter().next().unwrap();
+        if want != passed {
+            out.push((c.name, passed, want));
+        }
+    }
+    out
+}
+
 /// Is this clause VACUOUS -- true in every model, whatever the functions do?
 ///
 /// The field's word, not one invented here: Beer, Ben-David, Eisner & Rodeh,
@@ -719,6 +851,8 @@ fn split_once_top<'a>(s: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
 pub struct Scope {
     /// name -> the spec files that define it
     pub defs: BTreeMap<String, std::collections::BTreeSet<String>>,
+    /// (file, name) -> the parameter counts declared there
+    pub arity: BTreeMap<(String, String), std::collections::BTreeSet<usize>>,
     /// spec file -> the spec files it can see (itself included)
     pub visible: BTreeMap<String, std::collections::BTreeSet<String>>,
 }
@@ -726,6 +860,7 @@ pub struct Scope {
 pub fn scan_scope(specs: &[(PathBuf, String)]) -> Scope {
     let mut defs: BTreeMap<String, std::collections::BTreeSet<String>> = BTreeMap::new();
     let mut visible: BTreeMap<String, std::collections::BTreeSet<String>> = BTreeMap::new();
+    let mut arity: BTreeMap<(String, String), std::collections::BTreeSet<usize>> = BTreeMap::new();
     let names: std::collections::BTreeSet<String> =
         specs.iter().map(|(p, _)| p.display().to_string()).collect();
     for (p, src) in specs {
@@ -748,13 +883,36 @@ pub fn scan_scope(specs: &[(PathBuf, String)]) -> Scope {
                     let n = n.trim();
                     if !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
                         defs.entry(n.to_string()).or_default().insert(file.clone());
+                        // ABSTAIN on a declaration whose parameter list does
+                        // not close on its own line. 17 declarations in this
+                        // corpus wrap -- `fn cordic_top(` opens and the four
+                        // parameters follow below -- and reading only the head
+                        // line records arity 0 for them. That produced 19 of
+                        // 31 rows in the first run of this column, every one a
+                        // fabricated defect against a correct call.
+                        if let Some((_, r)) = rest.split_once('(') {
+                            if let Some(ps) = r.split(')').next() {
+                                if r.contains(')') {
+                                    let k =
+                                        ps.split(',').filter(|x| !x.trim().is_empty()).count();
+                                    arity
+                                        .entry((file.clone(), n.to_string()))
+                                        .or_default()
+                                        .insert(k);
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
         visible.insert(file, vis);
     }
-    Scope { defs, visible }
+    Scope {
+        defs,
+        arity,
+        visible,
+    }
 }
 
 /// What a clause's names resolve to, in its own file's scope.
@@ -968,6 +1126,10 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
     // Widening past the clause list would multiply the output for no signal.
     let mut vac: Vec<(String, usize, Vacuity)> = Vec::new();
     let mut says_something = 0usize;
+    // Arity is measured over ALL 924 clauses, not the walkable ones: only 1 of
+    // the 12 sites is walkable, and a walkable-only column would print 1 and
+    // look finished.
+    let mut arity_bad: Vec<(String, usize, String, usize, usize)> = Vec::new();
 
     let mut by_notation: BTreeMap<&str, usize> = BTreeMap::new();
     let (mut walkable, mut over, mut unbounded, mut no_binder) = (0usize, 0usize, 0usize, 0usize);
@@ -1052,6 +1214,9 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
                 .map(|l| clause_body(l, c.line))
                 .unwrap_or_default();
             let names: Vec<String> = c.binders.iter().map(|(n, _)| n.clone()).collect();
+            for (n, got, want) in arity_mismatches(&scope, &c.file, &vbody) {
+                arity_bad.push((c.file.clone(), c.line, n, got, want));
+            }
             let v = vacuity(&names, &vbody);
             if v.is_empty() {
                 says_something += 1;
@@ -1177,6 +1342,32 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             println!("    a glance -- an allowlist would have been tuned until the number");
             println!("    looked right, which is not a measurement.");
         }
+
+        println!();
+        println!("  DOES THE CALL PASS THE RIGHT NUMBER OF ARGUMENTS?");
+        println!("    The compiler cannot answer this here. `parse_invariant_clause` discards a");
+        println!("    quantified clause on purpose (#2774), so the body produces no AST and every");
+        println!("    AST-based check is blind to it -- including `t27c check-calls`, which finds");
+        println!("    95 of these corpus-wide and 0 inside a clause.");
+        println!();
+        println!("      call sites that could not compile   {}", arity_bad.len());
+        if !arity_bad.is_empty() {
+            let mut seen: BTreeMap<(&String, usize), ()> = BTreeMap::new();
+            for (f, l, _, _, _) in &arity_bad {
+                seen.insert((f, *l), ());
+            }
+            println!("      distinct clauses                    {}", seen.len());
+            println!();
+            for (f, l, n, got, want) in &arity_bad {
+                println!("      {f}:{l}  {n}  passes {got}, declared {want}");
+            }
+        }
+        println!();
+        println!("    Four of the six rules ABSTAIN rather than guess: an unclosed paren, a name");
+        println!("    in method position (`x.len()` -- the receiver IS the argument), a name no");
+        println!("    declaration in scope defines, and a name whose visible scope offers more");
+        println!("    than one arity. A naive scan of the same bodies reports ~317; 97% of that");
+        println!("    is the receiver convention, and none of it is a property of the corpus.");
 
         println!();
         println!("  IS THE CLAUSE VACUOUS?");
@@ -1767,6 +1958,107 @@ mod tests {
     fn conjuncts_split_per_line_and_at_depth_zero() {
         let c = conjuncts("a == b && f(x, y) > 0\nc and d");
         assert_eq!(c, vec!["a == b", "f(x, y) > 0", "c", "d"], "{c:?}");
+    }
+
+    // ---- W716: arity in a clause the compiler never parses ---------------
+
+    /// A comma split would say three. `f(g(a, b), c)` passes two, and 80
+    /// clause windows in this corpus carry a nested group.
+    #[test]
+    fn a_nested_call_is_one_argument() {
+        let c = calls("f(g(a, b), c)");
+        assert_eq!(c[0].name, "f");
+        assert_eq!(c[0].args, Some(2), "{c:?}");
+        assert_eq!(c[1].name, "g");
+        assert_eq!(c[1].args, Some(2));
+    }
+
+    /// A walk that only notices non-space characters scores `f([])` as zero.
+    #[test]
+    fn an_empty_bracket_is_still_an_argument() {
+        assert_eq!(calls("f([])")[0].args, Some(1));
+        assert_eq!(calls("f()")[0].args, Some(0));
+        assert_eq!(calls("f(  )")[0].args, Some(0));
+    }
+
+    /// 306 of the 313 method-position calls in clause windows are `.len()`.
+    /// The receiver IS the argument; 0-vs-1 there is a convention.
+    #[test]
+    fn a_method_call_is_marked_and_never_counted_against_a_declaration() {
+        let c = calls("samples.len() == 0");
+        assert_eq!(c[0].name, "len");
+        assert!(c[0].method, "{c:?}");
+        let specs = vec![
+            (PathBuf::from("specs/a.t27"), "fn len(x: u8) -> u8 {}\n".to_string()),
+        ];
+        let sc = scan_scope(&specs);
+        assert!(
+            arity_mismatches(&sc, "specs/a.t27", "samples.len() == 0").is_empty(),
+            "method position must abstain"
+        );
+    }
+
+    /// A call whose paren never closes inside the window is not scored short.
+    #[test]
+    fn an_unclosed_paren_abstains() {
+        assert_eq!(calls("f(a, b")[0].args, None);
+    }
+
+    /// `fn cordic_top(` opens and its four parameters follow below. Reading
+    /// only the head line records arity 0 and fabricates a defect against
+    /// every correct four-argument call -- 19 of 31 rows in this column's
+    /// first run.
+    #[test]
+    fn a_declaration_that_wraps_is_not_read_as_zero_parameters() {
+        let specs = vec![(
+            PathBuf::from("specs/a.t27"),
+            "fn wide(\n    a: u8,\n    b: u8,\n) -> u8 {}\n".to_string(),
+        )];
+        let sc = scan_scope(&specs);
+        assert!(
+            sc.arity.get(&("specs/a.t27".to_string(), "wide".to_string())).is_none(),
+            "a wrapped declaration must abstain, not record 0"
+        );
+        assert!(
+            arity_mismatches(&sc, "specs/a.t27", "wide(1, 2)").is_empty(),
+            "and nothing may be reported against it"
+        );
+    }
+
+    /// Two visible declarations with different arities is an overload
+    /// question t27 has not settled, not a mismatch.
+    #[test]
+    fn two_arities_in_scope_abstain() {
+        let specs = vec![
+            (
+                PathBuf::from("specs/a.t27"),
+                "use b;\nfn f(a: u8) -> u8 {}\n".to_string(),
+            ),
+            (PathBuf::from("specs/b.t27"), "fn f(a: u8, b: u8) -> u8 {}\n".to_string()),
+        ];
+        let sc = scan_scope(&specs);
+        assert!(arity_mismatches(&sc, "specs/a.t27", "f(1, 2, 3)").is_empty());
+    }
+
+    /// The whole point: one arity in scope, a different count passed.
+    #[test]
+    fn one_arity_in_scope_and_a_different_count_is_reported() {
+        let specs = vec![(
+            PathBuf::from("specs/a.t27"),
+            "fn booth_mul_u32(a: u32, b: u32) -> u32 {}\n".to_string(),
+        )];
+        let sc = scan_scope(&specs);
+        let m = arity_mismatches(&sc, "specs/a.t27", "booth_mul_u32(a) != undefined");
+        assert_eq!(m, vec![("booth_mul_u32".to_string(), 1, 2)], "{m:?}");
+    }
+
+    /// A name nothing in scope declares is the RESOLUTION column's question,
+    /// not this one.
+    #[test]
+    fn an_undeclared_name_abstains() {
+        let specs = vec![(PathBuf::from("specs/a.t27"), "fn g() -> u8 {}\n".to_string())];
+        let sc = scan_scope(&specs);
+        assert!(arity_mismatches(&sc, "specs/a.t27", "pow(2, 8) > 0").is_empty());
     }
 
     /// A suffix with no `name : Type` yields no binder rather than a wrong one.
