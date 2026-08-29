@@ -256,6 +256,40 @@ fn identifiers(text: &str) -> HashSet<String> {
 /// declarations appended. On any failure -- no `specs/` root, no imports,
 /// nothing missing -- the source is returned untouched, so this can never make
 /// a spec that compiled stop compiling.
+/// Do these candidate declarations say the same thing?
+///
+/// The refusal to splice an ambiguous name exists because "a wrong silent
+/// choice is worse than the undeclared-identifier error it replaces". That
+/// reasoning needs two candidates to disagree. When they are the same
+/// declaration there is no choice to get wrong, and refusing costs the import
+/// for nothing.
+///
+/// `Trit` is the case: `pub const Trit = enum(i8) { neg = -1, zero = 0,
+/// pos = 1, };` appears verbatim in both `base/types.t27` and `base/ops.t27`,
+/// and six specs import both. Each of them generated C using `Trit` 141 times
+/// while declaring it zero times, and `cc` said `unknown type name 'Trit'`.
+///
+/// Compared line-by-line with each line trimmed, because the corpus writes two
+/// indentation conventions -- a declaration at column 0 in one file and the
+/// same declaration indented under `module M;` in another are the same
+/// declaration. Comparing raw text would call those different and keep
+/// refusing.
+///
+/// Measured over the corpus: 30 ambiguous (spec, name) pairs, of which 10
+/// agree and 20 genuinely differ. The 20 stay unresolved -- `PHI` in
+/// `math/constants.t27` against `math/sacred_physics.t27` is a real conflict
+/// and a silent pick would be exactly the mistake this guard was built for.
+fn all_agree(candidates: &[&Decl]) -> bool {
+    let norm = |t: &str| -> Vec<String> {
+        t.lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect()
+    };
+    let first = norm(&candidates[0].text);
+    candidates.iter().all(|d| norm(&d.text) == first)
+}
+
 pub fn resolve(input_path: &Path, source: &str) -> String {
     let specs_root = match find_specs_root(input_path) {
         Some(r) => r,
@@ -336,7 +370,7 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
                 }
                 by_origin.into_values().collect()
             };
-            if distinct.len() > 1 {
+            if distinct.len() > 1 && !all_agree(&distinct) {
                 let mut origins: Vec<String> =
                     distinct.iter().map(|d| d.origin.clone()).collect();
                 origins.sort();
@@ -549,3 +583,59 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod agree_tests {
+    use super::*;
+
+    fn d(origin: &str, text: &str) -> Decl {
+        Decl { name: "X".into(), text: text.into(), origin: origin.into() }
+    }
+
+    #[test]
+    fn identical_declarations_agree() {
+        let a = d("types", "pub const Trit = enum(i8) {\n    neg = -1,\n};");
+        let b = d("ops", "pub const Trit = enum(i8) {\n    neg = -1,\n};");
+        assert!(all_agree(&[&a, &b]));
+    }
+
+    #[test]
+    fn indentation_does_not_make_two_declarations_disagree() {
+        // The corpus writes two conventions -- column 0 in one file, indented
+        // under `module M;` in another. Raw text comparison calls these
+        // different and keeps refusing an import that has no ambiguity in it.
+        let a = d("types", "pub const T = enum(i8) {\n    neg = -1,\n};");
+        let b = d("ops", "    pub const T = enum(i8) {\n        neg = -1,\n    };");
+        assert!(all_agree(&[&a, &b]));
+    }
+
+    #[test]
+    fn a_different_value_disagrees() {
+        // PHI is 1.618... in math/constants.t27 and something else in
+        // math/sacred_physics.t27. Twenty (spec, name) pairs are this shape and
+        // every one must stay unresolved: a silent pick here is the mistake the
+        // refusal was built to prevent.
+        let a = d("constants", "pub const PHI : f64 = 1.618033988749895;");
+        let b = d("sacred_physics", "pub const PHI : f64 = 1.6180339887;");
+        assert!(!all_agree(&[&a, &b]));
+    }
+
+    #[test]
+    fn a_missing_line_disagrees() {
+        let a = d("x", "pub const E = enum(i8) {\n    a = 1,\n    b = 2,\n};");
+        let b = d("y", "pub const E = enum(i8) {\n    a = 1,\n};");
+        assert!(!all_agree(&[&a, &b]));
+    }
+
+    #[test]
+    fn blank_lines_are_not_content() {
+        let a = d("x", "pub const A = 1;");
+        let b = d("y", "\npub const A = 1;\n\n");
+        assert!(all_agree(&[&a, &b]));
+    }
+
+    #[test]
+    fn a_single_candidate_agrees_with_itself() {
+        let a = d("x", "pub const A = 1;");
+        assert!(all_agree(&[&a]));
+    }
+}
