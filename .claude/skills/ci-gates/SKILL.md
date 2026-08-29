@@ -6397,3 +6397,61 @@ which was tested on purpose before the real one arrived.
 
 **Write the ratchet before the work it will police, not after.** The one that
 already exists is the one that reports the change you did not predict.
+
+## 205. A verdict the tool did not earn
+
+`tri types dup` calls a name CONFLICTED when its two definitions have different
+field lists. Four names — `Agent`, `AgentStatus`, `Color`, `HealthStatus` — are
+reported CONFLICTED because one side is written `variants : ,` (the corpus's
+enum idiom) and the reader parses **zero** fields from it. Empty list versus
+full list, therefore "they disagree."
+
+Three of the four really are distinct types, so the verdict is right. It is
+still not a measurement: the instrument was comparing nothing against
+something, and it happened to land on the answer.
+
+**A right answer produced by a broken instrument is an anecdote, not a result.**
+When you find one, record the coincidence next to the verdict — otherwise the
+next reader takes the tool's agreement as corroboration, and it is not.
+
+## 206. `|---|---|` inside a regex is four alternations
+
+Rebuilding a markdown table with `re.sub`, I wrote the separator row into the
+pattern literally:
+
+    re.sub(r"(## DRIFT.*?\|---\|---\|---\|---\|\n)(?:\|.*\n)+", ...)
+
+The pipes are escaped there. In the version I actually ran they were not, so
+the pattern read as `## DRIFT.*?---` OR `---` OR `---` OR `---` OR `\n...`, and
+the substitution deleted from the DRIFT heading to the end of the document —
+three sections and a 34-row table, silently, with a success exit.
+
+Caught only because a `grep -c "^| \`"` afterwards said 46 where it should have
+said 80.
+
+**Never regex a document you can regenerate.** The table came from JSON; the
+fix was to rewrite the whole file from the data in one pass, which is both
+shorter and has no partial-failure mode. Reach for a surgical edit when the
+source of truth is the file itself — not when the file is already a rendering
+of something else.
+
+## 207. A classification is a reading, and readings go stale
+
+Eighty conflicted type names, each opened and judged DRIFT or DISTINCT with the
+evidence written down. That document is worth exactly as much as its agreement
+with the tree, and nothing about it fails when the tree moves.
+
+So the cross-check is a gate, and both directions are red:
+
+    classified but no longer conflicting  -> STALE     (a repair landed)
+    conflicting but not classified        -> UNJUDGED  (nobody has read it)
+
+Only UNJUDGED feels like a failure. Passing over STALE is how a document turns
+into decoration — it keeps describing work that is already done, and the reader
+who trusts it acts on a tree that no longer exists.
+
+The command found `HealthStatus` on its **first execution**: the eightieth
+conflict, created hours earlier by teaching the field reader that `pub name: T`
+is a field, in a run the classification predated.
+
+**Any document that states a measurement needs a gate that re-takes it.**

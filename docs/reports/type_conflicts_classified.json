@@ -1,0 +1,912 @@
+{
+  "note": "Classification of every conflicted type name reported by `tri types dup`. DRIFT = one concept that grew two definitions; DISTINCT = two concepts that collided on a name. Evidence is the reading that decided it. Regenerate the observation with `tri types dup`; cross-check this file against it with `tri types classified`.",
+  "verdicts": {
+    "DRIFT": 46,
+    "DISTINCT": 34
+  },
+  "names": [
+    {
+      "name": "ActivationType",
+      "sites": [
+        "specs/ml/layers/dense_layer.t27:27",
+        "specs/ml/transformer/feed_forward.t27:47"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "dense_layer.t27:27 `pub const ActivationType = struct { enum_type: \"enum\", values: , None: Auto, ReLU: Auto, GELU: Auto, Sigmoid: Auto, Tanh: Auto, Softmax: Auto }` vs feed_forward.t27:47 `pub const ActivationType = struct { enum_type: \"enum\", values: , GELU: Auto, ReLU: Auto, SiLU: Auto, GELU_Approx: Auto }`. Same concept, same role, same idiom: both are consumed as `activation : ActivationType` inside a layer config (dense_layer.t27:24 `activation : ActivationType,` in DenseConfig; feed_forward.t27:31 `activation : ActivationType, // Activation function` in FFNConfig), and feed_forward passes it as `fn apply_activation(x: []gf16::GF16, act: ActivationType)`. Overlap is {ReLU, GELU}; one side drops {None, Sigmoid, Tanh, Softmax} and adds {SiLU, GELU_Approx}. Decisive: feed_forward.t27:10 declares `use ml::layers::dense;` -- it imports the only module that already defines ActivationType (module Dense, specs/ml/layers/dense_layer.t27, the sole `dense` file in specs/ml/layers/) and then shadows that type with a divergent variant set. Neither set matches the library it indexes: specs/ml/activation/ ships elu, gelu, gelu_approx, leaky_relu, relu, sigmoid, silu_swish, silu_swish_vbt, softmax, tanh -- 10 functions, and neither enum names ELU or LeakyReLU.",
+      "confidence": "certain -- both sites are the activation-selector field of a layer config in one ML spec library, and one file imports the other's module",
+      "suggested_action": "Hoist one ActivationType into specs/ml/activation/ covering the 10 shipped activations, and delete both local copies; feed_forward already imports the module that should own it."
+    },
+    {
+      "name": "AdamWConfig",
+      "sites": [
+        "specs/ml/optimizer/adamw.t27:28",
+        "specs/ml/optimizer/adamw.t27:483"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "Both definitions are in ONE file under ONE `module AdamW;` (line 5; no second module header in 1019 lines), so they occupy the same namespace. Line 28: `learning_rate: gf16::GF16, beta1: gf16::GF16, beta2: gf16::GF16, weight_decay: gf16::GF16, epsilon: gf16::GF16, amsgrad: bool, use_phi_betas: bool`. Line 483: `learning_rate: gf16::GF16, beta1: gf16::GF16, beta2: gf16::GF16, weight_decay: gf16::GF16, epsilon: gf16::GF16, amsgrad: bool, phi_variant: PhiVariant`. Six of seven fields are identical in name, type and order; the seventh widens a boolean into a 4-way enum: `use_phi_betas: bool` becomes `phi_variant: PhiVariant` where `PhiVariant = enum { Canonical, Damped, TunedStd, RandomRat }` (line 476). The file states the mechanism itself at line 407: `// Phase B1 (epic #181) -- optimizer control ablation blocks (appended)`, and line 447 labels the old parametrisation `// PHI-DAMPED variant (old PHI_BETA1 from pre-B1 spec)`. The copy also duplicates AdamWState and OptimizerStepResult verbatim, and re-declares PHI, DEFAULT_LEARNING_RATE, DEFAULT_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY, DEFAULT_EPSILON and DEFAULT_AMSGRAD. The two halves also differ in transcription: `// eta: step size` / `// beta1:` / `// lambda:` / `// eps:` in the new block against `// n: step size` / `// B1:` / `// A:` / `// e:` (Unicode eta/beta/lambda/epsilon) in the old one.",
+      "confidence": "certain -- the file names the mechanism in its own comment (\"appended\"), and both copies are inside a single module",
+      "suggested_action": "Delete the line 28 block: PhiVariant::Damped already encodes `use_phi_betas: true`, so the appended definition strictly subsumes the original. Same for the duplicated AdamWState/OptimizerStepResult and the seven re-declared constants."
+    },
+    {
+      "name": "Agent",
+      "sites": [
+        "specs/tri/agent/faculty_board.t27:34",
+        "specs/tri/agent/swarm_agents.t27:21"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "faculty_board.t27:34 `pub const Agent = struct { variants : , }` -- a variant enum naming WHICH agent, referenced as a field: `AgentStatus { agent: \"Agent\", status: \"AgentStatusKind\", wake_count: u32, last_seen: i64 }` (line 27). swarm_agents.t27:21 `pub const Agent = struct { id: String, agent_type: AgentType, status: AgentStatus, sacred_role: String, phi_score: Float, task_queue: List<Task>, completed_tasks: List<Task>, sacred_declaration: String }` -- an 8-field runtime record. Zero shared fields; one is an enum, the other an instance record. The roles are rotated between the two specs: faculty_board's `Agent` (identity enum) plays the part swarm_agents calls `AgentType` (line 13, also `variants : ,`), while swarm_agents' `Agent` (record) plays the part faculty_board calls `AgentStatus`. Not copy-paste lineage -- no field vocabulary is shared. Caveat against the DISTINCT blurb: these are NOT unrelated subsystems. Both files sit in specs/tri/agent/ and both were added in the same commit aaedf5a8b (\"feat(clara): Complete DARPA CLARA PA-25-07-02 submission package (#408)\"), so the ambiguity is live within one subsystem rather than harmless.",
+      "confidence": "high, not certain -- both enums are hollow (`variants : ,`, an artifact affecting 19 declarations across 7 spec files), and nothing else in the repo references either spec (grep for AgentStatusKind and sacred_role returns only these two files), so the variant lists are unrecoverable here. Enum-vs-record settles the collision regardless of what those variants are; I would need the original .tri sources to rule out that faculty_board's Agent enumerates the same members as swarm_agents' AgentType."
+    },
+    {
+      "name": "AgentState",
+      "sites": [
+        "specs/igla/coder/eval.t27:1825",
+        "specs/server/agent-runner.t27:47"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "eval.t27:1825 `pub const AgentState = struct { policy_params: []f32, step_count: u32, last_reward: f32 }`, documented at line 1824 as `/// AgentState: snapshot of an RL agent during self-training.` and sitting under the banner `// Self-Training Pipeline Primitives (W112)` beside TrajectoryStep, AgentProfile and `compute_grpo_loss` (Group Relative Policy Optimization). agent-runner.t27:47 `struct AgentState { turn: u32, max_turns: u32, total_input_tokens: u64, total_output_tokens: u64, tool_call_counter: u32, task_completed: bool, completion_summary: str }`, under `// Agent State` in module AgentRunner, initialised by `fn agent_state_init(max_turns: u32) -> AgentState` and neighboured by `struct ToolResult` and `enum StopReason { EndTurn, ToolUse, MaxTokens, Unknown }`. Zero shared fields. Two different senses of \"agent\": a reinforcement-learning policy checkpoint (params/steps/reward) versus an LLM tool-use conversation loop's bookkeeping (turns/token counters/stop condition). Different trees, no import edge. Also a clean example of two of the three declaration forms: `pub const X = struct` versus bare `struct X`.",
+      "confidence": "certain -- \"policy_params/last_reward\" and \"total_input_tokens/tool_call_counter\" cannot be the same object, and the surrounding banners name the two subsystems explicitly",
+      "suggested_action": "Rename to RLAgentState and AgentRunnerState; nothing outside each file depends on the bare name."
+    },
+    {
+      "name": "AgentStatus",
+      "sites": [
+        "specs/tri/agent/faculty_board.t27:27",
+        "specs/tri/agent/swarm_agents.t27:17"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "faculty_board.t27:27 `pub const AgentStatus = struct { agent: \"Agent\", status: \"AgentStatusKind\", wake_count: u32, last_seen: i64 }` -- a per-agent liveness ROW, consumed by the dashboard snapshot `FacultySnapshot { faculty_count: u32, active_agents: u32, compile_rate: f64, dirty_files: u32, build_broken: bool, timestamp: i64, agents: []AgentStatus }` (line 17). swarm_agents.t27:17 `pub const AgentStatus = struct { variants : , }` -- a bare variant ENUM, consumed as a single field: `Agent { ... status: AgentStatus, ... }` (line 24). Same structural inversion as the Agent entry, and it is self-evidencing: faculty_board had to invent `AgentStatusKind` (line 38) for the status enum precisely because it had spent the name `AgentStatus` on the record. The two specs therefore use one identifier for two different layers of one model. Concrete consequence: merge specs/tri/agent/* and swarm_agents' `status: AgentStatus` silently resolves to faculty_board's 4-field record, typing an enum slot as a struct.",
+      "confidence": "high, not certain -- swarm_agents' enum body is empty (`variants : ,`), so I compared structural role rather than variant sets; the original .tri source would settle what the status values are, though it cannot make an enum into a 4-field record"
+    },
+    {
+      "name": "AttentionConfig",
+      "sites": [
+        "specs/igla/coder/arch.t27:60",
+        "specs/ml/recurrent/attention_mechanism.t27:19"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "arch.t27:60 `pub const AttentionConfig = struct { n_heads: u32, n_kv_heads: u32, head_dim: u32, max_seq_len: u32 }` -- GQA head geometry for one concrete model, in `module igla-coder-arch` (\"Sub-1B parameter code-generation LLM\"), pinned to that model's constants `N_HEADS: u32 = 12`, `N_KV_HEADS: u32 = 4` (`// GQA: grouped query attention`), `MAX_SEQ_LEN: u32 = 8192`. attention_mechanism.t27:19 `pub const AttentionConfig = struct { d_model: u32, num_heads: u32, dropout: f32, causal: bool }` -- a generic library layer in `module Attention` (\"Memory-efficient attention for long sequences\") whose invariants read `// d_model % num_heads == 0` and `// 0 <= dropout < 1`. NOT ONE FIELD NAME IS SHARED between the two lists, which rules out copy-paste lineage; `n_heads`/`num_heads` denote the same quantity under different conventions, and `n_kv_heads` is meaningless to the other while `dropout`/`causal` are meaningless to the first. No import edge either way: arch.t27 pulls `math::igla_primitives` and `igla::race::bram_weights`, never `ml::`. Two independent lineages -- a product model spec versus a hand-converted `.tri` layer stub (its bodies are still `// TODO: Implement from .tri spec`).",
+      "confidence": "high, not certain -- the concept (multi-head attention hyperparameters) is shared even though no field name is, so this is a semantic near-collision rather than a clean unrelated-subsystem case; I would need a stated intent that specs/ml/ is the library IGLA-Coder builds on to flip it to DRIFT, and the import list is evidence against that",
+      "suggested_action": "Rename arch.t27's to CoderAttentionConfig (or GqaConfig); it is model-specific and has no library ambitions."
+    },
+    {
+      "name": "AttentionOutput",
+      "sites": [
+        "specs/ml/recurrent/attention_mechanism.t27:26",
+        "specs/ml/transformer/encoder_block.t27:30"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "attention_mechanism.t27:26 `pub const AttentionOutput = struct { output: []f32, weights: []f32 }` vs encoder_block.t27:30 `pub const AttentionOutput = struct { output: []f32, attn_weights: [][]f32 }`. Field 1 is identical in name, type and position (`output : []f32`). Field 2 is a rename AND a widened type in one step: `weights : []f32` becomes `attn_weights : [][]f32`, i.e. the two specs disagree about the RANK of the attention weight matrix -- flat versus per-head 2-D. Both live in the same spec library (specs/ml/), both are the return value of a multi-head attention forward pass (encoder_block.t27:47 `fn multi_head_attention(query: []f32)`, attention_mechanism.t27:34 `fn forward(query: []const f32)`), and both are the same machine-converted vintage, bodies still `// TODO: Implement from .tri spec`. Textbook drift: overlapping field list, one rename, one widened type.",
+      "confidence": "certain -- both are the output of attention within one ML spec library, so the subject matter settles that this is one concept carrying two incompatible shapes",
+      "suggested_action": "Pick the rank (`[][]f32` is the defensible one -- one row per head) and define AttentionOutput once, above both."
+    },
+    {
+      "name": "BenchmarkReport",
+      "sites": [
+        "specs/igla/coder/benchmark.t27:38",
+        "specs/igla/coder/eval.t27:64"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "benchmark.t27:38 `pub const BenchmarkReport = struct { pass_at_1: f32, pass_at_5: f32, pass_at_10: f32, sacred_rate: f32, synth_rate: f32, avg_ngram: f32, total_tasks: u32 }` (`/// BenchmarkReport: aggregate metrics across a benchmark suite.`) vs eval.t27:64 `pub const BenchmarkReport = struct { model_name: string, param_count: u32, pass_at_1: f32, pass_at_10: f32, pass_at_100: f32, sacred_compliant_rate: f32, avg_latency_ms: f32, languages_evaluated: u8 }`. `pass_at_1: f32` and `pass_at_10: f32` are identical in name and type; `sacred_rate` / `sacred_compliant_rate` is a rename of one metric; the two disagree about the K-ladder (pass@{1,5,10} vs pass@{1,10,100}, and eval.t27 declares constants `PASS_AT_1/PASS_AT_10/PASS_AT_100` for its own). Same subsystem, with an import edge: benchmark.t27:8 declares `use igla::coder::eval;` and calls `eval::generate_verilog(task.prompt)`, so it imports the module that already defines BenchmarkReport and then redefines it. Caught in the act: benchmark.t27:3764 and :3768 construct `BenchmarkReport { sacred_rate: 1.0, total_tests: 10, passed_tests: 10, avg_latency_ms: 1.0 }` -- a THIRD shape matching neither declaration, borrowing `sacred_rate` from the local one and `avg_latency_ms` from eval's, plus `total_tests`/`passed_tests`, which are declared in no BenchmarkReport anywhere (grep over specs/igla/coder/ finds them only in these two test literals and in a prm.t27 comment). Live in the quantifier census on both sides: benchmark.t27:3565 `forall s : BenchmarkReport, s.sacred_rate >= 0.0` binds a field that exists only in the local definition.",
+      "confidence": "certain -- one concept (\"aggregate metrics for a benchmark suite\") in one directory, one file importing the other, shared field names, a renamed metric, and a test literal built against a third version",
+      "suggested_action": "Keep eval.t27's as the owner (benchmark.t27 already imports it), fold in pass_at_5/synth_rate/avg_ngram/total_tasks, and fix the two tests at :3764/:3768 that reference fields no declaration has."
+    },
+    {
+      "name": "BenchmarkResult",
+      "sites": [
+        "specs/igla/coder/benchmark.t27:26",
+        "specs/igla/training/low_bit_ternary.t27:32"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "benchmark.t27:26 `pub const BenchmarkResult = struct { task_id: string, generated: string, passed: bool, passed_at_5: bool, passed_at_10: bool, sacred_ok: bool, synth_ok: bool, ngram_score: f32 }` (`/// BenchmarkResult: outcome for a single task evaluation.`) -- one code-generation task's Pass@K outcome. low_bit_ternary.t27:32 `pub const BenchmarkResult = struct { accuracy_drop_pct: f64, compression_ratio: f64, latency_us: f64 }` in `module IGLALowBitTernary` (\"IGLA-Coder P7 Low-bit / ternary track\"), returned by `fn evaluate_accuracy(model_path: str, dataset: str) -> BenchmarkResult` beside `BitWidth = enum { Ternary_2b, Int4, Int8, Mixed_TTQ }` and `TernaryWeight { value: i2, scale: f32 }` -- a quantization quality measurement. Zero shared fields, no shared types, no import edge; \"benchmark\" means Pass@K correctness in one and accuracy/compression tradeoff in the other, in two different tracks under specs/igla/ (coder/ vs training/). This is the sharpest live demonstration of why the census must answer \"unbounded\": BOTH definitions are bound in forall domains, and each clause reads a field the other lacks -- low_bit_ternary.t27:66 `forall r : BenchmarkResult, r.compression_ratio >= 1.0` and :69 `forall r : BenchmarkResult, r.accuracy_drop_pct >= 0.0 && ... <= 100.0` against benchmark.t27's fourteen `forall results : []BenchmarkResult` clauses. Resolve the name wrong and `r.compression_ratio` names nothing.",
+      "confidence": "certain -- accuracy_drop_pct/compression_ratio and passed_at_10/ngram_score measure unrelated quantities, and each file's own invariants confirm which it means",
+      "suggested_action": "Rename the training one to QuantizationBenchmarkResult -- it is the smaller blast radius (two invariants, one function) and the name is more honest."
+    },
+    {
+      "name": "BusPort",
+      "sites": [
+        "specs/fpga/axi4.t27:52",
+        "specs/fpga/hir.t27:248"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "axi4.t27:52 `pub struct BusPort { name: &str, direction: i8, width: u32, channel: i8 }` -- ONE SIGNAL inside a bus, tagged with which AXI channel it belongs to (`CH_AW: i8 = 0, CH_AR = 1, CH_W = 2, CH_R = 3, CH_B = 4` follow immediately at lines 58-62; file header: \"Defines bus port groups for AW/AR/W/R/B channels\"). hir.t27:248 `pub struct BusPort { name: &str, bus_kind: i8, addr_width: u32, data_width: u32, is_master: bool, base_addr: u32 }` -- a WHOLE BUS INTERFACE on a module, over `BusKind = enum(i8) { axi4_lite, axi4_full, apb, wishbone }` (line 236), with `fn bus_port_total_signals(bp: BusPort) -> u32` (line 278) computing `bp.addr_width + bp.data_width * 2 + 9` -- i.e. this one BusPort EXPANDS INTO many of the other kind. Different granularity, only the trivial `name: &str` shared. The true counterpart of hir's BusPort is axi4's differently-named `AxiBusConfig { name: &str, kind: i8, addr_width: u32, data_width: u32, id_width: u32, has_region: bool, has_cache: bool, has_prot: bool, has_qos: bool, has_user: bool, has_lock: bool }` (line 36) -- same concept, `kind`/`bus_kind` rename, and no name collision. Caveat against \"unrelated subsystems\": both sit in specs/fpga/ and axi4.t27's header reads \"AXI4-Lite and AXI4-Full Bus Interface Specification for Trinity T27 FPGA HIR\" -- it is written FOR the other file, though neither declares a single `use`. Corroborating disagreement in the same pair: both declare `MAX_BUS_PORTS` with different values (axi4.t27:19 `= 32`, hir.t27:246 `= 8`), and the emitted Verilog carries it forward (axi4.v:20 `parameter [31:0] MAX_BUS_PORTS = 32;` vs hir.v:28 `= 8`).",
+      "confidence": "high, not certain -- a signal and an interface are genuinely different objects, so this is not an edited copy; but they are same-subsystem neighbours designed to compose, so a cross-spec resolution over specs/fpga/ would silently pick the wrong granularity. I would need the HIR-to-AXI lowering (which does not exist as an import) to say which name the emitter actually binds.",
+      "suggested_action": "Rename axi4.t27's to BusSignal (it is one wire) and reconcile the two MAX_BUS_PORTS values -- 32 vs 8 is a separate live disagreement that already reached the generated Verilog."
+    },
+    {
+      "name": "Color",
+      "sites": [
+        "specs/tri/trees/red_black_tree.t27:29",
+        "specs/tri/utils/color.t27:13",
+        "specs/tri/utils/terminal.t27:13"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "Three unrelated things. red_black_tree.t27:29 `pub const Color = struct { enum: [\"RED\", \"BLACK\"] }` in `module TriRbTree` -- the balance tag of a node, `RBNode { generic: \"K, V\", key: \"K\", value: \"V\", color: \"Color\", left: \"?*RBNode\", right: \"?*RBNode\", parent: \"?*RBNode\" }`, whose whole meaning is the file's header invariant \"1) Root is black 2) Red children are black 3) Equal black depth to all leaves\" -- nothing visual about it. color.t27:13 `pub const Color = struct { r: \"u8\", g: \"u8\", b: \"u8\", a: \"u8\" }` in `module TriColor`, beside `ColorSpace = struct { enum: [RGB, HSV, HSL, LAB] }` and `fn to_hex(color: Color)` / `fn blend(a: Color)` -- an RGBA value. terminal.t27:13 `pub const Color = struct { enum: , }` in `module TriTerminal` (\"Uses ANSI escape codes\"), beside `Style = struct { enum: , }` and `fn colorize(...)` / `fn reset() -> []const u8` -- an ANSI palette enum. No two share a field. The interesting pair is color.t27 and terminal.t27: sibling files in one specs/tri/utils/ package, both about colour, but a 4-byte RGBA record and a terminal palette enum are types a real library would deliberately carry side by side (Rgba and AnsiColor), not one type edited twice.",
+      "confidence": "certain -- a red-black tree's balance tag, an RGBA quad and an ANSI palette are settled as different by their own modules; terminal's variant list is empty (`enum : ,`), but no variant list can turn an enum into a 4-field struct",
+      "suggested_action": "Rename red_black_tree's to NodeColor and terminal's to AnsiColor, leaving utils/color.t27 the owner of the bare name."
+    },
+    {
+      "name": "CompileResult",
+      "sites": [
+        "specs/compiler/meta_compile.t27:6",
+        "specs/igla/coder/eval.t27:141"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "meta_compile.t27:6 `struct CompileResult { parse_ok: bool; zig_ok: bool; verilog_ok: bool; c_ok: bool; rust_ok: bool; zig_lines: u32; verilog_lines: u32; c_lines: u32; rust_lines: u32; }` in `module MetaCompilation` (which imports `compiler::parser`, `compiler::lexer`) -- t27c compiling a spec through all four of its own backends, with `fn is_full_success(r) -> bool { return r.parse_ok and r.zig_ok and r.verilog_ok and r.c_ok and r.rust_ok; }` and `fn total_lines(r) { return r.zig_lines + r.verilog_lines + r.c_lines + r.rust_lines; }`. eval.t27:141 `pub const CompileResult = struct { compile_ok: bool, test_pass: bool }` -- the verdict on ONE LLM-generated sample, returned by `fn compile_and_test(code: string, language: string, test_cases: []string) -> CompileResult` whose body is a heuristic: `let balanced = check_balanced_braces(code, 0, 0); let has_fn = has_substring(code, \"fn\", 0) || has_substring(code, \"module\", 0) || ...; return CompileResult { compile_ok: ok, test_pass: ok };`. Zero shared field names (`parse_ok` is not `compile_ok`; `test_pass` has no counterpart), and the two subjects are the compiler compiling itself versus an eval harness brace-matching a model's output. Different trees, no import edge. Also note the second is effectively a 2-field projection of eval.t27's own `EvalResult { task_id, generated, compile_ok, test_pass, sacred_compliant, latency_ms, token_count }` (line 47), i.e. it is local to that harness by construction.",
+      "confidence": "certain -- one counts lines emitted per backend, the other reports a brace-balance heuristic on generated text; the surrounding functions in each file settle it",
+      "suggested_action": "Rename eval.t27's to SandboxCompileResult; it is used by exactly one function."
+    },
+    {
+      "name": "Config",
+      "sites": [
+        "specs/config/schema.t27:148",
+        "specs/tri/agent/eternal_monitor.t27:21",
+        "specs/tri/utils/config.t27:25"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "Three unrelated things sharing the most generic name in the corpus. schema.t27:148 `pub const Config = struct { version: u16, provider: ProviderConfig, agents: []AgentConfig, mcp_servers: []MCPServerConfig, lsp: LSPConfig, tui: TuiConfig, logging: LoggingConfig, paths: PathsConfig }`, commented `/// Main configuration structure` -- the whole application's settings tree, beside `DEFAULT_CONFIG_FILE = \"config.json\"` and `ValidationResult { valid: bool, errors: []ConfigError }`. eternal_monitor.t27:21 `pub const Config = struct { interval_ms: u64, max_alerts: usize, auto_heal: bool, log_file: ?[]const u8 }` -- one daemon's tuning knobs, embedded as a field of its owner: `EternalMonitor { allocator: \"std.mem.Allocator\", config: Config, components: \"ArrayList(SystemComponent)\", alerts: \"ArrayList(Alert)\", ... }`. utils/config.t27:25 `pub const Config = struct { entries: []ConfigEntry, error: ?[]const u8 }` in `module TriConfig` -- not settings at all but the OUTCOME of parsing a config file, over `ConfigEntry { key: []const u8, value: ConfigValue }` and `ConfigValue { string: ?[]const u8, number: ?f64, boolean: ?bool, is_null: bool }`, consumed by `fn parse(...)`, `fn get_string(config: Config)`, `fn get_number(config: Config)`, `fn get_bool(config: Config)`. No field is shared by any two of the three. Three subsystems -- an application schema, a monitoring daemon, a generic key/value parser -- with no import edges among them.",
+      "confidence": "certain -- an 8-field settings tree, a 4-knob monitor loop and a parse result with an `error` slot cannot be one type, and each file's own functions name its subject",
+      "suggested_action": "Rename the narrow two (MonitorConfig, ParsedConfig -- the third is really a parse result, not a config) and leave specs/config/schema.t27 owning the bare name."
+    },
+    {
+      "name": "DataSample",
+      "sites": [
+        "specs/igla/coder/dataset.t27:15",
+        "specs/igla/coder/training.t27:59"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "dataset.t27:15 `pub const DataSample = struct { prompt : string, rtl : string, template : string, }` \u2014 file header: \"Dataset builder for (prompt, RTL) pairs from Trinity templates\". training.t27:59 `pub const DataSample = struct { text : string, strategy : u8, lang : string, verified : bool, sacred_tags : []u8, weight : f32, }` \u2014 file header: \"IGLA-Coder training pipeline specification\". Zero field names in common, yet both are \"one training example for IGLA-Coder\" and both sit in specs/igla/coder/. The dataset.t27 version is the one with consumers: `specs/igla/coder/benchmark.t27:10` says `use igla::coder::dataset;`. training.t27 imports `igla::coder::prm` only and shadows the name locally.",
+      "confidence": "High, not certain. Certain that two specs in one directory give DataSample incompatible shapes; not certain which is canonical. Settled by whether the project intends `prompt/rtl/template` (the imported one) to keep the name and training.t27's record to become `TrainingSample`.",
+      "suggested_action": "Rename training.t27's record to TrainingSample (it carries strategy/weight/sacred_tags \u2014 corpus sampling, not an RTL pair), and leave DataSample to dataset.t27, which benchmark.t27 already imports."
+    },
+    {
+      "name": "Diagnostic",
+      "sites": [
+        "specs/compiler/diagnostics.t27:30",
+        "specs/lsp/schema.t27:98"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "compiler/diagnostics.t27:30 `struct Diagnostic { code: ErrorCode; severity: Severity; message: str; file_path: str; line: u32; col: u32; }` \u2014 the compiler's own record, location as file_path+line+col, code drawn from a local `enum ErrorCode { ParseError = 1000 ... InternalError = 9000 }`. lsp/schema.t27:98 `pub const Diagnostic = struct { range : Range, severity : DiagnosticSeverity, code : []u8, source : []u8, message : []u8, tags : []DiagnosticTag, }` \u2014 file header: \"LSP Base Types ... for Language Server Protocol\"; `range`, `source` and `tags` are fields the LSP wire format mandates, and `code` is a string there, not an enum. Separate importer trees: only specs/compiler/pipeline.t27:8 does `use compiler::diagnostics;`, while specs/lsp/server.t27:14 does `use lsp-schema::Diagnostic;`.",
+      "confidence": "High, not certain. The LSP shape is fixed by an external protocol, so it is not an edited copy of the compiler struct \u2014 but they are the same domain concept one layer apart. What would settle it: a converter (compiler Diagnostic -> LSP Diagnostic) anywhere in the specs. I found none, which is what tipped me to DISTINCT.",
+      "suggested_action": "Leave both, but rename the protocol one LspDiagnostic (or require the qualified `lsp-schema::Diagnostic` everywhere) so an unqualified `Diagnostic` is resolvable."
+    },
+    {
+      "name": "EnvVar",
+      "sites": [
+        "specs/cloud/railway_deploy.t27:74",
+        "specs/shell/schema.t27:94"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "railway_deploy.t27:74 `pub struct EnvVar { pub key: str, pub value: str, pub is_secret: bool, }` \u2014 file header: \"Autonomous Railway Deployment\", sits next to `RailwayServiceConfig { service_name, base_service_id, project_id, port, memory_mb, cpu_cores }`. shell/schema.t27:94 `struct EnvVar { name: str, value: str, }` \u2014 file header: \"Shell Types Specification\", sits under a `// Environment Types` banner next to `ShellProperties { path, name, shellType, isLogin, isPosix, isBlacklisted }`. One is a deploy-time variable to push at a cloud service (hence `is_secret`); the other is a process environment entry read from a shell. `key` vs `name` for the same slot is the tell of independent authorship, not a copy. NOTE ON THE INSTRUMENT: `tri types dup` prints \"(no fields this reader could parse)\" for the railway side. That is a reader gap, not an empty struct \u2014 it drops every field declared with a per-field `pub` modifier. Reproduced on all three such sites in the census (railway_deploy.t27:74, railway_deploy.t27:107 `HealthStatus`, which has no doc comments at all, and queen/task_analysis.t27:48 `Task`). The other six \"no fields\" sites are a different cause: generated stubs whose body is literally `variants : ,`.",
+      "confidence": "Certain on the verdict (a cloud deploy variable and a shell environment variable are different things in unrelated subsystems). Certain also that the railway field list is key/value/is_secret \u2014 read directly from the file, since the tool would not show it.",
+      "suggested_action": "Two fixes, unrelated: (a) leave the types alone, they are genuinely different; (b) fix the field reader in `tri types dup` to accept `pub` on fields \u2014 it currently reports three structs as fieldless."
+    },
+    {
+      "name": "EvalResult",
+      "sites": [
+        "specs/igla/coder/eval.t27:47",
+        "specs/igla/evaluation/multi_lang_harness.t27:20"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "eval.t27:47 `pub const EvalResult = struct { task_id : string, generated : string, compile_ok : bool, test_pass : bool, sacred_compliant : u8, latency_ms : f32, token_count : u32, }` \u2014 one row per HumanEval/MBPP task. multi_lang_harness.t27:20 `pub const EvalResult = struct { lang : LangTarget, pass_at_1 : f64, syntax_ok : bool, compile_ok : bool, bench_us : f64, }` \u2014 one row per language, header \"Multi-language evaluation harness for IGLA-Coder P5\". Only `compile_ok` is shared, and even the timing field is renamed and rescaled (`latency_ms : f32` -> `bench_us : f64`). Both evaluate the same model. eval.t27 is the canonical one \u2014 four specs import it (`use igla::coder::eval;` in dataset.t27:8, pipeline.t27:13, prm.t27:13, benchmark.t27:9) \u2014 and multi_lang_harness.t27 imports nothing but base::types and math::constants, so its local EvalResult silently shadows the shared one.",
+      "confidence": "High, not certain. Certain the two disagree inside one product's evaluation stack; the arguable reading is that these are two aggregation levels (per-task vs per-language) that were never meant to share a name \u2014 which is still the same defect, just a naming one.",
+      "suggested_action": "Rename the harness record LangEvalResult (it is keyed by language and already carries an aggregate `pass_at_1`), or have it `use igla::coder::eval` and hold a `[]EvalResult`."
+    },
+    {
+      "name": "FFNConfig",
+      "sites": [
+        "specs/ml/transformer/feed_forward.t27:28",
+        "specs/ml/transformer/feed_forward_network.t27:19"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "feed_forward.t27:28 `pub const FFNConfig = struct { hidden_size : u32, expansion_factor : gf16::GF16, activation : ActivationType, dropout : gf16::GF16, use_bias : bool, use_phi_expansion : bool, use_residual : bool, }` \u2014 header \"Transformer Feed-Forward Network (FFN) with \u03c6-optimized dimensions\". feed_forward_network.t27:19 `pub const FFNConfig = struct { d_model : u32, d_ff : u32, }` \u2014 header \"Same FFN applied to each position independently\", and its whole body is `fn forward(input: []const f32) -> void { // TODO: Implement from .tri spec }`. Same directory, same layer. `hidden_size` and `d_model` are the same quantity under two names (feed_forward.t27 even annotates it `// Input/output dimension (d_model)`); `d_ff` is `hidden_size * expansion_factor` precomputed. One side is the elaborated spec, the other a stub generated from a .tri source that never got reconciled.",
+      "confidence": "Certain. The comment `hidden_size : u32, // Input/output dimension (d_model)` names the rename explicitly, and both files are specs/ml/transformer specs of the FFN layer.",
+      "suggested_action": "Delete feed_forward_network.t27's FFNConfig and have it `use` feed_forward.t27, or fold the two files \u2014 one FFN layer should not have two configs."
+    },
+    {
+      "name": "FileInfo",
+      "sites": [
+        "specs/file/schema.t27:74",
+        "specs/tri/io/filesystem.t27:17",
+        "specs/tri/io/fs.t27:18"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "The defect is the tri/io pair, two sibling files in one directory: filesystem.t27:17 `pub const FileInfo = struct { path : []const u8, size : u64, is_dir : bool, is_file : bool, modified : u64, }` vs fs.t27:18 `pub const FileInfo = struct { size : \"u64\", is_dir : \"bool\", is_file : \"bool\", modified : \"Instant\", }`. Same four fields in the same order; one side drops `path` (it has a separate `Path { parts, absolute }` type) and re-types the timestamp `u64` -> `Instant`. Both are stub-generated (`// TODO: Implement from .tri spec`) and both define `join`/`basename`/`dirname`, so they are two drafts of one module. The third site is a different animal: file/schema.t27:74 `struct FileInfo { path: str, fileType: FileType, size: u64, modified: u64, permissions: u32, isHidden: bool, isIgnored: bool, }` \u2014 camelCase, part of the agent/tooling schema family (`ShellProperties { shellType, isLogin, isPosix }` in shell/schema.t27), and carries editor concerns (`isIgnored`) the stdlib has no notion of.",
+      "confidence": "Certain that filesystem.t27 and fs.t27 are the same module twice (identical function set, four fields in identical order). The file/schema.t27 site is separately DISTINCT; I report one verdict per name and the drift is the defect.",
+      "suggested_action": "Merge specs/tri/io/filesystem.t27 and specs/tri/io/fs.t27 \u2014 pick one timestamp type (u64 or Instant) and one answer on whether FileInfo carries its own path. Leave file/schema.t27 alone."
+    },
+    {
+      "name": "Graph",
+      "sites": [
+        "specs/tri/graph/graph.t27:13",
+        "specs/tri/graph/graph_bfs.t27:13"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "graph.t27:13 `pub const Graph(T) = struct { nodes : \"std.HashMap(T, []T)\", directed : \"bool\", }` \u2014 header \"Adjacency list representation\", with `fn empty(directed: bool)`, `fn add_node(graph: *Graph(T))`, `fn add_edge(graph: *Graph(T))`. graph_bfs.t27:13 `pub const Graph = struct { adj : \"[]Const []Const u8\", allocator : \"std.mem.Allocator\", }` \u2014 header \"Free graph memory\", with `fn init`, `fn add_edge(graph: *Graph)`, `fn traverse`, `fn deinit`. Same directory, same concept (an adjacency-list graph in the tri stdlib), both stub-generated, both own an `add_edge` over `*Graph` \u2014 but one is generic over T and keyed by HashMap while the other is a monomorphic byte-index adjacency array, and one tracks `directed` while the other tracks an allocator. NOTE ON THE INSTRUMENT: `tri types dup` renders the graph.t27 side as \"(newtype): T\" \u2014 it misreads `Graph(T) = struct` as a newtype declaration and loses both real fields. The field list above is read from the file.",
+      "confidence": "High, not certain. Certain both files specify a graph in one stdlib directory and disagree; the alternative reading is that graph_bfs.t27 meant to define a BFS-local working structure and should never have called it Graph.",
+      "suggested_action": "Have graph_bfs.t27 `use` tri::graph::graph and drop its local Graph; separately, teach the reader to parse a parameterised `Name(T) = struct` instead of reporting it as a newtype."
+    },
+    {
+      "name": "HealthStatus",
+      "sites": [
+        "specs/cloud/railway_deploy.t27:107",
+        "specs/tri/agent/eternal_monitor.t27:17"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "Two different KINDS of declaration, not two versions of one type. eternal_monitor.t27:17 is `pub const HealthStatus = struct { variants : , }` -- the corpus's enum idiom, written immediately below `Severity` in the same shape, and consumed at eternal_monitor.t27:45 as `status : HealthStatus` inside an Alert: a health LEVEL. railway_deploy.t27:107 is `pub struct HealthStatus { is_healthy: bool, status_code: u16, response_time_ms: u64, last_check_ts: u64, healthy_streak: u8 }` -- the recorded result of one HTTP probe, with a streak counter. Nothing is meant to be one thing here: a level and a probe record share a word. No file imports the other; the only uses are local. CAVEAT ON THE TOOL, NOT THE VERDICT: `tri types dup` reports this CONFLICTED partly because it cannot read `variants : ,` and sees an empty field list against a five-field one. The verdict above is from reading the source, not from that comparison.",
+      "suggested_action": "Rename railway_deploy's to HealthProbe -- it is a probe result, not a status -- or accept as module-scoped and leave this row as the record that it was judged.",
+      "confidence": "high"
+    },
+    {
+      "name": "HttpRequest",
+      "sites": [
+        "specs/provider/adapters.t27:103",
+        "specs/server/http.t27:81"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "adapters.t27:103 `pub const HttpRequest = struct { method : HttpMethod, url : []u8, headers : []HttpHeader, body : []u8, timeout_ms : usize, }` (outbound: \"HTTP request/response adapters for AI provider APIs\"). http.t27:81 `pub const HttpRequest = struct { method : HttpMethod, path : []u8, headers : HttpHeaders, body : []u8, }` (inbound: \"HTTP listener, request/response handling, middleware\"). Three of the four common fields are identical by name; `url` vs `path` is the rename, `timeout_ms` the addition, and `headers` is widened from a fixed record to a list: http.t27:74 `pub const HttpHeaders = struct { content_type : []u8, content_length : usize, user_agent : []u8, }` vs adapters.t27:97 `pub const HttpHeader = struct { name : []u8, value : []u8, }`. The copy is provable from the neighbouring enum, byte-identical in both files: `pub const HttpMethod = enum(u8) { get = 0, post = 1, put = 2, delete = 3, };` (adapters.t27:89, http.t27:60). It does not appear in the census because the census counts structs, not enums.",
+      "confidence": "Certain that one file was seeded from the other (the identical HttpMethod enum settles it). The client/server split is a real difference in role, but it was reached by editing a copy, not by independent design.",
+      "suggested_action": "Extract one http-types module (HttpMethod, HttpHeader/HttpHeaders, HttpStatus) and have both server/http.t27 and provider/adapters.t27 import it; keep direction-specific fields (`timeout_ms`) on a client-side wrapper."
+    },
+    {
+      "name": "HttpResponse",
+      "sites": [
+        "specs/provider/adapters.t27:112",
+        "specs/server/http.t27:89",
+        "specs/server/router.t27:58"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "The loudest of the three is router.t27:58, which announces itself: `/// HTTP response (forward declaration)` then `pub const HttpResponse = struct { status_code : u16, body : []u8, }`. A forward declaration that is in fact a second, incompatible definition \u2014 its sibling in the same directory is http.t27:89 `pub const HttpResponse = struct { status : HttpStatus, headers : HttpHeaders, body : []u8, }`. So `status` is a struct in one and a bare `u16` in the other, and headers vanish. router.t27 imports only `use std;` (line 12), so nothing links the two. The third, adapters.t27:112 `pub const HttpResponse = struct { status_code : i32, headers : []HttpHeader, body : []u8, success : bool, }`, is the client-side edit of the same record \u2014 and note the status code is `i32` there against `u16` in router.t27.",
+      "confidence": "Certain. The `/// HTTP response (forward declaration)` comment states the author's intent to refer to an existing type, and the declaration contradicts it. Three specs in one application give one wire object three shapes, with the status code typed HttpStatus / u16 / i32.",
+      "suggested_action": "Delete router.t27's stub and import server/http.t27's HttpResponse; then reconcile adapters.t27 onto the same type. Whatever else changes, the status code should have one width."
+    },
+    {
+      "name": "HttpStatus",
+      "sites": [
+        "specs/server/http.t27:68",
+        "specs/tri/net/http.t27:17"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "THE NARROWEST CONFLICT IN THE CENSUS \u2014 one qualifier from IDENTICAL. http.t27:68 `pub const HttpStatus = struct { code : u16, reason : []u8, }`. tri/net/http.t27:17 `pub const HttpStatus = struct { code : u16, reason : []const u8, }`. Same two fields, same names, same order, same widths; the only difference in the entire declaration is `const` in the slice type of `reason`. I am NOT calling this a detector bug: `[]u8` and `[]const u8` are different types to a resolver (mutable vs immutable backing), so the tool is right to separate them \u2014 but a human reading the census should know this pair is a whitespace-width apart, not a design disagreement. Contexts differ: server/http.t27 is the application's HTTP server spec, tri/net/http.t27 is the stub-generated stdlib module (\"Standard HTTP status codes\", bodies are `// TODO: Implement from .tri spec`) whose `fn status_from_code(code: u16)` and `fn is_success(code: u16)` are exactly the helpers the server side would want.",
+      "confidence": "Certain about the shapes (quoted verbatim). Not certain which side was copied from which \u2014 both are the obvious {code, reason} pair, and either could have been written first.",
+      "suggested_action": "Pick `[]const u8` and have server/http.t27 import tri::net::http::HttpStatus. This is the cheapest conflict in the census to retire, and retiring it removes one 'unbounded' answer from the quantifier census for free."
+    },
+    {
+      "name": "HybridBigInt",
+      "sites": [
+        "specs/ternary/hybrid_arithmetic.t27:32",
+        "specs/ternary/hybrid_bigint.t27:56"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "hybrid_arithmetic.t27:32 `pub struct HybridBigInt { packed_data : []u8, unpacked_data : []i8, mode : StorageMode, sign : i8, trit_count : u16, }`. hybrid_bigint.t27:56 `pub struct HybridBigInt { packed_data: [MAX_PACKED_BYTES]u8, unpacked_cache: Option<[MAX_TRITS]Trit>, mode: StorageMode, trit_len: usize, dirty: bool, }`. Same first field name, same `mode` field, same `StorageMode` enum defined identically in both files (`pub const StorageMode = enum(u8) { packed_mode, unpacked_mode, };`) and the same doc claim in both headers (packed 5 trits/byte, unpacked for compute). Then they part: the unpacked side is an owned `[]i8` vs an `Option<>` cache with a `dirty` flag; the length is `trit_count : u16` vs `trit_len : usize` (65535 trits vs machine-word); and `sign : i8` exists on one side and has no counterpart on the other. This is a core numeric type of the repository, and hybrid_arithmetic.t27:7 carries the banner `// IMPORTS - Reference existing specs, DO NOT DUPLICATE` directly above the duplicate.",
+      "confidence": "Certain. Two files in one directory, identical StorageMode, identical prose claims, incompatible representations of the same value.",
+      "suggested_action": "Highest-value fix in this slice. Choose one representation (the Option-cache + dirty version is the more considered) and make the other file import it \u2014 and decide whether sign is a field or is carried in the trits, because right now the answer depends on which file you read."
+    },
+    {
+      "name": "Hypervector",
+      "sites": [
+        "specs/api/sdk_contract.t27:20",
+        "specs/vsa/sdk.t27:29"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "sdk_contract.t27:20 `pub const Hypervector = struct { data: HybridBigInt, label: ?[]const u8 = null, ... }`. vsa/sdk.t27:29 `pub struct Hypervector { data: hybrid_arithmetic::HybridBigInt, label: ?[]const u8, }`. Same two fields, same order, same intent (\"Trinity SDK \u2014 High-level API\" in both headers) \u2014 the edits are a default initializer `= null` on one side and, more importantly, a dropped module qualifier. That qualifier is load-bearing: `HybridBigInt` is itself CONFLICTED (specs/ternary/hybrid_arithmetic.t27:32 vs specs/ternary/hybrid_bigint.t27:56), so vsa/sdk.t27 resolves to a specific one via `use hybrid_arithmetic;` (line 13) while sdk_contract.t27's bare `HybridBigInt` cannot be resolved at all. One unresolvable name inside another. Also worth flagging for the census: specs/api/sdk_contract.t27 is a Markdown document (`# TRINITY SDK \u2014 High-level API for Developers`, `## Specification`) and this struct sits inside a fenced code block \u2014 so one of the two 'definitions' is prose that no compiler reads.",
+      "confidence": "Certain the two shapes are one default and one qualifier apart. Not certain the doc copy should count as a definition at all \u2014 that depends on whether the census means to scan Markdown-shaped .t27 files.",
+      "suggested_action": "Qualify the type in the contract doc (`hybrid_arithmetic::HybridBigInt`) or regenerate that section from vsa/sdk.t27; and consider whether the struct scanner should skip fenced blocks in Markdown-shaped .t27 files."
+    },
+    {
+      "name": "Info",
+      "sites": [
+        "specs/account/repo.t27:17",
+        "specs/account/schema.t27:35",
+        "specs/auth/config.t27:60"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "What makes this name CONFLICTED is the third site alone: auth/config.t27:60 `struct Info(u8);` \u2014 a one-byte newtype tag in `module AuthConfig`, used as `fn get(provider_id: str) -> Result<Info, AuthConfigError>`, with nothing to do with an account record. The other two are an account record: repo.t27:17 `struct Info { id: AccountID, email: str, url: str, active_org_id: OrgID?, }` and schema.t27:35 `struct Info { id: AccountID, email: str, url: str, active_org_id: OrgID?, }`. LOUD SEPARATE FINDING: those two field lists are BYTE-IDENTICAL \u2014 I diffed them after trimming indentation and they match exactly, and repo.t27:12-15 also re-declares `AccountID`, `OrgID`, `AccessToken`, `RefreshToken`, all four already declared at schema.t27:13-22. That is an exact copy, not drift. It is NOT a detector bug: `tri types dup` classifies per NAME, and one of the three definitions differs, so CONFLICTED is correct. But it does mean the headline '16 DUPLICATED' undercounts exact copies \u2014 identical pairs hide inside CONFLICTED names whenever a third, unrelated definition exists.",
+      "confidence": "Certain on the shapes (diffed to byte equality) and certain that AuthConfig's `Info(u8)` is unrelated. The judgement call is the label: the name's conflict is a collision between subsystems (DISTINCT), while the duplication defect lives inside the account pair and is reported above rather than as the verdict.",
+      "suggested_action": "Two things: have account/repo.t27 `use account::schema` instead of re-declaring Info and the four ID newtypes; and rename AuthConfig's tag to AuthInfo. Also consider a per-PAIR duplicate count alongside the per-name one, so exact copies inside CONFLICTED names stop being invisible."
+    },
+    {
+      "name": "Instance",
+      "sites": [
+        "specs/fpga/hir.t27:71",
+        "specs/igla/race/rtl.t27:49",
+        "specs/runtime/instance.t27:71"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "runtime/instance.t27:71 `pub const Instance = struct { id : InstanceID, name : []u8, instance_type : InstanceType, pid : ProcessID, state : InstanceState, start_time_ms : u64, metadata : []u8, command : []u8, args : [][]u8, }` \u2014 an operating-system process (\"Instance registration, lookup, lifecycle management\", neighbours `TerminationReason { normal, error, timeout, cancelled, force_killed }`). That shares nothing with the two hardware ones. fpga/hir.t27:71 `pub struct Instance { name : &str, module_name : &str, }` is a Verilog module instantiation in the T27 HIR; race/rtl.t27:49 `pub const Instance = struct { module_name : string, instance_name : string, port_map : []PortMap, }` is the same in the IGLA RACE RTL generator. Those two overlap, but they are two independently written IRs, not one copied: hir.t27 uses `&str` and fixed arrays (\"Uses flat arrays + count fields (parser-compatible, no Vec/generics)\") with `Signal`/`Assign`, while race/rtl.t27 uses `string` and slices with `Signal`/`Assignment` \u2014 a whole parallel vocabulary, differently named.",
+      "confidence": "Certain the runtime process type is unrelated to both hardware types. Less certain about hir vs race: they model the same thing at different fidelity (one has no port map). What would settle that pair: whether the RACE backend was ever meant to consume HIR, or is a standalone emitter \u2014 the divergent naming (Assign vs Assignment) says standalone.",
+      "suggested_action": "Leave the three types; the ambiguity is in the name. If cross-spec resolution matters, qualify at use sites (hir::Instance, rtl::Instance, runtime::Instance) \u2014 three subsystems each have a legitimate claim to the word."
+    },
+    {
+      "name": "JitCache",
+      "sites": [
+        "specs/jit/jit.t27:462",
+        "specs/vm/jit_semantics.t27:47"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "jit.t27:462 `pub const JitCache = struct { bind_cache : []*const fn (*anyopaque, *anyopaque) void, bundle_cache : []*const fn (*anyopaque, *anyopaque) void, cache_size : usize, max_cache_size : usize, compiler : JitCompiler, allocator : *anyopaque, }`. jit_semantics.t27:47 `pub struct JitCache { bind_cache : map<usize, JitVsaFn>, compiler : JitCompiler, allocator_id : u16, }`. Both cache JIT-compiled VSA functions by dimension, both hold a `compiler : JitCompiler`, and their doc comments agree word-for-word in substance (\"Avoids recompilation for same dimensions\" / \"Caches compiled functions by dimension to avoid redundant compilation\"). The disagreements are substantive: `bundle_cache` exists on one side and has no counterpart on the other (so the semantics spec cannot cache bundle at all); `bind_cache` is a flat slice with manual `cache_size`/`max_cache_size` on one side and a `map<usize, JitVsaFn>` on the other, which makes the two count fields meaningless; and the allocator is a raw pointer vs a `u16` id. The copy is provable from the neighbours \u2014 `pub const JitVsaFn = *const fn (*anyopaque, *anyopaque) void;` and `pub const JitSimilarityFn = *const fn (*anyopaque, *anyopaque) f64;` appear byte-identical at jit.t27:48,52 and jit_semantics.t27:20,25.",
+      "confidence": "Certain. Two identical type aliases, matching doc language, and one subsystem.",
+      "suggested_action": "Decide which document is normative for the JIT (jit_semantics.t27 calls itself \"JIT Compilation Semantics\" and carries the `// IMPORTS - Reference existing specs, DO NOT DUPLICATE` banner at line 7, then duplicates anyway) and make the other import it. The dropped bundle_cache is a functional gap, not just a naming one."
+    },
+    {
+      "name": "JitCompiler",
+      "sites": [
+        "specs/jit/jit.t27:61",
+        "specs/vm/jit_semantics.t27:34"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "jit.t27:61 `pub const JitCompiler = struct { code : [MAX_CODE_SIZE]u8, code_len : usize, allocator : *anyopaque, }` \u2014 a fixed 64 KiB inline buffer (`pub const MAX_CODE_SIZE : usize = 65536;` at line 34) with an explicit length. jit_semantics.t27:34 `pub struct JitCompiler { code_buffer : []u8, allocator_id : u16, exec_memory : ?[]u8, }` \u2014 a slice with no length field, plus an `exec_memory : ?[]u8` (\"Executable memory region (mmap'd)\") that the other side does not model at all, while dropping the fixed-capacity bound. Same subsystem, same purpose (\"Compiles VSA operations to native machine code\" / \"Code generation engine for ternary operations\"), same neighbouring aliases JitVsaFn and JitSimilarityFn declared byte-identically in both files.",
+      "confidence": "Certain. Same name, same role, same file-pair as JitCache, with the mmap'd executable region present in exactly one of the two specs \u2014 a real capability disagreement, not a stylistic one.",
+      "suggested_action": "Reconcile with JitCache in the same pass: whether the code buffer is a fixed [65536]u8 or a heap slice, and whether executable memory is part of the compiler's state, should have one answer."
+    },
+    {
+      "name": "KnowledgeGraph",
+      "sites": [
+        "specs/graph/knowledge_graph.t27:83",
+        "specs/igla/coder/_tmp_pipeline_import.t27:49",
+        "specs/igla/coder/pipeline.t27:48"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "Two of the three sites are one file counted twice. `specs/igla/coder/_tmp_pipeline_import.t27` is a 2903-line copy of the 2902-line `specs/igla/coder/pipeline.t27` \u2014 its own header line 2 still reads `// t27/specs/igla/coder/pipeline.t27`, and `diff` between them returns only: one added import (`use igla::coder::dataset;`), five test names suffixed `_v2`, and one stray brace. Its KnowledgeGraph is therefore identical to pipeline.t27's: `pub const KnowledgeGraph = struct { modules : []ModuleSpec, edges : []string, top_name : string, }` (documented \"hierarchical design connectivity graph. Nodes = modules; edges = port-to-port wiring\"). The real second definition is graph/knowledge_graph.t27:83 `pub struct KnowledgeGraph { entities : [MAX_ENTITIES]?Entity, entity_count : u32, relations : [MAX_ENTITIES]?Relation, relation_count : u32, triples : [MAX_TRIPLES]?Triple, triple_count : u32, graph_vector : PackedBigInt, }` \u2014 an RDF-style VSA store (\"Module: Knowledge Graph for Vector Symbolic Architecture\", `Triple { subject_id, predicate_id, object_id, vector }`). A hardware netlist and a symbolic triple store share nothing but the word. CENSUS IMPACT: that one stray temp file inflates seven names \u2014 AgentAction, Contract, ModuleSpec (all three DUPLICATED purely because of it) plus KnowledgeGraph, PipelineConfig, PipelineResult and Port.",
+      "confidence": "Certain. The diff is three hunks, and the two subject matters (Verilog module wiring vs VSA entity/relation/triple storage) are unmistakably different.",
+      "suggested_action": "Delete specs/igla/coder/_tmp_pipeline_import.t27 \u2014 it is a leaked working copy, and removing it alone should drop 3 names out of the census and reduce 4 more. Then rename the netlist one DesignGraph, since it is a connectivity graph, not a knowledge graph."
+    },
+    {
+      "name": "LSTMWeights",
+      "sites": [
+        "specs/ml/recurrent/lstm_cell.t27:29",
+        "specs/ml/recurrent/lstm_single.t27:29"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "lstm_cell.t27:29 `pub const LSTMWeights = struct { Wf : []f32, bf : []f32, Wi : []f32, bi : []f32, Wo : []f32, bo : []f32, Wg : []f32, bg : []f32, }` \u2014 4 gates, one fused matrix each. lstm_single.t27:29 `pub const LSTMWeights = struct { W_ii : []f32, W_hi : []f32, b_i : []f32, W_if : []f32, W_hf : []f32, b_f : []f32, W_ig : []f32, W_hg : []f32, b_g : []f32, W_io : []f32, W_ho : []f32, b_o : []f32, }` \u2014 the same 4 gates with input and hidden projections split (the PyTorch parameterisation). Same math, incompatible layouts: 8 arrays vs 12, and a checkpoint written by one cannot be read by the other. That the two files are copies is settled by their neighbours, which the census reports as DUPLICATED: `LSTMConfig { input_size: u32, hidden_size: u32 }` and `LSTMState { h: []f32, c: []f32 }` are byte-identical at lines 19 and 24 of BOTH files. Only the weights drifted.",
+      "confidence": "Certain. Two identical sibling types at identical line numbers in both files, and a third that diverged.",
+      "suggested_action": "Pick one parameterisation (split W_ii/W_hi is the interoperable one) and delete the other file's copy. Until then, any spec that says `LSTMWeights` is ambiguous about tensor count."
+    },
+    {
+      "name": "Lexer",
+      "sites": [
+        "specs/compiler/lexer.t27:38",
+        "specs/pins/parser.t27:342"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "compiler/lexer.t27:38 `struct Lexer { source: [65536]u8; source_len: u32; pos: u32; line: u32; col: u32; }` \u2014 in `module Lexing`, over a `TokenKind` enum of the t27 language itself (`KwPub, KwConst, KwFn, KwEnum, KwStruct ... Arrow = 80, FatArrow = 81, Power = 82`), tracking line/col for diagnostics. pins/parser.t27:342 `struct Lexer { input: String, position: usize, }` \u2014 in a Rust-flavoured spec (\"Pins Parser for Trinity t27 \u2014 Parse .t27 pin specifications into Pins IR\") with `impl Lexer { fn new(input: String) -> Self ... fn tokenize(&mut self) -> Result<Vec<PinToken>, LexError> }` over a completely different token type, `PinToken`. Different input languages, different token alphabets, different error types; the pins lexer does not even track position for diagnostics beyond a byte offset.",
+      "confidence": "Certain. The token enums settle it: one lexes t27 source keywords, the other lexes pin-constraint files into PinToken.",
+      "suggested_action": "None on the types. If the census needs a single answer for `Lexer`, qualify at use sites \u2014 but consider renaming the pins one PinLexer, since 'Lexer' unqualified in a compiler repository reads as the language lexer."
+    },
+    {
+      "name": "LinkResult",
+      "sites": [
+        "specs/compiler/linker.t27:27",
+        "specs/fpga/linker.t27:150"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "compiler/linker.t27:27 `struct LinkResult { ok: bool; error: LinkError; error_msg: str; modules_linked: u32; symbols_resolved: u32; }` \u2014 in `module Linking` with `use compiler::parser;`, over `ModuleRef { module_name, file_path, resolved }` and `SymbolRef { symbol_name, module_name, symbol_type, is_pub, line }`: this is source-level module/import resolution, and its result is a pass/fail with an error message. fpga/linker.t27:150 `pub struct LinkResult { entry_addr : u32, total_text : u32, total_data : u32, total_bss : u32, num_symbols : u32, num_segments : u32, errors : u32, }` \u2014 \"Links assembled object files into executable images for ternary core ... section merging, symbol resolution, address assignment, relocations\", next to `LinkerConfig { entry, text_base, data_base, stack_size, heap_size, output_format }`: this is an ELF-style image layout, and its result is addresses and section sizes. Zero shared field names; `errors : u32` is a count, not the other's `ok: bool` + `error_msg: str`.",
+      "confidence": "High, not certain. Certain the two describe different stages over different inputs (source modules vs object files) with no overlapping field. The reservation: both are 'the linker' of one toolchain, so a reader could argue for one shared result type \u2014 but nothing in either file suggests they were ever one.",
+      "suggested_action": "Leave both; rename the binary one ImageLayout or LinkImage, which is what its fields actually describe, and the collision disappears."
+    },
+    {
+      "name": "LogEntry",
+      "sites": [
+        "specs/tri/utils/logger.t27:17",
+        "specs/tri/utils/logging.t27:17"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "logger.t27:17 `pub const LogEntry = struct { timestamp : \"Instant\", level : \"Level\", message : []const u8, }` \u2014 \"Structured logging\", with `pub const Level = struct { enum : [Trace, Debug, Info, Warn, Error, Fatal], }` and a `Logger { min_level, writers }`. logging.t27:17 `pub const LogEntry = struct { level : LogLevel, message : []const u8, timestamp : u64, tag : ?[]const u8, }` \u2014 \"Uses ANSI colors for terminal output\", with `pub const LogLevel = struct { enum : , }` (an empty generated stub). Same directory, same three core fields \u2014 reordered, the severity type renamed `Level` -> `LogLevel`, the timestamp re-typed `Instant` -> `u64`, and a fourth field `tag : ?[]const u8` added on one side only. Neither file imports the other; both are stub-generated (`// TODO: Implement from .tri spec`), and they split the module's function set between them: logger.t27 has `new`/`log`/`with_field`, logging.t27 has `level_to_string`/`level_from_string`/`level_color`/`format_entry`.",
+      "confidence": "Certain. Two files one letter apart in name, in one directory, describing one record with a renamed level type and a re-typed timestamp.",
+      "suggested_action": "Merge tri/utils/logger.t27 and tri/utils/logging.t27 into one module \u2014 the function sets are complementary, not competing. Keep one severity type name and one timestamp representation."
+    },
+    {
+      "name": "MHAConfig",
+      "sites": [
+        "specs/ml/transformer/multi_head_attention.t27:13",
+        "specs/ml/transformer/multi_head_attn.t27:28"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`d_model: u32, num_heads: u32, d_k: u32, causal: bool` vs `hidden_size: u32, num_heads: u32, head_dim: u32, dropout: gf16::GF16, use_flash_attention: bool, use_rope: bool, use_phi_scaling: bool, causal: bool`. Same directory; the file names differ only by abbreviation (multi_head_attention.t27 vs multi_head_attn.t27) and both headers say Multi-Head Attention. The second file's own comments name the first file's fields: `hidden_size : u32, // d_model: total hidden dimension` and `head_dim : u32, // d_k = d_v: dimension per head`. num_heads and causal survive verbatim. multi_head_attention.t27 is a stub (its only fn body is `// TODO: Implement from .tri spec`); multi_head_attn.t27 is the developed spec with MHAState/AttentionMask/MHAForwardResult.",
+      "confidence": "certain \u2014 the surviving comments in multi_head_attn.t27 spell out the renamed fields of multi_head_attention.t27, so the lineage is written in the file",
+      "suggested_action": "Delete the stub specs/ml/transformer/multi_head_attention.t27 (module MultiHeadAttn) and keep multi_head_attn.t27 (module MultiHeadAttention); nothing else references the stub."
+    },
+    {
+      "name": "Match",
+      "sites": [
+        "specs/tri/search/match.t27:13",
+        "specs/tri/search/regex.t27:18"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`matched: bool, captures: []MatchCapture` vs `start: \"usize\", end: \"usize\", groups: \"[]Const []Const u8\"`. Both live in specs/tri/search/, and the same directory holds two more spellings of the one idea: pattern.t27:13 `MatchResult { matches: bool, captured: []const u8 }` and regex_advanced.t27:17 `RegexMatch { matched: \"bool\", groups: \"[]Const []Const u8\", start: \"usize\", end: \"usize\" }` \u2014 which is exactly the union of the two conflicting Match bodies. Four models of a text-match result in one package; two of them took the bare name.",
+      "confidence": "medium \u2014 the doc headers describe different activities (match.t27: \"Check exhaustiveness at compile time when possible\"; regex.t27: \"Limited regex syntax\"), and every function in both files is an unimplemented stub. To be sure I would need a consumer of either Match; grep finds none outside the declaring files.",
+      "suggested_action": "Collapse Match/MatchResult/RegexMatch onto regex_advanced.t27's RegexMatch (it is already the superset) or rename per-module (GlobMatch/RegexMatch)."
+    },
+    {
+      "name": "MemPort",
+      "sites": [
+        "specs/fpga/hir.t27:117",
+        "specs/fpga/memory.t27:35"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`name: &str, is_write: bool, width: u32, addr_width: u32` vs `name: &str, kind: i8, addr_width: u32, data_width: u32, latency: i8`. Both file headers describe the same thing \u2014 hir.t27 \"Memory node (BRAM/DRAM/ROM)\", memory.t27 \"Memory (BRAM/DRAM/ROM) Abstraction ... with read/write ports\" \u2014 and both define `fn empty_mem_port()`. The boolean was widened to a three-valued enum: memory.t27 declares `MemPortKind { read_port = 0, write_port = 1, readwrite_port = 2 }`, so a read-write port is representable there and not in hir. `width` was renamed `data_width`; `latency` (comb_read/reg_read) was added. The containers drifted in step: hir `Mem { name, kind, depth, data_width, ports: [4]MemPort, port_count, init_file }` with `MAX_MEM_PORTS: u32 = 4` vs memory `MemDesc { name, kind, depth, data_width, addr_width, ports: [8]MemPort, port_count }` with `MAX_MEM_PORTS: u32 = 8`.",
+      "confidence": "certain \u2014 one subsystem (specs/fpga), one entity (a BRAM port), and the disagreement is a strict widening of is_write into MemPortKind plus a capacity change 4 vs 8",
+      "suggested_action": "Make fpga/hir.t27 import Memory's MemPort rather than restate it; reconcile MAX_MEM_PORTS (4 vs 8) before either number reaches a generated array bound."
+    },
+    {
+      "name": "Message",
+      "sites": [
+        "specs/provider/schema.t27:81",
+        "specs/server/api.t27:27",
+        "specs/server/session.t27:46"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`role: MessageRole, content: []MessageContent` (provider) vs `role: MessageRole, content: MessageContent` (api) vs `id: str, role: MessageRole, content: str, timestamp: u64, tool_calls: [8]ToolCall, tool_call_id: str` (session). One entity \u2014 a chat turn in this agent \u2014 with `content` as a slice, a single value and a plain str. The supporting enum disagrees numerically as well: provider/schema.t27 `MessageRole { system = 0, user = 1, assistant = 2, tool = 3 }` vs server/api.t27 and server/session.t27 `MessageRole { User = 0, Assistant = 1, System = 2 }` (session adds `Tool = 3`) \u2014 so `system` is 0 on one side and 2 on the other. And specs/server/api.t27:29 types content as `MessageContent`, which api.t27 never declares: it declares TextBlock/ToolUseBlock/ToolResultBlock/ThinkingBlock instead. The only MessageContent in the tree is provider/schema.t27:72 \u2014 where Message.content is a slice of them, not one.",
+      "confidence": "certain \u2014 all three describe an LLM chat turn in the same product, and server/api.t27 dangles on a name only provider/schema.t27 defines",
+      "suggested_action": "Pick one Message and one MessageRole (with fixed discriminants) in provider/schema.t27; have server/api.t27 import them instead of restating, and rename session's persisted row to StoredMessage since it carries id/timestamp."
+    },
+    {
+      "name": "MigrationStep",
+      "sites": [
+        "specs/config/migrate.t27:67",
+        "specs/storage/migrate.t27:14"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`from_version: u16, to_version: u16, action: MigrationAction, field_name: []u8, old_value: []u8, new_value: []u8, description: []u8` vs `version: u32, name: str, up: (str) -> Result<void, StorageError>, down: (str) -> Result<void, StorageError>`. No field name is shared. config's step is a declarative single-field edit \u2014 its `MigrationAction { add_field, remove_field, rename_field, change_type, set_default, migrate_value }` operates on one named config field, carrying old_value/new_value \u2014 while storage's step is a named reversible script pair in the Rails/Diesel sense, holding two function values and no field data at all.",
+      "confidence": "high \u2014 both are \"schema evolution\", which is why the word collides; the mechanism (declarative field diff vs up/down closures) and the empty field intersection settle it. Certain would need a caller that runs both kinds through one driver, and none exists.",
+      "suggested_action": "Rename to ConfigFieldMigration and StorageMigration; the shared word buys nothing since neither can be executed by the other's runner."
+    },
+    {
+      "name": "Node",
+      "sites": [
+        "specs/compiler/parser.t27:56",
+        "specs/tri/collections/lru_cache.t27:22"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`kind: NodeKind, name: str, value: str, extra_type: str, extra_field: str, extra_size: str, extra_kind: str, extra_op: str, extra_pub: bool, extra_mutable: bool, extra_return_type: str, child_count: u32, children: [MAX_CHILDREN]Node` \u2014 a compiler AST node whose `NodeKind` has 33 variants (Module = 0 ... ExprArrayLiteral = 32) \u2014 vs `generic: \"K, V\", key: \"K\", value: \"V\", prev: \"*Node\", next: \"*Node\"`, the intrusive doubly-linked list cell of an LRU cache (`LRUCache { ..., head: \"*Node\", tail: \"*Node\", map: \"HashMap(K, *Node)\" }`). The single shared name, `value`, means \"literal source text\" in one and \"the cached V\" in the other.",
+      "confidence": "certain \u2014 a self-hosting parser's AST and a collections-library list cell are unrelated by construction; the only overlap is the English word \"node\"",
+      "suggested_action": "Leave both; if the type namespace is ever flattened, rename the cache one to LruEntry."
+    },
+    {
+      "name": "OptimizerStepResult",
+      "sites": [
+        "specs/ml/optimizer/adamw.t27:46",
+        "specs/ml/optimizer/adamw.t27:501",
+        "specs/ml/optimizer/sgd_momentum.t27:40"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`updated_params: []gf16::GF16, m: []gf16::GF16, v: []gf16::GF16, step_norm: gf16::GF16` (adamw) vs `updated_params: []gf16::GF16, velocities: []gf16::GF16, step_norm: gf16::GF16` (sgd_momentum). The trailing comments are byte-identical across the two files \u2014 `// New parameter values` on updated_params and `// L2 norm of the parameter update` on step_norm \u2014 so the lineage is copy-paste; only the optimizer's own state field was swapped (Adam's first/second moments m,v for SGD's velocities). Both files namespace their siblings and leave this one bare: AdamWConfig/AdamWState next to a plain OptimizerStepResult, SgdMomentumConfig/SgdMomentumState next to a plain OptimizerStepResult. Separately, sites 1 and 2 are the SAME FILE and byte-identical: specs/ml/optimizer/adamw.t27 (1019 lines) holds two complete copies of its body \u2014 `// 2. Types` at lines 25 and 470, `// 3. Core Functions` at 54 and 509, `pub const AdamWConfig` at 28 and 483, `pub const OptimizerStepResult` at 46 and 501 \u2014 an ASCII/PhiVariant rewrite pasted in without deleting the original, so `init` and `step` are each declared twice in one module and AdamWConfig's last field is `use_phi_betas: bool` in the first copy and `phi_variant: PhiVariant` in the second.",
+      "confidence": "certain \u2014 identical comment text on the shared fields proves common origin, and both live in specs/ml/optimizer/",
+      "suggested_action": "Two fixes: (1) delete the second body of adamw.t27 (lines ~460-end duplicate lines ~14-459) or finish the intended replacement; (2) rename to AdamWStepResult / SgdStepResult, or factor a common `{ updated_params, step_norm }` and let each optimizer return its own state alongside."
+    },
+    {
+      "name": "ParseError",
+      "sites": [
+        "specs/pins/parser.t27:336",
+        "specs/tri/pipeline/codegen.t27:13"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`message: String, position: usize` vs `message: String, line: Int, column: Int, source: String`. `message: String` is shared. But the pins one is the live error type of the pin-constraint parser \u2014 returned by 15 signatures in its own file (`fn parse(&mut self) -> Result<AstNode, ParseError>`, `fn expect_token(...) -> Result<(), ParseError>`, \u2026) and constructed as `Err(ParseError { message: message.to_string(), position: self.current })` \u2014 while the other is the entire content of a 23-line orphan: specs/tri/pipeline/codegen.t27 declares `module TestSpec`, contains this struct and nothing else, and its ParseError is referenced nowhere in specs/. The type vocabularies also differ (usize/String vs Int/String).",
+      "confidence": "medium \u2014 both name \"a parse failure\", so a stricter reading could call this DRIFT. What would settle it is whether the codegen stub was ever meant to type the pins parser or the t27 parser; that it is dead, mis-named (module TestSpec inside codegen.t27) and uses a different type vocabulary reads as a separate abandoned thing, not an edited copy.",
+      "suggested_action": "Delete specs/tri/pipeline/codegen.t27 or give it a real body; nothing consumes its ParseError."
+    },
+    {
+      "name": "ParseResult",
+      "sites": [
+        "specs/lsp/protocol.t27:112",
+        "specs/tri/utils/args.t27:24"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`success: bool, message_type: MessageType, request: Request, response: Response, notification: Notification, error: JsonRpcError` \u2014 a JSON-RPC 2.0 frame demultiplexer for LSP, sitting beside `Request { jsonrpc, id, method, params }`, `Notification { jsonrpc, method, params }` and `JsonRpcError { code, message, data }` \u2014 vs `positional: [][]const u8, named: []ArgValue, error: ?[]const u8`, the result of parsing argv, beside `Arg { short: ?u8, long: ?[]const u8, required: bool }` and `ArgValue { value: ?[]const u8, present: bool }`. The only shared name is `error`, a JsonRpcError struct in one and an optional string in the other.",
+      "confidence": "certain \u2014 a wire-protocol frame and a command line are unrelated inputs, and the surrounding types in each file confirm the subject",
+      "suggested_action": "Rename the CLI one to ArgsParseResult if the namespace is ever flattened; no defect today."
+    },
+    {
+      "name": "Parser",
+      "sites": [
+        "specs/compiler/parser.t27:76",
+        "specs/pins/parser.t27:81"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`lexer: lexer::Lexer, current: lexer::Token, peek: lexer::Token, had_error: bool, error_msg: str` vs `tokens: Vec<PinToken>, current: usize, current_module: Option<String>`. `current` is the only shared name and it is a Token on one side and a cursor index on the other. Different grammars \u2014 compiler/parser.t27's header says \"the complete recursive descent parser for the T27 language ... a 1:1 port of bootstrap/src/compiler.rs Parser\", pins/parser.t27's says \"Parse .t27 pin specifications into Pins IR\" \u2014 and different designs: streaming lexer with one-token lookahead vs a pre-tokenized Vec<PinToken> plus an index.",
+      "confidence": "certain \u2014 two parsers for two different input languages, each with its own token type (lexer::Token vs PinToken)",
+      "suggested_action": "None needed; if flattened, PinsParser is the natural rename for the pins one (it is already the module name)."
+    },
+    {
+      "name": "PinAssignment",
+      "sites": [
+        "specs/boards/arty_a7.t27:26",
+        "specs/boards/xc7a100t_full.t27:26",
+        "specs/boards/xc7a100t_minimal.t27:24"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "arty_a7 and xc7a100t_minimal are field-for-field identical: `port_name: &str, package_pin: &str, iostandard: &str, is_clock: bool, is_input: bool, is_output: bool, bank: u8`. xc7a100t_full inserts two fields into that same list: `port_name: &str, package_pin: &str, iostandard: &str, is_clock: bool, is_input: bool, is_output: bool, is_bidir: bool, bank: u8, prjxray_verified: bool`. This is a generic one-pin record \u2014 not a per-board field set \u2014 copied into three board profiles and extended in one. The extension is motivated in that file's own header: \"Note: 22 pins from full QMTECH XDC are missing in prjxray-db\", which is exactly what `prjxray_verified` records; the other two boards cannot express it, nor can they express a bidirectional pin.",
+      "confidence": "certain \u2014 two of the three bodies are identical, and the third is the same list with two insertions",
+      "suggested_action": "Hoist one PinAssignment (the 9-field version) into a shared boards module and have all three profiles import it."
+    },
+    {
+      "name": "PinMapping",
+      "sites": [
+        "specs/fpga/boards/arty_a7_integration.t27:30",
+        "specs/fpga/boards/qmtech_a100t_integration.t27:22"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`clk_pin: str; rst_pin: str; uart_tx_pin: str; uart_rx_pin: str; spi_cs_pin: str; spi_sck_pin: str; spi_mosi_pin: str; spi_miso_pin: str; led_pins: str; switch_pins: str; button_pins: str;` vs `clk_pin: str; rst_pin: str; uart_tx_pin: str; uart_rx_pin: str; led_pins: str;`. The QMTech body is the Arty body with the SPI, switch and button lines deleted, in the same order; the same deletion happened to the neighbouring type, `SystemConfig { clock_hz, baud_rate, spi_div, mem_size, fifo_depth, num_peripherals }` vs `SystemConfig { clock_hz, baud_rate, mem_size, fifo_depth }`. The copy-paste left a fingerprint in the data, not just the shape: both files set `.clk_pin = \"E3\"` even though the Arty runs `CLOCK_FREQ_HZ = 100_000_000` and the QMTech `CLOCK_FREQ_HZ = 12_000_000`.",
+      "confidence": "high \u2014 strict subset plus a duplicated pin literal across two different boards. Short of certain because a per-board pin struct arguably should differ per board; the defect is that both shapes answer to the name PinMapping.",
+      "suggested_action": "Either give each board its own name (ArtyA7PinMapping / QMTechA100TPinMapping) or use the specs/boards/ PinAssignment list form; and check \"E3\" against the QMTech XDC \u2014 it looks inherited rather than verified."
+    },
+    {
+      "name": "PipelineConfig",
+      "sites": [
+        "specs/compiler/pipeline.t27:20",
+        "specs/igla/coder/_tmp_pipeline_import.t27:21",
+        "specs/igla/coder/pipeline.t27:20"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`target_backend: str; opt_level: u32; emit_debug: bool; emit_comments: bool; check_only: bool;` \u2014 the compiler driver's knobs, whose `default_pipeline_config()` returns `target_backend = \"zig\"`, alongside `PipelineStage { Lex, Parse, TypeCheck, Optimize, Codegen, Link }` \u2014 vs `max_tokens: u32, temperature: f32, top_p: f32`, documented in its own file as \"generation hyperparameters\" for `prompt -> tokenize -> forward -> decode`. No shared field; \"pipeline\" means a compiler and an LLM decode loop. The third site is not a third design: specs/igla/coder/_tmp_pipeline_import.t27 is a 2903-line near-verbatim copy of the 2902-line specs/igla/coder/pipeline.t27 \u2014 its header still reads `// t27/specs/igla/coder/pipeline.t27`, and diff shows only one added `use igla::coder::dataset;` plus five test names suffixed `_v2`.",
+      "confidence": "certain \u2014 the two real definitions configure a compiler and a sampler respectively; the third is a stray file copy",
+      "suggested_action": "Delete specs/igla/coder/_tmp_pipeline_import.t27 \u2014 it is a temp import artifact that duplicates 2900 lines and inflates three separate conflict counts (PipelineConfig, PipelineResult, Port, plus ModuleSpec in the DUPLICATED list)."
+    },
+    {
+      "name": "PipelineResult",
+      "sites": [
+        "specs/ar/composition.t27:56",
+        "specs/compiler/pipeline.t27:28",
+        "specs/igla/coder/_tmp_pipeline_import.t27:28",
+        "specs/igla/coder/pipeline.t27:27",
+        "specs/tri/pipeline/batch_runner.t27:21"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "Five sites, four subjects. `output: Trit, proof_trace: ProofTrace, ml_confidence: float, ar_steps: int, fusion_method: string` \u2014 the result of a neuro-symbolic ML+AR fusion. `success: bool; stage_reached: u32; lex_tokens: u32; parse_nodes: u32; type_errors: u32; opt_folds: u32; opt_dead: u32; opt_copies: u32; opt_strengths: u32; gen_lines: u32; error_msg: str;` \u2014 per-stage counters for one compile. `generated: string, token_count: u32` \u2014 one LLM decode (twice; the second is the _tmp_pipeline_import clone). `spec_path: String, success: Bool, status: CompileStatus, duration_ns: Int, error_msg: String` \u2014 one row of a batch compile run. The closest pair, compiler/pipeline and tri/pipeline/batch_runner, share only `success` and `error_msg` and sit at different granularities: stages within one compile vs one spec among many.",
+      "confidence": "high \u2014 four unrelated pipelines is settled by the surrounding specs; the one thing I did not resolve is whether batch_runner was meant to embed compiler/pipeline's result rather than restate success/error_msg",
+      "suggested_action": "Rename per subsystem (FusionResult / CompilePipelineResult / GenerationResult / BatchEntryResult); and delete the _tmp_pipeline_import clone."
+    },
+    {
+      "name": "PolicyOutput",
+      "sites": [
+        "specs/ml/rl/ppo_actor.t27:33",
+        "specs/ml/rl/sac_actor.t27:30"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`logits: []f32, log_std: []f32` vs `mean: []f32, log_std: []f32`. Same package specs/ml/rl/, same role \u2014 the head of a stochastic policy network \u2014 with `log_std: []f32` identical in name and type on both sides and the leading field repurposed: PPO's discrete-action logits (it has `fn forward_discrete` and `fn forward_continuous`, and `ActionSpace`) versus SAC's Gaussian mean (it has `fn sample(policy_output: PolicyOutput)` feeding `SquashedGaussianSample { action: []f32, log_prob: f32 }`). The tell that this is an oversight rather than a design: sac_actor.t27 namespaced its neighbouring type as `SACActorConfig` while leaving `PolicyOutput` bare, so the one type it shares a name on is the one it forgot to qualify.",
+      "confidence": "high \u2014 same directory, one shared field, one repurposed field. Certain would need a common actor interface in specs/ml/rl that both are meant to satisfy; I did not find one.",
+      "suggested_action": "Rename to PPOPolicyOutput / SACPolicyOutput, matching the SACActorConfig convention already in the file."
+    },
+    {
+      "name": "Port",
+      "sites": [
+        "specs/fpga/hir.t27:43",
+        "specs/igla/coder/_tmp_pipeline_import.t27:34",
+        "specs/igla/coder/pipeline.t27:33"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`name: &str, dir: i8, width: u32, is_signed: bool, is_clock: bool, is_reset: bool` \u2014 with `dir` backed by `PortDir { input_dir = 0, output_dir = 1, inout_dir = 2 }` \u2014 vs `name: string, direction: string, // \"input\", \"output\", \"inout\"` and `width: u32`. One entity, a Verilog module port, in both: the igla file uses its Port to emit HDL (`fn declare_module_ports(ports: []Port, idx: u32, acc: string) -> string`, `fn instantiate_ports(...)`, `fn resolve_port_widths(ports: []Port) -> []Port`) and its literals read `Port { name: \"clk\", direction: \"input\", width: 1 }` \u2014 the exact case fpga/hir encodes as `is_clock: true`. The direction domain is the same three values, spelled as an i8 enum on one side and as free-form strings on the other, so the igla side admits typos the HIR side cannot represent, and the HIR's is_signed/is_clock/is_reset have nowhere to go. Third site is the _tmp_pipeline_import clone of the second.",
+      "confidence": "high \u2014 both emit Verilog module ports in one repo; certain would need a path where an igla-produced Port reaches the HIR emitter",
+      "suggested_action": "Have igla/coder import fpga::hir::Port (or at least PortDir) instead of restating it with string directions; deleting _tmp_pipeline_import.t27 removes the third site."
+    },
+    {
+      "name": "ProcessInfo",
+      "sites": [
+        "specs/runtime/process.t27:64",
+        "specs/shell/schema.t27:45"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`pid: ProcessID, name: []u8, command: []u8, args: [][]u8, state: ProcessState, exit_code: ?u8` vs `pid: u32, command: str, status: ProcessStatus, exitCode: i32?, signal: u32?, startTime: u64, endTime: u64?`. Same entity \u2014 an OS process this agent spawned. `pid` and `command` survive; `state` is renamed `status` onto a different enum (`ProcessState { not_started, running, stopped, terminated, zombie }` vs `ProcessStatus { Running, Exited, Signaled, Stopped }` \u2014 one has not_started/zombie, the other has Signaled); `exit_code: ?u8` becomes `exitCode: i32?`, changing both the naming convention (snake vs camel, inside one corpus) and the domain, so a negative or signal-derived exit is representable on one side only. shell adds signal/startTime/endTime; runtime keeps name/args. The spawn options drifted too: `SpawnOptions { env, cwd, timeout_ms, detached, pty_enabled, pty_cols, pty_rows }` vs `ProcessOptions { cwd, env, timeout, stdin, ... }`.",
+      "confidence": "high \u2014 one real-world entity described twice with a renamed status enum and an incompatible exit-code type; certain would need a call site that produces one and consumes the other",
+      "suggested_action": "Unify on one ProcessInfo with an i32 exit code and one status enum that keeps both zombie and Signaled; the exit_code width difference is the part that will silently truncate."
+    },
+    {
+      "name": "Promise",
+      "sites": [
+        "specs/runtime/execute.t27:101",
+        "specs/tri/net/async.t27:18"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`task_id: TaskID, state: PromiseState, result: ?TaskResult, created_at_ms: u64, resolve_fn: ?fn(TaskResult) void, reject_fn: ?fn([]u8) void` \u2014 a concrete task-bound handle in the runtime executor, with `PromiseState { pending = 0, resolved = 1, rejected = 2, cancelled = 3 }`, next to ExecContext/TaskState/ExecError \u2014 vs `pub const Promise(T) = struct { fulfilled: bool, future: \"Future(T)\" }`, the generic write-half of a Future/Promise pair in the tri async library, paired with `Future(T) { completed: bool, value: T }` and `fn fulfill`, `fn await`, `fn map`. No shared field: one carries a task id and two callbacks, the other carries nothing but a flag and its future. Neither file imports the other, and nothing anywhere in specs/ references TriAsync.",
+      "confidence": "medium \u2014 if runtime-execute were meant to be built on TriAsync these would be one type and this would be DRIFT; nothing in either file (no use clause, no cross-reference) says so, and the generic-vs-concrete split argues they are separate designs",
+      "suggested_action": "None urgent. Note the report's field list for the async site is wrong \u2014 see the pattern note about the generic-struct misparse."
+    },
+    {
+      "name": "ProofStep",
+      "sites": [
+        "specs/ar/proof_trace.t27:11",
+        "specs/math/phi_split_optimality.t27:34",
+        "specs/math/phi_universal_attractor.t27:92"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`step_id: int, operation: string, inputs: [Trit], output: Trit, timestamp: int` \u2014 a machine-recorded inference step over ternary values, bounded by the file's own `const MAX_STEPS: int = 10  // DARPA CLARA requirement: \u226410 steps` and collected into `ProofTrace { steps: [ProofStep], start_timestamp: int, end_timestamp: int, verified: bool }` \u2014 vs `description: string, equation: string, result: string`, human prose for a theorem derivation, e.g. `ProofStep{ description = \"Contraction property\", equation = \"|f'(x)| = |(1 - x\u207b\u00b2)/2| < 0.5 for all x > 0\", result = \"Banach fixed-point theorem guarantees unique attractor\" }`. Nothing is shared. The two math/ bodies are byte-identical to each other \u2014 `description: string, equation: string, result: string`, same names, same order \u2014 so that pair is a duplicated documentation struct, not a disagreement; the name is CONFLICTED only because specs/ar means something else by it entirely.",
+      "confidence": "certain \u2014 a runtime Trit-level inference record and a LaTeX-ish derivation caption are unrelated, and the math pair's identity is exact",
+      "suggested_action": "Rename the math one to DerivationStep (and share the single copy between phi_split_optimality and phi_universal_attractor rather than defining it twice)."
+    },
+    {
+      "name": "ProviderConfig",
+      "sites": [
+        "specs/config/schema.t27:69",
+        "specs/provider/schema.t27:157"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`name: ProviderType, api_key: []u8, base_url: []u8, model: []u8, max_tokens: u32, timeout_sec: u16, temperature: f64` vs `provider_type: ProviderType, api_key: []u8, base_url: []u8, model: []u8, timeout_ms: usize, max_retries: usize`. Three fields \u2014 `api_key: []u8, base_url: []u8, model: []u8` \u2014 are identical in name, type and position. `name` was renamed `provider_type`. The timeout was renamed and its UNIT changed: `timeout_sec: u16` vs `timeout_ms: usize`, a 1000\u00d7 disagreement on one field of one type, with no marker on either side. max_tokens and temperature were dropped; max_retries was added. The referenced enum also disagrees: config/schema.t27 `ProviderType { anthropic = 0, openai = 1, custom = 2 }` vs provider/schema.t27 `ProviderType { anthropic = 0, openai = 1 }` \u2014 so `custom` exists in the config file and cannot be stored by the provider layer that consumes it.",
+      "confidence": "certain \u2014 the identical three-field spine settles the lineage, and both files configure the same LLM provider layer",
+      "suggested_action": "One ProviderConfig in provider/schema.t27, imported by config/schema.t27. Fix the timeout unit first \u2014 a config written as seconds and read as milliseconds is a live bug, not a naming issue."
+    },
+    {
+      "name": "QueryResult",
+      "sites": [
+        "specs/ar/datalog_engine.t27:26",
+        "specs/memory/notebooklm.t27:100",
+        "specs/vsa/sequence_hdc.t27:83"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`answers: [Fact], proof_trace: ProofTrace, complete: bool` \u2014 a Datalog answer set over `Fact { predicate: string, args: [string], truth_value: Trit }` \u2014 vs `notebook_id: str, query: str, answer: str, sources: [5]str, confidence: f64, timestamp: u64` \u2014 a NotebookLM RAG answer with citations \u2014 vs `label: []const u8, similarity: f64` \u2014 one nearest-neighbour hit from a hyperdimensional sequence memory, beside `EncodedSequence { label: []const u8, vector: PackedBigInt }`. No field name occurs in more than one of the three.",
+      "confidence": "certain \u2014 three unrelated retrieval systems (symbolic inference, RAG over documents, VSA cosine similarity), each with its own surrounding vocabulary",
+      "suggested_action": "Rename per subsystem (DatalogAnswer / NotebookAnswer / SimilarityHit); no shared meaning to preserve."
+    },
+    {
+      "name": "Rect",
+      "sites": [
+        "specs/tri/trees/quadtree.t27:13",
+        "specs/tri/trees/rtree.t27:13"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`x: \"f64\", y: \"f64\", width: \"f64\", height: \"f64\"` vs `x_min: \"f64\", y_min: \"f64\", x_max: \"f64\", y_max: \"f64\"`. Same package specs/tri/trees/, same entity \u2014 the axis-aligned box a spatial index stores: `QuadNode { boundary: \"Rect\", children: [4]?QuadNode, ... }` and `RTreeNode { rect: \"Rect\", children: []RTreeNode, is_leaf: \"bool\" }`. Two incompatible parameterisations of one rectangle: origin-plus-extent versus corner-to-corner. Both are exactly four f64 in the same positions, so a value crossing between the two indices would not fail on arity or element type \u2014 `width` would simply be read as `x_max`, silently placing the box somewhere else.",
+      "confidence": "high \u2014 geometry settles that this is one concept with two encodings; certain would need a call site that passes a Rect from one tree to the other, and both files are still stubs (`// TODO: Implement from .tri spec`)",
+      "suggested_action": "Pick one convention for specs/tri/trees/ (min/max is the usual choice for R-tree union/intersect math) and give the other a conversion, or name them QuadRect / BoundingBox so the four-f64 aliasing cannot happen quietly."
+    },
+    {
+      "name": "Response",
+      "sites": [
+        "specs/lsp/protocol.t27:90",
+        "specs/provider/schema.t27:135",
+        "specs/server/mdns.t27:106"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`jsonrpc: []u8, id: usize, result: []u8, error: []u8` \u2014 a JSON-RPC 2.0 response frame, next to `Request { jsonrpc, id, method, params }`, `Notification { jsonrpc, method, params }` and `JsonRpcError { code, message, data }` \u2014 vs `id: []u8, model: []u8, choices: []Choice, usage: Usage, finish_reason: []u8` \u2014 an LLM completion, next to `Choice { message: Message, finish_reason: []u8 }` and `StreamResponse` \u2014 vs `qtype: QueryType, records: []ServiceRecord` \u2014 an mDNS answer, next to `Query { qtype: QueryType, name: []u8 }`, PTRRecord and TXTRecord. Only `id` appears twice, and it is `usize` in the LSP frame and `[]u8` in the LLM completion. Three protocols, three unrelated frames.",
+      "confidence": "certain \u2014 each definition is anchored by its own protocol's sibling types (Request/Notification, Choice/Usage, Query/PTRRecord)",
+      "suggested_action": "Rename to JsonRpcResponse / CompletionResponse / MdnsResponse; three protocols in one binary should not all own the bare word."
+    },
+    {
+      "name": "Result",
+      "sites": [
+        "specs/compiler/stdlib.t27:34",
+        "specs/git/schema.t27:58"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`is_ok: bool; value: u64; error_code: u32;` \u2014 the T27 stdlib's error-carrying return, sitting beside `Opt { has_value: bool; value: u64; }` and `enum StdlibResult { Ok, Err, Empty }` \u2014 vs `exit_code: u32, text: str, stdout: [u8], stderr: [u8]`, the captured output of a `git` subprocess, beside `Options { cwd, env }` and `GitError { message, exit_code, command }`. No shared field; a monomorphised sum type and a process-output record. This is the most hazardous DISTINCT in the slice, because the corpus already uses `Result` in a THIRD, structural sense that matches neither body \u2014 e.g. specs/storage/migrate.t27 writes `up: (str) -> Result<void, StorageError>` and `fn version() -> Result<u32, StorageError>`, a two-parameter generic that no declaration in the tree provides.",
+      "confidence": "certain \u2014 the two declared bodies are unrelated; the generic Result<T,E> usage is separate evidence that the name is overloaded three ways",
+      "suggested_action": "Rename git's to GitCommandOutput, and decide whether Result<T,E> is a builtin \u2014 if it is, compiler/stdlib.t27's fixed `value: u64` version needs a different name too."
+    },
+    {
+      "name": "Route",
+      "sites": [
+        "specs/server/router.t27:64",
+        "specs/server/routes.t27:19",
+        "specs/tools/tri_to_t27_converter.t27:72"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "`method: RouteMethod, path: []u8, handler: Handler, params: []RouteParam` vs `path: str, method: HttpMethod, handler_name: str`. Same subsystem specs/server/, same entity \u2014 one HTTP route-table entry \u2014 with path and method shared, the handler held as a function value (`pub const Handler = fn([]u8) HttpResponse`) on one side and as a name string on the other, and params dropped. The method enums disagree numerically: router.t27 `RouteMethod { get = 0, post = 1, put = 2, delete = 3, patch = 4, options = 5, any = 6 }` vs routes.t27 `HttpMethod { GET = 0, POST = 1, PUT = 2, PATCH = 3, DELETE = 4 }` \u2014 DELETE is 3 in one and 4 in the other, PATCH the reverse, and routes.t27 pins its own numbering with `test \"http_method_values\" { ... assert(HttpMethod::DELETE == 4) }`, so the two cannot be reconciled silently. The third site, specs/tools/tri_to_t27_converter.t27:72 `source: []const u8, target: []const u8`, is not an HTTP route at all \u2014 it is a file-conversion path pair (.tri to .t27) reusing the word.",
+      "confidence": "certain for the defect \u2014 the two specs/server/ definitions describe one routing table and disagree on the wire values of DELETE and PATCH; the tools/ site is a separate meaning and would be DISTINCT on its own",
+      "suggested_action": "Reconcile RouteMethod and HttpMethod (fix the DELETE/PATCH discriminants) and keep one Route in specs/server/; rename the converter's to PathMapping."
+    },
+    {
+      "name": "Rule",
+      "sites": [
+        "specs/ar/datalog_engine.t27:14",
+        "specs/ar/ternary_logic.t27:65"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "`head: Fact, body: [Fact]` \u2014 a Datalog Horn clause, commented \"Datalog rule structure (head :- body)\", over `Fact { predicate: string, args: [string], truth_value: Trit }` and stored in `Database { facts: [Fact], rules: [Rule] }` \u2014 vs `antecedent: Trit, consequent: Trit`, commented \"Rule structure for logical inference\", a propositional K3 implication between two bare truth values, consumed by `fn forward_chain(rule: Rule, fact: Trit) -> Trit` and `fn backward_chain(goal: Trit, rules: [Rule]) -> Trit`. No shared field; predicate logic with arguments versus Kleene 3-valued propositional logic. Neither type is referenced outside its declaring file \u2014 grep for Rule across specs/ar/ finds only these two files plus prose in coa_planning and composition.",
+      "confidence": "medium \u2014 this is the most acute collision in the slice because the two sit in the SAME package (specs/ar/, 8 files) and specs/ar/composition.t27 composes both engines into one pipeline via `ComponentType { ... AR_K3 = 6, AR_ASP = 7 }`. If a composed rule type is ever needed this becomes DRIFT; today they are two different formalisms that were never meant to unify, which is why I did not call it a defect of agreement.",
+      "suggested_action": "Rename to DatalogRule and K3Implication \u2014 inside one package, an unqualified ar::Rule cannot be resolved by a reader or by the census."
+    },
+    {
+      "name": "SacredConstants",
+      "sites": [
+        "specs/sacred/sacred_constants.t27:13",
+        "specs/tri/math/constants.t27:20"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "sacred/sacred_constants.t27 (module SacredConstants, whole file is 21 lines): `pub const SacredConstants = struct { note : Namespace struct \u2014 all members are comptime constants or pure functions, };`. tri/math/constants.t27 (module TriConstants): `pub const SacredConstants = struct { phi : f64, pi : f64, e : f64, sqrt2 : f64, sqrt3 : f64, golden_ratio : f64, };`. Same concept \u2014 the sacred-constants namespace; both files open with the identical `// t27/specs/ ... \u03c6\u00b2 + 1/\u03c6\u00b2 = 3 | TRINITY` header and both `use math::constants`. The two specs disagree on whether SacredConstants is a fieldless comptime namespace or a six-field record. The record side is itself incoherent: `phi` and `golden_ratio` are the same constant declared twice.",
+      "confidence": "high \u2014 the subject matter settles that both name the sacred-constants namespace, but the stub carries no field list to compare against, so the drift is inferred from name+domain rather than from overlapping fields. To be sure I would need the .tri source that generated specs/sacred/sacred_constants.t27, to confirm the `note:` line is a placeholder for the same members rather than a deliberately separate marker type.",
+      "suggested_action": "Delete the 21-line stub in specs/sacred/sacred_constants.t27 or rename it (e.g. SacredConstantsNamespace); make tri/math/constants.t27 the single declaration, and drop `golden_ratio` as a duplicate of `phi`."
+    },
+    {
+      "name": "SacredRule",
+      "sites": [
+        "specs/sacred/sacred_governance.t27:13",
+        "specs/tri/agent/governance_agent.t27:22"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "sacred_governance.t27: `pub const SacredRule = struct { rule_type : SacredRuleType, penalty_weight : Float, };`. governance_agent.t27: `pub const SacredRule = struct { weight : Float  # \u03c6-based weight, penalty_multiplier : Float, enabled : Bool, };`. The penalty field is renamed (`penalty_weight` \u2192 `penalty_multiplier`), `enabled` is added, `rule_type` is dropped. The sibling structs in the same two files confirm copy-paste-then-edit: `RuleViolation { rule_type, severity, file_path, line_number, message, phi_penalty, timestamp }` vs `Violation { rule, file_path, line_number, severity, penalty, timestamp, commit_hash, auto_rollback, resolved }`, and `SacredComplianceReport { ..., phi_harmony, trinity_balance, gematria_coverage }` vs `SacredScore { phi_harmony, trinity_balance, gematria_compliance, ... }`.",
+      "confidence": "certain",
+      "suggested_action": "Pick one governance spec as the owner of SacredRule (sacred_governance.t27 has the richer rule_type discriminant) and have governance_agent.t27 import it; fold `enabled` into the owning definition."
+    },
+    {
+      "name": "SearchResult",
+      "sites": [
+        "specs/memory/semantic_search.t27:48",
+        "specs/tri/search/search.t27:13",
+        "specs/vsa/similarity_search.t27:27",
+        "specs/vsa/vsa_core.t27:53"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "Mixed cluster, but two of the four drift inside one subsystem. vsa_core.t27: `pub const SearchResult = struct { index : usize, similarity : gf16, };`. similarity_search.t27: `struct SearchResult { index : usize, similarity : f64, distance : f64, }` \u2014 same first two field names and order, `similarity` widened gf16 \u2192 f64, `distance` added. Decisive: similarity_search.t27 line 9 is `use vsa::core;`, so it imports the very module that already exports SearchResult and then shadows it. The other two are different granularities: semantic_search.t27 `pub const SearchResult = struct { matches : []FormulaMatch, count : usize, query_time_ms : f64, }` is a result *container* (the VSA container is separately named `SearchResults { results, count, query_hash }`), and tri/search/search.t27 `pub const SearchResult = struct { index : \"?usize\", found : \"bool\", }` is a plain binary/linear array search on `[]const T`.",
+      "confidence": "certain for the vsa_core/similarity_search pair \u2014 one file imports the other and redeclares the name with a widened scalar. The other two sites are unrelated and would be DISTINCT on their own.",
+      "suggested_action": "Have specs/vsa/similarity_search.t27 use `vsa::core::SearchResult` and decide once whether the scalar is gf16 or f64; rename the memory/ and tri/search/ types (SemanticSearchResults, BinarySearchHit) so the name resolves to one thing."
+    },
+    {
+      "name": "Session",
+      "sites": [
+        "specs/sandbox/orphan_detection.t27:29",
+        "specs/sandbox/session_timeout.t27:24",
+        "specs/server/session.t27:36"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "session_timeout.t27: `pub struct Session { id: [u8; 32], name: [u8; 64], status: SessionStatus, created_at: Timestamp, updated_at: Timestamp }` under the comment \"Common Session type for sandbox management. Shared between .t27 specifications and TypeScript backend.\" orphan_detection.t27: the same five fields in the same order plus `railway_id: Option<[u8; 64]>`, under the comment \"Session Type Definition (shared with session_timeout)\". The word \"shared\" is false \u2014 it is copied, and `Timestamp { ms: u64 }` and the five-variant `SessionStatus` enum are copied verbatim alongside it. The third site is a different thing: server/session.t27 `struct Session { id: str, state: SessionState, created_at: u64, updated_at: u64, message_count: u32, model: str, provider: str }` is an LLM chat session.",
+      "confidence": "certain \u2014 the source comment claims sharing while the file re-declares the type with an extra field.",
+      "suggested_action": "Extract the sandbox Session (plus Timestamp and SessionStatus) into one module both sandbox specs import, with `railway_id` on the shared definition; leave server/session.t27 alone but rename it ChatSession to stop the three-way collision."
+    },
+    {
+      "name": "Signal",
+      "sites": [
+        "specs/fpga/hir.t27:54",
+        "specs/igla/race/rtl.t27:37"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "fpga/hir.t27 (Hardware IR for Trinity T27): `pub struct Signal { name : &str, kind : i8, width : u32, is_signed : bool, reset_value : &str }`. igla/race/rtl.t27 (IGLA RACE RTL generation): `pub const Signal = struct { name : string, width : u16, signed : bool }`. Overlapping triple name/width/signedness, with `is_signed` renamed to `signed` and `width` narrowed u32 \u2192 u16; `kind` (wire vs reg) and `reset_value` exist only on the HIR side. Sibling structs collide the same way: hir `pub struct Assign { target, value }` vs rtl `pub const Assignment = struct { lhs, rhs, op }`, and both declare an `Instance`. This name is quantified over: `specs/igla/race/rtl.t27:874` and `:946` both report `unbounded  [s: Signal]  forall s : Signal`.",
+      "confidence": "high \u2014 both are unambiguously an RTL signal declaration for Verilog emission, so the concept is the same. What I cannot show is whether RACE's RTL types were forked from the Trinity HIR or written independently; git history of specs/igla/race/rtl.t27 against specs/fpga/hir.t27 would settle copy-paste vs parallel invention.",
+      "suggested_action": "Decide whether RACE emits through the Trinity HIR. If yes, delete rtl.t27's Signal/Assignment/Instance and import Hir. If no, prefix them (RaceSignal, RaceAssignment) so the two `forall s : Signal` sites at rtl.t27:874/946 can bind to a determined type."
+    },
+    {
+      "name": "SimResult",
+      "sites": [
+        "specs/fpga/simulator.t27:34",
+        "specs/igla/coder/prm.t27:113"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "fpga/simulator.t27 (\"HIR Cycle-Accurate Simulation Engine\"): `pub struct SimResult { cycles : u32, state : i8, errors : u32, assertions_fired : u32, coverage_points : u32 }` \u2014 the outcome of one cycle-accurate run, sitting beside `SimConfig { name, max_cycles, clock_freq_hz, trace_enabled, vcd_output, break_on_error, vcd_path }`, `ProbePoint` and `TraceEntry`. igla/coder/prm.t27 (\"Process Reward Model for IGLA CODER\"): `pub const SimResult = struct { passed : u32, total : u32 }` \u2014 a pass tally feeding `reward_simulation(step) -> RewardSignal`, whose neighbours are `reward_lint`, `reward_sacred_compliance` and `RewardSignal { name, weight, score }`. Zero shared field names, zero shared fields by meaning, no import path between them (prm.t27 uses base::types, igla::coder::arch, igla::coder::eval, igla::race::rtl \u2014 not fpga::simulator).",
+      "confidence": "certain \u2014 one is a Verilog simulator's run record, the other a scalar reward numerator/denominator in an LLM training loop.",
+      "suggested_action": "No defect. If cross-spec resolution is ever attempted, rename the PRM one to TestbenchPassRate \u2014 it is a two-counter tally, not a simulation result."
+    },
+    {
+      "name": "SystemConfig",
+      "sites": [
+        "specs/fpga/boards/arty_a7_integration.t27:58",
+        "specs/fpga/boards/qmtech_a100t_integration.t27:38"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "arty_a7_integration.t27: `struct SystemConfig { clock_hz : u32; baud_rate : u32; spi_div : u32; mem_size : u32; fifo_depth : u32; num_peripherals : u32; }`. qmtech_a100t_integration.t27: `struct SystemConfig { clock_hz : u32; baud_rate : u32; mem_size : u32; fifo_depth : u32; }` \u2014 a strict subset, same names, same relative order, `spi_div` and `num_peripherals` dropped. The whole file is a trimmed fork: both declare `struct PinMapping` (Arty has 11 pin fields, QMTech keeps 5 of the same names), both declare `const SYS_CONFIG : SystemConfig = ...`, both carry `fn calc_baud_divisor(clock_hz : u32, baud : u32) -> u32 { return clock_hz / (16 * baud); }` character-for-character, and both `test test_baud_divisor`. Even `.clk_pin = \"E3\"` is copied unchanged onto a different board.",
+      "confidence": "certain",
+      "suggested_action": "Make one board-integration template with the full SystemConfig and let each board supply values (QMTech simply leaves spi_div/num_peripherals unused); also re-verify `.clk_pin = \"E3\"` on the QMTech A100T \u2014 it looks copied rather than looked up."
+    },
+    {
+      "name": "Task",
+      "sites": [
+        "specs/queen/task_analysis.t27:48",
+        "specs/runtime/execute.t27:63",
+        "specs/tri/agent/autonomous_lifecycle.t27:35",
+        "specs/tri/agent/swarm_agents.t27:32"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "The two specs/tri/agent/ siblings drift: autonomous_lifecycle.t27 `pub const Task = struct { task_id : String, task_type : TaskType, spec_file : Option<string>, priority : Float, dependencies : List<string>, status : TaskStatus }` vs swarm_agents.t27 `pub const Task = struct { task_id : String, priority : Float # \u03c6-weighted 0-1, assigned_to : Option<AgentType>, status : TaskStatus, result : Option<String>, sacred_formula : Option<String> }`. Shared core `task_id : String, priority : Float, status : TaskStatus`; each side then adds its own tail. Both files are the same generated skeleton (`// t27/specs/` header, `use base::types; use math::constants;`, `// 2. Types` banner, placeholder enums written as `variants : ,`) and both declare their own `TaskStatus`. queen/task_analysis.t27 is the same family again \u2014 `pub struct Task { pub task_id: u64, pub task_type: TaskType, pub priority: u8, pub urgency: f64, pub phi_weight: f64, pub created_ms: u64 }` \u2014 with task_id widened String \u2192 u64 and priority Float \u2192 u8. Only runtime/execute.t27 `pub const Task = struct { id : TaskID, name : []u8, command : []u8, args : [][]u8, env : [][]u8, cwd : ?[]u8, timeout_ms : u32 }` is a different thing (an OS subprocess). DETECTOR GAP, loudly: the tool prints \"(no fields this reader could parse)\" for queen/task_analysis.t27:48, but the struct plainly has six fields \u2014 the field reader drops fields written with a per-field `pub ` prefix, so this block understates the conflict it is reporting.",
+      "confidence": "certain for the tri/agent pair; the queen site is the same agent-orchestration concept with widened scalars.",
+      "suggested_action": "Give specs/tri/agent/ one Task + TaskStatus module that both lifecycle and swarm import; rename runtime/execute.t27's to ProcessTask. Separately, fix the field reader to accept `pub <field>:` \u2014 that is a bug in `tri types dup`, not in the corpus."
+    },
+    {
+      "name": "TaskResult",
+      "sites": [
+        "specs/runtime/execute.t27:74",
+        "specs/tri/agent/swarm_agents.t27:113"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "runtime/execute.t27: `pub const TaskResult = struct { task_id : TaskID, result_type : ExecResultType, exit_code : ?u8, stdout : []u8, stderr : []u8, duration_ms : u64, error_message : ?[]u8 }` \u2014 the exit of a spawned process, next to `ExecResultType { success, timeout, cancelled, error }`, `TaskState`, `CancelReason` and `ExecContext { task, start_time_ms, state, cancel_requested }`. swarm_agents.t27: `pub const TaskResult = struct { agent_id : String, task_id : String, result : String, phi_score : Float }` \u2014 an agent's report on a swarm work item, next to `AgentCommunication`, `SacredPattern` and `ConsensusProposal`. The only shared field name is `task_id`, and even that is `TaskID = [TASK_ID_LENGTH]u8` on one side and `String` on the other, because the two `Task` types it points at are themselves different things.",
+      "confidence": "certain \u2014 stdout/stderr/exit_code is a process; agent_id/phi_score is a swarm member's \u03c6-scored deliverable.",
+      "suggested_action": "No defect in itself, but it inherits the Task ambiguity: rename to ProcessResult / AgentTaskReport alongside the Task fix so `TaskResult` resolves to one type."
+    },
+    {
+      "name": "TernaryWeight",
+      "sites": [
+        "specs/igla/race/ternary_mac.t27:16",
+        "specs/igla/training/low_bit_ternary.t27:27"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "ternary_mac.t27: `pub const TernaryWeight = struct { code : u8 }` documented as \"Ternary weight encoded as 2-bit integer: 0b00 = 0, 0b01 = +1, 0b10 = -1\". low_bit_ternary.t27 (\"IGLA-Coder P7 Low-bit / ternary track\"): `pub const TernaryWeight = struct { value : i2, scale : f32 }`, produced by `fn quantize(weights: []f32, config: QuantizationConfig) -> []TernaryWeight`. Same object \u2014 one ternary weight of an IGLA network \u2014 with the per-weight `scale` present on the training side and absent on the hardware side, and the trit itself typed u8-code vs i2-value. `grep -rn TernaryWeight specs/` shows every consumer outside low_bit_ternary.t27 uses the RACE shape (`TernaryWeight { code: 1 }`, `load_ternary_weights(codes : []TernaryWeight)`), and `grep -n scale specs/igla/race/ternary_mac.t27` returns nothing \u2014 there is no scale anywhere in the RACE datapath. This is the most quantified name in the slice: 57 quantifier lines mention it, e.g. `specs/igla/race/systolic_ternary.t27:241  unbounded  [w: TernaryWeight]  forall w : TernaryWeight, w.code <= 3 ==>` \u2014 the body reads `.code`, a field only one of the two declarations has.",
+      "confidence": "high \u2014 the subject matter settles that both denote a ternary weight in the same product, and the `w.code` quantifier bodies show the corpus has silently committed to one shape. What would make it certain is a documented handoff from the P7 training track to RACE inference: if quantize() output is meant to be loaded by load_ternary_weights(), dropping `scale` is a numerics bug; if scale is deliberately factored out per-tensor at the hardware boundary, the two need different names, not one.",
+      "suggested_action": "Rename the training-side type QuantizedTernaryWeight (or move `scale` to a per-tensor descriptor) so the 57 `forall w : TernaryWeight` sites bind to the RACE `{code:u8}` shape they already assume."
+    },
+    {
+      "name": "TernaryWord",
+      "sites": [
+        "specs/base/ternary_memory.t27:80",
+        "specs/fpga/mac.t27:67"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "base/ternary_memory.t27: `struct TernaryWord { trits : [TRIT_CAPACITY]TritCell, state : u8, checksum : u32 }` \u2014 27 trits as an array of addressable cells, with ternary_word_init/write_trit around it. fpga/mac.t27: `struct TernaryWord { raw : u32 }` \u2014 the packed word the MAC pipeline indexes with `extract_trit(word, index)`. The repo documents this collision itself, in the comment immediately above the second declaration: \"#2275: the packed word this spec has always assumed. No file in the corpus declares TernaryWord{raw} -- the base::ternary_memory struct is a different shape (trits/state/checksum) -- so `word.raw` fell past the part-select branch and flattened to the unbound identifier `word_raw`.\" A third shape exists as an alias in base/types.t27:53, `pub const TernaryWord = [WORD_BYTES]u8;`. Two specs disagree about one type, and the disagreement already produced a codegen defect.",
+      "confidence": "certain \u2014 the defect, its mechanism, and its issue number are written in the source next to the declaration.",
+      "suggested_action": "Resolve #2275 by naming the two shapes apart (TernaryWordCells for the memory view, PackedTernaryWord for the MAC view) and reconcile the base/types.t27:53 `[5]u8` alias, which is a third answer to the same question."
+    },
+    {
+      "name": "ToolCall",
+      "sites": [
+        "specs/provider/schema.t27:94",
+        "specs/server/session.t27:55",
+        "specs/tools/schema.t27:106"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "Three shapes for one concept in one agent server. provider/schema.t27: `pub const ToolCall = struct { id : []u8, name : []u8, arguments : []u8 }`. server/session.t27: `struct ToolCall { name: str, arguments: str }` \u2014 the same two trailing fields, `id` dropped and the id kept out-of-band as `Message.tool_call_id: str`, types []u8 \u2192 str. tools/schema.t27: `struct ToolCall { toolID: ToolID, callID: CallID, parameters: any, timestamp: u64 }` \u2014 the same call re-expressed with branded ids (`name` \u2192 `toolID`, `id` \u2192 `callID`, `arguments` \u2192 `parameters`) plus `timestamp`. All three are consumed side by side: provider/schema's `StreamingChunk { chunk_type, delta, tool_calls : []ToolCall, finish_reason, usage }` vs server/session's `Message { id, role, content, timestamp, tool_calls: [8]ToolCall, tool_call_id }`.",
+      "confidence": "certain \u2014 all three are the LLM tool-invocation record for the same agent, in three spec lineages (`module provider-schema;` flat/\u03c6-banner style, `module Session {` Constitutional-Law style, `module Tools {` brace style).",
+      "suggested_action": "Declare ToolCall once (tools/schema.t27's branded version is the most complete) and have provider/schema.t27 and server/session.t27 import it; the wire-level `[]u8` variant, if it must stay, should be named ProviderToolCallWire."
+    },
+    {
+      "name": "ToolResult",
+      "sites": [
+        "specs/server/agent-runner.t27:29",
+        "specs/tools/schema.t27:93"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "agent-runner.t27: `struct ToolResult { output: str, is_complete: bool, duration_ms: u64, success: bool }`. tools/schema.t27: `struct ToolResult { toolID: ToolID, callID: CallID, success: bool, title: str, output: str, metadata: ToolMetadata, error: str?, truncated: bool, duration: u64 }`. Overlap on `output: str` and `success: bool` verbatim; `duration_ms: u64` is `duration: u64` renamed (both documented in ms); `is_complete: bool` is the polarity-flipped twin of `truncated: bool`. The lean version simply lacks the identity fields (toolID/callID) that let a result be matched to its call. Same subsystem: agent-runner.t27 and tools/schema.t27 are the runner and the tool registry of one agent, and both are reachable from the same session spec.",
+      "confidence": "certain that both denote the outcome of one tool execution in the same agent; the `is_complete` \u2194 `truncated` correspondence is my reading of intent rather than a documented rename, which is the only piece I would want confirmed.",
+      "suggested_action": "Have agent-runner.t27 import tools/schema.t27's ToolResult and drop its four-field copy; if the runner needs a reduced view, name it ToolResultSummary."
+    },
+    {
+      "name": "TrainingConfig",
+      "sites": [
+        "specs/igla/coder/training.t27:68",
+        "specs/igla/training/pilot_pretraining.t27:19"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "Both configure training of the same model. coder/training.t27 (\"IGLA-Coder training pipeline\"): `pub const TrainingConfig = struct { stage : TrainingStage, max_lr : f32, min_lr : f32, warmup_steps : u32, batch_size : u32, weight_decay : f32, gradient_clipping : f32, use_sacred_loss : bool, use_opd : bool }`. training/pilot_pretraining.t27 (\"IGLA-Coder P4 Pilot Pretraining at 50-200M parameters\"): `pub const TrainingConfig = struct { model_size : ModelSize, batch_size : u32, learning_rate : f64, warmup_steps : u32, max_steps : u32, seq_len : u32, vocab_size : u32 }`. `batch_size : u32` and `warmup_steps : u32` are identical; the learning rate is the disagreement \u2014 one spec says a single `learning_rate : f64`, the other splits it into `max_lr : f32` / `min_lr : f32` for a schedule, at half the width. The pilot spec's stage is implicit (it is pretraining) while the pipeline spec makes it the `stage : TrainingStage` discriminant whose first variant is `pretrain`. Quantified over: `specs/igla/coder/training.t27:515  unbounded  [s: TrainingConfig]  forall s : TrainingConfig, s.batch_size >= 0`.",
+      "confidence": "certain \u2014 both file headers say IGLA-Coder training, and the shared batch_size/warmup_steps pair with a split learning rate is a textbook one-sided edit.",
+      "suggested_action": "Fold the pilot config into the staged one (model_size/seq_len/vocab_size become fields or a companion ModelConfig) so `forall s : TrainingConfig` at training.t27:515 has one domain, and settle f32 vs f64 for learning rate."
+    },
+    {
+      "name": "UnpackResult",
+      "sites": [
+        "specs/base/types.t27:60",
+        "specs/ternary/packed_trit.t27:43"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "base/types.t27 (module tritype-base): `pub struct UnpackResult { value : Trit, valid : bool }`. ternary/packed_trit.t27 (module PackedTrit): `pub struct UnpackResult { trits : []i8, count : u16, valid : bool }`, sitting beside `PackResult { bytes, count, valid }`. Shared field `valid : bool`; the payload is one trit vs a buffer. The redeclaration is against the file's own rule \u2014 packed_trit.t27 line 9 is `use base::types;` under the banner \"IMPORTS - Reference existing specs, DO NOT DUPLICATE\", and it then re-declares `TRIT_MASK : u8 = 0x03` verbatim from base/types.t27:40 and re-declares `TRITS_PER_BYTE` with a conflicting value (`base/types.t27:32 pub const TRITS_PER_BYTE : u8 = 8;` vs `packed_trit.t27:23 pub const TRITS_PER_BYTE : u8 = 5;`). So the two specs of one trit codec disagree about the packing density as well as the result type.",
+      "confidence": "high \u2014 same codec, same import edge, and a hard numeric contradiction (8 vs 5 trits per byte) in the same importing file. What would make it certain: whether the scalar `{value, valid}` form is deliberately a separate single-trit accessor result, in which case the fix is a rename rather than a merge.",
+      "suggested_action": "Rename the scalar one UnpackTritResult (or make the buffer one UnpackBufferResult) and, separately, resolve the TRITS_PER_BYTE 8-vs-5 contradiction \u2014 a module cannot import base::types and redefine its constant to a different value."
+    },
+    {
+      "name": "Url",
+      "sites": [
+        "specs/tri/net/http.t27:22",
+        "specs/tri/net/url.t27:13"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "The cleanest case in the slice: same six fields, same names, same order, in the same directory. url.t27 (module TriUrl, \"RFC 3986 compliant\"): `pub const Url = struct { scheme : []const u8, host : []const u8, port : \"?u16\", path : []const u8, query : []const u8, fragment : []const u8 }`. http.t27 (module TriHttp, \"Standard HTTP status codes\"): `pub const Url = struct { scheme : ?[]const u8, host : ?[]const u8, port : ?u16, path : []const u8, query : ?[]const u8, fragment : ?[]const u8 }`. The sole difference is optionality: http.t27 widened scheme, host, query and fragment to nullable while url.t27 leaves only `port` optional. `path` is non-optional on both sides. That is copy-paste plus a one-sided type widening, with nothing else changed.",
+      "confidence": "certain \u2014 identical field list and order, one directory, and http.t27 owns no URL parsing (its functions are method_to_string / status_from_code / is_success / is_redirect / is_client_error / is_server_error), so it has no reason to declare a Url at all.",
+      "suggested_action": "Delete the Url declaration in specs/tri/net/http.t27 and import TriUrl; then decide once whether an unparsed component is an empty slice or null \u2014 the nullable version is the correct RFC 3986 reading and should win."
+    },
+    {
+      "name": "Usage",
+      "sites": [
+        "specs/provider/schema.t27:128",
+        "specs/server/api.t27:63"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "provider/schema.t27: `pub const Usage = struct { prompt_tokens : usize, completion_tokens : usize, total_tokens : usize }` (OpenAI naming). server/api.t27: `struct Usage { input_tokens: u32, output_tokens: u32 }` (Anthropic naming \u2014 the file's `DEFAULT_BASE_URL: str = \"https://api.z.ai/api/anthropic\"` confirms which wire it targets). Same quantity, one record renamed field-for-field (`prompt_tokens` \u2192 `input_tokens`, `completion_tokens` \u2192 `output_tokens`), narrowed usize \u2192 u32, and `total_tokens` dropped. Both are embedded in the same role by their neighbours: `StreamingChunk { chunk_type, delta, tool_calls, finish_reason, usage : Usage }` in provider/schema.t27, `ApiResponse { id, model, stop_reason, usage: Usage }` in server/api.t27 \u2014 one agent, two token-usage records.",
+      "confidence": "high \u2014 the subject matter settles that both are per-response token accounting for the same agent. The one defensible alternative reading is that these are deliberately two wire shapes (OpenAI-style vs Anthropic-style); confirming that would need a normalization function converting one to the other, and I found none.",
+      "suggested_action": "Normalize on the provider abstraction's Usage and have server/api.t27 import it, or add the missing adapter; either way stop calling two incompatible token records `Usage` inside one server."
+    },
+    {
+      "name": "ValidationResult",
+      "sites": [
+        "specs/config/schema.t27:160",
+        "specs/tools/schema.t27:125"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "config/schema.t27: `pub const ValidationResult = struct { valid : bool, errors : []ConfigError }` where `ConfigError { field : []u8, message : []u8, severity : []u8 }` \u2014 the outcome of validating `Config { version, provider, agents, mcp_servers, lsp, tui, logging, paths }`. tools/schema.t27: `struct ValidationResult { valid: bool, errors: [ValidationError] }` where `ValidationError { parameter: str, message: str, code: str }` \u2014 the outcome of validating a tool call's parameters against a ToolRegistry. Same two field names in the same order, but neither field list is an edit of the other: `errors` is domain-typed on each side (a config field with a severity vs a tool parameter with an error code), and that is intrinsic to what each validates, not a divergence. No import edge between config-schema and Tools.",
+      "confidence": "high \u2014 the two validated objects are clearly different. What I cannot rule out is a third reading: this is one missing generic `ValidationResult<E>` rather than either verdict, in which case the right fix is an abstraction, not a rename. A stated intent for generics in the t27 type system would settle it.",
+      "suggested_action": "No defect to fix today, but the name is unresolvable across specs: rename to ConfigValidationResult / ToolValidationResult, or introduce the generic both want."
+    },
+    {
+      "name": "VerificationReport",
+      "sites": [
+        "specs/numeric/goldenfloat_family.t27:257",
+        "specs/physics/sacred_verification.t27:415"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "goldenfloat_family.t27: `struct VerificationReport { all_valid : bool, primary_is_gf16 : bool, phi_distances_ok : bool, best_phi_format : string, best_phi_distance : f64, avg_phi_distance : f64 }`, returned by `fn verify_golden_family()` which walks `GOLDEN_FLOAT_FAMILY` checking that exactly one format is primary and that names are unique \u2014 a self-consistency check on a table of float format descriptors. sacred_verification.t27: `struct VerificationReport { total_formulas : u16, verified : u16, passed : u16, failed : u16, adjusted : u16, needs_work : u16, by_category : [4]u16 }`, returned by `fn generate_verification_report(formulas: []FormulaDefinition)` which tallies `VerificationStatus::PASS/ADJUSTED/FAIL` over the Kepler\u2192Newton formula set across `FormulaCategory { EXACT, PHYSICAL, DERIVED, CONJECTURAL }`. Zero shared field names and zero shared meaning: booleans-plus-\u03c6-distances about number formats vs six counters about physics equations.",
+      "confidence": "certain \u2014 the subject matter (a float-format registry vs a 152-formula physics conformance suite) settles it; the only thing the two files share is a `use math::sacred_physics;` import, which neither report type touches.",
+      "suggested_action": "No defect. If the name must resolve, GoldenFamilyAudit and FormulaConformanceTally describe what each actually reports."
+    }
+  ]
+}
