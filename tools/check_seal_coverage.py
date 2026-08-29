@@ -260,6 +260,63 @@ def baseline():
 # because the ledger was written when CI ran on a depth-1 clone, and read
 # `dangling` now that #2445 gave it history. That is the instrument being
 # fixed, not the tree changing.
+# Every kind `scan` can attach, and what to do about it.
+#
+# W721: this used to be three `print` calls covering stale, dangling and
+# phantom. The script can attach FIVE kinds, and the two it did not explain --
+# `gen-drift` and `gen-unreadable` -- are the ones an emitter change produces.
+# Measured: six consecutive gen-c pull requests carried a red `coverage` check
+# for `gen-drift`, all six merged, and the only repair the output named was
+# `--update-baseline`, which for that kind is exactly wrong.
+#
+# `KINDS_EXPLAINED` is checked against the kinds the source can emit, so a new
+# kind cannot be added without a line telling its reader what to do.
+LEGEND = {
+    "stale": [
+        "\n  stale    the spec changed after sealing, so the four gen_hashes describe",
+        "           something it no longer produces. Re-seal it:",
+        "               t27c seal <spec> --save && tri seals sync-twins",
+    ],
+    "dangling": [
+        "\n  dangling the spec was committed and later deleted. Remove the seal with it,",
+        "           or restore both.",
+    ],
+    "phantom": [
+        "\n  phantom  the spec appears in NO commit. The seal's spec_hash and four",
+        "           gen_hashes name a file nobody can fetch, so there is nothing in",
+        "           the record to check. Find the spec or drop the seal.",
+    ],
+    "gen-drift": [
+        "\n  gen-drift the spec is UNCHANGED and its generated output is not. This is",
+        "           what an emitter fix looks like from here, and it is normal --",
+        "           the seals simply have not been told yet:",
+        "               tri seals drift --fix",
+        "           Re-sealing is a STATEMENT that the new output is the one you",
+        "           want, so read the acceptance columns first:",
+        "               t27c corpus",
+    ],
+    "unreadable": [
+        "\n  unreadable the seal file is not parseable JSON. Nothing in it was read,",
+        "           so nothing about the spec is claimed either way. Fix the file",
+        "           or delete it -- a seal nobody can parse records nothing.",
+    ],
+    "no-spec-path": [
+        "\n  no-spec-path the seal does not say which spec it describes. Its five",
+        "           hashes are unattributable, so no spec work can ever retire it.",
+        "           Name the spec or drop the seal.",
+    ],
+    "no-spec-hash": [
+        "\n  no-spec-hash `spec_hash` is not a sha256 digest, so the seal never",
+        "           described the spec at any commit. A permanent floor wearing",
+        "           the label of work someone could do. Re-seal or drop it.",
+    ],
+    "gen-unreadable": [
+        "\n  gen-unreadable `t27c seal <spec>` did not succeed, so nothing was compared.",
+        "           Not a seal problem: the spec does not get as far as generating.",
+        "           Run that command and read its error.",
+    ],
+}
+
 _HISTORY_PAIR = {"phantom", "dangling"}
 
 
@@ -511,7 +568,39 @@ def self_check():
             ("FAIL:", "OK:", DRIFT, CHANGED, DEPARTED),
             ONE_STALE, args=("--update-baseline",))
 
-    return 0 if (ok and _check_compare()) else 1
+    return 0 if (ok and _check_compare() and _check_legend()) else 1
+
+
+def _check_legend():
+    """Every kind this file can ATTACH has a line telling its reader what to do.
+
+    W721: `scan` could attach five kinds and the printed legend explained three.
+    The two it skipped -- `gen-drift` and `gen-unreadable` -- are the ones an
+    emitter change produces, and six consecutive gen-c pull requests carried a
+    red check whose only named repair (`--update-baseline`) was wrong for their
+    kind. All six merged.
+
+    Read from THIS FILE's source, so a sixth kind cannot be added without a
+    reader being told what it means.
+    """
+    import re
+
+    src = pathlib.Path(__file__).read_text()
+    attached = set(re.findall(r'bad\.append\(\s*\(\s*name\s*,\s*"([a-z-]+)"', src))
+    attached |= set(re.findall(r'bad\.append\(\s*\(\s*name\s*,\s*"([a-z-]+)" if ', src))
+    # `dangling`/`phantom` share one append written as a conditional.
+    attached |= {"dangling", "phantom"}
+    missing = sorted(attached - set(LEGEND))
+    extra = sorted(set(LEGEND) - attached)
+    print(f"  legend covers {len(attached & set(LEGEND))} of {len(attached)} kind(s)"
+          f"{'' if not missing else '  MISSING: ' + ', '.join(missing)}"
+          f"{'' if not extra else '  UNREACHABLE: ' + ', '.join(extra)}")
+    if missing:
+        print("  A kind with no legend line is a verdict its reader cannot act on.")
+    if extra:
+        print("  A legend line for a kind nothing attaches describes a state that")
+        print("  cannot occur -- delete it or the code that stopped producing it.")
+    return not missing and not extra
 
 
 def main():
@@ -584,14 +673,13 @@ def main():
     for n, k, d in new:
         print(f"  {n}  [{k}]")
         print(f"      {d}")
-    print("\n  stale    the spec changed after sealing, so the four gen_hashes describe")
-    print("           something it no longer produces. Re-seal it.")
-    print("  dangling the spec was committed and later deleted. Remove the seal with it,")
-    print("           or restore both.")
-    print("  phantom  the spec appears in NO commit. The seal's spec_hash and four")
-    print("           gen_hashes name a file nobody can fetch, so there is nothing in")
-    print("           the record to check. Find the spec or drop the seal.")
+    for kind in sorted({k for _, k, _ in new}):
+        for line in LEGEND[kind]:
+            print(line)
     print(f"\n  Deliberate debt goes in {BASELINE.name} via --update-baseline.")
+    print("  That is the WRONG repair for gen-drift: baselining it records the")
+    print("  drift as accepted debt instead of recording what the compiler now")
+    print("  produces.")
     return 1
 
 
