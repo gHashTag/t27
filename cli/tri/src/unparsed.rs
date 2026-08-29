@@ -47,6 +47,18 @@ pub enum UnparsedCmd {
         #[arg(long)]
         list: bool,
     },
+    /// For each unreadable spec, the ITEM whose presence causes the failure.
+    ///
+    /// The compiler names a line. When that line is a construct it accepts, the
+    /// cause is earlier, and this finds it by feeding growing prefixes of the
+    /// module body back to the compiler. Every answer is checked by commenting
+    /// the item out and demanding the reported line move; the ones that fail
+    /// that check are reported as refuted rather than dropped.
+    Locate {
+        /// Also print the candidates causality refuted.
+        #[arg(long)]
+        refuted: bool,
+    },
     /// Run every construct's minimal source and say which the compiler rejects.
     ///
     /// This is the census's own control. A row it names must fail here; a row
@@ -567,6 +579,70 @@ fn compiler(root: &Path) -> Result<PathBuf> {
 pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
     let t27c = compiler(&root)?;
 
+    if let UnparsedCmd::Locate { refuted } = cmd {
+        let out = std::process::Command::new("git")
+            .args(["ls-files", "*.t27"])
+            .current_dir(&root)
+            .output()?;
+        let specs: Vec<String> = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(|s| s.to_string())
+            .filter(|s| root.join(s).is_file() && !is_fixture(s))
+            .collect();
+        let (mut found, mut refused, mut silent) = (Vec::new(), Vec::new(), 0usize);
+        for spec in &specs {
+            let p = root.join(spec);
+            let quick = std::process::Command::new(&t27c)
+                .arg("check")
+                .arg(&p)
+                .current_dir(&root)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(true);
+            if quick {
+                continue;
+            }
+            match locate_one(&t27c, &root, &p) {
+                Located::Item(a, b) => found.push((spec.clone(), a, b)),
+                Located::Refuted(a, b) => refused.push((spec.clone(), a, b)),
+                Located::None(_) => silent += 1,
+            }
+        }
+        println!("  located AND causally confirmed   {}", found.len());
+        println!("  candidate REFUTED by causality   {}", refused.len());
+        println!("  nothing claimed                  {silent}");
+        println!();
+        println!("  A confirmed item is one whose removal MOVES the reported error.");
+        println!("  Prefix bisection alone is unsound -- a truncated prefix can fail");
+        println!("  for a reason the whole file does not have -- so a candidate that");
+        println!("  does not survive that check is not an answer.");
+        if !found.is_empty() {
+            println!();
+            for (s, a, b) in found.iter().take(40) {
+                let n = b - a + 1;
+                println!(
+                    "      {s}:{a}{}",
+                    if n > 1 {
+                        format!("..{b}")
+                    } else {
+                        String::new()
+                    }
+                );
+            }
+            if found.len() > 40 {
+                println!("      ... and {} more", found.len() - 40);
+            }
+        }
+        if *refuted && !refused.is_empty() {
+            println!();
+            println!("  refuted candidates -- the prefix failed, the item is innocent");
+            for (s, a, b) in refused.iter() {
+                println!("      {s}:{a}..{b}");
+            }
+        }
+        return Ok(());
+    }
+
     if matches!(cmd, UnparsedCmd::Probe) {
         let rejected = run_probes(&t27c, &root);
         let counters = run_counters(&t27c, &root);
@@ -927,6 +1003,49 @@ mod tests {
         assert!(!is_fn_literal("pub fn a(x: u32) -> u32 {"));
     }
 
+    // Three bugs lived in this function, each found by reading an ANSWER and
+    // not by any control. Braces inside a comment or a string are not braces.
+    #[test]
+    fn depth_ignores_comments_and_strings() {
+        assert_eq!(
+            code_only(&["fn a() { // } not a brace"])[0].trim(),
+            "fn a() {"
+        );
+        // The quotes go too; what matters is that no brace survives.
+        let stripped = code_only(&["let s = \"{ { {\";"]).remove(0);
+        assert!(!stripped.contains('{'), "{stripped}");
+        // A block comment carrying JSON moved every boundary in a 500-line file.
+        let src = ["/*", "{ \"a\": 1 }", "*/", "fn a() { }"];
+        let d = depths(&src);
+        assert_eq!(d[2], 0, "the JSON brace must not count");
+        assert_eq!(*d.last().unwrap(), 0);
+    }
+
+    #[test]
+    fn a_string_with_a_brace_does_not_open_a_block() {
+        let d = depths(&["const s = \"}\";", "fn a() { }"]);
+        assert_eq!(d[0], 0);
+        assert_eq!(d[1], 0);
+    }
+
+    // The module closer is found by DEPTH, not by matching the text `}`.
+    // A backward text scan hit a nested `};` and made the tail 40 lines of
+    // orphan code, which failed for its own reason on every prefix.
+    #[test]
+    fn the_module_closer_is_found_by_depth() {
+        let src = [
+            "module m {",
+            "    fn a() {",
+            "        x();",
+            "    };",
+            "    fn b() { }",
+            "}",
+        ];
+        let (start, end) = split_module(&src);
+        assert_eq!(start, 1);
+        assert_eq!(end, 5, "the closer is the last line, not the nested `}};`");
+    }
+
     // Every probe must be distinct: two rows sharing a source would report the
     // same reading twice and hide one of them.
     #[test]
@@ -977,5 +1096,248 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// LOCATE: the item whose presence causes the failure, when it is not the line
+// the compiler names.
+//
+// Method: the file is `module X { <items> }`. Feed the compiler
+// `module X { <first k items> }` for increasing k and binary-search the first k
+// that fails. The last item added is the suspect.
+//
+// It is UNSOUND on its own, and the numbers say by how much: of 45 files it
+// located, a causality check REFUTED 16. A truncated prefix can fail for a
+// reason the whole file does not have -- later declarations the tail refers to
+// are simply absent -- so "first failing prefix" is a candidate, never an
+// answer.
+//
+// Two controls, and only the second one bites:
+//
+//   fidelity  -- head+body+tail must reproduce the original failure, same line.
+//                Passed 46 of 46 while the answer was wrong for 16 of them: the
+//                concatenation is the whole file no matter where the
+//                boundaries fall, so this control cannot see a bad split.
+//   causality -- comment the located item out; the reported error line must
+//                CHANGE. This is the one that found the 16.
+//
+// The first version of the causality check asked whether the error moved PAST
+// the item. For an item at line 5 and an error at line 2215 that is true by
+// arithmetic, and it passed 45 of 45. A control that cannot fail is not a
+// control.
+// ---------------------------------------------------------------------------
+
+/// Source with comments and string bodies blanked, so brace depth is countable.
+///
+/// Three bugs lived here, each found by reading an answer rather than by a
+/// control: line comments (`//`, `#`), the module's closing brace located by
+/// TEXT rather than by depth, and `/* */` blocks -- one of which wrapped a JSON
+/// schema whose `{` moved every boundary in the file.
+fn code_only(lines: &[&str]) -> Vec<String> {
+    let mut out = Vec::with_capacity(lines.len());
+    let mut in_block = false;
+    for l in lines {
+        let b: Vec<char> = l.chars().collect();
+        let (mut buf, mut i, mut in_str, mut esc) = (String::new(), 0usize, false, false);
+        while i < b.len() {
+            let c = b[i];
+            if in_block {
+                if c == '*' && i + 1 < b.len() && b[i + 1] == '/' {
+                    in_block = false;
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+                continue;
+            }
+            if in_str {
+                if esc {
+                    esc = false;
+                } else if c == '\\' {
+                    esc = true;
+                } else if c == '"' {
+                    in_str = false;
+                }
+                i += 1;
+                continue;
+            }
+            match c {
+                '"' => {
+                    in_str = true;
+                    i += 1;
+                }
+                '/' if i + 1 < b.len() && b[i + 1] == '*' => {
+                    in_block = true;
+                    i += 2;
+                }
+                '/' if i + 1 < b.len() && b[i + 1] == '/' => break,
+                '#' => break,
+                _ => {
+                    buf.push(c);
+                    i += 1;
+                }
+            }
+        }
+        out.push(buf);
+    }
+    out
+}
+
+fn depths(lines: &[&str]) -> Vec<i32> {
+    let mut d = 0i32;
+    code_only(lines)
+        .iter()
+        .map(|c| {
+            for ch in c.chars() {
+                match ch {
+                    '{' | '(' | '[' => d += 1,
+                    '}' | ')' | ']' => d -= 1,
+                    _ => {}
+                }
+            }
+            d
+        })
+        .collect()
+}
+
+fn check_text(t27c: &Path, root: &Path, text: &str) -> (bool, Option<usize>) {
+    let f = std::env::temp_dir().join("tri-locate-probe.t27");
+    if std::fs::write(&f, format!("{text}\n")).is_err() {
+        return (false, None);
+    }
+    let out = std::process::Command::new(t27c)
+        .arg("check")
+        .arg(&f)
+        .current_dir(root)
+        .output();
+    let _ = std::fs::remove_file(&f);
+    match out {
+        Ok(o) => {
+            let msg = String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout);
+            (o.status.success(), line_of(&msg))
+        }
+        Err(_) => (false, None),
+    }
+}
+
+/// `module X {` header, its body, and its closing brace.
+fn split_module(lines: &[&str]) -> (usize, usize) {
+    let d = depths(lines);
+    let c = code_only(lines);
+    for i in 0..lines.len() {
+        if d[i] == 1 && c[i].contains('{') {
+            for j in i + 1..lines.len() {
+                if d[j] == 0 {
+                    return (i + 1, j);
+                }
+            }
+            return (i + 1, lines.len());
+        }
+    }
+    (0, lines.len())
+}
+
+enum Located {
+    /// Item [a, b] (1-based, inclusive), causality confirmed.
+    Item(usize, usize),
+    /// A candidate the causality check refuted, with the line it named.
+    Refuted(usize, usize),
+    /// Nothing claimed, and why.
+    None(&'static str),
+}
+
+fn locate_one(t27c: &Path, root: &Path, path: &Path) -> Located {
+    let Ok(src) = std::fs::read_to_string(path) else {
+        return Located::None("unreadable");
+    };
+    let lines: Vec<&str> = src.lines().collect();
+    let (ok0, orig) = check_text(t27c, root, &src);
+    if ok0 {
+        return Located::None("parses");
+    }
+    let Some(orig) = orig else {
+        return Located::None("error names no line");
+    };
+    let (bstart, bend) = split_module(&lines);
+    if bstart == 0 || bend <= bstart {
+        return Located::None("no module body");
+    }
+    let head = &lines[..bstart];
+    let body = &lines[bstart..bend];
+    let tail = &lines[bend..];
+
+    // FIDELITY -- necessary, and far from sufficient; see the note above.
+    let whole = format!(
+        "{}\n{}\n{}",
+        head.join("\n"),
+        body.join("\n"),
+        tail.join("\n")
+    );
+    let (ok, line) = check_text(t27c, root, &whole);
+    if ok || line != Some(orig) {
+        return Located::None("the split does not reproduce the failure");
+    }
+
+    let bd = depths(body);
+    let bounds: Vec<usize> = bd
+        .iter()
+        .enumerate()
+        .filter(|(_, x)| **x <= 0)
+        .map(|(i, _)| i + 1)
+        .collect();
+    if bounds.len() < 2 {
+        return Located::None("fewer than two items");
+    }
+    let pref = |k: usize| -> bool {
+        let t = format!(
+            "{}\n{}\n{}",
+            head.join("\n"),
+            body[..bounds[k]].join("\n"),
+            tail.join("\n")
+        );
+        check_text(t27c, root, &t).0
+    };
+    let (mut lo, mut hi) = (0usize, bounds.len() - 1);
+    if pref(hi) {
+        return Located::None("every prefix parses");
+    }
+    let (a, b) = if !pref(lo) {
+        (bstart + 1, bstart + bounds[0])
+    } else {
+        while hi - lo > 1 {
+            let mid = (lo + hi) / 2;
+            if pref(mid) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        (bstart + bounds[lo] + 1, bstart + bounds[hi])
+    };
+
+    // CAUSALITY -- comment the item out and demand the error line CHANGE.
+    let muted: Vec<String> = lines
+        .iter()
+        .enumerate()
+        .map(|(i, l)| {
+            if a <= i + 1 && i + 1 <= b {
+                format!("// {l}")
+            } else {
+                (*l).to_string()
+            }
+        })
+        .collect();
+    // PROGRESS, not merely change. Commenting a block-comment opener changes
+    // the error too -- it breaks the file further. Confirmed means the file
+    // parses, or the new error is LATER than the original. The comparison is
+    // against the ORIGINAL error line, never against the item, so it cannot be
+    // satisfied by arithmetic the way "the error moved past the item" was.
+    let (parsed, moved) = check_text(t27c, root, &muted.join("\n"));
+    let progressed = parsed || moved.is_some_and(|m| m > orig);
+    if progressed {
+        Located::Item(a, b)
+    } else {
+        Located::Refuted(a, b)
     }
 }
