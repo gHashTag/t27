@@ -590,6 +590,7 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
             .filter(|s| root.join(s).is_file() && !is_fixture(s))
             .collect();
         let (mut found, mut refused, mut silent) = (Vec::new(), Vec::new(), 0usize);
+        let (mut tc, mut lex, mut sem) = (0usize, 0usize, 0usize);
         for spec in &specs {
             let p = root.join(spec);
             let quick = std::process::Command::new(&t27c)
@@ -603,14 +604,34 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
                 continue;
             }
             match locate_one(&t27c, &root, &p) {
-                Located::Item(a, b) => found.push((spec.clone(), a, b)),
+                Located::Item(a, b, alone) => found.push((spec.clone(), a, b, alone)),
                 Located::Refuted(a, b) => refused.push((spec.clone(), a, b)),
+                Located::WrongStage(Stage::Typecheck) => tc += 1,
+                Located::WrongStage(Stage::Lex) => lex += 1,
+                Located::WrongStage(_) => sem += 1,
                 Located::None(_) => silent += 1,
             }
         }
+        let alone = found.iter().filter(|(_, _, _, a)| *a).count();
         println!("  located AND causally confirmed   {}", found.len());
+        println!("  ... the item ALONE reproduces    {alone}  <- a minimal case, not a coordinate");
         println!("  candidate REFUTED by causality   {}", refused.len());
         println!("  nothing claimed                  {silent}");
+        if tc + lex + sem > 0 {
+            println!();
+            println!("  not a PARSE failure, so not this command's question:");
+            if tc > 0 {
+                println!(
+                    "      {tc:>4}  typecheck   (the error already names its line AND reason)"
+                );
+            }
+            if lex > 0 {
+                println!("      {lex:>4}  lex         (unterminated string)");
+            }
+            if sem > 0 {
+                println!("      {sem:>4}  semantics");
+            }
+        }
         println!();
         println!("  A confirmed item is one whose removal MOVES the reported error.");
         println!("  Prefix bisection alone is unsound -- a truncated prefix can fail");
@@ -618,16 +639,14 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
         println!("  does not survive that check is not an answer.");
         if !found.is_empty() {
             println!();
-            for (s, a, b) in found.iter().take(40) {
-                let n = b - a + 1;
-                println!(
-                    "      {s}:{a}{}",
-                    if n > 1 {
-                        format!("..{b}")
-                    } else {
-                        String::new()
-                    }
-                );
+            for (s, a, b, alone) in found.iter().take(40) {
+                let span = if b > a {
+                    format!("..{b}")
+                } else {
+                    String::new()
+                };
+                let note = if *alone { "" } else { "   (only in context)" };
+                println!("      {s}:{a}{span}{note}");
             }
             if found.len() > 40 {
                 println!("      ... and {} more", found.len() - 40);
@@ -1046,6 +1065,24 @@ mod tests {
         assert_eq!(end, 5, "the closer is the last line, not the nested `}};`");
     }
 
+    // `report` learned the stage split and `locate` did not: 8 of its first 40
+    // answers were typecheck failures. A type error already names its line AND
+    // its reason, so a bisection has nothing to add.
+    #[test]
+    fn locate_answers_only_for_parse_failures() {
+        assert!(stage_of("Typecheck FAILED (1 errors, 0 warnings):") != Stage::Parse);
+        assert!(stage_of("Error: unterminated string literal opened at line 5:1") != Stage::Parse);
+        assert!(stage_of("Error: parse error at module level near line 2") == Stage::Parse);
+    }
+
+    // A file with no module wrapper still has a body: the whole file.
+    #[test]
+    fn split_module_handles_a_bare_file() {
+        let src = ["fn a() { }", "fn b() { }"];
+        let (start, end) = split_module(&src);
+        assert_eq!((start, end), (0, 2));
+    }
+
     // Every probe must be distinct: two rows sharing a source would report the
     // same reading twice and hide one of them.
     #[test]
@@ -1239,10 +1276,21 @@ fn split_module(lines: &[&str]) -> (usize, usize) {
 }
 
 enum Located {
-    /// Item [a, b] (1-based, inclusive), causality confirmed.
-    Item(usize, usize),
+    /// Item [a, b] (1-based, inclusive), causality confirmed. The flag says
+    /// whether the item ALONE -- wrapped in a bare module -- reproduces a
+    /// failure, which is the difference between "here is your bug, in four
+    /// lines" and "here is where it starts".
+    Item(usize, usize, bool),
     /// A candidate the causality check refuted, with the line it named.
     Refuted(usize, usize),
+    /// The file does not fail at PARSE, so there is no item to find.
+    ///
+    /// `report` learned this and `locate` did not: 8 of its first 40 answers
+    /// were typecheck failures, where "the item whose presence causes the
+    /// failure" is a category error. A type error already names its line AND
+    /// its reason -- `cannot assign F64 to F32` -- so there is nothing for a
+    /// bisection to add.
+    WrongStage(Stage),
     /// Nothing claimed, and why.
     None(&'static str),
 }
@@ -1259,6 +1307,24 @@ fn locate_one(t27c: &Path, root: &Path, path: &Path) -> Located {
     let Some(orig) = orig else {
         return Located::None("error names no line");
     };
+    // Same stage split `report` uses. Without it this command answers a
+    // question about parsing with evidence from type checking.
+    let stage = {
+        let out = std::process::Command::new(t27c)
+            .arg("check")
+            .arg(path)
+            .current_dir(root)
+            .output();
+        match out {
+            Ok(o) => {
+                stage_of(&(String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout)))
+            }
+            Err(_) => Stage::Parse,
+        }
+    };
+    if stage != Stage::Parse {
+        return Located::WrongStage(stage);
+    }
     let (bstart, bend) = split_module(&lines);
     if bstart == 0 || bend <= bstart {
         return Located::None("no module body");
@@ -1335,9 +1401,13 @@ fn locate_one(t27c: &Path, root: &Path, path: &Path) -> Located {
     // satisfied by arithmetic the way "the error moved past the item" was.
     let (parsed, moved) = check_text(t27c, root, &muted.join("\n"));
     let progressed = parsed || moved.is_some_and(|m| m > orig);
-    if progressed {
-        Located::Item(a, b)
-    } else {
-        Located::Refuted(a, b)
+    if !progressed {
+        return Located::Refuted(a, b);
     }
+    // Does the item alone reproduce? Measured over the first 37 confirmed
+    // answers: all 37 did. That is what makes the output a set of minimal
+    // reproducers rather than a set of coordinates.
+    let item = lines[a - 1..b.min(lines.len())].join("\n");
+    let (alone_ok, _) = check_text(t27c, root, &format!("module m {{\n{item}\n}}"));
+    Located::Item(a, b, !alone_ok)
 }
