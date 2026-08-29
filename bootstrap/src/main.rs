@@ -4316,10 +4316,22 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     // compiling, the original is used and the spec generates exactly what it
     // generated before.
     let resolved = use_resolve::resolve(path, &raw);
+    for note in use_resolve::unresolved_notes(&resolved) {
+        eprintln!("{}", note);
+    }
     let zig_code = match compiler::Compiler::compile(&resolved) {
         Ok(code) => code,
         Err(spliced_err) => match compiler::Compiler::compile(&raw) {
-            Ok(code) => code,
+            Ok(code) => {
+                // The splice is discarded here and the unresolved source used
+                // instead. Without this line that is invisible: the command
+                // succeeds, and every import it resolved is silently gone.
+                eprintln!(
+                    "note: spliced source did not compile, falling back to the \
+            unresolved original -- imported declarations are NOT in this output"
+                );
+                code
+            }
             Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
         },
     };
@@ -5180,10 +5192,22 @@ fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     // failed on types declared in modules they import. Same safety contract:
     // if the spliced source stops compiling, the original is used.
     let resolved = use_resolve::resolve(path, &raw);
+    for note in use_resolve::unresolved_notes(&resolved) {
+        eprintln!("{}", note);
+    }
     let c_code = match compiler::Compiler::compile_c(&resolved) {
         Ok(code) => code,
         Err(spliced_err) => match compiler::Compiler::compile_c(&raw) {
-            Ok(code) => code,
+            Ok(code) => {
+                // The splice is discarded here and the unresolved source used
+                // instead. Without this line that is invisible: the command
+                // succeeds, and every import it resolved is silently gone.
+                eprintln!(
+                    "note: spliced source did not compile, falling back to the \
+            unresolved original -- imported declarations are NOT in this output"
+                );
+                code
+            }
             Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
         },
     };
@@ -5197,10 +5221,22 @@ fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     // W584: same as gen-c -- `use` resolution is backend-agnostic and only
     // `gen` was calling it.
     let resolved = use_resolve::resolve(path, &raw);
+    for note in use_resolve::unresolved_notes(&resolved) {
+        eprintln!("{}", note);
+    }
     let rust_code = match compiler::Compiler::compile_rust(&resolved) {
         Ok(code) => code,
         Err(spliced_err) => match compiler::Compiler::compile_rust(&raw) {
-            Ok(code) => code,
+            Ok(code) => {
+                // The splice is discarded here and the unresolved source used
+                // instead. Without this line that is invisible: the command
+                // succeeds, and every import it resolved is silently gone.
+                eprintln!(
+                    "note: spliced source did not compile, falling back to the \
+            unresolved original -- imported declarations are NOT in this output"
+                );
+                code
+            }
             Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
         },
     };
