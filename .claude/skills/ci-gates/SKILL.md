@@ -5819,3 +5819,51 @@ knows whether it lowers tests.
 **When recovered content lands in the wrong node kind, change the node, not the
 four consumers.** The give-away is a fix that would need a matching change in
 every backend: that is usually the parser choosing the wrong shape.
+
+## 167. A channel split can count one event twice
+
+I ended an iteration recommending `brace-body` — 4 602 tokens, 459 runs — as "a
+channel nobody has looked at". The next pass measured it against the other
+channels in the same specs:
+
+    brace-body WITHOUT bdd-block-fallback:  3 specs,    88 tokens
+    brace-body WITH it:                    40 specs, 4 514 tokens
+
+Ninety-eight percent was collateral. A braced statement inside a braceless block
+that fell back is the *same event*, reached through a second function: the
+fallback resyncs, the resync meets a `{`, and the brace skipper consumes it.
+
+    bdd-block-fallback      23852
+    brace-body/in-fallback   4345     93% is ONE class
+    brace-body                257     the independent class
+
+The work I had advertised at 4 602 tokens is 257 — off by eighteen times.
+
+**A categorisation is not a partition until you check whether the categories
+co-occur.** The cheap test is one query: how much of category B appears in items
+with no category A at all?
+
+## 168. Half a bound is not a bound
+
+Adding `discard_by_channel` beside `discard_tokens` created a state I nearly let
+pass: an entry with a pinned total and no pinned split. The comparison had a
+`(None, _) => {}` arm and the ratchet reported clean over 86 half-bounded
+entries.
+
+The rule that fixed it is the rule that was already there for the total —
+unpinned is a failure — applied one level down. **When you add a second dimension
+to an amnesty, every rule that governed the first dimension has to be restated
+for it**, including the boring one that says it must exist at all.
+
+## 169. Keep the second account that lets the first be checked
+
+`discard_tokens` is now derivable: it is the sum of `discard_by_channel`. The
+tidy move is to delete it.
+
+Keeping both, with an assertion that they agree, is what caught the 27-token
+recording gap one iteration earlier — a second account of one quantity is the
+only thing that can disagree with the first. The ratchet now reports a ledger
+that contradicts *itself* before it uses that ledger to judge a run.
+
+**Redundancy you can check beats redundancy you remove**, as long as the check is
+mechanical and fires before the data is trusted.
