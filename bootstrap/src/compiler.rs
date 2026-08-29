@@ -1276,7 +1276,18 @@ impl Parser {
             if self.dropped_spans.len() < 20000 {
                 self.dropped_spans
                     .push((self.current.line as u32, self.current.lexeme.clone()));
-                self.dropped_channels.push("brace-body");
+                // W699 rung 8: a braced statement INSIDE a braceless block that
+                // fell back is not an independent finding -- it is the same
+                // event, reached through a second function. Measured before
+                // splitting them: 4 514 of 4 602 `brace-body` tokens sit in
+                // specs that also have a fallback, and reading the channel as a
+                // defect class of its own sent me looking for work that is
+                // already counted once.
+                self.dropped_channels.push(if self.in_bdd_fallback {
+                    "brace-body/in-fallback"
+                } else {
+                    "brace-body"
+                });
             }
             self.advance();
         }
