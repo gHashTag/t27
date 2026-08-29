@@ -8665,3 +8665,46 @@ It is now a line the command prints, computed every run:
 An answer that does not reproduce alone prints `(only in context)` beside it.
 **A property you checked once by hand is a property the tool should assert every
 time**, or the next reader has your prose and no measurement.
+
+## 345. One rule, four positions, three treatments
+
+`types_compatible` rejects narrowing `F64 -> F32`, with a comment naming the
+issue it closed. Where does that rejection actually apply?
+
+| position | compared? | verdict |
+|---|---|---|
+| assignment `x = d;` | yes | **error** |
+| argument `p(d)` | yes | **warning** -- printed under a `Typecheck OK` header |
+| declaration `var x: f32 = d;` | **no** | silent |
+| return `-> f32 { return d; }` | **no** | silent |
+
+A soundness fix guarding one of four narrowing sites is a soundness fix in one
+of four narrowing sites. **When you find a rule, enumerate the positions it
+should hold in and check each one** -- the code will not tell you which ones it
+forgot, because forgetting is silent by construction.
+
+Adding the declaration comparison at the argument's severity -- a warning --
+cost 18 warnings in 13 files across the whole corpus, and moved no ratchet.
+I expected noise and got a work list.
+
+## 346. The check found the bug that made the check necessary
+
+Of those 18, two read `Str <- F64`:
+
+```
+var period_str : &str = "83.333";
+```
+
+`infer_expr` returns `Str` when the literal's VALUE starts with a quote. The
+parser marks the node `extra_kind: "string"` and the lexeme does not always
+carry the quote, so a quoted string fell through to the float branch and any
+string whose text parses as a number was typed as that number. `"hello"` was
+fine -- it does not parse as a float, so it landed on `Unknown`, which is
+compatible with everything and therefore silent.
+
+Two silences composed: the declaration position was never compared, and the
+value that would have failed the comparison was mistyped. Neither was visible
+alone.
+
+The fix reads the marker the parser already sets. `specs/pins/emitter_xdc.t27`
+now typechecks -- 627 to 628 specs, zero regressions.

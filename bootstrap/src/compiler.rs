@@ -21897,6 +21897,35 @@ fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], resu
             for child in &node.children {
                 check_expr(child, symbols, fns, result);
             }
+            // #920 rejects narrowing F64 -> F32 in an ASSIGNMENT and nowhere
+            // else. Measured: `x = d` is an error, `p(d)` is a warning, and a
+            // DECLARATION with an annotation was not compared at all --
+            // `var x: f32 = d;` passed in silence. Three treatments of one
+            // rule, two of them silent.
+            //
+            // Reported at the same severity the argument position uses. Making
+            // it an error would be the consistent choice and would also fail
+            // specs that pass today; that is the owner's call, and a warning
+            // makes the hole countable without moving any ratchet.
+            if !node.extra_type.is_empty() && !node.children.is_empty() {
+                let declared = resolve_type_str(&node.extra_type);
+                let init = infer_expr(&node.children[0], symbols, fns);
+                if !types_compatible(&declared, &init)
+                    && declared != TypeInfo::Unknown
+                    && init != TypeInfo::Unknown
+                {
+                    result.warnings += 1;
+                    let line = if node.line > 0 {
+                        format!(":{}", node.line)
+                    } else {
+                        String::new()
+                    };
+                    result.errors.push(format!(
+                        "warning: '{}' is declared {:?} and initialised from {:?}{}",
+                        node.name, declared, init, line
+                    ));
+                }
+            }
             // #920 bug 2: register the local in the CURRENT scope so subsequent
             // sibling statements can resolve it (was previously discarded).
             symbols.push(SymbolEntry {
@@ -22110,7 +22139,14 @@ fn infer_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry]) -> TypeInfo
             if node.value == "true" || node.value == "false" {
                 return TypeInfo::Bool;
             }
-            if node.value.starts_with('"') {
+            // The parser marks a string literal with `extra_kind: "string"`.
+            // This tested the VALUE for a leading quote instead, and the lexeme
+            // does not always carry one -- so `var period_str : &str = "83.333";`
+            // fell through to the float branch below and the declaration was
+            // typed F64. Measured across the corpus: two such strings, both in
+            // specs/pins/emitter_xdc.t27, and neither was reported by anything
+            // because the declaration position was not compared at all.
+            if node.extra_kind == "string" || node.value.starts_with('"') {
                 return TypeInfo::Str;
             }
             if node.value.parse::<i64>().is_ok() {
