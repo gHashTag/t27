@@ -3145,7 +3145,29 @@ impl Parser {
                 self.advance();
                 continue;
             }
-            let param_name = self.current.lexeme.clone();
+            // A parameter QUALIFIER, not a name. `comptime` and `noalias` lex
+            // as plain identifiers, so `fn f(comptime fmt: []const u8, ...)`
+            // made `comptime` the parameter name and `fmt` its type, emitting
+            //
+            //     fn printErrorFmt(@"comptime": fmt, @"u8": , args: anytype)
+            //
+            // Two parameters out of one, the second with an empty type. The
+            // giveaway is that no `:` follows -- a real name is always followed
+            // by one, and a qualifier never is.
+            //
+            // Carried on the NAME rather than in a new field: the emitter
+            // writes `name: type`, so `comptime fmt` lands as
+            // `comptime fmt: []const u8`, which is what Zig wants.
+            let mut qualifier = String::new();
+            while matches!(self.current.lexeme.as_str(), "comptime" | "noalias")
+                && self.peek.kind != TokenKind::Colon
+            {
+                qualifier.push_str(&self.current.lexeme);
+                qualifier.push(' ');
+                self.advance();
+            }
+
+            let param_name = format!("{}{}", qualifier, self.current.lexeme);
             self.advance();
 
             // Expect colon
