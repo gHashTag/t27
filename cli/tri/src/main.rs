@@ -19,6 +19,7 @@ mod mutate;
 mod nownote;
 mod reseal;
 mod prcheck;
+mod quant;
 mod red;
 mod rtl;
 mod skillnum;
@@ -134,6 +135,11 @@ enum Commands {
     Abandoned {
         #[command(subcommand)]
         action: abandoned::AbandonedCmd,
+    },
+    /// Every quantified clause, its binders, and the size of its domain.
+    Quantifiers {
+        #[command(subcommand)]
+        action: quant::QuantCmd,
     },
     /// What the parser reads and throws away, ranked against its pinned bound.
     Discard {
@@ -770,6 +776,7 @@ fn main() -> Result<()> {
         Commands::Vectors { action } => vectors::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Abandoned { action } => abandoned::run(action)?,
+        Commands::Quantifiers { action } => quant::run(action)?,
         Commands::Discard { action } => discard::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
