@@ -29,8 +29,8 @@ module TriWriter;
         // TODO: Implement from .tri spec
     }
 
-    // listen(writer: Writer(W, T)) → Writer(W, (T, W))
-    fn listen(writer: Writer(W, T)) -> Writer(W, (T, W)) {
+    // listen(writer: Writer(W, T)) → Writer(W, struct { T, W })
+    fn listen(writer: Writer(W, T)) -> Writer(W, struct { T, W }) {
         // TODO: Implement from .tri spec
     }
 
