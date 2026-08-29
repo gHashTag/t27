@@ -2555,7 +2555,28 @@ impl Parser {
                                 type_str.push(' ');
                             }
                         }
-                        type_str.push_str(&self.current.lexeme);
+                        // A String token's lexeme is its DECODED body, without
+                        // the quotes. This loop collects a field's type AND its
+                        // default into one string, so `verify: []const u8 = ""`
+                        // came out `[]const u8=` -- the value gone -- and
+                        // `= "x"` came out `= x`, a bare identifier Zig cannot
+                        // resolve. Numbers and `false` survived; only strings
+                        // lost their marking.
+                        //
+                        // Restored ONLY past the `=`. Blanket quote restoration
+                        // over collectors like this one cost 84 specs when I
+                        // tried it: most of what they build is a TYPE, and this
+                        // corpus writes some types AS quoted strings, so
+                        // re-quoting them broke files that were working. On the
+                        // default side of an `=` a string is a value and
+                        // nothing else.
+                        if self.current.kind == TokenKind::String && type_str.contains('=') {
+                            type_str.push('"');
+                            type_str.push_str(&zig_string_body(&self.current.lexeme));
+                            type_str.push('"');
+                        } else {
+                            type_str.push_str(&self.current.lexeme);
+                        }
                         self.advance();
                     }
                 }
