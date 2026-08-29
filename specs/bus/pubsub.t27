@@ -14,6 +14,8 @@ use bus-schema::Event;
 use bus-schema::Subscription;
 use bus-schema::TopicPattern;
 use bus-schema::BusState;
+use bus-schema::topic_pattern_create;
+use bus-schema::event_create;
 
 // ============================================================================
 // Constants
@@ -437,7 +439,7 @@ test "bus_pubsub_config_default" {
 }
 
 test "bus_subscriber_context_create" {
-    const pattern = bus-schema::topic_pattern_create("test/*");
+    const pattern = topic_pattern_create("test/*");
     const ctx = subscriber_context_create("sub1", pattern, "handler");
     try std.testing.expect(ctx.subscriber_id == "sub1");
 }
@@ -458,13 +460,13 @@ test "bus_delivery_queue_create" {
 }
 
 test "bus_pending_publish_create" {
-    const event = bus-schema::event_create(.lsp_request, "test", "");
+    const event = event_create(.lsp_request, "test", "");
     const pending = pending_publish_create(event);
     try std.testing.expect(pending.retries == 0);
 }
 
 test "bus_match_topic_pattern" {
-    const pattern = bus-schema::topic_pattern_create("test/topic");
+    const pattern = topic_pattern_create("test/topic");
     const result = match_topic_pattern("test/topic", pattern);
     try std.testing.expect(result.matches == true);
 }
@@ -489,7 +491,7 @@ test "bus_is_delivery_queue_empty" {
 }
 
 test "bus_pattern_contains_wildcard" {
-    const pattern = bus-schema::topic_pattern_create("*");
+    const pattern = topic_pattern_create("*");
     try std.testing.expect(pattern_contains_wildcard(pattern));
 }
 
@@ -625,7 +627,7 @@ bench "bus_match_topic_pattern_latency" {
     // Measure: cycles for pattern matching
     // Target: < 50 cycles
     @setEvalBranchQuota(10000);
-    const pattern = bus-schema::topic_pattern_create("test");
+    const pattern = topic_pattern_create("test");
     var result : TopicMatchResult = undefined;
     for (0..1000) |_| {
         result = match_topic_pattern("test", pattern);

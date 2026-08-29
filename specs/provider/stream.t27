@@ -12,6 +12,8 @@ module provider-stream;
 use tritype-base::usize;
 use provider-schema::StreamingChunk;
 use provider-schema::ChunkType;
+use provider-schema::ToolCall;
+use provider-schema::usage_create;
 
 // ============================================================================
 // Constants
@@ -273,9 +275,9 @@ pub fn sse_event_to_chunk(event: SseEvent) StreamingChunk {
     return StreamingChunk{
         .chunk_type = chunk_type,
         .delta = event.data,
-        .tool_calls = &[_]provider-schema::ToolCall{},
+        .tool_calls = &[_]ToolCall{},
         .finish_reason = "",
-        .usage = provider-schema::usage_create(0, 0),
+        .usage = usage_create(0, 0),
     };
 }
 
