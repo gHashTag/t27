@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:14997c10f124b62c04f053cdc68f0f7bb1c795ca6c3360e32d13a6c2e4e72288",
-  "gen_hash_rust": "sha256:d1cb6e11a94f00089f1468b791d4b2ed93f297d1473c54a10a8b54efe01fe1c7",
+  "gen_hash_rust": "sha256:9af6129082d1b27f014ebebe21aeb34dfd9c24e791b337f95a036f595b6a97ed",
   "gen_hash_verilog": "sha256:c6e00e21ade9268f1954092e34a9623484f659c0ee488101870df2f56984bae6",
   "gen_hash_zig": "sha256:11c15710bbe12eb1cd7443a87d4bc81294bec07b728e977d34f44b335ac19d10",
   "module": "GftRelu",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:48Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:67977206cb649dcffe7703ea2aa8d330f67b0dce6b63c3e063d2c4ef5d1112e2",
   "spec_path": "specs/ternary/gft_relu.t27"
 }

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:4b2f755990316968fbb5681aa087229944967c46e01e2e7017cb94517b3a38df",
-  "gen_hash_rust": "sha256:4a85e275eea6f3bede6496e35bf5466150575aac5f28b417b06ecb75a97c9ec5",
+  "gen_hash_rust": "sha256:6ef2e225b451d6a089fe9aa1e8df308ec1f38c40bab4e9b16f482852d26b0663",
   "gen_hash_verilog": "sha256:18a47067daddcb68034c6097bbb4a5a7eab08e5a4dd73758429da6c85cc1a05b",
   "gen_hash_zig": "sha256:9b007f3413a21951f7e7640de3008af2d5e25ea44430f20e27872fe700a20e49",
   "module": "TriKmp",

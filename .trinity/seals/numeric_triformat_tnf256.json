@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:6aa8e46dc5e13f7d89cfdc96ae00d93657fecda50626b1d9f050d4c2ae6c0656",
-  "gen_hash_rust": "sha256:9ce0c5f00d7aaaa29e02173be389c9018782c9b3260bb5f36ae0af7d9424bc49",
+  "gen_hash_rust": "sha256:7cfe4a3b8e6f1a231fc0e9f95ba406cd933a8331b5788dbdf19212551bc67bc4",
   "gen_hash_verilog": "sha256:a7ca8e4dca891591475edd6ac9333fdcc3d2ebca5a0e74ae84e76f0587f23281",
   "gen_hash_zig": "sha256:de736dda279c2ca59d8181a90cf2483fd7bae034da9d93b3e3f0f5ba835ba26b",
   "module": "triformat_tnf256",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:46Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:8c42f30c24a45be46828ef019aea207d5b03cb44f8600434f3b3a60c8f128cbb",
   "spec_path": "specs/numeric/tnf256.t27"
 }

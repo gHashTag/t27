@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:862ba6cf98247d98779d1c54b578609f41b13a397b448368a5afc17cee1714f6",
-  "gen_hash_rust": "sha256:bcb303c90a884899e8159a4dda7fcacbcfc80fce200ad39c53f38fdf829332c2",
+  "gen_hash_rust": "sha256:9866d7310151ad3c24c0b3a204bc81d6930eb2865ace375ddb58f6ae3f37c824",
   "gen_hash_verilog": "sha256:7d52db56548108a72273564682acf0184395c5c7a73dbb0982f34ca1bbe04c6b",
   "gen_hash_zig": "sha256:ffcad7dbb5b3a114baca141fd8bc4196d57d8b155f6dcd82dfffd5f6e33a5aec",
   "module": "RnnCell",

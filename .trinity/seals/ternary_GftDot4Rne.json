@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:8ad62adeaba7a0cf3abeb0c29065945dbcb2f8ddd189e7f2e80111084507ca0e",
-  "gen_hash_rust": "sha256:bc44a867f98a1dbddf5c7bcf1f8be59650562350193a8a82901f786cb68c3595",
-  "gen_hash_verilog": "sha256:5e330cfe1223643a11acab2fa824dd764285aea35cfed0f955f9047d1d018cea",
+  "gen_hash_rust": "sha256:6ab27a62b6a58a7f39bdb4fab960ec3bdfc298accd05ff9dbde6fd9dce565031",
+  "gen_hash_verilog": "sha256:a193fa97c828a28f04d58e687e45a10eff3d7476c98c9cefe516dd5467583002",
   "gen_hash_zig": "sha256:8124a8158055366ef4d88c81802a49bee389d1fde82f0376f5afa3856a113efb",
   "module": "GftDot4Rne",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7411a1ca05061742f6bf4dedaaf4fe6b88343896e80971c79f334978f2432d9d",
   "spec_path": "specs/ternary/gft_dot4_rne.t27"
 }
