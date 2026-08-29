@@ -21,7 +21,7 @@ identity.
 
 ---
 
-## The four ways it fails
+## The seven ways it fails
 
 | verdict | meaning | what to do |
 |---|---|---|
@@ -29,6 +29,9 @@ identity.
 | **UNEXPECTED PASS** | a ledger entry passed | **you fixed something.** Remove the entry and lower `max_entries` |
 | **EXPIRED** | an entry is past its `expires` date | fix the spec, or renew the date with a reason in the PR |
 | **OVER CAP** | the ledger outgrew `max_entries` | the cap only moves down automatically; raising it is a hand edit |
+| **DISCARD WORSENED** | a `parse-no-discard` entry threw away MORE tokens than it is pinned at — or this run took no reading at all | fix it, or bless and justify the rise in the PR |
+| **DISCARD IMPROVED** | it threw away FEWER | **you fixed something.** Re-bless so the new, lower number is what the next run is held to |
+| **DISCARD UNPINNED** | a `parse-no-discard` entry carries no `discard_tokens` | bless once; an amnesty with no bound is what that field exists to end |
 
 **An unexpected pass is a failure, and that is deliberate.** Gating only on new
 breaks makes the ledger *monotone*: entries get added when defects appear and
@@ -97,18 +100,32 @@ Read this before trusting a green run.
   of 612,924,235 bytes (98.89%), generator output the ledger does not gate on.
   That exclusion is what makes the check 314 s instead of 4057 s with a
   bit-identical verdict.
-- **Only the phases `suite` runs**: `parse`, `typecheck`, `gen-zig`,
-  `gen-rust`, `gen-verilog`, `gen-c`, `seal-verify`, plus the smoke gates.
-  **`parse-complete` and `lex-dropped` are not among them**, and `t27c parse`
-  returns success on a file it did not fully consume — so appended garbage after
-  the last valid construct is invisible to this gate. Verified: appending
-  `))) … (((` to a corpus spec leaves the ratchet CLEAN; a mid-file break is
-  caught and named.
+- **Only the phases `suite` runs**: `parse`, `parse-no-discard`, `typecheck`,
+  `gen-zig`, `gen-rust`, `gen-verilog`, `gen-c`, `seal-verify`, plus the smoke
+  gates. `lex-dropped` is not among them.
+
+  **This bullet used to say `parse-complete` was not among them either, and that
+  appending `))) … (((` to a corpus spec left the ratchet CLEAN.** Both are now
+  false, and the correction is dated 2026-08-29: `parse-no-discard` is a phase and
+  runs the same accounting `parse-complete` reports. Re-verified by doing it —
+  appending `))) foo bar (((` to `specs/account/auth.t27` produces
+
+  ```
+  UNEXPECTED FAILURES: 1
+    + specs/account/auth.t27 [parse]
+  ```
+
+  A document that lists what a green run does not cover is the last place a
+  stale claim should sit: it is read exactly when someone is deciding how far to
+  trust a pass.
 - **Seal staleness is reported, not gated.** 1056 of 1064 seals are stale and
   ~940 carry an unchanged `spec_hash`; a ledger over golden-file drift would be
   debt, not a defect list.
-- **`cargo test` is not run by `suite`.** There are 5 standing unit-test
-  failures that have never appeared in any suite total.
+- **`cargo test` is not run by `suite`.** It still is not — but the five
+  standing unit-test failures this bullet used to name are gone: measured
+  2026-08-29, `cargo test --no-fail-fast` is 2429 passed, 0 failed. The flag
+  matters: without it `cargo test` stops at the first failing binary, and every
+  total taken without it was partial.
 
 ---
 
@@ -127,3 +144,69 @@ signal), T30 (attribution before amnesty), T31 (blessing on absence), T32–T33
 phases cannot see).
 
 **φ² + φ⁻² = 3 | TRINITY**
+
+---
+
+## The amnesty carries a number (W699, 2026-08-29)
+
+An entry is an identity — `(path, phase)` — and for six phases that is the whole
+truth: a spec either parses or it does not. For `parse-no-discard` it is not.
+That phase's failure message has always carried a magnitude:
+
+```
+parser reached EOF but DISCARDED 208 top-level token(s); they never reach codegen
+```
+
+and the ledger threw the number away. A spec could go from discarding one token
+to discarding six hundred and eighty-two without moving a gate. The blindness
+runs both ways: two parser fixes on 2026-08-29 recovered **1 292 tokens** across
+the corpus and nothing could price it, because the population was 87 either way.
+
+So `parse-no-discard` entries now carry `discard_tokens`, and the ratchet
+compares it:
+
+```json
+{
+  "path": "specs/isa/ternary_deque.t27",
+  "phase": "parse-no-discard",
+  "discard_tokens": 1873
+}
+```
+
+Three rules, matching the ones already here rather than inventing new ones:
+
+- **more is a failure** — the regression signal that did not exist
+- **less is also a failure** — same reason an unexpected PASS is one. Unclaimed
+  slack is where the next regression hides. Re-bless to pin the lower number.
+- **no reading is treated as WORSE, never as an improvement.** A spec that
+  stopped being measured and a spec that discards nothing look identical from
+  the ratchet's side, and defaulting the map to zero would have reported every
+  unreadable spec as a triumph.
+
+`t27c suite --bless-expectations` is still the only writer, and it writes what
+the run measured — so lowering is automatic on a re-bless, and raising is a diff
+a human reads.
+
+### How this compares to the field
+
+Notion's eslint ratchet records per-file how many exceptions are allowed and
+**decreases the counts automatically** as issues are fixed. That is the same
+shape one decision apart: there, an improvement silently tightens the bound;
+here it fails the run until someone blesses it.
+
+The difference is deliberate and it is the same choice `xfail_strict` makes. An
+automatic tightening is invisible in review — nobody sees the improvement, and
+nobody notices when the tool tightens the wrong thing. A failing run that says
+*"you fixed something, pin it"* costs one command and produces a diff.
+
+### Finding the next one
+
+```bash
+tri discard top --n 15
+```
+
+Ranked by tokens thrown away, with the pinned bound beside each. The count of 87
+does not say where to start; `specs/isa/ternary_deque.t27` at 1 873 tokens does.
+It reads `t27c parse-complete` rather than re-implementing the accounting: a
+second implementation of a measurement is a second number to disagree with the
+first.

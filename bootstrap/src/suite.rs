@@ -356,6 +356,21 @@ struct ExpectationEntry {
     /// `YYYY-MM-DD`. A past-due entry fails the run -- this is the only thing
     /// in the design that pushes back on normalisation of deviance.
     expires: String,
+    /// W699: for `parse-no-discard`, HOW MUCH this spec is amnestied to throw
+    /// away.
+    ///
+    /// The amnesty was an identity: `(path, phase)`. A spec could go from
+    /// discarding one token to discarding six hundred and eighty-two and no
+    /// gate would move, because the entry says only "this spec discards". The
+    /// same blindness runs the other way: two parser fixes recovered 1 292
+    /// tokens across the corpus and the ledger could not price it -- the
+    /// population stayed at 87 either way.
+    ///
+    /// `None` for phases where it means nothing (`parse` cannot discard; it
+    /// never finished). For `parse-no-discard` it is REQUIRED: an amnesty with
+    /// no bound is the thing this field exists to end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    discard_tokens: Option<usize>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -417,6 +432,18 @@ struct RatchetVerdict {
     unexpected_passes: Vec<String>,
     /// Entries whose `expires` is in the past.
     expired: Vec<String>,
+    /// W699: entries discarding MORE than the ledger pinned. Regressions that
+    /// the identity-only comparison could not see.
+    #[serde(default)]
+    discard_worsened: Vec<String>,
+    /// Entries discarding LESS than pinned. A failure, for the same reason an
+    /// unexpected PASS is: unclaimed slack is where the next regression hides.
+    /// Re-bless to pin the new number.
+    #[serde(default)]
+    discard_improved: Vec<String>,
+    /// `parse-no-discard` entries with no bound at all.
+    #[serde(default)]
+    discard_unpinned: Vec<String>,
     /// True when `entries.len()` exceeds the declared cap.
     over_cap: bool,
     ledger_size: usize,
@@ -428,16 +455,32 @@ impl RatchetVerdict {
         self.unexpected_failures.is_empty()
             && self.unexpected_passes.is_empty()
             && self.expired.is_empty()
+            && self.discard_worsened.is_empty()
+            && self.discard_improved.is_empty()
+            && self.discard_unpinned.is_empty()
             && !self.over_cap
     }
 }
 
 /// Compare observed primary corpus failures against the ledger.
 /// `observed` is a set of `(path, phase)`; `today` is `YYYY-MM-DD`.
+/// W699: the phase whose amnesty carries a number is `parse-no-discard`.
+///
+/// `parse` entries never reach EOF, so they discard nothing by definition and
+/// carry no bound. Naming the phase in one place keeps the two rules -- who must
+/// be pinned, whose observation is read -- from drifting apart.
+const DISCARD_PHASE: &str = "parse-no-discard";
+
+/// Compare observed primary corpus failures against the ledger.
+/// `observed` is a set of `(path, phase)`; `today` is `YYYY-MM-DD`.
+/// `discard` maps a spec path to the tokens this run saw it throw away; a path
+/// missing from the map was not measured, which is NOT the same as zero and is
+/// treated as "no reading", never as an improvement.
 fn ratchet_compare(
     observed: &std::collections::BTreeSet<(String, String)>,
     exp: &SuiteExpectations,
     today: &str,
+    discard: &std::collections::BTreeMap<String, usize>,
 ) -> RatchetVerdict {
     let expected: std::collections::BTreeSet<(String, String)> = exp
         .entries
@@ -447,8 +490,39 @@ fn ratchet_compare(
 
     let fmt = |(p, ph): &(String, String)| format!("{} [{}]", p, ph);
 
+    let mut worsened: Vec<String> = Vec::new();
+    let mut improved: Vec<String> = Vec::new();
+    let mut unpinned: Vec<String> = Vec::new();
+    for e in exp.entries.iter().filter(|e| e.phase == DISCARD_PHASE) {
+        match (e.discard_tokens, discard.get(&e.path)) {
+            (None, _) => unpinned.push(format!(
+                "{} [{}] has no `discard_tokens` -- an amnesty with no bound",
+                e.path, e.phase
+            )),
+            // No reading for a pinned entry. Silence is not agreement: report it
+            // beside the worsened, because a spec that stopped being measured
+            // and a spec that discards nothing look identical from here.
+            (Some(p), None) => worsened.push(format!(
+                "{} [{}] pinned at {} but this run took NO reading",
+                e.path, e.phase, p
+            )),
+            (Some(p), Some(&o)) if o > p => worsened.push(format!(
+                "{} [{}] discards {} tokens, pinned at {} (+{})",
+                e.path, e.phase, o, p, o - p
+            )),
+            (Some(p), Some(&o)) if o < p => improved.push(format!(
+                "{} [{}] discards {} tokens, pinned at {} (-{}) -- re-bless to pin it",
+                e.path, e.phase, o, p, p - o
+            )),
+            _ => {}
+        }
+    }
+
     RatchetVerdict {
         unexpected_failures: observed.difference(&expected).map(fmt).collect(),
+        discard_worsened: worsened,
+        discard_improved: improved,
+        discard_unpinned: unpinned,
         unexpected_passes: expected.difference(observed).map(fmt).collect(),
         // Lexicographic comparison is correct for zero-padded ISO-8601 dates.
         expired: exp
@@ -2627,6 +2701,24 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     let exp_path = expectations_path(&repo);
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
 
+    // W699: how much each discarding spec threw away THIS run. Read for every
+    // spec observed failing `parse-no-discard`, in-process -- the phase's own
+    // comment calls it nearly free, and this is the same call it makes.
+    //
+    // A spec that fails the phase but yields no reading here is left OUT of the
+    // map rather than entered as zero: the ratchet must be able to tell "no
+    // reading" from "discards nothing", and a default of zero would report every
+    // unreadable spec as a triumphant improvement.
+    let observed_discard: std::collections::BTreeMap<String, usize> = observed
+        .iter()
+        .filter(|(_, ph)| ph == DISCARD_PHASE)
+        .filter_map(|(path, _)| {
+            let src = fs::read_to_string(repo.join(path)).ok()?;
+            let (_, n) = crate::compiler::Compiler::parse_ast_accounted(&src).ok()?;
+            Some((path.clone(), n))
+        })
+        .collect();
+
     if opts.bless_expectations {
         let prior = load_expectations(&exp_path)?;
         // The cap only ever moves DOWN. Blessing a larger population must be a
@@ -2651,13 +2743,25 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         let mut entries: Vec<ExpectationEntry> = observed
             .iter()
             .map(|k| {
-                prior_by_key.get(k).cloned().unwrap_or(ExpectationEntry {
-                    path: k.0.clone(),
-                    phase: k.1.clone(),
-                    reason: "unclassified: blessed by --bless-expectations".to_string(),
-                    issue: 1959,
-                    expires: "2026-11-30".to_string(),
-                })
+                {
+                    let mut e = prior_by_key.get(k).cloned().unwrap_or(ExpectationEntry {
+                        path: k.0.clone(),
+                        phase: k.1.clone(),
+                        reason: "unclassified: blessed by --bless-expectations".to_string(),
+                        issue: 1959,
+                        expires: "2026-11-30".to_string(),
+                        discard_tokens: None,
+                    });
+                    // W699: blessing pins the CURRENT volume. It only ever
+                    // writes what this run measured -- so an entry whose spec
+                    // improved is lowered here, and one that worsened is raised
+                    // ONLY by a human running bless and reviewing the diff,
+                    // which is the same reviewable event the cap relies on.
+                    if e.phase == DISCARD_PHASE {
+                        e.discard_tokens = observed_discard.get(&e.path).copied();
+                    }
+                    e
+                }
             })
             .collect();
         entries.sort();
@@ -2692,7 +2796,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 ratchet_clean = false;
             }
             Some(exp) => {
-                let v = ratchet_compare(&observed, &exp, &today);
+                let v = ratchet_compare(&observed, &exp, &today, &observed_discard);
                 println!("  ledger:              {} / {} cap", v.ledger_size, v.max_entries);
                 println!("  observed (primary):  {}", observed.len());
                 // W636: these lists used to stop at 25 with NO indication, and
@@ -2721,6 +2825,9 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                     " (fixed -- remove from the ledger)",
                 );
                 show("EXPIRED ENTRIES    ", '!', &v.expired, "");
+                show("DISCARD WORSENED   ", '>', &v.discard_worsened, "");
+                show("DISCARD IMPROVED   ", '<', &v.discard_improved, "");
+                show("DISCARD UNPINNED   ", '?', &v.discard_unpinned, "");
                 if v.over_cap {
                     println!("  OVER CAP: {} > {}", v.ledger_size, v.max_entries);
                 }
@@ -2748,7 +2855,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         // identity, not the level of a total. This is the whole point: a total
         // that is already 2614 cannot move when something new breaks (T27).
         if ratchet_clean {
-            println!("RATCHET CLEAN -- no unexpected failures, passes, or expiries");
+            println!("RATCHET CLEAN -- no unexpected failures, passes, expiries, or discard drift");
             println!("phi^2 + 1/phi^2 = 3 | TRINITY");
             return Ok(());
         }
@@ -3176,10 +3283,34 @@ mod tests {
                     reason: "test".into(),
                     issue: 1959,
                     expires: expires.to_string(),
+                    discard_tokens: None,
                 })
                 .collect(),
             ..Default::default()
         }
+    }
+
+    /// W699: a ledger of `parse-no-discard` entries with a pinned volume.
+    fn mk_disc(pairs: &[(&str, Option<usize>)], cap: usize) -> super::SuiteExpectations {
+        super::SuiteExpectations {
+            max_entries: cap,
+            entries: pairs
+                .iter()
+                .map(|(p, n)| super::ExpectationEntry {
+                    path: p.to_string(),
+                    phase: super::DISCARD_PHASE.to_string(),
+                    reason: "test".into(),
+                    issue: 1959,
+                    expires: "2099-01-01".to_string(),
+                    discard_tokens: *n,
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    fn disc_obs(pairs: &[(&str, usize)]) -> std::collections::BTreeMap<String, usize> {
+        pairs.iter().map(|(p, n)| (p.to_string(), *n)).collect()
     }
 
     fn obs(pairs: &[(&str, &str)]) -> std::collections::BTreeSet<(String, String)> {
@@ -3192,7 +3323,7 @@ mod tests {
     #[test]
     fn ratchet_is_clean_when_observed_equals_expected() {
         let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default());
         assert!(v.clean(), "{:?}", v);
     }
 
@@ -3205,9 +3336,90 @@ mod tests {
             &obs(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")]),
             &e,
             "2026-08-12",
+            &Default::default(),
         );
         assert_eq!(v.unexpected_failures, vec!["specs/b.t27 [parse]".to_string()]);
         assert!(!v.clean());
+    }
+
+    // ---- W699: the amnesty carries a NUMBER, not just an identity. ---------
+    //
+    // Before this, `(path, parse-no-discard)` said "this spec discards" and
+    // nothing more. A spec could go from one token to six hundred and eighty-two
+    // without moving a gate, and two parser fixes that recovered 1 292 tokens
+    // across the corpus could not be priced -- the population was 87 either way.
+
+    #[test]
+    fn ratchet_fails_when_a_spec_discards_more_than_it_is_pinned_at() {
+        let e = mk_disc(&[("specs/a.t27", Some(10))], 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &disc_obs(&[("specs/a.t27", 42)]),
+        );
+        assert_eq!(v.discard_worsened.len(), 1, "{:?}", v);
+        assert!(v.discard_worsened[0].contains("+32"), "{:?}", v.discard_worsened);
+        assert!(!v.clean(), "a spec throwing away more must fail the run");
+    }
+
+    #[test]
+    fn ratchet_fails_when_a_spec_improves_so_the_slack_cannot_be_banked() {
+        // Same rule as an unexpected PASS, one level down: unclaimed slack is
+        // where the next regression hides. Re-bless to pin the new number.
+        let e = mk_disc(&[("specs/a.t27", Some(100))], 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &disc_obs(&[("specs/a.t27", 40)]),
+        );
+        assert_eq!(v.discard_improved.len(), 1, "{:?}", v);
+        assert!(v.discard_improved[0].contains("-60"), "{:?}", v.discard_improved);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_fails_on_an_amnesty_with_no_bound() {
+        let e = mk_disc(&[("specs/a.t27", None)], 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &disc_obs(&[("specs/a.t27", 7)]),
+        );
+        assert_eq!(v.discard_unpinned.len(), 1, "{:?}", v);
+        assert!(!v.clean(), "an unbounded amnesty is the thing this field ends");
+    }
+
+    #[test]
+    fn ratchet_reads_a_missing_reading_as_worse_not_as_an_improvement() {
+        // The trap this whole repository keeps re-learning: a measurement that
+        // did not happen is not a measurement of zero. If the map defaulted,
+        // every unreadable spec would report as a triumphant improvement.
+        let e = mk_disc(&[("specs/a.t27", Some(10))], 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &Default::default(),
+        );
+        assert_eq!(v.discard_worsened.len(), 1, "{:?}", v);
+        assert!(v.discard_worsened[0].contains("NO reading"), "{:?}", v.discard_worsened);
+        assert!(v.discard_improved.is_empty(), "silence is not an improvement");
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_is_clean_when_the_volume_matches_exactly() {
+        let e = mk_disc(&[("specs/a.t27", Some(42))], 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &disc_obs(&[("specs/a.t27", 42)]),
+        );
+        assert!(v.clean(), "{:?}", v);
     }
 
     #[test]
@@ -3215,7 +3427,7 @@ mod tests {
         // pytest's `xfail_strict`, made the default. Without this the ledger
         // accumulates entries for defects that were fixed years ago.
         let e = mk_exp(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")], "2099-01-01", 2);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default());
         assert_eq!(v.unexpected_passes, vec!["specs/b.t27 [parse]".to_string()]);
         assert!(!v.clean(), "an unexpected pass must fail the run");
     }
@@ -3223,7 +3435,7 @@ mod tests {
     #[test]
     fn ratchet_fails_on_a_past_due_entry_even_when_the_sets_agree() {
         let e = mk_exp(&[("specs/a.t27", "parse")], "2026-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default());
         assert!(v.unexpected_failures.is_empty());
         assert!(v.unexpected_passes.is_empty());
         assert_eq!(v.expired.len(), 1);
@@ -3237,6 +3449,7 @@ mod tests {
             &obs(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")]),
             &e,
             "2026-08-12",
+            &Default::default(),
         );
         assert!(v.over_cap);
         assert!(!v.clean());
@@ -3247,7 +3460,7 @@ mod tests {
         // The identity is (path, phase), not path. A file amnestied at `parse`
         // that starts failing `gen-c` is a NEW defect.
         let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12");
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12", &Default::default());
         assert_eq!(v.unexpected_failures, vec!["specs/a.t27 [gen-c]".to_string()]);
         assert_eq!(v.unexpected_passes, vec!["specs/a.t27 [parse]".to_string()]);
     }

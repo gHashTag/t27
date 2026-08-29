@@ -78,21 +78,24 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 208
     },
     {
       "path": "specs/base/ternary_encoding.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 472
     },
     {
       "path": "specs/base/ternary_memory.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 314
     },
     {
       "path": "specs/benchmarks/bench_main.t27",
@@ -155,7 +158,8 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 30
     },
     {
       "path": "specs/compiler/typechecker.t27",
@@ -190,14 +194,16 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 62
     },
     {
       "path": "specs/demos/jones_topology_filter.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 16
     },
     {
       "path": "specs/enrichment/audio_overview.t27",
@@ -225,35 +231,40 @@
       "phase": "parse-no-discard",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 43
     },
     {
       "path": "specs/fpga/mac.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 37
     },
     {
       "path": "specs/fpga/power_analysis.t27",
       "phase": "parse-no-discard",
       "reason": "parses now, but the parse discards tokens (parse-no-discard)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 3
     },
     {
       "path": "specs/fpga/spi.t27",
       "phase": "parse-no-discard",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 72
     },
     {
       "path": "specs/fpga/testbench/bootrom_tb.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1
     },
     {
       "path": "specs/fpga/testbench/mac_tb.t27",
@@ -288,21 +299,24 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 46
     },
     {
       "path": "specs/fpga/uart.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 54
     },
     {
       "path": "specs/fpga/vcd_conformance_compare.t27",
       "phase": "parse-no-discard",
       "reason": "parses now, but the parse discards tokens (parse-no-discard)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 120
     },
     {
       "path": "specs/github/auth.t27",
@@ -358,245 +372,280 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 516
     },
     {
       "path": "specs/igla/coder/arch.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 331
     },
     {
       "path": "specs/igla/coder/bench_proxy.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 738
     },
     {
       "path": "specs/igla/coder/benchmark.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 438
     },
     {
       "path": "specs/igla/coder/dataset.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 415
     },
     {
       "path": "specs/igla/coder/eval.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 441
     },
     {
       "path": "specs/igla/coder/pipeline.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 517
     },
     {
       "path": "specs/igla/coder/prm.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 521
     },
     {
       "path": "specs/igla/coder/tokenizer.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 250
     },
     {
       "path": "specs/igla/coder/training.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 647
     },
     {
       "path": "specs/igla/coder/weights.t27",
       "phase": "parse-no-discard",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 319
     },
     {
       "path": "specs/igla/evaluation/multi_lang_harness.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 88
     },
     {
       "path": "specs/igla/integration/publication.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 55
     },
     {
       "path": "specs/igla/race/adder_tree.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1069
     },
     {
       "path": "specs/igla/race/backend.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 481
     },
     {
       "path": "specs/igla/race/bram_weights.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1007
     },
     {
       "path": "specs/igla/race/cordic.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 583
     },
     {
       "path": "specs/igla/race/cordic_fixed.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 213
     },
     {
       "path": "specs/igla/race/cordic_top.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1238
     },
     {
       "path": "specs/igla/race/eda.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 600
     },
     {
       "path": "specs/igla/race/formal.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 485
     },
     {
       "path": "specs/igla/race/gemm.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 757
     },
     {
       "path": "specs/igla/race/opcodes.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 323
     },
     {
       "path": "specs/igla/race/rtl.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 628
     },
     {
       "path": "specs/igla/race/systolic_array.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1041
     },
     {
       "path": "specs/igla/race/systolic_ternary.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1409
     },
     {
       "path": "specs/igla/race/ternary_dot_sw.t27",
       "phase": "parse-no-discard",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 205
     },
     {
       "path": "specs/igla/race/ternary_gemm.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1566
     },
     {
       "path": "specs/igla/race/ternary_inference.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1813
     },
     {
       "path": "specs/igla/race/ternary_mac.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1139
     },
     {
       "path": "specs/igla/race/yosys.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 584
     },
     {
       "path": "specs/igla/training/low_bit_ternary.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 46
     },
     {
       "path": "specs/igla/training/pilot_pretraining.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 33
     },
     {
       "path": "specs/igla/training/roadmap.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 98
     },
     {
       "path": "specs/igla/training/scale_up.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 50
     },
     {
       "path": "specs/interop/gf_cross_language.t27",
@@ -610,35 +659,40 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 148
     },
     {
       "path": "specs/isa/ternary_arithmetic.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 907
     },
     {
       "path": "specs/isa/ternary_bitwise.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1223
     },
     {
       "path": "specs/isa/ternary_control_flow.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 30
     },
     {
       "path": "specs/isa/ternary_deque.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 1873
     },
     {
       "path": "specs/isa/ternary_encoding.t27",
@@ -652,28 +706,32 @@
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 737
     },
     {
       "path": "specs/isa/ternary_memory.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 211
     },
     {
       "path": "specs/isa/ternary_shift.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 705
     },
     {
       "path": "specs/jit/jit.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 22
     },
     {
       "path": "specs/lsp/language.t27",
@@ -687,7 +745,8 @@
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 159
     },
     {
       "path": "specs/math/gf_competitive.t27",
@@ -701,56 +760,64 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 129
     },
     {
       "path": "specs/math/phi_universal_attractor.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 73
     },
     {
       "path": "specs/math/property_test_template.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 238
     },
     {
       "path": "specs/math/radix_economy.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 63
     },
     {
       "path": "specs/math/sacred_physics.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 48
     },
     {
       "path": "specs/memory/notebooklm.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 467
     },
     {
       "path": "specs/ml/optimizer/race_config.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 4
     },
     {
       "path": "specs/ml/transformer/feed_forward.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 62
     },
     {
       "path": "specs/ml/transformer/multi_head_attn.t27",
@@ -764,7 +831,8 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 109
     },
     {
       "path": "specs/neural/forward_pass.t27",
@@ -778,21 +846,24 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 417
     },
     {
       "path": "specs/nn/gla.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 151
     },
     {
       "path": "specs/nn/hslm.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 153
     },
     {
       "path": "specs/nn/phi_rope.t27",
@@ -827,35 +898,40 @@
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 31
     },
     {
       "path": "specs/numeric/gf20.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 31
     },
     {
       "path": "specs/numeric/gf24.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 31
     },
     {
       "path": "specs/numeric/gf32.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 31
     },
     {
       "path": "specs/numeric/gf8.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 37
     },
     {
       "path": "specs/numeric/goldenfloat_family.t27",
@@ -869,21 +945,24 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 63
     },
     {
       "path": "specs/numeric/phi_ratio.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 145
     },
     {
       "path": "specs/numeric/posit_ladder_control.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 148
     },
     {
       "path": "specs/physics/chimera_best_gamma.t27",
@@ -974,14 +1053,16 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 706
     },
     {
       "path": "specs/queen/lotus.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 122
     },
     {
       "path": "specs/runtime/execute.t27",
@@ -1114,7 +1195,8 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 6
     },
     {
       "path": "specs/ternary/hybrid_arithmetic.t27",
@@ -1191,7 +1273,8 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 48
     },
     {
       "path": "specs/tri/collections/bitset.t27",
@@ -1212,14 +1295,16 @@
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 302
     },
     {
       "path": "specs/vsa/ops.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 40
     },
     {
       "path": "specs/vsa/packed_vsa.t27",
@@ -1233,7 +1318,8 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 278
     },
     {
       "path": "specs/vsa/sequence_hdc.t27",
@@ -1247,7 +1333,8 @@
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 415
     }
   ]
 }
