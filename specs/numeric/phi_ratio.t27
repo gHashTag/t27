@@ -426,7 +426,7 @@ module PhiRatio {
         given exp = 6
         and   mant = 9
         when distance = compute_phi_distance(exp, mant)
-        then distance > 0.1  ; GF16 intentionally deviates for ML range
+        then distance > 0.1  // GF16 intentionally deviates for ML range
 
     test is_phi_optimal_tolerance_check
         given exp = 4

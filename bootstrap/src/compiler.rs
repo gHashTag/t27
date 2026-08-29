@@ -7433,11 +7433,34 @@ impl Codegen {
                     }
                     return;
                 }
-                if lhs_t.contains('.') || lhs_t.contains('[') {
+                // Test the NAME, not the whole left side. A typed clause puts
+                // its type there too -- `given crossings: [i32] = []` -- and the
+                // brackets belong to the TYPE, not to a place being assigned.
+                // Testing the whole string read it as an assignment to an
+                // existing location and dropped the `const`, emitting
+                // `crossings:.{i32} = .{};`, which is not a Zig statement.
+                //
+                // `state.gamma[0] = 2.0` still takes the assignment path: its
+                // brackets are left of the colon, because it has no colon.
+                let place = lhs_t.split(':').next().unwrap_or(lhs_t);
+                if place.contains('.') || place.contains('[') {
                     self.write_line(&format!("{} = {};", zig_path(lhs_t), val));
                     return;
                 }
-                self.write_line(&format!("const {} = {};", zig_ident(lhs_t), val));
+                // A typed binding needs its TYPE lowered too. zig_ident only
+                // escapes a name; `crossings:[i32]` kept the t27 spelling and
+                // Zig wants `[]i32`.
+                match lhs_t.split_once(':') {
+                    Some((name, ty)) => self.write_line(&format!(
+                        "const {}: {} = {};",
+                        zig_ident(name.trim()),
+                        Self::zig_type(ty.trim()),
+                        val
+                    )),
+                    None => {
+                        self.write_line(&format!("const {} = {};", zig_ident(lhs_t), val))
+                    }
+                }
             }
             // Zig rejects a discarded-free expression statement, so an action
             // clause is bound to `_`.
@@ -11604,7 +11627,14 @@ fn rewrite_list_literals(s: &str) -> String {
         }
         let prev = out.trim_end().chars().last();
         let indexing = prev.map_or(false, |p| p.is_alphanumeric() || p == '_' || p == ')' || p == ']');
-        if indexing {
+        // A `[` right after a COLON opens a type, not a list: `crossings: [i32]`
+        // is an annotation and `[i32]` is its type. Converting it produced
+        // `crossings:.{i32}`, which is not a type at all.
+        //
+        // `[str: Type]` is unaffected -- its colon is INSIDE the brackets, and
+        // this looks at what precedes the `[`.
+        let annotation = prev == Some(':');
+        if indexing || annotation {
             out.push(c);
             i += 1;
             continue;
