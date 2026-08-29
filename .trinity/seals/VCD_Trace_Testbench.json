@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:c390a95936b3a750e19796ba484fd81aa81053e778d970f3c238ab6b1dc2207f",
-  "gen_hash_rust": "sha256:43be1800a7f3384803232f0cc9ea2cf1837bd0de66f2b4b99b52dca3a4abdbe7",
+  "gen_hash_rust": "sha256:85d3d5b13516f2a6f940a945b1beeb93d704960a7ed86d9094b726915422336c",
   "gen_hash_verilog": "sha256:85c1e86bb9b7c630bddf1f6d0f52e450963bed3fc6dd3906daf75c69405102c9",
   "gen_hash_zig": "sha256:997bc382af1f77f0be61e71b7a072a4cbfdf960bb0570f00de143f98376f6b06",
   "module": "VCD_Trace_Testbench",

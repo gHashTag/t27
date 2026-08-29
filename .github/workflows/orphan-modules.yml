@@ -1,0 +1,58 @@
+# Orphaned modules -- .rs files no crate root reaches.
+#
+# Rust compiles a file only if a `mod` declaration leads to it from the crate
+# root. A file nothing declares is not an unused file: it is a file the compiler
+# never opens. `cargo build` cannot error on it, `cargo clippy` never sees it,
+# and its `#[test]` functions do not exist for `cargo test`.
+#
+# #2427 -- a PR about the Zig subset lexer -- removed `mod elab;` from
+# cli/tri/src/main.rs in the same hunk as two other lines and left the 319-line
+# file. `tri elab` stopped existing, the suite fell 358 -> 354, and nothing
+# printed a word (#2900). A live script kept instructing its reader to run the
+# command that was gone.
+#
+# NO `paths:` FILTER, deliberately. The change that strands a file is a change to
+# the crate root, and the root is not the file that goes missing -- a filter on
+# the stranded path would have been silent for exactly this defect.
+#
+# An exact-match ratchet, not a refusal: bootstrap carries 7 orphans today, none
+# of them repaired here (#2905 is one). The number may not rise, and it may not
+# sit below its ceiling either -- lower the ceiling in the commit that connects a
+# file, so the next orphan cannot hide in the slack.
+
+name: Orphaned modules
+
+on:
+  pull_request:
+    # No `branches:` filter, matching the rest of this repository: a branch
+    # filter makes a gate silent on any PR whose base is not listed, and a
+    # stacked PR then shows a green check list a master-based PR would not get.
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: orphan-modules-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  orphans:
+    name: Every source file is reachable from its crate root
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build the tool
+        run: cargo build --release -p tri
+
+      # A gate that cannot fail is not a gate, and CI reads the exit code, not
+      # the prose. This plants an undeclared file in a temp crate and exits
+      # non-zero unless the walk reports exactly it.
+      - name: Negative control
+        run: ./target/release/tri mods orphan --self-check
+
+      - name: Orphan ceiling
+        run: ./target/release/tri mods orphan --gate

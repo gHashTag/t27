@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:3cdb690af42accd057dc3f619b534646fbb46ba59d80d2b9a0f9eae5d5d88b80",
-  "gen_hash_rust": "sha256:15614f02c267acbe5ba04ceae94799d3b157adf2c382fa0f7f04f9fd10905930",
+  "gen_hash_rust": "sha256:08f0c96fb14c7de97361e24a31f7b67a383ecbce34120735db651b3764cc20ff",
   "gen_hash_verilog": "sha256:8bb1e33c10550b063ffab24c87d17b0592ce4dcf2c0fdacbfa327acac9b071ef",
   "gen_hash_zig": "sha256:1407ce21caa87688f5ab8ecfd02aca81fc8ed63db53032442f028e8893bda345",
   "module": "AgentRunner",

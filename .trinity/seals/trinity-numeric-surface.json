@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:5978e904ed6d0c92e7619f1aff49ca87aa850cb8e7f694c8c21593695bc53dc6",
-  "gen_hash_rust": "sha256:794bf859135423bdddd5fab1c91f005073d4436b21d351d8c5be25e5092dc132",
+  "gen_hash_rust": "sha256:3bed404c90a32a9be604f91962a2a0932a4e80b77e3a24d8155f3abaf9e0dc8f",
   "gen_hash_verilog": "sha256:e09a50d081f1e23a5ced4ba130cc4d921eaa9ed7915b0bfc327180b379e9311f",
   "gen_hash_zig": "sha256:e9f1997e01fa47392065e3e0b836f787c0dfd33cc08788275daa36c5fec0536b",
   "module": "trinity-numeric-surface",

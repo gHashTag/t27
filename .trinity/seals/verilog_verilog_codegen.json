@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:51917a49cfe7f556773dd0fd1481bd7389f0ca5e05737f01f94b02735bc28d88",
-  "gen_hash_rust": "sha256:df912db397d8751ac762adea92cefefb6ee43d4b1f6232c6dcedd2246eab0664",
-  "gen_hash_verilog": "sha256:5113b472107f960d3c3b9596ff11b8a5308f90bcd5d300bddbe447a8eb6ccdab",
-  "gen_hash_zig": "sha256:628275d0f9f9ec3e1c1bf0941c81b2a2ca10a92b8a388311cae49f1ce4e3e328",
+  "gen_hash_c": "sha256:bc71fe1492a165a6242cbab9f34e1cb2435a7a2ca863576e5cebc9ec7191179e",
+  "gen_hash_rust": "sha256:ad85a60c09229a7e1a5737fdd32786a82fe83deed14a05ca80de5d4723a345a3",
+  "gen_hash_verilog": "sha256:6f8f90892c3ec1ff69ee038babea3258d40eb05f102c10ef280a70e37aa29199",
+  "gen_hash_zig": "sha256:3ca02254ff52c1f2af6b72737baa0668ac3b0b9ba09e423b3ede762d77006153",
   "module": "verilog_codegen",
   "ring": 12,
-  "sealed_at": "2026-08-29T17:20:09Z",
+  "sealed_at": "2026-08-29T22:37:10Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7454245beb5d71c1fff9e450cc1f8a5883c47243aaaac38bac1c7a894287e8db",
   "spec_path": "compiler/codegen/verilog/codegen.t27"

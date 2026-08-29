@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:eaf28d78e4b66f54d1acabaa714405b44eb8f529db25e8ba5a0b22fb41b55b82",
-  "gen_hash_rust": "sha256:3dd44063b41cb4f99d0f1d2493851cc314adc9a8a203011cf6b3e0eba81880a6",
+  "gen_hash_rust": "sha256:7271a9e2b2e95ff99c9bb04265e6d64776dea2e062a58b8df70d040be1b0e586",
   "gen_hash_verilog": "sha256:7a30b49f974333c36159968337d033b112afa6f3795f2c69f451ec87d5127e86",
   "gen_hash_zig": "sha256:7441db5819a57c6708d9a7d051ad611b83a37afaed8f49a69bb60df3de63819b",
   "module": "TriSort",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:16Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:89efc921cc39bec70c5b3e9db49c4045670f7c202467a7755844281bd5d74436",
   "spec_path": "specs/tri/sort/sort.t27"
 }

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a403b30521a0ba66d4c1139bd757addc4c953fd878ce754364c7510c524061b7",
-  "gen_hash_rust": "sha256:20e454603aedcccc05b555f4596c31467f947d9844cb03e077247e081c1b84d4",
+  "gen_hash_rust": "sha256:b089292983a46343c984738b58e7e8f64130ade23bbdc033549e00c7a59bf480",
   "gen_hash_verilog": "sha256:437cb2b46ea80a219da9eee3cfee80f4423cb295ae560905c1ad8a1dd63d1dcc",
   "gen_hash_zig": "sha256:0619dfbc96f51f3789ae885804ddaa905fc4a3a35b04e0901d6a06d037b7229c",
   "module": "Power_Testbench",

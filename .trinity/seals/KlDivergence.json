@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a593f598a56e67f1483703859d53685b272d45f45ac03fda75dfe9e30553281f",
-  "gen_hash_rust": "sha256:7668fb9d8cf886cfaa41f61b3bae6742e59dbae84df7ee66ebe686d486b2f41d",
+  "gen_hash_rust": "sha256:dc6f3487f890b2e227f922822bf7e3a32dbf4841ef7e2042815bdb3b993f24e0",
   "gen_hash_verilog": "sha256:765968e7a4f506672910ab570b698307fcb38214b88210fe9c6a43bbb6864f99",
   "gen_hash_zig": "sha256:5cc1664c082b5350b237e8e4c1aac91bd885a63cb233fce0071c61c6bd8c30ae",
   "module": "KlDivergence",

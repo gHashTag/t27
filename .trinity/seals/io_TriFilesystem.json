@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:d6954f0b04d3df78026dd5b4dc76ee9d5b9d1df5fffc1c6977a38ff2fb505e5c",
-  "gen_hash_rust": "sha256:5923571853bd02183cfa265fade4641ce77ad7f37a654a04de1fcb8b69af929e",
+  "gen_hash_rust": "sha256:a1fe8f80bd8eb84a902608019e278722b337829438a73179f8b8fa6515ff36e7",
   "gen_hash_verilog": "sha256:ecba15dcdcf556ee301183ae67b1c4a7cb79182210fab5a77587d834f80c2beb",
   "gen_hash_zig": "sha256:c01811ab5d1b1004f5f068a172a581809f7f052fe7153a72e6bb527796e92838",
   "module": "TriFilesystem",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:4e425fd16028fd4f79f0402fc4c5221aa3d8279d5397160013b0bbf013167a34",
   "spec_path": "specs/tri/io/filesystem.t27"
 }
