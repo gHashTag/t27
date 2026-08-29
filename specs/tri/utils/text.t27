@@ -20,23 +20,23 @@ module TriText;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // word_wrap(allocator: std.mem.Allocator) → void
-    fn word_wrap(allocator: std.mem.Allocator) -> void {
+    // word_wrap(allocator: std.mem.Allocator, text: []const u8, width: usize) → ![]u8
+    fn word_wrap(allocator: std.mem.Allocator, text: []const u8, width: usize) -> ![]u8 {
         // TODO: Implement from .tri spec
     }
 
-    // count_words(text: []const u8) → void
-    fn count_words(text: []const u8) -> void {
+    // count_words(text: []const u8) → usize
+    fn count_words(text: []const u8) -> usize {
         // TODO: Implement from .tri spec
     }
 
-    // count_lines(text: []const u8) → void
-    fn count_lines(text: []const u8) -> void {
+    // count_lines(text: []const u8) → usize
+    fn count_lines(text: []const u8) -> usize {
         // TODO: Implement from .tri spec
     }
 
-    // indent(allocator: std.mem.Allocator) → void
-    fn indent(allocator: std.mem.Allocator) -> void {
+    // indent(allocator: std.mem.Allocator, text: []const u8, spaces: usize) → ![]u8
+    fn indent(allocator: std.mem.Allocator, text: []const u8, spaces: usize) -> ![]u8 {
         // TODO: Implement from .tri spec
     }
 
@@ -44,23 +44,15 @@ module TriText;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test word_wrap_basic_case
-        given input = default_input()
-        when result = word_wrap(input)
-        then result != undefined
+    // TODO: behaviour for word_wrap() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test count_words_basic_case
-        given input = default_input()
-        when result = count_words(input)
-        then result != undefined
+    // TODO: behaviour for count_words() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test count_lines_basic_case
-        given input = default_input()
-        when result = count_lines(input)
-        then result != undefined
+    // TODO: behaviour for count_lines() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test indent_basic_case
-        given input = default_input()
-        when result = indent(input)
-        then result != undefined
+    // TODO: behaviour for indent() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

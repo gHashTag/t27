@@ -24,38 +24,38 @@ module TriBytes;
         // TODO: Implement from .tri spec
     }
 
-    // from_slice(slice: []const u8) → void
-    fn from_slice(slice: []const u8) -> void {
+    // from_slice(slice: []const u8) → Bytes
+    fn from_slice(slice: []const u8) -> Bytes {
         // TODO: Implement from .tri spec
     }
 
-    // clone(bytes: Bytes) → void
-    fn clone(bytes: Bytes) -> void {
+    // clone(bytes: Bytes, allocator: std.mem.Allocator) → !Bytes
+    fn clone(bytes: Bytes, allocator: std.mem.Allocator) -> !Bytes {
         // TODO: Implement from .tri spec
     }
 
-    // equals(a: Bytes) → void
-    fn equals(a: Bytes) -> void {
+    // equals(a: Bytes, b: Bytes) → bool
+    fn equals(a: Bytes, b: Bytes) -> bool {
         // TODO: Implement from .tri spec
     }
 
-    // slice(bytes: Bytes) → void
-    fn slice(bytes: Bytes) -> void {
+    // slice(bytes: Bytes, start: usize, end: usize) → Bytes
+    fn slice(bytes: Bytes, start: usize, end: usize) -> Bytes {
         // TODO: Implement from .tri spec
     }
 
-    // concat(a: Bytes) → void
-    fn concat(a: Bytes) -> void {
+    // concat(a: Bytes, b: Bytes, allocator: std.mem.Allocator) → !Bytes
+    fn concat(a: Bytes, b: Bytes, allocator: std.mem.Allocator) -> !Bytes {
         // TODO: Implement from .tri spec
     }
 
-    // index_of(bytes: Bytes) → void
-    fn index_of(bytes: Bytes) -> void {
+    // index_of(bytes: Bytes, pattern: []const u8) → ?usize
+    fn index_of(bytes: Bytes, pattern: []const u8) -> ?usize {
         // TODO: Implement from .tri spec
     }
 
-    // split(bytes: Bytes) → void
-    fn split(bytes: Bytes) -> void {
+    // split(bytes: Bytes, delimiter: u8, allocator: std.mem.Allocator) → ![]Bytes
+    fn split(bytes: Bytes, delimiter: u8, allocator: std.mem.Allocator) -> ![]Bytes {
         // TODO: Implement from .tri spec
     }
 
@@ -63,43 +63,27 @@ module TriBytes;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
+    // TODO: behaviour for empty() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test from_slice_basic_case
-        given input = default_input()
-        when result = from_slice(input)
-        then result != undefined
+    // TODO: behaviour for from_slice() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test clone_basic_case
-        given input = default_input()
-        when result = clone(input)
-        then result != undefined
+    // TODO: behaviour for clone() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test equals_basic_case
-        given input = default_input()
-        when result = equals(input)
-        then result != undefined
+    // TODO: behaviour for equals() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test slice_basic_case
-        given input = default_input()
-        when result = slice(input)
-        then result != undefined
+    // TODO: behaviour for slice() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test concat_basic_case
-        given input = default_input()
-        when result = concat(input)
-        then result != undefined
+    // TODO: behaviour for concat() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test index_of_basic_case
-        given input = default_input()
-        when result = index_of(input)
-        then result != undefined
+    // TODO: behaviour for index_of() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test split_basic_case
-        given input = default_input()
-        when result = split(input)
-        then result != undefined
+    // TODO: behaviour for split() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

@@ -11,16 +11,16 @@ module TriLinkedList;
     // ═══════════════════════════════════════════════════════════
 
     pub const ListNode = struct {
-        value : "T",
-        prev : "?*ListNode",
-        next : "?*ListNode",
+        value : T,
+        prev : ?ListNode,
+        next : ?ListNode,
     };
 
     pub const LinkedList = struct {
-        head : "?ListNode",
-        tail : "?ListNode",
-        length : "usize",
-        allocator : "std.mem.Allocator",
+        head : ?ListNode,
+        tail : ?ListNode,
+        length : usize,
+        allocator : std.mem.Allocator,
     };
 
     // ═══════════════════════════════════════════════════════════
@@ -32,18 +32,18 @@ module TriLinkedList;
         // TODO: Implement from .tri spec
     }
 
-    // append(list: *LinkedList) → void
-    fn append(list: *LinkedList) -> void {
+    // append(list: *LinkedList, value: i64) → !void
+    fn append(list: *LinkedList, value: i64) -> !void {
         // TODO: Implement from .tri spec
     }
 
-    // prepend(list: *LinkedList) → void
-    fn prepend(list: *LinkedList) -> void {
+    // prepend(list: *LinkedList, value: i64) → !void
+    fn prepend(list: *LinkedList, value: i64) -> !void {
         // TODO: Implement from .tri spec
     }
 
-    // remove(list: *LinkedList) → void
-    fn remove(list: *LinkedList) -> void {
+    // remove(list: *LinkedList, value: i64) → bool
+    fn remove(list: *LinkedList, value: i64) -> bool {
         // TODO: Implement from .tri spec
     }
 
@@ -56,28 +56,18 @@ module TriLinkedList;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test append_basic_case
-        given input = default_input()
-        when result = append(input)
-        then result != undefined
+    // TODO: behaviour for append() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test prepend_basic_case
-        given input = default_input()
-        when result = prepend(input)
-        then result != undefined
+    // TODO: behaviour for prepend() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test remove_basic_case
-        given input = default_input()
-        when result = remove(input)
-        then result != undefined
+    // TODO: behaviour for remove() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    // TODO: behaviour for deinit() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

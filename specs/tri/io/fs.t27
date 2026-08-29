@@ -12,37 +12,37 @@ module TriFs;
 
     pub const Path = struct {
         parts : [][]const u8,
-        absolute : "bool",
+        absolute : bool,
     };
 
     pub const FileInfo = struct {
-        size : "u64",
-        is_dir : "bool",
-        is_file : "bool",
-        modified : "Instant",
+        size : u64,
+        is_dir : bool,
+        is_file : bool,
+        modified : Instant,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // join(base: Path) → void
-    fn join(base: Path) -> void {
+    // join(base: Path, suffix: Path, allocator: std.mem.Allocator) → !Path
+    fn join(base: Path, suffix: Path, allocator: std.mem.Allocator) -> !Path {
         // TODO: Implement from .tri spec
     }
 
-    // basename(path: Path) → void
-    fn basename(path: Path) -> void {
+    // basename(path: Path) → []const u8
+    fn basename(path: Path) -> []const u8 {
         // TODO: Implement from .tri spec
     }
 
-    // dirname(path: Path) → void
-    fn dirname(path: Path) -> void {
+    // dirname(path: Path) → []const u8
+    fn dirname(path: Path) -> []const u8 {
         // TODO: Implement from .tri spec
     }
 
-    // extension(path: Path) → void
-    fn extension(path: Path) -> void {
+    // extension(path: Path) → ?[]const u8
+    fn extension(path: Path) -> ?[]const u8 {
         // TODO: Implement from .tri spec
     }
 
@@ -50,23 +50,15 @@ module TriFs;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test join_basic_case
-        given input = default_input()
-        when result = join(input)
-        then result != undefined
+    // TODO: behaviour for join() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test basename_basic_case
-        given input = default_input()
-        when result = basename(input)
-        then result != undefined
+    // TODO: behaviour for basename() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test dirname_basic_case
-        given input = default_input()
-        when result = dirname(input)
-        then result != undefined
+    // TODO: behaviour for dirname() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test extension_basic_case
-        given input = default_input()
-        when result = extension(input)
-        then result != undefined
+    // TODO: behaviour for extension() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

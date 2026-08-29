@@ -28,13 +28,13 @@ module TriHex;
         // TODO: Implement from .tri spec
     }
 
-    // encode(codec: Hex) → void
-    fn encode(codec: Hex) -> void {
+    // encode(codec: Hex, input: []const u8, allocator: std.mem.Allocator) → ![]const u8
+    fn encode(codec: Hex, input: []const u8, allocator: std.mem.Allocator) -> ![]const u8 {
         // TODO: Implement from .tri spec
     }
 
-    // decode(input: []const u8) → void
-    fn decode(input: []const u8) -> void {
+    // decode(input: []const u8, allocator: std.mem.Allocator) → ![]const u8
+    fn decode(input: []const u8, allocator: std.mem.Allocator) -> ![]const u8 {
         // TODO: Implement from .tri spec
     }
 
@@ -42,22 +42,15 @@ module TriHex;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // lower_case(), upper_case(), encode() and decode() have no body yet, so
-    // they panic when called; encode(codec) also takes no bytes and returns
-    // none, so the "every byte becomes 2 chars" claim and the
-    // decode(encode(x)) == x round trip cannot be stated yet. The Hex codec
-    // value is what this module states.
+    // TODO: behaviour for lower_case() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test hex_codec_records_its_letter_case
-        given lower = Hex{.uppercase=false}
-        and upper = Hex{.uppercase=true}
-        then !lower.uppercase
-        and upper.uppercase
+    // TODO: behaviour for upper_case() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test hex_the_two_codecs_are_distinguishable
-        // one bool is the whole difference between the two codecs the module
-        // names, so it has to actually differ between them
-        given lower = Hex{.uppercase=false}
-        and upper = Hex{.uppercase=true}
-        then lower.uppercase != upper.uppercase
+    // TODO: behaviour for encode() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for decode() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

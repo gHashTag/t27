@@ -11,17 +11,17 @@ module TriBellmanFord;
     // ═══════════════════════════════════════════════════════════
 
     pub const Edge = struct {
-        from : "usize",
-        to : "usize",
-        weight : "i64",
+        from : usize,
+        to : usize,
+        weight : i64,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // shortest_path(edges: []Edge) → void
-    fn shortest_path(edges: []Edge) -> void {
+    // shortest_path(edges: []Edge, vertex_count: usize, start: usize, allocator: std.mem.Allocator) → []i64
+    fn shortest_path(edges: []Edge, vertex_count: usize, start: usize, allocator: std.mem.Allocator) -> []i64 {
         // TODO: Implement from .tri spec
     }
 
@@ -29,8 +29,6 @@ module TriBellmanFord;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test shortest_path_basic_case
-        given input = default_input()
-        when result = shortest_path(input)
-        then result != undefined
+    // TODO: behaviour for shortest_path() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

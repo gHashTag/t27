@@ -25,7 +25,7 @@ module Dense;
     };
 
     pub const ActivationType = struct {
-        enum_type : "enum",
+        enum_type : Enum,
         values : ,
         None : Auto,
         ReLU : Auto,
@@ -39,13 +39,13 @@ module Dense;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
+    // forward(input: []const f32, weights: []const f32, bias: []const f32, output: []f32, config: DenseConfig) → void
+    fn forward(input: []const f32, weights: []const f32, bias: []const f32, output: []f32, config: DenseConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
-    // backward(grad_output: []const f32) → void
-    fn backward(grad_output: []const f32) -> void {
+    // backward(grad_output: []const f32, input: []const f32, weights: []const f32, grad_input: []f32, grad_weights: []f32, grad_bias: []f32, config: DenseConfig) → void
+    fn backward(grad_output: []const f32, input: []const f32, weights: []const f32, grad_input: []f32, grad_weights: []f32, grad_bias: []f32, config: DenseConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -53,37 +53,28 @@ module Dense;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test backward_basic_case
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+    // TODO: behaviour for backward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant dense_constraint_0
-        given input = valid_input()
-        then true // input.size() == config.input_size
+    // TODO: invariant -- input.size() == config.input_size
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant dense_constraint_1
-        given input = valid_input()
-        then true // output.size() == config.output_size
+    // TODO: invariant -- output.size() == config.output_size
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant dense_constraint_2
-        given input = valid_input()
-        then true // weights.size() == input_size * output_size
+    // TODO: invariant -- weights.size() == input_size * output_size
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant dense_constraint_3
-        given input = valid_input()
-        then true // bias.size() == output_size (if has_bias)
+    // TODO: invariant -- bias.size() == output_size (if has_bias)
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant dense_constraint_4
-        given input = valid_input()
-        then true // All inputs must be finite (no NaN/Inf)
+    // TODO: invariant -- All inputs must be finite (no NaN/Inf)
+    // Not generated: the constraint is prose, not an expression.
 

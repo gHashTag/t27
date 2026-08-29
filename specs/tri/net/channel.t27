@@ -20,18 +20,18 @@ module TriChannel;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // new_channel(capacity: usize) → void
-    fn new_channel(capacity: usize) -> void {
+    // new_channel(capacity: usize) → Channel(T)
+    fn new_channel(capacity: usize) -> Channel(T) {
         // TODO: Implement from .tri spec
     }
 
-    // send(channel: Channel(T)) → void
-    fn send(channel: Channel(T)) -> void {
+    // send(channel: Channel(T), value: T) → bool
+    fn send(channel: Channel(T), value: T) -> bool {
         // TODO: Implement from .tri spec
     }
 
-    // recv(channel: Channel(T)) → void
-    fn recv(channel: Channel(T)) -> void {
+    // recv(channel: Channel(T)) → Maybe(T)
+    fn recv(channel: Channel(T)) -> Maybe(T) {
         // TODO: Implement from .tri spec
     }
 
@@ -44,23 +44,15 @@ module TriChannel;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test new_channel_basic_case
-        given input = default_input()
-        when result = new_channel(input)
-        then result != undefined
+    // TODO: behaviour for new_channel() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test send_basic_case
-        given input = default_input()
-        when result = send(input)
-        then result != undefined
+    // TODO: behaviour for send() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test recv_basic_case
-        given input = default_input()
-        when result = recv(input)
-        then result != undefined
+    // TODO: behaviour for recv() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test close_basic_case
-        given input = default_input()
-        when result = close(input)
-        then result != undefined
+    // TODO: behaviour for close() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

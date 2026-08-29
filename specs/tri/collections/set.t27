@@ -11,30 +11,30 @@ module TriSet;
     // ═══════════════════════════════════════════════════════════
 
     pub const HashSet(T) = struct {
-        items : "std.HashMap(T, void)",
+        items : std.HashMap(T, void),
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
+    // init(allocator: std.mem.Allocator) → !HashSet(T)
+    fn init(allocator: std.mem.Allocator) -> !HashSet(T) {
         // TODO: Implement from .tri spec
     }
 
-    // add(set: *HashSet(T)) → void
-    fn add(set: *HashSet(T)) -> void {
+    // add(set: *HashSet(T), item: T, allocator: std.mem.Allocator) → !void
+    fn add(set: *HashSet(T), item: T, allocator: std.mem.Allocator) -> !void {
         // TODO: Implement from .tri spec
     }
 
-    // contains(set: HashSet(T)) → void
-    fn contains(set: HashSet(T)) -> void {
+    // contains(set: HashSet(T), item: T) → bool
+    fn contains(set: HashSet(T), item: T) -> bool {
         // TODO: Implement from .tri spec
     }
 
-    // union(a: HashSet(T)) → void
-    fn union(a: HashSet(T)) -> void {
+    // union(a: HashSet(T), b: HashSet(T), allocator: std.mem.Allocator) → !HashSet(T)
+    fn union(a: HashSet(T), b: HashSet(T), allocator: std.mem.Allocator) -> !HashSet(T) {
         // TODO: Implement from .tri spec
     }
 
@@ -42,23 +42,15 @@ module TriSet;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test add_basic_case
-        given input = default_input()
-        when result = add(input)
-        then result != undefined
+    // TODO: behaviour for add() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test contains_basic_case
-        given input = default_input()
-        when result = contains(input)
-        then result != undefined
+    // TODO: behaviour for contains() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test union_basic_case
-        given input = default_input()
-        when result = union(input)
-        then result != undefined
+    // TODO: behaviour for union() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

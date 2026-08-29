@@ -12,35 +12,35 @@ module TriPolynomial;
 
     pub const Polynomial = struct {
         coeffs : []f64,
-        allocator : "std.mem.Allocator",
+        allocator : std.mem.Allocator,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
+    // init(allocator: std.mem.Allocator, coeffs: []f64) → Polynomial
+    fn init(allocator: std.mem.Allocator, coeffs: []f64) -> Polynomial {
         // TODO: Implement from .tri spec
     }
 
-    // eval(p: *Polynomial) → void
-    fn eval(p: *Polynomial) -> void {
+    // eval(p: *Polynomial, x: f64) → f64
+    fn eval(p: *Polynomial, x: f64) -> f64 {
         // TODO: Implement from .tri spec
     }
 
-    // add(a: *Polynomial) → void
-    fn add(a: *Polynomial) -> void {
+    // add(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) → Polynomial
+    fn add(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
         // TODO: Implement from .tri spec
     }
 
-    // multiply(a: *Polynomial) → void
-    fn multiply(a: *Polynomial) -> void {
+    // multiply(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) → Polynomial
+    fn multiply(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
         // TODO: Implement from .tri spec
     }
 
-    // derivative(p: *Polynomial) → void
-    fn derivative(p: *Polynomial) -> void {
+    // derivative(p: *Polynomial, allocator: std.mem.Allocator) → Polynomial
+    fn derivative(p: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
         // TODO: Implement from .tri spec
     }
 
@@ -53,27 +53,21 @@ module TriPolynomial;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test zero_polynomial_has_no_coefficients
-        // Verify: the boundary -- the zero polynomial carries an empty
-        // coefficient slice, which is what init() must hand back before any
-        // term is added
-        given p = Polynomial{ .coeffs = &[_]f64{}, .allocator = std.testing.allocator }
-        then p.coeffs.len == 0
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test coefficients_are_stored_in_ascending_degree
-        // Verify: coeffs[i] is the coefficient of x^i. For 1 + 2x + 3x^2 the
-        // Horner evaluation at x = 2 is 1 + 2*(2 + 2*3) = 17; under the
-        // opposite (descending) convention the same slice would give 11
-        given coeffs = [_]f64{ 1.0, 2.0, 3.0 }
-        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
-        when value = p.coeffs[0] + 2.0 * (p.coeffs[1] + 2.0 * p.coeffs[2])
-        and error_ = @abs(value - 17.0)
-        then error_ < 1.0e-12
+    // TODO: behaviour for eval() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test degree_is_one_below_the_coefficient_count
-        // Verify: a cubic needs four slots, so derivative() must return three
-        given coeffs = [_]f64{ 4.0, 3.0, 2.0, 1.0 }
-        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
-        when degree = p.coeffs.len - 1
-        then degree == 3
+    // TODO: behaviour for add() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for multiply() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for derivative() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for deinit() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

@@ -11,14 +11,10 @@ module TriTerminal;
     // ═══════════════════════════════════════════════════════════
 
     pub const Color = struct {
-        // Recovered from the upstream spec this file was converted from:
-        // trinity-fpga specs/tri/tri_terminal.tri:7. The converter dropped bare `- name` bullets.
         enum : [black, red, green, yellow, blue, magenta, cyan, white, default],
     };
 
     pub const Style = struct {
-        // Recovered from the upstream spec this file was converted from:
-        // trinity-fpga specs/tri/tri_terminal.tri:20. The converter dropped bare `- name` bullets.
         enum : [bold, dim, italic, underline, reverse],
     };
 
@@ -31,8 +27,8 @@ module TriTerminal;
         // TODO: Implement from .tri spec
     }
 
-    // colorize(allocator: std.mem.Allocator) → void
-    fn colorize(allocator: std.mem.Allocator) -> void {
+    // colorize(allocator: std.mem.Allocator, text: []const u8, fg: Color) → ![]u8
+    fn colorize(allocator: std.mem.Allocator, text: []const u8, fg: Color) -> ![]u8 {
         // TODO: Implement from .tri spec
     }
 
@@ -45,18 +41,12 @@ module TriTerminal;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test get_size_basic_case
-        given input = default_input()
-        when result = get_size(input)
-        then result != undefined
+    // TODO: behaviour for get_size() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test colorize_basic_case
-        given input = default_input()
-        when result = colorize(input)
-        then result != undefined
+    // TODO: behaviour for colorize() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test reset_basic_case
-        given input = default_input()
-        when result = reset(input)
-        then result != undefined
+    // TODO: behaviour for reset() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

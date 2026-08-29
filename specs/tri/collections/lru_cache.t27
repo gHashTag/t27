@@ -11,38 +11,38 @@ module TriLruCache;
     // ═══════════════════════════════════════════════════════════
 
     pub const LRUCache = struct {
-        generic : "K, V",
-        capacity : "usize",
-        size : "usize",
-        head : "*Node",
-        tail : "*Node",
-        map : "HashMap(K, *Node)",
+        generic : K, V,
+        capacity : usize,
+        size : usize,
+        head : *Node,
+        tail : *Node,
+        map : HashMap(K, *Node),
     };
 
     pub const Node = struct {
-        generic : "K, V",
-        key : "K",
-        value : "V",
-        prev : "*Node",
-        next : "*Node",
+        generic : K, V,
+        key : K,
+        value : V,
+        prev : *Node,
+        next : *Node,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(capacity: usize) → void
-    fn init(capacity: usize) -> void {
+    // init(capacity: usize) → LRUCache
+    fn init(capacity: usize) -> LRUCache {
         // TODO: Implement from .tri spec
     }
 
-    // get(cache: *LRUCache) → void
-    fn get(cache: *LRUCache) -> void {
+    // get(cache: *LRUCache, key: K) → ?V
+    fn get(cache: *LRUCache, key: K) -> ?V {
         // TODO: Implement from .tri spec
     }
 
-    // put(cache: *LRUCache) → void
-    fn put(cache: *LRUCache) -> void {
+    // put(cache: *LRUCache, key: K, value: V) → void
+    fn put(cache: *LRUCache, key: K, value: V) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -50,18 +50,12 @@ module TriLruCache;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    // TODO: behaviour for get() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
+    // TODO: behaviour for put() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

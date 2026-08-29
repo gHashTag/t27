@@ -10,8 +10,8 @@ module TriCountingSort;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // sort(allocator: std.mem.Allocator) → void
-    fn sort(allocator: std.mem.Allocator) -> void {
+    // sort(allocator: std.mem.Allocator, values: []usize, max_val: usize) → []usize
+    fn sort(allocator: std.mem.Allocator, values: []usize, max_val: usize) -> []usize {
         // TODO: Implement from .tri spec
     }
 
@@ -19,8 +19,6 @@ module TriCountingSort;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    // TODO: behaviour for sort() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

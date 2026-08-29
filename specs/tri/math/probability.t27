@@ -10,28 +10,28 @@ module TriProbability;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // bernoulli(p: f64) → void
-    fn bernoulli(p: f64) -> void {
+    // bernoulli(p: f64, rng: *std.Random.Default) → bool
+    fn bernoulli(p: f64, rng: *std.Random.Default) -> bool {
         // TODO: Implement from .tri spec
     }
 
-    // binomial(n: usize) → void
-    fn binomial(n: usize) -> void {
+    // binomial(n: usize, p: f64, rng: *std.Random.Default) → usize
+    fn binomial(n: usize, p: f64, rng: *std.Random.Default) -> usize {
         // TODO: Implement from .tri spec
     }
 
-    // poisson(lambda: f64) → void
-    fn poisson(lambda: f64) -> void {
+    // poisson(lambda: f64, rng: *std.Random.Default) → usize
+    fn poisson(lambda: f64, rng: *std.Random.Default) -> usize {
         // TODO: Implement from .tri spec
     }
 
-    // normal(mean: f64) → void
-    fn normal(mean: f64) -> void {
+    // normal(mean: f64, std_dev: f64, rng: *std.Random.Default) → f64
+    fn normal(mean: f64, std_dev: f64, rng: *std.Random.Default) -> f64 {
         // TODO: Implement from .tri spec
     }
 
-    // exponential(lambda: f64) → void
-    fn exponential(lambda: f64) -> void {
+    // exponential(lambda: f64, rng: *std.Random.Default) → f64
+    fn exponential(lambda: f64, rng: *std.Random.Default) -> f64 {
         // TODO: Implement from .tri spec
     }
 
@@ -39,28 +39,18 @@ module TriProbability;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test bernoulli_basic_case
-        given input = default_input()
-        when result = bernoulli(input)
-        then result != undefined
+    // TODO: behaviour for bernoulli() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test binomial_basic_case
-        given input = default_input()
-        when result = binomial(input)
-        then result != undefined
+    // TODO: behaviour for binomial() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test poisson_basic_case
-        given input = default_input()
-        when result = poisson(input)
-        then result != undefined
+    // TODO: behaviour for poisson() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test normal_basic_case
-        given input = default_input()
-        when result = normal(input)
-        then result != undefined
+    // TODO: behaviour for normal() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test exponential_basic_case
-        given input = default_input()
-        when result = exponential(input)
-        then result != undefined
+    // TODO: behaviour for exponential() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

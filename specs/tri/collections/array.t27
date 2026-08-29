@@ -25,48 +25,48 @@ module TriArray;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // slice(arr: []const T) → void
-    fn slice(arr: []const T) -> void {
+    // slice(arr: []const T, start: usize, end: usize) → []const T
+    fn slice(arr: []const T, start: usize, end: usize) -> []const T {
         // TODO: Implement from .tri spec
     }
 
-    // slice_from(arr: []const T) → void
-    fn slice_from(arr: []const T) -> void {
+    // slice_from(arr: []const T, start: usize) → []const T
+    fn slice_from(arr: []const T, start: usize) -> []const T {
         // TODO: Implement from .tri spec
     }
 
-    // first(arr: []const T) → void
-    fn first(arr: []const T) -> void {
+    // first(arr: []const T) → T
+    fn first(arr: []const T) -> T {
         // TODO: Implement from .tri spec
     }
 
-    // last(arr: []const T) → void
-    fn last(arr: []const T) -> void {
+    // last(arr: []const T) → T
+    fn last(arr: []const T) -> T {
         // TODO: Implement from .tri spec
     }
 
-    // is_empty(arr: []const T) → void
-    fn is_empty(arr: []const T) -> void {
+    // is_empty(arr: []const T) → bool
+    fn is_empty(arr: []const T) -> bool {
         // TODO: Implement from .tri spec
     }
 
-    // contains(arr: []const T) → void
-    fn contains(arr: []const T) -> void {
+    // contains(arr: []const T, item: T) → bool
+    fn contains(arr: []const T, item: T) -> bool {
         // TODO: Implement from .tri spec
     }
 
-    // index_of(arr: []const T) → void
-    fn index_of(arr: []const T) -> void {
+    // index_of(arr: []const T, item: T) → ?usize
+    fn index_of(arr: []const T, item: T) -> ?usize {
         // TODO: Implement from .tri spec
     }
 
-    // reverse(allocator: std.mem.Allocator) → void
-    fn reverse(allocator: std.mem.Allocator) -> void {
+    // reverse(allocator: std.mem.Allocator, arr: []const T) → []T
+    fn reverse(allocator: std.mem.Allocator, arr: []const T) -> []T {
         // TODO: Implement from .tri spec
     }
 
-    // concat(allocator: std.mem.Allocator) → void
-    fn concat(allocator: std.mem.Allocator) -> void {
+    // concat(allocator: std.mem.Allocator, a: []const T, b: []const T) → []T
+    fn concat(allocator: std.mem.Allocator, a: []const T, b: []const T) -> []T {
         // TODO: Implement from .tri spec
     }
 
@@ -74,49 +74,30 @@ module TriArray;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test array_view_reads_straight_through_to_the_backing_storage
-        // Verify: the view is zero-copy — it holds a pointer, not a duplicate, so
-        // reads through it land on the original array's bytes
-        given data = [_]u8{ 10, 20, 30 }
-        when view = ArrayView(u8){ .ptr = @constCast(&data), .len = data.len }
-        and first_element = view.ptr[0]
-        and last_element = view.ptr[view.len - 1]
-        then view.len == 3 and first_element == 10 and last_element == 30
+    // TODO: behaviour for slice() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test an_empty_array_view_has_zero_length
-        // Verify: the boundary case — a view of nothing reports len 0
-        given data = [_]u8{}
-        when view = ArrayView(u8){ .ptr = @constCast(&data), .len = 0 }
-        then view.len == 0
+    // TODO: behaviour for slice_from() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test array_view_is_one_type_per_element_type
-        // Verify: ArrayView is generic over T, so two instantiations at the same
-        // element type are the same type and different element types are not
-        given same = ArrayView(u8) == ArrayView(u8)
-        and different = ArrayView(u8) == ArrayView(u16)
-        then same and different == false
+    // TODO: behaviour for first() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test slice_range_start_is_inclusive_and_end_is_exclusive
-        // Verify: the field pair matches Zig's own slice syntax, so a range of
-        // 1..4 over five elements selects three of them starting at index 1
-        given data = [_]u8{ 0, 1, 2, 3, 4 }
-        and range = SliceRange{ .start = 1, .end = 4, .step = 1 }
-        when window = data[range.start..range.end]
-        and window_matches = std.mem.eql(u8, window, &[_]u8{ 1, 2, 3 })
-        then window.len == 3 and window_matches
+    // TODO: behaviour for last() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test an_empty_slice_range_has_equal_bounds
-        // Verify: start == end selects nothing, which is how is_empty distinguishes
-        // an empty view from a one-element one
-        given data = [_]u8{ 0, 1, 2 }
-        and range = SliceRange{ .start = 2, .end = 2, .step = 1 }
-        when window = data[range.start..range.end]
-        then window.len == 0
+    // TODO: behaviour for is_empty() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test slice_range_step_is_signed_so_it_can_run_backwards
-        // Verify: step is i64, not usize — a negative step is representable, which
-        // is what reverse traversal needs
-        given forward = SliceRange{ .start = 0, .end = 3, .step = 1 }
-        and backward = SliceRange{ .start = 0, .end = 3, .step = -1 }
-        then forward.step == 1 and backward.step == -1 and backward.step < 0
+    // TODO: behaviour for contains() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for index_of() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for reverse() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for concat() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

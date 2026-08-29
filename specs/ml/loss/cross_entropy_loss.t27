@@ -24,7 +24,7 @@ module CrossEntropy;
     };
 
     pub const ReductionType = struct {
-        enum_type : "enum",
+        enum_type : Enum,
         values : ,
         Mean : Auto,
         Sum : Auto,
@@ -35,13 +35,13 @@ module CrossEntropy;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(predictions: []const f32) → void
-    fn forward(predictions: []const f32) -> void {
+    // forward(predictions: []const f32, target: []const f32, output: []f32, config: CrossEntropyConfig) → void
+    fn forward(predictions: []const f32, target: []const f32, output: []f32, config: CrossEntropyConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
-    // backward(grad_output: []const f32) → void
-    fn backward(grad_output: []const f32) -> void {
+    // backward(grad_output: []const f32, predictions: []const f32, target: []const f32, grad_input: []f32, config: CrossEntropyConfig) → void
+    fn backward(grad_output: []const f32, predictions: []const f32, target: []const f32, grad_input: []f32, config: CrossEntropyConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -49,33 +49,25 @@ module CrossEntropy;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test backward_basic_case
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+    // TODO: behaviour for backward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant cross_entropy_constraint_0
-        given input = valid_input()
-        then true // predictions.shape[0] == predictions.shape[1]  # batch, num_classes, ...
+    // TODO: invariant -- predictions.shape[0] == predictions.shape[1]  # batch, num_classes, ...
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant cross_entropy_constraint_1
-        given input = valid_input()
-        then true // target.shape[0] == predictions.shape[0]  # Batch dimension matches
+    // TODO: invariant -- target.shape[0] == predictions.shape[0]  # Batch dimension matches
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant cross_entropy_constraint_2
-        given input = valid_input()
-        then true // epsilon > 0
+    // TODO: invariant -- epsilon > 0
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant cross_entropy_constraint_3
-        given input = valid_input()
-        then true // 0 < label_smoothing <= 1
+    // TODO: invariant -- 0 < label_smoothing <= 1
+    // Not generated: the constraint is prose, not an expression.
 

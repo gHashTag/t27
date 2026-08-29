@@ -78,6 +78,29 @@ pub struct Node {
 /// used, which Zig rejects outright. Over-approximating fails safe.
 /// Does this subtree mention `name` as a whole word, anywhere -- including
 /// inside text a node carries verbatim, such as a behaviour clause.
+/// Does any TYPE in this tree name `word`?
+///
+/// node_mentions_word looks at `name`, `value` and `extra_field` -- never at
+/// `extra_type` or at the type half of `params`, which is exactly where
+/// `std.mem.Allocator` lives once a signature is not truncated. Kept separate
+/// rather than widening that function: its other caller decides which symbols
+/// to BIND, and an unused binding is a Zig error, so making it see more names
+/// would emit more bindings.
+fn type_mentions_word(node: &Node, word: &str) -> bool {
+    let has = |hay: &str| {
+        hay.match_indices(word).any(|(i, _)| {
+            let after = hay[i + word.len()..].chars().next();
+            let before = hay[..i].chars().next_back();
+            let edge = |c: Option<char>| c.map_or(true, |c| !c.is_ascii_alphanumeric() && c != '_');
+            edge(before) && after.map_or(true, |c| c == '.' || !c.is_ascii_alphanumeric())
+        })
+    };
+    if has(&node.extra_type) || node.params.iter().any(|(_, ty)| has(ty)) {
+        return true;
+    }
+    node.children.iter().any(|c| type_mentions_word(c, word))
+}
+
 fn node_mentions_word(node: &Node, name: &str) -> bool {
     let has = |hay: &str| {
         hay.match_indices(name).any(|(i, _)| {
@@ -5330,11 +5353,19 @@ impl Codegen {
         let math_shims = math_shims_for(ast);
 
         let mut auto_std = false;
+        // ...or the module simply NAMES std. Every trigger above is about
+        // something the EMITTER generates -- a test block, an assert, a cast
+        // shim -- so a spec writing `std.mem.Allocator` in a signature with no
+        // tests got no import. Invisible while signatures were truncated to
+        // `fn f(x: T) -> void`; restoring them made it 57 of 149 new errors
+        // across 77 regenerated specs, every one `undeclared identifier 'std'`.
+        let mentions_std = node_mentions_word(ast, "std") || type_mentions_word(ast, "std");
         if has_tests
             || needs_expect
             || needs_assert
             || needs_pow
             || needs_cast
+            || mentions_std
             || !math_shims.is_empty()
         {
             self.write_line("const std = @import(\"std\");");

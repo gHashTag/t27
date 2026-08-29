@@ -19,18 +19,18 @@ module TriCrypto;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // generate_key_pair(allocator: std.mem.Allocator) → void
-    fn generate_key_pair(allocator: std.mem.Allocator) -> void {
+    // generate_key_pair(allocator: std.mem.Allocator) → !KeyPair
+    fn generate_key_pair(allocator: std.mem.Allocator) -> !KeyPair {
         // TODO: Implement from .tri spec
     }
 
-    // sha256(data: []const u8) → void
-    fn sha256(data: []const u8) -> void {
+    // sha256(data: []const u8, allocator: std.mem.Allocator) → ![]u8
+    fn sha256(data: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
         // TODO: Implement from .tri spec
     }
 
-    // hmac(key: []const u8) → void
-    fn hmac(key: []const u8) -> void {
+    // hmac(key: []const u8, message: []const u8, allocator: std.mem.Allocator) → ![]u8
+    fn hmac(key: []const u8, message: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
         // TODO: Implement from .tri spec
     }
 
@@ -38,18 +38,12 @@ module TriCrypto;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test generate_key_pair_basic_case
-        given input = default_input()
-        when result = generate_key_pair(input)
-        then result != undefined
+    // TODO: behaviour for generate_key_pair() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test sha256_basic_case
-        given input = default_input()
-        when result = sha256(input)
-        then result != undefined
+    // TODO: behaviour for sha256() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test hmac_basic_case
-        given input = default_input()
-        when result = hmac(input)
-        then result != undefined
+    // TODO: behaviour for hmac() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

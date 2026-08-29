@@ -29,7 +29,7 @@ module Conv2d;
     };
 
     pub const PaddingMode = struct {
-        enum_type : "enum",
+        enum_type : Enum,
         values : ,
         Zeros : Auto,
         Reflect : Auto,
@@ -41,13 +41,13 @@ module Conv2d;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
+    // forward(input: []const f32, weights: []const f32, bias: []const f32, output: []f32, config: Conv2DConfig) → void
+    fn forward(input: []const f32, weights: []const f32, bias: []const f32, output: []f32, config: Conv2DConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
-    // backward(grad_output: []const f32) → void
-    fn backward(grad_output: []const f32) -> void {
+    // backward(grad_output: []const f32, input: []const f32, weights: []const f32, grad_input: []f32, grad_weights: []f32, grad_bias: []f32, config: Conv2DConfig) → void
+    fn backward(grad_output: []const f32, input: []const f32, weights: []const f32, grad_input: []f32, grad_weights: []f32, grad_bias: []f32, config: Conv2DConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -55,37 +55,28 @@ module Conv2d;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test backward_basic_case
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+    // TODO: behaviour for backward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant conv2d_constraint_0
-        given input = valid_input()
-        then true // kernel_size in [1, 3, 5, 7]
+    // TODO: invariant -- kernel_size in [1, 3, 5, 7]
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant conv2d_constraint_1
-        given input = valid_input()
-        then true // stride in [1, 2, 4]
+    // TODO: invariant -- stride in [1, 2, 4]
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant conv2d_constraint_2
-        given input = valid_input()
-        then true // dilation in [1, 2]
+    // TODO: invariant -- dilation in [1, 2]
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant conv2d_constraint_3
-        given input = valid_input()
-        then true // in_channels % groups == 0
+    // TODO: invariant -- in_channels % groups == 0
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant conv2d_constraint_4
-        given input = valid_input()
-        then true // out_channels % groups == 0
+    // TODO: invariant -- out_channels % groups == 0
+    // Not generated: the constraint is prose, not an expression.
 

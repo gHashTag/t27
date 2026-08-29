@@ -788,6 +788,11 @@ fn convert_type_name(tri_type: &str) -> String {
         "usize" => "usize".to_string(),
         "bool" => "bool".to_string(),
         "void" => "void".to_string(),
+        // Without these two the fallback PascalCased them into `Str` and
+        // `Enum`, undeclared identifiers both. Truncation hid it: a type
+        // that never survived conversion could not be mis-cased.
+        "str" | "string" => "[]const u8".to_string(),
+        "enum" => "@\"enum\"".to_string(),
         t if t.starts_with("?") => {
             format!("?{}", convert_type_name(&t[1..]))
         }

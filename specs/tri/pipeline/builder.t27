@@ -20,8 +20,8 @@ module TriBuilder;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(capacity: usize) → void
-    fn init(capacity: usize) -> void {
+    // init(capacity: usize, allocator: std.mem.Allocator) → !Builder(T)
+    fn init(capacity: usize, allocator: std.mem.Allocator) -> !Builder(T) {
         // TODO: Implement from .tri spec
     }
 
@@ -30,28 +30,28 @@ module TriBuilder;
         // TODO: Implement from .tri spec
     }
 
-    // append(builder: *Builder(T)) → void
-    fn append(builder: *Builder(T)) -> void {
+    // append(builder: *Builder(T), item: T, allocator: std.mem.Allocator) → !void
+    fn append(builder: *Builder(T), item: T, allocator: std.mem.Allocator) -> !void {
         // TODO: Implement from .tri spec
     }
 
-    // append_slice(builder: *Builder(T)) → void
-    fn append_slice(builder: *Builder(T)) -> void {
+    // append_slice(builder: *Builder(T), slice: []const T, allocator: std.mem.Allocator) → !void
+    fn append_slice(builder: *Builder(T), slice: []const T, allocator: std.mem.Allocator) -> !void {
         // TODO: Implement from .tri spec
     }
 
-    // len(builder: Builder(T)) → void
-    fn len(builder: Builder(T)) -> void {
+    // len(builder: Builder(T)) → usize
+    fn len(builder: Builder(T)) -> usize {
         // TODO: Implement from .tri spec
     }
 
-    // capacity(builder: Builder(T)) → void
-    fn capacity(builder: Builder(T)) -> void {
+    // capacity(builder: Builder(T)) → usize
+    fn capacity(builder: Builder(T)) -> usize {
         // TODO: Implement from .tri spec
     }
 
-    // finish(builder: Builder(T)) → void
-    fn finish(builder: Builder(T)) -> void {
+    // finish(builder: Builder(T), allocator: std.mem.Allocator) → ![]T
+    fn finish(builder: Builder(T), allocator: std.mem.Allocator) -> ![]T {
         // TODO: Implement from .tri spec
     }
 
@@ -64,43 +64,27 @@ module TriBuilder;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
+    // TODO: behaviour for empty() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test append_basic_case
-        given input = default_input()
-        when result = append(input)
-        then result != undefined
+    // TODO: behaviour for append() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test append_slice_basic_case
-        given input = default_input()
-        when result = append_slice(input)
-        then result != undefined
+    // TODO: behaviour for append_slice() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test len_basic_case
-        given input = default_input()
-        when result = len(input)
-        then result != undefined
+    // TODO: behaviour for len() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test capacity_basic_case
-        given input = default_input()
-        when result = capacity(input)
-        then result != undefined
+    // TODO: behaviour for capacity() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test finish_basic_case
-        given input = default_input()
-        when result = finish(input)
-        then result != undefined
+    // TODO: behaviour for finish() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test reset_basic_case
-        given input = default_input()
-        when result = reset(input)
-        then result != undefined
+    // TODO: behaviour for reset() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

@@ -11,18 +11,18 @@ module TriAvlTree;
     // ═══════════════════════════════════════════════════════════
 
     pub const AVLTree = struct {
-        generic : "K, V",
-        root : "?*AVLNode",
-        size : "usize",
+        generic : K, V,
+        root : ?*AVLNode,
+        size : usize,
     };
 
     pub const AVLNode = struct {
-        generic : "K, V",
-        key : "K",
-        value : "V",
-        height : "i32",
-        left : "?*AVLNode",
-        right : "?*AVLNode",
+        generic : K, V,
+        key : K,
+        value : V,
+        height : i32,
+        left : ?*AVLNode,
+        right : ?*AVLNode,
     };
 
     // ═══════════════════════════════════════════════════════════
@@ -34,18 +34,18 @@ module TriAvlTree;
         // TODO: Implement from .tri spec
     }
 
-    // insert(tree: *AVLTree) → void
-    fn insert(tree: *AVLTree) -> void {
+    // insert(tree: *AVLTree, key: K, value: V) → !void
+    fn insert(tree: *AVLTree, key: K, value: V) -> !void {
         // TODO: Implement from .tri spec
     }
 
-    // find(tree: *const AVLTree) → void
-    fn find(tree: *const AVLTree) -> void {
+    // find(tree: *const AVLTree, key: K) → ?V
+    fn find(tree: *const AVLTree, key: K) -> ?V {
         // TODO: Implement from .tri spec
     }
 
-    // delete(tree: *AVLTree) → void
-    fn delete(tree: *AVLTree) -> void {
+    // delete(tree: *AVLTree, key: K) → bool
+    fn delete(tree: *AVLTree, key: K) -> bool {
         // TODO: Implement from .tri spec
     }
 
@@ -53,23 +53,15 @@ module TriAvlTree;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test insert_basic_case
-        given input = default_input()
-        when result = insert(input)
-        then result != undefined
+    // TODO: behaviour for insert() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test find_basic_case
-        given input = default_input()
-        when result = find(input)
-        then result != undefined
+    // TODO: behaviour for find() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test delete_basic_case
-        given input = default_input()
-        when result = delete(input)
-        then result != undefined
+    // TODO: behaviour for delete() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

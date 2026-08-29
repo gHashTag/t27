@@ -11,8 +11,8 @@ module TriLru;
     // ═══════════════════════════════════════════════════════════
 
     pub const LRU(K, V) = struct {
-        capacity : "usize",
-        entries : "std.HashMap(K, V)",
+        capacity : usize,
+        entries : std.HashMap(K, V),
         access_list : []K,
     };
 
@@ -20,18 +20,18 @@ module TriLru;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(capacity: usize) → void
-    fn init(capacity: usize) -> void {
+    // init(capacity: usize, allocator: std.mem.Allocator) → !LRU(K, V)
+    fn init(capacity: usize, allocator: std.mem.Allocator) -> !LRU(K, V) {
         // TODO: Implement from .tri spec
     }
 
-    // get(cache: *LRU(K, V)) → void
-    fn get(cache: *LRU(K, V)) -> void {
+    // get(cache: *LRU(K, V), key: K, allocator: std.mem.Allocator) → ?V
+    fn get(cache: *LRU(K, V), key: K, allocator: std.mem.Allocator) -> ?V {
         // TODO: Implement from .tri spec
     }
 
-    // put(cache: *LRU(K, V)) → void
-    fn put(cache: *LRU(K, V)) -> void {
+    // put(cache: *LRU(K, V), key: K, value: V, allocator: std.mem.Allocator) → !void
+    fn put(cache: *LRU(K, V), key: K, value: V, allocator: std.mem.Allocator) -> !void {
         // TODO: Implement from .tri spec
     }
 
@@ -39,18 +39,12 @@ module TriLru;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    // TODO: behaviour for get() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
+    // TODO: behaviour for put() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
