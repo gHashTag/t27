@@ -7005,3 +7005,89 @@ The regression is now a test — `a_field_name_may_contain_a_digit` — and
 removing the digit from the filter fails it and one other. Related: the
 verdict is split so text drift cannot mask numeric drift (§234 for the
 ruler, #2822 for what it found).
+
+## 236. Six false invariants, and nothing had ever evaluated one
+
+`tri quantifiers report` counts 119 quantified clauses small enough to walk;
+77 cost 16 279 evaluations in total, which is nothing. **No backend lowers an
+enumerated quantifier, so not one of them had ever been evaluated.**
+
+Hand-transcribing the spec's own function bodies and walking the full domain
+found **six false over their entire live domain**, in three files:
+
+| clause | counterexamples | which side is wrong |
+|---|---|---|
+| `cordic.t27:805` | 240 of 256 | clause — missing `i < 16` guard |
+| `cordic.t27:809` | 9 of 9 live | **body** — `cordic_sin_cos` returns (cos, sin) |
+| `cordic.t27:825` | 1 (iters=1) | clause — asymptotic bound asserted from n=1 |
+| `cordic.t27:346` | 1 (n=1) | clause — same |
+| `opcodes.t27:984` | 11 | clause — `0x0F` where the alphabet is `0xDE..0xE8` |
+| `phi_split_optimality.t27:293` | 255 | clause — total width passed as available width |
+
+Each was settled by **evidence inside its own file**: `:463` pins the fallthrough
+`:805` forbids; `:880` holds the correctly-bounded twin of `:984`; the sibling
+invariant at `:296` holds where `:293` fails.
+
+**A clause nothing evaluates is not an assertion, it is a comment with syntax.**
+The census had counted these for three iterations without once asking whether
+any were true.
+
+## 237. A trap is not a counterexample
+
+The seventh candidate was `phi_ratio.t27:611`, `forall bits: u8,
+phi_split(bits).exp_bits < bits`, claimed false at `bits = 0`.
+
+It is not. `phi_split` opens `const available = bits - 1;` — at `bits = 0` that
+underflows `u8` and traps **inside the function, before any comparison exists**.
+And `exp_bits < 0` is unsatisfiable for an unsigned type regardless. The clause
+holds on 1..255 with one trap.
+
+Filing it would have been a defect report against someone's research spec,
+asserting a failure at a point the code never reaches — wrong in the most
+embarrassing direction available.
+
+**Every point of a walk is TRUE, FALSE, VACUOUS, or TRAP, and the four are
+printed apart.** A clause with zero FALSE holds, however many traps it has. The
+same rule kills `ternary_mul(-128)`, whose `return -a;` overflows `i8`: a real
+hazard, not a counterexample.
+
+## 238. The tool worth building was the one that asserts nothing
+
+The obvious build was `tri quantifiers walk` — an evaluator. The argument
+against it, with numbers:
+
+* **Reach.** 77 clauses, minus 25 naming undefined functions, minus 4 struct
+  binders, minus the tuple-returning ones: **~50 reachable** — and all 50 were
+  already hand-evaluated. The tool would re-derive an existing answer, and its
+  acceptance test would be reproducing the six findings.
+* **What it gets wrong on day one.** It would have to read guards (the report
+  says outright that it does not), and `ternary_add.t27:342` carries
+  `where k <= 27` — ignoring it computes `max_value(255)` and fabricates ~228
+  counterexamples. **Two false defect reports on the first run.**
+
+What shipped instead is one column that asserts nothing about truth: does every
+name in a clause's body resolve to exactly one definition in its own file plus
+what it `use`s? **90 resolve, 25 name a function nobody defines, 4 name one
+defined twice.** That is the number the census was missing, and it treads on no
+open semantics.
+
+**When the obvious tool would re-derive a known answer and invent new errors
+doing it, ship the measurement it was missing instead.**
+
+## 239. No builtin table, on purpose
+
+The resolution column reports `len` seven times. `len` is a language builtin;
+it is noise.
+
+An allowlist would remove it — and an allowlist is exactly the thing that gets
+tuned until the number matches what a hand count produced. That is the shape of
+a detector adjusted until it hits its own motivating examples, and it stops
+being evidence at the moment it works.
+
+So there is no builtin table. The names print as they are, with counts, and a
+reader recognises `len` at a glance. The output says so in its own words.
+
+**An honest list a reader must filter beats a filtered list nobody can audit.**
+The mechanical column reproduced the hand-derived names — `smt_check_bool` ×5,
+`cast_i8`/`cast_i16`/`cast_i32`, `systolic_ternary_array`, `pow` ×2 — by a
+different route, which is the only reason to believe either.

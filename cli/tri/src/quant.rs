@@ -505,6 +505,142 @@ fn read_specs(root: &std::path::Path) -> Vec<(PathBuf, String)> {
     out
 }
 
+/// Every `fn` name a spec file defines, and every module it `use`s.
+///
+/// The scope a clause's names resolve in is its OWN file plus the files its
+/// `use` lines name. A name defined ten times corpus-wide but once inside that
+/// scope is resolved; a name defined ten times and imported zero times is not.
+pub struct Scope {
+    /// name -> the spec files that define it
+    pub defs: BTreeMap<String, std::collections::BTreeSet<String>>,
+    /// spec file -> the spec files it can see (itself included)
+    pub visible: BTreeMap<String, std::collections::BTreeSet<String>>,
+}
+
+pub fn scan_scope(specs: &[(PathBuf, String)]) -> Scope {
+    let mut defs: BTreeMap<String, std::collections::BTreeSet<String>> = BTreeMap::new();
+    let mut visible: BTreeMap<String, std::collections::BTreeSet<String>> = BTreeMap::new();
+    let names: std::collections::BTreeSet<String> =
+        specs.iter().map(|(p, _)| p.display().to_string()).collect();
+    for (p, src) in specs {
+        let file = p.display().to_string();
+        let mut vis = std::collections::BTreeSet::new();
+        vis.insert(file.clone());
+        for line in src.lines() {
+            let t = line.trim();
+            if let Some(rest) = t.strip_prefix("use ") {
+                // `use base::types;` names `specs/base/types.t27`.
+                let m = rest.trim_end_matches(';').trim().replace("::", "/");
+                let cand = format!("specs/{m}.t27");
+                if let Some(hit) = names.iter().find(|n| n.ends_with(&cand)) {
+                    vis.insert(hit.clone());
+                }
+            }
+            let d = t.strip_prefix("pub ").unwrap_or(t);
+            if let Some(rest) = d.strip_prefix("fn ") {
+                if let Some(n) = rest.split('(').next() {
+                    let n = n.trim();
+                    if !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                        defs.entry(n.to_string()).or_default().insert(file.clone());
+                    }
+                }
+            }
+        }
+        visible.insert(file, vis);
+    }
+    Scope { defs, visible }
+}
+
+/// What a clause's names resolve to, in its own file's scope.
+///
+/// Says NOTHING about whether the clause is true. It answers only the question
+/// the census could not: is this clause even about functions that exist?
+pub fn resolution(scope: &Scope, file: &str, body: &str) -> (Vec<String>, Vec<String>) {
+    let empty = std::collections::BTreeSet::new();
+    let vis = scope.visible.get(file).unwrap_or(&empty);
+    let (mut undef, mut amb) = (Vec::new(), Vec::new());
+    for n in called_names(body) {
+        let seen: Vec<&String> = scope
+            .defs
+            .get(&n)
+            .map(|d| d.intersection(vis).collect())
+            .unwrap_or_default();
+        match seen.len() {
+            0 => undef.push(n),
+            1 => {}
+            _ => amb.push(n),
+        }
+    }
+    (undef, amb)
+}
+
+/// Where a clause's body sits: from its own line down, while the indentation
+/// holds and no new top-level construct starts.
+///
+/// A WINDOW, not a parse. The clause text the scanner stores is one line --
+/// `forall i : u8` -- and the predicate lives below it. Twelve lines is the
+/// bound; the window is stated rather than tuned, because a detector adjusted
+/// until it hits its own motivating examples has stopped being evidence.
+pub fn clause_body(lines: &[&str], line: usize) -> String {
+    if line == 0 || line > lines.len() {
+        return String::new();
+    }
+    let head = lines[line - 1];
+    let ind = head.len() - head.trim_start().len();
+    let mut out = vec![head.to_string()];
+    for l in lines.iter().skip(line).take(11) {
+        if l.trim().is_empty() || (l.len() - l.trim_start().len()) < ind || starts_construct(l) {
+            break;
+        }
+        out.push((*l).to_string());
+    }
+    out.join("\n")
+}
+
+fn starts_construct(l: &str) -> bool {
+    let t = l.trim_start().trim_start_matches("pub ");
+    ["invariant ", "test ", "fn ", "const ", "module ", "use "]
+        .iter()
+        .any(|k| t.starts_with(k))
+}
+
+/// Every name called in a clause body, minus the keywords that look like calls.
+pub fn called_names(body: &str) -> std::collections::BTreeSet<String> {
+    const KW: [&str; 13] = [
+        "if", "while", "for", "return", "forall", "assert", "let", "match", "else", "and", "or",
+        "given", "then",
+    ];
+    let mut out = std::collections::BTreeSet::new();
+    let b: String = body
+        .lines()
+        .map(|l| l.split("//").next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let bytes: Vec<char> = b.chars().collect();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_lowercase() || bytes[i] == '_' {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == '_') {
+                i += 1;
+            }
+            let mut j = i;
+            while j < bytes.len() && bytes[j] == ' ' {
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == '(' {
+                let n: String = bytes[start..i].iter().collect();
+                if !KW.contains(&n.as_str()) {
+                    out.insert(n);
+                }
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
 /// Every ceiling that is not a synonym for another one, with what it admits.
 ///
 /// A ceiling only matters where a domain size sits: raising it anywhere between
@@ -596,6 +732,16 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
     }
     let structs = scan_structs(&specs);
     let clauses = scan_clauses(&specs);
+    let scope = scan_scope(&specs);
+    let by_file: BTreeMap<String, Vec<&str>> = specs
+        .iter()
+        .map(|(p, s)| (p.display().to_string(), s.lines().collect()))
+        .collect();
+    // Per walkable clause: does every name in its body resolve in its own
+    // file's scope? Says nothing about truth -- only whether the clause is
+    // about functions that exist.
+    let mut unresolved: BTreeMap<String, usize> = BTreeMap::new();
+    let (mut res_ok, mut res_undef, mut res_amb) = (0usize, 0usize, 0usize);
 
     let mut by_notation: BTreeMap<&str, usize> = BTreeMap::new();
     let (mut walkable, mut over, mut unbounded, mut no_binder) = (0usize, 0usize, 0usize, 0usize);
@@ -649,6 +795,24 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             Some(n) if n <= *ceiling => {
                 walkable += 1;
                 walkable_sizes.push((n, c.file.clone(), c.line));
+                let body = by_file
+                    .get(&c.file)
+                    .map(|l| clause_body(l, c.line))
+                    .unwrap_or_default();
+                let (u, a) = resolution(&scope, &c.file, &body);
+                if !u.is_empty() {
+                    res_undef += 1;
+                    for n in &u {
+                        *unresolved.entry(n.clone()).or_default() += 1;
+                    }
+                } else if !a.is_empty() {
+                    res_amb += 1;
+                    for n in &a {
+                        *unresolved.entry(format!("{n} (ambiguous)")).or_default() += 1;
+                    }
+                } else {
+                    res_ok += 1;
+                }
                 format!("walkable |D| = {n}")
             }
             Some(n) => {
@@ -747,6 +911,31 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             100.0 * unbounded as f64 / clauses.len() as f64
         );
         println!("    corpus, and it is the larger half.");
+
+        println!();
+        println!("  DOES THE CLAUSE NAME FUNCTIONS THAT EXIST?");
+        println!("    Resolved in the clause's own file plus the files its `use` lines name.");
+        println!("    This says NOTHING about whether a clause is TRUE -- only whether it is");
+        println!("    about anything. A clause naming an undefined function cannot be checked");
+        println!("    by any means, and counting it beside the checkable ones hides that.");
+        println!();
+        println!("      every name resolves        {res_ok}");
+        println!("      names a function nobody defines in scope   {res_undef}");
+        println!("      names one defined more than once in scope  {res_amb}");
+        if !unresolved.is_empty() {
+            println!();
+            println!("    The names, and how many walkable clauses each blocks:");
+            let mut v: Vec<(&String, &usize)> = unresolved.iter().collect();
+            v.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+            for (n, k) in v {
+                println!("      {k:>3}  {n}");
+            }
+            println!();
+            println!("    There is no builtin table here on purpose. A language-level name");
+            println!("    appears in this list like any other, and a reader recognises it at");
+            println!("    a glance -- an allowlist would have been tuned until the number");
+            println!("    looked right, which is not a measurement.");
+        }
 
         // The sweep. Every DISTINCT finite size is a plateau top: raising the
         // ceiling anywhere between two adjacent sizes changes nothing, so a
@@ -1116,6 +1305,92 @@ mod tests {
         assert_eq!(compact(16279), "16 279");
         assert!(compact(1u128 << 70).starts_with('~'), "{}", compact(1u128 << 70));
         assert_eq!(compact(u128::MAX), ">= saturated");
+    }
+
+    // ---- W713: does the clause name functions that exist? --------------
+
+    /// The stored clause text is ONE line -- `forall i : u8` -- and the
+    /// predicate is below it. Without the window there is nothing to resolve.
+    #[test]
+    fn the_body_is_the_indented_lines_below_the_clause() {
+        let src: Vec<&str> = vec![
+            "    invariant cordic_pow2_neg_entry_bounded:",
+            "        forall i : u8",
+            "        pow2_neg_entry(i) > 0.0 && pow2_neg_entry(i) <= 1.0",
+            "",
+            "    invariant next_one:",
+        ];
+        let b = clause_body(&src, 2);
+        assert!(b.contains("pow2_neg_entry"), "{b}");
+        assert!(!b.contains("next_one"), "the blank line ends it: {b}");
+    }
+
+    /// A dedent ends the body even with no blank line between.
+    #[test]
+    fn a_dedent_ends_the_body() {
+        let src: Vec<&str> = vec!["        forall i : u8", "        p(i)", "    fn other() {"];
+        let b = clause_body(&src, 1);
+        assert!(b.contains("p(i)"));
+        assert!(!b.contains("other"), "{b}");
+    }
+
+    #[test]
+    fn a_line_past_the_end_is_empty_not_a_panic() {
+        assert_eq!(clause_body(&["a"], 9), "");
+        assert_eq!(clause_body(&["a"], 0), "");
+    }
+
+    /// `let (s, c) = f(x)` is a call to `f`, not to `let`. The prototype of
+    /// this check counted `let` as an undefined function.
+    #[test]
+    fn a_keyword_before_a_paren_is_not_a_call() {
+        let n = called_names("let (s, c) = cordic_sin_cos(a, b)\nif (x) { g(y) }");
+        assert!(n.contains("cordic_sin_cos"), "{n:?}");
+        assert!(n.contains("g"), "{n:?}");
+        assert!(!n.contains("let"), "{n:?}");
+        assert!(!n.contains("if"), "{n:?}");
+    }
+
+    #[test]
+    fn a_comment_is_not_a_body() {
+        let n = called_names("p(x)  // see also q(y)");
+        assert_eq!(n.iter().cloned().collect::<Vec<_>>(), vec!["p".to_string()]);
+    }
+
+    /// Scope is the file plus what it `use`s -- not the whole corpus. A name
+    /// defined ten times corpus-wide and imported zero times does not resolve.
+    #[test]
+    fn scope_is_the_file_plus_what_it_uses() {
+        let specs = vec![
+            (
+                PathBuf::from("specs/a/one.t27"),
+                "use b::two;\nfn local() {}\n".to_string(),
+            ),
+            (PathBuf::from("specs/b/two.t27"), "fn shared() {}\n".to_string()),
+            (PathBuf::from("specs/c/three.t27"), "fn hidden() {}\n".to_string()),
+        ];
+        let sc = scan_scope(&specs);
+        let (u, a) = resolution(&sc, "specs/a/one.t27", "local(1) shared(2)");
+        assert!(u.is_empty() && a.is_empty(), "u={u:?} a={a:?}");
+        let (u, _) = resolution(&sc, "specs/a/one.t27", "hidden(3)");
+        assert_eq!(u, vec!["hidden".to_string()], "not imported, so not resolved");
+    }
+
+    /// Two visible definitions is a different answer from none, and the report
+    /// must not collapse them: one is unwritten, the other is undecided.
+    #[test]
+    fn two_visible_definitions_is_ambiguous_not_undefined() {
+        let specs = vec![
+            (
+                PathBuf::from("specs/a/one.t27"),
+                "use b::two;\nfn dup() {}\n".to_string(),
+            ),
+            (PathBuf::from("specs/b/two.t27"), "fn dup() {}\n".to_string()),
+        ];
+        let sc = scan_scope(&specs);
+        let (u, a) = resolution(&sc, "specs/a/one.t27", "dup(1)");
+        assert!(u.is_empty(), "{u:?}");
+        assert_eq!(a, vec!["dup".to_string()]);
     }
 
     /// A suffix with no `name : Type` yields no binder rather than a wrong one.
