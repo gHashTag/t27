@@ -8914,3 +8914,28 @@ build". The number is not wrong. Its population is.
 refuse rather than answering when they cannot: a lakefile with `globs`, a root
 that reaches only itself, a stale crate list. Zero stranded files has to mean the
 tree, never the parser.
+
+## 355. The second ledger
+
+A fix made `specs/pins/emitter_xdc.t27` typecheck. I updated
+`tools/specs_generate_baseline.txt`, ran every gate I knew, shipped, and left
+the corpus ratchet **red on master for three consecutive runs** -- because
+`docs/reports/suite_expectations.json` still listed the spec as
+expected-to-fail, and an UNEXPECTED PASS is a ratchet failure by design.
+
+This repository has at least four ledgers naming specs by path:
+
+```
+tools/specs_generate_baseline.txt      does it generate
+docs/reports/suite_expectations.json   corpus ratchet, per phase
+scripts/ci/test-baseline.txt           bootstrap tests
+tools/conflict_markers_baseline.txt    files carrying markers
+```
+
+**When a repair makes a spec pass, grep every file that NAMES that spec.** Not
+the ledger you know about -- all of them. `git grep -l <spec-path>` is the whole
+check and it takes a second.
+
+It is the same shape as the fix that did not travel from one command to its
+neighbouring function, one level up: there the sibling was a function, here it
+is a file. Both were invisible because the gate I ran was green.
