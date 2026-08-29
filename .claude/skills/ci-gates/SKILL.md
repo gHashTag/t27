@@ -8044,10 +8044,38 @@ visible from the list itself: the neighbouring entries name a category
 and one member of it is missing.
 
 **A hardcoded list of node kinds is a claim that the enumeration is
-complete, and the enumeration is checkable.** Print the variants the
-parser actually constructs, diff against the list, and read the
-difference. That is a five-line script, not an audit — and it would have
-found all four.
+complete.** Whether that claim is CHECKABLE is a separate question, and
+the answer measured here is: barely.
+
+I wrote, in this section, that printing the constructed variants and
+diffing against each list "is a five-line script, not an audit — and it
+would have found all four." Both halves were then tested and both are
+wrong:
+
+- The naive diff flags **10 lists out of 10**. Every list in the file
+  omits some constructed statement kind, because almost every list is a
+  legitimate subset. It finds everything, which is finding nothing.
+- Grouping the kinds into families (control flow, binding, exit) and
+  flagging a list that covers PART of a family discriminates — 3 of 10 —
+  and on the commit before #2875 it points at the exact `has_body` line.
+  But all three of its hits on a clean tree are correct code:
+  `StmtLocal | StmtAssign` collects NAMED bindings and `StmtExpr` has no
+  name; the `StmtForRange | StmtWhile | StmtFor` at 10979 is about loop
+  bodies on purpose. **Three false positives, one historical true
+  positive.**
+- Two of the four defects are not NodeKind lists at all.
+  `compound_binop` maps operator STRINGS, and `expr_is_bool` is a match
+  on `node.kind` whose missing arm is a variant nobody enumerated.
+
+So the enumeration-diff finds **1 of the 4** and costs three false
+positives. `tri kinds drift`, which compares an arm's pattern against its
+own comment, also finds 1 of the 4 — and costs **zero** false positives
+on the clean tree. That is the one that shipped.
+
+The lesson is not the script. It is that **"and it would have found all
+four" is a claim about a program that did not exist when I wrote it**,
+and writing it into a skill made it look measured. It is measured now,
+and it was wrong.
 
 The generalisation is not "add the missing case". It is that a language
 backend contains dozens of these lists, they were each written when the
@@ -8078,3 +8106,30 @@ Where it does NOT work: a defect all four share. `while (c) : (step)`
 put the step in the body in every backend, so no comparison could see it
 -- that one was found by reading the emitted output against the spec.
 Related: §310, the oracle in the corpus; §311, acceptance could not see it.
+
+## 319. A claim about a program that does not exist yet
+
+§317 ended with: *"That is a five-line script, not an audit — and it
+would have found all four."*
+
+No such script existed when that sentence was written. It was a
+prediction wearing the grammar of a measurement, in a document whose
+whole purpose is to hold measurements, and it sat there for one
+iteration looking exactly like the numbers around it.
+
+Written afterwards, the script finds **one** of the four and costs three
+false positives. §317 now carries that number instead.
+
+This is the same failure as an issue body that reasons from absence
+(§240) and a hypothesis reported as a rule (the #2830 trigger), with one
+difference that makes it worse: **those were claims about code that
+exists, and this was a claim about code that does not.** A reader can
+check the first kind. The second cannot be checked until somebody builds
+the thing, and until then it accumulates authority by sitting next to
+things that were measured.
+
+The rule that follows is narrow and mechanical. **In a document of
+findings, a sentence in the future or conditional tense is a different
+kind of sentence, and it has to say so.** "Would have found" is not a
+result. Either build it and write the number, or write "untested" beside
+it — and if neither, do not write the sentence.
