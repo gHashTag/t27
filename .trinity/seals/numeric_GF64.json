@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:7824b48de7a0c60368e91ad096e8b3bf6c01348de0f7f68a25d70f04c91f72b8",
+  "gen_hash_c": "sha256:90d801bd1261af32e6e1eeb63ee9a106c3a5b9cf8cb12c9a4befe67259eb0b4e",
   "gen_hash_rust": "sha256:08d40b3758646408b32d781af19529ff0882779f1d030f8bcb3140a68d815b99",
   "gen_hash_verilog": "sha256:bf49c1c315adc82c9e9b4448264ea33417af2b5e8f372cf0f2ed7789ea0c2d86",
   "gen_hash_zig": "sha256:cde41cff0859d7bf6d75d34f7d3fbfc17b875f862efa6c6cd8820cb7c07ea70f",
   "module": "GF64",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T17:46:29Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:49a3ef2231df6ce5d5cdeec62f6608317512b047d2c6adb620b327b04fbdcfc3",
   "spec_path": "specs/numeric/gf64.t27"
 }

@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:bc851829e5c557b06fdec17bb668bec061ffc6c9f164f55547407f9edc1fc5d3",
-  "gen_hash_rust": "sha256:bba20f69b17ed420e749738053d5d839ee791519d014226b29d37a425c074bcd",
+  "gen_hash_c": "sha256:e4608935c0f83c0ff4f1c50ccc7329d1b52e03edd244b074bcf4717e9a5dabfa",
+  "gen_hash_rust": "sha256:1baf33c2d104414097861fdadd2307e063c8c1939159cf4dfaf658b5fd2d4e95",
   "gen_hash_verilog": "sha256:f01c4379a2a5ecb08570d34f9a10090380f2be767568a7e81d2c5835ad7181c0",
   "gen_hash_zig": "sha256:3d7c1794f55267b5e04583d269b2d0418df29b58aae266695c57e74dec058dc8",
   "module": "gen_commands",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
+  "sealed_at": "2026-08-29T17:20:09Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:4dd1bf05316f1a0ed952457e8fbbe7e03c51d51b2891c1dfe603db0425b4f2a3",
   "spec_path": "compiler/cli/gen.t27"
 }

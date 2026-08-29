@@ -8600,6 +8600,20 @@ impl Codegen {
         self.write(&format!("test \"{}\"", unique));
         self.write_line(" {");
 
+        // The parser marks a block it could only lower in part --
+        // `extra_field == "partial"` -- and every assertion after the
+        // statement it gave up on is gone. `gen_invariant_block` honours that
+        // mark and says so; this function never read it, so a truncated test
+        // was emitted as an ordinary one. It is valid Zig, `zig test`
+        // compiles it and reports OK, and a dropped assertion becomes
+        // indistinguishable from a passing one -- in the one backend that
+        // actually runs the spec's tests. 17 blocks across 11 specs.
+        //
+        // `error.SkipZigTest` is Zig's own signal for a test that did not run.
+        // Reporting it as SKIPPED rather than passed is the whole point: the
+        // surviving prefix still compiles, so the loss stays visible without
+        // costing the file.
+        let truncated = node.extra_field == "partial";
         self.indent();
 
         self.mut_names.clear();
@@ -8611,6 +8625,7 @@ impl Codegen {
         // W625: len-taint is per-function; a name reused in the next function
         // must not inherit it.
         self.len_locals.clear();
+
 
         // Test-block bindings (`b0 = f(...);`) parse as StmtAssign, not
         // StmtLocal, so a verbatim assignment referenced an undeclared name in
@@ -8677,6 +8692,20 @@ impl Codegen {
             }
         }
 
+        // Emitted LAST, not first: Zig rejects `unreachable code` after an
+        // early return, so the surviving prefix runs and the test then
+        // reports SKIPPED rather than passed.
+        if truncated {
+            self.write_indent();
+            self.write_line(&format!(
+                "// test {} was NOT fully lowered -- assertions after the first",
+                node.name
+            ));
+            self.write_indent();
+            self.write_line("// unmodelled statement are absent from this body.");
+            self.write_indent();
+            self.write_line("return error.SkipZigTest;");
+        }
         self.dedent();
         self.write_line("}");
     }
@@ -14749,7 +14778,10 @@ impl VerilogCodegen {
                 }
                 fn reg_decl(width: u32, signed: bool) -> String {
                     let signed_kw = if signed { " signed" } else { "" };
-                    if width == 1 {
+                    // A zero width reaches here and `width - 1` underflows: the suite
+                    // panics outright in a debug build and emits
+                    // `reg [18446744073709551615:0]` in release.
+                    if width <= 1 {
                         format!("reg{}", signed_kw)
                     } else {
                         format!("reg{} [{}:0]", signed_kw, width - 1)

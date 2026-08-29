@@ -6793,8 +6793,240 @@ gh pr list --author @me --json number,title --jq '.[] | "\(.number) \(.title)"'
 Two sessions produced this collision once; one session with two open PRs produced
 it again the same day.
 
-<<<<<<< HEAD
-## 226. A sweep that samples round numbers reports flat regions it never measured
+## 261. The ruler was a binary on disk
+
+`Seal Coverage` was red on master for seven runs. Run locally, the same script
+said **`OK: 1316 seals, 1222 hold`, exit 0.**
+
+Two readings of one question, opposite answers, and neither is a scanner bug.
+The script checks seals against **the built compiler**, and it finds one at
+`target/release/t27c`. Mine was six hours old, from before four `gen-c` fixes
+landed — so it produced the *old* output, which matched the *old* seals.
+
+    stale binary   OK, exit 0
+    cargo build --release, same script    exit 1, 134 gen-drift
+
+The script is careful about the case it thought of: `_find_t27c` has the comment
+*"A missing binary is NOT a passing check."* Absent is handled. **Stale is not** —
+and stale looks exactly like healthy.
+
+**A build artefact is a ruler with a timestamp.** When a gate's answer depends on
+something compiled, rebuild before you read it, and treat "it passes locally" as
+a claim about your disk until you have.
+
+## 262. Re-sealing needs a control, or it blesses a regression
+
+134 seals drifted because four emitter fixes changed generated output. Re-sealing
+is mechanical — and it is also how a regression gets written into the record as
+truth, silently, by the person cleaning up.
+
+The control that made it safe was measuring the thing the seals are *about*:
+
+    published baseline   Zig 214 / rustc 214 / cc 163 / iverilog 373 / ALL FOUR 66
+    after the four fixes Zig 214 / rustc 214 / cc 166 / iverilog 373 / ALL FOUR 66
+
+**cc gained three, everything else held exactly.** So the new output is better,
+not merely different, and sealing it records an improvement.
+
+Had cc dropped, the right move would have been to leave the gate red and say so.
+**Re-sealing is not a repair; it is a statement that the new output is the one
+you want.** Earn the right to make it.
+
+## 263. Sixty-two re-seals fixed sixty-two, and left sixty-one red
+
+`t27c seal --save` writes `.trinity/seals/<module>.json` — **one** file. 547
+specs in this corpus carry **two** seals under different names
+(`gen_commands.json` and `cli_gen_commands.json` for one spec), so a re-seal
+repairs one and leaves its twin holding hashes for output that no longer exists.
+
+    62 re-seals            134 -> 61 gen-drift
+    60 of the 61 remaining were the twin case
+    tri seals sync-twins    61 -> 2
+    one ordering mistake    2 -> 0
+
+That is #2767, already filed, and `tri seals sync-twins` was already built for
+it — its own `--help` describes this exact scenario. **The fix was in the
+toolbox before the problem recurred, and I re-derived the problem before
+remembering the tool.**
+
+`sync-twins` refused 31 specs whose newest seal records `gen_hash=none`:
+propagating that would write a breakage into a second place. Refusals are the
+part of a repair tool worth checking first.
+
+## 264. One of six emitter changes re-sealed, and the sixth was mine
+
+Re-sealing 134 drifted seals took the gate green. Twenty minutes later another
+`gen-c` fix landed and it was red again with **197**.
+
+The treadmill, measured:
+
+    compiler changes in twelve hours            6
+    of those that touched .trinity/seals/       1   -- mine
+    mentions of re-sealing in CONTRIBUTING,
+      docs/, or the PR template                 0
+
+So the repair is not the fix. Every emitter change drifts seals, re-sealing is a
+separate manual step nobody knows about, and the gate is therefore permanently
+red between someone noticing and someone caring.
+
+`tri seals fresh` is the smallest thing that helps: it answers the question that
+made a red gate read as green, and it prints the one command that fixes it. It
+does not re-seal — deciding that new output is the output you want is §262's
+job, and it needs the acceptance control.
+
+**When a repair is obsoleted before it lands, stop repairing and describe the
+loop.** The number worth publishing was `1 of 6`, not `134 → 0`.
+
+## 265. The one binary the checker would actually use
+
+The first version of `tri seals fresh` flagged a stale `target/debug/t27c`
+sitting beside a fresh `target/release/t27c` — and `check_seal_coverage.py`
+consults only the **first** path present, which is release.
+
+So it reported a defect that could not change any verdict. One noisy row in a
+three-row output is a high enough rate to teach a reader to skip it.
+
+Fixed by walking the *same list in the same order* the checker walks, marking
+which one is consulted, and letting only that one decide the exit code. The
+others still print — their age is information, just not a verdict.
+
+**A checker about another checker must model its subject exactly**, including
+the order in which it gives up. Anything else is a check about a program that
+does not exist.
+
+## 266. Third summary line this session that overclaimed
+
+    Every binary present is newer than bootstrap/src.
+
+False whenever a stale one sits beside the used one — which is the ordinary
+case, since nobody rebuilds debug and release together. Rewritten to:
+
+    The binary a seal check would use is newer than bootstrap/src, so a
+    reading taken now is a reading of THIS source. Any other binary
+    listed above is not consulted and its age decides nothing.
+
+The first version was written in the same hour as §261, which is *about*
+summary lines that name a verdict the check did not earn. Knowing the rule and
+applying it to your own last three lines are different skills.
+
+Third this session, after `Numbering holds in 5 file(s)` and
+`Typecheck FAILED` with exit 0.
+
+## 267. Four required checks, and all four assert something
+
+`t27-master-protection` requires exactly four contexts on this repository:
+`check-now-freshness`, `validate`, `check`, `check-linked-issue`. Everything
+else — 42 workflow files — is advisory.
+
+One of the four was an `echo` and was replaced. So the natural next question is
+whether the other three are real. Audited:
+
+| context | what it does | verdict |
+|---|---|---|
+| `check-now-freshness` | requires a `docs/now/` entry added by the PR | real |
+| `check` | requires that entry to be well formed | real |
+| `validate` | JSON parseability, with a negative control | real |
+| `check-linked-issue` | requires a linked issue | real |
+
+Two carry a **trusted-bot bypass** that passes as a no-op — narrowed to
+`dependabot[bot]` and `github-actions[bot]` by login, so an ordinary PR never
+reaches it. Verified on three of my own merged PRs: all four contexts reported
+`pass`, none was skipped.
+
+**A clean audit is a result and belongs in the record.** The last three times
+this question was asked here it found an echo, a hard error that exited zero,
+and a summary line that overclaimed. This time it found nothing, and knowing
+that is worth as much — it moves the next search elsewhere.
+
+## 268. The refusal cannot ride on the exit code
+
+`t27c seal <spec>` **exits 0** and prints
+
+    gen_hash_zig=none
+    gen_hash_verilog=none
+
+for a spec no backend accepts. So a re-seal loop that trusts the exit code
+writes `none` into the record as though absence were a hash — and #2210
+measured that: batch re-sealing the stale seals would have recorded **348**
+reproducibility assertions for output that does not exist.
+
+`tri seals drift --fix` refuses on the claims, not the status. Controlled by
+planting a drift on such a spec: `re-sealed 0, REFUSED 1`, and the planted hash
+left untouched.
+
+And the test is on the whole field, not a substring: a real sha256 may contain
+the letters `none`, and `is_sealable(&["sha256:0none0"])` must be true.
+
+**When a command reports failure in its output and success in its status, every
+consumer must read the output.** Third command in this repository with that
+shape, and the first where the reading is the whole safety argument.
+
+## 269. Three shell traps I have written down, hit in one session
+
+- `$?` after a pipeline is the LAST command's status. Read it after `sed` twice
+  in one iteration, while checking exit codes — the exact thing being measured.
+- Backticks inside a double-quoted `echo` are executed by zsh. Ran `t27c` as a
+  command inside a diagnostic message.
+- `for x in $VAR` does not word-split in zsh.
+
+All three are in my own notes with names. **Knowing a trap and recognising it in
+your own output are different skills**, and the second one only comes from
+reading the output — which is what the note should say and did not.
+
+## 270. Six red checks on six pull requests, all six merged
+
+Before adding anything, the question worth asking was whether the signal had
+ever reached the author. It had:
+
+    #2841  coverage=fail     #2849  coverage=fail
+    #2844  coverage=fail     #2856  coverage=fail
+    #2845  coverage=fail     #2859  coverage=fail
+
+Six emitter PRs, the seal gate red **on the pull request itself**, every one
+merged. So the barrier was not knowledge, not tooling, and not timing — the
+check fired in the right place at the right time, six times.
+
+The output is why. The legend explained `stale`, `dangling` and `phantom`. The
+kind that fired was **`gen-drift`, which had no entry**, and the only repair the
+page named was `--update-baseline` — which for that kind records the drift as
+accepted debt instead of recording what the compiler now produces. **The one
+actionable line on the page was the wrong action.**
+
+**A check nobody acts on may be a check nobody can act on.** Read the failure
+output as the author sees it before concluding they ignored it.
+
+## 271. Three kinds, five kinds, eight kinds
+
+The fix looked like two legend lines. Instead the legend became data and a
+`--self-check` guard read the **source** for every kind it can attach:
+
+    legend covers 5 of 8 kind(s)  MISSING: no-spec-hash, no-spec-path, unreadable
+
+Five, not five-of-five: the guard found **three more kinds** I had not seen
+while writing the fix for the two I had. The script attaches eight; the legend
+explained three.
+
+Second guard this session to earn itself on its first execution, after
+`tri types classified` reporting `HealthStatus` UNJUDGED.
+
+**Count the cases from the code, never from the reading that motivated you.** I
+grepped for the kind that was failing and found two; the source knew about
+eight.
+
+## 272. A legend that lists what did not happen
+
+While making the legend data, it also became **selective**: only the kinds
+actually present in this run are printed.
+
+Before, an author with 134 `gen-drift` rows read three paragraphs about stale,
+dangling and phantom seals — none of them theirs. Now they get one paragraph,
+which is theirs, and the command that fixes it.
+
+Controlled both ways: removing a kind's entry gives `MISSING: gen-drift` and
+exit 1; adding an entry nothing attaches gives `UNREACHABLE: invented-kind` and
+exit 1. **An explanation for a state that cannot occur is the same defect as a
+state with no explanation** — one wastes the reader, the other strands them.
+## 273. A sweep that samples round numbers reports flat regions it never measured
 
 Asked where the ceiling on quantifier domain size should sit, the first sweep
 ran the binary at 4, 8, 16, 256, 1024, 65536 … and announced "the widest flat
@@ -6816,7 +7048,7 @@ over the multiset:
 ever report the points you thought to ask about, and its silence between them
 reads exactly like flatness.
 
-## 227. A monotone ratio is a rigged metric
+## 274. A monotone ratio is a rigged metric
 
 "Which ceiling maximises clauses-per-evaluation?" sounds like it selects a knee.
 Measured across all 19 plateaus, the ratio is **monotonically non-increasing**:
@@ -6837,7 +7069,7 @@ that refusal is the finding.
 If it is, the argmax is a boundary artefact, and publishing it as an optimum
 dresses a preference as a measurement.
 
-## 228. The default was explained, and the explanation was invented
+## 275. The default was explained, and the explanation was invented
 
 The census default is 65536. The reading found that 42 clauses sit at exactly
 2^16, 40 of them in `specs/igla/race/` — the fixed-point accelerator datapath,
@@ -6856,7 +7088,7 @@ it is, `git log -S` the constant and check that the reason existed first. This
 is mechanism six of the number-audit skill and it is the easiest one to commit
 while feeling insightful.
 
-## 229. Five ad-hoc greps against five built instruments, and the grep lost every time
+## 276. Five ad-hoc greps against five built instruments, and the grep lost every time
 
 Kept as a tally because the pattern is now the point:
 
@@ -6875,7 +7107,7 @@ the greps were written in one line to answer one question and never checked.
 and go find the bug in the grep.** The reverse — assuming the tool has drifted —
 has been wrong every time it has come up here.
 
-## 230. "Numbering holds in 5 file(s)" — four of them had no numbers
+## 277. "Numbering holds in 5 file(s)" — four of them had no numbers
 
 My own gate printed that line for months. Reading the rows above it:
 
@@ -6903,7 +7135,7 @@ line was wrong** — it named a verdict the check had not earned.
 last line as the verdict and never reads the rows above it, so the last line
 carries the whole claim — and a claim that a file passed is not the same as a
 claim that a file had anything in it.
-## 231. An example is the worst place for a machine-specific path
+## 278. An example is the worst place for a machine-specific path
 
 `examples/fpga/qmtech_minimal/build.sh` named one developer's home **six times**.
 Of every file in a repository, an example is the one whose entire purpose is to be
@@ -6917,7 +7149,7 @@ needs, so the root was one command away the whole time.
 **When triaging a debt list, sort by what the file is for, not by how many
 occurrences it has.** Six in an example outrank six in a one-off experiment.
 
-## 232. `set -e` kills the script before your error message runs
+## 279. `set -e` kills the script before your error message runs
 
     T27_ROOT=${T27_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}
     if [[ -z "$T27_ROOT" ]]; then
@@ -6937,7 +7169,7 @@ be tried.
 
 **A guard clause you have not executed is a comment.**
 
-## 233. A debt list has kinds, and the tool cannot tell them apart
+## 280. A debt list has kinds, and the tool cannot tell them apart
 
 Thirty files carry a hardcoded home path, and they want three different things:
 
@@ -6954,7 +7186,7 @@ rediscovered by whoever opens the list next.
 **Without that note the next pass "fixes" a measurement record**, which is
 strictly worse than the literal it removes.
 
-## 234. A corpus with two indentation conventions has no indentation rule
+## 281. A corpus with two indentation conventions has no indentation rule
 
 Asking "which names are defined twice in one file" needs a definition of
 *top level*. Four spaces of indentation looked like one, because the file
@@ -6979,7 +7211,7 @@ letter, forty-odd lines — is not a corpus of forty-odd redefinitions of
 `a`. It is a local loop variable. **When a detector's own output looks
 like something no author would write, the detector is describing itself.**
 
-## 235. Two implementations of one question, and only that caught it
+## 282. Two implementations of one question, and only that caught it
 
 The same question — do these copies state different numbers? — was
 answered twice: once by a throwaway Python scan while reading the file,
@@ -7006,7 +7238,7 @@ removing the digit from the filter fails it and one other. Related: the
 verdict is split so text drift cannot mask numeric drift (§234 for the
 ruler, #2822 for what it found).
 
-## 236. Six false invariants, and nothing had ever evaluated one
+## 283. Six false invariants, and nothing had ever evaluated one
 
 `tri quantifiers report` counts 119 quantified clauses small enough to walk;
 77 cost 16 279 evaluations in total, which is nothing. **No backend lowers an
@@ -7032,7 +7264,7 @@ invariant at `:296` holds where `:293` fails.
 The census had counted these for three iterations without once asking whether
 any were true.
 
-## 237. A trap is not a counterexample
+## 284. A trap is not a counterexample
 
 The seventh candidate was `phi_ratio.t27:611`, `forall bits: u8,
 phi_split(bits).exp_bits < bits`, claimed false at `bits = 0`.
@@ -7051,7 +7283,7 @@ printed apart.** A clause with zero FALSE holds, however many traps it has. The
 same rule kills `ternary_mul(-128)`, whose `return -a;` overflows `i8`: a real
 hazard, not a counterexample.
 
-## 238. The tool worth building was the one that asserts nothing
+## 285. The tool worth building was the one that asserts nothing
 
 The obvious build was `tri quantifiers walk` — an evaluator. The argument
 against it, with numbers:
@@ -7074,7 +7306,7 @@ open semantics.
 **When the obvious tool would re-derive a known answer and invent new errors
 doing it, ship the measurement it was missing instead.**
 
-## 239. No builtin table, on purpose
+## 286. No builtin table, on purpose
 
 The resolution column reports `len` seven times. `len` is a language builtin;
 it is noise.
@@ -7092,7 +7324,7 @@ The mechanical column reproduced the hand-derived names — `smt_check_bool` ×5
 `cast_i8`/`cast_i16`/`cast_i32`, `systolic_ternary_array`, `pow` ×2 — by a
 different route, which is the only reason to believe either.
 
-## 240. Re-derive the diagnosis in your own issue before building on it
+## 287. Re-derive the diagnosis in your own issue before building on it
 
 `#2764` states: *"the gap is that `gen-c` does not resolve `use`"*. I wrote
 that, filed it, and came back to fix it. `run_gen_c` calls
@@ -7113,7 +7345,7 @@ An issue you wrote is not evidence. It is a note about evidence, taken
 on a day, by someone with less of the file in their head than you have
 now.
 
-## 241. A guard's reason has a precondition, and nobody rechecks it
+## 288. A guard's reason has a precondition, and nobody rechecks it
 
 `use_resolve` refuses to splice a name declared in two imported modules,
 because *"a wrong silent choice is worse than the undeclared-identifier
@@ -7137,7 +7369,7 @@ indistinguishable from the case where the hazard is present. **Ask what
 the guard assumes, then measure how often the assumption is true.** Here
 it was false a third of the time.
 
-## 242. A fallback that succeeds is a worse silence than a failure
+## 289. A fallback that succeeds is a worse silence than a failure
 
 Three commands share this shape:
 
@@ -7166,7 +7398,7 @@ error is; stdout is byte-identical, so nothing downstream notices.
 Related: §234 for the ruler that read columns, §235 for the check that
 compared no fields.
 
-## 243. You counted the forms and stopped at the two you had seen
+## 290. You counted the forms and stopped at the two you had seen
 
 §234 says the corpus writes two indentation conventions and that bracket
 depth zero handles both. That sentence was written after finding two, and
@@ -7192,7 +7424,7 @@ looking at two of them. One `grep -c` per form would have said 392 / 231 /
 27 before the ruler was written, and the third form is the one that
 matters.
 
-## 244. The obvious repair readmitted exactly what the last one removed
+## 291. The obvious repair readmitted exactly what the last one removed
 
 Having found that depth is blind to braced modules, the repair looked
 free: use the smallest indent any definition in the file is written at.
@@ -7219,7 +7451,7 @@ repair N−1 removed, the two failures are one problem you have not stated
 yet** — here, that "top level" is a parse question and every one of these
 rulers is a heuristic standing in for a parser that already exists.
 
-## 245. The test passed under its own mutation
+## 292. The test passed under its own mutation
 
 The kind filter — accept `const` at depth 0 but not at braced-module depth
 — had a test. Removing the filter left all twelve tests green.
@@ -7238,7 +7470,7 @@ what a test is for.
 Related: §234 for the ruler that read columns, §241 for the guard whose
 precondition had stopped holding.
 
-## 246. A clause that is true is not the same defect as a clause that is right
+## 293. A clause that is true is not the same defect as a clause that is right
 
 Six quantified invariants in this corpus were found FALSE last pass. This pass
 found a different class in the same population:
@@ -7262,7 +7494,7 @@ Measured over all 924 clauses: **15 vacuous** with no type table at all —
 **Ask what a passing check would look like if it were empty.** The falsity
 sweep and the vacuity sweep read the same 924 lines and share no findings.
 
-## 247. Ten-of-ten in one directory, where ten-of-ten is 70% likely anyway
+## 294. Ten-of-ten in one directory, where ten-of-ten is 70% likely anyway
 
 An origin reading traced every vacuous clause to `specs/igla/` and to one
 commit, and concluded: a bulk-generated tree with an invariant quota. A clean
@@ -7282,7 +7514,7 @@ creation, not 6 of 7.
 concentrates in the place where everything concentrates, the concentration is
 the corpus, not the finding.
 
-## 248. Two kinds I invented, and both counted zero
+## 295. Two kinds I invented, and both counted zero
 
 The taxonomy was written before the count: binder-unused, reflexive,
 `P ==> P`, type-level, and guard-never-true. Two of the five produced nothing.
@@ -7298,7 +7530,7 @@ and the zeros are the most useful lines in it: they say the corpus was *asked*.
 **A shape you can imagine is not a defect class until you count it.** Print the
 zeros beside the hits, or the reader cannot tell "none" from "not looked for".
 
-## 249. Three false positives in the first eight hits is how a check dies
+## 296. Three false positives in the first eight hits is how a check dies
 
 A backreference regex over the flattened clause body finds `A == A` **8 times**:
 five real, three not.
@@ -7318,7 +7550,7 @@ one regex will otherwise rediscover them in review.
 **A reviewer classifies a check in its first ten lines of output.** Three
 wrong ones there and the real findings below never get read.
 
-## 250. A guard written as a list goes stale by addition — the third time
+## 297. A guard written as a list goes stale by addition — the third time
 
 `clause_body` stops at the next top-level construct, from a list:
 
@@ -7339,7 +7571,7 @@ rather than a guess.
 is short.** Here it was: count the clauses whose window crosses a construct
 boundary, and watch that number rather than the list.
 
-## 251. A latent defect, and the number that says how latent
+## 298. A latent defect, and the number that says how latent
 
 `tri types dup` decides CONFLICTED versus DUPLICATED by comparing field lists.
 It read `cell_count : u32,   // number of standard cells` and put the comment
@@ -7363,7 +7595,7 @@ what turns "I found a bug" into "the bug changed nothing, and here is the
 number" — and it is the only version of that sentence anyone can check. Fixing
 first destroys the evidence that it was harmless.
 
-## 252. A dead enum variant makes a condition that matches nothing
+## 299. A dead enum variant makes a condition that matches nothing
 
 `gen_c_for_stmt` emitted a bare block where a loop belonged, so
 `for (0..1000) |_| { … }` ran its body once. The fix was to detect the
@@ -7384,7 +7616,7 @@ commit would have claimed a defect closed and closed nothing.
 not where it is declared.** A variant with one reference in the whole
 repository — its own declaration — is a name, not a case.
 
-## 253. The comment described a loop the code did not emit
+## 300. The comment described a loop the code did not emit
 
     fn gen_c_for_stmt(&mut self, node: &Node) {
         // C doesn't have for-each natively; emit as a for loop with index
@@ -7408,7 +7640,7 @@ there.** A comment describing what a function should do is a claim about
 the code, and it is the cheapest possible thing to check — read the
 comment, then read the four lines under it and ask whether they do that.
 
-## 254. Grepping the helper's name finds the call sites that call it
+## 301. Grepping the helper's name finds the call sites that call it
 
 `/=` was missing from a table. Grepping `compound_binop` found three call
 sites — Zig, C, Verilog — and all three were fixed.
@@ -7428,7 +7660,7 @@ reading, not a grep for a function name.
 
 Related: §241, a guard whose precondition had stopped holding.
 
-## 255. The compiler has the check, and cannot reach the place
+## 302. The compiler has the check, and cannot reach the place
 
 `bootstrap/src/compiler.rs:21479` promotes a wrong argument count to a **hard
 error** — #1921, closed, and live. A probe spec with `f(x)` against
@@ -7451,7 +7683,7 @@ The answer here was both: it exists, it is thorough, and there is a construct
 class it can never reach — which is exactly the gap worth filling, and only
 that gap.
 
-## 256. Typecheck FAILED, exit 0
+## 303. Typecheck FAILED, exit 0
 
 The same probe, one line further:
 
@@ -7472,7 +7704,7 @@ after `t27c catalog-gate` and `suite --ratchet --corpus-only`.
 a warning to an error, run the binary and read `$?` — the promotion is not done
 until that number moves.
 
-## 257. Nineteen of thirty-one rows were a declaration that wrapped
+## 304. Nineteen of thirty-one rows were a declaration that wrapped
 
 The arity column's first run reported **31 mismatches**. Thirteen were
 `cordic_top  passes 4, declared 0`.
@@ -7493,7 +7725,7 @@ what a separate agent had derived by hand, reached by a different route.
 Fifth scanner artifact this session. The pattern across all five is the same:
 **the reader stops at a line boundary the language does not have.**
 
-## 258. Four of six rules abstain, and that is the design
+## 305. Four of six rules abstain, and that is the design
 
 A naive scan of the same 924 clause bodies reports ~317 arity mismatches. The
 shipped column reports 13. The difference is not filtering, it is refusal:
@@ -7515,7 +7747,7 @@ right.
 A report showing "317 → 13" invites the reader to believe 304 defects were
 repaired. None were; 304 questions were declined.
 
-## 259. Zero failures, then a hundred and one, then ten
+## 306. Zero failures, then a hundred and one, then ten
 
 I filed `t27c typecheck` printing `Typecheck FAILED` and exiting 0, and declined
 to fix it: *"95 existing mismatches would make it red on arrival."*
@@ -7541,7 +7773,7 @@ output differing by one thread id inside a panic message.
 it comes with the confidence of having been measured. All three of these were
 measurements. Only one was of the thing being changed.
 
-## 260. The reason I gave for not fixing it was not the reason it was unsafe
+## 307. The reason I gave for not fixing it was not the reason it was unsafe
 
 "95 existing mismatches" — those are `t27c check-calls` findings, corpus-wide,
 in a different command. `typecheck` never reports them, and nothing in
@@ -7555,7 +7787,8 @@ green phase red — and it is not what I named when I declined.
 sounds like evidence and is not falsifiable as a reason; "suite judges this
 phase by the exit code, and N specs would flip" is both.
 
-## 261. Build the rule you rejected, run it, and read the number
+<<<<<<< HEAD
+## 308. Build the rule you rejected, run it, and read the number
 
 An invariant was discarded as "not a C constant expression" whenever its
 rendered text contained a parenthesis — a test the emitter itself
@@ -7581,7 +7814,7 @@ build and one sweep to see. **A rule about a corpus is a claim about the
 corpus: the cost of testing it is a build, and the cost of not testing
 it is shipping the second row.**
 
-## 262. What the comment was hiding
+## 309. What the comment was hiding
 
 Promoting those discards from comments to code turned two silent defects
 into loud ones:
