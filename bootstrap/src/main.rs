@@ -402,7 +402,7 @@ enum Commands {
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
-    /// Verify specs/numeric/formats_catalog.t27, whose 83 records live in
+    /// Verify specs/numeric/formats_catalog.t27, whose 109 records live in
     /// structured comments the compiler cannot see
     CatalogGate {
         /// Path to the catalog spec
@@ -3630,6 +3630,28 @@ fn run_catalog_gate(catalog: &str, specs_dir: &str, verbose: bool) -> anyhow::Re
         for f in &r.findings {
             println!("    [{}] {}: {}", f.check, f.id, f.detail);
         }
+    }
+    // W702: this command printed `FINDINGS 3` and returned 0.
+    //
+    // Measured before the change: `t27c catalog-gate; echo $?` gives EXIT=0 with
+    // three findings on screen. Its only terminator was `Ok(())`. A verdict a
+    // caller cannot read is decoration, and the CLI is where a human runs this
+    // gate by hand -- the suite counts the same findings and is the only reason
+    // any of them reach a build.
+    //
+    // `ALLOWED` is shared with the suite so the two cannot drift into
+    // disagreeing about which findings are debt.
+    let unexpected = r
+        .findings
+        .iter()
+        .filter(|f| !catalog_gate::ALLOWED.contains(&f.id.as_str()))
+        .count();
+    if unexpected > 0 {
+        anyhow::bail!(
+            "{} unexpected catalog finding(s) ({} allowed as debt)",
+            unexpected,
+            r.findings.len() - unexpected
+        );
     }
     Ok(())
 }
