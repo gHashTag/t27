@@ -76,6 +76,28 @@ jobs:
       # plain gate: a gate that lands red gets disabled rather than obeyed.
       # Do not re-add it without a measurement taken on master.
 
+      # W706: the type-conflict ledger lives here and not in `cli-tri.yml`,
+      # which has a `paths:` filter on `cli/**`. A NEW conflicting struct arrives
+      # in `specs/**`, so the gate that could catch it would not have run --
+      # the exact shape this repository has been bitten by before. This workflow
+      # has no paths filter and already runs on every push and pull request.
+      - name: Build tri
+        run: cargo build -p tri
+
+      - name: A type name may not gain a second definition
+        run: |
+          set -o pipefail
+          rc=0
+          ./target/debug/tri types ratchet > /tmp/types.log 2>&1 || rc=$?
+          cat /tmp/types.log
+          if [ "$rc" != "0" ]; then
+            echo "::error::the set of conflicted type names moved. A name with two"
+            echo "::error::definitions has no computable domain size -- not because the type"
+            echo "::error::is infinite but because WHICH type is undetermined (#2774)."
+            echo "::error::If the change is deliberate: tri types ratchet --bless"
+          fi
+          exit $rc
+
       - name: Run the corpus ratchet
         id: ratchet
         run: |
