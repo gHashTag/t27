@@ -7888,7 +7888,50 @@ place.
 
 Related: §262, what the comment was hiding.
 
-## 312. `none == none` is agreement, not health
+## 312. The match arm's own comment named the case it was missing
+
+    NodeKind::StmtForRange | NodeKind::StmtWhile | NodeKind::StmtFor => {
+        // Control flow in a test block: a `for`/`while`/`if` was dropped
+        // as `// (stmt: StmtForRange)`, silently voiding loop bodies that
+        // accumulate assertions (t27#1948).
+
+`if` is named in the sentence and is not in the arm. Someone fixed
+`for` and `while`, wrote all three into the comment, and stopped.
+
+The cost: `if (es_prestandard(8) != 0) { ok = false; }` at the top of a
+test block became `// (stmt: StmtIf)`, so `ok` was set true and never set
+false. **The test could not fail and reported PASSED.**
+
+This is §253 again — a comment describing behaviour the code does not
+have — with the sharper edge that the comment is an ENUMERATION. When a
+comment lists cases, the list is checkable against the arm above it in
+one glance, and nobody had glanced.
+
+**Read a match arm and its comment as two independent claims and diff
+them.** Where the comment names N constructs and the pattern names N−1,
+the missing one is a defect with a name already attached.
+
+## 313. Two probes disagreed and the first one was mine
+
+Checking that same finding, my first probe read `lucas_accumulator.t27`,
+found the `if` fully emitted, and I nearly recorded the report as not
+reproducing. It was reproducing — in `posit_ladder_control.t27`, where
+the `if` sits at the TOP LEVEL of the test body. In `lucas_accumulator`
+it is nested inside a `while`, which routes through a path that handles
+it.
+
+The claim said "top-level `if`". I tested an `if`. Those are different
+statements, and only one of them is what was reported.
+
+**When a report names a position — top level, module scope, inside a
+loop — the position is part of the claim and a probe that ignores it
+tests something else.** The cost of getting this wrong is not a missed
+defect; it is a CONFIDENT REFUTATION of a true finding, which is worse
+than never having checked.
+
+Related: §262, what the comment was hiding.
+
+## 314. `none == none` is agreement, not health
 
 A seal in this repository stores a spec's hash and the sha256 of each of four
 generated outputs. When the spec does not parse, `t27c seal` exits 0 and writes
@@ -7926,7 +7969,7 @@ Two defences, and only the second one worked here:
 Before reporting a count as new, search the repository for a file that already
 holds it. A second, disagreeing ledger is worse than no ledger.
 
-## 313. The kind, not the coordinates
+## 315. The kind, not the coordinates
 
 104 specs failed to parse. Reported one line each, that is 104 problems and an
 owner who does not start. Reported by error kind — with `near line 38`, `at
