@@ -89,11 +89,11 @@ module P2Brain {
     // ========================================================================
 
     test state_init_creates_valid_state
-        given state = stateInit({ symbols: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], position: 0, carry: 0, overflow: false})
+        given state = stateInit(LQGCState{ symbols = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], position = 0, carry = 0, overflow = false})
         then state.symbols[0] == 0
 
     test next_updates_state_correctly
-        given state = stateInit({ symbols: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], position: 0, carry: 0, overflow: false})
+        given state = stateInit(LQGCState{ symbols = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], position = 0, carry = 0, overflow = false})
         and result = next(state, 0, 0, 0b00000000u8)
         then result.symbols[0] == 0b00000000u8
 
@@ -111,14 +111,14 @@ module P2Brain {
         // Measure: cycles to initialize LQG-CS state
         // Target: < 1000 cycles
         @setEvalBranchQuota(10000);
-        var state = stateInit({ symbols: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], position: 0, carry: 0, overflow: false});
+        var state = stateInit(LQGCState{ symbols = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], position = 0, carry = 0, overflow = false});
         _ = state;
 
     bench next_transition_latency
         // Measure: cycles for one LQG-CS transition
         // Target: < 500 cycles
         @setEvalBranchQuota(10000);
-        var state = stateInit({ symbols: [0, 0, 0, 0, 0, 0, 0, 0, 0], position: 0, carry: 0, overflow: false});
+        var state = stateInit(LQGCState{ symbols = [0, 0, 0, 0, 0, 0, 0, 0, 0], position = 0, carry = 0, overflow = false});
         _ = next(state, 0, 1);
         _ = state;
 
