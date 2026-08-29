@@ -139,12 +139,16 @@ def run(require, update):
         print(f"  {mark}{s}: {detail}")
 
     if fixed:
+        # Printed and exited zero, so a ledger line that outlived its debt was
+        # invisible to CI. Three of the five spec-path ledgers already fail on
+        # this; two only printed, and this was one of them.
         print(
-            f"\n{len(fixed)} ledgered spec(s) no longer carry an absurd width. "
+            f"\nFAIL: {len(fixed)} ledgered spec(s) no longer carry an absurd width. "
             "Drop them from the ledger:"
         )
         for s in fixed:
             print(f"  {s}")
+        return 1
 
     if fresh:
         print(
