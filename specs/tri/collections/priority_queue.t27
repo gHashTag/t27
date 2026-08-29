@@ -54,21 +54,24 @@ module TriPriorityQueue;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // Every function above is an unimplemented stub emitting
+    // `@panic("not yet implemented")`, so no heap ordering can be exercised.
+    // What the module states is the layout, and that is what is asserted.
 
-    // TODO: behaviour for enqueue() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test priorities_are_signed
+        // []i64, not []u64: a negative priority is representable, so callers
+        // may order by cost as well as by rank.
+        then @FieldType(PriorityQueue, "data") == []i64
 
-    // TODO: behaviour for dequeue() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test size_is_tracked_separately_from_the_buffer
+        // data.len is the allocated capacity; size is the number of live
+        // elements. Two distinct numbers, hence the separate field.
+        then @hasField(PriorityQueue, "size")
+        and @FieldType(PriorityQueue, "size") == usize
 
-    // TODO: behaviour for peek() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for is_empty() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for deinit() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test the_queue_owns_its_allocator
+        // init takes an allocator and the struct stores it, which is why
+        // deinit exists at all.
+        then @FieldType(PriorityQueue, "allocator") == std.mem.Allocator
+        and @typeInfo(PriorityQueue).@"struct".fields.len == 3
 

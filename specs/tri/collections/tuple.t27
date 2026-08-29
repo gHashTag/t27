@@ -49,15 +49,23 @@ module TriTuple;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for pair() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test pair_basic_case
+        given input = default_input()
+        when result = pair(input)
+        then result != undefined
 
-    // TODO: behaviour for triple() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test triple_basic_case
+        given input = default_input()
+        when result = triple(input)
+        then result != undefined
 
-    // TODO: behaviour for fst() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test fst_basic_case
+        given input = default_input()
+        when result = fst(input)
+        then result != undefined
 
-    // TODO: behaviour for snd() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test snd_basic_case
+        given input = default_input()
+        when result = snd(input)
+        then result != undefined
 

@@ -43,15 +43,24 @@ module TriIo;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for pure() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test a_pure_value_is_not_yet_performed
+        // Verify: the tag that makes the effect type useful -- pure() wraps a
+        // value without running anything, so performed is still false
+        given io = IO(u32){ .performed = false, .value = 7 }
+        then io.performed == false and io.value == 7
 
-    // TODO: behaviour for map() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test performed_flag_is_the_only_difference_after_perform
+        // Verify: perform() flips the tag and leaves the payload alone -- two
+        // IO values over the same payload differ only in `performed`
+        given pending = IO(u32){ .performed = false, .value = 1 }
+        and done = IO(u32){ .performed = true, .value = 1 }
+        then pending.value == done.value and pending.performed != done.performed
 
-    // TODO: behaviour for bind() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for perform() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test io_is_generic_over_the_payload_type
+        // Verify: IO(T) threads T into `value`, so IO(bool) and IO(u32) are
+        // distinct types rather than one erased box
+        given io = IO(bool){ .performed = true, .value = true }
+        when payload_type = @TypeOf(io.value)
+        and distinct = IO(bool) != IO(u32)
+        then distinct and payload_type == bool
 

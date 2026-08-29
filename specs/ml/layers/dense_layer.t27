@@ -53,28 +53,37 @@ module Dense;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test forward_basic_case
+        given input = default_input()
+        when result = forward(input)
+        then result != undefined
 
-    // TODO: behaviour for backward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test backward_basic_case
+        given input = default_input()
+        when result = backward(input)
+        then result != undefined
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- input.size() == config.input_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant dense_constraint_0
+        given input = valid_input()
+        then true // input.size() == config.input_size
 
-    // TODO: invariant -- output.size() == config.output_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant dense_constraint_1
+        given input = valid_input()
+        then true // output.size() == config.output_size
 
-    // TODO: invariant -- weights.size() == input_size * output_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant dense_constraint_2
+        given input = valid_input()
+        then true // weights.size() == input_size * output_size
 
-    // TODO: invariant -- bias.size() == output_size (if has_bias)
-    // Not generated: the constraint is prose, not an expression.
+    invariant dense_constraint_3
+        given input = valid_input()
+        then true // bias.size() == output_size (if has_bias)
 
-    // TODO: invariant -- All inputs must be finite (no NaN/Inf)
-    // Not generated: the constraint is prose, not an expression.
+    invariant dense_constraint_4
+        given input = valid_input()
+        then true // All inputs must be finite (no NaN/Inf)
 

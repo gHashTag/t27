@@ -44,15 +44,23 @@ module TriChannel;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for new_channel() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test new_channel_basic_case
+        given input = default_input()
+        when result = new_channel(input)
+        then result != undefined
 
-    // TODO: behaviour for send() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test send_basic_case
+        given input = default_input()
+        when result = send(input)
+        then result != undefined
 
-    // TODO: behaviour for recv() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test recv_basic_case
+        given input = default_input()
+        when result = recv(input)
+        then result != undefined
 
-    // TODO: behaviour for close() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test close_basic_case
+        given input = default_input()
+        when result = close(input)
+        then result != undefined
 

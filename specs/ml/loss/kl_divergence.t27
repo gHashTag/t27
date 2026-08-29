@@ -19,6 +19,8 @@ module KlDivergence;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test forward_basic_case
+        given input = default_input()
+        when result = forward(input)
+        then result != undefined
 

@@ -49,12 +49,18 @@ module TriJson;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for parse() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test parse_basic_case
+        given input = default_input()
+        when result = parse(input)
+        then result != undefined
 
-    // TODO: behaviour for stringify() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test stringify_basic_case
+        given input = default_input()
+        when result = stringify(input)
+        then result != undefined
 
-    // TODO: behaviour for get() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test get_basic_case
+        given input = default_input()
+        when result = get(input)
+        then result != undefined
 

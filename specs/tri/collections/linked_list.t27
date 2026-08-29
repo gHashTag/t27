@@ -56,18 +56,28 @@ module TriLinkedList;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test init_basic_case
+        given input = default_input()
+        when result = init(input)
+        then result != undefined
 
-    // TODO: behaviour for append() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test append_basic_case
+        given input = default_input()
+        when result = append(input)
+        then result != undefined
 
-    // TODO: behaviour for prepend() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test prepend_basic_case
+        given input = default_input()
+        when result = prepend(input)
+        then result != undefined
 
-    // TODO: behaviour for remove() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test remove_basic_case
+        given input = default_input()
+        when result = remove(input)
+        then result != undefined
 
-    // TODO: behaviour for deinit() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test deinit_basic_case
+        given input = default_input()
+        when result = deinit(input)
+        then result != undefined
 

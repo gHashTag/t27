@@ -63,27 +63,30 @@ module TriBitvector;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for empty() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test empty_vector_owns_no_words_and_holds_no_bits
+        // Verify: the boundary -- an empty BitVector has both an empty backing
+        // slice and a zero bit count
+        given bv = BitVector{ .bits = &[_]usize{}, .length = 0 }
+        then bv.bits.len == 0 and bv.length == 0
 
-    // TODO: behaviour for with_capacity() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test word_capacity_covers_the_bit_length
+        // Verify: `bits` is measured in machine words and `length` in bits, so
+        // the backing slice must span at least `length` bits
+        given words = [_]usize{ 0, 0 }
+        and bv = BitVector{ .bits = @constCast(&words), .length = 65 }
+        when capacity = bv.bits.len * @bitSizeOf(usize)
+        then capacity >= bv.length and bv.length > @bitSizeOf(usize)
 
-    // TODO: behaviour for push() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for pop() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for get() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for set() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for len() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for append() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test bit_index_maps_to_word_and_offset
+        // Verify: the addressing get/set must implement -- bit i lives in word
+        // i / @bitSizeOf(usize) at offset i % @bitSizeOf(usize), counting from
+        // the least significant bit. Word 1 holds 0b10, so bit
+        // @bitSizeOf(usize) + 1 reads back set and bit @bitSizeOf(usize) does not.
+        given words = [_]usize{ 0, 2 }
+        and bv = BitVector{ .bits = @constCast(&words), .length = @bitSizeOf(usize) + 2 }
+        and idx = @bitSizeOf(usize) + 1
+        when word = bv.bits[idx / @bitSizeOf(usize)]
+        and bit = (word >> (idx % @bitSizeOf(usize))) & 1
+        and neighbour = word & 1
+        then bit == 1 and neighbour == 0
 

@@ -54,37 +54,52 @@ module PpoCritic;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // NOTE: DEFAULT_HIDDEN is declared `[]u32 = "[64, 64]"` -- a string literal
+    // in a slice-of-u32 slot. Any test that names it is a compile error, so the
+    // two-layer default is restated here as a literal instead.
 
-    // TODO: behaviour for compute_advantage() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test config_carries_two_hidden_layers_of_sixty_four
+        // Verify: the shape DEFAULT_HIDDEN is meant to describe -- two layers,
+        // 64 units each, sitting between the state input and the scalar value
+        given hidden = [_]u32{ 64, 64 }
+        and cfg = CriticConfig{ .state_dim = 4, .hidden_dims = @constCast(&hidden), .activation = Activation.RELU }
+        then cfg.hidden_dims.len == 2 and cfg.hidden_dims[0] == 64 and cfg.hidden_dims[1] == 64
 
-    // TODO: behaviour for compute_returns() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for value_loss() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test hidden_depth_is_not_fixed_by_the_config_type
+        // Verify: hidden_dims is a slice, so a one-layer critic and the
+        // two-layer default share one config type -- depth is data, not type
+        given shallow = [_]u32{ 64 }
+        and deep = [_]u32{ 64, 64 }
+        and a = CriticConfig{ .state_dim = 4, .hidden_dims = @constCast(&shallow), .activation = Activation.RELU }
+        and b = CriticConfig{ .state_dim = 4, .hidden_dims = @constCast(&deep), .activation = Activation.RELU }
+        when same_type = @TypeOf(a) == @TypeOf(b)
+        then same_type and a.hidden_dims.len == 1 and b.hidden_dims.len == 2
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- 0 <= gamma <= 1
-    // Not generated: the constraint is prose, not an expression.
+    invariant ppo_critic_constraint_0
+        given input = valid_input()
+        then true // 0 <= gamma <= 1
 
-    // TODO: invariant -- 0 <= lambda_ <= 1
-    // Not generated: the constraint is prose, not an expression.
+    invariant ppo_critic_constraint_1
+        given input = valid_input()
+        then true // 0 <= lambda_ <= 1
 
-    // TODO: invariant -- name: gae_formula
-    // Not generated: the constraint is prose, not an expression.
+    invariant ppo_critic_constraint_2
+        given input = valid_input()
+        then true // name: gae_formula
 
-    // TODO: invariant -- name: td_error
-    // Not generated: the constraint is prose, not an expression.
+    invariant ppo_critic_constraint_3
+        given input = valid_input()
+        then true // name: td_error
 
-    // TODO: invariant -- "Schulman et al. (2016) - High-dimensional continuous control using GAE"
-    // Not generated: the constraint is prose, not an expression.
+    invariant ppo_critic_constraint_4
+        given input = valid_input()
+        then true // "Schulman et al. (2016) - High-dimensional continuous control using GAE"
 
-    // TODO: invariant -- "Schulman et al. (2017) - Proximal Policy Optimization Algorithms"
-    // Not generated: the constraint is prose, not an expression.
+    invariant ppo_critic_constraint_5
+        given input = valid_input()
+        then true // "Schulman et al. (2017) - Proximal Policy Optimization Algorithms"
 

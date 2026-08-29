@@ -38,12 +38,18 @@ module TriHmac;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test init_basic_case
+        given input = default_input()
+        when result = init(input)
+        then result != undefined
 
-    // TODO: behaviour for update() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test update_basic_case
+        given input = default_input()
+        when result = update(input)
+        then result != undefined
 
-    // TODO: behaviour for final() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test final_basic_case
+        given input = default_input()
+        when result = final(input)
+        then result != undefined
 

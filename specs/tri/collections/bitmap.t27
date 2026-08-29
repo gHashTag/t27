@@ -73,33 +73,28 @@ module TriBitmap;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // Every function above is an unimplemented stub: each one emits
+    // `@panic("not yet implemented")`, so calling any of them aborts the test
+    // binary rather than failing a test. The assertions below are therefore
+    // about the representation the module actually declares.
 
-    // TODO: behaviour for get() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test bits_are_packed_into_usize_words
+        // "Uses usize words for efficiency" -- the backing store is machine
+        // words, not bytes and not bools.
+        then @FieldType(Bitmap, "bits") == []usize
+        and @bitSizeOf(usize) >= 32
 
-    // TODO: behaviour for set() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test capacity_is_a_bit_count_not_a_word_count
+        // capacity counts bits, so a bitmap needs ceil(capacity / bits-per-word)
+        // words -- 1024 bits is 16 words on a 64-bit target, not 1024.
+        given words_for_1024 = (1024 + @bitSizeOf(usize) - 1) / @bitSizeOf(usize)
+        then @FieldType(Bitmap, "capacity") == usize
+        and words_for_1024 * @bitSizeOf(usize) >= 1024
+        and words_for_1024 < 1024
 
-    // TODO: behaviour for clear() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for flip() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for set_all() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for clear_all() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for count() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for find_first() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for find_last() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test bitmap_is_a_slice_plus_a_length
+        // No allocator and no word count are stored: the slice carries its own
+        // length, and capacity is the only other state.
+        then @typeInfo(Bitmap).@"struct".fields.len == 2
+        and @hasField(Bitmap, "allocator") == false
 

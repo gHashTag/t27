@@ -64,27 +64,43 @@ module TriBuilder;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test init_basic_case
+        given input = default_input()
+        when result = init(input)
+        then result != undefined
 
-    // TODO: behaviour for empty() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test empty_basic_case
+        given input = default_input()
+        when result = empty(input)
+        then result != undefined
 
-    // TODO: behaviour for append() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test append_basic_case
+        given input = default_input()
+        when result = append(input)
+        then result != undefined
 
-    // TODO: behaviour for append_slice() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test append_slice_basic_case
+        given input = default_input()
+        when result = append_slice(input)
+        then result != undefined
 
-    // TODO: behaviour for len() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test len_basic_case
+        given input = default_input()
+        when result = len(input)
+        then result != undefined
 
-    // TODO: behaviour for capacity() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test capacity_basic_case
+        given input = default_input()
+        when result = capacity(input)
+        then result != undefined
 
-    // TODO: behaviour for finish() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test finish_basic_case
+        given input = default_input()
+        when result = finish(input)
+        then result != undefined
 
-    // TODO: behaviour for reset() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test reset_basic_case
+        given input = default_input()
+        when result = reset(input)
+        then result != undefined
 

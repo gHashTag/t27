@@ -48,12 +48,18 @@ module "[]const u8";
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for new() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test new_basic_case
+        given input = default_input()
+        when result = new(input)
+        then result != undefined
 
-    // TODO: behaviour for log() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test log_basic_case
+        given input = default_input()
+        when result = log(input)
+        then result != undefined
 
-    // TODO: behaviour for with_field() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test with_field_basic_case
+        given input = default_input()
+        when result = with_field(input)
+        then result != undefined
 

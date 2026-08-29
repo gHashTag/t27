@@ -50,18 +50,51 @@ module TriRing;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for new() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test a_fresh_ring_has_head_and_tail_at_the_same_slot
+        // Verify: the empty case — head == tail is the emptiness test, and the
+        // backing storage is exactly capacity slots wide
+        given storage = [_]u8{ 0, 0, 0, 0 }
+        when ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 0, .capacity = 4 }
+        then ring.head == ring.tail and ring.buffer.len == ring.capacity
 
-    // TODO: behaviour for push() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test the_slot_after_the_last_one_is_the_first_one
+        // Verify: the wrap rule — indices advance modulo capacity, so a tail
+        // sitting on the final slot moves to slot 0, not past the end
+        given storage = [_]u8{ 0, 0, 0, 0 }
+        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 3, .capacity = 4 }
+        when wrapped = (ring.tail + 1) % ring.capacity
+        then wrapped == 0 and wrapped < ring.buffer.len
 
-    // TODO: behaviour for pop() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test occupancy_is_tail_minus_head_modulo_capacity
+        // Verify: the count survives a wrap — head 3, tail 1 in a 4-slot ring
+        // holds two items (slots 3 and 0), not a negative number
+        given storage = [_]u8{ 0, 0, 0, 0 }
+        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 3, .tail = 1, .capacity = 4 }
+        when used = (ring.tail + ring.capacity - ring.head) % ring.capacity
+        then used == 2 and used < ring.capacity
 
-    // TODO: behaviour for is_empty() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test occupancy_of_an_unwrapped_ring_is_the_plain_difference
+        // Verify: head 1, tail 3 holds slots 1 and 2 — the same two items,
+        // reached without the modulo doing any work
+        given storage = [_]u8{ 0, 0, 0, 0 }
+        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 1, .tail = 3, .capacity = 4 }
+        when used = (ring.tail + ring.capacity - ring.head) % ring.capacity
+        then used == 2
 
-    // TODO: behaviour for is_full() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test a_full_ring_and_an_empty_ring_both_show_head_equal_to_tail
+        // Verify: the classic ambiguity — this layout carries no separate count,
+        // so capacity slots of data would be indistinguishable from zero slots.
+        // A correct push must therefore stop at capacity - 1 usable entries.
+        given storage = [_]u8{ 0, 0, 0, 0 }
+        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 0, .capacity = 4 }
+        when used = (ring.tail + ring.capacity - ring.head) % ring.capacity
+        and max_distinguishable = ring.capacity - 1
+        then used == 0 and max_distinguishable == 3
+
+    test ring_is_one_type_per_element_type
+        // Verify: Ring is generic over T, so two instantiations at the same
+        // element type are the same type and different element types are not
+        given same = Ring(u8) == Ring(u8)
+        and different = Ring(u8) == Ring(u32)
+        then same and different == false
 

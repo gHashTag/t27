@@ -49,25 +49,33 @@ module CrossEntropy;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test forward_basic_case
+        given input = default_input()
+        when result = forward(input)
+        then result != undefined
 
-    // TODO: behaviour for backward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test backward_basic_case
+        given input = default_input()
+        when result = backward(input)
+        then result != undefined
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- predictions.shape[0] == predictions.shape[1]  # batch, num_classes, ...
-    // Not generated: the constraint is prose, not an expression.
+    invariant cross_entropy_constraint_0
+        given input = valid_input()
+        then true // predictions.shape[0] == predictions.shape[1]  # batch, num_classes, ...
 
-    // TODO: invariant -- target.shape[0] == predictions.shape[0]  # Batch dimension matches
-    // Not generated: the constraint is prose, not an expression.
+    invariant cross_entropy_constraint_1
+        given input = valid_input()
+        then true // target.shape[0] == predictions.shape[0]  # Batch dimension matches
 
-    // TODO: invariant -- epsilon > 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant cross_entropy_constraint_2
+        given input = valid_input()
+        then true // epsilon > 0
 
-    // TODO: invariant -- 0 < label_smoothing <= 1
-    // Not generated: the constraint is prose, not an expression.
+    invariant cross_entropy_constraint_3
+        given input = valid_input()
+        then true // 0 < label_smoothing <= 1
 

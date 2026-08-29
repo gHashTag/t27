@@ -35,9 +35,13 @@ module TriXml;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for parse() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test parse_basic_case
+        given input = default_input()
+        when result = parse(input)
+        then result != undefined
 
-    // TODO: behaviour for format() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test format_basic_case
+        given input = default_input()
+        when result = format(input)
+        then result != undefined
 

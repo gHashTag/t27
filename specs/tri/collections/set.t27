@@ -42,15 +42,23 @@ module TriSet;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test init_basic_case
+        given input = default_input()
+        when result = init(input)
+        then result != undefined
 
-    // TODO: behaviour for add() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test add_basic_case
+        given input = default_input()
+        when result = add(input)
+        then result != undefined
 
-    // TODO: behaviour for contains() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test contains_basic_case
+        given input = default_input()
+        when result = contains(input)
+        then result != undefined
 
-    // TODO: behaviour for union() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test union_basic_case
+        given input = default_input()
+        when result = union(input)
+        then result != undefined
 

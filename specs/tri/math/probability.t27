@@ -39,18 +39,28 @@ module TriProbability;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for bernoulli() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test bernoulli_basic_case
+        given input = default_input()
+        when result = bernoulli(input)
+        then result != undefined
 
-    // TODO: behaviour for binomial() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test binomial_basic_case
+        given input = default_input()
+        when result = binomial(input)
+        then result != undefined
 
-    // TODO: behaviour for poisson() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test poisson_basic_case
+        given input = default_input()
+        when result = poisson(input)
+        then result != undefined
 
-    // TODO: behaviour for normal() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test normal_basic_case
+        given input = default_input()
+        when result = normal(input)
+        then result != undefined
 
-    // TODO: behaviour for exponential() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test exponential_basic_case
+        given input = default_input()
+        when result = exponential(input)
+        then result != undefined
 

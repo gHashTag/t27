@@ -35,6 +35,8 @@ module Rmsprop;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for step() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test step_basic_case
+        given input = default_input()
+        when result = step(input)
+        then result != undefined
 

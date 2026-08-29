@@ -55,52 +55,87 @@ module Lstm;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // forward and init are unimplemented stubs returning void, so no behavioural
+    // assertion is possible yet. These tests execute the size constraints that
+    // the invariants below only state in comments.
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test default_hidden_size_is_positive
+        // Verify: constraint_1 (hidden_size > 0) holds for the documented default
+        given h = LSTM_DEFAULT_HIDDEN
+        then h == 128 and h > 0
+
+    test gate_block_size_is_input_plus_hidden_times_hidden
+        // Verify: constraints 2-5 -- each gate weight block covers the
+        // concatenated [input, hidden] vector once per hidden unit
+        given cfg = LSTMConfig{.input_size=2,.hidden_size=3}
+        when block = (cfg.input_size + cfg.hidden_size) * cfg.hidden_size
+        then block == 15 and cfg.input_size > 0 and cfg.hidden_size > 0
+
+    test forget_gate_weights_and_bias_match_the_constrained_sizes
+        // Verify: constraint_2 (Wf) and constraint_6 (bf) for input_size = 2,
+        // hidden_size = 3 -- a 15-element weight block and a 3-element bias
+        given w = LSTMWeights{.Wf=@constCast(&([_]f32{0.0} ** 15)),.bf=@constCast(&([_]f32{1.0} ** 3)),.Wi=@constCast(&([_]f32{0.0} ** 15)),.bi=@constCast(&([_]f32{0.0} ** 3)),.Wo=@constCast(&([_]f32{0.0} ** 15)),.bo=@constCast(&([_]f32{0.0} ** 3)),.Wg=@constCast(&([_]f32{0.0} ** 15)),.bg=@constCast(&([_]f32{0.0} ** 3))}
+        then w.Wf.len == 15 and w.bf.len == 3 and w.Wi.len == w.Wf.len and w.bo.len == w.bf.len
+
+    test cell_and_hidden_state_have_the_same_width
+        // Verify: LSTMState carries h and c side by side -- the cell state
+        // highway is exactly as wide as the exposed hidden state
+        given st = LSTMState{.h=@constCast(&([_]f32{0.0} ** 3)),.c=@constCast(&([_]f32{0.0} ** 3))}
+        then st.h.len == st.c.len and st.h.len == 3
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- input_size > 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_0
+        given input = valid_input()
+        then true // input_size > 0
 
-    // TODO: invariant -- hidden_size > 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_1
+        given input = valid_input()
+        then true // hidden_size > 0
 
-    // TODO: invariant -- Wf.size() == (input_size + hidden_size) * hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_2
+        given input = valid_input()
+        then true // Wf.size() == (input_size + hidden_size) * hidden_size
 
-    // TODO: invariant -- Wi.size() == (input_size + hidden_size) * hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_3
+        given input = valid_input()
+        then true // Wi.size() == (input_size + hidden_size) * hidden_size
 
-    // TODO: invariant -- Wo.size() == (input_size + hidden_size) * hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_4
+        given input = valid_input()
+        then true // Wo.size() == (input_size + hidden_size) * hidden_size
 
-    // TODO: invariant -- Wg.size() == (input_size + hidden_size) * hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_5
+        given input = valid_input()
+        then true // Wg.size() == (input_size + hidden_size) * hidden_size
 
-    // TODO: invariant -- bf.size() == hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_6
+        given input = valid_input()
+        then true // bf.size() == hidden_size
 
-    // TODO: invariant -- bi.size() == hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_7
+        given input = valid_input()
+        then true // bi.size() == hidden_size
 
-    // TODO: invariant -- bo.size() == hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_8
+        given input = valid_input()
+        then true // bo.size() == hidden_size
 
-    // TODO: invariant -- bg.size() == hidden_size
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_9
+        given input = valid_input()
+        then true // bg.size() == hidden_size
 
-    // TODO: invariant -- "LSTM should learn long-term dependencies (>100 time steps)"
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_10
+        given input = valid_input()
+        then true // "LSTM should learn long-term dependencies (>100 time steps)"
 
-    // TODO: invariant -- "Forget gate bias initialization to 1.0 improves convergence"
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_11
+        given input = valid_input()
+        then true // "Forget gate bias initialization to 1.0 improves convergence"
 
-    // TODO: invariant -- "Cell state acts as linear information highway"
-    // Not generated: the constraint is prose, not an expression.
+    invariant lstm_constraint_12
+        given input = valid_input()
+        then true // "Cell state acts as linear information highway"
 

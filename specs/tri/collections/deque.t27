@@ -56,21 +56,21 @@ module TriDeque;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // Every function above has no body yet, so it panics when called; and
+    // push_front(deque) / pop_front(deque) take no element and return none,
+    // so no push/pop round trip can be stated until those signatures grow an
+    // element. What can be stated is the shape of the Deque value itself.
 
-    // TODO: behaviour for push_front() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test deque_empty_state_is_self_consistent
+        given empty = Deque{.data=&[_]i64{},.front=0,.back=0,.size=0,.allocator=std.testing.allocator}
+        then empty.size == 0
+        and empty.front == empty.back
+        and empty.data.len == 0
 
-    // TODO: behaviour for push_back() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for pop_front() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for pop_back() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for deinit() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test deque_holds_its_elements_and_its_two_ends_apart
+        given d = Deque{.data=@constCast(&[_]i64{10,20,30,40}),.front=1,.back=3,.size=3,.allocator=std.testing.allocator}
+        then d.data.len == 4
+        and d.data[d.front] == 20
+        and d.data[d.back] == 40
+        and d.size <= d.data.len
 

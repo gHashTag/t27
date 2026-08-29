@@ -33,9 +33,23 @@ module TriRadixSort;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for sort() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // sort and sort_in_place are unimplemented stubs -- both emit
+    // `@panic("not yet implemented")`, so no ordering can be exercised. The
+    // module does state the sorter's two parameters, and that is testable.
 
-    // TODO: behaviour for sort_in_place() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test sorter_is_base_and_digit_budget_only
+        // No allocator and no scratch buffer are stored; sort() takes the
+        // allocator as a parameter instead.
+        then @typeInfo(RadixSorter).@"struct".fields.len == 2
+        and @hasField(RadixSorter, "base") and @hasField(RadixSorter, "max_digits")
+
+    test both_parameters_are_unsigned_counts
+        then @FieldType(RadixSorter, "base") == usize
+        and @FieldType(RadixSorter, "max_digits") == usize
+
+    test sorting_is_not_a_method_on_the_sorter
+        // Both entry points are module-level functions taking an allocator;
+        // RadixSorter carries no state that survives a sort.
+        then @hasDecl(@This(), "sort") and @hasDecl(@This(), "sort_in_place")
+        and @hasDecl(RadixSorter, "sort") == false
 

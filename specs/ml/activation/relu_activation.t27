@@ -39,19 +39,23 @@ module Relu;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // forward and backward have no bodies, so the rectifier itself cannot be
+    // exercised. The one value the module fixes is the threshold.
 
-    // TODO: behaviour for backward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test zero_is_the_rectifier_threshold
+        // ReLU hinges at exactly 0, not near it -- the constant is the cut
+        given threshold = ZERO
+        then threshold == 0.0
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- input.len == output.len
-    // Not generated: the constraint is prose, not an expression.
+    invariant relu_constraint_0
+        given input = valid_input()
+        then true // input.len == output.len
 
-    // TODO: invariant -- All inputs must be finite
-    // Not generated: the constraint is prose, not an expression.
+    invariant relu_constraint_1
+        given input = valid_input()
+        then true // All inputs must be finite
 

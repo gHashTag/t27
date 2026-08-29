@@ -53,18 +53,40 @@ module TriTime;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for now() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // now, since_epoch, add, sub and format are still `TODO: Implement from
+    // .tri spec` and compile to `@panic`, so none of them is called here. The
+    // split-second representation they all operate on is real and is what the
+    // tests below pin down: whole seconds in a signed field, the sub-second
+    // remainder in an unsigned one that never reaches a full second.
 
-    // TODO: behaviour for since_epoch() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // The epoch itself. Both fields zero, and the seconds field is signed, so
+    // instants before 1970 are representable rather than clamped.
+    test instant_epoch_and_before
+        given epoch = Instant{ .epoch_seconds = 0, .nanos = 0 }
+        and before = Instant{ .epoch_seconds = -1, .nanos = 0 }
+        then epoch.epoch_seconds == 0
+        and epoch.nanos == 0
+        and before.epoch_seconds < epoch.epoch_seconds
 
-    // TODO: behaviour for add() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // The nanos field is the sub-second remainder: it holds up to 999_999_999,
+    // one less than a whole second, and u32 has room for it.
+    test instant_nanos_hold_a_sub_second_remainder
+        given tick = Instant{ .epoch_seconds = 1, .nanos = 999999999 }
+        then tick.nanos == 999999999
+        and tick.nanos < 1000000000
 
-    // TODO: behaviour for sub() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // Duration has the same two-field shape, and its seconds field is signed
+    // too, so the difference of two instants can run either way.
+    test duration_is_signed
+        given forward = Duration{ .seconds = 90, .nanos = 500000000 }
+        and backward = Duration{ .seconds = -90, .nanos = 500000000 }
+        then forward.seconds == 90
+        and backward.seconds == -90
+        and forward.nanos == backward.nanos
 
-    // TODO: behaviour for format() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // A zero duration is representable and is not a sentinel for anything.
+    test zero_duration_is_representable
+        given d = Duration{ .seconds = 0, .nanos = 0 }
+        then d.seconds == 0
+        and d.nanos == 0
 

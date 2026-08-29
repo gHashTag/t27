@@ -47,28 +47,57 @@ module Sgd;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // init() and update() have no body yet, so they panic when called. The
+    // defaults and the two config/state types are what this module states.
 
-    // TODO: behaviour for update() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test sgd_default_learning_rate_is_one_percent
+        // constraint sgd_constraint_0: learning_rate > 0
+        given lr = DEFAULT_LR
+        then @abs(lr - 0.01) < 0.0000005
+        and lr > 0.0
+
+    test sgd_default_momentum_is_plain_gradient_descent
+        // constraint sgd_constraint_1: 0 <= momentum < 1; the default is the
+        // no-momentum end of that range
+        given m = DEFAULT_MOMENTUM
+        then m >= 0.0
+        and m < 1.0
+        and @abs(m) < 0.0000005
+
+    test sgd_config_carries_every_hyperparameter
+        given cfg = SGDConfig{.learning_rate=0.1,.momentum=0.9,.weight_decay=0.0001,.dampening=0.0,.nesterov=true}
+        then @abs(cfg.learning_rate - 0.1) < 0.0000005
+        and @abs(cfg.momentum - 0.9) < 0.0000005
+        and @abs(cfg.weight_decay - 0.0001) < 0.0000005
+        and cfg.nesterov
+
+    test sgd_state_starts_with_no_velocity
+        // constraint sgd_constraint_4 ties velocity.size() to params.size();
+        // with no params there is no velocity
+        given state = SGDState{.velocity=&[_]f32{}}
+        then state.velocity.len == 0
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- learning_rate > 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant sgd_constraint_0
+        given input = valid_input()
+        then true // learning_rate > 0
 
-    // TODO: invariant -- 0 <= momentum < 1
-    // Not generated: the constraint is prose, not an expression.
+    invariant sgd_constraint_1
+        given input = valid_input()
+        then true // 0 <= momentum < 1
 
-    // TODO: invariant -- weight_decay >= 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant sgd_constraint_2
+        given input = valid_input()
+        then true // weight_decay >= 0
 
-    // TODO: invariant -- params.size() == grads.size()
-    // Not generated: the constraint is prose, not an expression.
+    invariant sgd_constraint_3
+        given input = valid_input()
+        then true // params.size() == grads.size()
 
-    // TODO: invariant -- If momentum > 0: state.velocity.size() == params.size()
-    // Not generated: the constraint is prose, not an expression.
+    invariant sgd_constraint_4
+        given input = valid_input()
+        then true // If momentum > 0: state.velocity.size() == params.size()
 

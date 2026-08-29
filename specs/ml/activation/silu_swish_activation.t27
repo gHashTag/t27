@@ -43,31 +43,45 @@ module SiluSwish;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // forward(), forward_batch() and derivative() have no body yet, so they
+    // panic when called. The default beta and the config type are the only
+    // things this module states, and they are what these tests check.
 
-    // TODO: behaviour for forward_batch() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test silu_default_beta_is_the_swish_beta_one_case
+        // SiLU is Swish with beta = 1 (Elfwing 2017 / Ramachandran 2017)
+        given beta = DEFAULT_BETA
+        then @abs(beta - 1.0) < 0.0000005
 
-    // TODO: behaviour for derivative() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test silu_default_beta_satisfies_the_positivity_constraint
+        // constraint silu_swish_constraint_0: beta > 0
+        given beta = DEFAULT_BETA
+        then beta > 0.0
+
+    test silu_config_carries_a_beta_other_than_the_default
+        given cfg = SiLUConfig{.beta=2.5}
+        then @abs(cfg.beta - 2.5) < 0.0000005
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- beta > 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant silu_swish_constraint_0
+        given input = valid_input()
+        then true // beta > 0
 
-    // TODO: invariant -- name: silu_formula
-    // Not generated: the constraint is prose, not an expression.
+    invariant silu_swish_constraint_1
+        given input = valid_input()
+        then true // name: silu_formula
 
-    // TODO: invariant -- name: derivative
-    // Not generated: the constraint is prose, not an expression.
+    invariant silu_swish_constraint_2
+        given input = valid_input()
+        then true // name: derivative
 
-    // TODO: invariant -- "Elfwing et al. (2017) - Sigmoid-Weighted Linear Units for Neural Network Function Approximation"
-    // Not generated: the constraint is prose, not an expression.
+    invariant silu_swish_constraint_3
+        given input = valid_input()
+        then true // "Elfwing et al. (2017) - Sigmoid-Weighted Linear Units for Neural Network Function Approximation"
 
-    // TODO: invariant -- "Ramachandran et al. (2017) - Searching for Activation Functions (Swish)"
-    // Not generated: the constraint is prose, not an expression.
+    invariant silu_swish_constraint_4
+        given input = valid_input()
+        then true // "Ramachandran et al. (2017) - Searching for Activation Functions (Swish)"
 

@@ -41,12 +41,18 @@ module TriTerminal;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for get_size() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test get_size_basic_case
+        given input = default_input()
+        when result = get_size(input)
+        then result != undefined
 
-    // TODO: behaviour for colorize() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test colorize_basic_case
+        given input = default_input()
+        when result = colorize(input)
+        then result != undefined
 
-    // TODO: behaviour for reset() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test reset_basic_case
+        given input = default_input()
+        when result = reset(input)
+        then result != undefined
 

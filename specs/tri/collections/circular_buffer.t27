@@ -51,18 +51,28 @@ module TriCircularBuffer;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // Every function above has no body yet, so it panics when called; and
+    // write(buf) / read(buf) carry no value in or out, so no write/read round
+    // trip can be stated until those signatures grow one. What can be stated
+    // is the shape of the CircularBuffer value itself.
 
-    // TODO: behaviour for write() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test circular_buffer_empty_state_has_head_meeting_tail
+        given empty = CircularBuffer{.data=&[_]i64{},.head=0,.tail=0,.capacity=0,.allocator=std.testing.allocator}
+        then empty.head == empty.tail
+        and empty.capacity == 0
+        and empty.data.len == 0
 
-    // TODO: behaviour for read() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test circular_buffer_capacity_matches_its_backing_array
+        given buf = CircularBuffer{.data=@constCast(&[_]i64{7,8,9,10}),.head=3,.tail=1,.capacity=4,.allocator=std.testing.allocator}
+        then buf.capacity == buf.data.len
+        and buf.head != buf.tail
+        and buf.data[buf.tail] == 8
 
-    // TODO: behaviour for is_empty() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
-
-    // TODO: behaviour for deinit() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test circular_buffer_indices_stay_inside_the_capacity
+        // head and tail are ring positions, so both are < capacity in either
+        // order -- head above tail is just as legal as head below it
+        given wrapped = CircularBuffer{.data=@constCast(&[_]i64{1,2,3,4}),.head=3,.tail=1,.capacity=4,.allocator=std.testing.allocator}
+        then wrapped.head > wrapped.tail
+        and wrapped.head < wrapped.capacity
+        and wrapped.tail < wrapped.capacity
 

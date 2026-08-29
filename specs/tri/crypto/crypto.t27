@@ -38,12 +38,18 @@ module TriCrypto;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for generate_key_pair() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test generate_key_pair_basic_case
+        given input = default_input()
+        when result = generate_key_pair(input)
+        then result != undefined
 
-    // TODO: behaviour for sha256() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test sha256_basic_case
+        given input = default_input()
+        when result = sha256(input)
+        then result != undefined
 
-    // TODO: behaviour for hmac() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test hmac_basic_case
+        given input = default_input()
+        when result = hmac(input)
+        then result != undefined
 

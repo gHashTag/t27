@@ -44,15 +44,23 @@ module TriSha256;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for init() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // init, update, final and hash have no bodies, so no digest can be
+    // computed here yet -- not even the empty-string vector. What the module
+    // does fix is the shape of the Merkle-Damgard state, and those three
+    // widths are the ones SHA-256 requires.
 
-    // TODO: behaviour for update() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test state_is_the_256_bit_digest
+        // eight 32-bit working variables a..h = 256 bits of chaining value
+        given state_bits = @bitSizeOf(@FieldType(SHA256, "state"))
+        then state_bits == 256
 
-    // TODO: behaviour for final() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test buffer_is_exactly_one_512_bit_block
+        given buffer_bytes = @sizeOf(@FieldType(SHA256, "buffer"))
+        then buffer_bytes == 64 and buffer_bytes * 8 == 512
 
-    // TODO: behaviour for hash() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test length_counter_matches_the_64_bit_padding_field
+        // the final block encodes the message length in 64 bits, so the
+        // running counter has to be that wide
+        given count_bits = @bitSizeOf(@FieldType(SHA256, "count"))
+        then count_bits == 64
 

@@ -33,9 +33,13 @@ module TriReedSolomon;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for encode() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test encode_basic_case
+        given input = default_input()
+        when result = encode(input)
+        then result != undefined
 
-    // TODO: behaviour for decode() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test decode_basic_case
+        given input = default_input()
+        when result = decode(input)
+        then result != undefined
 

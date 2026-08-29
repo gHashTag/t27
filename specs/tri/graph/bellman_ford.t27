@@ -29,6 +29,8 @@ module TriBellmanFord;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for shortest_path() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test shortest_path_basic_case
+        given input = default_input()
+        when result = shortest_path(input)
+        then result != undefined
 

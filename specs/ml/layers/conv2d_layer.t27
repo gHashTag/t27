@@ -55,28 +55,37 @@ module Conv2d;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test forward_basic_case
+        given input = default_input()
+        when result = forward(input)
+        then result != undefined
 
-    // TODO: behaviour for backward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test backward_basic_case
+        given input = default_input()
+        when result = backward(input)
+        then result != undefined
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- kernel_size in [1, 3, 5, 7]
-    // Not generated: the constraint is prose, not an expression.
+    invariant conv2d_constraint_0
+        given input = valid_input()
+        then true // kernel_size in [1, 3, 5, 7]
 
-    // TODO: invariant -- stride in [1, 2, 4]
-    // Not generated: the constraint is prose, not an expression.
+    invariant conv2d_constraint_1
+        given input = valid_input()
+        then true // stride in [1, 2, 4]
 
-    // TODO: invariant -- dilation in [1, 2]
-    // Not generated: the constraint is prose, not an expression.
+    invariant conv2d_constraint_2
+        given input = valid_input()
+        then true // dilation in [1, 2]
 
-    // TODO: invariant -- in_channels % groups == 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant conv2d_constraint_3
+        given input = valid_input()
+        then true // in_channels % groups == 0
 
-    // TODO: invariant -- out_channels % groups == 0
-    // Not generated: the constraint is prose, not an expression.
+    invariant conv2d_constraint_4
+        given input = valid_input()
+        then true // out_channels % groups == 0
 

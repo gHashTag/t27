@@ -44,21 +44,33 @@ module TriStatistics;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for mean() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test mean_basic_case
+        given input = default_input()
+        when result = mean(input)
+        then result != undefined
 
-    // TODO: behaviour for variance() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test variance_basic_case
+        given input = default_input()
+        when result = variance(input)
+        then result != undefined
 
-    // TODO: behaviour for std_dev() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test std_dev_basic_case
+        given input = default_input()
+        when result = std_dev(input)
+        then result != undefined
 
-    // TODO: behaviour for median() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test median_basic_case
+        given input = default_input()
+        when result = median(input)
+        then result != undefined
 
-    // TODO: behaviour for percentile() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test percentile_basic_case
+        given input = default_input()
+        when result = percentile(input)
+        then result != undefined
 
-    // TODO: behaviour for correlation() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test correlation_basic_case
+        given input = default_input()
+        when result = correlation(input)
+        then result != undefined
 

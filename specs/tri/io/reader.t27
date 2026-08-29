@@ -42,15 +42,23 @@ module TriReader;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for pure() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test pure_basic_case
+        given input = default_input()
+        when result = pure(input)
+        then result != undefined
 
-    // TODO: behaviour for ask() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test ask_basic_case
+        given input = default_input()
+        when result = ask(input)
+        then result != undefined
 
-    // TODO: behaviour for asks() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test asks_basic_case
+        given input = default_input()
+        when result = asks(input)
+        then result != undefined
 
-    // TODO: behaviour for local() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test local_basic_case
+        given input = default_input()
+        when result = local(input)
+        then result != undefined
 

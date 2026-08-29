@@ -44,12 +44,18 @@ module TriRegexAdvanced;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for compile() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test compile_basic_case
+        given input = default_input()
+        when result = compile(input)
+        then result != undefined
 
-    // TODO: behaviour for match() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test match_basic_case
+        given input = default_input()
+        when result = match(input)
+        then result != undefined
 
-    // TODO: behaviour for replace() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test replace_basic_case
+        given input = default_input()
+        when result = replace(input)
+        then result != undefined
 

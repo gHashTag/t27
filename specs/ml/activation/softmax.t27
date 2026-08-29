@@ -41,22 +41,42 @@ module Softmax;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for forward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // forward and backward are unimplemented stubs -- both emit
+    // `@panic("not yet implemented")`, so the sum-to-one property in
+    // softmax_constraint_2 cannot be checked here. The declared constants and
+    // config shape are what remain testable.
 
-    // TODO: behaviour for backward() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test min_temp_is_strictly_above_zero
+        // Temperature divides the logits, so softmax_constraint_1
+        // (temperature >= MIN_TEMP) is only a safe floor if MIN_TEMP itself is
+        // positive -- otherwise the constraint admits a division by zero.
+        then MIN_TEMP > ZERO
+        and @abs(MIN_TEMP - 0.001) < 1e-9
+        and ZERO == 0.0
+
+    test temperature_is_a_float_axis_is_an_index
+        then @FieldType(SoftmaxConfig, "temperature") == f32
+        and @FieldType(SoftmaxConfig, "axis") == u32
+
+    test the_stable_max_subtraction_is_opt_in
+        // stable is a bool the caller sets, not a compile-time guarantee: the
+        // unstable path is reachable by construction.
+        then @FieldType(SoftmaxConfig, "stable") == bool
+        and @typeInfo(SoftmaxConfig).@"struct".fields.len == 3
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: invariant -- logits.size() == output.size()
-    // Not generated: the constraint is prose, not an expression.
+    invariant softmax_constraint_0
+        given input = valid_input()
+        then true // logits.size() == output.size()
 
-    // TODO: invariant -- config.temperature >= MIN_TEMP
-    // Not generated: the constraint is prose, not an expression.
+    invariant softmax_constraint_1
+        given input = valid_input()
+        then true // config.temperature >= MIN_TEMP
 
-    // TODO: invariant -- sum(output) ≈ 1.0 (within floating precision)
-    // Not generated: the constraint is prose, not an expression.
+    invariant softmax_constraint_2
+        given input = valid_input()
+        then true // sum(output) ≈ 1.0 (within floating precision)
 

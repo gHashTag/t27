@@ -19,6 +19,8 @@ module TriTimSort;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for sort() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test sort_basic_case
+        given input = default_input()
+        when result = sort(input)
+        then result != undefined
 

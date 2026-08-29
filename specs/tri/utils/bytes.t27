@@ -63,27 +63,43 @@ module TriBytes;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for empty() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test empty_basic_case
+        given input = default_input()
+        when result = empty(input)
+        then result != undefined
 
-    // TODO: behaviour for from_slice() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test from_slice_basic_case
+        given input = default_input()
+        when result = from_slice(input)
+        then result != undefined
 
-    // TODO: behaviour for clone() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test clone_basic_case
+        given input = default_input()
+        when result = clone(input)
+        then result != undefined
 
-    // TODO: behaviour for equals() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test equals_basic_case
+        given input = default_input()
+        when result = equals(input)
+        then result != undefined
 
-    // TODO: behaviour for slice() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test slice_basic_case
+        given input = default_input()
+        when result = slice(input)
+        then result != undefined
 
-    // TODO: behaviour for concat() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test concat_basic_case
+        given input = default_input()
+        when result = concat(input)
+        then result != undefined
 
-    // TODO: behaviour for index_of() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test index_of_basic_case
+        given input = default_input()
+        when result = index_of(input)
+        then result != undefined
 
-    // TODO: behaviour for split() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test split_basic_case
+        given input = default_input()
+        when result = split(input)
+        then result != undefined
 

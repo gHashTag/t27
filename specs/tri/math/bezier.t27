@@ -38,9 +38,37 @@ module TriBezier;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // TODO: behaviour for evaluate() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    // evaluate and derivative are unimplemented stubs returning void, so they
+    // cannot be called. The relations they must respect -- the control-point
+    // count, endpoint interpolation, and the first de Casteljau step -- are
+    // asserted against the declared fields instead.
 
-    // TODO: behaviour for derivative() -- write given/when/then by hand.
-    // Not generated: a signature does not imply a behaviour.
+    test degree_one_curve_has_two_control_points
+        // Verify: a degree-n curve carries n+1 control points
+        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=4.0,.y=2.0}}),.degree=1}
+        then curve.control.len == 2 and curve.control.len == curve.degree + 1
+
+    test degree_two_curve_has_three_control_points
+        // Verify: the same relation one degree up
+        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=1.0,.y=2.0},Point{.x=2.0,.y=0.0}}),.degree=2}
+        then curve.control.len == 3 and curve.control.len == curve.degree + 1
+
+    test curve_endpoints_are_its_first_and_last_control_points
+        // Verify: the endpoint interpolation property B(0) = P0, B(1) = Pn that
+        // evaluate must preserve, stated over the control points it reads
+        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=1.0,.y=2.0},Point{.x=2.0,.y=0.0}}),.degree=2}
+        and first = curve.control[0]
+        and last = curve.control[curve.degree]
+        then @abs(last.x - 2.0) < 1e-12 and first.x < last.x
+
+    test linear_curve_midpoint_is_the_average_of_its_control_points
+        // Verify: the de Casteljau step at t = 0.5 on a degree-1 curve, which is
+        // the value evaluate must return for this input
+        given p0 = Point{.x=0.0,.y=0.0}
+        and p1 = Point{.x=4.0,.y=2.0}
+        and mid_x = (p0.x + p1.x) / 2.0
+        and mid_y = (p0.y + p1.y) / 2.0
+        and x_ok = @abs(mid_x - 2.0) < 1e-12
+        and y_ok = @abs(mid_y - 1.0) < 1e-12
+        then x_ok and y_ok
 

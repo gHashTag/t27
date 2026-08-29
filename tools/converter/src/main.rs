@@ -763,6 +763,57 @@ fn to_snake_case(s: &str) -> String {
     result
 }
 
+/// `Writer(W, (T, W))` -> `Writer(W, struct { T, W })`.
+///
+/// A parenthesised comma group is a TUPLE when nothing names it; when an
+/// identifier sits immediately to its left it is a call or a generic argument
+/// list and must be left alone. That is the same positional rule the emitter
+/// uses for `[...]`, and it is the only thing separating the two here.
+///
+/// Zig has no `(A, B)` type. Without this the group reached the output verbatim
+/// and stopped at `expected ')', found ','`.
+fn tuples_to_structs(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 16);
+    let mut i = 0usize;
+    while i < b.len() {
+        if b[i] != '(' {
+            out.push(b[i]);
+            i += 1;
+            continue;
+        }
+        let named = out
+            .chars()
+            .last()
+            .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == ')' || c == ']');
+        // matching close, and a comma at depth 1
+        let (mut depth, mut j, mut comma) = (0i32, i, false);
+        while j < b.len() {
+            match b[j] {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                ',' if depth == 1 => comma = true,
+                _ => {}
+            }
+            j += 1;
+        }
+        if named || j >= b.len() || !comma {
+            out.push('(');
+            i += 1;
+            continue;
+        }
+        let inner: String = b[i + 1..j].iter().collect();
+        out.push_str(&format!("struct {{ {} }}", tuples_to_structs(inner.trim())));
+        i = j + 1;
+    }
+    out
+}
+
 fn convert_type_name(tri_type: &str) -> String {
     // STRIP HERE, not at the call sites. A quoted type reaches this function
     // still wearing its quotes, and then matches none of the prefix arms:
@@ -831,7 +882,7 @@ fn convert_type_name(tri_type: &str) -> String {
             || t.contains('(')
             || t.starts_with(|c: char| c.is_ascii_uppercase()) =>
         {
-            t.to_string()
+            tuples_to_structs(t)
         }
         _ => to_pascal_case(tri_type),
     }
