@@ -17798,7 +17798,22 @@ impl CCodegen {
     fn gen_c_const(&mut self, node: &Node) {
         // Detect type alias pattern: ConstDecl with single ExprIdentifier child
         // that looks like a type name (e.g., pub const PackedTrit = u8;)
-        if node.children.len() == 1 && node.children[0].kind == NodeKind::ExprIdentifier {
+        //
+        // #2830: `is_type_name` is "a primitive, or starts with `[`, or STARTS
+        // WITH AN UPPERCASE LETTER", so `const ARG0 : u8 = R1;` was read as a
+        // type alias and emitted `typedef R1 ARG0;` -- the declared `u8`
+        // discarded and a value used as a type name. 23 of those in
+        // `specs/isa/registers.t27` alone.
+        //
+        // A declaration that STATES ITS TYPE is not a type alias. A type alias
+        // has no annotation to state: `pub const PackedTrit = u8;` carries
+        // none, `const ARG0 : u8 = R1;` carries one, and that single bit
+        // separates them without guessing anything about the spelling of the
+        // right-hand side.
+        if node.extra_type.is_empty()
+            && node.children.len() == 1
+            && node.children[0].kind == NodeKind::ExprIdentifier
+        {
             let target = &node.children[0].name;
             if Self::is_type_name(target) {
                 // Check for array type alias: [SIZE]TYPE
