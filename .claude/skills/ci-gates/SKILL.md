@@ -8748,7 +8748,54 @@ alone.
 The fix reads the marker the parser already sets. `specs/pins/emitter_xdc.t27`
 now typechecks -- 627 to 628 specs, zero regressions.
 
-## 348. Ask the root what it reaches -- five build systems, one shape
+## 348. The check was right and the input was wrong
+
+Completing a rule across its four positions, the last one -- the return
+expression -- reported **277 warnings in 31 files**, 255 of them identical:
+`returns F64 where F32 is declared`. The obvious readings are "the rule is too
+strict" or "the corpus is bad". Both were wrong.
+
+A float literal committed to `F64`. A non-negative INTEGER literal, six lines
+above in the same function, was already context-polymorphic -- with a comment
+explaining that pinning it had caused 27 false errors. Nobody had applied the
+same reasoning to floats.
+
+Making them symmetric: **608 -> 615 specs typecheck, warnings 293 -> 21**, and
+the 21 that remain are integer narrowing -- a work list rather than a wall.
+
+**A check that fires 255 times identically is describing its input, not its
+subject.** Before tuning the check, ask what the 255 have in common.
+
+## 349. Keep the rule where it was aimed
+
+The literal change weakens a soundness rule, so the control has to be the rule's
+own case, not the noise:
+
+```
+x = d      (d: f64, x: f32)   still an ERROR      <- #920 survives
+x = 2.0    (literal)          now accepted        <- the noise
+return d   (computed)         warning             <- new 4th position works
+return 1.0 (literal)          accepted
+```
+
+A binary expression is not a literal, so a computed narrowing still errors. What
+stopped erroring is the case where the compiler knows the value exactly and the
+narrowing is not one.
+
+**When you loosen a rule, the test is not "did the noise stop" -- it is "does
+the original case still fail".** Write that probe before the change, not after.
+
+## 350. Say what the count is counted over
+
+Mid-iteration I compared "628 specs pass" against a fresh reading of 615 and
+concluded a permissive change had broken 13. It had not: the 628 counted every
+tracked `.t27` and the 615 excluded `fixtures/`. Three measurements on one
+ruler -- master 608, branch 608, experiment 615 -- settled it in one command.
+
+**A number without its basis is not comparable to anything, including itself an
+hour later.** Re-measure the baseline with the same script that measures the
+change.
+## 351. Ask the root what it reaches -- five build systems, one shape
 
 A build system prints the work it did. A coverage claim is about the work it did
 not do, and nothing prints that. `lake build` never names a file it skipped;
