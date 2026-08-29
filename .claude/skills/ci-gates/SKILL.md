@@ -7237,3 +7237,104 @@ what a test is for.
 
 Related: §234 for the ruler that read columns, §241 for the guard whose
 precondition had stopped holding.
+
+## 246. A clause that is true is not the same defect as a clause that is right
+
+Six quantified invariants in this corpus were found FALSE last pass. This pass
+found a different class in the same population:
+
+    forall kw : string, encode_keyword(kw) == encode_keyword(kw)
+    forall a : i32,     adder_tree_4(0, 0, 0, 0) == 0
+    forall e : StepKind, e != undefined
+
+A false invariant is a wrong claim. **A vacuous one is no claim at all**, dressed
+as a checked property. It passes every checker forever, it counts as coverage,
+and nothing will ever flag it — because there is nothing to flag.
+
+The field has the word and it is not "trivially true": **vacuity** (Beer,
+Ben-David, Eisner & Rodeh, *Efficient Detection of Vacuity in Temporal Model
+Checking*). A guard that is never true is **antecedent failure**; a formula true
+under every interpretation is a **tautology**. Use the terms that exist.
+
+Measured over all 924 clauses: **15 vacuous** with no type table at all —
+3 binder-unused, 6 `A == A`, 6 `X != undefined`.
+
+**Ask what a passing check would look like if it were empty.** The falsity
+sweep and the vacuity sweep read the same 924 lines and share no findings.
+
+## 247. Ten-of-ten in one directory, where ten-of-ten is 70% likely anyway
+
+An origin reading traced every vacuous clause to `specs/igla/` and to one
+commit, and concluded: a bulk-generated tree with an invariant quota. A clean
+mechanism, and a clean story.
+
+The adversary computed the base rate. **867 of the 899 binder-carrying clauses
+are in `specs/igla` — 96.4%.** Ten draws landing there is roughly **70% likely
+under the null**, and the "clustering" carried no information at all. Recounting
+the dominant sub-family gave three trees and three commits over three months.
+Only author clustering survived, and there is one author.
+
+The specific numbers were wrong too — 2184 files not 2185, 714 947 insertions
+not 71 483, 33 igla specs created not 47, and **0 of 7** files byte-identical to
+creation, not 6 of 7.
+
+**A clustering claim without the base rate is not evidence.** When a class
+concentrates in the place where everything concentrates, the concentration is
+the corpus, not the finding.
+
+## 248. Two kinds I invented, and both counted zero
+
+The taxonomy was written before the count: binder-unused, reflexive,
+`P ==> P`, type-level, and guard-never-true. Two of the five produced nothing.
+
+    P ==> P            0, over the 358 clauses that contain an implication
+    antecedent failure 0, over 166 binder-vs-literal comparisons evaluated
+                          against the binder's declared domain
+
+Both are real defect classes in the literature. Neither occurs here. The
+temptation was to leave them out of the output and let the taxonomy look tidy —
+and the zeros are the most useful lines in it: they say the corpus was *asked*.
+
+**A shape you can imagine is not a defect class until you count it.** Print the
+zeros beside the hits, or the reader cannot tell "none" from "not looked for".
+
+## 249. Three false positives in the first eight hits is how a check dies
+
+A backreference regex over the flattened clause body finds `A == A` **8 times**:
+five real, three not.
+
+    int4_dequantize_bank(codes, depth, width).depth == depth   preservation
+    a * b == b * a                                             commutativity
+    phi_split(bits).exp_bits == bits - 1                       a real bound
+
+Each is a genuine claim containing `X == X` as a substring. And the flattened
+version *misses* one true hit — `x + 0 == x`, which needs an arithmetic fold.
+
+Splitting per source line, then on `&&` and ` and ` at paren depth zero, gives
+**6 of 6 with zero false positives**. The three negatives are pinned as unit
+tests naming their corpus line, because the next person to "simplify" this into
+one regex will otherwise rediscover them in review.
+
+**A reviewer classifies a check in its first ten lines of output.** Three
+wrong ones there and the real findings below never get read.
+
+## 250. A guard written as a list goes stale by addition — the third time
+
+`clause_body` stops at the next top-level construct, from a list:
+
+    ["invariant ", "test ", "fn ", "const ", "module ", "use "]
+
+`bench ` is not in it. So `gemm.t27:260`, an invariant written at indent 0,
+swallowed the entire `bench booth_mul_latency` block that follows it.
+
+This is the same shape as §"Five paths declared, three checked" and as the
+secret-scan guard that named one member of the class it guards. Three times in
+one week, in three unrelated files, all mine or adjacent.
+
+Measured blast radius before and after: **1 clause in 924 overruns; 5 have an
+indent-0 head.** A one-line fix, and the measurement is what makes it a fix
+rather than a guess.
+
+**When you write a guard as a literal list, write down how you will find out it
+is short.** Here it was: count the clauses whose window crosses a construct
+boundary, and watch that number rather than the list.
