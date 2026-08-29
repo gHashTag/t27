@@ -1,6 +1,6 @@
 {
   "purpose": "Files under specs/ written in Rust rather than t27. The lexer has no KwLet and no KwMatch: the language does not admit them. Recorded so measurements can exclude them honestly. NOT a decision to delete, move or translate anything -- see #2398.",
-  "generated_by": "marker scan, 8 Rust constructs, see #2398",
+  "generated_by": "marker scan; array_semi retired as a scope marker -- the emitter lowers `[x; N]` and `[T; N]` in value, type and field-default position",
   "totals": {
     "any_marker": 65,
     "two_or_more": 32,
@@ -302,51 +302,9 @@
       "count": 1
     },
     {
-      "path": "specs/automation/wrapup-auto.t27",
-      "markers": [
-        "tuple_ret"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/compiler/stdlib.t27",
-      "markers": [
-        "array_semi"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/compiler/typechecker.t27",
-      "markers": [
-        "array_semi"
-      ],
-      "count": 1
-    },
-    {
       "path": "specs/demos/jones_topology_filter.t27",
       "markers": [
         "let"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/fpga/mac.t27",
-      "markers": [
-        "array_semi"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/fpga/testbench/mac_tb.t27",
-      "markers": [
-        "array_semi"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/fpga/testbench/top_tb.t27",
-      "markers": [
-        "array_semi"
       ],
       "count": 1
     },
@@ -368,20 +326,6 @@
       "path": "specs/git/status.t27",
       "markers": [
         "tuple_ret"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/isa/registers.t27",
-      "markers": [
-        "array_semi"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/math/property_test_template.t27",
-      "markers": [
-        "let"
       ],
       "count": 1
     },
@@ -408,13 +352,6 @@
     },
     {
       "path": "specs/ml/transformer/multi_head_attn.t27",
-      "markers": [
-        "for_in"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/ml/transformer/positional_enc.t27",
       "markers": [
         "for_in"
       ],
@@ -470,23 +407,9 @@
       "count": 1
     },
     {
-      "path": "specs/physics/p2_brain_physics.t27",
-      "markers": [
-        "array_semi"
-      ],
-      "count": 1
-    },
-    {
       "path": "specs/physics/sacred_verification.t27",
       "markers": [
         "let"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/queen/lotus.t27",
-      "markers": [
-        "array_semi"
       ],
       "count": 1
     },
@@ -508,13 +431,6 @@
       "path": "specs/vsa/sdk.t27",
       "markers": [
         "self_ref"
-      ],
-      "count": 1
-    },
-    {
-      "path": "specs/vsa/similarity_search.t27",
-      "markers": [
-        "array_semi"
       ],
       "count": 1
     }
