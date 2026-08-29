@@ -3,13 +3,13 @@
 
 ## Specification
 
-Simplified interface for hyperdimensional computing applications.
-Exposes real SIMD-accelerated VSA core to C/C++/Python/Swift/Go via FFI bridge.
+// Simplified interface for hyperdimensional computing applications.
+// Exposes real SIMD-accelerated VSA core to C/C++/Python/Swift/Go via FFI bridge.
 
 ## Mathematical Foundation
 
 ```
-V = n × 3^k × π^m × φ^p × e^q
+// V = n × 3^k × π^m × φ^p × e^q
 ```
 
 ## Core Components

@@ -1,0 +1,343 @@
+//! Specs a literate author left prose in, and how far that prose is from code.
+//!
+//! WHY THIS EXISTS
+//! ---------------
+//! `#` starts a line comment in t27 -- deliberately, so that a Markdown heading
+//! in a `.t27` file becomes a comment "which is what they always were in
+//! intent" (bootstrap/src/compiler.rs). What was never handled is the PARAGRAPH
+//! under the heading. A spec written in the literate style
+//!
+//!     ## Specification
+//!
+//!     Zig-backed FFI bridge for Trinity VSA core.
+//!
+//! parses the heading and stops on the sentence. Measured the day this was
+//! written: 13 specs use the `## Specification` template and NONE of them
+//! generated; 16 carry any Markdown heading and none generated. Against a base
+//! rate of 104 non-generating specs in 650, that is not a coincidence -- but
+//! the heading is not the cause, the paragraph under it is. The first reading
+//! blamed the heading and a two-line probe disproved it.
+//!
+//! WHAT IT DOES NOT DO
+//! -------------------
+//! It never edits a line the compiler did not stop on, and it refuses outright
+//! when the line it stops on looks like code. A spec whose real obstacle is an
+//! unimplemented construct is reported as such and left alone.
+use anyhow::Result;
+use clap::Subcommand;
+use std::path::{Path, PathBuf};
+
+#[derive(Subcommand)]
+pub enum ProseCmd {
+    /// Which specs are blocked only by prose, and how many lines that is.
+    ///
+    /// Runs the compiler, comments the line it names, and asks again -- so the
+    /// question "is this prose?" is answered by the compiler rather than by a
+    /// pattern. Two guards stop it from commenting code; see `--fix`.
+    Report {
+        /// Rewrite the files whose only obstacle is prose.
+        ///
+        /// Prefixes each blocking line with `// `, preserving the text exactly.
+        /// Refuses a file the moment the compiler stops on something that looks
+        /// like code, and refuses the whole rewrite if the set of declaration
+        /// lines is not identical before and after.
+        #[arg(long)]
+        fix: bool,
+        /// Report every spec, including the ones blocked by code.
+        #[arg(long)]
+        all: bool,
+    },
+}
+
+/// A line that opens or continues a t27 declaration.
+fn is_decl(line: &str) -> bool {
+    const KW: [&str; 21] = [
+        "fn",
+        "struct",
+        "enum",
+        "const",
+        "var",
+        "test",
+        "invariant",
+        "bench",
+        "module",
+        "let",
+        "return",
+        "if",
+        "else",
+        "for",
+        "while",
+        "switch",
+        "try",
+        "impl",
+        "type",
+        "use",
+        "using",
+    ];
+    let t = line.trim_start();
+    let t = t.strip_prefix("pub ").unwrap_or(t);
+    KW.iter().any(|k| {
+        t.strip_prefix(k).is_some_and(|r| {
+            r.is_empty() || r.starts_with(|c: char| !c.is_alphanumeric() && c != '_')
+        })
+    })
+}
+
+/// The discriminator that a shape test gets wrong.
+///
+/// A rule refusing every line with `(`, `:`, `=` or `->` refuses ORDINARY
+/// ENGLISH: measured across the 13 literate specs, every one stopped on a
+/// sentence like `Part of Phase 4: Quality & Performance (Issue #48)`. Prose
+/// carries punctuation. What separates them is the END of the line -- t27 code
+/// at a line boundary ends with `{`, `;` or `,` and a sentence does not.
+///
+/// It errs toward refusing: a wrapped sentence ending in a comma is declined
+/// rather than edited, which costs a repair and never costs a line of code.
+fn is_structural(line: &str) -> bool {
+    matches!(
+        line.trim_end().chars().last(),
+        Some('{') | Some(';') | Some(',') | Some('}')
+    )
+}
+
+fn decls(lines: &[String]) -> Vec<String> {
+    lines
+        .iter()
+        .filter(|l| is_decl(l))
+        .map(|l| l.trim().to_string())
+        .collect()
+}
+
+enum Outcome {
+    Prose(usize),
+    BlockedByCode(usize, String),
+    Other(String),
+}
+
+fn walk(t27c: &Path, root: &Path, spec: &Path, cap: usize) -> (Vec<String>, Outcome) {
+    let Ok(text) = std::fs::read_to_string(spec) else {
+        return (Vec::new(), Outcome::Other("unreadable".into()));
+    };
+    let orig: Vec<String> = text.lines().map(|s| s.to_string()).collect();
+    let mut cur = orig.clone();
+    let mut touched = 0usize;
+    let tmp = std::env::temp_dir().join(format!(
+        "tri-prose-{}.t27",
+        spec.file_name().unwrap_or_default().to_string_lossy()
+    ));
+    for _ in 0..cap {
+        if std::fs::write(&tmp, format!("{}\n", cur.join("\n"))).is_err() {
+            return (cur, Outcome::Other("cannot write probe".into()));
+        }
+        let out = std::process::Command::new(t27c)
+            .arg("check")
+            .arg(&tmp)
+            .current_dir(root)
+            .output();
+        let Ok(out) = out else {
+            return (cur, Outcome::Other("compiler did not run".into()));
+        };
+        if out.status.success() {
+            let _ = std::fs::remove_file(&tmp);
+            if decls(&orig) != decls(&cur) {
+                return (
+                    cur,
+                    Outcome::Other("declarations changed -- refused".into()),
+                );
+            }
+            return (cur, Outcome::Prose(touched));
+        }
+        let text = String::from_utf8_lossy(&out.stderr) + String::from_utf8_lossy(&out.stdout);
+        let Some(n) = line_of(&text) else {
+            let _ = std::fs::remove_file(&tmp);
+            return (cur, Outcome::Other("no line in the error".into()));
+        };
+        if n == 0 || n > cur.len() {
+            let _ = std::fs::remove_file(&tmp);
+            return (cur, Outcome::Other("line out of range".into()));
+        }
+        let line = cur[n - 1].clone();
+        if line.trim_start().starts_with("//") {
+            let _ = std::fs::remove_file(&tmp);
+            return (cur, Outcome::Other("stops on a comment".into()));
+        }
+        if is_decl(&line) || is_structural(&line) {
+            let _ = std::fs::remove_file(&tmp);
+            return (
+                cur,
+                Outcome::BlockedByCode(n, line.trim().chars().take(56).collect()),
+            );
+        }
+        cur[n - 1] = format!("// {line}");
+        touched += 1;
+    }
+    let _ = std::fs::remove_file(&tmp);
+    (cur, Outcome::Other("cap reached".into()))
+}
+
+fn line_of(text: &str) -> Option<usize> {
+    let i = text.find("line ")?;
+    let rest = &text[i + 5..];
+    let end = rest
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(rest.len());
+    rest[..end].parse().ok()
+}
+
+pub fn run(cmd: &ProseCmd, root: PathBuf) -> Result<()> {
+    let ProseCmd::Report { fix, all } = cmd;
+    let t27c = ["target/release/t27c", "target/debug/t27c"]
+        .iter()
+        .map(|p| root.join(p))
+        .find(|p| p.is_file());
+    let Some(t27c) = t27c else {
+        anyhow::bail!(
+            "no compiler -- this command asks the compiler which line is prose, and\n  \
+             its absence is not a clean bill.\n  cargo build --release -p t27c"
+        );
+    };
+
+    let out = std::process::Command::new("git")
+        .args(["ls-files", "*.t27"])
+        .current_dir(&root)
+        .output()?;
+    let specs: Vec<PathBuf> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|s| root.join(s))
+        .filter(|p| p.is_file())
+        .collect();
+
+    let mut prose: Vec<(PathBuf, usize, Vec<String>)> = Vec::new();
+    let mut code: Vec<(PathBuf, usize, String)> = Vec::new();
+    let mut other = 0usize;
+    let mut scanned = 0usize;
+
+    for spec in &specs {
+        let ok = std::process::Command::new(&t27c)
+            .arg("check")
+            .arg(spec)
+            .current_dir(&root)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if ok {
+            continue;
+        }
+        scanned += 1;
+        let (fixed, outcome) = walk(&t27c, &root, spec, 200);
+        match outcome {
+            Outcome::Prose(0) => other += 1,
+            Outcome::Prose(n) => prose.push((spec.clone(), n, fixed)),
+            Outcome::BlockedByCode(n, l) => code.push((spec.clone(), n, l)),
+            Outcome::Other(_) => other += 1,
+        }
+    }
+
+    let rel = |p: &Path| p.strip_prefix(&root).unwrap_or(p).display().to_string();
+
+    println!("  specs that do not parse            {scanned}");
+    println!("  ... blocked ONLY by prose          {}", prose.len());
+    println!("  ... blocked by code                {}", code.len());
+    if other > 0 {
+        println!("  ... NOT DECIDED, nothing claimed   {other}");
+    }
+
+    if !prose.is_empty() {
+        println!();
+        println!("  prose-blocked, and the line count that would be commented");
+        for (p, n, _) in prose.iter().take(20) {
+            println!("      {n:>4}  {}", rel(p));
+        }
+        if prose.len() > 20 {
+            println!("      ... and {} more", prose.len() - 20);
+        }
+    }
+
+    if *all && !code.is_empty() {
+        println!();
+        println!("  blocked by code -- the compiler stops on something this may not touch");
+        for (p, n, l) in code.iter().take(20) {
+            println!("      {}:{n}  {l}", rel(p));
+        }
+        if code.len() > 20 {
+            println!("      ... and {} more", code.len() - 20);
+        }
+    }
+
+    if !*fix {
+        println!();
+        println!("  --fix comments those lines, preserving the text exactly. It is a");
+        println!("  STATEMENT that the prose was documentation and not a declaration");
+        println!("  someone half-wrote. Read the diff: every changed line must be the");
+        println!("  old line with `// ` in front, and nothing else.");
+        return Ok(());
+    }
+
+    let mut written = 0usize;
+    for (p, _, fixed) in &prose {
+        if std::fs::write(p, format!("{}\n", fixed.join("\n"))).is_ok() {
+            written += 1;
+        }
+    }
+    println!();
+    println!("  files rewritten                    {written}");
+    println!();
+    println!("  Now re-seal them, or the seals still record that they do not generate:");
+    println!("      t27c seal <spec> --save   &&   tri seals sync-twins");
+    println!("      python3 tools/check_specs_generate.py --update-baseline");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_sentence_with_punctuation_is_not_structural() {
+        // The shape test that failed: ordinary English carries ( ) : = ->
+        for s in [
+            "Part of Phase 4: Quality & Performance (Issue #48)",
+            "Tiny MLP: 100 -> 64 -> 10 (simplified MNIST-like).",
+            "phi^2 + 1/phi^2 = 3 = TRINITY",
+            "Zig-backed FFI bridge for Trinity VSA core.",
+        ] {
+            assert!(!is_structural(s), "{s}");
+            assert!(!is_decl(s), "{s}");
+        }
+    }
+
+    #[test]
+    fn code_at_a_line_boundary_is_structural() {
+        for s in [
+            "test \"C-API: version\" {",
+            "const ver = trinity_vsa_version();",
+            "    field: u32,",
+            "}",
+        ] {
+            assert!(is_structural(s) || is_decl(s), "{s}");
+        }
+    }
+
+    // The refusal this errs toward: a wrapped sentence ending in a comma is
+    // declined rather than edited. Costs a repair, never costs a line of code.
+    #[test]
+    fn a_wrapped_sentence_is_declined_not_edited() {
+        assert!(is_structural(
+            "File-based, read-only API surface that downstream tools (chip-repo CI,"
+        ));
+    }
+
+    #[test]
+    fn is_decl_matches_the_keyword_not_a_prefix() {
+        assert!(is_decl("fn a() {"));
+        assert!(is_decl("pub const X = 1;"));
+        assert!(!is_decl("fnord is not a keyword"));
+        assert!(!is_decl("constant folding is described here"));
+    }
+
+    #[test]
+    fn line_of_reads_the_first_number_after_line() {
+        assert_eq!(line_of("parse error near line 38: bad"), Some(38));
+        assert_eq!(line_of("nothing here"), None);
+    }
+}

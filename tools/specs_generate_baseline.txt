@@ -9,37 +9,29 @@ compiler/parser/parser.t27 | Error: Compile error: parse error in fn 'Parser.new
 compiler/runtime/commands.t27 | Error: Compile error: parse error in fn 'spec_create' near line 33: Unexpected token in expression: LBrace ('{') at line 33:42
 compiler/runtime/validation.t27 | Error: Compile error: Expected LParen, got KwTest ('test') at line 333:18
 compiler/skill/registry.t27 | Error: Compile error: parse error in fn 'create_skill' near line 200: Expected RBrace, got KwConst ('const') at line 200:31
-contrib/backend/zig/legacy/main_zig_handwritten.t27 | Error: Compile error: parse error in fn 'main' near line 95: Unexpected token in expression: LBrace ('{') at line 95:52
+contrib/backend/zig/legacy/main_zig_handwritten.t27 | Error: Compile error: parse error in fn 'specCreate' near line 239: Unexpected token in expression: Colon (':') at line 239:21
 examples/fpga/qmtech_minimal/design.t27 | Error: Compile error: parse error at module level near line 4: unexpected token after expression statement: Ident
 specs/account/repo.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 12:21
 specs/account/schema.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 13:21
-specs/api/c_api_contract.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/api/sdk_contract.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/api/tri_net_api.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Comma
-specs/ar/composition.t27 | Error: Compile error: parse error in fn 'execute_ml_component' near line 195: parse error near line 195: Expected LParen, got Ident ('val') at line 19
-specs/ar/datalog_engine.t27 | Error: Compile error: parse error in fn 'apply_rule' near line 129: Expected LParen, got Ident ('all_body_true') at line 129:32
+specs/ar/composition.t27 | Error: Compile error: parse error in fn 'average' near line 407: unknown cast target type `float`; expected one of ["bool", "u8", "i8", "u16", "i16", 
+specs/ar/datalog_engine.t27 | Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
 specs/ar/ternary_logic.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
 specs/auth/config.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 60:16
 specs/automation/wrapup-auto.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
-specs/benchmarks/bench_main.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/benchmarks/bench_nn.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/benchmarks/gf16_bfloat16_nmse.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/benchmarks/ternary_vs_binary.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/brain/brain.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/brain/neural_gamma.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: KwModule
 specs/bus/pubsub.t27 | Error: Compile error: parse error in fn 'publish_result_to_string' near line 389: Unexpected token in expression: Semicolon (';') at line 389:6
 specs/compiler/parser.t27 | Error: Compile error: parse error in fn 'parse_module_body' near line 1500: parse error near line 1500: parse error near line 1500: parse error near l
 specs/compiler/typechecker.t27 | Error: Compile error: parse error in fn 'check_stmt' near line 373: parse error near line 373: parse error near line 373: Unexpected token in expressi
-specs/config/load.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('Config') at line 13:21
+specs/config/load.t27 | Error: Compile error: Expected LBrace, got Minus ('-') at line 217:74
 specs/config/migrate.t27 | Error: Compile error: parse error in fn 'migrate_detect_version' near line 396: Expected RBrace, got Colon (':') at line 396:59
 specs/conformance/e2e_scenarios.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/enrichment/audio_overview.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
 specs/enrichment/youtube_transcript.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
 specs/file/watcher.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 14:21
 specs/fpga/testbench/mac_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 353: Unexpected token in expression: Semicolon (';') at line 353:69
-specs/fpga/testbench/power_analysis_tb.t27 | Error: Compile error: parse error in fn 'test_utilization_creation' near line 40: unexpected token after expression statement: Ident
 specs/fpga/testbench/uart_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 256: Unexpected token in expression: Semicolon (';') at line 256:39
-specs/fpga/testbench/vcd_conformance_compare_tb.t27 | Error: Compile error: parse error in fn 'test_run_compare_all_match' near line 59: unexpected token after expression statement: Ident
 specs/github/auth.t27 | Error: Compile error: parse error at module level near line 7: Unexpected token in expression: Colon (':') at line 7:14
 specs/github/comments.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
 specs/github/issues.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
@@ -58,36 +50,31 @@ specs/nn/sacred_attention.t27 | Error: Compile error: parse error at module leve
 specs/numeric/bigint.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 50:31
 specs/numeric/formats.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 61:39
 specs/numeric/goldenfloat_family.t27 | Error: Compile error: parse error in fn 'get_format_by_name' near line 232: Unexpected token in expression: KwConst ('const') at line 232:14
-specs/physics/chimera_best_gamma.t27 | Error: Compile error: parse error in fn 'formula' near line 14: unexpected token after expression statement: RParen
 specs/physics/e8_lqg_bridge.t27 | Error: Compile error: parse error at module level near line 8: unexpected token after expression statement: Ident
-specs/physics/formula_discovery.t27 | Error: Compile error: parse error in fn 'generate_basis' near line 96: Unexpected token in expression: Equals ('=') at line 96:28
+specs/physics/formula_discovery.t27 | Error: Compile error: parse error in fn 'generate_basis' near line 100: parse error near line 100: parse error near line 100: parse error near line 10
 specs/physics/gamma-conflict.t27 | Error: Compile error: unterminated string literal opened at line 148:13
 specs/physics/hslm_benchmark.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/physics/lqg_cs_bridge.t27 | Error: Compile error: unterminated string literal opened at line 74:83
+specs/physics/lqg_cs_bridge.t27 | Error: Compile error: unterminated string literal opened at line 74:86
 specs/physics/p2_brain_physics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 53:55
-specs/physics/quantum.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/pins/parser.t27 | Error: Compile error: unterminated string literal opened at line 596:24
 specs/portable/relay_observer.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:16
 specs/provider/adapters.t27 | Error: Compile error: parse error in fn 'adapter_config_create' near line 208: Unexpected token in expression: LBrace ('{') at line 208:55
 specs/provider/schema.t27 | Error: Compile error: parse error in fn 'provider_config_create' near line 267: Unexpected token in expression: LBrace ('{') at line 267:55
 specs/runtime/execute.t27 | Error: Compile error: Expected LBrace, got RParen (')') at line 238:77
-specs/runtime/instance.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('ProcessID') at line 13:23
+specs/runtime/instance.t27 | Error: Compile error: parse error in fn 'registration_has_command' near line 621: Unexpected token in expression: KwInvariant ('invariant') at line 62
 specs/sandbox/health.t27 | Error: Compile error: Unexpected top-level token: Ident ('trait') at line 32:5
-specs/sandbox/https_enforce.t27 | Error: Compile error: parse error in fn 'redirect_url' near line 74: Expected LParen, got Ident ('original_url') at line 74:25
+specs/sandbox/https_enforce.t27 | Error: Compile error: parse error in fn 'redirect_url' near line 74: Unexpected token in expression: DotDot ('..') at line 74:65
 specs/sandbox/modules.t27 | Error: Compile error: Unexpected top-level token: KwUse ('use') at line 18:5
 specs/sandbox/orphan_detection.t27 | Error: Compile error: parse error at module level near line 19: unexpected token after expression statement: Ident
 specs/sandbox/session_timeout.t27 | Error: Compile error: parse error at module level near line 14: unexpected token after expression statement: Ident
-specs/server/project.t27 | Error: Compile error: parse error in fn 'create_project' near line 153: unexpected token after expression statement: Ident
 specs/server/provider.t27 | Error: Compile error: parse error in fn 'provider_type_values' near line 177: unexpected token after expression statement: Ident
 specs/server/router.t27 | Error: Compile error: parse error in fn 'route_match' near line 127: parse error near line 127: parse error near line 127: Unexpected token in express
-specs/server/routes.t27 | Error: Compile error: parse error in fn 'http_method_values' near line 27: unexpected token after expression statement: Ident
-specs/server/session.t27 | Error: Compile error: parse error in fn 'session_state_values' near line 188: unexpected token after expression statement: Ident
 specs/server/sse.t27 | Error: Compile error: parse error in fn 'client_new' near line 127: Unexpected token in expression: KwFn ('fn') at line 127:23
 specs/server/vm.t27 | Error: Compile error: parse error in fn 'vm_step' near line 181: Unexpected token in expression: LBrace ('{') at line 181:24
 specs/shell/process.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 14:21
 specs/shell/schema.t27 | Error: Compile error: parse error in fn 'process_options_full' near line 235: Unexpected token in expression: LBrace ('{') at line 235:31
 specs/storage/kv.t27 | Error: Compile error: Expected LParen, got Lt ('<') at line 15:12
-specs/sync/index.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('SyncID') at line 13:19
+specs/sync/index.t27 | Error: Compile error: parse error in fn 'delta_replay' near line 338: Unexpected token in expression: DotDot ('..') at line 338:29
 specs/ternary/hybrid_arithmetic.t27 | Error: Compile error: parse error at module level near line 49: Unexpected token in expression: Semicolon (';') at line 49:6
 specs/ternary/hybrid_bigint.t27 | Error: Compile error: parse error at module level near line 10: unexpected token after expression statement: Ident
 specs/ternary/packed_trit.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 75:61
