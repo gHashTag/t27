@@ -214,26 +214,141 @@ fn mask(line: &str) -> String {
 /// else as "no binder this can read", a phrase that described the scanner and
 /// was printed as though it described the source. The domains it lost that way
 /// are the SMALLEST in the corpus: `for all Trit a, b` is nine values.
-fn parse_binders(text: &str) -> Vec<(String, String)> {
-    let t = text.trim();
+/// Split on commas at bracket depth zero. A type may contain a comma inside
+/// `<>`/`()`/`[]`; a binder list separator never can.
+fn split_top(text: &str) -> Vec<String> {
     let mut out = Vec::new();
+    let mut depth = 0usize;
+    let mut cur = String::new();
+    for ch in text.chars() {
+        match ch {
+            '<' | '(' | '[' | '{' => depth += 1,
+            '>' | ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        if ch == ',' && depth == 0 {
+            out.push(std::mem::take(&mut cur));
+        } else {
+            cur.push(ch);
+        }
+    }
+    out.push(cur);
+    out.into_iter()
+        .map(|x| x.trim().to_string())
+        .filter(|x| !x.is_empty())
+        .collect()
+}
+
+/// Cut at a `{` that OPENS A SEGMENT -- the body of a clause written
+/// `forall bits: u8, { … }` is not part of the binder list.
+///
+/// The "opens a segment" qualifier is load-bearing. `for any a, b in {1, -1}`
+/// also has a top-level brace, and it is the DOMAIN. Cutting there is what made
+/// the old reader return no binder for that clause -- while the module's own
+/// doc comment used it as the example of a binder it could read.
+fn before_body(text: &str) -> &str {
+    let mut depth = 0usize;
+    let mut fresh = true; // nothing but space since the last top-level comma
+    for (i, ch) in text.char_indices() {
+        match ch {
+            '{' if depth == 0 && fresh => return &text[..i],
+            '<' | '(' | '[' | '{' => depth += 1,
+            '>' | ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        if ch == ',' && depth == 0 {
+            fresh = true;
+        } else if !ch.is_whitespace() {
+            fresh = false;
+        }
+    }
+    text
+}
+
+fn is_ident(x: &str) -> bool {
+    !x.is_empty()
+        && x.chars().next().map(|c| c.is_ascii_alphabetic() || c == '_') == Some(true)
+        && x.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// Is this the text of a TYPE, or of a predicate that happens to follow a colon?
+///
+/// `forall F, D : NMSE(F, D) >= 0` writes `:` to mean "such that". Reading it as
+/// an ascription is how the old reader printed a binder named `D` of type `F,` --
+/// a name and a type neither of which appears in the source.
+fn is_type_token(t: &str) -> bool {
+    let t = t.trim();
+    if t.is_empty() {
+        return false;
+    }
+    // A REJECTOR, not an acceptor. The corpus writes types this reader has
+    // never seen -- `[u32]`, `[]const u8`, `m.assigns` -- and an acceptor
+    // written from the types it HAS seen throws those away, which is a louder
+    // lie than the one it was built to fix. So: reject only what cannot be a
+    // type, and let anything else through to `size_of`, whose job is to say
+    // "unbounded" when it does not recognise something.
+    let first = t.split_whitespace().next().unwrap_or("");
+    if matches!(first, "if" | "let" | "match" | "then" | "else" | "return") {
+        return false;
+    }
+    // A call or a comparison is a predicate: `NMSE(F, D) >= 0` after a colon
+    // means "such that", not "has type".
+    if t.contains('(') || t.contains(')') {
+        return false;
+    }
+    !["==", "!=", ">=", "<=", "&&", "||", " > ", " < ", " + ", " = "]
+        .iter()
+        .any(|op| t.contains(op))
+}
+
+/// The type a declaration segment ascribes, or `None` if what follows the colon
+/// is not a type at all.
+fn ascribed_type(rest: &str) -> Option<String> {
+    let rest = rest.split(" where ").next().unwrap_or("").trim();
+    // A spaced bracket type keeps its words; anything else ends at the space.
+    let ty = if rest.starts_with('[') {
+        rest.to_string()
+    } else {
+        rest.split_whitespace().next().unwrap_or("").to_string()
+    };
+    let ty = ty.trim_end_matches(',').trim().to_string();
+    if ty.is_empty() || !is_type_token(&ty) {
+        return None;
+    }
+    Some(ty)
+}
+
+/// The binders a clause declares -- ALL of them.
+///
+/// W710: this used to be `upto.split_once(':')`, one split, so the first colon
+/// ended the world. That is right for the 501 single-binder rows and, by pure
+/// accident, for the 69 rows that put the clause BODY after a comma -- and
+/// wrong for the 297 rows that write a colon per binder. A clause binding four
+/// variables was sized as though it bound one, and since a missing binder can
+/// only make a domain smaller, the report systematically over-promised what
+/// could be checked by brute force.
+///
+/// The rule now: split into top-level comma segments, walk them left to right
+/// accumulating binders, and STOP at the first segment that is not a binder.
+/// The stop is the whole correctness argument -- it is the only thing that
+/// distinguishes `p : T, q : U` (two binders) from `p : T, body(p) >= 0` (one).
+fn parse_binders(text: &str) -> Vec<(String, String)> {
+    let t = before_body(text.trim());
+    let mut out: Vec<(String, String)> = Vec::new();
 
     // `Type name[, name]` -- `for all Trit a, b`, `for all i8 x`.
     if let Some((head, tail)) = t.split_once(char::is_whitespace) {
         let head = head.trim();
-        let looks_type = head
-            .chars()
-            .next()
-            .map(|c| c.is_ascii_alphabetic())
-            .unwrap_or(false)
-            && !head.contains(':')
+        // `is_ident` matters: without it `F,` in `forall F, D : …` reads as a
+        // type name, and the reader invents a binder out of a predicate.
+        let looks_type = is_ident(head)
             && (primitive(head).is_some() || head.chars().next().unwrap().is_ascii_uppercase());
         if looks_type {
             let names: Vec<&str> = tail
                 .split(|c: char| c == ',' || c.is_whitespace())
                 .map(|x| x.trim())
                 .filter(|x| !x.is_empty())
-                .take_while(|x| x.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+                .take_while(|x| is_ident(x))
                 .collect();
             if !names.is_empty() {
                 for n in names {
@@ -244,65 +359,76 @@ fn parse_binders(text: &str) -> Vec<(String, String)> {
         }
     }
 
-    // `name[, name] : Type` and `name : Type, ...` -- both prefix spellings.
-    // `forall exp, mant: u8, body` binds BOTH names to u8.
-    let upto = t.split('{').next().unwrap_or(t);
-    if let Some((names, rest)) = upto.split_once(':') {
-        let ty = rest
-            .trim()
-            .split(|c: char| c == ',' || c.is_whitespace())
-            .find(|x| !x.trim().is_empty())
-            .unwrap_or("")
+    // The segment walk. `pending` holds names still waiting for the type that a
+    // later segment will give them: `a, b : Trit` arrives as two segments.
+    let mut pending: Vec<String> = Vec::new();
+    for seg in split_top(t) {
+        // A second quantifier keyword inside the binder text -- `scan_clauses`
+        // finds only the first `forall `, so the rest arrives here.
+        let seg = seg
+            .strip_prefix("forall ")
+            .or_else(|| seg.strip_prefix("for all "))
+            .or_else(|| seg.strip_prefix("for any "))
+            .unwrap_or(&seg)
             .trim()
             .to_string();
-        let ns: Vec<&str> = names
-            .split(',')
-            .map(|x| x.trim())
-            .filter(|x| !x.is_empty())
-            .collect();
-        if !ty.is_empty()
-            && !ns.is_empty()
-            && ns
-                .iter()
-                .all(|n| n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
-        {
-            for n in ns {
-                out.push((n.to_string(), ty.clone()));
+
+        // `name[, name] in <domain>` -- a domain that is a collection or a
+        // range is recorded with its text so `size_of` calls it unbounded,
+        // rather than the scanner pretending there is no binder.
+        if let Some((names, dom)) = seg.split_once(" in ") {
+            let dom = dom
+                .split(" where ")
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_end_matches(':')
+                .trim()
+                .to_string();
+            let ns: Vec<&str> = names.split_whitespace().collect();
+            if !dom.is_empty() && !ns.is_empty() && ns.iter().all(|n| is_ident(n)) {
+                for n in pending.drain(..).chain(ns.iter().map(|s| s.to_string())) {
+                    out.push((n, dom.clone()));
+                }
+                continue;
             }
-            return out;
+            break;
         }
+
+        // `name[ name]* : Type` -- names may also have arrived comma-grouped in
+        // earlier segments, which is why `pending` is drained here.
+        if let Some((names, rest)) = seg.split_once(':') {
+            // `gf16::GF16` is one token, not a name and an ascription.
+            if rest.starts_with(':') {
+                if is_ident(&seg) {
+                    pending.push(seg);
+                    continue;
+                }
+                break;
+            }
+            let ns: Vec<&str> = names.split_whitespace().collect();
+            match (ascribed_type(rest), ns.iter().all(|n| is_ident(n))) {
+                (Some(ty), true) if !ns.is_empty() => {
+                    for n in pending.drain(..).chain(ns.iter().map(|s| s.to_string())) {
+                        out.push((n, ty.clone()));
+                    }
+                    continue;
+                }
+                // The colon meant "such that", or the names are not names.
+                _ => break,
+            }
+        }
+
+        // A bare name waits for the type a later segment will name.
+        if is_ident(&seg) {
+            pending.push(seg);
+            continue;
+        }
+
+        // Not a binder. Everything after it is the clause body.
+        break;
     }
 
-    // `name in <domain>` -- `for all k in u8 where ...`, `forall r in results`,
-    // `for any a, b in {1, -1}`. The domain is a TYPE only when it names one;
-    // a collection or a range is recorded with its text so `size_of` can call
-    // it unbounded rather than the scanner pretending there is no binder.
-    if let Some((names, dom)) = upto.split_once(" in ") {
-        let dom = dom
-            .split(" where ")
-            .next()
-            .unwrap_or("")
-            .trim()
-            .trim_end_matches(':')
-            .trim()
-            .to_string();
-        let ns: Vec<&str> = names
-            .split(',')
-            .map(|x| x.trim())
-            .filter(|x| !x.is_empty())
-            .collect();
-        if !dom.is_empty()
-            && !ns.is_empty()
-            && ns
-                .iter()
-                .all(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
-        {
-            for n in ns {
-                out.push((n.to_string(), dom.clone()));
-            }
-            return out;
-        }
-    }
     out
 }
 
@@ -572,7 +698,20 @@ mod tests {
 
     /// The binder forms the corpus writes, every one found by reading it.
     #[test]
+    /// W710: the name asserted corpus-wide coverage that four hand-written
+    /// cases never provided, and that false ruler is the structural reason a
+    /// 297-clause defect survived a green suite for as long as it did. The
+    /// multi-binder colon list is folded in here so the name is true.
     fn every_binder_form_in_the_corpus_is_read() {
+        // `name : Type, name : Type` -- 297 clauses, the shape this test was
+        // named after and did not contain.
+        assert_eq!(
+            parse_binders("a : i16, b : i16"),
+            vec![
+                ("a".to_string(), "i16".to_string()),
+                ("b".to_string(), "i16".to_string())
+            ]
+        );
         // `Type name, name`
         assert_eq!(
             parse_binders("Trit a, b"),
@@ -597,6 +736,123 @@ mod tests {
         // `name in <collection>` -- a binder, with a domain `size_of` will call
         // unbounded. That is a different answer from "no binder".
         assert_eq!(parse_binders("r in results").len(), 1);
+    }
+
+    // ---- W710: the binder list is a LIST -------------------------------
+    //
+    // Every case below is a real corpus line, cited. `parse_binders` read the
+    // first binder of each and dropped the rest, so a clause binding four
+    // variables was sized as though it bound one.
+
+    /// `cordic_top.t27:311` -- four binders, one colon each.
+    #[test]
+    fn a_colon_list_binds_every_name() {
+        assert_eq!(
+            parse_binders("clk : bool, rst_n : bool, angle : i16, valid_in : bool"),
+            vec![
+                ("clk".to_string(), "bool".to_string()),
+                ("rst_n".to_string(), "bool".to_string()),
+                ("angle".to_string(), "i16".to_string()),
+                ("valid_in".to_string(), "bool".to_string()),
+            ]
+        );
+    }
+
+    /// The trap. 69 clauses put the BODY after the comma, and a fix that keeps
+    /// walking segments would mint a binder out of it -- corrupting 69 rows to
+    /// repair 297. `_tmp_pipeline_import.t27:1476`.
+    #[test]
+    fn a_body_after_the_binder_is_not_a_binder() {
+        assert_eq!(
+            parse_binders("p : PipelineResult, pipeline_token_count(p) >= 0"),
+            vec![("p".to_string(), "PipelineResult".to_string())]
+        );
+    }
+
+    /// `phi_split_optimality.t27:293` -- the body is a brace block.
+    #[test]
+    fn a_brace_body_after_the_binder_is_not_a_binder() {
+        assert_eq!(
+            parse_binders("bits: u8, { let (e, m) = f(bits); e + m == bits"),
+            vec![("bits".to_string(), "u8".to_string())]
+        );
+    }
+
+    /// `systolic_array.t27:287` -- the second quantifier keyword sits INSIDE
+    /// the binder text, because `scan_clauses` finds the first `forall ` only.
+    #[test]
+    fn a_second_forall_keyword_is_not_a_body() {
+        assert_eq!(
+            parse_binders("a : i16, forall b : i16,"),
+            vec![
+                ("a".to_string(), "i16".to_string()),
+                ("b".to_string(), "i16".to_string()),
+            ]
+        );
+    }
+
+    /// `bench_proxy.t27:349` -- names separated by a space, not a comma. Filed
+    /// as "no binder" today, which is a different lie from an undersized one.
+    #[test]
+    fn space_separated_names_before_the_colon() {
+        assert_eq!(
+            parse_binders("a b : i32, a <= b, verilog_eval_problems(a) <= verilog_eval_problems(b)"),
+            vec![
+                ("a".to_string(), "i32".to_string()),
+                ("b".to_string(), "i32".to_string()),
+            ]
+        );
+    }
+
+    /// `gf16_bfloat16_nmse.t27:89` and `:96`. Here the colon means "such that",
+    /// not "has type". The old reader FABRICATED a binder `[D: F,]` -- a name
+    /// and a type neither of which is in the source. No binder is the truth.
+    #[test]
+    fn a_colon_that_is_not_a_type_ascription_yields_no_binder() {
+        assert!(parse_binders("F, D : NMSE(F, D) >= 0").is_empty());
+        assert!(parse_binders("D : if mean_sq_ref(D) == 0 then a else b").is_empty());
+    }
+
+    /// `jones_polynomial.t27:321` -- the example in this module's own doc
+    /// comment, which the function has never actually parsed.
+    #[test]
+    fn grouped_names_share_a_membership_domain() {
+        let b = parse_binders("a, b in {1, -1}");
+        assert_eq!(b.len(), 2, "got {b:?}");
+        assert_eq!(b[0].0, "a");
+        assert_eq!(b[1].0, "b");
+    }
+
+    /// `phi_split_optimality.t27:301` -- the domain must stop at the binder
+    /// list, not swallow the body that follows it.
+    #[test]
+    fn a_membership_domain_stops_at_the_binder_list() {
+        assert_eq!(
+            parse_binders("i in 0..verification.length(), verification[i].matches == true"),
+            vec![("i".to_string(), "0..verification.length()".to_string())]
+        );
+    }
+
+    /// A bracket type is one type. Pins the depth-aware comma split.
+    #[test]
+    fn a_bracket_type_is_one_binder_not_two() {
+        assert_eq!(
+            parse_binders("w : []TernaryWeight, b : WeightBank"),
+            vec![
+                ("w".to_string(), "[]TernaryWeight".to_string()),
+                ("b".to_string(), "WeightBank".to_string()),
+            ]
+        );
+    }
+
+    /// `audio_overview.t27:144`. Guards are still not read -- that is the
+    /// owner's semantics to choose, and #2774 is where it is chosen.
+    #[test]
+    fn a_where_guard_is_not_a_binder() {
+        assert_eq!(
+            parse_binders("lang : str where @langToCode(lang) != \"\","),
+            vec![("lang".to_string(), "str".to_string())]
+        );
     }
 
     /// A suffix with no `name : Type` yields no binder rather than a wrong one.
