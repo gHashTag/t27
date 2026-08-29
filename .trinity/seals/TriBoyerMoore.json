@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a759bc74e73eed04d349dc4a45f847883a8b16948d3107b24472907d724622b2",
-  "gen_hash_rust": "sha256:770ebda130c2f327925481e44d3237378589b8e455598d389be937f49f763202",
+  "gen_hash_rust": "sha256:2efd10bb329febf2e787820b39def03c6e5d2591fc68537f6d6aa662f51aafb0",
   "gen_hash_verilog": "sha256:106c31f6afd886aed6f497a2ba1c8bb16c4d07521086dd07e0614e9022b8806d",
   "gen_hash_zig": "sha256:0b5576e1c05218050c15eb01ce4e60321fb56f2137e5d2aa3677ec3cd28303ef",
   "module": "TriBoyerMoore",

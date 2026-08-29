@@ -1,11 +1,12 @@
 {
   "gen_hash_c": "sha256:64e2b77cfeeb28f4534f1c9c7d8e61e72c8eebd03261f0ef776eb50332212204",
-  "gen_hash_rust": "sha256:df44b7d6136ec8c5700e0371135bc4c0464ea5da7ccfb956dfd512447f6c856a",
+  "gen_hash_rust": "sha256:8fe4cb66cb5d9180343121f3bdbdb644b23214602b585d4db272bd777c76140a",
   "gen_hash_verilog": "sha256:62f3cca22d5ceb3ac71c8cc4b9ff8e0222662ef8d0cc68d0f6e2fd050c6611a5",
   "gen_hash_zig": "sha256:245b10d08c05cfa4eda803f29b91d75ee675456e40c9c536fbf94cb7bc366b50",
   "module": "TriMaybe",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:da83784231ce7b0004279a51913a711527f55d8b2150da9a39fb39b307fab17f",
   "spec_path": "specs/tri/collections/maybe.t27"
 }

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:960d9bd777eb40ac81139c6743fe0c61a7b71121169f07daedc138259ffc63ba",
-  "gen_hash_rust": "sha256:627676e2bcd501e5bb41be9b88915c1453748d551c8f851e548e3a3a5331ff21",
+  "gen_hash_rust": "sha256:d3b1df89e871ae995d329439b63a0ef5afc9c32806fea9fc88d4fb082176b984",
   "gen_hash_verilog": "sha256:a24c5c060cd1e422777335e8620254dbb62b58f9d725177606d91e6d09aecc2e",
   "gen_hash_zig": "sha256:d1bb7862ff06c191347897f116c108121aa1e769118986cdb2507e4cb1c04275",
   "module": "SPI_Testbench",

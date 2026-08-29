@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f7f34832137cd38c36ccf6c7cd6852b168c55a8b7e9b1bc6bc720884f8bc5a2c",
-  "gen_hash_rust": "sha256:ade7c150d0d466e0f7278c17c0b24c3bf47d995862f4ba318773f0091e2ebdd9",
+  "gen_hash_rust": "sha256:2b2d32009e8989648fbef34bdb1b8c0b12e0adb47b7ed9295970402300309261",
   "gen_hash_verilog": "sha256:7061847e662e1dbeddea25d496c3f305bb0de99b139d86fe9ae7a4046b67bbbc",
   "gen_hash_zig": "sha256:dc2bee09d5398cc5fabe3f2bc80fee44cc7afbe9670f0989bc91f1a920bdf7b0",
   "module": "chimera",
   "ring": 12,
-  "sealed_at": "2026-08-29T20:03:07Z",
+  "sealed_at": "2026-08-29T22:37:14Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:679c0ec0793e64b28bbbcd96e15b8c0dab7f67a0519177ca416b02e619290711",
   "spec_path": "specs/physics/chimera_best_gamma.t27"

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:3ddeccd50cd1136b6d62b224d7d34312116ed95b066fac620cdd558eadf3d3e3",
-  "gen_hash_rust": "sha256:b387b20b4f1e50fef936baeeb0d34f1a29f719352ce38c2b23dfea412646f316",
+  "gen_hash_rust": "sha256:db2d15e40c5ed1501ab9f574c518fd4c79788c37bf5286c3dd6b8b8f01cf61df",
   "gen_hash_verilog": "sha256:6eb37271d46236f73d0ad37ccae34ec1aafd808093bf4a68dc17fcd05977d3c7",
   "gen_hash_zig": "sha256:4182555d7e3e650880b8c512dd96046dee672bbf4827c58b536874ceda2bcc70",
   "module": "Stdlib",

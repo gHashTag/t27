@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:14e1d5d3c9a03ece5fd7a7d3d42143e01a16cbef260a025a13d308e28b8275ec",
-  "gen_hash_rust": "sha256:99f2cdb9a0b0eb3f15cdcfcf291d44e2938d8a1964b94b95710b547c218c5ce5",
+  "gen_hash_rust": "sha256:c0f78b1fd5bbaca8b79d02bddf32919cd0ddd6a0cc73285f8122d50d2b039086",
   "gen_hash_verilog": "sha256:13f42ae3940e3b699d0566e8583d434bbe67173797f7002b7f627c5d7db7cdad",
   "gen_hash_zig": "sha256:81036639259f976ef96c72ef1d5c79c1c610ca80daddb8993e356c7c68c09583",
   "module": "DqnTarget",

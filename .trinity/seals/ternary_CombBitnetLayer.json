@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:7da3c9919ffc8b9ba28661d82cfddf4b5dc8f5f4846efb53876c826fd89a385b",
-  "gen_hash_rust": "sha256:68ddfa5d60382fbef276c4f0dbb3b4d88df1c1041bb959f77c637c7ad49351e0",
+  "gen_hash_rust": "sha256:5fca0b02fc71ba321be03f7f9d426b6f2a459a8a32425c1caf796f502ba7b4e0",
   "gen_hash_verilog": "sha256:ed2cb3c710032a303b7737685129b136f2e7e627069d8c821c8c2c83fe5dde00",
   "gen_hash_zig": "sha256:7e9dbc689ad8fddbc3509b995f3400dc033178cdf9cc1abe1e2d00688aae100d",
   "module": "CombBitnetLayer",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:105570e1b9856293381a0dd3a7365177b880aaf561e8659f5d50e240a593b5be",
   "spec_path": "specs/ternary/comb_bitnet_layer.t27"
 }

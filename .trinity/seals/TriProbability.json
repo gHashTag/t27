@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:ad01e6819bfc8504375d9b6746360876f2ea597e033ba28a27c1f1cbadb5ba99",
-  "gen_hash_rust": "sha256:3ad1305b243ccf8abb3d233a693a67122dfebe78e4b30b96d44ac08849deec8a",
+  "gen_hash_rust": "sha256:590e65536993667afab0f450f8f02f375dd1a821e9fa94c6e81f56b1d8435ce2",
   "gen_hash_verilog": "sha256:af34b531a35c6a11c1d91acda715c81b4740415025f0a868d12be6ddb1aa470a",
   "gen_hash_zig": "sha256:6ef5bbf46be5098597db81736c14467adbe0238daed01454789f2fec04017b03",
   "module": "TriProbability",

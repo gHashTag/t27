@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:5faf3e4bb7b7e74893ecd0c35c4b51250cf5352759c05ef4218f2687662db5d1",
-  "gen_hash_rust": "sha256:50194232d11ddf83b94af11633393b46af49df0bb7e709a52a7b1a3bf626a892",
+  "gen_hash_rust": "sha256:966c8dd10e1481a76ac78874e41d1d0173598a3a926602f3dbdbfd9331c3f57f",
   "gen_hash_verilog": "sha256:8e3ff256989bad9ae75be32838d2a5ad804f1c7d2d0560e7aec39e362f869f04",
   "gen_hash_zig": "sha256:d208209c569cf46976f12ba6175d1a4f848bb4a5b777b6d7410c2b9f02db18d1",
   "module": "neural_gamma",

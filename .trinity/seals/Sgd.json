@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:6587460deb68f02117dac54128ecd7009dd82b8cba788a2d7ba2068765fc97cc",
-  "gen_hash_rust": "sha256:74d4d24e88edca93eb37182d8d8afb21bc6e1257e5e16893ff2eced6922a6e12",
+  "gen_hash_rust": "sha256:db71b194a18f49645d982f52b64671666f95af68ca893f858eba9910e0116bcc",
   "gen_hash_verilog": "sha256:63efc2518a93f62b16ca15a406e13d99f85df6d22444d58711b62eed73e0987a",
   "gen_hash_zig": "sha256:7d2484bb25cfb0836148e5cc8134729ce30ca8228cbea4dd33674118a40fd9f2",
   "module": "Sgd",

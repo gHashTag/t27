@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:cc48b18c26d1c4dc827c2a004a50876cfd58ec0708e3c9d0ca2cf91f7e27b27e",
-  "gen_hash_rust": "sha256:3d9f4cf87e1b4a3eea7d02a50437bc49f2080797e3630c3c7c0a0ddc99a8fab7",
+  "gen_hash_rust": "sha256:454741a39848e892984bf8ac1ba1208d54d7c1cc40a51504cedb994d823f956d",
   "gen_hash_verilog": "sha256:9dfee095da0ad86a68274619e14cc0db7d3d7c5b1bce259bf4b8ac85334f4dc5",
   "gen_hash_zig": "sha256:9c476d3e25cc8001ef248c871c4869858288d573c27102023b6a574b58cfb67c",
   "module": "TriFs",

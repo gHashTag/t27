@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:78b6dd727574056a3d49d25f439a70ae6700f50ee620bbcb9da3a83d71a1378a",
-  "gen_hash_rust": "sha256:0a86f7f1b02c30581fd8f42360761c4ecfbd7dc6a151396ff651059aa8f59691",
+  "gen_hash_rust": "sha256:404fec091b0da67fcc8b22faeb55681956c717fb554761ed07a22649d1069a4f",
   "gen_hash_verilog": "sha256:5727c52529ec79f470791f6de1e0a855be8b99e472f07fc5243ac03a0215c96d",
   "gen_hash_zig": "sha256:46d418fa2938f767b33e55fe1cf9f39daf042c04ffbbdf2028795887a04cc381",
   "module": "TriStack",

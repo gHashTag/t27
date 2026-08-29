@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:84a16ca091923e584e1623ea77016568c7d4672ea4afbb765aafce02f715d334",
-  "gen_hash_rust": "sha256:846f4aba2cc98fae197f053fef8691d285eafff2f2dcd54b7c88e7af893584c2",
+  "gen_hash_rust": "sha256:9ea1e86ae111a2d4ca5ffa31fe2f6efed08201198d124b3131d0ad8e306315a2",
   "gen_hash_verilog": "sha256:ff00e0682cb2ef4ddd116b6738071024f06fe9651de0cfab8758f48bbdecb33d",
   "gen_hash_zig": "sha256:f81c5145d2d0b3f80752974522e792aa8d5e5d81c33fc560b7089bd93cfc09be",
   "module": "HSLM",
