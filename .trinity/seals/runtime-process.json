@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:609285c23ed1c6091fe5e6505e7d5df8c44422a154c705e085f3b5ea9bee915e",
-  "gen_hash_rust": "sha256:ea4efbd62d0d8dfe62cd280968f47b5ea3d1f8bb83edc5370301fd0412f5fd7a",
+  "gen_hash_rust": "sha256:f1959a5da7d74ddc2deefbc03fd24dcad1cc90e1923a13ae1ec0ba2ecb7031ce",
   "gen_hash_verilog": "sha256:ed0ab46eb6f5b22beb547de1ca0e0faa74575d2347b08690209c41ce0d7a65b4",
   "gen_hash_zig": "sha256:12feb51c696c30eae736e5ce14235f474a71117a657cda7b88832b29058c8501",
   "module": "runtime-process",

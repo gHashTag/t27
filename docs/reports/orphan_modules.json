@@ -1,0 +1,10 @@
+{
+  "_what": "Per-crate ceiling on .rs files under src/ that no `mod` declaration reaches from the crate root. Measured by `tri mods orphan --gate`.",
+  "_why": "#2427, a Zig-lexer PR, removed `mod elab;` from cli/tri/src/main.rs in the same hunk as two other lines and left the 319-line file. cargo build cannot error on a file it does not compile, the suite fell 358 -> 354, and no gate reads the test count. Nothing printed a word for six days (#2900).",
+  "_rule": "Exact match, not an upper bound. A count BELOW its ceiling fails too, so the next orphan cannot hide in the slack -- lower the number in the commit that connects a file.",
+  "_bootstrap_7": "Pre-existing, not repaired here: _enrich/mod.rs, math_pslq.rs, neural/attention.rs, neural/hslm.rs, runtime_minimal.rs, runtime_minimal_test.rs, tooling.rs. The last one holds 7 gate bodies and is #2905; the rest are unexamined. Connecting any of them is a decision about what goes red, not a repair.",
+  "ceilings": {
+    "bootstrap": 7,
+    "cli/tri": 0
+  }
+}

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:3dc4646499a42d40bc6dff17bd58a977d11c1a9710184e331084b5f22ffb14b3",
-  "gen_hash_rust": "sha256:d293f5540778a599f165a9133eea579c28602881c3e79f9afac3ce77969ddaef",
+  "gen_hash_rust": "sha256:e067d80b3552f1af708cd8e53142f7502052d12c160ea2d9ec5aa4b409e83ea9",
   "gen_hash_verilog": "sha256:ba40e2dc3aae73023727f9769a3bb277418278a05fd35004842a8831276e4f31",
   "gen_hash_zig": "sha256:f7c17228bd7008d4b59d0256a1a57a75a56faca1fe6a62f497fdb82656232e6a",
   "module": "TriBezier",

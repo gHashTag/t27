@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:f2724f7985b687d827ee90e08449d67cab75bd741000998a45a646cddd14c6f4",
-  "gen_hash_rust": "sha256:246ffd5f440f73d8e83a159cb533026f27153bec55c364806a669c41081d0242",
-  "gen_hash_verilog": "sha256:ae2e3762ea7a4568c1e0b59405276e92aaa38b51729c9811180a3f768b3d36ea",
+  "gen_hash_rust": "sha256:974513cb140be9a57a12c2c1ba106dfe92460c2c35bbdbdff80f9471e6761b86",
+  "gen_hash_verilog": "sha256:d8973055bec71b9e6e223e2045f359143b483e7f15826b754b057321ea687c6b",
   "gen_hash_zig": "sha256:72d89c036e3ed6693d284669f96c367f071bbc6fa100dda139275446cb3242a0",
   "module": "GftSmul",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:48Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:822f44bf1805403da8da036bcb562da391f26ccf15a7bc4250b0c7d53acfc07e",
   "spec_path": "specs/ternary/gft_smul.t27"
 }

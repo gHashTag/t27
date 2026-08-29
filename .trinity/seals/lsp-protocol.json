@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:4653ade74d9e3b7fda2253fd66cd91cd0a8665ae2657deac8937783dd0ca5724",
-  "gen_hash_rust": "sha256:36d934cb9c887eddb82a504e7ec332c829fa9b0e48acf90645ccd6e1b458fbea",
+  "gen_hash_rust": "sha256:0055f5a13fc3432b9b43cf446f22930659caabfeed1846b1ef4cf2418c3b609b",
   "gen_hash_verilog": "sha256:3faed84f02a6c568d0b5c6889ef18e45aa4537ca3371e8050cd448661680c84e",
   "gen_hash_zig": "sha256:2ca05a7332467d257b722ba577b5897eb12b5f031cc1ffb6ad707a9f3d8d07aa",
   "module": "lsp-protocol",

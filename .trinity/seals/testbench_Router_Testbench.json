@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6e66e38d535559b72e42fea68e45911d64ff5704afdc6149ba4a5355e01809d5",
-  "gen_hash_rust": "sha256:5051bcb38400bbc0f418f0d51be2acb31ddb27d09b954b127dd2589da70381b4",
+  "gen_hash_rust": "sha256:9b0478913a29fa167e12342eb221a89f6c5e3c69e65cfe8097beb23c14055a4a",
   "gen_hash_verilog": "sha256:efda7e16d05b54058b03bbf290c7f9b7737fed8515723a5db788915b7775a657",
   "gen_hash_zig": "sha256:0b67a747a0c1dd9602a5c5d8073a0b44bab63ef9f1ba696599e5864e05027f4b",
   "module": "Router_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-29T17:46:27Z",
+  "sealed_at": "2026-08-29T22:37:11Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:80b4ee7f35d5565bc5b9ca341d79fd417db007eae274989cdb20829f0644d3db",
   "spec_path": "specs/fpga/testbench/router_tb.t27"

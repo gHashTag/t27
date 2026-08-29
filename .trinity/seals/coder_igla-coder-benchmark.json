@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:142ea8329593df6b2c4efe71990f6ddd44fd48c570ceadf86218e0624f989285",
-  "gen_hash_rust": "sha256:3c5bbe9190582639c96add526e05bf2e613b33a7855893942bcb5e4e2d3ed37d",
+  "gen_hash_rust": "sha256:9c7d9c90df2f3d6a547d9be75fc9f5a44613bb51b2c9c5232e9031cdc6eda6e8",
   "gen_hash_verilog": "sha256:ceb1772f291cf0b58e689da0d21d7179fcf06ab58791673b4b0da24c682c179c",
   "gen_hash_zig": "sha256:d2602a230521eb006feba43325f82f47c7e7d693e75f82b0b1cdb4abba98d9fb",
   "module": "igla-coder-benchmark",
   "ring": 12,
-  "sealed_at": "2026-08-29T17:46:28Z",
+  "sealed_at": "2026-08-29T22:37:11Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:364fcad4e84a7bc2b862ef2c3845af3877da670806960f9fe845b47bffa7f641",
   "spec_path": "specs/igla/coder/benchmark.t27"
