@@ -289,6 +289,28 @@ fn all_agree(candidates: &[&Decl]) -> bool {
     let first = norm(&candidates[0].text);
     candidates.iter().all(|d| norm(&d.text) == first)
 }
+/// The names `resolve` refused to splice, as it explained them.
+///
+/// The refusal is already written down -- `resolve` puts an
+/// `// UNRESOLVED <name>: declared in A and B -- ambiguous, not spliced`
+/// comment in the source it returns. Every backend then strips comments, so
+/// the compiler's own account of why a type is missing reaches nobody, and
+/// `cc` reports `unknown type name 'Trit'` with no cause attached (#2764).
+///
+/// Returning them lets the gen commands put the explanation on stderr, where
+/// the person reading the error is. stdout stays exactly the generated code.
+pub fn unresolved_notes(resolved: &str) -> Vec<String> {
+    resolved
+        .lines()
+        .map(str::trim)
+        // Both halves of the shape, not just the prefix: a line reading
+        // `// UNRESOLVED is a word` is prose, and matching on the prefix alone
+        // reports it as a refusal.
+        .filter(|l| l.starts_with("// UNRESOLVED ") && l.contains(": declared in "))
+        .map(|l| l.trim_start_matches("// ").to_string())
+        .collect()
+}
+
 
 pub fn resolve(input_path: &Path, source: &str) -> String {
     let specs_root = match find_specs_root(input_path) {
@@ -393,6 +415,11 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     // produces byte-identical output.
     pulled.sort_by(|a, b| (&a.origin, &a.name).cmp(&(&b.origin, &b.name)));
     ambiguous.sort();
+    // A name can enter the frontier again on a later round -- it is never added
+    // to `pulled_names`, since nothing was pulled -- so without this the same
+    // refusal is written twice. It printed `UNRESOLVED PHI` twice for
+    // `specs/physics/sacred_verification.t27`.
+    ambiguous.dedup();
 
     // Rewrite `module::name` / `module.name` to the bare name the splice
     // declares. Longest first, so `a::bc` is not damaged by rewriting `a::b`.
@@ -639,3 +666,36 @@ mod agree_tests {
         assert!(all_agree(&[&a]));
     }
 }
+
+#[cfg(test)]
+mod notes_tests {
+    use super::*;
+
+    #[test]
+    fn a_refusal_is_reported_without_its_comment_marker() {
+        let src = "// UNRESOLVED PHI: declared in a and b -- ambiguous, not spliced\nconst X = 1;\n";
+        assert_eq!(
+            unresolved_notes(src),
+            vec!["UNRESOLVED PHI: declared in a and b -- ambiguous, not spliced".to_string()]
+        );
+    }
+
+    #[test]
+    fn an_ordinary_comment_is_not_a_refusal() {
+        assert!(unresolved_notes("// UNRESOLVED is a word\n// note\nconst X = 1;\n").is_empty());
+    }
+
+    #[test]
+    fn a_resolved_source_reports_nothing() {
+        assert!(unresolved_notes("const X = 1;\nfn f() {}\n").is_empty());
+    }
+
+    #[test]
+    fn an_indented_refusal_is_still_found() {
+        // The splice writes at column zero today, but the corpus indents
+        // everything under `module M;` and a future writer may match it.
+        let src = "module M;\n    // UNRESOLVED T: declared in a and b -- ambiguous, not spliced\n";
+        assert_eq!(unresolved_notes(src).len(), 1);
+    }
+}
+
