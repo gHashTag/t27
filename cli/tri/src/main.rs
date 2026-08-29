@@ -14,6 +14,7 @@ mod orphaned;
 mod cibase;
 mod fleet;
 mod fpga;
+mod elab;
 mod gates;
 mod prose;
 mod unparsed;
@@ -140,6 +141,11 @@ enum Commands {
     Gates {
         #[command(subcommand)]
         action: gates::GatesCmd,
+    },
+    /// Classify a compiler's error output before quoting a number from it.
+    Elab {
+        #[command(subcommand)]
+        action: elab::ElabCmd,
     },
     /// The structural check t27.ai offers, run locally: five verdicts, the
     /// yosys version beside the numbers, and no claim about correctness.
@@ -812,6 +818,7 @@ fn main() -> Result<()> {
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
+        Commands::Elab { action } => elab::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Abandoned { action } => abandoned::run(action)?,
         Commands::Types { action } => types_dup::run(action)?,
