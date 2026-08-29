@@ -34,6 +34,103 @@ pub enum TypesCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Hold the conflicted set: a new conflict fails, and a resolved one fails
+    /// until it is blessed away.
+    ///
+    /// Identity-keyed, not a count. A count cannot see a SWAP -- one name
+    /// resolved while another appears leaves the total unchanged and the ledger
+    /// wrong, which is the failure mode the corpus ratchet in this repository
+    /// was rebuilt to avoid.
+    Ratchet {
+        /// Rewrite the ledger from what this run measured.
+        #[arg(long)]
+        bless: bool,
+    },
+}
+
+/// Where the conflicted set is pinned.
+const LEDGER: &str = "docs/reports/type_conflicts.json";
+
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+struct Ledger {
+    /// What wrote it, so a reader knows which command to re-run.
+    generated_by: String,
+    /// Why these are tolerated at all.
+    reason: String,
+    /// Sorted, so a diff stays line-local.
+    conflicted: Vec<String>,
+}
+
+/// `(new, resolved)` between a pinned set and an observed one.
+///
+/// Set difference in both directions, deliberately. A COUNT cannot see a swap:
+/// one name resolved while another appears leaves the total unchanged and the
+/// ledger wrong.
+pub fn drift(pinned: &[String], observed: &[String]) -> (Vec<String>, Vec<String>) {
+    let p: std::collections::BTreeSet<&String> = pinned.iter().collect();
+    let o: std::collections::BTreeSet<&String> = observed.iter().collect();
+    (
+        o.difference(&p).map(|s| (*s).clone()).collect(),
+        p.difference(&o).map(|s| (*s).clone()).collect(),
+    )
+}
+
+fn ratchet(root: &std::path::Path, observed: &[String], bless: bool) -> Result<()> {
+    let path = root.join(LEDGER);
+    if bless {
+        let l = Ledger {
+            generated_by: "tri types ratchet --bless".to_string(),
+            reason: "Type names with more than one definition. Each is a name whose \
+                     domain size cannot be computed -- not because the type is infinite \
+                     but because WHICH type is undetermined. See #2774."
+                .to_string(),
+            conflicted: observed.to_vec(),
+        };
+        let mut text = serde_json::to_string_pretty(&l)?;
+        text.push('\n');
+        std::fs::create_dir_all(path.parent().unwrap()).ok();
+        std::fs::write(&path, text).with_context(|| format!("writing {}", path.display()))?;
+        println!(
+            "  blessed {} conflicted name(s) -> {}",
+            observed.len(),
+            LEDGER
+        );
+        return Ok(());
+    }
+
+    // T31 in this repository: absence is NOT amnesty. A verification mode with
+    // no oracle is a hard failure, never a silent self-blessing.
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        println!("  RATCHET: FAIL -- no ledger at {LEDGER}.");
+        println!("  Run `tri types ratchet --bless` once, review the file, and commit it.");
+        println!("  Absence is not amnesty.");
+        std::process::exit(1);
+    };
+    let l: Ledger =
+        serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+
+    let (new, gone) = drift(&l.conflicted, observed);
+
+    println!(
+        "  ledger {} name(s), observed {}",
+        l.conflicted.len(),
+        observed.len()
+    );
+    for n in &new {
+        println!("    + {n}  NEW conflict");
+    }
+    for n in &gone {
+        println!("    - {n}  resolved -- remove it from the ledger");
+    }
+    if new.is_empty() && gone.is_empty() {
+        println!("  RATCHET: CLEAN");
+        return Ok(());
+    }
+    println!();
+    println!("  A RESOLVED name fails too, on purpose. An entry that stops being");
+    println!("  true and stays in the ledger is slack the next conflict hides in --");
+    println!("  the same rule the corpus ratchet applies to an unexpected PASS.");
+    std::process::exit(1);
 }
 
 /// `const Name = struct {` -- the Zig spelling, and the one the corpus uses
@@ -246,8 +343,31 @@ pub fn verdict(defs: &[Def]) -> &'static str {
 }
 
 pub fn run(cmd: &TypesCmd) -> Result<()> {
-    let TypesCmd::Dup { all } = cmd;
     let root = repo_root()?;
+    let all = match cmd {
+        TypesCmd::Dup { all } => *all,
+        TypesCmd::Ratchet { bless } => {
+            let specs = read_specs(&root);
+            if specs.is_empty() {
+                anyhow::bail!(
+                    "no specs under {}/specs -- nothing was read",
+                    root.display()
+                );
+            }
+            let mut by_name: BTreeMap<String, Vec<Def>> = BTreeMap::new();
+            for (f, src) in &specs {
+                for (n, d) in defs_in(f, src) {
+                    by_name.entry(n).or_default().push(d);
+                }
+            }
+            let observed: Vec<String> = by_name
+                .iter()
+                .filter(|(_, v)| v.len() > 1 && verdict(v) == "CONFLICTED")
+                .map(|(k, _)| k.clone())
+                .collect();
+            return ratchet(&root, &observed, *bless);
+        }
+    };
     let specs = read_specs(&root);
     if specs.is_empty() {
         anyhow::bail!(
@@ -272,7 +392,7 @@ pub fn run(cmd: &TypesCmd) -> Result<()> {
 
     for (name, defs) in &multi {
         let v = verdict(defs);
-        if v == "DUPLICATED" && !*all {
+        if v == "DUPLICATED" && !all {
             continue;
         }
         println!("  {name}  {v}  ({} definitions)", defs.len());
@@ -392,6 +512,32 @@ mod tests {
         let d = parse("struct A {}\nstruct B {}\nstruct C {\n    x: u8,\n}\n");
         let names: Vec<&str> = d.iter().map(|(n, _)| n.as_str()).collect();
         assert_eq!(names, vec!["A", "B", "C"], "{names:?}");
+    }
+
+    /// The case a count cannot see: one resolved, one appeared, total unchanged.
+    #[test]
+    fn a_swap_at_a_constant_count_is_two_findings() {
+        let pinned = vec!["A".to_string(), "B".to_string()];
+        let observed = vec!["A".to_string(), "C".to_string()];
+        let (new, gone) = drift(&pinned, &observed);
+        assert_eq!(new, vec!["C".to_string()]);
+        assert_eq!(gone, vec!["B".to_string()]);
+        assert_eq!(pinned.len(), observed.len(), "the count is identical");
+    }
+
+    /// A resolved conflict is a failure, not a quiet win: slack in the ledger
+    /// is where the next one hides.
+    #[test]
+    fn a_resolved_name_is_reported() {
+        let (new, gone) = drift(&["A".to_string(), "B".to_string()], &["A".to_string()]);
+        assert!(new.is_empty());
+        assert_eq!(gone, vec!["B".to_string()]);
+    }
+
+    #[test]
+    fn agreement_is_silence() {
+        let (new, gone) = drift(&["A".to_string()], &["A".to_string()]);
+        assert!(new.is_empty() && gone.is_empty());
     }
 
     #[test]
