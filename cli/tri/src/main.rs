@@ -15,6 +15,7 @@ mod cibase;
 mod fleet;
 mod fpga;
 mod elab;
+mod modreach;
 mod gates;
 mod prose;
 mod unparsed;
@@ -40,6 +41,19 @@ mod synth;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Subcommand)]
+pub enum ModsCmd {
+    /// List them.
+    Orphan {
+        /// Compare against docs/reports/orphan_modules.json and exit non-zero on a change.
+        #[arg(long)]
+        gate: bool,
+        /// Negative control: prove this gate can see a planted orphan.
+        #[arg(long)]
+        self_check: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -141,6 +155,11 @@ enum Commands {
     Gates {
         #[command(subcommand)]
         action: gates::GatesCmd,
+    },
+    /// Source files no crate root reaches, and so nothing compiles.
+    Mods {
+        #[command(subcommand)]
+        action: ModsCmd,
     },
     /// Classify a compiler's error output before quoting a number from it.
     Elab {
@@ -818,6 +837,15 @@ fn main() -> Result<()> {
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
+        Commands::Mods { action } => match action {
+            ModsCmd::Orphan { gate, self_check } => {
+                if *self_check {
+                    modreach::self_check()?
+                } else {
+                    modreach::run(*gate)?
+                }
+            }
+        },
         Commands::Elab { action } => elab::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Abandoned { action } => abandoned::run(action)?,
