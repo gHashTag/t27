@@ -369,40 +369,89 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                 description: String::new(),
             };
 
-            let j = i + 1;
+            // TWO defects lived here, and together they truncated every
+            // generated signature to `fn name(first_param: T) -> void`.
+            //
+            // (1) `let j = i + 1;` was never incremented and every arm ended in
+            //     `break`, so this `while` examined exactly ONE line by
+            //     construction. A .tri writes `params:` before `returns:`:
+            //
+            //         init:
+            //           params:
+            //             - name: allocator
+            //               type: "std.mem.Allocator"
+            //             - name: rows
+            //               type: "usize"
+            //           returns: "Matrix"
+            //
+            //     so the params branch was taken, it broke, and `returns` kept
+            //     its "void" default. Every function in the corpus returns void.
+            //
+            // (2) The inner loop advanced by one line and broke on anything not
+            //     starting with `-`. The line after `- name: allocator` is
+            //     `type: "..."`, so it stopped after the FIRST parameter.
+            //
+            // Both are now driven by INDENTATION, which is what YAML nesting
+            // actually is: a key at or left of the function's own indent ends
+            // the function; a line at or left of `params:` ends the list.
+            let fn_indent = indent;
+            let mut j = i + 1;
             while j < lines.len() {
-                let next_line = lines[j].trim();
+                let raw = lines[j];
+                let next_line = raw.trim();
                 if next_line.is_empty() {
-                    break;
+                    j += 1;
+                    continue;
+                }
+                let ind = raw.len() - raw.trim_start().len();
+                if ind <= fn_indent {
+                    break; // a sibling function, or the end of `functions:`
                 }
                 if next_line.starts_with("params:") {
-                    // Collect params
                     let mut jj = j + 1;
                     while jj < lines.len() {
-                        let param_line = lines[jj].trim();
-                        if param_line.is_empty() || !param_line.starts_with('-') {
-                            break;
+                        let praw = lines[jj];
+                        let pl = praw.trim();
+                        if pl.is_empty() {
+                            jj += 1;
+                            continue;
                         }
-                        if let Some(name_part) = param_line.split("name:").nth(1) {
-                            let param_name = name_part.split(',').next().unwrap_or("").trim().to_string();
-                            let mut param = TriParam {
-                                name: param_name,
-                                type_val: "auto".to_string(),
-                                description: String::new(),
-                            };
-                            let jjj = jj + 1;
-                            if jjj < lines.len() {
-                                let type_line = lines[jjj].trim();
-                                if type_line.starts_with("type:") {
-                                    param.type_val = type_line.split("type:").nth(1).unwrap_or("")
-                                        .trim().trim_matches('"').to_string();
-                                }
+                        let pind = praw.len() - praw.trim_start().len();
+                        if pind <= ind {
+                            break; // `returns:` / `description:` / next function
+                        }
+                        if let Some(rest) = pl.strip_prefix('-') {
+                            // `- name: x` and, in some specs, `- name: x, type: y`
+                            let after = rest.split("name:").nth(1).unwrap_or("");
+                            let param_name =
+                                after.split(',').next().unwrap_or("").trim().to_string();
+                            if !param_name.is_empty() {
+                                let inline_type = pl
+                                    .split("type:")
+                                    .nth(1)
+                                    .map(|t| t.trim().trim_matches('"').to_string());
+                                function.params.push(TriParam {
+                                    name: param_name,
+                                    type_val: inline_type.unwrap_or_else(|| "auto".to_string()),
+                                    description: String::new(),
+                                });
                             }
-                            function.params.push(param);
+                        } else if pl.starts_with("type:") {
+                            // the attribute line belonging to the parameter above
+                            if let Some(last) = function.params.last_mut() {
+                                last.type_val = pl
+                                    .split("type:")
+                                    .nth(1)
+                                    .unwrap_or("")
+                                    .trim()
+                                    .trim_matches('"')
+                                    .to_string();
+                            }
                         }
                         jj += 1;
                     }
-                    break;
+                    j = jj;
+                    continue;
                 } else if next_line.starts_with("returns:") {
                     function.returns = next_line.split("returns:").nth(1).unwrap_or("void")
                         .trim().trim_matches('"').to_string();
@@ -410,7 +459,7 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                     function.description = next_line.split("description:").nth(1).unwrap_or("")
                         .trim().trim_matches('"').to_string();
                 }
-                break;
+                j += 1;
             }
 
             current_function = Some(function);
