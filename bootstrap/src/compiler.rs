@@ -22324,6 +22324,47 @@ impl RustCodegen {
 
     /// W638: how many `test` / `invariant` blocks this backend will not lower,
     /// counted over the whole tree so the header can declare the omission.
+    /// Does this function declaration carry a body this backend can lower?
+    ///
+    /// Extracted so the BANNER and the emitter cannot drift: the banner counts
+    /// what will become `unimplemented!()`, and it must count it with the same
+    /// rule that produces it. Two copies of this list is how `StmtAssign` went
+    /// missing from one of them (#2875).
+    fn fn_has_body(node: &Node) -> bool {
+        node.children.iter().any(|c| {
+            matches!(
+                c.kind,
+                NodeKind::ExprReturn
+                    | NodeKind::StmtExpr
+                    | NodeKind::StmtLocal
+                    | NodeKind::StmtAssign
+                    | NodeKind::StmtIf
+                    | NodeKind::StmtWhile
+                    | NodeKind::StmtFor
+                    | NodeKind::StmtForRange
+            )
+        })
+    }
+
+    /// Functions this backend will emit as `unimplemented!()`.
+    ///
+    /// The banner declared the tests and invariants it drops and said nothing
+    /// about these, so a file holding 24 stubs read as complete. A declared
+    /// omission is not a hidden one, and this category was not declared.
+    fn count_stub_fns(ast: &Node) -> usize {
+        fn walk(n: &Node, acc: &mut usize) {
+            if n.kind == NodeKind::FnDecl && !RustCodegen::fn_has_body(n) {
+                *acc += 1;
+            }
+            for c in &n.children {
+                walk(c, acc);
+            }
+        }
+        let mut acc = 0;
+        walk(ast, &mut acc);
+        acc
+    }
+
     fn count_unlowered(ast: &Node) -> (usize, usize) {
         fn walk(n: &Node, t: &mut usize, i: &mut usize) {
             match n.kind {
@@ -22366,10 +22407,12 @@ impl RustCodegen {
         // "dropped". Emitting library code without tests is a defensible
         // policy; emitting it silently is the defect (T44/T48).
         let (n_tests, n_invariants) = Self::count_unlowered(ast);
-        if n_tests > 0 || n_invariants > 0 {
+        let n_stubs = Self::count_stub_fns(ast);
+        if n_tests > 0 || n_invariants > 0 || n_stubs > 0 {
             self.write_line(&format!(
-                "// NOT LOWERED BY THIS BACKEND: {} test(s), {} invariant(s).",
-                n_tests, n_invariants
+                "// NOT LOWERED BY THIS BACKEND: {} test(s), {} invariant(s), {} \
+                 function(s) with no body.",
+                n_tests, n_invariants, n_stubs
             ));
             self.write_line(
                 "// This backend emits declarations only. The spec's checks live in",
@@ -22533,16 +22576,7 @@ impl RustCodegen {
         ));
 
         // Check if there's a body
-        let has_body = node.children.iter().any(|c| {
-            // StmtAssign was absent, so a function whose body is assignments
-            // ONLY tested as bodiless and was emitted as `{ unimplemented!() }`
-            // -- a stub rustc accepts everywhere and that panics at run time.
-            // 53 functions in 35 specs, and Zig and C lower every one: the
-            // clock `tick()` in the FPGA testbenches, `uart_reset`, six state
-            // setters in top_level, both `on_clock` hardware steps. Exactly the
-            // pure-mutation functions a state machine is made of.
-            matches!(c.kind, NodeKind::ExprReturn | NodeKind::StmtExpr | NodeKind::StmtLocal | NodeKind::StmtAssign | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange)
-        });
+        let has_body = Self::fn_has_body(node);
 
         // Infer which locals need `let mut`: scan body for any assignment.
         self.mut_names.clear();
