@@ -6128,6 +6128,16 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
         for err in &result.errors {
             println!("  - {}", err);
         }
+        // W717: the exit code must carry the printed verdict. Without this the
+        // command said FAILED and returned success, so the arity error #1921
+        // deliberately promoted from warning to HARD ERROR could not fail
+        // anything -- the promotion moved the word and not the consequence.
+        // `suite.rs` judges the typecheck phase by `status.success()`, so that
+        // phase has never been able to fail either.
+        //
+        // Measured before changing it: 455 specs typecheck OK, 0 FAILED. This
+        // is green on arrival, not red -- which is why it can land at all.
+        std::process::exit(1);
     }
     Ok(())
 }

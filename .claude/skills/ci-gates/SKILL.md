@@ -7427,3 +7427,130 @@ then check each against the helper**, which is a grep for `" = "` and a
 reading, not a grep for a function name.
 
 Related: §241, a guard whose precondition had stopped holding.
+
+## 255. The compiler has the check, and cannot reach the place
+
+`bootstrap/src/compiler.rs:21479` promotes a wrong argument count to a **hard
+error** — #1921, closed, and live. A probe spec with `f(x)` against
+`fn f(a: u32, b: u32)` gives `Typecheck FAILED (1 errors, 0 warnings)`.
+
+Move the same call into a `forall` invariant and it gives `Typecheck OK`.
+
+The reason is a decision, written down in the parser:
+
+    // The quantified-invariant arm: recognised by name, discarded on
+    // purpose. What `forall` MEANS at codegen is #2774's decision.
+
+A discarded clause produces **no AST nodes at all**, so every AST-based check is
+blind to it by construction — including `t27c check-calls`, which finds **95** of
+these corpus-wide. Measured: **0 of 20** clause-site candidates appear in its
+output; **15 of 15** partner sites outside clause bodies do.
+
+**Before building a checker, ask whether one exists and what it cannot see.**
+The answer here was both: it exists, it is thorough, and there is a construct
+class it can never reach — which is exactly the gap worth filling, and only
+that gap.
+
+## 256. Typecheck FAILED, exit 0
+
+The same probe, one line further:
+
+    $ t27c typecheck bad.t27
+    Typecheck FAILED (1 errors, 0 warnings):
+      - function 'f' expects 2 args, got 1 at line 8
+    $ echo $?
+    0
+
+`main.rs` prints the failure and returns `Ok(())`. `suite.rs` judges the phase
+by `status.success()`. So the hard error #1921 was raised to a hard error
+**cannot fail anything**, and has not since it was promoted.
+
+Third command in this repository found printing a failure and exiting zero,
+after `t27c catalog-gate` and `suite --ratchet --corpus-only`.
+
+**A message is not an exit code, and a reader is not a gate.** When you promote
+a warning to an error, run the binary and read `$?` — the promotion is not done
+until that number moves.
+
+## 257. Nineteen of thirty-one rows were a declaration that wrapped
+
+The arity column's first run reported **31 mismatches**. Thirteen were
+`cordic_top  passes 4, declared 0`.
+
+    fn cordic_top(
+        clk: bool,
+        rst_n: bool,
+        ...
+
+My declaration reader took the head line, looked for `)`, found none, and
+recorded **arity zero** — then reported every correct four-argument call as a
+defect. Sixty-three declarations in this corpus wrap.
+
+Fixed by abstaining: if the parameter list does not close on its own line, the
+reader rules on nothing. **31 → 13 rows, 12 sites** — and the 12 are exactly
+what a separate agent had derived by hand, reached by a different route.
+
+Fifth scanner artifact this session. The pattern across all five is the same:
+**the reader stops at a line boundary the language does not have.**
+
+## 258. Four of six rules abstain, and that is the design
+
+A naive scan of the same 924 clause bodies reports ~317 arity mismatches. The
+shipped column reports 13. The difference is not filtering, it is refusal:
+
+| rule | abstains on | removes |
+|---|---|---|
+| R2 | a paren that does not close in the window | 0 today |
+| R3 | a name no declaration in scope defines | **595 of 1530 calls** |
+| R4 | method position — `x.len()`, the receiver IS the argument | 307 |
+| R5 | a name whose visible scope offers more than one arity | 0 today |
+
+R3 and R5 remove nothing measurable **today**, and both ship anyway: they
+abstain for a structural reason, not by today's accident. R4's bucket is 306
+`.len()` calls, and the alternative — a builtin allowlist — is the thing this
+report refuses by name, because an allowlist gets tuned until the number looks
+right.
+
+**Publish the number that survives, and put the funnel in the commit message.**
+A report showing "317 → 13" invites the reader to believe 304 defects were
+repaired. None were; 304 questions were declined.
+
+## 259. Zero failures, then a hundred and one, then ten
+
+I filed `t27c typecheck` printing `Typecheck FAILED` and exiting 0, and declined
+to fix it: *"95 existing mismatches would make it red on arrival."*
+
+Next pass, I measured instead of reasoning. Three numbers, in order:
+
+    455 OK, 0 FAILED       my first sweep -- and WRONG
+    549 OK, 101 FAILED     the whole corpus, counted by exit code
+     10 print FAILED       the population the change actually touches
+
+The first was a broken ruler: the loop classified by grepping the last output
+line for `OK` or `FAILED`, and **195 files printed neither** — they die on a
+parse error. They fell through both branches and were counted as nothing.
+
+The second was right and irrelevant: 101 already exit non-zero, before any
+change, because a parse error is not a typecheck verdict.
+
+**Only the third is the blast radius**, and it is ten specs. The control that
+settled it: `suite --corpus-only` exits **101 before and 101 after**, with the
+output differing by one thread id inside a panic message.
+
+**A number that answers a different question is worse than no number**, because
+it comes with the confidence of having been measured. All three of these were
+measurements. Only one was of the thing being changed.
+
+## 260. The reason I gave for not fixing it was not the reason it was unsafe
+
+"95 existing mismatches" — those are `t27c check-calls` findings, corpus-wide,
+in a different command. `typecheck` never reports them, and nothing in
+`.github/`, `scripts/` or `Makefile` invokes either.
+
+The real risk was `suite.rs`, which spawns `typecheck` and judges the phase by
+`status.success()`. That is the one place an exit code change could turn a
+green phase red — and it is not what I named when I declined.
+
+**When you decline a fix, name the mechanism, not a nearby number.** A number
+sounds like evidence and is not falsifiable as a reason; "suite judges this
+phase by the exit code, and N specs would flip" is both.
