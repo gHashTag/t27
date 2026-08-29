@@ -213,7 +213,34 @@ fn sources(root: &Path) -> Vec<PathBuf> {
     v
 }
 
+/// Is this line WRITING the path rather than reading it?
+///
+/// A path a program creates is supposed to be absent. The first version did not
+/// ask, and reported `save_active_skill` and `save_registry` -- two functions
+/// whose entire job is to write the file it called missing.
+fn is_write_site(lines: &[&str], at: usize) -> bool {
+    let lo = at.saturating_sub(1);
+    let hi = (at + 4).min(lines.len());
+    let window = lines[lo..hi].join(" ");
+    window.contains("fs::write")
+        || window.contains("File::create")
+        || window.contains("create_dir")
+        || window.contains("OpenOptions")
+        || window.contains("to_string_pretty")
+        || window.contains("write_all")
+        || window.contains(".write(")
+}
+
 /// A hint, not a verdict: does the handling nearby look like a bare exit?
+///
+/// MEASURED HIT RATE: 0 of 5. Every site this marked on its first run handled the
+/// absence properly and said so with `println!` -- which the first version did not
+/// count as reporting, because its vocabulary was a GATE's (`bail`, `FAIL`,
+/// `exit(1`) while these are CLI commands that talk to a person.
+///
+/// `println!` is added and the mark is kept rather than deleted: a hint with a
+/// stated hit rate is worth more than one without, and the next absent input
+/// handled by a bare `return` is exactly what it exists to surface.
 fn looks_quiet(lines: &[&str], at: usize) -> bool {
     let lo = at.saturating_sub(2);
     let hi = (at + 6).min(lines.len());
@@ -226,6 +253,8 @@ fn looks_quiet(lines: &[&str], at: usize) -> bool {
         || window.contains("findings.push")
         || window.contains("FAIL")
         || window.contains("eprintln")
+        || window.contains("println")
+        || window.contains("print(")
         || window.contains("panic")
         || window.contains("exit(1")
         || window.contains("exit(2");
@@ -237,6 +266,7 @@ pub fn run(cmd: &OrphanedCmd) -> Result<()> {
     let root = repo_root()?;
     let mut hits = 0usize;
     let mut filtered = 0usize;
+    let mut written = 0usize;
     let mut scanned = 0usize;
 
     for src in sources(&root) {
@@ -270,6 +300,13 @@ pub fn run(cmd: &OrphanedCmd) -> Result<()> {
                     }
                     continue;
                 }
+                if is_write_site(&lines, i) {
+                    written += 1;
+                    if *show_filtered {
+                        println!("  filtered (written)  {}:{}  {}", rel, i + 1, lit);
+                    }
+                    continue;
+                }
                 hits += 1;
                 let quiet = if looks_quiet(&lines, i) {
                     "  quiet?"
@@ -285,14 +322,19 @@ pub fn run(cmd: &OrphanedCmd) -> Result<()> {
 
     println!();
     println!(
-        "  {hits} absent input(s) named in production code; {filtered} fixture(s) filtered out of \
-         {scanned} path literal(s)"
+        "  {hits} absent INPUT(s) named in production code; {filtered} fixture(s) and \
+         {written} write-site(s) filtered out of {scanned} path literal(s)"
     );
     println!();
-    println!("  `quiet?` marks a line whose nearby handling looks like a bare exit with no");
-    println!("  report. It is a HINT for a reader, never a verdict -- the control flow decides,");
-    println!("  and this reads literals. Paths built by concatenation are invisible here, so");
-    println!("  every number above is a lower bound.");
+    println!("  `quiet?` marks a site that returns WITHOUT SAYING ANYTHING. That is a shape,");
+    println!("  not a verdict: a loader returning an empty default for a missing state file is");
+    println!("  correct, and both of today's marks are exactly that. Measured as a defect");
+    println!("  predictor the mark is 0 for 5. It stays because the next absent input handled by");
+    println!("  a bare `return` is what it exists to surface.");
+    println!();
+    println!("  This reads LITERALS. Paths built by concatenation are invisible here, so every");
+    println!("  number above is a lower bound -- including on the case this command was written");
+    println!("  for, which it does not find. See the module docs.");
     Ok(())
 }
 
@@ -342,6 +384,57 @@ mod tests {
         assert!(!looks_like_path("t27-conformance-index/v0.1"));
         assert!(!looks_like_path("gHashTag/ghashtag.github.io"));
         assert!(!looks_like_path(r"^(tbd|todo|wip|n/?a)$"));
+    }
+
+    /// The three false positives behind the first run's write-site noise.
+    #[test]
+    fn a_write_site_is_not_a_missing_input() {
+        let src = vec![
+            "fn save(root: &Path) -> Result<()> {",
+            "    let p = trinity_path(root, \"state/active-skill.json\");",
+            "    let data = serde_json::to_string_pretty(skill)?;",
+            "    fs::write(&p, data)?;",
+        ];
+        assert!(
+            super::is_write_site(&src, 1),
+            "the save path must be filtered"
+        );
+    }
+
+    #[test]
+    fn a_reader_is_not_a_write_site() {
+        let src = vec![
+            "fn load(root: &Path) -> Result<X> {",
+            "    let p = trinity_path(root, \"cells/registry.json\");",
+            "    let data = fs::read_to_string(&p)?;",
+        ];
+        assert!(!super::is_write_site(&src, 1));
+    }
+
+    /// A CLI command reports to a person with `println!`, not with `bail`. The
+    /// first version's vocabulary was a gate's, and it marked five sites that
+    /// all reported properly.
+    #[test]
+    fn println_counts_as_reporting_the_absence() {
+        let src = vec![
+            "    let path = \"a/b.json\";",
+            "    if !Path::new(&path).exists() {",
+            "        println!(\"not found: {}\", path);",
+            "        return Ok(());",
+            "    }",
+        ];
+        assert!(!super::looks_quiet(&src, 0), "println is a report");
+    }
+
+    #[test]
+    fn a_bare_return_with_no_report_is_still_marked() {
+        let src = vec![
+            "    let path = \"a/b.json\";",
+            "    if !Path::new(&path).exists() {",
+            "        return Ok(Default::default());",
+            "    }",
+        ];
+        assert!(super::looks_quiet(&src, 0));
     }
 
     #[test]
