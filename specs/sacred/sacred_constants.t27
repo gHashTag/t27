@@ -11,7 +11,7 @@ module SacredConstants;
     // ═══════════════════════════════════════════════════════════
 
     pub const SacredConstants = struct {
-        note : Namespace struct — all members are comptime constants or pure functions,
+        // Namespace struct — all members are comptime constants or pure functions
     };
 
     // ═══════════════════════════════════════════════════════════
