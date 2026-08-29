@@ -6684,115 +6684,6 @@ no failing test for input you did not know existed. State the direction the fix
 must move things BEFORE running it — a one-line invariant caught nineteen rows
 that eighteen unit tests, all green, did not.
 
-## 226. A sweep that samples round numbers reports flat regions it never measured
-
-Asked where the ceiling on quantifier domain size should sit, the first sweep
-ran the binary at 4, 8, 16, 256, 1024, 65536 … and announced "the widest flat
-region is 256…65535, a 256× span."
-
-It is not. The widest is 2^48…2^64−1, **256 times wider**. The sweep had sampled
-the endpoints of that region and no interior, so it never saw the flatness it
-was reporting about somewhere else.
-
-The fix is not more samples. A ceiling only matters **where a domain size
-sits** — between two adjacent sizes, raising it changes nothing. So the plateau
-tops *are* the distinct sizes, and the whole sweep falls out of one sorted pass
-over the multiset:
-
-    413 finite clauses occupy exactly 19 distinct sizes.
-    Nineteen rows. Every other ceiling is a synonym for one of them.
-
-**Derive the partition; sample only to cross-check.** A sampled sweep can only
-ever report the points you thought to ask about, and its silence between them
-reads exactly like flatness.
-
-## 227. A monotone ratio is a rigged metric
-
-"Which ceiling maximises clauses-per-evaluation?" sounds like it selects a knee.
-Measured across all 19 plateaus, the ratio is **monotonically non-increasing**:
-
-    92 715 per million evals at ceiling 27
-     4 730 at 2^8
-        43 at 2^16
-     0.0005 at 2^32
-
-It never rises. So the maximum is always at the smallest non-empty ceiling —
-here, 5 clauses for 10 evaluations — and no interior point can ever win. The
-metric cannot answer the question it was introduced to answer.
-
-The agent that measured this said so instead of handing back "ceiling 2", and
-that refusal is the finding.
-
-**Before optimising a ratio, check whether it is monotone over your domain.**
-If it is, the argmax is a boundary artefact, and publishing it as an optimum
-dresses a preference as a measurement.
-
-## 228. The default was explained, and the explanation was invented
-
-The census default is 65536. The reading found that 42 clauses sit at exactly
-2^16, 40 of them in `specs/igla/race/` — the fixed-point accelerator datapath,
-binders named `angle`, `psum`, `acc`. It concluded: *the default was chosen to
-admit the RACE 16-bit datapath.*
-
-Git says no. The default landed in `6631cbf6e` (#2793), whose own commit message
-quotes a **different census** (1005/100/222/544/139). The 42-clause 16-bit
-population only became visible **2h47m later**, in #2813, when the binder parser
-was fixed. The default predates the fact it was said to explain.
-
-The honest sentence is shorter and survives: *65536 is 2^16, the machine word.*
-
-**A cause is a claim with a timestamp.** When you explain why a constant is what
-it is, `git log -S` the constant and check that the reason existed first. This
-is mechanism six of the number-audit skill and it is the easiest one to commit
-while feeling insightful.
-
-## 229. Five ad-hoc greps against five built instruments, and the grep lost every time
-
-Kept as a tally because the pattern is now the point:
-
-| the grep said | the instrument said | who was right |
-|---|---|---|
-| `for all` in 135 clauses | census: 38 suffix forms | instrument — 99 matches were prose |
-| 91 files with duplicate definitions | (none) | neither: both were the same broken scanner |
-| 561 duplicates in `gf16.t27` | 0 | instrument — 110 Zig test bodies |
-| 218 skill sections | `tri skill check`: 217 | instrument — one heading is unnumbered |
-| 81 conflicted type names | `tri types dup`: 80 | instrument — my `sed` kept a prose line |
-
-Five for five. The instruments were written carefully, tested, and fired in CI;
-the greps were written in one line to answer one question and never checked.
-
-**When a one-line grep disagrees with a tool that has tests, believe the tool
-and go find the bug in the grep.** The reverse — assuming the tool has drifted —
-has been wrong every time it has come up here.
-
-## 230. "Numbering holds in 5 file(s)" — four of them had no numbers
-
-My own gate printed that line for months. Reading the rows above it:
-
-    ci-gates    228 section(s)
-    phi-loop      0 section(s)
-    tri           0 section(s)
-    tri-pipeline  0 section(s)
-    wrap-up       0 section(s)
-
-Four of the five contributed nothing. "Holds in 5 files" counts four where there
-was nothing to check — the same shape as *13 gates green* when two of them never
-ran. And "numbering holds" was read as *the sequence is intact* while §126 has
-never existed in the history of the file.
-
-The gate is not wrong. Gaps are deliberately not a failure: a section can be
-deleted, and refusing would make an append-only log unmergeable. **The summary
-line was wrong** — it named a verdict the check had not earned.
-
-    No number is used twice: 228 section(s) across 1 of 5 file(s) read.
-    The other 4 contributed no numbered section, so nothing was checked in them.
-    ci-gates: 1 number(s) never used (126). Not a failure; stated so it is
-    not mistaken for one.
-
-**Write the summary as the sentence the check can defend.** A reader takes the
-last line as the verdict and never reads the rows above it, so the last line
-carries the whole claim — and a claim that a file passed is not the same as a
-claim that a file had anything in it.
 ## 219. A guard that names one member of a class is blind to the rest of it
 
 `secret-scan` has a step called "Block hardcoded developer home paths". It greps
@@ -6903,6 +6794,115 @@ Two sessions produced this collision once; one session with two open PRs produce
 it again the same day.
 
 <<<<<<< HEAD
+## 226. A sweep that samples round numbers reports flat regions it never measured
+
+Asked where the ceiling on quantifier domain size should sit, the first sweep
+ran the binary at 4, 8, 16, 256, 1024, 65536 … and announced "the widest flat
+region is 256…65535, a 256× span."
+
+It is not. The widest is 2^48…2^64−1, **256 times wider**. The sweep had sampled
+the endpoints of that region and no interior, so it never saw the flatness it
+was reporting about somewhere else.
+
+The fix is not more samples. A ceiling only matters **where a domain size
+sits** — between two adjacent sizes, raising it changes nothing. So the plateau
+tops *are* the distinct sizes, and the whole sweep falls out of one sorted pass
+over the multiset:
+
+    413 finite clauses occupy exactly 19 distinct sizes.
+    Nineteen rows. Every other ceiling is a synonym for one of them.
+
+**Derive the partition; sample only to cross-check.** A sampled sweep can only
+ever report the points you thought to ask about, and its silence between them
+reads exactly like flatness.
+
+## 227. A monotone ratio is a rigged metric
+
+"Which ceiling maximises clauses-per-evaluation?" sounds like it selects a knee.
+Measured across all 19 plateaus, the ratio is **monotonically non-increasing**:
+
+    92 715 per million evals at ceiling 27
+     4 730 at 2^8
+        43 at 2^16
+     0.0005 at 2^32
+
+It never rises. So the maximum is always at the smallest non-empty ceiling —
+here, 5 clauses for 10 evaluations — and no interior point can ever win. The
+metric cannot answer the question it was introduced to answer.
+
+The agent that measured this said so instead of handing back "ceiling 2", and
+that refusal is the finding.
+
+**Before optimising a ratio, check whether it is monotone over your domain.**
+If it is, the argmax is a boundary artefact, and publishing it as an optimum
+dresses a preference as a measurement.
+
+## 228. The default was explained, and the explanation was invented
+
+The census default is 65536. The reading found that 42 clauses sit at exactly
+2^16, 40 of them in `specs/igla/race/` — the fixed-point accelerator datapath,
+binders named `angle`, `psum`, `acc`. It concluded: *the default was chosen to
+admit the RACE 16-bit datapath.*
+
+Git says no. The default landed in `6631cbf6e` (#2793), whose own commit message
+quotes a **different census** (1005/100/222/544/139). The 42-clause 16-bit
+population only became visible **2h47m later**, in #2813, when the binder parser
+was fixed. The default predates the fact it was said to explain.
+
+The honest sentence is shorter and survives: *65536 is 2^16, the machine word.*
+
+**A cause is a claim with a timestamp.** When you explain why a constant is what
+it is, `git log -S` the constant and check that the reason existed first. This
+is mechanism six of the number-audit skill and it is the easiest one to commit
+while feeling insightful.
+
+## 229. Five ad-hoc greps against five built instruments, and the grep lost every time
+
+Kept as a tally because the pattern is now the point:
+
+| the grep said | the instrument said | who was right |
+|---|---|---|
+| `for all` in 135 clauses | census: 38 suffix forms | instrument — 99 matches were prose |
+| 91 files with duplicate definitions | (none) | neither: both were the same broken scanner |
+| 561 duplicates in `gf16.t27` | 0 | instrument — 110 Zig test bodies |
+| 218 skill sections | `tri skill check`: 217 | instrument — one heading is unnumbered |
+| 81 conflicted type names | `tri types dup`: 80 | instrument — my `sed` kept a prose line |
+
+Five for five. The instruments were written carefully, tested, and fired in CI;
+the greps were written in one line to answer one question and never checked.
+
+**When a one-line grep disagrees with a tool that has tests, believe the tool
+and go find the bug in the grep.** The reverse — assuming the tool has drifted —
+has been wrong every time it has come up here.
+
+## 230. "Numbering holds in 5 file(s)" — four of them had no numbers
+
+My own gate printed that line for months. Reading the rows above it:
+
+    ci-gates    228 section(s)
+    phi-loop      0 section(s)
+    tri           0 section(s)
+    tri-pipeline  0 section(s)
+    wrap-up       0 section(s)
+
+Four of the five contributed nothing. "Holds in 5 files" counts four where there
+was nothing to check — the same shape as *13 gates green* when two of them never
+ran. And "numbering holds" was read as *the sequence is intact* while §126 has
+never existed in the history of the file.
+
+The gate is not wrong. Gaps are deliberately not a failure: a section can be
+deleted, and refusing would make an append-only log unmergeable. **The summary
+line was wrong** — it named a verdict the check had not earned.
+
+    No number is used twice: 228 section(s) across 1 of 5 file(s) read.
+    The other 4 contributed no numbered section, so nothing was checked in them.
+    ci-gates: 1 number(s) never used (126). Not a failure; stated so it is
+    not mistaken for one.
+
+**Write the summary as the sentence the check can defend.** A reader takes the
+last line as the verdict and never reads the rows above it, so the last line
+carries the whole claim — and a claim that a file passed is not the same as a
+claim that a file had anything in it.
 ## 231. An example is the worst place for a machine-specific path
 
 `examples/fpga/qmtech_minimal/build.sh` named one developer's home **six times**.
