@@ -173,12 +173,126 @@ fn count_getters(src: &str) -> usize {
 /// This compares. `gen/numeric/` is gitignored by design, so an absent artifact
 /// is reported as absent rather than as a mismatch -- the two are different
 /// states and merging them is the mistake this chain keeps finding.
+/// W702: generate the artifact when it is absent, rather than reporting absence
+/// into a line nobody reads.
+///
+/// `gen/` is in .gitignore, and aa01dd4f1 untracked these artifacts on purpose
+/// after they drifted (77 against an SSOT of 83). That left this check with
+/// nothing to read on every run since -- it set `r.emitted = "absent: ..."`,
+/// which is NOT a finding, and the suite prints findings only. Measured: zero
+/// occurrences of "emitted artifacts" in the output of the command that gates
+/// master.
+///
+/// So the most thorough check this gate has -- 109 records compared field by
+/// field against what is emitted -- has never run, and said so where no one was
+/// looking.
+///
+/// The generator is pure-stdlib Python, deterministic, and takes an output
+/// directory. Run it into a temp dir and compare against that. A generator that
+/// cannot be run is a FINDING, not a shrug.
+fn generate_emitted(catalog: &Path) -> Result<std::path::PathBuf, String> {
+    // Walk UP looking for the generator rather than counting directory levels:
+    // `specs/numeric/x.t27`.parent().parent() is `specs`, and the first version
+    // of this looked for `specs/tools/...` and reported a missing generator that
+    // was there all along. A path computed by level-count is right until someone
+    // moves the file one directory.
+    let mut dir = catalog.parent().map(|p| p.to_path_buf());
+    let mut script = None;
+    while let Some(d) = dir {
+        let cand = d.join("tools/gen_formats_catalog.py");
+        if cand.is_file() {
+            script = Some(cand);
+            break;
+        }
+        dir = d.parent().map(|p| p.to_path_buf());
+    }
+    let script = match script {
+        Some(s) => s,
+        None => {
+            return Err(format!(
+                "no tools/gen_formats_catalog.py in any parent of {}",
+                catalog.display()
+            ))
+        }
+    };
+    let out = std::env::temp_dir().join("t27-catalog-emitted");
+    let _ = std::fs::remove_dir_all(&out);
+    std::fs::create_dir_all(&out).map_err(|e| format!("cannot create {}: {e}", out.display()))?;
+    let st = std::process::Command::new("python3")
+        .arg(&script)
+        .arg(catalog)
+        .arg(&out)
+        .output()
+        .map_err(|e| format!("cannot run python3 {}: {e}", script.display()))?;
+    if !st.status.success() {
+        let err = String::from_utf8_lossy(&st.stderr);
+        return Err(format!(
+            "generator exited {}: {}",
+            st.status.code().unwrap_or(-1),
+            err.lines().last().unwrap_or("(no stderr)")
+        ));
+    }
+    Ok(out)
+}
+
 fn check_emitted(emitted: &Path, records: &[Record], r: &mut Report) {
-    let json = emitted.join("formats_catalog.json");
+    check_emitted_at(emitted, records, r, None)
+}
+
+fn check_emitted_at(
+    emitted: &Path,
+    records: &[Record],
+    r: &mut Report,
+    catalog: Option<&Path>,
+) {
+    let mut json = emitted.join("formats_catalog.json");
+    if !json.is_file() {
+        match catalog.map(generate_emitted) {
+            Some(Ok(dir)) => {
+                r.emitted = Some(format!(
+                    "generated into {} (gen/ is gitignored; aa01dd4f1 untracked it)",
+                    dir.display()
+                ));
+                json = dir.join("formats_catalog.json");
+            }
+            Some(Err(why)) => {
+                r.findings.push(Finding {
+                    id: "(file)".into(),
+                    check: "emitted-unreadable",
+                    detail: format!(
+                        "{} is absent and it could not be generated: {}. The \
+                         SSOT-versus-emitted comparison did not run",
+                        json.display(),
+                        why
+                    ),
+                });
+                r.emitted = Some(format!("NOT CHECKED: {why}"));
+                return;
+            }
+            None => {
+                r.findings.push(Finding {
+                    id: "(file)".into(),
+                    check: "emitted-unreadable",
+                    detail: format!(
+                        "{} is absent and no catalog path was given to regenerate it. \
+                         The SSOT-versus-emitted comparison did not run",
+                        json.display()
+                    ),
+                });
+                r.emitted = Some("NOT CHECKED: absent, and no source to regenerate from".into());
+                return;
+            }
+        }
+    }
     let text = match std::fs::read_to_string(&json) {
         Ok(t) => t,
-        Err(_) => {
-            r.emitted = Some(format!("absent: {} not generated", json.display()));
+        Err(e) => {
+            r.findings.push(Finding {
+                id: "(file)".into(),
+                check: "emitted-unreadable",
+                detail: format!("{} cannot be read ({e}); the comparison did not run", json.display()),
+            });
+            r.emitted = Some(format!("NOT CHECKED: {e}"));
             return;
         }
     };
@@ -563,7 +677,7 @@ pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
     } else {
         Path::new("gen/numeric").to_path_buf()
     };
-    check_emitted(&emitted_dir, &records, &mut r);
+    check_emitted_at(&emitted_dir, &records, &mut r, Some(catalog));
     Ok(r)
 }
 
