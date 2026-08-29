@@ -6016,6 +6016,15 @@ impl Codegen {
         }
 
         match t {
+            // `any` is JSON. Both pure-t27 sites describe JSON Schema --
+            // `default: any?`, `enum: [any]?` in tools/schema.t27 and
+            // `[str: any]` in account/auth.t27 -- and Zig's standard library
+            // has the type the domain names. The seven other `any` in the
+            // corpus are in test_framework files, which are Rust-dialect and
+            // out of scope; the ambiguity I twice deferred to the user as a
+            // representation decision was entirely in files the emitter never
+            // claims.
+            "any" => return "std.json.Value".to_string(),
             "String" | "string" => return "[]const u8".to_string(),
             "Float" | "float" => return "f64".to_string(),
             "Bool" | "boolean" => return "bool".to_string(),
@@ -6056,7 +6065,7 @@ impl Codegen {
             let looks_like_type = matches!(
                 inner,
                 "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
-                    | "isize" | "f32" | "f64" | "bool" | "str" | "string"
+                    | "isize" | "f32" | "f64" | "bool" | "str" | "string" | "any"
             ) || inner.starts_with(|c: char| c.is_uppercase())
                 && inner.chars().any(|c| c.is_lowercase());
             if is_ident && looks_like_type {
