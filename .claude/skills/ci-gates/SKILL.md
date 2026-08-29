@@ -5789,3 +5789,33 @@ well enough to special-case it and stopped one line short of lowering it.
 **A comment that names a construct beside a `skip` is a fix that was scoped and
 not finished.** Grep for that pair: recognition followed by discard is a different
 and better-signposted target than an unhandled shape nobody has looked at.
+
+## 165. Same file, two flag sets, opposite verdicts
+
+The elaboration ratchet said my change took `linker` from 4 errors to 6. I ran
+iverilog on the same generated file and counted **fewer** errors than master.
+
+The gate runs `iverilog -g2012 -DSIMULATION`; I had run bare `iverilog`. Under
+the default the file is Verilog-2005, where every size cast is an error and
+master's *empty task* trips "Task body with no statements" — so master looked
+worse. Under `-g2012` both of those are legal, the size casts vanish, and what
+remains is the two errors my change actually added.
+
+**Copy the gate's invocation, flags included, out of its source.** A tool with
+the right name and the wrong flags is a different tool, and it will happily
+disagree with the gate about the same file.
+
+## 166. If a backend refuses to lower a construct, produce that construct
+
+A `fn` whose body is BDD clauses is a test spelled as a function. My first fix
+kept it a `FnDecl` and filled the body, so `gen-verilog` — which emits RTL for
+functions and deliberately does **not** lower tests — produced `\assert (…)`
+inside a task and an assignment to the task's own name.
+
+The fix was not to teach the Verilog backend about a new fn flavour. It was to
+emit a `TestBlock`, because that is what the source means. Every backend already
+knows whether it lowers tests.
+
+**When recovered content lands in the wrong node kind, change the node, not the
+four consumers.** The give-away is a fix that would need a matching change in
+every backend: that is usually the parser choosing the wrong shape.
