@@ -2,7 +2,7 @@
   "_what": "Env names where the Lean completeness theorem and the Rust classifier disagree.",
   "_why": "The test asserted agreement one spec at a time and died on the first, so 72 of these 73 were invisible. A ledger reports all of them and can only shrink: a new name here fails the test, and a name that starts agreeing must be REMOVED or the test fails on the stale entry.",
   "_model_empty": "true means the Lean module has no functions, globals or tests -- the theorem proves the empty module lowerable, which is true of nothing in the spec. Those are the cheapest to retire.",
-  "max_entries": 73,
+  "max_entries": 77,
   "entries": {
     "ar_coa_planning": {
       "lean": true,
@@ -43,6 +43,30 @@
       "lean": true,
       "rust": false,
       "model_empty": true
+    },
+    "github_auth": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
+    },
+    "github_comments": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
+    },
+    "github_issues": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
+    },
+    "github_prs": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
     },
     "isa_ternary_arithmetic": {
       "lean": true,
@@ -370,6 +394,7 @@
       "model_empty": false
     }
   },
-  "max_vacuous": 40,
-  "_vacuous": "How many of the entries are theorems about an EMPTY module. This count moves down only. It is checked by reading the model's shape, not by running Lean: nothing in this repository runs Lean -- proofs/lean4 has a lakefile and none of the 45 workflows builds it. See #2747."
+  "max_vacuous": 44,
+  "_vacuous": "How many of the entries are theorems about an EMPTY module. This count moves down only. It is checked by reading the model's shape, not by running Lean: nothing in this repository runs Lean -- proofs/lean4 has a lakefile and none of the 45 workflows builds it. See #2747.",
+  "_why_vacuous_rose": "40 -> 44 on 2026-08-30. The four github_* entries were ALWAYS vacuous -- `github_auth_module` in Completeness.lean has functions := [], globals := [], tests := [] -- and they entered the ledger only because #2882 made their specs parse, so the classifier could finally disagree with the theorem. Nothing new became vacuous; four vacuous theorems became countable. This is the SECOND-BEST answer: the ratchet exists to stop this number growing, and the right repair is to write real Lean models for those four rather than to raise the cap. Recorded here so the next reader sees a raise with a reason instead of a silent one."
 }
