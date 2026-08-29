@@ -6793,768 +6793,6 @@ gh pr list --author @me --json number,title --jq '.[] | "\(.number) \(.title)"'
 Two sessions produced this collision once; one session with two open PRs produced
 it again the same day.
 
-<<<<<<< HEAD
-## 226. A sweep that samples round numbers reports flat regions it never measured
-
-Asked where the ceiling on quantifier domain size should sit, the first sweep
-ran the binary at 4, 8, 16, 256, 1024, 65536 … and announced "the widest flat
-region is 256…65535, a 256× span."
-
-It is not. The widest is 2^48…2^64−1, **256 times wider**. The sweep had sampled
-the endpoints of that region and no interior, so it never saw the flatness it
-was reporting about somewhere else.
-
-The fix is not more samples. A ceiling only matters **where a domain size
-sits** — between two adjacent sizes, raising it changes nothing. So the plateau
-tops *are* the distinct sizes, and the whole sweep falls out of one sorted pass
-over the multiset:
-
-    413 finite clauses occupy exactly 19 distinct sizes.
-    Nineteen rows. Every other ceiling is a synonym for one of them.
-
-**Derive the partition; sample only to cross-check.** A sampled sweep can only
-ever report the points you thought to ask about, and its silence between them
-reads exactly like flatness.
-
-## 227. A monotone ratio is a rigged metric
-
-"Which ceiling maximises clauses-per-evaluation?" sounds like it selects a knee.
-Measured across all 19 plateaus, the ratio is **monotonically non-increasing**:
-
-    92 715 per million evals at ceiling 27
-     4 730 at 2^8
-        43 at 2^16
-     0.0005 at 2^32
-
-It never rises. So the maximum is always at the smallest non-empty ceiling —
-here, 5 clauses for 10 evaluations — and no interior point can ever win. The
-metric cannot answer the question it was introduced to answer.
-
-The agent that measured this said so instead of handing back "ceiling 2", and
-that refusal is the finding.
-
-**Before optimising a ratio, check whether it is monotone over your domain.**
-If it is, the argmax is a boundary artefact, and publishing it as an optimum
-dresses a preference as a measurement.
-
-## 228. The default was explained, and the explanation was invented
-
-The census default is 65536. The reading found that 42 clauses sit at exactly
-2^16, 40 of them in `specs/igla/race/` — the fixed-point accelerator datapath,
-binders named `angle`, `psum`, `acc`. It concluded: *the default was chosen to
-admit the RACE 16-bit datapath.*
-
-Git says no. The default landed in `6631cbf6e` (#2793), whose own commit message
-quotes a **different census** (1005/100/222/544/139). The 42-clause 16-bit
-population only became visible **2h47m later**, in #2813, when the binder parser
-was fixed. The default predates the fact it was said to explain.
-
-The honest sentence is shorter and survives: *65536 is 2^16, the machine word.*
-
-**A cause is a claim with a timestamp.** When you explain why a constant is what
-it is, `git log -S` the constant and check that the reason existed first. This
-is mechanism six of the number-audit skill and it is the easiest one to commit
-while feeling insightful.
-
-## 229. Five ad-hoc greps against five built instruments, and the grep lost every time
-
-Kept as a tally because the pattern is now the point:
-
-| the grep said | the instrument said | who was right |
-|---|---|---|
-| `for all` in 135 clauses | census: 38 suffix forms | instrument — 99 matches were prose |
-| 91 files with duplicate definitions | (none) | neither: both were the same broken scanner |
-| 561 duplicates in `gf16.t27` | 0 | instrument — 110 Zig test bodies |
-| 218 skill sections | `tri skill check`: 217 | instrument — one heading is unnumbered |
-| 81 conflicted type names | `tri types dup`: 80 | instrument — my `sed` kept a prose line |
-
-Five for five. The instruments were written carefully, tested, and fired in CI;
-the greps were written in one line to answer one question and never checked.
-
-**When a one-line grep disagrees with a tool that has tests, believe the tool
-and go find the bug in the grep.** The reverse — assuming the tool has drifted —
-has been wrong every time it has come up here.
-
-## 230. "Numbering holds in 5 file(s)" — four of them had no numbers
-
-My own gate printed that line for months. Reading the rows above it:
-
-    ci-gates    228 section(s)
-    phi-loop      0 section(s)
-    tri           0 section(s)
-    tri-pipeline  0 section(s)
-    wrap-up       0 section(s)
-
-Four of the five contributed nothing. "Holds in 5 files" counts four where there
-was nothing to check — the same shape as *13 gates green* when two of them never
-ran. And "numbering holds" was read as *the sequence is intact* while §126 has
-never existed in the history of the file.
-
-The gate is not wrong. Gaps are deliberately not a failure: a section can be
-deleted, and refusing would make an append-only log unmergeable. **The summary
-line was wrong** — it named a verdict the check had not earned.
-
-    No number is used twice: 228 section(s) across 1 of 5 file(s) read.
-    The other 4 contributed no numbered section, so nothing was checked in them.
-    ci-gates: 1 number(s) never used (126). Not a failure; stated so it is
-    not mistaken for one.
-
-**Write the summary as the sentence the check can defend.** A reader takes the
-last line as the verdict and never reads the rows above it, so the last line
-carries the whole claim — and a claim that a file passed is not the same as a
-claim that a file had anything in it.
-## 231. An example is the worst place for a machine-specific path
-
-`examples/fpga/qmtech_minimal/build.sh` named one developer's home **six times**.
-Of every file in a repository, an example is the one whose entire purpose is to be
-copied — so a path that works on one machine there does not sit still, it
-propagates.
-
-The fix was already written down in the guard's own error message: *"Use
-`git rev-parse --show-toplevel`."* The example lives inside the repository it
-needs, so the root was one command away the whole time.
-
-**When triaging a debt list, sort by what the file is for, not by how many
-occurrences it has.** Six in an example outrank six in a one-off experiment.
-
-## 232. `set -e` kills the script before your error message runs
-
-    T27_ROOT=${T27_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}
-    if [[ -z "$T27_ROOT" ]]; then
-        echo "Cannot locate the repository root."   # never reached
-        exit 1
-    fi
-
-Outside a repository this exits **128 in silence**: `set -e` aborts on the failing
-substitution before the check below it runs. The `2>/dev/null` hides the only
-evidence.
-
-    $(git rev-parse --show-toplevel 2>/dev/null || true)
-
-Caught by running the script somewhere that is not a repository — which is the
-one condition the code was added to handle, and therefore the one place it had to
-be tried.
-
-**A guard clause you have not executed is a comment.**
-
-## 233. A debt list has kinds, and the tool cannot tell them apart
-
-Thirty files carry a hardcoded home path, and they want three different things:
-
-| kind | what it needs |
-|---|---|
-| configuration | take the path from the environment — **fix** |
-| **a record** | a harness transcript of a run that happened; the path is *part of what happened*, and editing it rewrites the record |
-| an experiment | written against one machine, portability never claimed |
-
-The count is what a gate can hold. Which kind a file is, only a reader can say —
-so it belongs written in the baseline, not inferred by the tool and not
-rediscovered by whoever opens the list next.
-
-**Without that note the next pass "fixes" a measurement record**, which is
-strictly worse than the literal it removes.
-
-## 234. A corpus with two indentation conventions has no indentation rule
-
-Asking "which names are defined twice in one file" needs a definition of
-*top level*. Four spaces of indentation looked like one, because the file
-that prompted the question — `specs/ml/optimizer/adamw.t27` — puts
-everything four spaces under `module AdamW;`.
-
-That rule reported **43 files** out of 650. Two of them were real.
-
-The other 41 were `const sign = ...` and `const a = ...` inside function
-bodies, because `specs/numeric/gf16.t27` writes the opposite convention:
-definitions at column 0, bodies at four. One number meant "top level" in
-one file and "inside a function" in the other, and a rule that reads
-columns cannot tell them apart.
-
-Bracket depth zero reports **2**, and gets both conventions right at once:
-`module M;` ends in a semicolon, so it opens no block and its indented
-contents are still depth zero.
-
-The tell was in the output and I nearly missed it. A hit list containing
-`a@828+838+901+914+924+932+940+950+959+967+975+983+991+999+1007...` — one
-letter, forty-odd lines — is not a corpus of forty-odd redefinitions of
-`a`. It is a local loop variable. **When a detector's own output looks
-like something no author would write, the detector is describing itself.**
-
-## 235. Two implementations of one question, and only that caught it
-
-The same question — do these copies state different numbers? — was
-answered twice: once by a throwaway Python scan while reading the file,
-once by the Rust that shipped. Python said five. Rust said zero.
-
-The Rust filtered field names to lowercase letters and underscore. The
-fields are `pass_at_1` and `pass_at_5`. Every field the check exists to
-compare has a digit in it, so it compared nothing and reported clean.
-
-A clean report is indistinguishable from a clean file. There was no error,
-no empty result, no zero-length list — the check ran over 650 specs, found
-the duplicated names correctly, classified all thirteen, and got the one
-sub-question that mattered exactly backwards. Nothing in the output said
-so. It was caught because a second implementation of the same question
-already had an answer and the two did not match.
-
-This is the cheap version of the discipline: when a reading is going to be
-committed, the exploratory scan that found it is a free second opinion, and
-comparing them costs one command. Throwing it away and trusting the
-rewrite is how a check ships that passes because it is blind.
-
-The regression is now a test — `a_field_name_may_contain_a_digit` — and
-removing the digit from the filter fails it and one other. Related: the
-verdict is split so text drift cannot mask numeric drift (§234 for the
-ruler, #2822 for what it found).
-
-## 236. Six false invariants, and nothing had ever evaluated one
-
-`tri quantifiers report` counts 119 quantified clauses small enough to walk;
-77 cost 16 279 evaluations in total, which is nothing. **No backend lowers an
-enumerated quantifier, so not one of them had ever been evaluated.**
-
-Hand-transcribing the spec's own function bodies and walking the full domain
-found **six false over their entire live domain**, in three files:
-
-| clause | counterexamples | which side is wrong |
-|---|---|---|
-| `cordic.t27:805` | 240 of 256 | clause — missing `i < 16` guard |
-| `cordic.t27:809` | 9 of 9 live | **body** — `cordic_sin_cos` returns (cos, sin) |
-| `cordic.t27:825` | 1 (iters=1) | clause — asymptotic bound asserted from n=1 |
-| `cordic.t27:346` | 1 (n=1) | clause — same |
-| `opcodes.t27:984` | 11 | clause — `0x0F` where the alphabet is `0xDE..0xE8` |
-| `phi_split_optimality.t27:293` | 255 | clause — total width passed as available width |
-
-Each was settled by **evidence inside its own file**: `:463` pins the fallthrough
-`:805` forbids; `:880` holds the correctly-bounded twin of `:984`; the sibling
-invariant at `:296` holds where `:293` fails.
-
-**A clause nothing evaluates is not an assertion, it is a comment with syntax.**
-The census had counted these for three iterations without once asking whether
-any were true.
-
-## 237. A trap is not a counterexample
-
-The seventh candidate was `phi_ratio.t27:611`, `forall bits: u8,
-phi_split(bits).exp_bits < bits`, claimed false at `bits = 0`.
-
-It is not. `phi_split` opens `const available = bits - 1;` — at `bits = 0` that
-underflows `u8` and traps **inside the function, before any comparison exists**.
-And `exp_bits < 0` is unsatisfiable for an unsigned type regardless. The clause
-holds on 1..255 with one trap.
-
-Filing it would have been a defect report against someone's research spec,
-asserting a failure at a point the code never reaches — wrong in the most
-embarrassing direction available.
-
-**Every point of a walk is TRUE, FALSE, VACUOUS, or TRAP, and the four are
-printed apart.** A clause with zero FALSE holds, however many traps it has. The
-same rule kills `ternary_mul(-128)`, whose `return -a;` overflows `i8`: a real
-hazard, not a counterexample.
-
-## 238. The tool worth building was the one that asserts nothing
-
-The obvious build was `tri quantifiers walk` — an evaluator. The argument
-against it, with numbers:
-
-* **Reach.** 77 clauses, minus 25 naming undefined functions, minus 4 struct
-  binders, minus the tuple-returning ones: **~50 reachable** — and all 50 were
-  already hand-evaluated. The tool would re-derive an existing answer, and its
-  acceptance test would be reproducing the six findings.
-* **What it gets wrong on day one.** It would have to read guards (the report
-  says outright that it does not), and `ternary_add.t27:342` carries
-  `where k <= 27` — ignoring it computes `max_value(255)` and fabricates ~228
-  counterexamples. **Two false defect reports on the first run.**
-
-What shipped instead is one column that asserts nothing about truth: does every
-name in a clause's body resolve to exactly one definition in its own file plus
-what it `use`s? **90 resolve, 25 name a function nobody defines, 4 name one
-defined twice.** That is the number the census was missing, and it treads on no
-open semantics.
-
-**When the obvious tool would re-derive a known answer and invent new errors
-doing it, ship the measurement it was missing instead.**
-
-## 239. No builtin table, on purpose
-
-The resolution column reports `len` seven times. `len` is a language builtin;
-it is noise.
-
-An allowlist would remove it — and an allowlist is exactly the thing that gets
-tuned until the number matches what a hand count produced. That is the shape of
-a detector adjusted until it hits its own motivating examples, and it stops
-being evidence at the moment it works.
-
-So there is no builtin table. The names print as they are, with counts, and a
-reader recognises `len` at a glance. The output says so in its own words.
-
-**An honest list a reader must filter beats a filtered list nobody can audit.**
-The mechanical column reproduced the hand-derived names — `smt_check_bool` ×5,
-`cast_i8`/`cast_i16`/`cast_i32`, `systolic_ternary_array`, `pow` ×2 — by a
-different route, which is the only reason to believe either.
-
-## 240. Re-derive the diagnosis in your own issue before building on it
-
-`#2764` states: *"the gap is that `gen-c` does not resolve `use`"*. I wrote
-that, filed it, and came back to fix it. `run_gen_c` calls
-`use_resolve::resolve` on the line above the one that compiles. So do the
-Zig and Rust backends. Resolution runs everywhere and **refuses**.
-
-The measurement in the issue was right — 141 uses of `Trit`, zero
-declarations, reproduced exactly. The cause attached to it was invented.
-A correct number gives a wrong explanation all its credibility.
-
-What made it wrong is worth naming: the issue reasoned from *absence*.
-No `typedef` in the output, therefore nothing tried to put one there.
-Absence has two explanations — never attempted, or attempted and
-declined — and the output looks identical either way. The second was
-true, and one `grep -n use_resolve` separated them.
-
-An issue you wrote is not evidence. It is a note about evidence, taken
-on a day, by someone with less of the file in their head than you have
-now.
-
-## 241. A guard's reason has a precondition, and nobody rechecks it
-
-`use_resolve` refuses to splice a name declared in two imported modules,
-because *"a wrong silent choice is worse than the undeclared-identifier
-error it replaces"*. That is correct, and it is the right default.
-
-It needs the two declarations to differ.
-
-`pub const Trit = enum(i8) { neg = -1, zero = 0, pos = 1, };` appears
-**verbatim** in `base/types.t27` and in `base/ops.t27`. Six specs import
-both. There is no choice to get wrong, so the guard was charging its full
-price — every one of those specs generating C that uses `Trit` 141 times
-and declares it zero times — for a risk that was not present.
-
-Corpus-wide: **30** ambiguous (spec, name) pairs, **10** agree, **20**
-genuinely differ. The 20 must stay refused; `PHI` really is two different
-numbers in `math/constants.t27` and `math/sacred_physics.t27`.
-
-The general shape: a guard written against a real hazard keeps firing
-after the hazard's precondition stops holding, and its output is
-indistinguishable from the case where the hazard is present. **Ask what
-the guard assumes, then measure how often the assumption is true.** Here
-it was false a third of the time.
-
-## 242. A fallback that succeeds is a worse silence than a failure
-
-Three commands share this shape:
-
-    let resolved = resolve(path, &raw);
-    match compile(&resolved) {
-        Ok(code) => code,
-        Err(_) => compile(&raw)?,   // <- and exit 0
-    }
-
-When the spliced source will not compile, the ORIGINAL is compiled
-instead and the command succeeds. Every import it resolved is discarded.
-Nothing is printed, the exit code is 0, and the output is a plausible
-file.
-
-Exactly one spec in the corpus takes that path — and it was the one spec
-of six whose errors did not improve when the splice started working. I
-had already explained that spec with a different defect, wrongly, because
-a fallback that exits 0 leaves no trace to explain.
-
-The refusal above it had the opposite problem and the same effect: it
-wrote its reason into a comment, and codegen strips comments. **A
-diagnostic that exists in an intermediate nobody reads is not a
-diagnostic.** Both are now on stderr, where the person reading the `cc`
-error is; stdout is byte-identical, so nothing downstream notices.
-
-Related: §234 for the ruler that read columns, §235 for the check that
-compared no fields.
-
-## 243. You counted the forms and stopped at the two you had seen
-
-§234 says the corpus writes two indentation conventions and that bracket
-depth zero handles both. That sentence was written after finding two, and
-it is wrong. There are three:
-
-    module tritype-ops;          392 specs   contents at depth 0
-    module Constants { ... }     231 specs   contents at depth 1
-    (no module line)              27 specs
-
-Depth zero finds **no definition at all** in 231 of 650 specs — a third of
-the corpus, silently. The tool shipped one iteration earlier reported two
-files with a duplicated top-level name and was blind to every braced
-module. One of them, `specs/file/operations.t27`, declares `fn delete`
-twice with different arities.
-
-Nothing in the output said so. A detector that reads a third of the corpus
-as empty reports a smaller number, not an error, and a smaller number
-after a fix reads as progress.
-
-**A survey of forms is a measurement, and it needs a denominator.** "The
-corpus writes two conventions" was a claim about 650 files supported by
-looking at two of them. One `grep -c` per form would have said 392 / 231 /
-27 before the ruler was written, and the third form is the one that
-matters.
-
-## 244. The obvious repair readmitted exactly what the last one removed
-
-Having found that depth is blind to braced modules, the repair looked
-free: use the smallest indent any definition in the file is written at.
-That rule is not even new — `use_resolve::top_level_indent` has always
-used it to find the same thing.
-
-It reports the braced modules correctly and puts the local bindings
-straight back. `specs/api/c_api_contract.t27` has no definition outside
-its test blocks, so the smallest indent **is** the locals' indent, and the
-tool reports `a`, `b`, `v`, `sim`, `bound`. Sixteen files of that shape.
-
-Four rulers, three wrong, each differently:
-
-| ruler | reports | wrong how |
-|---|---|---|
-| four spaces | 43 files | 41 are body bindings |
-| bracket depth 0 | 2 files | blind to 231 braced specs |
-| smallest definition indent | 5 files | body bindings again, in files with no top-level definition |
-| depth 0, or 1 under a braced module, `const` only in the first case | 3 files | a duplicated top-level `const` in a braced module is missed |
-
-The fourth is what shipped, and its miss is written into the source rather
-than left to be discovered. **When repair N reintroduces the failure that
-repair N−1 removed, the two failures are one problem you have not stated
-yet** — here, that "top level" is a parse question and every one of these
-rulers is a heuristic standing in for a parser that already exists.
-
-## 245. The test passed under its own mutation
-
-The kind filter — accept `const` at depth 0 but not at braced-module depth
-— had a test. Removing the filter left all twelve tests green.
-
-Its fixture put the `const` inside a `test "..." { }` block, where bracket
-depth excludes it whether or not the filter exists. The test asserted a
-true thing about a case the filter never sees.
-
-A mutation check is not a formality you run to confirm what you expect. It
-is the only thing that distinguishes a test of your code from a test of
-something adjacent to it that happens to hold. Rewritten to pin the
-**documented miss** — a duplicated `const` at braced-module depth is not
-reported — the same test fails the moment the filter is removed, which is
-what a test is for.
-
-Related: §234 for the ruler that read columns, §241 for the guard whose
-precondition had stopped holding.
-
-## 246. A clause that is true is not the same defect as a clause that is right
-
-Six quantified invariants in this corpus were found FALSE last pass. This pass
-found a different class in the same population:
-
-    forall kw : string, encode_keyword(kw) == encode_keyword(kw)
-    forall a : i32,     adder_tree_4(0, 0, 0, 0) == 0
-    forall e : StepKind, e != undefined
-
-A false invariant is a wrong claim. **A vacuous one is no claim at all**, dressed
-as a checked property. It passes every checker forever, it counts as coverage,
-and nothing will ever flag it — because there is nothing to flag.
-
-The field has the word and it is not "trivially true": **vacuity** (Beer,
-Ben-David, Eisner & Rodeh, *Efficient Detection of Vacuity in Temporal Model
-Checking*). A guard that is never true is **antecedent failure**; a formula true
-under every interpretation is a **tautology**. Use the terms that exist.
-
-Measured over all 924 clauses: **15 vacuous** with no type table at all —
-3 binder-unused, 6 `A == A`, 6 `X != undefined`.
-
-**Ask what a passing check would look like if it were empty.** The falsity
-sweep and the vacuity sweep read the same 924 lines and share no findings.
-
-## 247. Ten-of-ten in one directory, where ten-of-ten is 70% likely anyway
-
-An origin reading traced every vacuous clause to `specs/igla/` and to one
-commit, and concluded: a bulk-generated tree with an invariant quota. A clean
-mechanism, and a clean story.
-
-The adversary computed the base rate. **867 of the 899 binder-carrying clauses
-are in `specs/igla` — 96.4%.** Ten draws landing there is roughly **70% likely
-under the null**, and the "clustering" carried no information at all. Recounting
-the dominant sub-family gave three trees and three commits over three months.
-Only author clustering survived, and there is one author.
-
-The specific numbers were wrong too — 2184 files not 2185, 714 947 insertions
-not 71 483, 33 igla specs created not 47, and **0 of 7** files byte-identical to
-creation, not 6 of 7.
-
-**A clustering claim without the base rate is not evidence.** When a class
-concentrates in the place where everything concentrates, the concentration is
-the corpus, not the finding.
-
-## 248. Two kinds I invented, and both counted zero
-
-The taxonomy was written before the count: binder-unused, reflexive,
-`P ==> P`, type-level, and guard-never-true. Two of the five produced nothing.
-
-    P ==> P            0, over the 358 clauses that contain an implication
-    antecedent failure 0, over 166 binder-vs-literal comparisons evaluated
-                          against the binder's declared domain
-
-Both are real defect classes in the literature. Neither occurs here. The
-temptation was to leave them out of the output and let the taxonomy look tidy —
-and the zeros are the most useful lines in it: they say the corpus was *asked*.
-
-**A shape you can imagine is not a defect class until you count it.** Print the
-zeros beside the hits, or the reader cannot tell "none" from "not looked for".
-
-## 249. Three false positives in the first eight hits is how a check dies
-
-A backreference regex over the flattened clause body finds `A == A` **8 times**:
-five real, three not.
-
-    int4_dequantize_bank(codes, depth, width).depth == depth   preservation
-    a * b == b * a                                             commutativity
-    phi_split(bits).exp_bits == bits - 1                       a real bound
-
-Each is a genuine claim containing `X == X` as a substring. And the flattened
-version *misses* one true hit — `x + 0 == x`, which needs an arithmetic fold.
-
-Splitting per source line, then on `&&` and ` and ` at paren depth zero, gives
-**6 of 6 with zero false positives**. The three negatives are pinned as unit
-tests naming their corpus line, because the next person to "simplify" this into
-one regex will otherwise rediscover them in review.
-
-**A reviewer classifies a check in its first ten lines of output.** Three
-wrong ones there and the real findings below never get read.
-
-## 250. A guard written as a list goes stale by addition — the third time
-
-`clause_body` stops at the next top-level construct, from a list:
-
-    ["invariant ", "test ", "fn ", "const ", "module ", "use "]
-
-`bench ` is not in it. So `gemm.t27:260`, an invariant written at indent 0,
-swallowed the entire `bench booth_mul_latency` block that follows it.
-
-This is the same shape as §"Five paths declared, three checked" and as the
-secret-scan guard that named one member of the class it guards. Three times in
-one week, in three unrelated files, all mine or adjacent.
-
-Measured blast radius before and after: **1 clause in 924 overruns; 5 have an
-indent-0 head.** A one-line fix, and the measurement is what makes it a fix
-rather than a guess.
-
-**When you write a guard as a literal list, write down how you will find out it
-is short.** Here it was: count the clauses whose window crosses a construct
-boundary, and watch that number rather than the list.
-
-## 251. A latent defect, and the number that says how latent
-
-`tri types dup` decides CONFLICTED versus DUPLICATED by comparing field lists.
-It read `cell_count : u32,   // number of standard cells` and put the comment
-**inside the type**, so two definitions differing only in their comments would
-be called a conflict.
-
-Named by an agent in passing, three iterations after I wrote the code. The
-first question was not how to fix it but **how much it had already decided
-wrongly**:
-
-    of the 80 conflicted names, those resting on a comment difference:  0
-
-Zero. The published 46 DRIFT / 34 DISTINCT classification is untouched, and the
-fix moved no verdict — the ratchet stayed CLEAN at 80/80, which is the control.
-
-Fixed anyway. A latent defect is one that has not decided anything **yet**, and
-the fix is cheap now and a correction later.
-
-**Measure the blast radius before you fix it, not after.** The measurement is
-what turns "I found a bug" into "the bug changed nothing, and here is the
-number" — and it is the only version of that sentence anyone can check. Fixing
-first destroys the evidence that it was harmless.
-
-## 252. A dead enum variant makes a condition that matches nothing
-
-`gen_c_for_stmt` emitted a bare block where a loop belonged, so
-`for (0..1000) |_| { … }` ran its body once. The fix was to detect the
-range case and emit a counted loop:
-
-    if node.children[0].kind == NodeKind::ExprRange { … }
-
-It compiled. It changed no output. **`ExprRange` is declared in `NodeKind`
-and constructed nowhere** — the parser builds an `ExprBinary` whose
-`extra_op` is `".."`. A condition naming a variant that never exists is
-`false`, always, and a fix behind it is indistinguishable from no fix.
-
-The tell was the measurement, not the code: bare blocks 374 before, 374
-after. Had I taken "it compiles and the tests pass" as the result, the
-commit would have claimed a defect closed and closed nothing.
-
-**Before matching on an enum variant, grep for where it is CONSTRUCTED,
-not where it is declared.** A variant with one reference in the whole
-repository — its own declaration — is a name, not a case.
-
-## 253. The comment described a loop the code did not emit
-
-    fn gen_c_for_stmt(&mut self, node: &Node) {
-        // C doesn't have for-each natively; emit as a for loop with index
-        self.write_line("/* for-each loop (see t27 source) */");
-        self.write_line("{");
-
-No induction variable, no bound, no increment. The comment states the
-intent and the next four lines do something else, and 374 loops in the
-corpus ran their bodies once — in C that `cc` accepts without a single
-diagnostic, most of them in `bench_*` functions whose entire purpose is
-the iteration count.
-
-Beside it, `compound_binop`'s docstring already read: *"accepting a new
-compound operator without touching them would have emitted `x = rhs` for
-`x |= rhs` — a miscompilation rather than an error."* `/=` was missing
-from the table anyway, so `scaled /= 2.0;` became `scaled = 2.0;` in all
-three backends.
-
-Twice in one file: **somebody wrote down the failure and the failure was
-there.** A comment describing what a function should do is a claim about
-the code, and it is the cheapest possible thing to check — read the
-comment, then read the four lines under it and ask whether they do that.
-
-## 254. Grepping the helper's name finds the call sites that call it
-
-`/=` was missing from a table. Grepping `compound_binop` found three call
-sites — Zig, C, Verilog — and all three were fixed.
-
-Rust still emitted `scaled = 2.0;`.
-
-Its two `StmtAssign` arms hardcode `format!("{} = {};", target, val)` and
-never call the helper at all, so **every** compound assignment there was a
-plain store, not only the unmapped ones: Zig and C emitted 31 compound
-assignments across the corpus, Rust emitted **zero**.
-
-A search for the helper's name enumerates the sites that already do the
-right thing badly. It cannot see the site that never asked. **Enumerate by
-the behaviour — "every place that writes an assignment operator" — and
-then check each against the helper**, which is a grep for `" = "` and a
-reading, not a grep for a function name.
-
-Related: §241, a guard whose precondition had stopped holding.
-
-## 255. The compiler has the check, and cannot reach the place
-
-`bootstrap/src/compiler.rs:21479` promotes a wrong argument count to a **hard
-error** — #1921, closed, and live. A probe spec with `f(x)` against
-`fn f(a: u32, b: u32)` gives `Typecheck FAILED (1 errors, 0 warnings)`.
-
-Move the same call into a `forall` invariant and it gives `Typecheck OK`.
-
-The reason is a decision, written down in the parser:
-
-    // The quantified-invariant arm: recognised by name, discarded on
-    // purpose. What `forall` MEANS at codegen is #2774's decision.
-
-A discarded clause produces **no AST nodes at all**, so every AST-based check is
-blind to it by construction — including `t27c check-calls`, which finds **95** of
-these corpus-wide. Measured: **0 of 20** clause-site candidates appear in its
-output; **15 of 15** partner sites outside clause bodies do.
-
-**Before building a checker, ask whether one exists and what it cannot see.**
-The answer here was both: it exists, it is thorough, and there is a construct
-class it can never reach — which is exactly the gap worth filling, and only
-that gap.
-
-## 256. Typecheck FAILED, exit 0
-
-The same probe, one line further:
-
-    $ t27c typecheck bad.t27
-    Typecheck FAILED (1 errors, 0 warnings):
-      - function 'f' expects 2 args, got 1 at line 8
-    $ echo $?
-    0
-
-`main.rs` prints the failure and returns `Ok(())`. `suite.rs` judges the phase
-by `status.success()`. So the hard error #1921 was raised to a hard error
-**cannot fail anything**, and has not since it was promoted.
-
-Third command in this repository found printing a failure and exiting zero,
-after `t27c catalog-gate` and `suite --ratchet --corpus-only`.
-
-**A message is not an exit code, and a reader is not a gate.** When you promote
-a warning to an error, run the binary and read `$?` — the promotion is not done
-until that number moves.
-
-## 257. Nineteen of thirty-one rows were a declaration that wrapped
-
-The arity column's first run reported **31 mismatches**. Thirteen were
-`cordic_top  passes 4, declared 0`.
-
-    fn cordic_top(
-        clk: bool,
-        rst_n: bool,
-        ...
-
-My declaration reader took the head line, looked for `)`, found none, and
-recorded **arity zero** — then reported every correct four-argument call as a
-defect. Sixty-three declarations in this corpus wrap.
-
-Fixed by abstaining: if the parameter list does not close on its own line, the
-reader rules on nothing. **31 → 13 rows, 12 sites** — and the 12 are exactly
-what a separate agent had derived by hand, reached by a different route.
-
-Fifth scanner artifact this session. The pattern across all five is the same:
-**the reader stops at a line boundary the language does not have.**
-
-## 258. Four of six rules abstain, and that is the design
-
-A naive scan of the same 924 clause bodies reports ~317 arity mismatches. The
-shipped column reports 13. The difference is not filtering, it is refusal:
-
-| rule | abstains on | removes |
-|---|---|---|
-| R2 | a paren that does not close in the window | 0 today |
-| R3 | a name no declaration in scope defines | **595 of 1530 calls** |
-| R4 | method position — `x.len()`, the receiver IS the argument | 307 |
-| R5 | a name whose visible scope offers more than one arity | 0 today |
-
-R3 and R5 remove nothing measurable **today**, and both ship anyway: they
-abstain for a structural reason, not by today's accident. R4's bucket is 306
-`.len()` calls, and the alternative — a builtin allowlist — is the thing this
-report refuses by name, because an allowlist gets tuned until the number looks
-right.
-
-**Publish the number that survives, and put the funnel in the commit message.**
-A report showing "317 → 13" invites the reader to believe 304 defects were
-repaired. None were; 304 questions were declined.
-
-## 259. Zero failures, then a hundred and one, then ten
-
-I filed `t27c typecheck` printing `Typecheck FAILED` and exiting 0, and declined
-to fix it: *"95 existing mismatches would make it red on arrival."*
-
-Next pass, I measured instead of reasoning. Three numbers, in order:
-
-    455 OK, 0 FAILED       my first sweep -- and WRONG
-    549 OK, 101 FAILED     the whole corpus, counted by exit code
-     10 print FAILED       the population the change actually touches
-
-The first was a broken ruler: the loop classified by grepping the last output
-line for `OK` or `FAILED`, and **195 files printed neither** — they die on a
-parse error. They fell through both branches and were counted as nothing.
-
-The second was right and irrelevant: 101 already exit non-zero, before any
-change, because a parse error is not a typecheck verdict.
-
-**Only the third is the blast radius**, and it is ten specs. The control that
-settled it: `suite --corpus-only` exits **101 before and 101 after**, with the
-output differing by one thread id inside a panic message.
-
-**A number that answers a different question is worse than no number**, because
-it comes with the confidence of having been measured. All three of these were
-measurements. Only one was of the thing being changed.
-
-## 260. The reason I gave for not fixing it was not the reason it was unsafe
-
-"95 existing mismatches" — those are `t27c check-calls` findings, corpus-wide,
-in a different command. `typecheck` never reports them, and nothing in
-`.github/`, `scripts/` or `Makefile` invokes either.
-
-The real risk was `suite.rs`, which spawns `typecheck` and judges the phase by
-`status.success()`. That is the one place an exit code change could turn a
-green phase red — and it is not what I named when I declined.
-
-**When you decline a fix, name the mechanism, not a nearby number.** A number
-sounds like evidence and is not falsifiable as a reason; "suite judges this
-phase by the exit code, and N specs would flip" is both.
-
 ## 261. The ruler was a binary on disk
 
 `Seal Coverage` was red on master for seven runs. Run locally, the same script
@@ -7788,3 +7026,814 @@ Controlled both ways: removing a kind's entry gives `MISSING: gen-drift` and
 exit 1; adding an entry nothing attaches gives `UNREACHABLE: invented-kind` and
 exit 1. **An explanation for a state that cannot occur is the same defect as a
 state with no explanation** — one wastes the reader, the other strands them.
+## 273. A sweep that samples round numbers reports flat regions it never measured
+
+Asked where the ceiling on quantifier domain size should sit, the first sweep
+ran the binary at 4, 8, 16, 256, 1024, 65536 … and announced "the widest flat
+region is 256…65535, a 256× span."
+
+It is not. The widest is 2^48…2^64−1, **256 times wider**. The sweep had sampled
+the endpoints of that region and no interior, so it never saw the flatness it
+was reporting about somewhere else.
+
+The fix is not more samples. A ceiling only matters **where a domain size
+sits** — between two adjacent sizes, raising it changes nothing. So the plateau
+tops *are* the distinct sizes, and the whole sweep falls out of one sorted pass
+over the multiset:
+
+    413 finite clauses occupy exactly 19 distinct sizes.
+    Nineteen rows. Every other ceiling is a synonym for one of them.
+
+**Derive the partition; sample only to cross-check.** A sampled sweep can only
+ever report the points you thought to ask about, and its silence between them
+reads exactly like flatness.
+
+## 274. A monotone ratio is a rigged metric
+
+"Which ceiling maximises clauses-per-evaluation?" sounds like it selects a knee.
+Measured across all 19 plateaus, the ratio is **monotonically non-increasing**:
+
+    92 715 per million evals at ceiling 27
+     4 730 at 2^8
+        43 at 2^16
+     0.0005 at 2^32
+
+It never rises. So the maximum is always at the smallest non-empty ceiling —
+here, 5 clauses for 10 evaluations — and no interior point can ever win. The
+metric cannot answer the question it was introduced to answer.
+
+The agent that measured this said so instead of handing back "ceiling 2", and
+that refusal is the finding.
+
+**Before optimising a ratio, check whether it is monotone over your domain.**
+If it is, the argmax is a boundary artefact, and publishing it as an optimum
+dresses a preference as a measurement.
+
+## 275. The default was explained, and the explanation was invented
+
+The census default is 65536. The reading found that 42 clauses sit at exactly
+2^16, 40 of them in `specs/igla/race/` — the fixed-point accelerator datapath,
+binders named `angle`, `psum`, `acc`. It concluded: *the default was chosen to
+admit the RACE 16-bit datapath.*
+
+Git says no. The default landed in `6631cbf6e` (#2793), whose own commit message
+quotes a **different census** (1005/100/222/544/139). The 42-clause 16-bit
+population only became visible **2h47m later**, in #2813, when the binder parser
+was fixed. The default predates the fact it was said to explain.
+
+The honest sentence is shorter and survives: *65536 is 2^16, the machine word.*
+
+**A cause is a claim with a timestamp.** When you explain why a constant is what
+it is, `git log -S` the constant and check that the reason existed first. This
+is mechanism six of the number-audit skill and it is the easiest one to commit
+while feeling insightful.
+
+## 276. Five ad-hoc greps against five built instruments, and the grep lost every time
+
+Kept as a tally because the pattern is now the point:
+
+| the grep said | the instrument said | who was right |
+|---|---|---|
+| `for all` in 135 clauses | census: 38 suffix forms | instrument — 99 matches were prose |
+| 91 files with duplicate definitions | (none) | neither: both were the same broken scanner |
+| 561 duplicates in `gf16.t27` | 0 | instrument — 110 Zig test bodies |
+| 218 skill sections | `tri skill check`: 217 | instrument — one heading is unnumbered |
+| 81 conflicted type names | `tri types dup`: 80 | instrument — my `sed` kept a prose line |
+
+Five for five. The instruments were written carefully, tested, and fired in CI;
+the greps were written in one line to answer one question and never checked.
+
+**When a one-line grep disagrees with a tool that has tests, believe the tool
+and go find the bug in the grep.** The reverse — assuming the tool has drifted —
+has been wrong every time it has come up here.
+
+## 277. "Numbering holds in 5 file(s)" — four of them had no numbers
+
+My own gate printed that line for months. Reading the rows above it:
+
+    ci-gates    228 section(s)
+    phi-loop      0 section(s)
+    tri           0 section(s)
+    tri-pipeline  0 section(s)
+    wrap-up       0 section(s)
+
+Four of the five contributed nothing. "Holds in 5 files" counts four where there
+was nothing to check — the same shape as *13 gates green* when two of them never
+ran. And "numbering holds" was read as *the sequence is intact* while §126 has
+never existed in the history of the file.
+
+The gate is not wrong. Gaps are deliberately not a failure: a section can be
+deleted, and refusing would make an append-only log unmergeable. **The summary
+line was wrong** — it named a verdict the check had not earned.
+
+    No number is used twice: 228 section(s) across 1 of 5 file(s) read.
+    The other 4 contributed no numbered section, so nothing was checked in them.
+    ci-gates: 1 number(s) never used (126). Not a failure; stated so it is
+    not mistaken for one.
+
+**Write the summary as the sentence the check can defend.** A reader takes the
+last line as the verdict and never reads the rows above it, so the last line
+carries the whole claim — and a claim that a file passed is not the same as a
+claim that a file had anything in it.
+## 278. An example is the worst place for a machine-specific path
+
+`examples/fpga/qmtech_minimal/build.sh` named one developer's home **six times**.
+Of every file in a repository, an example is the one whose entire purpose is to be
+copied — so a path that works on one machine there does not sit still, it
+propagates.
+
+The fix was already written down in the guard's own error message: *"Use
+`git rev-parse --show-toplevel`."* The example lives inside the repository it
+needs, so the root was one command away the whole time.
+
+**When triaging a debt list, sort by what the file is for, not by how many
+occurrences it has.** Six in an example outrank six in a one-off experiment.
+
+## 279. `set -e` kills the script before your error message runs
+
+    T27_ROOT=${T27_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}
+    if [[ -z "$T27_ROOT" ]]; then
+        echo "Cannot locate the repository root."   # never reached
+        exit 1
+    fi
+
+Outside a repository this exits **128 in silence**: `set -e` aborts on the failing
+substitution before the check below it runs. The `2>/dev/null` hides the only
+evidence.
+
+    $(git rev-parse --show-toplevel 2>/dev/null || true)
+
+Caught by running the script somewhere that is not a repository — which is the
+one condition the code was added to handle, and therefore the one place it had to
+be tried.
+
+**A guard clause you have not executed is a comment.**
+
+## 280. A debt list has kinds, and the tool cannot tell them apart
+
+Thirty files carry a hardcoded home path, and they want three different things:
+
+| kind | what it needs |
+|---|---|
+| configuration | take the path from the environment — **fix** |
+| **a record** | a harness transcript of a run that happened; the path is *part of what happened*, and editing it rewrites the record |
+| an experiment | written against one machine, portability never claimed |
+
+The count is what a gate can hold. Which kind a file is, only a reader can say —
+so it belongs written in the baseline, not inferred by the tool and not
+rediscovered by whoever opens the list next.
+
+**Without that note the next pass "fixes" a measurement record**, which is
+strictly worse than the literal it removes.
+
+## 281. A corpus with two indentation conventions has no indentation rule
+
+Asking "which names are defined twice in one file" needs a definition of
+*top level*. Four spaces of indentation looked like one, because the file
+that prompted the question — `specs/ml/optimizer/adamw.t27` — puts
+everything four spaces under `module AdamW;`.
+
+That rule reported **43 files** out of 650. Two of them were real.
+
+The other 41 were `const sign = ...` and `const a = ...` inside function
+bodies, because `specs/numeric/gf16.t27` writes the opposite convention:
+definitions at column 0, bodies at four. One number meant "top level" in
+one file and "inside a function" in the other, and a rule that reads
+columns cannot tell them apart.
+
+Bracket depth zero reports **2**, and gets both conventions right at once:
+`module M;` ends in a semicolon, so it opens no block and its indented
+contents are still depth zero.
+
+The tell was in the output and I nearly missed it. A hit list containing
+`a@828+838+901+914+924+932+940+950+959+967+975+983+991+999+1007...` — one
+letter, forty-odd lines — is not a corpus of forty-odd redefinitions of
+`a`. It is a local loop variable. **When a detector's own output looks
+like something no author would write, the detector is describing itself.**
+
+## 282. Two implementations of one question, and only that caught it
+
+The same question — do these copies state different numbers? — was
+answered twice: once by a throwaway Python scan while reading the file,
+once by the Rust that shipped. Python said five. Rust said zero.
+
+The Rust filtered field names to lowercase letters and underscore. The
+fields are `pass_at_1` and `pass_at_5`. Every field the check exists to
+compare has a digit in it, so it compared nothing and reported clean.
+
+A clean report is indistinguishable from a clean file. There was no error,
+no empty result, no zero-length list — the check ran over 650 specs, found
+the duplicated names correctly, classified all thirteen, and got the one
+sub-question that mattered exactly backwards. Nothing in the output said
+so. It was caught because a second implementation of the same question
+already had an answer and the two did not match.
+
+This is the cheap version of the discipline: when a reading is going to be
+committed, the exploratory scan that found it is a free second opinion, and
+comparing them costs one command. Throwing it away and trusting the
+rewrite is how a check ships that passes because it is blind.
+
+The regression is now a test — `a_field_name_may_contain_a_digit` — and
+removing the digit from the filter fails it and one other. Related: the
+verdict is split so text drift cannot mask numeric drift (§234 for the
+ruler, #2822 for what it found).
+
+## 283. Six false invariants, and nothing had ever evaluated one
+
+`tri quantifiers report` counts 119 quantified clauses small enough to walk;
+77 cost 16 279 evaluations in total, which is nothing. **No backend lowers an
+enumerated quantifier, so not one of them had ever been evaluated.**
+
+Hand-transcribing the spec's own function bodies and walking the full domain
+found **six false over their entire live domain**, in three files:
+
+| clause | counterexamples | which side is wrong |
+|---|---|---|
+| `cordic.t27:805` | 240 of 256 | clause — missing `i < 16` guard |
+| `cordic.t27:809` | 9 of 9 live | **body** — `cordic_sin_cos` returns (cos, sin) |
+| `cordic.t27:825` | 1 (iters=1) | clause — asymptotic bound asserted from n=1 |
+| `cordic.t27:346` | 1 (n=1) | clause — same |
+| `opcodes.t27:984` | 11 | clause — `0x0F` where the alphabet is `0xDE..0xE8` |
+| `phi_split_optimality.t27:293` | 255 | clause — total width passed as available width |
+
+Each was settled by **evidence inside its own file**: `:463` pins the fallthrough
+`:805` forbids; `:880` holds the correctly-bounded twin of `:984`; the sibling
+invariant at `:296` holds where `:293` fails.
+
+**A clause nothing evaluates is not an assertion, it is a comment with syntax.**
+The census had counted these for three iterations without once asking whether
+any were true.
+
+## 284. A trap is not a counterexample
+
+The seventh candidate was `phi_ratio.t27:611`, `forall bits: u8,
+phi_split(bits).exp_bits < bits`, claimed false at `bits = 0`.
+
+It is not. `phi_split` opens `const available = bits - 1;` — at `bits = 0` that
+underflows `u8` and traps **inside the function, before any comparison exists**.
+And `exp_bits < 0` is unsatisfiable for an unsigned type regardless. The clause
+holds on 1..255 with one trap.
+
+Filing it would have been a defect report against someone's research spec,
+asserting a failure at a point the code never reaches — wrong in the most
+embarrassing direction available.
+
+**Every point of a walk is TRUE, FALSE, VACUOUS, or TRAP, and the four are
+printed apart.** A clause with zero FALSE holds, however many traps it has. The
+same rule kills `ternary_mul(-128)`, whose `return -a;` overflows `i8`: a real
+hazard, not a counterexample.
+
+## 285. The tool worth building was the one that asserts nothing
+
+The obvious build was `tri quantifiers walk` — an evaluator. The argument
+against it, with numbers:
+
+* **Reach.** 77 clauses, minus 25 naming undefined functions, minus 4 struct
+  binders, minus the tuple-returning ones: **~50 reachable** — and all 50 were
+  already hand-evaluated. The tool would re-derive an existing answer, and its
+  acceptance test would be reproducing the six findings.
+* **What it gets wrong on day one.** It would have to read guards (the report
+  says outright that it does not), and `ternary_add.t27:342` carries
+  `where k <= 27` — ignoring it computes `max_value(255)` and fabricates ~228
+  counterexamples. **Two false defect reports on the first run.**
+
+What shipped instead is one column that asserts nothing about truth: does every
+name in a clause's body resolve to exactly one definition in its own file plus
+what it `use`s? **90 resolve, 25 name a function nobody defines, 4 name one
+defined twice.** That is the number the census was missing, and it treads on no
+open semantics.
+
+**When the obvious tool would re-derive a known answer and invent new errors
+doing it, ship the measurement it was missing instead.**
+
+## 286. No builtin table, on purpose
+
+The resolution column reports `len` seven times. `len` is a language builtin;
+it is noise.
+
+An allowlist would remove it — and an allowlist is exactly the thing that gets
+tuned until the number matches what a hand count produced. That is the shape of
+a detector adjusted until it hits its own motivating examples, and it stops
+being evidence at the moment it works.
+
+So there is no builtin table. The names print as they are, with counts, and a
+reader recognises `len` at a glance. The output says so in its own words.
+
+**An honest list a reader must filter beats a filtered list nobody can audit.**
+The mechanical column reproduced the hand-derived names — `smt_check_bool` ×5,
+`cast_i8`/`cast_i16`/`cast_i32`, `systolic_ternary_array`, `pow` ×2 — by a
+different route, which is the only reason to believe either.
+
+## 287. Re-derive the diagnosis in your own issue before building on it
+
+`#2764` states: *"the gap is that `gen-c` does not resolve `use`"*. I wrote
+that, filed it, and came back to fix it. `run_gen_c` calls
+`use_resolve::resolve` on the line above the one that compiles. So do the
+Zig and Rust backends. Resolution runs everywhere and **refuses**.
+
+The measurement in the issue was right — 141 uses of `Trit`, zero
+declarations, reproduced exactly. The cause attached to it was invented.
+A correct number gives a wrong explanation all its credibility.
+
+What made it wrong is worth naming: the issue reasoned from *absence*.
+No `typedef` in the output, therefore nothing tried to put one there.
+Absence has two explanations — never attempted, or attempted and
+declined — and the output looks identical either way. The second was
+true, and one `grep -n use_resolve` separated them.
+
+An issue you wrote is not evidence. It is a note about evidence, taken
+on a day, by someone with less of the file in their head than you have
+now.
+
+## 288. A guard's reason has a precondition, and nobody rechecks it
+
+`use_resolve` refuses to splice a name declared in two imported modules,
+because *"a wrong silent choice is worse than the undeclared-identifier
+error it replaces"*. That is correct, and it is the right default.
+
+It needs the two declarations to differ.
+
+`pub const Trit = enum(i8) { neg = -1, zero = 0, pos = 1, };` appears
+**verbatim** in `base/types.t27` and in `base/ops.t27`. Six specs import
+both. There is no choice to get wrong, so the guard was charging its full
+price — every one of those specs generating C that uses `Trit` 141 times
+and declares it zero times — for a risk that was not present.
+
+Corpus-wide: **30** ambiguous (spec, name) pairs, **10** agree, **20**
+genuinely differ. The 20 must stay refused; `PHI` really is two different
+numbers in `math/constants.t27` and `math/sacred_physics.t27`.
+
+The general shape: a guard written against a real hazard keeps firing
+after the hazard's precondition stops holding, and its output is
+indistinguishable from the case where the hazard is present. **Ask what
+the guard assumes, then measure how often the assumption is true.** Here
+it was false a third of the time.
+
+## 289. A fallback that succeeds is a worse silence than a failure
+
+Three commands share this shape:
+
+    let resolved = resolve(path, &raw);
+    match compile(&resolved) {
+        Ok(code) => code,
+        Err(_) => compile(&raw)?,   // <- and exit 0
+    }
+
+When the spliced source will not compile, the ORIGINAL is compiled
+instead and the command succeeds. Every import it resolved is discarded.
+Nothing is printed, the exit code is 0, and the output is a plausible
+file.
+
+Exactly one spec in the corpus takes that path — and it was the one spec
+of six whose errors did not improve when the splice started working. I
+had already explained that spec with a different defect, wrongly, because
+a fallback that exits 0 leaves no trace to explain.
+
+The refusal above it had the opposite problem and the same effect: it
+wrote its reason into a comment, and codegen strips comments. **A
+diagnostic that exists in an intermediate nobody reads is not a
+diagnostic.** Both are now on stderr, where the person reading the `cc`
+error is; stdout is byte-identical, so nothing downstream notices.
+
+Related: §234 for the ruler that read columns, §235 for the check that
+compared no fields.
+
+## 290. You counted the forms and stopped at the two you had seen
+
+§234 says the corpus writes two indentation conventions and that bracket
+depth zero handles both. That sentence was written after finding two, and
+it is wrong. There are three:
+
+    module tritype-ops;          392 specs   contents at depth 0
+    module Constants { ... }     231 specs   contents at depth 1
+    (no module line)              27 specs
+
+Depth zero finds **no definition at all** in 231 of 650 specs — a third of
+the corpus, silently. The tool shipped one iteration earlier reported two
+files with a duplicated top-level name and was blind to every braced
+module. One of them, `specs/file/operations.t27`, declares `fn delete`
+twice with different arities.
+
+Nothing in the output said so. A detector that reads a third of the corpus
+as empty reports a smaller number, not an error, and a smaller number
+after a fix reads as progress.
+
+**A survey of forms is a measurement, and it needs a denominator.** "The
+corpus writes two conventions" was a claim about 650 files supported by
+looking at two of them. One `grep -c` per form would have said 392 / 231 /
+27 before the ruler was written, and the third form is the one that
+matters.
+
+## 291. The obvious repair readmitted exactly what the last one removed
+
+Having found that depth is blind to braced modules, the repair looked
+free: use the smallest indent any definition in the file is written at.
+That rule is not even new — `use_resolve::top_level_indent` has always
+used it to find the same thing.
+
+It reports the braced modules correctly and puts the local bindings
+straight back. `specs/api/c_api_contract.t27` has no definition outside
+its test blocks, so the smallest indent **is** the locals' indent, and the
+tool reports `a`, `b`, `v`, `sim`, `bound`. Sixteen files of that shape.
+
+Four rulers, three wrong, each differently:
+
+| ruler | reports | wrong how |
+|---|---|---|
+| four spaces | 43 files | 41 are body bindings |
+| bracket depth 0 | 2 files | blind to 231 braced specs |
+| smallest definition indent | 5 files | body bindings again, in files with no top-level definition |
+| depth 0, or 1 under a braced module, `const` only in the first case | 3 files | a duplicated top-level `const` in a braced module is missed |
+
+The fourth is what shipped, and its miss is written into the source rather
+than left to be discovered. **When repair N reintroduces the failure that
+repair N−1 removed, the two failures are one problem you have not stated
+yet** — here, that "top level" is a parse question and every one of these
+rulers is a heuristic standing in for a parser that already exists.
+
+## 292. The test passed under its own mutation
+
+The kind filter — accept `const` at depth 0 but not at braced-module depth
+— had a test. Removing the filter left all twelve tests green.
+
+Its fixture put the `const` inside a `test "..." { }` block, where bracket
+depth excludes it whether or not the filter exists. The test asserted a
+true thing about a case the filter never sees.
+
+A mutation check is not a formality you run to confirm what you expect. It
+is the only thing that distinguishes a test of your code from a test of
+something adjacent to it that happens to hold. Rewritten to pin the
+**documented miss** — a duplicated `const` at braced-module depth is not
+reported — the same test fails the moment the filter is removed, which is
+what a test is for.
+
+Related: §234 for the ruler that read columns, §241 for the guard whose
+precondition had stopped holding.
+
+## 293. A clause that is true is not the same defect as a clause that is right
+
+Six quantified invariants in this corpus were found FALSE last pass. This pass
+found a different class in the same population:
+
+    forall kw : string, encode_keyword(kw) == encode_keyword(kw)
+    forall a : i32,     adder_tree_4(0, 0, 0, 0) == 0
+    forall e : StepKind, e != undefined
+
+A false invariant is a wrong claim. **A vacuous one is no claim at all**, dressed
+as a checked property. It passes every checker forever, it counts as coverage,
+and nothing will ever flag it — because there is nothing to flag.
+
+The field has the word and it is not "trivially true": **vacuity** (Beer,
+Ben-David, Eisner & Rodeh, *Efficient Detection of Vacuity in Temporal Model
+Checking*). A guard that is never true is **antecedent failure**; a formula true
+under every interpretation is a **tautology**. Use the terms that exist.
+
+Measured over all 924 clauses: **15 vacuous** with no type table at all —
+3 binder-unused, 6 `A == A`, 6 `X != undefined`.
+
+**Ask what a passing check would look like if it were empty.** The falsity
+sweep and the vacuity sweep read the same 924 lines and share no findings.
+
+## 294. Ten-of-ten in one directory, where ten-of-ten is 70% likely anyway
+
+An origin reading traced every vacuous clause to `specs/igla/` and to one
+commit, and concluded: a bulk-generated tree with an invariant quota. A clean
+mechanism, and a clean story.
+
+The adversary computed the base rate. **867 of the 899 binder-carrying clauses
+are in `specs/igla` — 96.4%.** Ten draws landing there is roughly **70% likely
+under the null**, and the "clustering" carried no information at all. Recounting
+the dominant sub-family gave three trees and three commits over three months.
+Only author clustering survived, and there is one author.
+
+The specific numbers were wrong too — 2184 files not 2185, 714 947 insertions
+not 71 483, 33 igla specs created not 47, and **0 of 7** files byte-identical to
+creation, not 6 of 7.
+
+**A clustering claim without the base rate is not evidence.** When a class
+concentrates in the place where everything concentrates, the concentration is
+the corpus, not the finding.
+
+## 295. Two kinds I invented, and both counted zero
+
+The taxonomy was written before the count: binder-unused, reflexive,
+`P ==> P`, type-level, and guard-never-true. Two of the five produced nothing.
+
+    P ==> P            0, over the 358 clauses that contain an implication
+    antecedent failure 0, over 166 binder-vs-literal comparisons evaluated
+                          against the binder's declared domain
+
+Both are real defect classes in the literature. Neither occurs here. The
+temptation was to leave them out of the output and let the taxonomy look tidy —
+and the zeros are the most useful lines in it: they say the corpus was *asked*.
+
+**A shape you can imagine is not a defect class until you count it.** Print the
+zeros beside the hits, or the reader cannot tell "none" from "not looked for".
+
+## 296. Three false positives in the first eight hits is how a check dies
+
+A backreference regex over the flattened clause body finds `A == A` **8 times**:
+five real, three not.
+
+    int4_dequantize_bank(codes, depth, width).depth == depth   preservation
+    a * b == b * a                                             commutativity
+    phi_split(bits).exp_bits == bits - 1                       a real bound
+
+Each is a genuine claim containing `X == X` as a substring. And the flattened
+version *misses* one true hit — `x + 0 == x`, which needs an arithmetic fold.
+
+Splitting per source line, then on `&&` and ` and ` at paren depth zero, gives
+**6 of 6 with zero false positives**. The three negatives are pinned as unit
+tests naming their corpus line, because the next person to "simplify" this into
+one regex will otherwise rediscover them in review.
+
+**A reviewer classifies a check in its first ten lines of output.** Three
+wrong ones there and the real findings below never get read.
+
+## 297. A guard written as a list goes stale by addition — the third time
+
+`clause_body` stops at the next top-level construct, from a list:
+
+    ["invariant ", "test ", "fn ", "const ", "module ", "use "]
+
+`bench ` is not in it. So `gemm.t27:260`, an invariant written at indent 0,
+swallowed the entire `bench booth_mul_latency` block that follows it.
+
+This is the same shape as §"Five paths declared, three checked" and as the
+secret-scan guard that named one member of the class it guards. Three times in
+one week, in three unrelated files, all mine or adjacent.
+
+Measured blast radius before and after: **1 clause in 924 overruns; 5 have an
+indent-0 head.** A one-line fix, and the measurement is what makes it a fix
+rather than a guess.
+
+**When you write a guard as a literal list, write down how you will find out it
+is short.** Here it was: count the clauses whose window crosses a construct
+boundary, and watch that number rather than the list.
+
+## 298. A latent defect, and the number that says how latent
+
+`tri types dup` decides CONFLICTED versus DUPLICATED by comparing field lists.
+It read `cell_count : u32,   // number of standard cells` and put the comment
+**inside the type**, so two definitions differing only in their comments would
+be called a conflict.
+
+Named by an agent in passing, three iterations after I wrote the code. The
+first question was not how to fix it but **how much it had already decided
+wrongly**:
+
+    of the 80 conflicted names, those resting on a comment difference:  0
+
+Zero. The published 46 DRIFT / 34 DISTINCT classification is untouched, and the
+fix moved no verdict — the ratchet stayed CLEAN at 80/80, which is the control.
+
+Fixed anyway. A latent defect is one that has not decided anything **yet**, and
+the fix is cheap now and a correction later.
+
+**Measure the blast radius before you fix it, not after.** The measurement is
+what turns "I found a bug" into "the bug changed nothing, and here is the
+number" — and it is the only version of that sentence anyone can check. Fixing
+first destroys the evidence that it was harmless.
+
+## 299. A dead enum variant makes a condition that matches nothing
+
+`gen_c_for_stmt` emitted a bare block where a loop belonged, so
+`for (0..1000) |_| { … }` ran its body once. The fix was to detect the
+range case and emit a counted loop:
+
+    if node.children[0].kind == NodeKind::ExprRange { … }
+
+It compiled. It changed no output. **`ExprRange` is declared in `NodeKind`
+and constructed nowhere** — the parser builds an `ExprBinary` whose
+`extra_op` is `".."`. A condition naming a variant that never exists is
+`false`, always, and a fix behind it is indistinguishable from no fix.
+
+The tell was the measurement, not the code: bare blocks 374 before, 374
+after. Had I taken "it compiles and the tests pass" as the result, the
+commit would have claimed a defect closed and closed nothing.
+
+**Before matching on an enum variant, grep for where it is CONSTRUCTED,
+not where it is declared.** A variant with one reference in the whole
+repository — its own declaration — is a name, not a case.
+
+## 300. The comment described a loop the code did not emit
+
+    fn gen_c_for_stmt(&mut self, node: &Node) {
+        // C doesn't have for-each natively; emit as a for loop with index
+        self.write_line("/* for-each loop (see t27 source) */");
+        self.write_line("{");
+
+No induction variable, no bound, no increment. The comment states the
+intent and the next four lines do something else, and 374 loops in the
+corpus ran their bodies once — in C that `cc` accepts without a single
+diagnostic, most of them in `bench_*` functions whose entire purpose is
+the iteration count.
+
+Beside it, `compound_binop`'s docstring already read: *"accepting a new
+compound operator without touching them would have emitted `x = rhs` for
+`x |= rhs` — a miscompilation rather than an error."* `/=` was missing
+from the table anyway, so `scaled /= 2.0;` became `scaled = 2.0;` in all
+three backends.
+
+Twice in one file: **somebody wrote down the failure and the failure was
+there.** A comment describing what a function should do is a claim about
+the code, and it is the cheapest possible thing to check — read the
+comment, then read the four lines under it and ask whether they do that.
+
+## 301. Grepping the helper's name finds the call sites that call it
+
+`/=` was missing from a table. Grepping `compound_binop` found three call
+sites — Zig, C, Verilog — and all three were fixed.
+
+Rust still emitted `scaled = 2.0;`.
+
+Its two `StmtAssign` arms hardcode `format!("{} = {};", target, val)` and
+never call the helper at all, so **every** compound assignment there was a
+plain store, not only the unmapped ones: Zig and C emitted 31 compound
+assignments across the corpus, Rust emitted **zero**.
+
+A search for the helper's name enumerates the sites that already do the
+right thing badly. It cannot see the site that never asked. **Enumerate by
+the behaviour — "every place that writes an assignment operator" — and
+then check each against the helper**, which is a grep for `" = "` and a
+reading, not a grep for a function name.
+
+Related: §241, a guard whose precondition had stopped holding.
+
+## 302. The compiler has the check, and cannot reach the place
+
+`bootstrap/src/compiler.rs:21479` promotes a wrong argument count to a **hard
+error** — #1921, closed, and live. A probe spec with `f(x)` against
+`fn f(a: u32, b: u32)` gives `Typecheck FAILED (1 errors, 0 warnings)`.
+
+Move the same call into a `forall` invariant and it gives `Typecheck OK`.
+
+The reason is a decision, written down in the parser:
+
+    // The quantified-invariant arm: recognised by name, discarded on
+    // purpose. What `forall` MEANS at codegen is #2774's decision.
+
+A discarded clause produces **no AST nodes at all**, so every AST-based check is
+blind to it by construction — including `t27c check-calls`, which finds **95** of
+these corpus-wide. Measured: **0 of 20** clause-site candidates appear in its
+output; **15 of 15** partner sites outside clause bodies do.
+
+**Before building a checker, ask whether one exists and what it cannot see.**
+The answer here was both: it exists, it is thorough, and there is a construct
+class it can never reach — which is exactly the gap worth filling, and only
+that gap.
+
+## 303. Typecheck FAILED, exit 0
+
+The same probe, one line further:
+
+    $ t27c typecheck bad.t27
+    Typecheck FAILED (1 errors, 0 warnings):
+      - function 'f' expects 2 args, got 1 at line 8
+    $ echo $?
+    0
+
+`main.rs` prints the failure and returns `Ok(())`. `suite.rs` judges the phase
+by `status.success()`. So the hard error #1921 was raised to a hard error
+**cannot fail anything**, and has not since it was promoted.
+
+Third command in this repository found printing a failure and exiting zero,
+after `t27c catalog-gate` and `suite --ratchet --corpus-only`.
+
+**A message is not an exit code, and a reader is not a gate.** When you promote
+a warning to an error, run the binary and read `$?` — the promotion is not done
+until that number moves.
+
+## 304. Nineteen of thirty-one rows were a declaration that wrapped
+
+The arity column's first run reported **31 mismatches**. Thirteen were
+`cordic_top  passes 4, declared 0`.
+
+    fn cordic_top(
+        clk: bool,
+        rst_n: bool,
+        ...
+
+My declaration reader took the head line, looked for `)`, found none, and
+recorded **arity zero** — then reported every correct four-argument call as a
+defect. Sixty-three declarations in this corpus wrap.
+
+Fixed by abstaining: if the parameter list does not close on its own line, the
+reader rules on nothing. **31 → 13 rows, 12 sites** — and the 12 are exactly
+what a separate agent had derived by hand, reached by a different route.
+
+Fifth scanner artifact this session. The pattern across all five is the same:
+**the reader stops at a line boundary the language does not have.**
+
+## 305. Four of six rules abstain, and that is the design
+
+A naive scan of the same 924 clause bodies reports ~317 arity mismatches. The
+shipped column reports 13. The difference is not filtering, it is refusal:
+
+| rule | abstains on | removes |
+|---|---|---|
+| R2 | a paren that does not close in the window | 0 today |
+| R3 | a name no declaration in scope defines | **595 of 1530 calls** |
+| R4 | method position — `x.len()`, the receiver IS the argument | 307 |
+| R5 | a name whose visible scope offers more than one arity | 0 today |
+
+R3 and R5 remove nothing measurable **today**, and both ship anyway: they
+abstain for a structural reason, not by today's accident. R4's bucket is 306
+`.len()` calls, and the alternative — a builtin allowlist — is the thing this
+report refuses by name, because an allowlist gets tuned until the number looks
+right.
+
+**Publish the number that survives, and put the funnel in the commit message.**
+A report showing "317 → 13" invites the reader to believe 304 defects were
+repaired. None were; 304 questions were declined.
+
+## 306. Zero failures, then a hundred and one, then ten
+
+I filed `t27c typecheck` printing `Typecheck FAILED` and exiting 0, and declined
+to fix it: *"95 existing mismatches would make it red on arrival."*
+
+Next pass, I measured instead of reasoning. Three numbers, in order:
+
+    455 OK, 0 FAILED       my first sweep -- and WRONG
+    549 OK, 101 FAILED     the whole corpus, counted by exit code
+     10 print FAILED       the population the change actually touches
+
+The first was a broken ruler: the loop classified by grepping the last output
+line for `OK` or `FAILED`, and **195 files printed neither** — they die on a
+parse error. They fell through both branches and were counted as nothing.
+
+The second was right and irrelevant: 101 already exit non-zero, before any
+change, because a parse error is not a typecheck verdict.
+
+**Only the third is the blast radius**, and it is ten specs. The control that
+settled it: `suite --corpus-only` exits **101 before and 101 after**, with the
+output differing by one thread id inside a panic message.
+
+**A number that answers a different question is worse than no number**, because
+it comes with the confidence of having been measured. All three of these were
+measurements. Only one was of the thing being changed.
+
+## 307. The reason I gave for not fixing it was not the reason it was unsafe
+
+"95 existing mismatches" — those are `t27c check-calls` findings, corpus-wide,
+in a different command. `typecheck` never reports them, and nothing in
+`.github/`, `scripts/` or `Makefile` invokes either.
+
+The real risk was `suite.rs`, which spawns `typecheck` and judges the phase by
+`status.success()`. That is the one place an exit code change could turn a
+green phase red — and it is not what I named when I declined.
+
+**When you decline a fix, name the mechanism, not a nearby number.** A number
+sounds like evidence and is not falsifiable as a reason; "suite judges this
+phase by the exit code, and N specs would flip" is both.
+
+<<<<<<< HEAD
+## 308. Build the rule you rejected, run it, and read the number
+
+An invariant was discarded as "not a C constant expression" whenever its
+rendered text contained a parenthesis — a test the emitter itself
+triggers, since `gen_c_expr` parenthesises binary expressions. 2078
+invariants across 179 specs.
+
+The obvious replacement is "reject only if it contains a function call",
+and it is wrong. **It was built and run before that was known**:
+
+| rule | discarded | checks emitted | specs `cc` accepts |
+|---|---|---|---|
+| parenthesis (before) | 2078 | 3674 | 166 |
+| no function call | 1066 | 4135 | **156** |
+| no call + name in `const_defs` | **3820** | **1932** | 166 |
+| no call + no empty operand + declared | 1738 | 4014 | **171** |
+
+The second rule breaks ten specs. The third — which looks strictly safer
+— throws away 1742 checks that were compiling, because `const_defs`
+misses enum constants and does not contain `true`.
+
+Neither of those is deducible from reading the rule. Both took one
+build and one sweep to see. **A rule about a corpus is a claim about the
+corpus: the cost of testing it is a build, and the cost of not testing
+it is shipping the second row.**
+
+## 309. What the comment was hiding
+
+Promoting those discards from comments to code turned two silent defects
+into loud ones:
+
+- `(BOARD_NAME != )` — an operator with nothing after it, which is what
+  a string literal that lost its quotes leaves behind.
+- `#define CLOCK_FREQ_HZ 100_000_000` — Zig and Rust write digit
+  separators, C reads `_000_000` as a suffix on an integer constant.
+  97 lines across 35 specs.
+
+Neither had ever produced a diagnostic, because both lived inside
+`/* ... */`. The discard was not merely losing checks; it was
+**acting as a silencer for the renderer that fed it**.
+
+That generalises past this file. A branch that swallows its input and
+emits a comment cannot be assessed by reading it — its cost is invisible
+until something downstream is made to consume what it was hiding. When
+you find one, expect the first attempt to enable it to look like a
+regression, and expect the regression to be a defect you did not know
+about rather than a mistake in the change.
+
+Related: §241, a guard whose precondition had stopped holding.
