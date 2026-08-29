@@ -36,6 +36,25 @@ pub enum TypesCmd {
     },
 }
 
+/// `const Name = struct {` -- the Zig spelling, and the one the corpus uses
+/// most. Returns a slice that still begins with the NAME, so the shared path
+/// can extract it the same way it does for `struct Name {`.
+fn const_struct_name(t: &str) -> Option<&str> {
+    let rest = t
+        .strip_prefix("const ")
+        .or_else(|| t.strip_prefix("pub const "))?;
+    let (name, after) = rest.split_once('=')?;
+    let name = name.trim();
+    if name.is_empty() || !name.chars().next()?.is_ascii_alphabetic() || name.contains(' ') {
+        return None;
+    }
+    if !after.trim().starts_with("struct") {
+        return None;
+    }
+    let start = t.find(name)?;
+    Some(&t[start..])
+}
+
 /// One `struct Name { ... }` as written: where it is, and its field types in
 /// source order.
 #[derive(Clone, PartialEq, Eq)]
@@ -57,7 +76,28 @@ pub fn defs_in(file: &str, src: &str) -> Vec<(String, Def)> {
     let mut i = 0usize;
     while i < lines.len() {
         let t = lines[i].trim();
-        let Some(rest) = t.strip_prefix("struct ") else {
+        // W705: THREE spellings declare a type in this corpus, and the first
+        // version of this scanner saw one of them. Measured after an adversarial
+        // re-count said so:
+        //
+        //     struct Name { ... }          301 lines
+        //     pub struct Name { ... }      154 lines
+        //     const Name = struct { ... }  737 lines   <- the Zig idiom
+        //
+        // Reporting "299 struct definitions" over a corpus that declares types
+        // four times that often is not a small error: every duplicate-name
+        // verdict was drawn from a quarter of the population.
+        if t.starts_with("//") {
+            i += 1;
+            continue;
+        }
+        let rest = if let Some(r) = t.strip_prefix("struct ") {
+            r
+        } else if let Some(r) = t.strip_prefix("pub struct ") {
+            r
+        } else if let Some(r) = const_struct_name(t) {
+            r
+        } else {
             i += 1;
             continue;
         };

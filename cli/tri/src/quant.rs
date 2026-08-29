@@ -90,15 +90,22 @@ struct Structs {
 /// is two numbers that can disagree, and these did.
 fn scan_structs(specs: &[(PathBuf, String)]) -> Structs {
     let mut fields: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut keys: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut conflicted = std::collections::BTreeSet::new();
     for (p, src) in specs {
         for (name, d) in crate::types_dup::defs_in(&p.display().to_string(), src) {
+            // W705: compare the SAME thing `tri types dup` compares -- name and
+            // type per field, not types alone. Comparing types only made two
+            // definitions with the same shapes and different field names agree,
+            // and the two commands then printed 77 and 79 for one question.
+            let key: Vec<String> = d.fields.iter().map(|(n, t)| format!("{n}: {t}")).collect();
             let fs: Vec<String> = d.fields.iter().map(|(_, t)| t.clone()).collect();
-            if let Some(prev) = fields.get(&name) {
-                if *prev != fs {
+            if let Some(prev) = keys.get(&name) {
+                if *prev != key {
                     conflicted.insert(name.clone());
                 }
             }
+            keys.insert(name.clone(), key);
             fields.insert(name, fs);
         }
     }
@@ -156,45 +163,176 @@ struct Clause {
     text: String,
 }
 
-/// The four notations, recognised on the source line.
+/// Blank out `//` tails and string literals, keeping every column in place.
+///
+/// W705: without this the scanner matched `for all` inside prose. An independent
+/// re-count found that 99 of the 135 rows it filed as suffix notations were
+/// comments (88), string literals (5), markdown prose (3) and a block comment --
+/// so the published suffix count was two thirds English.
+///
+/// A third instrument in this same repository already disagreed:
+/// `t27c parse-complete --fallbacks` reports the suffix shape at 38 events, and
+/// `docs/DISCARD_WHAT_IS_LEFT.md` prints 35 + 4. Nobody reconciled 38 with 135,
+/// and the census was published anyway.
+fn mask(line: &str) -> String {
+    let b: Vec<char> = line.chars().collect();
+    let mut out = String::with_capacity(b.len());
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if in_str {
+            out.push(if c == '"' { '"' } else { ' ' });
+            if c == '"' && (i == 0 || b[i - 1] != '\\') {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '"' {
+            in_str = true;
+            out.push('"');
+            i += 1;
+            continue;
+        }
+        if c == '/' && i + 1 < b.len() && b[i + 1] == '/' {
+            // Everything from here is a comment; keep the columns.
+            for _ in i..b.len() {
+                out.push(' ');
+            }
+            break;
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
+}
+
+/// The binder forms the corpus actually writes, all found by reading it.
+///
+/// The first version read exactly one -- `name : Type` -- and filed everything
+/// else as "no binder this can read", a phrase that described the scanner and
+/// was printed as though it described the source. The domains it lost that way
+/// are the SMALLEST in the corpus: `for all Trit a, b` is nine values.
+fn parse_binders(text: &str) -> Vec<(String, String)> {
+    let t = text.trim();
+    let mut out = Vec::new();
+
+    // `Type name[, name]` -- `for all Trit a, b`, `for all i8 x`.
+    if let Some((head, tail)) = t.split_once(char::is_whitespace) {
+        let head = head.trim();
+        let looks_type = head
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_alphabetic())
+            .unwrap_or(false)
+            && !head.contains(':')
+            && (primitive(head).is_some() || head.chars().next().unwrap().is_ascii_uppercase());
+        if looks_type {
+            let names: Vec<&str> = tail
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .map(|x| x.trim())
+                .filter(|x| !x.is_empty())
+                .take_while(|x| x.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+                .collect();
+            if !names.is_empty() {
+                for n in names {
+                    out.push((n.to_string(), head.to_string()));
+                }
+                return out;
+            }
+        }
+    }
+
+    // `name[, name] : Type` and `name : Type, ...` -- both prefix spellings.
+    // `forall exp, mant: u8, body` binds BOTH names to u8.
+    let upto = t.split('{').next().unwrap_or(t);
+    if let Some((names, rest)) = upto.split_once(':') {
+        let ty = rest
+            .trim()
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .find(|x| !x.trim().is_empty())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        let ns: Vec<&str> = names
+            .split(',')
+            .map(|x| x.trim())
+            .filter(|x| !x.is_empty())
+            .collect();
+        if !ty.is_empty()
+            && !ns.is_empty()
+            && ns
+                .iter()
+                .all(|n| n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+        {
+            for n in ns {
+                out.push((n.to_string(), ty.clone()));
+            }
+            return out;
+        }
+    }
+
+    // `name in <domain>` -- `for all k in u8 where ...`, `forall r in results`,
+    // `for any a, b in {1, -1}`. The domain is a TYPE only when it names one;
+    // a collection or a range is recorded with its text so `size_of` can call
+    // it unbounded rather than the scanner pretending there is no binder.
+    if let Some((names, dom)) = upto.split_once(" in ") {
+        let dom = dom
+            .split(" where ")
+            .next()
+            .unwrap_or("")
+            .trim()
+            .trim_end_matches(':')
+            .trim()
+            .to_string();
+        let ns: Vec<&str> = names
+            .split(',')
+            .map(|x| x.trim())
+            .filter(|x| !x.is_empty())
+            .collect();
+        if !dom.is_empty()
+            && !ns.is_empty()
+            && ns
+                .iter()
+                .all(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+        {
+            for n in ns {
+                out.push((n.to_string(), dom.clone()));
+            }
+            return out;
+        }
+    }
+    out
+}
+
+/// The notations, recognised on the MASKED source line.
 fn scan_clauses(specs: &[(PathBuf, String)]) -> Vec<Clause> {
     let mut out = Vec::new();
     for (p, src) in specs {
         for (i, raw) in src.lines().enumerate() {
-            let t = raw.trim();
-            let (notation, binder_text) = if let Some(r) = t.strip_prefix("forall ") {
-                ("prefix", r.to_string())
-            } else if let Some(idx) = t.find(": forall ") {
-                ("colon", t[idx + 9..].to_string())
+            let masked = mask(raw);
+            let t = masked.trim();
+            if t.is_empty() {
+                continue;
+            }
+            let (notation, binder_text) = if let Some(idx) = t.find("forall ") {
+                ("forall", t[idx + 7..].to_string())
             } else if let Some(idx) = t.find(" for all ") {
                 ("suffix-all", t[idx + 9..].to_string())
             } else if let Some(idx) = t.find(" for any ") {
                 ("suffix-any", t[idx + 9..].to_string())
+            } else if let Some(idx) = t.find(" for positive ") {
+                ("suffix-positive", t[idx + 14..].to_string())
             } else {
                 continue;
             };
-            // `x : T, y : U, <body>` -- binders are the leading `name : Type`
-            // pairs. A comma-separated piece with no colon ends the binder list;
-            // everything after it is body, and this command does not read bodies.
-            let mut binders = Vec::new();
-            for piece in binder_text.split(',') {
-                let piece = piece.trim();
-                let Some((n, ty)) = piece.split_once(':') else {
-                    break;
-                };
-                let n = n.trim();
-                let ty = ty.trim();
-                if n.is_empty() || ty.is_empty() || n.contains(' ') {
-                    break;
-                }
-                binders.push((n.to_string(), ty.to_string()));
-            }
             out.push(Clause {
                 file: p.display().to_string(),
                 line: i + 1,
                 notation,
-                binders,
-                text: t.to_string(),
+                binders: parse_binders(&binder_text),
+                text: raw.trim().to_string(),
             });
         }
     }
@@ -388,18 +526,77 @@ mod tests {
         assert_eq!(size_of("Pair", &st, 0), Size::Unbounded);
     }
 
+    /// W705: `invariant NAME: forall x : T` and a bare `forall x : T` are the
+    /// SAME construct written two ways, and the first version split them into
+    /// two of four buckets while missing a real fourth form entirely. One
+    /// `forall` bucket, and the suffix forms named separately.
     #[test]
-    fn the_four_notations_are_recognised() {
+    fn the_notations_are_recognised() {
         let src = "\
     invariant a: forall c : Cfg, c.x > 0
     forall input : In
-    assert f(a) == f(b) for all Trit
-    assert g(a) == g(b) for any a : Trit, b : Trit
+    assert f(a) == f(b) for all Trit a, b
+    assert g(a) == g(b) for any a, b in {1, -1}
+    assert h(x) for positive x, integer n
 ";
         let cs = scan_clauses(&[(PathBuf::from("x.t27"), src.to_string())]);
         let mut kinds: Vec<&str> = cs.iter().map(|c| c.notation).collect();
         kinds.sort();
-        assert_eq!(kinds, vec!["colon", "prefix", "suffix-all", "suffix-any"]);
+        assert_eq!(
+            kinds,
+            vec![
+                "forall",
+                "forall",
+                "suffix-all",
+                "suffix-any",
+                "suffix-positive"
+            ]
+        );
+    }
+
+    /// A comment is not a clause. 99 of 135 rows in the first census were.
+    #[test]
+    fn comments_and_strings_are_not_clauses() {
+        let src = "\
+    // Verify: trit_min(a, a) == a for all a
+    const equation = \"holds for all x > 0\";
+    return .pos;  // x^0 = 1 for any x != 0
+";
+        let cs = scan_clauses(&[(PathBuf::from("x.t27"), src.to_string())]);
+        assert!(
+            cs.is_empty(),
+            "{:?}",
+            cs.iter().map(|c| &c.text).collect::<Vec<_>>()
+        );
+    }
+
+    /// The binder forms the corpus writes, every one found by reading it.
+    #[test]
+    fn every_binder_form_in_the_corpus_is_read() {
+        // `Type name, name`
+        assert_eq!(
+            parse_binders("Trit a, b"),
+            vec![
+                ("a".to_string(), "Trit".to_string()),
+                ("b".to_string(), "Trit".to_string())
+            ]
+        );
+        // `name, name : Type`
+        assert_eq!(
+            parse_binders("exp, mant: u8, body()"),
+            vec![
+                ("exp".to_string(), "u8".to_string()),
+                ("mant".to_string(), "u8".to_string())
+            ]
+        );
+        // `name in Type where guard`
+        assert_eq!(
+            parse_binders("k in u8 where k <= 27"),
+            vec![("k".to_string(), "u8".to_string())]
+        );
+        // `name in <collection>` -- a binder, with a domain `size_of` will call
+        // unbounded. That is a different answer from "no binder".
+        assert_eq!(parse_binders("r in results").len(), 1);
     }
 
     /// A suffix with no `name : Type` yields no binder rather than a wrong one.
