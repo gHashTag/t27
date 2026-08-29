@@ -17795,6 +17795,179 @@ impl CCodegen {
             .unwrap_or(false)
     }
 
+    /// Does this rendered C expression contain a function call?
+    ///
+    /// A call is what makes an expression unusable in `_Static_assert`; a
+    /// parenthesis is not. Spelled as an identifier immediately followed by `(`,
+    /// with the C keywords that wear the same shape excluded -- `sizeof` above all,
+    /// which is an integer constant expression.
+    /// Can this rendered C expression stand inside `_Static_assert`?
+    ///
+    /// Two things disqualify one, and BOTH are needed. Requiring only the call
+    /// test raises the corpus error count by 693 and drops ten specs out of
+    /// compiling:
+    ///
+    /// - A FUNCTION CALL. 1065 of the 2078 discarded invariants have one.
+    /// - AN IDENTIFIER THIS FILE DOES NOT DECLARE. A quantified invariant
+    ///   renders as `(x <= y)`, and `x` and `y` are its bound variables: no
+    ///   call, no parenthesis problem, and no existence in C.
+    ///   `_Static_assert((x <= y), ...)` is `use of undeclared identifier 'x'`.
+    fn is_c_constant_expr(&self, text: &str) -> bool {
+        if Self::contains_call(text) {
+            return false;
+        }
+        // A rendered expression with a missing operand -- `(BOARD_NAME != )`,
+        // which is what a string literal that lost its quotes leaves behind
+        // (#2846) -- must not be promoted from a comment to code. The comment
+        // was hiding it; making it a `_Static_assert` turns one silent defect
+        // into a syntax error that cascades through the rest of the file.
+        if Self::has_empty_operand(text) {
+            return false;
+        }
+        // `const_defs` alone is too narrow: requiring it rejects 1742
+        // invariants that were compiling as `_Static_assert` before, because
+        // enum constants and constants emitted through other paths never reach
+        // that map. The question is whether the NAME EXISTS IN THIS
+        // TRANSLATION UNIT, so the emitted text is what to ask.
+        // `const_defs` alone is too narrow in two ways, both measured.
+        //
+        // C's own words are identifier-shaped: the expression `true` is one
+        // token and it is not a constant this file declared. Rejecting it lost
+        // `_Static_assert(true, "invariant: bridge_modes_mutable")`, which had
+        // been compiling.
+        //
+        // And enum constants and constants emitted through other paths never
+        // reach `const_defs`, so the emitted text is asked as well.
+        Self::identifiers_in(text)
+            .iter()
+            .all(|n| Self::is_c_word(n) || self.declares(n))
+    }
+
+    /// Does an operator in this rendered expression have nothing after it?
+    ///
+    /// `(BOARD_NAME != )` is the shape: the renderer dropped the right-hand
+    /// side. Ten specs in `boards/` and `fpga/` carry one.
+    fn has_empty_operand(text: &str) -> bool {
+        let b = text.as_bytes();
+        let mut i = 0;
+        while i < b.len() {
+            if matches!(b[i], b'+' | b'-' | b'*' | b'/' | b'%' | b'<' | b'>' | b'=' | b'!' | b'&' | b'|' | b'^') {
+                let mut j = i + 1;
+                while j < b.len()
+                    && matches!(b[j], b'=' | b'<' | b'>' | b'&' | b'|' | b' ')
+                {
+                    j += 1;
+                }
+                if j >= b.len() || b[j] == b')' {
+                    return true;
+                }
+                i = j;
+                continue;
+            }
+            i += 1;
+        }
+        false
+    }
+
+    /// A literal as C must read it: the `_` separators Zig and Rust allow are
+    /// not part of a C numeric constant.
+    fn c_literal(v: &str) -> String {
+        if Self::is_separated_number(v) {
+            v.replace('_', "")
+        } else {
+            v.to_string()
+        }
+    }
+
+    /// Is this literal a number written with `_` separators?
+    ///
+    /// Only digits, separators and the usual radix or exponent letters, so a
+    /// string or an identifier holding an underscore is left alone.
+    fn is_separated_number(v: &str) -> bool {
+        if !v.contains('_') {
+            return false;
+        }
+        if !v.starts_with(|c: char| c.is_ascii_digit()) {
+            return false;
+        }
+        v.chars().all(|c| {
+            c.is_ascii_alphanumeric() || c == '_' || c == '.'
+        }) && v.chars().filter(|c| c.is_ascii_alphabetic()).all(|c| {
+            matches!(c, 'x' | 'X' | 'b' | 'B' | 'o' | 'O' | 'e' | 'E')
+                || c.is_ascii_hexdigit()
+        })
+    }
+
+    /// A word C itself supplies: a literal, a type, or an operator spelled as
+    /// a name. None of these needs a declaration in this file.
+    fn is_c_word(name: &str) -> bool {
+        const WORDS: &[&str] = &[
+            "true", "false", "NULL", "sizeof", "_Static_assert",
+            "char", "short", "int", "long", "float", "double", "void",
+            "signed", "unsigned", "_Bool", "bool", "size_t", "ptrdiff_t",
+            "int8_t", "int16_t", "int32_t", "int64_t",
+            "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+        ];
+        WORDS.contains(&name)
+    }
+
+    /// Does this translation unit declare this name?
+    fn declares(&self, name: &str) -> bool {
+        // A `#define` and an enum member are integer constant expressions. A
+        // `static const` is NOT one in C, however constant it looks, and
+        // `const_defs` holds both -- which is why asking that map promoted
+        // `_Static_assert((CLOCK_FREQ_HZ > 0), ...)` into nine specs that then
+        // failed on a name C will not accept there.
+        self.output.contains(&format!("#define {} ", name))
+            || self.output.contains(&format!("    {},", name))
+    }
+
+    /// Every identifier-shaped token in a rendered expression.
+    fn identifiers_in(text: &str) -> Vec<String> {
+        let b = text.as_bytes();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < b.len() {
+            if !(b[i].is_ascii_alphabetic() || b[i] == b'_') {
+                i += 1;
+                continue;
+            }
+            let start = i;
+            while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
+                i += 1;
+            }
+            out.push(text[start..i].to_string());
+        }
+        out
+    }
+
+    fn contains_call(text: &str) -> bool {
+        const NOT_CALLS: &[&str] = &[
+            "sizeof", "if", "while", "for", "switch", "return", "_Static_assert",
+        ];
+        let b = text.as_bytes();
+        let mut i = 0;
+        while i < b.len() {
+            if !(b[i].is_ascii_alphabetic() || b[i] == b'_') {
+                i += 1;
+                continue;
+            }
+            let start = i;
+            while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
+                i += 1;
+            }
+            let name = &text[start..i];
+            let mut j = i;
+            while j < b.len() && b[j] == b' ' {
+                j += 1;
+            }
+            if j < b.len() && b[j] == b'(' && !NOT_CALLS.contains(&name) {
+                return true;
+            }
+        }
+        false
+    }
+
     fn gen_c_const(&mut self, node: &Node) {
         // Detect type alias pattern: ConstDecl with single ExprIdentifier child
         // that looks like a type name (e.g., pub const PackedTrit = u8;)
@@ -17865,7 +18038,11 @@ impl CCodegen {
             let child = &node.children[0];
             // Simple literal → #define
             if child.kind == NodeKind::ExprLiteral {
-                self.write_line(&format!("#define {} {}", node.name, child.value));
+                self.write_line(&format!(
+                        "#define {} {}",
+                        node.name,
+                        Self::c_literal(&child.value)
+                    ));
             } else {
                 // Complex expression → static const
                 self.write(&format!("static const {} {} = ", c_type, node.name));
@@ -17874,7 +18051,11 @@ impl CCodegen {
             }
         } else if !node.value.is_empty() {
             // Constant with a direct value (no child node)
-            self.write_line(&format!("#define {} {}", node.name, node.value));
+            self.write_line(&format!(
+                "#define {} {}",
+                node.name,
+                Self::c_literal(&node.value)
+            ));
         }
     }
 
@@ -18196,7 +18377,21 @@ impl CCodegen {
                             let mut probe = CCodegen::new();
                             probe.gen_c_expr(cond);
                             let text = probe.output.clone();
-                            if text.contains('(') && text.contains(')') {
+                            // The test used to be "the text contains a
+                            // parenthesis", which is not what makes an
+                            // expression non-constant -- and `gen_c_expr`
+                            // parenthesises its own binary expressions, so the
+                            // verdict was largely triggered by the emitter one
+                            // line above. `(MAX_STEPS > 0)` and
+                            // `(DEBOUNCE_DELAY_MS == 618)` are integer constant
+                            // expressions and were thrown away as if they were
+                            // not: 1013 of the 2078 discarded invariants
+                            // contain no call at all.
+                            //
+                            // What actually disqualifies an expression here is
+                            // a FUNCTION CALL. `sizeof` is spelled like one and
+                            // is constant, so it is excluded by name.
+                            if !self.is_c_constant_expr(&text) {
                                 self.write(&format!(
                                     "/* invariant {} is not a C constant expression: {} */\n",
                                     node.name,
@@ -18781,7 +18976,17 @@ impl CCodegen {
     fn gen_c_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => {
-                let val = &node.value;
+                // Zig and Rust write `100_000_000`; C does not. The separator
+                // reached the output verbatim and `cc` reads it as a suffix:
+                // `invalid suffix '_000_000' on integer constant`. 97 lines
+                // across 35 specs.
+                let stripped;
+                let val = if Self::is_separated_number(&node.value) {
+                    stripped = node.value.replace('_', "");
+                    &stripped
+                } else {
+                    &node.value
+                };
                 if val == "true" {
                     self.write("true");
                 } else if val == "false" {
