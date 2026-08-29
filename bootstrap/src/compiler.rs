@@ -3590,6 +3590,25 @@ impl Parser {
             self.current.kind == TokenKind::KwVar || self.current.lexeme == "let";
         self.advance(); // consume const/var/let
 
+        // `let mut x = v` -- `mut` is a QUALIFIER, not the name.
+        //
+        // The parser already accepted `let`; it then read the next token as the
+        // variable name, so `mut` became the name, `result` its type and `1.0`
+        // its value. The emitted line was `const mut;` -- eight walls, and the
+        // 363 further sites behind them silently wrong in the same way.
+        //
+        // Same shape as `comptime`/`noalias` on a parameter: a keyword that is
+        // not a name is recognised by what follows it, and a real name is never
+        // followed by another bare identifier here.
+        //
+        // This is one qualifier in a construct the parser already parses, not
+        // Rust support: `let` itself has been mapped to const/var since before
+        // today.
+        if self.current.lexeme == "mut" {
+            decl.extra_mutable = true;
+            self.advance();
+        }
+
         // Name
         //
         // A keyword is a legal variable name in a spec: `var module = ...` in
