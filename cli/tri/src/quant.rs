@@ -38,8 +38,10 @@ pub enum QuantCmd {
         #[arg(long)]
         full: bool,
         /// Domain sizes at or below this are called walkable. Choosing this
-        /// number is the decision this report exists to inform; the default is
-        /// deliberately small.
+        /// number is the decision this report exists to inform. The default
+        /// 65536 is 2^16, the 16-bit machine word; it admits 42 clauses that
+        /// carry 99.4% of the walk cost. See the CEILING SWEEP section, which
+        /// prints every ceiling that is not a synonym for another one.
         #[arg(long, default_value_t = 65536u128)]
         ceiling: u128,
     },
@@ -72,9 +74,10 @@ fn primitive(t: &str) -> Option<u128> {
 /// `struct Name { field: Type, ... }` as written in the specs, by name.
 ///
 /// A name defined more than once is recorded as CONFLICTED and treated as
-/// unbounded: 50 struct names in this corpus have several definitions, and
-/// picking one of them would change `|D|` by an unbounded factor with nothing
-/// saying which was picked.
+/// unbounded: picking one of them would change `|D|` by an unbounded factor
+/// with nothing saying which was picked. The count is PRINTED by the report --
+/// it used to be written here as 50, while the binary printed 80. A census
+/// tool whose source misreports its own output is the broken ruler.
 struct Structs {
     fields: BTreeMap<String, Vec<String>>,
     conflicted: std::collections::BTreeSet<String>,
@@ -502,6 +505,85 @@ fn read_specs(root: &std::path::Path) -> Vec<(PathBuf, String)> {
     out
 }
 
+/// Every ceiling that is not a synonym for another one, with what it admits.
+///
+/// A ceiling only matters where a domain size sits: raising it anywhere between
+/// two adjacent sizes changes nothing. So a sweep that samples round numbers
+/// reports flat regions it never measured -- the plateau tops ARE the distinct
+/// sizes, and they come out of one sorted pass.
+///
+/// Returns `(top, cumulative_clauses, cumulative_sum, admitted_here)`.
+pub fn plateaus(finite: &[u128]) -> Vec<(u128, usize, u128, usize)> {
+    let mut sizes: Vec<u128> = finite.to_vec();
+    sizes.sort_unstable();
+    let mut out = Vec::new();
+    let (mut n, mut s) = (0usize, 0u128);
+    let mut i = 0;
+    while i < sizes.len() {
+        let t = sizes[i];
+        let mut k = 0;
+        while i < sizes.len() && sizes[i] == t {
+            k += 1;
+            i += 1;
+        }
+        n += k;
+        s = s.saturating_add(t.saturating_mul(k as u128));
+        out.push((t, n, s, k));
+    }
+    out
+}
+
+/// `2^16` when the number is an exact power of two, grouped digits otherwise.
+///
+/// 82% of the finite domain sizes in this corpus are exact powers of 256 --
+/// it is a hardware-spec corpus, and the quantifiers run over register widths.
+/// Printing `18 446 744 073 709 551 616` hides that; printing `2^64` states it.
+fn width(n: u128) -> String {
+    if n != 0 && n & (n - 1) == 0 {
+        let mut e = 0u32;
+        let mut v = n;
+        while v > 1 {
+            v >>= 1;
+            e += 1;
+        }
+        if e >= 8 {
+            return format!("2^{e}");
+        }
+    }
+    if n == u128::MAX {
+        return "saturated".to_string();
+    }
+    group(n)
+}
+
+/// Grouped digits while they stay readable, then an exponent. A twenty-eight
+/// digit evaluation count in a fixed-width column pushes every other column off
+/// the line, and nobody reads the twenty-eighth digit of a number that saturated.
+fn compact(n: u128) -> String {
+    if n == u128::MAX {
+        return ">= saturated".to_string();
+    }
+    if n < 1_000_000_000_000_000 {
+        return group(n);
+    }
+    let d = n.to_string();
+    format!("~{}.{}e{}", &d[..1], &d[1..3], d.len() - 1)
+}
+
+/// Digits in groups of three. A nine-digit evaluation count is unreadable
+/// otherwise, and this report exists to be read by someone choosing a ceiling.
+fn group(n: u128) -> String {
+    let d = n.to_string();
+    let mut out = String::new();
+    for (i, c) in d.chars().enumerate() {
+        if i > 0 && (d.len() - i) % 3 == 0 {
+            out.push(' ');
+        }
+        out.push(c);
+    }
+    out
+}
+
 pub fn run(cmd: &QuantCmd) -> Result<()> {
     let QuantCmd::Report { full, ceiling } = cmd;
     let root = repo_root()?;
@@ -518,6 +600,13 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
     let mut by_notation: BTreeMap<&str, usize> = BTreeMap::new();
     let (mut walkable, mut over, mut unbounded, mut no_binder) = (0usize, 0usize, 0usize, 0usize);
     let mut walkable_sizes: Vec<(u128, String, usize)> = Vec::new();
+    // Every finite |D|, walkable or not. `--ceiling` never enters `size_of`, so
+    // this multiset is ceiling-invariant and the whole sweep falls out of one
+    // scan -- no re-reading the corpus per candidate ceiling.
+    let mut finite_sizes: Vec<u128> = Vec::new();
+    // An unbounded clause whose every unbounded binder names a CONFLICTED
+    // struct is unbounded for a reason someone could fix.
+    let (mut touch_conflict, mut hostage) = (0usize, 0usize);
 
     for c in &clauses {
         *by_notation.entry(c.notation).or_default() += 1;
@@ -529,12 +618,26 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             continue;
         }
         let mut total: Option<u128> = Some(1);
+        let (mut unb, mut unb_conflicted) = (0usize, 0usize);
         for (_, ty) in &c.binders {
             match size_of(ty, &structs, 0) {
                 Size::Finite(n) => total = total.map(|t| t.saturating_mul(n)),
                 Size::Unbounded => {
                     total = None;
-                    break;
+                    unb += 1;
+                    if structs.conflicted.contains(ty.trim()) {
+                        unb_conflicted += 1;
+                    }
+                }
+            }
+        }
+        if let Some(n) = total {
+            finite_sizes.push(n);
+        } else {
+            if unb_conflicted > 0 {
+                touch_conflict += 1;
+                if unb_conflicted == unb {
+                    hostage += 1;
                 }
             }
         }
@@ -589,6 +692,104 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             biggest.0, biggest.1, biggest.2
         );
     }
+    if !walkable_sizes.is_empty() {
+        let mut hist: BTreeMap<u128, usize> = BTreeMap::new();
+        for (n, _, _) in &walkable_sizes {
+            *hist.entry(*n).or_default() += 1;
+        }
+        let sum: u128 = walkable_sizes.iter().map(|(n, _, _)| *n).sum();
+        println!();
+        println!("  COST OF WALKING THEM, if a backend enumerated the declared domain");
+        println!(
+            "    sum of |D| over the {walkable} walkable clauses   {} evaluations",
+            group(sum)
+        );
+        for (n, k) in &hist {
+            println!(
+                "        |D| = {:>7}  x {:>3}  = {:>13}",
+                width(*n),
+                k,
+                group(n.saturating_mul(*k as u128))
+            );
+        }
+        if let Some((top, k)) = hist.iter().next_back() {
+            let share = *top * (*k as u128);
+            println!(
+                "    {k} clause(s) ({:.1}% of walkable) carry {} evaluations ({:.2}% of the total).",
+                100.0 * *k as f64 / walkable as f64,
+                group(share),
+                100.0 * share as f64 / sum as f64
+            );
+        }
+        println!();
+        println!("    THIS IS AN ITERATION COUNT, NOT A COST. No backend executes an");
+        println!("    enumerated quantifier today, so nothing has ever paid this number.");
+        println!("    It is also blind to body weight: the same |D| costs a constant-time");
+        println!("    body and a sixteen-iteration one the same here, and they are not the");
+        println!("    same. Do not quote it as seconds. See #2774.");
+
+        println!();
+        println!("    Against the whole quantified corpus, not just the finite part:");
+        println!(
+            "      finite (walkable + over ceiling)  {:>4} of {}   {:.1}%",
+            finite_sizes.len(),
+            clauses.len(),
+            100.0 * finite_sizes.len() as f64 / clauses.len() as f64
+        );
+        println!(
+            "      walkable at this ceiling          {:>4} of {}   {:.1}%",
+            walkable,
+            clauses.len(),
+            100.0 * walkable as f64 / clauses.len() as f64
+        );
+        println!(
+            "    No ceiling moves the {unbounded} unbounded clauses -- that is {:.1}% of the",
+            100.0 * unbounded as f64 / clauses.len() as f64
+        );
+        println!("    corpus, and it is the larger half.");
+
+        // The sweep. Every DISTINCT finite size is a plateau top: raising the
+        // ceiling anywhere between two adjacent sizes changes nothing, so a
+        // sweep that samples round numbers reports flat regions it never
+        // measured. Derived from the multiset in one pass instead.
+        let rows = plateaus(&finite_sizes);
+        println!();
+        println!("  CEILING SWEEP -- every ceiling that is not a synonym for another one.");
+        println!("  |D| never consults --ceiling, so this whole table is one scan.");
+        println!();
+        println!("        ceiling  walkable                sum |D|   admits");
+        for (t, cum_n, cum_s, k) in &rows {
+            let (t, cum_n, cum_s, k) = (*t, *cum_n, *cum_s, *k);
+            let mark = if t == *ceiling { "  <- DEFAULT" } else { "" };
+            println!(
+                "    {:>11} {:>9} {:>22}   +{:<3} at |D| = {}{}",
+                width(t),
+                cum_n,
+                compact(cum_s),
+                k,
+                width(t),
+                mark
+            );
+        }
+        if finite_sizes.iter().any(|n| *n == u128::MAX) {
+            println!();
+            println!("    The last row is a LOWER BOUND, not a value: `primitive` maps u128 to");
+            println!("    u128::MAX and `size_of` saturates, so those rows are overflowed");
+            println!("    products rather than measured sizes.");
+        }
+        println!();
+        println!(
+            "    Every count above is a lower bound for a second reason: {hostage} unbounded"
+        );
+        println!(
+            "    clause(s) are unbounded ONLY because a struct name has more than one"
+        );
+        println!(
+            "    definition ({touch_conflict} touch such a name). Resolving them -- see `tri types dup`"
+        );
+        println!("    -- can only move clauses INWARD. It cannot move any out.");
+    }
+
     if !structs.conflicted.is_empty() {
         println!();
         println!(
@@ -597,8 +798,18 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
         );
         println!("  unbounded. Picking one would change |D| by an unbounded factor with");
         println!("  nothing recording which was picked:");
+        // Eight of eighty, printed with no marker, reads as the whole list.
+        // A truncation nobody is told about is the same defect one level down
+        // from the ones this report exists to name.
         for n in structs.conflicted.iter().take(8) {
             println!("      {n}");
+        }
+        if structs.conflicted.len() > 8 {
+            println!(
+                "      ... and {} more. The full list, with a DRIFT/DISTINCT verdict",
+                structs.conflicted.len() - 8
+            );
+            println!("      and the reading behind each: `tri types classified`.");
         }
     }
     println!();
@@ -853,6 +1064,58 @@ mod tests {
             parse_binders("lang : str where @langToCode(lang) != \"\","),
             vec![("lang".to_string(), "str".to_string())]
         );
+    }
+
+    // ---- W711: cost, not count ------------------------------------------
+
+    /// A ceiling between two domain sizes is a synonym for the lower one. The
+    /// sweep must report the SIZES, not the round numbers a reader would guess.
+    #[test]
+    fn only_the_distinct_sizes_are_real_ceilings() {
+        let rows = plateaus(&[2, 2, 256, 256, 256, 65536]);
+        assert_eq!(rows.len(), 3, "one row per distinct size, got {rows:?}");
+        assert_eq!(rows[0], (2, 2, 4, 2));
+        assert_eq!(rows[1], (256, 5, 772, 3));
+        assert_eq!(rows[2], (65536, 6, 66308, 1));
+    }
+
+    /// The cumulative sum must saturate rather than panic. `primitive` maps
+    /// u128 to u128::MAX and 46 corpus rows are overflowed products; before the
+    /// saturating form this table killed the whole report on its last line.
+    #[test]
+    fn a_saturated_size_does_not_panic_the_sweep() {
+        let rows = plateaus(&[u128::MAX, u128::MAX, 2]);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[1].2, u128::MAX, "cumulative sum saturates");
+    }
+
+    #[test]
+    fn an_empty_corpus_sweeps_to_nothing() {
+        assert!(plateaus(&[]).is_empty());
+    }
+
+    /// 82% of this corpus's finite domains are exact powers of 256: it is a
+    /// hardware-spec corpus and the quantifiers run over register widths.
+    /// `18 446 744 073 709 551 616` hides that; `2^64` states it.
+    #[test]
+    fn a_register_width_prints_as_a_power() {
+        assert_eq!(width(65536), "2^16");
+        assert_eq!(width(1u128 << 64), "2^64");
+        assert_eq!(width(256), "2^8");
+        // Below 2^8 the digits are shorter than the exponent form and easier
+        // to compare against a domain the reader can count.
+        assert_eq!(width(16), "16");
+        assert_eq!(width(27), "27");
+        assert_eq!(width(u128::MAX), "saturated");
+    }
+
+    #[test]
+    fn a_long_number_keeps_its_column() {
+        assert_eq!(group(2768791), "2 768 791");
+        assert_eq!(group(10), "10");
+        assert_eq!(compact(16279), "16 279");
+        assert!(compact(1u128 << 70).starts_with('~'), "{}", compact(1u128 << 70));
+        assert_eq!(compact(u128::MAX), ">= saturated");
     }
 
     /// A suffix with no `name : Type` yields no binder rather than a wrong one.
