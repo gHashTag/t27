@@ -7091,3 +7091,77 @@ reader recognises `len` at a glance. The output says so in its own words.
 The mechanical column reproduced the hand-derived names — `smt_check_bool` ×5,
 `cast_i8`/`cast_i16`/`cast_i32`, `systolic_ternary_array`, `pow` ×2 — by a
 different route, which is the only reason to believe either.
+
+## 240. Re-derive the diagnosis in your own issue before building on it
+
+`#2764` states: *"the gap is that `gen-c` does not resolve `use`"*. I wrote
+that, filed it, and came back to fix it. `run_gen_c` calls
+`use_resolve::resolve` on the line above the one that compiles. So do the
+Zig and Rust backends. Resolution runs everywhere and **refuses**.
+
+The measurement in the issue was right — 141 uses of `Trit`, zero
+declarations, reproduced exactly. The cause attached to it was invented.
+A correct number gives a wrong explanation all its credibility.
+
+What made it wrong is worth naming: the issue reasoned from *absence*.
+No `typedef` in the output, therefore nothing tried to put one there.
+Absence has two explanations — never attempted, or attempted and
+declined — and the output looks identical either way. The second was
+true, and one `grep -n use_resolve` separated them.
+
+An issue you wrote is not evidence. It is a note about evidence, taken
+on a day, by someone with less of the file in their head than you have
+now.
+
+## 241. A guard's reason has a precondition, and nobody rechecks it
+
+`use_resolve` refuses to splice a name declared in two imported modules,
+because *"a wrong silent choice is worse than the undeclared-identifier
+error it replaces"*. That is correct, and it is the right default.
+
+It needs the two declarations to differ.
+
+`pub const Trit = enum(i8) { neg = -1, zero = 0, pos = 1, };` appears
+**verbatim** in `base/types.t27` and in `base/ops.t27`. Six specs import
+both. There is no choice to get wrong, so the guard was charging its full
+price — every one of those specs generating C that uses `Trit` 141 times
+and declares it zero times — for a risk that was not present.
+
+Corpus-wide: **30** ambiguous (spec, name) pairs, **10** agree, **20**
+genuinely differ. The 20 must stay refused; `PHI` really is two different
+numbers in `math/constants.t27` and `math/sacred_physics.t27`.
+
+The general shape: a guard written against a real hazard keeps firing
+after the hazard's precondition stops holding, and its output is
+indistinguishable from the case where the hazard is present. **Ask what
+the guard assumes, then measure how often the assumption is true.** Here
+it was false a third of the time.
+
+## 242. A fallback that succeeds is a worse silence than a failure
+
+Three commands share this shape:
+
+    let resolved = resolve(path, &raw);
+    match compile(&resolved) {
+        Ok(code) => code,
+        Err(_) => compile(&raw)?,   // <- and exit 0
+    }
+
+When the spliced source will not compile, the ORIGINAL is compiled
+instead and the command succeeds. Every import it resolved is discarded.
+Nothing is printed, the exit code is 0, and the output is a plausible
+file.
+
+Exactly one spec in the corpus takes that path — and it was the one spec
+of six whose errors did not improve when the splice started working. I
+had already explained that spec with a different defect, wrongly, because
+a fallback that exits 0 leaves no trace to explain.
+
+The refusal above it had the opposite problem and the same effect: it
+wrote its reason into a comment, and codegen strips comments. **A
+diagnostic that exists in an intermediate nobody reads is not a
+diagnostic.** Both are now on stderr, where the person reading the `cc`
+error is; stdout is byte-identical, so nothing downstream notices.
+
+Related: §234 for the ruler that read columns, §235 for the check that
+compared no fields.
