@@ -2674,12 +2674,24 @@ impl Parser {
         }
 
         // Handle pointer prefix: *Type or *const Type
-        if self.current.kind == TokenKind::Star {
-            ty.push('*');
-            self.advance();
-            if self.current.kind == TokenKind::KwConst {
-                ty.push_str("const ");
+        //
+        // A BARE `fn` enters here too. `key_fn: fn(T) ?Order` is a function
+        // type with no pointer, and Zig has no such thing in a parameter
+        // position -- the storable spelling is `*const fn(...)`. Without this
+        // the reader stopped at `fn(T) ?` and the caller's parameter loop took
+        // `Order` for the next parameter NAME, emitting
+        // `key_fn: anytype, Order: ,`. 44 positions across 13 files, invisible
+        // until the converter stopped truncating signatures.
+        if self.current.kind == TokenKind::Star || self.current.kind == TokenKind::KwFn {
+            if self.current.kind == TokenKind::KwFn {
+                ty.push_str("*const ");
+            } else {
+                ty.push('*');
                 self.advance();
+                if self.current.kind == TokenKind::KwConst {
+                    ty.push_str("const ");
+                    self.advance();
+                }
             }
             // A function-pointer type: `?*const fn (*anyopaque, *anyopaque) void`.
             // `fn` arrives as KwFn, not Ident, so the guard below returned here
@@ -2715,6 +2727,14 @@ impl Parser {
                         ty.push_str(&self.current.lexeme);
                         self.advance();
                     }
+                }
+                // t27 writes the return with an ARROW -- `fn(T) -> Maybe(U)` --
+                // where Zig just juxtaposes it. Without skipping the arrow the
+                // reader took `-` as the start of the return type and left
+                // `Maybe(` half-consumed, so the caller's parameter loop read
+                // `U` as the next parameter name: `@"fn": anytype, U: )`.
+                if self.current.kind == TokenKind::Arrow {
+                    self.advance();
                 }
                 // The pointee's own return type, e.g. the `void` in `fn () void`.
                 if self.current.kind != TokenKind::LBrace
