@@ -26,6 +26,7 @@ mod quant;
 mod red;
 mod rtl;
 mod kinddrift;
+mod leanvac;
 mod skillnum;
 mod seals;
 mod sweep;
@@ -51,6 +52,11 @@ enum Commands {
     Kinds {
         #[command(subcommand)]
         action: kinddrift::KindsCmd,
+    },
+    /// Completeness theorems whose Lean model is empty.
+    Lean {
+        #[command(subcommand)]
+        action: leanvac::LeanCmd,
     },
     Cell {
         #[command(subcommand)]
@@ -758,6 +764,7 @@ fn main() -> Result<()> {
             cmd_status(&root)?;
         }
         Commands::Kinds { action } => kinddrift::run(action)?,
+        Commands::Lean { action } => leanvac::run(action)?,
         Commands::Skill { action } => {
             let root = find_trinity_root()?;
             match action {
