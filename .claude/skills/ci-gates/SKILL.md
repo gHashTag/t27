@@ -8377,3 +8377,61 @@ The temptation is to find a number that sounds like progress -- "an obstacle
 removed", "17 lines further". The honest report is the zero, then the mechanism,
 then what it did move. The census agrees: the row disappeared from the queue,
 and that file now classifies under whatever stops it next.
+
+## 332. Which STAGE refused it
+
+A census of "specs the compiler cannot read" counted every non-zero exit. Of 97
+such specs, only **79 fail at parse**. Thirteen parse perfectly and fail type
+checking, four die in the lexer on an unterminated string, one is a semantic
+refusal.
+
+That is not a rounding difference, it is a category error: the census read a
+CONSTRUCT off the failing line of a TYPE error. `specs/numeric/gf8.t27` stops
+at `exp = exp + 1;` -- an assignment that compiles -- rejected as
+`cannot assign F64 to F32`. Seven gf* specs sat in the residue on exactly that
+line, and the residue was the census's own confusion.
+
+Split first, then classify. And check the discriminator BOTH ways: no typecheck
+output here contains a parse word, and no parse output contains "Typecheck".
+
+## 333. The row I built, measured, and removed
+
+Prose where a declaration belongs does stop the parser -- the probe is
+rejected. So a row for it looked obvious. Then the control:
+
+```
+loosest rule    fired on 8925 lines inside specs that PARSE
++ no brackets   97
++ sentence-like 42, and it lost 2 of the 5 real cases
+```
+
+The reason is not tuning. Acceptance is POSITION-DEPENDENT:
+`specs/api/sdk_contract.t27` parses while carrying
+
+```
+fn random(dim: usize, seed: u64) -> Hypervector
+    Create random hypervector
+```
+
+so the same words after a body-less signature are fine. **No line-level matcher
+can be faithful to that**, at any threshold. The row came out, the reason went
+into the source where the next person will look for it, and the six specs went
+back into the blind spot -- where `tri prose report`, which asks the compiler
+line by line, already answers them correctly.
+
+Shipping it would have looked like progress: the residue would have read 5
+instead of 10.
+
+## 334. No probe, no row
+
+A switch prong (`.module => "module",`) is in the residue and looks like an
+easy row. Every probe I could write for it fails -- including the form copied
+VERBATIM from a spec that parses, because in isolation it needs surrounding
+context the snippet does not carry.
+
+So there is no honest probe, and therefore no row. The census reports the line
+as undecided and says nothing about why.
+
+**A category you cannot isolate is a category you cannot claim.** The residue
+is the right place for it, and a residue that is honestly 10 beats one that is
+5 by assertion.
