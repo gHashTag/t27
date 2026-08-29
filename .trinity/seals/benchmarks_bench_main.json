@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:11a618b0650c0325cf8ad49a96d1ce40fe0a3cd4e18a0e4c9887516d11ba0549",
+  "gen_hash_rust": "sha256:f9b3913710c6310aca543d92630a09a8486f0dd4eb19f1ccb61b67e34b0dda6e",
+  "gen_hash_verilog": "sha256:def7a61d121cbf66982a31274166d24b0a476c9d5b6c9f513961411a35390792",
+  "gen_hash_zig": "sha256:684e6f8ee39d5bd125f22e7ef444a5e188985d3ca3fd8bba15ad02bab47b2bd4",
   "module": "bench_main",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:63dfdeaef6bd037871a6148e46eac9ce4d71bcdd72a73c6c4886d3e17340a321",
+  "sealed_at": "2026-08-29T20:03:07Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:1097cfd770915f5519ab1c5575670fa94b50ad0af6661741879c10bd7bef9e26",
   "spec_path": "specs/benchmarks/bench_main.t27"
 }

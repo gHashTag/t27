@@ -15,6 +15,7 @@ mod cibase;
 mod fleet;
 mod fpga;
 mod gates;
+mod prose;
 mod hooks;
 mod mutate;
 mod nownote;
@@ -157,6 +158,11 @@ enum Commands {
     Discard {
         #[command(subcommand)]
         action: discard::DiscardCmd,
+    },
+    /// Specs a literate author left prose in, and how far that prose is from code.
+    Prose {
+        #[command(subcommand)]
+        action: prose::ProseCmd,
     },
     /// What `.trinity/seals` says about a spec, when it says it twice.
     Seals {
@@ -792,6 +798,7 @@ fn main() -> Result<()> {
         Commands::Quantifiers { action } => quant::run(action)?,
         Commands::Orphaned { action } => orphaned::run(action)?,
         Commands::Discard { action } => discard::run(action)?,
+        Commands::Prose { action } => prose::run(action, std::env::current_dir()?)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }

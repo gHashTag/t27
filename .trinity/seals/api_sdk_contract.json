@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:f3185e9190ce15d019b64db9822c0907f81c660f1d3bddbb528d2757ff9fcc1a",
+  "gen_hash_rust": "sha256:fc645c5b246fa096691235cfd66aa8048cfb682fd2e4c87fa7168314a44704ea",
+  "gen_hash_verilog": "sha256:9bc46f2772e60e074704356e9bb38868a7f263f3cfe251e30a106b82ed41edc3",
+  "gen_hash_zig": "sha256:0a5a941648b1f5deafb337220a6711310a1b2de066de8823d7f1e4e1631f9bcb",
   "module": "sdk_contract",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:50952f98d5ddee3ce8d89098064eff2bc22508cca7684eec665ab07bf714369f",
+  "sealed_at": "2026-08-29T20:03:07Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:67b126ee510d34e78677d12e64b2b2aacf9951410adc6f3338018101e0e112c0",
   "spec_path": "specs/api/sdk_contract.t27"
 }

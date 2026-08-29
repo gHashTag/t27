@@ -8024,3 +8024,85 @@ And the fix that was NOT made: resolving the file means choosing which of 152
 numeric formulas is right. A gate may record that debt with its reason; it may
 not invent the content. The baseline line says why, and the gate reports when
 a baseline entry outlives its debt.
+
+## 317. Grouping by the diagnostic is not grouping by the defect
+
+Last pass I reported "39 distinct error kinds over 104 specs, largest covering
+23 -- a dozen parser gaps". The 23 were not one gap. Reading the failing lines:
+
+```
+import fpga.modules.heartbeat
+Zig-backed FFI bridge for Trinity VSA core.
+algorithm phi_rope {
+type Trit = Trit
+impl TestRunnerConfig {
+```
+
+Five different constructs, one message. The message names the state the parser
+recovered INTO, not what it choked on, so an import and an `algorithm` block
+print the same line -- verified with two-line probes, not by reading code.
+
+Classifying by CONSTRUCT instead: 76 unsupported constructs in 18 families, the
+largest two being path-qualified module names (10) and body-less function
+prototypes (10). That is a map you can work from; 39 error strings is not.
+
+**A diagnostic is the compiler's word for where it gave up. Group by what the
+line CONTAINS.** And when the wrong grouping is already in a report, say which
+sentence was wrong rather than quietly shipping a better one.
+
+## 318. Three hypotheses, killed by probe, in one hour
+
+Each felt solid enough to write down. A three-line file and a compiler run
+killed all three before they reached an issue:
+
+1. *"The parser reports the line AFTER the construct -- a fallback swallows
+   it."* A module containing one import reports the import's own line. Wrong.
+2. *"Markdown headings are the cause: 16 of 16 specs with a heading fail."* A
+   heading followed by a function compiles. `#` has started a line comment
+   since someone handled it on purpose. The correlation was real; the cause was
+   the PARAGRAPH under the heading.
+3. *"A line-shape test can tell prose from code."* A rule refusing any line
+   containing a parenthesis, colon, equals or arrow refused every one of the 13
+   files, on sentences like `Part of Phase 4: Quality & Performance (Issue
+   #48)`. Prose carries punctuation. What separates them is how the line ENDS.
+
+A probe costs two minutes. Shipping the second hypothesis would have cost an
+issue telling the owner to change the lexer for something the lexer handles.
+
+## 319. Ask the compiler which line is prose
+
+`tri prose report` does not pattern-match. It runs the compiler, comments the
+line the compiler names, and asks again. "Is this prose?" is answered by the
+only instrument that knows.
+
+Two guards make `--fix` safe:
+
+1. It refuses the moment the named line is a declaration or ends with an open
+   brace, semicolon or comma. That errs toward refusing -- a wrapped sentence
+   ending in a comma is declined rather than edited, which costs a repair and
+   never costs code.
+2. After the rewrite the set of declaration lines must be IDENTICAL to before.
+   A rule that reaches a green by commenting code fails this whatever its
+   line-shape test believed.
+
+13 specs, 282 lines, every changed line exactly the old line with a comment
+prefix -- checked BY INDEX. Counting plus and minus lines in a zero-context
+diff disagreed with itself (209 against 177) while the file lengths were equal
+all along; the arithmetic was mine, not the transformation's.
+
+## 320. The adversarial pass overturned two thirds, and was still wrong
+
+Twelve agents classified 104 unparseable specs; 18 were called "not source at
+all". A skeptic per slice, prompted to REFUTE, overturned **12 of 18** -- the
+classifiers had read the head and stopped while the files carried real
+declarations further down.
+
+Of the 6 that survived the skeptic, **3 more were wrong**: I compiled them.
+
+A deterministic rule -- "no top-level declaration anywhere in the file" -- got 2
+of the 3 true cases and missed one whose prose contains a declaration-shaped
+line. Neither instrument is complete; together they bracket the answer.
+
+**Where a deterministic instrument exists it is not a second opinion, it is the
+answer.** Use the fan-out to name constructs and raise hypotheses; use the
+compiler to decide.
