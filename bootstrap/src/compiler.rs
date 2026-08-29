@@ -9130,11 +9130,7 @@ impl Codegen {
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
-                    if let Some(op) = compound_binop(&node.extra_op) {
-                        self.write(&format!(" {}= ", op));
-                    } else {
-                        self.write(" = ");
-                    }
+                    self.write(&assign_op_text(&node.extra_op));
                     self.gen_expr(&node.children[1]);
                 }
                 self.write_line(";");
@@ -18478,11 +18474,7 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[1]);
                     } else {
                         self.gen_c_expr(&node.children[0]);
-                        if let Some(op) = compound_binop(&node.extra_op) {
-                            self.write(&format!(" {}= ", op));
-                        } else {
-                            self.write(" = ");
-                        }
+                        self.write(&assign_op_text(&node.extra_op));
                         self.gen_c_expr(&node.children[1]);
                     }
                 }
@@ -19254,11 +19246,44 @@ fn compound_binop(extra_op: &str) -> Option<&'static str> {
         "+=" => Some("+"),
         "-=" => Some("-"),
         "*=" => Some("*"),
+        // `/=` was missing, and the three call sites all fall back to a plain
+        // ` = `. So `scaled /= 2.0;` was emitted as `scaled = 2.0;` -- the
+        // division dropped and the variable overwritten with the divisor -- by
+        // the Zig, C AND Rust backends alike. Five occurrences in three specs
+        // (numeric/tf3.t27:139 and :253, ternary/hybrid_bigint.t27:168 and
+        // :235, server/sse.t27:265), every one of them valid output in the
+        // target language and none of them the stated program.
+        //
+        // `%=`, `<<=` and `>>=` do not occur in the corpus today. They are
+        // here because the failure mode of a missing entry is silence, and the
+        // next spec to use one must not pay for that.
+        "/=" => Some("/"),
+        "%=" => Some("%"),
+        "<<=" => Some("<<"),
+        ">>=" => Some(">>"),
         "|=" => Some("|"),
         "&=" => Some("&"),
         "^=" => Some("^"),
         _ => None,
     }
+}
+
+/// The assignment operator to emit for a statement, as source text.
+///
+/// A compound operator this compiler does not know must not become a plain
+/// store. Every spelling in the three targets is the same as t27's, so an
+/// unrecognised one is passed through verbatim: it either compiles and means
+/// what the spec said, or the target compiler refuses it by name. Both are
+/// better than ` = `, which compiles and means something else.
+fn assign_op_text(extra_op: &str) -> String {
+    if let Some(op) = compound_binop(extra_op) {
+        return format!(" {}= ", op);
+    }
+    let t = extra_op.trim();
+    if t.len() >= 2 && t.ends_with('=') && !matches!(t, "==" | "!=" | "<=" | ">=") {
+        return format!(" {} ", t);
+    }
+    " = ".to_string()
 }
 
 pub struct Compiler;
@@ -22145,7 +22170,15 @@ impl RustCodegen {
                         };
                         if child.children.len() >= 2 {
                             let val = self.expr_to_rust(&child.children[1]);
-                            self.write_line(&format!("{} = {};", target, val));
+                            // Both Rust arms hardcoded " = " and never read `extra_op`,
+                            // so EVERY compound assignment became a plain store. Zig and C
+                            // emit 33 across the corpus; Rust emitted 0.
+                            self.write_line(&format!(
+                                "{}{}{};",
+                                target,
+                                assign_op_text(&child.extra_op),
+                                val
+                            ));
                         } else {
                             self.write_line(&format!("{};", target));
                         }
@@ -22311,7 +22344,12 @@ impl RustCodegen {
                 if stmt.children.len() >= 2 {
                     let target = self.expr_to_rust(&stmt.children[0]);
                     let val = self.expr_to_rust(&stmt.children[1]);
-                    self.write_line(&format!("{} = {};", target, val));
+                    self.write_line(&format!(
+                        "{}{}{};",
+                        target,
+                        assign_op_text(&stmt.extra_op),
+                        val
+                    ));
                 }
             }
             NodeKind::StmtIf => {
