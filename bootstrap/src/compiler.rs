@@ -22229,6 +22229,20 @@ pub struct RustCodegen {
     bool_fns: std::collections::HashSet<String>,
     /// Parameters and locals of the current function declared `bool`.
     bool_vars: std::collections::HashSet<String>,
+    /// Field names this FILE declares as `bool`.
+    ///
+    /// `expr_is_bool` had no arm for `ExprFieldAccess`, so a condition on a
+    /// bool field fell to the integer default: `!debouncer.enabled` was emitted
+    /// as `((debouncer.enabled) == 0)`, which rustc rejects with E0308. The
+    /// emitter prints `pub enabled: bool,` into the same file and never
+    /// consulted it.
+    ///
+    /// Keyed by NAME, not by (struct, field): measured over the corpus, zero
+    /// of the 650 specs declare one field name as `bool` in one struct and as
+    /// something else in another, so within a single generated file the name
+    /// is unambiguous. 35 names collide ACROSS files, which is why this is
+    /// cleared per file and never shared.
+    bool_fields: std::collections::HashSet<String>,
     /// Rust type of every explicitly typed parameter/local of the current
     /// function. Feeds `infer_int_type`.
     var_types: std::collections::HashMap<String, String>,
@@ -22263,6 +22277,7 @@ impl RustCodegen {
             fn_ret_type: String::new(),
             bool_fns: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
+            bool_fields: std::collections::HashSet::new(),
             var_types: std::collections::HashMap::new(),
             const_types: std::collections::HashMap::new(),
             fn_ret_types: std::collections::HashMap::new(),
@@ -22309,6 +22324,47 @@ impl RustCodegen {
 
     /// W638: how many `test` / `invariant` blocks this backend will not lower,
     /// counted over the whole tree so the header can declare the omission.
+    /// Does this function declaration carry a body this backend can lower?
+    ///
+    /// Extracted so the BANNER and the emitter cannot drift: the banner counts
+    /// what will become `unimplemented!()`, and it must count it with the same
+    /// rule that produces it. Two copies of this list is how `StmtAssign` went
+    /// missing from one of them (#2875).
+    fn fn_has_body(node: &Node) -> bool {
+        node.children.iter().any(|c| {
+            matches!(
+                c.kind,
+                NodeKind::ExprReturn
+                    | NodeKind::StmtExpr
+                    | NodeKind::StmtLocal
+                    | NodeKind::StmtAssign
+                    | NodeKind::StmtIf
+                    | NodeKind::StmtWhile
+                    | NodeKind::StmtFor
+                    | NodeKind::StmtForRange
+            )
+        })
+    }
+
+    /// Functions this backend will emit as `unimplemented!()`.
+    ///
+    /// The banner declared the tests and invariants it drops and said nothing
+    /// about these, so a file holding 24 stubs read as complete. A declared
+    /// omission is not a hidden one, and this category was not declared.
+    fn count_stub_fns(ast: &Node) -> usize {
+        fn walk(n: &Node, acc: &mut usize) {
+            if n.kind == NodeKind::FnDecl && !RustCodegen::fn_has_body(n) {
+                *acc += 1;
+            }
+            for c in &n.children {
+                walk(c, acc);
+            }
+        }
+        let mut acc = 0;
+        walk(ast, &mut acc);
+        acc
+    }
+
     fn count_unlowered(ast: &Node) -> (usize, usize) {
         fn walk(n: &Node, t: &mut usize, i: &mut usize) {
             match n.kind {
@@ -22351,10 +22407,12 @@ impl RustCodegen {
         // "dropped". Emitting library code without tests is a defensible
         // policy; emitting it silently is the defect (T44/T48).
         let (n_tests, n_invariants) = Self::count_unlowered(ast);
-        if n_tests > 0 || n_invariants > 0 {
+        let n_stubs = Self::count_stub_fns(ast);
+        if n_tests > 0 || n_invariants > 0 || n_stubs > 0 {
             self.write_line(&format!(
-                "// NOT LOWERED BY THIS BACKEND: {} test(s), {} invariant(s).",
-                n_tests, n_invariants
+                "// NOT LOWERED BY THIS BACKEND: {} test(s), {} invariant(s), {} \
+                 function(s) with no body.",
+                n_tests, n_invariants, n_stubs
             ));
             self.write_line(
                 "// This backend emits declarations only. The spec's checks live in",
@@ -22418,6 +22476,9 @@ impl RustCodegen {
             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
                 let field_name = &child.name;
                 let field_type = Self::t27_type_to_rust(&child.extra_type);
+                if field_type.trim() == "bool" {
+                    self.bool_fields.insert(field_name.clone());
+                }
                 self.write_line(&format!("pub {}: {},", field_name, field_type));
             }
         }
@@ -22515,9 +22576,7 @@ impl RustCodegen {
         ));
 
         // Check if there's a body
-        let has_body = node.children.iter().any(|c| {
-            matches!(c.kind, NodeKind::ExprReturn | NodeKind::StmtExpr | NodeKind::StmtLocal | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange)
-        });
+        let has_body = Self::fn_has_body(node);
 
         // Infer which locals need `let mut`: scan body for any assignment.
         self.mut_names.clear();
@@ -23071,6 +23130,7 @@ impl RustCodegen {
             NodeKind::ExprLiteral => node.value == "true" || node.value == "false",
             NodeKind::ExprIdentifier => self.bool_vars.contains(&node.name),
             NodeKind::ExprCall => self.bool_fns.contains(&node.name),
+            NodeKind::ExprFieldAccess => self.bool_fields.contains(&node.name),
             _ => false,
         }
     }

@@ -8025,7 +8025,149 @@ numeric formulas is right. A gate may record that debt with its reason; it may
 not invent the content. The baseline line says why, and the gate reports when
 a baseline entry outlives its debt.
 
-## 317. Grouping by the diagnostic is not grouping by the defect
+## 317. Four hardcoded lists, four missing cases, four backends
+
+In two passes the same defect was found four times, in four different
+emitters, and every instance is a fixed list of node kinds with one case
+absent:
+
+| list | missing | cost |
+|---|---|---|
+| Verilog test-block statements | `StmtIf` | a test that could not fail, reported PASSED |
+| Rust `has_body` | `StmtAssign` | 53 functions emitted as `{ unimplemented!() }` |
+| Rust `expr_is_bool` | `ExprFieldAccess` | `!x.flag` became `(x.flag) == 0`, E0308 |
+| `compound_binop` | `/=` | `x /= 2` emitted as `x = 2`, three backends |
+
+None was a subtle algorithm. Each is one identifier absent from a
+`matches!` or a `match`, and in three of the four the omission is
+visible from the list itself: the neighbouring entries name a category
+and one member of it is missing.
+
+**A hardcoded list of node kinds is a claim that the enumeration is
+complete.** Whether that claim is CHECKABLE is a separate question, and
+the answer measured here is: barely.
+
+I wrote, in this section, that printing the constructed variants and
+diffing against each list "is a five-line script, not an audit — and it
+would have found all four." Both halves were then tested and both are
+wrong:
+
+- The naive diff flags **10 lists out of 10**. Every list in the file
+  omits some constructed statement kind, because almost every list is a
+  legitimate subset. It finds everything, which is finding nothing.
+- Grouping the kinds into families (control flow, binding, exit) and
+  flagging a list that covers PART of a family discriminates — 3 of 10 —
+  and on the commit before #2875 it points at the exact `has_body` line.
+  But all three of its hits on a clean tree are correct code:
+  `StmtLocal | StmtAssign` collects NAMED bindings and `StmtExpr` has no
+  name; the `StmtForRange | StmtWhile | StmtFor` at 10979 is about loop
+  bodies on purpose. **Three false positives, one historical true
+  positive.**
+- Two of the four defects are not NodeKind lists at all.
+  `compound_binop` maps operator STRINGS, and `expr_is_bool` is a match
+  on `node.kind` whose missing arm is a variant nobody enumerated.
+
+So the enumeration-diff finds **1 of the 4** and costs three false
+positives. `tri kinds drift`, which compares an arm's pattern against its
+own comment, also finds 1 of the 4 — and costs **zero** false positives
+on the clean tree. That is the one that shipped.
+
+The lesson is not the script. It is that **"and it would have found all
+four" is a claim about a program that did not exist when I wrote it**,
+and writing it into a skill made it look measured. It is measured now,
+and it was wrong.
+
+The generalisation is not "add the missing case". It is that a language
+backend contains dozens of these lists, they were each written when the
+language was smaller, and **nothing in the build tells you when the
+language grew past one of them.**
+
+## 318. The peer backend is the cheapest oracle there is
+
+Every defect in that table was found by comparing two backends on the
+same spec line:
+
+    spec      fn gate_domain() { power_gate_en = true; ... }
+    Rust      pub fn gate_domain() -> () { unimplemented!() }
+    Zig       fn gate_domain() void { power_gate_en = true; ... }
+    C         void gate_domain(void) { power_gate_en = true; ... }
+
+Two agree, one differs, and no external judgement is needed: the
+disagreement IS the finding. No golden file, no reference implementation,
+no reading of the specification.
+
+This project generates four languages from one source, which means it
+carries three oracles for every construct it lowers, and they cost one
+command each. The audits that found these were told to prefer findings
+where a peer backend gets it right, and that instruction is what pointed
+them at the right lines.
+
+Where it does NOT work: a defect all four share. `while (c) : (step)`
+put the step in the body in every backend, so no comparison could see it
+-- that one was found by reading the emitted output against the spec.
+Related: §310, the oracle in the corpus; §311, acceptance could not see it.
+
+## 319. A claim about a program that does not exist yet
+
+§317 ended with: *"That is a five-line script, not an audit — and it
+would have found all four."*
+
+No such script existed when that sentence was written. It was a
+prediction wearing the grammar of a measurement, in a document whose
+whole purpose is to hold measurements, and it sat there for one
+iteration looking exactly like the numbers around it.
+
+Written afterwards, the script finds **one** of the four and costs three
+false positives. §317 now carries that number instead.
+
+This is the same failure as an issue body that reasons from absence
+(§240) and a hypothesis reported as a rule (the #2830 trigger), with one
+difference that makes it worse: **those were claims about code that
+exists, and this was a claim about code that does not.** A reader can
+check the first kind. The second cannot be checked until somebody builds
+the thing, and until then it accumulates authority by sitting next to
+things that were measured.
+
+The rule that follows is narrow and mechanical. **In a document of
+findings, a sentence in the future or conditional tense is a different
+kind of sentence, and it has to say so.** "Would have found" is not a
+result. Either build it and write the number, or write "untested" beside
+it — and if neither, do not write the sentence.
+
+## 320. A discarded modifier with no consumer is latent, not wrong
+
+A parser audit found two modifiers consumed and recorded nowhere:
+`pub` on a struct field (41 sites) and the `!` error-union marker on a
+return type (4). Both are the shape of the width-suffix defect (§#2867),
+where the lexer advanced past `u64` and stored nothing — and that one
+WAS a defect, because the Zig shift path then re-invented the width and
+a function panicked.
+
+These two are not, and the difference is one question: **does anything
+downstream read it?**
+
+- The Rust backend emits `pub` on every struct field regardless of what
+  the spec said; Zig has no field visibility; C has none. Three of three
+  produce identical output either way.
+- Of the four `!` sites, three are bodiless declarations no backend
+  emits, and the fourth is Zig's *noreturn* `!`, a different construct
+  sharing a token.
+
+So the grep count is 45 and the live consequence is zero.
+
+**The count is not the finding.** For a lost piece of information the
+finding is the CONSUMER, and the work is to look for one: generate the
+output both ways and diff it. Two commands. Without them a report reads
+"45 sites" and sounds like the CORDIC shift, which was 376 sites and a
+wrong gate on silicon.
+
+What to do with a latent one: record it, say plainly that nothing reads
+it today, and say where to look on the day something does. Fixing it
+means adding a field nothing consumes — a change with no measurement
+that can show it worked, which is the shape §311 warns about from the
+other side.
+
+## 321. Grouping by the diagnostic is not grouping by the defect
 
 Last pass I reported "39 distinct error kinds over 104 specs, largest covering
 23 -- a dozen parser gaps". The 23 were not one gap. Reading the failing lines:
@@ -8050,7 +8192,7 @@ prototypes (10). That is a map you can work from; 39 error strings is not.
 line CONTAINS.** And when the wrong grouping is already in a report, say which
 sentence was wrong rather than quietly shipping a better one.
 
-## 318. Three hypotheses, killed by probe, in one hour
+## 322. Three hypotheses, killed by probe, in one hour
 
 Each felt solid enough to write down. A three-line file and a compiler run
 killed all three before they reached an issue:
@@ -8069,7 +8211,7 @@ killed all three before they reached an issue:
 A probe costs two minutes. Shipping the second hypothesis would have cost an
 issue telling the owner to change the lexer for something the lexer handles.
 
-## 319. Ask the compiler which line is prose
+## 323. Ask the compiler which line is prose
 
 `tri prose report` does not pattern-match. It runs the compiler, comments the
 line the compiler names, and asks again. "Is this prose?" is answered by the
@@ -8090,7 +8232,7 @@ prefix -- checked BY INDEX. Counting plus and minus lines in a zero-context
 diff disagreed with itself (209 against 177) while the file lengths were equal
 all along; the arithmetic was mine, not the transformation's.
 
-## 320. The adversarial pass overturned two thirds, and was still wrong
+## 324. The adversarial pass overturned two thirds, and was still wrong
 
 Twelve agents classified 104 unparseable specs; 18 were called "not source at
 all". A skeptic per slice, prompted to REFUTE, overturned **12 of 18** -- the
