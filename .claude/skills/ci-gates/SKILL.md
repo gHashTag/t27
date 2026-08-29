@@ -8436,7 +8436,58 @@ as undecided and says nothing about why.
 is the right place for it, and a residue that is honestly 10 beats one that is
 5 by assertion.
 
-## 335. A control that cannot fail is not a control -- three times in one hour
+## 335. A count of zero from a pattern that cannot match
+
+An audit ruled out a braceless `else` with: *"the corpus has 0 such
+sites — all 37 `} else <non-brace>` hits are paren-less `else if`."*
+
+There are four, in `numeric/gf16.t27` and `numeric/tf3.t27`:
+
+    if (a_val >= b_val) return a else return b;
+
+They do not match `} else <non-brace>` because **the `if` has no braces
+either** — the whole statement is one line, so there is no `}` before
+the `else` for the pattern to anchor on. The search was written for the
+shape the searcher was imagining, and the corpus writes a different one.
+
+A zero from a pattern that cannot match the real spelling is the
+expensive kind, because it CLOSES the question. A defect reported and
+then filed away as "0 sites" is harder to find again than one never
+reported: the next reader sees it was already checked.
+
+**Before believing a zero, feed the pattern a case you know exists.** If
+it cannot find the example you constructed by hand, it has told you
+nothing about the corpus.
+
+## 336. Both ratchets fired on improvements, and both were right
+
+Two ratchets went red in one hour, neither on a regression:
+
+- `corpus_classifier_matches_lean_completeness` reported four new
+  Rust/Lean disagreements. Cause: four specs that could NOT BE PARSED
+  became parseable, so the classifier could finally disagree with a
+  theorem that had always been wrong about them.
+- The corpus ratchet reported **19 unexpected passes and 1 unexpected
+  failure**. The nineteen are the same unblocking; the one failure is one
+  of those nineteen, now parsing and therefore now MEASURABLE for
+  discard.
+
+Neither number describes new damage. In every case a measurement started
+working and the ledger, which records what was known, went stale in the
+same instant.
+
+**A down-only ratchet fails on an improvement exactly as it fails on a
+regression, and that is the design.** The work an improvement creates is
+the same work: read what moved, decide which side is stale, and re-bless
+with the reason written down. The failure mode to avoid is doing it
+without the reason — a blessed ledger full of `unclassified` entries is
+a ledger nobody can argue with later.
+
+One thing to check every time, because the tooling does not: this repo's
+`--bless-expectations` does not raise or lower `max_entries`, so a
+freshly blessed ledger can still fail on its cap.
+
+## 339. A control that cannot fail is not a control -- three times in one hour
 
 Building a locator for "the item whose presence causes the failure", the answer
 needed checking. Three checks, and only the third one bites:
@@ -8455,7 +8506,7 @@ The tell for the first is the one I had already written down and did not apply:
 a metric that rises monotonically with an unrelated quantity is not a
 measurement. Read your own control and ask what input would make it FAIL.
 
-## 336. The fidelity control that could not see the defect
+## 338. The fidelity control that could not see the defect
 
 The locator splits a file into `head + body + tail`. The obvious control: the
 reconstruction must reproduce the original failure, on the same line. It passed
