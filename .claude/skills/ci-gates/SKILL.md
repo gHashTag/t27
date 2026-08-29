@@ -8633,3 +8633,43 @@ somebody already transcribed one wrong, and no instrument has told
 anybody, because nothing builds these proofs. A medium where a wrong
 artefact is indistinguishable from a right one, and no build ever runs,
 does not become safe by adding more artefacts to it.
+
+## 343. Not failing on it — never reaching it
+
+Three passes were spent on the Lean proofs: 114 vacuous models (§340), a
+model whose theorem is provable because a signature in it was invented
+(§342), a decision not to hand-write more (§341). All three reasoned
+about what `lake build` would or would not say.
+
+`lake build` has never compiled any of it.
+
+`proofs/lean4/Trinity.lean` is the library root and imports nine modules.
+`Trinity.IcarusLowerable.*` is not among them. The eleven files under
+that directory import each other — a closed subtree with no edge from
+the root — so `lean_lib «Trinity»` never reaches one of them.
+
+    in the build graph        7 447 lines
+    outside it               15 447 lines, 647 theorems
+
+**67% of the development, including all 250 `native_decide` theorems.**
+
+The two most recent runs DID fail, on `H4Lagrangian.lean` — *unsolved
+goals* — and that is a real failure in the built part. It is also a
+decoy: fixing it would not add a single `IcarusLowerable` file to the
+graph. A red build on the wrong subtree looks exactly like a red build
+on the right one.
+
+The evidence was one grep of the build log: the word `Icarus` appears
+**zero times** in 481 lines of output. Not an error about it, not a
+skipped-target line — absent.
+
+**"The build is red" and "the build does not compile this" are different
+facts, and a red build hides the second behind the first.** When
+something has never been verified, ask first whether the verifier can
+SEE it: read the build's own log for the name of the thing, and if the
+name is not there, no amount of fixing the failure will change what is
+checked.
+
+The general form: a build graph is a claim about coverage, and unlike a
+test list nothing prints it. `import` is the edge, the root file is the
+whole specification of what gets compiled, and it is nine lines long.
