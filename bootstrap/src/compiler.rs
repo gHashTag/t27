@@ -1093,6 +1093,17 @@ pub struct Parser {
     /// told us 55,563 tokens vanish; only reading them can say whether any of
     /// it is content a theorem depends on. See T43.
     dropped_spans: Vec<(u32, String)>,
+    /// W699: WHICH recovery threw each token away, parallel to `dropped_spans`.
+    ///
+    /// The head token of a dropped run says what the parser stopped ON. It does
+    /// not say which of the four recovery channels did the dropping, and the two
+    /// are different questions: `given` is the fourth-largest head in the corpus
+    /// and only 43 of its 2 453 tokens came from the fn arm that names it.
+    dropped_channels: Vec<&'static str>,
+    /// Set by `restore_bdd_fallback` for the duration of its resync, so the
+    /// tokens a WHOLE-BLOCK fallback discards are distinguishable from an
+    /// ordinary top-level resync. Both call the same function.
+    in_bdd_fallback: bool,
 }
 
 #[derive(Clone)]
@@ -1155,6 +1166,8 @@ impl Parser {
             bdd_role_preset: false,
             bdd_first_col_preset: None,
             dropped_spans: Vec::new(),
+            dropped_channels: Vec::new(),
+            in_bdd_fallback: false,
         }
     }
 
@@ -1263,6 +1276,7 @@ impl Parser {
             if self.dropped_spans.len() < 20000 {
                 self.dropped_spans
                     .push((self.current.line as u32, self.current.lexeme.clone()));
+                self.dropped_channels.push("brace-body");
             }
             self.advance();
         }
@@ -1330,6 +1344,7 @@ impl Parser {
             if self.dropped_spans.len() < 20000 {
                 self.dropped_spans
                     .push((self.current.line as u32, self.current.lexeme.clone()));
+                self.dropped_channels.push("clause-junk");
             }
             if self.current.kind == TokenKind::LBrace {
                 self.advance();
@@ -1425,6 +1440,14 @@ impl Parser {
             if self.dropped_spans.len() < 20000 {
                 self.dropped_spans
                     .push((self.current.line as u32, self.current.lexeme.clone()));
+                // W699: `restore_bdd_fallback` resyncs through this same
+                // function, and "a whole braceless block fell back" is a
+                // different finding from "a top-level item was skipped".
+                self.dropped_channels.push(if self.in_bdd_fallback {
+                    "bdd-block-fallback"
+                } else {
+                    "top-level-resync"
+                });
             }
             self.advance();
         }
@@ -1551,6 +1574,7 @@ impl Parser {
                 if self.dropped_spans.len() < 20000 {
                     self.dropped_spans
                         .push((self.current.line as u32, self.current.lexeme.clone()));
+                    self.dropped_channels.push("stray-brace");
                 }
                 self.advance();
                 self.parse_module_body(&mut module)?;
@@ -2993,7 +3017,20 @@ impl Parser {
         // spelled as a fn (linker.t27). Detect BEFORE return-type parsing,
         // which would otherwise consume `given` as an identifier return type.
         if self.current.kind == TokenKind::Ident && self.current.lexeme == "given" {
-            self.skip_to_next_top_level();
+            // W699 rung 5: this arm RECOGNISED the shape by name and then threw
+            // it away. `skip_to_next_top_level()` discarded every clause under
+            // such a fn -- 2 453 tokens across 19 specs, and `given` is the
+            // fourth-largest head token in the whole corpus discard.
+            //
+            // The shared clause parser already serves `test`, `invariant` and
+            // `bench`; a fn spelled as a test is the same body. Detection is
+            // unchanged -- same token, same lexeme -- only the action is.
+            //
+            // The column anchor is what the bench path (W905) had to set for the
+            // same reason: continuation statements need an anchor that the head
+            // never established, and without it the statement arms stay dark.
+            self.bdd_first_col_preset = Some(self.current.col);
+            self.parse_bdd_clauses(&mut decl);
             return Ok(decl);
         }
 
@@ -3296,6 +3333,7 @@ impl Parser {
                 if self.dropped_spans.len() < 20000 {
                     self.dropped_spans
                         .push((self.current.line as u32, self.current.lexeme.clone()));
+                    self.dropped_channels.push("stmt-recovery");
                 }
             }
             match self.current.kind {
@@ -6545,7 +6583,13 @@ impl Parser {
         }
         block.children.truncate(start_children);
         self.restore_state(entry);
+        // W699: nested fallbacks are possible, so save and restore rather than
+        // clearing -- an inner block finishing must not tell the outer one's
+        // remaining tokens they came from a plain resync.
+        let outer = self.in_bdd_fallback;
+        self.in_bdd_fallback = true;
         self.skip_to_next_top_level();
+        self.in_bdd_fallback = outer;
     }
 
     fn parse_invariant_block(&mut self) -> Result<Node, String> {
@@ -19340,6 +19384,38 @@ impl Compiler {
         let mut parser = Parser::new(lexer);
         let ast = parser.parse()?;
         Ok((ast, parser.dropped_top_level_tokens()))
+    }
+
+    /// W699: the discarded tokens with the recovery that threw each away, as
+    /// `(line, lexeme, channel)`.
+    ///
+    /// The channel vector is pushed in lockstep with the spans. If the two
+    /// lengths ever disagree this REFUSES rather than zipping to the shorter --
+    /// see the note at the check.
+    pub fn parse_ast_dropped_records(source: &str) -> Result<Vec<(u32, String, &'static str)>, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let _ = parser.parse()?;
+        // W699: `zip` truncates to the shorter side, and that is exactly how a
+        // missed push site hides. Two sites WERE missed on the first pass -- 27
+        // tokens across 27 specs -- and the only reason it surfaced was a total
+        // that did not match `parse-complete`'s. Refuse instead of truncating.
+        if parser.dropped_spans.len() != parser.dropped_channels.len() {
+            return Err(format!(
+                "drop accounting is inconsistent: {} span(s) but {} channel(s). \
+                 A recovery site records a span without naming its channel; find \
+                 it rather than reading the shorter list.",
+                parser.dropped_spans.len(),
+                parser.dropped_channels.len()
+            ));
+        }
+        Ok(parser
+            .dropped_spans
+            .iter()
+            .cloned()
+            .zip(parser.dropped_channels.iter().copied())
+            .map(|((l, x), c)| (l, x, c))
+            .collect())
     }
 
     /// W634: the discarded tokens themselves, as `(line, lexeme)`.

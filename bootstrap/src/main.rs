@@ -487,6 +487,15 @@ enum Commands {
         #[arg(long)]
         show: Option<String>,
 
+        /// W699: group the whole corpus's discard by the token the parser
+        /// STOPPED ON -- the head of each contiguous dropped run.
+        ///
+        /// A ranked list says where the tokens are and a keyword match over the
+        /// traces guesses why. This asks the record itself: the parser wrote
+        /// down every token it threw away, and the first one of each run is the
+        /// construct it could not read. Nothing is inferred.
+        #[arg(long, default_value_t = false)]
+        causes: bool,
         /// Name the top-level items whose removal changes the discard count.
         ///
         /// `--show` prints WHAT was dropped; this says WHICH construct the
@@ -3937,11 +3946,40 @@ fn run_bisect(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Contiguous runs of dropped tokens, as `(head lexeme, token count)`.
+///
+/// A run breaks at a line gap: the spans carry a line but no column, so two
+/// dropped regions on the same line are indistinguishable from one, and a blank
+/// or surviving line between them is the only separator available. That is a
+/// deliberate under-count of runs, never an over-count -- it can merge two
+/// causes into one, and cannot invent a cause that is not there.
+fn dropped_runs(records: &[(u32, String, &'static str)]) -> Vec<(String, &'static str, usize)> {
+    let mut runs: Vec<(String, &'static str, usize)> = Vec::new();
+    let mut prev: Option<(u32, &'static str)> = None;
+    for (line, lex, chan) in records {
+        // A run continues only while BOTH hold: the lines are adjacent and the
+        // recovery is the same one. Two channels meeting on consecutive lines
+        // are two findings, and merging them would attribute one's tokens to the
+        // other's head.
+        match prev {
+            Some((p, c)) if *line <= p + 1 && c == *chan => {
+                if let Some(last) = runs.last_mut() {
+                    last.2 += 1;
+                }
+            }
+            _ => runs.push((lex.clone(), *chan, 1)),
+        }
+        prev = Some((*line, *chan));
+    }
+    runs
+}
+
 fn run_parse_complete(
     specs_dir: &str,
     include_scratch: bool,
     show: Option<&str>,
     bisect: Option<&str>,
+    causes: bool,
 ) -> anyhow::Result<()> {
     if let Some(path) = bisect {
         return run_bisect(path);
@@ -3992,6 +4030,75 @@ fn run_parse_complete(
         }
     }
     files.sort();
+
+    // W699: what the parser STOPPED ON, corpus-wide.
+    //
+    // The classification this replaces was a keyword match over the printed
+    // traces, run from outside the compiler -- it guessed `forall` from the
+    // presence of the word. This asks the record: the head of each contiguous
+    // dropped run IS the token recovery began at. `forall` is not the answer it
+    // gives, and the answer it gives is better.
+    if causes {
+        let mut runs_by_head: std::collections::BTreeMap<String, (usize, usize)> =
+            std::collections::BTreeMap::new();
+        let mut specs_by_head: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
+            std::collections::BTreeMap::new();
+        let mut unread = 0usize;
+        for f in &files {
+            let Ok(src) = std::fs::read_to_string(f) else {
+                unread += 1;
+                continue;
+            };
+            // A file that does not parse at all has no drop record to read --
+            // and it is the `parse` phase's business, not this one.
+            let Ok(records) = compiler::Compiler::parse_ast_dropped_records(&src) else {
+                continue;
+            };
+            if records.is_empty() {
+                continue;
+            }
+            for (head, chan, n) in dropped_runs(&records) {
+                let key = format!("{chan:<19} {head}");
+                let e = runs_by_head.entry(key.clone()).or_insert((0, 0));
+                e.0 += 1;
+                e.1 += n;
+                specs_by_head
+                    .entry(key)
+                    .or_default()
+                    .insert(f.display().to_string());
+            }
+        }
+        let mut rows: Vec<_> = runs_by_head.iter().collect();
+        rows.sort_by(|a, b| b.1 .1.cmp(&a.1 .1).then(a.0.cmp(b.0)));
+        println!("--- what the parser stopped on ---");
+        println!();
+        println!("  {:>8} {:>6} {:>6}  channel            head token", "tokens", "runs", "specs");
+        for (head, (runs, toks)) in &rows {
+            println!(
+                "  {:>8} {:>6} {:>6}  {}",
+                toks,
+                runs,
+                specs_by_head[*head].len(),
+                head
+            );
+        }
+        println!();
+        println!(
+            "  {} distinct head token(s), {} run(s), {} token(s)",
+            rows.len(),
+            rows.iter().map(|(_, (r, _))| r).sum::<usize>(),
+            rows.iter().map(|(_, (_, t))| t).sum::<usize>()
+        );
+        if unread > 0 {
+            println!("  {unread} file(s) could not be read -- NOT counted as anything");
+        }
+        println!();
+        println!("  A run breaks at a LINE GAP. The spans carry a line and no column, so");
+        println!("  two dropped regions on one line read as one: this under-counts runs and");
+        println!("  cannot invent a cause that is not there.");
+        return Ok(());
+    }
+
     let (mut ok, mut truncated, mut rejected) = (0usize, 0usize, 0usize);
     let (mut discarded, mut discarded_tokens) = (0usize, 0usize);
     for f in &files {
@@ -10665,8 +10772,14 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show, bisect } => {
-            run_parse_complete(&specs_dir, include_scratch, show.as_deref(), bisect.as_deref())?
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect, causes } => {
+            run_parse_complete(
+                &specs_dir,
+                include_scratch,
+                show.as_deref(),
+                bisect.as_deref(),
+                causes,
+            )?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
@@ -11071,8 +11184,14 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show, bisect } => {
-            run_parse_complete(&specs_dir, include_scratch, show.as_deref(), bisect.as_deref())?
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect, causes } => {
+            run_parse_complete(
+                &specs_dir,
+                include_scratch,
+                show.as_deref(),
+                bisect.as_deref(),
+                causes,
+            )?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
