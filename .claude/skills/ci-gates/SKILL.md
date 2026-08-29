@@ -6455,3 +6455,43 @@ conflict, created hours earlier by teaching the field reader that `pub name: T`
 is a field, in a run the classification predated.
 
 **Any document that states a measurement needs a gate that re-takes it.**
+
+## 208. 561 duplicate definitions, of which zero
+
+Looking for other files with the defect found in `adamw.t27`, a scanner counted
+top-level definitions per file and reported the worst offender:
+
+    57 names (561 extra definitions)  specs/numeric/gf16.t27
+
+Anchoring the pattern to exactly four spaces — module scope — barely moved it:
+51 names, 539 extras. Two runs agreeing felt like corroboration.
+
+They were the same ruler twice. `gf16.t27` has 110 Zig test blocks, and each
+one opens
+
+    test "gf16_max_returns_greater" {
+        const a = gf16_encode_f32(2.0);
+
+`const a` at four spaces, inside a test body. The scanner had found local
+variables and called them duplicate definitions. The real count for that file
+is **zero**.
+
+What settled it was a signal that does not pass through the name scanner at
+all: the section banners. `adamw.t27` has `// 1. Constants` / `// 2. Types` /
+`// 3. Core Functions` **twice**, at 11/25/54 and again at 414/470/509.
+`gf16.t27` has no banners at all. Across `specs/`, exactly one other file
+repeats a banner and it has no duplicated names — a second module in one file,
+not a copy.
+
+One file survived. Ninety were an artifact.
+
+**Tightening a pattern is not a second opinion.** Both runs shared the
+assumption that a `const` at module indentation is a module-scope declaration,
+and that assumption was the bug — so the stricter run inherited it intact. A
+second account has to reach the quantity by a different route, or it is the
+first account wearing a different regex.
+
+Third time this session: the `for all` census matched prose in comments, the
+type reader dropped every `pub` field, and now this. All three produced a
+confident number, and all three were caught by an unrelated signal rather than
+by re-reading the scanner.
