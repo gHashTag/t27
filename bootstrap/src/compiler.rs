@@ -2772,7 +2772,20 @@ impl Parser {
         }
 
         // Handle slice/array prefix: []Type, [N]Type, [[f64; 8]; 8], []const Type
-        while self.current.kind == TokenKind::LBracket {
+        // Brackets AND the `const` that may follow them, repeatedly: the
+        // element of a slice can be another slice. `[]const []const u8` read
+        // as `[]const ` and stopped, because this loop exited the moment
+        // `const` appeared and the `const` arm below ran only once -- so the
+        // second `[]const u8` was left for the caller's parameter loop, which
+        // took `u8` for the next parameter NAME and emitted
+        //
+        //     fn runSpecCommand(allocator: ..., args: []const, @"u8": ) !void
+        //
+        // the same empty-type wall that `[]const ?u8` produced, one level out.
+        loop {
+            if self.current.kind != TokenKind::LBracket {
+                break;
+            }
             ty.push('[');
             self.advance(); // consume [
             let mut depth: usize = 1;
@@ -2794,15 +2807,15 @@ impl Parser {
                     }
                 }
             }
+            if self.current.kind == TokenKind::KwConst {
+                ty.push_str("const ");
+                self.advance();
+            }
         }
 
-        // Handle 'const' qualifier: []const u8
+        // A `const` with no brackets before it, e.g. after a pointer.
         if self.current.kind == TokenKind::KwConst {
-            if !ty.is_empty() {
-                ty.push_str("const ");
-            } else {
-                ty.push_str("const ");
-            }
+            ty.push_str("const ");
             self.advance();
         }
 
