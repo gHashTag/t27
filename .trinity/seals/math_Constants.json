@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:bf197b0bf0a1b90dcbd106eb143ab41b1457cf5e053dfc45a3dfddd53ed56a6c",
+  "gen_hash_c": "sha256:890c041564d28bc5359e61804f69e171220914ee44812065e28fed818f5b45ff",
   "gen_hash_rust": "sha256:8af3c35dea0a81b70a47a79041faabf9e9dd12237d13a450ed4c2c112f84605b",
   "gen_hash_verilog": "sha256:44f1589ebe0f5e4b6f5ee6a7703a07396631386783041fe6d79786d0766270b0",
-  "gen_hash_zig": "sha256:acbbe7a4d0c7261b7dc61b952b0b5d2428e939b6d3cc4c558e5028b314e3fa2a",
+  "gen_hash_zig": "sha256:4c234f381187460730e2dc1f31664b0e2bfb6d8487a983fb5b3802b099bf3c4e",
   "module": "Constants",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:a2dd3a0fd05206b5075f2370c675551288975fdfb9a3054a10373aeccaaa52f4",
+  "sealed_at": "2026-08-29T07:56:35Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:03eefe082ee54a6ca22094e90aca020dbec9bee84f0e0b2f3402b98451405dc5",
   "spec_path": "specs/math/constants.t27"
 }
