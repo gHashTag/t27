@@ -1075,6 +1075,29 @@ mod tests {
         assert!(stage_of("Error: parse error at module level near line 2") == Stage::Parse);
     }
 
+    // `module NAME;` wraps nothing, so the body is everything after it. Taking
+    // the first braced line as a wrapper instead made the rest of the file a
+    // "tail" that was glued onto every truncated prefix -- 32 of 37 refuted
+    // answers were that, against 4 of 37 confirmed.
+    #[test]
+    fn a_semicolon_module_wraps_nothing() {
+        let src = [
+            "// header",
+            "module config-load;",
+            "struct A { x: u32 }",
+            "fn b() -> u32 { return 1; }",
+        ];
+        let (start, end) = split_module(&src);
+        assert_eq!(start, 2, "body starts after the `module NAME;` line");
+        assert_eq!(end, 4, "and runs to the end -- there is no closing brace");
+    }
+
+    #[test]
+    fn a_braced_module_still_splits_at_its_brace() {
+        let src = ["module m {", "    fn a() { }", "}"];
+        assert_eq!(split_module(&src), (1, 2));
+    }
+
     // A file with no module wrapper still has a body: the whole file.
     #[test]
     fn split_module_handles_a_bare_file() {
@@ -1262,6 +1285,28 @@ fn check_text(t27c: &Path, root: &Path, text: &str) -> (bool, Option<usize>) {
 fn split_module(lines: &[&str]) -> (usize, usize) {
     let d = depths(lines);
     let c = code_only(lines);
+    // `module NAME;` -- the SEMICOLON form, which wraps nothing. The scan below
+    // looks for the first line that opens a brace at depth 1 and calls it the
+    // module header; in a semicolon-form file that is the first `struct` or
+    // `fn`, so everything after its closing brace became the "tail" and the
+    // reconstruction glued a large orphan chunk onto a truncated body. Every
+    // prefix then failed for the chunk's own reasons.
+    //
+    // Measured before the fix, with the base rate that makes it mean something:
+    //
+    //             tail > 10 lines   tail = 1 line
+    //   refuted        32                4
+    //   confirmed       4               33
+    //
+    // A one-line tail is the closing brace of a real braced module. Anything
+    // longer was this.
+    for i in 0..lines.len() {
+        let t = c[i].trim();
+        let t = t.strip_prefix("pub ").unwrap_or(t);
+        if t.starts_with("module ") && t.ends_with(';') && d[i] == 0 {
+            return (i + 1, lines.len());
+        }
+    }
     for i in 0..lines.len() {
         if d[i] == 1 && c[i].contains('{') {
             for j in i + 1..lines.len() {
