@@ -18020,6 +18020,27 @@ impl CCodegen {
         // every t27 scalar); a tuple target binds the struct return once via
         // GNU __auto_type (gcc and clang) and peels .f0/.f1/...
         let mut bound: std::collections::HashSet<String> = std::collections::HashSet::new();
+        // #2834: seeded EMPTY, this set did not know about the locals the block
+        // already declares, so the FIRST assignment to an existing variable was
+        // read as a fresh binding and emitted a SECOND declaration:
+        //
+        //     var packed: PackedTrit = 0;      ->  PackedTrit packed = 0;
+        //     packed = pack_trit(.zero, 0, packed);
+        //                                      ->  uint64_t packed = pack_trit(...);
+        //     packed = pack_trit(.zero, 1, packed);
+        //                                      ->  packed = pack_trit(...);
+        //
+        // One spurious declaration per variable, and the emitter contradicting
+        // itself two lines later. `cc` calls it "redefinition of 'packed' with a
+        // different type".
+        //
+        // The Verilog path has done this correctly since #1894 and says so in a
+        // comment above its own seeding loop. Only the C path was missing it.
+        for stmt in &node.children {
+            if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
+                bound.insert(stmt.name.clone());
+            }
+        }
         let mut tuple_ctr = 0u32;
         for stmt in &node.children {
             let fresh = stmt.kind == NodeKind::StmtAssign
