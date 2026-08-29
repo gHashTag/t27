@@ -6793,3 +6793,54 @@ gh pr list --author @me --json number,title --jq '.[] | "\(.number) \(.title)"'
 
 Two sessions produced this collision once; one session with two open PRs produced
 it again the same day.
+
+## 226. An example is the worst place for a machine-specific path
+
+`examples/fpga/qmtech_minimal/build.sh` named one developer's home **six times**.
+Of every file in a repository, an example is the one whose entire purpose is to be
+copied — so a path that works on one machine there does not sit still, it
+propagates.
+
+The fix was already written down in the guard's own error message: *"Use
+`git rev-parse --show-toplevel`."* The example lives inside the repository it
+needs, so the root was one command away the whole time.
+
+**When triaging a debt list, sort by what the file is for, not by how many
+occurrences it has.** Six in an example outrank six in a one-off experiment.
+
+## 227. `set -e` kills the script before your error message runs
+
+    T27_ROOT=${T27_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}
+    if [[ -z "$T27_ROOT" ]]; then
+        echo "Cannot locate the repository root."   # never reached
+        exit 1
+    fi
+
+Outside a repository this exits **128 in silence**: `set -e` aborts on the failing
+substitution before the check below it runs. The `2>/dev/null` hides the only
+evidence.
+
+    $(git rev-parse --show-toplevel 2>/dev/null || true)
+
+Caught by running the script somewhere that is not a repository — which is the
+one condition the code was added to handle, and therefore the one place it had to
+be tried.
+
+**A guard clause you have not executed is a comment.**
+
+## 228. A debt list has kinds, and the tool cannot tell them apart
+
+Thirty files carry a hardcoded home path, and they want three different things:
+
+| kind | what it needs |
+|---|---|
+| configuration | take the path from the environment — **fix** |
+| **a record** | a harness transcript of a run that happened; the path is *part of what happened*, and editing it rewrites the record |
+| an experiment | written against one machine, portability never claimed |
+
+The count is what a gate can hold. Which kind a file is, only a reader can say —
+so it belongs written in the baseline, not inferred by the tool and not
+rediscovered by whoever opens the list next.
+
+**Without that note the next pass "fixes" a measurement record**, which is
+strictly worse than the literal it removes.
