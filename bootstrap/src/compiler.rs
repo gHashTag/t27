@@ -4003,6 +4003,28 @@ impl Parser {
                 }
                 self.expect(TokenKind::RBrace)?;
                 if_node.children.push(else_block);
+            } else {
+                // A BRACELESS else body: `} else` newline `x = 2;`.
+                //
+                // There was no arm here, so the function consumed `else` and
+                // returned. The body was then parsed as the next statement of
+                // the ENCLOSING block and ran unconditionally: the emitted
+                // output was byte-identical to the same spec with the `else`
+                // keyword deleted, in all four backends, and different from
+                // the braced form. `pick(20)` returned 2 where the spec says 1.
+                //
+                // Nothing reported it. `parse-complete`, this project's own
+                // silent-truncation detector, prints "nothing discarded" for a
+                // file whose `else` has vanished.
+                //
+                // The then-branch has had this arm all along, twenty lines
+                // above -- `// single statement: if (cond) return expr;`. Only
+                // the else-branch was missing it.
+                let stmt = self.parse_body_stmt()?;
+                let mut else_block = Node::new(NodeKind::Module);
+                else_block.name = "else".to_string();
+                else_block.children.push(stmt);
+                if_node.children.push(else_block);
             }
         }
 
