@@ -36,6 +36,29 @@ pub enum SealsCmd {
     /// already handled everywhere; staleness is not, and it is indistinguishable
     /// from health in every output.
     Fresh,
+    /// Seals whose claims no longer match what the compiler produces, and the
+    /// one command that repairs them.
+    ///
+    /// The recipe is five steps and thirty seconds, and it is written down
+    /// nowhere: rebuild, list the drift, `seal --save` each, `sync-twins`,
+    /// re-check. Measured over twelve hours: SIX changes to the compiler, ONE
+    /// of which touched `.trinity/seals/`, and zero mentions of re-sealing in
+    /// CONTRIBUTING, docs/ or the pull-request template.
+    ///
+    /// The value is not the thirty seconds. It is the two refusals a hand-rolled
+    /// loop forgets: a compiler older than its own source answers with the
+    /// PREVIOUS output and every seal appears to hold, and `--force` writes
+    /// `gen_hash=none` as though absence were a hash.
+    Drift {
+        /// Re-seal what drifted, then sync the twins.
+        ///
+        /// Re-sealing is a STATEMENT that the new output is the output you
+        /// want. It is not a repair, and this flag cannot tell the difference:
+        /// measure `t27c corpus` before and after and read the acceptance
+        /// columns yourself.
+        #[arg(long)]
+        fix: bool,
+    },
     /// Specs that carry more than one seal, and which of those pairs disagree.
     Twins {
         /// Print every twinned spec, not only the ones that disagree.
@@ -204,6 +227,17 @@ fn human(sec: u64) -> String {
     }
 }
 
+/// May these claims be written into a seal?
+///
+/// No, if any target reports `none`. `t27c seal` exits 0 and prints
+/// `gen_hash_zig=none` for a spec no backend accepts, so the refusal cannot be
+/// left to the exit code -- and #2210 measured what happens without it: batch
+/// re-sealing the stale seals would have recorded 348 reproducibility
+/// assertions for output that does not exist.
+pub fn is_sealable(claims: &[String]) -> bool {
+    !claims.iter().any(|c| c.trim() == "none")
+}
+
 fn recompute(root: &PathBuf, spec: &str) -> Option<Vec<String>> {
     let t27c = ["target/release/t27c", "target/debug/t27c"]
         .iter()
@@ -362,6 +396,106 @@ pub fn run(cmd: &SealsCmd) -> Result<()> {
             println!("  listed above is not consulted and its age decides nothing.");
             return Ok(());
         }
+        SealsCmd::Drift { fix } => {
+            let bin = ["target/release/t27c", "target/debug/t27c"]
+                .iter()
+                .map(|p| root.join(p))
+                .find(|p| p.is_file());
+            let Some(bin) = bin else {
+                anyhow::bail!(
+                    "no compiler binary -- a drift reading needs one, and its \
+                     absence is not a clean bill.\n  cargo build --release -p t27c"
+                );
+            };
+            // The refusal a hand-rolled loop forgets. A compiler older than its
+            // own source answers with the PREVIOUS output, every seal appears to
+            // hold, and the reading is of yesterday's tree.
+            if let Some(gap) = binary_is_stale(&root, &bin) {
+                anyhow::bail!(
+                    "{} is STALE by {} -- bootstrap/src changed after it was built.\n  \
+                     A drift reading taken with it is a reading of the previous source.\n  \
+                     cargo build --release -p t27c",
+                    bin.strip_prefix(&root).unwrap_or(&bin).display(),
+                    human(gap)
+                );
+            }
+
+            let by = collect(&dir)?;
+            let mut drifted: Vec<(&String, Vec<String>)> = Vec::new();
+            let mut unreadable = 0usize;
+            for (spec, seals) in by.iter() {
+                if !root.join(spec).is_file() {
+                    continue; // dangling: a different kind, and the gate's to judge
+                }
+                let Some(truth) = recompute(&root, spec) else {
+                    unreadable += 1;
+                    continue;
+                };
+                if seals.iter().any(|(_, c)| *c != truth) {
+                    drifted.push((spec, truth));
+                }
+            }
+
+            println!("  specs whose seals no longer describe them   {}", drifted.len());
+            if unreadable > 0 {
+                println!("  NOT COMPUTED, nothing claimed               {unreadable}");
+            }
+            if drifted.is_empty() {
+                println!();
+                println!("  Every seal of every spec that exists matches what the compiler");
+                println!("  produces from it right now. Dangling and phantom seals are a");
+                println!("  different question and belong to the seal gate.");
+                return Ok(());
+            }
+            println!();
+            for (spec, _) in drifted.iter().take(12) {
+                println!("      {spec}");
+            }
+            if drifted.len() > 12 {
+                println!("      ... and {} more", drifted.len() - 12);
+            }
+
+            if !*fix {
+                println!();
+                println!("  --fix re-seals these and syncs their twins. Before you run it:");
+                println!("  RE-SEALING IS A STATEMENT that the new output is the one you want,");
+                println!("  not a repair. An emitter regression sealed is a regression written");
+                println!("  into the record as truth. Measure first:");
+                println!();
+                println!("      t27c corpus        # and read the acceptance columns");
+                return Ok(());
+            }
+
+            let (mut sealed, mut refused) = (0usize, 0usize);
+            for (spec, truth) in &drifted {
+                // `--force` would write `gen_hash=none` as though absence were a
+                // hash. A spec no backend accepts is not a spec to seal.
+                if !is_sealable(truth) {
+                    refused += 1;
+                    continue;
+                }
+                let ok = std::process::Command::new(&bin)
+                    .args(["seal", spec, "--save"])
+                    .current_dir(&root)
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false);
+                if ok {
+                    sealed += 1;
+                } else {
+                    refused += 1;
+                }
+            }
+            println!();
+            println!("  re-sealed                                   {sealed}");
+            if refused > 0 {
+                println!("  REFUSED, generates nothing or seal failed   {refused}");
+            }
+            // `seal --save` writes ONE file of each pair; 547 specs carry two.
+            println!();
+            sync_twins(&root, &dir, false)?;
+            return Ok(());
+        }
         SealsCmd::Twins { all } => all,
     };
     let by = collect(&dir)?;
@@ -427,6 +561,25 @@ mod tests {
     /// answer, which matches the PREVIOUS seals -- so the check passes while
     /// the same script in CI fails. Measured once: locally `OK, 1222 hold,
     /// exit 0`, and 134 gen-drift after `cargo build --release`.
+    /// `t27c seal` exits 0 and prints `gen_hash_zig=none` for a spec no
+    /// backend accepts. So the refusal cannot ride on the exit code, and a
+    /// substring test is not enough either: a real sha256 could contain the
+    /// letters `none` and a claim of `none` is the whole field, not part of it.
+    #[test]
+    fn a_target_that_generates_nothing_is_not_sealable() {
+        assert!(!is_sealable(&[
+            "sha256:aaa".into(),
+            "none".into(),
+            "sha256:bbb".into()
+        ]));
+        assert!(is_sealable(&["sha256:aaa".into(), "sha256:bbb".into()]));
+        assert!(
+            is_sealable(&["sha256:0none0".into()]),
+            "a hash that merely contains the letters is a hash"
+        );
+        assert!(is_sealable(&[]), "nothing claimed, nothing refused");
+    }
+
     #[test]
     fn a_binary_older_than_its_source_is_stale() {
         let d = std::env::temp_dir().join(format!("w719-{}", std::process::id()));
