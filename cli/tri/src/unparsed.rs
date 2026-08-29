@@ -184,6 +184,51 @@ fn is_type_alias(l: &str) -> bool {
 fn is_zig_block(l: &str) -> bool {
     l.trim_start().starts_with("\\\\")
 }
+// NO ROW FOR PROSE, and the reason is worth keeping.
+//
+// A paragraph where a declaration belongs does stop the parser -- the probe
+// `module m { Some words here. fn a() ... }` is rejected. But acceptance is
+// POSITION-DEPENDENT: `specs/api/sdk_contract.t27` parses while containing
+//
+//     fn random(dim: usize, seed: u64) -> Hypervector
+//         Create random hypervector
+//
+// so the same words after a body-less signature are fine. A line-level matcher
+// cannot be faithful to that, and the numbers said so before this was written:
+// the loosest rule fired on 8925 lines inside specs that PARSE, the tightest
+// still fired on 42 while losing 2 of the 5 real cases.
+//
+// `tri prose report` answers this correctly by asking the compiler line by
+// line. A pattern was tried, measured, and dropped rather than shipped loose.
+
+/// `pub use NAME;` -- visibility on a use. Plain `use NAME;` compiles.
+fn is_pub_use(l: &str) -> bool {
+    l.trim().starts_with("pub use ")
+}
+
+/// `fn(a: T) R { }` in expression position -- an anonymous function literal.
+/// Not a declaration: `fn name(..)` has a name between `fn` and `(`.
+fn is_fn_literal(l: &str) -> bool {
+    l.contains("fn(")
+}
+
+/// `&[_]T{}` / `&[0]T{}` -- an anonymous array literal. `[ 1, 2 ]` compiles.
+fn is_anon_array(l: &str) -> bool {
+    let Some(i) = l.find("&[") else { return false };
+    let rest = &l[i..];
+    rest.contains("]{}") || rest.contains("]{ }") || (rest.contains(']') && rest.contains("{}"))
+}
+
+/// A statement terminated twice. One semicolon compiles.
+fn is_double_semicolon(l: &str) -> bool {
+    l.trim_end().ends_with(";;")
+}
+
+/// A closing brace at module level with nothing open.
+fn is_stray_close(l: &str) -> bool {
+    matches!(l.trim(), "}" | "};")
+}
+
 fn is_macro(l: &str) -> bool {
     let Some(i) = l.find("!(") else {
         return false;
@@ -311,6 +356,41 @@ const CONSTRUCTS: &[Construct] = &[
         matches: is_zig_block,
     },
     Construct {
+        name: "pub use NAME;        visibility on a use declaration",
+        probe: "pub use session_timeout;\nfn a() -> u32 { return 1; }\n",
+        counter: Some("use session_timeout;\nfn a() -> u32 { return 1; }\n"),
+        deliberate: None,
+        matches: is_pub_use,
+    },
+    Construct {
+        name: "fn(a: T) R { }       anonymous function literal",
+        probe: "fn a() -> u32 {\n    const h = fn(e: E) void { };\n    return 1;\n}\n",
+        counter: Some("fn a() -> u32 {\n    const h = handler;\n    return 1;\n}\n"),
+        deliberate: None,
+        matches: is_fn_literal,
+    },
+    Construct {
+        name: "&[_]T{}              anonymous array literal",
+        probe: "fn a() -> u32 {\n    const t = &[_][]const u8{};\n    return 1;\n}\n",
+        counter: Some("fn a() -> u32 {\n    const t = [ 1, 2 ];\n    return 1;\n}\n"),
+        deliberate: None,
+        matches: is_anon_array,
+    },
+    Construct {
+        name: ";;                   an empty statement after a semicolon",
+        probe: "fn a() -> u32 {\n    print(\"hi\");;\n    return 1;\n}\n",
+        counter: Some("fn a() -> u32 {\n    print(\"hi\");\n    return 1;\n}\n"),
+        deliberate: None,
+        matches: is_double_semicolon,
+    },
+    Construct {
+        name: "};  at module level  a closing brace with nothing open",
+        probe: "fn a() -> u32 { return 1; }\n};\n",
+        counter: Some("fn a() -> u32 { return 1; }\n"),
+        deliberate: None,
+        matches: is_stray_close,
+    },
+    Construct {
         name: "name!(..)            Rust-style macro invocation",
         probe: "fn a() -> u32 { assert_eq!(1, 1); return 1; }\n",
         counter: Some("fn a() -> u32 { return 1; }\n"),
@@ -344,10 +424,11 @@ const ACCEPTED: [&str; 17] = [
 
 fn accepted_head(line: &str) -> bool {
     let t = head(line);
-    ACCEPTED.iter().any(|k| {
-        t.strip_prefix(k)
-            .is_some_and(|r| r.starts_with(|c: char| c.is_whitespace() || c == '('))
-    })
+    is_assignment(line)
+        || ACCEPTED.iter().any(|k| {
+            t.strip_prefix(k)
+                .is_some_and(|r| r.starts_with(|c: char| c.is_whitespace() || c == '('))
+        })
 }
 
 /// A file under `fixtures/` is BROKEN ON PURPOSE -- the reference input for a
@@ -355,6 +436,57 @@ fn accepted_head(line: &str) -> bool {
 /// census that counts them disagrees with the repository's own ledger.
 fn is_fixture(path: &str) -> bool {
     path.contains("/fixtures/")
+}
+
+/// Which STAGE refused the file.
+///
+/// The census used to call every non-zero `check` "the compiler cannot read".
+/// Measured: of 97 such specs, 13 PARSE PERFECTLY and fail type checking, 4
+/// die in the lexer on an unterminated string, and 1 is a semantic refusal.
+/// Reading a construct off the failing line of a TYPE error is nonsense --
+/// `specs/numeric/gf8.t27` stops at `exp = exp + 1;`, which parses fine and is
+/// rejected as `cannot assign F64 to F32`.
+///
+/// The discriminator is checked both ways: no typecheck output contains a
+/// parse word, and no parse output contains "Typecheck".
+#[derive(PartialEq, Clone, Copy)]
+enum Stage {
+    Lex,
+    Parse,
+    Typecheck,
+    Semantic,
+}
+
+fn stage_of(text: &str) -> Stage {
+    if text.contains("Typecheck FAILED") {
+        Stage::Typecheck
+    } else if text.contains("unterminated string literal") {
+        Stage::Lex
+    } else if text.contains("parse error")
+        || text.contains("Unexpected token")
+        || text.contains("Unexpected top-level")
+        || text.contains("Expected ")
+    {
+        Stage::Parse
+    } else {
+        Stage::Semantic
+    }
+}
+
+/// `x = expr;` -- a plain assignment. It COMPILES (probed), so a failing line
+/// that is one is a symptom like `return x;` is.
+fn is_assignment(l: &str) -> bool {
+    let t = l.trim();
+    let Some(eq) = t.find('=') else { return false };
+    if t[eq..].starts_with("==") || eq == 0 {
+        return false;
+    }
+    let lhs = t[..eq].trim_end();
+    !lhs.is_empty()
+        && lhs
+            .chars()
+            .all(|c| c.is_alphanumeric() || "_.[]* ".contains(c))
+        && lhs.starts_with(|c: char| c.is_alphabetic() || c == '_' || c == '*')
 }
 
 fn line_of(text: &str) -> Option<usize> {
@@ -513,6 +645,7 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
     let mut by: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
     let (mut upstream, mut fixtures, mut unlocated, mut failing) = (0usize, 0usize, 0usize, 0usize);
     let mut unnamed: Vec<(String, String)> = Vec::new();
+    let (mut lex, mut typecheck, mut semantic) = (0usize, 0usize, 0usize);
 
     for spec in &specs {
         let Ok(o) = std::process::Command::new(&t27c)
@@ -530,8 +663,23 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
             fixtures += 1;
             continue;
         }
-        failing += 1;
         let text = String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout);
+        match stage_of(&text) {
+            Stage::Lex => {
+                lex += 1;
+                continue;
+            }
+            Stage::Typecheck => {
+                typecheck += 1;
+                continue;
+            }
+            Stage::Semantic => {
+                semantic += 1;
+                continue;
+            }
+            Stage::Parse => {}
+        }
+        failing += 1;
         let (Some(n), Ok(src)) = (line_of(&text), std::fs::read_to_string(root.join(spec))) else {
             unlocated += 1;
             continue;
@@ -551,7 +699,18 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
 
     let named: usize = by.values().map(|v| v.len()).sum();
     println!("  specs tracked                       {}", specs.len());
-    println!("  ... the compiler cannot read        {failing}");
+    println!("  ... refused at PARSE                {failing}   <- this census");
+    if typecheck > 0 {
+        println!("  ... refused at TYPECHECK            {typecheck}   (they parse; a construct");
+        println!("                                            read off their failing line");
+        println!("                                            would be nonsense)");
+    }
+    if lex > 0 {
+        println!("  ... refused at LEX                  {lex}   (unterminated string)");
+    }
+    if semantic > 0 {
+        println!("  ... refused on SEMANTICS            {semantic}");
+    }
     println!("  ... construct NAMED and PROBED      {named}");
     println!("  ... cause is UPSTREAM, not named    {upstream}");
     println!("  ... not decided, nothing claimed    {}", unnamed.len());
@@ -604,6 +763,17 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
                     println!("            {s}");
                 }
             }
+        }
+    }
+
+    if *list && !unnamed.is_empty() {
+        println!();
+        println!("  not decided -- the census's own blind spot, printed so it can be");
+        println!("  closed rather than carried. Each of these needs a probe and a");
+        println!("  counter before it may become a row.");
+        for (sp, l) in unnamed.iter() {
+            println!("      {sp}");
+            println!("            {l}");
         }
     }
 
@@ -699,6 +869,62 @@ mod tests {
         for l in ["return x;", "let y = 1;", "    for (a) |b| {"] {
             assert!(accepted_head(l), "{l}");
         }
+    }
+
+    // The stage split, both directions. Measured on 97 refusals: no typecheck
+    // output contains a parse word and no parse output contains "Typecheck".
+    #[test]
+    fn the_stage_split_reads_both_ways() {
+        assert!(matches!(
+            stage_of("Typecheck FAILED (4 errors, 16 warnings):\n  - type mismatch at line 168"),
+            Stage::Typecheck
+        ));
+        assert!(matches!(
+            stage_of("Error: parse error at module level near line 2: Unexpected token"),
+            Stage::Parse
+        ));
+        assert!(matches!(
+            stage_of("Error: unterminated string literal opened at line 148:13"),
+            Stage::Lex
+        ));
+        assert!(matches!(
+            stage_of("Error: nested fn 'inner' inside 'outer' captures enclosing locals"),
+            Stage::Semantic
+        ));
+    }
+
+    // `x = x + 1;` compiles, so a failing line that is one is a symptom. Seven
+    // gf* specs sat in "not decided" on exactly that line -- and their real
+    // failure was a TYPE error, not a parse error at all.
+    #[test]
+    fn an_assignment_abstains() {
+        for l in ["exp = exp + 1;", "    x = x / 2.0;", "self.pos = 0;"] {
+            assert!(is_assignment(l), "{l}");
+            assert!(accepted_head(l), "{l}");
+        }
+        assert!(!is_assignment("    if (a == b) {"));
+        assert!(!is_assignment("= 1;"));
+    }
+
+    #[test]
+    fn the_three_new_rows_have_the_boundary_right() {
+        // `[ 1, 2 ]` compiles; `&[_]T{}` does not.
+        assert!(is_anon_array("    const t = &[_][]const u8{};"));
+        assert!(is_anon_array("    .exports = &[0][]const u8{},"));
+        assert!(!is_anon_array("    const t = [ 1, 2 ];"));
+        // one semicolon compiles, two do not.
+        assert!(is_double_semicolon("    print(\"hi\");;"));
+        assert!(!is_double_semicolon("    print(\"hi\");"));
+        // a brace with nothing open.
+        assert!(is_stray_close("};"));
+        assert!(is_stray_close("  }"));
+        assert!(!is_stray_close("} else {"));
+        // `use X;` compiles; `pub use X;` does not.
+        assert!(is_pub_use("pub use session_timeout;"));
+        assert!(!is_pub_use("use session_timeout;"));
+        // a named declaration is not a literal.
+        assert!(is_fn_literal("    .on_message = fn(e: SSEEvent) void { },"));
+        assert!(!is_fn_literal("pub fn a(x: u32) -> u32 {"));
     }
 
     // Every probe must be distinct: two rows sharing a source would report the
