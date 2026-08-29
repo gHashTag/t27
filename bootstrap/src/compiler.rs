@@ -6126,6 +6126,21 @@ impl Codegen {
                 if ctor == "List" && args.len() == 1 {
                     return format!("[]{}", Self::zig_type(&args[0]));
                 }
+                // `Vec<T>` is NOT the same call, and the measurement is what
+                // says so. I first wrote it into the arm above with a comment
+                // claiming the argument applied verbatim -- then ran the same
+                // count the List decision rests on:
+                //
+                //     List<T>   17 fields,  0 with a method call
+                //     Vec<T>    39 fields, 34 with a method call
+                //
+                // `.append`, `.push`, `.pop`. A slice has none of those, so
+                // `[]T` would compile the declaration and break every use. The
+                // two containers are spelled alike and used differently, and
+                // only the corpus could have told me.
+                if ctor == "Vec" && args.len() == 1 {
+                    return format!("std.ArrayList({})", Self::zig_type(&args[0]));
+                }
             }
         }
         // `str` is Rust's, and appears bare as well as behind a reference.
