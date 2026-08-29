@@ -3029,9 +3029,24 @@ impl Parser {
             // The column anchor is what the bench path (W905) had to set for the
             // same reason: continuation statements need an anchor that the head
             // never established, and without it the statement arms stay dark.
+            // ... and it is lowered as a TEST, not as a function.
+            //
+            // The first attempt kept the FnDecl and filled its body. Every
+            // backend then treated it as a real function: `gen-verilog` emits
+            // synthesizable RTL for functions and deliberately does NOT lower
+            // tests, so the recovered clauses became `\assert (...)` inside a
+            // task -- "Enable of unknown task ``assert''" -- and the elaboration
+            // ratchet caught it, linker 4 -> 6. Correctly: a task body cannot
+            // assert, and a test body must not become one.
+            //
+            // `fn name() given ... then ...` IS a test. Emitting a TestBlock
+            // teaches no backend anything new: each already knows whether it
+            // lowers tests, and each now does the right thing with this one.
+            let mut block = Node::new(NodeKind::TestBlock);
+            block.name = decl.name.clone();
             self.bdd_first_col_preset = Some(self.current.col);
-            self.parse_bdd_clauses(&mut decl);
-            return Ok(decl);
+            self.parse_bdd_clauses(&mut block);
+            return Ok(block);
         }
 
         // Optional arrow for return type: -> Type
