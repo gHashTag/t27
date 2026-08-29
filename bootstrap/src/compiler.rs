@@ -7196,7 +7196,29 @@ impl Codegen {
             self.write_indent();
             self.write(&keyword);
             self.write(" ");
-            self.write(body.trim_start());
+            // `defer if (c) { ... }` needs a trailing `;`; `defer { ... }` does
+            // not. Checked against zig ast-check rather than reasoned from the
+            // grammar -- both forms look alike and only one is complete.
+            //
+            // The source writes the guard on one line, `defer if (c) free(x);`,
+            // and gen_stmt renders the guarded statement as a BLOCK, which is
+            // correct on its own and drops the semicolon the `defer` still
+            // wants. Result was `expected ';' after statement` -- a wall.
+            //
+            // The body already carries its trailing newline, so the `;` has to
+            // go BEFORE it. Appending to the rendered body put the semicolon at
+            // the start of the following line, which parses no better and reads
+            // worse.
+            let body = body.trim_start().to_string();
+            let t = body.trim_end();
+            if t.ends_with('}')
+                && (t.starts_with("if") || t.starts_with("while") || t.starts_with("for"))
+            {
+                self.write(t);
+                self.write(";\n");
+            } else {
+                self.write(&body);
+            }
             return;
         }
         match node.kind {
