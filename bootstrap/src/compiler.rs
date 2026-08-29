@@ -10650,9 +10650,23 @@ fn rewrite_keyword_identifiers(s: &str) -> String {
         let opens = matches!(prev, None | Some('(') | Some(',') | Some('[') | Some(' ')
             | Some('+') | Some('-') | Some('*') | Some('/') | Some('=') | Some('<') | Some('>'));
         let next = b[j..].iter().find(|c| !c.is_whitespace()).copied();
+        // `.` too: a keyword in RECEIVER position is still a value.
+        // `packed.mode` emitted unescaped and Zig read `packed` as the
+        // struct-layout keyword -- `expected a struct, enum or union, found '.'`.
+        //
+        // Only `.`, and only here. The census over the whole emitted corpus
+        // says what follows a keyword: `enum(` 162 times, `const [` 39,
+        // `union(` 1 -- every one of them legal Zig -- and `packed.` twice,
+        // which is the entire defect. Adding `(` or `[` to this set would
+        // escape `enum(u8)` and break 162 sites to fix 2.
+        //
+        // `error` is exempt: `error.Timeout` is real Zig syntax, an error-set
+        // member. None appears in the corpus today; the exemption is here
+        // because the rule would silently corrupt the first one that does.
+        let receiver = next == Some('.') && word != "error";
         let closes = matches!(next, None | Some(')') | Some(',') | Some(']') | Some(';')
             | Some('+') | Some('-') | Some('*') | Some('/') | Some('=') | Some('<') | Some('>'));
-        if opens && closes {
+        if opens && (closes || receiver) {
             out.push_str(&format!("@\"{}\"", word));
         } else {
             out.push_str(&word);
