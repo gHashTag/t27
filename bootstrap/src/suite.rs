@@ -371,6 +371,18 @@ struct ExpectationEntry {
     /// no bound is the thing this field exists to end.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     discard_tokens: Option<usize>,
+    /// W699 rung 7: WHICH recovery threw those tokens away, per channel.
+    ///
+    /// A total alone lets a spec swap one defect for another of the same size
+    /// with the ratchet staying clean -- 200 tokens lost to a braceless block
+    /// falling back and 200 lost to a braced body being skipped are different
+    /// findings, and the count cannot tell them apart.
+    ///
+    /// The map must SUM to `discard_tokens`. Two accounts of one quantity are
+    /// kept on purpose: the 27-token gap in the channel recording was found only
+    /// because a second account existed to disagree with (W699/T-zip).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    discard_by_channel: Option<std::collections::BTreeMap<String, usize>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -444,6 +456,10 @@ struct RatchetVerdict {
     /// `parse-no-discard` entries with no bound at all.
     #[serde(default)]
     discard_unpinned: Vec<String>,
+    /// W699 rung 7: entries whose per-channel split moved while the total did
+    /// not, or whose pinned map does not sum to its pinned total.
+    #[serde(default)]
+    discard_channel_drift: Vec<String>,
     /// True when `entries.len()` exceeds the declared cap.
     over_cap: bool,
     ledger_size: usize,
@@ -458,6 +474,7 @@ impl RatchetVerdict {
             && self.discard_worsened.is_empty()
             && self.discard_improved.is_empty()
             && self.discard_unpinned.is_empty()
+            && self.discard_channel_drift.is_empty()
             && !self.over_cap
     }
 }
@@ -476,11 +493,15 @@ const DISCARD_PHASE: &str = "parse-no-discard";
 /// `discard` maps a spec path to the tokens this run saw it throw away; a path
 /// missing from the map was not measured, which is NOT the same as zero and is
 /// treated as "no reading", never as an improvement.
+/// `spec -> channel -> tokens` for one run.
+type ChannelSplit = std::collections::BTreeMap<String, std::collections::BTreeMap<String, usize>>;
+
 fn ratchet_compare(
     observed: &std::collections::BTreeSet<(String, String)>,
     exp: &SuiteExpectations,
     today: &str,
     discard: &std::collections::BTreeMap<String, usize>,
+    split: &ChannelSplit,
 ) -> RatchetVerdict {
     let expected: std::collections::BTreeSet<(String, String)> = exp
         .entries
@@ -493,6 +514,7 @@ fn ratchet_compare(
     let mut worsened: Vec<String> = Vec::new();
     let mut improved: Vec<String> = Vec::new();
     let mut unpinned: Vec<String> = Vec::new();
+    let mut drift: Vec<String> = Vec::new();
     for e in exp.entries.iter().filter(|e| e.phase == DISCARD_PHASE) {
         match (e.discard_tokens, discard.get(&e.path)) {
             (None, _) => unpinned.push(format!(
@@ -516,6 +538,57 @@ fn ratchet_compare(
             )),
             _ => {}
         }
+        // W699 rung 7: an entry pinned by TOTAL and not by CHANNEL is still
+        // half-unbounded -- it can swap one defect for another of the same size.
+        // Same list, same message shape, because it is the same rule.
+        if e.discard_tokens.is_some() && e.discard_by_channel.is_none() {
+            unpinned.push(format!(
+                "{} [{}] has a total but no `discard_by_channel` -- the split is unbounded",
+                e.path, e.phase
+            ));
+        }
+        // W699 rung 7: the per-channel split, checked whether or not the total
+        // moved. Two hundred tokens lost to a braceless block falling back and
+        // two hundred lost to a braced body being skipped are different
+        // findings, and the total cannot tell them apart.
+        match (&e.discard_by_channel, split.get(&e.path)) {
+            (Some(pinned), _) if e.discard_tokens != Some(pinned.values().sum::<usize>()) => {
+                // A ledger that disagrees with ITSELF. Reported before anything
+                // is compared against it: an inconsistent oracle cannot be used
+                // to judge a run.
+                drift.push(format!(
+                    "{} [{}] pinned map sums to {} but pinned total is {:?}",
+                    e.path,
+                    e.phase,
+                    pinned.values().sum::<usize>(),
+                    e.discard_tokens
+                ));
+            }
+            (Some(pinned), Some(seen)) if pinned != seen => {
+                let mut moved: Vec<String> = Vec::new();
+                let keys: std::collections::BTreeSet<&String> =
+                    pinned.keys().chain(seen.keys()).collect();
+                for k in keys {
+                    let (p, o) = (
+                        pinned.get(k).copied().unwrap_or(0),
+                        seen.get(k).copied().unwrap_or(0),
+                    );
+                    if p != o {
+                        moved.push(format!("{k} {p}->{o}"));
+                    }
+                }
+                drift.push(format!(
+                    "{} [{}] channel split moved: {}",
+                    e.path,
+                    e.phase,
+                    moved.join(", ")
+                ));
+            }
+            // A pinned split with no reading is already reported by the total
+            // arm above as "NO reading"; saying it twice would double-count one
+            // spec in two lists.
+            _ => {}
+        }
     }
 
     RatchetVerdict {
@@ -523,6 +596,7 @@ fn ratchet_compare(
         discard_worsened: worsened,
         discard_improved: improved,
         discard_unpinned: unpinned,
+        discard_channel_drift: drift,
         unexpected_passes: expected.difference(observed).map(fmt).collect(),
         // Lexicographic comparison is correct for zero-padded ISO-8601 dates.
         expired: exp
@@ -2719,6 +2793,25 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         })
         .collect();
 
+    // W699 rung 7: the same tokens, split by the recovery that took them. Read
+    // from the SAME accessor the causes report uses -- which refuses when its
+    // two internal accounts disagree, so a spec landing here has already been
+    // checked for the gap that hid 27 tokens.
+    let observed_split: ChannelSplit = observed
+        .iter()
+        .filter(|(_, ph)| ph == DISCARD_PHASE)
+        .filter_map(|(path, _)| {
+            let src = fs::read_to_string(repo.join(path)).ok()?;
+            let recs = crate::compiler::Compiler::parse_ast_dropped_records(&src).ok()?;
+            let mut by: std::collections::BTreeMap<String, usize> =
+                std::collections::BTreeMap::new();
+            for (_, _, chan) in recs {
+                *by.entry(chan.to_string()).or_default() += 1;
+            }
+            Some((path.clone(), by))
+        })
+        .collect();
+
     if opts.bless_expectations {
         let prior = load_expectations(&exp_path)?;
         // The cap only ever moves DOWN. Blessing a larger population must be a
@@ -2751,6 +2844,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                         issue: 1959,
                         expires: "2026-11-30".to_string(),
                         discard_tokens: None,
+                        discard_by_channel: None,
                     });
                     // W699: blessing pins the CURRENT volume. It only ever
                     // writes what this run measured -- so an entry whose spec
@@ -2759,6 +2853,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                     // which is the same reviewable event the cap relies on.
                     if e.phase == DISCARD_PHASE {
                         e.discard_tokens = observed_discard.get(&e.path).copied();
+                        e.discard_by_channel = observed_split.get(&e.path).cloned();
                     }
                     e
                 }
@@ -2796,7 +2891,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 ratchet_clean = false;
             }
             Some(exp) => {
-                let v = ratchet_compare(&observed, &exp, &today, &observed_discard);
+                let v = ratchet_compare(&observed, &exp, &today, &observed_discard, &observed_split);
                 println!("  ledger:              {} / {} cap", v.ledger_size, v.max_entries);
                 println!("  observed (primary):  {}", observed.len());
                 // W636: these lists used to stop at 25 with NO indication, and
@@ -2828,6 +2923,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 show("DISCARD WORSENED   ", '>', &v.discard_worsened, "");
                 show("DISCARD IMPROVED   ", '<', &v.discard_improved, "");
                 show("DISCARD UNPINNED   ", '?', &v.discard_unpinned, "");
+                show("DISCARD CHANNEL    ", '~', &v.discard_channel_drift, "");
                 if v.over_cap {
                     println!("  OVER CAP: {} > {}", v.ledger_size, v.max_entries);
                 }
@@ -3284,6 +3380,7 @@ mod tests {
                     issue: 1959,
                     expires: expires.to_string(),
                     discard_tokens: None,
+                    discard_by_channel: None,
                 })
                 .collect(),
             ..Default::default()
@@ -3303,6 +3400,7 @@ mod tests {
                     issue: 1959,
                     expires: "2099-01-01".to_string(),
                     discard_tokens: *n,
+                    discard_by_channel: None,
                 })
                 .collect(),
             ..Default::default()
@@ -3323,7 +3421,7 @@ mod tests {
     #[test]
     fn ratchet_is_clean_when_observed_equals_expected() {
         let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default());
         assert!(v.clean(), "{:?}", v);
     }
 
@@ -3336,6 +3434,7 @@ mod tests {
             &obs(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")]),
             &e,
             "2026-08-12",
+            &Default::default(),
             &Default::default(),
         );
         assert_eq!(v.unexpected_failures, vec!["specs/b.t27 [parse]".to_string()]);
@@ -3357,6 +3456,7 @@ mod tests {
             &e,
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 42)]),
+            &Default::default(),
         );
         assert_eq!(v.discard_worsened.len(), 1, "{:?}", v);
         assert!(v.discard_worsened[0].contains("+32"), "{:?}", v.discard_worsened);
@@ -3373,6 +3473,7 @@ mod tests {
             &e,
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 40)]),
+            &Default::default(),
         );
         assert_eq!(v.discard_improved.len(), 1, "{:?}", v);
         assert!(v.discard_improved[0].contains("-60"), "{:?}", v.discard_improved);
@@ -3387,6 +3488,7 @@ mod tests {
             &e,
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 7)]),
+            &Default::default(),
         );
         assert_eq!(v.discard_unpinned.len(), 1, "{:?}", v);
         assert!(!v.clean(), "an unbounded amnesty is the thing this field ends");
@@ -3403,6 +3505,7 @@ mod tests {
             &e,
             "2026-08-12",
             &Default::default(),
+            &Default::default(),
         );
         assert_eq!(v.discard_worsened.len(), 1, "{:?}", v);
         assert!(v.discard_worsened[0].contains("NO reading"), "{:?}", v.discard_worsened);
@@ -3410,14 +3513,94 @@ mod tests {
         assert!(!v.clean());
     }
 
+    /// W699 rung 7: a swap the TOTAL cannot see. Two hundred tokens lost to a
+    /// braceless block falling back and two hundred lost to a braced body being
+    /// skipped are different findings.
+    #[test]
+    fn ratchet_fails_when_the_channel_split_moves_at_a_constant_total() {
+        let mut e = mk_disc(&[("specs/a.t27", Some(10))], 1);
+        e.entries[0].discard_by_channel = Some(
+            [("bdd-block-fallback".to_string(), 10usize)]
+                .into_iter()
+                .collect(),
+        );
+        let mut seen = std::collections::BTreeMap::new();
+        seen.insert("specs/a.t27".to_string(), {
+            let mut m = std::collections::BTreeMap::new();
+            m.insert("brace-body".to_string(), 10usize);
+            m
+        });
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &disc_obs(&[("specs/a.t27", 10)]),
+            &seen,
+        );
+        assert!(v.discard_worsened.is_empty(), "the total did not move");
+        assert!(v.discard_improved.is_empty(), "the total did not move");
+        assert_eq!(v.discard_channel_drift.len(), 1, "{:?}", v);
+        assert!(!v.clean(), "a swap at a constant total must still fail");
+    }
+
+    /// A ledger that disagrees with ITSELF cannot judge a run, and says so
+    /// before comparing anything against it.
+    #[test]
+    fn ratchet_fails_when_the_pinned_map_does_not_sum_to_the_pinned_total() {
+        let mut e = mk_disc(&[("specs/a.t27", Some(10))], 1);
+        e.entries[0].discard_by_channel = Some(
+            [("brace-body".to_string(), 4usize)].into_iter().collect(),
+        );
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &disc_obs(&[("specs/a.t27", 10)]),
+            &Default::default(),
+        );
+        assert_eq!(v.discard_channel_drift.len(), 1, "{:?}", v);
+        assert!(v.discard_channel_drift[0].contains("sums to 4"), "{:?}", v);
+        assert!(!v.clean());
+    }
+
+    /// Pinned by total and not by channel is HALF-unbounded, and lands in the
+    /// same list for the same reason.
+    #[test]
+    fn ratchet_treats_a_total_without_a_split_as_unpinned() {
+        let e = mk_disc(&[("specs/a.t27", Some(10))], 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
+            &e,
+            "2026-08-12",
+            &disc_obs(&[("specs/a.t27", 10)]),
+            &Default::default(),
+        );
+        assert_eq!(v.discard_unpinned.len(), 1, "{:?}", v);
+        assert!(!v.clean());
+    }
+
     #[test]
     fn ratchet_is_clean_when_the_volume_matches_exactly() {
-        let e = mk_disc(&[("specs/a.t27", Some(42))], 1);
+        let mut e = mk_disc(&[("specs/a.t27", Some(42))], 1);
+        e.entries[0].discard_by_channel = Some(
+            [("bdd-block-fallback".to_string(), 42usize)]
+                .into_iter()
+                .collect(),
+        );
         let v = super::ratchet_compare(
             &obs(&[("specs/a.t27", super::DISCARD_PHASE)]),
             &e,
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 42)]),
+            &{
+                let mut m = std::collections::BTreeMap::new();
+                m.insert("specs/a.t27".to_string(), {
+                    let mut c = std::collections::BTreeMap::new();
+                    c.insert("bdd-block-fallback".to_string(), 42usize);
+                    c
+                });
+                m
+            },
         );
         assert!(v.clean(), "{:?}", v);
     }
@@ -3427,7 +3610,7 @@ mod tests {
         // pytest's `xfail_strict`, made the default. Without this the ledger
         // accumulates entries for defects that were fixed years ago.
         let e = mk_exp(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")], "2099-01-01", 2);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default());
         assert_eq!(v.unexpected_passes, vec!["specs/b.t27 [parse]".to_string()]);
         assert!(!v.clean(), "an unexpected pass must fail the run");
     }
@@ -3435,7 +3618,7 @@ mod tests {
     #[test]
     fn ratchet_fails_on_a_past_due_entry_even_when_the_sets_agree() {
         let e = mk_exp(&[("specs/a.t27", "parse")], "2026-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default());
         assert!(v.unexpected_failures.is_empty());
         assert!(v.unexpected_passes.is_empty());
         assert_eq!(v.expired.len(), 1);
@@ -3450,6 +3633,7 @@ mod tests {
             &e,
             "2026-08-12",
             &Default::default(),
+            &Default::default(),
         );
         assert!(v.over_cap);
         assert!(!v.clean());
@@ -3460,7 +3644,7 @@ mod tests {
         // The identity is (path, phase), not path. A file amnestied at `parse`
         // that starts failing `gen-c` is a NEW defect.
         let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12", &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12", &Default::default(), &Default::default());
         assert_eq!(v.unexpected_failures, vec!["specs/a.t27 [gen-c]".to_string()]);
         assert_eq!(v.unexpected_passes, vec!["specs/a.t27 [parse]".to_string()]);
     }
