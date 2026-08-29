@@ -11,15 +11,15 @@ module TriState;
     // ═══════════════════════════════════════════════════════════
 
     pub const State(S, T) = struct {
-        run : "fn(S) -> (S, T)",
+        run : fn(S) -> (S, T),
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // pure(value: T) → void
-    fn pure(value: T) -> void {
+    // pure(value: T) → State(S, T)
+    fn pure(value: T) -> State(S, T) {
         // TODO: Implement from .tri spec
     }
 
@@ -28,13 +28,13 @@ module TriState;
         // TODO: Implement from .tri spec
     }
 
-    // put(state: S) → void
-    fn put(state: S) -> void {
+    // put(state: S) → State(S, void)
+    fn put(state: S) -> State(S, void) {
         // TODO: Implement from .tri spec
     }
 
-    // modify(fn: Fn(S) -> S) → void
-    fn modify(fn: Fn(S) -> S) -> void {
+    // modify(fn: fn(S) -> S) → State(S, void)
+    fn modify(fn: fn(S) -> S) -> State(S, void) {
         // TODO: Implement from .tri spec
     }
 
@@ -42,23 +42,15 @@ module TriState;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test pure_basic_case
-        given input = default_input()
-        when result = pure(input)
-        then result != undefined
+    // TODO: behaviour for pure() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    // TODO: behaviour for get() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
+    // TODO: behaviour for put() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test modify_basic_case
-        given input = default_input()
-        when result = modify(input)
-        then result != undefined
+    // TODO: behaviour for modify() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

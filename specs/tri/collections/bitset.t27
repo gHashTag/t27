@@ -12,41 +12,41 @@ module TriBitset;
 
     pub const Bitset = struct {
         data : []usize,
-        size : "usize",
-        allocator : "std.mem.Allocator",
+        size : usize,
+        allocator : std.mem.Allocator,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
+    // init(allocator: std.mem.Allocator, bit_count: usize) → Bitset
+    fn init(allocator: std.mem.Allocator, bit_count: usize) -> Bitset {
         // TODO: Implement from .tri spec
     }
 
-    // set(bs: *Bitset) → void
-    fn set(bs: *Bitset) -> void {
+    // set(bs: *Bitset, index: usize) → void
+    fn set(bs: *Bitset, index: usize) -> void {
         // TODO: Implement from .tri spec
     }
 
-    // clear(bs: *Bitset) → void
-    fn clear(bs: *Bitset) -> void {
+    // clear(bs: *Bitset, index: usize) → void
+    fn clear(bs: *Bitset, index: usize) -> void {
         // TODO: Implement from .tri spec
     }
 
-    // test(bs: *Bitset) → void
-    fn test(bs: *Bitset) -> void {
+    // test(bs: *Bitset, index: usize) → bool
+    fn test(bs: *Bitset, index: usize) -> bool {
         // TODO: Implement from .tri spec
     }
 
-    // union(a: *Bitset) → void
-    fn union(a: *Bitset) -> void {
+    // union(a: *Bitset, b: *Bitset, allocator: std.mem.Allocator) → Bitset
+    fn union(a: *Bitset, b: *Bitset, allocator: std.mem.Allocator) -> Bitset {
         // TODO: Implement from .tri spec
     }
 
-    // intersect(a: *Bitset) → void
-    fn intersect(a: *Bitset) -> void {
+    // intersect(a: *Bitset, b: *Bitset, allocator: std.mem.Allocator) → Bitset
+    fn intersect(a: *Bitset, b: *Bitset, allocator: std.mem.Allocator) -> Bitset {
         // TODO: Implement from .tri spec
     }
 
@@ -59,38 +59,24 @@ module TriBitset;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // TODO: behaviour for init() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test set_basic_case
-        given input = default_input()
-        when result = set(input)
-        then result != undefined
+    // TODO: behaviour for set() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test clear_basic_case
-        given input = default_input()
-        when result = clear(input)
-        then result != undefined
+    // TODO: behaviour for clear() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test test_basic_case
-        given input = default_input()
-        when result = test(input)
-        then result != undefined
+    // TODO: behaviour for test() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test union_basic_case
-        given input = default_input()
-        when result = union(input)
-        then result != undefined
+    // TODO: behaviour for union() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test intersect_basic_case
-        given input = default_input()
-        when result = intersect(input)
-        then result != undefined
+    // TODO: behaviour for intersect() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    // TODO: behaviour for deinit() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

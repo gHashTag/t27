@@ -18,8 +18,8 @@ module ContrastiveLoss;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(anchor: []const f32) → void
-    fn forward(anchor: []const f32) -> void {
+    // forward(anchor: []const f32, positive: []const f32, negative: []const f32, margin: f32) → f32
+    fn forward(anchor: []const f32, positive: []const f32, negative: []const f32, margin: f32) -> f32 {
         // TODO: Implement from .tri spec
     }
 
@@ -27,8 +27,6 @@ module ContrastiveLoss;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

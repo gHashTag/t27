@@ -26,8 +26,8 @@ module Rmsprop;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // step(grad: []const f32) → void
-    fn step(grad: []const f32) -> void {
+    // step(grad: []const f32, param: []f32, cache: []f32) → void
+    fn step(grad: []const f32, param: []f32, cache: []f32) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -35,8 +35,6 @@ module Rmsprop;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test step_basic_case
-        given input = default_input()
-        when result = step(input)
-        then result != undefined
+    // TODO: behaviour for step() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

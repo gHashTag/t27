@@ -40,8 +40,8 @@ module SelfAttention;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
+    // forward(input: []const f32, weights: SelfAttentionWeights, state: SelfAttentionState, config: SelfAttentionConfig) → void
+    fn forward(input: []const f32, weights: SelfAttentionWeights, state: SelfAttentionState, config: SelfAttentionConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -49,8 +49,6 @@ module SelfAttention;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

@@ -27,8 +27,6 @@ module PpoActor;
     };
 
     pub const ActionSpace = struct {
-        // Recovered from the upstream spec this file was converted from:
-        // trinity-fpga specs/algo/ppo_actor.tri:30. The converter dropped bare `- name` bullets.
         enum : [DISCRETE, CONTINUOUS],
     };
 
@@ -41,28 +39,28 @@ module PpoActor;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward_discrete(state: []const f32) → void
-    fn forward_discrete(state: []const f32) -> void {
+    // forward_discrete(state: []const f32, params: []const f32, config: ActorConfig) → []f32
+    fn forward_discrete(state: []const f32, params: []const f32, config: ActorConfig) -> []f32 {
         // TODO: Implement from .tri spec
     }
 
-    // forward_continuous(state: []const f32) → void
-    fn forward_continuous(state: []const f32) -> void {
+    // forward_continuous(state: []const f32, params: []const f32, config: ActorConfig) → PolicyOutput
+    fn forward_continuous(state: []const f32, params: []const f32, config: ActorConfig) -> PolicyOutput {
         // TODO: Implement from .tri spec
     }
 
-    // sample_action(policy_output: PolicyOutput) → void
-    fn sample_action(policy_output: PolicyOutput) -> void {
+    // sample_action(policy_output: PolicyOutput, action_space: ActionSpace, deterministic: bool) → []f32
+    fn sample_action(policy_output: PolicyOutput, action_space: ActionSpace, deterministic: bool) -> []f32 {
         // TODO: Implement from .tri spec
     }
 
-    // log_prob(action: []f32) → void
-    fn log_prob(action: []f32) -> void {
+    // log_prob(action: []f32, policy_output: PolicyOutput, action_space: ActionSpace) → f32
+    fn log_prob(action: []f32, policy_output: PolicyOutput, action_space: ActionSpace) -> f32 {
         // TODO: Implement from .tri spec
     }
 
-    // entropy(policy_output: PolicyOutput) → void
-    fn entropy(policy_output: PolicyOutput) -> void {
+    // entropy(policy_output: PolicyOutput, action_space: ActionSpace) → f32
+    fn entropy(policy_output: PolicyOutput, action_space: ActionSpace) -> f32 {
         // TODO: Implement from .tri spec
     }
 
@@ -70,87 +68,43 @@ module PpoActor;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // forward_discrete/forward_continuous/sample_action/log_prob/entropy are
-    // unimplemented stubs returning void, so no policy can be evaluated or
-    // sampled yet. What the module does declare -- the log-std clamp range, the
-    // initialisation inside it, and the config/output shapes -- is tested here,
-    // including the constraint that the invariants below only state in a
-    // comment.
+    // TODO: behaviour for forward_discrete() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test log_std_clamp_range_brackets_the_initial_value
-        // Verify: ppo_actor_constraint_0 (MIN_LOG_STD <= log_std <=
-        // MAX_LOG_STD) holds for the value the actor starts at
-        then (MIN_LOG_STD <= DEFAULT_INIT_LOG_STD) and (DEFAULT_INIT_LOG_STD <= MAX_LOG_STD)
+    // TODO: behaviour for forward_continuous() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test clamp_range_is_ordered
-        // Verify: the floor really is below the ceiling, so the clamp is
-        // satisfiable
-        then MIN_LOG_STD < MAX_LOG_STD
+    // TODO: behaviour for sample_action() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test initial_policy_has_unit_standard_deviation
-        // Verify: log_std is a logarithm, so initialising it at 0 means the
-        // Gaussian starts at sigma = 1 -- neither collapsed nor diffuse
-        then @abs(@exp(DEFAULT_INIT_LOG_STD) - 1.0) < 1e-6
+    // TODO: behaviour for log_prob() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test clamp_floor_is_effectively_deterministic
-        // Verify: exp(-20) is ~2e-9, so the lower bound exists to stop sigma
-        // underflowing to zero rather than to be a usable policy width
-        then @exp(MIN_LOG_STD) < 1e-8
-
-    test clamp_ceiling_leaves_room_to_explore
-        // Verify: exp(2) is ~7.39, several times the unit initialisation
-        then @exp(MAX_LOG_STD) > 7.0
-
-    test the_floor_is_much_further_from_init_than_the_ceiling
-        // Verify: the range is deliberately asymmetric about the
-        // initialisation -- guarding against variance collapse needs far more
-        // headroom than capping exploration does
-        given down = DEFAULT_INIT_LOG_STD - MIN_LOG_STD
-        and up = MAX_LOG_STD - DEFAULT_INIT_LOG_STD
-        then down > up * 5.0
-
-    test config_carries_one_log_std_per_action_dimension
-        // Verify: ActorConfig and PolicyOutput agree on the action dimension,
-        // which is what makes the diagonal Gaussian well formed
-        given cfg = ActorConfig{.state_dim=4,.action_dim=2,.hidden_dims=@constCast(&[_]u32{64,64}),.action_space=ActionSpace.DISCRETE,.init_log_std=DEFAULT_INIT_LOG_STD}
-        and out = PolicyOutput{.logits=@constCast(&[_]f32{0.0,0.0}),.log_std=@constCast(&[_]f32{DEFAULT_INIT_LOG_STD,DEFAULT_INIT_LOG_STD})}
-        then (out.log_std.len == cfg.action_dim) and (out.logits.len == cfg.action_dim)
-
-    test hidden_dims_is_non_empty_for_a_usable_config
-        // Verify: ppo_actor_constraint_2 (len(hidden_dims) >= 1) and
-        // constraint_1 (action_dim >= 1) hold for the config above
-        given cfg = ActorConfig{.state_dim=4,.action_dim=2,.hidden_dims=@constCast(&[_]u32{64,64}),.action_space=ActionSpace.DISCRETE,.init_log_std=DEFAULT_INIT_LOG_STD}
-        then (cfg.hidden_dims.len >= 1) and (cfg.action_dim >= 1)
+    // TODO: behaviour for entropy() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant ppo_actor_constraint_0
-        given input = valid_input()
-        then true // MIN_LOG_STD <= log_std <= MAX_LOG_STD
+    // TODO: invariant -- MIN_LOG_STD <= log_std <= MAX_LOG_STD
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant ppo_actor_constraint_1
-        given input = valid_input()
-        then true // action_dim >= 1
+    // TODO: invariant -- action_dim >= 1
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant ppo_actor_constraint_2
-        given input = valid_input()
-        then true // len(hidden_dims) >= 1
+    // TODO: invariant -- len(hidden_dims) >= 1
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant ppo_actor_constraint_3
-        given input = valid_input()
-        then true // name: gaussian_log_prob
+    // TODO: invariant -- name: gaussian_log_prob
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant ppo_actor_constraint_4
-        given input = valid_input()
-        then true // name: reparameterization
+    // TODO: invariant -- name: reparameterization
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant ppo_actor_constraint_5
-        given input = valid_input()
-        then true // "Schulman et al. (2017) - Proximal Policy Optimization"
+    // TODO: invariant -- "Schulman et al. (2017) - Proximal Policy Optimization"
+    // Not generated: the constraint is prose, not an expression.
 
-    invariant ppo_actor_constraint_6
-        given input = valid_input()
-        then true // "Haarnoja et al. (2018) - Soft Actor-Critic"
+    // TODO: invariant -- "Haarnoja et al. (2018) - Soft Actor-Critic"
+    // Not generated: the constraint is prose, not an expression.
 

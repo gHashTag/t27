@@ -25,8 +25,8 @@ module PositionalEnc;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(positions: []const u32) → void
-    fn forward(positions: []const u32) -> void {
+    // forward(positions: []const u32, embeddings: []f32, config: PosEncConfig) → void
+    fn forward(positions: []const u32, embeddings: []f32, config: PosEncConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -34,8 +34,6 @@ module PositionalEnc;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

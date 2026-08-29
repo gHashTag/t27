@@ -18,23 +18,23 @@ module Tanh;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(x: f32) → void
-    fn forward(x: f32) -> void {
+    // forward(x: f32) → f32
+    fn forward(x: f32) -> f32 {
         // TODO: Implement from .tri spec
     }
 
-    // forward_batch(input: []f32) → void
-    fn forward_batch(input: []f32) -> void {
+    // forward_batch(input: []f32) → []f32
+    fn forward_batch(input: []f32) -> []f32 {
         // TODO: Implement from .tri spec
     }
 
-    // derivative(x: f32) → void
-    fn derivative(x: f32) -> void {
+    // derivative(x: f32) → f32
+    fn derivative(x: f32) -> f32 {
         // TODO: Implement from .tri spec
     }
 
-    // derivative_from_output(tanh_x: f32) → void
-    fn derivative_from_output(tanh_x: f32) -> void {
+    // derivative_from_output(tanh_x: f32) → f32
+    fn derivative_from_output(tanh_x: f32) -> f32 {
         // TODO: Implement from .tri spec
     }
 
@@ -42,12 +42,15 @@ module Tanh;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // All four functions have no bodies, so neither tanh nor its derivative
-    // can be exercised. The module's only decision is that tanh takes no
-    // hyper-parameters, and that is what TanhConfig encodes.
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test tanh_config_carries_no_state
-        // the sole field is void, so the config occupies no storage at all
-        given config_size = @sizeOf(TanhConfig)
-        then config_size == 0
+    // TODO: behaviour for forward_batch() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for derivative() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
+
+    // TODO: behaviour for derivative_from_output() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

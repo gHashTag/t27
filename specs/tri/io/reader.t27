@@ -11,15 +11,15 @@ module TriReader;
     // ═══════════════════════════════════════════════════════════
 
     pub const Reader(R, T) = struct {
-        run : "fn(R) -> T",
+        run : fn(R) -> T,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // pure(value: T) → void
-    fn pure(value: T) -> void {
+    // pure(value: T) → Reader(R, T)
+    fn pure(value: T) -> Reader(R, T) {
         // TODO: Implement from .tri spec
     }
 
@@ -28,13 +28,13 @@ module TriReader;
         // TODO: Implement from .tri spec
     }
 
-    // asks(fn: Fn(R) -> T) → void
-    fn asks(fn: Fn(R) -> T) -> void {
+    // asks(fn: fn(R) -> T) → Reader(R, T)
+    fn asks(fn: fn(R) -> T) -> Reader(R, T) {
         // TODO: Implement from .tri spec
     }
 
-    // local(fn: Fn(R) -> R) → void
-    fn local(fn: Fn(R) -> R) -> void {
+    // local(fn: fn(R) -> R, reader: Reader(R, T)) → Reader(R, T)
+    fn local(fn: fn(R) -> R, reader: Reader(R, T)) -> Reader(R, T) {
         // TODO: Implement from .tri spec
     }
 
@@ -42,23 +42,15 @@ module TriReader;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test pure_basic_case
-        given input = default_input()
-        when result = pure(input)
-        then result != undefined
+    // TODO: behaviour for pure() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test ask_basic_case
-        given input = default_input()
-        when result = ask(input)
-        then result != undefined
+    // TODO: behaviour for ask() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test asks_basic_case
-        given input = default_input()
-        when result = asks(input)
-        then result != undefined
+    // TODO: behaviour for asks() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test local_basic_case
-        given input = default_input()
-        when result = local(input)
-        then result != undefined
+    // TODO: behaviour for local() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

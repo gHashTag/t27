@@ -25,8 +25,8 @@ module FeedForward;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
+    // forward(input: []const f32, W1: []const f32, b1: []const f32, W2: []const f32, b2: []const f32, output: []f32, config: FFNConfig) → void
+    fn forward(input: []const f32, W1: []const f32, b1: []const f32, W2: []const f32, b2: []const f32, output: []f32, config: FFNConfig) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -34,8 +34,6 @@ module FeedForward;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

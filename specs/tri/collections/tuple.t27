@@ -25,23 +25,23 @@ module TriTuple;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // pair(a: A) → void
-    fn pair(a: A) -> void {
+    // pair(a: A, b: B) → Tuple2(A, B)
+    fn pair(a: A, b: B) -> Tuple2(A, B) {
         // TODO: Implement from .tri spec
     }
 
-    // triple(a: A) → void
-    fn triple(a: A) -> void {
+    // triple(a: A, b: B, c: C) → Tuple3(A, B, C)
+    fn triple(a: A, b: B, c: C) -> Tuple3(A, B, C) {
         // TODO: Implement from .tri spec
     }
 
-    // fst(pair: Tuple2(A, B)) → void
-    fn fst(pair: Tuple2(A, B)) -> void {
+    // fst(pair: Tuple2(A, B)) → A
+    fn fst(pair: Tuple2(A, B)) -> A {
         // TODO: Implement from .tri spec
     }
 
-    // snd(pair: Tuple2(A, B)) → void
-    fn snd(pair: Tuple2(A, B)) -> void {
+    // snd(pair: Tuple2(A, B)) → B
+    fn snd(pair: Tuple2(A, B)) -> B {
         // TODO: Implement from .tri spec
     }
 
@@ -49,23 +49,15 @@ module TriTuple;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test pair_basic_case
-        given input = default_input()
-        when result = pair(input)
-        then result != undefined
+    // TODO: behaviour for pair() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test triple_basic_case
-        given input = default_input()
-        when result = triple(input)
-        then result != undefined
+    // TODO: behaviour for triple() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test fst_basic_case
-        given input = default_input()
-        when result = fst(input)
-        then result != undefined
+    // TODO: behaviour for fst() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
-    test snd_basic_case
-        given input = default_input()
-        when result = snd(input)
-        then result != undefined
+    // TODO: behaviour for snd() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

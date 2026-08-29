@@ -10,8 +10,8 @@ module Residual;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
+    // forward(input: []const f32, sublayer_output: []const f32, gamma: []const f32, beta: []const f32, output: []f32) → void
+    fn forward(input: []const f32, sublayer_output: []const f32, gamma: []const f32, beta: []const f32, output: []f32) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -19,8 +19,6 @@ module Residual;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 

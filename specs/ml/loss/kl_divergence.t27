@@ -10,8 +10,8 @@ module KlDivergence;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(p: []const f32) → void
-    fn forward(p: []const f32) -> void {
+    // forward(p: []const f32, q: []const f32) → f32
+    fn forward(p: []const f32, q: []const f32) -> f32 {
         // TODO: Implement from .tri spec
     }
 
@@ -19,8 +19,6 @@ module KlDivergence;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // TODO: behaviour for forward() -- write given/when/then by hand.
+    // Not generated: a signature does not imply a behaviour.
 
