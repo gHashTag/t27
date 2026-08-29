@@ -249,16 +249,7 @@ module TriToT27Converter;
         then result == "DenseLayer"
 
     test generate_t27_creates_valid_structure
-        given spec = TriSpec{
-            .name = "TestModule",
-            .version = "1.0.0",
-            .description = "Test module",
-            .types = [],
-            .constants = [],
-            .functions = [],
-            .behaviors = [],
-            .constraints = [],
-        }
+        given spec = TriSpec{ .name = "TestModule", .version = "1.0.0", .description = "Test module", .types = [], .constants = [], .functions = [], .behaviors = [], .constraints = [] }
         when content = generate_t27(spec)
         then contains_module_declaration(content)
         and   contains_spdx_header(content)
