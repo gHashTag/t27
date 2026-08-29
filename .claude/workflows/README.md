@@ -12,6 +12,7 @@ Workflow({ name: "loop-recon", args: { repo: "/path/to/checkout" } })
 | workflow | question it answers |
 |---|---|
 | `loop-recon.js` | What is weakest in this repository right now, what is the field already doing that we are not, and which `tri` command is missing — each finding adversarially refuted before it reaches a plan |
+| `column-forensics.js` | An aggregate moved and the tool cannot say which rows. Names them from two per-item dumps, reads each cause out of the tool the gates run, and rules on each: regression, or a number that had been measuring a silent drop |
 
 ## The shape these follow, and why
 
@@ -46,3 +47,31 @@ They do not hard-code a checkout path. `REPO` comes from `args.repo` or the
 working directory — baking one machine's absolute path into a shared file is
 what `secret-scan` rejects, and a workflow is not exempt from a rule the
 repository applies to everything else.
+
+## `column-forensics` — the argument it takes
+
+```
+Workflow({ name: "column-forensics", args: {
+  beforeTable: "/tmp/before.tsv",
+  afterTable:  "/tmp/after.tsv",
+  tool: "t27c corpus",
+  columns: "zig(gen,build), rust, c, verilog, dropped"
+}})
+```
+
+Produce the two tables with the SAME flag from two builds:
+
+```
+t27c corpus --per-spec /tmp/before.tsv     # built at the earlier commit
+t27c corpus --per-spec /tmp/after.tsv
+```
+
+It refuses without both. There is no mode where it derives the tables itself:
+recomputing them with a different invocation is how a second, disagreeing number
+gets born, and this repository has paid for that more than once.
+
+**The verdict phase defaults to `regression: false`.** A number that falls when a
+silent drop is fixed was measuring the drop — on W699, recovering 1 049 discarded
+tokens took Zig 217 to 215 because three specs had been accepted on less code
+than they contain. Two of three lenses must affirmatively establish that working
+behaviour was lost before a row is called a regression.
