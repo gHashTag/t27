@@ -10491,7 +10491,7 @@ fn rewrite_all(text: &str) -> String {
     ))))
 }
 
-/// `[] as []i8` -> `&[_]i8{}`, an empty slice.
+/// `[a, b] as []T` -> `&[_]T{a, b}`; the empty case is just elems = "".
 ///
 /// The general `as` rewrite cannot reach this one. Clause text is re-joined
 /// without spaces before the rewrites run, so by then it reads `[]as[]i8` and
@@ -10518,10 +10518,27 @@ fn rewrite_empty_slice_cast(s: &str) -> String {
             if in_str || c != '[' {
                 return None;
             }
+            // Collect what is between the brackets, empty or not. The first
+            // version required the list to be EMPTY, which closed
+            // `[] as []i8` and left `[0x00] as []u8` and
+            // `[0x00, 0x00, 0x00] as []u8` walled in the same construct one
+            // spec over.
             let mut j = i + 1;
+            let elem_start = j;
+            let mut depth = 0i32;
+            while j < b.len() {
+                match b[j] {
+                    '[' => depth += 1,
+                    ']' if depth == 0 => break,
+                    ']' => depth -= 1,
+                    _ => {}
+                }
+                j += 1;
+            }
             if j >= b.len() || b[j] != ']' {
                 return None;
             }
+            let elems: String = b[elem_start..j].iter().collect();
             j += 1;
             while j < b.len() && b[j].is_whitespace() {
                 j += 1;
@@ -10548,11 +10565,11 @@ fn rewrite_empty_slice_cast(s: &str) -> String {
             if j == start {
                 return None;
             }
-            Some((b[start..j].iter().collect::<String>(), j))
+            Some((b[start..j].iter().collect::<String>(), j, elems.trim().to_string()))
         })();
         match matched {
-            Some((ty, end)) => {
-                out.push_str(&format!("&[_]{}{{}}", ty));
+            Some((ty, end, elems)) => {
+                out.push_str(&format!("&[_]{}{{{}}}", ty, elems));
                 i = end;
             }
             None => {
