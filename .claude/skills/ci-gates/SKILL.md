@@ -5633,3 +5633,62 @@ asked to make.
 
 **A mangled commit message is not worth rewriting history for.** Push a follow-up
 commit, or fix it before pushing. Reported rather than quietly left in the log.
+
+## 156. "Blocked" and "amnestied" are not the same excuse, and I confused them three times
+
+I wrote — in a commit, a PR body, and a dashboard — that the phase which would
+notice a spec losing its assertions "sits in the suite's BLOCKED column, so
+nothing reports it". Then I read the column:
+
+    phase              corpus  scratch   blocked
+    parse-no-discard       87        0         0
+    no-vacuous-invariant    0        0        72
+
+`parse-no-discard` reports 87 PRIMARY failures. What is blocked is a different
+phase. The suite is green not because the check is gated away but because **every
+failure it can report is in the ledger by name** — 91 `parse` + 87
+`parse-no-discard` is the whole 178.
+
+The two look alike from a green run and are opposite in what to do:
+
+| | what it means | the fix |
+|---|---|---|
+| **blocked** | never evaluated, gated behind an upstream phase | un-gate it and face what it says |
+| **amnestied** | evaluated, failed, and excused by name | make the excuse *specific*, then shrink it |
+
+**Check which one before writing either word.** A wrong diagnosis here sends the
+next iteration to un-gate a phase that was never gated.
+
+## 157. An amnesty by identity is blind to magnitude
+
+`(path, phase)` says "this spec discards". It does not say how much, so a spec
+could go from one discarded token to 682 without moving a gate — and 1 292
+recovered tokens could not be priced, because the population was 87 either way.
+
+Adding the number takes three rules, and only the first is obvious:
+
+- **more is a failure** — the missing regression signal
+- **less is ALSO a failure** — same reason an unexpected PASS is one. Slack that
+  nobody claims is where the next regression hides.
+- **no reading is WORSE, never an improvement** — a spec that stopped being
+  measured and a spec that discards nothing are identical from the comparator's
+  side. A map that defaults to zero reports every unreadable item as a triumph.
+
+The third is this repository's oldest lesson wearing a new hat, and it is the one
+a `Default::default()` on a lookup silently gets wrong.
+
+## 158. The "what this does NOT cover" section rots first, and rots worst
+
+Two claims in `docs/CORPUS-RATCHET.md` had gone stale:
+
+- *"`parse-complete` is not among the phases; appending `))) … (((` leaves the
+  ratchet CLEAN"* — it is a phase now, and I re-verified by appending the garbage:
+  `UNEXPECTED FAILURES: 1`.
+- *"5 standing unit-test failures"* — zero, measured.
+
+Both were in the section headed *what the ratchet does not cover*. That section is
+read at exactly one moment: when somebody is deciding how far to trust a green
+run. **A stale limitation there is worse than a stale feature list** — it either
+frightens people away from a check that works, or excuses them from one that does.
+
+Re-verify that section by running its claims, not by reading them.

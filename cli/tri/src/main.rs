@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod depin;
+mod discard;
 mod cibase;
 mod fleet;
 mod fpga;
@@ -126,6 +127,11 @@ enum Commands {
     Rtl {
         #[command(subcommand)]
         action: rtl::RtlCmd,
+    },
+    /// What the parser reads and throws away, ranked against its pinned bound.
+    Discard {
+        #[command(subcommand)]
+        action: discard::DiscardCmd,
     },
     /// What `.trinity/seals` says about a spec, when it says it twice.
     Seals {
@@ -747,6 +753,7 @@ fn main() -> Result<()> {
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
+        Commands::Discard { action } => discard::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
