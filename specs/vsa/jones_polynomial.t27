@@ -322,7 +322,7 @@ module JonesPolynomial {
         // Rationale: writhe is linear sum of crossing signs
 
     invariant bracket_unknot_normalization
-        assert BRACKET_UNKNOT = 1.0
+        assert BRACKET_UNKNOT == 1.0
         // Rationale: Kauffman bracket of unknot is 1 (definition)
 
     invariant jones_polynomial_invariance

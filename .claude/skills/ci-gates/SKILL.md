@@ -6110,3 +6110,48 @@ to 23 644 with both regressions gone.
 **Re-measure after the fix for a regression, not just after the regression.** A
 plausible cause that makes the number worse is a cause you have disproved, and
 that is worth more than the twenty minutes it saves.
+
+## 186. Three designs that disagree can still agree on the first step
+
+Three independently written proposals for one language decision — capture and
+never lower, enumerate finite domains, split the four backends apart — went
+through two adversarial lenses each. **All three survived with zero fatal
+verdicts**, which looked like a useless result: no winner.
+
+It was not. They disagreed about the lowering and agreed exactly about the first
+increment: *report before you lower*, because the ceiling cannot be chosen
+without the distribution, and nobody had measured it.
+
+**When a panel fails to pick a winner, look for the prefix they share.** A step
+three mutually incompatible designs all need is a step that cannot be wrong.
+
+## 187. I validated a fix against a line that was itself broken
+
+Rewriting `assert G_MEASURED = 6.67e-11 +/- 1.5e-15` needed an absolute value.
+The corpus already contained `assert |x - y| < 0.1`, so I used that shape.
+
+It moved two tokens. `|...|` does not parse — and the line I copied it from is
+itself one of the discarding lines. I had validated a repair against a specimen
+of the disease.
+
+`abs(...)` is the real idiom, used four times in clauses that lower cleanly, and
+with it the three edits moved twenty tokens and each spec lost a fallback event.
+
+**Before copying an idiom out of the corpus, check that the line you are copying
+from works.** In a corpus with a measured failure rate, a randomly chosen example
+is a coin flip.
+
+## 188. An unresolved name is not a small domain
+
+The census computes `|D|` from declared types. The tempting default for a type
+it cannot resolve is 1, or to skip it — both of which make a clause look
+enumerable when nothing is known about it.
+
+`BOTTOM` is absorbing, an unresolved name is unbounded, and a struct name defined
+**twice** is unbounded even though both definitions resolve: `|D|` is
+undetermined not because the type is infinite but because *which type* is
+undetermined. Fifteen names in this corpus are in that state.
+
+**The default for "I do not know" must be the answer that makes the tool refuse,
+never the one that makes it proceed.** Four of the six tests on that command
+exist to pin exactly that.

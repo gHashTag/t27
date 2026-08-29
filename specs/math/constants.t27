@@ -316,7 +316,7 @@ module Constants {
         // Rationale: e is proven to be irrational (Euler, 1737)
 
     invariant codata_gravitational_constant
-        assert G_MEASURED = 6.67430e-11 +/- 1.5e-15
+        assert abs(G_MEASURED - 6.67430e-11) < 1.5e-15
         // Rationale: CODATA 2022 measured value with uncertainty
 
     invariant cosmological_constant_positive
