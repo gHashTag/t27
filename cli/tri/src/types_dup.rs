@@ -271,7 +271,15 @@ pub fn defs_in(file: &str, src: &str) -> Vec<(String, Def)> {
             }
             if !l.starts_with("//") {
                 if let Some((n, ty)) = l.split_once(':') {
-                    let n = n.trim();
+                    // W707: a field may be `pub name: T`. Splitting on `:` then
+                    // rejecting a name containing a space threw every such field
+                    // away, so `pub struct HealthStatus { pub is_healthy: bool,
+                    // ... }` parsed as a struct with NO fields -- and compared
+                    // equal to an unrelated empty definition of the same name,
+                    // which the detector then called DUPLICATED instead of
+                    // CONFLICTED. Found by an agent asked to check coverage,
+                    // not by me.
+                    let n = n.trim().strip_prefix("pub ").unwrap_or(n.trim()).trim();
                     let ty = ty.trim().trim_end_matches(',').trim();
                     // A field is `name: Type`. Anything with a space in the name
                     // is a line this does not understand, and is skipped rather
@@ -538,6 +546,28 @@ mod tests {
     fn agreement_is_silence() {
         let (new, gone) = drift(&["A".to_string()], &["A".to_string()]);
         assert!(new.is_empty() && gone.is_empty());
+    }
+
+    /// A `pub` field is a field. Dropping them made a five-field struct read as
+    /// empty, and an empty struct compares equal to any other empty one.
+    #[test]
+    fn a_pub_field_is_read() {
+        let d = parse("pub struct S {\n    pub is_healthy: bool,\n    pub code: u16,\n}\n");
+        assert_eq!(
+            d[0].1.fields,
+            vec![
+                ("is_healthy".to_string(), "bool".to_string()),
+                ("code".to_string(), "u16".to_string())
+            ]
+        );
+    }
+
+    /// And the consequence: five fields versus none is a CONFLICT, not a match.
+    #[test]
+    fn a_populated_struct_conflicts_with_an_empty_one_of_the_same_name() {
+        let a = parse("pub struct S {\n    pub a: bool,\n}\n")[0].1.clone();
+        let b = parse("pub const S = struct {\n};\n")[0].1.clone();
+        assert_eq!(verdict(&[a, b]), "CONFLICTED");
     }
 
     #[test]
