@@ -7787,7 +7787,6 @@ green phase red — and it is not what I named when I declined.
 sounds like evidence and is not falsifiable as a reason; "suite judges this
 phase by the exit code, and N specs would flip" is both.
 
-<<<<<<< HEAD
 ## 308. Build the rule you rejected, run it, and read the number
 
 An invariant was discarded as "not a C constant expression" whenever its
@@ -7931,3 +7930,66 @@ defect; it is a CONFIDENT REFUTATION of a true finding, which is worse
 than never having checked.
 
 Related: §262, what the comment was hiding.
+
+## 314. `none == none` is agreement, not health
+
+A seal in this repository stores a spec's hash and the sha256 of each of four
+generated outputs. When the spec does not parse, `t27c seal` exits 0 and writes
+`gen_hash_zig=none` — four times. Then:
+
+- freshness compares `spec_hash` against the file: it matches.
+- drift recomputes and compares: `none` equals `none`, zero drift.
+- coverage checks a seal file exists and its hashes agree: covered.
+
+All three are correct. All three are green. And the file records that
+generation did not happen. **213 of 1311 seals on master.**
+
+**And the fact was already written down.** `tools/specs_generate_baseline.txt`
+is a debt ledger of exactly these specs — 101 of the 104 are in it, under a
+header that says "Each line is a debt". The first version of this section
+claimed nobody counted them; that was wrong, and grepping for an existing
+ledger BEFORE claiming novelty would have caught it in one command. What is
+true is narrower and still worth the tool: the same fact is recorded twice, one
+record calls it debt and the other reads as health, and the census now
+reconciles against the ledger instead of competing with it.
+
+The general shape: when a computation can fail, and the failure is written down
+as a sentinel, every EQUALITY check downstream compares the sentinel against
+itself and agrees. The sentinel is invisible precisely to the checks built to
+notice change, because it never changes.
+
+Two defences, and only the second one worked here:
+
+1. **Refuse to write it.** This repository already does — `is_sealable()`
+   blocks `drift --fix`, and `sync-twins` will not propagate one. It is the
+   right guard and it is worthless for the records already on disk.
+2. **Count the sentinels, separately, as their own question.** Not "did this
+   change?" but "how many of these claim nothing?"
+
+Before reporting a count as new, search the repository for a file that already
+holds it. A second, disagreeing ledger is worse than no ledger.
+
+## 315. The kind, not the coordinates
+
+104 specs failed to parse. Reported one line each, that is 104 problems and an
+owner who does not start. Reported by error kind — with `near line 38`, `at
+line 38:45` and `in fn 'git_commit'` stripped — it is 39 kinds, the largest
+covering 23 specs, and the work is a dozen parser gaps.
+
+Normalising is where this goes wrong. The compiler nests its own prefix:
+
+```
+parse error in fn 'f' near line 100: parse error near line 100: parse error near line 100: Expected RParen
+```
+
+A collapse that only merges ADJACENT repeats leaves two, because the compiler
+interleaves `in fn X` between them. The unit test that caught it asserted the
+count, not the appearance:
+
+```rust
+assert_eq!(k.matches("parse error").count(), 1, "{k}");
+```
+
+And its control — two DIFFERENT causes must not collapse into one bucket —
+matters more than the merge test. Over-merging turns 39 kinds into 4 and reads
+as excellent grouping.

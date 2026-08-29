@@ -9572,6 +9572,11 @@ fn run_validate(repo_root: &str) -> anyhow::Result<()> {
         println!("VALIDATION: PASSED");
     } else {
         println!("VALIDATION: FAILED");
+        // The word FAILED and a zero exit are two answers to one question, and
+        // a caller that reads the code hears the wrong one. No workflow runs
+        // this command today; the reason it is worth fixing anyway is that the
+        // next one to wire it up would inherit a gate that cannot fail.
+        std::process::exit(1);
     }
     Ok(())
 }
