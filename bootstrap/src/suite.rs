@@ -2607,7 +2607,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         // is a KNOWN OPEN specification decision (P18), so it is allowed by
         // name -- an allowance that is visible, counted, and will stop applying
         // the moment somebody settles it.
-        const CATALOG_ALLOWED: &[&str] = &["gfternary"];
+        let catalog_allowed = crate::catalog_gate::ALLOWED;
         // W643: the worst instance of the shape. This is a GATE -- its findings
         // count into `gate_fail` -- and it sat behind a bare `if cat.is_file()`
         // with no `else`, so a missing catalog printed `gate failures: 0` and
@@ -2629,7 +2629,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 let unexpected: Vec<_> = r
                     .findings
                     .iter()
-                    .filter(|f| !CATALOG_ALLOWED.contains(&f.id.as_str()))
+                    .filter(|f| !catalog_allowed.contains(&f.id.as_str()))
                     .collect();
                 gate_fail += unexpected.len();
                 println!(
