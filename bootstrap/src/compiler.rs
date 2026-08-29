@@ -5905,11 +5905,65 @@ impl Codegen {
             self.write_line("");
         }
 
+        // Same nesting as gen_zig: `fn Owner.method` belongs inside `Owner`.
+        // This is the second copy of the loop, and it kept the old behaviour
+        // when the first was fixed -- deliberately, so the first could be
+        // measured alone. It has been, so the two agree again.
+        let struct_names: std::collections::HashSet<String> = ast
+            .children
+            .iter()
+            .filter(|d| d.kind == NodeKind::StructDecl)
+            .map(|d| d.name.clone())
+            .collect();
+        let mut methods: std::collections::HashMap<String, Vec<&Node>> =
+            std::collections::HashMap::new();
+        for decl in &ast.children {
+            if decl.kind == NodeKind::FnDecl {
+                if let Some((owner, _)) = decl.name.split_once('.') {
+                    if struct_names.contains(owner) {
+                        methods.entry(owner.to_string()).or_default().push(decl);
+                    }
+                }
+            }
+        }
+
         // Emit other declarations
         for decl in &ast.children {
-            if decl.kind != NodeKind::UseDecl {
-                self.gen_decl(decl);
+            if decl.kind == NodeKind::UseDecl {
+                continue;
             }
+            if decl.kind == NodeKind::FnDecl {
+                if let Some((owner, _)) = decl.name.split_once('.') {
+                    if struct_names.contains(owner) {
+                        continue;
+                    }
+                }
+            }
+            if decl.kind == NodeKind::StructDecl && methods.contains_key(&decl.name) {
+                let start = self.output.len();
+                self.gen_struct_decl(decl);
+                let block = self.output[start..].to_string();
+                if let Some(pos) = block.rfind("};") {
+                    self.output.truncate(start);
+                    self.write(&block[..pos]);
+                    for m in &methods[&decl.name] {
+                        let mut inner = (*m).clone();
+                        if let Some((_, short)) = inner.name.clone().split_once('.') {
+                            inner.name = short.to_string();
+                        }
+                        let has_self = inner.params.iter().any(|(n, _)| n == "self");
+                        if !has_self && node_mentions_word(m, "self") {
+                            inner
+                                .params
+                                .insert(0, ("self".to_string(), format!("*{}", decl.name)));
+                        }
+                        self.gen_decl(&inner);
+                    }
+                    self.write("};\n");
+                }
+                continue;
+            }
+            self.gen_decl(decl);
         }
     }
 
