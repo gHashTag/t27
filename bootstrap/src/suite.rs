@@ -389,6 +389,19 @@ struct ExpectationEntry {
 struct SuiteExpectations {
     schema_version: u32,
     generated_by: String,
+    /// W700: the number of GATE FAILURES this run is allowed to print.
+    ///
+    /// `suite --ratchet --corpus-only` is the command that gates master. It
+    /// prints `GATE FAILURES: 42` and exits 0, because the exit code is decided
+    /// by the expectations ledger alone. Proven by planting a conformance case
+    /// that cannot pass: the table went to `24/25`, the count to 43, and the
+    /// command still returned success.
+    ///
+    /// So the count is pinned, with the same three rules the discard volume uses:
+    /// a rise fails, a fall fails until it is re-blessed, and no pin at all
+    /// fails. `None` only until the first bless.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max_gate_failures: Option<usize>,
     /// Monotone-downward cap on `entries.len()`. Raising it is a hand edit and
     /// therefore a reviewable event.
     max_entries: usize,
@@ -402,6 +415,7 @@ impl Default for SuiteExpectations {
             schema_version: 1,
             generated_by: "t27c suite --bless-expectations".to_string(),
             max_entries: 0,
+            max_gate_failures: None,
             entries: Vec::new(),
         }
     }
@@ -460,6 +474,9 @@ struct RatchetVerdict {
     /// not, or whose pinned map does not sum to its pinned total.
     #[serde(default)]
     discard_channel_drift: Vec<String>,
+    /// W700: the gate-failure count against its pin. One line, or empty.
+    #[serde(default)]
+    gate_failure_drift: Vec<String>,
     /// True when `entries.len()` exceeds the declared cap.
     over_cap: bool,
     ledger_size: usize,
@@ -475,6 +492,7 @@ impl RatchetVerdict {
             && self.discard_improved.is_empty()
             && self.discard_unpinned.is_empty()
             && self.discard_channel_drift.is_empty()
+            && self.gate_failure_drift.is_empty()
             && !self.over_cap
     }
 }
@@ -502,6 +520,7 @@ fn ratchet_compare(
     today: &str,
     discard: &std::collections::BTreeMap<String, usize>,
     split: &ChannelSplit,
+    gate_failures: Option<usize>,
 ) -> RatchetVerdict {
     let expected: std::collections::BTreeSet<(String, String)> = exp
         .entries
@@ -591,8 +610,31 @@ fn ratchet_compare(
         }
     }
 
+    // W700: the printed gate-failure count, against its pin. `None` observed
+    // means this run did not count them -- which is not zero, and is reported
+    // rather than passed over.
+    let mut gate_drift: Vec<String> = Vec::new();
+    match (exp.max_gate_failures, gate_failures) {
+        (None, Some(o)) => gate_drift.push(format!(
+            "GATE FAILURES is {o} and the ledger pins no ceiling -- \
+             a printed failure count that gates nothing is what this pin exists to end"
+        )),
+        (Some(p), None) => gate_drift.push(format!(
+            "GATE FAILURES pinned at {p} but this run did not count them"
+        )),
+        (Some(p), Some(o)) if o > p => gate_drift.push(format!(
+            "GATE FAILURES rose {p} -> {o} (+{})", o - p
+        )),
+        (Some(p), Some(o)) if o < p => gate_drift.push(format!(
+            "GATE FAILURES fell {p} -> {o} (-{}) -- re-bless to pin the lower number",
+            p - o
+        )),
+        _ => {}
+    }
+
     RatchetVerdict {
         unexpected_failures: observed.difference(&expected).map(fmt).collect(),
+        gate_failure_drift: gate_drift,
         discard_worsened: worsened,
         discard_improved: improved,
         discard_unpinned: unpinned,
@@ -2862,6 +2904,10 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         entries.sort();
         let exp = SuiteExpectations {
             max_entries: cap,
+            // W700: blessing writes what this run PRINTED. Lowering is therefore
+            // automatic on a re-bless and raising is a diff a human reads --
+            // the same contract the discard volume has.
+            max_gate_failures: Some(gate_fail),
             entries,
             ..Default::default()
         };
@@ -2891,7 +2937,8 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 ratchet_clean = false;
             }
             Some(exp) => {
-                let v = ratchet_compare(&observed, &exp, &today, &observed_discard, &observed_split);
+                let v =
+                    ratchet_compare(&observed, &exp, &today, &observed_discard, &observed_split, Some(gate_fail));
                 println!("  ledger:              {} / {} cap", v.ledger_size, v.max_entries);
                 println!("  observed (primary):  {}", observed.len());
                 // W636: these lists used to stop at 25 with NO indication, and
@@ -2924,6 +2971,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 show("DISCARD IMPROVED   ", '<', &v.discard_improved, "");
                 show("DISCARD UNPINNED   ", '?', &v.discard_unpinned, "");
                 show("DISCARD CHANNEL    ", '~', &v.discard_channel_drift, "");
+                show("GATE FAILURES      ", '!', &v.gate_failure_drift, "");
                 if v.over_cap {
                     println!("  OVER CAP: {} > {}", v.ledger_size, v.max_entries);
                 }
@@ -2951,7 +2999,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         // identity, not the level of a total. This is the whole point: a total
         // that is already 2614 cannot move when something new breaks (T27).
         if ratchet_clean {
-            println!("RATCHET CLEAN -- no unexpected failures, passes, expiries, or discard drift");
+            println!("RATCHET CLEAN -- no unexpected failures, passes, expiries, discard drift, or gate drift");
             println!("phi^2 + 1/phi^2 = 3 | TRINITY");
             return Ok(());
         }
@@ -3421,7 +3469,7 @@ mod tests {
     #[test]
     fn ratchet_is_clean_when_observed_equals_expected() {
         let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default(), None);
         assert!(v.clean(), "{:?}", v);
     }
 
@@ -3436,6 +3484,7 @@ mod tests {
             "2026-08-12",
             &Default::default(),
             &Default::default(),
+            None,
         );
         assert_eq!(v.unexpected_failures, vec!["specs/b.t27 [parse]".to_string()]);
         assert!(!v.clean());
@@ -3457,6 +3506,7 @@ mod tests {
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 42)]),
             &Default::default(),
+            None,
         );
         assert_eq!(v.discard_worsened.len(), 1, "{:?}", v);
         assert!(v.discard_worsened[0].contains("+32"), "{:?}", v.discard_worsened);
@@ -3474,6 +3524,7 @@ mod tests {
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 40)]),
             &Default::default(),
+            None,
         );
         assert_eq!(v.discard_improved.len(), 1, "{:?}", v);
         assert!(v.discard_improved[0].contains("-60"), "{:?}", v.discard_improved);
@@ -3489,6 +3540,7 @@ mod tests {
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 7)]),
             &Default::default(),
+            None,
         );
         assert_eq!(v.discard_unpinned.len(), 1, "{:?}", v);
         assert!(!v.clean(), "an unbounded amnesty is the thing this field ends");
@@ -3506,6 +3558,7 @@ mod tests {
             "2026-08-12",
             &Default::default(),
             &Default::default(),
+            None,
         );
         assert_eq!(v.discard_worsened.len(), 1, "{:?}", v);
         assert!(v.discard_worsened[0].contains("NO reading"), "{:?}", v.discard_worsened);
@@ -3536,6 +3589,7 @@ mod tests {
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 10)]),
             &seen,
+            None,
         );
         assert!(v.discard_worsened.is_empty(), "the total did not move");
         assert!(v.discard_improved.is_empty(), "the total did not move");
@@ -3557,6 +3611,7 @@ mod tests {
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 10)]),
             &Default::default(),
+            None,
         );
         assert_eq!(v.discard_channel_drift.len(), 1, "{:?}", v);
         assert!(v.discard_channel_drift[0].contains("sums to 4"), "{:?}", v);
@@ -3574,9 +3629,95 @@ mod tests {
             "2026-08-12",
             &disc_obs(&[("specs/a.t27", 10)]),
             &Default::default(),
+            None,
         );
         assert_eq!(v.discard_unpinned.len(), 1, "{:?}", v);
         assert!(!v.clean());
+    }
+
+    // ---- W700: the printed GATE FAILURES count, against a pin. --------------
+    //
+    // `suite --ratchet --corpus-only` is the command that gates master. It
+    // printed `GATE FAILURES: 42` and exited 0. Proven by planting a conformance
+    // case that cannot pass: the table read `24/25`, the count read 43, and the
+    // command still returned success.
+
+    fn gate_exp(pin: Option<usize>) -> super::SuiteExpectations {
+        super::SuiteExpectations { max_gate_failures: pin, ..Default::default() }
+    }
+
+    #[test]
+    fn ratchet_fails_when_the_gate_failure_count_rises() {
+        let v = super::ratchet_compare(
+            &Default::default(),
+            &gate_exp(Some(42)),
+            "2026-08-12",
+            &Default::default(),
+            &Default::default(),
+            Some(43),
+        );
+        assert_eq!(v.gate_failure_drift.len(), 1, "{:?}", v);
+        assert!(v.gate_failure_drift[0].contains("42 -> 43"), "{:?}", v);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_fails_when_it_falls_so_the_slack_cannot_be_banked() {
+        let v = super::ratchet_compare(
+            &Default::default(),
+            &gate_exp(Some(42)),
+            "2026-08-12",
+            &Default::default(),
+            &Default::default(),
+            Some(40),
+        );
+        assert_eq!(v.gate_failure_drift.len(), 1, "{:?}", v);
+        assert!(v.gate_failure_drift[0].contains("re-bless"), "{:?}", v);
+        assert!(!v.clean(), "unclaimed slack is where the next regression hides");
+    }
+
+    #[test]
+    fn ratchet_fails_when_the_count_is_printed_but_never_pinned() {
+        // The state master was in: 42 printed every run, nothing holding it.
+        let v = super::ratchet_compare(
+            &Default::default(),
+            &gate_exp(None),
+            "2026-08-12",
+            &Default::default(),
+            &Default::default(),
+            Some(42),
+        );
+        assert_eq!(v.gate_failure_drift.len(), 1, "{:?}", v);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_reads_an_uncounted_run_as_drift_not_as_agreement() {
+        // A run that did not count them is not a run that found none.
+        let v = super::ratchet_compare(
+            &Default::default(),
+            &gate_exp(Some(42)),
+            "2026-08-12",
+            &Default::default(),
+            &Default::default(),
+            None,
+        );
+        assert_eq!(v.gate_failure_drift.len(), 1, "{:?}", v);
+        assert!(v.gate_failure_drift[0].contains("did not count"), "{:?}", v);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_is_clean_when_the_gate_failure_count_matches() {
+        let v = super::ratchet_compare(
+            &Default::default(),
+            &gate_exp(Some(42)),
+            "2026-08-12",
+            &Default::default(),
+            &Default::default(),
+            Some(42),
+        );
+        assert!(v.clean(), "{:?}", v);
     }
 
     #[test]
@@ -3601,6 +3742,7 @@ mod tests {
                 });
                 m
             },
+            None,
         );
         assert!(v.clean(), "{:?}", v);
     }
@@ -3610,7 +3752,7 @@ mod tests {
         // pytest's `xfail_strict`, made the default. Without this the ledger
         // accumulates entries for defects that were fixed years ago.
         let e = mk_exp(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")], "2099-01-01", 2);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default(), None);
         assert_eq!(v.unexpected_passes, vec!["specs/b.t27 [parse]".to_string()]);
         assert!(!v.clean(), "an unexpected pass must fail the run");
     }
@@ -3618,7 +3760,7 @@ mod tests {
     #[test]
     fn ratchet_fails_on_a_past_due_entry_even_when_the_sets_agree() {
         let e = mk_exp(&[("specs/a.t27", "parse")], "2026-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12", &Default::default(), &Default::default(), None);
         assert!(v.unexpected_failures.is_empty());
         assert!(v.unexpected_passes.is_empty());
         assert_eq!(v.expired.len(), 1);
@@ -3634,6 +3776,7 @@ mod tests {
             "2026-08-12",
             &Default::default(),
             &Default::default(),
+            None,
         );
         assert!(v.over_cap);
         assert!(!v.clean());
@@ -3644,7 +3787,7 @@ mod tests {
         // The identity is (path, phase), not path. A file amnestied at `parse`
         // that starts failing `gen-c` is a NEW defect.
         let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
-        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12", &Default::default(), &Default::default());
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12", &Default::default(), &Default::default(), None);
         assert_eq!(v.unexpected_failures, vec!["specs/a.t27 [gen-c]".to_string()]);
         assert_eq!(v.unexpected_passes, vec!["specs/a.t27 [parse]".to_string()]);
     }
