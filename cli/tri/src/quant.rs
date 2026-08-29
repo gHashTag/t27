@@ -505,6 +505,212 @@ fn read_specs(root: &std::path::Path) -> Vec<(PathBuf, String)> {
     out
 }
 
+/// Is this clause VACUOUS -- true in every model, whatever the functions do?
+///
+/// The field's word, not one invented here: Beer, Ben-David, Eisner & Rodeh,
+/// *Efficient Detection of Vacuity in Temporal Model Checking*. A property
+/// passes vacuously when a subformula does not affect its truth; the degenerate
+/// case that passes under every interpretation is a TAUTOLOGY, and a guard that
+/// is never true is ANTECEDENT FAILURE.
+///
+/// A vacuous clause is not a wrong claim -- it IS true, which is the problem.
+/// It passes every checker forever, it counts as coverage, and nothing will
+/// ever flag it, because there is nothing to flag.
+///
+/// Decided from the clause TEXT alone. Nothing is evaluated, no type is
+/// resolved, and every rule that cannot decide ABSTAINS rather than guessing.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Vacuity {
+    /// The predicate never mentions the variable it quantifies over.
+    BinderUnused(String),
+    /// `A == A` for syntactically identical A, after `+ 0` is folded away.
+    Reflexive(String),
+    /// `P ==> P`.
+    SelfImplication(String),
+    /// `X != undefined` -- the compiler says in its own words that this
+    /// "constrain[s] the value not at all ... which is trivially true".
+    NotUndefined(String),
+}
+
+impl Vacuity {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Vacuity::BinderUnused(_) => "binder never used in the predicate",
+            Vacuity::Reflexive(_) => "A == A",
+            Vacuity::SelfImplication(_) => "P ==> P",
+            Vacuity::NotUndefined(_) => "X != undefined",
+        }
+    }
+    /// The conjunct that decided it. Printing this, and not the whole body, is
+    /// what lets a reader falsify the verdict in one glance.
+    pub fn evidence(&self) -> &str {
+        match self {
+            Vacuity::BinderUnused(e)
+            | Vacuity::Reflexive(e)
+            | Vacuity::SelfImplication(e)
+            | Vacuity::NotUndefined(e) => e,
+        }
+    }
+}
+
+/// Top-level conjuncts, split PER SOURCE LINE and then on `&&` / ` and ` at
+/// paren depth zero.
+///
+/// Never flatten the body first. Measured on this corpus, a backreference regex
+/// over the flattened text finds `depth == depth` inside
+/// `int4_dequantize_bank(codes, depth, width).depth == depth` -- a real
+/// preservation claim -- and `b == b` inside `a * b == b * a`, real
+/// commutativity. Three false positives in eight hits, and one true positive
+/// lost, is how a check gets classified as noise in its first pull request.
+pub fn conjuncts(body: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in body.lines() {
+        let line = line.split("//").next().unwrap_or("");
+        let (mut depth, mut cur) = (0i32, String::new());
+        let ch: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        while i < ch.len() {
+            match ch[i] {
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => depth -= 1,
+                _ => {}
+            }
+            if depth == 0 && ch[i] == '&' && i + 1 < ch.len() && ch[i + 1] == '&' {
+                out.push(std::mem::take(&mut cur));
+                i += 2;
+                continue;
+            }
+            if depth == 0
+                && ch[i] == ' '
+                && ch[i..].iter().collect::<String>().starts_with(" and ")
+            {
+                out.push(std::mem::take(&mut cur));
+                i += 5;
+                continue;
+            }
+            cur.push(ch[i]);
+            i += 1;
+        }
+        out.push(cur);
+    }
+    out.into_iter()
+        .map(|c| c.trim().to_string())
+        .filter(|c| !c.is_empty())
+        .collect()
+}
+
+/// Fold the one arithmetic identity the corpus writes: `e + 0` is `e`.
+fn fold(e: &str) -> String {
+    e.trim()
+        .trim_end_matches(|c: char| c == ';' || c == ',')
+        .trim()
+        .strip_suffix("+ 0")
+        .map(|x| x.trim().to_string())
+        .unwrap_or_else(|| e.trim().to_string())
+}
+
+/// Every reason this clause is vacuous, or an empty list.
+///
+/// `binders` are the declared names; `body` is the clause window.
+pub fn vacuity(binders: &[String], body: &str) -> Vec<Vacuity> {
+    let mut out = Vec::new();
+
+    // The predicate is often on the SAME line as the binder list, so "does the
+    // name appear below the head" is the wrong question. Count occurrences and
+    // subtract the declarations. A line-based version emitted seven hits of
+    // which four were same-line predicates.
+    let decls: usize = binders
+        .iter()
+        .map(|b| {
+            body.matches(&format!("{b} :")).count()
+                + body.matches(&format!("{b}:")).count()
+                + body.matches(&format!("{b} in ")).count()
+        })
+        .sum();
+    let uses: usize = binders
+        .iter()
+        .map(|b| count_word(body, b))
+        .sum();
+    if !binders.is_empty() && uses > 0 && uses <= decls {
+        out.push(Vacuity::BinderUnused(
+            body.lines().last().unwrap_or("").trim().to_string(),
+        ));
+    }
+
+    for c in conjuncts(body) {
+        if let Some((l, r)) = split_once_top(&c, "==>") {
+            if l.trim() == r.trim() && !l.trim().is_empty() {
+                out.push(Vacuity::SelfImplication(c.clone()));
+                continue;
+            }
+        }
+        if let Some((l, r)) = split_once_top(&c, "!=") {
+            if r.trim().trim_end_matches(';') == "undefined" && !l.trim().is_empty() {
+                out.push(Vacuity::NotUndefined(c.clone()));
+                continue;
+            }
+        }
+        if let Some((l, r)) = split_once_top(&c, "==") {
+            let (l, r) = (fold(l), fold(r));
+            if l == r && !l.is_empty() {
+                out.push(Vacuity::Reflexive(c.clone()));
+            }
+        }
+    }
+    out
+}
+
+/// Count whole-word occurrences of `w`, so `a` does not match `arctan`.
+fn count_word(hay: &str, w: &str) -> usize {
+    let h: Vec<char> = hay.chars().collect();
+    let n: Vec<char> = w.chars().collect();
+    let mut k = 0;
+    let mut i = 0;
+    while i + n.len() <= h.len() {
+        if h[i..i + n.len()] == n[..] {
+            let before = i == 0 || !(h[i - 1].is_ascii_alphanumeric() || h[i - 1] == '_');
+            let j = i + n.len();
+            let after = j >= h.len() || !(h[j].is_ascii_alphanumeric() || h[j] == '_');
+            if before && after {
+                k += 1;
+            }
+        }
+        i += 1;
+    }
+    k
+}
+
+/// Split on the first `op` that is at paren depth zero.
+fn split_once_top<'a>(s: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
+    let ch: Vec<char> = s.chars().collect();
+    let o: Vec<char> = op.chars().collect();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i + o.len() <= ch.len() {
+        match ch[i] {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            _ => {}
+        }
+        if depth == 0 && ch[i..i + o.len()] == o[..] {
+            // `==` must not match inside `==>` or `!=`.
+            if op == "==" && (i + o.len() < ch.len() && ch[i + o.len()] == '>') {
+                i += 1;
+                continue;
+            }
+            if op == "==" && i > 0 && (ch[i - 1] == '!' || ch[i - 1] == '<' || ch[i - 1] == '>') {
+                i += 1;
+                continue;
+            }
+            let b = s.char_indices().nth(i).map(|(b, _)| b)?;
+            let e = s.char_indices().nth(i + o.len()).map(|(b, _)| b).unwrap_or(s.len());
+            return Some((&s[..b], &s[e..]));
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Every `fn` name a spec file defines, and every module it `use`s.
 ///
 /// The scope a clause's names resolve in is its OWN file plus the files its
@@ -599,7 +805,21 @@ pub fn clause_body(lines: &[&str], line: usize) -> String {
 
 fn starts_construct(l: &str) -> bool {
     let t = l.trim_start().trim_start_matches("pub ");
-    ["invariant ", "test ", "fn ", "const ", "module ", "use "]
+    // W714: `bench ` and `given ` were missing, and the window is bounded by
+    // indentation -- so an invariant written at indent 0 (gemm.t27:260) swallowed
+    // the whole `bench booth_mul_latency` block that follows it. Measured: one
+    // clause in 924 overruns, five have an indent-0 head. A list-shaped guard
+    // goes stale by addition, which this repository has now seen three times.
+    [
+        "invariant ",
+        "test ",
+        "bench ",
+        "given ",
+        "fn ",
+        "const ",
+        "module ",
+        "use ",
+    ]
         .iter()
         .any(|k| t.starts_with(k))
 }
@@ -742,6 +962,12 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
     // about functions that exist.
     let mut unresolved: BTreeMap<String, usize> = BTreeMap::new();
     let (mut res_ok, mut res_undef, mut res_amb) = (0usize, 0usize, 0usize);
+    // Vacuity is decided from the clause text alone, so it is measured over ALL
+    // 924 clauses -- not only the walkable ones. Scope matters: `!= undefined`
+    // occurs 577 times in specs/, and only a handful are in quantified clauses.
+    // Widening past the clause list would multiply the output for no signal.
+    let mut vac: Vec<(String, usize, Vacuity)> = Vec::new();
+    let mut says_something = 0usize;
 
     let mut by_notation: BTreeMap<&str, usize> = BTreeMap::new();
     let (mut walkable, mut over, mut unbounded, mut no_binder) = (0usize, 0usize, 0usize, 0usize);
@@ -820,6 +1046,21 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
                 format!("finite but over ceiling |D| = {n}")
             }
         };
+        {
+            let vbody = by_file
+                .get(&c.file)
+                .map(|l| clause_body(l, c.line))
+                .unwrap_or_default();
+            let names: Vec<String> = c.binders.iter().map(|(n, _)| n.clone()).collect();
+            let v = vacuity(&names, &vbody);
+            if v.is_empty() {
+                says_something += 1;
+            } else {
+                for one in v {
+                    vac.push((c.file.clone(), c.line, one));
+                }
+            }
+        }
         if *full {
             println!(
                 "  {}:{}  {}  [{}]  {}",
@@ -935,6 +1176,47 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             println!("    appears in this list like any other, and a reader recognises it at");
             println!("    a glance -- an allowlist would have been tuned until the number");
             println!("    looked right, which is not a measurement.");
+        }
+
+        println!();
+        println!("  IS THE CLAUSE VACUOUS?");
+        println!("    Decided from the clause text alone. Nothing is evaluated and no type is");
+        println!("    resolved. This says NOTHING about whether a clause is TRUE -- a vacuous");
+        println!("    clause IS true, in every model, which is exactly the problem: it passes");
+        println!("    every checker forever and counts as coverage while saying nothing.");
+        println!();
+        println!("      says something            {says_something}");
+        println!("      vacuous                   {}", vac.len());
+        {
+            let mut by: BTreeMap<&str, usize> = BTreeMap::new();
+            for (_, _, v) in &vac {
+                *by.entry(v.kind()).or_default() += 1;
+            }
+            println!();
+            for (k, n) in by.iter().rev() {
+                println!("       {n:>3}  tautology, {k}");
+            }
+            for k in ["A == A", "P ==> P", "X != undefined", "binder never used in the predicate"] {
+                if !by.contains_key(k) {
+                    println!("         0  {k} -- looked for, not found");
+                }
+            }
+        }
+        println!();
+        println!("    NOT DECIDED HERE: whether a bound is the declared TYPE's own range --");
+        println!("    `x >= 0` on an unsigned, `x <= 255` on a u8, all variants of an enum");
+        println!("    listed. That needs a type table, and a type table carries judgement: a");
+        println!("    name with two definitions flips a verdict when a refactor touches it.");
+        println!("    The kinds above need no types at all, which is why they ship first.");
+        println!();
+        println!("    ONE ASSUMPTION IS LOAD-BEARING and is not proved here: `f(x) == f(x)` is");
+        println!("    a tautology only if spec functions are deterministic. This repository");
+        println!("    states determinism as a purity TARGET, not a proved property.");
+        if *full && !vac.is_empty() {
+            println!();
+            for (f, l, v) in &vac {
+                println!("      {f}:{l}  {}  {}", v.kind(), v.evidence());
+            }
         }
 
         // The sweep. Every DISTINCT finite size is a plateau top: raising the
@@ -1391,6 +1673,100 @@ mod tests {
         let (u, a) = resolution(&sc, "specs/a/one.t27", "dup(1)");
         assert!(u.is_empty(), "{u:?}");
         assert_eq!(a, vec!["dup".to_string()]);
+    }
+
+    // ---- W714: a clause that asserts nothing ---------------------------
+    //
+    // Every negative case below is a REAL corpus clause that a flattened
+    // regex calls a tautology and that says something. Three false positives
+    // in the first eight hits is how a check gets classified as noise in its
+    // first pull request, so they are pinned here rather than in prose.
+
+    #[test]
+    fn a_call_compared_to_itself_is_a_tautology() {
+        let v = vacuity(&["kw".into()], "forall kw : string\nencode_keyword(kw) == encode_keyword(kw)");
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert_eq!(v[0].kind(), "A == A");
+    }
+
+    /// `weights.t27:741` -- `depth == depth` is a SUBSTRING of a real claim
+    /// that the bank preserves the depth it was given.
+    #[test]
+    fn a_reflexive_substring_is_not_a_tautology() {
+        let v = vacuity(
+            &["depth".into()],
+            "forall depth : u8\nint4_dequantize_bank(codes, depth, width).depth == depth",
+        );
+        assert!(v.is_empty(), "{v:?}");
+    }
+
+    /// `systolic_array.t27:272` -- `b == b` inside real i16 commutativity.
+    #[test]
+    fn commutativity_is_not_a_tautology() {
+        let v = vacuity(&["a".into(), "b".into()], "forall a : i16, b : i16\na * b == b * a");
+        assert!(v.is_empty(), "{v:?}");
+    }
+
+    /// `cordic_top.t27:848` -- `.0 == 0` is a tuple index, not `0 == 0`.
+    #[test]
+    fn a_tuple_index_is_not_a_reflexive_comparison() {
+        let v = vacuity(&["x".into()], "forall x : i16\ncordic_step(x).0 == 0");
+        assert!(v.is_empty(), "{v:?}");
+    }
+
+    /// `backend.t27:492` -- the one arithmetic identity the corpus writes.
+    #[test]
+    fn plus_zero_folds_before_the_comparison() {
+        let v = vacuity(&["x".into()], "forall x : i32\nx + 0 == x");
+        assert_eq!(v.len(), 1, "{v:?}");
+    }
+
+    /// The predicate is often on the SAME line as the binder list, so "does
+    /// the name appear below the head line" is the wrong question. A
+    /// line-based version emitted seven hits of which four were this shape.
+    #[test]
+    fn a_same_line_predicate_uses_its_binder() {
+        let v = vacuity(&["g".into()], "invariant m: forall g : Gemm, g.M > 0 and g.N > 0");
+        assert!(v.is_empty(), "{v:?}");
+    }
+
+    /// `adder_tree.t27:1050` -- every argument a literal, so the quantifier
+    /// over 2^32 values decorates a single ground equation.
+    #[test]
+    fn a_binder_that_never_appears_is_decoration() {
+        let v = vacuity(&["a".into()], "forall a : i32\nadder_tree_4(0, 0, 0, 0) == 0");
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert_eq!(v[0].kind(), "binder never used in the predicate");
+    }
+
+    /// A binder must match as a WORD: `a` is not the `a` inside `arctan`.
+    #[test]
+    fn a_binder_matches_as_a_word_not_a_substring() {
+        let v = vacuity(&["a".into()], "forall a : u8\narctan_table_entry(3) > 0.0");
+        assert_eq!(v.len(), 1, "the `a` in arctan does not count as a use: {v:?}");
+    }
+
+    /// The compiler says it in its own words: this "constrain[s] the value
+    /// not at all ... which is trivially true".
+    #[test]
+    fn not_undefined_constrains_nothing() {
+        let v = vacuity(&["e".into()], "forall e : StepKind, e != undefined");
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert_eq!(v[0].kind(), "X != undefined");
+    }
+
+    /// `!=` and `==>` must not be read as `==`.
+    #[test]
+    fn a_comparison_operator_is_not_a_prefix_of_another() {
+        assert!(vacuity(&["x".into()], "forall x : u8\nf(x) != f(x)").is_empty());
+        let v = vacuity(&["x".into()], "forall x : u8\nf(x) ==> g(x)");
+        assert!(v.is_empty(), "an implication with different sides: {v:?}");
+    }
+
+    #[test]
+    fn conjuncts_split_per_line_and_at_depth_zero() {
+        let c = conjuncts("a == b && f(x, y) > 0\nc and d");
+        assert_eq!(c, vec!["a == b", "f(x, y) > 0", "c", "d"], "{c:?}");
     }
 
     /// A suffix with no `name : Type` yields no binder rather than a wrong one.
