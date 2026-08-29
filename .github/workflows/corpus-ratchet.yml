@@ -98,6 +98,30 @@ jobs:
           fi
           exit $rc
 
+      # The ratchet above holds the SET of conflicted names. It cannot tell
+      # whether anyone has READ them. docs/TYPE_CONFLICTS.md splits every one
+      # into DRIFT (one concept, two definitions) or DISTINCT (two concepts,
+      # one name) with the reading that decided it -- and a written reading of
+      # a tree is exactly the kind of claim that quietly stops being true.
+      #
+      # Both directions fail here, deliberately. An UNJUDGED name is a conflict
+      # nobody has looked at; a STALE row is a document describing a repair
+      # that already landed. Only one of those feels like a failure, and
+      # treating the other as a pass is how a document becomes decoration.
+      - name: Every conflicted type name has a written verdict
+        run: |
+          set -o pipefail
+          rc=0
+          ./target/debug/tri types classified > /tmp/classified.log 2>&1 || rc=$?
+          cat /tmp/classified.log
+          if [ "$rc" != "0" ]; then
+            echo "::error::docs/reports/type_conflicts_classified.json disagrees with the tree."
+            echo "::error::UNJUDGED means a new conflict nobody has read; STALE means a row"
+            echo "::error::about a name that is no longer conflicting. Read it, then edit the"
+            echo "::error::json and the tables in docs/TYPE_CONFLICTS.md to match."
+          fi
+          exit $rc
+
       - name: Run the corpus ratchet
         id: ratchet
         run: |

@@ -46,10 +46,22 @@ pub enum TypesCmd {
         #[arg(long)]
         bless: bool,
     },
+    /// Cross-check the written classification against what the tree says today.
+    ///
+    /// `docs/TYPE_CONFLICTS.md` splits every conflicted name into DRIFT (one
+    /// concept, two definitions) and DISTINCT (two concepts, one name). That
+    /// split is a READING, taken on a day, and readings go stale: a name gets
+    /// converged, a name gets added, a definition moves. This reports both
+    /// directions of the drift so the document cannot quietly describe a tree
+    /// that no longer exists.
+    Classified,
 }
 
 /// Where the conflicted set is pinned.
 const LEDGER: &str = "docs/reports/type_conflicts.json";
+
+/// Where each conflicted name's verdict and the reading behind it are written.
+const CLASSIFICATION: &str = "docs/reports/type_conflicts_classified.json";
 
 #[derive(serde::Serialize, serde::Deserialize, Default)]
 struct Ledger {
@@ -350,6 +362,58 @@ pub fn verdict(defs: &[Def]) -> &'static str {
     }
 }
 
+#[derive(serde::Deserialize)]
+struct ClassifiedName {
+    name: String,
+    verdict: String,
+}
+
+#[derive(serde::Deserialize)]
+struct Classification {
+    names: Vec<ClassifiedName>,
+}
+
+/// Report the classification against a live reading. Non-empty drift in either
+/// direction exits non-zero: a stale row and an unjudged conflict are both a
+/// document making a claim the tree does not support.
+fn classified(root: &std::path::Path, observed: &[String]) -> Result<()> {
+    let path = root.join(CLASSIFICATION);
+    let raw = std::fs::read_to_string(&path)
+        .with_context(|| format!("{} is missing -- see docs/TYPE_CONFLICTS.md", path.display()))?;
+    let c: Classification = serde_json::from_str(&raw)
+        .with_context(|| format!("{} is not readable as a classification", path.display()))?;
+
+    let names: Vec<String> = c.names.iter().map(|n| n.name.clone()).collect();
+    // `drift` is the same set difference in both directions the ratchet uses;
+    // one implementation, so the two commands cannot disagree about what a
+    // difference is.
+    let (unjudged, stale) = drift(&names, observed);
+
+    let d = c.names.iter().filter(|n| n.verdict == "DRIFT").count();
+    let x = c.names.iter().filter(|n| n.verdict == "DISTINCT").count();
+    println!("  classification: {} name(s) -- {d} DRIFT, {x} DISTINCT", names.len());
+    println!("  tree today:     {} conflicted name(s)", observed.len());
+
+    for n in &stale {
+        println!("  STALE     {n}: classified, but no longer conflicting -- drop the row");
+    }
+    for n in &unjudged {
+        println!("  UNJUDGED  {n}: conflicting, but nothing has read it");
+    }
+
+    if stale.is_empty() && unjudged.is_empty() {
+        println!("\n  OK: every conflicted name in the tree has a written verdict, and every");
+        println!("  written verdict is about a name that is still conflicting.");
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} stale row(s) and {} unjudged conflict(s). Re-read them and update {}.",
+        stale.len(),
+        unjudged.len(),
+        CLASSIFICATION
+    )
+}
+
 pub fn run(cmd: &TypesCmd) -> Result<()> {
     let root = repo_root()?;
     let all = match cmd {
@@ -374,6 +438,24 @@ pub fn run(cmd: &TypesCmd) -> Result<()> {
                 .map(|(k, _)| k.clone())
                 .collect();
             return ratchet(&root, &observed, *bless);
+        }
+        TypesCmd::Classified => {
+            let specs = read_specs(&root);
+            if specs.is_empty() {
+                anyhow::bail!("no specs under {}/specs -- nothing was read", root.display());
+            }
+            let mut by_name: BTreeMap<String, Vec<Def>> = BTreeMap::new();
+            for (f, src) in &specs {
+                for (n, d) in defs_in(f, src) {
+                    by_name.entry(n).or_default().push(d);
+                }
+            }
+            let observed: Vec<String> = by_name
+                .iter()
+                .filter(|(_, v)| v.len() > 1 && verdict(v) == "CONFLICTED")
+                .map(|(k, _)| k.clone())
+                .collect();
+            return classified(&root, &observed);
         }
     };
     let specs = read_specs(&root);
