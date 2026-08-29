@@ -8987,7 +8987,60 @@ The locator says so instead of naming that item, which is right: "the file is
 unsupported from its first declaration" is not the same claim as "this item
 causes the failure", and only the second one is what the command promises.
 
-## 359. Ask the question the accident answered
+## 359. Read the first failing step, and ask what the exit code is made of
+
+Two questions, both cheap, both answered wrong across this repository.
+
+**What did the workflow reach?** `coq-proofs.yml` has failed **62 of 62** runs at
+`opam update` -- step 2 of 5, and step 3 is the one that calls `coqc`. Its
+thirteen files have never been compiled by anything. `brain-seal-refresh.yml` has
+failed **8 of 8** across five months because its last step is a `git push` to
+master and this repository's own ruleset answers `GH013 ... Changes must be made
+through a pull request`. Neither needs a fix to what it checks. Both are stopped
+before the check, and reading only the last line of the log says "Coq proofs are
+broken" when the truth is that no Coq proof has been read.
+
+**What is the exit code actually made of?** `l1-traceability.yml`'s L3 PURITY
+step, in one of the four workflows that can block a merge:
+
+    if git diff origin/"$BASE_BRANCH"..HEAD --name-only | xargs grep -P ... | head -20; then
+
+`$BASE_BRANCH` is computed in the two steps above, each of which carries
+`env: BASE_REF`. This one lost the `env:` block, and every `run:` is a fresh
+shell, so the command executed as `git diff origin/..HEAD` -- `fatal: ambiguous
+argument`, in the log of every green run. And `a | b | head` returns *head's*
+status, 0 whether or not grep matched, so the warning branch was unconditional
+and **the green branch has never executed**.
+
+A warning that is always on is indistinguishable from one that is never on.
+
+**`::warning::` is why nobody looked.** A step that prints a verdict and exits 0
+never fails a run, so a fabricated check inside a required workflow survives
+indefinitely. The same shape sits in `fpga-build.yml`: "Power analysis
+regression" is nine `echo` lines, and the string `power_analysis` occurs exactly
+once in all of `.github/` -- inside the echo claiming the file is used.
+
+**Few runs is not few enough to be safe.** `tri gates dead` ships with
+`--min-runs 50` so a new workflow is not called dead. That floor hid four of the
+six, including the one that cannot work by construction: a structurally
+impossible workflow fails every time it runs, and runs rarely. A bounded report
+that does not name its bound reads as a complete one.
+
+**`state=="active"` is the API's word, not the repository's.** GitHub keeps a
+workflow registered active after its file is deleted: **61** registrations here
+against **48** files. One phantom carries 31 failures, more than four of the six
+real ones, so ordering by run count alone puts history above a live defect.
+Decide "no file" before "too few runs" -- a registration with nothing to fix
+cannot be under- or over-run.
+
+**Verify shell branches with a deterministic matcher.** Apple's `grep -P` does
+not behave like GNU's, so reproducing a runner's `grep -P` step on macOS
+measures the wrong thing. Substitute a stub that you control, prove the
+branching, and keep the runner's dialect in the workflow. The control that
+matters is the old logic on clean input: it printed "Non-ASCII characters
+detected" for pure-ASCII files.
+
+## 360. Ask the question the accident answered
 
 A stale ledger entry -- a line still excusing a spec that was fixed -- was found
 because one gate went red and named it. That is luck, and luck does not
@@ -9010,7 +9063,7 @@ The general move: after any accident reveals a defect class, write the probe
 that would have found it on purpose, and run it across every sibling. The
 accident tells you the class; the sweep tells you the size.
 
-## 360. A meta-gate over the ledgers
+## 361. A meta-gate over the ledgers
 
 `tri ledgers audit` plants the false line itself and demands each gate fail. It
 is a gate whose subject is other gates, and it is checkable the same way: run it
@@ -9025,7 +9078,7 @@ Two properties worth copying:
   time. A hardcoded name would rot into a line that is true, and the audit would
   quietly stop testing anything.
 
-## 361. The sweep corrected the note that started it
+## 362. The sweep corrected the note that started it
 
 Memory said four ledgers name specs by path. The sweep found **five**, plus one
 keyed by line hash. The number I had written down was from the last time I
