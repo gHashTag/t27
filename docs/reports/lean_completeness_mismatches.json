@@ -2,7 +2,7 @@
   "_what": "Env names where the Lean completeness theorem and the Rust classifier disagree.",
   "_why": "The test asserted agreement one spec at a time and died on the first, so 72 of these 73 were invisible. A ledger reports all of them and can only shrink: a new name here fails the test, and a name that starts agreeing must be REMOVED or the test fails on the stale entry.",
   "_model_empty": "true means the Lean module has no functions, globals or tests -- the theorem proves the empty module lowerable, which is true of nothing in the spec. Those are the cheapest to retire.",
-  "max_entries": 73,
+  "max_entries": 77,
   "entries": {
     "ar_coa_planning": {
       "lean": true,
@@ -43,6 +43,30 @@
       "lean": true,
       "rust": false,
       "model_empty": true
+    },
+    "github_auth": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
+    },
+    "github_comments": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
+    },
+    "github_issues": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
+    },
+    "github_prs": {
+      "lean": true,
+      "rust": false,
+      "model_empty": true,
+      "why": "newly classifiable after #2882 read a hyphenated module name whole. `t27c gen-rust` exits 1 and emits 0 lines for this spec, so the classifier is right and the Lean theorem -- written while the spec did not parse at all -- is the stale side."
     },
     "isa_ternary_arithmetic": {
       "lean": true,
