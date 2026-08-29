@@ -133,7 +133,7 @@ _WALL = re.compile(
 # everything after it; a semantic one does not. Counting the second kind as a
 # wall says a file is blocked when it is merely wrong.
 _SEMANTIC = re.compile(
-    r"duplicate struct member|duplicate field|invalid builtin|"
+    r"duplicate (struct|enum|union) member|duplicate field|invalid builtin|"
     r"expected type '|missing field|use of undeclared", re.I)
 
 

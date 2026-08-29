@@ -6213,6 +6213,10 @@ impl Codegen {
             // representation decision was entirely in files the emitter never
             // claims.
             "any" => return "std.json.Value".to_string(),
+            // `-> ()` is the unit type. Zig spells it `void`, and the empty
+            // parens went out verbatim -- `fn f(x: []const u8) () {` is
+            // `expected expression, found ')'`.
+            "()" => return "void".to_string(),
             "String" | "string" => return "[]const u8".to_string(),
             "Float" | "float" => return "f64".to_string(),
             "Bool" | "boolean" => return "bool".to_string(),
