@@ -8024,3 +8024,57 @@ And the fix that was NOT made: resolving the file means choosing which of 152
 numeric formulas is right. A gate may record that debt with its reason; it may
 not invent the content. The baseline line says why, and the gate reports when
 a baseline entry outlives its debt.
+
+## 317. Four hardcoded lists, four missing cases, four backends
+
+In two passes the same defect was found four times, in four different
+emitters, and every instance is a fixed list of node kinds with one case
+absent:
+
+| list | missing | cost |
+|---|---|---|
+| Verilog test-block statements | `StmtIf` | a test that could not fail, reported PASSED |
+| Rust `has_body` | `StmtAssign` | 53 functions emitted as `{ unimplemented!() }` |
+| Rust `expr_is_bool` | `ExprFieldAccess` | `!x.flag` became `(x.flag) == 0`, E0308 |
+| `compound_binop` | `/=` | `x /= 2` emitted as `x = 2`, three backends |
+
+None was a subtle algorithm. Each is one identifier absent from a
+`matches!` or a `match`, and in three of the four the omission is
+visible from the list itself: the neighbouring entries name a category
+and one member of it is missing.
+
+**A hardcoded list of node kinds is a claim that the enumeration is
+complete, and the enumeration is checkable.** Print the variants the
+parser actually constructs, diff against the list, and read the
+difference. That is a five-line script, not an audit — and it would have
+found all four.
+
+The generalisation is not "add the missing case". It is that a language
+backend contains dozens of these lists, they were each written when the
+language was smaller, and **nothing in the build tells you when the
+language grew past one of them.**
+
+## 318. The peer backend is the cheapest oracle there is
+
+Every defect in that table was found by comparing two backends on the
+same spec line:
+
+    spec      fn gate_domain() { power_gate_en = true; ... }
+    Rust      pub fn gate_domain() -> () { unimplemented!() }
+    Zig       fn gate_domain() void { power_gate_en = true; ... }
+    C         void gate_domain(void) { power_gate_en = true; ... }
+
+Two agree, one differs, and no external judgement is needed: the
+disagreement IS the finding. No golden file, no reference implementation,
+no reading of the specification.
+
+This project generates four languages from one source, which means it
+carries three oracles for every construct it lowers, and they cost one
+command each. The audits that found these were told to prefer findings
+where a peer backend gets it right, and that instruction is what pointed
+them at the right lines.
+
+Where it does NOT work: a defect all four share. `while (c) : (step)`
+put the step in the body in every backend, so no comparison could see it
+-- that one was found by reading the emitted output against the spec.
+Related: §310, the oracle in the corpus; §311, acceptance could not see it.
