@@ -45,8 +45,14 @@ module AccountAuth {
         // Implementation: Fetch orgs from API using access token
     }
 
+    // AccountOrgs pairs one account with the organizations it belongs to
+    struct AccountOrgs {
+        account: Info,
+        orgs: [Org],
+    }
+
     // orgs_by_account returns all accounts with their orgs
-    fn orgs_by_account() -> Result<[(account: Info, orgs: [Org])], AccountError> {
+    fn orgs_by_account() -> Result<[AccountOrgs], AccountError> {
         // Implementation: Fetch all accounts and their orgs
     }
 
