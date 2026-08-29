@@ -891,9 +891,9 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 159,
+      "discard_tokens": 151,
       "discard_by_channel": {
-        "bdd-block-fallback": 151,
+        "bdd-block-fallback": 143,
         "top-level-resync": 8
       }
     },
@@ -934,9 +934,9 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 63,
+      "discard_tokens": 55,
       "discard_by_channel": {
-        "bdd-block-fallback": 63
+        "bdd-block-fallback": 55
       }
     },
     {
@@ -1502,9 +1502,9 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 69,
+      "discard_tokens": 65,
       "discard_by_channel": {
-        "bdd-block-fallback": 56,
+        "bdd-block-fallback": 52,
         "brace-body/in-fallback": 4,
         "top-level-resync": 9
       }
