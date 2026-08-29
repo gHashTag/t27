@@ -37,8 +37,8 @@ spec CoaPlanning {
         steps: [COAStep],
         total_steps: int,
         total_duration: float,
-        verification_status: Trit
-        proof_trace: ProofTrace
+        verification_status: Trit,
+        proof_trace: ProofTrace,
     }
 
     // COA constraint type
