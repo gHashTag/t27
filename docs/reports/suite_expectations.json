@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_entries": 178,
+  "max_entries": 177,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -225,14 +225,6 @@
       "reason": "Expected LBrace, got LParen ('(')",
       "issue": 1959,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/linker.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 43
     },
     {
       "path": "specs/fpga/mac.t27",

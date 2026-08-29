@@ -5735,3 +5735,87 @@ measured, which is exactly what makes one unmeasured number dangerous.
 
 Corrected by a follow-up commit, not an amend (see 155). **Write the number after
 running the command, in the same minute, or do not write it.**
+
+## 162. Ask the parser what it dropped instead of grepping what it printed
+
+Yesterday's `tri discard classify` was a keyword match over printed traces: it saw
+the word `forall` and called the bucket `forall`. The parser already writes down
+every token it throws away, so the question could be asked of the record instead.
+
+Two answers changed:
+
+    heuristic:  forall/==> ......... 20 991
+    record:     bdd-block-fallback ... 23 852  (78%, one channel)
+                brace-body ........... 4 602
+                top-level-resync ..... 1 894
+
+And the head token is not the channel. `given` was the fourth-largest head at
+2 453 tokens, which read like a fn-shaped defect worth thousands. Fixing that arm
+recovered **43**. The other 2 410 came from braceless blocks falling back — a
+different defect wearing the same first word.
+
+**A head token says what the parser stopped ON. A channel says which recovery
+threw it away. Reporting one as the other overstates every fix you plan.**
+
+## 163. `zip` on two parallel vectors is a silent truncation
+
+I added a channel vector beside the existing span vector, pushed at "all three"
+recording sites, and zipped them. The total came out 27 tokens short of
+`parse-complete`'s — two more push sites existed at a different indentation and
+my search pattern had missed them.
+
+`zip` truncated to the shorter side and reported a clean, plausible, wrong table.
+Nothing failed. The only signal was a total that did not match another account of
+the same thing.
+
+    if spans.len() != channels.len() { return Err(...) }
+
+**Two vectors that must stay in lockstep need an assertion, not a `zip`.** And the
+reason the gap was findable at all is that a second, independent account of the
+same quantity already existed — which is the argument for keeping both.
+
+## 164. The parser named the shape, then threw it away
+
+    // BDD-style fn: `fn name() given ... then ...` -- a keyword-style test
+    // spelled as a fn (linker.t27). Detect BEFORE return-type parsing.
+    if self.current.kind == TokenKind::Ident && self.current.lexeme == "given" {
+        self.skip_to_next_top_level();   // <- every clause, gone
+        return Ok(decl);
+    }
+
+The comment cites the exact file it silently empties. Someone understood the shape
+well enough to special-case it and stopped one line short of lowering it.
+
+**A comment that names a construct beside a `skip` is a fix that was scoped and
+not finished.** Grep for that pair: recognition followed by discard is a different
+and better-signposted target than an unhandled shape nobody has looked at.
+
+## 165. Same file, two flag sets, opposite verdicts
+
+The elaboration ratchet said my change took `linker` from 4 errors to 6. I ran
+iverilog on the same generated file and counted **fewer** errors than master.
+
+The gate runs `iverilog -g2012 -DSIMULATION`; I had run bare `iverilog`. Under
+the default the file is Verilog-2005, where every size cast is an error and
+master's *empty task* trips "Task body with no statements" — so master looked
+worse. Under `-g2012` both of those are legal, the size casts vanish, and what
+remains is the two errors my change actually added.
+
+**Copy the gate's invocation, flags included, out of its source.** A tool with
+the right name and the wrong flags is a different tool, and it will happily
+disagree with the gate about the same file.
+
+## 166. If a backend refuses to lower a construct, produce that construct
+
+A `fn` whose body is BDD clauses is a test spelled as a function. My first fix
+kept it a `FnDecl` and filled the body, so `gen-verilog` — which emits RTL for
+functions and deliberately does **not** lower tests — produced `\assert (…)`
+inside a task and an assignment to the task's own name.
+
+The fix was not to teach the Verilog backend about a new fn flavour. It was to
+emit a `TestBlock`, because that is what the source means. Every backend already
+knows whether it lowers tests.
+
+**When recovered content lands in the wrong node kind, change the node, not the
+four consumers.** The give-away is a fix that would need a matching change in
+every backend: that is usually the parser choosing the wrong shape.
