@@ -6545,3 +6545,58 @@ server's static fallback points at a directory that has never existed.
 **Before calling an absent path a defect, ask whether anything is supposed to
 create it** — `git log --all -- <path>` and `.gitignore` answer that in two
 commands.
+
+## 212. A path the program WRITES is supposed to be absent
+
+A detector for "inputs named in code that are not in the tree" reported
+`save_active_skill` and `save_registry` — two functions whose entire job is to
+create the file it called missing.
+
+Three of five flagged sites were writers. The detector never asked whether the
+line reads or writes, because "missing input" already contained the answer it had
+not checked.
+
+**Before reporting a path as absent, ask what the line does with it.** `fs::write`,
+`File::create`, `OpenOptions`, `to_string_pretty` next to the literal are all the
+signal needed, and filtering on them took 21 findings to 18 with nothing real lost.
+
+## 213. A heuristic's vocabulary has to match its subject's audience
+
+The same detector marked five sites as handling an absence *silently*. All five
+reported it — with `println!`.
+
+Its report vocabulary was a **gate's**: `bail`, `FAIL`, `exit(1`, `findings.push`.
+The subjects were **CLI commands**, which report to a person on stdout. The
+heuristic was looking for the wrong verb in the right place.
+
+**When a check spans two kinds of code, its patterns must cover both kinds.** A
+gate shouts in exit codes; a command speaks in prose.
+
+## 214. Keep a zero-hit hint, with the zero in the output
+
+Measured as a defect predictor the `quiet?` mark is **0 for 5**. The two marks
+that survive the fix are loaders returning an empty default — where the mark is
+*accurate about the shape* and the shape is correct design.
+
+Three options: delete it, widen it until it hits something, or keep it and print
+the rate. The third is the only one that stays honest — and the output now says
+so in the place a reader will see it, not in a commit message they will not.
+
+**A hint with a stated hit rate is worth more than a hint without one.** The
+number is the thing that stops the next reader treating it as a verdict, which is
+exactly what I did to my own mark one iteration earlier.
+
+## 215. A blank conclusion is "not finished", not "failed"
+
+Third bad reading in one day from sampling too early. `gh run list` returns
+`conclusion: ""` for a run still in progress, and a filter written as
+
+    conclusion not in ('success', 'skipped', None)
+
+calls that a failure — `""` is neither.
+
+    rs = [r for r in runs if r['status'] == 'completed']   # first
+    bad = [r for r in rs if r['conclusion'] != 'success']  # then
+
+**Filter on `status` before you read `conclusion`**, and print the window the
+sample covers beside the verdict.
