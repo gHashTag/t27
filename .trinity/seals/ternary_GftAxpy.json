@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:22c83068efab23fed26118247dd687c18bd4169ce1ffae728c51b29232b9bbf1",
-  "gen_hash_rust": "sha256:cb7c2374c805fdc445c89bcc4825753957e34c379537f6c7574e766081fc47f1",
-  "gen_hash_verilog": "sha256:e188f078ff29cfee4cc212cfaf59a3e098a4d64c61078603e486b29fdc1d5c55",
+  "gen_hash_rust": "sha256:613a3bc70062503b01aee7026a159bea9858355c9a89a4942922b5538e17faf6",
+  "gen_hash_verilog": "sha256:dd011ebee89e1f33419cc5887e64aeea78d6e71d568e8f6960129f5168cc59e2",
   "gen_hash_zig": "sha256:931c91205848ebdb56fa709227ae0a61c3373fc35018fb54363e1c95e3025ced",
   "module": "GftAxpy",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:41bc9e9f09ac42ad89061f2f9c0928916530ebea030857cc19e1475d437d41d6",
   "spec_path": "specs/ternary/gft_axpy.t27"
 }

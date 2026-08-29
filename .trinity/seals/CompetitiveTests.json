@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:257cb1dd01039208db03e294518b81ed0833e94c5d5f2ec86b4674d3a2b248e9",
-  "gen_hash_rust": "sha256:bc86d25f683426ad8ffa167db631e4d7c6a1f8014b2d0c6924d95bc2e6386d2c",
+  "gen_hash_rust": "sha256:dadd5d6a06fad9f8b122201e4f979ef3ef758f6bc7318972013fc06601404ed2",
   "gen_hash_verilog": "sha256:b1647c6fda8d8faddb1fde530d97ea2ed2a3e44de5bd270fae451d6d89dab729",
   "gen_hash_zig": "sha256:3b8f8b783f4b9bcfb0b220dc1f8c46a273edebb5bdc8f1ee989507e905a1ad42",
   "module": "CompetitiveTests",

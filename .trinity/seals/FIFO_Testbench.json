@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a51c3d9e08df70a4fc626f26bda6c8753f78d95001d2f6e50731f55dc62ac376",
-  "gen_hash_rust": "sha256:c4ea24d09accdc9f96e800d6319b65f585a843df53756652cdbcbccd18142fa9",
+  "gen_hash_rust": "sha256:656c7c16993a7a64cb13419df4b30e25874addb224fb5d47df26502ed717f1ac",
   "gen_hash_verilog": "sha256:d0d43412a471d3e450712bbdb561d4d82a19c2f97ba790da21812d6a092e409b",
   "gen_hash_zig": "sha256:f0bbd01c0558f59821909e5ba4fa2b05cc096726eeabec1f1a396e24a976eb04",
   "module": "FIFO_Testbench",

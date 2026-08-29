@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:dbca226a75550ab79b95620f0b1a9e4d8053672262be3ae236aaad7496a8e483",
-  "gen_hash_rust": "sha256:dc5113c2fa276a5eff3e07ea8875620f34087ea0f27561ec42a5191db67a14cb",
+  "gen_hash_rust": "sha256:c1bcb648d40ffb80ecd63d3fdc31a06d7b797bfb9cfaba535af8da0b7636dae7",
   "gen_hash_verilog": "sha256:57757fbb4b46b23fd1cda935eeaa06117765e8ba2c90ae15e759ce34d6514fb4",
   "gen_hash_zig": "sha256:caf1285589b7cc24cd747f6b62d34f4a8904ac356d13062e87d0888e539bf350",
   "module": "triformat_bnf32",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:46Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:05914994d71d3fcee52588484794e6ad36dcf2f680e2a5694b6208df52dfd55b",
   "spec_path": "specs/numeric/bnf32.t27"
 }

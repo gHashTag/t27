@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:59d900b238e3370cb17ba4f676795a0e02db02107aa2a507f93384c9f275ae60",
-  "gen_hash_rust": "sha256:c7bacd88d2d00debb357c87a4aa9a027841cb0514b05ceb56885a891342811d6",
+  "gen_hash_rust": "sha256:ea7dc82c3d982cbc9df637b6a3e95532f3fe7f122c87c53be3a212a7d2cafe8e",
   "gen_hash_verilog": "sha256:61f4065da50a8320bd2dcbb7e5c8d973637938df1348bb73eaccf9ae9eee2171",
   "gen_hash_zig": "sha256:502de2b743b165cb80577276f24f788505361a8c7b7aeb1b1a4c27670def37c8",
   "module": "StreamTernaryMac",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:f46c60b0ba669110f8cf4a169987c7c2e794b317bd6889f0e90e40cfcb158632",
   "spec_path": "specs/ternary/stream_ternary_mac.t27"
 }

@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:ae2a672c2c3f9a17d218a4f10b7245298c1893965c4bcb858a06b6bb7720e0c4",
-  "gen_hash_rust": "sha256:21d0ce04ec03f1a8676af54f1481ebae27ec8a6d3719a353c0caadaa00c7774b",
-  "gen_hash_verilog": "sha256:cc2f2242ffea130424bcfc6fce69162847ad7869110d8eb56149273bf9224826",
+  "gen_hash_rust": "sha256:d06ba87a4b6f7fc549bdb0132a4bee5ec3c376444e29e34e5197449663fe8cb6",
+  "gen_hash_verilog": "sha256:744f0bf0579b1f37462c03545862a358490ab017546b3a5fc1a1e536923492a6",
   "gen_hash_zig": "sha256:149d00b6c82e16ecdf647f28d5971887a814dc2ad0f9e80cd1aa4dcb5a1079a5",
   "module": "GftLogistic",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:48Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:6ceda74185ee271a4807a4a2201ab68947237d3552921392442065c13b8feeb1",
   "spec_path": "specs/ternary/gft_logistic.t27"
 }

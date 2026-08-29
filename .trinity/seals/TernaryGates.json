@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:655e029e0c952741e95329e338fab413c76c6e66a29391da5f6c1e842b4740ce",
-  "gen_hash_rust": "sha256:d7d26e54ab7148afba6e80c14ec30ba851b5309ac4ebb7c43a4ceda8ec05e7ce",
+  "gen_hash_rust": "sha256:32b0c273756ad849f9eac4b7203c4476746455c2ad42203119c25b89ee900cad",
   "gen_hash_verilog": "sha256:a0ecc024bbf108bf40c663321efaadc401dc9e22f8d45323eae4913dc08738bc",
   "gen_hash_zig": "sha256:a43a38f39711b6fe6215498a4bb7f14ab0ad83b7d6bf58065e33b49a9f0eedce",
   "module": "TernaryGates",

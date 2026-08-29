@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:ae6ddfd264b99480dee07ecd5dd437db7a08946cf55e08571e9c849f6c700bc8",
-  "gen_hash_rust": "sha256:c3c81cf947482abfc88f481ddbb6bd511c2f23a3b7d5d67eb38fd09718e7b372",
+  "gen_hash_rust": "sha256:f016c60de56e6cebbfaf2c2a3bd7ae14e6fc9f00ee10111659468f87963190e2",
   "gen_hash_verilog": "sha256:a9a8c310bc1bcb7124586b9e66dabe0f3dc634a1e0750f89544a16145ffaaee1",
   "gen_hash_zig": "sha256:44fddda2e922fb8e6e1f24f07b220f73b3ef3ee1786c3855fe00a898bac29e47",
   "module": "TriSplayTree",

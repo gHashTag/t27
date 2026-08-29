@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:8e8899fe62a82552c0eb29a82ede480d2e5160bc266edd5babd5e14d5d034599",
-  "gen_hash_rust": "sha256:f99fed337f4eec84766b5d09c089f742fe5bf2caf08ccc1d24db013c16257418",
+  "gen_hash_rust": "sha256:83d3c0a55ad8cb46923796f0b9441f467b8fe2bda86181873b0b722daa0ae78a",
   "gen_hash_verilog": "sha256:681f8a7a516d1a0a81471683b761ef8033873dfeadeb77d1a3ff72757f2abc49",
   "gen_hash_zig": "sha256:dc1fe1ec5d5a884a706a920e2ed755ed963e8c3beab49ffd2b5510b605c76485",
   "module": "SgdMomentum",
