@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 151,
+  "max_entries": 150,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -1121,13 +1121,6 @@
       "phase": "parse",
       "reason": "Expected LBrace, got Semicolon (';')",
       "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/pins/emitter_xdc.t27",
-      "phase": "typecheck",
-      "reason": "typecheck already failed here; #2854 made the exit code carry the printed verdict, so the ratchet can see it. `cannot assign to immutable array element` -- the spec assigns into an array bound immutably. Not new, newly visible.",
-      "issue": 2852,
       "expires": "2026-11-30"
     },
     {
