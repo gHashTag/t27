@@ -20,4 +20,4 @@ docs/metrics/numeric_formats_83_metrics.csv | 323(\.[0-9]+)?\s*MHz | 708d88e5959
 fpga/HARDWARE_SSOT.md | 322\s*MHz | 65210d3dc292
 fpga/HARDWARE_SSOT.md | 330\s*MHz | 558353792f10
 specs/igla/coder/benchmark.t27 | 323(\.[0-9]+)?\s*MHz | da656d208e0a
-specs/numeric/formats_catalog.t27 | 323(\.[0-9]+)?\s*MHz | c83b3c67224c
+specs/numeric/formats_catalog.t27 | 323(\.[0-9]+)?\s*MHz | 25b6f783531f
