@@ -5693,11 +5693,77 @@ impl Codegen {
             self.write_line("");
         }
 
+        // A method written as `fn Owner.name(...)` belongs INSIDE `Owner`.
+        //
+        // Zig has no `fn A.b()`. compiler/parser/parser.t27 declares 34 of them
+        // beside a `pub const Parser = struct {...}` that is already there, and
+        // emitted them at top level, where the first is
+        // `expected '(', found '.'` -- a wall over the file.
+        //
+        // Nesting alone is not enough: 286 lines of those bodies use `self` and
+        // not one declaration has a `self` parameter. Both halves are here, and
+        // the second is INFERRED from the body -- so `Parser.new`, which builds
+        // a Parser and never says `self`, stays a plain function inside the
+        // struct, which is what Zig wants for a constructor.
+        let struct_names: std::collections::HashSet<String> = ast
+            .children
+            .iter()
+            .filter(|d| d.kind == NodeKind::StructDecl)
+            .map(|d| d.name.clone())
+            .collect();
+        let mut methods: std::collections::HashMap<String, Vec<&Node>> =
+            std::collections::HashMap::new();
+        for decl in &ast.children {
+            if decl.kind == NodeKind::FnDecl {
+                if let Some((owner, _)) = decl.name.split_once('.') {
+                    if struct_names.contains(owner) {
+                        methods.entry(owner.to_string()).or_default().push(decl);
+                    }
+                }
+            }
+        }
+
         // Emit other declarations
         for decl in &ast.children {
-            if decl.kind != NodeKind::UseDecl {
-                self.gen_decl(decl);
+            if decl.kind == NodeKind::UseDecl {
+                continue;
             }
+            if decl.kind == NodeKind::FnDecl {
+                if let Some((owner, _)) = decl.name.split_once('.') {
+                    if struct_names.contains(owner) {
+                        continue; // emitted inside its owner, below
+                    }
+                }
+            }
+            if decl.kind == NodeKind::StructDecl && methods.contains_key(&decl.name) {
+                let start = self.output.len();
+                self.gen_struct_decl(decl);
+                let block = self.output[start..].to_string();
+                // Re-open the struct: everything up to its final `};`, then the
+                // methods, then close it again. If that brace is not found the
+                // struct is left exactly as written -- a merge that cannot see
+                // the seam must not cut at a guess.
+                if let Some(pos) = block.rfind("};") {
+                    self.output.truncate(start);
+                    self.write(&block[..pos]);
+                    for m in &methods[&decl.name] {
+                        let mut inner = (*m).clone();
+                        if let Some((_, short)) = inner.name.clone().split_once('.') {
+                            inner.name = short.to_string();
+                        }
+                        let has_self = inner.params.iter().any(|(n, _)| n == "self");
+                        if !has_self && node_mentions_word(m, "self") {
+                            inner
+                                .params
+                                .insert(0, ("self".to_string(), format!("*{}", decl.name)));
+                        }
+                        self.gen_decl(&inner);
+                    }
+                    self.write("};\n");
+                }
+                continue;
+            }
+            self.gen_decl(decl);
         }
     }
 
