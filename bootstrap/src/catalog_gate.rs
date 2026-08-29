@@ -88,6 +88,15 @@ pub struct Report {
     pub emitted: Option<String>,
 }
 
+/// W702: findings whose id is here are DEBT, not defects -- `gfternary` is the
+/// 3-value alphabet {-phi, 0, +phi} and has no s/e/m decomposition, so the
+/// width checks cannot apply to it.
+///
+/// It used to live in suite.rs as a private const while the CLI command had no
+/// allowlist at all, because the CLI command had no verdict to allow anything
+/// out of. One list, one meaning, read by both.
+pub const ALLOWED: &[&str] = &["gfternary"];
+
 fn parse_records(src: &str) -> Vec<Record> {
     let mut out = Vec::new();
     for line in src.lines() {
