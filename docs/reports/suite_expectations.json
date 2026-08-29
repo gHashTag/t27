@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_entries": 167,
+  "max_entries": 166,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -843,18 +843,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/isa/ternary_gates.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 28,
-      "discard_by_channel": {
-        "bdd-block-fallback": 21,
-        "brace-body/in-fallback": 7
-      }
-    },
-    {
       "path": "specs/isa/ternary_memory.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -968,12 +956,11 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 441,
+      "discard_tokens": 409,
       "discard_by_channel": {
-        "bdd-block-fallback": 58,
+        "bdd-block-fallback": 16,
         "brace-body": 22,
-        "brace-body/in-fallback": 16,
-        "top-level-resync": 345
+        "top-level-resync": 371
       }
     },
     {
@@ -1546,10 +1533,10 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 278,
+      "discard_tokens": 56,
       "discard_by_channel": {
-        "bdd-block-fallback": 203,
-        "brace-body/in-fallback": 75
+        "bdd-block-fallback": 26,
+        "brace-body/in-fallback": 30
       }
     },
     {

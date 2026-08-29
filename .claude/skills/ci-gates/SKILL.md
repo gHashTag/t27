@@ -5998,3 +5998,56 @@ real) to 1 hit (1 real), and from 9 to 4 on the historical control.
 **When a heuristic matches a marker, check whether the marker distinguishes the
 thing you want from the thing next to it.** Backticks separate quotes from prose;
 they do not separate one language from another.
+
+## 179. The branch was taken out from under me, and the tree told me before git did
+
+A `cargo test` came back with one failure, then two clean runs, then a compile
+error — `ratchet_compare takes 6 arguments but 5 were supplied`, in a function I
+had given 5. `git status` showed `suite.rs` modified with 64 lines I never wrote,
+labelled **W700**, and `git log` showed two `wip(parser)` commits authored under
+the repo owner's name containing *my* edits.
+
+I was on `w700-gate-failures-ratchet`. Another session shares this checkout,
+parked my work on `w699-rung12-parked`, and started its own wave in the same
+tree. There are 27 local `w699-*` branches, most of them not mine.
+
+What I did, in order: stopped editing, read the foreign diff without touching it,
+copied my one untracked file out, created **my own worktree** at the parked
+branch, and finished there. The shared checkout was left exactly as found,
+uncommitted W700 work included.
+
+**A build error in code you did not write is a signal about the tree, not the
+code.** And the fix is `git worktree add`, once, before the first edit — the
+recipe was already in my memory and I had not followed it.
+
+## 180. The per-entry ratchet caught me the day after I built it
+
+Rung 12 seeded a column so a body opening with a call could lower. The corpus
+total FELL — 23 926 to 23 738 — and the acceptance columns did not move. By every
+aggregate it was a clean win.
+
+The ledger disagreed:
+
+    > phi_split_optimality.t27   discards 214, pinned at 129 (+85)
+    > phi_universal_attractor.t27 discards 108, pinned at  73 (+35)
+
+`given (exp, mant) = f(15)` is an identifier followed by `(` — the bare-call arm
+matched a **clause keyword**. Nothing had tested that, because before the seed
+the arm could not reach a block's first token at all.
+
+**A total that falls can hide two entries that rose.** Pinning per item is what
+turns "it got better" into "it got better here and worse there", and it caught
+its author within a day of being written.
+
+## 181. My first fix for it made things worse, and the measurement said so
+
+The obvious explanation was that seeding `first_clause_col` skewed the W905
+anchor, so I stopped writing it. Total went 23 738 → **24 046** and the spec was
+still broken: wrong theory, and the number said so in one build.
+
+The real cause was the clause keyword. Excluding `given`/`when`/`then`/… took it
+to 23 644 with both regressions gone.
+
+**Re-measure after the fix for a regression, not just after the regression.** A
+plausible cause that makes the number worse is a cause you have disproved, and
+that is worth more than the twenty minutes it saves.

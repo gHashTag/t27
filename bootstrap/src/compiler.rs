@@ -6050,7 +6050,19 @@ impl Parser {
             } else {
                 first_clause_col
             };
+            // ... and a CLAUSE KEYWORD is never a call, however much it looks
+            // like one. `given (exp, mant) = f(15)` is an Ident followed by `(`,
+            // and before the column was seeded the arm could not reach a block's
+            // FIRST token, so nothing had ever tested that. Seeding it exposed
+            // the hole immediately: two specs went from lowering cleanly to
+            // stopping mid-clause, +120 discarded tokens, while the corpus total
+            // still fell. The per-entry ratchet named both; the total hid them.
+            let clause_head = matches!(
+                self.current.lexeme.as_str(),
+                "given" | "when" | "then" | "assert" | "and" | "measure" | "target"
+            );
             if self.current.kind == TokenKind::Ident
+                && !clause_head
                 && self.peek.kind == TokenKind::LParen
                 && adjacent
                 && call_col.is_some_and(|c| c > 1 && self.current.col >= c)
