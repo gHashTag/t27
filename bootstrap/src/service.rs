@@ -342,11 +342,43 @@ pub fn run_boards() -> anyhow::Result<()> {
 /// different order produces a database-wide off-by-N and an assertion whose
 /// advice ("regenerate the chip database") costs 1.3 GB and hours, when the
 /// fix is to copy in the file the database was built with.
+/// Where the openXC7 toolchain lives, from `T27_OPENXC7`.
+///
+/// These are multi-gigabyte checkouts -- prjxray, nextpnr-xilinx, a Python venv --
+/// shared across worktrees, so they sit OUTSIDE the repository and their location
+/// is per-machine. Four call sites used to name one developer's home directory
+/// outright, which is what `secret-scan`'s guard exists to stop and what its
+/// pattern did not cover (W705).
+///
+/// There is deliberately NO default. A default that is one machine's path is the
+/// literal this replaces, wearing a fallback; and a wrong path here fails deep
+/// inside a spawned process, sixty characters of whose stderr is all the caller
+/// sees. Absent configuration is refused by name instead.
+fn openxc7_root() -> Result<PathBuf, String> {
+    match std::env::var_os("T27_OPENXC7") {
+        Some(v) if !v.is_empty() => Ok(PathBuf::from(v)),
+        _ => Err(concat!(
+            "T27_OPENXC7 is not set. It must name the directory holding the openXC7 ",
+            "toolchain -- prjxray/, nextpnr-xilinx/, nextpnr-openxc7/ and venv/ -- which ",
+            "lives outside this repository because it is several gigabytes shared across ",
+            "worktrees.\n  export T27_OPENXC7=/path/to/build/fpga/openxc7"
+        )
+        .to_string()),
+    }
+}
+
 pub fn run_preflight(repo_root: &Path, nextpnr_src: Option<String>) -> anyhow::Result<()> {
-    let src = nextpnr_src.unwrap_or_else(|| {
-        "/Users/playom/t27/build/fpga/openxc7/nextpnr-openxc7".to_string()
-    });
-    let src = PathBuf::from(src);
+    let src = match nextpnr_src {
+        Some(v) => PathBuf::from(v),
+        None => match openxc7_root() {
+            Ok(root) => root.join("nextpnr-openxc7"),
+            Err(why) => {
+                println!("  {why}");
+                println!("  ...or pass the checkout directly: --nextpnr-src <path>");
+                anyhow::bail!("nextpnr source not configured");
+            }
+        },
+    };
     let chipdb = repo_root.join("build/fpga/openxc7/xc7a200tfbg676-1.bin");
     let refc = repo_root.join("build/fpga/openxc7/constids.inc");
 
@@ -366,8 +398,9 @@ pub fn run_preflight(repo_root: &Path, nextpnr_src: Option<String>) -> anyhow::R
     }
 
     // constids agreement, by content hash of the two files.
+    let side_b = src.join("xilinx/constids.inc");
     let a = std::fs::read(&refc).ok();
-    let b = std::fs::read(src.join("xilinx/constids.inc")).ok();
+    let b = std::fs::read(&side_b).ok();
     match (a, b) {
         (Some(a), Some(b)) if a == b => {
             let n = a.iter().filter(|&&c| c == b'\n').count();
@@ -380,7 +413,24 @@ pub fn run_preflight(repo_root: &Path, nextpnr_src: Option<String>) -> anyhow::R
                 refc.display(), src.display(), src.display()
             ),
         ),
-        _ => ok(false, "constids file missing on one side".to_string()),
+        // W706: this said "missing on one side" and named neither side nor
+        // either path, while the arm directly above prints both paths AND the
+        // command that repairs them. A diagnostic that makes the reader guess
+        // which of two files is missing is one `ls` short of being useful, and
+        // the sibling arm is the standard it should have been held to.
+        (a, b) => ok(
+            false,
+            format!(
+                "constids missing: {} -- reference {}, nextpnr source {}",
+                match (a.is_some(), b.is_some()) {
+                    (false, false) => "BOTH sides",
+                    (false, true) => "the reference copy",
+                    _ => "the nextpnr source copy",
+                },
+                refc.display(),
+                side_b.display()
+            ),
+        ),
     }
 
     // The source must be the openXC7 fork. Matching constids is NOT enough:
@@ -2689,14 +2739,32 @@ pub fn run_silicon(
 
     let db = repo_root.join("build/fpga/openxc7/prjxray-db/artix7");
     let chipdb = repo_root.join("build/fpga/openxc7/xc7a200tfbg676-1.bin");
-    // These two live outside the worktree because they are multi-gigabyte
-    // checkouts shared across worktrees; `t27c preflight` is what verifies them.
-    let xr = PathBuf::from("/Users/playom/t27/build/fpga/openxc7/prjxray");
-    let venv = PathBuf::from("/Users/playom/t27/build/fpga/openxc7/venv/bin/python");
-    let pnr = PathBuf::from("/Users/playom/t27/build/fpga/openxc7/nextpnr-xilinx/build/nextpnr-xilinx");
+    // These live outside the worktree because they are multi-gigabyte checkouts
+    // shared across worktrees, so the root is per-machine and comes from the
+    // environment rather than from one developer's home directory.
+    let root = match openxc7_root() {
+        Ok(r) => r,
+        Err(why) => {
+            println!("  {why}");
+            std::process::exit(1);
+        }
+    };
+    let xr = root.join("prjxray");
+    let venv = root.join("venv/bin/python");
+    let pnr = root.join("nextpnr-xilinx/build/nextpnr-xilinx");
 
     println!("=== t27c silicon: {spec} ===");
-    for (what, p) in [("chipdb", &chipdb), ("prjxray-db", &db), ("nextpnr", &pnr)] {
+    // W706: this loop checked three of the five paths the run needs. `xr` and
+    // `venv` were used twenty lines later without ever being tested, and their
+    // absence surfaced as `could not spawn` with sixty characters of stderr that
+    // named neither path. Five paths, five checks.
+    for (what, p) in [
+        ("chipdb", &chipdb),
+        ("prjxray-db", &db),
+        ("nextpnr", &pnr),
+        ("prjxray", &xr),
+        ("python venv", &venv),
+    ] {
         if !p.exists() {
             println!("  MISSING {what}: {}", p.display());
             println!("  run `t27c preflight` first -- this path cannot be faked.");

@@ -5,7 +5,6 @@
 # A file that GROWS fails. A file that SHRINKS also fails -- re-bless, so
 # the slack cannot be banked against the next one.
 .trinity/state/dlc10_rust_spec.md	1
-bootstrap/src/service.rs	4
 docs/NOW.md	1
 docs/fpga/LOCAL-BITSTREAM-FLOW.md	3
 docs/reports/OPENXC7-PNR-NOT-FUNCTION-PRESERVING.md	1

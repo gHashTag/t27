@@ -11,6 +11,26 @@ toolchain is missing.
 
 ---
 
+## The toolchain root is configured, not assumed
+
+`t27c preflight` and `t27c silicon` read **`T27_OPENXC7`**: the directory holding
+`prjxray/`, `nextpnr-xilinx/`, `nextpnr-openxc7/` and `venv/`. Those are several
+gigabytes shared across worktrees, so they live outside the repository and their
+location differs per machine.
+
+```bash
+export T27_OPENXC7=/path/to/build/fpga/openxc7
+```
+
+There is deliberately **no default**. Until W706 the four call sites named one
+developer's home directory outright — which is what `secret-scan`'s guard exists
+to stop, and which its pattern did not cover. A default that is one machine's
+path is that literal wearing a fallback, and a wrong path fails deep inside a
+spawned process where sixty characters of stderr is all the caller sees.
+
+`preflight` also accepts `--nextpnr-src <path>` to bypass the variable for the
+one checkout it needs.
+
 ## 1. The blocker, and why "install the missing tool" was the wrong diagnosis
 
 Three artefacts were present on this machine and **no two of them were
