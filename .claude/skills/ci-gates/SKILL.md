@@ -8747,3 +8747,72 @@ alone.
 
 The fix reads the marker the parser already sets. `specs/pins/emitter_xdc.t27`
 now typechecks -- 627 to 628 specs, zero regressions.
+
+## 348. Ask the root what it reaches -- five build systems, one shape
+
+A build system prints the work it did. A coverage claim is about the work it did
+not do, and nothing prints that. `lake build` never names a file it skipped;
+`cargo build` cannot error on a file it does not compile; `coq_makefile` compiles
+the list it was handed and says nothing about the directory around it.
+
+So the omission has no output at all. Not an error, not a warning, not a line.
+
+One question found five of these in a day, in five different systems:
+
+| root | what it names | what exists | stranded |
+|---|---|---|---|
+| `proofs/lean4/Trinity.lean` | 9 imports | 23 `.lean` | 12 files, 15553 lines, 647 theorems |
+| `cli/tri/src/main.rs` | 27 `mod` | 33 `.rs` | `elab.rs`, 319 lines, 4 tests |
+| `bootstrap/src/main.rs` | 44 `mod` | 97 `.rs` | 7 files incl. `tooling.rs`, 7 gate bodies |
+| `coq/_CoqProject` | 9 `.v` | 11 `.v` | 486 lines, 27 declarations, 0 `Admitted` |
+| `Cargo.toml` `members` | 5 crates | 6 crates | `cli/tri-mcp`, 996 lines |
+| `check_pr_branch_filters.py` `MERGE_CRITICAL` | 15 workflows | 47 | both actual offenders |
+
+The recipe is the same every time and takes minutes:
+
+1. Find the root -- the one file that says what gets checked. It is short.
+   Twelve lines, a tuple of fifteen strings, one `members` array.
+2. Walk its edges by the system's own rule, not a heuristic.
+3. Diff against what exists on disk.
+
+**A red build hides this.** When the Lean job was failing on `H4Lagrangian.lean`,
+three passes went into that failure. "The build is red" and "the build does not
+compile this" are different facts, and the first is loud. Grep the log for the
+name of the thing you care about before you debug what it reports: `Icarus`
+appeared **zero** times in 483 lines.
+
+**A path filter makes it worse than silence.** `coq-kernel.yml` filters on
+`coq/**`, so editing an uncompiled `.v` triggers the workflow, which compiles the
+nine listed files and reports success: a green check attached to the very commit
+that touched the file nothing reads. `cli-tri.yml` filters on `cli/**` and builds
+`-p tri`, so a change to `cli/tri-mcp` turns a different crate green.
+
+**Edges are directional, and the orphans look busy.** Eleven of the twelve
+stranded Lean files import each other heavily. That traffic reads as
+connectedness. It is not: `A imports B` makes B reachable from A, never A from B.
+A detector that undirects the edges reports zero and looks like good news.
+
+**Resolve by the language, not by name.** `mod c;` in `a/b.rs` means `a/b/c.rs`
+or `a/b/c/mod.rs`, never `a/c.rs`. The loose rule -- is this stem named by any
+`mod` anywhere -- hides a real orphan behind a same-named module in an unrelated
+directory. `#[path]` and `include!` are edges too, and a `#[path]` attribute
+binds only to the declaration directly after it.
+
+**The count going DOWN is the silent direction.** #2427, a Zig-lexer PR, deleted
+`mod elab;` along with two more lines in one hunk. The suite went 358 to 354 and
+nothing printed a word, because no gate reads the test count and an undeclared
+file cannot fail to compile. Meanwhile a live script kept printing
+`tri elab classify` as instruction, and two NOW documents described the command
+as working. Everything downstream of the deletion still claimed the thing
+existed.
+
+**A ratchet can outlive its population.** `lean-proofs.yml` counts `sorry` by
+grepping the directory; the build compiles the closure. Four of the five it
+counts are in files nothing opens, so the ceiling reads "five admitted proofs in
+a tree that builds" when it means "one, and four in the part that does not
+build". The number is not wrong. Its population is.
+
+`tri lean reach` and `tri mods orphan` do steps 1-3 for Lean and Rust. Both
+refuse rather than answering when they cannot: a lakefile with `globs`, a root
+that reaches only itself, a stale crate list. Zero stranded files has to mean the
+tree, never the parser.
