@@ -7554,3 +7554,63 @@ green phase red — and it is not what I named when I declined.
 **When you decline a fix, name the mechanism, not a nearby number.** A number
 sounds like evidence and is not falsifiable as a reason; "suite judges this
 phase by the exit code, and N specs would flip" is both.
+
+## 261. The ruler was a binary on disk
+
+`Seal Coverage` was red on master for seven runs. Run locally, the same script
+said **`OK: 1316 seals, 1222 hold`, exit 0.**
+
+Two readings of one question, opposite answers, and neither is a scanner bug.
+The script checks seals against **the built compiler**, and it finds one at
+`target/release/t27c`. Mine was six hours old, from before four `gen-c` fixes
+landed — so it produced the *old* output, which matched the *old* seals.
+
+    stale binary   OK, exit 0
+    cargo build --release, same script    exit 1, 134 gen-drift
+
+The script is careful about the case it thought of: `_find_t27c` has the comment
+*"A missing binary is NOT a passing check."* Absent is handled. **Stale is not** —
+and stale looks exactly like healthy.
+
+**A build artefact is a ruler with a timestamp.** When a gate's answer depends on
+something compiled, rebuild before you read it, and treat "it passes locally" as
+a claim about your disk until you have.
+
+## 262. Re-sealing needs a control, or it blesses a regression
+
+134 seals drifted because four emitter fixes changed generated output. Re-sealing
+is mechanical — and it is also how a regression gets written into the record as
+truth, silently, by the person cleaning up.
+
+The control that made it safe was measuring the thing the seals are *about*:
+
+    published baseline   Zig 214 / rustc 214 / cc 163 / iverilog 373 / ALL FOUR 66
+    after the four fixes Zig 214 / rustc 214 / cc 166 / iverilog 373 / ALL FOUR 66
+
+**cc gained three, everything else held exactly.** So the new output is better,
+not merely different, and sealing it records an improvement.
+
+Had cc dropped, the right move would have been to leave the gate red and say so.
+**Re-sealing is not a repair; it is a statement that the new output is the one
+you want.** Earn the right to make it.
+
+## 263. Sixty-two re-seals fixed sixty-two, and left sixty-one red
+
+`t27c seal --save` writes `.trinity/seals/<module>.json` — **one** file. 547
+specs in this corpus carry **two** seals under different names
+(`gen_commands.json` and `cli_gen_commands.json` for one spec), so a re-seal
+repairs one and leaves its twin holding hashes for output that no longer exists.
+
+    62 re-seals            134 -> 61 gen-drift
+    60 of the 61 remaining were the twin case
+    tri seals sync-twins    61 -> 2
+    one ordering mistake    2 -> 0
+
+That is #2767, already filed, and `tri seals sync-twins` was already built for
+it — its own `--help` describes this exact scenario. **The fix was in the
+toolbox before the problem recurred, and I re-derived the problem before
+remembering the tool.**
+
+`sync-twins` refused 31 specs whose newest seal records `gen_hash=none`:
+propagating that would write a breakage into a second place. Refusals are the
+part of a repair tool worth checking first.
