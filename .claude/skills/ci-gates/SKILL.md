@@ -6347,3 +6347,53 @@ read by exactly the person who does not yet know the answer, which is the worst
 audience for a stale number.
 
 Grep your own help strings for digits whenever the thing they describe grows.
+
+## 202. Three spellings of a declaration, then three of a field
+
+The type scanner learned that a type is declared three ways — `struct X {`,
+`pub struct X {`, `const X = struct {`. One iteration later, an agent checking
+*coverage* found that a FIELD is also written two ways, and the second was being
+thrown away:
+
+    pub struct HealthStatus {
+        pub is_healthy: bool,      <- name reads as "pub is_healthy", rejected
+        ...
+    }
+
+Five fields dropped, and the struct then read as empty. **An empty field list
+compares equal to any other empty field list**, so a five-field type and an
+unrelated placeholder of the same name were reported as *the same fields written
+twice*.
+
+The lesson repeats one level down and is worth stating both times: **when a
+scanner recognises a construct, enumerate the ways that construct is spelled —
+and then do it again for the constructs nested inside it.**
+
+## 203. The riskiest sample, not the easiest
+
+The coverage verifier's set comparison came back exact — nothing missing, nothing
+spurious. It could have stopped there and reported `sound: true`.
+
+Instead it hand-verified nine conflicts, *chosen as the riskiest rather than the
+easiest*: the five whose conflict rests on a side the reader could not parse, and
+the two same-file pairs. `HealthStatus` came out of exactly that choice — a name
+in the wrong bucket, invisible to a set comparison because the set was right and
+the *classification* was wrong.
+
+**A verifier that samples the easy cases confirms the tool's happy path.** Ask
+for the rows where the tool had least to work with.
+
+## 204. A ratchet one day old, catching a real change
+
+`tri types ratchet` was written in one iteration and fired in the next, on a real
+fix with nothing planted:
+
+    ledger 79 name(s), observed 80
+      + HealthStatus  NEW conflict
+
+Identity-keyed, so it would also have caught a swap at a constant count — one
+name resolved while another appears, which is the case a count cannot see and
+which was tested on purpose before the real one arrived.
+
+**Write the ratchet before the work it will police, not after.** The one that
+already exists is the one that reports the change you did not predict.
