@@ -3203,8 +3203,7 @@ in the repository?* If yes, both sides are stale the moment the merge exists.
 `tri reseal write` does it, and `tri reseal check` reports the three states
 separately — matching, mismatched, and conflicted — because a conflicted seal
 trimmed into a comparison reports a plain mismatch and sends the reader to fix
-the wrong thing. The first line of a conflicted file is `<<<<<<< HEAD`, which
-compares against a hash exactly as unhelpfully as any other wrong string.
+the wrong thing. The first line of a conflicted file is `compares against a hash exactly as unhelpfully as any other wrong string.
 
 ## 79. A ratchet that fails because you fixed something
 
@@ -6685,6 +6684,53 @@ no failing test for input you did not know existed. State the direction the fix
 must move things BEFORE running it — a one-line invariant caught nineteen rows
 that eighteen unit tests, all green, did not.
 
+<<<<<<< HEAD
+## 219. A guard that names one member of a class is blind to the rest of it
+
+`secret-scan` has a step called "Block hardcoded developer home paths". It greps
+for one spelling. There are two in the repository, and the one it does not look
+for is in **six times more files**:
+
+    guarded spelling      5 files   (all five deliberately allowlisted)
+    unguarded spelling   33 files   51 occurrences, 28 of them executable
+
+One of the 28 is the compiler.
+
+The step's own comment records that it once found 233 files and had been red for
+months. It was fixed by fixing the files — and the pattern was never widened to
+the class the step's title claims.
+
+**When a guard names a specific instance, ask what the general case is.** A title
+that says "developer home paths" and a body that greps one username is a
+promise the body does not keep — and it is invisible precisely because the guard
+is green.
+
+## 220. A guard that lands red is a guard that gets ignored
+
+Fixing 33 files across 28 executables was not this iteration's work, and adding
+the pattern without doing so would put the step back into the state its own
+comment describes: red, and therefore ignored.
+
+So the debt is pinned per file — new fails, growing fails, and **shrinking fails
+too**, because unclaimed slack is where the next one hides.
+
+That is the same three-rule shape as every other ratchet here, and the reason to
+reach for it is not tidiness: it is the only way to close a blind spot **today**
+when the cleanup is a week of work. A guard that reports the debt it cannot yet
+collect is worth more than one that is not written.
+
+## 221. The find came from triaging findings I had already dismissed
+
+The absent-input detector reported six FPGA paths. All six are build outputs,
+which is the boring answer — but two of them were not repository paths at all:
+fragments joined onto a hardcoded absolute checkout root.
+
+That root is the unguarded developer home. **The interesting finding was one
+level under the boring one**, and it only surfaced because every row was opened
+rather than the cluster being dismissed by its shape.
+
+A triage that stops at "these are all build outputs" is a triage that never reads
+the line.
 ## 222. A default that is one machine's path is the literal wearing a fallback
 
 Four sites in the compiler named a developer's home directory. The obvious repair
