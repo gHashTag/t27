@@ -8915,7 +8915,32 @@ refuse rather than answering when they cannot: a lakefile with `globs`, a root
 that reaches only itself, a stale crate list. Zero stranded files has to mean the
 tree, never the parser.
 
-## 355. The option you keep not picking
+## 355. The second ledger
+
+A fix made `specs/pins/emitter_xdc.t27` typecheck. I updated
+`tools/specs_generate_baseline.txt`, ran every gate I knew, shipped, and left
+the corpus ratchet **red on master for three consecutive runs** -- because
+`docs/reports/suite_expectations.json` still listed the spec as
+expected-to-fail, and an UNEXPECTED PASS is a ratchet failure by design.
+
+This repository has at least four ledgers naming specs by path:
+
+```
+tools/specs_generate_baseline.txt      does it generate
+docs/reports/suite_expectations.json   corpus ratchet, per phase
+scripts/ci/test-baseline.txt           bootstrap tests
+tools/conflict_markers_baseline.txt    files carrying markers
+```
+
+**When a repair makes a spec pass, grep every file that NAMES that spec.** Not
+the ledger you know about -- all of them. `git grep -l <spec-path>` is the whole
+check and it takes a second.
+
+It is the same shape as the fix that did not travel from one command to its
+neighbouring function, one level up: there the sibling was a function, here it
+is a file. Both were invisible because the gate I ran was green.
+
+## 356. The option you keep not picking
 
 `tri unparsed locate` confirmed 37 answers and refuted 37 -- exactly half. That
 line sat at the bottom of four consecutive iteration reports, and each time I
@@ -8933,7 +8958,7 @@ and failed for the chunk's own reasons.
 **A number that has been stable across several reports is either finished or
 avoided.** Write down which, and if it is avoided, take it next.
 
-## 356. The base rate is what turned a hunch into a cause
+## 357. The base rate is what turned a hunch into a cause
 
 The hunch -- "the tail is too long" -- was available immediately: 32 of the 37
 refuted cases had a tail over 10 lines. On its own that is worth nothing; long
@@ -8952,7 +8977,7 @@ measurement than the hunch did.
 **A distribution over the failing group is a hunch. The same distribution over
 the passing group is a cause.**
 
-## 357. Fourteen refusals that are correct
+## 358. Fourteen refusals that are correct
 
 The 14 still refuted point at lines 5 to 11 -- the first item in the file. Those
 are specs opening with `algorithm NAME {`, a construct the parser does not
