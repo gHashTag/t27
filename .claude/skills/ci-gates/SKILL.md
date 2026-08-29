@@ -3203,8 +3203,7 @@ in the repository?* If yes, both sides are stale the moment the merge exists.
 `tri reseal write` does it, and `tri reseal check` reports the three states
 separately — matching, mismatched, and conflicted — because a conflicted seal
 trimmed into a comparison reports a plain mismatch and sends the reader to fix
-the wrong thing. The first line of a conflicted file is `<<<<<<< HEAD`, which
-compares against a hash exactly as unhelpfully as any other wrong string.
+the wrong thing. The first line of a conflicted file is `compares against a hash exactly as unhelpfully as any other wrong string.
 
 ## 79. A ratchet that fails because you fixed something
 
@@ -6685,6 +6684,7 @@ no failing test for input you did not know existed. State the direction the fix
 must move things BEFORE running it — a one-line invariant caught nineteen rows
 that eighteen unit tests, all green, did not.
 
+<<<<<<< HEAD
 ## 219. A guard that names one member of a class is blind to the rest of it
 
 `secret-scan` has a step called "Block hardcoded developer home paths". It greps
@@ -6731,3 +6731,65 @@ rather than the cluster being dismissed by its shape.
 
 A triage that stops at "these are all build outputs" is a triage that never reads
 the line.
+## 222. A default that is one machine's path is the literal wearing a fallback
+
+Four sites in the compiler named a developer's home directory. The obvious repair
+is an environment variable *with the old value as its default* — which changes
+nothing: the literal is still in the source, the guard still has to allowlist it,
+and the next reader still learns one machine's layout.
+
+The variable has **no default**, and absent configuration is refused by name:
+
+    T27_OPENXC7 is not set. It must name the directory holding the openXC7
+    toolchain -- prjxray/, nextpnr-xilinx/, nextpnr-openxc7/ and venv/ ...
+      export T27_OPENXC7=/path/to/build/fpga/openxc7
+
+A wrong path here fails deep inside a spawned process where sixty characters of
+stderr is all the caller sees. **Refusing to guess is cheaper than guessing
+wrong**, and it is the only version of this fix that actually removes the string.
+
+State the behaviour change in the commit, and check first whether CI calls the
+command — here nothing did, which is what made it safe.
+
+## 223. Count the paths a function needs, then count the ones it checks
+
+`run_silicon` declares five paths and its existence loop tested three. The two
+it skipped were used twenty lines later, and their absence surfaced as
+`could not spawn` with a stderr tail that named neither.
+
+Nobody wrote that skip on purpose; the loop was written when there were three,
+and two more were added beside them without being added *to* it.
+
+**A guard written as a list is a guard that goes stale by addition.** When you
+add a resource next to a checked one, the check is part of the resource.
+
+## 224. Hold a diagnostic to the standard of the arm above it
+
+    (Some(_), Some(_)) => "constids DIFFER -- P&R will abort. Fix: cp {} {}/... && cmake ..."
+    _                  => "constids file missing on one side"
+
+The same `match`, two arms. One prints both paths and the repair command; the
+other makes the reader run `ls` twice to learn which file is missing.
+
+**When one arm of a match is good, the others have a standard to meet and it is
+sitting right there.** Read the neighbours before writing the message.
+
+## 225. The numbering check cannot see an unmerged pull request
+
+`tri skill check` passed while I was about to land sections 219-221 that another
+of my own open PRs had already claimed. It reads the tree; an unmerged branch is
+not in the tree.
+
+The gap 219-221 in this file is deliberate and is that PR waiting to land — a gap
+is cheap, a duplicate is not, and `--gaps` reports gaps without failing precisely
+so this is the safe direction to err in.
+
+**Before appending to a numbered document, check your own open PRs**, not only
+the branch you are on:
+
+```bash
+gh pr list --author @me --json number,title --jq '.[] | "\(.number) \(.title)"'
+```
+
+Two sessions produced this collision once; one session with two open PRs produced
+it again the same day.
