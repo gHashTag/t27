@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:801ca2b40533daa95820ddf4b9324430b512e5e36d4ce5ffbe457eecda8855ac",
+  "gen_hash_c": "sha256:903350b5e7fa05afd72a92a20072edad5c381ab30f82d54d2bcc96c2fc95179e",
   "gen_hash_rust": "sha256:7908fd7bfe44628e97679ce21227e0a9ab6ec3f1c6323d747a370ce92ed7f23a",
   "gen_hash_verilog": "sha256:ee57e83df156bace5730e5626f2e1ece6a878a821eed6bc9da299ccbfb0f1fb2",
   "gen_hash_zig": "sha256:618e0c416cf4ac269577c6944003537bbebb891546ceb87ce2b7f086169d05ec",
   "module": "SimpleTest",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T17:46:27Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:8538ad97f51494ef1c556e7c9f0a792710427c5f2fb7354ed840a8dd71e05af2",
   "spec_path": "specs/demos/simple_test.t27"
 }

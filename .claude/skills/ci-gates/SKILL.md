@@ -7614,3 +7614,123 @@ remembering the tool.**
 `sync-twins` refused 31 specs whose newest seal records `gen_hash=none`:
 propagating that would write a breakage into a second place. Refusals are the
 part of a repair tool worth checking first.
+
+## 264. One of six emitter changes re-sealed, and the sixth was mine
+
+Re-sealing 134 drifted seals took the gate green. Twenty minutes later another
+`gen-c` fix landed and it was red again with **197**.
+
+The treadmill, measured:
+
+    compiler changes in twelve hours            6
+    of those that touched .trinity/seals/       1   -- mine
+    mentions of re-sealing in CONTRIBUTING,
+      docs/, or the PR template                 0
+
+So the repair is not the fix. Every emitter change drifts seals, re-sealing is a
+separate manual step nobody knows about, and the gate is therefore permanently
+red between someone noticing and someone caring.
+
+`tri seals fresh` is the smallest thing that helps: it answers the question that
+made a red gate read as green, and it prints the one command that fixes it. It
+does not re-seal — deciding that new output is the output you want is §262's
+job, and it needs the acceptance control.
+
+**When a repair is obsoleted before it lands, stop repairing and describe the
+loop.** The number worth publishing was `1 of 6`, not `134 → 0`.
+
+## 265. The one binary the checker would actually use
+
+The first version of `tri seals fresh` flagged a stale `target/debug/t27c`
+sitting beside a fresh `target/release/t27c` — and `check_seal_coverage.py`
+consults only the **first** path present, which is release.
+
+So it reported a defect that could not change any verdict. One noisy row in a
+three-row output is a high enough rate to teach a reader to skip it.
+
+Fixed by walking the *same list in the same order* the checker walks, marking
+which one is consulted, and letting only that one decide the exit code. The
+others still print — their age is information, just not a verdict.
+
+**A checker about another checker must model its subject exactly**, including
+the order in which it gives up. Anything else is a check about a program that
+does not exist.
+
+## 266. Third summary line this session that overclaimed
+
+    Every binary present is newer than bootstrap/src.
+
+False whenever a stale one sits beside the used one — which is the ordinary
+case, since nobody rebuilds debug and release together. Rewritten to:
+
+    The binary a seal check would use is newer than bootstrap/src, so a
+    reading taken now is a reading of THIS source. Any other binary
+    listed above is not consulted and its age decides nothing.
+
+The first version was written in the same hour as §261, which is *about*
+summary lines that name a verdict the check did not earn. Knowing the rule and
+applying it to your own last three lines are different skills.
+
+Third this session, after `Numbering holds in 5 file(s)` and
+`Typecheck FAILED` with exit 0.
+
+## 267. Four required checks, and all four assert something
+
+`t27-master-protection` requires exactly four contexts on this repository:
+`check-now-freshness`, `validate`, `check`, `check-linked-issue`. Everything
+else — 42 workflow files — is advisory.
+
+One of the four was an `echo` and was replaced. So the natural next question is
+whether the other three are real. Audited:
+
+| context | what it does | verdict |
+|---|---|---|
+| `check-now-freshness` | requires a `docs/now/` entry added by the PR | real |
+| `check` | requires that entry to be well formed | real |
+| `validate` | JSON parseability, with a negative control | real |
+| `check-linked-issue` | requires a linked issue | real |
+
+Two carry a **trusted-bot bypass** that passes as a no-op — narrowed to
+`dependabot[bot]` and `github-actions[bot]` by login, so an ordinary PR never
+reaches it. Verified on three of my own merged PRs: all four contexts reported
+`pass`, none was skipped.
+
+**A clean audit is a result and belongs in the record.** The last three times
+this question was asked here it found an echo, a hard error that exited zero,
+and a summary line that overclaimed. This time it found nothing, and knowing
+that is worth as much — it moves the next search elsewhere.
+
+## 268. The refusal cannot ride on the exit code
+
+`t27c seal <spec>` **exits 0** and prints
+
+    gen_hash_zig=none
+    gen_hash_verilog=none
+
+for a spec no backend accepts. So a re-seal loop that trusts the exit code
+writes `none` into the record as though absence were a hash — and #2210
+measured that: batch re-sealing the stale seals would have recorded **348**
+reproducibility assertions for output that does not exist.
+
+`tri seals drift --fix` refuses on the claims, not the status. Controlled by
+planting a drift on such a spec: `re-sealed 0, REFUSED 1`, and the planted hash
+left untouched.
+
+And the test is on the whole field, not a substring: a real sha256 may contain
+the letters `none`, and `is_sealable(&["sha256:0none0"])` must be true.
+
+**When a command reports failure in its output and success in its status, every
+consumer must read the output.** Third command in this repository with that
+shape, and the first where the reading is the whole safety argument.
+
+## 269. Three shell traps I have written down, hit in one session
+
+- `$?` after a pipeline is the LAST command's status. Read it after `sed` twice
+  in one iteration, while checking exit codes — the exact thing being measured.
+- Backticks inside a double-quoted `echo` are executed by zsh. Ran `t27c` as a
+  command inside a diagnostic message.
+- `for x in $VAR` does not word-split in zsh.
+
+All three are in my own notes with names. **Knowing a trap and recognising it in
+your own output are different skills**, and the second one only comes from
+reading the output — which is what the note should say and did not.
