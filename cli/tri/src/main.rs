@@ -16,6 +16,7 @@ mod fleet;
 mod fpga;
 mod gates;
 mod prose;
+mod unparsed;
 mod hooks;
 mod mutate;
 mod nownote;
@@ -169,6 +170,11 @@ enum Commands {
     Prose {
         #[command(subcommand)]
         action: prose::ProseCmd,
+    },
+    /// Specs the compiler cannot read, ranked by the construct that stops it.
+    Unparsed {
+        #[command(subcommand)]
+        action: unparsed::UnparsedCmd,
     },
     /// What `.trinity/seals` says about a spec, when it says it twice.
     Seals {
@@ -806,6 +812,7 @@ fn main() -> Result<()> {
         Commands::Orphaned { action } => orphaned::run(action)?,
         Commands::Discard { action } => discard::run(action)?,
         Commands::Prose { action } => prose::run(action, std::env::current_dir()?)?,
+        Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }

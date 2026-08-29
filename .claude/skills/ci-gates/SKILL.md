@@ -8248,3 +8248,60 @@ line. Neither instrument is complete; together they bracket the answer.
 **Where a deterministic instrument exists it is not a second opinion, it is the
 answer.** Use the fan-out to name constructs and raise hypotheses; use the
 compiler to decide.
+
+## 325. A name is a name: read all of it
+
+`module github::auth {` did not parse. The module-name reader took one
+identifier and stopped, so the parser met a colon at module level and reported
+something else entirely. Nine specs declared a path-qualified module and none
+of them parsed.
+
+The repair is not to give `::` a meaning. It is to read the whole NAME -- a
+loop over `::`-separated segments, each of which may still be hyphenated,
+because `module tritype-base;` was already legal and had to stay so.
+
+**Both colons are required before either is consumed.** A single `:` after a
+module name is not a path; swallowing it would turn a real error into a
+stranger one further down the file. The existing path reader elsewhere in the
+compiler consumes one colon and then optionally a second -- copying that idiom
+verbatim would have inherited the looser rule.
+
+Controls that made this safe to land: 621 specs parsed before and 627 after
+with **zero** regressions, and seal drift moved 537 to 543 -- exactly the six
+new specs, proving no previously-parsing spec's output changed.
+
+## 326. The ritual on paper and the ritual in practice
+
+`FROZEN.md` §5 says a change to `bootstrap/src/compiler.rs` needs M1-M4 green,
+a PR marked `[GOLD-RING]`, a milestone, or Architect approval. That reads like
+a stop sign at 3am.
+
+The evidence says otherwise: the last 50 commits touching that file are eight
+today alone, `FROZEN_HASH` is updated in **20 of the last 20**, and the phrase
+GOLD-RING appears in **none** of them. The practice is: change the file, update
+the seal in the same commit.
+
+**When a document and the commit history disagree about what is allowed, the
+history is the measurement.** Check it before treating a document as a gate --
+and say which one you followed.
+
+## 327. Three readings of my own new census, three wrong
+
+`tri unparsed report` ranks the constructs that stop the compiler. Its first
+three numbers were all wrong, and each was caught by asking a question the
+output invited:
+
+1. **118 specs "the compiler cannot read"** -- 21 of them are under
+   `fixtures/`, broken ON PURPOSE as inputs to a detector.
+   `tools/specs_generate_baseline.txt` already omits all 21. A census that
+   disagrees with the repository's own ledger is wrong before it is useful.
+   Now they get their own line rather than being dropped.
+2. **"not decided" was 30 too large** -- the abstention listed only TOP-LEVEL
+   keywords, so a failing `return x;` or `let y = 1;` inside a body fell
+   through as undecided when it is plainly upstream.
+3. **36 + 27 + 30 came to 93 against a total of 97** -- four rows were leaving
+   through a bare `continue` where the error named no readable line. Counted
+   now, and the arithmetic closes.
+
+The rule that found all three: **make the printed numbers add up, out loud.**
+A census whose parts do not sum to its total has a bucket you have not named.

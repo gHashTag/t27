@@ -1546,17 +1546,47 @@ impl Parser {
                             // Module name can contain hyphens: e.g. "tritype-base"
             let mut mod_name = String::new();
             if self.current.kind == TokenKind::Ident {
-                mod_name.push_str(&self.current.lexeme);
-                self.advance();
-                // Consume hyphenated parts: - ident - ident ...
-                while self.current.kind == TokenKind::Minus {
-                    mod_name.push('-');
-                    self.advance(); // consume -
-                    if self.current.kind == TokenKind::Ident
-                        || self.current.kind == TokenKind::Number
+                // A module name is one or more `::`-separated SEGMENTS, each of
+                // which may itself be hyphenated: `module tritype-base;`,
+                // `module github::issues { }`, `module a::b::c;`.
+                //
+                // The path form was read up to its first segment and no
+                // further, so `module github::auth {` left the parser looking
+                // at a colon at module level. Nine specs on master declare a
+                // path-qualified module and none of them parsed. The name is a
+                // NAME -- the repair is to read all of it, not to give `::` a
+                // meaning.
+                //
+                // BOTH colons are required before either is consumed. A single
+                // `:` after a module name is not a path, and swallowing it
+                // would turn a real error into a stranger one further down.
+                loop {
+                    mod_name.push_str(&self.current.lexeme);
+                    self.advance();
+                    // Consume hyphenated parts: - ident - ident ...
+                    while self.current.kind == TokenKind::Minus {
+                        mod_name.push('-');
+                        self.advance(); // consume -
+                        if self.current.kind == TokenKind::Ident
+                            || self.current.kind == TokenKind::Number
+                        {
+                            mod_name.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                    }
+                    if self.current.kind != TokenKind::Colon
+                        || self.peek.kind != TokenKind::Colon
                     {
-                        mod_name.push_str(&self.current.lexeme);
-                        self.advance();
+                        break;
+                    }
+                    self.advance(); // consume first :
+                    self.advance(); // consume second :
+                    mod_name.push_str("::");
+                    if self.current.kind != TokenKind::Ident {
+                        // `module a::` with nothing after it. The name keeps the
+                        // separator so the shape is visible rather than tidied
+                        // away, and the caller meets the real token next.
+                        break;
                     }
                 }
             }
