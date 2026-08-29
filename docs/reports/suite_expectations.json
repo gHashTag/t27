@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_gate_failures": 42,
+  "max_gate_failures": 2,
   "max_entries": 167,
   "entries": [
     {
