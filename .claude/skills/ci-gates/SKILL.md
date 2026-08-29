@@ -7837,7 +7837,58 @@ about rather than a mistake in the change.
 
 Related: §241, a guard whose precondition had stopped holding.
 
-## 310. `none == none` is agreement, not health
+## 310. The repository already wrote the correct form, by hand, next door
+
+`gen-verilog` mapped `>>` to Verilog's `>>` unconditionally. Verilog's
+`>>` fills with zeros however the operand is declared; the arithmetic
+shift is `>>>`. On the CORDIC kernels this is a wrong gate, not a wrong
+number: simulated on the actual generated module,
+`cordic_x_next(100, -64, shift=2)` returned **-16268** where the spec, C
+and Zig all say **116**.
+
+The decisive evidence was not in the compiler. It was in the corpus:
+
+    generated Verilog, all 559 modules:   2 occurrences of `>>>`
+    ...and both were inside string literals
+    those string literals:  this project's own hand-written golden
+                            CORDIC RTL, which writes `y0 >>> 1`
+                            for the identical rotation
+
+**The project knew the right operator and the backend emitted it zero
+times.** A hand-written reference sitting in the corpus is an oracle the
+generator can be measured against, and it costs one grep.
+
+When a backend and a hand-written artefact in the same repository
+disagree about the same construct, that is not a matter of taste. Look
+for the artefact first: `grep` for the construct in the specs and in
+`docs/`, and see whether a human ever wrote it out.
+
+## 311. Acceptance could not have caught any of it
+
+Four defects were fixed in one pass. Not one moved an acceptance number:
+
+| defect | what it did | `cc` / `zig` / `iverilog` |
+|---|---|---|
+| `while (c) : (step)` | the step became the whole body | unchanged |
+| suffix dropped | `1u64 << n` shifted at u32 and panicked | unchanged |
+| `>>` on signed | filled with zeros, CORDIC did not converge | unchanged |
+| truncated test | reported OK in the backend that runs tests | unchanged |
+
+Every one produced output the target compiler was happy with. **A gate
+that asks "does it compile" cannot see any defect whose whole nature is
+that it compiles**, and the four above are the entire interesting class:
+the compiler agreed, and the program was wrong.
+
+What did see them: a second implementation to disagree with (the C
+backend against the Verilog one), a hand-written artefact to compare to
+(§310), and simulating the emitted module instead of reading it. Two of
+the four were found by fan-out audits told to prefer findings the target
+compiler ACCEPTS -- the instruction that made them look in the right
+place.
+
+Related: §262, what the comment was hiding.
+
+## 312. `none == none` is agreement, not health
 
 A seal in this repository stores a spec's hash and the sha256 of each of four
 generated outputs. When the spec does not parse, `t27c seal` exits 0 and writes
@@ -7875,7 +7926,7 @@ Two defences, and only the second one worked here:
 Before reporting a count as new, search the repository for a file that already
 holds it. A second, disagreeing ledger is worse than no ledger.
 
-## 311. The kind, not the coordinates
+## 313. The kind, not the coordinates
 
 104 specs failed to parse. Reported one line each, that is 104 problems and an
 owner who does not start. Reported by error kind — with `near line 38`, `at

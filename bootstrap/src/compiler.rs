@@ -16668,6 +16668,25 @@ impl VerilogCodegen {
                         // in $signed() (Verilog sign-extends it into the wider signed
                         // context) and the unsigned operand is zero-extended one bit,
                         // $signed({1'b0, x}), so it stays non-negative.
+                        // W-27: a RIGHT SHIFT of a signed value needs `>>>`.
+                        // Verilog's `>>` fills with zeros whatever the operand
+                        // is declared, and the repair below fires only on
+                        // ordered relations, so no shift was ever fixed up. On
+                        // `specs/igla/race/cordic_fixed.t27:42`, `x - (y >> shift)`
+                        // with x=100, y=-64, shift=2 simulates to -16268 where
+                        // the spec, C and Zig all say 116: y = 16'hFFC0 = 65472,
+                        // 65472 >> 2 = 16368, 100 - 16368 = -16268.
+                        //
+                        // This project's own hand-written golden CORDIC RTL
+                        // writes `y0 >>> 1` for the identical rotation, so the
+                        // right operator was known and the expression path
+                        // emitted it zero times across 559 generated modules.
+                        let shift_signed = node.extra_op == ">>"
+                            && matches!(
+                                self.expr_width_signed(&node.children[0]),
+                                Some((_, true))
+                            );
+                        let op = if shift_signed { ">>>" } else { op };
                         let ordered_rel = matches!(op, "<" | "<=" | ">" | ">=");
                         let rel_signed = ordered_rel
                             && match (
