@@ -1439,5 +1439,6 @@
       "issue": 1959,
       "expires": "2026-11-30"
     }
-  ]
+  ],
+  "_why_entries_fell": "151 -> 150: specs/pins/emitter_xdc.t27 [typecheck] was fixed by #2906 -- an integer literal above i64::MAX fell to the float branch, so a bit mask read as a float -- and the ledger entry outlived the failure. The ratchet reported it as an UNEXPECTED PASS and named the repair itself: 'fixed -- remove from the ledger'. Removed, and the cap lowered in the same commit so the next entry cannot hide in the slack."
 }

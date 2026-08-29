@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:1f626d66e379852c0cbfb357e016b1aa19a39e9a2efa4b239a87bfff7bebceda",
-  "gen_hash_rust": "sha256:4d462bf509ba7dbcca77c9cf8887879c16951fb6800f2630af6e8d08fc706248",
+  "gen_hash_rust": "sha256:3ddce1038b21201eae751af4f982b6b82db4fbe1fed4ad94d0442eeb3108911f",
   "gen_hash_verilog": "sha256:1617e77331596d25f9cf792e441aa18299b4cfb80f3f66859d2207e4d043a6d6",
   "gen_hash_zig": "sha256:15b64f2fdd4a2d86c7278078328b3a11fc76171014a676dcafbead5a2f9b9ed0",
   "module": "TriShellSort",

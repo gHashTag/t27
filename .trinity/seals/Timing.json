@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:ad4b6a5ddedadf20b8b8cb9aeac0f818680b53f6316113f02391731b1377b3de",
-  "gen_hash_rust": "sha256:f56711630804d79def9d48c0365c67147b16f10e16a5f51bc0743beea2fa910a",
+  "gen_hash_rust": "sha256:4bd832a82833e1474c3afe9a5c40cfdddbc0dabdf1d58924c83b8dca8ef3eba5",
   "gen_hash_verilog": "sha256:60482ecd54200563947ad8e50c7fd85029d2334942c7333886a4d34399c65b66",
   "gen_hash_zig": "sha256:8c8966829baaf52fb138990a087bffa4650a906fcde88f79a723344ca219d039",
   "module": "Timing",

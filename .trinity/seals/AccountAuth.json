@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:63a8853dafff2360bc3cfe81f053e8a6e407332aa0eef3aeac4231b2ad98d011",
-  "gen_hash_rust": "sha256:9877800f2388ffcb2c89cc325bf3e9f68fb4a349b10d260ed6628466c9bf36b8",
+  "gen_hash_rust": "sha256:94aee79cc28d7fdcd5ab4ac83498737b013b67ac907c8e366b70fd6e30ccc771",
   "gen_hash_verilog": "sha256:d8613b47f3635c4e135032259cbabe1d3624c54001f4277b5385276cdc2d7e78",
   "gen_hash_zig": "sha256:104124963c3bd4beee769effb215df497c3d195f5dea2e8957f0a334e84dc3de",
   "module": "AccountAuth",

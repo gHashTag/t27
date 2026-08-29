@@ -1,12 +1,12 @@
 {
   "gen_hash_c": "sha256:f35aa07fcfbb4591431f633b83aa90117a78e48415d4d540880b15169f8c71f4",
-  "gen_hash_rust": "sha256:65a98a365ebead3f279f5fe63d73aac195f7a8571501eb197d0275ab0b49d919",
-  "gen_hash_verilog": "sha256:3fb07f52eb63e025662578177cc372e01906614bf7c0986bc084db0f81cc051c",
+  "gen_hash_rust": "sha256:e086c8c4ab0a54b9f9044435c422edf4346d27e0f8982c488a69f0dbb9813711",
+  "gen_hash_verilog": "sha256:814f6b7cc40865d4ce31672f483e7651b9d102f69f9066bcf4127e8656ee3ece",
   "gen_hash_zig": "sha256:13576194a971d291dc8297a08ced2edd8a3debfa893ef1568a1fa024d854b1ec",
   "module": "GftLayer4",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:47Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:bc950d5eb4085dffedcbfd2cb065f927cb6b7386a997fffc1a350516458d87a2",
   "spec_path": "specs/ternary/gft_layer4.t27"
 }
