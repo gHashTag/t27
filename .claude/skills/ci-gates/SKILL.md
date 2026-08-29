@@ -5692,3 +5692,46 @@ run. **A stale limitation there is worse than a stale feature list** — it eith
 frightens people away from a check that works, or excuses them from one that does.
 
 Re-verify that section by running its claims, not by reading them.
+
+## 159. A ranked list says where; it does not say whether the top six are one problem
+
+`tri discard top` put six `specs/igla/race/*` files at the head of the list. Six
+entries, ~7 000 tokens. It looked like six rungs.
+
+Classifying the drop traces said otherwise:
+
+    forall/==> (quantified)     38 specs   20991 tokens
+    var/const statement         18          7020
+    assert                      17          1853
+    other                       14           587
+
+**Sixty-nine percent of what remained was one construct the grammar does not
+contain** — quantified invariants. Not a parser rung at all: a language decision
+about what `forall x : T … ==> …` means at codegen, which commits four backends
+and belongs to the owner (#2774).
+
+Rank to find the biggest. **Classify before deciding what kind of work it is.**
+
+## 160. The lexer had already split the token I was grepping for
+
+`==>` never appears in a drop trace. The lexer emits `==` and `>`, so the trace
+reads
+
+    dropped: input . activations . len == 4 == >
+
+A matcher looking for `==>` would have found zero of the thirty-eight specs and I
+would have concluded the construct was rare. Match what the trace actually says,
+not what the source says — there is a lexer between them, and it is the thing
+under investigation.
+
+## 161. A number written before it was measured is still a wrong number
+
+A commit message of mine said `cargo test  2430 passed`. The measurement is 2429:
+I had assumed the new conformance case would add one, and it does not —
+`parse-conform` is a `t27c` subcommand, not a cargo test.
+
+Nobody would have caught it. It sat in a paragraph of numbers that were all
+measured, which is exactly what makes one unmeasured number dangerous.
+
+Corrected by a follow-up commit, not an amend (see 155). **Write the number after
+running the command, in the same minute, or do not write it.**
