@@ -137,7 +137,7 @@ module GitOperations {
     test "options_construction" {
         var opts = Options {
             cwd = "/path/to/repo",
-            env = [("PATH", "/usr/bin"), ("HOME", "/home/user")],
+            env = [["PATH", "/usr/bin"], ["HOME", "/home/user"]],
         };
         assert(opts.cwd == "/path/to/repo");
         assert(opts.env.len == 2);
