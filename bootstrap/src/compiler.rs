@@ -3893,6 +3893,11 @@ impl Parser {
     /// Parse return statement
     fn parse_return_statement(&mut self) -> Result<Node, String> {
         let mut stmt = Node::new(NodeKind::ExprReturn);
+        // The node carried no line, so every diagnostic about a return printed
+        // `:?`. Eleven narrowing warnings landed that way and none of them
+        // could be looked up. Captured before `advance()`, which is where the
+        // `return` keyword still is.
+        stmt.line = self.current.line as u32;
         self.advance(); // consume 'return'
 
         // Optional return value
@@ -22253,6 +22258,18 @@ fn infer_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry]) -> TypeInfo
                 }
                 if node.extra_op == "+" && (lt == TypeInfo::Str || rt == TypeInfo::Str) {
                     return TypeInfo::Str;
+                }
+                // A SHIFT is not a symmetric operation: its result has the type
+                // of the value being shifted, and the shift AMOUNT is just a
+                // count. `promote_types` treated it like `+` and let the count's
+                // type win, so `y >> shift` with `y: i16, shift: u32` was U32.
+                //
+                // Eight of the eleven remaining narrowing warnings were that --
+                // `return x - (y >> shift);` in cordic_fixed and cordic_top --
+                // and every one of them read as a defect in the spec when the
+                // defect was here. C, Rust and Zig all take the left type.
+                if node.extra_op == "<<" || node.extra_op == ">>" {
+                    return lt;
                 }
                 promote_types(&lt, &rt)
             } else {
