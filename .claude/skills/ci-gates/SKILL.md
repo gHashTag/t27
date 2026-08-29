@@ -8487,7 +8487,7 @@ One thing to check every time, because the tooling does not: this repo's
 `--bless-expectations` does not raise or lower `max_entries`, so a
 freshly blessed ledger can still fail on its cap.
 
-## 339. A control that cannot fail is not a control -- three times in one hour
+## 337. A control that cannot fail is not a control -- three times in one hour
 
 Building a locator for "the item whose presence causes the failure", the answer
 needed checking. Three checks, and only the third one bites:
@@ -8520,7 +8520,7 @@ decisions.** If a stage's mistake is invisible in the end-to-end result, that
 result cannot validate the stage. The causality check works because it
 perturbs the thing the stage decided.
 
-## 337. Three bugs in one model, none found by a control
+## 339. Three bugs in one model, none found by a control
 
 Brace-depth over source, and every bug found by reading an ANSWER that looked
 wrong -- never by a test:
