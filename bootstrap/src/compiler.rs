@@ -944,6 +944,14 @@ impl Lexer {
                         0u8
                     };
                     if !next.is_ascii_alphanumeric() && next != b'_' {
+                        // The suffix was consumed and DISCARDED, so `1u64` and
+                        // `1` reached the AST identically and the Zig shift
+                        // path re-invented a width from the literal's
+                        // magnitude: `(1u64 << mant_bits)` became
+                        // `(@as(u32, 1) << ...)`. Kept in the lexeme here and
+                        // split back off at the two ExprLiteral sites, so
+                        // `value` is unchanged and only `extra_type` is new.
+                        number.push_str(std::str::from_utf8(suffix).unwrap_or(""));
                         self.pos = end;
                         self.col += suffix.len();
                     }
@@ -4301,11 +4309,12 @@ impl Parser {
     fn parse_range_bound(&mut self) -> Result<Node, String> {
         match self.current.kind {
             TokenKind::Number => {
-                let val = self.current.lexeme.clone();
+                let (val, num_suffix) = split_number_suffix(&self.current.lexeme);
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
                     value: val,
+                    extra_type: num_suffix,
                     ..Default::default()
                 })
             }
@@ -5029,11 +5038,12 @@ impl Parser {
         match self.current.kind {
             // Number literal
             TokenKind::Number => {
-                let val = self.current.lexeme.clone();
+                let (val, num_suffix) = split_number_suffix(&self.current.lexeme);
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
                     value: val,
+                    extra_type: num_suffix,
                     ..Default::default()
                 })
             }
@@ -8102,6 +8112,26 @@ impl Codegen {
         if init.extra_kind == "string" {
             return None;
         }
+        // A DECLARED width beats an inferred one. `1u64 << mant_bits` was
+        // lowered as `@as(u32, 1) << ...` because the suffix was consumed by
+        // the lexer and never recorded, so the width was re-invented from the
+        // literal's magnitude: `1` fits in u32, therefore u32. Zig accepts the
+        // result -- the u32 coerces to the u64 return type -- and `mask(39)`
+        // panics with `integer does not fit in destination type` instead of
+        // returning 549755813887.
+        match init.extra_type.as_str() {
+            "u8" => return Some("u8"),
+            "u16" => return Some("u16"),
+            "u32" => return Some("u32"),
+            "u64" => return Some("u64"),
+            "usize" => return Some("usize"),
+            "i8" => return Some("i8"),
+            "i16" => return Some("i16"),
+            "i32" => return Some("i32"),
+            "i64" => return Some("i64"),
+            "isize" => return Some("isize"),
+            _ => {}
+        }
         let v = init.value.as_str();
         if v == "true" || v == "false" {
             return None;
@@ -9279,17 +9309,54 @@ impl Codegen {
         }
     }
 
+    /// A statement written where Zig expects an expression: the continue
+    /// expression of a `while ... : (...)`. Rendered without indent, without a
+    /// trailing semicolon and without a newline.
+    fn gen_expr_inline_stmt(&mut self, node: &Node) {
+        // The continue expression arrives wrapped in whatever block node the
+        // parser built for it, so unwrap a single-child container first.
+        let n = unwrap_single(node);
+        if n.kind == NodeKind::StmtAssign && n.children.len() >= 2 {
+            self.gen_expr(&n.children[0]);
+            self.write(&assign_op_text(&n.extra_op));
+            self.gen_expr(&n.children[1]);
+        } else {
+            self.gen_expr(n);
+        }
+    }
+
     fn gen_while_stmt(&mut self, node: &Node) {
+        // `while (cond) : (step) { body }` parses to THREE children -- the
+        // condition, the continue expression, and the body -- and this function
+        // read children[1] as the body and never looked at children[2]. So the
+        // step became the entire loop body and the real body was dropped:
+        //
+        //     while (i < corpus.len) : (i += 1) {
+        //         scores[i] = compute_similarity(...);
+        //     }
+        //
+        // emitted `while (i < corpus.len) { i += 1; }` -- a loop that advances
+        // a counter and computes nothing, in Zig that compiles clean.
+        //
+        // The body is the LAST child, which is the rule `gen_for_stmt` already
+        // uses for the same shape.
         self.write_indent();
         self.write("while (");
         if !node.children.is_empty() {
             self.gen_expr(&node.children[0]);
         }
-        self.write_line(") {");
+        self.write(")");
+        let body_idx = node.children.len().saturating_sub(1);
+        if body_idx > 1 {
+            self.write(" : (");
+            self.gen_expr_inline_stmt(&node.children[1]);
+            self.write(")");
+        }
+        self.write_line(" {");
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
+            for stmt in &node.children[body_idx].children {
                 self.gen_stmt(stmt);
             }
         }
@@ -16165,8 +16232,12 @@ impl VerilogCodegen {
             self.write_line(") begin");
             self.indent();
             if node.children.len() > 1 {
-                for stmt in &node.children[1].children {
+                for stmt in &node.children[node.children.len() - 1].children {
                     self.gen_verilog_stmt(stmt);
+                }
+                // W-27: body is the LAST child; a `while (c) : (step)` puts the step at [1].
+                if node.children.len() > 2 {
+                    self.gen_verilog_stmt(unwrap_single(&node.children[1]));
                 }
             }
             self.dedent();
@@ -16236,8 +16307,12 @@ impl VerilogCodegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
+            for stmt in &node.children[node.children.len() - 1].children {
                 self.gen_verilog_stmt(stmt);
+            }
+            // W-27: body is the LAST child; a `while (c) : (step)` puts the step at [1].
+            if node.children.len() > 2 {
+                self.gen_verilog_stmt(unwrap_single(&node.children[1]));
             }
         }
         self.dedent();
@@ -18833,6 +18908,13 @@ impl CCodegen {
     }
 
     fn gen_c_while_stmt(&mut self, node: &Node) {
+            // `while (cond) : (step) { body }` has THREE children: condition,
+            // continue expression, body. Reading children[1] as the body made
+            // the step the whole loop and dropped the real one. C has no
+            // continue expression, so the step is emitted as the LAST statement
+            // of the body -- correct for every site in the corpus, none of
+            // which contains a `continue`, and stated here because a `continue`
+            // would skip it.
         self.write_indent();
         self.write("while (");
         if !node.children.is_empty() {
@@ -18841,9 +18923,13 @@ impl CCodegen {
         self.write_line(") {");
 
         self.indent();
+        let body_idx = node.children.len().saturating_sub(1);
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
+            for stmt in &node.children[body_idx].children {
                 self.gen_c_stmt(stmt);
+            }
+            if body_idx > 1 {
+                self.gen_c_stmt(unwrap_single(&node.children[1]));
             }
         }
         self.dedent();
@@ -19563,6 +19649,40 @@ fn compound_binop(extra_op: &str) -> Option<&'static str> {
         "^=" => Some("^"),
         _ => None,
     }
+}
+
+/// A numeric lexeme split into its digits and its declared width.
+///
+/// `1u64` -> `("1", "u64")`. The suffix rides in the lexeme so that `value`
+/// stays exactly what every emitter already prints, and the declared width
+/// becomes available in `extra_type` for the one place that needs it.
+fn split_number_suffix(lexeme: &str) -> (String, String) {
+    const SUFFIXES: &[&str] = &[
+        "usize", "isize", "comptime_int", "u8", "u16", "u32", "u64", "i8", "i16", "i32",
+        "i64", "f16", "f32", "f64",
+    ];
+    for suf in SUFFIXES {
+        if let Some(head) = lexeme.strip_suffix(suf) {
+            if !head.is_empty() && head.starts_with(|c: char| c.is_ascii_digit()) {
+                return (head.to_string(), (*suf).to_string());
+            }
+        }
+    }
+    (lexeme.to_string(), String::new())
+}
+
+/// The statement inside whatever block node the parser wrapped it in.
+///
+/// A `while (c) : (step)` puts its continue expression at `children[1]`, but
+/// wrapped: emitting that node directly prints `/* unsupported expr: Module */`
+/// in C and Verilog alike. Descend through single-child containers until a real
+/// statement appears.
+fn unwrap_single(node: &Node) -> &Node {
+    let mut n = node;
+    while n.kind != NodeKind::StmtAssign && n.children.len() == 1 {
+        n = &n.children[0];
+    }
+    n
 }
 
 /// The assignment operator to emit for a statement, as source text.
@@ -22514,8 +22634,13 @@ impl RustCodegen {
                         self.write(" {\n");
                         self.indent += 1;
                         if child.children.len() > 1 {
-                            for stmt in &child.children[1].children {
+                            for stmt in &child.children[child.children.len() - 1].children {
                                 self.gen_rust_stmt(stmt);
+                            }
+                            // body is the LAST child; `while (c) : (step)` puts the step at [1],
+                            // and Rust has no continue expression, so it becomes the last statement.
+                            if child.children.len() > 2 {
+                                self.gen_rust_stmt(unwrap_single(&child.children[1]));
                             }
                         }
                         self.indent -= 1;
@@ -22683,8 +22808,13 @@ impl RustCodegen {
                 self.write(" {\n");
                 self.indent += 1;
                 if stmt.children.len() > 1 {
-                    for s in &stmt.children[1].children {
+                    for s in &stmt.children[stmt.children.len() - 1].children {
                         self.gen_rust_stmt(s);
+                    }
+                    // body is the LAST child; `while (c) : (step)` puts the step at [1],
+                    // and Rust has no continue expression, so it becomes the last statement.
+                    if stmt.children.len() > 2 {
+                        self.gen_rust_stmt(unwrap_single(&stmt.children[1]));
                     }
                 }
                 self.indent -= 1;
