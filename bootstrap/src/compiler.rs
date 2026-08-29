@@ -6133,7 +6133,23 @@ impl Codegen {
                 // An element may itself be a repeat: `[A{..}; N]` nested in a
                 // comma list. The list is raw text here, so the rewrite runs
                 // on it too.
-                self.write(&rewrite_array_repeats(&zig_path(raw)));
+                // ...and the two rewrites that belong with it. The comment above
+                // says this text never reaches the pipeline; that costs more
+                // than the repeat it was written about.
+                //
+                //   [["P", "/u"], ["H", "/h"]]
+                //     -> .{["P","/u"],["H","/h"]}     inner list untouched
+                //   [ DynkinPhysicsMapping{ dynkin_node = 1, ... }, ... ]
+                //     -> .{DynkinPhysicsMapping{dynkin_node=1,...},...}
+                //                                     no leading dots on fields
+                //
+                // The outer brackets become `.{}` HERE, by hand; everything
+                // inside them is written raw. rewrite_list_literals recurses
+                // into what it converts, so one call covers any depth.
+                // Ordered as rewrite_all orders them: lists, then struct fields.
+                self.write(&rewrite_struct_literal_fields(&rewrite_list_literals(
+                    &rewrite_array_repeats(&zig_path(raw)),
+                )));
             }
         } else {
             for (i, elem) in node.children.iter().enumerate() {
