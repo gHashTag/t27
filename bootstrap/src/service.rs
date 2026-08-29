@@ -780,6 +780,14 @@ pub fn run_path(_repo_root: &Path, spec: &str, to_bitstream: bool) -> anyhow::Re
 
 #[derive(Default, Clone)]
 struct SpecOutcome {
+    /// W699: how many top-level tokens the parser CONSUMED AND THREW AWAY.
+    ///
+    /// The acceptance columns below say "217 specs produce Zig that Zig takes".
+    /// They have never said "on how much of the spec" -- and 87 specs are
+    /// accepted while part of their text is discarded, the discarded part being
+    /// the bodies of invariants, which is to say the assertions. A reader who
+    /// sees the columns should see this beside them.
+    discarded: usize,
     zig_gen: bool,
     zig_build: bool,
     /// Does gen-rust produce something rustc accepts?
@@ -976,6 +984,13 @@ pub fn run_corpus(
             }
         }
 
+        // ---- what the parser threw away (W699) ----
+        if let Ok(src) = std::fs::read_to_string(p) {
+            if let Ok((_, d)) = crate::compiler::Compiler::parse_ast_accounted(&src) {
+                o.discarded = d;
+            }
+        }
+
         // ---- Zig ----
         if let Some((c, text)) = run_timed(Command::new(&me).args(["gen", &sp]), 15) {
             if text == "__TIMEOUT__" {
@@ -1064,18 +1079,19 @@ pub fn run_corpus(
             .map(|(rel, o)| {
                 let b = |x: bool| if x { '1' } else { '0' };
                 format!(
-                    "{}\t{}{}\t{}{}\t{}{}\t{}{}",
+                    "{}\t{}{}\t{}{}\t{}{}\t{}{}\t{}",
                     rel,
                     b(o.zig_gen), b(o.zig_build),
                     b(o.rust_gen), b(o.rust_build),
                     b(o.c_gen), b(o.c_build),
                     b(o.v_gen), b(o.v_build),
+                    o.discarded,
                 )
             })
             .collect();
         rows.sort();
         let body = format!(
-            "# spec\tzig(gen,build)\trust\tc\tverilog\n{}\n",
+            "# spec\tzig(gen,build)\trust\tc\tverilog\tdropped\n{}\n",
             rows.join("\n")
         );
         std::fs::write(path, body)
@@ -1128,6 +1144,20 @@ pub fn run_corpus(
     }
     println!("  {:<26} {:>5}  {:>6}", "Zig AND Verilog accept", both, format!("{:.1}%", pct(both)));
     println!("  {:<26} {:>5}  {:>6}", "ALL FOUR accept", all4, format!("{:.1}%", pct(all4)));
+
+    // W699: the columns above are all "how many specs", and none of them is
+    // "how much of a spec". A number that goes UP when a silent drop is fixed
+    // is measuring the drop; printing it here is what stops the columns from
+    // being read as coverage.
+    let disc: usize = out.iter().map(|(_, o)| o.discarded).sum();
+    let disc_specs = out.iter().filter(|(_, o)| o.discarded > 0).count();
+    println!();
+    println!(
+        "  {:<26} {:>5}  {:>6}",
+        "specs with tokens DROPPED", disc_specs, format!("{:.1}%", pct(disc_specs))
+    );
+    println!("  {:<26} {:>5}", "  ... tokens dropped", disc);
+    println!("  Accepted is not the same as accepted ON THE WHOLE SPEC.");
     if to > 0 {
         println!("  {:<26} {:>5}", "timed out (hang)", to);
     }
