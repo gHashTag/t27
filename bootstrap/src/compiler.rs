@@ -944,6 +944,14 @@ impl Lexer {
                         0u8
                     };
                     if !next.is_ascii_alphanumeric() && next != b'_' {
+                        // The suffix was consumed and DISCARDED, so `1u64` and
+                        // `1` reached the AST identically and the Zig shift
+                        // path re-invented a width from the literal's
+                        // magnitude: `(1u64 << mant_bits)` became
+                        // `(@as(u32, 1) << ...)`. Kept in the lexeme here and
+                        // split back off at the two ExprLiteral sites, so
+                        // `value` is unchanged and only `extra_type` is new.
+                        number.push_str(std::str::from_utf8(suffix).unwrap_or(""));
                         self.pos = end;
                         self.col += suffix.len();
                     }
@@ -4301,11 +4309,12 @@ impl Parser {
     fn parse_range_bound(&mut self) -> Result<Node, String> {
         match self.current.kind {
             TokenKind::Number => {
-                let val = self.current.lexeme.clone();
+                let (val, num_suffix) = split_number_suffix(&self.current.lexeme);
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
                     value: val,
+                    extra_type: num_suffix,
                     ..Default::default()
                 })
             }
@@ -5029,11 +5038,12 @@ impl Parser {
         match self.current.kind {
             // Number literal
             TokenKind::Number => {
-                let val = self.current.lexeme.clone();
+                let (val, num_suffix) = split_number_suffix(&self.current.lexeme);
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
                     value: val,
+                    extra_type: num_suffix,
                     ..Default::default()
                 })
             }
@@ -8101,6 +8111,26 @@ impl Codegen {
         }
         if init.extra_kind == "string" {
             return None;
+        }
+        // A DECLARED width beats an inferred one. `1u64 << mant_bits` was
+        // lowered as `@as(u32, 1) << ...` because the suffix was consumed by
+        // the lexer and never recorded, so the width was re-invented from the
+        // literal's magnitude: `1` fits in u32, therefore u32. Zig accepts the
+        // result -- the u32 coerces to the u64 return type -- and `mask(39)`
+        // panics with `integer does not fit in destination type` instead of
+        // returning 549755813887.
+        match init.extra_type.as_str() {
+            "u8" => return Some("u8"),
+            "u16" => return Some("u16"),
+            "u32" => return Some("u32"),
+            "u64" => return Some("u64"),
+            "usize" => return Some("usize"),
+            "i8" => return Some("i8"),
+            "i16" => return Some("i16"),
+            "i32" => return Some("i32"),
+            "i64" => return Some("i64"),
+            "isize" => return Some("isize"),
+            _ => {}
         }
         let v = init.value.as_str();
         if v == "true" || v == "false" {
@@ -19619,6 +19649,26 @@ fn compound_binop(extra_op: &str) -> Option<&'static str> {
         "^=" => Some("^"),
         _ => None,
     }
+}
+
+/// A numeric lexeme split into its digits and its declared width.
+///
+/// `1u64` -> `("1", "u64")`. The suffix rides in the lexeme so that `value`
+/// stays exactly what every emitter already prints, and the declared width
+/// becomes available in `extra_type` for the one place that needs it.
+fn split_number_suffix(lexeme: &str) -> (String, String) {
+    const SUFFIXES: &[&str] = &[
+        "usize", "isize", "comptime_int", "u8", "u16", "u32", "u64", "i8", "i16", "i32",
+        "i64", "f16", "f32", "f64",
+    ];
+    for suf in SUFFIXES {
+        if let Some(head) = lexeme.strip_suffix(suf) {
+            if !head.is_empty() && head.starts_with(|c: char| c.is_ascii_digit()) {
+                return (head.to_string(), (*suf).to_string());
+            }
+        }
+    }
+    (lexeme.to_string(), String::new())
 }
 
 /// The statement inside whatever block node the parser wrapped it in.
