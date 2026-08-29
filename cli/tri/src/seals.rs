@@ -28,6 +28,14 @@ use std::path::PathBuf;
 
 #[derive(Subcommand)]
 pub enum SealsCmd {
+    /// Is the built compiler newer than the source the seals are checked against?
+    ///
+    /// Answers the one question that made a red gate read as green: a seal check
+    /// compares against WHAT THE COMPILER PRODUCES, and a compiler older than
+    /// its own source produces the previous answer. Absence of a binary is
+    /// already handled everywhere; staleness is not, and it is indistinguishable
+    /// from health in every output.
+    Fresh,
     /// Specs that carry more than one seal, and which of those pairs disagree.
     Twins {
         /// Print every twinned spec, not only the ones that disagree.
@@ -149,6 +157,53 @@ fn graft(truth: &[String], dst_path: &std::path::Path) -> Result<()> {
 /// This is the whole point of the command: the truth is not "whichever seal was
 /// written last", it is what the compiler produces from that spec RIGHT NOW.
 /// Guessing between two disagreeing seals would settle #2767 by coin flip.
+/// Is the compiler binary OLDER than the source it was built from?
+///
+/// W719: `Seal Coverage` was red on master for seven runs while the same script
+/// run locally said `OK, 1222 hold, exit 0`. The script checks seals against the
+/// built compiler, and the one on disk was six hours old -- from before four
+/// emitter fixes landed -- so it produced the OLD output, which matched the OLD
+/// seals. `check_seal_coverage.py` handles a MISSING binary explicitly, in its
+/// own words: "a missing binary is NOT a passing check." A STALE one looks
+/// exactly like a healthy one.
+///
+/// Returns the age gap in seconds when the binary is older than any file under
+/// `bootstrap/src`.
+pub fn binary_is_stale(root: &std::path::Path, bin: &std::path::Path) -> Option<u64> {
+    let bin_t = std::fs::metadata(bin).ok()?.modified().ok()?;
+    let mut newest = bin_t;
+    let mut stack = vec![root.join("bootstrap/src")];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().and_then(|x| x.to_str()) == Some("rs") {
+                if let Ok(t) = std::fs::metadata(&p).and_then(|m| m.modified()) {
+                    if t > newest {
+                        newest = t;
+                    }
+                }
+            }
+        }
+    }
+    newest
+        .duration_since(bin_t)
+        .ok()
+        .map(|d| d.as_secs())
+        .filter(|s| *s > 0)
+}
+
+/// Seconds as something a person reads without counting zeros.
+fn human(sec: u64) -> String {
+    match sec {
+        0..=90 => format!("{sec}s"),
+        91..=5400 => format!("{}m", sec / 60),
+        _ => format!("{}h{:02}m", sec / 3600, (sec % 3600) / 60),
+    }
+}
+
 fn recompute(root: &PathBuf, spec: &str) -> Option<Vec<String>> {
     let t27c = ["target/release/t27c", "target/debug/t27c"]
         .iter()
@@ -246,6 +301,67 @@ pub fn run(cmd: &SealsCmd) -> Result<()> {
     }
     let all = match cmd {
         SealsCmd::SyncTwins { dry_run } => return sync_twins(&root, &dir, *dry_run),
+        SealsCmd::Fresh => {
+            // The SAME order `check_seal_coverage.py::_find_t27c` uses. Only the
+            // first one present is consulted, so only its age can change a
+            // verdict -- flagging a stale debug build beside a fresh release
+            // one is noise, and noise is how a check stops being read.
+            let cands = [
+                "target/release/t27c",
+                "bootstrap/target/release/t27c",
+                "target/debug/t27c",
+            ];
+            let mut any = false;
+            let mut stale = false;
+            let mut chosen = false;
+            for c in cands {
+                let bin = root.join(c);
+                if !bin.is_file() {
+                    println!("  {c:<30} absent");
+                    continue;
+                }
+                any = true;
+                let gap = binary_is_stale(&root, &bin);
+                let mark = if chosen { "        " } else { "  <- used" };
+                match gap {
+                    None => println!("  {c:<30} FRESH{mark}"),
+                    Some(g) => {
+                        if !chosen {
+                            stale = true;
+                        }
+                        println!("  {c:<30} STALE by {}{mark}", human(g));
+                    }
+                }
+                chosen = true;
+            }
+            println!();
+            if !any {
+                anyhow::bail!(
+                    "no compiler binary. A seal check needs one, and its absence is \
+                     already refused by check_seal_coverage.py -- this reports it \
+                     here so the two agree."
+                );
+            }
+            if stale {
+                println!("  The binary a seal check would USE is older than its own source.");
+                println!("  A seal check compares against WHAT THE COMPILER PRODUCES. Built");
+                println!("  from older source it produces the previous answer, which matches");
+                println!("  the previous seals -- so the check passes and the gate that runs");
+                println!("  the same script in CI fails. Measured once: locally OK with 1222");
+                println!("  seals holding, and 134 gen-drift after `cargo build --release`.");
+                println!();
+                println!("  cargo build --release -p t27c");
+                std::process::exit(1);
+            }
+            // Say what was checked. "Every binary is fresh" is false whenever a
+            // stale one sits beside the used one, and a summary line that
+            // overclaims is the defect this command exists to catch, one level
+            // up.
+            println!("  The binary a seal check would use is newer than bootstrap/src, so a");
+            println!("  reading taken now is a reading of THIS source. Any other binary");
+            println!("  listed above is not consulted and its age decides nothing.");
+            return Ok(());
+        }
         SealsCmd::Twins { all } => all,
     };
     let by = collect(&dir)?;
@@ -307,6 +423,44 @@ mod tests {
     /// just the one the first bug happened to move. `testgen`'s twin differed in
     /// zig and c while rust and verilog matched byte for byte -- a comparison on
     /// a single hash would have called that pair identical.
+    /// W719: a compiler older than its own source produces the PREVIOUS
+    /// answer, which matches the PREVIOUS seals -- so the check passes while
+    /// the same script in CI fails. Measured once: locally `OK, 1222 hold,
+    /// exit 0`, and 134 gen-drift after `cargo build --release`.
+    #[test]
+    fn a_binary_older_than_its_source_is_stale() {
+        let d = std::env::temp_dir().join(format!("w719-{}", std::process::id()));
+        let src = d.join("bootstrap/src");
+        std::fs::create_dir_all(&src).unwrap();
+
+        // Built first, source touched after: stale.
+        let bin = d.join("t27c");
+        std::fs::write(&bin, b"x").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        std::fs::write(src.join("compiler.rs"), b"fn main() {}").unwrap();
+        assert!(
+            binary_is_stale(&d, &bin).is_some(),
+            "source newer than the binary must read as stale"
+        );
+
+        // Rebuilt: fresh.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        std::fs::write(&bin, b"y").unwrap();
+        assert!(
+            binary_is_stale(&d, &bin).is_none(),
+            "a binary newer than every source file is fresh"
+        );
+
+        // A non-.rs file changing does not make the compiler stale.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        std::fs::write(src.join("notes.txt"), b"hello").unwrap();
+        assert!(
+            binary_is_stale(&d, &bin).is_none(),
+            "only .rs sources decide"
+        );
+        std::fs::remove_dir_all(&d).ok();
+    }
+
     #[test]
     fn a_difference_in_one_field_is_a_disagreement() {
         for i in 0..CLAIMS.len() {

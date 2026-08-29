@@ -7614,3 +7614,62 @@ remembering the tool.**
 `sync-twins` refused 31 specs whose newest seal records `gen_hash=none`:
 propagating that would write a breakage into a second place. Refusals are the
 part of a repair tool worth checking first.
+
+## 264. One of six emitter changes re-sealed, and the sixth was mine
+
+Re-sealing 134 drifted seals took the gate green. Twenty minutes later another
+`gen-c` fix landed and it was red again with **197**.
+
+The treadmill, measured:
+
+    compiler changes in twelve hours            6
+    of those that touched .trinity/seals/       1   -- mine
+    mentions of re-sealing in CONTRIBUTING,
+      docs/, or the PR template                 0
+
+So the repair is not the fix. Every emitter change drifts seals, re-sealing is a
+separate manual step nobody knows about, and the gate is therefore permanently
+red between someone noticing and someone caring.
+
+`tri seals fresh` is the smallest thing that helps: it answers the question that
+made a red gate read as green, and it prints the one command that fixes it. It
+does not re-seal — deciding that new output is the output you want is §262's
+job, and it needs the acceptance control.
+
+**When a repair is obsoleted before it lands, stop repairing and describe the
+loop.** The number worth publishing was `1 of 6`, not `134 → 0`.
+
+## 265. The one binary the checker would actually use
+
+The first version of `tri seals fresh` flagged a stale `target/debug/t27c`
+sitting beside a fresh `target/release/t27c` — and `check_seal_coverage.py`
+consults only the **first** path present, which is release.
+
+So it reported a defect that could not change any verdict. One noisy row in a
+three-row output is a high enough rate to teach a reader to skip it.
+
+Fixed by walking the *same list in the same order* the checker walks, marking
+which one is consulted, and letting only that one decide the exit code. The
+others still print — their age is information, just not a verdict.
+
+**A checker about another checker must model its subject exactly**, including
+the order in which it gives up. Anything else is a check about a program that
+does not exist.
+
+## 266. Third summary line this session that overclaimed
+
+    Every binary present is newer than bootstrap/src.
+
+False whenever a stale one sits beside the used one — which is the ordinary
+case, since nobody rebuilds debug and release together. Rewritten to:
+
+    The binary a seal check would use is newer than bootstrap/src, so a
+    reading taken now is a reading of THIS source. Any other binary
+    listed above is not consulted and its age decides nothing.
+
+The first version was written in the same hour as §261, which is *about*
+summary lines that name a verdict the check did not earn. Knowing the rule and
+applying it to your own last three lines are different skills.
+
+Third this session, after `Numbering holds in 5 file(s)` and
+`Typecheck FAILED` with exit 0.
