@@ -6347,3 +6347,151 @@ read by exactly the person who does not yet know the answer, which is the worst
 audience for a stale number.
 
 Grep your own help strings for digits whenever the thing they describe grows.
+
+## 202. Three spellings of a declaration, then three of a field
+
+The type scanner learned that a type is declared three ways — `struct X {`,
+`pub struct X {`, `const X = struct {`. One iteration later, an agent checking
+*coverage* found that a FIELD is also written two ways, and the second was being
+thrown away:
+
+    pub struct HealthStatus {
+        pub is_healthy: bool,      <- name reads as "pub is_healthy", rejected
+        ...
+    }
+
+Five fields dropped, and the struct then read as empty. **An empty field list
+compares equal to any other empty field list**, so a five-field type and an
+unrelated placeholder of the same name were reported as *the same fields written
+twice*.
+
+The lesson repeats one level down and is worth stating both times: **when a
+scanner recognises a construct, enumerate the ways that construct is spelled —
+and then do it again for the constructs nested inside it.**
+
+## 203. The riskiest sample, not the easiest
+
+The coverage verifier's set comparison came back exact — nothing missing, nothing
+spurious. It could have stopped there and reported `sound: true`.
+
+Instead it hand-verified nine conflicts, *chosen as the riskiest rather than the
+easiest*: the five whose conflict rests on a side the reader could not parse, and
+the two same-file pairs. `HealthStatus` came out of exactly that choice — a name
+in the wrong bucket, invisible to a set comparison because the set was right and
+the *classification* was wrong.
+
+**A verifier that samples the easy cases confirms the tool's happy path.** Ask
+for the rows where the tool had least to work with.
+
+## 204. A ratchet one day old, catching a real change
+
+`tri types ratchet` was written in one iteration and fired in the next, on a real
+fix with nothing planted:
+
+    ledger 79 name(s), observed 80
+      + HealthStatus  NEW conflict
+
+Identity-keyed, so it would also have caught a swap at a constant count — one
+name resolved while another appears, which is the case a count cannot see and
+which was tested on purpose before the real one arrived.
+
+**Write the ratchet before the work it will police, not after.** The one that
+already exists is the one that reports the change you did not predict.
+
+## 205. A verdict the tool did not earn
+
+`tri types dup` calls a name CONFLICTED when its two definitions have different
+field lists. Four names — `Agent`, `AgentStatus`, `Color`, `HealthStatus` — are
+reported CONFLICTED because one side is written `variants : ,` (the corpus's
+enum idiom) and the reader parses **zero** fields from it. Empty list versus
+full list, therefore "they disagree."
+
+Three of the four really are distinct types, so the verdict is right. It is
+still not a measurement: the instrument was comparing nothing against
+something, and it happened to land on the answer.
+
+**A right answer produced by a broken instrument is an anecdote, not a result.**
+When you find one, record the coincidence next to the verdict — otherwise the
+next reader takes the tool's agreement as corroboration, and it is not.
+
+## 206. `|---|---|` inside a regex is four alternations
+
+Rebuilding a markdown table with `re.sub`, I wrote the separator row into the
+pattern literally:
+
+    re.sub(r"(## DRIFT.*?\|---\|---\|---\|---\|\n)(?:\|.*\n)+", ...)
+
+The pipes are escaped there. In the version I actually ran they were not, so
+the pattern read as `## DRIFT.*?---` OR `---` OR `---` OR `---` OR `\n...`, and
+the substitution deleted from the DRIFT heading to the end of the document —
+three sections and a 34-row table, silently, with a success exit.
+
+Caught only because a `grep -c "^| \`"` afterwards said 46 where it should have
+said 80.
+
+**Never regex a document you can regenerate.** The table came from JSON; the
+fix was to rewrite the whole file from the data in one pass, which is both
+shorter and has no partial-failure mode. Reach for a surgical edit when the
+source of truth is the file itself — not when the file is already a rendering
+of something else.
+
+## 207. A classification is a reading, and readings go stale
+
+Eighty conflicted type names, each opened and judged DRIFT or DISTINCT with the
+evidence written down. That document is worth exactly as much as its agreement
+with the tree, and nothing about it fails when the tree moves.
+
+So the cross-check is a gate, and both directions are red:
+
+    classified but no longer conflicting  -> STALE     (a repair landed)
+    conflicting but not classified        -> UNJUDGED  (nobody has read it)
+
+Only UNJUDGED feels like a failure. Passing over STALE is how a document turns
+into decoration — it keeps describing work that is already done, and the reader
+who trusts it acts on a tree that no longer exists.
+
+The command found `HealthStatus` on its **first execution**: the eightieth
+conflict, created hours earlier by teaching the field reader that `pub name: T`
+is a field, in a run the classification predated.
+
+**Any document that states a measurement needs a gate that re-takes it.**
+
+## 208. 561 duplicate definitions, of which zero
+
+Looking for other files with the defect found in `adamw.t27`, a scanner counted
+top-level definitions per file and reported the worst offender:
+
+    57 names (561 extra definitions)  specs/numeric/gf16.t27
+
+Anchoring the pattern to exactly four spaces — module scope — barely moved it:
+51 names, 539 extras. Two runs agreeing felt like corroboration.
+
+They were the same ruler twice. `gf16.t27` has 110 Zig test blocks, and each
+one opens
+
+    test "gf16_max_returns_greater" {
+        const a = gf16_encode_f32(2.0);
+
+`const a` at four spaces, inside a test body. The scanner had found local
+variables and called them duplicate definitions. The real count for that file
+is **zero**.
+
+What settled it was a signal that does not pass through the name scanner at
+all: the section banners. `adamw.t27` has `// 1. Constants` / `// 2. Types` /
+`// 3. Core Functions` **twice**, at 11/25/54 and again at 414/470/509.
+`gf16.t27` has no banners at all. Across `specs/`, exactly one other file
+repeats a banner and it has no duplicated names — a second module in one file,
+not a copy.
+
+One file survived. Ninety were an artifact.
+
+**Tightening a pattern is not a second opinion.** Both runs shared the
+assumption that a `const` at module indentation is a module-scope declaration,
+and that assumption was the bug — so the stricter run inherited it intact. A
+second account has to reach the quantity by a different route, or it is the
+first account wearing a different regex.
+
+Third time this session: the `for all` census matched prose in comments, the
+type reader dropped every `pub` field, and now this. All three produced a
+confident number, and all three were caught by an unrelated signal rather than
+by re-reading the scanner.

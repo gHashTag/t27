@@ -22,6 +22,7 @@
     "FFNConfig",
     "FileInfo",
     "Graph",
+    "HealthStatus",
     "HttpRequest",
     "HttpResponse",
     "HttpStatus",
