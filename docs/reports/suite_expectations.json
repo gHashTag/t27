@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_entries": 177,
+  "max_entries": 168,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -87,27 +87,13 @@
       }
     },
     {
-      "path": "specs/base/ternary_encoding.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 472,
-      "discard_by_channel": {
-        "bdd-block-fallback": 185,
-        "brace-body/in-fallback": 287
-      }
-    },
-    {
       "path": "specs/base/ternary_memory.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 314,
+      "discard_tokens": 52,
       "discard_by_channel": {
-        "bdd-block-fallback": 147,
-        "brace-body/in-fallback": 115,
         "top-level-resync": 52
       }
     },
@@ -248,18 +234,6 @@
       "reason": "Expected LBrace, got LParen ('(')",
       "issue": 1959,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/mac.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 37,
-      "discard_by_channel": {
-        "bdd-block-fallback": 14,
-        "brace-body/in-fallback": 23
-      }
     },
     {
       "path": "specs/fpga/power_analysis.t27",
@@ -855,34 +829,10 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 148,
+      "discard_tokens": 39,
       "discard_by_channel": {
-        "bdd-block-fallback": 48,
-        "brace-body/in-fallback": 100
-      }
-    },
-    {
-      "path": "specs/isa/ternary_arithmetic.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 807,
-      "discard_by_channel": {
-        "bdd-block-fallback": 230,
-        "brace-body/in-fallback": 577
-      }
-    },
-    {
-      "path": "specs/isa/ternary_bitwise.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 674,
-      "discard_by_channel": {
-        "bdd-block-fallback": 479,
-        "brace-body/in-fallback": 195
+        "bdd-block-fallback": 18,
+        "brace-body/in-fallback": 21
       }
     },
     {
@@ -894,18 +844,6 @@
       "discard_tokens": 30,
       "discard_by_channel": {
         "bdd-block-fallback": 30
-      }
-    },
-    {
-      "path": "specs/isa/ternary_deque.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 749,
-      "discard_by_channel": {
-        "bdd-block-fallback": 465,
-        "brace-body/in-fallback": 284
       }
     },
     {
@@ -921,10 +859,10 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 737,
+      "discard_tokens": 28,
       "discard_by_channel": {
-        "bdd-block-fallback": 228,
-        "brace-body/in-fallback": 509
+        "bdd-block-fallback": 21,
+        "brace-body/in-fallback": 7
       }
     },
     {
@@ -945,11 +883,9 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 552,
+      "discard_tokens": 66,
       "discard_by_channel": {
-        "bdd-block-fallback": 248,
         "brace-body": 18,
-        "brace-body/in-fallback": 238,
         "top-level-resync": 48
       }
     },
@@ -1012,18 +948,6 @@
       "discard_by_channel": {
         "brace-body": 20,
         "top-level-resync": 53
-      }
-    },
-    {
-      "path": "specs/math/property_test_template.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 238,
-      "discard_by_channel": {
-        "bdd-block-fallback": 121,
-        "brace-body/in-fallback": 117
       }
     },
     {
@@ -1242,18 +1166,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/numeric/lucas_accumulator.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 63,
-      "discard_by_channel": {
-        "bdd-block-fallback": 18,
-        "brace-body/in-fallback": 45
-      }
-    },
-    {
       "path": "specs/numeric/phi_ratio.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
@@ -1263,18 +1175,6 @@
       "discard_by_channel": {
         "bdd-block-fallback": 62,
         "top-level-resync": 83
-      }
-    },
-    {
-      "path": "specs/numeric/posit_ladder_control.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 148,
-      "discard_by_channel": {
-        "bdd-block-fallback": 91,
-        "brace-body/in-fallback": 57
       }
     },
     {
@@ -1367,11 +1267,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 706,
+      "discard_tokens": 560,
       "discard_by_channel": {
-        "bdd-block-fallback": 80,
         "brace-body": 7,
-        "brace-body/in-fallback": 66,
         "top-level-resync": 553
       }
     },
@@ -1671,18 +1569,6 @@
       "reason": "Expected LBrace, got Semicolon (';')",
       "issue": 1959,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/vsa/similarity_search.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 415,
-      "discard_by_channel": {
-        "bdd-block-fallback": 220,
-        "brace-body/in-fallback": 195
-      }
     }
   ]
 }

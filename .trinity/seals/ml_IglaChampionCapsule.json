@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:fd8e7f6836d2d03ab21688650bb6d3e59fe16374f7b00164434433f1cbb4474d",
+  "gen_hash_c": "sha256:39abf0126894657e2d7fd152ba1b630e9fbc667a14cf5cae80eb77bb4817a227",
   "gen_hash_rust": "sha256:ca816f499f279e76b1cd75d2cfebdef0d1ab854b70dc5a5bf3632ab5f9101dba",
   "gen_hash_verilog": "sha256:27fc9aa5467a2edec7e0dc47f92fd47bc3aa88a3b83ed3821516b9f238a865d8",
   "gen_hash_zig": "sha256:4ed2c4a147a08c78e1fb841bed398566ad2cb2f1eb5bff38c7840cd521fac330",
   "module": "IglaChampionCapsule",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T04:11:29Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d8ca3cf6feb27648ea781750913aaef0f7c8288be4a6b1d3f8ed1e514db17fa4",
   "spec_path": "specs/ml/igla_champion_capsule.t27"
 }

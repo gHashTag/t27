@@ -1104,6 +1104,17 @@ pub struct Parser {
     /// tokens a WHOLE-BLOCK fallback discards are distinguishable from an
     /// ordinary top-level resync. Both call the same function.
     in_bdd_fallback: bool,
+    /// W699 rung 9: WHY the last whole-block fallback fired, and on WHICH clause.
+    ///
+    /// The channel says a braceless block gave up -- 93% of everything the
+    /// parser discards. It does not say which of the eight `restore_bdd_fallback`
+    /// call sites fired, and those are eight different defects sharing one name.
+    /// Set immediately before each call; read inside it.
+    bdd_fail_why: &'static str,
+    bdd_fail_clause: String,
+    /// One record per whole-block fallback: `(line, why, clause)`. Far smaller
+    /// than the token log -- 1 484 events against 30 408 tokens -- so no cap.
+    bdd_fallbacks: Vec<(u32, &'static str, String)>,
 }
 
 #[derive(Clone)]
@@ -1168,6 +1179,9 @@ impl Parser {
             dropped_spans: Vec::new(),
             dropped_channels: Vec::new(),
             in_bdd_fallback: false,
+            bdd_fail_why: "unset",
+            bdd_fail_clause: String::new(),
+            bdd_fallbacks: Vec::new(),
         }
     }
 
@@ -5967,6 +5981,39 @@ impl Parser {
                 self.restore_state(st_entry);
                 break;
             }
+            // W699 rung 9: a STATEMENT at clause position.
+            //
+            //     test t1
+            //         var n : usize = 0;
+            //         for (i in 0..3) { n = n + 1; }   <- block gives up here
+            //         assert n == 3                    <- and this goes with it
+            //
+            // `for` and `while` are keywords, so they are neither a clause head
+            // nor a block boundary, and the loop fell through to the whole-block
+            // fallback. Measured before the fix: 110 fallback events across ~25
+            // specs, the largest non-`forall` shape in the distribution.
+            //
+            // Rung 2 accepted these after a `then`; this accepts them where a
+            // clause head is expected. Same guards as the const/var and bare-call
+            // arms: only once the block's column is known, only at or deeper than
+            // it, never at column 1.
+            if matches!(
+                self.current.kind,
+                TokenKind::KwFor | TokenKind::KwWhile | TokenKind::KwIf
+            ) && adjacent
+                && first_clause_col.is_some_and(|c| c > 1 && self.current.col >= c)
+            {
+                let st_stmt = self.save_state();
+                match self.parse_body_stmt() {
+                    Ok(stmt) => {
+                        block.children.push(stmt);
+                        lowered += 1;
+                        self.last_line = self.current.line;
+                        continue;
+                    }
+                    Err(_) => self.restore_state(st_stmt),
+                }
+            }
             // W699 rung 4: a bare CALL statement in a braceless body.
             //
             //     test deque_init_empty
@@ -6008,6 +6055,7 @@ impl Parser {
                 if Self::is_block_boundary(self.current.kind) {
                     break;
                 }
+                self.bdd_fail_why = "stopped mid-clause";
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
             }
@@ -6116,6 +6164,11 @@ impl Parser {
                     self.skip_to_next_top_level();
                     return;
                 }
+                // NOT "not an identifier": the comment above says it plainly, this
+                // arm is reached for an identifier that is not a CLAUSE. The
+                // first name I gave it was wrong and the table read as though
+                // `forall` lexed as something other than an Ident.
+                self.bdd_fail_why = "unmodelled clause head";
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
             }
@@ -6458,6 +6511,8 @@ impl Parser {
             // recovery below cannot help because the damage crosses clauses --
             // keep the whole-block fallback for exactly this case.
             if self.current.kind == TokenKind::Equals {
+                self.bdd_fail_why = "clause value over-consumed";
+                self.bdd_fail_clause = clause.clone();
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
             }
@@ -6471,6 +6526,8 @@ impl Parser {
                 // collateral win survives because the and-fix makes most blocks
                 // lower COMPLETELY, never reaching this arm.
                 let _ = clause_entry;
+                self.bdd_fail_why = "clause not lowerable";
+                self.bdd_fail_clause = clause.clone();
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
             }
@@ -6501,6 +6558,7 @@ impl Parser {
         }
 
         if lowered == 0 {
+            self.bdd_fail_why = "nothing lowered";
             self.restore_bdd_fallback(block, start_children, entry);
         }
     }
@@ -6607,6 +6665,20 @@ impl Parser {
                 self.current.line, self.current.kind, self.current.lexeme
             );
         }
+        // W699 rung 9: record BEFORE the restore, while `current` is still the
+        // token the block gave up on. After `restore_state` it is the block's
+        // first token again, which is the same for every failure and says
+        // nothing.
+        self.bdd_fallbacks.push((
+            self.current.line as u32,
+            self.bdd_fail_why,
+            if self.bdd_fail_clause.is_empty() {
+                self.current.lexeme.clone()
+            } else {
+                std::mem::take(&mut self.bdd_fail_clause)
+            },
+        ));
+        self.bdd_fail_why = "unset";
         block.children.truncate(start_children);
         self.restore_state(entry);
         // W699: nested fallbacks are possible, so save and restore rather than
@@ -6663,6 +6735,10 @@ impl Parser {
         self.advance(); // consume ':'
 
         if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
+            // The quantified-invariant arm: recognised by name, discarded on
+            // purpose. What `forall` MEANS at codegen is #2774's decision.
+            self.bdd_fail_why = "quantified invariant (forall)";
+            self.bdd_fail_clause = "forall".to_string();
             self.restore_bdd_fallback(block, start_children, entry);
             return;
         }
@@ -6677,6 +6753,7 @@ impl Parser {
                 block.children.push(stmt);
             }
             Err(_) => {
+                self.bdd_fail_why = "inline predicate does not parse";
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
             }
@@ -6726,6 +6803,7 @@ impl Parser {
                 self.restore_state(entry);
                 self.skip_to_next_top_level();
             } else {
+                self.bdd_fail_why = "bench head not lowerable";
                 self.restore_bdd_fallback(block, start_children, entry);
             }
         }
@@ -17907,6 +17985,38 @@ impl CCodegen {
 
     fn gen_c_invariant(&mut self, node: &Node) {
         self.write_line(&format!("/* invariant: {} */", node.name));
+        // W699 rung 9: an invariant BODY, not a single predicate.
+        //
+        // This function emits at MODULE SCOPE, which is right for the
+        // `_Static_assert` it is built around and invalid for anything else. It
+        // never mattered while braceless bodies were being discarded; once they
+        // lower, C got
+        //
+        //     int32_t vals[3] = {...};        <- redefined by the next invariant
+        //     while ((i < 3)) { ... }         <- "while loop outside of a function"
+        //
+        // A body with any statement that is not a bare expression goes in a
+        // function, the way `gen_c_test` already does. The `_Static_assert` path
+        // below is untouched: it still serves the single-predicate spelling,
+        // which is what it was written for.
+        let has_statements = node
+            .children
+            .iter()
+            .any(|c| c.kind != NodeKind::StmtExpr);
+        if has_statements {
+            let fn_name = format!(
+                "invariant_{}",
+                node.name.replace(|c: char| !c.is_alphanumeric(), "_")
+            );
+            self.write_line(&format!("void {}(void) {{", fn_name));
+            self.indent();
+            for stmt in &node.children {
+                self.gen_c_stmt(stmt);
+            }
+            self.dedent();
+            self.write_line("}");
+            return;
+        }
         if node.children.is_empty() {
             self.write_line(&format!(
                 "/* _Static_assert(1, \"invariant: {}\"); */",
@@ -18570,9 +18680,21 @@ impl CCodegen {
                     self.write(")");
                 } else if fname == "@as" {
                     // Zig @as(Type, value) → (Type)(value) in C
+                    //
+                    // W699 rung 9: the type argument was emitted as an
+                    // EXPRESSION, so `@as(usize, x)` became `(usize)(x)` --
+                    // "use of undeclared identifier 'usize'". Every other site
+                    // in this backend maps a t27 type name through `type_to_c`;
+                    // this one printed the identifier it found. Invisible until
+                    // the bodies containing these casts stopped being discarded.
                     if node.children.len() >= 2 {
                         self.write("(");
-                        self.gen_c_expr(&node.children[0]);
+                        let ty = &node.children[0];
+                        if ty.kind == NodeKind::ExprIdentifier && !ty.name.is_empty() {
+                            self.write(Self::type_to_c(&ty.name));
+                        } else {
+                            self.gen_c_expr(ty);
+                        }
                         self.write(")(");
                         self.gen_c_expr(&node.children[1]);
                         self.write(")");
@@ -19410,6 +19532,19 @@ impl Compiler {
         let mut parser = Parser::new(lexer);
         let ast = parser.parse()?;
         Ok((ast, parser.dropped_top_level_tokens()))
+    }
+
+    /// W699 rung 9: one record per whole-block fallback, `(line, why, clause)`.
+    ///
+    /// `bdd-block-fallback` is 93% of everything this parser discards and it is
+    /// EIGHT different defects sharing one name. This is the distribution.
+    pub fn parse_ast_bdd_fallbacks(
+        source: &str,
+    ) -> Result<Vec<(u32, &'static str, String)>, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let _ = parser.parse()?;
+        Ok(parser.bdd_fallbacks.clone())
     }
 
     /// W699: the discarded tokens with the recovery that threw each away, as

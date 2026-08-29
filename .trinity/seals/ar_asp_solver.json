@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:5c4cbb9215b565ca26db562911f57ed4cd562915b2f5c15f35ae91f4a9bbff60",
+  "gen_hash_c": "sha256:c498739580b703b8dfef52ab5a8ce2db7828774981a8798023f0c607c387dcbf",
   "gen_hash_rust": "sha256:7bba76b554afc09711246c097476d1d68a64b37baa480269f558a9301ce1a5ae",
   "gen_hash_verilog": "sha256:4a3aac88230f26e414bd206d0168d8063b891db31ae52d7ed63c02186a0d6944",
   "gen_hash_zig": "sha256:78ef736ad5e3b4d39fc1ff3bcfe0accebcbc0fd090b10fb4941e32e6f6c3cb25",
   "module": "asp_solver",
   "ring": 12,
-  "sealed_at": "2026-08-28T23:38:41Z",
+  "sealed_at": "2026-08-29T04:11:27Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:eca06ff812c61e2693f706b7389c71dcd769c30dfbb2cfb958e0416a5118b404",
   "spec_path": "specs/ar/asp_solver.t27"

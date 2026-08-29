@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:b621e5830e98a37daab8f6db60dc41b6b6711628cf8fcea3b00aa0515fc731df",
+  "gen_hash_c": "sha256:e973509e5f6ae959ba8ba914c697dba376edd06154f8fb9d70aa673984b62e30",
   "gen_hash_rust": "sha256:fe728dbfaaa76d50071137d5d096c25f58df4f1c3c94501b5e17d878266a32a8",
   "gen_hash_verilog": "sha256:bcc9deac93a4d131eed9630382f190a2413a8075b25dbba01cb24ee737a50649",
   "gen_hash_zig": "sha256:8578eff368288fba1e295ff7fd415f3bc2c39a0bbbb8d187adbbcbf58460442f",
   "module": "DFT",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T04:11:27Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:52bfcb88b32809c2a79b368329ea005cbc3863734ec277278c15459c967acc4e",
   "spec_path": "specs/fpga/dft.t27"
 }

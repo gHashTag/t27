@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:bf090ad7a90b647fe46e68e31b1cbb2a01b331f9935be2d02202d52a9e9a4956",
+  "gen_hash_c": "sha256:021ca84920c2ff38fdc612a17cf902070710f781126440d892d4d1a96a3c8f3e",
   "gen_hash_rust": "sha256:3f838704dfbfa4979011d0c69b9936c3a334b2f10aed8556d4dab0959fcc195d",
   "gen_hash_verilog": "sha256:88347bba13ad6ab6a43799be36c7f65f871f6755cd74a7234ad36486b9dcc5d5",
   "gen_hash_zig": "sha256:9c86778d51fdf3b913ea144d2c4db86be9846a7bd87175ca6301b1defb66e698",
   "module": "TriToT27Converter",
   "ring": 12,
-  "sealed_at": "2026-08-28T23:38:44Z",
+  "sealed_at": "2026-08-29T04:11:28Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7abd3f624fa0938c88e2ca78016af141b213aa31840f7aab968b34ac534a91f0",
   "spec_path": "specs/tools/tri_to_t27_converter.t27"

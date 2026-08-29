@@ -5867,3 +5867,49 @@ that contradicts *itself* before it uses that ledger to judge a run.
 
 **Redundancy you can check beats redundancy you remove**, as long as the check is
 mechanical and fires before the data is trusted.
+
+## 170. Name the arm, not the guess — a wrong diagnostic name is a wrong finding
+
+I labelled a fallback call site `"clause head not an identifier"`. The comment
+directly above it says the opposite:
+
+    // An identifier that is not a clause means this body has a shape
+    // we do not model.
+
+So the table read `269 events / clause "forall" / not an identifier`, which made
+`forall` look like it lexed as something other than an `Ident` — a false fact I
+would have carried into the next design. Renamed to `"unmodelled clause head"`.
+
+**When you add a diagnostic label, read the code it labels, not the branch
+condition you remember.** A census is only as true as its category names, and a
+mislabelled bucket is worse than no bucket: it invents an explanation.
+
+## 171. The distribution, not the total, is what says where to work
+
+`bdd-block-fallback` was 93% of the discard — one bucket, no direction. Recording
+*which* of eight call sites fired split it in one pass:
+
+    594  quantified invariant (forall)      a language decision, #2774
+    269  unmodelled clause head / forall    the same construct, second spelling
+    110  stopped mid-clause / for, while    ACTIONABLE, and nothing else was
+
+The third row is 11% of the events and it was the whole of this iteration's
+work: −5 315 tokens, −9 specs. The other 83% is one owner decision.
+
+**A dominant category is not a plan. Split it until one row is something you can
+act on alone.**
+
+## 172. Recovering assertions eventually finds one that fails
+
+Every earlier rung recovered content that either compiled or exposed a backend
+defect. This one recovered `assert trits_to_bits(bits_to_trits(i)) == i`, Zig
+evaluated it at comptime, and it **failed** (#2778).
+
+That is the point of the whole line, arriving nine rungs in: the spec asserted
+something untrue, every backend reported the file as fine, and the parser was
+the reason. Zig acceptance fell 217 → 214 on the same commit — three specs whose
+assertions now actually run.
+
+**Do not read that column falling as damage without opening each spec.** One was
+a real false property, two were shape complaints, and five other specs went the
+other way once the backend defects they exposed were fixed (cc 158 → 163).

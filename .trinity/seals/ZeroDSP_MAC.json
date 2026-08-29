@@ -1,8 +1,8 @@
 {
-  "gen_hash_c": "sha256:5e3646fec7e1f7c38985ab712abc57fa8d6d6f59478a98431055f7a45ccb3521",
+  "gen_hash_c": "sha256:1393b0b343252bb998521f2b0b731f5e019c67df4203854404be2788a6f7e9ef",
   "gen_hash_rust": "sha256:e1c6d69917d8a06c0e2d9ec41bc667588aa7b0677caa7aee6128a894a171970d",
   "gen_hash_verilog": "sha256:1ddfc27a4ffbe035c37bb460f4232580acddd604abc55cbb99a36db69ba5b067",
-  "gen_hash_zig": "sha256:5648960a35897e304b68019403dc8a3fd9592ca036f2b8f38061142f87147593",
+  "gen_hash_zig": "sha256:d50bdee09e11eaee33506433d7832ba9a96c6242b70094e1827406deee54db60",
   "module": "ZeroDSP_MAC",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

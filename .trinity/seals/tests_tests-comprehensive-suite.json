@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:c3f164b81e107b673e25f8c4dfb9da0ca62e02ae33d35c69f2b729757073c956",
+  "gen_hash_c": "sha256:46ca665bcc60e2d67c36727753bc429b762e3ebb0b3e3b24ce73ded35aac06ba",
   "gen_hash_rust": "sha256:87fbcc0906e80f2f019b87c24de79e4fa38365feb39e18a0927766d321c2c566",
   "gen_hash_verilog": "sha256:1c4df7fe3a92800d2fd8d30b1077b2561500aa28bc3d743793b5e90c3ac1222c",
   "gen_hash_zig": "sha256:6e0ea8aea2aa7a3f71c14340f1093d41a3fe041ecba6b3ab371b246524074602",
   "module": "tests-comprehensive-suite",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-08-29T04:11:29Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:364119169fe8fa59b9f2ddc0edbcfd00bff4dc1e37af6b7626f40f093360f490",
   "spec_path": "tests/comprehensive_suite.t27"
 }

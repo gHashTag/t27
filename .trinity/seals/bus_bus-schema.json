@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c8de3a586012f143f1281d2698348e6ed6445ace174c98d6bd019335bb48ad71",
+  "gen_hash_c": "sha256:fa76eb681477f615d6eb3193f970893cb3cad1aa96b89e94deeee2f0a0e1f8cd",
   "gen_hash_rust": "sha256:e91e263fb34069ff37b2a68586e3632814c3fdac8f672b1f8aab3a1f6e9c4716",
   "gen_hash_verilog": "sha256:8081e025392af4fc3cbb0200c03e853ce2a52120f3aa2413beba38b75c09aef1",
   "gen_hash_zig": "sha256:0edce7ef044439dd0280a02b61ab328cb4601d071cac4cbb19db1e004da113f8",
   "module": "bus-schema",
   "ring": 12,
-  "sealed_at": "2026-08-28T23:38:41Z",
+  "sealed_at": "2026-08-29T04:11:29Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:76f4b79cfecc890ab7a7f7bcbe9564aa9d6ecde995aedb1de20315716844ca22",
   "spec_path": "specs/bus/schema.t27"

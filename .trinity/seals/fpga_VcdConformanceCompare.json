@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ef75c7b2d42df684a7e84803698765ed004c3cbc894337f0c69d85e232ecd7df",
+  "gen_hash_c": "sha256:4574d317b0b05a6e32c8b4a5f7ab4ea99c9afc6f0b8644dc6b83654de6cdd1d8",
   "gen_hash_rust": "sha256:9097bd95436fe16476927c1a54c8287be7a934b9cd00553337a6ff50afb154c0",
   "gen_hash_verilog": "sha256:80938ff974db8c15abfd968ee837482063894ee01947eeed90a43d37415e7515",
   "gen_hash_zig": "sha256:2c622e93a102edd1507139b21df4afd2586e33e36fe745f1c5dcd9d0f0c972f8",
   "module": "VcdConformanceCompare",
   "ring": 12,
-  "sealed_at": "2026-08-29T01:19:56Z",
+  "sealed_at": "2026-08-29T04:11:28Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:59c9aed7248324467e2d13b458a60137da5b8b07f5116a484580f0dadc808cd8",
   "spec_path": "specs/fpga/vcd_conformance_compare.t27"
