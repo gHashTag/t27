@@ -301,6 +301,10 @@ pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
         });
     }
 
+    // W701: ids in cluster=GoldenFloat that state no generating rule. Collected
+    // here and reported as ONE finding, not one per record: seventeen records
+    // sharing a single unstated fact is one fact.
+    let mut rule_unstated: Vec<String> = Vec::new();
     for rec in &records {
         let name = match rec.shape {
             Shape::FixedLayout => "FixedLayout",
@@ -383,7 +387,34 @@ pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
             }
 
             // -- the GoldenFloat generating rule ---------------------------
-            if rec.fields.get("cluster").map(|c| c == "GoldenFloat") == Some(true) {
+            //
+            // W701: the rule is scoped by a DECLARED `rule=` field, not by the
+            // cluster label.
+            //
+            // `cluster=GoldenFloat` holds 47 shape-eligible records and three
+            // different generating rules. Measured: every gf* and gft* record
+            // satisfies e = round((bits-1)/phi^2) -- 8 of 8 at the published
+            // widths -- while bnf* and tnf* grow the exponent LOGARITHMICALLY
+            // with width (tnf: e ~ log2(bits) + 1; gf1024 is e=391, tnf1024 is
+            // e=11). Applying the phi rule to them produced 41 of this gate's 42
+            // findings, and not one of them was a defect a record could fix.
+            //
+            // `tnf8` satisfies the rule and is still NOT marked: at 8 bits the
+            // logarithmic and phi ladders coincide, and encoding a coincidence
+            // at one width as a design decision is how a catalog acquires a
+            // second wrong rule.
+            //
+            // A record in this cluster with no `rule=` is COUNTED, not passed
+            // over. A skip nobody counts is the shape this whole gate exists to
+            // refuse.
+            let declares_phi = rec.fields.get("rule").map(|r| r == "phi-ratio") == Some(true);
+            if rec.fields.get("cluster").map(|c| c == "GoldenFloat") == Some(true)
+                && !declares_phi
+            {
+                *r.checked.entry("gf-rule-unstated").or_insert(0) += 1;
+                rule_unstated.push(rec.id.clone());
+            }
+            if declares_phi {
                 *r.checked.entry("gf-closed-form").or_insert(0) += 1;
                 let e_rule = (((b - 1) as f64) / PHI2).round() as i64;
                 if e != e_rule || m != b - 1 - e_rule {
@@ -505,6 +536,22 @@ pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
                 }
             }
         }
+    }
+    // W701: one finding for the whole set. The phi checks did not run on these,
+    // and a check that did not run must say so out loud -- reporting nothing
+    // would be the same silence this gate was written to end, one level up.
+    if !rule_unstated.is_empty() {
+        rule_unstated.sort();
+        r.findings.push(Finding {
+            id: "(cluster)".into(),
+            check: "gf-rule-unstated",
+            detail: format!(
+                "{} record(s) in cluster=GoldenFloat state no `rule=`, so the phi \
+                 checks did not run on them: {}",
+                rule_unstated.len(),
+                rule_unstated.join(", ")
+            ),
+        });
     }
     let emitted_dir = catalog
         .parent()
