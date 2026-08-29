@@ -7993,3 +7993,34 @@ assert_eq!(k.matches("parse error").count(), 1, "{k}");
 And its control — two DIFFERENT causes must not collapse into one bucket —
 matters more than the merge test. Over-merging turns 39 kinds into 4 and reads
 as excellent grouping.
+
+## 316. A verification script that has never parsed
+
+`scripts/verify_all_152.py` — the name says instrument — carries eight
+unresolved `Updated upstream` / `Stashed changes` conflicts, two of them
+nested. `ast.parse` on it is a SyntaxError. It has been that way since the
+commit that INTRODUCED it, so there is no clean revision to restore, and
+nothing in the repository imports or runs it.
+
+Nothing looked for the shape. A second marker sat in this very skill file for
+weeks and was found by hand while resolving an unrelated merge. `tri skill
+check` read that file and reported OK, because it checks section numbering.
+
+Three things worth keeping:
+
+1. **A file's NAME is a claim.** Anyone scanning the tree sees
+   `verify_all_152.py` and concludes the 152 formulas are verified. Grep for
+   what runs an instrument before believing the instrument exists.
+2. **Design the abstention first.** The gate refuses a labelled `<<<<<<< x` or
+   `>>>>>>> x` and says nothing about a bare seven-equals line — that is an
+   ordinary Markdown rule and this repository has hundreds. Git always writes
+   the divider BETWEEN two labelled markers, so the pair alone is sufficient
+   and invents no false positives.
+3. **A gate that names marker shapes must not contain one.** Built from
+   `"<" * 7` rather than a literal, or the gate refuses its own source. The
+   first draft did exactly that.
+
+And the fix that was NOT made: resolving the file means choosing which of 152
+numeric formulas is right. A gate may record that debt with its reason; it may
+not invent the content. The baseline line says why, and the gate reports when
+a baseline entry outlives its debt.
