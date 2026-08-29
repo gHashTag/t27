@@ -6276,3 +6276,74 @@ happened to write first".
 **When a scanner recognises a construct, enumerate the ways that construct is
 spelled before trusting the count.** `grep -c` on each spelling takes a minute
 and is the only thing that would have caught this.
+
+## 197. A check outlives its subject and goes on reporting into the void
+
+The catalog gate's most thorough check compares every SSOT record against the
+emitted artifact, field by field. It had never run. `gen/` is gitignored, and a
+commit untracked those artifacts on purpose after they drifted — leaving the
+check with nothing to read, on every run since.
+
+It said so:
+
+    r.emitted = Some("absent: gen/numeric/formats_catalog.json not generated")
+
+which is **not a finding**, and the suite prints findings only. Measured: zero
+occurrences of the word `emitted` in the output of the command that gates master.
+
+**When you remove a check's input, the check does not fail — it goes quiet.**
+Grep for every check whose subject was deleted by a cleanup commit; each one is
+now reporting into a variable nobody prints.
+
+## 198. Generate-then-compare is a tautology unless two parsers are involved
+
+The fix was to generate the artifact into a temp dir and compare. That is usually
+comparing a file to itself, and I nearly shipped it without asking.
+
+It survives here for one reason: the gate parses the source with
+`parse_records()` in Rust and the generator parses it with a regex in Python.
+**Two independent parsers of one text can disagree; a file and its own copy
+cannot.**
+
+Before writing a comparison, name the two accounts. If you cannot name two, you
+have written an assertion that `x == x`.
+
+Proven by patching a *copy* of the generator to emit `bits=999` for one record:
+`[emitted-agrees] gf10: SSOT bits=10 but emitted bits=999`. 436 numeric fields,
+compared for the first time.
+
+## 199. Find a sibling file by walking up, not by counting levels
+
+`catalog.parent().parent()` gave me `specs/`, so the gate looked for
+`specs/tools/gen_formats_catalog.py` and reported a missing generator that was
+sitting in the repository root all along — a finding that was entirely my
+arithmetic.
+
+Walk up until the thing you want is found. A path built from a level count is
+correct until someone moves either file one directory, and then it lies with
+total confidence.
+
+## 200. A CLI gate that prints findings and returns Ok is decoration
+
+    $ t27c catalog-gate; echo $?
+    FINDINGS 3
+    0
+
+The function's only terminator was `Ok(())`. Nothing in CI invoked it, so it had
+been telling humans at a terminal that a run with three findings had succeeded.
+
+Two rules fell out of fixing it. **The verdict must use the same arithmetic the
+gating path uses** — the suite subtracted an allowlist and the CLI had none,
+because it had no verdict to allow anything out of. And **the allowlist belongs
+in one place**: it moved from a private `const` in the suite to a `pub const` on
+the gate, so the two cannot drift into disagreeing about which findings are debt.
+
+## 201. `--help` is a ruler, and it goes stale like any other
+
+    Verify specs/numeric/formats_catalog.t27, whose 83 records live in ...
+
+The live number is 109 and had been since three families were added. Help text is
+read by exactly the person who does not yet know the answer, which is the worst
+audience for a stale number.
+
+Grep your own help strings for digits whenever the thing they describe grows.
