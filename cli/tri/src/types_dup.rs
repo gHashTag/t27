@@ -55,6 +55,13 @@ pub enum TypesCmd {
     /// directions of the drift so the document cannot quietly describe a tree
     /// that no longer exists.
     Classified,
+    /// Names defined more than once INSIDE ONE FILE.
+    ///
+    /// `dup` asks whether two files claim one name; this asks whether one file
+    /// defines a name twice. They are different defects: the first is a naming
+    /// collision, the second is a copy whose halves have drifted apart. Fails
+    /// when two copies of one name state different values.
+    Redef,
 }
 
 /// Where the conflicted set is pinned.
@@ -414,6 +421,288 @@ fn classified(root: &std::path::Path, observed: &[String]) -> Result<()> {
     )
 }
 
+// ---------------------------------------------------------------------------
+// redef: one name defined twice IN THE SAME FILE
+// ---------------------------------------------------------------------------
+
+/// One top-level definition in one file: where it starts, and its body.
+#[derive(Clone)]
+pub struct Redef {
+    pub line: usize,
+    pub body: String,
+}
+
+/// Strip what must not be counted when tracking bracket depth: line comments
+/// and string literals. A `{` inside `"a { b"` is not a block.
+fn depth_relevant(line: &str) -> String {
+    let mut out = String::new();
+    let mut chars = line.chars().peekable();
+    let mut in_str: Option<char> = None;
+    while let Some(c) = chars.next() {
+        match in_str {
+            Some(q) => {
+                if c == '\\' {
+                    chars.next();
+                } else if c == q {
+                    in_str = None;
+                }
+            }
+            None => {
+                if c == '/' && chars.peek() == Some(&'/') {
+                    break;
+                } else if c == '"' || c == '\'' {
+                    in_str = Some(c);
+                } else {
+                    out.push(c);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The name a top-level definition introduces, if the line starts one.
+fn def_name(line: &str) -> Option<&str> {
+    let t = line.trim_start();
+    let t = t.strip_prefix("pub ").unwrap_or(t);
+    let rest = ["const ", "fn ", "type ", "struct ", "enum "]
+        .iter()
+        .find_map(|kw| t.strip_prefix(kw))?;
+    let name: &str = rest
+        .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .next()?;
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+/// Every top-level definition in one source, grouped by name.
+///
+/// TOP LEVEL IS BRACKET DEPTH ZERO, not an indentation. The corpus writes two
+/// conventions: `specs/numeric/gf16.t27` puts definitions at column 0 and
+/// function bodies at four spaces, while `specs/ml/optimizer/adamw.t27` indents
+/// everything four spaces under `module AdamW;`. A four-space rule read as
+/// "top level" reports 43 files with a repeated name; depth zero reports 2. The
+/// other 41 were local `const` bindings inside function bodies.
+pub fn redefs_in(src: &str) -> BTreeMap<String, Vec<Redef>> {
+    let lines: Vec<&str> = src.split('\n').collect();
+    let mut starts: Vec<(usize, String)> = Vec::new();
+    let mut depth: i32 = 0;
+    for (i, line) in lines.iter().enumerate() {
+        if depth == 0 {
+            if let Some(n) = def_name(line) {
+                starts.push((i, n.to_string()));
+            }
+        }
+        let c = depth_relevant(line);
+        depth += c.matches(['{', '(', '[']).count() as i32;
+        depth -= c.matches(['}', ')', ']']).count() as i32;
+        if depth < 0 {
+            depth = 0;
+        }
+    }
+    let mut out: BTreeMap<String, Vec<Redef>> = BTreeMap::new();
+    for (k, (i, name)) in starts.iter().enumerate() {
+        let end = starts.get(k + 1).map(|(j, _)| *j).unwrap_or(lines.len());
+        out.entry(name.clone()).or_default().push(Redef {
+            line: i + 1,
+            body: lines[*i..end].join("\n").trim_end().to_string(),
+        });
+    }
+    out.retain(|_, v| v.len() > 1);
+    out
+}
+
+/// The `name: value` pairs a definition states, in source order.
+///
+/// Compared instead of the raw body because a body comparison cannot tell a
+/// changed SCORE from a changed comment, and a bare number scan cannot tell a
+/// score from a type width: scanning every number in `adamw.t27` reported ten
+/// names with drifting values, and all ten were `GF16` read as 16 and a year
+/// read out of a comment. Comparing stated fields reports zero there, which is
+/// the truth.
+pub fn fields_of(body: &str) -> BTreeMap<String, String> {
+    let mut out = BTreeMap::new();
+    for line in body.split('\n') {
+        let t = line.trim();
+        if t.starts_with("//") {
+            continue;
+        }
+        let Some((k, v)) = t.split_once(':') else {
+            continue;
+        };
+        let k = k.trim();
+        // Digits belong in a field name. Requiring letters only silently drops
+        // `pass_at_1` and `pass_at_5` -- the score fields, which is to say every
+        // field this check exists to compare. It reported zero numeric drift in
+        // a file that has five.
+        if k.is_empty()
+            || !k
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            || !k.starts_with(|c: char| c.is_ascii_lowercase())
+        {
+            continue;
+        }
+        let v = v.trim().trim_end_matches(',').trim();
+        let v = match v.split_once("//") {
+            Some((head, _)) => head.trim(),
+            None => v,
+        };
+        if !v.is_empty() {
+            out.insert(k.to_string(), v.to_string());
+        }
+    }
+    out
+}
+
+/// How two or more definitions of one name differ.
+///
+/// Split three ways because one word would hide the difference that matters.
+/// In `specs/igla/coder/benchmark.t27` every one of thirteen names differs
+/// somehow, but only five differ in a NUMBER -- the rest differ in a provenance
+/// string that got more specific over time. Calling all thirteen the same thing
+/// is what a coarser reading of this file did, and it makes a citation getting
+/// better look like a score contradicting itself.
+#[derive(PartialEq, Eq, Debug)]
+pub enum Divergence {
+    /// Byte-identical bodies: redundant, and nothing can be read two ways.
+    Identical,
+    /// A field two copies both state holds different NUMBERS. Whichever copy a
+    /// consumer takes, it takes a different quantity. This is the one that fails.
+    Numbers,
+    /// A field one copy states and the other does not: the definitions are of
+    /// different shapes, not of different values.
+    Fields,
+    /// A field two copies both state holds different text.
+    Text,
+    /// The stated fields agree; the bodies differ elsewhere (a comment).
+    Prose,
+}
+
+fn is_number(v: &str) -> bool {
+    let t = v.trim().trim_end_matches(&[',', ';'][..]).trim();
+    !t.is_empty() && t.parse::<f64>().is_ok()
+}
+
+pub fn divergence(copies: &[Redef]) -> Divergence {
+    if copies.iter().all(|c| c.body == copies[0].body) {
+        return Divergence::Identical;
+    }
+    let sets: Vec<_> = copies.iter().map(|c| fields_of(&c.body)).collect();
+    let mut keys: Vec<&String> = sets.iter().flat_map(|s| s.keys()).collect();
+    keys.sort();
+    keys.dedup();
+    let mut missing = false;
+    let mut text = false;
+    for k in keys {
+        let vals: Vec<Option<&String>> = sets.iter().map(|s| s.get(k)).collect();
+        if vals.iter().any(|v| v.is_none()) {
+            if vals.iter().any(|v| v.is_some()) {
+                missing = true;
+            }
+            continue;
+        }
+        let vs: Vec<&str> = vals.into_iter().map(|v| v.unwrap().as_str()).collect();
+        if vs.iter().any(|v| *v != vs[0]) {
+            if vs.iter().all(|v| is_number(v)) {
+                return Divergence::Numbers;
+            }
+            text = true;
+        }
+    }
+    if text {
+        Divergence::Text
+    } else if missing {
+        Divergence::Fields
+    } else {
+        Divergence::Prose
+    }
+}
+
+/// Report every name defined more than once inside one file.
+fn redef(root: &std::path::Path) -> Result<()> {
+    let specs = read_specs(root);
+    if specs.is_empty() {
+        anyhow::bail!("no specs under {}/specs -- nothing was read", root.display());
+    }
+    println!("REDEFINED IN ONE FILE -- read {} specs", specs.len());
+    println!();
+    let mut numbers = 0usize;
+    let mut fields = 0usize;
+    let mut text = 0usize;
+    let mut prose = 0usize;
+    let mut identical = 0usize;
+    for (f, src) in &specs {
+        let dups = redefs_in(src);
+        if dups.is_empty() {
+            continue;
+        }
+        println!("{}  ({} name(s))", f, dups.len());
+        for (name, copies) in &dups {
+            let d = divergence(copies);
+            let tag = match d {
+                Divergence::Numbers => {
+                    numbers += 1;
+                    "NUMBERS "
+                }
+                Divergence::Fields => {
+                    fields += 1;
+                    "fields  "
+                }
+                Divergence::Text => {
+                    text += 1;
+                    "text    "
+                }
+                Divergence::Prose => {
+                    prose += 1;
+                    "prose   "
+                }
+                Divergence::Identical => {
+                    identical += 1;
+                    "identical"
+                }
+            };
+            let at: Vec<String> = copies.iter().map(|c| c.line.to_string()).collect();
+            println!("  {} x{}  {:<28} lines {}", tag, copies.len(), name, at.join(","));
+            if d == Divergence::Numbers || d == Divergence::Fields {
+                let sets: Vec<_> = copies.iter().map(|c| fields_of(&c.body)).collect();
+                let mut keys: Vec<&String> = sets.iter().flat_map(|s| s.keys()).collect();
+                keys.sort();
+                keys.dedup();
+                for k in keys {
+                    let vals: Vec<String> = sets
+                        .iter()
+                        .map(|s| s.get(k).cloned().unwrap_or_else(|| "(absent)".into()))
+                        .collect();
+                    if vals.iter().any(|v| v != &vals[0]) {
+                        println!("             {:<16} {}", k, vals.join("  |  "));
+                    }
+                }
+            }
+        }
+        println!();
+    }
+    println!(
+        "{} name(s) whose copies state different NUMBERS; {} differ in which fields\n         they state, {} in the text of a field, {} only in prose, {} identical.",
+        numbers, fields, text, prose, identical
+    );
+    if numbers > 0 {
+        println!();
+        println!(
+            "A name whose copies state different numbers has no single answer: the\n\
+             consumer takes whichever copy the compiler kept, and `t27c parse` accepts\n\
+             all of them with exit 0 and no diagnostic. Text and field drift are\n\
+             reported, not failed -- a citation getting more specific is not a\n\
+             contradiction."
+        );
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 pub fn run(cmd: &TypesCmd) -> Result<()> {
     let root = repo_root()?;
     let all = match cmd {
@@ -439,6 +728,7 @@ pub fn run(cmd: &TypesCmd) -> Result<()> {
                 .collect();
             return ratchet(&root, &observed, *bless);
         }
+        TypesCmd::Redef => return redef(&root),
         TypesCmd::Classified => {
             let specs = read_specs(&root);
             if specs.is_empty() {
@@ -657,5 +947,100 @@ mod tests {
         let d = parse("struct Empty {\n}\n");
         assert_eq!(d.len(), 1);
         assert!(d[0].1.fields.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod redef_tests {
+    use super::*;
+
+    #[test]
+    fn a_local_binding_is_not_a_second_definition() {
+        // Both `const sign` lines sit at four spaces inside a function body.
+        // An indentation rule calls that a redefinition; bracket depth does not.
+        // This is the difference between reading 43 files and reading 2.
+        let src = "pub fn a(v: f32) GF16 {\n    const sign = 1;\n}\n\
+                   pub fn b(v: f32) GF16 {\n    const sign = 2;\n}\n";
+        let d = redefs_in(src);
+        assert!(d.get("sign").is_none(), "a body binding is not top level");
+        assert!(d.is_empty(), "two distinct functions redefine nothing");
+    }
+
+    #[test]
+    fn a_name_repeated_at_depth_zero_is_found() {
+        let src = "pub fn f() -> T {\n    return 1;\n}\n\npub fn f() -> T {\n    return 2;\n}\n";
+        let d = redefs_in(src);
+        assert_eq!(d.get("f").map(|v| v.len()), Some(2));
+    }
+
+    #[test]
+    fn a_module_header_does_not_open_a_block() {
+        // `module M;` is a statement, so what follows it is still depth zero
+        // even though the corpus indents it. Without this the whole-module copy
+        // in adamw.t27 is invisible.
+        let src = "module M;\n\n    const A = 1;\n\n    const A = 1;\n";
+        assert_eq!(redefs_in(src).get("A").map(|v| v.len()), Some(2));
+    }
+
+    #[test]
+    fn a_field_name_may_contain_a_digit() {
+        // The regression this test exists for: a key filter of lowercase-only
+        // dropped `pass_at_1` and `pass_at_5`, so a file with five score
+        // disagreements reported zero. Letters-only is not a field name rule.
+        let f = fields_of("x {\n    pass_at_1: 0.487,\n    pass_at_5: 0.525,\n}");
+        assert_eq!(f.get("pass_at_1").map(String::as_str), Some("0.487"));
+        assert_eq!(f.get("pass_at_5").map(String::as_str), Some("0.525"));
+    }
+
+    fn copies(bodies: &[&str]) -> Vec<Redef> {
+        bodies
+            .iter()
+            .enumerate()
+            .map(|(i, b)| Redef { line: i + 1, body: (*b).to_string() })
+            .collect()
+    }
+
+    #[test]
+    fn a_differing_number_outranks_a_differing_string() {
+        // Both fields differ. The verdict must be Numbers: a score that
+        // contradicts itself is the defect, and a citation that got more
+        // specific must not be able to mask it.
+        let d = divergence(&copies(&[
+            "f {\n    pass_at_1: 0.487,\n    benchmark: \"VerilogEval\",\n}",
+            "f {\n    pass_at_1: 0.0,\n    benchmark: \"VerilogEval (arXiv:1)\",\n}",
+        ]));
+        assert_eq!(d, Divergence::Numbers);
+    }
+
+    #[test]
+    fn a_citation_getting_more_specific_is_text_not_numbers() {
+        let d = divergence(&copies(&[
+            "f {\n    pass_at_1: 0.857,\n    benchmark: \"VerilogEval\",\n}",
+            "f {\n    pass_at_1: 0.857,\n    benchmark: \"VerilogEval (arXiv:1)\",\n}",
+        ]));
+        assert_eq!(d, Divergence::Text);
+    }
+
+    #[test]
+    fn a_field_present_in_one_copy_only_is_shape_not_value() {
+        // adamw.t27: one copy has `use_phi_betas`, the other `phi_variant`.
+        // Two shapes of one config, not two answers to one question.
+        let d = divergence(&copies(&[
+            "S = struct {\n    use_phi_betas: bool,\n}",
+            "S = struct {\n    phi_variant: PhiVariant,\n}",
+        ]));
+        assert_eq!(d, Divergence::Fields);
+    }
+
+    #[test]
+    fn identical_copies_are_named_as_such() {
+        let d = divergence(&copies(&["f {\n    a: 1,\n}", "f {\n    a: 1,\n}"]));
+        assert_eq!(d, Divergence::Identical);
+    }
+
+    #[test]
+    fn a_brace_inside_a_string_does_not_open_a_block() {
+        let src = "const A = \"{\";\nconst A = \"{\";\n";
+        assert_eq!(redefs_in(src).get("A").map(|v| v.len()), Some(2));
     }
 }
