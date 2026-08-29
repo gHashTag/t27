@@ -18,7 +18,7 @@ pub const Trit = enum(i8) {
 ; Struct with arrays
 pub struct State {
     trits: [9]Trit,
-    buffer: [_]u8{0} ** 128,
+    buffer: [128]u8 = [_]u8{0} ** 128,
     phi: f64
 }
 
