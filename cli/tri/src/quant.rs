@@ -80,50 +80,26 @@ struct Structs {
     conflicted: std::collections::BTreeSet<String>,
 }
 
+/// W704: this used to have its OWN struct scanner, and that scanner had two
+/// bugs -- a newtype (`struct CallID(str);`) and a one-line empty body
+/// (`struct PollSlow {}`) each swallowed the definitions after them. It counted
+/// 284 definitions where `grep` counted 299, and reported 15 conflicted names
+/// where there are 16.
+///
+/// The scanner now lives in one place. Two implementations of one measurement
+/// is two numbers that can disagree, and these did.
 fn scan_structs(specs: &[(PathBuf, String)]) -> Structs {
     let mut fields: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut conflicted = std::collections::BTreeSet::new();
-    for (_, src) in specs {
-        let lines: Vec<&str> = src.lines().collect();
-        let mut i = 0usize;
-        while i < lines.len() {
-            let t = lines[i].trim();
-            let Some(rest) = t.strip_prefix("struct ") else {
-                i += 1;
-                continue;
-            };
-            let name = rest
-                .split(|c: char| c == '{' || c.is_whitespace())
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_string();
-            if name.is_empty() {
-                i += 1;
-                continue;
-            }
-            let mut fs = Vec::new();
-            let mut j = i + 1;
-            while j < lines.len() {
-                let l = lines[j].trim();
-                if l.starts_with('}') {
-                    break;
-                }
-                if let Some((_, ty)) = l.split_once(':') {
-                    let ty = ty.trim().trim_end_matches(',').trim();
-                    if !ty.is_empty() && !ty.starts_with("//") {
-                        fs.push(ty.to_string());
-                    }
-                }
-                j += 1;
-            }
+    for (p, src) in specs {
+        for (name, d) in crate::types_dup::defs_in(&p.display().to_string(), src) {
+            let fs: Vec<String> = d.fields.iter().map(|(_, t)| t.clone()).collect();
             if let Some(prev) = fields.get(&name) {
                 if *prev != fs {
                     conflicted.insert(name.clone());
                 }
             }
             fields.insert(name, fs);
-            i = j + 1;
         }
     }
     Structs { fields, conflicted }
