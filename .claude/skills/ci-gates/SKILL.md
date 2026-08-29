@@ -5913,3 +5913,48 @@ assertions now actually run.
 **Do not read that column falling as damage without opening each spec.** One was
 a real false property, two were shape complaints, and five other specs went the
 other way once the backend defects they exposed were fixed (cc 158 → 163).
+
+## 173. The code often names the shape it fails on — grep your own comments
+
+Two rungs this pass were shapes the parser had already described in prose and
+never handled:
+
+    // it can also mean we stopped mid-clause -- e.g. on the comma of
+    // `given clk = true, rst_n = false`
+
+That comment sits at the top of the loop that then discards exactly that. 19
+fallback events in one spec. The other, `given crossings: [i32] = []`, is the
+same story one arm down.
+
+Together with the `fn name() given …` arm from an earlier pass and the `forall`
+arm, that is **four** defects in one file where somebody understood the shape
+well enough to write it down and stopped short of lowering it.
+
+**A comment naming a construct next to a `skip`, a `return`, or a fallback is a
+scoped-and-abandoned fix.** It is a better-signposted target than any census,
+and `grep` finds it in seconds.
+
+## 174. "Someone who knows the domain" was me, one script later
+
+I filed a failing assertion saying it needed *"someone who knows the intended
+encoding"*. Both functions were in the same file. Transcribing them to twelve
+lines of Python answered it completely: the encoder is balanced ternary, the
+decoder is unipolar, they are not inverses, and 8 of 16 values fail.
+
+It also found a second bug the first one hid — with the correct inverse, three
+balanced trits span −13..13, so the test's `i < 16` bound walks past the
+encodable range regardless.
+
+**Before deferring a question to a human, check whether the artefact answers
+it.** Deferring is right when the question is a *decision* (which encoding is
+intended — still open). It was wrong for the part that was arithmetic.
+
+## 175. A census that names a target you cannot open stops one step short
+
+`--fallbacks` reported *19 events in 1 spec* and could not say which spec. I
+brute-forced it by looping the whole corpus through a per-file command.
+
+The fix was ten lines: let the census take `--show <spec>` and scope to one file.
+**Any aggregate you build should have a per-item mode from the start** — you will
+need it the first time the aggregate says something interesting, which is
+immediately.
