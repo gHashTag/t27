@@ -5548,3 +5548,58 @@ already disagree with each other.
 
 **When a fix-then-verify cycle still fails, ask whether the record has more than
 one row for the thing you just fixed** before assuming the fix is wrong.
+
+## 150. When a column moves, add the command that names the rows
+
+`corpus` reported "Zig accepts it 215" where it had said 217. Two specs had
+changed and nothing in the tool could say which. I nearly went hunting with a
+hand-rolled harness — the same one that had already reported an implausible zero
+and been distrusted.
+
+The fix was one flag, `--per-spec <path>`: one sorted line per spec with the
+binary outcomes behind every number, for `diff` against the same file from
+another binary. Three lines differed, all three named, in one command.
+
+**An aggregate that can move is an aggregate that needs a per-item dump.** Build
+it the first time you need it, not the third.
+
+## 151. Two node shapes, one emitter arm, and only one of them was read
+
+`gen-c` emitted `int32_t a[3] = { .v = { _ } };` — the array literal's DIMENSION
+printed as its element list. Two different parses reach that arm:
+
+    [1, 2, 3]         extra_size "1,2,3", no children
+    [_]i32{1, 2, 3}   extra_size "_"  (the dimension), elements in CHILDREN
+
+The arm read `extra_size` unconditionally. Elements were parsed, held in the
+node, and never emitted.
+
+**When one match arm serves two producers, check what each producer actually
+filled in.** The comment above the arm described one of them and was accurate
+about it, which is why it read as correct for years.
+
+## 152. Prove a wrapper is dead before removing it
+
+The same emitter wrapped every array in `{ .v = { ... } }`. Removing that changes
+output for hundreds of specs, so removing it on the belief that it looked wrong
+would have been a guess. The measurement took one loop:
+
+    of the 156 specs whose generated C `cc` accepts, 0 contain `.v = {`
+
+Zero. The wrapper had never appeared in a piece of C this compiler produced that
+a C compiler would take. **A construct present only in output that is already
+rejected cannot be load-bearing** — and now the claim is a number in the commit
+rather than an opinion.
+
+## 153. `sync` should recompute the truth, not pick the newer lie
+
+First draft of `tri seals sync-twins` copied the seal with the newest
+`sealed_at` onto its twins. That settles a disagreement by coin flip: the newer
+file is not the true one, it is the recently written one.
+
+Rewritten to call `t27c seal <spec>` and write THAT to every twin. The rewrite
+paid immediately — it refused 31 pairs, and every one turned out to name a spec
+file that is not in the tree. My own issue had called those "31 specs where the
+record says two different things"; they are 31 pairs of dangling seals about a
+file nobody can fetch. **A command that recomputes finds the ones it cannot
+recompute, and those are the interesting ones.**
