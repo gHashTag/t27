@@ -6322,6 +6322,32 @@ impl Codegen {
             // first `]`), so the 395 real `[N]T` arrays are untouched. The
             // inner form has to convert too -- if it does not, this is a length
             // that happens to look bracketed, and it is left to fail loudly.
+            // A TUPLE as the element: `[(string,string)]` is `[]struct { A, B }`.
+            // rewrite_tuples handles the value side; a type annotation never
+            // reaches it, so this is the same construct needing the same
+            // treatment on the other side of the language.
+            if let Some(body) = inner.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+                let mut depth = 0i32;
+                let mut parts = Vec::new();
+                let mut last = 0usize;
+                for (k, ch) in body.char_indices() {
+                    match ch {
+                        '(' | '[' => depth += 1,
+                        ')' | ']' => depth -= 1,
+                        ',' if depth == 0 => {
+                            parts.push(&body[last..k]);
+                            last = k + 1;
+                        }
+                        _ => {}
+                    }
+                }
+                parts.push(&body[last..]);
+                if parts.len() > 1 && parts.iter().all(|s| !s.trim().is_empty()) {
+                    let fields: Vec<String> =
+                        parts.iter().map(|s| Self::zig_type(s.trim())).collect();
+                    return format!("[]struct {{ {} }}", fields.join(", "));
+                }
+            }
             if inner.starts_with('[') && inner.ends_with(']') {
                 let mapped = Self::zig_type(inner);
                 if mapped != inner {
@@ -6435,8 +6461,8 @@ impl Codegen {
                 // own copy of the bug.
                 self.write(&format!(
                     "{}}} ** {}",
-                    rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(
-                        &zig_path(val.trim())
+                    rewrite_tuples(&rewrite_struct_literal_fields(&rewrite_list_literals(
+                        &rewrite_array_repeats(&zig_path(val.trim())),
                     ))),
                     zig_path(count[1..].trim())
                 ));
@@ -6461,8 +6487,8 @@ impl Codegen {
                 // inside them is written raw. rewrite_list_literals recurses
                 // into what it converts, so one call covers any depth.
                 // Ordered as rewrite_all orders them: lists, then struct fields.
-                self.write(&rewrite_struct_literal_fields(&rewrite_list_literals(
-                    &rewrite_array_repeats(&zig_path(raw)),
+                self.write(&rewrite_tuples(&rewrite_struct_literal_fields(
+                    &rewrite_list_literals(&rewrite_array_repeats(&zig_path(raw))),
                 )));
             }
         } else {
@@ -10761,14 +10787,14 @@ fn is_zig_primitive(name: &str) -> bool {
 /// form before list literals would rewrite the brackets away; casts and the
 /// `in` operator last, because both walk left over already-rewritten text.
 fn rewrite_all(text: &str) -> String {
-    rewrite_keyword_identifiers(&rewrite_empty_slice_cast(&rewrite_elided_struct_literal(
-        &rewrite_not_operator(
+    rewrite_keyword_identifiers(&rewrite_tuples(&rewrite_empty_slice_cast(
+        &rewrite_elided_struct_literal(&rewrite_not_operator(
         &rewrite_in_operator(&rewrite_as_casts(
             &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_paren_destructuring(
                 &rewrite_array_repeats(text),
             ))),
         )),
-    ))))
+    )))))
 }
 
 /// `[a, b] as []T` -> `&[_]T{a, b}`; the empty case is just elems = "".
@@ -11399,6 +11425,73 @@ fn rewrite_struct_literal_fields(s: &str) -> String {
         }
         out.push(c);
         i += 1;
+    }
+    out
+}
+
+/// `(a, b, c)` in an operand position -> `.{a, b, c}`.
+///
+/// Zig has no parenthesised tuple. The hard part is not the rewrite, it is
+/// telling a TUPLE from a call, an index, a parameter list, and a grouped
+/// expression -- all of which are a `(` with a comma somewhere inside.
+///
+/// The discriminator, validated by census before it was written here: the `(`
+/// must not be preceded by an identifier character, `)`, `]`, or `"` (the last
+/// catches `@"error"(self, msg)`), and its MATCHING `)` -- found by counting
+/// depth, not by scanning to the first one -- must hold a comma at depth 1.
+///
+/// Three earlier attempts to size this family reported 384, 53 and 20 sites and
+/// every one was contaminated: `f(a, g(b, c))`, `for (unpacked, src)`,
+/// `((7.0 * pow(PHI, 2.0)) * PI)`. With the depth-aware test the corpus holds
+/// 12, in 4 files. I declined to write this rule twice today for exactly that
+/// reason -- a positional rule that cannot be counted safely should not exist --
+/// and the count is what changed, not the opinion.
+fn rewrite_tuples(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if in_str || c != '(' {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let prev = out.chars().rev().find(|x| !x.is_whitespace());
+        let named = prev.is_some_and(|p| p.is_alphanumeric() || p == '_' || p == ')' || p == ']' || p == '"');
+        let (mut depth, mut j, mut comma, mut sq) = (0i32, i, false, false);
+        while j < b.len() {
+            match b[j] {
+                '"' => sq = !sq,
+                '(' if !sq => depth += 1,
+                ')' if !sq => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                ',' if !sq && depth == 1 => comma = true,
+                _ => {}
+            }
+            j += 1;
+        }
+        if named || j >= b.len() || !comma {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let inner: String = b[i + 1..j].iter().collect();
+        out.push_str(".{");
+        out.push_str(&rewrite_tuples(&inner));
+        out.push('}');
+        i = j + 1;
     }
     out
 }
