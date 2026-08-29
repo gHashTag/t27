@@ -8589,3 +8589,47 @@ exist yet — in the one medium where the claim is a PROOF.
 
 The honest substitute is the count, and saying plainly which of the two
 things you did.
+
+## 342. The proof was provable because the model was wrong
+
+§341 declined to hand-write four Lean models, on the reasoning that a
+FAITHFUL model might make its theorem false, and that a red build would
+then be indistinguishable from a transcription error.
+
+An audit of the existing models found the same thing from the other
+side, and it is sharper than the argument.
+
+`specs/tri/utils/args.t27` declares `fn parse(allocator: std.mem.Allocator)`
+— one parameter. Its Lean model declares three:
+
+    params := [("allocator", (.struct "Std")), ("mem", (.u32)),
+               ("Allocator", (.u32))]
+
+The dotted type path was split on its dots. And the env was given a
+struct to match: `("Std", [("value", .u32)])` — a name that appears in
+**zero of the 650 specs** and exactly **once** in the Lean file.
+
+That fabrication is what makes the theorem provable. `Ty.isLowerableFuel`
+rejects a `.struct` whose fields are empty, so a faithful model — one
+parameter of the undeclared type `std.mem.Allocator` — is not lowerable
+and the theorem is `false`. The compiler agrees: `icarus-lowerable` on
+that spec prints `not_lowerable`.
+
+The same split appears in 16 models. Fifteen assert `= false`, where a
+wrong model changes nothing. **The one that asserts `= true` is the one
+where the fabrication decides the answer.**
+
+Two things follow.
+
+**An unfaithful model is worse than an empty one.** The 114 empty models
+announce themselves: `functions := []` says the theorem is about
+nothing. This one lists four functions, all named correctly, in spec
+order, with tests populated. It looks checked. One signature is invented
+and that signature is load-bearing.
+
+**And the risk §341 declined to take was real, in the direction it
+predicted.** Not "I might transcribe it wrong and CI would tell me" —
+somebody already transcribed one wrong, and no instrument has told
+anybody, because nothing builds these proofs. A medium where a wrong
+artefact is indistinguishable from a right one, and no build ever runs,
+does not become safe by adding more artefacts to it.
