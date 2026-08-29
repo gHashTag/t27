@@ -312,6 +312,14 @@ enum Commands {
         /// corpus's largest members take 10-352 s alone (T199).
         #[arg(long, default_value_t = 420)]
         synth_secs: u64,
+        /// Also write one line per spec to this path: the binary outcomes
+        /// behind every number in the table, sorted, for `diff` against the
+        /// same file from another binary.
+        ///
+        /// The aggregate cannot name a spec, and a column that MOVES is exactly
+        /// when the names are wanted (W699).
+        #[arg(long)]
+        per_spec: Option<String>,
     },
 
     /// THE SERVICE: how many DISTINCT defect classes stand between each spec
@@ -10807,8 +10815,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Backlog { specs_dir, limit } => {
             service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
         }
-        Commands::Corpus { specs_dir, limit, json, synth, synth_secs } => {
-            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth, synth_secs)?
+        Commands::Corpus { specs_dir, limit, json, synth, synth_secs, per_spec } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth,
+                                synth_secs, per_spec.as_deref())?
         }
         Commands::Prove { input, mutate } => {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
@@ -11212,8 +11221,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Backlog { specs_dir, limit } => {
             service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
         }
-        Commands::Corpus { specs_dir, limit, json, synth, synth_secs } => {
-            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth, synth_secs)?
+        Commands::Corpus { specs_dir, limit, json, synth, synth_secs, per_spec } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth,
+                                synth_secs, per_spec.as_deref())?
         }
         Commands::Prove { input, mutate } => {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?

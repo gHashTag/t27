@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:df42c7f46c2a55d28dd8c4693886d1fa71e8a1f2f94939c19b70160be0bf1597",
+  "gen_hash_c": "sha256:14b15cb87d196d1b068bf68f29d63b8cc79f2088cb4c2b7c13fb540875c37c29",
   "gen_hash_rust": "sha256:0013c1fd7a3de97a7803bf8d13debedf61a0d6dbcee071dfe1351b445815484e",
   "gen_hash_verilog": "sha256:5a2bd07b3b0c4fb91375b2a31e0a91ec8eddc3586c9a0e979c83286f595c0a47",
   "gen_hash_zig": "sha256:55223a3fd78a65174cfe8302742a24657529f3df8279dc4e88a9421ff9ea28c2",
   "module": "jit",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-08-28T23:38:44Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:da90f8dbf59c63115a11e0d473a963a568df10e6c88fb06bfa264215c08bfd26",
   "spec_path": "specs/jit/jit.t27"
 }

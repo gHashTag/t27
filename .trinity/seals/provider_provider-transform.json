@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:276a84b23c0e0492f940372a78c42213e1fad3c8e0d9802d86360b63522f1476",
+  "gen_hash_c": "sha256:de97c919fe3b80a7cde41792e95319d94e934f2ec2dffc766bc5f7a8882687c1",
   "gen_hash_rust": "sha256:b3dbf6f7985f5410a3f032ad8c665c9f1c782c93571a00327fdbe6cc0d658af4",
   "gen_hash_verilog": "sha256:5fb9643a95ee7a99f10d42026f37ff2ad29b65588d9325eac2e70b257ecd4dda",
   "gen_hash_zig": "sha256:46dd9c7a285057524fd55b08f78cccd0f482290903d4e4910d74ee72536be4bb",
   "module": "provider-transform",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-28T23:38:44Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:060c2f1a0244b16ace9212d31c89b0a43ce2d804c7d105ba3c84ed319526b42a",
   "spec_path": "specs/provider/transform.t27"
 }
