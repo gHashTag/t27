@@ -8634,7 +8634,38 @@ anybody, because nothing builds these proofs. A medium where a wrong
 artefact is indistinguishable from a right one, and no build ever runs,
 does not become safe by adding more artefacts to it.
 
-## 343. Not failing on it — never reaching it
+## 343. A fix learned in one command does not travel to its neighbour
+
+Last pass I found that a census of "specs the compiler cannot read" was counting
+type errors and lexer errors as parse failures, and I split the stages -- in
+`report`. This pass I opened `locate`, the command sitting beside it in the same
+file, and **8 of its 40 answers were typecheck failures**.
+
+The tell was not a red gate. It was setting out to fix the located items and
+finding that the first family -- `t *= 2.0;`, `float` parameters, `f32` returns
+-- all COMPILE in isolation. The work I had queued was not work.
+
+**When you fix a category error, grep for every other place that asks the same
+question.** The fix lived one function away and did not walk there by itself.
+
+## 344. Make the tool state the claim you verified by hand
+
+Having located 37 items, I checked by hand whether each one, wrapped in a bare
+module, fails on its own -- the difference between "here is your bug in four
+lines" and "here is roughly where it starts". All 37 did.
+
+That number was true when I ran it and would have gone into a report as prose.
+It is now a line the command prints, computed every run:
+
+```
+  located AND causally confirmed   37
+  ... the item ALONE reproduces    37  <- a minimal case, not a coordinate
+```
+
+An answer that does not reproduce alone prints `(only in context)` beside it.
+**A property you checked once by hand is a property the tool should assert every
+time**, or the next reader has your prose and no measurement.
+## 345. Not failing on it — never reaching it
 
 Three passes were spent on the Lean proofs: 114 vacuous models (§340), a
 model whose theorem is provable because a signature in it was invented
@@ -8673,3 +8704,4 @@ checked.
 The general form: a build graph is a claim about coverage, and unlike a
 test list nothing prints it. `import` is the edge, the root file is the
 whole specification of what gets compiled, and it is nine lines long.
+
