@@ -18,7 +18,6 @@ specs/ar/composition.t27 | Error: Compile error: parse error in fn 'average' nea
 specs/ar/datalog_engine.t27 | Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
 specs/ar/ternary_logic.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
 specs/auth/config.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 60:16
-specs/automation/wrapup-auto.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
 specs/benchmarks/bench_nn.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/benchmarks/gf16_bfloat16_nmse.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/bus/pubsub.t27 | Error: Compile error: parse error in fn 'publish_result_to_string' near line 389: Unexpected token in expression: Semicolon (';') at line 389:6
@@ -27,16 +26,11 @@ specs/compiler/typechecker.t27 | Error: Compile error: parse error in fn 'check_
 specs/config/load.t27 | Error: Compile error: Expected LBrace, got Minus ('-') at line 217:74
 specs/config/migrate.t27 | Error: Compile error: parse error in fn 'migrate_detect_version' near line 396: Expected RBrace, got Colon (':') at line 396:59
 specs/conformance/e2e_scenarios.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/enrichment/audio_overview.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
-specs/enrichment/youtube_transcript.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
+specs/enrichment/audio_overview.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 76:102
+specs/enrichment/youtube_transcript.t27 | Error: Compile error: parse error in fn 'extract_video_id' near line 109: parse error near line 109: Unexpected token in expression: Semicolon (';') a
 specs/file/watcher.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 14:21
 specs/fpga/testbench/mac_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 353: Unexpected token in expression: Semicolon (';') at line 353:69
 specs/fpga/testbench/uart_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 256: Unexpected token in expression: Semicolon (';') at line 256:39
-specs/github/auth.t27 | Error: Compile error: parse error at module level near line 7: Unexpected token in expression: Colon (':') at line 7:14
-specs/github/comments.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
-specs/github/issues.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
-specs/github/prs.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
-specs/github/tests/e2e_full_flow.t27 | Error: Compile error: parse error at module level near line 8: Unexpected token in expression: Colon (':') at line 8:14
 specs/graph/knowledge_graph.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 101:59
 specs/hslm/forward_pass.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 82:134
 specs/interop/gf_cross_language.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
@@ -57,7 +51,7 @@ specs/physics/hslm_benchmark.t27 | Error: Compile error: parse error at module l
 specs/physics/lqg_cs_bridge.t27 | Error: Compile error: unterminated string literal opened at line 74:86
 specs/physics/p2_brain_physics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 53:55
 specs/pins/parser.t27 | Error: Compile error: unterminated string literal opened at line 596:24
-specs/portable/relay_observer.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:16
+specs/portable/relay_observer.t27 | Error: Compile error: parse error at module level near line 53: Unexpected token in expression: Semicolon (';') at line 53:2
 specs/provider/adapters.t27 | Error: Compile error: parse error in fn 'adapter_config_create' near line 208: Unexpected token in expression: LBrace ('{') at line 208:55
 specs/provider/schema.t27 | Error: Compile error: parse error in fn 'provider_config_create' near line 267: Unexpected token in expression: LBrace ('{') at line 267:55
 specs/runtime/execute.t27 | Error: Compile error: Expected LBrace, got RParen (')') at line 238:77
