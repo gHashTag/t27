@@ -15420,7 +15420,13 @@ impl VerilogCodegen {
                 }
                 NodeKind::StmtForRange
                 | NodeKind::StmtWhile
-                | NodeKind::StmtFor => {
+                // t27#1948's comment below names `for`/`while`/`if`, and `if`
+                // was never in this arm. `if (es_prestandard(8) != 0) { ok =
+                // false; }` at the top level of a test block became
+                // `// (stmt: StmtIf)`, so `ok` was set true and never set
+                // false: the test could not fail and reported PASSED.
+                | NodeKind::StmtFor
+                | NodeKind::StmtIf => {
                     self.materialize_call_array_tmps_in_expr(node);
                     self.gen_verilog_stmt(node);
                 }
@@ -15540,7 +15546,8 @@ impl VerilogCodegen {
                 }
                 NodeKind::StmtForRange
                 | NodeKind::StmtWhile
-                | NodeKind::StmtFor => {
+                | NodeKind::StmtFor
+                | NodeKind::StmtIf => {
                     // Control flow in a test block: a `for`/`while`/`if` was
                     // dropped as `// (stmt: StmtForRange)`, silently voiding
                     // loop bodies that accumulate assertions (t27#1948).
@@ -15563,7 +15570,11 @@ impl VerilogCodegen {
                 "// invariant {} : ",
                 Self::sanitize_identifier(&node.name)
             ));
-            self.gen_verilog_expr(&node.children[0]);
+            // The predicate arrives wrapped in a statement node, and the
+            // expression printer answers `/* unsupported expr: StmtExpr */`.
+            // All 4702 invariants in the self-checking testbench rendered that
+            // and not one rendered a predicate.
+            self.gen_verilog_expr(unwrap_single(&node.children[0]));
             self.write_line("");
         } else {
             self.write_line(&format!("// invariant: {}", node.name));
