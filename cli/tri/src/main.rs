@@ -17,6 +17,7 @@ mod fpga;
 mod elab;
 mod modreach;
 mod gates;
+mod ledgers;
 mod prose;
 mod unparsed;
 mod hooks;
@@ -202,6 +203,11 @@ enum Commands {
     Prose {
         #[command(subcommand)]
         action: prose::ProseCmd,
+    },
+    /// Does each ledger's gate notice when one of its entries stops being true?
+    Ledgers {
+        #[command(subcommand)]
+        action: ledgers::LedgersCmd,
     },
     /// Specs the compiler cannot read, ranked by the construct that stops it.
     Unparsed {
@@ -855,6 +861,7 @@ fn main() -> Result<()> {
         Commands::Orphaned { action } => orphaned::run(action)?,
         Commands::Discard { action } => discard::run(action)?,
         Commands::Prose { action } => prose::run(action, std::env::current_dir()?)?,
+        Commands::Ledgers { action } => ledgers::run(action, std::env::current_dir()?)?,
         Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,

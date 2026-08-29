@@ -476,11 +476,21 @@ def main():
             print(f"  ... and {len(departed) - 10} more")
         print()
     if fixed:
-        print(f"NOTE {len(fixed)} spec(s) in the baseline now generate. Remove them from "
+        # A NOTE and a zero exit are two answers to one question. Measured
+        # across the five ledgers that name specs by path: seal_baseline and
+        # conflict_markers FAIL when an entry outlives its debt, and the corpus
+        # ratchet calls it UNEXPECTED PASS and fails. This one and
+        # verilog_width_baseline only printed, so a stale line could live
+        # forever -- the gate green, the note scrolling past. That is exactly
+        # how #2913 sat red on master for three runs.
+        print(f"FAIL: {len(fixed)} spec(s) in the baseline now generate. Remove them from "
               f"{BASELINE.name} so the gate holds them:")
         for sp in fixed[:10]:
             print(f"  {sp}")
         print()
+        print("  python3 tools/check_specs_generate.py --update-baseline")
+        print()
+        return 1
     # T84: an input whose purpose is to be rejected, and is not.
     leaked = []
     _tracked = subprocess.run(["git", "ls-files", "*.t27"], cwd=ROOT,

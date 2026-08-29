@@ -8986,3 +8986,50 @@ implement at all, so the very first prefix fails and there is nothing to bisect.
 The locator says so instead of naming that item, which is right: "the file is
 unsupported from its first declaration" is not the same claim as "this item
 causes the failure", and only the second one is what the command promises.
+
+## 359. Ask the question the accident answered
+
+A stale ledger entry -- a line still excusing a spec that was fixed -- was found
+because one gate went red and named it. That is luck, and luck does not
+generalise.
+
+Asked deliberately: plant a line naming a spec that PASSES, so the line is false
+by construction, and run each gate.
+
+```
+seal_baseline.txt              FAILS
+conflict_markers_baseline.txt  FAILS
+suite_expectations.json        FAILS   -- "UNEXPECTED PASS"
+specs_generate_baseline.txt    NOTE, exit 0
+verilog_width_baseline.txt     note, exit 0
+```
+
+**Two of five announced the defect and returned success.** Both now fail.
+
+The general move: after any accident reveals a defect class, write the probe
+that would have found it on purpose, and run it across every sibling. The
+accident tells you the class; the sweep tells you the size.
+
+## 360. A meta-gate over the ledgers
+
+`tri ledgers audit` plants the false line itself and demands each gate fail. It
+is a gate whose subject is other gates, and it is checkable the same way: run it
+against the PRE-FIX gates and it must report `MISSED 2` and exit 1; against the
+fixed ones, `caught 4` and exit 0. Both were run.
+
+Two properties worth copying:
+
+- It **refuses to start on a dirty ledger**, because it rewrites and restores
+  what it touches and a restore would discard uncommitted work.
+- The planted line names a spec the compiler accepts TODAY, looked up at run
+  time. A hardcoded name would rot into a line that is true, and the audit would
+  quietly stop testing anything.
+
+## 361. The sweep corrected the note that started it
+
+Memory said four ledgers name specs by path. The sweep found **five**, plus one
+keyed by line hash. The number I had written down was from the last time I
+looked, and I looked while chasing something else.
+
+**A count you wrote while working on another problem is a sample, not a
+census.** Re-enumerate before building on it.
