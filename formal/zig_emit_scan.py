@@ -121,9 +121,26 @@ def normalise(err):
 _WALL = re.compile(
     r"\b(expected|invalid|unexpected|extra|missing|duplicate)\b", re.I)
 
+# Those words appear in SEMANTIC errors too, and matching them there inflated
+# the wall count. Zig reports these during AstGen, after the file has parsed:
+#
+#   duplicate struct member name 'std'    a name collision, not a token
+#   invalid builtin function: '@trim'     an unknown @builtin
+#   expected type 'u8', found 'i32'       a type mismatch
+#   missing field 'x' in struct init      a missing initializer
+#
+# The distinction that matters: a parse error stops the file and hides
+# everything after it; a semantic one does not. Counting the second kind as a
+# wall says a file is blocked when it is merely wrong.
+_SEMANTIC = re.compile(
+    r"duplicate struct member|duplicate field|invalid builtin|"
+    r"expected type '|missing field|use of undeclared", re.I)
+
 
 def is_parse_error(err):
-    return bool(err) and err != "VALID" and bool(_WALL.search(err))
+    if not err or err == "VALID":
+        return False
+    return bool(_WALL.search(err)) and not _SEMANTIC.search(err)
 
 
 def rust_dialect():

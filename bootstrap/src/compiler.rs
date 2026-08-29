@@ -563,6 +563,60 @@ impl Lexer {
             };
         }
 
+        // A MULTILINE string literal: consecutive lines each opened by `\\`.
+        //
+        // Unlexed, its prose was parsed as CODE. `\\; This file is the source
+        // of truth for {s}.` became the statements `source;` `of;` `truth;` and
+        // then `for () |_| { s; }` -- a for loop conjured out of English, and a
+        // wall over the whole file. Nothing about that error names a string.
+        //
+        // Zig's rules: the content is the rest of the line VERBATIM, no escapes
+        // are processed, and consecutive `\\` lines join with a newline. The
+        // token is an ordinary String from here on, so the emitter's existing
+        // quoting -- zig_string_body -- turns the joined text back into a legal
+        // literal.
+        //
+        // 133 lines across 2 specs. Firing only at token start is what keeps it
+        // safe: a `\\` INSIDE a quoted string is an escaped backslash and is
+        // consumed by the branch below, which never reaches this one.
+        if ch == b'\\' && self.pos + 1 < self.source.len() && self.source[self.pos + 1] == b'\\' {
+            let mut s = String::new();
+            loop {
+                self.advance(); // first  \
+                self.advance(); // second \
+                while self.pos < self.source.len() && self.peek() != b'\n' {
+                    s.push(self.peek() as char);
+                    self.advance();
+                }
+                // Look past the newline and its indentation for another `\\`.
+                let mut look = self.pos;
+                if look < self.source.len() && self.source[look] == b'\n' {
+                    look += 1;
+                }
+                while look < self.source.len()
+                    && (self.source[look] == b' ' || self.source[look] == b'\t')
+                {
+                    look += 1;
+                }
+                let continues = look + 1 < self.source.len()
+                    && self.source[look] == b'\\'
+                    && self.source[look + 1] == b'\\';
+                if !continues {
+                    break;
+                }
+                s.push('\n');
+                while self.pos < look {
+                    self.advance();
+                }
+            }
+            return Token {
+                kind: TokenKind::String,
+                lexeme: s,
+                line: start_line,
+                col: start_col,
+            };
+        }
+
         // [BUG 3 FIX] String literal "..."
         if ch == b'"' {
             self.advance(); // consume opening "
