@@ -8435,3 +8435,53 @@ as undecided and says nothing about why.
 **A category you cannot isolate is a category you cannot claim.** The residue
 is the right place for it, and a residue that is honestly 10 beats one that is
 5 by assertion.
+
+## 335. A control that cannot fail is not a control -- three times in one hour
+
+Building a locator for "the item whose presence causes the failure", the answer
+needed checking. Three checks, and only the third one bites:
+
+1. **"The error moved PAST the item."** For an item at line 5 and an error at
+   line 2215 that is true by arithmetic. It passed **45 of 45** and I believed
+   it for ten minutes.
+2. **"The error line CHANGED."** Better, and still wrong: commenting out a
+   block-comment OPENER changes the error, because it breaks the file further.
+   It credited two answers that were plainly comments.
+3. **"The file parses, or the new error is LATER than the ORIGINAL."** Compared
+   against a fixed point that the item cannot move. This one refuted 41 of 86
+   candidates.
+
+The tell for the first is the one I had already written down and did not apply:
+a metric that rises monotonically with an unrelated quantity is not a
+measurement. Read your own control and ask what input would make it FAIL.
+
+## 336. The fidelity control that could not see the defect
+
+The locator splits a file into `head + body + tail`. The obvious control: the
+reconstruction must reproduce the original failure, on the same line. It passed
+**46 of 46** -- while the answer was wrong for 16 of them.
+
+Of course it did. `head + body + tail` is the whole file whatever the
+boundaries are. The control tests the concatenation, not the split.
+
+**A control on the pipeline's OUTPUT is not a control on its INTERNAL
+decisions.** If a stage's mistake is invisible in the end-to-end result, that
+result cannot validate the stage. The causality check works because it
+perturbs the thing the stage decided.
+
+## 337. Three bugs in one model, none found by a control
+
+Brace-depth over source, and every bug found by reading an ANSWER that looked
+wrong -- never by a test:
+
+- `//` and `#` comment bodies counted as code, so depth never returned to zero
+  and the whole body was one "item": median item size **352 lines**.
+- The module's closing brace located by matching the TEXT `}` backwards, which
+  hit a nested `};` and made the tail 40 lines of orphan code.
+- A `/* */` block wrapping a JSON schema, whose `{` moved every boundary in a
+  500-line file.
+
+After the first fix the median went **352 -> 1 line**. The lesson is not "write
+a lexer": it is that a model of the source is a component with its own defects,
+and the only thing that surfaced them was looking at where the tool pointed and
+asking whether that place made sense.
