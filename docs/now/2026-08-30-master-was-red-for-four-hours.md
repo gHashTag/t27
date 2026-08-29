@@ -8,3 +8,4 @@
 - read the acceptance columns before re-sealing, as the gate instructs: `UNEXPECTED PASSES 1`, `DISCARD WORSENED 0`, `GATE FAILURES 0` -- the corpus ratchet is red on an IMPROVEMENT
 - so re-sealing records output whose acceptance is better than the ledger, not worse; the ledger entry itself belongs to the other session and is left alone
 - `tri seals drift --fix`, 926 files, coverage back to 1224 of 1318 holding
+- the OTHER red gate, `corpus-ratchet`, named its own repair: `specs/pins/emitter_xdc.t27 [typecheck] (fixed -- remove from the ledger)` -- fixed by #2906, entry outlived the failure; 151 -> 150 with the cap lowered in the same commit
