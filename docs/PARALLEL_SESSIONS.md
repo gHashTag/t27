@@ -82,3 +82,26 @@ missing 126 today, and closing it would rewrite every reference after it.
 The last row is the important one. There is no mechanism, only the habit of
 running `git worktree add` before the first edit — which was already written
 down and was not followed.
+
+## Incident 3 — the shared artifact, and why one session stopped writing to it
+
+The loop's status dashboard is a single published artifact. Both sessions were
+updating it. Over one iteration the other session republished it **three times**;
+each of this session's attempts required re-reading the newer 57 KB version and
+merging onto it, and by the time that finished a newer one existed. The publisher
+refuses a write that is not built on the current version, which is correct and
+which makes the race unwinnable rather than merely wasteful.
+
+**One artifact, one writer.** The session that publishes it owns it. The other
+contributes through the repository — `docs/now/` entries, issue comments, the
+skill file — which the owning session reads and folds in. That is not a
+concession; it is the same rule as the worktree, applied to a resource that
+cannot be forked.
+
+If both lanes need a visible status, the fix is **two artifacts with links to
+each other**, not two writers on one. Deciding that is the owner's call; until
+it is decided, the writer is whoever published last and the other session says
+so in its report rather than forcing.
+
+`force: true` exists and is not the answer here: it discards the other session's
+version, and the content it would discard is work.
