@@ -7165,3 +7165,75 @@ error is; stdout is byte-identical, so nothing downstream notices.
 
 Related: §234 for the ruler that read columns, §235 for the check that
 compared no fields.
+
+## 243. You counted the forms and stopped at the two you had seen
+
+§234 says the corpus writes two indentation conventions and that bracket
+depth zero handles both. That sentence was written after finding two, and
+it is wrong. There are three:
+
+    module tritype-ops;          392 specs   contents at depth 0
+    module Constants { ... }     231 specs   contents at depth 1
+    (no module line)              27 specs
+
+Depth zero finds **no definition at all** in 231 of 650 specs — a third of
+the corpus, silently. The tool shipped one iteration earlier reported two
+files with a duplicated top-level name and was blind to every braced
+module. One of them, `specs/file/operations.t27`, declares `fn delete`
+twice with different arities.
+
+Nothing in the output said so. A detector that reads a third of the corpus
+as empty reports a smaller number, not an error, and a smaller number
+after a fix reads as progress.
+
+**A survey of forms is a measurement, and it needs a denominator.** "The
+corpus writes two conventions" was a claim about 650 files supported by
+looking at two of them. One `grep -c` per form would have said 392 / 231 /
+27 before the ruler was written, and the third form is the one that
+matters.
+
+## 244. The obvious repair readmitted exactly what the last one removed
+
+Having found that depth is blind to braced modules, the repair looked
+free: use the smallest indent any definition in the file is written at.
+That rule is not even new — `use_resolve::top_level_indent` has always
+used it to find the same thing.
+
+It reports the braced modules correctly and puts the local bindings
+straight back. `specs/api/c_api_contract.t27` has no definition outside
+its test blocks, so the smallest indent **is** the locals' indent, and the
+tool reports `a`, `b`, `v`, `sim`, `bound`. Sixteen files of that shape.
+
+Four rulers, three wrong, each differently:
+
+| ruler | reports | wrong how |
+|---|---|---|
+| four spaces | 43 files | 41 are body bindings |
+| bracket depth 0 | 2 files | blind to 231 braced specs |
+| smallest definition indent | 5 files | body bindings again, in files with no top-level definition |
+| depth 0, or 1 under a braced module, `const` only in the first case | 3 files | a duplicated top-level `const` in a braced module is missed |
+
+The fourth is what shipped, and its miss is written into the source rather
+than left to be discovered. **When repair N reintroduces the failure that
+repair N−1 removed, the two failures are one problem you have not stated
+yet** — here, that "top level" is a parse question and every one of these
+rulers is a heuristic standing in for a parser that already exists.
+
+## 245. The test passed under its own mutation
+
+The kind filter — accept `const` at depth 0 but not at braced-module depth
+— had a test. Removing the filter left all twelve tests green.
+
+Its fixture put the `const` inside a `test "..." { }` block, where bracket
+depth excludes it whether or not the filter exists. The test asserted a
+true thing about a case the filter never sees.
+
+A mutation check is not a formality you run to confirm what you expect. It
+is the only thing that distinguishes a test of your code from a test of
+something adjacent to it that happens to hold. Rewritten to pin the
+**documented miss** — a duplicated `const` at braced-module depth is not
+reported — the same test fails the moment the filter is removed, which is
+what a test is for.
+
+Related: §234 for the ruler that read columns, §241 for the guard whose
+precondition had stopped holding.
