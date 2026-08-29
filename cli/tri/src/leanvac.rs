@@ -24,6 +24,12 @@ pub enum LeanCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Proof files the build root does not reach, and so nothing compiles.
+    Reach {
+        /// Also list what the root does reach.
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 /// One model as the file states it.
@@ -101,7 +107,10 @@ fn repo_root() -> Result<PathBuf> {
 }
 
 pub fn run(cmd: &LeanCmd) -> Result<()> {
-    let LeanCmd::Vacuous { all } = cmd;
+    let all = match cmd {
+        LeanCmd::Reach { all } => return crate::leanreach::run(*all),
+        LeanCmd::Vacuous { all } => all,
+    };
     let root = repo_root()?;
     let lean = root.join("proofs/lean4/Trinity/IcarusLowerable/Completeness.lean");
     let src = std::fs::read_to_string(&lean)
