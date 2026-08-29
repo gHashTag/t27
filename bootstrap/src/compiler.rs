@@ -6033,11 +6033,43 @@ impl Parser {
             // Same guards as the const/var arm: only after the block's column is
             // known, only at or deeper than it, never at column 1 where a body
             // statement and a module declaration are indistinguishable (W905).
+            // W699 rung 12: a body that OPENS with a call has no earlier clause
+            // to take a column from, so `first_clause_col` was still None and
+            // this arm never ran. A `bench` beginning
+            //
+            //     bench ternary_not_performance
+            //         @setEvalBranchQuota(10000);
+            //         var result : i32 = 0;
+            //
+            // lost the whole block for that reason. The const/var arm already
+            // seeds the column from the statement itself when it is the first
+            // thing in the block (W904); this is the same seed, and the `c > 1`
+            // guard against unindented blocks is unchanged.
+            let call_col = if lowered == 0 {
+                first_clause_col.or(Some(self.current.col))
+            } else {
+                first_clause_col
+            };
+            // ... and a CLAUSE KEYWORD is never a call, however much it looks
+            // like one. `given (exp, mant) = f(15)` is an Ident followed by `(`,
+            // and before the column was seeded the arm could not reach a block's
+            // FIRST token, so nothing had ever tested that. Seeding it exposed
+            // the hole immediately: two specs went from lowering cleanly to
+            // stopping mid-clause, +120 discarded tokens, while the corpus total
+            // still fell. The per-entry ratchet named both; the total hid them.
+            let clause_head = matches!(
+                self.current.lexeme.as_str(),
+                "given" | "when" | "then" | "assert" | "and" | "measure" | "target"
+            );
             if self.current.kind == TokenKind::Ident
+                && !clause_head
                 && self.peek.kind == TokenKind::LParen
                 && adjacent
-                && first_clause_col.is_some_and(|c| c > 1 && self.current.col >= c)
+                && call_col.is_some_and(|c| c > 1 && self.current.col >= c)
             {
+                if first_clause_col.is_none() {
+                    first_clause_col = call_col;
+                }
                 let st_call = self.save_state();
                 match self.parse_body_stmt() {
                     Ok(stmt) => {
@@ -6048,7 +6080,15 @@ impl Parser {
                     }
                     // A shape this cannot read must cost only itself: restore and
                     // fall through to the clause reading, exactly as before.
-                    Err(_) => self.restore_state(st_call),
+                    Err(_) => {
+                        // Restore the column too: a seed that survives a failed
+                        // parse would let a LATER shallower statement pass the
+                        // `>= c` guard on a column this block never established.
+                        self.restore_state(st_call);
+                        if lowered == 0 {
+                            first_clause_col = None;
+                        }
+                    }
                 }
             }
             if self.current.kind != TokenKind::Ident && !and_kw {
