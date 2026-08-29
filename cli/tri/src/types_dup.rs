@@ -471,9 +471,37 @@ fn depth_relevant(line: &str) -> String {
 }
 
 /// The name a top-level definition introduces, if the line starts one.
-fn def_name(line: &str) -> Option<&str> {
+fn def_name(line: &str) -> Option<String> {
     let t = line.trim_start();
     let t = t.strip_prefix("pub ").unwrap_or(t);
+    // A test is a declaration: it becomes a function in every backend, and two
+    // of them with one name is a redefinition. The corpus writes both
+    // `test name {` and `test "name" {`; the quoted form is stripped here so
+    // the two spellings compare as one name.
+    if let Some(rest) = t.strip_prefix("test ") {
+        let rest = rest.trim_start();
+        // A QUOTED test name is a string, and the WHOLE string is the name.
+        // Taking its first identifier-like token instead reads
+        // `test "C-API: version"` and `test "C-API: vector random"` as two
+        // declarations of `C`, and reports every test in the file as a
+        // collision -- 84 files instead of 29, all of the extra ones this
+        // mistake talking to itself.
+        let name: &str = match rest.strip_prefix('"') {
+            Some(q) => q.split('"').next()?,
+            None => rest
+                .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+                .next()?,
+        };
+        // Namespaced. A test does not share a namespace with a function: every
+        // backend prefixes it (C emits `test_str_char_at`), so `fn foo` beside
+        // `test foo` is not a collision. Keying them together reported 38 files
+        // that have no duplicate in them.
+        return if name.is_empty() {
+            None
+        } else {
+            Some(format!("test {}", name))
+        };
+    }
     let rest = ["const ", "fn ", "type ", "struct ", "enum "]
         .iter()
         .find_map(|kw| t.strip_prefix(kw))?;
@@ -483,14 +511,14 @@ fn def_name(line: &str) -> Option<&str> {
     if name.is_empty() {
         None
     } else {
-        Some(name)
+        Some(name.to_string())
     }
 }
 
 /// The kinds that are always a module member, never a binding inside a body.
 ///
 /// `const` is absent deliberately. See `redefs_in`.
-const MEMBER_KINDS: &[&str] = &["fn ", "struct ", "enum ", "type "];
+const MEMBER_KINDS: &[&str] = &["fn ", "struct ", "enum ", "type ", "test "];
 
 /// Does this file write `module Name { ... }` rather than `module Name;`?
 ///
@@ -1176,6 +1204,42 @@ mod redef_tests {
             "if this now reports, the kind filter changed and the sixteen \
              false-positive files must be re-measured"
         );
+    }
+
+    #[test]
+    fn a_quoted_test_name_is_the_whole_string() {
+        // Taking the first identifier-like token instead reads
+        // `test "C-API: version"` as a declaration of `C`, so every test in
+        // specs/api/c_api_contract.t27 collides with every other -- 84 files
+        // reported instead of 30, all the extra ones the mistake talking to
+        // itself.
+        let src = "module M {\n    test \"C-API: version\" {\n    }\n    test \"C-API: vector random\" {\n    }\n}\n";
+        assert!(redefs_in(src).is_empty(), "two distinct quoted names");
+    }
+
+    #[test]
+    fn two_tests_of_one_name_collide() {
+        let src = "module M {\n    test cordic_invalid {\n        a();\n    }\n    test cordic_invalid {\n        b();\n    }\n}\n";
+        assert_eq!(
+            redefs_in(src).get("test cordic_invalid").map(|v| v.len()),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn a_test_does_not_share_a_namespace_with_a_function() {
+        // Every backend prefixes a test -- C emits `test_str_char_at` -- so
+        // `fn str_char_at` beside `test str_char_at` is not a collision.
+        // Keying them together reported 38 files that have no duplicate in
+        // them.
+        let src = "module M {\n    fn str_char_at(s: Str) -> u8 {\n        return 0;\n    }\n    test str_char_at {\n        a();\n    }\n}\n";
+        assert!(redefs_in(src).is_empty());
+    }
+
+    #[test]
+    fn the_two_test_spellings_are_one_name() {
+        let src = "module M {\n    test foo {\n        a();\n    }\n    test \"foo\" {\n        b();\n    }\n}\n";
+        assert_eq!(redefs_in(src).get("test foo").map(|v| v.len()), Some(2));
     }
 
     #[test]
