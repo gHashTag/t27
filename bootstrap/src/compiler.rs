@@ -6295,6 +6295,12 @@ impl Codegen {
                 inner,
                 "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
                     | "isize" | "f32" | "f64" | "bool" | "str" | "string" | "any"
+                    // `int` and `float` are t27's own primitive names. The
+                    // match below maps them -- `int` -> i64, `float` -> f64 --
+                    // but this list runs FIRST and did not know them, so
+                    // `[int]` and `[float]` never became slices and reached Zig
+                    // as array-of-length-`int`. Three specs walled on it.
+                    | "int" | "float"
             ) || inner.starts_with(|c: char| c.is_uppercase())
                 && inner.chars().any(|c| c.is_lowercase());
             if is_ident && looks_like_type {
