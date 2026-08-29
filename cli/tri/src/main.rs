@@ -21,6 +21,7 @@ mod reseal;
 mod prcheck;
 mod red;
 mod rtl;
+mod skillnum;
 mod seals;
 mod sweep;
 mod vectors;
@@ -159,6 +160,12 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum SkillAction {
+    /// Check every SKILL.md's section numbering for collisions.
+    Check {
+        /// Also print the gaps, which are reported but never fail.
+        #[arg(long)]
+        gaps: bool,
+    },
     Begin {
         #[arg(long)]
         issue: u64,
@@ -717,6 +724,9 @@ fn main() -> Result<()> {
         Commands::Skill { action } => {
             let root = find_trinity_root()?;
             match action {
+                SkillAction::Check { gaps } => {
+                    skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
+                }
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
             }
