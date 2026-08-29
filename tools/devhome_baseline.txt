@@ -1,0 +1,39 @@
+# Files carrying a hardcoded developer home directory, with the count of
+# occurrences in each. Pinned so a NEW one fails and the existing debt is
+# visible. Regenerate with: python3 tools/check_devhome_paths.py --bless
+#
+# A file that GROWS fails. A file that SHRINKS also fails -- re-bless, so
+# the slack cannot be banked against the next one.
+.trinity/state/dlc10_rust_spec.md	1
+bootstrap/src/service.rs	4
+docs/NOW.md	1
+docs/fpga/LOCAL-BITSTREAM-FLOW.md	3
+docs/reports/OPENXC7-PNR-NOT-FUNCTION-PRESERVING.md	1
+docs/reports/data/W564-harness.sh	1
+docs/reports/data/W568-harness.sh	1
+docs/reports/data/W586-harness.sh	1
+docs/reports/pdf/build_pdf.sh	1
+examples/fpga/qmtech_minimal/build.sh	6
+experiments/gfternary-line/activation.py	1
+experiments/gfternary-line/balanced_connect.py	1
+experiments/gfternary-line/bases.py	1
+experiments/gfternary-line/bn_sparse.py	1
+experiments/gfternary-line/ceiling.py	1
+experiments/gfternary-line/census.py	1
+experiments/gfternary-line/depth_corrected.py	1
+experiments/gfternary-line/em_prior.py	1
+experiments/gfternary-line/learned_connect.py	1
+experiments/gfternary-line/load.sh	1
+experiments/gfternary-line/mi_connect_sparse.py	1
+experiments/gfternary-line/pareto.py	1
+experiments/gfternary-line/penalty_law.py	1
+experiments/gfternary-line/pnr.sh	3
+experiments/gfternary-line/qact_sparse.py	1
+experiments/gfternary-line/size_vs_budget.py	1
+experiments/gfternary-line/soft_mask.py	1
+experiments/gfternary-line/task_or_arch.py	1
+experiments/gfternary-line/train_export.py	1
+experiments/gfternary-line/zeckendorf.py	1
+fasm2frames.err	2
+fpga/w690_bitstream_flow.sh	4
+scripts/fpga-build.sh	3
