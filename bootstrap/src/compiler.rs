@@ -1541,6 +1541,16 @@ impl Parser {
         let mut module = Node::new(NodeKind::Module);
 
         // [BUG 4 FIX] Parse optional module declaration
+        //
+        // `pub module test;` -- visibility on a module declaration. `pub` is a
+        // modifier the declaration parser already reads for fn/struct/const,
+        // and a module is the one declaration where it was not accepted, so
+        // the file stopped on the `module` keyword itself. A module has no
+        // visibility to record here, so the modifier is consumed and dropped;
+        // when modules gain visibility this is where it goes.
+        if self.current.kind == TokenKind::KwPub && self.peek.kind == TokenKind::KwModule {
+            self.advance(); // consume 'pub'
+        }
         if self.current.kind == TokenKind::KwModule {
             self.advance(); // consume 'module'
                             // Module name can contain hyphens: e.g. "tritype-base"
