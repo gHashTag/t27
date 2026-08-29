@@ -6495,3 +6495,53 @@ Third time this session: the `for all` census matched prose in comments, the
 type reader dropped every `pub` field, and now this. All three produced a
 confident number, and all three were caught by an unrelated signal rather than
 by re-reading the scanner.
+
+## 209. Build the detector, then run it on the case that made you build it
+
+`tri orphaned list` was written after a gate's field-by-field comparison turned
+out to have had no input for months. Run against the commit before that fix, it
+finds **zero of one**: the path was assembled from a variable and a bare
+filename, and never appears as a literal at all.
+
+Zero of one is a result. It says the tool measures a *different* class than the
+one that prompted it — a real class, which is how `public/index.html` was found,
+but not the founding one.
+
+**Write the founding case down as a test case before you write the detector.** If
+you cannot state it as an input the detector will see, you are about to build
+something else, and you will not notice until you check.
+
+## 210. A detector that cannot exclude its own test module
+
+Three passes on precision, each measured:
+
+    126 hits   every path literal that does not exist
+     89 hits   + skip comments and self-check fixtures
+     21 hits   + real extensions, reject regex source, brace-counted test regions
+
+The third fixed a specific leak: the fixture region was tracked by indent, so
+after `#[test]` the `fn` on the next line — same indent — closed it, and 41
+fixture paths came back in. **Among them were this file's own test assertions.**
+
+A detector reporting its own fixtures is telling you its region logic is wrong,
+in the loudest way available. Rust test modules are brace-delimited; count
+braces. Python's are indentation-delimited; count indent. Do not use one rule for
+both.
+
+## 211. "Not in the tree" has at least three innocent meanings
+
+Of 21 findings, most are not defects:
+
+| shape | example | verdict |
+|---|---|---|
+| build output | `build/fpga/openxc7/*.bin` | absent until a build runs |
+| runtime state | `.trinity/state/doctor.json` | written on first use |
+| **named and never created** | `public/index.html` | **defect** |
+
+The third is the one worth reporting: `git log --all -- public` returns nothing
+and it is not gitignored, so no workflow, build or runtime ever makes it. The
+server's static fallback points at a directory that has never existed.
+
+**Before calling an absent path a defect, ask whether anything is supposed to
+create it** — `git log --all -- <path>` and `.gitignore` answer that in two
+commands.
