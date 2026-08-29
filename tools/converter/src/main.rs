@@ -791,6 +791,14 @@ fn convert_type_name(tri_type: &str) -> String {
         t if t.starts_with("?") => {
             format!("?{}", convert_type_name(&t[1..]))
         }
+        // `![]u8` -- an error union. Without this arm it reached the
+        // array-syntax branch below (it does contain a `[`), which slices
+        // around the FIRST `]`: `t[1..2]` is "[" and `split(']').nth(1)` is
+        // "u8", so it emitted `[[]u8`. The `?` arm one line up is the same
+        // shape and had the same reason to exist.
+        t if t.starts_with('!') => {
+            format!("!{}", convert_type_name(&t[1..]))
+        }
         t if t.starts_with("[]const ") => {
             format!("[]const {}", convert_type_name(&t[8..]))
         }
@@ -804,6 +812,21 @@ fn convert_type_name(tri_type: &str) -> String {
             } else {
                 to_pascal_case(tri_type)
             }
+        }
+        // A QUALIFIED PATH is already spelled correctly and must not be
+        // PascalCased. `std.mem.Allocator` has no underscore, so to_pascal_case
+        // only touched its first character and produced `Std.mem.Allocator` --
+        // an undeclared identifier. Same for a name that already starts
+        // uppercase, and for a generic application like `ArrayList(u8)`.
+        //
+        // The PascalCasing itself is right and stays: a .tri writes type names
+        // in snake_case (`matrix_view`) and Zig wants `MatrixView`. The bug was
+        // applying it to things that are not bare names.
+        t if t.contains('.')
+            || t.contains('(')
+            || t.starts_with(|c: char| c.is_ascii_uppercase()) =>
+        {
+            t.to_string()
         }
         _ => to_pascal_case(tri_type),
     }
