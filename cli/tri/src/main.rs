@@ -23,6 +23,7 @@ mod prcheck;
 mod quant;
 mod red;
 mod rtl;
+mod kinddrift;
 mod skillnum;
 mod seals;
 mod sweep;
@@ -43,6 +44,11 @@ enum Commands {
     Skill {
         #[command(subcommand)]
         action: SkillAction,
+    },
+    /// Match arms whose own comment names a case the pattern omits.
+    Kinds {
+        #[command(subcommand)]
+        action: kinddrift::KindsCmd,
     },
     Cell {
         #[command(subcommand)]
@@ -739,6 +745,7 @@ fn main() -> Result<()> {
             let root = find_trinity_root()?;
             cmd_status(&root)?;
         }
+        Commands::Kinds { action } => kinddrift::run(action)?,
         Commands::Skill { action } => {
             let root = find_trinity_root()?;
             match action {
