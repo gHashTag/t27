@@ -157,13 +157,37 @@ jobs:
       - name: Check L3 PURITY (ASCII-only identifiers)
         if: env.IS_BOT != 'true'
         id: check-purity
+        # `env:` is not decoration here. Each `run:` block is a fresh shell, and
+        # BASE_BRANCH is computed in the two steps above, so without this the
+        # variable expanded EMPTY and the command was `git diff origin/..HEAD`,
+        # which fails with `fatal: ambiguous argument`. Both earlier steps carry
+        # this block; the third copy lost it.
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          set -e
+          set -euo pipefail
 
           echo "Checking L3 PURITY (ASCII-only source files)..."
 
-          # Find non-ASCII characters in source files
-          if git diff origin/"$BASE_BRANCH"..HEAD --name-only | xargs grep -P '[^\x00-\x7F]' 2>/dev/null | head -20; then
+          BASE_BRANCH="${BASE_REF:-master}"
+          if [ -z "$BASE_BRANCH" ]; then
+            BASE_BRANCH="master"
+          fi
+
+          # The verdict is taken from the MATCH, not from the pipeline. `if
+          # a | b | head` tests head's exit code, which is 0 whether or not grep
+          # matched -- so the old form took the warning branch on every run, and
+          # the green branch below was unreachable for this workflow's whole
+          # history. Measured: a two-commit repository with pure-ASCII files
+          # reports "Non-ASCII characters detected".
+          FILES=$(git diff origin/"$BASE_BRANCH"..HEAD --name-only)
+          HITS=""
+          if [ -n "$FILES" ]; then
+            HITS=$(printf '%s\n' "$FILES" | xargs -r grep -PlI '[^\x00-\x7F]' 2>/dev/null || true)
+          fi
+
+          if [ -n "$HITS" ]; then
+            printf '%s\n' "$HITS" | head -20
             echo ""
             echo "::warning::L3 PURITY WARNING: Non-ASCII characters detected in source files."
             echo "L3 PURITY: Source files must be ASCII-only with English identifiers."
