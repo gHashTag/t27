@@ -140,6 +140,21 @@ def write_baseline(counts: dict[str, int]) -> None:
         "#",
         "# A file that GROWS fails. A file that SHRINKS also fails -- re-bless, so",
         "# the slack cannot be banked against the next one.",
+        "#",
+        "# NOT EVERY LINE HERE IS A DEFECT TO FIX. Three kinds live in this list:",
+        "#",
+        "#   configuration  a script or source file that should take the path from",
+        "#                  the environment. FIX THESE. bootstrap/src/service.rs,",
+        "#                  scripts/fpga-build.sh and the qmtech example were.",
+        "#   a record       docs/reports/data/W*-harness.sh and the .err capture are",
+        "#                  transcripts of measurements that were actually run. The",
+        "#                  path is part of what happened. Editing them rewrites the",
+        "#                  record, which is worse than the literal.",
+        "#   an experiment  experiments/ scripts written against one machine and not",
+        "#                  claimed to be portable. Fix opportunistically, or leave.",
+        "#",
+        "# The count is what this gate holds. Which kind a file is, only a reader",
+        "# can say -- so it is said here rather than guessed at by the tool.",
     ]
     for p in sorted(counts):
         body.append(f"{p}\t{counts[p]}")
