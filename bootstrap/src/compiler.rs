@@ -5903,6 +5903,43 @@ impl Parser {
                 self.restore_state(st_entry);
                 break;
             }
+            // W699 rung 4: a bare CALL statement in a braceless body.
+            //
+            //     test deque_init_empty
+            //         var data : [10]i32 = undefined;
+            //         deque_init(&data, &front, &back, &count);   <- discarded
+            //         assert count == 0                           <- and this
+            //
+            // `deque_init` is an Ident, so it was read as a CLAUSE HEAD and its
+            // argument list as the clause's value. That shape is not a clause,
+            // the lowering failed, and the whole block fell to the discard --
+            // taking the assertions after it. `specs/isa/ternary_deque.t27`
+            // alone loses 1873 tokens this way, the largest single entry in the
+            // ledger, and the calls are what SET UP the state the assertions
+            // then check: without them the asserts could not run even if they
+            // survived.
+            //
+            // Same guards as the const/var arm: only after the block's column is
+            // known, only at or deeper than it, never at column 1 where a body
+            // statement and a module declaration are indistinguishable (W905).
+            if self.current.kind == TokenKind::Ident
+                && self.peek.kind == TokenKind::LParen
+                && adjacent
+                && first_clause_col.is_some_and(|c| c > 1 && self.current.col >= c)
+            {
+                let st_call = self.save_state();
+                match self.parse_body_stmt() {
+                    Ok(stmt) => {
+                        block.children.push(stmt);
+                        lowered += 1;
+                        self.last_line = self.current.line;
+                        continue;
+                    }
+                    // A shape this cannot read must cost only itself: restore and
+                    // fall through to the clause reading, exactly as before.
+                    Err(_) => self.restore_state(st_call),
+                }
+            }
             if self.current.kind != TokenKind::Ident && !and_kw {
                 if Self::is_block_boundary(self.current.kind) {
                     break;

@@ -1,8 +1,8 @@
 {
-  "gen_hash_c": "sha256:43bce2e0d1cd7517ce503e8137552e14522f6a8c0ba5e07d045d3d59b2b6b1a9",
+  "gen_hash_c": "sha256:ef75c7b2d42df684a7e84803698765ed004c3cbc894337f0c69d85e232ecd7df",
   "gen_hash_rust": "sha256:9097bd95436fe16476927c1a54c8287be7a934b9cd00553337a6ff50afb154c0",
   "gen_hash_verilog": "sha256:80938ff974db8c15abfd968ee837482063894ee01947eeed90a43d37415e7515",
-  "gen_hash_zig": "sha256:fa32d9362d55db271c62ec1f96ff188ca217c028cf3f47d1afc5367a11849d83",
+  "gen_hash_zig": "sha256:2c622e93a102edd1507139b21df4afd2586e33e36fe745f1c5dcd9d0f0c972f8",
   "module": "VcdConformanceCompare",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",
