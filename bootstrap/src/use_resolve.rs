@@ -280,14 +280,108 @@ fn identifiers(text: &str) -> HashSet<String> {
 /// `math/constants.t27` against `math/sacred_physics.t27` is a real conflict
 /// and a silent pick would be exactly the mistake this guard was built for.
 fn all_agree(candidates: &[&Decl]) -> bool {
-    let norm = |t: &str| -> Vec<String> {
-        t.lines()
-            .map(|l| l.trim().to_string())
-            .filter(|l| !l.is_empty())
-            .collect()
-    };
-    let first = norm(&candidates[0].text);
-    candidates.iter().all(|d| norm(&d.text) == first)
+    let first = normalised(&candidates[0].text);
+    candidates.iter().all(|d| normalised(&d.text) == first)
+}
+
+/// Drop a line comment that is not inside a string literal.
+///
+/// `base/types.t27` writes `pub const ONE : i8 = 1;      // Trit = +1` and
+/// `base/ops.t27` writes `pub const ONE : i8 = 1;`. Those are the same
+/// declaration; only one of them is annotated. Comparing raw text calls that a
+/// conflict and refuses the import.
+fn without_comment(line: &str) -> &str {
+    let b = line.as_bytes();
+    let mut in_str: Option<u8> = None;
+    let mut i = 0;
+    while i < b.len() {
+        match in_str {
+            Some(q) => {
+                if b[i] == b'\\' {
+                    i += 1;
+                } else if b[i] == q {
+                    in_str = None;
+                }
+            }
+            None => {
+                if b[i] == b'"' || b[i] == b'\'' {
+                    in_str = Some(b[i]);
+                } else if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
+                    return &line[..i];
+                }
+            }
+        }
+        i += 1;
+    }
+    line
+}
+
+/// A declaration reduced to what it states: no comments, no blank lines, no
+/// indentation.
+fn normalised(text: &str) -> Vec<String> {
+    text.lines()
+        .map(|l| without_comment(l).trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect()
+}
+
+/// If this declaration is nothing but `= <module>::<name>;`, the module it
+/// names.
+///
+/// `specs/math/sacred_physics.t27` declares
+/// `const PHI : f64 = constants::PHI;` -- a re-export. It is not a second
+/// opinion about PHI, it is a pointer to the first one.
+fn alias_target(d: &Decl, name: &str) -> Option<String> {
+    let joined = normalised(&d.text).join(" ");
+    let rhs = joined.split_once('=')?.1.trim().trim_end_matches(';').trim();
+    let (module, target) = rhs.split_once("::")?;
+    let module = module.trim();
+    if target.trim() != name || module.is_empty() {
+        return None;
+    }
+    if !module
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
+        return None;
+    }
+    Some(module.to_string())
+}
+
+/// Which candidate to splice when they are not all the same declaration.
+///
+/// An alias -- `const PHI : f64 = constants::PHI;` -- names another candidate
+/// rather than competing with it. When every candidate but one is an alias
+/// pointing at that one's module, there is a single definition and the others
+/// say so themselves.
+///
+/// Splicing the ALIAS would be wrong: its text is `constants::PHI`, and the
+/// flat output has no `constants` namespace. The target is what carries the
+/// value.
+fn alias_resolved<'a>(candidates: &[&'a Decl], name: &str) -> Option<&'a Decl> {
+    let mut real: Vec<&Decl> = Vec::new();
+    let mut aliases: Vec<(&Decl, String)> = Vec::new();
+    for d in candidates {
+        match alias_target(d, name) {
+            Some(m) => aliases.push((d, m.to_string())),
+            None => real.push(d),
+        }
+    }
+    if real.len() != 1 || aliases.is_empty() {
+        return None;
+    }
+    let target = real[0];
+    let target_module = target
+        .origin
+        .rsplit('/')
+        .next()
+        .unwrap_or(&target.origin)
+        .trim_end_matches(".t27");
+    if aliases.iter().all(|(_, m)| m == target_module) {
+        Some(target)
+    } else {
+        None
+    }
 }
 /// The names `resolve` refused to splice, as it explained them.
 ///
@@ -392,14 +486,21 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
                 }
                 by_origin.into_values().collect()
             };
-            if distinct.len() > 1 && !all_agree(&distinct) {
-                let mut origins: Vec<String> =
-                    distinct.iter().map(|d| d.origin.clone()).collect();
-                origins.sort();
-                ambiguous.push((name.clone(), origins));
-                continue;
-            }
-            let decl = distinct[0].clone();
+            let chosen: Option<&Decl> = if distinct.len() == 1 || all_agree(&distinct) {
+                Some(distinct[0])
+            } else {
+                alias_resolved(&distinct, &name)
+            };
+            let decl = match chosen {
+                Some(d) => d.clone(),
+                None => {
+                    let mut origins: Vec<String> =
+                        distinct.iter().map(|d| d.origin.clone()).collect();
+                    origins.sort();
+                    ambiguous.push((name.clone(), origins));
+                    continue;
+                }
+            };
             next.extend(identifiers(&decl.text));
             pulled_names.insert(name);
             pulled.push(decl);
@@ -696,6 +797,76 @@ mod notes_tests {
         // everything under `module M;` and a future writer may match it.
         let src = "module M;\n    // UNRESOLVED T: declared in a and b -- ambiguous, not spliced\n";
         assert_eq!(unresolved_notes(src).len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod alias_tests {
+    use super::*;
+
+    fn d(origin: &str, text: &str) -> Decl {
+        Decl { name: "X".into(), text: text.into(), origin: origin.into() }
+    }
+
+    #[test]
+    fn a_trailing_comment_is_not_part_of_a_declaration() {
+        // base/types.t27 annotates `pub const ONE : i8 = 1;` and base/ops.t27
+        // does not. Same declaration, one of them documented.
+        let a = d("base/ops.t27", "pub const ONE : i8 = 1;");
+        let b = d("base/types.t27", "pub const ONE : i8 = 1;      // Trit = +1");
+        assert!(all_agree(&[&a, &b]));
+    }
+
+    #[test]
+    fn a_slash_inside_a_string_does_not_start_a_comment() {
+        assert_eq!(without_comment(r#"const U = "http://x"; // note"#), r#"const U = "http://x"; "#);
+    }
+
+    #[test]
+    fn an_alias_names_its_target_module() {
+        let a = d("math/sacred_physics.t27", "const PHI : f64 = constants::PHI;");
+        assert_eq!(alias_target(&a, "PHI").as_deref(), Some("constants"));
+    }
+
+    #[test]
+    fn a_value_is_not_an_alias() {
+        let a = d("math/constants.t27", "const PHI : f64 = 1.618033988749895;");
+        assert!(alias_target(&a, "PHI").is_none());
+    }
+
+    #[test]
+    fn an_alias_to_a_different_name_is_not_an_alias_for_this_one() {
+        // `const PHI = constants::PHI_INV;` is a re-export of something else,
+        // and splicing the PHI definition for it would be wrong.
+        let a = d("m/x.t27", "const PHI : f64 = constants::PHI_INV;");
+        assert!(alias_target(&a, "PHI").is_none());
+    }
+
+    #[test]
+    fn the_target_is_spliced_and_the_alias_is_not() {
+        // Splicing the alias would emit `constants::PHI` into a flat file with
+        // no `constants` namespace. The target carries the value.
+        let real = d("math/constants.t27", "const PHI : f64 = 1.618033988749895;");
+        let alias = d("math/sacred_physics.t27", "const PHI : f64 = constants::PHI;");
+        let got = alias_resolved(&[&real, &alias], "PHI").expect("resolved");
+        assert_eq!(got.origin, "math/constants.t27");
+    }
+
+    #[test]
+    fn two_real_definitions_stay_ambiguous() {
+        // TRINITY is 3.0 in constants and PHI_SQ + PHI_INV_SQ in
+        // sacred_physics. Equal by this project's own identity, and still two
+        // declarations: the choice is not mine.
+        let a = d("math/constants.t27", "const TRINITY : f64 = 3.0;");
+        let b = d("math/sacred_physics.t27", "const TRINITY : f64 = PHI_SQ + PHI_INV_SQ;");
+        assert!(alias_resolved(&[&a, &b], "TRINITY").is_none());
+    }
+
+    #[test]
+    fn an_alias_pointing_somewhere_else_stays_ambiguous() {
+        let a = d("math/constants.t27", "const PHI : f64 = 1.618;");
+        let b = d("math/sacred_physics.t27", "const PHI : f64 = elsewhere::PHI;");
+        assert!(alias_resolved(&[&a, &b], "PHI").is_none());
     }
 }
 
