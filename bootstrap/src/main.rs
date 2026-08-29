@@ -3993,10 +3993,18 @@ fn run_parse_complete(
         return run_bisect(path);
     }
     // W699: `--fallbacks --show <spec>` scopes the census to one file.
-        //
-        // The corpus view says a shape exists 19 times in 1 spec and cannot say
-        // WHICH -- and a census that names a target you then cannot open is an
-        // instrument that stops one step short.
+    //
+    // The corpus view says a shape exists 19 times in 1 spec and cannot say
+    // WHICH -- and a census that names a target you then cannot open is an
+    // instrument that stops one step short.
+    //
+    // W702: this arm was moved above the `--show` handler so it could win when
+    // BOTH flags are given, and its `if fallbacks` guard was left behind. Plain
+    // `--show` then printed the fallback view instead of the token view it is
+    // documented to print, and the token view became unreachable. Nothing
+    // failed: both outputs are plausible, and the flag that selects between
+    // them was the one that stopped being read.
+    if fallbacks {
         if let Some(path) = show {
             let src = std::fs::read_to_string(path)?;
             let events = compiler::Compiler::parse_ast_bdd_fallbacks(&src)
@@ -4015,6 +4023,7 @@ fn run_parse_complete(
             }
             return Ok(());
         }
+    }
     // W634: single-file mode -- print what was discarded, grouped by line, so a
     // human can decide whether any of it is content a theorem depends on.
     if let Some(path) = show {
