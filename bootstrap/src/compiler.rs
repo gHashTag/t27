@@ -10345,13 +10345,87 @@ fn is_zig_primitive(name: &str) -> bool {
 /// form before list literals would rewrite the brackets away; casts and the
 /// `in` operator last, because both walk left over already-rewritten text.
 fn rewrite_all(text: &str) -> String {
-    rewrite_keyword_identifiers(&rewrite_elided_struct_literal(&rewrite_not_operator(
+    rewrite_keyword_identifiers(&rewrite_empty_slice_cast(&rewrite_elided_struct_literal(
+        &rewrite_not_operator(
         &rewrite_in_operator(&rewrite_as_casts(
             &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_paren_destructuring(
                 &rewrite_array_repeats(text),
             ))),
         )),
-    )))
+    ))))
+}
+
+/// `[] as []i8` -> `&[_]i8{}`, an empty slice.
+///
+/// The general `as` rewrite cannot reach this one. Clause text is re-joined
+/// without spaces before the rewrites run, so by then it reads `[]as[]i8` and
+/// the ` as ` the cast rewrite looks for is gone -- and even with the spaces,
+/// `t27_cast([]i8, [])` is not a thing: an empty list has no element type to
+/// cast FROM.
+///
+/// Zig spells an empty slice `&[_]T{}`. 3 sites, 2 specs, both walls.
+fn rewrite_empty_slice_cast(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        // `[` `]` ws `as` ws `[` `]` <type>
+        let matched = (|| {
+            if in_str || c != '[' {
+                return None;
+            }
+            let mut j = i + 1;
+            if j >= b.len() || b[j] != ']' {
+                return None;
+            }
+            j += 1;
+            while j < b.len() && b[j].is_whitespace() {
+                j += 1;
+            }
+            if j + 2 > b.len() || b[j] != 'a' || b[j + 1] != 's' {
+                return None;
+            }
+            j += 2;
+            // `as` must be a whole word, not the head of `ascii`
+            if j < b.len() && (b[j].is_alphanumeric() || b[j] == '_') {
+                return None;
+            }
+            while j < b.len() && b[j].is_whitespace() {
+                j += 1;
+            }
+            if j + 1 >= b.len() || b[j] != '[' || b[j + 1] != ']' {
+                return None;
+            }
+            j += 2;
+            let start = j;
+            while j < b.len() && (b[j].is_alphanumeric() || b[j] == '_') {
+                j += 1;
+            }
+            if j == start {
+                return None;
+            }
+            Some((b[start..j].iter().collect::<String>(), j))
+        })();
+        match matched {
+            Some((ty, end)) => {
+                out.push_str(&format!("&[_]{}{{}}", ty));
+                i = end;
+            }
+            None => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    out
 }
 
 /// `LayerBuffers{...}` -> `std.mem.zeroes(LayerBuffers)`.
