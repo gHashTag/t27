@@ -5990,6 +5990,45 @@ impl Codegen {
             if is_ident && looks_like_type {
                 return format!("[]{}", Self::zig_type(inner));
             }
+            // A slice OF a slice. `[[str]]` reached neither branch: the guard
+            // above wants one bare identifier inside, and the `[N]T` branch
+            // higher up finds the INNER `]` first and reads the element type as
+            // `]`. So it passed through untouched and Zig read `[[str]]` as an
+            // array whose length is `[str]` --
+            // `expected type expression, found ']'`.
+            //
+            // Recursing is safe precisely because the outer brackets wrap the
+            // WHOLE type: `[3][4]f32` is not this shape (something follows the
+            // first `]`), so the 395 real `[N]T` arrays are untouched. The
+            // inner form has to convert too -- if it does not, this is a length
+            // that happens to look bracketed, and it is left to fail loudly.
+            if inner.starts_with('[') && inner.ends_with(']') {
+                let mapped = Self::zig_type(inner);
+                if mapped != inner {
+                    return format!("[]{}", mapped);
+                }
+            }
+            // An OPTIONAL element: `[T?]` is `[]?T`. t27 writes the `?` as a
+            // suffix on the element and Zig writes it as a prefix, so the two
+            // spellings put it on opposite sides of the type it qualifies.
+            // Same guard as above -- the outer brackets must wrap the whole
+            // type -- and the element must itself convert, or this was a
+            // length.
+            if let Some(base) = inner.strip_suffix('?') {
+                // No "must itself convert" guard here, unlike the two rules
+                // above. Those need one because `[MAX_TRITS]` is a LENGTH that
+                // looks like a slice. A `?` settles that on its own: a length
+                // cannot be optional. Requiring the element to map as well
+                // rejected `[T?]`, where `T` is a generic parameter and already
+                // valid Zig -- and it rejected it silently, leaving the wall in
+                // place while the build reported success.
+                let ident = !base.is_empty()
+                    && base.chars().all(|c| c.is_alphanumeric() || c == '_')
+                    && !base.starts_with(|c: char| c.is_ascii_digit());
+                if ident {
+                    return format!("[]?{}", Self::zig_type(base));
+                }
+            }
         }
 
         t.to_string()
