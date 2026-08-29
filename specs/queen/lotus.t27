@@ -671,7 +671,7 @@ module QueenLotus {
     test lotus_set_parameter_updates_policy
         given plan = Plan{.delta_type = DELTA_SET, .target_resource = 5, .target_value = 42}
         and   result = set_parameter(plan)
-        and   then policy_state[5] == 42
+        then  policy_state[5] == 42
 
     test lotus_spawn_zero_agents
         given result = lotus_spawn(0, 0)

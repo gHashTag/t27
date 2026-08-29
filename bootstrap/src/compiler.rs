@@ -5942,6 +5942,39 @@ impl Codegen {
     /// untouched: this is a rendering step, not a type checker, and silently
     /// rewriting a type it does not understand is how the converter corrupted
     /// 131 field declarations in the first place.
+    /// A field's TYPE and its DEFAULT arrive as ONE string.
+    ///
+    /// The parser collects `data: [256]u8 = [0;256]` into a single extra_type,
+    /// so zig_type was handed the value as well and `[0;256]` reached Zig in
+    /// t27 spelling: `expected ']', found ';'`.
+    ///
+    /// Split at the first `=` that is not part of a comparison; the left is a
+    /// type and the right is a value, and each gets the treatment for what it
+    /// is. Shared by both field-emitting sites -- the first version of this fix
+    /// went into the one that does not run, and the output did not move, which
+    /// is the third time today one defect has been living in two copies of a
+    /// loop.
+    fn zig_field_type_and_default(ty: &str) -> String {
+        let split = ty.char_indices().find(|(i, c)| {
+            *c == '='
+                && !matches!(
+                    ty.as_bytes().get(i.wrapping_sub(1)),
+                    Some(b'<' | b'>' | b'!' | b'=')
+                )
+                && ty.as_bytes().get(i + 1) != Some(&b'=')
+        });
+        match split {
+            Some((i, _)) => {
+                let (lhs, rhs) = ty.split_at(i);
+                let val = rewrite_struct_literal_fields(&rewrite_list_literals(
+                    &rewrite_array_repeats(rhs[1..].trim()),
+                ));
+                format!("{} = {}", Self::zig_type(lhs.trim()), val)
+            }
+            None => Self::zig_type(ty),
+        }
+    }
+
     fn zig_type(ty: &str) -> String {
 
         let t = ty.trim();
@@ -6739,7 +6772,11 @@ impl Codegen {
                 } else {
                     "void"
                 };
-                self.write_line(&format!("{}: {},", zig_ident(&child.name), Self::zig_type(ty)));
+                self.write_line(&format!(
+                    "{}: {},",
+                    zig_ident(&child.name),
+                    Self::zig_field_type_and_default(ty)
+                ));
             }
             self.dedent();
             self.write_indent();
@@ -6785,7 +6822,7 @@ impl Codegen {
                 self.write_line(&format!(
                     "{}: {},",
                     zig_ident(&child.name),
-                    Self::zig_type(ty)
+                    Self::zig_field_type_and_default(ty)
                 ));
             } else {
                 self.write_indent();
