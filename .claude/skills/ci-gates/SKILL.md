@@ -7514,3 +7514,43 @@ right.
 **Publish the number that survives, and put the funnel in the commit message.**
 A report showing "317 → 13" invites the reader to believe 304 defects were
 repaired. None were; 304 questions were declined.
+
+## 259. Zero failures, then a hundred and one, then ten
+
+I filed `t27c typecheck` printing `Typecheck FAILED` and exiting 0, and declined
+to fix it: *"95 existing mismatches would make it red on arrival."*
+
+Next pass, I measured instead of reasoning. Three numbers, in order:
+
+    455 OK, 0 FAILED       my first sweep -- and WRONG
+    549 OK, 101 FAILED     the whole corpus, counted by exit code
+     10 print FAILED       the population the change actually touches
+
+The first was a broken ruler: the loop classified by grepping the last output
+line for `OK` or `FAILED`, and **195 files printed neither** — they die on a
+parse error. They fell through both branches and were counted as nothing.
+
+The second was right and irrelevant: 101 already exit non-zero, before any
+change, because a parse error is not a typecheck verdict.
+
+**Only the third is the blast radius**, and it is ten specs. The control that
+settled it: `suite --corpus-only` exits **101 before and 101 after**, with the
+output differing by one thread id inside a panic message.
+
+**A number that answers a different question is worse than no number**, because
+it comes with the confidence of having been measured. All three of these were
+measurements. Only one was of the thing being changed.
+
+## 260. The reason I gave for not fixing it was not the reason it was unsafe
+
+"95 existing mismatches" — those are `t27c check-calls` findings, corpus-wide,
+in a different command. `typecheck` never reports them, and nothing in
+`.github/`, `scripts/` or `Makefile` invokes either.
+
+The real risk was `suite.rs`, which spawns `typecheck` and judges the phase by
+`status.success()`. That is the one place an exit code change could turn a
+green phase red — and it is not what I named when I declined.
+
+**When you decline a fix, name the mechanism, not a nearby number.** A number
+sounds like evidence and is not falsifiable as a reason; "suite judges this
+phase by the exit code, and N specs would flip" is both.
