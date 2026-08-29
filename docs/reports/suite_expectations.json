@@ -82,7 +82,7 @@
       "discard_tokens": 208,
       "discard_by_channel": {
         "bdd-block-fallback": 160,
-        "brace-body": 14,
+        "brace-body/in-fallback": 14,
         "top-level-resync": 34
       }
     },
@@ -95,7 +95,7 @@
       "discard_tokens": 472,
       "discard_by_channel": {
         "bdd-block-fallback": 185,
-        "brace-body": 287
+        "brace-body/in-fallback": 287
       }
     },
     {
@@ -107,7 +107,7 @@
       "discard_tokens": 314,
       "discard_by_channel": {
         "bdd-block-fallback": 147,
-        "brace-body": 115,
+        "brace-body/in-fallback": 115,
         "top-level-resync": 52
       }
     },
@@ -258,7 +258,7 @@
       "discard_tokens": 37,
       "discard_by_channel": {
         "bdd-block-fallback": 14,
-        "brace-body": 23
+        "brace-body/in-fallback": 23
       }
     },
     {
@@ -414,7 +414,7 @@
       "discard_tokens": 516,
       "discard_by_channel": {
         "bdd-block-fallback": 490,
-        "brace-body": 26
+        "brace-body/in-fallback": 26
       }
     },
     {
@@ -426,7 +426,7 @@
       "discard_tokens": 331,
       "discard_by_channel": {
         "bdd-block-fallback": 299,
-        "brace-body": 31,
+        "brace-body/in-fallback": 31,
         "stray-brace": 1
       }
     },
@@ -465,7 +465,7 @@
       "discard_tokens": 415,
       "discard_by_channel": {
         "bdd-block-fallback": 384,
-        "brace-body": 30,
+        "brace-body/in-fallback": 30,
         "stray-brace": 1
       }
     },
@@ -490,7 +490,7 @@
       "discard_tokens": 517,
       "discard_by_channel": {
         "bdd-block-fallback": 490,
-        "brace-body": 26,
+        "brace-body/in-fallback": 26,
         "stray-brace": 1
       }
     },
@@ -575,7 +575,7 @@
       "discard_tokens": 1069,
       "discard_by_channel": {
         "bdd-block-fallback": 857,
-        "brace-body": 186,
+        "brace-body/in-fallback": 186,
         "stray-brace": 1,
         "top-level-resync": 25
       }
@@ -602,7 +602,7 @@
       "discard_tokens": 1007,
       "discard_by_channel": {
         "bdd-block-fallback": 913,
-        "brace-body": 93,
+        "brace-body/in-fallback": 93,
         "stray-brace": 1
       }
     },
@@ -701,7 +701,7 @@
       "discard_tokens": 628,
       "discard_by_channel": {
         "bdd-block-fallback": 594,
-        "brace-body": 33,
+        "brace-body/in-fallback": 33,
         "stray-brace": 1
       }
     },
@@ -714,7 +714,7 @@
       "discard_tokens": 1041,
       "discard_by_channel": {
         "bdd-block-fallback": 1010,
-        "brace-body": 30,
+        "brace-body/in-fallback": 30,
         "stray-brace": 1
       }
     },
@@ -727,7 +727,7 @@
       "discard_tokens": 1409,
       "discard_by_channel": {
         "bdd-block-fallback": 1308,
-        "brace-body": 100,
+        "brace-body/in-fallback": 100,
         "stray-brace": 1
       }
     },
@@ -740,7 +740,7 @@
       "discard_tokens": 205,
       "discard_by_channel": {
         "bdd-block-fallback": 187,
-        "brace-body": 18
+        "brace-body/in-fallback": 18
       }
     },
     {
@@ -752,7 +752,7 @@
       "discard_tokens": 1566,
       "discard_by_channel": {
         "bdd-block-fallback": 1277,
-        "brace-body": 288,
+        "brace-body/in-fallback": 288,
         "stray-brace": 1
       }
     },
@@ -765,7 +765,8 @@
       "discard_tokens": 1813,
       "discard_by_channel": {
         "bdd-block-fallback": 1505,
-        "brace-body": 301,
+        "brace-body": 23,
+        "brace-body/in-fallback": 278,
         "stray-brace": 1,
         "top-level-resync": 6
       }
@@ -779,7 +780,7 @@
       "discard_tokens": 1139,
       "discard_by_channel": {
         "bdd-block-fallback": 1024,
-        "brace-body": 114,
+        "brace-body/in-fallback": 114,
         "stray-brace": 1
       }
     },
@@ -857,7 +858,7 @@
       "discard_tokens": 148,
       "discard_by_channel": {
         "bdd-block-fallback": 48,
-        "brace-body": 100
+        "brace-body/in-fallback": 100
       }
     },
     {
@@ -869,7 +870,7 @@
       "discard_tokens": 807,
       "discard_by_channel": {
         "bdd-block-fallback": 230,
-        "brace-body": 577
+        "brace-body/in-fallback": 577
       }
     },
     {
@@ -881,7 +882,7 @@
       "discard_tokens": 674,
       "discard_by_channel": {
         "bdd-block-fallback": 479,
-        "brace-body": 195
+        "brace-body/in-fallback": 195
       }
     },
     {
@@ -904,7 +905,7 @@
       "discard_tokens": 749,
       "discard_by_channel": {
         "bdd-block-fallback": 465,
-        "brace-body": 284
+        "brace-body/in-fallback": 284
       }
     },
     {
@@ -923,7 +924,7 @@
       "discard_tokens": 737,
       "discard_by_channel": {
         "bdd-block-fallback": 228,
-        "brace-body": 509
+        "brace-body/in-fallback": 509
       }
     },
     {
@@ -935,7 +936,7 @@
       "discard_tokens": 211,
       "discard_by_channel": {
         "bdd-block-fallback": 128,
-        "brace-body": 83
+        "brace-body/in-fallback": 83
       }
     },
     {
@@ -947,7 +948,8 @@
       "discard_tokens": 552,
       "discard_by_channel": {
         "bdd-block-fallback": 248,
-        "brace-body": 256,
+        "brace-body": 18,
+        "brace-body/in-fallback": 238,
         "top-level-resync": 48
       }
     },
@@ -1021,7 +1023,7 @@
       "discard_tokens": 238,
       "discard_by_channel": {
         "bdd-block-fallback": 121,
-        "brace-body": 117
+        "brace-body/in-fallback": 117
       }
     },
     {
@@ -1044,7 +1046,7 @@
       "discard_tokens": 48,
       "discard_by_channel": {
         "bdd-block-fallback": 34,
-        "brace-body": 14
+        "brace-body/in-fallback": 14
       }
     },
     {
@@ -1056,7 +1058,8 @@
       "discard_tokens": 441,
       "discard_by_channel": {
         "bdd-block-fallback": 58,
-        "brace-body": 38,
+        "brace-body": 22,
+        "brace-body/in-fallback": 16,
         "top-level-resync": 345
       }
     },
@@ -1119,7 +1122,7 @@
       "discard_tokens": 417,
       "discard_by_channel": {
         "bdd-block-fallback": 343,
-        "brace-body": 10,
+        "brace-body/in-fallback": 10,
         "top-level-resync": 64
       }
     },
@@ -1132,7 +1135,7 @@
       "discard_tokens": 151,
       "discard_by_channel": {
         "bdd-block-fallback": 109,
-        "brace-body": 42
+        "brace-body/in-fallback": 42
       }
     },
     {
@@ -1144,7 +1147,7 @@
       "discard_tokens": 153,
       "discard_by_channel": {
         "bdd-block-fallback": 143,
-        "brace-body": 10
+        "brace-body/in-fallback": 10
       }
     },
     {
@@ -1247,7 +1250,7 @@
       "discard_tokens": 63,
       "discard_by_channel": {
         "bdd-block-fallback": 18,
-        "brace-body": 45
+        "brace-body/in-fallback": 45
       }
     },
     {
@@ -1271,7 +1274,7 @@
       "discard_tokens": 148,
       "discard_by_channel": {
         "bdd-block-fallback": 91,
-        "brace-body": 57
+        "brace-body/in-fallback": 57
       }
     },
     {
@@ -1367,7 +1370,8 @@
       "discard_tokens": 706,
       "discard_by_channel": {
         "bdd-block-fallback": 80,
-        "brace-body": 73,
+        "brace-body": 7,
+        "brace-body/in-fallback": 66,
         "top-level-resync": 553
       }
     },
@@ -1380,7 +1384,8 @@
       "discard_tokens": 122,
       "discard_by_channel": {
         "bdd-block-fallback": 17,
-        "brace-body": 66,
+        "brace-body": 64,
+        "brace-body/in-fallback": 2,
         "top-level-resync": 39
       }
     },
@@ -1625,7 +1630,7 @@
       "discard_tokens": 302,
       "discard_by_channel": {
         "bdd-block-fallback": 289,
-        "brace-body": 4,
+        "brace-body/in-fallback": 4,
         "top-level-resync": 9
       }
     },
@@ -1638,7 +1643,7 @@
       "discard_tokens": 40,
       "discard_by_channel": {
         "bdd-block-fallback": 26,
-        "brace-body": 14
+        "brace-body/in-fallback": 14
       }
     },
     {
@@ -1657,7 +1662,7 @@
       "discard_tokens": 278,
       "discard_by_channel": {
         "bdd-block-fallback": 203,
-        "brace-body": 75
+        "brace-body/in-fallback": 75
       }
     },
     {
@@ -1676,7 +1681,7 @@
       "discard_tokens": 415,
       "discard_by_channel": {
         "bdd-block-fallback": 220,
-        "brace-body": 195
+        "brace-body/in-fallback": 195
       }
     }
   ]
