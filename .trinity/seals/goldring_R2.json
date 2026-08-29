@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:633111b6a06233f4f742400cbd400c534251c6e5e553e43bf1556fe8abeb2006",
+  "gen_hash_rust": "sha256:ae25fa49b3491a8266fe540eb1f76144ba49288220816cdb5b139d998769386d",
+  "gen_hash_verilog": "sha256:40df7d4e4e8ad69b4a21d480738492a6b363f5ccefd8929ed2351d47840e4635",
+  "gen_hash_zig": "sha256:c92e5341392722f519e2a1df2c32ac79a806e31c1fc0e074a3d0e68eebf5258e",
+  "module": "R2",
+  "ring": 12,
+  "sealed_at": "2026-08-29T22:21:31Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:16699964584ead70d3dbb826461d125b1276151999c9c80699bd8e5e33d7db44",
+  "spec_path": "bootstrap/tests/goldring/r_mulassign.t27"
+}
