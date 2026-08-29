@@ -8536,3 +8536,56 @@ After the first fix the median went **352 -> 1 line**. The lesson is not "write
 a lexer": it is that a model of the source is a component with its own defects,
 and the only thing that surfaced them was looking at where the tool pointed and
 asking whether that place made sense.
+
+## 340. A ratchet measuring a subset of its own subject
+
+`max_vacuous` exists to stop the number of vacuous completeness
+theorems from growing. A vacuous theorem is one whose Lean model has
+`functions := []`: `native_decide` on an empty structure proves
+something true and useless.
+
+There are **114** of them in 250 models. The ratchet counts **44**.
+
+Not because its marks are wrong — all 44 are correct, and no entry is
+marked `model_empty` that is not. It counts 44 because it reads the
+MISMATCH LEDGER, and a model reaches that ledger only if it ALSO
+disagrees with the Rust classifier. Whether a theorem is vacuous has
+nothing to do with whether the classifier happens to disagree; the two
+questions were joined because one file happened to hold both answers.
+
+**This is worse than having no ratchet.** With none, "how many vacuous
+theorems are there" is an open question. With this one it has an answer,
+the answer is 44, and the answer is wrong by 70.
+
+The check to run on any ratchet: **what population does it walk, and is
+that the population its name describes?** `max_vacuous` walks entries in
+a disagreement ledger. Its name says it walks vacuous theorems. Those
+differ by 70, and nothing in the output says which one you are reading.
+
+## 341. I did not write the proof I said I would, and the reason is the point
+
+Last pass this document recommended writing real Lean models for four
+vacuous theorems as "the only change that lowers this number honestly".
+This pass did not do it.
+
+`lean`, `lake` and `elan` are not installed on this machine.
+`lean-proofs.yml` has a `lake build`, so the instrument exists — in CI,
+not here.
+
+And the deeper reason: a FAITHFUL model may make its theorem **false**.
+`t27c gen-rust` on those four specs exits 1 and emits nothing, so the
+classifier says they do not lower. An honest transcription might
+therefore be unprovable — which would be the correct outcome and a real
+finding, not a bug.
+
+Which means I could not tell the two apart. A red `lake build` would
+mean either "the theorem was false all along" or "you transcribed it
+wrong", and with no local build there is no way to choose.
+
+**Writing an artefact you cannot check and pushing it to see what CI
+says is not delegation, it is guessing with a longer feedback loop.** It
+is also the exact shape of §319 — a claim about something that does not
+exist yet — in the one medium where the claim is a PROOF.
+
+The honest substitute is the count, and saying plainly which of the two
+things you did.
