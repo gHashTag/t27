@@ -394,6 +394,7 @@
       "model_empty": false
     }
   },
-  "max_vacuous": 40,
-  "_vacuous": "How many of the entries are theorems about an EMPTY module. This count moves down only. It is checked by reading the model's shape, not by running Lean: nothing in this repository runs Lean -- proofs/lean4 has a lakefile and none of the 45 workflows builds it. See #2747."
+  "max_vacuous": 44,
+  "_vacuous": "How many of the entries are theorems about an EMPTY module. This count moves down only. It is checked by reading the model's shape, not by running Lean: nothing in this repository runs Lean -- proofs/lean4 has a lakefile and none of the 45 workflows builds it. See #2747.",
+  "_why_vacuous_rose": "40 -> 44 on 2026-08-30. The four github_* entries were ALWAYS vacuous -- `github_auth_module` in Completeness.lean has functions := [], globals := [], tests := [] -- and they entered the ledger only because #2882 made their specs parse, so the classifier could finally disagree with the theorem. Nothing new became vacuous; four vacuous theorems became countable. This is the SECOND-BEST answer: the ratchet exists to stop this number growing, and the right repair is to write real Lean models for those four rather than to raise the cap. Recorded here so the next reader sees a raise with a reason instead of a silent one."
 }
