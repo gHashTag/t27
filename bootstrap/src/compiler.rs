@@ -6246,7 +6246,27 @@ impl Codegen {
         // PascalCase name is converted; snake_case and SCREAMING_CASE are left
         // untouched and keep failing loudly, which is the right direction for a
         // case this parser cannot actually settle.
+        // `[T; N]` is an array TYPE in t27 spelling; Zig writes `[N]T`.
+        //
+        // Distinct from the VALUE form `[x; N]` handled by rewrite_array_repeats
+        // -- same syntax, opposite position, and the type one had no branch at
+        // all: `symbols: [LQGCSymbol;8]` reached Zig verbatim and stopped at
+        // `expected ']', found ';'`. 47 positions across 7 files.
+        //
+        // The length may be a literal or a named constant, so it is copied
+        // rather than parsed; the element goes through zig_type so `[u8;32]`
+        // and `[LQGCSymbol;8]` both land right.
         if let Some(inner) = t.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            if let Some((elem, count)) = inner.split_once(';') {
+                let elem = elem.trim();
+                let count = count.trim();
+                let plain = |s: &str| {
+                    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
+                };
+                if plain(elem) && plain(count) && !elem.starts_with(|c: char| c.is_ascii_digit()) {
+                    return format!("[{}]{}", count, Self::zig_type(elem));
+                }
+            }
             let is_ident = !inner.is_empty()
                 && inner.chars().all(|c| c.is_alphanumeric() || c == '_')
                 && !inner.starts_with(|c: char| c.is_ascii_digit());
