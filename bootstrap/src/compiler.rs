@@ -22229,6 +22229,20 @@ pub struct RustCodegen {
     bool_fns: std::collections::HashSet<String>,
     /// Parameters and locals of the current function declared `bool`.
     bool_vars: std::collections::HashSet<String>,
+    /// Field names this FILE declares as `bool`.
+    ///
+    /// `expr_is_bool` had no arm for `ExprFieldAccess`, so a condition on a
+    /// bool field fell to the integer default: `!debouncer.enabled` was emitted
+    /// as `((debouncer.enabled) == 0)`, which rustc rejects with E0308. The
+    /// emitter prints `pub enabled: bool,` into the same file and never
+    /// consulted it.
+    ///
+    /// Keyed by NAME, not by (struct, field): measured over the corpus, zero
+    /// of the 650 specs declare one field name as `bool` in one struct and as
+    /// something else in another, so within a single generated file the name
+    /// is unambiguous. 35 names collide ACROSS files, which is why this is
+    /// cleared per file and never shared.
+    bool_fields: std::collections::HashSet<String>,
     /// Rust type of every explicitly typed parameter/local of the current
     /// function. Feeds `infer_int_type`.
     var_types: std::collections::HashMap<String, String>,
@@ -22263,6 +22277,7 @@ impl RustCodegen {
             fn_ret_type: String::new(),
             bool_fns: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
+            bool_fields: std::collections::HashSet::new(),
             var_types: std::collections::HashMap::new(),
             const_types: std::collections::HashMap::new(),
             fn_ret_types: std::collections::HashMap::new(),
@@ -22418,6 +22433,9 @@ impl RustCodegen {
             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
                 let field_name = &child.name;
                 let field_type = Self::t27_type_to_rust(&child.extra_type);
+                if field_type.trim() == "bool" {
+                    self.bool_fields.insert(field_name.clone());
+                }
                 self.write_line(&format!("pub {}: {},", field_name, field_type));
             }
         }
@@ -22516,7 +22534,14 @@ impl RustCodegen {
 
         // Check if there's a body
         let has_body = node.children.iter().any(|c| {
-            matches!(c.kind, NodeKind::ExprReturn | NodeKind::StmtExpr | NodeKind::StmtLocal | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange)
+            // StmtAssign was absent, so a function whose body is assignments
+            // ONLY tested as bodiless and was emitted as `{ unimplemented!() }`
+            // -- a stub rustc accepts everywhere and that panics at run time.
+            // 53 functions in 35 specs, and Zig and C lower every one: the
+            // clock `tick()` in the FPGA testbenches, `uart_reset`, six state
+            // setters in top_level, both `on_clock` hardware steps. Exactly the
+            // pure-mutation functions a state machine is made of.
+            matches!(c.kind, NodeKind::ExprReturn | NodeKind::StmtExpr | NodeKind::StmtLocal | NodeKind::StmtAssign | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange)
         });
 
         // Infer which locals need `let mut`: scan body for any assignment.
@@ -23071,6 +23096,7 @@ impl RustCodegen {
             NodeKind::ExprLiteral => node.value == "true" || node.value == "false",
             NodeKind::ExprIdentifier => self.bool_vars.contains(&node.name),
             NodeKind::ExprCall => self.bool_fns.contains(&node.name),
+            NodeKind::ExprFieldAccess => self.bool_fields.contains(&node.name),
             _ => false,
         }
     }
