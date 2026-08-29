@@ -6256,6 +6256,13 @@ exists to say what could be checked today.
 After teaching the scanner the binder forms the corpus actually writes:
 walkable 100 → **193**, no-binder 139 → **25**.
 
+**And 193 was wrong too.** That re-count fixed the NOTATION scanner and left
+the BINDER parser reading one binder in three — `forall a : T, b : U` stopped
+at the first colon. Measured after the second fix: **walkable 119**,
+over-ceiling 294, unbounded 486, no-binder 25. One instrument corrected
+another instrument's output, and nobody re-asked whether the corrected
+instrument was right. See §216.
+
 **A bucket named for the tool's limitation must be labelled as the tool's, or
 readers will read it as the world's.**
 
@@ -6600,3 +6607,80 @@ calls that a failure — `""` is neither.
 
 **Filter on `status` before you read `conclusion`**, and print the window the
 sample covers beside the verdict.
+
+## 216. One instrument corrected another, and nobody re-asked the corrector
+
+`tri quantifiers report` sizes every quantified clause's domain. Two days ago its
+notation scanner was found to be matching English prose, and correcting it moved
+**walkable 100 → 193**. That correction was published — in the issue, in the
+skill, in the loop log — and it was itself wrong.
+
+The re-count fixed *which lines are clauses*. It never asked whether the binder
+list of a clause was read correctly. It was not: `parse_binders` did
+
+    upto.split_once(':')
+
+one split, so the first colon ended the world. Right for the 501 single-binder
+rows. Right, **by pure accident**, for the 69 rows that put the clause body after
+a comma. Wrong for the 297 rows that write a colon per binder:
+
+    forall clk : bool, rst_n : bool, angle : i16, valid_in : bool
+    reported:  walkable |D| = 2   [clk: bool]
+    true:      2 × 2 × 65536 × 2 = 524 288 — eight times over the ceiling
+
+Measured after the fix, from the binary:
+
+| bucket | published | measured |
+|---|---|---|
+| walkable | 193 | **119** |
+| finite but over the ceiling | 250 | **294** |
+| unbounded | 456 | **486** |
+| no binder this can read | 25 | **25** |
+
+**A correction is a new measurement and inherits nothing.** The re-count borrowed
+this parser's credibility without ever pointing an instrument at it, and the
+borrowed credibility is what carried a wrong number into three documents.
+
+## 217. The accident that punishes the obvious fix
+
+Two shapes are one character apart:
+
+    forall p : Type, q : Type              297 rows — two binders
+    forall p : Type, body(p) >= 0           69 rows — ONE binder and a body
+
+The old one-split is wrong on the first and right on the second. A fix that
+splits on every top-level comma and keeps walking is right on the first and
+**corrupts the second** — 69 rows newly given a binder minted out of a predicate.
+
+The design is not the split, it is the **stop**: walk segments left to right and
+halt at the first one that is not a binder. Everything after it is the body.
+
+**When a bug is right about part of its input, find out which part before you
+touch it.** The 69 rows do not appear in any bug report; they appear only if you
+go and count the shapes first. The accident is load-bearing until you know it is
+there.
+
+## 218. My acceptor threw away nineteen real binders
+
+The first implementation guarded ascriptions with an *acceptor*: a type is a
+token of `[A-Za-z0-9_]`, optionally bracket-prefixed. It was written from the
+types I had seen.
+
+Nineteen rows the corpus writes — `input : [u32]`, `w : []TernaryWeight`,
+`assign : m.assigns` — failed it, and the report called them **"no binder"**.
+That is a worse lie than the undersized domain it replaced: an undersized domain
+is a wrong number, "no binder" is a denial that the source says anything.
+
+Caught by the monotonicity check, which was in the plan before the code was:
+*this fix can only ADD binders, except at the two rows where it retires fiction.*
+Twenty-one subtractions appeared. Nineteen were mine.
+
+The repair was to invert the guard into a **rejector** — refuse a call `(`, a
+comparison, or a leading keyword, and let everything else through to `size_of`,
+whose entire job is to answer "unbounded" for what it does not recognise.
+
+**Write the acceptor from the population, or write a rejector.** An acceptor
+built from what you have seen silently discards what you have not, and there is
+no failing test for input you did not know existed. State the direction the fix
+must move things BEFORE running it — a one-line invariant caught nineteen rows
+that eighteen unit tests, all green, did not.
