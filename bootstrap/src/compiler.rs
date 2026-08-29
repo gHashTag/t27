@@ -14778,7 +14778,10 @@ impl VerilogCodegen {
                 }
                 fn reg_decl(width: u32, signed: bool) -> String {
                     let signed_kw = if signed { " signed" } else { "" };
-                    if width == 1 {
+                    // A zero width reaches here and `width - 1` underflows: the suite
+                    // panics outright in a debug build and emits
+                    // `reg [18446744073709551615:0]` in release.
+                    if width <= 1 {
                         format!("reg{}", signed_kw)
                     } else {
                         format!("reg{} [{}:0]", signed_kw, width - 1)
