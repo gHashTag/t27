@@ -6336,9 +6336,24 @@ impl Codegen {
                 // type -- which is just as well, because the element type is
                 // not here either.
                 let (val, count) = raw.split_at(semi);
+                // The REPEATED ELEMENT goes through the same rewrites as a
+                // comma list. It did not, so
+                //
+                //     keys = [Str{ data = [0; 4096], len = 0 }; MAX_MAP_ENTRIES]
+                //
+                // emitted `.{Str{data=.{0} ** 4096,len=0}} ** MAX_MAP_ENTRIES`
+                // -- the inner repeat lowered, the FIELDS did not, and
+                // `Str{data=...}` is `expected ',' after initializer`. Two
+                // specs walled on it.
+                //
+                // Same omission as the comma branch a few lines down, which was
+                // fixed earlier today; this arm was the other half and kept its
+                // own copy of the bug.
                 self.write(&format!(
                     "{}}} ** {}",
-                    rewrite_array_repeats(&zig_path(val.trim())),
+                    rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_array_repeats(
+                        &zig_path(val.trim())
+                    ))),
                     zig_path(count[1..].trim())
                 ));
                 return;
