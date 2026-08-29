@@ -8795,3 +8795,54 @@ ruler -- master 608, branch 608, experiment 615 -- settled it in one command.
 **A number without its basis is not comparable to anything, including itself an
 hour later.** Re-measure the baseline with the same script that measures the
 change.
+
+## 351. The grep that read the headline
+
+A probe harness for "does this construct warn?":
+
+```sh
+t27c check $f | grep -oE "returns \\w+ where \\w+|Typecheck OK" | head -1
+```
+
+The compiler's FIRST output line is `Typecheck OK (0 errors, 2 warnings)`. The
+alternation matched it, `head -1` took it, and every probe reported clean while
+warning underneath.
+
+It cost four measurements that contradicted each other -- byte-identical files
+"disagreeing", an isolated function passing where the same lines in the file
+failed -- and one dead hypothesis about parameter shadowing that I chased into
+the symbol table. The correct hypothesis was the first one I had, and the
+harness hid its confirmation.
+
+**A summary line that contains the word you are grepping for is not a filter,
+it is a decoy.** Count the thing you care about (`grep -c "returns .* where"`)
+rather than matching an alternation that includes the banner.
+
+The tell was there and I did not act on it: when two byte-identical inputs give
+different answers, the difference is in the OBSERVER.
+
+## 352. A shift is not a symmetric operator
+
+`promote_types(&lt, &rt)` typed every binary expression by rank, including
+shifts -- so `y >> shift` with `y: i16, shift: u32` produced `U32`, and the
+shift AMOUNT decided the type of the shifted VALUE.
+
+Eight of eleven remaining narrowing warnings were that, all of the form
+`return x - (y >> shift);`. Every one read as a defect in the spec while the
+defect was in the checker. C, Rust and Zig all take the left operand's type.
+
+**Before believing a diagnostic about a spec, check the rule that produced
+it.** Eleven warnings, three of them real.
+
+## 353. A diagnostic without a location is a rumour
+
+The return-position warning printed `:?` for all eleven sites, because
+`parse_return_statement` created its node and never set `line`. Nothing failed;
+the number was simply unusable.
+
+One line -- capture `self.current.line` before consuming the keyword -- turned
+eleven rumours into eleven addresses, and the addresses are what made the shift
+pattern visible in a single glance.
+
+**Fix the location before analysing the population.** It costs a line and it
+converts every later step from guessing to reading.
