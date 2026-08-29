@@ -6155,3 +6155,72 @@ undetermined. Fifteen names in this corpus are in that state.
 **The default for "I do not know" must be the answer that makes the tool refuse,
 never the one that makes it proceed.** Four of the six tests on that command
 exist to pin exactly that.
+
+## 183. The data already said which rule governs it — in a field the gate parsed
+
+A gate applied the GoldenFloat rule `e = round((N-1)/phi^2)` to every record
+labelled `cluster=GoldenFloat`, and 41 of its 43 findings came from two families
+inside that cluster. Those families say so themselves, in the same record:
+
+    bnf8   standard="... exponent sized for range not phi"
+    tnf8   standard="... e is 3 balanced-ternary TRITS not bits; width rule 1+Et+M=N"
+    gft8   standard="... GOLDEN RATIO axis: E_t = round((N-1)/phi^2)"
+
+The gate read that field. It just did not read it.
+
+Before deciding a rule's scope from a label, **read the free text the record
+carries** — and the prose around it. The file's own comment ten lines above the
+flagged rows said "NOT the golden-ratio family … Four formats, two axes."
+
+## 184. Marking "what passes today" writes coincidences into the schema
+
+The obvious way to scope the rule was: mark every record that currently
+satisfies it. That set includes `tnf8` — which satisfies it because at 8 bits the
+range-sized and phi ladders happen to coincide, not because it is phi-governed.
+
+One marker, and a coincidence at a single width becomes a design decision that
+the next reader inherits as fact.
+
+**Scope by stated intent, not by current agreement.** When the two differ, the
+difference is the finding.
+
+## 185. During a rebase, `--ours` and `--theirs` are inverted
+
+Resolving a ledger conflict I ran `git checkout --theirs` meaning "take the
+upstream's". In a rebase, upstream is `ours` and the commit being replayed is
+`theirs` — I took my own stale file and shipped a red ratchet.
+
+Caught only because I ran the gate on a pristine `origin/master` worktree and it
+came back CLEAN, which located the fault in my branch rather than in master.
+
+**In a rebase, take the file by ref — `git checkout <ref> -- <path>` — and never
+by side.**
+
+## 186. A baseline keyed by a line hash re-opens on edit, by design
+
+Adding a field to one catalog record re-opened the withdrawn-number gate: its
+baseline is keyed by `sha1(line)`, and its own header says *"editing the line
+re-opens the gate, which is what we want."*
+
+That is correct behaviour, not an obstacle — the gate asks a human to re-confirm
+that the edited line is still text ABOUT a retraction rather than a live claim.
+
+Then my first replacement hash did not work either: the tool normalises
+whitespace before hashing (`" ".join(line.split())`). **Read how a key is MADE,
+not what it looks like** — otherwise the second hash is as wrong as the first,
+and the gate is now red for a reason you have stopped reading.
+
+## 187. `gh pr checks` said two while forty runs existed
+
+Third time in one day that a view was smaller than the question. `gh pr checks`
+reported 2 checks on a PR that had 40 workflow runs, one of them a failure I
+would have merged past.
+
+The run list is the ground truth:
+
+```bash
+gh run list --branch <branch> --limit 40 --json workflowName,conclusion,createdAt,headSha
+```
+
+and it must be read **with the head sha**, because a failure at the previous
+commit and a failure at HEAD look identical in a conclusion column.
