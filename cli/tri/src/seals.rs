@@ -459,11 +459,42 @@ pub fn run(cmd: &SealsCmd) -> Result<()> {
             }
 
             println!();
-            println!("  A hollow seal passes every check this repository has. spec_hash");
-            println!("  matches the file, so `seals fresh` is green. `none` equals `none`,");
-            println!("  so `seals drift` reports zero. The file exists, so Seal Coverage");
-            println!("  counts the spec as covered. The one thing it does not record is");
-            println!("  the output, because there was none.");
+            println!("  A hollow seal passes every SEAL check. spec_hash matches the file,");
+            println!("  so `seals fresh` is green. `none` equals `none`, so `seals drift`");
+            println!("  reports zero. The file exists, so Seal Coverage counts the spec as");
+            println!("  covered. The one thing it does not record is the output.");
+            println!();
+            println!("  Most of these are already written down as debt elsewhere -- the");
+            println!("  reconciliation below says how many. The seal side is where the same");
+            println!("  fact reads as health.");
+
+            // The same fact is recorded in tools/specs_generate_baseline.txt, and
+            // THAT file calls it a debt. Reconcile against it rather than
+            // reporting a second, competing count: a census that duplicates an
+            // existing ledger is noise, and the interesting rows are the ones
+            // where the two disagree.
+            let ledger = std::fs::read_to_string(root.join("tools/specs_generate_baseline.txt"))
+                .ok()
+                .map(|t| ledger_paths(&t));
+            if let Some(ledger) = &ledger {
+                let known = specs.iter().filter(|s| ledger.contains(**s)).count();
+                println!();
+                println!(
+                    "  against tools/specs_generate_baseline.txt, which calls each line a debt"
+                );
+                println!("      {known:>4}  already recorded there");
+                println!(
+                    "      {:>4}  hollow seal, NOT in the ledger",
+                    specs.len() - known
+                );
+                println!(
+                    "      {:>4}  in the ledger with no hollow seal",
+                    ledger
+                        .iter()
+                        .filter(|l| !specs.iter().any(|s| *s == *l))
+                        .count()
+                );
+            }
 
             // A seal on a file that is not a spec at all. Found by this census on
             // its first run: two of them name Markdown. `none` is the honest
@@ -876,6 +907,40 @@ mod tests {
         assert!(!is_sealable(&four_none));
         assert!(four_none.iter().all(|v| v.trim() == "none"));
     }
+
+    // The ledger's error column contains pipes of its own -- specs whose
+    // failing token IS `|`. Splitting on the last pipe, or on every pipe,
+    // silently drops those rows and the reconciliation under-reports.
+    #[test]
+    fn ledger_splits_on_the_first_pipe_only() {
+        let t = "# comment\n\
+                 specs/a.t27 | Error: Unexpected token in expression: Pipe ('|') at line 3:5\n\
+                 \n\
+                 specs/b.t27 | Error: Expected LBrace\n";
+        let set = ledger_paths(t);
+        assert_eq!(set.len(), 2);
+        assert!(set.contains("specs/a.t27"), "{set:?}");
+        assert!(set.contains("specs/b.t27"), "{set:?}");
+    }
+
+    #[test]
+    fn ledger_ignores_comments_and_blanks() {
+        assert!(ledger_paths("# only a comment\n\n   \n").is_empty());
+    }
+}
+
+/// The spec paths in `tools/specs_generate_baseline.txt`.
+///
+/// Each line is `<path> | <the compiler's error>`, and the file opens with
+/// comments. Splitting on the FIRST pipe matters: the error text carries pipes
+/// of its own on specs whose failing token is `|`.
+fn ledger_paths(text: &str) -> std::collections::BTreeSet<String> {
+    text.lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(|l| l.split('|').next().unwrap_or("").trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect()
 }
 
 /// The shape of a parse error, with the coordinates removed.

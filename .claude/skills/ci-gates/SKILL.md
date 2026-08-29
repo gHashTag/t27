@@ -7802,6 +7802,19 @@ generated outputs. When the spec does not parse, `t27c seal` exits 0 and writes
 All three are correct. All three are green. And the file records that
 generation did not happen. **213 of 1311 seals on master.**
 
+**And the fact was already written down.** `tools/specs_generate_baseline.txt`
+is a debt ledger of exactly these specs -- 101 of the 104 are in it, under a
+header that says "Each line is a debt". The first version of this section
+claimed nobody counted them; that was wrong, and grepping for an existing
+ledger BEFORE claiming novelty would have caught it in one command. What is
+true is narrower and still worth the tool: the same fact is recorded twice, one
+record calls it debt and the other reads as health, and the census now
+reconciles against the ledger instead of competing with it.
+
+The general rule this leaves: before reporting a count as new, search the
+repository for a file that already holds it. A second, disagreeing ledger is
+worse than no ledger.
+
 The general shape: when a computation can fail, and the failure is written down
 as a sentinel, every EQUALITY check downstream compares the sentinel against
 itself and agrees. The sentinel is invisible precisely to the checks built to
