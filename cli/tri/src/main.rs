@@ -25,6 +25,7 @@ mod rtl;
 mod skillnum;
 mod seals;
 mod sweep;
+mod types_dup;
 mod vectors;
 mod synth;
 
@@ -135,6 +136,11 @@ enum Commands {
     Abandoned {
         #[command(subcommand)]
         action: abandoned::AbandonedCmd,
+    },
+    /// Type names with more than one definition in the spec tree.
+    Types {
+        #[command(subcommand)]
+        action: types_dup::TypesCmd,
     },
     /// Every quantified clause, its binders, and the size of its domain.
     Quantifiers {
@@ -776,6 +782,7 @@ fn main() -> Result<()> {
         Commands::Vectors { action } => vectors::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Abandoned { action } => abandoned::run(action)?,
+        Commands::Types { action } => types_dup::run(action)?,
         Commands::Quantifiers { action } => quant::run(action)?,
         Commands::Discard { action } => discard::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
