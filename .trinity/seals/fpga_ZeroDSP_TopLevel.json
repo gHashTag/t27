@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:afd0e9f1ed24549538dac4e92cfa41e64e7acc7ba32a8b50dbbdaf9b795f607a",
+  "gen_hash_c": "sha256:1a15bf3c6840a279cbc466133dc8150220b75f2a4b8d41659f9efbe894f295de",
   "gen_hash_rust": "sha256:5c8313d9a8ff484b60763ddb45bda5811df46a7acb645ff8d41109d4d404169e",
   "gen_hash_verilog": "sha256:23ce65bf68f1f2d4378f5489d78b11dd8293c4dde0d08482787ec7f569e6f5e9",
   "gen_hash_zig": "sha256:c4c9aa7ab746af4428202caddd4d265e637b551a49e6519b33f37902fa9cbe6a",
   "module": "ZeroDSP_TopLevel",
   "ring": 12,
-  "sealed_at": "2026-08-29T04:11:28Z",
+  "sealed_at": "2026-08-29T17:46:27Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:bec81e5c6c9cb45fa4ff61087262e377d72bb012f6fd72bebacc81805e442c8c",
   "spec_path": "specs/fpga/top_level.t27"

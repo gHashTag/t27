@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:5028251e20ca098b3272cdc5540f0564240daee7abae0920c6df1b1c24db05b3",
+  "gen_hash_c": "sha256:64d04bb3e211d6e0a9451cf7795b6c01e563370b9cfc20ff65567d62e62afd50",
   "gen_hash_rust": "sha256:47f5444990b42a12cdf6cc3f1647291ff7050c44f735e11aa5761b9eb0049433",
   "gen_hash_verilog": "sha256:05a07e1e869e68974c58813656fe843c8b9411a999f00cfdac071ab2017a0735",
   "gen_hash_zig": "sha256:0527a86968480958afc5917af1f3d7f75473ac83f354b1c90601abc30d4fd9b8",
   "module": "IGLAMultiLangHarness",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-29T17:46:28Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:da869f75b0e66b078c82ff9989a637e2e81426f78d2ede00b74df9da126c18b5",
   "spec_path": "specs/igla/evaluation/multi_lang_harness.t27"
 }
