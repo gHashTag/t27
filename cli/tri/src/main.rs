@@ -46,7 +46,14 @@ struct Cli {
 #[derive(Subcommand)]
 pub enum ModsCmd {
     /// List them.
-    Orphan,
+    Orphan {
+        /// Compare against docs/reports/orphan_modules.json and exit non-zero on a change.
+        #[arg(long)]
+        gate: bool,
+        /// Negative control: prove this gate can see a planted orphan.
+        #[arg(long)]
+        self_check: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -831,7 +838,13 @@ fn main() -> Result<()> {
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
         Commands::Mods { action } => match action {
-            ModsCmd::Orphan => modreach::run()?,
+            ModsCmd::Orphan { gate, self_check } => {
+                if *self_check {
+                    modreach::self_check()?
+                } else {
+                    modreach::run(*gate)?
+                }
+            }
         },
         Commands::Elab { action } => elab::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,

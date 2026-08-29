@@ -156,7 +156,50 @@ fn repo_root() -> Result<PathBuf> {
     ))
 }
 
-pub fn run() -> Result<()> {
+/// The ledger's ceiling for each crate.
+fn ceilings(repo: &Path) -> Result<std::collections::BTreeMap<String, usize>> {
+    let p = repo.join("docs/reports/orphan_modules.json");
+    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&p)?)
+        .map_err(|e| anyhow::anyhow!("{}: {}", p.display(), e))?;
+    let o = v
+        .get("ceilings")
+        .and_then(|c| c.as_object())
+        .ok_or_else(|| anyhow::anyhow!("{}: no `ceilings` object", p.display()))?;
+    Ok(o.iter()
+        .filter_map(|(k, n)| n.as_u64().map(|n| (k.clone(), n as usize)))
+        .collect())
+}
+
+/// Negative control: the detector must SEE a planted orphan.
+///
+/// A gate that cannot fail is not a gate. This builds a two-file crate in a temp
+/// directory -- one declared, one not -- and exits non-zero unless exactly the
+/// undeclared file comes back.
+pub fn self_check() -> Result<()> {
+    let dir = std::env::temp_dir().join(format!("tri-mods-selfcheck-{}", std::process::id()));
+    let src = dir.join("src");
+    std::fs::create_dir_all(&src)?;
+    std::fs::write(src.join("main.rs"), "mod wired;\nfn main() {}\n")?;
+    std::fs::write(src.join("wired.rs"), "pub fn f() {}\n")?;
+    std::fs::write(src.join("stranded.rs"), "pub fn g() {}\n")?;
+    let reached = reach(&src.join("main.rs"), &src)?;
+    let _ = std::fs::remove_dir_all(&dir);
+    let saw_wired = reached.iter().any(|p| p.ends_with("wired.rs"));
+    let saw_stranded = reached.iter().any(|p| p.ends_with("stranded.rs"));
+    if !saw_wired {
+        anyhow::bail!("self-check: a DECLARED file was reported unreachable -- the walk is broken");
+    }
+    if saw_stranded {
+        anyhow::bail!(
+            "self-check: an UNDECLARED file was reported as reached. This gate cannot fail, \
+             so a green run from it means nothing."
+        );
+    }
+    println!("self-check: planted orphan seen, declared file reached. The gate can fail.");
+    Ok(())
+}
+
+pub fn run(gate: bool) -> Result<()> {
     let repo = repo_root()?;
     let crates = ["bootstrap", "cli/tri"];
     println!("ORPHANED SOURCE FILES  (nothing declares them; nothing compiles them)");
@@ -164,6 +207,8 @@ pub fn run() -> Result<()> {
     let mut total_files = 0usize;
     let mut total_orphans = 0usize;
     let mut total_tests = 0usize;
+    let ceil = if gate { Some(ceilings(&repo)?) } else { None };
+    let mut breaches: Vec<String> = Vec::new();
     for c in crates {
         let src = repo.join(c).join("src");
         if !src.is_dir() {
@@ -215,6 +260,25 @@ pub fn run() -> Result<()> {
             orphans.len(),
             if outside > 0 { format!("   (+{outside} reached outside src/ via #[path])") } else { String::new() }
         );
+        if let Some(cmap) = &ceil {
+            match cmap.get(c) {
+                None => breaches.push(format!(
+                    "{c}: no ceiling in docs/reports/orphan_modules.json. A crate the ledger \
+                     does not name is a crate this gate does not watch."
+                )),
+                Some(&want) if orphans.len() > want => breaches.push(format!(
+                    "{c}: orphaned rose {want} -> {}. A file left the build and nothing else \
+                     would have said so.",
+                    orphans.len()
+                )),
+                Some(&want) if orphans.len() < want => breaches.push(format!(
+                    "{c}: {} orphaned but the ceiling still says {want}. Lower it in this \
+                     commit so the next one cannot hide in the slack.",
+                    orphans.len()
+                )),
+                Some(_) => {}
+            }
+        }
         for (p, lines, tests) in &orphans {
             let t = if *tests > 0 {
                 format!("   {tests} #[test] that cargo cannot see")
@@ -235,6 +299,17 @@ pub fn run() -> Result<()> {
          opens. `cargo build` cannot error on it and `cargo test` counts none of its\n\
          tests, so removing the `mod` line lowers the suite in silence (#2900)."
     );
+    if ceil.is_some() {
+        println!();
+        if breaches.is_empty() {
+            println!("ORPHAN CEILING: CLEAN");
+        } else {
+            for b in &breaches {
+                println!("::error::{b}");
+            }
+            anyhow::bail!("orphan ceiling breached in {} crate(s)", breaches.len());
+        }
+    }
     Ok(())
 }
 
