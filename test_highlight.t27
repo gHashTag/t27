@@ -30,7 +30,7 @@ pub fn compute_phi(x: i8) f64 {
 
 ; Switch expression
 pub fn invert_trit(a: Trit) Trit {
-    switch (a) {
+    return switch (a) {
         .neg => .pos,
         .neu => .neu,
         .pos => .neg
