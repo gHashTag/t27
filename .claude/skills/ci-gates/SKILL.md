@@ -7362,3 +7362,68 @@ the fix is cheap now and a correction later.
 what turns "I found a bug" into "the bug changed nothing, and here is the
 number" — and it is the only version of that sentence anyone can check. Fixing
 first destroys the evidence that it was harmless.
+
+## 252. A dead enum variant makes a condition that matches nothing
+
+`gen_c_for_stmt` emitted a bare block where a loop belonged, so
+`for (0..1000) |_| { … }` ran its body once. The fix was to detect the
+range case and emit a counted loop:
+
+    if node.children[0].kind == NodeKind::ExprRange { … }
+
+It compiled. It changed no output. **`ExprRange` is declared in `NodeKind`
+and constructed nowhere** — the parser builds an `ExprBinary` whose
+`extra_op` is `".."`. A condition naming a variant that never exists is
+`false`, always, and a fix behind it is indistinguishable from no fix.
+
+The tell was the measurement, not the code: bare blocks 374 before, 374
+after. Had I taken "it compiles and the tests pass" as the result, the
+commit would have claimed a defect closed and closed nothing.
+
+**Before matching on an enum variant, grep for where it is CONSTRUCTED,
+not where it is declared.** A variant with one reference in the whole
+repository — its own declaration — is a name, not a case.
+
+## 253. The comment described a loop the code did not emit
+
+    fn gen_c_for_stmt(&mut self, node: &Node) {
+        // C doesn't have for-each natively; emit as a for loop with index
+        self.write_line("/* for-each loop (see t27 source) */");
+        self.write_line("{");
+
+No induction variable, no bound, no increment. The comment states the
+intent and the next four lines do something else, and 374 loops in the
+corpus ran their bodies once — in C that `cc` accepts without a single
+diagnostic, most of them in `bench_*` functions whose entire purpose is
+the iteration count.
+
+Beside it, `compound_binop`'s docstring already read: *"accepting a new
+compound operator without touching them would have emitted `x = rhs` for
+`x |= rhs` — a miscompilation rather than an error."* `/=` was missing
+from the table anyway, so `scaled /= 2.0;` became `scaled = 2.0;` in all
+three backends.
+
+Twice in one file: **somebody wrote down the failure and the failure was
+there.** A comment describing what a function should do is a claim about
+the code, and it is the cheapest possible thing to check — read the
+comment, then read the four lines under it and ask whether they do that.
+
+## 254. Grepping the helper's name finds the call sites that call it
+
+`/=` was missing from a table. Grepping `compound_binop` found three call
+sites — Zig, C, Verilog — and all three were fixed.
+
+Rust still emitted `scaled = 2.0;`.
+
+Its two `StmtAssign` arms hardcode `format!("{} = {};", target, val)` and
+never call the helper at all, so **every** compound assignment there was a
+plain store, not only the unmapped ones: Zig and C emitted 31 compound
+assignments across the corpus, Rust emitted **zero**.
+
+A search for the helper's name enumerates the sites that already do the
+right thing badly. It cannot see the site that never asked. **Enumerate by
+the behaviour — "every place that writes an assignment operator" — and
+then check each against the helper**, which is a grep for `" = "` and a
+reading, not a grep for a function name.
+
+Related: §241, a guard whose precondition had stopped holding.
