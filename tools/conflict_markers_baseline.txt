@@ -1,0 +1,8 @@
+# Tracked files that still carry a merge conflict marker.
+#
+# Each line is a broken file, not an accepted style. Remove the line when the
+# file is resolved; the gate then holds it resolved, and says so if the line
+# outlives the debt.
+#
+# Format: <path> | why it is here rather than fixed
+scripts/verify_all_152.py | eight conflicts, some nested, present since the commit that introduced the file (f1fb1456b) -- it has never parsed, so there is no clean revision to restore. Nothing imports or runs it. Choosing a side would be inventing which of 152 numeric formulas is right; that is the owner's call, not a gate's.

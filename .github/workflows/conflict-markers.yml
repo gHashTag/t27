@@ -1,0 +1,45 @@
+# A tracked file must not carry a merge conflict marker.
+#
+# `scripts/verify_all_152.py` -- a verification script by its name -- has held
+# eight unresolved `Updated upstream` / `Stashed changes` conflicts since the
+# commit that introduced it. It has never parsed. A second marker sat in
+# `.claude/skills/ci-gates/SKILL.md` for weeks and was found by hand while
+# resolving an unrelated merge, not by any check.
+#
+# No `paths:` filter, and the reason is specific to this gate rather than
+# inherited: a marker can land in ANY file, so a filter here would be a filter
+# on where the defect is allowed to hide. It is also the conflicting PR --
+# whose merge diff may not compute -- that most needs the reading.
+#
+# The self-check runs first and its exit code is read. A gate whose own
+# failure path is untested is an assertion, not a measurement.
+name: Conflict Markers
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conflict-markers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  markers:
+    runs-on: ubuntu-latest
+    name: Conflict markers (no unresolved merges)
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The gate can fail
+        run: python3 tools/check_conflict_markers.py --self-check
+
+      - name: No tracked file carries a marker
+        run: python3 tools/check_conflict_markers.py
