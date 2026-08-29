@@ -11,6 +11,7 @@ module TriCsv;
     // ═══════════════════════════════════════════════════════════
 
     pub const CsvRow = struct {
+        cells : [][]const u8,
     };
 
     pub const CsvDocument = struct {
