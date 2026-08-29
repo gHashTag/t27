@@ -77,7 +77,11 @@ pub fn problems(secs: &[(usize, String)]) -> Vec<String> {
                 titles.len(),
                 titles
                     .iter()
-                    .map(|t| format!("\"{}\"", &t[..t.len().min(46)]))
+                    // W705: `&t[..46]` panics when byte 46 lands inside a
+                    // multi-byte character, and these titles contain em dashes.
+                    // My own section headings crashed my own command the first
+                    // time it met one.
+                    .map(|t| format!("\"{}\"", t.chars().take(46).collect::<String>()))
                     .collect::<Vec<_>>()
                     .join(", ")
             ));
@@ -215,6 +219,14 @@ mod tests {
     fn only_numbered_sections_count() {
         assert!(parse("## Overview\n## Notes\n").is_empty());
         assert_eq!(parse("## 7. Real\n").len(), 1);
+    }
+
+    /// A title with a multi-byte character must not panic the reporter.
+    #[test]
+    fn a_title_with_an_em_dash_is_truncated_safely() {
+        let long = format!("## 1. {}\n## 1. b\n", "— an em dash ".repeat(6));
+        let p = problems(&sections(&long));
+        assert_eq!(p.len(), 1, "{p:?}");
     }
 
     #[test]

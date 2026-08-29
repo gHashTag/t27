@@ -6156,7 +6156,7 @@ undetermined. Fifteen names in this corpus are in that state.
 never the one that makes it proceed.** Four of the six tests on that command
 exist to pin exactly that.
 
-## 183. The data already said which rule governs it — in a field the gate parsed
+## 189. The data already said which rule governs it — in a field the gate parsed
 
 A gate applied the GoldenFloat rule `e = round((N-1)/phi^2)` to every record
 labelled `cluster=GoldenFloat`, and 41 of its 43 findings came from two families
@@ -6172,7 +6172,7 @@ Before deciding a rule's scope from a label, **read the free text the record
 carries** — and the prose around it. The file's own comment ten lines above the
 flagged rows said "NOT the golden-ratio family … Four formats, two axes."
 
-## 184. Marking "what passes today" writes coincidences into the schema
+## 190. Marking "what passes today" writes coincidences into the schema
 
 The obvious way to scope the rule was: mark every record that currently
 satisfies it. That set includes `tnf8` — which satisfies it because at 8 bits the
@@ -6184,7 +6184,7 @@ the next reader inherits as fact.
 **Scope by stated intent, not by current agreement.** When the two differ, the
 difference is the finding.
 
-## 185. During a rebase, `--ours` and `--theirs` are inverted
+## 191. During a rebase, `--ours` and `--theirs` are inverted
 
 Resolving a ledger conflict I ran `git checkout --theirs` meaning "take the
 upstream's". In a rebase, upstream is `ours` and the commit being replayed is
@@ -6196,7 +6196,7 @@ came back CLEAN, which located the fault in my branch rather than in master.
 **In a rebase, take the file by ref — `git checkout <ref> -- <path>` — and never
 by side.**
 
-## 186. A baseline keyed by a line hash re-opens on edit, by design
+## 192. A baseline keyed by a line hash re-opens on edit, by design
 
 Adding a field to one catalog record re-opened the withdrawn-number gate: its
 baseline is keyed by `sha1(line)`, and its own header says *"editing the line
@@ -6210,7 +6210,7 @@ whitespace before hashing (`" ".join(line.split())`). **Read how a key is MADE,
 not what it looks like** — otherwise the second hash is as wrong as the first,
 and the gate is now red for a reason you have stopped reading.
 
-## 187. `gh pr checks` said two while forty runs existed
+## 193. `gh pr checks` said two while forty runs existed
 
 Third time in one day that a view was smaller than the question. `gh pr checks`
 reported 2 checks on a PR that had 40 workflow runs, one of them a failure I
@@ -6224,3 +6224,55 @@ gh run list --branch <branch> --limit 40 --json workflowName,conclusion,createdA
 
 and it must be read **with the head sha**, because a failure at the previous
 commit and a failure at HEAD look identical in a conclusion column.
+
+## 194. A contradiction already visible in my own repo, published anyway
+
+The census said the suffix notation appeared 135 times. Two other things in the
+same tree said 38: `t27c parse-complete --fallbacks`, and
+`docs/DISCARD_WHAT_IS_LEFT.md`, which I had written myself four iterations
+earlier.
+
+Nobody reconciled 38 with 135 — including me, on the day I published 135 to an
+issue and a dashboard. An adversarial re-count found the cause in an hour: **99
+of the 135 were `//` comments, string literals and markdown prose.** The scanner
+matched `for all` inside English.
+
+**Before publishing a count, grep your own repo for a different count of the same
+thing.** A number that contradicts an existing measurement is not a finding, it
+is a bug in one of the two, and which one is a fifteen-minute question.
+
+## 195. "No binder this can read" described the scanner and was printed as source
+
+139 clauses were filed under a bucket whose name is a statement about the
+*scanner*, laid out among results that are statements about the *corpus*. A
+reader takes it as "the source has no binder here".
+
+The source had binders. `for all Trit a, b` is nine values. `for all k in u8` is
+256. `for any a, b in {1, -1}` is four. Those are the **smallest and most
+enumerable domains in the corpus**, and every one was filed as unreadable —
+which is the worst possible direction for the error, since the whole report
+exists to say what could be checked today.
+
+After teaching the scanner the binder forms the corpus actually writes:
+walkable 100 → **193**, no-binder 139 → **25**.
+
+**A bucket named for the tool's limitation must be labelled as the tool's, or
+readers will read it as the world's.**
+
+## 196. One spelling of three
+
+The type scanner matched lines whose trimmed text starts with `struct `. The
+corpus writes three:
+
+    struct Name { ... }           301 lines
+    pub struct Name { ... }       154
+    const Name = struct { ... }   737    <- the Zig idiom, the majority
+
+So "299 struct definitions" was a quarter of 1180, and "16 conflicted names" was
+16 of **79**. Every duplicate-name verdict had been drawn from a quarter of the
+population, and the sample was not random — it was "whatever one syntax I
+happened to write first".
+
+**When a scanner recognises a construct, enumerate the ways that construct is
+spelled before trusting the count.** `grep -c` on each spelling takes a minute
+and is the only thing that would have caught this.
