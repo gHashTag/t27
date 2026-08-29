@@ -8305,3 +8305,75 @@ output invited:
 
 The rule that found all three: **make the printed numbers add up, out loud.**
 A census whose parts do not sum to its total has a bucket you have not named.
+
+## 328. A category is a claim; make it carry a probe
+
+A census that names "the construct that stops the compiler" is making a claim
+per row, and the claims can be false in a way no amount of reading catches.
+Measured while building one: SIX constructs read off real failing lines, every
+one plausible, compile in isolation.
+
+```
+@trim("x", "y")          builtin call            ACCEPTED
+.anthropic               enum literal            ACCEPTED
+if (c) { 1 } else { 2 }  if-expression           ACCEPTED
+*Foo   &Foo              pointer / reference     ACCEPTED
+[]const u8               const-qualified slice   ACCEPTED
+for (s) |v| { }          capture in a for-loop   ACCEPTED
+```
+
+An earlier multi-agent fan-out had named `[]const u8` as a cause. A queue
+repeating it sends someone to implement a feature that is already there.
+
+So every row carries a MINIMAL SOURCE and is named only while the compiler
+rejects it today. The design is self-invalidating: when a construct gains
+support its probe passes and the row leaves the queue with no list to edit. It
+did that twice in one run, for two constructs fixed in the previous two passes.
+
+## 329. The probe checks one direction; the counter checks the other
+
+`is_use` fired on every line starting with `use `. Its probe was
+`use a::b as C;`, which the compiler does reject -- so the probe PASSED and the
+matcher was still wrong, because plain `use a::b;` and `using a::b;` both
+compile.
+
+The missing half is a COUNTER: a near-identical source the compiler ACCEPTS, on
+which the matcher must stay silent. Two tests hold the contract:
+
+```rust
+fn every_matcher_fires_on_its_own_probe()   // can the row ever be named
+fn no_matcher_fires_on_its_counter()        // is the boundary right
+```
+
+Counters found the real boundaries: `1 as u32` compiles and `1 as float` does
+not, so the defect is the TARGET type; `fn a(k: Result<T, E>)` compiles and
+`fn a<T>(k: T)` does not, so it is parameters on the FUNCTION; `[T]` compiles
+and `[K: V]` does not.
+
+And the counters keep working after you leave: the command fails if one of them
+stops compiling, because that means the boundary moved.
+
+## 330. Refused on purpose is a third state, and it is not work
+
+`x as float` is rejected. It is not a gap: `VALID_CAST_TYPES` carries a written
+argument that no backend lowers float arithmetic and that the C generator would
+emit `f32` verbatim, which is not a C type. Three specs sat in my work queue
+proposing that someone undo that.
+
+The text of the error does NOT distinguish the two -- I tried. The deliberate
+refusal still prints "parse error ... unknown cast target". So the marking is
+manual, carries the citation, and prints in its own section. An unmarked row is
+not proof it is a gap; it is proof nobody has looked.
+
+**Three states, not two: not implemented / already supported / refused with a
+reason.** A census with two states will eventually recommend undoing a decision.
+
+## 331. A fix that gains nothing is still a fix, and says so
+
+`pub module test;` now parses. Specs gained: **zero**. The one file carrying the
+construct advanced from line 4 to line 21 and stopped on `**`.
+
+The temptation is to find a number that sounds like progress -- "an obstacle
+removed", "17 lines further". The honest report is the zero, then the mechanism,
+then what it did move. The census agrees: the row disappeared from the queue,
+and that file now classifies under whatever stops it next.
