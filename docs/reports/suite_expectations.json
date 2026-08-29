@@ -316,7 +316,7 @@
       "reason": "parses now, but the parse discards tokens (parse-no-discard)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 120
+      "discard_tokens": 38
     },
     {
       "path": "specs/github/auth.t27",
@@ -668,7 +668,7 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 907
+      "discard_tokens": 807
     },
     {
       "path": "specs/isa/ternary_bitwise.t27",
@@ -676,7 +676,7 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 1223
+      "discard_tokens": 674
     },
     {
       "path": "specs/isa/ternary_control_flow.t27",
@@ -692,7 +692,7 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 1873
+      "discard_tokens": 749
     },
     {
       "path": "specs/isa/ternary_encoding.t27",
@@ -723,7 +723,7 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 705
+      "discard_tokens": 552
     },
     {
       "path": "specs/jit/jit.t27",
@@ -801,7 +801,7 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 467
+      "discard_tokens": 441
     },
     {
       "path": "specs/ml/optimizer/race_config.t27",
