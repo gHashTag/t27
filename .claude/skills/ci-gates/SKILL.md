@@ -7554,3 +7554,53 @@ green phase red — and it is not what I named when I declined.
 **When you decline a fix, name the mechanism, not a nearby number.** A number
 sounds like evidence and is not falsifiable as a reason; "suite judges this
 phase by the exit code, and N specs would flip" is both.
+
+## 261. Build the rule you rejected, run it, and read the number
+
+An invariant was discarded as "not a C constant expression" whenever its
+rendered text contained a parenthesis — a test the emitter itself
+triggers, since `gen_c_expr` parenthesises binary expressions. 2078
+invariants across 179 specs.
+
+The obvious replacement is "reject only if it contains a function call",
+and it is wrong. **It was built and run before that was known**:
+
+| rule | discarded | checks emitted | specs `cc` accepts |
+|---|---|---|---|
+| parenthesis (before) | 2078 | 3674 | 166 |
+| no function call | 1066 | 4135 | **156** |
+| no call + name in `const_defs` | **3820** | **1932** | 166 |
+| no call + no empty operand + declared | 1738 | 4014 | **171** |
+
+The second rule breaks ten specs. The third — which looks strictly safer
+— throws away 1742 checks that were compiling, because `const_defs`
+misses enum constants and does not contain `true`.
+
+Neither of those is deducible from reading the rule. Both took one
+build and one sweep to see. **A rule about a corpus is a claim about the
+corpus: the cost of testing it is a build, and the cost of not testing
+it is shipping the second row.**
+
+## 262. What the comment was hiding
+
+Promoting those discards from comments to code turned two silent defects
+into loud ones:
+
+- `(BOARD_NAME != )` — an operator with nothing after it, which is what
+  a string literal that lost its quotes leaves behind.
+- `#define CLOCK_FREQ_HZ 100_000_000` — Zig and Rust write digit
+  separators, C reads `_000_000` as a suffix on an integer constant.
+  97 lines across 35 specs.
+
+Neither had ever produced a diagnostic, because both lived inside
+`/* ... */`. The discard was not merely losing checks; it was
+**acting as a silencer for the renderer that fed it**.
+
+That generalises past this file. A branch that swallows its input and
+emits a comment cannot be assessed by reading it — its cost is invisible
+until something downstream is made to consume what it was hiding. When
+you find one, expect the first attempt to enable it to look like a
+regression, and expect the regression to be a defect you did not know
+about rather than a mistake in the change.
+
+Related: §241, a guard whose precondition had stopped holding.
