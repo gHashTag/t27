@@ -8133,3 +8133,36 @@ findings, a sentence in the future or conditional tense is a different
 kind of sentence, and it has to say so.** "Would have found" is not a
 result. Either build it and write the number, or write "untested" beside
 it — and if neither, do not write the sentence.
+
+## 320. A discarded modifier with no consumer is latent, not wrong
+
+A parser audit found two modifiers consumed and recorded nowhere:
+`pub` on a struct field (41 sites) and the `!` error-union marker on a
+return type (4). Both are the shape of the width-suffix defect (§#2867),
+where the lexer advanced past `u64` and stored nothing — and that one
+WAS a defect, because the Zig shift path then re-invented the width and
+a function panicked.
+
+These two are not, and the difference is one question: **does anything
+downstream read it?**
+
+- The Rust backend emits `pub` on every struct field regardless of what
+  the spec said; Zig has no field visibility; C has none. Three of three
+  produce identical output either way.
+- Of the four `!` sites, three are bodiless declarations no backend
+  emits, and the fourth is Zig's *noreturn* `!`, a different construct
+  sharing a token.
+
+So the grep count is 45 and the live consequence is zero.
+
+**The count is not the finding.** For a lost piece of information the
+finding is the CONSUMER, and the work is to look for one: generate the
+output both ways and diff it. Two commands. Without them a report reads
+"45 sites" and sounds like the CORDIC shift, which was 376 sites and a
+wrong gate on silicon.
+
+What to do with a latent one: record it, say plainly that nothing reads
+it today, and say where to look on the day something does. Fixing it
+means adding a field nothing consumes — a change with no measurement
+that can show it worked, which is the shape §311 warns about from the
+other side.
