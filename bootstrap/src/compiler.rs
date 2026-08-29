@@ -11068,7 +11068,12 @@ fn rewrite_keyword_identifiers(s: &str) -> String {
         // member. None appears in the corpus today; the exemption is here
         // because the rule would silently corrupt the first one that does.
         let receiver = next == Some('.') && word != "error";
+        // `}` too: `TernaryWord{.raw=packed}` ends a struct literal, and the
+        // keyword is the last operand in it. Every other closer was here; this
+        // one was not, so the value went out bare and Zig read `packed` as the
+        // layout keyword -- `expected a struct, enum or union, found '}'`.
         let closes = matches!(next, None | Some(')') | Some(',') | Some(']') | Some(';')
+            | Some('}')
             | Some('+') | Some('-') | Some('*') | Some('/') | Some('=') | Some('<') | Some('>'));
         if opens && (closes || receiver) {
             out.push_str(&format!("@\"{}\"", word));
