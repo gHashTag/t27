@@ -478,22 +478,68 @@ fn def_name(line: &str) -> Option<&str> {
     }
 }
 
+/// The kinds that are always a module member, never a binding inside a body.
+///
+/// `const` is absent deliberately. See `redefs_in`.
+const MEMBER_KINDS: &[&str] = &["fn ", "struct ", "enum ", "type "];
+
+/// Does this file write `module Name { ... }` rather than `module Name;`?
+///
+/// 231 specs of 650 use the braced form, 392 the statement form and 27 have no
+/// module line at all. The two forms put their contents at different bracket
+/// depths, so the answer decides where "top level" is.
+fn has_braced_module(lines: &[&str]) -> bool {
+    lines.iter().any(|l| {
+        let t = l.trim_start();
+        t.strip_prefix("module ")
+            .is_some_and(|r| r.trim_end().ends_with('{'))
+    })
+}
+
 /// Every top-level definition in one source, grouped by name.
 ///
-/// TOP LEVEL IS BRACKET DEPTH ZERO, not an indentation. The corpus writes two
-/// conventions: `specs/numeric/gf16.t27` puts definitions at column 0 and
-/// function bodies at four spaces, while `specs/ml/optimizer/adamw.t27` indents
-/// everything four spaces under `module AdamW;`. A four-space rule read as
-/// "top level" reports 43 files with a repeated name; depth zero reports 2. The
-/// other 41 were local `const` bindings inside function bodies.
+/// TOP LEVEL IS BRACKET DEPTH ZERO -- OR ONE, INSIDE A BRACED MODULE.
+///
+/// Four rulers were tried and three were wrong, each differently:
+///
+/// - A fixed four spaces reports 43 files of 650. 41 are local `const`
+///   bindings, because `specs/numeric/gf16.t27` defines at column 0 with
+///   bodies at four while `specs/ml/optimizer/adamw.t27` indents everything
+///   under `module AdamW;`.
+/// - Bracket depth zero reports 2, both real -- and is blind to the 231 specs
+///   written as `module Name { ... }`, where every definition sits at depth 1.
+/// - The smallest indent any definition is written at handles the braced form
+///   and puts the locals straight back: `specs/api/c_api_contract.t27` has no
+///   definition outside its test blocks, so the smallest indent IS the locals'
+///   indent, and it reports `a`, `b`, `v`, `sim`.
+///
+/// What works is depth zero, or depth one when the file opens a braced module,
+/// with `const` accepted only in the first case. A `const` at braced-module
+/// depth may be a binding in a body whose braces this line-wise counter
+/// mistracked; a `fn`, `struct`, `enum` or `type` there is a member. The
+/// corpus has 2616 such members, so the rule is exercised broadly, and it
+/// reports THREE files with no false positive: the two the depth rule already
+/// found, plus `specs/file/operations.t27`, which declares `fn delete` twice
+/// with different arities.
+///
+/// KNOWN LIMIT, not a bug to be surprised by later: a duplicated top-level
+/// `const` inside a braced module is NOT reported. Accepting it costs sixteen
+/// files of false positives, so the miss is the cheaper error -- but it is a
+/// miss, and the honest fix is to ask the parser rather than to count braces
+/// in a fifth way.
 pub fn redefs_in(src: &str) -> BTreeMap<String, Vec<Redef>> {
     let lines: Vec<&str> = src.split('\n').collect();
+    let base: i32 = if has_braced_module(&lines) { 1 } else { 0 };
     let mut starts: Vec<(usize, String)> = Vec::new();
     let mut depth: i32 = 0;
     for (i, line) in lines.iter().enumerate() {
-        if depth == 0 {
+        if depth == base {
             if let Some(n) = def_name(line) {
-                starts.push((i, n.to_string()));
+                let t = line.trim_start();
+                let t = t.strip_prefix("pub ").unwrap_or(t);
+                if base == 0 || MEMBER_KINDS.iter().any(|k| t.starts_with(k)) {
+                    starts.push((i, n.to_string()));
+                }
             }
         }
         let c = depth_relevant(line);
@@ -578,6 +624,12 @@ pub enum Divergence {
     Fields,
     /// A field two copies both state holds different text.
     Text,
+    /// The declaration lines themselves differ: two functions of the same name
+    /// with different parameter lists or return types. `fields_of` reads
+    /// `name: value` lines and a signature is not one, so without this the two
+    /// `fn delete` in `specs/file/operations.t27` -- one taking three
+    /// arguments, one taking one -- classify as differing "only in prose".
+    Signature,
     /// The stated fields agree; the bodies differ elsewhere (a comment).
     Prose,
 }
@@ -614,12 +666,27 @@ pub fn divergence(copies: &[Redef]) -> Divergence {
         }
     }
     if text {
-        Divergence::Text
-    } else if missing {
-        Divergence::Fields
-    } else {
-        Divergence::Prose
+        return Divergence::Text;
     }
+    if missing {
+        return Divergence::Fields;
+    }
+    let head = |b: &str| -> String {
+        b.lines()
+            .next()
+            .unwrap_or("")
+            .split("//")
+            .next()
+            .unwrap_or("")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let first = head(&copies[0].body);
+    if copies.iter().any(|c| head(&c.body) != first) {
+        return Divergence::Signature;
+    }
+    Divergence::Prose
 }
 
 /// Report every name defined more than once inside one file.
@@ -633,6 +700,7 @@ fn redef(root: &std::path::Path) -> Result<()> {
     let mut numbers = 0usize;
     let mut fields = 0usize;
     let mut text = 0usize;
+    let mut signature = 0usize;
     let mut prose = 0usize;
     let mut identical = 0usize;
     for (f, src) in &specs {
@@ -656,6 +724,10 @@ fn redef(root: &std::path::Path) -> Result<()> {
                     text += 1;
                     "text    "
                 }
+                Divergence::Signature => {
+                    signature += 1;
+                    "SIGNATURE"
+                }
                 Divergence::Prose => {
                     prose += 1;
                     "prose   "
@@ -667,6 +739,11 @@ fn redef(root: &std::path::Path) -> Result<()> {
             };
             let at: Vec<String> = copies.iter().map(|c| c.line.to_string()).collect();
             println!("  {} x{}  {:<28} lines {}", tag, copies.len(), name, at.join(","));
+            if d == Divergence::Signature {
+                for c in copies.iter() {
+                    println!("             {}", c.body.lines().next().unwrap_or("").trim());
+                }
+            }
             if d == Divergence::Numbers || d == Divergence::Fields {
                 let sets: Vec<_> = copies.iter().map(|c| fields_of(&c.body)).collect();
                 let mut keys: Vec<&String> = sets.iter().flat_map(|s| s.keys()).collect();
@@ -1041,6 +1118,42 @@ mod redef_tests {
     #[test]
     fn a_brace_inside_a_string_does_not_open_a_block() {
         let src = "const A = \"{\";\nconst A = \"{\";\n";
+        assert_eq!(redefs_in(src).get("A").map(|v| v.len()), Some(2));
+    }
+
+    #[test]
+    fn a_braced_module_puts_its_members_one_level_down() {
+        // 231 of 650 specs are written this way. A depth-zero rule finds no
+        // definition at all in any of them, which is how `fn delete` declared
+        // twice in specs/file/operations.t27 stayed invisible.
+        let src = "module M {\n    fn f() {\n        return 1;\n    }\n\n    fn f(x: u8) {\n        return x;\n    }\n}\n";
+        assert_eq!(redefs_in(src).get("f").map(|v| v.len()), Some(2));
+    }
+
+    #[test]
+    fn a_const_inside_a_braced_module_is_a_documented_miss() {
+        // Pins the LIMIT, not a success. A `const` at braced-module depth is
+        // not treated as a member, so this genuine duplicate is NOT reported.
+        // Accepting it costs sixteen files of local bindings that a line-wise
+        // brace counter cannot tell apart from members.
+        //
+        // The fixture is at module depth on purpose: a `const` inside a test
+        // block is excluded by depth alone, so a test written that way passes
+        // whether or not the kind filter exists and proves nothing.
+        let src = "module M {\n    const v = 1;\n\n    const v = 2;\n}\n";
+        assert!(
+            redefs_in(src).get("v").is_none(),
+            "if this now reports, the kind filter changed and the sixteen \
+             false-positive files must be re-measured"
+        );
+    }
+
+    #[test]
+    fn a_const_at_column_zero_is_still_a_definition() {
+        // The exclusion is scoped to the braced form. adamw.t27 duplicates 18
+        // names under `module AdamW;`, most of them consts, and must keep
+        // being reported.
+        let src = "module M;\n\nconst A = 1;\n\nconst A = 1;\n";
         assert_eq!(redefs_in(src).get("A").map(|v| v.len()), Some(2));
     }
 }
