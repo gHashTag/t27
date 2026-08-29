@@ -8705,3 +8705,93 @@ The general form: a build graph is a claim about coverage, and unlike a
 test list nothing prints it. `import` is the edge, the root file is the
 whole specification of what gets compiled, and it is nine lines long.
 
+## 346. One rule, four positions, three treatments
+
+`types_compatible` rejects narrowing `F64 -> F32`, with a comment naming the
+issue it closed. Where does that rejection actually apply?
+
+| position | compared? | verdict |
+|---|---|---|
+| assignment `x = d;` | yes | **error** |
+| argument `p(d)` | yes | **warning** -- printed under a `Typecheck OK` header |
+| declaration `var x: f32 = d;` | **no** | silent |
+| return `-> f32 { return d; }` | **no** | silent |
+
+A soundness fix guarding one of four narrowing sites is a soundness fix in one
+of four narrowing sites. **When you find a rule, enumerate the positions it
+should hold in and check each one** -- the code will not tell you which ones it
+forgot, because forgetting is silent by construction.
+
+Adding the declaration comparison at the argument's severity -- a warning --
+cost 18 warnings in 13 files across the whole corpus, and moved no ratchet.
+I expected noise and got a work list.
+
+## 347. The check found the bug that made the check necessary
+
+Of those 18, two read `Str <- F64`:
+
+```
+var period_str : &str = "83.333";
+```
+
+`infer_expr` returns `Str` when the literal's VALUE starts with a quote. The
+parser marks the node `extra_kind: "string"` and the lexeme does not always
+carry the quote, so a quoted string fell through to the float branch and any
+string whose text parses as a number was typed as that number. `"hello"` was
+fine -- it does not parse as a float, so it landed on `Unknown`, which is
+compatible with everything and therefore silent.
+
+Two silences composed: the declaration position was never compared, and the
+value that would have failed the comparison was mistyped. Neither was visible
+alone.
+
+The fix reads the marker the parser already sets. `specs/pins/emitter_xdc.t27`
+now typechecks -- 627 to 628 specs, zero regressions.
+
+## 348. The check was right and the input was wrong
+
+Completing a rule across its four positions, the last one -- the return
+expression -- reported **277 warnings in 31 files**, 255 of them identical:
+`returns F64 where F32 is declared`. The obvious readings are "the rule is too
+strict" or "the corpus is bad". Both were wrong.
+
+A float literal committed to `F64`. A non-negative INTEGER literal, six lines
+above in the same function, was already context-polymorphic -- with a comment
+explaining that pinning it had caused 27 false errors. Nobody had applied the
+same reasoning to floats.
+
+Making them symmetric: **608 -> 615 specs typecheck, warnings 293 -> 21**, and
+the 21 that remain are integer narrowing -- a work list rather than a wall.
+
+**A check that fires 255 times identically is describing its input, not its
+subject.** Before tuning the check, ask what the 255 have in common.
+
+## 349. Keep the rule where it was aimed
+
+The literal change weakens a soundness rule, so the control has to be the rule's
+own case, not the noise:
+
+```
+x = d      (d: f64, x: f32)   still an ERROR      <- #920 survives
+x = 2.0    (literal)          now accepted        <- the noise
+return d   (computed)         warning             <- new 4th position works
+return 1.0 (literal)          accepted
+```
+
+A binary expression is not a literal, so a computed narrowing still errors. What
+stopped erroring is the case where the compiler knows the value exactly and the
+narrowing is not one.
+
+**When you loosen a rule, the test is not "did the noise stop" -- it is "does
+the original case still fail".** Write that probe before the change, not after.
+
+## 350. Say what the count is counted over
+
+Mid-iteration I compared "628 specs pass" against a fresh reading of 615 and
+concluded a permissive change had broken 13. It had not: the 628 counted every
+tracked `.t27` and the 615 excluded `fixtures/`. Three measurements on one
+ruler -- master 608, branch 608, experiment 615 -- settled it in one command.
+
+**A number without its basis is not comparable to anything, including itself an
+hour later.** Re-measure the baseline with the same script that measures the
+change.

@@ -83,4 +83,4 @@ specs/tri/collections/bitset.t27 | Error: Compile error: Expected LParen, got Kw
 specs/vm/jit_semantics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 73:58
 specs/vsa/packed_vsa.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 58:74
 specs/vsa/sequence_hdc.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:88
-test_highlight.t27 | Error: Compile error: Unexpected top-level token: KwModule ('module') at line 4:5
+test_highlight.t27 | Error: Compile error: parse error at module level near line 21: Unexpected token in expression: Power ('**') at line 21:22
