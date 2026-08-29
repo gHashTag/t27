@@ -10,6 +10,7 @@ use std::process::Command;
 mod depin;
 mod discard;
 mod abandoned;
+mod orphaned;
 mod cibase;
 mod fleet;
 mod fpga;
@@ -146,6 +147,11 @@ enum Commands {
     Quantifiers {
         #[command(subcommand)]
         action: quant::QuantCmd,
+    },
+    /// Checks whose input is not in the tree.
+    Orphaned {
+        #[command(subcommand)]
+        action: orphaned::OrphanedCmd,
     },
     /// What the parser reads and throws away, ranked against its pinned bound.
     Discard {
@@ -784,6 +790,7 @@ fn main() -> Result<()> {
         Commands::Abandoned { action } => abandoned::run(action)?,
         Commands::Types { action } => types_dup::run(action)?,
         Commands::Quantifiers { action } => quant::run(action)?,
+        Commands::Orphaned { action } => orphaned::run(action)?,
         Commands::Discard { action } => discard::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
