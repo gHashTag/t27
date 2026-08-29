@@ -6396,6 +6396,29 @@ impl Parser {
                     let bind_look = self.save_state();
                     let name = self.current.lexeme.clone();
                     self.advance();
+                    // W699 rung 11: a TYPED binding.
+                    //
+                    //     given crossings: [i32] = []
+                    //
+                    // The arm below peeks for `=` immediately after the name, so
+                    // an annotation between them read as "not a binding" and the
+                    // clause -- and its whole block -- went to the discard. 17
+                    // fallback events across 4 specs, all of them `given`.
+                    //
+                    // The type is parsed and kept on the declaration, the way
+                    // `var x : T = v` already does in the statement arm. If no `=`
+                    // follows the annotation this restores and changes nothing.
+                    let mut typed = String::new();
+                    if self.current.kind == TokenKind::Colon {
+                        let ty_look = self.save_state();
+                        self.advance(); // :
+                        let ty = self.parse_type_annotation();
+                        if self.current.kind == TokenKind::Equals && !ty.is_empty() {
+                            typed = ty;
+                        } else {
+                            self.restore_state(ty_look);
+                        }
+                    }
                     if self.current.kind != TokenKind::Equals {
                         self.restore_state(bind_look);
                         // W906 (0013): a DOTTED/INDEXED LVALUE step --
@@ -6496,7 +6519,55 @@ impl Parser {
                                     }
                                     decl.extra_field = tail;
                                 }
+                                decl.extra_type = typed.clone();
                                 block.children.push(decl);
+                                // W699 rung 10: COMMA-SEPARATED bindings in one
+                                // clause.
+                                //
+                                //     given clk = true, rst_n = false, angle = 4096
+                                //
+                                // The loop's own comment at the top of this
+                                // function names the shape -- "it can also mean we
+                                // stopped mid-clause -- e.g. on the comma of
+                                // `given clk = true, rst_n = false`" -- and nothing
+                                // ever acted on it. 19 fallback events in
+                                // specs/igla/race/cordic_top.t27 alone, each one
+                                // taking a whole block of clauses with it.
+                                //
+                                // Same line only: a comma opening the next line is
+                                // somebody else's punctuation. Anything this cannot
+                                // read restores to the comma and leaves the clause
+                                // as it stands, so a partial list still lowers what
+                                // it understood.
+                                while self.current.kind == TokenKind::Comma
+                                    && self.current.line == self.last_line
+                                    && self.peek.kind == TokenKind::Ident
+                                {
+                                    let cm = self.save_state();
+                                    self.advance(); // ,
+                                    let n2 = self.current.lexeme.clone();
+                                    self.advance(); // name
+                                    if self.current.kind != TokenKind::Equals {
+                                        self.restore_state(cm);
+                                        break;
+                                    }
+                                    self.advance(); // =
+                                    self.in_bdd_clause_value = true;
+                                    let r2 = self.parse_expr();
+                                    self.in_bdd_clause_value = false;
+                                    match r2 {
+                                        Ok(e2) => {
+                                            let mut d2 = Node::new(NodeKind::StmtLocal);
+                                            d2.name = n2;
+                                            d2.children.push(e2);
+                                            block.children.push(d2);
+                                        }
+                                        Err(_) => {
+                                            self.restore_state(cm);
+                                            break;
+                                        }
+                                    }
+                                }
                                 true
                             }
                             Err(_) => false,

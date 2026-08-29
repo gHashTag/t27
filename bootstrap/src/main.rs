@@ -3992,6 +3992,29 @@ fn run_parse_complete(
     if let Some(path) = bisect {
         return run_bisect(path);
     }
+    // W699: `--fallbacks --show <spec>` scopes the census to one file.
+        //
+        // The corpus view says a shape exists 19 times in 1 spec and cannot say
+        // WHICH -- and a census that names a target you then cannot open is an
+        // instrument that stops one step short.
+        if let Some(path) = show {
+            let src = std::fs::read_to_string(path)?;
+            let events = compiler::Compiler::parse_ast_bdd_fallbacks(&src)
+                .map_err(|e| anyhow::anyhow!("{} does not parse: {}", path, e))?;
+            if events.is_empty() {
+                println!("{}: no whole-block fallback", path);
+                return Ok(());
+            }
+            let lines: Vec<&str> = src.lines().collect();
+            println!("{}: {} whole-block fallback(s)", path, events.len());
+            println!();
+            for (line, why, clause) in &events {
+                let text = lines.get((*line as usize).saturating_sub(1)).unwrap_or(&"");
+                println!("  {:5}| {}", line, text.trim_end());
+                println!("        {why} (on `{clause}`)");
+            }
+            return Ok(());
+        }
     // W634: single-file mode -- print what was discarded, grouped by line, so a
     // human can decide whether any of it is content a theorem depends on.
     if let Some(path) = show {
