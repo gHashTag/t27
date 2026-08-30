@@ -10265,3 +10265,48 @@ from a saved copy with an assert on each anchor. Cheap, deterministic, and it
 ends with a diff whose deleted lines are exactly the anchors you meant to
 replace — which is itself the check: `git diff | grep '^-'` should show nothing
 you did not intend to remove.
+
+
+## 408. The stash stack is shared across every worktree
+
+A separate `git worktree` does not get a separate stash stack -- stashes live in
+the shared `.git`. This repository had **nineteen**, from several sessions and
+branches (`WIP on w790`, `WIP on pr-1462`).
+
+The way it bites: a command of the shape `git stash -q -u; …; git stash pop -q`
+run on a tree with **nothing to stash**. The push stores nothing, and the pop
+takes the top of the SHARED stack -- somebody else's work in progress. Then
+`git add -A` committed 44 lines of another session's `compiler.rs` and its
+`FROZEN_HASH` under my name, into my pull request.
+
+**The symptom is a gate going red on a change that cannot touch it.** A one-line
+edit to a TEST file -- which `cargo build --release` does not even compile --
+turned `seal-coverage` red. A release build of the branch read **152 drifted
+seals** against master's **0**. The signal was true and the diff was lying about
+where it came from, which is why the first move is `git diff --name-status
+<base>...HEAD` rather than reading the failure.
+
+Never pair a blind `stash` with a blind `pop`. Label what you push
+(`git stash push -m`), take it back by name, or better, do not stash at all --
+that is what a second worktree is for. And a successful `pop` **drops** the
+entry: on finding somebody else's work, save the patch and return it to them
+before reverting, because the stack no longer has it.
+
+## 409. Grep before you file, and cede a locus twenty minutes old
+
+Two collisions in one pass, both avoidable by one command.
+
+An issue I opened on contradictions in the competitor table duplicated one that
+already existed -- and its chip was in the header of the dashboard I had loaded
+in full that same hour. `gh issue list --search` costs a second. A duplicate is
+not free: it splits the discussion and tells the next reader two things are open.
+
+Then a shared gate went red because of a file another session had merged twenty
+minutes earlier. I filed it, wrote the one-line repair, opened a pull request --
+and they landed the identical repair first. Mine closed as superseded, after two
+CI rounds.
+
+A file that new belongs to whoever wrote it: **file the issue and cede the fix**.
+What survived from that detour was not the patch but a measurement their PR did
+not carry -- the 152-against-0 reading above. The unique complement is worth more
+than the contested one, every time.
