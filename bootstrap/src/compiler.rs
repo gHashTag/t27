@@ -21884,10 +21884,103 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
         }
     }
 
+    // A constant must fit the type it declares.
+    //
+    // `const EXP_OFFSET: u32 = 1792...173` (185 digits) typechecked clean, and
+    // every backend emitted the digits verbatim: Rust as `pub const
+    // EXP_OFFSET: u32`, Verilog as `localparam [31:0]`. Only `cc` said anything
+    // -- "integer literal is too large to be represented in any integer type" --
+    // and it is the fourth backend, so three of the four carried a value 590
+    // bits wide in a 32-bit box without a word.
+    //
+    // Ten constants across five specs. The declared width is the claim; the
+    // literal is the value; nothing compared them.
+    check_const_widths(ast, &mut result);
+
     if result.error_count > 0 {
         result.ok = false;
     }
     result
+}
+
+/// The number of value bits a t27 integer type holds, or `None` if the type is
+/// not a fixed-width integer.
+///
+/// Signed types report one bit fewer: `i32` holds 2^31 - 1, not 2^32 - 1. A
+/// check that used the full width would accept `const X: i32 = 3000000000`,
+/// which is the same defect with a smaller number.
+pub fn int_value_bits(ty: &str) -> Option<u32> {
+    match ty.trim() {
+        "u8" => Some(8),
+        "u16" => Some(16),
+        "u32" => Some(32),
+        "u64" => Some(64),
+        "usize" => Some(64),
+        "i8" => Some(7),
+        "i16" => Some(15),
+        "i32" => Some(31),
+        "i64" => Some(63),
+        "isize" => Some(63),
+        _ => None,
+    }
+}
+
+/// Whether a decimal literal fits a type of `bits` value bits.
+///
+/// The `Err` arm is the load-bearing one, not a fallback. The values that
+/// provoked this are 185 digits long, so `parse::<u128>` returns `Err` rather
+/// than a wrong number -- too wide to parse and too wide to fit are the same
+/// answer here. A first draft carried an explicit `len() > 20` guard above this
+/// and a comment explaining why it was needed; deleting the guard changed no
+/// test, because it never ran.
+pub fn literal_fits(digits: &str, bits: u32) -> bool {
+    let d = digits.trim_start_matches('0');
+    if d.is_empty() {
+        return true;
+    }
+    match d.parse::<u128>() {
+        Ok(v) => v < (1u128 << bits),
+        Err(_) => false,
+    }
+}
+
+fn check_const_widths(node: &Node, result: &mut TypeCheckResult) {
+    if node.kind == NodeKind::ConstDecl {
+        // The literal is the first child, not `value`: `decl.value` carries only
+        // the verbatim text of a tagged union. Reading the wrong field is why the
+        // first version of this check fired on nothing and reported clean.
+        let lit = node
+            .children
+            .first()
+            .filter(|c| c.kind == NodeKind::ExprLiteral)
+            .map(|c| if c.value.is_empty() { c.name.clone() } else { c.value.clone() })
+            .unwrap_or_default();
+        if let Some(bits) = int_value_bits(&node.extra_type) {
+            // The lexer strips digit separators, so the literal arrives without
+            // them. A filter here changed no test either -- verified by removing
+            // it -- and `const A: u32 = 4_294_967_295` is checked end to end in
+            // tests/const_width.rs, where the lexer's behaviour is what the
+            // assertion actually rests on.
+            let raw: String = lit.clone();
+            if !raw.is_empty() && raw.chars().all(|c| c.is_ascii_digit()) && !literal_fits(&raw, bits)
+            {
+                result.error_count += 1;
+                let line = if node.line > 0 {
+                    format!(":{}", node.line)
+                } else {
+                    String::new()
+                };
+                result.errors.push(format!(
+                    "error: constant '{}'{} declares {} but its value has {} digits, \
+                     which no {} can hold",
+                    node.name, line, node.extra_type, raw.len(), node.extra_type
+                ));
+            }
+        }
+    }
+    for c in &node.children {
+        check_const_widths(c, result);
+    }
 }
 
 /// `ret` is the enclosing function's declared return type, threaded so the
