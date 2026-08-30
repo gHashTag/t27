@@ -10632,3 +10632,115 @@ is a control you get for free: run both and subtract.** It is written on this pa
 from `prose report` against `unparsed report`, and the direction of the difference names
 the defect class before you read a line of the code -- superset means too loose, disjoint
 means two different questions.
+
+## 422. A control on the ARTIFACT is not a repair available in the GENERATOR
+
+`break` lowers to `disable fork;` in generated Verilog, and no generated file in the
+corpus contains a `fork` -- the only occurrence of the token, corpus-wide, is inside
+`disable fork;` itself. A skeptic proved the diagnosis the right way: copy the generated
+file, change ONLY the two `disable fork;` lines to `disable __t27_loop_N;`, assert the
+plant took, re-run the same testbench. All twelve measured points snapped to the oracle.
+One line changed, whole disagreement gone.
+
+The report then said the correct form "is available and simply unused". It is not. The
+named block `__t27_loop_{n}` is emitted at ONE site, inside `gen_verilog_while_stmt`, and
+only when `while_literal_bound` returns `Some`. `gen_verilog_for_stmt`,
+`gen_verilog_for_range_stmt` and the unbounded `while` branch emit no named block at all,
+and `write_line("disable fork;")` has no idea which loop encloses it. The repair is a name
+stack, a named block on every loop, and a `disable <top>` -- and `continue` still has no
+target after all that, because there is no per-iteration block.
+
+**A hand patch of the output proves the mechanism. It says nothing about the cost of the
+fix, because the generator does not have the information the patch had.** Quote the two
+separately, and read the emitter before you write "one line".
+
+## 423. `false && A || B` disables only the left half, and the survivor reads as dead code
+
+Mutating an arm that read `extra_kind == "float" || value.contains('.')`, I prefixed
+`false &&`. In Rust `&&` binds tighter than `||`, so the mutant was
+`(false && extra_kind == "float") || value.contains('.')` -- the second disjunct still
+fired and the output did not move.
+
+Two wrong conclusions came out of that in sequence. First, the mutant "survived", so the
+test looked weak. Then I wrote a test that DID reach the arm, and it still survived -- so
+the arm looked like dead code, and dead code is something this page says to delete. Both
+readings were the instrument.
+
+Replacing the whole arm with `false` killed it immediately, and the honest score is
+**5 of 5**, not 4 of 5 with a mystery.
+
+**Mutate the smallest complete unit -- a whole match arm, a whole condition -- not a token
+inside a boolean expression whose precedence you did not check.** And before concluding
+"dead", check the mutant actually changed the output on an input you constructed for it.
+
+## 424. And the accident that came out of it: a condition invented rather than read
+
+The broken mutation did establish one true thing by accident. With
+`extra_kind == "float"` disabled and `value.contains('.')` alive, nothing moved -- so the
+first disjunct was carrying no weight. `grep -n 'extra_kind == "float"' compiler.rs`
+returned exactly one line: **my own**. Nothing in the compiler ever sets `extra_kind` to
+`"float"`; the condition could not be true.
+
+I had written it because it sounded like the kind of thing a parser would set. That is the
+same defect class this page records for others -- a comment or a guard describing a
+mechanism that is not in the code -- committed while fixing an instance of it.
+
+**Before adding a disjunct that reads a field for a value, grep for something WRITING that
+value.** One command, and it is the difference between a condition and a wish.
+
+## 425. A test can pass on the one input that survives the bug
+
+`specs/trinet/etx.t27` declares eleven tests. After fixing the float multiply, exactly one
+of the three I predicted would flip actually flipped -- and the one that flipped,
+`etx_of_half_by_half_is_four`, expects **4.0**. Its sibling bindings expect 0.75 and 0.25.
+
+The second defect was that the `given` binding is declared `reg [63:0]`, so the value is
+rounded on assignment. 0.75 becomes 1 and fails. 0.25 becomes 0 and fails. **4.0 becomes 4
+and passes.** That test had been passing through a defect for as long as the defect
+existed, and would have gone on certifying the binding path.
+
+The prediction written before the change is what made this visible: it named which tests
+must move and which must not, and BOTH halves were wrong -- one flip instead of three, and
+the three that were supposed to hold still moved once the second site was fixed. A
+prediction that is merely confirmed teaches nothing; this one located a second defect
+because it failed in a specific direction.
+
+**When a fix moves fewer cases than predicted, the cases that did not move are the next
+finding -- not noise, and not a reason to weaken the claim.**
+
+## 426. Ask the OS whether the tool exists; do not match what its absence printed
+
+The runtime leg of a new test shells out to `t27c icarus-simulate`, which needs
+`iverilog`. Not every machine has one, so the test carried a skip:
+
+```rust
+if log.contains("iverilog") && log.contains("not found") { return; }
+```
+
+It passed locally, where the simulator is installed and the branch never runs. In
+CI there is no simulator, and the runner printed:
+
+```
+Error: spawning iverilog
+    No such file or directory (os error 2)
+```
+
+`"not found"` is not in that string. The guard did not fire, the assertion ran
+against an error message, and `test-ratchet` reported **the failing set grew by 1**
+naming my own test. The skip path existed for exactly one environment and had
+never been executed in it.
+
+Two separate mistakes, and the second is the one worth keeping:
+
+* A guard clause you have not run is a comment -- already on this page, and met
+  again through a door I had not tried.
+* **The condition was about the wrong thing.** Whether a tool is installed is a
+  question with a direct answer -- `Command::new("iverilog").arg("-V").output()`
+  -- and I asked it instead of a phrase in whatever the failure happened to say.
+  A message is the tool's to change; `PATH` is not.
+
+Now: probe the binary first, print the reason on skip, and **execute both legs
+before committing** -- with the simulator on `PATH` (passes) and with it removed
+(prints `iverilog is not on PATH; skipping the runtime leg (nothing is claimed)`
+and passes). Running the test binary directly under a stripped `PATH` costs one
+command and is the only thing that could have caught this.

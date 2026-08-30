@@ -1,7 +1,7 @@
 {
   "gen_hash_c": "sha256:6de267b1261e93c8b42d557f26b6e6d1d40fe4c567e8afd0b271058013a33db1",
   "gen_hash_rust": "sha256:83a8245b5d489aa51c757b5bbdafa2fb1ff14c72b4f5824bd4be8b641f93a3ea",
-  "gen_hash_verilog": "sha256:3e5b79fc04eecd348e5a54f86efad4755fd9d82434a56e879127d7ef3994f4ce",
+  "gen_hash_verilog": "sha256:be526ce531b4651dc7160ad7cd7703e8ef054dba10a819ed80390e7651868ca1",
   "gen_hash_zig": "sha256:ec929d8c75309f7f642e52c2a3d92de5733318a5e498819255301ab77bc9c632",
   "module": "PipelineE2E",
   "ring": 12,
