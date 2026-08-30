@@ -75,6 +75,11 @@ enum Stage {
     Verdict,
     Silent,
     Timeout,
+    /// The run failed and the compiler's own words did not say where, or the
+    /// process could not be spawned at all. Its own row, because a failure
+    /// nobody attributed is not a generation refusal -- filing it under `gen`
+    /// would be an unmeasured state wearing a verdict (ci-gates 428).
+    Unattributed,
 }
 
 impl Stage {
@@ -87,6 +92,7 @@ impl Stage {
             Stage::Verdict => "verdict",
             Stage::Silent => "silent",
             Stage::Timeout => "timeout",
+            Stage::Unattributed => "unattributed",
         }
     }
 }
@@ -194,6 +200,10 @@ fn funnel(limit: Option<usize>, timeout: u64) -> Result<()> {
         "  timed out at {timeout}s                          {}",
         get(Stage::Timeout)
     );
+    println!(
+        "  failed, and nothing said where             {}",
+        get(Stage::Unattributed)
+    );
 
     let sum: usize = counts.values().sum();
     println!();
@@ -249,7 +259,9 @@ fn simulate_one(t27c: &Path, root: &Path, spec: &str, dir: &Path, timeout: u64) 
         .current_dir(root)
         .output();
     let Ok(out) = out else {
-        return Stage::Gen;
+        // Could not spawn -- no `perl`, no binary, no permission. That is a
+        // statement about this machine, not about the spec.
+        return Stage::Unattributed;
     };
     if out.status.code() == Some(142) {
         return Stage::Timeout;
@@ -260,26 +272,32 @@ fn simulate_one(t27c: &Path, root: &Path, spec: &str, dir: &Path, timeout: u64) 
         String::from_utf8_lossy(&out.stderr)
     );
     if !out.status.success() {
-        // Attributed from the compiler's own words, not from the exit code,
-        // which is the same number for all four.
-        if log.contains("Verilog generation error") {
-            return Stage::Gen;
-        }
-        if log.contains("iverilog rejected") {
-            return Stage::Elab;
-        }
-        if log.contains("reported test/bench failures") {
-            return Stage::TestFail;
-        }
-        if log.contains("vvp") {
-            return Stage::Vvp;
-        }
-        return Stage::Gen;
+        return attribute_failure(&log);
     }
     if has_verdict(&log) {
         Stage::Verdict
     } else {
         Stage::Silent
+    }
+}
+
+/// Where did a FAILED run stop?
+///
+/// Attributed from the compiler's own words, not from the exit code, which is
+/// the same number for all four. A message that matches none of them is
+/// `Unattributed` and NOT `Gen`: a failure nobody could place is a hole in this
+/// reader, and filing it under the first arm would hide the hole (ci-gates 428).
+fn attribute_failure(log: &str) -> Stage {
+    if log.contains("Verilog generation error") {
+        Stage::Gen
+    } else if log.contains("iverilog rejected") {
+        Stage::Elab
+    } else if log.contains("reported test/bench failures") {
+        Stage::TestFail
+    } else if log.contains("vvp") {
+        Stage::Vvp
+    } else {
+        Stage::Unattributed
     }
 }
 
@@ -361,8 +379,38 @@ mod tests {
     }
 
     #[test]
+    fn a_message_matching_no_arm_is_unattributed_not_gen() {
+        // The control this function exists for. Before it, an unplaceable
+        // failure was filed as a generation refusal -- a hole in the reader
+        // wearing a verdict about the spec.
+        assert_eq!(
+            attribute_failure("something nobody wrote an arm for"),
+            Stage::Unattributed
+        );
+        assert_eq!(attribute_failure(""), Stage::Unattributed);
+    }
+
+    #[test]
+    fn each_arm_is_reachable_by_the_compilers_own_words() {
+        assert_eq!(
+            attribute_failure("Error: Verilog generation error: ..."),
+            Stage::Gen
+        );
+        assert_eq!(
+            attribute_failure("Error: iverilog rejected generated Verilog:"),
+            Stage::Elab
+        );
+        assert_eq!(
+            attribute_failure("Error: Icarus simulation reported test/bench failures"),
+            Stage::TestFail
+        );
+        assert_eq!(attribute_failure("vvp simulation exited 3"), Stage::Vvp);
+    }
+
+    #[test]
     fn the_stage_labels_are_all_distinct() {
         let all = [
+            Stage::Unattributed,
             Stage::Gen,
             Stage::Elab,
             Stage::Vvp,
