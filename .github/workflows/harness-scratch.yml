@@ -22,13 +22,16 @@
 # NO `paths:` FILTER, deliberately, for two reasons. The first is the same one
 # the orphan gate gives: the file that introduces the collision is not
 # necessarily the file that dies of it, so a filter on the failing path would be
-# silent for exactly this defect. The second is newer and cost a measurement
-# today -- `emit-bitexact-gate.yml` is `pull_request` with a `paths:` filter and
-# no `push:`, so it has NEVER run on master. When a change made it fail there was
-# no baseline to compare against and `gh run list --branch master` returned
-# nothing, which reads like "no data" and is one careless sentence away from
-# "no problem". A gate with no master history cannot answer the only question
-# that matters when it goes red.
+# silent for exactly this defect. The second is newer and cost
+# a measurement today -- `emit-bitexact-gate.yml` is `pull_request` with a
+# `paths:` filter and no `push:`, so no master run is ever produced
+# automatically. Two exist, both fired by hand through `workflow_dispatch`
+# (2026-08-20 failure, 2026-08-28 success), and I did not find them: I read a
+# forty-run window across ALL workflows on master, saw the name absent, and
+# wrote it up as "never runs on master". A window is not a lifetime.
+# `push: branches: [master]` costs one line and means the answer to "is it red
+# on master too?" is always already there, instead of depending on somebody
+# having remembered to dispatch it.
 #
 # A refusal, not a ratchet: the class is CLOSED as of #2949 and #2955 -- the
 # command reports `none` on master today, and there is no ceiling to hold, no
