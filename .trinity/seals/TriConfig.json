@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:c7c53037c0a106e68d351175faf49b4d8556c9f9a16d09a115dd434094c9c37f",
   "gen_hash_rust": "sha256:06bcdc2b43053b9336b9cf4e1f83e77a93966ce402b36034995539052f500d23",
   "gen_hash_verilog": "sha256:948b449721033a4ea975b7ef558418eed16d23e31ada247dd229b459411756ec",
-  "gen_hash_zig": "sha256:35df3743a43683e389f158c68233e1afd40d4a53e02ff01a8abfa33b975b5a3a",
+  "gen_hash_zig": "sha256:060fe0b453c07002ca4b856016c8f778195a1f9dda7f2e6600a048e0a6a60591",
   "module": "TriConfig",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

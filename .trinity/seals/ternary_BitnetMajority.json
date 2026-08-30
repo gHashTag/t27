@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:993b7438a46fa7eec7c169aa59cb700e851556550af495f96915b1280820be2f",
   "gen_hash_rust": "sha256:2bbbdf6feef73ed57feadac16e19d3a845414bbf640955549df0a2da8056cefe",
   "gen_hash_verilog": "sha256:e4867a2102d1a68e31c635bfabf3b6330fa25aa1f5ca535f0f4f36eeef3ea27c",
-  "gen_hash_zig": "sha256:d76d1b9d900fab66c4047d16ceea314080e3068050ada4ceeb33d693b25a37e2",
+  "gen_hash_zig": "sha256:7b5034bee95d491937783400139d46191ab0ae59b2c05a8158e346e91dd3a908",
   "module": "BitnetMajority",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_at": "2026-08-30T14:32:50Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:2eb1e03a4339dec4215b765fe572b95ad02d53bbb971e1d326260b49945620a3",
   "spec_path": "specs/ternary/bitnet_majority.t27"

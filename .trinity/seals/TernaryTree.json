@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:459d90ef90a58a2de2962484513b3b04198cd9d141099a3b6fcc5dcc9a97c806",
   "gen_hash_rust": "sha256:cb2c137aa264b6acdd8e89a5edf362e40ffdf91513dfa350720cb35aa952c65d",
   "gen_hash_verilog": "sha256:fbea878a0dbf75b821c18a7cc46dea310c429d468eb172d129e4c1a185df348b",
-  "gen_hash_zig": "sha256:8584d11ec5f61a31d512e3aaa25dc08754fa0985679c5a9ccf9a71ac40e4e8fa",
+  "gen_hash_zig": "sha256:5cd15679620991057fda6564c2c8a1f38773531631bf66e4bcac51e44efc6a8e",
   "module": "TernaryTree",
   "ring": 12,
   "sealed_at": "2026-08-28T00:22:25Z",

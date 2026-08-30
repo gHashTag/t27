@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:b0f21db14134733015975144559b74b7fa76b26220972f60251fa5d3aaa13905",
   "gen_hash_rust": "sha256:27d98fb22ff5f40231226ac616897656357d64c10673e6a00704dc145d90d2eb",
   "gen_hash_verilog": "sha256:723df4ed0da7467304f498030be4d72a8d71b4ba2aec218b9f658c3111d746bb",
-  "gen_hash_zig": "sha256:707541dfb520f9536dd36aa29781a3e9c093bcb9d6dfe6e7d4f88bf67ffaa740",
+  "gen_hash_zig": "sha256:e194ad77e2e79fc85ef56d6631158ab7cb315d789581bb4c12a6a71b22da973c",
   "module": "Placement_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:11Z",
+  "sealed_at": "2026-08-30T14:32:46Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:f1e9aedeba6e513fe9ed235d0501d552b46aa6c3e0c1cb7271888ce20d8f0c76",
   "spec_path": "specs/fpga/testbench/placement_tb.t27"

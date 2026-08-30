@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:bd24a15fa13302e4291cd3009623c075bc795ca18cf88b868518432878fbc2a8",
   "gen_hash_rust": "sha256:29aa5542ad32fa79e1762b6c4c6afe76808f7f73ffe2cdbf41f5f6fc4d377da9",
   "gen_hash_verilog": "sha256:27b2059969455399097fe059fbf7c1bf96bc5326d12d673618243ff8e0823639",
-  "gen_hash_zig": "sha256:c7002f4e57fa32bb2eab5d20a29f74814923606cc16dc7cda6cdd9aa5832bde7",
+  "gen_hash_zig": "sha256:7e9d1d2e25677b3e665fb6162d3656fc7b74a72c96d9ac029210e39c83d7c1f7",
   "module": "VSAOps",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:16Z",
+  "sealed_at": "2026-08-30T14:32:51Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:5f8f1e6257d4daea69a8f492f77f0531aff8d1ca955882b6bcab3d1fccbb6604",
   "spec_path": "specs/vsa/ops.t27"

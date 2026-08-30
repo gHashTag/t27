@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:56feff6d849de3d52ee1d955e89c02c82390a807fc29ade1d617288921482e19",
   "gen_hash_rust": "sha256:08e18cfa861c263c84e3844190fedea4da285406373908da139a3cf55a50c6e7",
   "gen_hash_verilog": "sha256:23ce65bf68f1f2d4378f5489d78b11dd8293c4dde0d08482787ec7f569e6f5e9",
-  "gen_hash_zig": "sha256:c4c9aa7ab746af4428202caddd4d265e637b551a49e6519b33f37902fa9cbe6a",
+  "gen_hash_zig": "sha256:2cba361dd562decbe70c3629895f79dd486f2fe9556d4284eee2d15f3896d443",
   "module": "ZeroDSP_TopLevel",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

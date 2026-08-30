@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:c00efb3f9b2f9bfdd773d8d30642fe734d76a22e382e2f900fcea5a403b65e5f",
   "gen_hash_rust": "sha256:172912180ef325d804a158ddc729d3dff7a1f31c462984001668791e3e8ad6da",
   "gen_hash_verilog": "sha256:e67c86cc7e2e02e35fe6cccb740ec0e8c29a111e3980e2a9ecfd4341909f92b4",
-  "gen_hash_zig": "sha256:86ffa903111701676c1383efe528b5ffce5b25342aded1e8173f4ccf12b256ea",
+  "gen_hash_zig": "sha256:e181d94a5174dd05f2fba9c39ed40d5577829cb719f7fd38369747a151d13c60",
   "module": "TriRing",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

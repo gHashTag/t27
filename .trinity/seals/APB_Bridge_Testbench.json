@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:d0b21fee49ebdeb9294a3a8fe275911a94fb3b70a126fb4ebbe5dec24e050f7e",
   "gen_hash_rust": "sha256:d4ffb5d6331260a4bed5397f4f71158efc2cd2cc8896cfe9ed471155cf2df30f",
   "gen_hash_verilog": "sha256:5b4880e5e563cfb6c47f677a93973b3451448f6caf14769bf1447ebbee0a8983",
-  "gen_hash_zig": "sha256:f4029556f7050ca20d36e4876600d956ee7d5579329525d1df3705db6b31c94a",
+  "gen_hash_zig": "sha256:2535083d554f54ead439d72a27da8183b3445daa70d6e01edde3f903796c9262",
   "module": "APB_Bridge_Testbench",
   "ring": 12,
   "sealed_at": "2026-08-28T00:22:25Z",

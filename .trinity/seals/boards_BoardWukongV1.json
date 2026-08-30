@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:58e7ddeb747a4966e3cdc67ab7bfaa083371e7878e9e1b796410e77287b9ad6d",
   "gen_hash_rust": "sha256:f9253480af4d17159135fa188a07b990eecde130da2c6aefdef885788cd79ea4",
   "gen_hash_verilog": "sha256:c4e31c649ed8bd6636883c5d6279fa42c3b846586937e244105fdf7da86a45ed",
-  "gen_hash_zig": "sha256:2b185faaeddc9f5fba6acba8b0bef50a69a685de28eddacab1753792728e7770",
+  "gen_hash_zig": "sha256:cac87fe9d4e542c0482634c17109233fb3d372f6aaa5f495163b86d4b59050ed",
   "module": "BoardWukongV1",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:10Z",
+  "sealed_at": "2026-08-30T14:32:45Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:83cfb3b98f1e924dd17c01280857a659330cfee574d96091145ebeaf46cc3576",
   "spec_path": "specs/boards/wukong_v1.t27"

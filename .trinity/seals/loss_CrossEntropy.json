@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:b5585ba762f4afb06b03bb25ab03ad9201419baccfd75d173deef075ae49ecb2",
   "gen_hash_rust": "sha256:b6bc29c51c594beff2b8428924acb9c185d44601c3b0ccf047ebe16c9ed9fc15",
   "gen_hash_verilog": "sha256:e480a50d8b8e382864cb8d4616665f7b7fabedfc8f26fe3387c500053c8bf3ed",
-  "gen_hash_zig": "sha256:9975b99f222ac4c484306d2d63f5c40fbda08aca46d8b9b047840404e0cbb101",
+  "gen_hash_zig": "sha256:10fae3730fc09d53c492a070517bf8bcd7dbdc51c434b2d32438fc5ac6c89da9",
   "module": "CrossEntropy",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:28:27Z",
+  "sealed_at": "2026-08-30T14:32:49Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:60f5f9fd2a85ea4dbfd20c2e42356184ec9e8d78ed586cafc3ec3fecf801ec44",
   "spec_path": "specs/ml/loss/cross_entropy_loss.t27"

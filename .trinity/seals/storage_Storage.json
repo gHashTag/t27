@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:409c477c7a8ee385186ad3eebe7cbbd4642bf5a06aa2c809a6aa31cfd283593a",
   "gen_hash_rust": "sha256:96756351a53265b40fd2faf37e254da9d6ceb5b5c1a0f4c9479eb1c495a0fcff",
   "gen_hash_verilog": "sha256:2c4f1496d0f9580516daf8b53f85e630258535b7e9d0bc188650c21d8da14ede",
-  "gen_hash_zig": "sha256:05d2813a7827de05e546a11e9ecd73b7915e1eeeb624f33a5cee752b29ff03b7",
+  "gen_hash_zig": "sha256:cb8469189f02fbfb292a73800d58e8f89dfc9f8c99bb4f5e79477d91363c121f",
   "module": "Storage",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_at": "2026-08-30T14:32:50Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d578f5119a7cf08325892829db66a22d189ced7b969be6c8dd9a1022b2e06f87",
   "spec_path": "specs/storage/schema.t27"

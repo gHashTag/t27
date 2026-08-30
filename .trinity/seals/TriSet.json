@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:4cb4fbad503c714860745e8a1ed9412c28f34a274f0177d78a8ac972bd3dc2e2",
   "gen_hash_rust": "sha256:20ee2252f82cc00eb2ecd9b9d93e910ffc7ca29e57b8e5aeeef4e4078afb7bab",
   "gen_hash_verilog": "sha256:a3f2edcb48986f07d75d8b5ec7e39b7308b6823f508a8bbcf4d84f1cb9d7e6a5",
-  "gen_hash_zig": "sha256:6d150fe2bbe041e8fa518cc7cda1df7d8d0cfe4eecb7a0bb9402643880492ca2",
+  "gen_hash_zig": "sha256:3c40e78d01506a92d08946933a7d75abb7a8aabc3bec4df03d9389c19f5a974d",
   "module": "TriSet",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

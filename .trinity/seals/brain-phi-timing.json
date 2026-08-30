@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:cbfd1f94cd600e7698d2ab32007243ba034f6c4ab5d60e7d9eadde3c8c84b436",
   "gen_hash_rust": "sha256:51bef104d96f96802d4c05c2394edc6705bde5434ac67b536f0ac9bfcd565d62",
   "gen_hash_verilog": "sha256:133590e188bd80ad4427061f49f50b54ed0d7e1c60b88f90d4f67e10716674bc",
-  "gen_hash_zig": "sha256:d9ad6d3697c1f7122d035993d15dc6ecf98e6ba7fde229d182698836f76e4a55",
+  "gen_hash_zig": "sha256:6d679dadad1d1d730e23ed674035f21df777d71b2a4aadb6311e2d922cf62099",
   "module": "brain-phi-timing",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",
