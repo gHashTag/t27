@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:e9a62ce4340083e28391c97cf07b684d93a56937584094d915babf14bae901f0",
   "gen_hash_rust": "sha256:86c25878d8e2f27c33a78d36f7bf8d356221682b904897f2166218a4109c38e4",
   "gen_hash_verilog": "sha256:8b6f9dfe5e2050182bc760035e0a5691fd1a525d06cec49b778fcfd8cb7c0303",
-  "gen_hash_zig": "sha256:3974bfd72ca394b08256d9d545abf1fa77928257983484e28a11777c3ff1e266",
+  "gen_hash_zig": "sha256:d87693f24408671fd0166922b7cf2ab47de4194e27f7621d6d8e35d8aee565ed",
   "module": "TriSearch",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:57Z",
+  "sealed_at": "2026-08-30T15:19:26Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:bdca7143ec2e9b3765183834a305585274ff40876b6f767b7fe59f66d2d4ce92",
   "spec_path": "specs/tri/search/search.t27"

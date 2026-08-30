@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:1649d78ca90428eb9045fadc64e6dd1ecb52768acdec8b8d263a77271c0612e9",
   "gen_hash_rust": "sha256:a528c51c058f9f9d3c30b1640b5c1b2b49d62273482d4179253faca89b851199",
   "gen_hash_verilog": "sha256:3614052cf60efdd1c5eedb71a5d445b3c5ea0d93dd877d1866280c2fc7934ecc",
-  "gen_hash_zig": "sha256:3f0fdececf4c3cdb02cc622e19dbca06d1ae0e2f804daeaf31fe82d736abc70b",
+  "gen_hash_zig": "sha256:f5aa36ae12d64ac1ae2490269f48d50c72d854f7500e8a7ca369f17ec4faa68d",
   "module": "Attention",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:55Z",
+  "sealed_at": "2026-08-30T15:19:25Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b8cf25569fa15fece9aa281586f9998c767d802a8275a83ecee58694e774b64e",
   "spec_path": "specs/ml/recurrent/attention_mechanism.t27"

@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:ad46d214d326489c8bbf232f4f5fc1eaa930cfab1a3409fa2a90c22e4f9da389",
   "gen_hash_rust": "sha256:bc4db3ab60c0831a9785e6dd8581d83fd37f734b6e5877ba939a540bfbe970ae",
   "gen_hash_verilog": "sha256:6003fb3cb4ad288a2b76ef8ac75d2c39230397ee2ac166945a81a424610c0e1c",
-  "gen_hash_zig": "sha256:ce68a9fa8da81919e5666f1dcb3e3d891531e804a65b95307eb3de740bff1a03",
+  "gen_hash_zig": "sha256:79b6359beb332c42a62fdcdfcc614d6973fb206c1bbec68552004838a5283460",
   "module": "GF8",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

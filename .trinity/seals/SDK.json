@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:fce7b288b42da20605c7d9271708b7cac968a7684082e2e16cdcfaea0827d35e",
   "gen_hash_rust": "sha256:7e2b61c8b3c85d28106d27fa4760b8a7f32a9fdcfec37cbcefed18c7ab01906d",
   "gen_hash_verilog": "sha256:6c6e94d5b8622c0589f7401de7c6f36228864f7f30960281ad3edd4d1f664489",
-  "gen_hash_zig": "sha256:831841c3ba2193cb6a476291b8a2274a70c52377995ada877e73ab85cae8b395",
+  "gen_hash_zig": "sha256:4108660b93123bb52bbc87fa505e9662bdb50e2fac20673327345588aed69b17",
   "module": "SDK",
   "ring": 12,
   "sealed_at": "2026-08-28T21:20:51Z",

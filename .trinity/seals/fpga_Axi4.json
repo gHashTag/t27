@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:6c235ffe45bccf0381cd84793cbe955640b4e2428fe4425ae44b2be9c804a67b",
   "gen_hash_rust": "sha256:d04b2c81ea2ffba1dead0f3d6658e09c51d6204a21a134885c5f080244f7382a",
   "gen_hash_verilog": "sha256:bebd46bf57dad27d003d87bd2dbf2690740c349328dd0053122ae0297f4e48ca",
-  "gen_hash_zig": "sha256:fc3541d63adcb4f4ae0727f12e67ad2573d9b9b378e31cad50491a3a7eb77e9d",
+  "gen_hash_zig": "sha256:c6bead94e58ab53682d0380bc568e0ed80cb41935fe98eaff591adf92b3800a2",
   "module": "Axi4",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:52Z",
+  "sealed_at": "2026-08-30T15:19:23Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:6fb6c9bd19533d03aeedfa90cc66376ec7d766d39367b478e9448997d9670c02",
   "spec_path": "specs/fpga/axi4.t27"

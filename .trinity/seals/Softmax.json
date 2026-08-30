@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:7aef00775948d4076431c66da7ecc9e4d850531fab1d8e90f70ba59a71d530e1",
   "gen_hash_rust": "sha256:35a107cf0b39406af834f2773645d3b7de3ab32d4de119a808e1b22b6af12eec",
   "gen_hash_verilog": "sha256:b2034434f9b7c5cbe0b8d556377acb6f92752b7858e86812810b42b8425e4689",
-  "gen_hash_zig": "sha256:088b346bb2cbf2e97aacf52f1ddcf9c164f06e7d375ad2fc76be2182cab90c0c",
+  "gen_hash_zig": "sha256:06d5d89910a3b10d8c1b19112931b2a77c37ca194f776bb486f99c707fa9be86",
   "module": "Softmax",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

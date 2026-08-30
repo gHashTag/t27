@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:2e220dd944dc148e5c1cfe682b5ae4845f1b9b33774762f46b53a04f9b01d4d4",
   "gen_hash_rust": "sha256:f79e321536efc3546bf2c7e5982113f616fe9f1b4dfa93a71ef28e23b86b1561",
   "gen_hash_verilog": "sha256:39953fd339dea630328d1be822404ada011ad2a5455ee008931f05129300dd5f",
-  "gen_hash_zig": "sha256:c6a9e19f2337415d22a698361568bfc10edffb63dad901eac783bc0dd42d9ef7",
+  "gen_hash_zig": "sha256:f466f0cfdbb95cbd52400cc69e14af1cbbb24301697edc3ee1a60f9fe8f8b4dd",
   "module": "Assembler",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

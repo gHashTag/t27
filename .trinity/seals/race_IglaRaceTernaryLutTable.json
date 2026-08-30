@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:3eac9b5e610ce9f3dad971d96e4cf05da427f5954e9887288056dcc7fda6cc49",
   "gen_hash_rust": "sha256:693075e288428f12253f3bf96c11a7ccc750be621bd9ceb5e25fbc806da481b0",
   "gen_hash_verilog": "sha256:6949422ad7e0a34d8c63d18e3e68e31ed7e5c79c362537b72a75dce7a4f8f111",
-  "gen_hash_zig": "sha256:e6d1162914663b8336c6117676ea8ccd16dcda46de9390301be330cfe12493b7",
+  "gen_hash_zig": "sha256:7d87b9094f518253c48361e0af3b0b379b672e2adbdb9d9dd774b4e43b6634f4",
   "module": "IglaRaceTernaryLutTable",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:13Z",
+  "sealed_at": "2026-08-30T14:32:48Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:c0dbf24327e983c97c167b05ffd70525c35b60d03481d3aee9fec2c7eda45291",
   "spec_path": "specs/igla/race/ternary_lut_table.t27"

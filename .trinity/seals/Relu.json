@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:559dcb068fa9615c57b674553768d43d91dc2dc0afa9c4c3ac73f61d4345c640",
   "gen_hash_rust": "sha256:4c95582125a8349dfa9b9bc384df2d49cb99da8cb285b827174dc157b76f7d20",
   "gen_hash_verilog": "sha256:763ce817473d0c19e38545eea985935c2937b7de860ae94042383a6e1be23fd6",
-  "gen_hash_zig": "sha256:6f373003aab9899aa3ec91ae80510ab11e11e5021d2be7f5711fd49073d64889",
+  "gen_hash_zig": "sha256:5ef734358ccad6c9e1e3600fa5126fb708bd294537664272c40b15f90138fc60",
   "module": "Relu",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

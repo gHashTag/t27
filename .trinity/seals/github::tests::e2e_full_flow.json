@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:0970c851fd35bc32976e4076cc67a582d9eadf54b60676c8cbab92859b4b7df2",
   "gen_hash_rust": "sha256:0a3efa9f6b1b98d56f8b026a17df711b7ebad4d177bb1ae3cfa5a7aed1791661",
   "gen_hash_verilog": "sha256:a5f40a1ce38a519d6f0b1be4bde6301b5943a15721445f4ad0b015fa8e298613",
-  "gen_hash_zig": "sha256:60a0f9bba9a5ad1c3161d13e8338e70fcf2d9a1b3573ddec4d833b617674cce4",
+  "gen_hash_zig": "sha256:19fef3f74ceaa6ad5121ed8d945cae48873efa547f1652db798b722addb43e9d",
   "module": "github::tests::e2e_full_flow",
   "ring": 12,
   "sealed_at": "2026-08-28T00:21:37Z",

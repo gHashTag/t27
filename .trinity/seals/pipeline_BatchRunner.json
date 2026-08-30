@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:c8236e2d9e99b4d1744874af611592fb7298d1d04074d6e8fde609cef135d492",
   "gen_hash_rust": "sha256:f19d91ed93066f48db2a70eba05a7484766db0643a9132c0011ebb873b47c549",
   "gen_hash_verilog": "sha256:e62e7dc3d37fd5c5a590ac0662c99701b71c46b7ecb78bc816c76f30727f8735",
-  "gen_hash_zig": "sha256:76945f12448f252223f4e40105a20152a10ad1b8277915659c7bb3f13953dd3a",
+  "gen_hash_zig": "sha256:1dd076e35b9b36b2855bffdadb19125fe8f91057244d0b5d297a956bd6c98d10",
   "module": "BatchRunner",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:56Z",
+  "sealed_at": "2026-08-30T15:19:26Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:8d379f63dde398e22375d6ab17f133e701bca3acb3d707b3208feba3fc7882c5",
   "spec_path": "specs/tri/pipeline/batch_runner.t27"

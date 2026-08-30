@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:2ad2f11d76228c8b6f3fc7250c2568347b21b7afc35b9e935f4f93c528c3da74",
   "gen_hash_rust": "sha256:db2d15e40c5ed1501ab9f574c518fd4c79788c37bf5286c3dd6b8b8f01cf61df",
   "gen_hash_verilog": "sha256:6eb37271d46236f73d0ad37ccae34ec1aafd808093bf4a68dc17fcd05977d3c7",
-  "gen_hash_zig": "sha256:4182555d7e3e650880b8c512dd96046dee672bbf4827c58b536874ceda2bcc70",
+  "gen_hash_zig": "sha256:e98c7f36ca7a7503a0dd7b4bb3af120f7a8a4f159ac0f6bb31007c4c58880ff7",
   "module": "Stdlib",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:53Z",
+  "sealed_at": "2026-08-30T15:19:23Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:52736507c4760db8b38d73a53705947930521587ea2203c25b60d9c13da41a91",
   "spec_path": "specs/fpga/stdlib.t27"

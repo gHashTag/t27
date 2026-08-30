@@ -3,7 +3,7 @@
   "gen_hash_c": "sha256:960f4fb3c20111f3b3dfd733e8949a0f7336f7043071c53b1868561a0e033580",
   "gen_hash_rust": "sha256:9eb0b9d6c869b2b803ac4644d0b728c94d88fd9a82c543963f2a9bd570f46c29",
   "gen_hash_verilog": "sha256:706210e28a501aec4cf6c30c1bc631384a7401cb070cb84d8531c4966e11d645",
-  "gen_hash_zig": "sha256:1c298a149495eaef9366bad168ed58fa11e2851068f9203f7ec9b7569eccff59",
+  "gen_hash_zig": "sha256:3bd0dd7ebd18064599d2edadbee5e69202b3509a41bf25fe76ebf6de8c1c5892",
   "module": "BaseOps",
   "ring": 25,
   "sealed_at": "2026-08-28T18:19:55Z",

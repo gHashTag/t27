@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:a95e7096b827a94736bc039df5212c448987a411936af73a904d0a35af009b83",
   "gen_hash_rust": "sha256:3bc0749df78f07300bc0f1f1badb7ecec997a968068555106bb3df6bc337e7b0",
   "gen_hash_verilog": "sha256:e98675e9c3f245707d48d1452980d65ad9ad9776e1823821a9d5e5df52965463",
-  "gen_hash_zig": "sha256:eb1721747e28fc0045ff612f4fa960ad3c044d0253e24aedeea3a3aea2a911d8",
+  "gen_hash_zig": "sha256:f5649785a3c37dcf38aec27d501eed1aec77e4a6322a1498eaa2ef5910172b9a",
   "module": "github::prs",
   "ring": 12,
   "sealed_at": "2026-08-28T00:22:25Z",

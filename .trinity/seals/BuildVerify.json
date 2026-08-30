@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:bf486f86cfadc4df09c4946eb762b3029500fcf2dad98f19643345e209c14150",
   "gen_hash_rust": "sha256:966996552f49a63281d011cab13491de6ba078d59455c10f7220c3d017863449",
   "gen_hash_verilog": "sha256:13912c9e80af00148f362a29674accd8433ac32270b545b8c1c1957a9071fcab",
-  "gen_hash_zig": "sha256:865a7ecef49946f2990ffb0fcf560b4f4db0967338411762c549a48ea9cb263c",
+  "gen_hash_zig": "sha256:d742c9a6897205841fad30fb13f4bdb8a31b048bae3636c3405bde183ea603d0",
   "module": "BuildVerify",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

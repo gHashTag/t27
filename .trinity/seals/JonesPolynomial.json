@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:1f582327e258f40158a2eb680c2407f1c82be8820933192a9f490c4f025a90ac",
   "gen_hash_rust": "sha256:0844351cfb893378747b0d3ad41bca05613953dcc411fe313d45e1cbc5bb4898",
   "gen_hash_verilog": "sha256:644d8c5309231400b435250fd966219bd5b5b28c9ae8732a5a48884088072fa0",
-  "gen_hash_zig": "sha256:8c6168bc7c86c23fea148565c0c2859d5adcc3b5456b08e5a0d35796564bbb36",
+  "gen_hash_zig": "sha256:745ec6b589d710c6f28800d56205978dce5761e731b638fd3e0a579244eeb25d",
   "module": "JonesPolynomial",
   "ring": 12,
   "sealed_at": "2026-08-28T00:21:37Z",

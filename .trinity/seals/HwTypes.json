@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:7cb95510bf163dae6aa84294038e5c8f9b7c80037863760046f9c5170117b499",
   "gen_hash_rust": "sha256:9ff9157a22257a42698db38de85cd956c7af62a7a549791be741ef6d615ce687",
   "gen_hash_verilog": "sha256:c6066e8cdba415e2b17e2ebe9795d896193160bc89549e24e5918b619f2c1d92",
-  "gen_hash_zig": "sha256:73ae091c4c142fa21855c9588c089a1b3b413f97875eaa9b02904700cf97327c",
+  "gen_hash_zig": "sha256:a4c5719bb4e2176d679143d7e384bfcea60524acda931fbfbcea3326f2165293",
   "module": "HwTypes",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

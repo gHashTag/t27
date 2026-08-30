@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:3a15042f60161d5df2011403a589f3a71fb57cb7b4a60d5c325fc43ea266ab7b",
   "gen_hash_rust": "sha256:32b0c273756ad849f9eac4b7203c4476746455c2ad42203119c25b89ee900cad",
   "gen_hash_verilog": "sha256:a0ecc024bbf108bf40c663321efaadc401dc9e22f8d45323eae4913dc08738bc",
-  "gen_hash_zig": "sha256:a43a38f39711b6fe6215498a4bb7f14ab0ad83b7d6bf58065e33b49a9f0eedce",
+  "gen_hash_zig": "sha256:64a63107dcc3633db230f785581c8ac92a01ee6eb4178c6d92d6ef643502356e",
   "module": "TernaryGates",
   "ring": 12,
   "sealed_at": "2026-08-28T21:20:51Z",

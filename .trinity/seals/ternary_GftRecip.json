@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:bb472d870808794bd55cd84a70bf377b50557857d4c925e1614b5d74c871993c",
   "gen_hash_rust": "sha256:adddaca2f9b7de330ed3b8e645385b149e253e9a231c7ee292dd2d97b9afe03a",
   "gen_hash_verilog": "sha256:da2997cfd0311b79625528da146a11b523ad127465a0f3a4ce6574416fe30cb6",
-  "gen_hash_zig": "sha256:0acd040460dfe374ff39767808f3bd214eeec7d11a357eb042c05e2b583f6a46",
+  "gen_hash_zig": "sha256:d9b2e32808452aa9bf8c41571203cfc2b6b66fe3df385a3b828786a96efb2279",
   "module": "GftRecip",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_at": "2026-08-30T14:32:50Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:29996bb0f8c54f920745ae5b4990af7c35d7d88513b9682b4f59a30bb342ba31",
   "spec_path": "specs/ternary/gft_recip.t27"

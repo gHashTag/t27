@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:b1ca4ed2dc714f2899081d4d519b73268472a97a3da76a837d0b00152e4316fd",
   "gen_hash_rust": "sha256:1c1813f865daba35f5e8aa9d3cfe4ab245d9cd3f1c35bf8b53afb2fd6e4d709e",
   "gen_hash_verilog": "sha256:a05ce55bb669b78eaed820a83ccfd4df8b3ffdc19831c2ca29920a213a5da36d",
-  "gen_hash_zig": "sha256:60e25f56dbfa00eaf0b5cbeb0b4fd43e9f0a0af583f866eec3fd440531084924",
+  "gen_hash_zig": "sha256:d8756697db2cc949cbfa6e7dde6092aa29ac5e906a31903fe4070c4dcd865436",
   "module": "server-mdns",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

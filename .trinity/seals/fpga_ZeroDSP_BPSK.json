@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:7e04bf9ac6717bd436592cd1440ae9f37d2b03ee9ec4b946a1770a1391f405d7",
   "gen_hash_rust": "sha256:ca92b57afa8d709290ea6827e990d9b6d6d21ad5d5913d35551ba8f76cb535c6",
   "gen_hash_verilog": "sha256:a3bd850914fc5aad3ff96e03f2b534c890cfbd3b655555f85765a2b7c32d7a02",
-  "gen_hash_zig": "sha256:b0ffda9fe5c28d8e16b8fe4f8842e75065459d45a45d11e491e3b43a40ca3b0c",
+  "gen_hash_zig": "sha256:91d7ed6bf849c27599d4cfe06181b8d50ce01957b518776fa44e84ced9186758",
   "module": "ZeroDSP_BPSK",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:10Z",
+  "sealed_at": "2026-08-30T14:32:45Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b03d87fec868d2aa28f16a77d0dc77dd068c98b1443f9a2408896c72d4a3c227",
   "spec_path": "specs/fpga/bpsk.t27"

@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:cb9c0d8597ce17e20e82ca2915b2e6836fe358ceb22c2dbddc5d5aa415a9cc5c",
   "gen_hash_rust": "sha256:2c8b4fb60f007eef2f618e8bf6cfd78a1d953e848df28af2ea2d0b8818ec3598",
   "gen_hash_verilog": "sha256:665eb2d63070b12dbd2327f24423a3ea48a64457f58e1cab06a09191acfa44d8",
-  "gen_hash_zig": "sha256:0525149af85ea578bf0f5729419c16e507757be2498558da10cc94c4f5536c9a",
+  "gen_hash_zig": "sha256:66585c9758b058104490715c5bbef9dd362eac6be47a15a7088df80c25e16fde",
   "module": "queen-task-analysis",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:56Z",
+  "sealed_at": "2026-08-30T15:19:26Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:5755f819b57e64354992f86357f6b047ac61dd4d6c67afcfad005d4e28fdfbf2",
   "spec_path": "specs/queen/task_analysis.t27"

@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:91124ec4abd43abf0eb703a490f04822193d3fb87d7fb10433c7f6dad90bf352",
   "gen_hash_rust": "sha256:b76f8fd99834c69ec5d5966d1e4e20993b44cceae134dbeb3ef4608ad683ff4a",
   "gen_hash_verilog": "sha256:f2da836aa0422e57a939c41c8444976b973306da127a7b4255b8dae996f0407a",
-  "gen_hash_zig": "sha256:ec1f54167bc8e9deab7683dd53c181f4ef4d314230f03157e9076350fa6da267",
+  "gen_hash_zig": "sha256:3e7dcebd6c79736921a1e46bcb8c1073be29fb1b0323943f0b958bfdc0c6921d",
   "module": "Gf16Accel",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

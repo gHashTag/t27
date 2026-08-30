@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:37f030f2d3242163d4e5f640e0b4e2d8c025cda02aa966d0b9f9057519058dbe",
   "gen_hash_rust": "sha256:f43882500ef8f16ee0b2472a46204595e95ebc8ceef4074593e76d6498811666",
   "gen_hash_verilog": "sha256:ad332bdcab96e18f32f6f7bcabf15f1f40bf55e2d45325dbea1e2c3652463d59",
-  "gen_hash_zig": "sha256:2de2937231c6c98e6ac4089a0bd1fcb34d8f0da7031384702fbf3e73daaee7a6",
+  "gen_hash_zig": "sha256:413057559859e029e2ecc2642fe8c73cbd508494d91c9cada3d97cde7829bbc6",
   "module": "Flatten",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

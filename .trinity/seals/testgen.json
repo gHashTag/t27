@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:48e74a9ebddcd66f923691aced70c9eaaef1cef272cb47e8c5d7c228774b4e54",
   "gen_hash_rust": "sha256:314e9f6517fe6e5e363f08795139928e1d284d069646afe9d3e6a5ac5c3e52cf",
   "gen_hash_verilog": "sha256:131501c707bde75d8187146c92bd1dd0f4f276b9e36a6dda035928810f19d6dc",
-  "gen_hash_zig": "sha256:d98087d53609028aee97170eb3c7490863744fa75daf0a2531b453be0f05395e",
+  "gen_hash_zig": "sha256:7dcbf7a38f8ecc61d9334f51e18be5c9c3829ae338cbd43060799da465e17db4",
   "module": "testgen",
   "ring": 12,
   "sealed_at": "2026-08-28T22:30:32Z",

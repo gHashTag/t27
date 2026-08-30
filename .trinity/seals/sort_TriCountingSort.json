@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:a25f05e165f5f255ec99caf3b318a603f8cd50bfc52b82fe8684d6101e9aea17",
   "gen_hash_rust": "sha256:f166aa34a6b9136871908aa81093b7c012ba4afffd5c8ddba1521aa605d44788",
   "gen_hash_verilog": "sha256:1d90b16c1020f977fe76a42f90881b250d9f564bf45faf891d4058ba48a9a686",
-  "gen_hash_zig": "sha256:ece3ca4a7663b3553a159e3aa974e3e3ba796ef7156d8798537302251112eded",
+  "gen_hash_zig": "sha256:f7e9076bfce0632cee39c5774fac6b13970298e6e7e620a49464224ec0d89519",
   "module": "TriCountingSort",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:32:51Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:e9b76a6307da8010148eccb359fed5cfa1757cf3d28368fab4a3b0765fd3fec0",
   "spec_path": "specs/tri/sort/counting_sort.t27"

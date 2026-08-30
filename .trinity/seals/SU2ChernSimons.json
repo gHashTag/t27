@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:72d133ef7e3ffeeb8f1bdb4daae819a52b6f8e663630bd52c037e0e4c860e7bc",
   "gen_hash_rust": "sha256:68fd24ace76485694379c0fff731291839909c85da05a6ce6dc4110964b86bf9",
   "gen_hash_verilog": "sha256:79250e4ce751e120197a836cdd10953b5ad5efc8bf90d7414e5ba3c98fb7747c",
-  "gen_hash_zig": "sha256:011c204aa1617bf6a2afb329eaf0500afa55cc23fe9b41f79bdb2ab76309d8d3",
+  "gen_hash_zig": "sha256:43bb41518137a8494e03d14670b4cf75eba86388166572b03f406955acdc625b",
   "module": "SU2ChernSimons",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

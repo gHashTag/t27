@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:dc4cc3f13dbadb2cdf9fb1df195c7bb6f42a73bdcb3bae5d0ff159027463a0f5",
   "gen_hash_rust": "sha256:2e073e46c9f843e457147a0d1e3e2b0c03c0d4bb8905e64903ed579c43bdd611",
   "gen_hash_verilog": "sha256:300d0cb6a42a1511b5771f34841e3abd384b8784c3c6c5795df11d2f4f684e1c",
-  "gen_hash_zig": "sha256:b98dcac8830f0c320e151266e0b249f8d7f2fc3337dcca6c00167150e80f2572",
+  "gen_hash_zig": "sha256:c25e60bc6ec0091dfa16deede06f140ae21179d51bede0352e9a5d12a7e4da45",
   "module": "TriAvlTree",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

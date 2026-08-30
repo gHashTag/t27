@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:7f5e103bbb5e83260ea5ddb206fa46f1a71624d3d4c4e38528e4e0d9cacdfe9a",
   "gen_hash_rust": "sha256:d9339dc5a44eb76fb6a9a81e2c40c542a26cf69b6ea8f96a5e87868b979797e9",
   "gen_hash_verilog": "sha256:41249a0b0bdecb100a69c414798677b4f02a9636b478aa3864efa6e3ec2fc911",
-  "gen_hash_zig": "sha256:847afa7dbe62aa12787f09decc986f445ca6bb2205390af12572dd4c35da7a1a",
+  "gen_hash_zig": "sha256:19da7584421cb0cdcd1d6a223fd2256fc506b1963fcb43d6c5648d53f85f61c9",
   "module": "Project",
   "ring": 12,
   "sealed_at": "2026-08-28T00:21:37Z",

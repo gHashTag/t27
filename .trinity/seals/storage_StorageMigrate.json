@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:7ff6eeda2a12e24b47ac814b879a18a0d665c294da4bbcb63b439608d48afdeb",
   "gen_hash_rust": "sha256:bec720c1c87711412bac7b86a8ff9a15a5e9c5fe80c08221ca7a4d2fcb4831bc",
   "gen_hash_verilog": "sha256:6fae1ee9b283b430f657ef72352935247e26b330807eca993e03edab91a11f72",
-  "gen_hash_zig": "sha256:f7050fb210fff43fed8d6b49b6f1692ed86879af0e95b2a8fc5b13adcad1782b",
+  "gen_hash_zig": "sha256:44d94e15e6d7f72df4f1f8a20a8c6aff56ccc5dfc4b23dac1e85714c8765aa74",
   "module": "StorageMigrate",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:56Z",
+  "sealed_at": "2026-08-30T15:19:26Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b98ddfba7485ee8b15edf9072a02ea6f5449ee50733f2fd03b57e33db6a50294",
   "spec_path": "specs/storage/migrate.t27"

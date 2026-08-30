@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:0b7e16403fc62c798570465ba5435d138c1be4d92a8359a998364f82f89d5eea",
   "gen_hash_rust": "sha256:734cf5252acd570cb0fa84b09246f2e7a92527fe4ae9ec1ee6142b8d676f573e",
   "gen_hash_verilog": "sha256:c4e975b8d5291153132ce92bf34c086fc2156ce45eeb53bdcd87215e449b4041",
-  "gen_hash_zig": "sha256:0c8e4bea6eefe91857f61a488596615641cb24f8e55e1273ec5a242e3607344e",
+  "gen_hash_zig": "sha256:980aadb9b6fd6f075573e965222c93653215b5f77b0b5bd82779c504e352b850",
   "module": "TriBitvector",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

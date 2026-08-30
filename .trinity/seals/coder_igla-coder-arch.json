@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:3576141abc1739764704115843eea01df32b5763859f75b189fbd3ec281b50eb",
   "gen_hash_rust": "sha256:86e84324f4761e27ee8b3a7482d79571f8a75ac94a97fef0546dfe135fc673c1",
   "gen_hash_verilog": "sha256:bab39c53d3451ae55466f2ea2e148d3be52e1957b5cafecc47153a84be4b047e",
-  "gen_hash_zig": "sha256:c91f9a14ab90778863c8f69c3ce528c1b0adfb85f5535a7b08226e14d2cab185",
+  "gen_hash_zig": "sha256:825537b84cf902a2b6ba0e18ce53cb4af39d117aefac808e3ecf8bae4cc09931",
   "module": "igla-coder-arch",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:53Z",
+  "sealed_at": "2026-08-30T15:19:23Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:baafdfb69f57527162bec359e9439edb7e0049f421019912200889abf9386707",
   "spec_path": "specs/igla/coder/arch.t27"

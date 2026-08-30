@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:bf9f47a708d3e3d7622c665aba149b9ffd6c70cfa4f479da74e6d0378e35b0a2",
   "gen_hash_rust": "sha256:296fc2b2f9ae4666a7ae84dbc57461cfa2eafb04c279d1338c1c7a19e8b1324b",
   "gen_hash_verilog": "sha256:88347bba13ad6ab6a43799be36c7f65f871f6755cd74a7234ad36486b9dcc5d5",
-  "gen_hash_zig": "sha256:9c86778d51fdf3b913ea144d2c4db86be9846a7bd87175ca6301b1defb66e698",
+  "gen_hash_zig": "sha256:f6588d76ab9e7dfb07b4e8c8fc4c3ad2eac3f621146220548d20d9568c6f2faa",
   "module": "TriToT27Converter",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

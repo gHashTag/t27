@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:9a51cf119e40acac62641526a3c08f3d7c3bfecfd2443e21539fcae6b55b18ca",
   "gen_hash_rust": "sha256:c4d34da3575247a522df5c6530ba841959ffe0459bbf50bc688052667aec3bf4",
   "gen_hash_verilog": "sha256:2ec9244c346a7ed2c7c46b03dda997fd2dc7735f47f5f08632197d31d6b1a0f4",
-  "gen_hash_zig": "sha256:855e936151fce1b408520e1cac1410ab78dfc899d0e127e4798af1e8783f1755",
+  "gen_hash_zig": "sha256:3ad543ab87cd8e5c7421cbe91a7bb34c301b74188a6b21229eb6dad5bc34e25f",
   "module": "GftNll",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_at": "2026-08-30T14:32:50Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:17e2121ad5a409fe247a3829ab0c46936fd4e374eb6cccc220a6c45311ca419c",
   "spec_path": "specs/ternary/gft_nll.t27"

@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:99f56c216c4a56a084af5d402998d1d942cc375cfd195ca93c320615fcb9aad9",
   "gen_hash_rust": "sha256:27f30dc6a9cbf6c15f3be963b36d175f25546f2bf5f3652686140e5f07e41918",
   "gen_hash_verilog": "sha256:1817097113f09289d7a347bb8b743faa39a9c6b82ab0c158a2058b0ac03e82ec",
-  "gen_hash_zig": "sha256:9e5902953697886103db060154b870a2735762d190bb42341dff8af7ed5fb1a9",
+  "gen_hash_zig": "sha256:453da5c5a830f1c05f4151667321476bc52aae89a33b39a518939c12f01307b5",
   "module": "SacredVerification",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:9a8fccbe2dea5fa45523a3c030dd49056ecbec7a9d4e10b9e5d95af6647fa30b",
   "gen_hash_rust": "sha256:73b9008ef024a8c243ae843353180dc9fa2cbe57dc48fbd2084d2fa4a119d05b",
   "gen_hash_verilog": "sha256:ec0fb055beefa098d62e0ee431ff50b9ec4cf13e65570b2c4061a74aa44a9a0d",
-  "gen_hash_zig": "sha256:6a1a72b0ad20e1408781befbce59d052c0adb3b6316be44253ca943635499ead",
+  "gen_hash_zig": "sha256:49c78ca666f17553208401875fcff3bfede6c0f73d8bd15c120cb326a7e597f3",
   "module": "Lamb",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

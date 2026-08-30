@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:aa4c68db8154a817f6b07eb10b772a9967eda76d6918b021545bfde8bc1d1784",
   "gen_hash_rust": "sha256:26b3e63418dd7f305bb2459234238a1760b93959d437472b1a8e0c7ab17c2f89",
   "gen_hash_verilog": "sha256:18df7bd4c01f4a7dafd4b0da575d47485fe5d349ce45ca6af8066e3f7e109469",
-  "gen_hash_zig": "sha256:56969eb317108ddbc977efcee38807648b850c22b0823bee83df0e753552d84f",
+  "gen_hash_zig": "sha256:092056b0ac21734b4e3eed761921532335513ed02e22457cc6824fee21908428",
   "module": "ApbBridge",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:14:52Z",
+  "sealed_at": "2026-08-30T15:19:23Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b5d5ab2b04d04b08a4f307d4744cde9b0c95e7aa000f971bf648f33ca50717ca",
   "spec_path": "specs/fpga/apb_bridge.t27"
