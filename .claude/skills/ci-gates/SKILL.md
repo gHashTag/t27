@@ -9122,3 +9122,51 @@ That is the guard working, not a defect, and it is worth stating in a report
 rather than quietly re-running later: **a tool that refuses is not the same as a
 tool that fails**, and a summary that lists both as RED is one line away from
 being wrong.
+
+## 366. The largest first-error family is not the largest lever
+
+A compiler stops reporting somewhere. Rank a backlog by FIRST error and you rank
+by position in the file, not by blocking power -- and the two are not correlated.
+
+Measured on the C backend: 578 specs generate C, `cc` accepts 174, so 404 fail.
+By first error the top family was the scaffold helpers `default_input` (47) and
+`valid_input` (27), which looked like a 74-spec lever with a precedent already
+in the tree (W585 solved the same thing for Zig, and its own comment names the C
+side: "75 of 296 C header failures").
+
+The question that killed it, asked before writing anything:
+
+    rejected files                                   404
+      ... carrying a scaffold error                  166
+      ... where that is the ONLY family                0
+
+**Zero.** Fixing it perfectly moves the accept count by nothing.
+
+The distribution nobody had printed:
+
+    distinct error families per file
+      1 family:  20 files      <- the only real levers
+      2:  42   3:  31   4:  78   5:  52   6:  45   7:  40   8+:  96
+
+The median file carries four or five independent families. A backlog shaped like
+this has no big lever, and knowing that is worth more than any single fix: it
+says the work is broad, and it stops you from spending a day on a family whose
+removal changes one number by zero.
+
+**The measurement is cheap and nobody takes it.** Compile every file with
+`-ferror-limit=0`, reduce each message to a shape (quote-strip, digit-strip),
+and count DISTINCT shapes per file. Files with exactly one are the levers; sort
+those. It is twenty lines and it reorders the whole backlog.
+
+**Where the real find came from.** Among those twenty single-family files were
+four reporting "integer literal is too large to be represented in any integer
+type". `const EXP_OFFSET: u32 = 1792...173` -- 185 digits -- typechecked clean,
+and Rust emitted `pub const EXP_OFFSET: u32`, Verilog emitted
+`localparam [31:0]`. Three of four backends carried a ~590-bit value in a 32-bit
+box; the fourth is the only reason anyone noticed. **The most-blocked family was
+noise and the least-blocked one was a real defect in the type checker.**
+
+**Corollary for peer-backend oracles.** Agreement is not evidence. Three backends
+agreed here and all three were wrong; the outlier was right. When the outlier is
+the one with an independent standard behind it -- a C compiler, a proof assistant,
+a linker -- weigh it above the majority rather than below it.
