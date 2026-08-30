@@ -384,6 +384,22 @@ pub fn run(gate: bool) -> Result<()> {
             println!("      {:<52} {:>5} lines{}", p.display(), lines, t);
         }
     }
+    // A ceiling for a crate the workspace does not declare is never visited by
+    // the loop above, so it sat in the ledger unmentioned. The ledger's own rule
+    // is "exact match, not an upper bound"; a ghost entry is slack in the other
+    // direction, and slack is where the next one hides.
+    if let Some(cmap) = &ceil {
+        for named in cmap.keys() {
+            if !crates.iter().any(|c| c == named) {
+                breaches.push(format!(
+                    "{named}: has a ceiling but is not a workspace member. A ledger entry for \
+                     a crate that does not exist is watched by nothing and hides nothing -- \
+                     remove it, or add the crate to Cargo.toml."
+                ));
+            }
+        }
+    }
+
     println!();
     println!(
         "  {total_orphans} of {total_files} files, carrying {total_tests} test(s) that do not exist \

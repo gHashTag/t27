@@ -211,7 +211,19 @@ fn pick(selector: u32) -> u32 {
 
 #[test]
 fn a_synthetic_import_resolves_through_the_specs_root() {
-    let base = std::env::temp_dir().join(format!("t27_imported_enum_{}", std::process::id()));
+    // Keyed by a COUNTER, not by a property of the input. The old key was
+    // `(pid, src.len())`, and every test in this binary shares the pid -- so two
+    // tests whose sources happen to be the same length computed the SAME
+    // directory, which each of them deletes on the way out. Under the default
+    // parallel runner one test erases the spec another is mid-read of, `t27c`
+    // prints nothing, and the assertion reports an empty result.
+    //
+    // Measured with a probe asserting the directory is fresh: it fired 8 runs
+    // out of 8. The collision is not occasional -- it happens every run, and
+    // only the timing of the delete decides whether a test dies.
+    static SCRATCH_N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let scratch_n = SCRATCH_N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let base = std::env::temp_dir().join(format!("t27_imported_enum_{}_{}", std::process::id(), scratch_n));
     let dir = base.join("specs").join("tb");
     std::fs::create_dir_all(&dir).expect("create temp spec tree");
     std::fs::write(dir.join("palette.t27"), PALETTE).expect("write palette.t27");
