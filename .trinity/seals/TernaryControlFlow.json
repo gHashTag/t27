@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:53d37c59635f8c703d3b22d938262800e28d376a376bd74ee24867b737296853",
   "gen_hash_rust": "sha256:a1be7ff5fb64e32b29c658f59c227d2021bda5dcd460ae032624300ac59c0727",
   "gen_hash_verilog": "sha256:c4e7373882bf56f5fc546a7d03ee7de41e6fa7b4a91b87cbe8fc03be6ba5604e",
-  "gen_hash_zig": "sha256:17f02dcf1b9f03b70f5f0e52550e3ea4d7d05525b0a1eabaf6d4ad2e99a4d8f5",
+  "gen_hash_zig": "sha256:c8456f98bdbcc5e851dd6f135cf3af49bdb2cd287a741d4c09cfaa10d0869f7e",
   "module": "TernaryControlFlow",
   "ring": 12,
   "sealed_at": "2026-08-28T00:21:37Z",

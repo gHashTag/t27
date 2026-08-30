@@ -3,7 +3,7 @@
   "gen_hash_c": "sha256:d39a720cec4873d38e08adf331a6719835229996383b0ead6d977f033b0f4d63",
   "gen_hash_rust": "sha256:4ed0d360068983aca2b1838a6ee3e1f77aadf22fb743b02b0ed1e04814e0eb2f",
   "gen_hash_verilog": "sha256:5cd58acb7191cb64cf0d7eca0fcabc706bbc02f5a3be5f002a6504d343efa77d",
-  "gen_hash_zig": "sha256:a2bf63b1e4d4f56318acdbe9167be718f68a21e5ff3273cb85e39fa938ef34c3",
+  "gen_hash_zig": "sha256:60814b031dd828ff6beab1204e5418493d8c0e44f52989e1ab68bd830120589b",
   "module": "UART_Bridge",
   "ring": 43,
   "sealed_at": "2026-08-28T18:19:55Z",

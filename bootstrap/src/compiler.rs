@@ -7586,6 +7586,19 @@ impl Codegen {
         node.kind == NodeKind::ExprIdentifier && self.declared_enums.contains(&node.name)
     }
 
+    /// What the unlowered statement WAS, for the notice that replaces it.
+    ///
+    /// A notice that says only "not lowered" sends the reader back to the spec
+    /// to find out what. The child's kind is what the parser actually kept, and
+    /// a childless node is the bench-prose case, which has no child to name.
+    fn stmt_expr_label(node: &Node) -> String {
+        match node.children.first() {
+            None => "empty statement".to_string(),
+            Some(c) if !c.name.is_empty() => format!("{:?} `{}`", c.kind, c.name),
+            Some(c) => format!("{:?}", c.kind),
+        }
+    }
+
     /// W599: render an expression to its generated text WITHOUT emitting it.
     /// Used to label an assertion's operands with the code the author wrote.
     fn render_expr(&mut self, node: &Node) -> String {
@@ -9317,10 +9330,41 @@ impl Codegen {
                 self.write_line("continue;");
             }
             NodeKind::StmtExpr => {
-                self.write_indent();
-                if !node.children.is_empty() {
-                    self.gen_expr(&node.children[0]);
+                // A statement that lowers to NOTHING must not become a bare
+                // `;`. Zig has no empty statement -- it answers
+                // "expected statement, found ';'" -- so one such line kills the
+                // whole file, and every check inside it with it.
+                //
+                // Two source forms reach this arm rendering to nothing. A
+                // `bench` block's prose body (`measure: ...`, `target: < 5000ns`)
+                // arrives as a childless StmtExpr through gen_bench_block's
+                // fallback. And `defer <call>;` in a test body arrives WITH a
+                // child that gen_expr renders as nothing -- the parser keeps it
+                // deliberately, because "a dropped `defer` silently removes a
+                // release, a close or a free".
+                //
+                // Measured: 491 bare `;` lines across 81 generating specs.
+                //
+                // The remedy is the one the invariant path beside this already
+                // uses (T43): say the body was not lowered rather than emit
+                // something that claims to be a statement. The Verilog backend
+                // does the same for benches. Zig was the only backend where a
+                // bare `;` is not merely useless but fatal.
+                let rendered = node
+                    .children
+                    .first()
+                    .map(|c| self.render_expr(c))
+                    .unwrap_or_default();
+                if rendered.trim().is_empty() {
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "// NOT LOWERED: {} -- statement rendered to nothing (T43)",
+                        Self::stmt_expr_label(node)
+                    ));
+                    return;
                 }
+                self.write_indent();
+                self.write(&rendered);
                 self.write_line(";");
             }
             _ => {

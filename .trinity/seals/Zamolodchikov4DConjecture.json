@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:3c1cfed43199d09db274a88e7438faec00f7190e7874e5ee82529450fd88a92a",
   "gen_hash_rust": "sha256:0d0338f97744c73fee311120450543dc3ca7b297fbab4afec923d2ba7814874d",
   "gen_hash_verilog": "sha256:d99979f3ddde4755153c6ff49aea121b76d574cb8e4b61789f6cc35eb2fe5f4e",
-  "gen_hash_zig": "sha256:c8d698643fc72913ce887c01688b1340114692ebd1d91755be5c8483003ff402",
+  "gen_hash_zig": "sha256:9baf398fbd307e192722bf6640cfa14bab57851ffaa76eb2e54f1b4a93b21b18",
   "module": "Zamolodchikov4DConjecture",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",
