@@ -10006,3 +10006,25 @@ resolve the root explicitly and run there.
 **A path in a command is relative to where the command runs, not to where you
 wrote it.** In a test that is the crate; in a hook that is the worktree; in CI it
 is whatever the last `working-directory` said.
+
+
+## 399. Sort an exclusion list by what would lift it
+
+The ledger audit excused six files, and reading them as one list is what hid the
+finding. Sorted by what would lift the exclusion:
+
+* **Five need a DECISION or cost you do not control** -- a gate that takes
+  minutes, a baseline keyed by the sha1 of the line it excuses, a generated
+  observation the next regeneration would erase. Nothing you write closes those.
+* **One needed WORK.** `type_conflicts_classified.json` was measured as catching
+  a planted row and left out because the plant had to clone a field shape the
+  code could not express. Two hours later it could.
+
+**An exclusion list is a work list with the work hidden inside the reasons.**
+Every entry answers "why not", and the useful question is the next one: *would
+writing something lift this, or is it a decision?* Only the first kind is yours,
+and it will be a minority -- which is exactly why it disappears into the list.
+
+The same reading applies to any "known limitations" section, any `#[ignore]`
+block, any `NOT covered here` comment. Grep them, ask of each which kind it is,
+and the answer usually names one item you can close today.
