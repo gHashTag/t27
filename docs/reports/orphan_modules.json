@@ -5,6 +5,11 @@
   "_bootstrap_7": "Pre-existing, not repaired here: _enrich/mod.rs, math_pslq.rs, neural/attention.rs, neural/hslm.rs, runtime_minimal.rs, runtime_minimal_test.rs, tooling.rs. The last one holds 7 gate bodies and is #2905; the rest are unexamined. Connecting any of them is a decision about what goes red, not a repair.",
   "ceilings": {
     "bootstrap": 7,
-    "cli/tri": 0
-  }
+    "cli/tri": 0,
+    "cli/trios-bridge": 0,
+    "cli/flash-spi": 0,
+    "cli/dlc10": 0
+  },
+  "_scope": "Every crate in Cargo.toml `members`, read at run time. The list used to be hardcoded as bootstrap + cli/tri while the workspace named five, so three members were watched by nothing and their files were absent from the total. A guard written as a list goes stale by addition.",
+  "_bin_targets": "src/bin/*.rs is a binary target cargo discovers by layout, with no `mod` line anywhere. It is a root, not an orphan -- cli/dlc10/src/bin/dlc10.rs would otherwise be a false positive."
 }
