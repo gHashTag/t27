@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:4be5509591df24c65e2bb0741bacb408799ad6d90b6c9b272aefa106d546c8ff",
+  "gen_hash_c": "sha256:e0e4c1f139537c8a11d8b25932c6582c85e224c9662b308adc84ad1c50d404fe",
   "gen_hash_rust": "sha256:74fa4f0ffa509b04a098129ad591b3306b83df0f7119e90d9c9f855f1c781134",
   "gen_hash_verilog": "sha256:df40e931321dcf4a5dd453df506d11f154174068ee348b9331af6548aca414bf",
   "gen_hash_zig": "sha256:d36f300cf6f2bbd84a185c965e4ad39add6520f5a6c66c941c215bb6860e49a8",
   "module": "TriLogging",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:14:57Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:e12a4af3d20a17e48d35990420825c9ff5a1eee091b74ff1565d775f5ae63887",
   "spec_path": "specs/tri/utils/logging.t27"

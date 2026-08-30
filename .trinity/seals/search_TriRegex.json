@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:37565ac2f92b8f0fdad55452f771b0a1a9b794c7913bd519512cf1ebdaec27ae",
+  "gen_hash_c": "sha256:660802ab81cb01c3f686cb482ed42b8de8df0436b17827b6e0290e37919f02ce",
   "gen_hash_rust": "sha256:a6aa7ed97ded7bfc138f89377c85cef3dacebe7b726d74bf2406fb9aab38a3ed",
   "gen_hash_verilog": "sha256:9a62a59c257e3c9064c99cbe925d932ad4b50d768e2f2c2ac2ff0ddab730def4",
   "gen_hash_zig": "sha256:2bd2b36c623733565b1a5f2511a115fcfdbc97bb622ee1ca8c73fca6c1643f3e",
   "module": "TriRegex",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:14:56Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:6320c32ee02d510c440bad498c16a158c855f972cbac68dce8d3c7f2dc604f73",
   "spec_path": "specs/tri/search/regex.t27"

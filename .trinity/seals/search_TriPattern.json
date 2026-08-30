@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:56f55960fe82b4cb267a01d6a4d48ca74b022d27a40ad38c14fb33411516bd6e",
+  "gen_hash_c": "sha256:5160f0e85fa3b0aef896a5c8076b838ba032709e9c948540952a0c84f8f6d032",
   "gen_hash_rust": "sha256:06925170705bb91648f65bfd92cb327dd88a068419db036274412208361115e9",
   "gen_hash_verilog": "sha256:995ed92f7757efeef84ecff6ab0f682eec4b98ee3614fb7e25208fb6d026d844",
   "gen_hash_zig": "sha256:7dc0207c6e07abd4849574d5068b7b94cffd76e93cdcfe3f7dfc627180004e1d",
   "module": "TriPattern",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:14:56Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:f5524863149e19d575d49f903c14ecb295da119701247e018d620827307283e2",
   "spec_path": "specs/tri/search/pattern.t27"

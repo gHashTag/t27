@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:f0b70be3721bef2fbff75853b32b3d04d1dd1abe48223a5edf6b9e539db2ff63",
+  "gen_hash_c": "sha256:4bd1acb26bb75f98f767994033cb91a9decab3133b597dc6eebb41e7a18f13af",
   "gen_hash_rust": "sha256:bbd995fcaf8d308cf42655d8b3b23b41c2c0024b340414b655a43d58718d7ffa",
   "gen_hash_verilog": "sha256:4d623df300d6b202989bdf04e4f572628099e782545841f94658e911ae92f6c4",
   "gen_hash_zig": "sha256:b69bfc94c8dcb548dacd2327ac644a9495e5183ad7e66475702e9b82d1149cbc",
   "module": "EternalMonitor",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-30T14:14:56Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:132770a2bab3851bc2af8213e5ce75afd4fcd494e908a28b5e1cfeeff603f344",
   "spec_path": "specs/tri/agent/eternal_monitor.t27"
 }

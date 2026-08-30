@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:091b7a3ff93aa168ffc5f9e56fcb33c3aa77ac7526cee77d138aa5f8fade3f83",
+  "gen_hash_c": "sha256:a3b52853abc104b6e60de0b89a99ffb0bd89b47c81a310a281378845007be0f1",
   "gen_hash_rust": "sha256:966446d79ddc98c9f8da081de4f1eca9c894bd4e4464371b285cc8a59be4aee6",
   "gen_hash_verilog": "sha256:7b8e20ef4acfd674a35a886a88fae6ed7628af0963359a82ca67ca88a9aa41c8",
   "gen_hash_zig": "sha256:08c952325cdb3dcef19d69c3c8127858405e9adc64b3ddd9e12c8efc2da12e86",
   "module": "TriState",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:14:56Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:aa3c58adfab37776f186d26fc60f47aed131db48bb9045875ecae8cbbe62b51c",
   "spec_path": "specs/tri/collections/state.t27"

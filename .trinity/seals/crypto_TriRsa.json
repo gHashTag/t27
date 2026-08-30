@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:bf95019bf9f760a19c507c7eab9f4df3d147075cde9faceac340e04f026e72f3",
+  "gen_hash_c": "sha256:3c3e284ec3cbd1007ce3bf58ba3aec574b91fe1d367cd60248933901a486fb4f",
   "gen_hash_rust": "sha256:23084e8e21fef5b730b63ebd7a8d508129a184458fb328281af038335b51bef9",
   "gen_hash_verilog": "sha256:84c6762795323f691dac9c9685092186130a3ccaa599e0bec8215e79608dc68f",
   "gen_hash_zig": "sha256:dfbd2ad6c97e219e874b34bb228157c50897b8e4b599d6ba949c3116af5e9fcd",
   "module": "TriRsa",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:14:56Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:cb96cdbd3ab876ea67ef98809723365d52c34bec5e892b804928d5ec6f2da545",
   "spec_path": "specs/tri/crypto/rsa.t27"

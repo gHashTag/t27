@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:4653ade74d9e3b7fda2253fd66cd91cd0a8665ae2657deac8937783dd0ca5724",
+  "gen_hash_c": "sha256:1415ee8b98fe66a31bb3657a0d3054bba5b28ef3cf535b328cca6aacb5fe70b3",
   "gen_hash_rust": "sha256:0055f5a13fc3432b9b43cf446f22930659caabfeed1846b1ef4cf2418c3b609b",
   "gen_hash_verilog": "sha256:3faed84f02a6c568d0b5c6889ef18e45aa4537ca3371e8050cd448661680c84e",
   "gen_hash_zig": "sha256:2ca05a7332467d257b722ba577b5897eb12b5f031cc1ffb6ad707a9f3d8d07aa",
   "module": "lsp-protocol",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:13Z",
+  "sealed_at": "2026-08-30T14:14:55Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:6c5b3b9d29d56db16497bed51d23246e0779428accbb1de280640f638162f48b",
   "spec_path": "specs/lsp/protocol.t27"

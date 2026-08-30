@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:93b02d422661ac3f011365d34f1c56a76faffc358baa5f1c5ee2dd12fdad5615",
+  "gen_hash_c": "sha256:090275212e518bac0b4092a30301445e7f923404e79be5e954595d52ab876e60",
   "gen_hash_rust": "sha256:9866d7310151ad3c24c0b3a204bc81d6930eb2865ace375ddb58f6ae3f37c824",
   "gen_hash_verilog": "sha256:7d52db56548108a72273564682acf0184395c5c7a73dbb0982f34ca1bbe04c6b",
   "gen_hash_zig": "sha256:ffcad7dbb5b3a114baca141fd8bc4196d57d8b155f6dcd82dfffd5f6e33a5aec",
   "module": "RnnCell",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:14:55Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:05f807c932b9a3ce5837100fe8432e8dfddc733db9f62a494c777ff6da885607",
   "spec_path": "specs/ml/recurrent/rnn_cell.t27"

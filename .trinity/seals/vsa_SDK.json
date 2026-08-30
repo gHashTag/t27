@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:926e6aad69f82ed29daeeb48c9ccdd28eaf627231d0c0d419451408ebd2ecdcf",
+  "gen_hash_c": "sha256:fce7b288b42da20605c7d9271708b7cac968a7684082e2e16cdcfaea0827d35e",
   "gen_hash_rust": "sha256:7e2b61c8b3c85d28106d27fa4760b8a7f32a9fdcfec37cbcefed18c7ab01906d",
   "gen_hash_verilog": "sha256:6c6e94d5b8622c0589f7401de7c6f36228864f7f30960281ad3edd4d1f664489",
   "gen_hash_zig": "sha256:831841c3ba2193cb6a476291b8a2274a70c52377995ada877e73ab85cae8b395",
   "module": "SDK",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:18Z",
+  "sealed_at": "2026-08-30T14:14:57Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7843aca460336f24ba9026067e1e642e110cb6d2a995064bf9613eaed662c115",
   "spec_path": "specs/vsa/sdk.t27"
