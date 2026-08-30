@@ -1,0 +1,11 @@
+# NOW -- Every ledger in the repository is now audited or excused with a measurement (2026-08-30)
+
+## Every ledger in the repository is now audited or excused with a measurement (Refs #2864)
+
+- Last pass the meta-gate covered 5 of 15 ledger-shaped files and named 8 as unclassified. All eight now carry a measurement, and four of them entered the audit: devhome, elab, json_parse and vector_data baselines. Nine planted into, six excused, ZERO unclassified.
+- Extending it found a live defect. `check_json_parses.py` only ever SUBTRACTED its baseline from the current bad set, so an entry naming a file that now parses was never looked at -- `tri ledgers audit` planted one naming a file it had just parsed and the gate stayed green.
+- Fixed with the idiom check_specs_generate.py already uses: DEPARTED (the file left the tracked set -- not progress) and FIXED (still tracked, now parsing -- remove the line), both failing.
+- That immediately turned the gate red on a clean tree: SIX entries naming files in neither git nor the working tree. The scan finds ZERO unparseable and ZERO empty tracked JSON today, so the entire ledger was debt about things that had already left. Emptied; the gate now holds the line at zero.
+- The four newly audited plants are false by construction in two different ways: a runtime lookup (`{spec}`, and a new `{json}` resolved to a tracked file that parses today) or a synthetic name that cannot exist. A test asserts the synthetic name occurs nowhere in the tree -- otherwise a hardcoded plant could rot into a line that is TRUE.
+- The six exclusions each carry what was measured, not a shrug: type_conflicts.json carries `generated_by` and is an observation, not a claim; type_conflicts_classified.json CATCHES (exit 1, STALE) but its plant must clone a row's field shape, which Plant cannot express; lean_completeness_mismatches leaves `tri lean vacuous` at exit 0 both ways; two are gated by the corpus suite and too slow to plant into.
+- Self-criticism: my first version of the synthetic-name test ran `git grep` from the crate directory while excluding a repo-root path, so the exclusion matched nothing and the test failed on its own source. A pathspec is resolved against the current directory.
