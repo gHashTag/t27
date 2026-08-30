@@ -9528,3 +9528,56 @@ earlier version that MANUFACTURED 29 hangs by deadlocking on a pipe, and
 undercounted `generates Verilog` by exactly the same 29. That pipe was fixed.
 The conflation of slow with rejected sat directly under the paragraph explaining
 why conflating anything with a hang had been so expensive.
+
+## 380. The cure for a repeated class is the control, not the third patch
+
+Three passes, three instances of one shape: a command narrowed the set it spoke
+about, and the narrowing was invisible because the only number on screen was the
+command's own. `unparsed locate` summed its buckets to 80 against a population of
+76; `quantifiers report` read 922 where the corpus holds 923; `mods orphan` read
+132 where the workspace holds 136.
+
+All three were found by the same move -- **count the population by a different
+route and subtract** -- and all three were found *by accident*. §367 already says
+a third occurrence is evidence the cure was wrong. The cure here is not a fourth
+patch: it is running that subtraction for every census at once, so the fourth
+instance does not need a fourth accident.
+
+Four properties, each earned by trying to break the thing:
+
+* **Independence is the whole product.** The counters are written from scratch,
+  including a second comment/string masker. One calling the census's own helper
+  agrees by construction and measures nothing (§373).
+* **A census that stops PRINTING its population must fail the audit**, not drop
+  out of it. Removing the line is the same disappearance the audit exists to
+  catch, one level up.
+* **"Could not run" is not "disagrees".** A census whose compiler is missing
+  exits non-zero; reporting that as a population mismatch sends the reader to
+  the wrong file entirely.
+* **Hardness belongs to the row, not the command.** `unparsed report` says
+  "specs TRACKED" while the counter walks the disk, so an untracked spec makes
+  them differ and neither is wrong. A gate that reddens because somebody left a
+  scratch file in the tree is a gate that gets muted, so that row reports and
+  passes -- with the reason printed beside it, because otherwise a reader cannot
+  tell "measured and forgiven" from "nobody looked".
+
+And one row was **built and removed**. `seals hollow`'s counter tested json text
+for `"spec_path"` while the census parses that same field: planting a seal moved
+BOTH numbers and the row stayed green. No input makes them disagree, so it was
+not a control. **Three rows that bite beat four where one is decoration** -- and
+the mutation that proved it took two minutes.
+
+## 381. `rustfmt <file>` follows the mod graph
+
+`rustfmt cli/tri/src/main.rs` reformatted **five files the change never
+touched**, because rustfmt walks `mod` declarations from the file it is given
+and a crate root reaches everything.
+
+The trap is already in this document for `cargo fmt`, and it was met again
+through a different door -- the mitigation written down ("format the single
+file, not the crate") does not hold when the single file is a root.
+
+**Format leaf modules by name; never the crate root.** And read `git diff
+--stat` before every commit: five unrelated files is not a thing you notice in
+the test output, and on a shared repository it is somebody else's conflict
+tomorrow.

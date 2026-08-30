@@ -11,6 +11,7 @@ mod depin;
 mod discard;
 mod abandoned;
 mod orphaned;
+mod census;
 mod cibase;
 mod fleet;
 mod fpga;
@@ -210,6 +211,11 @@ enum Commands {
         action: ledgers::LedgersCmd,
     },
     /// Specs the compiler cannot read, ranked by the construct that stops it.
+    /// Every census's printed population, against one counted another way.
+    Census {
+        #[command(subcommand)]
+        action: census::CensusCmd,
+    },
     Unparsed {
         #[command(subcommand)]
         action: unparsed::UnparsedCmd,
@@ -862,6 +868,7 @@ fn main() -> Result<()> {
         Commands::Discard { action } => discard::run(action)?,
         Commands::Prose { action } => prose::run(action, std::env::current_dir()?)?,
         Commands::Ledgers { action } => ledgers::run(action, std::env::current_dir()?)?,
+        Commands::Census { action } => census::run(action)?,
         Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
