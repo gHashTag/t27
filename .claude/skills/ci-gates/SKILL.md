@@ -9204,3 +9204,55 @@ noise and the least-blocked one was a real defect in the type checker.**
 agreed here and all three were wrong; the outlier was right. When the outlier is
 the one with an independent standard behind it -- a C compiler, a proof assistant,
 a linker -- weigh it above the majority rather than below it.
+
+## 370. Correcting 366 -- the family I called noise is the largest lever
+
+Section 366 says the top first-error family in the C backlog was worth zero. That
+is wrong, and the way it is wrong is the rule the same section teaches.
+
+**What I measured.** For each rejected file I collected every error message and
+asked whether they ALL mentioned `default_input` or `valid_input`. None did:
+0 of 166. I concluded every such file had other independent defects.
+
+**What is actually there.** One emitted template, four lines, three errors:
+
+```c
+void test_f_basic_case(void) {
+    __auto_type input = default_input();          // call to undeclared function
+    __auto_type result = f(input);                // incomplete type 'void'
+    assert((result != {0}));                      // expected expression
+}
+```
+
+Errors two and three mention neither helper, so my filter counted them as other
+families. **They are the same construct.** Grouping by message text is precisely
+what the census discipline forbids, and I wrote that rule into the audit prompt
+before breaking it in my own count an hour later.
+
+**The corrected numbers**, on 581 specs that generate C:
+
+    cc accepts as emitted                       174
+    ... with scaffold bodies emptied            265   (+91, upper bound)
+    ... with the fix the sibling backends made  242   (+68, honest)
+
+68 of a 404-spec gap. The largest single lever in the project, called noise by a
+census that looked rigorous.
+
+**What survives from 366.** The general claim: first-error ranking ranks by
+position in the file, and single-family counting is the right instrument. What
+fails is the worked example, because the instrument was fed message texts instead
+of constructs. A correct census would have collapsed all three messages into one
+row and found 68 immediately.
+
+**The test for whether your grouping is by construct.** Take one emitted
+construct, compile it alone, and count how many DISTINCT messages it produces. If
+that number is greater than one, message-text grouping will scatter it, and every
+file containing it will look independently broken. Four lines produced three
+messages here; the ratio is not unusual.
+
+**And the class was already closed twice.** `grep default_input compiler.rs` hits
+the Zig path (W585) and the Verilog path (W660) and nothing in the C emitter
+range. W660's own comment names its sibling -- "The Zig backend has resolved them
+since W585 ... The VERILOG backend never did" -- and stops there. A defect class
+is not shut until every call-site of the risky primitive has been grepped, which
+this repository knows and which two waves of the same fix did not do.
