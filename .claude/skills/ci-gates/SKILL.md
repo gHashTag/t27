@@ -10493,8 +10493,13 @@ and "cannot see this shape at all" print identically.
 
 ## 416. An open issue is a claim with a date, and one subset re-measures itself
 
-477 open issues here, **268** with a number in the title -- each a stated measurement of
-the tree, taken once, re-read by nothing. Most cannot be checked automatically: pulling
+478 open issues here, and **283** state a COUNT in the title -- each a stated measurement
+of the tree, taken once, re-read by nothing.
+
+*(Corrected in place one pass later. The first reading said **268**, from a matcher that
+read any two-digit run, and it was wrong in BOTH directions: 145 of those were ADDRESSES
+-- `#2841`, `Wave Loop 369`, `Prop. 65` -- which measure nothing, and 98 issues state
+their figure only in WORDS, which a digit matcher cannot see. See the section on that.)* Most cannot be checked automatically: pulling
 the measurement out of free prose is the precision problem that killed a detector one
 pass earlier.
 
@@ -10546,3 +10551,44 @@ the body contains backticks, `$`, or `!`, which for prose about code is always.
 Recovery is `git checkout <file>` and a rewrite, and it cost nothing because the file was
 not yet committed. Had it been, the sections would have shipped with the holes and read as
 sloppy prose rather than as a shell bug.
+
+
+## 419. An address is not a count, and a count is not always a digit
+
+I published "268 open issues carry a number in the title" one pass ago, from a matcher
+that read any two-digit run. Re-measured with an independent reader, the population is
+**283**, and the first number was wrong in **both directions at once**:
+
+- **145 of the 329 loose hits were ADDRESSES.** `#2841`, `Wave Loop 369`, `Prop. 65`,
+  `w699`, `CI-01` identify a thing and measure nothing. That is **44%** of what a digit
+  matcher calls the population, and every one of them has nothing to re-read.
+- **98 issues state their figure only in WORDS.** "Twelve quantified clauses call a
+  function with the wrong number of arguments" is re-measurable and invisible to a digit
+  matcher.
+
+Both errors are the same mistake: reading the SPELLING of a number instead of asking
+whether the title makes a claim you could go and check. The two corrections happen to
+partly cancel -- 268 against 283 -- which is the worst case, because a number that is
+nearly right survives review.
+
+Excluded on purpose and counted separately: 20 titles carrying only `every`, `all`,
+`none` or `half`. They quantify without giving a figure, so there is no number to
+re-read; dropping them silently would have made the population look cleaner than it is.
+
+## 420. Two readers of one population, and the loose one is a strict superset
+
+The Rust command read **295** where an independent Python reader read **283**, on the same
+backlog. Subtracting was the whole diagnosis: 12 in Rust, 0 in Python, so the Rust rule
+was strictly looser rather than differently wrong -- which is the signature of a missing
+boundary, not a missing case.
+
+It was. The digit rule scanned for two consecutive digits with no word boundary, so it
+fired INSIDE identifiers, and this repository is made of them: `t27`, `GF16`, `dlc10`,
+`SRL16E`, `0o777`, `2'b11`, `bitset.t27`. With the boundary the two readers agree at
+**283 against 283, zero in either direction**.
+
+The lesson is the cheap availability of the control. **Two implementations of one question
+is a control you get for free: run both and subtract.** It is written on this page already
+from `prose report` against `unparsed report`, and the direction of the difference names
+the defect class before you read a line of the code -- superset means too loose, disjoint
+means two different questions.

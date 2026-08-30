@@ -33,6 +33,15 @@ pub enum IssuesCmd {
         #[arg(long, default_value_t = 500)]
         limit: usize,
     },
+    /// Open issues that state a COUNT in the title, and a reproducible sample.
+    Numbers {
+        /// Print a systematic sample of this size. 0 prints only the population.
+        #[arg(long, default_value_t = 0)]
+        sample: usize,
+        /// How many open issues to read.
+        #[arg(long, default_value_t = 500)]
+        limit: usize,
+    },
 }
 
 /// The phrases a title uses to call something red.
@@ -146,6 +155,287 @@ pub fn named_workflows(text: &str, keys: &BTreeMap<String, String>) -> Vec<Strin
     out
 }
 
+/// What kind of number a title carries.
+///
+/// The distinction is the whole point. `Wave Loop 369` and `#2841` and `Prop. 65`
+/// are ADDRESSES -- they identify a thing, they measure nothing, and a reader who
+/// counts them is counting the tracker's own numbering. `Twelve quantified
+/// clauses call a function with the wrong number of arguments` is a COUNT, and it
+/// is written in words, which a digit matcher cannot see at all.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Carries {
+    /// A count in digits, after every address has been removed.
+    Digits,
+    /// A count written as a numeral word.
+    Words,
+    /// Both.
+    Both,
+    /// Only a quantifier -- `every`, `all`, `none`, `half`. Measurable in
+    /// principle and not a number, so counting it would inflate the population
+    /// with claims that have no figure to re-read.
+    QuantifierOnly,
+    /// Nothing to re-measure.
+    None,
+}
+
+/// Strip the spellings this repository uses to ADDRESS things.
+///
+/// Measured on 478 open issues: a matcher that reads any two-digit run in a
+/// title reports 329, of which **145 are addresses** -- 44% of the population is
+/// the tracker's own numbering. Every one of those has nothing to re-measure.
+pub fn strip_addresses(title: &str) -> String {
+    let mut out = String::with_capacity(title.len());
+    let b: Vec<char> = title.chars().collect();
+    let mut i = 0usize;
+    let low: String = title.to_lowercase();
+    let lb: Vec<char> = low.chars().collect();
+    // the prefixes that make a number an address, longest first
+    const PRE: [&str; 7] = [
+        "wave loop ",
+        "wave ",
+        "prop. ",
+        "prop ",
+        "adr-",
+        "rfc-",
+        "ci-",
+    ];
+    while i < b.len() {
+        // #1234
+        if b[i] == '#' && b.get(i + 1).is_some_and(|c| c.is_ascii_digit()) {
+            i += 1;
+            while i < b.len() && b[i].is_ascii_digit() {
+                i += 1;
+            }
+            out.push(' ');
+            continue;
+        }
+        // w699 / W12 -- a bare w followed by digits, on a word boundary
+        if (b[i] == 'w' || b[i] == 'W')
+            && b.get(i + 1).is_some_and(|c| c.is_ascii_digit())
+            && (i == 0 || !b[i - 1].is_alphanumeric())
+        {
+            let mut j = i + 1;
+            while j < b.len() && b[j].is_ascii_digit() {
+                j += 1;
+            }
+            if j - i >= 3 && (j >= b.len() || !b[j].is_alphanumeric()) {
+                out.push(' ');
+                i = j;
+                continue;
+            }
+        }
+        // wave loop 369 / prop. 65 / ci-01
+        let mut matched = false;
+        for p in PRE {
+            let pc: Vec<char> = p.chars().collect();
+            if i + pc.len() <= lb.len()
+                && lb[i..i + pc.len()] == pc[..]
+                && (i == 0 || !b[i - 1].is_alphanumeric())
+            {
+                let mut j = i + pc.len();
+                let start = j;
+                while j < b.len() && b[j].is_ascii_digit() {
+                    j += 1;
+                }
+                if j > start {
+                    out.push(' ');
+                    i = j;
+                    matched = true;
+                    break;
+                }
+            }
+        }
+        if matched {
+            continue;
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    out
+}
+
+/// Numeral words. `every`, `all`, `none` and `half` are deliberately NOT here:
+/// they quantify without giving a figure, so a reader has nothing to re-measure.
+const NUMERALS: [&str; 26] = [
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
+    "thirty",
+    "forty",
+    "fifty",
+    "hundred",
+    "thousand",
+];
+const QUANTIFIERS: [&str; 4] = ["every", "all", "none", "half"];
+
+fn has_word(hay: &str, w: &str) -> bool {
+    let h = hay.to_lowercase();
+    let mut from = 0usize;
+    while let Some(rel) = h[from..].find(w) {
+        let i = from + rel;
+        let j = i + w.len();
+        let l = h[..i]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_alphanumeric());
+        let r = h[j..].chars().next().is_none_or(|c| !c.is_alphanumeric());
+        if l && r {
+            return true;
+        }
+        from = i + 1;
+    }
+    false
+}
+
+/// What a title carries, once addresses are gone.
+pub fn carries(title: &str) -> Carries {
+    let t = strip_addresses(title);
+    // A digit run counts only when nothing alphanumeric touches it. Without
+    // that boundary the rule fires inside identifiers -- `t27`, `GF16`,
+    // `dlc10`, `SRL16E`, `0o777` -- and reports twelve issues here whose
+    // titles state no count at all. Found by running an independent reader
+    // over the same backlog and subtracting: 295 against 283, and the Rust was
+    // a strict superset, which is what an over-loose matcher looks like.
+    let digits = {
+        let c: Vec<char> = t.chars().collect();
+        let mut i = 0usize;
+        let mut found = false;
+        while i < c.len() {
+            if !c[i].is_ascii_digit() {
+                i += 1;
+                continue;
+            }
+            let start = i;
+            while i < c.len() && c[i].is_ascii_digit() {
+                i += 1;
+            }
+            let left = start == 0 || !c[start - 1].is_alphanumeric();
+            let right = i >= c.len() || !c[i].is_alphanumeric();
+            if i - start >= 2 && left && right {
+                found = true;
+            }
+        }
+        found
+    };
+    let words = NUMERALS.iter().any(|w| has_word(&t, w));
+    match (digits, words) {
+        (true, true) => Carries::Both,
+        (true, false) => Carries::Digits,
+        (false, true) => Carries::Words,
+        (false, false) => {
+            if QUANTIFIERS.iter().any(|w| has_word(&t, w)) {
+                Carries::QuantifierOnly
+            } else {
+                Carries::None
+            }
+        }
+    }
+}
+
+/// The population of re-measurable open issues, and a reproducible sample of it.
+///
+/// A rate is only worth taking if the same sample can be taken again, so the
+/// sample is SYSTEMATIC -- every k-th issue by ascending number -- rather than
+/// chosen. Nothing here is random: run it next month and the overlap is exact
+/// wherever the backlog has not moved.
+fn numbers(sample: usize, limit: usize) -> Result<()> {
+    let lim = limit.to_string();
+    let raw = gh(&[
+        "issue",
+        "list",
+        "--state",
+        "open",
+        "--limit",
+        &lim,
+        "--json",
+        "number,title",
+    ])?;
+    let v: serde_json::Value = serde_json::from_str(&raw).context("gh returned no JSON")?;
+    let arr = v.as_array().cloned().unwrap_or_default();
+    if arr.is_empty() {
+        anyhow::bail!(
+            "gh returned no open issues -- a repository with none and a query that \
+             did not run print the same zero."
+        );
+    }
+    let mut rows: Vec<(u64, String, Carries)> = arr
+        .iter()
+        .map(|i| {
+            let n = i["number"].as_u64().unwrap_or(0);
+            let t = i["title"].as_str().unwrap_or("").to_string();
+            let c = carries(&t);
+            (n, t, c)
+        })
+        .collect();
+    rows.sort_by_key(|r| r.0);
+
+    let c = |k: Carries| rows.iter().filter(|r| r.2 == k).count();
+    let pop: Vec<&(u64, String, Carries)> = rows
+        .iter()
+        .filter(|r| matches!(r.2, Carries::Digits | Carries::Words | Carries::Both))
+        .collect();
+
+    println!("OPEN ISSUES THAT STATE A COUNT IN THE TITLE\n");
+    println!("  open issues read              {}", rows.len());
+    println!("  count in digits only          {}", c(Carries::Digits));
+    println!("  count in words only           {}", c(Carries::Words));
+    println!("  both                          {}", c(Carries::Both));
+    println!("  POPULATION                    {}", pop.len());
+    println!(
+        "  quantifier only, excluded     {}",
+        c(Carries::QuantifierOnly)
+    );
+    println!("  no figure                     {}", c(Carries::None));
+
+    println!(
+        "\n  An ADDRESS is not a count. `#2841`, `Wave Loop 369`, `Prop. 65`, `w699`\n  \
+         and `CI-01` identify a thing and measure nothing. A matcher reading any\n  \
+         two-digit run reports 329 on this backlog, of which 145 -- 44% -- are\n  \
+         addresses, and every one of them has nothing to re-read.\n\n  \
+         A count written in WORDS is still a count. \"Twelve quantified clauses\n  \
+         call a function with the wrong number of arguments\" is re-measurable and\n  \
+         invisible to a digit matcher: {} issues here state their figure only in\n  \
+         words. Reading digits alone gets the population wrong in BOTH directions.\n\n  \
+         `every`, `all`, `none` and `half` quantify without giving a figure, so\n  \
+         they are excluded and counted separately rather than dropped in silence.",
+        c(Carries::Words)
+    );
+
+    if sample > 0 {
+        let k = pop.len().checked_div(sample).unwrap_or(1).max(1);
+        let picked: Vec<&&(u64, String, Carries)> = pop.iter().step_by(k).take(sample).collect();
+        println!(
+            "\n  SYSTEMATIC SAMPLE -- every {k}th of {} by ascending number, {} taken.\n  \
+             Not random and not chosen: re-run it and the overlap is exact wherever\n  \
+             the backlog has not moved, which is what makes a rate comparable.\n",
+            pop.len(),
+            picked.len()
+        );
+        for (n, t, _) in picked.iter().copied() {
+            println!("    #{n}  {}", &t[..t.len().min(92)]);
+        }
+    }
+    Ok(())
+}
+
 fn gh(args: &[&str]) -> Result<String> {
     let out = Command::new("gh")
         .args(args)
@@ -191,7 +481,10 @@ struct Row {
 }
 
 pub fn run(cmd: &IssuesCmd) -> Result<()> {
-    let IssuesCmd::Stale { limit } = cmd;
+    let limit = match cmd {
+        IssuesCmd::Numbers { sample, limit } => return numbers(*sample, *limit),
+        IssuesCmd::Stale { limit } => limit,
+    };
     let root = repo_root()?;
     let keys = workflow_keys(&root.join(".github/workflows"))?;
     let files: std::collections::BTreeSet<&String> = keys.values().collect();
@@ -437,6 +730,91 @@ mod tests {
             "reading the body too pulls in the third: {both:?}"
         );
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// An address identifies a thing and measures nothing. This repository
+    /// writes five spellings of them, and a matcher that reads any two-digit run
+    /// reports 329 titles here of which 145 -- 44% -- are only these.
+    #[test]
+    fn an_address_is_not_a_count() {
+        for t in [
+            "Seal Coverage has been red on master since #2841",
+            "Wave Loop 369 -- IGLA CODER+RACE + retry board flash",
+            "Wave 679: a _CoqProject nobody runs builds nothing",
+            "formal: the memory axiom, over a symbolic address (Prop. 78)",
+            "cli/tri: six names unresolvable on w699",
+            "Catalog Count Invariant CI-01 fires on every run",
+        ] {
+            assert_ne!(
+                carries(t),
+                Carries::Digits,
+                "the only digits here are an address: {t}"
+            );
+        }
+    }
+
+    /// The bug an independent reader found by subtraction. Without a word
+    /// boundary the digit rule fires INSIDE identifiers, and this repository is
+    /// full of them: 295 against 283, the loose reader a strict superset.
+    #[test]
+    fn a_digit_inside_an_identifier_is_not_a_count() {
+        for t in [
+            "[IGLA-Coder] P8 Integration into t27 and publication",
+            "feat(fpga): tri CLI integration for openXC7 GF16 flow",
+            "fix(igla): add Digilent FTDI cable support to cli/dlc10",
+            "openXC7 emits a wrong bitstream for SRL16E (same class as DSP48E1)",
+            "The lexer turns 0o777 into 0",
+            "Wave Loop 564 -- layer-boundary requantizer; 2'b11 proved unreachable",
+            "parser: Expected LParen in specs/tri/collections/bitset.t27",
+        ] {
+            assert_eq!(
+                carries(t),
+                Carries::None,
+                "digits are inside an identifier, and there is no numeral word: {t}"
+            );
+        }
+    }
+
+    /// A count in words is still a count, and a digit matcher cannot see it.
+    /// 98 titles on this backlog state their figure only this way.
+    #[test]
+    fn a_numeral_word_is_a_count_and_a_quantifier_is_not() {
+        for t in [
+            "Twelve quantified clauses call a function with the wrong number of arguments",
+            "Five open issues say a workflow is red",
+            "Eight invariants spell determinism as f(x) == f(x)",
+            "specs/ml/optimizer/adamw.t27 contains two complete copies of the AdamW module",
+        ] {
+            assert_eq!(
+                carries(t),
+                Carries::Words,
+                "a numeral word is a figure: {t}"
+            );
+        }
+        for t in [
+            "Wave Loop 601 -- every assumption audited for what it removes",
+            "formal: a verdict for every property, and none of them is dead (Prop. 64)",
+        ] {
+            assert_eq!(
+                carries(t),
+                Carries::QuantifierOnly,
+                "quantifies without giving a figure: {t}"
+            );
+        }
+    }
+
+    /// A title can carry both, and the address in it must not change that.
+    #[test]
+    fn digits_and_words_together_are_both() {
+        assert_eq!(
+            carries("Three pull requests have run almost no CI, and 40 checks were skipped"),
+            Carries::Both
+        );
+        assert_eq!(
+            carries("Wave 690: the corpus reaches 12 on every parse metric"),
+            Carries::Digits,
+            "the wave number is stripped; 12 is the count"
+        );
     }
 
     fn tempdir(tag: &str) -> std::path::PathBuf {
