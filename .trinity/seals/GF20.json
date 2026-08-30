@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:5472e7b8bd26496d76c299474cb8e210ccfa0b7145c28bdbcc4baa6ada0dc833",
   "gen_hash_rust": "sha256:4372ba03ad36e2b35511b5c095e837421a468ce217284b7df6eedbb0dade3420",
   "gen_hash_verilog": "sha256:1c6e13c838957065ce5ab2b41b721831fded9a8dcaf5b263f03c2651c603b6ba",
-  "gen_hash_zig": "sha256:009b2c5d1a7111ccd8cb659c698de70d9de0d220ee7588541bfa51c93936c9f7",
+  "gen_hash_zig": "sha256:f91702e478f778da300a8acfd22d5c5b3996a40e28e727e23024c221980d4e35",
   "module": "GF20",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:89344ac43e25162e89c6fadaa1383dd95a9898d33f149adf23bf3b6f6c74fa34",
   "gen_hash_rust": "sha256:16afc81b462be0ee6d7c5180a00d19a1bc0236921a75fd7ab58246627a7007aa",
   "gen_hash_verilog": "sha256:51fb330805ab25ee3bf16cc61c696d919ca97e7ac03a0848b4a051ce40bbc6dd",
-  "gen_hash_zig": "sha256:2d87d0b27469478cdbc382374b1e9ffa17ed01a5494dce81f2aceb4d214a0c3b",
+  "gen_hash_zig": "sha256:ed13e73f24014a62c42ad289a74d8d2fc4273daafe068435b112c550ab5a54bd",
   "module": "PowerAnalysis",
   "ring": 12,
-  "sealed_at": "2026-08-30T18:16:29Z",
+  "sealed_at": "2026-08-30T19:43:01Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7cdce660af6ad27ae82aa135275e74082c436921cf5dbcd71ffba3b53d21a892",
   "spec_path": "specs/fpga/power_analysis.t27"

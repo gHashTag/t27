@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:b92ccd2f541925122daaed81d4b240c1fa808da7f5772a542873209a97995fcb",
   "gen_hash_rust": "sha256:3e763cd3c75b8679bfa0cc58f65a5943322e28f0a190c75f194bdb1214278acf",
   "gen_hash_verilog": "sha256:ed8d3af2735e81efd9bcd16b1c855b3241d961fc70a7b7476fde7d57bc07ce79",
-  "gen_hash_zig": "sha256:94d39340d8b4ce405d533ea535fe146e61dc043ac6c444bcdd355db6d12e5327",
+  "gen_hash_zig": "sha256:c56746c59698981521b8be80cf50173b48e5d4bb2c8b925c529f3ac915ea44ae",
   "module": "Simulator",
   "ring": 12,
-  "sealed_at": "2026-08-30T18:16:29Z",
+  "sealed_at": "2026-08-30T19:43:01Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b4ab0ea0b34b210665affbbcecf0346f0c9258c849e96a1ab10ed431bac596a5",
   "spec_path": "specs/fpga/simulator.t27"

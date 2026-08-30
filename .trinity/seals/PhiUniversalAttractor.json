@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:f87af83c0ff6c847d32612b230569d4c0035683bb05e56f51a180d2f11570eed",
   "gen_hash_rust": "sha256:f70dfdf4a3fe4e99053c462a0fba0b1be779ae2a7d9d269818c7ca4c1246851c",
   "gen_hash_verilog": "sha256:b4cd802dafb970fd8bd397176f5f0236e5642bfdbadfe125eaff7afb4d3ba1e0",
-  "gen_hash_zig": "sha256:cb93190a00837dc166648aa03f126b2895fada4aa30f4c3288d0e668db0e98bf",
+  "gen_hash_zig": "sha256:dbba7f928af7d8a9672028e095e782314e7bccd0a5cee09290c602384d3ee036",
   "module": "PhiUniversalAttractor",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

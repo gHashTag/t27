@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:00c9fbba26d1d8c78e1867b49e3fb9d2e0aeb72da05c423c97542ce8112eb18e",
   "gen_hash_rust": "sha256:787ca1671e644b5ab5a4b80a02936142f3f11091d4f2d8bd8b846b8b409f5cc2",
   "gen_hash_verilog": "sha256:f191b1629820d189fa7e7dbaa6fe944b655a08616975a08b6a3fd56b9e5e3244",
-  "gen_hash_zig": "sha256:2e1197967dae559a3d69fed27f1ffea64b085bc4cc25582f16512825c4f87f25",
+  "gen_hash_zig": "sha256:df0add963ac42b33bf1a2275e63af38e036ddd998b1534b9ba8f2a63bf21a37a",
   "module": "Partition",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",
