@@ -64,6 +64,14 @@ enum Plant {
     /// a hardcoded name rots into a line that is TRUE, and the audit then
     /// quietly stops testing anything.
     Line(&'static str),
+    /// Add a classification row for a type name that is not conflicted.
+    ///
+    /// `ClassifiedName` deserialises only `name` and `verdict`, so a two-field
+    /// object is complete for the reader and false for the claim: nothing in
+    /// the corpus carries this name, so the row is STALE by construction. The
+    /// entry is inserted into `"names"` textually rather than by
+    /// re-serialising, so the document's formatting survives the restore.
+    StaleRow,
     /// Add a ceiling for a crate the workspace does not declare.
     ///
     /// Appending a line to a JSON ledger would make the gate fail because the
@@ -123,6 +131,11 @@ const LEDGERS: &[Ledger] = &[
         // A conformance file that does not exist.
         plant: Plant::Line("fpga_planted_by_ledgers_audit.json | 1 | 1"),
     },
+    Ledger {
+        path: "docs/reports/type_conflicts_classified.json",
+        gate: Gate::Tri(&["types", "classified"]),
+        plant: Plant::StaleRow,
+    },
 ];
 
 /// Every file in this repository shaped like a ledger, found by walking rather
@@ -164,7 +177,7 @@ struct Unaudited {
     why: &'static str,
 }
 
-const UNAUDITED: [Unaudited; 6] = [
+const UNAUDITED: [Unaudited; 5] = [
     Unaudited {
         path: "docs/reports/suite_expectations.json",
         why: "its gate is the corpus ratchet, which compiles every spec in the corpus. \
@@ -183,14 +196,6 @@ const UNAUDITED: [Unaudited; 6] = [
               observation, not a ledger of hand-written claims. A planted line survives \
               until the next regeneration erases it, so demanding a gate fail on one \
               measures the regeneration, not the claim.",
-    },
-    Unaudited {
-        path: "docs/reports/type_conflicts_classified.json",
-        why: "measured, and it CATCHES: a cloned row renamed PlantedByAudit gives \
-              `tri types classified` exit 1, `STALE PlantedByAudit: classified, but no \
-              longer conflicting`. Not planted into yet because the plant must clone an \
-              existing row's field shape, which Plant cannot express -- and an ill-shaped \
-              plant would fail the gate on its SHAPE, a catch for the wrong reason.",
     },
     Unaudited {
         path: "docs/reports/lean_completeness_mismatches.json",
@@ -286,6 +291,19 @@ fn plant_text(before: &str, plant: &Plant, spec: &str, json: &str) -> Option<Str
             "{before}{}\n",
             t.replace("{spec}", spec).replace("{json}", json)
         )),
+        Plant::StaleRow => {
+            // One row at the head of `names`. The gate reads `name` and
+            // `verdict` and nothing else, so this object is complete -- and the
+            // file must still PARSE, or the gate would fail on the shape
+            // instead of on the claim, which is a catch for the wrong reason.
+            let at = before.find("\"names\"")?;
+            let bracket = before[at..].find('[')? + at + 1;
+            Some(format!(
+                "{}\n    {{ \"name\": \"PlantedByLedgersAudit\", \"verdict\": \"DRIFT\" }},{}",
+                &before[..bracket],
+                &before[bracket..]
+            ))
+        }
         Plant::GhostCeiling => {
             // Textual, so the file's formatting survives: insert one key into
             // the `ceilings` object rather than re-serialising the document.
@@ -615,6 +633,20 @@ mod tests {
                 // The planted text must still PARSE -- appending junk makes the
                 // gate fail because the file is unreadable, which is a catch
                 // for the wrong reason.
+                Plant::StaleRow => {
+                    let before = "{\n  \"names\": [\n    { \"name\": \"A\", \"verdict\": \"DRIFT\" }\n  ]\n}\n";
+                    let planted =
+                        plant_text(before, &l.plant, "unused", "unused").expect("planted");
+                    assert!(planted.contains("PlantedByLedgersAudit"), "{}", l.path);
+                    let v: serde_json::Value = serde_json::from_str(&planted)
+                        .unwrap_or_else(|e| panic!("{}: planted ledger must parse -- {e}", l.path));
+                    assert_eq!(
+                        v["names"].as_array().map(|a| a.len()),
+                        Some(2),
+                        "{}: the planted row is one more row, not a replacement",
+                        l.path
+                    );
+                }
                 Plant::GhostCeiling => {
                     let before = "{\n  \"ceilings\": {\n    \"a\": 1\n  }\n}\n";
                     let planted =
