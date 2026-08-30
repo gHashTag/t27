@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:61dbd5b89fc8d61f7403297838f33d404c3b459606e78672b28937a16b8cc702",
+  "gen_hash_c": "sha256:b04b8c6455b4ba7b896bec063abfdfa30034a7ea03e4cb0fe51480093d07e43f",
   "gen_hash_rust": "sha256:bbcbfd3c8942bfae67710f114ba2d40988489db3b98c8bcf9bc056e5f9fe7d37",
   "gen_hash_verilog": "sha256:729e9f4cedf1bbf1fad68e7c71688c2dfdcd94d0f1e414c7199171078fdaa55c",
   "gen_hash_zig": "sha256:8ae78cd582da3e3f885fb0a476e511300f4e8c6a0447e99e41c56351df9953b1",
   "module": "GatedLinearAttention",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
+  "sealed_at": "2026-08-30T15:19:26Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:004529e85abd9c48919785e32e065358c561574356ddff82ef9bdf5c387fa195",
   "spec_path": "specs/nn/gla.t27"

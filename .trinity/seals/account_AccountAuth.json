@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:63a8853dafff2360bc3cfe81f053e8a6e407332aa0eef3aeac4231b2ad98d011",
+  "gen_hash_c": "sha256:eab918fc17f22d09f5607521c2190a14787b0ba6deec1b8e79635231288b37c5",
   "gen_hash_rust": "sha256:94aee79cc28d7fdcd5ab4ac83498737b013b67ac907c8e366b70fd6e30ccc771",
   "gen_hash_verilog": "sha256:d8613b47f3635c4e135032259cbabe1d3624c54001f4277b5385276cdc2d7e78",
   "gen_hash_zig": "sha256:7e11ac8cc7173b92ac3c3b62a5f2728fd8764bd438e2aac808525cd31e33065f",
   "module": "AccountAuth",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:45Z",
+  "sealed_at": "2026-08-30T15:19:22Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:e1355c4ae9276302788b24e68f1229d728b8b23b52f3422a96f55d68ab6e0b62",
   "spec_path": "specs/account/auth.t27"

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:70bad6193b45e1728f22626b4b61593b3e1601941144a36df2d2270df12e341d",
+  "gen_hash_c": "sha256:01ddfbdab0d5555e4c84a2a38d45873457fec20b55e7191f471e0895d9da43cc",
   "gen_hash_rust": "sha256:1e6895deca1ce3989b15b119244f53302e58ae06cdf07d223b4438747f6c8326",
   "gen_hash_verilog": "sha256:3779b9abbaae320245b547ba078d864827ef5e1d988836bae8a2fd706244573e",
   "gen_hash_zig": "sha256:1acf32980c399473ea650abd665eaabdd3b01264188bf5d4a4f5075c3e0a4260",
   "module": "Rmsprop",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
+  "sealed_at": "2026-08-30T15:19:25Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b12ab087d817d07363484cb0dea375c6002c2d8476162fc5792343663de03229",
   "spec_path": "specs/ml/optimizer/rmsprop.t27"

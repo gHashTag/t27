@@ -17907,6 +17907,27 @@ impl CCodegen {
             self.write_line("   Structs");
             self.write_line("   ------------------------------------------------------- */");
             self.write_line("");
+            // Forward declarations first, then tagged bodies.
+            //
+            // A struct that names itself is a cycle of length one, and no
+            // ordering can put it before itself:
+            //
+            //     typedef struct {
+            //         BTreeNode** children;      <- BTreeNode is not in scope
+            //     } BTreeNode;                   <- until this line closes
+            //
+            // 24 specs write one. The topological sort above cannot help and is
+            // still needed: a forward declaration gives C the NAME, which is
+            // enough for a pointer and not enough for a by-value member, so the
+            // two changes cover different halves of the same requirement.
+            //
+            // `typedef struct Name Name;` may repeat under C11, which is what
+            // the harness compiles with (`-std=gnu11`), so a name that is also
+            // reached another way costs nothing.
+            for s in &structs {
+                self.write_line(&format!("typedef struct {} {};", s.name, s.name));
+            }
+            self.write_line("");
             for s in Self::structs_in_declaration_order(&structs) {
                 self.gen_c_struct(s);
             }
@@ -18441,7 +18462,10 @@ impl CCodegen {
     }
 
     fn gen_c_struct(&mut self, node: &Node) {
-        self.write_line("typedef struct {");
+        // Tagged, because the forward declaration above names the tag. An
+        // anonymous `typedef struct { ... } Name;` cannot be forward-declared
+        // at all -- there is no name to declare.
+        self.write_line(&format!("struct {} {{", node.name));
         self.indent();
 
         for field in &node.children {
@@ -18461,7 +18485,7 @@ impl CCodegen {
         }
 
         self.dedent();
-        self.write_line(&format!("}} {};", node.name));
+        self.write_line("};");
         self.write_line("");
     }
 

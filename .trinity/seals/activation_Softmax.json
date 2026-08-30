@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:432f311783837b944bc43bc62f41be3ed3d7b6bdec5839cdda512e7aa71b0e37",
+  "gen_hash_c": "sha256:7aef00775948d4076431c66da7ecc9e4d850531fab1d8e90f70ba59a71d530e1",
   "gen_hash_rust": "sha256:35a107cf0b39406af834f2773645d3b7de3ab32d4de119a808e1b22b6af12eec",
   "gen_hash_verilog": "sha256:b2034434f9b7c5cbe0b8d556377acb6f92752b7858e86812810b42b8425e4689",
   "gen_hash_zig": "sha256:06d5d89910a3b10d8c1b19112931b2a77c37ca194f776bb486f99c707fa9be86",
   "module": "Softmax",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
+  "sealed_at": "2026-08-30T15:19:25Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:4ea7242baa7a03eeadf68af61c6d58551b24783880fa3319a2d0c34550ecdb44",
   "spec_path": "specs/ml/activation/softmax.t27"

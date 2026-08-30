@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:56b914b28a8314b448f0a67f102db95c746cfea582945a8f5d97e1a533693b61",
+  "gen_hash_c": "sha256:30e51026399526d54313958093d0a6e5134620fd59a8c93818490c993d07c392",
   "gen_hash_rust": "sha256:1add0ffd533c9998ba2587112c1ff7c1770f33a9fca60e479712e9217df82e4f",
   "gen_hash_verilog": "sha256:6e8051c39d737dfbfef1e9257bb254dd424b9ae25e47a5639cc88895363f6101",
   "gen_hash_zig": "sha256:36a5d011cc761b9d1e3b8e3e34cdc0140621734ae9c983e90bf6cd371978c47e",
   "module": "IGLARoadmap",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:48Z",
+  "sealed_at": "2026-08-30T15:19:25Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:54d9c2d81be0a306a311a4e50ec767e81459c14f482a243a10e873a7654fa3ff",
   "spec_path": "specs/igla/training/roadmap.t27"
