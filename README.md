@@ -1,9 +1,9 @@
 # Trinity S³AI DNA -- t27 -- TRI-27 Spec-First Language
 
-[![CI](https://img.shields.io/github/actions/workflow/status/gHashTag/t27/ci.yml?branch=master&logo=github&label=CI)](https://github.com/gHashTag/t27/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/gHashTag/t27/bootstrap-tests.yml?branch=master&logo=github&label=CI)](https://github.com/gHashTag/t27/actions/workflows/bootstrap-tests.yml)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.19456875.svg)](https://doi.org/10.5281/zenodo.19456875)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
+[![Version: 0.2.0](https://img.shields.io/badge/version-0.2.0-orange.svg)](https://github.com/gHashTag/t27/releases)
 
 
 > **Canonical Zenodo SOT:** [zenodo.org/communities/trinity-s3ai](https://zenodo.org/communities/trinity-s3ai/). The GoldenFloat badge above (19456875) is a legitimate Vasilev deposit but lives **outside** the curated S³AI v5.0 record set; see [docs/ZENODO.md](docs/ZENODO.md) for the canonical 12-record bundle and aliases.
