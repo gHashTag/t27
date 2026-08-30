@@ -9739,29 +9739,77 @@ against the *actual generated output* rather than reasoning about which code
 path it came from. The third row above was confirmed by generating the file and
 running the regex, not by reading the emitter.
 
-## 389. A gate that never runs on master has no baseline — borrow one from siblings
+## 389. Query the workflow, not a window — and take the missing reading on purpose
 
-`emit-bitexact-gate.yml` is `on: pull_request` with a `paths:` filter and no
-`push:`. It has therefore **never run on master**, so "is it red on master too?"
-is unanswerable, and `gh run list --branch master` returns nothing for it — which
-reads like "no data" and is easy to mistake for "no problem".
+**This section carried a false claim for one day. The claim was mine and it is
+corrected here rather than left standing beside a correction.**
 
-The baseline is still available: the same workflow ran on every other recent
-branch.
+What I wrote: *"`emit-bitexact-gate.yml` has therefore NEVER run on master, so
+`gh run list --branch master` returns nothing for it."*
 
-```bash
-gh run list --repo <r> --workflow <file>.yml -L 20 \
-  --json headBranch,conclusion,createdAt
+What is true:
+
+```
+$ gh run list --repo gHashTag/t27 --workflow emit-bitexact-gate.yml \
+    --branch master -L 20 --json event,conclusion,createdAt
+  2026-08-28  workflow_dispatch  success   run 33150988445
+  2026-08-20  workflow_dispatch  failure   run 32319733329
 ```
 
-Green on five sibling branches, including two from other agents and one of my
-own from the same hour — red on exactly one. That convicts the change without
-any master run existing. It is also the cheapest way to separate "my change did
-this" from "this gate is just broken today".
+Two master runs, and the most recent is a **success from two days before the
+change I was trying to judge** — precisely the baseline I said did not exist.
 
-(See also 348 on gates with `paths:` and no `push:`. The complement of that
-lesson is this one: no baseline does not mean no measurement, it means look
-sideways instead of backwards.)
+### How the wrong reading was produced
+
+I ran `gh run list --repo <r> --branch master -L 40 --json name,conclusion`,
+filtered the result by workflow name, found nothing, and printed
+"нет в выборке" — then wrote it up as "never runs on master".
+
+That query is a **window over all workflows**, forty runs deep. This repository
+pushes to master often enough that forty runs is under an hour. A workflow
+absent from that window has not been shown to be absent from the branch; it has
+been shown to be absent from the last forty runs. The per-workflow query above
+is a different question with a different answer, and it costs the same.
+
+The trap is already written down: `-L N` is a window, not a lifetime count. I put
+that sentence into the instructions for a fan-out **in the same session**, and
+then read a window as a lifetime myself.
+
+### What survives, and it is the more useful half
+
+* **No `push:` trigger means no baseline is produced automatically.** That part
+  was right and is the thing worth fixing: `on: pull_request` + `paths:` and no
+  `push:` yields zero automatic master history, so the ordinary run of days
+  leaves nothing to compare against.
+* **`workflow_dispatch` was there the whole time**, since the file's creating
+  commit `1b47f8b85`. The missing measurement did not have to be borrowed — it
+  could have been **taken**. That is exactly what this repository's own
+  `tri gates unmeasured` doctrine says to do with an unmeasured gate, and what
+  `gate-topology.yml`'s header says `workflow_dispatch` is for.
+* **Borrowing from siblings still works and still gave the right verdict** —
+  green on five other branches, red on exactly one, which convicted the change.
+  It is a good second instrument. It is not the first thing to reach for when
+  the gate can simply be fired at master.
+
+So the order is: query the workflow directly; if that is genuinely empty and the
+gate carries `workflow_dispatch`, fire it at master and take the reading; only
+then borrow a baseline sideways from sibling branches.
+
+### The general form
+
+Three statements look identical in a terminal and are not:
+
+| statement | how to establish it |
+|---|---|
+| "it has not run recently" | a window: `gh run list --branch master -L N` |
+| "it has not run on this branch, ever" | per-workflow: `--workflow <file> --branch master` |
+| "it cannot run on this branch" | read the `on:` block |
+
+Reporting the third when you measured the first is the error. Say which one you
+took.
+
+(See also 348 on gates with `paths:` and no `push:`, and 395 on a guard whose
+clean line was a claim about a population it never read.)
 
 ## 390. `git checkout` does not rebuild
 

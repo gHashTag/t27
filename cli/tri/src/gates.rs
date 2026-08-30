@@ -2369,6 +2369,108 @@ fn has_path_filter(root: &std::path::Path, rel: &str) -> bool {
     }
 }
 
+/// Can this workflow ever produce a default-branch run WITHOUT a human?
+///
+/// `unmeasured` above reports staleness: how long since the last default-branch
+/// run. That is the right question and it has a blind spot, which cost a
+/// measurement on 2026-08-30. `emit-bitexact-gate.yml` has no `push:` trigger at
+/// all, so it produces no automatic default-branch history ever -- but it had
+/// been DISPATCHED by hand two days earlier, so it was not stale, so it never
+/// appeared in that table, and its absence read as health.
+///
+/// Staleness and reachability are different facts. A workflow can be fresh and
+/// still be structurally incapable of producing the next reading on its own.
+///
+/// Parsed by line rather than by a YAML crate, matching `has_path_filter` and
+/// `has_dispatch` above -- and with the two traps that reading takes:
+///   * a `push:` inside a COMMENT is not a trigger. This repository has a
+///     workflow whose header comment recommends `push: branches: [master]` in
+///     prose, and a naive scan reads its own advice as compliance.
+///   * `push:` nested under something else (a job `if:`, a `paths:` list) is not
+///     the trigger either, so only the first indent level inside `on:` counts.
+fn has_auto_default_run(text: &str, default_branch: &str) -> bool {
+    let mut in_on = false;
+    let mut on_indent = usize::MAX;
+    let mut push_indent = usize::MAX;
+    let mut in_push = false;
+    let mut saw_push = false;
+    let mut branches: Option<Vec<String>> = None;
+
+    for raw in text.lines() {
+        let trimmed = raw.trim_start();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let indent = raw.len() - trimmed.len();
+
+        if !in_on {
+            if indent == 0 && (trimmed.starts_with("on:") || trimmed.starts_with("\"on\":")) {
+                // Inline form: `on: [push, pull_request]` or `on: push`.
+                let rest = trimmed.splitn(2, ':').nth(1).unwrap_or("").trim();
+                if !rest.is_empty() {
+                    return rest.contains("push");
+                }
+                in_on = true;
+            }
+            continue;
+        }
+
+        // A column-0 key ends the `on:` block.
+        if indent == 0 {
+            break;
+        }
+        if on_indent == usize::MAX {
+            on_indent = indent;
+        }
+
+        if indent == on_indent {
+            in_push = trimmed.starts_with("push:");
+            if in_push {
+                saw_push = true;
+                push_indent = indent;
+                let rest = trimmed.splitn(2, ':').nth(1).unwrap_or("").trim();
+                if !rest.is_empty() {
+                    branches = Some(parse_branch_list(rest));
+                }
+            }
+            continue;
+        }
+
+        if in_push && indent > push_indent && trimmed.starts_with("branches:") {
+            let rest = trimmed.splitn(2, ':').nth(1).unwrap_or("").trim();
+            branches = Some(parse_branch_list(rest));
+        }
+        // `branches:` written as a block list under `push:`.
+        if in_push && branches.is_some() && trimmed.starts_with("- ") {
+            if let Some(b) = branches.as_mut() {
+                b.push(trimmed[2..].trim().trim_matches('"').trim_matches('\'').to_string());
+            }
+        }
+    }
+
+    if !saw_push {
+        return false;
+    }
+    match branches {
+        // `push:` with nothing under it fires on every branch.
+        None => true,
+        Some(list) if list.is_empty() => true,
+        Some(list) => list
+            .iter()
+            .any(|b| b == default_branch || b == "*" || b == "**"),
+    }
+}
+
+/// `[master, main]`, `[ "master" ]`, or an empty string for a block list below.
+fn parse_branch_list(rest: &str) -> Vec<String> {
+    let inner = rest.trim().trim_start_matches('[').trim_end_matches(']');
+    inner
+        .split(',')
+        .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
 /// Can a human get the missing reading at all? Without `workflow_dispatch:`
 /// there is no way to fire it against the default branch on purpose, so the
 /// gap cannot be closed even by someone who wants to.
@@ -2383,6 +2485,10 @@ fn has_dispatch(root: &std::path::Path, rel: &str) -> bool {
 
 fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     let root = repo_root()?;
+    let mut no_auto: Vec<(String, String, bool, String)> = Vec::new();
+    // Named once, so the printed sentence quotes the branch actually queried
+    // rather than the word "master" hardcoded into a message.
+    let mut default_branch_seen = String::new();
     let mut rows: Vec<(String, String, String, bool, bool)> = Vec::new();
     let mut checked = 0usize;
     let mut unreadable = 0usize;
@@ -2393,6 +2499,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             .trim()
             .to_string();
 
+        default_branch_seen = default_branch.clone();
         let listing = gh(&[
             "api",
             &format!("repos/{repo}/actions/workflows?per_page=100"),
@@ -2458,6 +2565,25 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                     None => true,
                 }
             };
+            // Reachability, not staleness: asked of EVERY workflow with a file,
+            // including the ones that are perfectly fresh. A workflow that was
+            // dispatched by hand yesterday is not stale and still cannot take
+            // tomorrow's reading by itself.
+            if let Ok(text) = std::fs::read_to_string(root.join(path)) {
+                if !has_auto_default_run(&text, &default_branch) {
+                    no_auto.push((
+                        repo.clone(),
+                        name.to_string(),
+                        has_dispatch(&root, path),
+                        if last.is_empty() {
+                            "never".to_string()
+                        } else {
+                            last[..10].to_string()
+                        },
+                    ));
+                }
+            }
+
             if stale {
                 rows.push((
                     repo.clone(),
@@ -2492,6 +2618,40 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
              either fresh or stale."
         );
     }
+    if no_auto.is_empty() {
+        println!(
+            "  Workflows with no automatic default-branch trigger: 0 \
+             (every one can produce its own baseline)."
+        );
+    } else {
+        no_auto.sort_by(|a, b| a.1.cmp(&b.1));
+        println!(
+            "{} workflow(s) can NEVER produce a default-branch run on their own -- no\n\
+             `push:` covering `{}`. Their default-branch history exists only where a\n\
+             human dispatched them, so \"is it red on the default branch too?\" has no\n\
+             standing answer when one of them goes red on a pull request.\n",
+            no_auto.len(),
+            if default_branch_seen.is_empty() { "the default branch" } else { default_branch_seen.as_str() }
+        );
+        println!("  {:<10}  {:<9}  {}", "LAST", "dispatch", "WORKFLOW");
+        for (repo, name, dispatch, last) in &no_auto {
+            println!(
+                "  {:<10}  {:<9}  {}  ({})",
+                last,
+                if *dispatch { "yes" } else { "NO" },
+                name,
+                repo
+            );
+        }
+        println!(
+            "\n  `dispatch: yes` means the missing reading can be TAKEN -- fire it at the\n\
+               default branch rather than inferring the baseline from sibling branches.\n\
+               `LAST` here is a lifetime per-workflow query, not a window over recent\n\
+               runs: reading a window and reporting a lifetime is how this section came\n\
+               to exist.\n"
+        );
+    }
+
     if rows.is_empty() {
         println!(
             "Every active workflow has run on the default branch within {stale_days} days \
@@ -3852,5 +4012,117 @@ def main():\n    if problems:\n        return 2\n    return 0\n";
         // anything here would report the OPERATOR's scope as a false claim.
         let out = super::contradicted_claims("g.py", "invert", &[9], &[9], &claim(7, "forced"));
         assert!(out.is_empty(), "no site, no verdict: {out:?}");
+    }
+}
+
+#[cfg(test)]
+mod auto_default_run_tests {
+    use super::has_auto_default_run;
+
+    /// The shape that cost the measurement: `pull_request` and a `paths:`
+    /// filter, no `push:` at all. Two default-branch runs exist for this file,
+    /// both dispatched by hand, so a STALENESS check reports it healthy.
+    #[test]
+    fn pull_request_only_cannot_produce_a_baseline() {
+        let y = "name: x\non:\n  pull_request:\n    paths:\n      - 'bootstrap/**'\n  workflow_dispatch:\njobs: {}\n";
+        assert!(!has_auto_default_run(y, "master"));
+    }
+
+    #[test]
+    fn push_to_the_default_branch_can() {
+        let y = "name: x\non:\n  pull_request:\n  push:\n    branches: [master]\n  workflow_dispatch:\njobs: {}\n";
+        assert!(has_auto_default_run(y, "master"));
+    }
+
+    /// `push:` with nothing under it fires on every branch, the default
+    /// included. Reading "no branches listed" as "no branches" would call a
+    /// workflow unreachable that runs on every push in the repository.
+    #[test]
+    fn a_bare_push_covers_every_branch() {
+        let y = "name: x\non:\n  push:\n  pull_request:\njobs: {}\n";
+        assert!(has_auto_default_run(y, "master"));
+    }
+
+    #[test]
+    fn push_to_some_other_branch_does_not() {
+        let y = "name: x\non:\n  push:\n    branches: [release, staging]\njobs: {}\n";
+        assert!(!has_auto_default_run(y, "master"));
+    }
+
+    #[test]
+    fn a_block_list_is_read_as_well_as_an_inline_one() {
+        let y = "name: x\non:\n  push:\n    branches:\n      - main\n      - master\njobs: {}\n";
+        assert!(has_auto_default_run(y, "master"));
+    }
+
+    #[test]
+    fn the_inline_on_form_is_read() {
+        assert!(has_auto_default_run("on: [push, pull_request]\njobs: {}\n", "master"));
+        assert!(!has_auto_default_run("on: [pull_request]\njobs: {}\n", "master"));
+    }
+
+    /// COUNTEREXAMPLE. `harness-scratch.yml` recommends `push: branches:
+    /// [master]` in prose in its own header. A scan that trims whitespace and
+    /// looks for `push:` reads that advice as compliance and reports the file
+    /// covered when it is not.
+    #[test]
+    fn a_push_inside_a_comment_is_not_a_trigger() {
+        let y = "# `push: branches: [master]` costs one line and is worth it.\n\
+                 name: x\n\
+                 on:\n\
+                 \x20 pull_request:\n\
+                 jobs: {}\n";
+        assert!(!has_auto_default_run(y, "master"));
+    }
+
+    /// COUNTEREXAMPLE. A `push` deeper than the first level inside `on:` -- or
+    /// anywhere in the jobs below -- is not the trigger either.
+    #[test]
+    fn a_nested_push_is_not_the_trigger() {
+        let y = "name: x\non:\n  pull_request:\n    paths:\n      - 'push:'\njobs:\n  a:\n    steps:\n      - run: git push\n";
+        assert!(!has_auto_default_run(y, "master"));
+    }
+
+    /// A wildcard branch list covers the default branch.
+    #[test]
+    fn a_wildcard_branch_list_covers_it() {
+        let y = "name: x\non:\n  push:\n    branches: ['**']\njobs: {}\n";
+        assert!(has_auto_default_run(y, "master"));
+    }
+
+    /// The default branch is a parameter, not the literal `master`.
+    #[test]
+    fn the_default_branch_is_not_hardcoded() {
+        let y = "name: x\non:\n  push:\n    branches: [main]\njobs: {}\n";
+        assert!(has_auto_default_run(y, "main"));
+        assert!(!has_auto_default_run(y, "master"));
+    }
+
+    /// Every workflow file in this repository is read, and the answer is
+    /// compared against a second reader written differently: the file has a
+    /// `push:` line at the first level inside `on:` at all. The two may
+    /// disagree only where a branch filter excludes the default branch, and
+    /// that disagreement is the whole point of the function.
+    #[test]
+    fn every_workflow_in_the_tree_parses_without_panicking() {
+        let dir = std::path::Path::new(".github/workflows");
+        if !dir.is_dir() {
+            return; // run from a subdirectory; nothing to say
+        }
+        let mut read = 0usize;
+        for e in std::fs::read_dir(dir).expect("read .github/workflows") {
+            let p = e.expect("entry").path();
+            if p.extension().and_then(|s| s.to_str()) != Some("yml") {
+                continue;
+            }
+            let t = std::fs::read_to_string(&p).expect("read workflow");
+            let _ = has_auto_default_run(&t, "master");
+            read += 1;
+        }
+        assert!(
+            read > 10,
+            "expected to read the workflow directory, read {read} file(s) -- a test \
+             that reads nothing passes vacuously"
+        );
     }
 }
