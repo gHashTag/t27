@@ -9256,3 +9256,113 @@ range. W660's own comment names its sibling -- "The Zig backend has resolved the
 since W585 ... The VERILOG backend never did" -- and stops there. A defect class
 is not shut until every call-site of the risky primitive has been grepped, which
 this repository knows and which two waves of the same fix did not do.
+
+## 371. The cure was written down and applied to one caller of three
+
+§366 ended with a shared `parse_failures` and a doc comment saying disagreement
+was now *"structurally impossible rather than merely tested for"*. I wired
+`prose` to it and stopped. `report` and `locate` kept their own `git ls-files`
+loops, and the very next sweep found them disagreeing: 5 typecheck failures
+against 2, in one binary.
+
+**A helper does not cure a class; callers reading it do.** The comment described
+what I meant to build. Nothing failed when I built two thirds of it, because the
+claim lived in prose and prose does not run.
+
+The enforcement is four lines and it is what the comment should have been:
+
+```rust
+let needle = ["\"ls-files\"", ", ", "\"*.t27\""].concat();  // assembled, or
+                                       // this test matches its own source
+assert_eq!(walks, vec![("unparsed.rs".to_string(), 1usize)]);
+```
+
+Whenever a fix is "everyone now calls X", the deliverable is not X. It is the
+check that counts the callers.
+
+## 372. Guard order: the stage, then the formatting
+
+`locate` classified a failure only after demanding the compiler's message name a
+line. Three typecheck failures print `Typecheck FAILED (6 errors, 0 warnings):`
+and no line, so they never reached the stage check and were filed under
+**"nothing claimed"** -- which reads as *the question was asked and went
+unanswered*, not *the question does not apply here*.
+
+Two properties made it invisible for weeks:
+
+* **The buckets still summed.** 57 + 14 + 9 = 80 looks self-consistent until you
+  ask what the population is: 76. A sum-check over a partition cannot see items
+  that were never in the set.
+* **The test was green.** `locate_answers_only_for_parse_failures` asserts
+  `stage_of` classifies correctly -- the presence of the helper, never the order
+  the caller applies it in. Same shape as the audit test that measured a string's
+  presence instead of a branch's coverage.
+
+**Check what a thing IS before checking how it is WRITTEN.** A formatting guard
+ahead of a category guard silently reassigns whole categories, and every count
+downstream stays plausible.
+
+## 373. Agreement between commands that share a variable measures nothing
+
+Having put all three census commands on one scope, "do they agree?" became a
+tautology -- they read the same variable. A control has to vary something.
+
+`tri unparsed agree` builds the population **the other way**: it walks the
+working tree where the census asks git, classifies again, and demands the same
+numbers. Then it is mutation-checked in both directions -- a silent
+`specs/fpga/` filter inside `parse_failures` turns it red with the exact row
+named; an untracked failing spec on disk is reported without failing it, because
+the census legitimately speaks only about tracked specs and the job there is to
+name the blindness, not to die of it.
+
+**After you make disagreement impossible, the agreement check is worthless and
+the independent route is the only one left worth running.**
+
+The field name for this is **differential testing**, and its literature states
+the precondition I broke: two implementations act as an oracle *only while they
+are independent*. Three commands reading one shared variable are one
+implementation wearing three names. Whenever a sweep is described as "check that
+A and B agree", the first question is what, concretely, differs between A and B
+-- and if the honest answer is "nothing since I refactored them", the sweep has
+to be re-pointed at an axis that still varies.
+
+## 374. A fix that ports between backends only as far as the language allows
+
+The scaffold class was closed in Zig (W585) and Verilog (W660) and left open in
+C, and the third site turned out to be the biggest: **cc accepts 174 -> 242,
+ALL FOUR accept 69 -> 115.**
+
+**Porting the sibling's ANSWER is not porting the sibling's FIX.** Verilog writes
+a bare `0` for the scaffold call, and it is correct there because a Verilog
+binding is already declared as a `reg` of the right width -- the literal carries
+no type and needs none. C has no such declaration. Writing `0` there produced:
+
+    call to undeclared function          86 -> 13
+    incompatible integer to pointer       0 -> 68
+    cc accepts                          174 -> 174
+
+One error family traded for another and the number that matters unmoved. The
+right sibling to copy was Zig, which recovers the binding's type from the
+consumer's declared parameter -- and only that made the accept count move.
+
+Read WHY the sibling's answer works before copying it. Two backends had the same
+defect and needed different repairs, because one of them declares its bindings
+and the other does not.
+
+**One construct, three messages, three separate answers.** The four-line template
+needed a typed zero, a dropped binding for void consumers, and a dropped
+assertion -- and fixing any two of the three left the accept count exactly where
+it was. A partial fix on a multi-defect construct measures as no fix at all,
+which is a second reason a message-text census cannot see this class: it also
+cannot see when you are two thirds of the way there.
+
+**The same thing said two ways defeats a presence check.** `fn_return_types`
+holds an entry only when the return type is non-empty, so I tested "no entry" for
+void. An explicit `-> void` leaves an entry whose value is the string `"void"`,
+and 80 specs write it that way. The check has to accept both spellings, and
+nothing in a presence test tells you the other one exists -- only running it
+against the corpus does.
+
+**Where the reseal belongs.** In the same commit as the emitter change. Two
+consecutive passes left master red on `seal-coverage` by deferring it to a
+follow-up, both times mine, and both times the repair was one command.
