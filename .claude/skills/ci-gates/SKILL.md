@@ -9325,3 +9325,44 @@ implementation wearing three names. Whenever a sweep is described as "check that
 A and B agree", the first question is what, concretely, differs between A and B
 -- and if the honest answer is "nothing since I refactored them", the sweep has
 to be re-pointed at an axis that still varies.
+
+## 374. A fix that ports between backends only as far as the language allows
+
+The scaffold class was closed in Zig (W585) and Verilog (W660) and left open in
+C, and the third site turned out to be the biggest: **cc accepts 174 -> 242,
+ALL FOUR accept 69 -> 115.**
+
+**Porting the sibling's ANSWER is not porting the sibling's FIX.** Verilog writes
+a bare `0` for the scaffold call, and it is correct there because a Verilog
+binding is already declared as a `reg` of the right width -- the literal carries
+no type and needs none. C has no such declaration. Writing `0` there produced:
+
+    call to undeclared function          86 -> 13
+    incompatible integer to pointer       0 -> 68
+    cc accepts                          174 -> 174
+
+One error family traded for another and the number that matters unmoved. The
+right sibling to copy was Zig, which recovers the binding's type from the
+consumer's declared parameter -- and only that made the accept count move.
+
+Read WHY the sibling's answer works before copying it. Two backends had the same
+defect and needed different repairs, because one of them declares its bindings
+and the other does not.
+
+**One construct, three messages, three separate answers.** The four-line template
+needed a typed zero, a dropped binding for void consumers, and a dropped
+assertion -- and fixing any two of the three left the accept count exactly where
+it was. A partial fix on a multi-defect construct measures as no fix at all,
+which is a second reason a message-text census cannot see this class: it also
+cannot see when you are two thirds of the way there.
+
+**The same thing said two ways defeats a presence check.** `fn_return_types`
+holds an entry only when the return type is non-empty, so I tested "no entry" for
+void. An explicit `-> void` leaves an entry whose value is the string `"void"`,
+and 80 specs write it that way. The check has to accept both spellings, and
+nothing in a presence test tells you the other one exists -- only running it
+against the corpus does.
+
+**Where the reseal belongs.** In the same commit as the emitter change. Two
+consecutive passes left master red on `seal-coverage` by deferring it to a
+follow-up, both times mine, and both times the repair was one command.
