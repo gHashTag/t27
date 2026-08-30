@@ -1,6 +1,6 @@
 # Specs that do not generate with ANY backend. Each line is a debt.
 # Remove the line when the spec compiles; the gate then holds it compiling.
-bootstrap/src/codegen_python.t27 | Error: Compile error: parse error in fn 'map_trit_to_python_type' near line 36: Unexpected token in expression: Semicolon (';') at line 36:10
+bootstrap/src/codegen_python.t27 | Error: Compile error: parse error in fn 'map_trit_to_python_type' near line 176: unexpected token after expression statement: Ident
 bootstrap/tests/goldring/cap_test.t27 | Error: Compile error: nested fn 'inner' inside 'outer' captures enclosing locals ["scale"] -- hoisting would unbind them; lift them to parameters or m
 compiler/cli/git.t27 | Error: Compile error: parse error in fn 'git_commit' near line 38: Unexpected token in expression: Pipe ('|') at line 38:45
 compiler/cli/spec.t27 | Error: Compile error: parse error in fn 'validate_tdd_compliance' near line 268: Unexpected token in expression: KwConst ('const') at line 268:38
@@ -20,7 +20,6 @@ specs/ar/ternary_logic.t27 | Error: Compile error: parse error at module level n
 specs/auth/config.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 60:16
 specs/benchmarks/bench_nn.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/benchmarks/gf16_bfloat16_nmse.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/bus/pubsub.t27 | Error: Compile error: parse error in fn 'publish_result_to_string' near line 389: Unexpected token in expression: Semicolon (';') at line 389:6
 specs/compiler/parser.t27 | Error: Compile error: parse error in fn 'parse_module_body' near line 1500: parse error near line 1500: parse error near line 1500: parse error near l
 specs/compiler/typechecker.t27 | Error: Compile error: parse error in fn 'check_stmt' near line 373: parse error near line 373: parse error near line 373: Unexpected token in expressi
 specs/config/load.t27 | Error: Compile error: Expected LBrace, got Minus ('-') at line 217:74
@@ -29,8 +28,6 @@ specs/conformance/e2e_scenarios.t27 | Error: Compile error: parse error at modul
 specs/enrichment/audio_overview.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 76:102
 specs/enrichment/youtube_transcript.t27 | Error: Compile error: parse error in fn 'extract_video_id' near line 109: parse error near line 109: Unexpected token in expression: Semicolon (';') a
 specs/file/watcher.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 14:21
-specs/fpga/testbench/mac_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 353: Unexpected token in expression: Semicolon (';') at line 353:69
-specs/fpga/testbench/uart_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 256: Unexpected token in expression: Semicolon (';') at line 256:39
 specs/graph/knowledge_graph.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 101:59
 specs/hslm/forward_pass.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 82:134
 specs/interop/gf_cross_language.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
@@ -51,7 +48,7 @@ specs/physics/hslm_benchmark.t27 | Error: Compile error: parse error at module l
 specs/physics/lqg_cs_bridge.t27 | Error: Compile error: unterminated string literal opened at line 74:86
 specs/physics/p2_brain_physics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 53:55
 specs/pins/parser.t27 | Error: Compile error: unterminated string literal opened at line 596:24
-specs/portable/relay_observer.t27 | Error: Compile error: parse error at module level near line 53: Unexpected token in expression: Semicolon (';') at line 53:2
+specs/portable/relay_observer.t27 | Error: Compile error: Expected LBrace, got Ident ('WebSocketState') at line 66:45
 specs/provider/adapters.t27 | Error: Compile error: parse error in fn 'adapter_config_create' near line 208: Unexpected token in expression: LBrace ('{') at line 208:55
 specs/provider/schema.t27 | Error: Compile error: parse error in fn 'provider_config_create' near line 267: Unexpected token in expression: LBrace ('{') at line 267:55
 specs/runtime/execute.t27 | Error: Compile error: Expected LBrace, got RParen (')') at line 238:77
@@ -69,7 +66,7 @@ specs/shell/process.t27 | Error: Compile error: Expected LBrace, got LParen ('('
 specs/shell/schema.t27 | Error: Compile error: parse error in fn 'process_options_full' near line 235: Unexpected token in expression: LBrace ('{') at line 235:31
 specs/storage/kv.t27 | Error: Compile error: Expected LParen, got Lt ('<') at line 15:12
 specs/sync/index.t27 | Error: Compile error: parse error in fn 'delta_replay' near line 338: Unexpected token in expression: DotDot ('..') at line 338:29
-specs/ternary/hybrid_arithmetic.t27 | Error: Compile error: parse error at module level near line 49: Unexpected token in expression: Semicolon (';') at line 49:6
+specs/ternary/hybrid_arithmetic.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 66:34
 specs/ternary/hybrid_bigint.t27 | Error: Compile error: parse error at module level near line 10: unexpected token after expression statement: Ident
 specs/ternary/packed_trit.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 75:61
 specs/test_framework/core.t27 | Error: Compile error: unterminated string literal opened at line 316:31
