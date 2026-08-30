@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:fd50ccac593c4f53f8c0ffbfca61fd0b7691a12a6303ebed248e594d8678ecf2",
   "gen_hash_rust": "sha256:23857b1aa2169dd7603ea31b3f1290d1bd9aeae45d4a09e3bf8629e1ba44a127",
   "gen_hash_verilog": "sha256:700e0ea057f9c5a3abfaabff539f5c525f1808dbeac0d2c37c8f509734dda95f",
-  "gen_hash_zig": "sha256:d8fe34b8f434d91b26fc1bc71b6be91821085202a5fd46424670dcabcfc871b4",
+  "gen_hash_zig": "sha256:eea8d5b88f865a7325774e2a18e9415f44c03118b0c9d1795ee7bf5360212465",
   "module": "GftSadd",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
+  "sealed_at": "2026-08-30T17:03:00Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d97fe1d5605b55bc9b5fd3f8d9c653c5207579585eb7b6cadd1320d381958df5",
   "spec_path": "specs/ternary/gft_sadd.t27"

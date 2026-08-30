@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:1529c510ea27caa3c6790af4db8a28b698ae1f1c09bf90bdb40e5b9abc80f5d0",
   "gen_hash_rust": "sha256:6011002e28949bbfa2e6392a1c7a2fdece3ac7f0919ce4f92b86385e59671155",
   "gen_hash_verilog": "sha256:24266db032a77ebcd2379ca7853c48088db79769d15ff4f568014bd77d85953b",
-  "gen_hash_zig": "sha256:63400bed84ada286966c1d39b17950eeb45cbdd4a751f4406f30c364dea7ce3a",
+  "gen_hash_zig": "sha256:8defbb929f7aaf967816417b5aba38a450d17d03cc1860e2421b40e2f794a014",
   "module": "GftNeuronFull",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
+  "sealed_at": "2026-08-30T17:03:00Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:cc3f084808aee4f852beafa9ea3e401fb89d34fa2b134aa79ca6b75f82be5cbb",
   "spec_path": "specs/ternary/gft_neuron_full.t27"
