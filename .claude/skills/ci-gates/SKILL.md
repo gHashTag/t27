@@ -10310,3 +10310,46 @@ A file that new belongs to whoever wrote it: **file the issue and cede the fix**
 What survived from that detour was not the patch but a measurement their PR did
 not carry -- the 152-against-0 reading above. The unique complement is worth more
 than the contested one, every time.
+
+## 410. Check what the notification claims against what the fetch returns
+
+A shared artefact fires a "republished elsewhere, your copy is stale" notification.
+Twice now that notification has cost a full re-read of a 2,000-line file and found
+**nothing lost**:
+
+- once because the republish it was reporting was **my own**, and
+- once because the version it named, `1788113439-87c9`, was an intermediate one my
+  publish had **already superseded** — the live version at the moment I read it was
+  `1788115237-56b7`, and that was mine, byte for byte.
+
+The notification is not wrong. It is a report about a moment, delivered after that
+moment, and by the time it arrives the answer may have changed.
+
+The cheap check, before reading anything in full:
+
+    # 1. Does the version the fetch returns match the one the notification named?
+    head -1 saved.html | grep -o '_f/[0-9a-f-]*'
+
+    # 2. Is the body already what you published?
+    diff <(tail -n +2 live.html) <(tail -n +2 mine.html) && echo identical
+
+Line 1 of an artefact fetch is the runtime wrapper and carries the version id;
+everything after it is the page. Two commands, and both times they would have ended
+the question — the second printed `identical` after ninety thousand tokens had
+already gone into reading the file line by line.
+
+When the two DO differ, the full read is the right move and the merge rules still
+hold: build on the fetched file, insert rather than replace, and count the headings
+both ways afterwards so a silent drop is impossible. That count is what showed the
+one deliberate removal in the last merge — a stale option I had just implemented —
+against 260 headings kept.
+
+The general form, and it is §400 and §389 one level out: **an event that reports a
+state is not the state.** Re-read the state before acting on the report, and reach
+for the cheapest instrument that can tell "changed" from "already mine".
+
+A second thing this section cost, and the reason it nearly went unwritten: the first
+attempt appended it with an UNQUOTED heredoc. The text is full of backticks, so the
+shell ran them as command substitutions, the append never happened, and the command
+hung until it was killed. `git status` showed a clean tree — the silent no-op again,
+one layer below the lesson being recorded. Quote the delimiter: `<<'MD'`.
