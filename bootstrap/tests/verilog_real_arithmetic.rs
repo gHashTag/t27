@@ -196,24 +196,26 @@ fn the_specs_own_tests_pass_under_the_simulator() {
     f.write_all(SPEC.as_bytes()).expect("write probe spec");
     drop(f);
 
+    // Ask the OS whether the simulator exists, rather than matching a phrase in
+    // whatever the failure printed. The first version of this guard tested for
+    // `"not found"`; the runner says `No such file or directory (os error 2)`,
+    // so the guard never fired and the test failed on a machine with no
+    // simulator -- a skip path written for one environment and never executed
+    // in it. A guard clause you have not run is a comment.
+    if Command::new("iverilog").arg("-V").output().is_err() {
+        eprintln!("iverilog is not on PATH; skipping the runtime leg (nothing is claimed)");
+        return;
+    }
+
     let out = Command::new(bin)
         .args(["icarus-simulate", spec_path.to_str().expect("utf-8 path")])
-        .output();
-    let Ok(out) = out else {
-        eprintln!("could not run t27c icarus-simulate; skipping");
-        return;
-    };
+        .output()
+        .expect("run t27c icarus-simulate");
     let log = format!(
         "{}{}",
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     );
-    // iverilog is not installed everywhere. Absence of the tool is not a result:
-    // say so rather than reporting a pass.
-    if log.contains("iverilog") && log.contains("not found") {
-        eprintln!("iverilog unavailable; skipping the runtime leg");
-        return;
-    }
     assert!(
         log.contains("[TEST] real_binding_keeps_its_fraction : PASSED"),
         "the real binding must survive the round trip; log was:\n{log}"

@@ -10707,3 +10707,40 @@ because it failed in a specific direction.
 
 **When a fix moves fewer cases than predicted, the cases that did not move are the next
 finding -- not noise, and not a reason to weaken the claim.**
+
+## 426. Ask the OS whether the tool exists; do not match what its absence printed
+
+The runtime leg of a new test shells out to `t27c icarus-simulate`, which needs
+`iverilog`. Not every machine has one, so the test carried a skip:
+
+```rust
+if log.contains("iverilog") && log.contains("not found") { return; }
+```
+
+It passed locally, where the simulator is installed and the branch never runs. In
+CI there is no simulator, and the runner printed:
+
+```
+Error: spawning iverilog
+    No such file or directory (os error 2)
+```
+
+`"not found"` is not in that string. The guard did not fire, the assertion ran
+against an error message, and `test-ratchet` reported **the failing set grew by 1**
+naming my own test. The skip path existed for exactly one environment and had
+never been executed in it.
+
+Two separate mistakes, and the second is the one worth keeping:
+
+* A guard clause you have not run is a comment -- already on this page, and met
+  again through a door I had not tried.
+* **The condition was about the wrong thing.** Whether a tool is installed is a
+  question with a direct answer -- `Command::new("iverilog").arg("-V").output()`
+  -- and I asked it instead of a phrase in whatever the failure happened to say.
+  A message is the tool's to change; `PATH` is not.
+
+Now: probe the binary first, print the reason on skip, and **execute both legs
+before committing** -- with the simulator on `PATH` (passes) and with it removed
+(prints `iverilog is not on PATH; skipping the runtime leg (nothing is claimed)`
+and passes). Running the test binary directly under a stripped `PATH` costs one
+command and is the only thing that could have caught this.
