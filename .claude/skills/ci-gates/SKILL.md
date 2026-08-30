@@ -9317,3 +9317,11 @@ name the blindness, not to die of it.
 
 **After you make disagreement impossible, the agreement check is worthless and
 the independent route is the only one left worth running.**
+
+The field name for this is **differential testing**, and its literature states
+the precondition I broke: two implementations act as an oracle *only while they
+are independent*. Three commands reading one shared variable are one
+implementation wearing three names. Whenever a sweep is described as "check that
+A and B agree", the first question is what, concretely, differs between A and B
+-- and if the honest answer is "nothing since I refactored them", the sweep has
+to be re-pointed at an axis that still varies.
