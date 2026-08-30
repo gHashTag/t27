@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8ea74d4bc93fa3c10521aad681c59d4f1a6ef41221cf83c584bd99e3cec5127a",
+  "gen_hash_c": "sha256:db1cf287a3b314f373ea425a1c1a310e55a37db1929f14bbd0e8b7ebd941a318",
   "gen_hash_rust": "sha256:6241af6d7638f93ee0cc0989c215aa7c50d7032ecc5046fc9915acc8f65bcdf0",
   "gen_hash_verilog": "sha256:e26850e35e0fe3fb17357166fcc0a8354578ff76ed53e8ec3ffe7046e1826d7d",
   "gen_hash_zig": "sha256:bf76569e2dd46cb21ba005939521d00c44853fe1639197945a13361890b7bdd5",
   "module": "MemoryPrimitives",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:13Z",
+  "sealed_at": "2026-08-30T00:44:18Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:0cf723b0c54a06a9851f0f635f2191829a0c100860d1c12896afa5e4bb856b8a",
   "spec_path": "specs/memory/memory_primitives.t27"
