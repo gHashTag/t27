@@ -18,7 +18,11 @@ name: Withdrawn Number Gate
 
 on:
   pull_request:
-    branches: [master]
+    # No `branches:` filter. It was `branches: [master]`, so this gate did not
+    # run at all when a pull request targeted any other base -- on a stacked PR
+    # `gh pr checks` printed a green list with this gate simply absent from it.
+    # `paths:` selects by what changed and is fine; `branches:` selects by where
+    # the change is headed and is a gating hole.
   push:
     branches: [master]
   workflow_dispatch:
