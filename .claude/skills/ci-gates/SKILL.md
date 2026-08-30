@@ -9486,7 +9486,50 @@ Two consequences, both bit here:
 assert what you actually rely on: every test function carries exactly one
 `#[test]`.
 
-## 379. The cure for a repeated class is the control, not the third patch
+## 379. A timeout is not a rejection, and a total is not a delta
+
+Three consecutive runs of `t27c corpus` -- **same binary, same commit** -- while
+other compiler processes were running on the machine:
+
+    run 1    cc accepts 38.2%    Zig AND Verilog 29.8%    ALL FOUR 16.9%
+    run 2    cc accepts 37.2%    Zig AND Verilog 30.2%    ALL FOUR 17.7%
+
+About six specs apart on cc. Nothing in the tree changed between them.
+
+**The mechanism is one `Option`.** Every backend runs under
+`run_timed(cmd, 15)`, whose `None` return meets `== Some(0)` at the call site and
+becomes "not accepted" -- exactly what a compiler error produces. A file that
+merely compiled slowly is recorded as a file the compiler refused.
+
+**The count was already collected.** `Outcome.timed_out` is set at all five call
+sites and reaches the JSON output. Nothing printed it in the HUMAN report, which
+is the one a reader quotes. A number that exists in one output and not the other
+is not a missing measurement; it is a measurement nobody can see.
+
+**So a delta compared by TOTALS is not evidence.** This is the rule that
+generalises. Two aggregate counts differ for two reasons -- the change you made,
+and everything else about the machine -- and the aggregate cannot separate them.
+A per-spec comparison can: write one line per item, diff the two runs, and name
+which items moved. A timeout landing on a different spec each run cannot move a
+set difference, and a regression shows up as a NAMED spec rather than as a
+smaller number.
+
+Every delta reported in this pass was measured that way (+15, +5, +2, each with
+an explicit empty regression set). The aggregate is what wobbled, and it wobbled
+by more than two of the three deltas.
+
+**Look for the same shape wherever a tool imposes a deadline.** A timeout, a
+retry cap, a sample size, a `head -N` -- each turns "I did not finish looking"
+into a value indistinguishable from "I looked and found nothing". The repair is
+never to raise the limit; it is to make the two outcomes print differently.
+
+**And the docstring may already say it.** `run_timed` opens with the story of an
+earlier version that MANUFACTURED 29 hangs by deadlocking on a pipe, and
+undercounted `generates Verilog` by exactly the same 29. That pipe was fixed.
+The conflation of slow with rejected sat directly under the paragraph explaining
+why conflating anything with a hang had been so expensive.
+
+## 381. The cure for a repeated class is the control, not the third patch
 
 Three passes, three instances of one shape: a command narrowed the set it spoke
 about, and the narrowing was invisible because the only number on screen was the
@@ -9524,7 +9567,7 @@ BOTH numbers and the row stayed green. No input makes them disagree, so it was
 not a control. **Three rows that bite beat four where one is decoration** -- and
 the mutation that proved it took two minutes.
 
-## 380. `rustfmt <file>` follows the mod graph
+## 382. `rustfmt <file>` follows the mod graph
 
 `rustfmt cli/tri/src/main.rs` reformatted **five files the change never
 touched**, because rustfmt walks `mod` declarations from the file it is given

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:cda5e4c6c7c7ce26d0b98b1673186e26f1eb2c1bd3cf05d54c49cd47353e7b62",
+  "gen_hash_c": "sha256:c531f4ba2802274787b9e8b2cb7286c20bea938b98125f6c0d9ad7454ede1880",
   "gen_hash_rust": "sha256:3ddce1038b21201eae751af4f982b6b82db4fbe1fed4ad94d0442eeb3108911f",
   "gen_hash_verilog": "sha256:1617e77331596d25f9cf792e441aa18299b4cfb80f3f66859d2207e4d043a6d6",
   "gen_hash_zig": "sha256:15b64f2fdd4a2d86c7278078328b3a11fc76171014a676dcafbead5a2f9b9ed0",
   "module": "TriShellSort",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:18Z",
+  "sealed_at": "2026-08-30T12:18:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:c14ee8b56f8c6b6f08ee63468872a178d8a9c9a4b6079b7723bc52595c019cd1",
   "spec_path": "specs/tri/sort/shell_sort.t27"

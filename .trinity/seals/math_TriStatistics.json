@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d577f9b975ab382487ad68d9189da21acafa70a72011ec390c66c27988de3766",
+  "gen_hash_c": "sha256:521d067d0deda52fcca7f003af6c002baf79c31c1aa45c1d6cede9cd7f85cd2d",
   "gen_hash_rust": "sha256:301ba4cc5e8310572a76ec8d222661b93b8af0b9fb50c9428480c31a3a5f11c4",
   "gen_hash_verilog": "sha256:e507fc53ee29d687fd29290ce367ce4e7e3d06f8aa50bc525b2169561831b867",
   "gen_hash_zig": "sha256:177fed505c35c74b5e7669d148ff5d5b712dabeb994dd5c42f7f0321bf5743c2",
   "module": "TriStatistics",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:18Z",
+  "sealed_at": "2026-08-30T12:18:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:fd103db5e8f85819d411f1d6215d94681742d58e2c32e8dcea50d4180bf6d638",
   "spec_path": "specs/tri/math/statistics.t27"
