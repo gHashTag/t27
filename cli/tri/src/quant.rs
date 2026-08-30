@@ -27,7 +27,7 @@
 //! **an unresolved name is not assumed small.**
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 #[derive(Subcommand)]
@@ -45,6 +45,23 @@ pub enum QuantCmd {
         #[arg(long, default_value_t = 65536u128)]
         ceiling: u128,
     },
+    /// Every line carrying a quantifier keyword, and whether the census read it.
+    ///
+    /// `report` counts what its own matcher built, so it cannot report what its
+    /// matcher never saw. This asks the question the other way round with a
+    /// DELIBERATELY LOOSER reader -- the bare letters, no boundary rules -- and
+    /// prints every line the strict scanner did not turn into a clause.
+    ///
+    /// It fails only on a residue line where the keyword stands as its own WORD,
+    /// because that is a quantifier the census owed an answer about. A residue
+    /// line whose letters sit inside an identifier is printed as a count and
+    /// forgiven.
+    ///
+    /// Written after `find("forall ")` -- a matcher keyed on the SPELLING, with a
+    /// trailing space -- hid the one clause in the corpus that writes the keyword
+    /// alone. The census said 922 where the corpus holds 923, and the bucket that
+    /// clause belongs in, `no binder this can read`, was one short.
+    Audit,
 }
 
 /// What the type of one binder is worth.
@@ -270,7 +287,10 @@ fn before_body(text: &str) -> &str {
 
 fn is_ident(x: &str) -> bool {
     !x.is_empty()
-        && x.chars().next().map(|c| c.is_ascii_alphabetic() || c == '_') == Some(true)
+        && x.chars()
+            .next()
+            .map(|c| c.is_ascii_alphabetic() || c == '_')
+            == Some(true)
         && x.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
@@ -299,9 +319,11 @@ fn is_type_token(t: &str) -> bool {
     if t.contains('(') || t.contains(')') {
         return false;
     }
-    !["==", "!=", ">=", "<=", "&&", "||", " > ", " < ", " + ", " = "]
-        .iter()
-        .any(|op| t.contains(op))
+    ![
+        "==", "!=", ">=", "<=", "&&", "||", " > ", " < ", " + ", " = ",
+    ]
+    .iter()
+    .any(|op| t.contains(op))
 }
 
 /// The type a declaration segment ascribes, or `None` if what follows the colon
@@ -435,6 +457,33 @@ fn parse_binders(text: &str) -> Vec<(String, String)> {
     out
 }
 
+/// `kw` as a WORD, not as a prefix that happens to be followed by a space.
+///
+/// `find("forall ")` reads the spelling and decides a question about the KIND
+/// of the line. `specs/igla/coder/benchmark.t27:3827` writes the keyword alone
+/// -- `invariant …: forall` with no binders and the predicate below it -- so
+/// it matched nothing and never became a clause at all. The census has a
+/// bucket for exactly that shape, `no binder this can read`, and the clause
+/// could not reach it.
+///
+/// Measured before changing it: of 883 `forall` lines in the corpus, ZERO have
+/// an identifier character before the keyword, so tightening the left edge
+/// cannot drop a clause this corpus already counts. The change is additive.
+fn find_keyword(t: &str, kw: &str) -> Option<usize> {
+    let b = t.as_bytes();
+    let ident = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+    let mut from = 0usize;
+    while let Some(rel) = t[from..].find(kw) {
+        let i = from + rel;
+        let j = i + kw.len();
+        if (i == 0 || !ident(b[i - 1])) && (j >= b.len() || !ident(b[j])) {
+            return Some(i);
+        }
+        from = j;
+    }
+    None
+}
+
 /// The notations, recognised on the MASKED source line.
 fn scan_clauses(specs: &[(PathBuf, String)]) -> Vec<Clause> {
     let mut out = Vec::new();
@@ -445,8 +494,8 @@ fn scan_clauses(specs: &[(PathBuf, String)]) -> Vec<Clause> {
             if t.is_empty() {
                 continue;
             }
-            let (notation, binder_text) = if let Some(idx) = t.find("forall ") {
-                ("forall", t[idx + 7..].to_string())
+            let (notation, binder_text) = if let Some(idx) = find_keyword(t, "forall") {
+                ("forall", t[idx + 6..].trim_start().to_string())
             } else if let Some(idx) = t.find(" for all ") {
                 ("suffix-all", t[idx + 9..].to_string())
             } else if let Some(idx) = t.find(" for any ") {
@@ -605,11 +654,7 @@ fn count_args(ch: &[char], open: usize) -> Option<usize> {
 /// these corpus-wide -- is blind to it by construction. Measured: 0 of the 20
 /// clause-site candidates appear in `check-calls` output; 15 of 15 partner
 /// sites outside clause bodies do.
-pub fn arity_mismatches(
-    scope: &Scope,
-    file: &str,
-    body: &str,
-) -> Vec<(String, usize, usize)> {
+pub fn arity_mismatches(scope: &Scope, file: &str, body: &str) -> Vec<(String, usize, usize)> {
     let empty = std::collections::BTreeSet::new();
     let vis = scope.visible.get(file).unwrap_or(&empty);
     let mut out = Vec::new();
@@ -712,9 +757,7 @@ pub fn conjuncts(body: &str) -> Vec<String> {
                 i += 2;
                 continue;
             }
-            if depth == 0
-                && ch[i] == ' '
-                && ch[i..].iter().collect::<String>().starts_with(" and ")
+            if depth == 0 && ch[i] == ' ' && ch[i..].iter().collect::<String>().starts_with(" and ")
             {
                 out.push(std::mem::take(&mut cur));
                 i += 5;
@@ -759,10 +802,7 @@ pub fn vacuity(binders: &[String], body: &str) -> Vec<Vacuity> {
                 + body.matches(&format!("{b} in ")).count()
         })
         .sum();
-    let uses: usize = binders
-        .iter()
-        .map(|b| count_word(body, b))
-        .sum();
+    let uses: usize = binders.iter().map(|b| count_word(body, b)).sum();
     if !binders.is_empty() && uses > 0 && uses <= decls {
         out.push(Vacuity::BinderUnused(
             body.lines().last().unwrap_or("").trim().to_string(),
@@ -835,7 +875,11 @@ fn split_once_top<'a>(s: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
                 continue;
             }
             let b = s.char_indices().nth(i).map(|(b, _)| b)?;
-            let e = s.char_indices().nth(i + o.len()).map(|(b, _)| b).unwrap_or(s.len());
+            let e = s
+                .char_indices()
+                .nth(i + o.len())
+                .map(|(b, _)| b)
+                .unwrap_or(s.len());
             return Some((&s[..b], &s[e..]));
         }
         i += 1;
@@ -893,8 +937,7 @@ pub fn scan_scope(specs: &[(PathBuf, String)]) -> Scope {
                         if let Some((_, r)) = rest.split_once('(') {
                             if let Some(ps) = r.split(')').next() {
                                 if r.contains(')') {
-                                    let k =
-                                        ps.split(',').filter(|x| !x.trim().is_empty()).count();
+                                    let k = ps.split(',').filter(|x| !x.trim().is_empty()).count();
                                     arity
                                         .entry((file.clone(), n.to_string()))
                                         .or_default()
@@ -978,8 +1021,8 @@ fn starts_construct(l: &str) -> bool {
         "module ",
         "use ",
     ]
-        .iter()
-        .any(|k| t.starts_with(k))
+    .iter()
+    .any(|k| t.starts_with(k))
 }
 
 /// Every name called in a clause body, minus the keywords that look like calls.
@@ -1098,8 +1141,87 @@ fn group(n: u128) -> String {
     out
 }
 
+/// Does any line carry a quantifier keyword the census did not read?
+///
+/// The looser reader is the whole point: a control sharing the strict matcher
+/// would agree with it by construction and measure nothing.
+fn audit() -> Result<()> {
+    let root = repo_root()?;
+    let specs = read_specs(&root);
+    if specs.is_empty() {
+        anyhow::bail!(
+            "no specs under {}/specs -- nothing was read",
+            root.display()
+        );
+    }
+    let read: BTreeSet<(String, usize)> = scan_clauses(&specs)
+        .iter()
+        .map(|c| (c.file.clone(), c.line))
+        .collect();
+
+    const KEYWORDS: [&str; 4] = ["forall", "for all", "for any", "for positive"];
+    let ident = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+
+    let (mut loose, mut word_residue, mut inside_ident) = (0usize, Vec::new(), 0usize);
+    for (path, src) in &specs {
+        let file = path.display().to_string();
+        for (i, raw) in src.lines().enumerate() {
+            let masked = mask(raw);
+            let t = masked.trim();
+            let Some(kw) = KEYWORDS.iter().find(|k| t.contains(**k)) else {
+                continue;
+            };
+            loose += 1;
+            if read.contains(&(file.clone(), i + 1)) {
+                continue;
+            }
+            let b = t.as_bytes();
+            let idx = t.find(*kw).unwrap_or(0);
+            let j = idx + kw.len();
+            let standalone = (idx == 0 || !ident(b[idx - 1])) && (j >= b.len() || !ident(b[j]));
+            if standalone {
+                word_residue.push((file.clone(), i + 1, *kw, raw.trim().to_string()));
+            } else {
+                inside_ident += 1;
+            }
+        }
+    }
+
+    println!();
+    println!("  the census counts what its matcher built, so it cannot report what");
+    println!("  its matcher never saw. This reads the corpus with the bare letters.");
+    println!();
+    println!("      lines carrying the letters       {loose}");
+    println!("      turned into a clause             {}", read.len());
+    println!("      letters inside an identifier     {inside_ident}  (not a quantifier; forgiven)");
+    println!(
+        "      keyword as its own WORD, unread  {}",
+        word_residue.len()
+    );
+    if !word_residue.is_empty() {
+        println!();
+        for (f, l, kw, text) in &word_residue {
+            println!("      {f}:{l}  [{kw}]");
+            println!("          {text}");
+        }
+        println!();
+        anyhow::bail!(
+            "{} line(s) write a quantifier keyword as a word and the census built no clause for them",
+            word_residue.len()
+        );
+    }
+    println!();
+    println!("  Every quantifier keyword written as a word is a clause the census counted.");
+    Ok(())
+}
+
 pub fn run(cmd: &QuantCmd) -> Result<()> {
-    let QuantCmd::Report { full, ceiling } = cmd;
+    if let QuantCmd::Audit = cmd {
+        return audit();
+    }
+    let QuantCmd::Report { full, ceiling } = cmd else {
+        unreachable!("Audit returned above")
+    };
     let root = repo_root()?;
     let specs = read_specs(&root);
     if specs.is_empty() {
@@ -1350,7 +1472,10 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
         println!("    AST-based check is blind to it -- including `t27c check-calls`, which finds");
         println!("    95 of these corpus-wide and 0 inside a clause.");
         println!();
-        println!("      call sites that could not compile   {}", arity_bad.len());
+        println!(
+            "      call sites that could not compile   {}",
+            arity_bad.len()
+        );
         if !arity_bad.is_empty() {
             let mut seen: BTreeMap<(&String, usize), ()> = BTreeMap::new();
             for (f, l, _, _, _) in &arity_bad {
@@ -1387,7 +1512,12 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             for (k, n) in by.iter().rev() {
                 println!("       {n:>3}  tautology, {k}");
             }
-            for k in ["A == A", "P ==> P", "X != undefined", "binder never used in the predicate"] {
+            for k in [
+                "A == A",
+                "P ==> P",
+                "X != undefined",
+                "binder never used in the predicate",
+            ] {
                 if !by.contains_key(k) {
                     println!("         0  {k} -- looked for, not found");
                 }
@@ -1440,12 +1570,8 @@ pub fn run(cmd: &QuantCmd) -> Result<()> {
             println!("    products rather than measured sizes.");
         }
         println!();
-        println!(
-            "    Every count above is a lower bound for a second reason: {hostage} unbounded"
-        );
-        println!(
-            "    clause(s) are unbounded ONLY because a struct name has more than one"
-        );
+        println!("    Every count above is a lower bound for a second reason: {hostage} unbounded");
+        println!("    clause(s) are unbounded ONLY because a struct name has more than one");
         println!(
             "    definition ({touch_conflict} touch such a name). Resolving them -- see `tri types dup`"
         );
@@ -1654,6 +1780,44 @@ mod tests {
     /// `systolic_array.t27:287` -- the second quantifier keyword sits INSIDE
     /// the binder text, because `scan_clauses` finds the first `forall ` only.
     #[test]
+    /// PROBE: the keyword alone, binders absent, predicate on the next line.
+    ///
+    /// `specs/igla/coder/benchmark.t27:3827` writes exactly this. The old
+    /// matcher was `find("forall ")` -- the spelling, with a trailing space --
+    /// so this line matched nothing and never became a clause. The census read
+    /// 922 where the corpus holds 923, and `no binder this can read` was one
+    /// short of the bucket this clause belongs in.
+    #[test]
+    fn a_bare_forall_is_a_clause_with_no_binders() {
+        let src = "invariant bounded:\nforall\nestimate() > 0.0\n";
+        let cs = scan_clauses(&[(PathBuf::from("x.t27"), src.to_string())]);
+        assert_eq!(cs.len(), 1, "the keyword alone still opens a clause");
+        assert_eq!(cs[0].notation, "forall");
+        assert!(
+            cs[0].binders.is_empty(),
+            "and it quantifies over nothing, which is what the bucket is for"
+        );
+    }
+
+    /// COUNTER: the letters inside an identifier are not the keyword.
+    ///
+    /// Reading the keyword as a WORD is stricter on the left edge than
+    /// `find("forall ")` was. Measured before changing it: zero lines in the
+    /// corpus put an identifier character before the keyword, so the change
+    /// could not drop a clause -- but the rule has to hold anyway, or the
+    /// census starts inventing clauses out of variable names.
+    #[test]
+    fn the_letters_inside_an_identifier_are_not_the_keyword() {
+        for src in [
+            "myforall x : u8\n",
+            "forall_count = 3\n",
+            "let xforally : u8 = 1\n",
+        ] {
+            let cs = scan_clauses(&[(PathBuf::from("x.t27"), src.to_string())]);
+            assert!(cs.is_empty(), "{src:?} is not a quantified clause");
+        }
+    }
+
     fn a_second_forall_keyword_is_not_a_body() {
         assert_eq!(
             parse_binders("a : i16, forall b : i16,"),
@@ -1669,7 +1833,9 @@ mod tests {
     #[test]
     fn space_separated_names_before_the_colon() {
         assert_eq!(
-            parse_binders("a b : i32, a <= b, verilog_eval_problems(a) <= verilog_eval_problems(b)"),
+            parse_binders(
+                "a b : i32, a <= b, verilog_eval_problems(a) <= verilog_eval_problems(b)"
+            ),
             vec![
                 ("a".to_string(), "i32".to_string()),
                 ("b".to_string(), "i32".to_string()),
@@ -1776,7 +1942,11 @@ mod tests {
         assert_eq!(group(2768791), "2 768 791");
         assert_eq!(group(10), "10");
         assert_eq!(compact(16279), "16 279");
-        assert!(compact(1u128 << 70).starts_with('~'), "{}", compact(1u128 << 70));
+        assert!(
+            compact(1u128 << 70).starts_with('~'),
+            "{}",
+            compact(1u128 << 70)
+        );
         assert_eq!(compact(u128::MAX), ">= saturated");
     }
 
@@ -1839,14 +2009,24 @@ mod tests {
                 PathBuf::from("specs/a/one.t27"),
                 "use b::two;\nfn local() {}\n".to_string(),
             ),
-            (PathBuf::from("specs/b/two.t27"), "fn shared() {}\n".to_string()),
-            (PathBuf::from("specs/c/three.t27"), "fn hidden() {}\n".to_string()),
+            (
+                PathBuf::from("specs/b/two.t27"),
+                "fn shared() {}\n".to_string(),
+            ),
+            (
+                PathBuf::from("specs/c/three.t27"),
+                "fn hidden() {}\n".to_string(),
+            ),
         ];
         let sc = scan_scope(&specs);
         let (u, a) = resolution(&sc, "specs/a/one.t27", "local(1) shared(2)");
         assert!(u.is_empty() && a.is_empty(), "u={u:?} a={a:?}");
         let (u, _) = resolution(&sc, "specs/a/one.t27", "hidden(3)");
-        assert_eq!(u, vec!["hidden".to_string()], "not imported, so not resolved");
+        assert_eq!(
+            u,
+            vec!["hidden".to_string()],
+            "not imported, so not resolved"
+        );
     }
 
     /// Two visible definitions is a different answer from none, and the report
@@ -1858,7 +2038,10 @@ mod tests {
                 PathBuf::from("specs/a/one.t27"),
                 "use b::two;\nfn dup() {}\n".to_string(),
             ),
-            (PathBuf::from("specs/b/two.t27"), "fn dup() {}\n".to_string()),
+            (
+                PathBuf::from("specs/b/two.t27"),
+                "fn dup() {}\n".to_string(),
+            ),
         ];
         let sc = scan_scope(&specs);
         let (u, a) = resolution(&sc, "specs/a/one.t27", "dup(1)");
@@ -1875,7 +2058,10 @@ mod tests {
 
     #[test]
     fn a_call_compared_to_itself_is_a_tautology() {
-        let v = vacuity(&["kw".into()], "forall kw : string\nencode_keyword(kw) == encode_keyword(kw)");
+        let v = vacuity(
+            &["kw".into()],
+            "forall kw : string\nencode_keyword(kw) == encode_keyword(kw)",
+        );
         assert_eq!(v.len(), 1, "{v:?}");
         assert_eq!(v[0].kind(), "A == A");
     }
@@ -1894,7 +2080,10 @@ mod tests {
     /// `systolic_array.t27:272` -- `b == b` inside real i16 commutativity.
     #[test]
     fn commutativity_is_not_a_tautology() {
-        let v = vacuity(&["a".into(), "b".into()], "forall a : i16, b : i16\na * b == b * a");
+        let v = vacuity(
+            &["a".into(), "b".into()],
+            "forall a : i16, b : i16\na * b == b * a",
+        );
         assert!(v.is_empty(), "{v:?}");
     }
 
@@ -1917,7 +2106,10 @@ mod tests {
     /// line-based version emitted seven hits of which four were this shape.
     #[test]
     fn a_same_line_predicate_uses_its_binder() {
-        let v = vacuity(&["g".into()], "invariant m: forall g : Gemm, g.M > 0 and g.N > 0");
+        let v = vacuity(
+            &["g".into()],
+            "invariant m: forall g : Gemm, g.M > 0 and g.N > 0",
+        );
         assert!(v.is_empty(), "{v:?}");
     }
 
@@ -1925,7 +2117,10 @@ mod tests {
     /// over 2^32 values decorates a single ground equation.
     #[test]
     fn a_binder_that_never_appears_is_decoration() {
-        let v = vacuity(&["a".into()], "forall a : i32\nadder_tree_4(0, 0, 0, 0) == 0");
+        let v = vacuity(
+            &["a".into()],
+            "forall a : i32\nadder_tree_4(0, 0, 0, 0) == 0",
+        );
         assert_eq!(v.len(), 1, "{v:?}");
         assert_eq!(v[0].kind(), "binder never used in the predicate");
     }
@@ -1934,7 +2129,11 @@ mod tests {
     #[test]
     fn a_binder_matches_as_a_word_not_a_substring() {
         let v = vacuity(&["a".into()], "forall a : u8\narctan_table_entry(3) > 0.0");
-        assert_eq!(v.len(), 1, "the `a` in arctan does not count as a use: {v:?}");
+        assert_eq!(
+            v.len(),
+            1,
+            "the `a` in arctan does not count as a use: {v:?}"
+        );
     }
 
     /// The compiler says it in its own words: this "constrain[s] the value
@@ -1988,9 +2187,10 @@ mod tests {
         let c = calls("samples.len() == 0");
         assert_eq!(c[0].name, "len");
         assert!(c[0].method, "{c:?}");
-        let specs = vec![
-            (PathBuf::from("specs/a.t27"), "fn len(x: u8) -> u8 {}\n".to_string()),
-        ];
+        let specs = vec![(
+            PathBuf::from("specs/a.t27"),
+            "fn len(x: u8) -> u8 {}\n".to_string(),
+        )];
         let sc = scan_scope(&specs);
         assert!(
             arity_mismatches(&sc, "specs/a.t27", "samples.len() == 0").is_empty(),
@@ -2016,7 +2216,9 @@ mod tests {
         )];
         let sc = scan_scope(&specs);
         assert!(
-            sc.arity.get(&("specs/a.t27".to_string(), "wide".to_string())).is_none(),
+            sc.arity
+                .get(&("specs/a.t27".to_string(), "wide".to_string()))
+                .is_none(),
             "a wrapped declaration must abstain, not record 0"
         );
         assert!(
@@ -2034,7 +2236,10 @@ mod tests {
                 PathBuf::from("specs/a.t27"),
                 "use b;\nfn f(a: u8) -> u8 {}\n".to_string(),
             ),
-            (PathBuf::from("specs/b.t27"), "fn f(a: u8, b: u8) -> u8 {}\n".to_string()),
+            (
+                PathBuf::from("specs/b.t27"),
+                "fn f(a: u8, b: u8) -> u8 {}\n".to_string(),
+            ),
         ];
         let sc = scan_scope(&specs);
         assert!(arity_mismatches(&sc, "specs/a.t27", "f(1, 2, 3)").is_empty());
@@ -2056,7 +2261,10 @@ mod tests {
     /// not this one.
     #[test]
     fn an_undeclared_name_abstains() {
-        let specs = vec![(PathBuf::from("specs/a.t27"), "fn g() -> u8 {}\n".to_string())];
+        let specs = vec![(
+            PathBuf::from("specs/a.t27"),
+            "fn g() -> u8 {}\n".to_string(),
+        )];
         let sc = scan_scope(&specs);
         assert!(arity_mismatches(&sc, "specs/a.t27", "pow(2, 8) > 0").is_empty());
     }
