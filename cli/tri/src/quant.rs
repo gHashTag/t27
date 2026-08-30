@@ -1777,9 +1777,6 @@ mod tests {
         );
     }
 
-    /// `systolic_array.t27:287` -- the second quantifier keyword sits INSIDE
-    /// the binder text, because `scan_clauses` finds the first `forall ` only.
-    #[test]
     /// PROBE: the keyword alone, binders absent, predicate on the next line.
     ///
     /// `specs/igla/coder/benchmark.t27:3827` writes exactly this. The old
@@ -1818,6 +1815,9 @@ mod tests {
         }
     }
 
+    /// `systolic_array.t27:287` -- the second quantifier keyword sits INSIDE
+    /// the binder text, because `scan_clauses` finds the first `forall ` only.
+    #[test]
     fn a_second_forall_keyword_is_not_a_body() {
         assert_eq!(
             parse_binders("a : i16, forall b : i16,"),

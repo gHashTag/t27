@@ -1,0 +1,9 @@
+{
+  "_what": "Ceilings for `tri competitors audit`. Down only: a rise means a record was added without a citation, or a paper was entered twice.",
+  "_table": "specs/igla/coder/benchmark.t27",
+  "records": 168,
+  "names": 150,
+  "papers_twice": 6,
+  "cites_nothing": 141,
+  "zero_at_1": 144
+}
