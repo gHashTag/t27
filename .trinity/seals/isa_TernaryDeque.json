@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:dfd3bb3db3fa38f7e6d893c9b37ed859e323a9ba83a4ba4a97f858105e3faff6",
+  "gen_hash_c": "sha256:b2a73ec6f924ba63457d240c81bc567951b96adbe7390b8622bb200a3bf93974",
   "gen_hash_rust": "sha256:b0164b2ad11b741c7829de42990939dbd2c7cbc1bb090fce10640e6d70ae6e03",
   "gen_hash_verilog": "sha256:0c822e0a359b41b6737bed8d1deb75c2e7b22a095ba1626a08f0a1b8f162a043",
   "gen_hash_zig": "sha256:6bb70ab1be3862d00a942967141b75dd185048351f0064636a8f2731ec51f129",
   "module": "TernaryDeque",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:13Z",
+  "sealed_at": "2026-08-30T00:44:18Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:56113a8df816d524442da3e153ea33d793de0d06087326161aefc18fb0281dd3",
   "spec_path": "specs/isa/ternary_deque.t27"

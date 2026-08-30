@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:2221e7c5cafcfae3da37d3a3211e2e9adbba712c012291ad75757c7a257b6984",
+  "gen_hash_c": "sha256:aadda116f0f02d6597a696c5e5cfa3c0824d88da7d9d875530ff61e553f2b8c5",
   "gen_hash_rust": "sha256:9a818f51f4eaff8fcd40e804e18c93d6eafb9d1ef7365a5b57c6cf98b44225f3",
   "gen_hash_verilog": "sha256:88c31bb8eadac951b3acb174b8ae7eb5734c9651ad59f419f97636f9fb416e6b",
   "gen_hash_zig": "sha256:cc148975dc54c2e1482976e082fdd59cfbec69237b2b314a6c62b8a87edf3537",
   "module": "TriLockfreeStack",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_at": "2026-08-30T00:44:18Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:05f3fec4bc98246246aa5cfa04b845862c7f71326f9892120aad67a1dfc8e670",
   "spec_path": "specs/tri/collections/lockfree_stack.t27"

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:1531c7e162915a1abd5e8bf41938eaadc15b210cb4fb7565fcd6711b09b115a1",
+  "gen_hash_c": "sha256:976e811633c713890c2a70e778f335e3dbeb2b5704b6641878632f6ad8e4ce84",
   "gen_hash_rust": "sha256:255f76bf1eb31c3c71458ee037599d4eaf45fe7458fb3bb7442c6d6678002ab6",
   "gen_hash_verilog": "sha256:ad1406d1ac4fd166998c946f2852e7d42c9d0492a4e00d06bc54c65779443cad",
   "gen_hash_zig": "sha256:5b216c035d1d3c953cdae05dd6161429cb3331d25649b470a3ad0e40d7b94064",
   "module": "config-schema",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:10Z",
+  "sealed_at": "2026-08-30T00:44:18Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:be6457186936be3d51890416d5440ada3e39561297380e983ae709eca28d727a",
   "spec_path": "specs/config/schema.t27"
