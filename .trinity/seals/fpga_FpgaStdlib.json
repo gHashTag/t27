@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:3ddeccd50cd1136b6d62b224d7d34312116ed95b066fac620cdd558eadf3d3e3",
   "gen_hash_rust": "sha256:db2d15e40c5ed1501ab9f574c518fd4c79788c37bf5286c3dd6b8b8f01cf61df",
   "gen_hash_verilog": "sha256:6eb37271d46236f73d0ad37ccae34ec1aafd808093bf4a68dc17fcd05977d3c7",
-  "gen_hash_zig": "sha256:4182555d7e3e650880b8c512dd96046dee672bbf4827c58b536874ceda2bcc70",
+  "gen_hash_zig": "sha256:e98c7f36ca7a7503a0dd7b4bb3af120f7a8a4f159ac0f6bb31007c4c58880ff7",
   "module": "FpgaStdlib",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

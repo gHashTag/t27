@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:960d9bd777eb40ac81139c6743fe0c61a7b71121169f07daedc138259ffc63ba",
   "gen_hash_rust": "sha256:d3b1df89e871ae995d329439b63a0ef5afc9c32806fea9fc88d4fb082176b984",
   "gen_hash_verilog": "sha256:a24c5c060cd1e422777335e8620254dbb62b58f9d725177606d91e6d09aecc2e",
-  "gen_hash_zig": "sha256:d1bb7862ff06c191347897f116c108121aa1e769118986cdb2507e4cb1c04275",
+  "gen_hash_zig": "sha256:a02f12d9c7f48b52e454e55838a6fe7bdc250d3db03847b861082b80d6316aab",
   "module": "SPI_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:11Z",
+  "sealed_at": "2026-08-30T14:32:46Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:1fc5326fdc967b490bc96fbfa827017ccf29246ba0dbbd5363feea2c0cb845e4",
   "spec_path": "specs/fpga/testbench/spi_tb.t27"

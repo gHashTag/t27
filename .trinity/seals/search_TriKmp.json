@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:f23225cfb2a25a7e3e6bcbeff101cababe1655f6491983be89d540347ae37bd0",
   "gen_hash_rust": "sha256:6ef2e225b451d6a089fe9aa1e8df308ec1f38c40bab4e9b16f482852d26b0663",
   "gen_hash_verilog": "sha256:18a47067daddcb68034c6097bbb4a5a7eab08e5a4dd73758429da6c85cc1a05b",
-  "gen_hash_zig": "sha256:9b007f3413a21951f7e7640de3008af2d5e25ea44430f20e27872fe700a20e49",
+  "gen_hash_zig": "sha256:9d7d99cf26f8d425a34e9f5b34410c9cb708fc86956e60e9588ea968397a3887",
   "module": "TriKmp",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:34Z",
+  "sealed_at": "2026-08-30T14:32:51Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:ad1f645f6b172b4c3ff97c07a1de07518b4344c47addd232f20a084035a674dd",
   "spec_path": "specs/tri/search/knuth_morris_pratt.t27"

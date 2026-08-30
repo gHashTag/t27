@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:a5e85c21793d580fc625f30ca483217e5b0f1c03e208bb2b05d1b430db198859",
   "gen_hash_rust": "sha256:eeb96cb73abee53aa833f4c5bdb88ec87c1d73fe58ab38e5f352ab76ac6ddb3b",
   "gen_hash_verilog": "sha256:922988e11dca893fab13091bb9cb67d03c8a0676884f3de0b0758a6618730cf4",
-  "gen_hash_zig": "sha256:fb7241da1aa6074b93d3a7773bc33b393ab52ed56c646e1aa0b6998b7fab082e",
+  "gen_hash_zig": "sha256:2fc3a1e20db18a3fb5e2db2ed558ee108a74bae63c03fbc0448c6ab1d7f102d0",
   "module": "TernaryIsa",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

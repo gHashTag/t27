@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:c53ed5dee14dc11fc83eab090a75dc598d0802453a3e4366c6f72dd3eddc86f5",
   "gen_hash_rust": "sha256:5202e8470c8873c77750fb8fa7b6b106e91a96fe79cf8d56bbd391a126813252",
   "gen_hash_verilog": "sha256:bb9f5a7575bb039523ec05b929e3845f84fabf2ec5563eaa0bd2070819019649",
-  "gen_hash_zig": "sha256:6695d2513114425f8ffdba96fe7d659b85bd8e0ad44c5ea929b4981f66c4cff9",
+  "gen_hash_zig": "sha256:e1ff87648935e4e3c3b3e4ec7348826708e5b577c310af8e0c2c2123f18c67e0",
   "module": "GammaConjecture",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

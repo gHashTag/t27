@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:a0abd22d2429d64d5990821e622c362cc1c2788abb91ab3e360d5dcbe115b7f6",
   "gen_hash_rust": "sha256:4ecb5bfdb05269871b48c807e2f7d428c9dba3e407c8f1f10017ea0e69c7e0d9",
   "gen_hash_verilog": "sha256:053cf26ff6bdd9a0dfabb1683314edd9e62a8ecd2afab726147b1339a9c575cb",
-  "gen_hash_zig": "sha256:c0663e1e13f1eea342e28763a06d99e0f596f4e4e96c354cfc21a0141ab335d4",
+  "gen_hash_zig": "sha256:d1fe5b3f7282b7ffb8de6dfc620c01240e031cb3401519ef13bbb4b731b0a60f",
   "module": "Maxpool2d",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

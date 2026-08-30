@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:0ac65ff1bfb88363aa7b90eb75ee88655b53e19ac23f7d490d1b990c2cfabca8",
   "gen_hash_rust": "sha256:9a818f51f4eaff8fcd40e804e18c93d6eafb9d1ef7365a5b57c6cf98b44225f3",
   "gen_hash_verilog": "sha256:88c31bb8eadac951b3acb174b8ae7eb5734c9651ad59f419f97636f9fb416e6b",
-  "gen_hash_zig": "sha256:cc148975dc54c2e1482976e082fdd59cfbec69237b2b314a6c62b8a87edf3537",
+  "gen_hash_zig": "sha256:c71ade83b0f2019f02954db4350abb4b2ed178bc2e322935cdf843545b233339",
   "module": "TriLockfreeStack",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

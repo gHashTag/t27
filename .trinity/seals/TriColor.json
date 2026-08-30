@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:39fa8c9f17f352c61d69d9ebc104bcc4713d9510e06934565ff5047f4903cafb",
   "gen_hash_rust": "sha256:cc0f8a654f648a73c436302287b245bf20b44841f442de4092d4dd8f3e0b614f",
   "gen_hash_verilog": "sha256:e9192bef020e262b544adcd1208b36c7e74fec3327aada45596aab7265be5d36",
-  "gen_hash_zig": "sha256:47161c41a36494497a34cb9bcf46197d046c7c05a42b0955ea196480bc78ba9b",
+  "gen_hash_zig": "sha256:bc620f6d70c8efa012ff38ad43970a5303cec2329183b9c6e623cd671aebe567",
   "module": "TriColor",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

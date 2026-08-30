@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:8e6b63ebed4fb26b0b15bec8a7650ae1216ff35c2a0778b976bea258696fe46f",
   "gen_hash_rust": "sha256:1061c79e4cdb820ee1d3994fb5610077e3449fd4fecc086bb33ecd9157bb1040",
   "gen_hash_verilog": "sha256:4ba74bdcce2c92b000ac31fd749fdc1a27d37e808b4673526138cf744cf6d9f1",
-  "gen_hash_zig": "sha256:40981ea185aeafedd8ab130bdda11dc4c30d788e0c504f9a45fc5285b0047789",
+  "gen_hash_zig": "sha256:1640cc61affcf35a6c80178c4378d9bb793a854d1413a7109260cbd876d91c8d",
   "module": "ClockDomain",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

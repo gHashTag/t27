@@ -7641,6 +7641,52 @@ impl Codegen {
         }
     }
 
+    /// The declarations every generated Zig file needs before a test body.
+    ///
+    /// This lived in TWO places -- `gen_zig` and `gen_zig_project` -- as
+    /// byte-identical copies. That duplication is not cosmetic: it is where the
+    /// next defect hides, because a shim added to the emitter `t27c gen` uses
+    /// leaves `compile_project_file` emitting the old, broken prelude. One
+    /// emitter, two call sites.
+    fn write_zig_test_prelude(&mut self) {
+        self.write_line("const std = @import(\"std\");");
+        // W599: a failing assertion must report the VALUES it saw, not only
+        // that it failed. This is a fn rather than an inline block because
+        // the assert site is emitted as an expression and a `{ ... };` is
+        // not a Zig statement; `noreturn` keeps it usable in that position.
+        self.write_line("fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) noreturn {");
+        // W599 (second attempt): `std.debug.print` is not callable at
+        // comptime, and this corpus DOES fold assertions there -- T4's and
+        // T5's disproved invariants are exactly that. The first version
+        // turned their clear `encountered @panic at comptime` into an
+        // opaque error inside std.Io.Threaded. @inComptime() keeps each
+        // context's own diagnostic.
+        self.write_line("    if (@inComptime()) {");
+        self.write_line("        @compileError(\"assertion failed\");");
+        self.write_line("    } else {");
+        self.write_line("        std.debug.print(fmt, args);");
+        self.write_line("        @panic(\"assertion failed\");");
+        self.write_line("    }");
+        self.write_line("}");
+        // The statement emitter special-cases `assert` and `@compileAssert`
+        // and lowers them itself; `assert_eq` is not in that list, so it
+        // reaches the generic call path and is emitted verbatim as a call to
+        // a function nothing declared. Zig resolves identifiers in AstGen,
+        // file-wide and before any Sema, so an undeclared name is a hard
+        // error even inside a `test` block that `build-obj` never analyses.
+        //
+        // The C backend hit this exact defect and fixed it with a macro
+        // (W583); Rust does not emit the call at all. Zig was left out.
+        // Measured: 60 of 581 generated files call it and all 60 are rejected.
+        //
+        // Faithful, not a stub: a shim that compared nothing would clear the
+        // gate while writing a lie into every test the corpus ships.
+        self.write_line("fn assert_eq(a: anytype, b: anytype) void {");
+        self.write_line("    if (a != b) __t27_assert_fail(\"\\n  {any}\\n  != {any}\\n\", .{ a, b });");
+        self.write_line("}");
+        self.write_line("");
+    }
+
     pub fn gen_zig(&mut self, ast: &Node) {
         // Collect the spec's own function names before emitting anything, so
         // the builtin mapping below can never shadow a user-defined function.
@@ -7727,28 +7773,7 @@ impl Codegen {
             .iter()
             .any(|d| d.kind == NodeKind::TestBlock || d.kind == NodeKind::InvariantBlock);
         if has_tests {
-            self.write_line("const std = @import(\"std\");");
-            // W599: a failing assertion must report the VALUES it saw, not only
-            // that it failed. This is a fn rather than an inline block because
-            // the assert site is emitted as an expression and a `{ ... };` is
-            // not a Zig statement; `noreturn` keeps it usable in that position.
-            self.write_line(
-                "fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) noreturn {",
-            );
-            // W599 (second attempt): `std.debug.print` is not callable at
-            // comptime, and this corpus DOES fold assertions there -- T4's and
-            // T5's disproved invariants are exactly that. The first version
-            // turned their clear `encountered @panic at comptime` into an
-            // opaque error inside std.Io.Threaded. @inComptime() keeps each
-            // context's own diagnostic.
-            self.write_line("    if (@inComptime()) {");
-            self.write_line("        @compileError(\"assertion failed\");");
-            self.write_line("    } else {");
-            self.write_line("        std.debug.print(fmt, args);");
-            self.write_line("        @panic(\"assertion failed\");");
-            self.write_line("    }");
-            self.write_line("}");
-            self.write_line("");
+            self.write_zig_test_prelude();
         }
 
         // Emit @import for UseDecl nodes first -- but only when the module body
@@ -7829,28 +7854,7 @@ impl Codegen {
             .iter()
             .any(|d| d.kind == NodeKind::TestBlock || d.kind == NodeKind::InvariantBlock);
         if has_tests {
-            self.write_line("const std = @import(\"std\");");
-            // W599: a failing assertion must report the VALUES it saw, not only
-            // that it failed. This is a fn rather than an inline block because
-            // the assert site is emitted as an expression and a `{ ... };` is
-            // not a Zig statement; `noreturn` keeps it usable in that position.
-            self.write_line(
-                "fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) noreturn {",
-            );
-            // W599 (second attempt): `std.debug.print` is not callable at
-            // comptime, and this corpus DOES fold assertions there -- T4's and
-            // T5's disproved invariants are exactly that. The first version
-            // turned their clear `encountered @panic at comptime` into an
-            // opaque error inside std.Io.Threaded. @inComptime() keeps each
-            // context's own diagnostic.
-            self.write_line("    if (@inComptime()) {");
-            self.write_line("        @compileError(\"assertion failed\");");
-            self.write_line("    } else {");
-            self.write_line("        std.debug.print(fmt, args);");
-            self.write_line("        @panic(\"assertion failed\");");
-            self.write_line("    }");
-            self.write_line("}");
-            self.write_line("");
+            self.write_zig_test_prelude();
         }
 
         // Emit @import for UseDecl nodes with resolved paths

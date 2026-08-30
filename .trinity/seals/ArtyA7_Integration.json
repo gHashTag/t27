@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:e6ebe1fab9490e7a6006a4b937c6d7ec947060e2febfa28e1a8149b261b10b13",
   "gen_hash_rust": "sha256:6e22d93c10f8bf7759a4a329ac8f57d0b6070435a3571a60bbed9c12aec722aa",
   "gen_hash_verilog": "sha256:426338e1fa66258cd1f8b59141f8986d84967a707088baaac47e9f46d8ca12f1",
-  "gen_hash_zig": "sha256:39507fcb20694f760f579cf714a7494ac421ff9c0420067e4f3e2519b943471e",
+  "gen_hash_zig": "sha256:80b93b6167e2e3f448570c49ff1f344b8b00db09fae4720f5bb11d59aece000f",
   "module": "ArtyA7_Integration",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

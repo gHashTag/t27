@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:45f0d436caac0f334fb080355867629ade43a8eed8d0b0a0219561e213a61e7f",
   "gen_hash_rust": "sha256:d76d12a6af0895158fc43a62d4f096a91de85fa8370ffa80521910c752c3bba1",
   "gen_hash_verilog": "sha256:a89297d86d27c87d7983ac808fd7cc45977a0da55a801d067d880ea5aa5b9992",
-  "gen_hash_zig": "sha256:e5d3ab94490c3211d9b5cb452cd0555a2491254d41de7da078eb6046b73c0bd8",
+  "gen_hash_zig": "sha256:31ea8ff91be52247e9fcb6791e755b42c2a5dca01ff73509414579266a859928",
   "module": "LrScheduler",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

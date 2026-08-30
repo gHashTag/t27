@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:afb31b7a5dd359585e53fd7f27ec2bf762390c104782f3deee04a3e4cf4dc38f",
   "gen_hash_rust": "sha256:e86306ed8bcdd7b56a793abe8de9541c3c963c56eee59e559bfa762b99b82385",
   "gen_hash_verilog": "sha256:75c64e586b6ef0c77900ac22d3e3dc65ee22d7950fb88147c65e70e75ca3949a",
-  "gen_hash_zig": "sha256:6c8aee77161c6f9b7176185b4916ec87078731cfc6c58e17396464401fbe57bf",
+  "gen_hash_zig": "sha256:f49d0bb6596360e18f62575c3f3113aa72c92eaa206374b779da48ebb9405ba7",
   "module": "w535_bounded_while_module",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:13Z",
+  "sealed_at": "2026-08-30T14:32:48Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:e58c713814db7a42b22fa996d3aee2815af783080bf6b98db6fbafad489330f4",
   "spec_path": "specs/igla/w535_bounded_while_module.t27"

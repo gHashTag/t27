@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:f9a06aaf15a9859d9aac798d59aa2c36f8bcf3b86fa29d5d47758b2a9e56829d",
   "gen_hash_rust": "sha256:da368eaf20285feb88e0ac8ad0d0b001d5dd07788d4bd9cac479ccbfa75f26dc",
   "gen_hash_verilog": "sha256:744010f698637717096465a5ca600e665e37192b21d794736cf9cd998504b915",
-  "gen_hash_zig": "sha256:d1da9a13cc2d56347d72b9da682bc0189285c482ea49fedb6abbe2d5f7335eca",
+  "gen_hash_zig": "sha256:f42180e8619b2498726b23facdf0e7e5b695fa4b750ffc122c790906b3d297ab",
   "module": "PipelineBenchmarks",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_at": "2026-08-30T14:32:50Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:6926ef2f5ef68b7a540eae2c7bffc4efd4928bcf00686806f549664b92b8afd7",
   "spec_path": "specs/pipeline/benchmarks.t27"

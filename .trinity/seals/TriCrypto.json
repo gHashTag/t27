@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:0e78fe987733fc3b06baf6613821b45c2ca9d956c203a595aa24bd886159c9af",
   "gen_hash_rust": "sha256:552abe0b768f72510053c1c51fff5602292fdac8844c5d1078205dfe60dc7512",
   "gen_hash_verilog": "sha256:3a618615a011a2cf59e4e351aab52dae4b0e2a03a3008e41cf74b6c3e96c470d",
-  "gen_hash_zig": "sha256:1747d456e9dff9912e5b58c4c79eed1b92aa08ebffdd3efa83872f4a38ec3549",
+  "gen_hash_zig": "sha256:acad0c336ce2875a9342aa028dbca2d430134654185e0e518dc7c3f7f2b26f1f",
   "module": "TriCrypto",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",
