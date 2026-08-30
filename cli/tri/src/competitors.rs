@@ -52,6 +52,15 @@ pub enum CompetitorsCmd {
         #[arg(long)]
         bless: bool,
     },
+    /// When the survey behind this table last read a paper, by the month its
+    /// citations encode.
+    Freshness {
+        /// Read the gap against this month instead of today's, as `YYYY-MM`.
+        /// The system clock makes an output that cannot be pinned in a test;
+        /// every reading in this command's tests supplies its own month.
+        #[arg(long)]
+        as_of: Option<String>,
+    },
 }
 
 /// One `CompetitorScore` record as it stands in the file.
@@ -234,9 +243,176 @@ fn ceilings(root: &Path) -> Result<Counts> {
     })
 }
 
+/// An arXiv identifier dates its paper: since 2007 the form is `YYMM.NNNNN`,
+/// and `YYMM` is the month of FIRST submission. A later version does not change
+/// it, so the id dates the paper and not the reading -- which is exactly the
+/// property wanted here.
+///
+/// Returns `(year, month)`.
+pub fn month_of(id: &str) -> Option<(u32, u32)> {
+    let (a, b) = id.split_once('.')?;
+    if a.len() != 4 || !(4..=5).contains(&b.len()) {
+        return None;
+    }
+    let yy: u32 = a[..2].parse().ok()?;
+    let mm: u32 = a[2..].parse().ok()?;
+    if !(1..=12).contains(&mm) {
+        return None;
+    }
+    Some((2000 + yy, mm))
+}
+
+/// Months from `(y0, m0)` to `(y1, m1)`, negative if the second is earlier.
+pub fn months_between(from: (u32, u32), to: (u32, u32)) -> i64 {
+    (to.0 as i64 - from.0 as i64) * 12 + (to.1 as i64 - from.1 as i64)
+}
+
+/// Parse a `YYYY-MM`.
+fn as_of_month(s: &str) -> Result<(u32, u32)> {
+    let (y, m) = s
+        .split_once('-')
+        .ok_or_else(|| anyhow::anyhow!("--as-of wants YYYY-MM, got {s:?}"))?;
+    let y: u32 = y
+        .parse()
+        .map_err(|_| anyhow::anyhow!("--as-of year is not a number: {s:?}"))?;
+    let m: u32 = m
+        .parse()
+        .map_err(|_| anyhow::anyhow!("--as-of month is not a number: {s:?}"))?;
+    if !(1..=12).contains(&m) {
+        anyhow::bail!("--as-of month {m} is not a month");
+    }
+    Ok((y, m))
+}
+
+/// Every arXiv month cited by the table, counted twice over two populations.
+///
+/// `cited` is the months of papers attached to a competitor RECORD -- the
+/// survey proper. `anywhere` is every arXiv id in the file, including the ones
+/// written into a `benchmark:` string or a prose comment. They answer different
+/// questions and a single number would hide which one it is: the first says
+/// when the survey last added a competitor, the second when the file last
+/// mentioned a paper at all.
+/// A year and a month, as an arXiv identifier encodes them.
+pub type YearMonth = (u32, u32);
+
+/// `(cited, anywhere)` -- the two populations `months` returns, named so the
+/// signature says which is which. They must not be summed: the first is the
+/// survey, the second is every mention in the file.
+pub type Months = (Vec<YearMonth>, Vec<YearMonth>);
+
+pub fn months(src: &str, recs: &[Record]) -> Months {
+    let cited: Vec<(u32, u32)> = recs
+        .iter()
+        .filter_map(|r| r.arxiv.as_deref())
+        .filter_map(month_of)
+        .collect();
+    let mut anywhere = Vec::new();
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find("arXiv:") {
+        let at = from + rel + 6;
+        let rest = &src[at..];
+        let end = rest
+            .find(|c: char| !c.is_ascii_digit() && c != '.')
+            .unwrap_or(rest.len());
+        if let Some(m) = month_of(&rest[..end]) {
+            anywhere.push(m);
+        }
+        from = at;
+    }
+    (cited, anywhere)
+}
+
+/// How old the competitive survey is, and what would settle the question.
+///
+/// A gap is NOT a defect on its own: a table with nothing from the last two
+/// months either stopped looking, or the field published nothing. Those look
+/// identical from inside the repository, so this command reports the gap and
+/// says what distinguishes them, rather than failing. It has no `--gate` on
+/// purpose -- a gate that reddens by the calendar, with nobody having changed
+/// anything, is a gate that gets muted.
+fn freshness(root: &Path, as_of: Option<&str>) -> Result<()> {
+    let path = root.join(TABLE);
+    let src =
+        std::fs::read_to_string(&path).map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?;
+    let recs = records(&src);
+    let (cited, anywhere) = months(&src, &recs);
+    if cited.is_empty() {
+        anyhow::bail!(
+            "{TABLE}: no record carries an arXiv id in the doc block above it. \
+             Either the citation style changed or the reader stopped matching; \
+             a zero here would otherwise read as a table with no sources."
+        );
+    }
+
+    let now = match as_of {
+        Some(s) => as_of_month(s)?,
+        None => {
+            let d = chrono::Local::now().date_naive();
+            (
+                chrono::Datelike::year(&d) as u32,
+                chrono::Datelike::month(&d),
+            )
+        }
+    };
+
+    let newest_cited = *cited.iter().max().unwrap();
+    let newest_any = *anywhere.iter().max().unwrap();
+
+    println!("COMPETITOR SURVEY, BY THE MONTH ITS CITATIONS ENCODE -- {TABLE}\n");
+    println!(
+        "  reading taken as of         {:04}-{:02}{}",
+        now.0,
+        now.1,
+        if as_of.is_some() { "   (--as-of)" } else { "" }
+    );
+    println!(
+        "  newest paper CITED BY A RECORD   {:04}-{:02}   {} month(s) ago",
+        newest_cited.0,
+        newest_cited.1,
+        months_between(newest_cited, now)
+    );
+    println!(
+        "  newest paper mentioned anywhere  {:04}-{:02}   {} month(s) ago",
+        newest_any.0,
+        newest_any.1,
+        months_between(newest_any, now)
+    );
+
+    // the last twelve months, so a cliff is visible rather than inferred
+    println!("\n  records added per month of publication, last 12:");
+    let mut any = false;
+    for k in (0..12).rev() {
+        let mm = ((now.1 as i64 - 1 - k) % 12 + 12) % 12 + 1;
+        let yy = now.0 as i64 + (now.1 as i64 - 1 - k).div_euclid(12);
+        let key = (yy as u32, mm as u32);
+        let n = cited.iter().filter(|m| **m == key).count();
+        if n > 0 {
+            any = true;
+        }
+        if any || n > 0 {
+            let bar: String = "#".repeat(n.min(40));
+            println!("    {:04}-{:02}  {:4}  {}", key.0, key.1, n, bar);
+        }
+    }
+
+    println!(
+        "\n  A gap is not a defect by itself. A table with nothing recent either\n  \
+         stopped looking or the field published nothing, and those are\n  \
+         indistinguishable from inside this repository. What settles it is ONE\n  \
+         counterexample: a paper in the gap that belongs in this table. Find one\n  \
+         and the survey stopped; fail to find one after looking and the field did.\n\n  \
+         There is no `--gate` here on purpose. A gate that reddens because a month\n  \
+         passed, with nobody having changed anything, is a gate that gets muted."
+    );
+    Ok(())
+}
+
 pub fn run(cmd: &CompetitorsCmd) -> Result<()> {
-    let CompetitorsCmd::Audit { gate, bless } = cmd;
     let root = repo_root()?;
+    let (gate, bless) = match cmd {
+        CompetitorsCmd::Freshness { as_of } => return freshness(&root, as_of.as_deref()),
+        CompetitorsCmd::Audit { gate, bless } => (gate, bless),
+    };
     let path = root.join(TABLE);
     let src = std::fs::read_to_string(&path).map_err(|e| {
         anyhow::anyhow!(
@@ -477,6 +653,79 @@ pub fn beta_competitor() -> CompetitorScore {
         let r = records(&src);
         assert_eq!(r[0].func, "alpha_competitor");
         assert_eq!(r[0].arxiv, None, "a blank line ends the block");
+    }
+
+    /// An arXiv id dates its paper, and the two halves have to be read as a
+    /// date rather than as a number: `2601` is January 2026, not the 2601st of
+    /// anything, and `2613` is not a month at all.
+    #[test]
+    fn an_arxiv_id_carries_the_month_of_first_submission() {
+        assert_eq!(month_of("2606.15500"), Some((2026, 6)));
+        assert_eq!(month_of("2607.13079"), Some((2026, 7)));
+        assert_eq!(month_of("2501.00001"), Some((2025, 1)));
+        assert_eq!(month_of("0704.0001"), Some((2007, 4)));
+        assert_eq!(month_of("2613.00001"), None, "13 is not a month");
+        assert_eq!(month_of("2600.00001"), None, "0 is not a month");
+        assert_eq!(month_of("260.15500"), None, "three digits is not YYMM");
+        assert_eq!(month_of("2606"), None, "no point, no id");
+    }
+
+    /// A gap in months has to cross a year boundary correctly, because the
+    /// interesting readings all sit near December.
+    #[test]
+    fn the_gap_counts_months_across_a_year() {
+        assert_eq!(months_between((2026, 6), (2026, 8)), 2);
+        assert_eq!(months_between((2025, 11), (2026, 2)), 3);
+        assert_eq!(months_between((2026, 8), (2026, 8)), 0);
+        assert_eq!(
+            months_between((2026, 8), (2026, 6)),
+            -2,
+            "a future citation"
+        );
+    }
+
+    /// The two populations answer different questions and must not be summed.
+    /// A paper named only inside a `benchmark:` string is mentioned by the file
+    /// and cited by no record.
+    #[test]
+    fn a_paper_named_in_a_string_is_mentioned_and_not_cited() {
+        let src = TWO.replace(
+            r#"        benchmark: "an accelerator, not a generator","#,
+            r#"        benchmark: "an accelerator (arXiv:2607.00001), not a generator","#,
+        );
+        let recs = records(&src);
+        let (cited, anywhere) = months(&src, &recs);
+        assert_eq!(
+            cited,
+            vec![(2026, 6)],
+            "only Alpha's doc block cites a paper"
+        );
+        assert!(
+            anywhere.contains(&(2026, 7)),
+            "the id inside the string is mentioned: {anywhere:?}"
+        );
+        assert!(
+            !cited.contains(&(2026, 7)),
+            "and it is NOT a citation: no record's doc block names it"
+        );
+        assert_eq!(
+            anywhere.len(),
+            cited.len() + 1,
+            "mentioned {anywhere:?} is cited {cited:?} plus the string"
+        );
+    }
+
+    /// The reading is pinned by `--as-of`, which is why the command takes one:
+    /// a gap measured against the system clock is a number that changes while
+    /// nobody edits anything, and cannot be asserted in a test at all.
+    #[test]
+    fn the_gap_is_reproducible_when_the_month_is_supplied() {
+        let recs = records(TWO);
+        let (cited, _) = months(TWO, &recs);
+        let newest = *cited.iter().max().expect("Alpha cites 2026-06");
+        assert_eq!(newest, (2026, 6));
+        assert_eq!(months_between(newest, (2026, 8)), 2);
+        assert_eq!(months_between(newest, (2027, 6)), 12);
     }
 
     /// The live table, against the same numbers the ratchet pins. If this
