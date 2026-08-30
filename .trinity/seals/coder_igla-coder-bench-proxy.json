@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:08b87bc129b29acd418fef4340787320a21dd4e416e9dfd789d1266923760485",
-  "gen_hash_rust": "sha256:e6a1c9d04f57c114e55d80d16f8cfc3e2789ad0b0008ff1c52c2a95a09747d1e",
+  "gen_hash_c": "sha256:d200d307bb78c3d96c574bd8fea3ba5ece9289effbff7680d99a65642364e1e9",
+  "gen_hash_rust": "sha256:285ca3332c1a6a8f2b86f6feb556b811fbf4ef1eb3f71dfa57cd007fc1ad7ae4",
   "gen_hash_verilog": "sha256:1db729375b8a59f5e5abb2d657c7ca159423c02b501ad0b953b9fb7ca46bffb8",
   "gen_hash_zig": "sha256:506fc81ff04dc1c21f147dc026aefedf05e58d712c884361ee37c382ea64eb95",
   "module": "igla-coder-bench-proxy",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:23Z",
+  "sealed_at": "2026-08-30T18:16:29Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:340aeb11e95050b8aab5c127f136ccb0d04be9e650f664c5a13db07feba0d70d",
   "spec_path": "specs/igla/coder/bench_proxy.t27"

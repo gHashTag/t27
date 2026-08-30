@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:fc5420658e56591f9fac237f400ac8b3f7c85d9c3a4edce556887a05643ca87b",
-  "gen_hash_rust": "sha256:65a5b39bf3e9e4fe79e21f46e851959db16b1241b053793c866f831710761661",
+  "gen_hash_c": "sha256:76b7fda96e46af51c64d563068cec1f2856a232b543d86e7f8bf98e25b50d550",
+  "gen_hash_rust": "sha256:0046cab5d598ddd63a3a29362abc94f05d699f4d468df5374acc9dd596f32003",
   "gen_hash_verilog": "sha256:37d7dae007320108f1254e5876524e376754fe0ec77f90003409618d4771c001",
   "gen_hash_zig": "sha256:164897c7b3d3ab011d1fa2e0d4e9d58e4464f75c4db256536438f126319ee710",
   "module": "PellisPrecision",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:25Z",
+  "sealed_at": "2026-08-30T18:16:30Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:273a7e6b46c4b79c5cb6ddcdb4894b61722fd4aba4ec35a715f6841a93e6c88e",
   "spec_path": "specs/math/pellis_precision_verify.t27"

@@ -1,6 +1,6 @@
 {
-  "gen_hash_c": "sha256:cb27aaccf63ac878e9a37bf3fc4cc74d3cc9e03f572c51022812811561e86471",
-  "gen_hash_rust": "sha256:bc8b0bbaaedfa98fec5801eae99b2dfe23b57da34f0c5b567a0ab942a5f1a41a",
+  "gen_hash_c": "sha256:8a16da728c1262bfad56d07f7b2668ba6ca2ce550605a8d9705dcc2dbd00fbf6",
+  "gen_hash_rust": "sha256:02f9a51f0ebcdac3684cc9bbcf1f637ceddf69be7411a69c51e554a453f7d998",
   "gen_hash_verilog": "sha256:4a48da4306a399100693a9f9d0236af73c3c87e6aec54be95afbb068d821daa4",
   "gen_hash_zig": "sha256:8107df0dd1d71dbcd433f174cea826438c51cf7234e18ebc339a37dc9a3410dc",
   "module": "Power",

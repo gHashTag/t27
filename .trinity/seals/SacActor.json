@@ -1,6 +1,6 @@
 {
-  "gen_hash_c": "sha256:70698cd6cd64a104e63e5ec728a849eba73ea0e67933d5196a53a63ec2a23a75",
-  "gen_hash_rust": "sha256:48a4d5316eeebd5502eb47d9cea8ffb62876d15afb93da1f43e2633c26d89e6c",
+  "gen_hash_c": "sha256:7dd99c1d5b47875b858da1e1b6476d880bc5c75cbc1d52fcd2f18262f200cd0c",
+  "gen_hash_rust": "sha256:bfe25fd74150b1ca07175d8616e2c5e37e0ffde365ebc53f1328a3ad956f54c6",
   "gen_hash_verilog": "sha256:c481339ee8c58a35b9451779385bea6bedc45a637c385b58870d5d983d37cf56",
   "gen_hash_zig": "sha256:01647b7074514eafce19e69b15e20da2e58a4c042d12de66b29a51d260ff766d",
   "module": "SacActor",

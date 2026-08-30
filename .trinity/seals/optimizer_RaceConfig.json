@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:94c2bd989563ab7a9538f86307578744392174dabebcf06b302bef9380ab1ad8",
-  "gen_hash_rust": "sha256:ebe0172649f33b079edaeb852abd18efd2c74bc50982f8db8a60dce83c8d044d",
+  "gen_hash_c": "sha256:eeeb9e49f947b6f0fe82de70d44b8f956ac8d0f1dc54d73abcadc04c2c71e0ba",
+  "gen_hash_rust": "sha256:081d3c953ca956c19ce12b91bca334ee5038c3c74f587b0a7063cfaabee6fd74",
   "gen_hash_verilog": "sha256:1f586a776cf7de12333f0d03e1046a2ad7d44588f09b2037c71957bf2707ee0b",
   "gen_hash_zig": "sha256:c1f5006a3f51972419fcfd9975879f9fb4cb0d462416578859a2513dae38ea54",
   "module": "RaceConfig",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
+  "sealed_at": "2026-08-30T18:16:31Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:8300963eb4317faad525961661a38a190b274dd3cc6956105938cff153ba5fce",
   "spec_path": "specs/ml/optimizer/race_config.t27"

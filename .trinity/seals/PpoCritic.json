@@ -1,6 +1,6 @@
 {
-  "gen_hash_c": "sha256:8a9a3cf6bbc63d0ebbfb171833ff25fe0f19a33399dc7a000a49638bf331e4e4",
-  "gen_hash_rust": "sha256:aaf2f00ba801d501901fdc9a721df6bb010827666e488c1bff9ce19acfb6788d",
+  "gen_hash_c": "sha256:d765a90bb86e6da060fc5cd1107350c6c23984d1e3bcdd3a681f48d07bd6c00d",
+  "gen_hash_rust": "sha256:f5d7cb51ade97fec3ff072d1150dce078c481716c7b337a0f58c98928ebc0a06",
   "gen_hash_verilog": "sha256:fcab04b03a5d109012914f6ded8ebce8b821eac825288c91c33ac7527f99fbfa",
   "gen_hash_zig": "sha256:de75de8e6c3f2222982756744dfa089c84af8667ff66de38439af3762cbb1ef1",
   "module": "PpoCritic",

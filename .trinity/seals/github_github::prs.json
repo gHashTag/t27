@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a95e7096b827a94736bc039df5212c448987a411936af73a904d0a35af009b83",
-  "gen_hash_rust": "sha256:3bc0749df78f07300bc0f1f1badb7ecec997a968068555106bb3df6bc337e7b0",
+  "gen_hash_c": "sha256:ad2e85731438b6c612eb5cfba59eab3ee279a884acb8c6cba9400284531d1296",
+  "gen_hash_rust": "sha256:6c0ae19879c74aa6e657caddeb46459e3074f0f38916c18d29a706c2baeccf95",
   "gen_hash_verilog": "sha256:e98675e9c3f245707d48d1452980d65ad9ad9776e1823821a9d5e5df52965463",
   "gen_hash_zig": "sha256:f5649785a3c37dcf38aec27d501eed1aec77e4a6322a1498eaa2ef5910172b9a",
   "module": "github::prs",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:23Z",
+  "sealed_at": "2026-08-30T18:16:29Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:4e466319eaaca9d8dded516b01c4e044793adcf2dc0fd6b21baf29244e53b5f9",
   "spec_path": "specs/github/prs.t27"

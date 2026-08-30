@@ -1,6 +1,6 @@
 {
-  "gen_hash_c": "sha256:6bcff2447e0fb8725674401bb21ad27affbfbe6b2960dbf2716f5c80d1cf52af",
-  "gen_hash_rust": "sha256:0c8b63c1529edd98bcc8e68f0ab775bd86b0c5a3d681dfda27ac0f8d1f38f165",
+  "gen_hash_c": "sha256:b100d6de751f44ce9796ac13016c4c3123228c6e61fe2f778a98371a1ad917aa",
+  "gen_hash_rust": "sha256:e1bfd1edec569131626bb7209fec11b9ef157c9bd65bdcad77d133cf6e660cad",
   "gen_hash_verilog": "sha256:9327e54360dc57ae9a86132842c6aa9a5de2cfbd31d1c22525593dcc7dbfcfc4",
   "gen_hash_zig": "sha256:560706df0aa9cd38a64d158d55fef25d92e46a6bd920a08fbe28755ed7a022b8",
   "module": "github::auth",
