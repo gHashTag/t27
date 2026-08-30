@@ -10489,3 +10489,60 @@ was hunting -- was not among them.
 Always run a new detector against the example that made you write it, and
 confirm that example is in the output. Without that check, "found nothing here"
 and "cannot see this shape at all" print identically.
+
+
+## 416. An open issue is a claim with a date, and one subset re-measures itself
+
+477 open issues here, **268** with a number in the title -- each a stated measurement of
+the tree, taken once, re-read by nothing. Most cannot be checked automatically: pulling
+the measurement out of free prose is the precision problem that killed a detector one
+pass earlier.
+
+One subset can, because its truth is stored **outside** the repository. An issue whose
+title says a named workflow is red is checkable against what that workflow last concluded
+on master. `tri issues stale` walks it: 9 titles claim red, **5** name a workflow that is
+green today.
+
+The command states what a green reading does NOT establish, and never suggests closing
+anything. #2729 is the case that makes it concrete: its title -- "cli-tri has been red on
+master for three days" -- is stale, and its argument is not, because the workflow still
+carries the `paths:` filter the issue was actually about. **The headline being false and
+the issue being resolved are different facts**, and a tool that conflates them would close
+live work.
+
+What a stale headline costs is real anyway: with 477 open issues, a reader stops at the
+title.
+
+## 417. Match a workflow by the name it DISPLAYS under, not by its file
+
+Issues name a workflow the way GitHub shows it. `seal-coverage.yml` displays as
+`Seal Coverage`, so #2851 -- "Seal Coverage has been red on master" -- is invisible to a
+reader keyed on the file stem. Measured here: **22 of 49** workflows display under a name
+that differs from their stem.
+
+Adding the display name as a third key took the population from **8 to 9**, and the one it
+added was the issue I already knew about. That is the check worth copying: **run the new
+reader against the example you already have the answer for, and confirm it is in the
+output.** I had that example by accident. Without it, "no issue names this workflow" and
+"my reader cannot see how issues name workflows" print the same number.
+
+The boundary matters too, and hyphens make it non-obvious: a workflow name is
+alphanumeric plus `-` and `_`, so `cli-tri` must not match inside `cli-tri-mcp` -- two
+different things in this repository, and the subject of #2903. Both properties are tests
+rather than comments.
+
+## 418. An unquoted heredoc eats your backticks, again
+
+Writing the two sections above, `python3 - <<PY` with an UNQUOTED delimiter ran every
+backticked span in the text as a command. `tri issues stale`, `paths:`, `seal-coverage.yml`
+and `cli-tri` all vanished from the file, leaving sentences with holes -- and the shell
+printed `command not found` seven times, which is the only reason it was caught.
+
+This is written down here already, from a commit message that lost four words the same
+way. Knowing a trap and recognising it in your own output are different skills. The rule
+is mechanical and has no judgement in it: **quote the delimiter** -- `<<'PY'` -- whenever
+the body contains backticks, `$`, or `!`, which for prose about code is always.
+
+Recovery is `git checkout <file>` and a rewrite, and it cost nothing because the file was
+not yet committed. Had it been, the sections would have shipped with the holes and read as
+sloppy prose rather than as a shell bug.

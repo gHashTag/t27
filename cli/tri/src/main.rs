@@ -13,6 +13,7 @@ mod abandoned;
 mod orphaned;
 mod census;
 mod competitors;
+mod issues;
 mod cibase;
 mod fleet;
 mod fpga;
@@ -241,6 +242,12 @@ enum Commands {
     Competitors {
         #[command(subcommand)]
         action: competitors::CompetitorsCmd,
+    },
+    /// Open issues whose headline calls a workflow red, against what that
+    /// workflow concludes on master today.
+    Issues {
+        #[command(subcommand)]
+        action: issues::IssuesCmd,
     },
     Unparsed {
         #[command(subcommand)]
@@ -899,6 +906,7 @@ fn main() -> Result<()> {
         Commands::Ledgers { action } => ledgers::run(action, std::env::current_dir()?)?,
         Commands::Census { action } => census::run(action)?,
         Commands::Competitors { action } => competitors::run(action)?,
+        Commands::Issues { action } => issues::run(action)?,
         Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
