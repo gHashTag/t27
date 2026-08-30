@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:62d0de7613705e2e8c089d259333809aa9ab78e012bfdb088742b64ff01fecbc",
+  "gen_hash_c": "sha256:2bc027154d1692cd67cf3a1c1609407fe2024b3fd342be3e2d06fe57ec95b656",
   "gen_hash_rust": "sha256:c58bc631d4316ce3a07f2c38ddb6bcdefab56fc097e7a3f603aafd1e4a4628fd",
   "gen_hash_verilog": "sha256:517ede7b5946468d0150f2dd59daa403101f2fc052899481a97952688a29ab1d",
   "gen_hash_zig": "sha256:7aa16c6a775311643f2526bc9a2eba6159d607b734cf774e30b85af7fdf0b6b9",
   "module": "PpoActor",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:17Z",
+  "sealed_at": "2026-08-30T12:28:27Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:db1da1f335f5455e94952bcbc2187cf3ae0aa0a68de09914b5105b69d18cb939",
   "spec_path": "specs/ml/rl/ppo_actor.t27"

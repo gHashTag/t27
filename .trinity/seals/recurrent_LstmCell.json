@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:719fe79493591c994f79a6bc66de5961fb21d4ca603ab7a3152671b632fcf05c",
+  "gen_hash_c": "sha256:a75d901e687af2e52edb2e001843adf076e7f0bb65a6512bd3c9000f7ed8ab02",
   "gen_hash_rust": "sha256:384f028e70e777aa93c629eb2b98a1661d8a199b40c1ed977410f57019db9e7e",
   "gen_hash_verilog": "sha256:dad9b20d3956fc3af9258999d12855ae280f8b88251d7d5d86810e3c7427e9db",
   "gen_hash_zig": "sha256:800ec6e9bb022d96ec6061cbd5b6216bb84880936fa87be529e8128c4f100165",
   "module": "LstmCell",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:17Z",
+  "sealed_at": "2026-08-30T12:18:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:2b97b9758290cb2c035ad4d058a26f4c081f428c20230cd076c72129f5d17b6c",
   "spec_path": "specs/ml/recurrent/lstm_single.t27"

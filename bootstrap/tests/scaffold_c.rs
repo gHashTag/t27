@@ -69,7 +69,7 @@ const SCALAR: &str = "module m\n\nfn take(x: u32) -> u32 {\n    return x\n}\n\nt
 #[test]
 fn a_scaffold_binding_is_typed_by_its_consumer() {
     let b = body(&gen_c(SCALAR), "test_take_basic");
-    assert!(b.contains("uint32_t input = 0;"), "expected a typed zero, got:\n{b}");
+    assert!(b.contains("uint32_t input = (uint32_t){0};"), "expected a typed zero, got:\n{b}");
     assert!(!b.contains("default_input"), "the call must not survive:\n{b}");
 }
 
@@ -83,9 +83,15 @@ fn a_scaffold_binding_is_typed_by_its_consumer() {
 #[test]
 fn a_vacuous_assertion_is_not_invented() {
     let b = body(&gen_c(SCALAR), "test_take_basic");
-    assert!(!b.contains("{0}"), "a brace initialiser is not an operand:\n{b}");
     assert!(!b.contains("assert("), "nothing is asserted here:\n{b}");
     assert!(b.contains("constrains nothing"), "and it must say so:\n{b}");
+    // Narrowed on purpose: `{0}` is legitimate in the BINDING, where it is a
+    // compound literal. What must not exist is a brace initialiser in an
+    // OPERAND position, which is what `result != {0}` was.
+    assert!(
+        !b.lines().any(|l| l.contains("!=") && l.contains("{0}")),
+        "a brace initialiser is not an operand:\n{b}"
+    );
 }
 
 /// A void-returning consumer binds nothing.
@@ -106,6 +112,43 @@ fn a_void_consumer_binds_nothing_in_either_spelling() {
             "`__auto_type` cannot deduce from void (ret={ret:?}):\n{b}"
         );
     }
+}
+
+/// A struct-typed scaffold binding needs a compound literal, not `0`.
+///
+/// The first version of this fix recovered the type and left the initialiser to
+/// `gen_c_expr`, which writes `0` for the scaffold call. That is correct for a
+/// scalar and not an initialiser at all for a struct:
+///
+///     EmbeddingWeights input = 0;
+///     error: initializing 'EmbeddingWeights' with an expression of
+///            incompatible type 'int'
+///
+/// 15 specs carried that as their ONLY remaining error family, so the incomplete
+/// fix cost exactly the specs it was written to unblock. `(T){0}` is valid for
+/// every complete object type, so one spelling serves scalars and structs alike.
+#[test]
+fn a_struct_typed_scaffold_binding_uses_a_compound_literal() {
+    let src = "module m\n\nstruct W {\n    a: u32,\n}\n\nfn init(w: W) -> u32 {\n    return 1\n}\n\ntest init_basic\n    given input = default_input()\n    when result = init(input)\n    then result != undefined\n";
+    let b = body(&gen_c(src), "test_init_basic");
+    assert!(
+        b.contains("W input = (W){0};"),
+        "a struct needs a compound literal, got:\n{b}"
+    );
+    assert!(!b.contains("W input = 0;"), "`0` is not a struct initialiser:\n{b}");
+}
+
+/// And the scalar spelling is the same one.
+///
+/// Two spellings would mean a type test at the emission site, and the type is
+/// exactly what this path spent its effort recovering.
+#[test]
+fn the_scalar_spelling_is_the_compound_literal_too() {
+    let b = body(&gen_c(SCALAR), "test_take_basic");
+    assert!(
+        b.contains("uint32_t input = (uint32_t){0};"),
+        "one spelling for both, got:\n{b}"
+    );
 }
 
 /// A consumer that DOES return a value still binds.

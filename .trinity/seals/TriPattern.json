@@ -1,5 +1,5 @@
 {
-  "gen_hash_c": "sha256:e151e4e6dbaef262c001d0e2eb1751dc8ea2f1d8fb74ffe3b5f94cf9a18042e4",
+  "gen_hash_c": "sha256:56f55960fe82b4cb267a01d6a4d48ca74b022d27a40ad38c14fb33411516bd6e",
   "gen_hash_rust": "sha256:06925170705bb91648f65bfd92cb327dd88a068419db036274412208361115e9",
   "gen_hash_verilog": "sha256:995ed92f7757efeef84ecff6ab0f682eec4b98ee3614fb7e25208fb6d026d844",
   "gen_hash_zig": "sha256:7dc0207c6e07abd4849574d5068b7b94cffd76e93cdcfe3f7dfc627180004e1d",
