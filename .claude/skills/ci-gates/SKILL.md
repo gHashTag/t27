@@ -9086,3 +9086,39 @@ looked, and I looked while chasing something else.
 
 **A count you wrote while working on another problem is a sample, not a
 census.** Re-enumerate before building on it.
+
+## 363. The census names the first occurrence, not the population
+
+Two rows in the work queue needed no owner decision: a closing brace with
+nothing open (4 specs) and a statement terminated twice (2). Fixing the line the
+census pointed at moved each error a few lines forward and recovered **nothing**
+-- because the same typo repeats.
+
+Fixing every occurrence of the SAME form: pubsub 2, mac_tb 6, uart_tb 5. All
+three parse. 615 -> 618 specs.
+
+**A census points at one instance per file, because that is all the compiler
+reports.** After the first repair, ask whether the form recurs before concluding
+the file needs something else.
+
+## 364. Two edits withdrawn
+
+`hybrid_arithmetic.t27` and `relay_observer.t27` took the same repair, advanced
+by seven lines each, and still do not parse -- they hit a different construct.
+The edits also made their seals STALE, and `check_seal_coverage.py` went red.
+
+Reverted. An edit that buys no measurable change and costs a re-seal is not a
+repair, and carrying it into the PR would have traded a green gate for nothing.
+
+The tell was the gate, not my judgement: I would have shipped those two.
+
+## 365. The guard that refused, correctly
+
+`tri ledgers audit` reported red mid-iteration -- because a ledger had
+uncommitted changes and the command refuses to run in that state, since it
+rewrites and restores what it touches.
+
+That is the guard working, not a defect, and it is worth stating in a report
+rather than quietly re-running later: **a tool that refuses is not the same as a
+tool that fails**, and a summary that lists both as RED is one line away from
+being wrong.

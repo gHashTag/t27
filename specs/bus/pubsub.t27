@@ -386,7 +386,7 @@ pub fn publish_result_to_string(result: PublishResult) []u8 {
         return "success";
     } else {
         return "error: " ++ result.error;
-    };
+    }
 }
 
 /// Get subscribe result string
@@ -395,7 +395,7 @@ pub fn subscribe_result_to_string(result: SubscribeResult) []u8 {
         return "success";
     } else {
         return "error: " ++ result.error;
-    };
+    }
 }
 
 /// Get unsubscribe result string
@@ -404,7 +404,7 @@ pub fn unsubscribe_result_to_string(result: UnsubscribeResult) []u8 {
         return "success";
     } else {
         return "error: " ++ result.error;
-    };
+    }
 }
 
 // ============================================================================
