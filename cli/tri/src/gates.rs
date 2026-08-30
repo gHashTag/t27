@@ -2455,10 +2455,50 @@ fn has_auto_default_run(text: &str, default_branch: &str) -> bool {
         // `push:` with nothing under it fires on every branch.
         None => true,
         Some(list) if list.is_empty() => true,
-        Some(list) => list
-            .iter()
-            .any(|b| b == default_branch || b == "*" || b == "**"),
+        Some(list) => list.iter().any(|b| branch_pattern_matches(b, default_branch)),
     }
+}
+
+/// GitHub branch filters are PATTERNS, not names.
+///
+/// An equality test reads `branches: ['ma*']` as "does not cover master" and
+/// reports a workflow structurally unmeasurable when it runs on every push. The
+/// list in this repository happens to contain no such pattern today -- an
+/// independent yaml+fnmatch reader agrees with this function on all 49 files --
+/// so the equality version would have been correct here and wrong in principle,
+/// which is the worst kind of correct.
+///
+/// The subset implemented is GitHub's: `*` matches within one path segment,
+/// `**` matches across segments, and everything else is literal. `?`, `+` and
+/// character classes are NOT implemented and are treated as literals, which
+/// errs toward reporting a workflow as uncovered -- a false entry in a work
+/// list rather than a silence.
+fn branch_pattern_matches(pattern: &str, branch: &str) -> bool {
+    fn walk(p: &[u8], b: &[u8]) -> bool {
+        if p.is_empty() {
+            return b.is_empty();
+        }
+        if p[0] == b'*' {
+            let double = p.len() > 1 && p[1] == b'*';
+            let rest = if double { &p[2..] } else { &p[1..] };
+            // `*` stops at a `/`; `**` crosses them.
+            let mut i = 0;
+            loop {
+                if walk(rest, &b[i..]) {
+                    return true;
+                }
+                if i >= b.len() {
+                    return false;
+                }
+                if !double && b[i] == b'/' {
+                    return false;
+                }
+                i += 1;
+            }
+        }
+        !b.is_empty() && p[0] == b[0] && walk(&p[1..], &b[1..])
+    }
+    walk(pattern.as_bytes(), branch.as_bytes())
 }
 
 /// `[master, main]`, `[ "master" ]`, or an empty string for a block list below.
@@ -4124,5 +4164,60 @@ mod auto_default_run_tests {
             "expected to read the workflow directory, read {read} file(s) -- a test \
              that reads nothing passes vacuously"
         );
+    }
+}
+
+#[cfg(test)]
+mod branch_pattern_tests {
+    use super::{branch_pattern_matches, has_auto_default_run};
+
+    #[test]
+    fn a_literal_matches_itself_and_nothing_else() {
+        assert!(branch_pattern_matches("master", "master"));
+        assert!(!branch_pattern_matches("master", "main"));
+        assert!(!branch_pattern_matches("mast", "master"));
+        assert!(!branch_pattern_matches("master", "mast"));
+    }
+
+    /// The case an equality test gets wrong: a pattern that covers the default
+    /// branch without naming it.
+    #[test]
+    fn a_star_covers_the_default_branch() {
+        assert!(branch_pattern_matches("ma*", "master"));
+        assert!(branch_pattern_matches("*", "master"));
+        assert!(branch_pattern_matches("**", "master"));
+        let y = "on:\n  push:\n    branches: ['ma*']\njobs: {}\n";
+        assert!(has_auto_default_run(y, "master"));
+    }
+
+    /// `*` stops at a slash and `**` does not -- GitHub's rule, and the reason
+    /// `feature/**` does not cover `master` while `**` does.
+    #[test]
+    fn one_star_stops_at_a_slash_and_two_do_not() {
+        assert!(!branch_pattern_matches("feature/*", "feature/a/b"));
+        assert!(branch_pattern_matches("feature/**", "feature/a/b"));
+        assert!(branch_pattern_matches("feature/*", "feature/a"));
+        assert!(!branch_pattern_matches("*", "a/b"));
+        assert!(branch_pattern_matches("**", "a/b"));
+    }
+
+    /// The live shape that separates "has a push key" from "has a push covering
+    /// master": notebook-sync.yml pushes on four patterns, none of them master.
+    /// Counting the KEY gives 16 files with no push; counting COVERAGE gives 17,
+    /// and 17 is the number that answers "can this produce a baseline".
+    #[test]
+    fn a_push_whose_patterns_exclude_the_default_is_not_coverage() {
+        let y = "on:\n  push:\n    branches: ['feature/**', 'fix/**', 'ring-*/**', 'issue-*/**']\njobs: {}\n";
+        assert!(!has_auto_default_run(y, "master"));
+        assert!(has_auto_default_run(y, "feature/x"));
+    }
+
+    /// Unimplemented syntax is treated as a literal, so it fails to match rather
+    /// than matching everything. A wrong answer in a work list is visible; a
+    /// wrong silence is not.
+    #[test]
+    fn unimplemented_syntax_errs_toward_reporting() {
+        assert!(!branch_pattern_matches("mast?r", "master"));
+        assert!(!branch_pattern_matches("+([a-z])", "master"));
     }
 }
