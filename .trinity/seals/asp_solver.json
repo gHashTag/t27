@@ -1,6 +1,6 @@
 {
-  "gen_hash_c": "sha256:0a2e4329033fb3f1af1e943483a3a07290e41bd09f66e54760c0b26902483d17",
-  "gen_hash_rust": "sha256:37bac454a06e1f9a567622ff3cf521bbc2fbb6f4c15ef28f4a739f15cd410d20",
+  "gen_hash_c": "sha256:6853fa2f0ade52dabfe66d11846ce96374ef244b644ef8bf1a49b5ded8c53d6b",
+  "gen_hash_rust": "sha256:55933339b5fe7bf29aca7771520157d43d838784b249e3518dbeaa84a5ad89b6",
   "gen_hash_verilog": "sha256:4a3aac88230f26e414bd206d0168d8063b891db31ae52d7ed63c02186a0d6944",
   "gen_hash_zig": "sha256:eceaded4f26af6e30cd424ffcc9318a85eaf61562f0c1de85d85260f4c45437f",
   "module": "asp_solver",

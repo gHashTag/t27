@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:0343ab788bd9fd208917dc796090256068ce2bc50844d5e16f1bad6bc14a2beb",
-  "gen_hash_rust": "sha256:08f0c96fb14c7de97361e24a31f7b67a383ecbce34120735db651b3764cc20ff",
+  "gen_hash_c": "sha256:ac9b77b44e5c539b8f2bcb7d90081eb16b50ce6166caf32f4ace991f5a1fc396",
+  "gen_hash_rust": "sha256:ad5d3e621981e377cc1a33955fbe2184e26401c31ecd32e7762d9eeabbd27124",
   "gen_hash_verilog": "sha256:8bb1e33c10550b063ffab24c87d17b0592ce4dcf2c0fdacbfa327acac9b071ef",
   "gen_hash_zig": "sha256:586f96962f1c180337dd17610889fe2fcf15cf7dff2ebc697b8dd619a72e335a",
   "module": "AgentRunner",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:26Z",
+  "sealed_at": "2026-08-30T18:16:31Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:959e06da2849febdf16205273e4592a5390ce6c4d2be52caf2b7a5b80e3f5a1e",
   "spec_path": "specs/server/agent-runner.t27"

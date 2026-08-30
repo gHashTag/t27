@@ -1,6 +1,6 @@
 {
-  "gen_hash_c": "sha256:59fa62fdba97c5f84dcea923e73abce6ed0d12bb8a7d4670dd678df77c4d3bfd",
-  "gen_hash_rust": "sha256:d307b19f6a47782c3a0ac22059dda6c8430f350f47956afd9bca952d57d91763",
+  "gen_hash_c": "sha256:abc296b807658edc06618aa910b2497d202c4e57f803c7671c8dfd4343264ec9",
+  "gen_hash_rust": "sha256:00fa07786c60d62c2413b0583241bf857d5061a6d90b385ff8567530e9eca9f2",
   "gen_hash_verilog": "sha256:cde8b3da09478086d0bbe7f87fd950c2366b36c21e7bfb8d0bfc9718e995d1fb",
   "gen_hash_zig": "sha256:c0d03e3731a41d687ae8afa381636a029fddf39c1e723fca6d652a5425d5e2ce",
   "module": "EmitterXDC",

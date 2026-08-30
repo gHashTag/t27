@@ -1,6 +1,6 @@
 {
-  "gen_hash_c": "sha256:59be6f2ba84e0458cfed377b1de6d2c4532243f99e0e977b82871d324f4f50ac",
-  "gen_hash_rust": "sha256:37ca709086a97ef3adc7c774d80b210a7663fb32f3060f314c80713bbd27c0d2",
+  "gen_hash_c": "sha256:9a6bde295026c301e21838ab6cb9e473d5c3b0d9571dec7fa90dbc2a92ff4b86",
+  "gen_hash_rust": "sha256:238c2aecf8c4b7e2c67b2b17f08eba8d8b2662a3e5739f64ac69da6108f01120",
   "gen_hash_verilog": "sha256:b1eaa52eef7b0345664eb1a55d99d18268e6bffa2d3eba15cd2064727f546119",
   "gen_hash_zig": "sha256:ba5ce8278b619f21f006b79db9ceb2577f88e1a8e62308a1eb3823b1afe024da",
   "module": "CrossOpt",

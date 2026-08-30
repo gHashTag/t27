@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d4a7259e80ad7c61a913a348a7d877dbf9f46c6a8f44851bd6e73b026b23b0fd",
-  "gen_hash_rust": "sha256:3d3f5d5db28468a36cffaa61f484d56c3c208c4c94e22e53823dfe6d3d862f90",
+  "gen_hash_c": "sha256:316a0c30d8a1f6de88d20abc2d40b1f2f7de945c6eaa482429f6765013af8558",
+  "gen_hash_rust": "sha256:5e871c0e5a6d8818183639d0ed97bccccbcfe390e68fe249e2e9cc2f47717d18",
   "gen_hash_verilog": "sha256:1c2596a54a270f045b6f498fed97e291427718d4357c035fdb4848ae26bff133",
   "gen_hash_zig": "sha256:4aae0184aa1ec18b0d60f9c8219a0b5b1fbe4693e9b845a6be2da84a4d3c4284",
   "module": "igla-race-eda",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:24Z",
+  "sealed_at": "2026-08-30T18:16:30Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:c7d25ebc6fa857c980cdf55def807bc0070eabdeace37898c006ed6cafd6b303",
   "spec_path": "specs/igla/race/eda.t27"

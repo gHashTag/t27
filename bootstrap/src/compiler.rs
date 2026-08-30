@@ -18360,11 +18360,18 @@ impl CCodegen {
             let child = &node.children[0];
             // Simple literal → #define
             if child.kind == NodeKind::ExprLiteral {
-                self.write_line(&format!(
-                        "#define {} {}",
-                        node.name,
-                        Self::c_literal(&child.value)
-                    ));
+                // `c_literal` takes a &str and so cannot see the lexer's
+                // `extra_kind == "string"` tag, which lives on the NODE. A
+                // string constant therefore emitted `#define NAME trinity` --
+                // and that is worse than a compile error, because a #define of
+                // a bare word is valid C. It lands in the output and fails
+                // wherever it is used, or expands to something else entirely.
+                let text = if child.extra_kind == "string" {
+                    format!("\"{}\"", Codegen::zig_escape(&child.value))
+                } else {
+                    Self::c_literal(&child.value)
+                };
+                self.write_line(&format!("#define {} {}", node.name, text));
             } else {
                 // Complex expression → static const
                 self.write(&format!("static const {} {} = ", c_type, node.name));
@@ -19564,6 +19571,25 @@ impl CCodegen {
     fn gen_c_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => {
+                // The lexer strips the surrounding quotes and stores the raw
+                // text, tagging the node `extra_kind == "string"`. Zig reads
+                // that tag (W560), Verilog reads it, the typechecker reads it
+                // -- and this emitter never did, so every string literal was
+                // written back as a bare identifier:
+                //
+                //     let s = "hello world"      ->  __auto_type s = hello world;
+                //     const NAME : str = "trinity" -> #define NAME trinity
+                //
+                // The second is worse than a compile error: a `#define` of a
+                // bare word is valid C, so it lands in the output and fails
+                // wherever it is used, or silently expands to something else.
+                //
+                // The lexer UNESCAPES as it reads, so the value here holds real
+                // newlines and quotes; they have to be written back escaped.
+                if node.extra_kind == "string" {
+                    self.write(&format!("\"{}\"", Codegen::zig_escape(&node.value)));
+                    return;
+                }
                 // Zig and Rust write `100_000_000`; C does not. The separator
                 // reached the output verbatim and `cc` reads it as a suffix:
                 // `invalid suffix '_000_000' on integer constant`. 97 lines
@@ -23963,6 +23989,14 @@ impl RustCodegen {
 
     fn expr_to_rust(&self, node: &Node) -> String {
         match node.kind {
+            // Same hole as the C emitter had, in the same place: the lexer's
+            // `extra_kind == "string"` tag is on the node and this arm returned
+            // the raw value, so `let s = "hello world"` became
+            // `let s = hello world;` and `const NAME : str = "trinity"` became
+            // `pub const NAME: String = trinity;`.
+            NodeKind::ExprLiteral if node.extra_kind == "string" => {
+                format!("\"{}\"", Codegen::zig_escape(&node.value))
+            }
             NodeKind::ExprLiteral => node.value.clone(),
             NodeKind::ExprIdentifier => node.name.clone(),
             NodeKind::ExprBinary => {
