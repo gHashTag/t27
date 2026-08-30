@@ -10381,6 +10381,114 @@ The check as written above still runs — the fetch is needed to learn the live 
 actually moved. On its first use after being written, this section turned a
 re-read into two commands.
 
+
+## 411. Date a survey from outside its own text
+
+A competitive table is a claim with a date on it, and the date is usually
+nowhere in the file. Here it was: an arXiv identifier has had the form
+`YYMM.NNNNN` since 2007, and `YYMM` is the month of FIRST submission --
+unchanged by later versions. So the id dates the PAPER, not the reading, and the
+survey behind `specs/igla/coder/benchmark.t27` can be read for age with no
+network at all.
+
+    newest paper CITED BY A RECORD   2026-06   2 month(s) ago
+      2026-05     9  #########
+      2026-06    49  ########################################
+      2026-07     0
+      2026-08     0
+
+Forty-nine records in one month, then nothing. The property that makes this
+work is that the population is defined OUTSIDE the repository -- by arXiv's
+numbering scheme -- so no matcher of mine can move it, which is exactly what
+§383 says a countable population needs.
+
+Two design decisions the reading needed. The gap is pinned by `--as-of YYYY-MM`
+rather than the system clock, because a number that changes while nobody edits
+anything cannot be asserted in a test. And there is **no `--gate`**: a gate
+that reddens because a month passed, with nobody having changed anything, is a
+gate that gets muted.
+
+## 412. A gap is not a defect until a counterexample closes it
+
+The empty months above are equally consistent with "the survey stopped looking"
+and "the field published nothing", and from inside the repository those two are
+indistinguishable. Printing the gap and calling it staleness would have been a
+cause invented to fit a correlation.
+
+What separates them is one **counterexample**: a paper in the gap that belongs
+in the table. Two exist -- `arXiv:2607.13079` (ChipVerilog, a Pass@k benchmark
+for exactly the systems this table scores) and `arXiv:2607.18519`. That
+converts "no recent entries" from an observation into a measurement.
+
+The command says this and refuses to conclude, and the counterexamples live in
+the issue rather than in the code: a hardcoded known-missing paper goes vacuous
+the day somebody adds it, and then the check quietly stops testing anything.
+
+## 413. A claim needs the survey that covers ITS population
+
+`docs/BITNET_STACK.md` says a differentiator "no competitor has", and "None
+generates a network from a ternary-native spec-first compiler -- that is this
+stack's unique position". The evidence directly above it is a **four-row** table.
+
+Two other documents in the same repository state the standard:
+`POSITIONING_CONFORMANCE_LAYER.md:122` -- "We do not claim 'first' or 'only'
+anything (banned-hype rule)" -- and `COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md:337`
+-- "**Avoid:** 'No competitor uses similar mathematics' -- not established
+without exhaustive survey."
+
+The interesting part is not that the rule is broken. It is that the repository
+holds a 168-record survey which could not license that sentence **however fresh
+it were**, because it catalogues LLMs that write Verilog and the claim is about
+ternary spec-first compilers. A third document surveys HDL toolchains and is
+current to July 2026. Three surveys, three populations, and the claim rests on
+none of them.
+
+Before reading a survey as backing for a superlative, ask what the survey
+enumerates and whether the claim quantifies over the same set. Freshness is the
+second question; population is the first.
+
+## 414. An honesty gate that prints a count and a pointer
+
+`rings-rust.yml` opens by declaring itself "an *honesty gate* that surfaces
+real per-crate compile state without yet enforcing it". Its `summary` job
+printed the crate COUNT and a link to a hand-maintained markdown file, and never
+read the matrix result it had just produced 17 times.
+
+    2026-08-20  conclusion=success  17 of 19 jobs failed
+    2026-08-06  conclusion=success  17 of 19 jobs failed
+    ... seven such master runs, 2026-05-23 to 2026-08-20
+
+Every ring crate failed to compile for three months. All seven runs were green,
+and `rings/COMPILE_STATUS.md` -- "the honest, living per-crate compilation
+status", last updated 2026-05-22 -- said they compile. Two instruments, both
+silent, and the crates were repaired without either having said they broke.
+
+`continue-on-error: true` was **not** the defect: the workflow states why in
+its own header, and that reason is sound. The defect is a summary that reports
+a population size instead of a result. When a job is deliberately non-blocking,
+its summary is the ONLY place the state is stated, and `steps.<id>.outcome` --
+the step result taken before `continue-on-error` is applied -- is the honest
+value to print.
+
+## 415. Measure the detector before you ship it, and run it on its own example
+
+I was one commit from shipping `tri claims superlative`. Measuring first killed
+it: across 2149 first-party markdown files the word `only` occurs **3437**
+times and `first` **3152**, so no loose matcher is usable. Narrowed to
+documents with a competitor heading it scored **2 real claims in 6 hits** -- and
+two of the four false positives were the sentences that STATE the rule
+("**Avoid:** 'No competitor uses...'"). Three false positives in six is how a
+check dies, so the finding went into an issue as prose and no command shipped.
+
+The narrowing had its own bug, and it is the one worth remembering: the first
+matcher **missed the very document that motivated it**. The heading is
+`## Competitors` and the pattern was `competitor`, whose word boundary
+fails before the `s`. It reported six documents and the seventh -- the one I
+was hunting -- was not among them.
+
+Always run a new detector against the example that made you write it, and
+confirm that example is in the output. Without that check, "found nothing here"
+and "cannot see this shape at all" print identically.
 ## 416. A commit on a detached HEAD succeeds, and says nothing
 
 An hour of work committed cleanly, and then:
