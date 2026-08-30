@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:59ff8abd5a986c011d93fa0cf8048f997df165e9ed22407b0810c9c930a6150f",
+  "gen_hash_c": "sha256:a264521ef17a16bb624dca7ee2e02508dcffd41cd3ac7c779662f0e4b290eaff",
   "gen_hash_rust": "sha256:f941545184bc253a12a0d1f9a6c73c5227c0950efc18f14a2d6cfe36c8e0975d",
   "gen_hash_verilog": "sha256:4dfadfe87db015636954b16e3d97cfb36fb5e96c723851b0022d810e79470872",
   "gen_hash_zig": "sha256:4d9f1667773fe718beb9d20a30aa16b173e16e2026e4acc5bdf7f82ffe76eb78",
   "module": "TriSegmentTree",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:18Z",
+  "sealed_at": "2026-08-30T12:18:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d4fff09b1c7e86fca582abd18362a0dafd271e3e11b8bbdbe13f257d8e71a17d",
   "spec_path": "specs/tri/trees/segment_tree.t27"

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:30df169b583b72a72bc9a8868984521041b6ce6858421cc2b5aa7e136a19cfb5",
+  "gen_hash_c": "sha256:20b78b7b7a0ca7cdac25abe2c9b2300e316a55fe76dd185680f3321f2cecbc78",
   "gen_hash_rust": "sha256:594870224e4e0d7f6dd3cc8c02bca9eedd613d373cbe7981ba44730a58838400",
   "gen_hash_verilog": "sha256:97d7d34c4d2bc90f29ab8a222685088165f83af9647a229bf4433f890b66ec51",
   "gen_hash_zig": "sha256:b35843259cabc94a3d9de137e92d0d73921dbdafbcf31cad3113767cdb040c99",
   "module": "TriQuickSort",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:18Z",
+  "sealed_at": "2026-08-30T12:18:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:486562f3726f65e2830e5e0deaf3019433d59081fd5ba1edca4cb38f5aa3b195",
   "spec_path": "specs/tri/sort/quick_sort.t27"

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:126c0cddddf9f00d505cbdbdc7967df6a0abf2a0ad34a511a4abbf13d1864beb",
+  "gen_hash_c": "sha256:67b88aca6588c54ca1eb34d0f24ba6e7547a6b2a77cc9a5b828a7c74d5592b92",
   "gen_hash_rust": "sha256:efdcad6213f8e3f0d418f9e719031d79c4df76ee527fd20797bc1607e9e95d54",
   "gen_hash_verilog": "sha256:0b162a8bb16a0d091e7a7a96431462874af067484da58feb5b03414ad234a2e5",
   "gen_hash_zig": "sha256:1b097a45b76e6f85f81910e3a42c82934f1cf49867227d4c4b94fffc936c62ee",
   "module": "SearchMatch",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:18Z",
+  "sealed_at": "2026-08-30T12:18:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:12299009a56b6404c248457a5d524f02615a7898a3155bc991a36dd702986ac0",
   "spec_path": "specs/tri/search/match.t27"

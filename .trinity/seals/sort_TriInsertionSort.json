@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c23045cef76404660213021f65703d75b496ed066d99286f95711eb1bc1a5270",
+  "gen_hash_c": "sha256:179e108d9c2c34ba08b1d608906e44ed8e956dc44c34b56810ebd601aa93e0ed",
   "gen_hash_rust": "sha256:3ddce1038b21201eae751af4f982b6b82db4fbe1fed4ad94d0442eeb3108911f",
   "gen_hash_verilog": "sha256:a2dcf704b335c0f84d725f0b29af5a76a6c4a65f99ee0f741f8b557438be5055",
   "gen_hash_zig": "sha256:f3f0b4555f1ec7ef40f70ccb703244af4a79d38756edffb23bcd8be8b0863138",
   "module": "TriInsertionSort",
   "ring": 12,
-  "sealed_at": "2026-08-30T01:11:18Z",
+  "sealed_at": "2026-08-30T12:18:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:634ede05a35cbcb717679f041f06b2f1dcc762090d29ade3e798650637f9bbe8",
   "spec_path": "specs/tri/sort/insertion_sort.t27"
