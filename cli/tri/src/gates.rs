@@ -2369,6 +2369,43 @@ fn has_path_filter(root: &std::path::Path, rel: &str) -> bool {
     }
 }
 
+/// Does this workflow READ pull-request context?
+///
+/// A correction to a message this command printed for about an hour. It said
+/// "`dispatch: yes` means the missing reading can be TAKEN" -- and for five of
+/// the seventeen it says that about, dispatching starts the workflow and
+/// measures nothing, because the check's subject IS a pull request.
+///
+/// `tools/check_now_entry_shape.py` is explicit about it, and deliberately so:
+/// on any event that is not `pull_request` it prints "NOT APPLICABLE ... Nothing
+/// was checked and nothing is claimed" and exits 0. It is honest in its log and
+/// green in the checks list, and `check` is one of the four contexts the ruleset
+/// requires.
+///
+/// So "can be started" and "can be measured" are different, and a tool that
+/// conflates them sends a reader to dispatch a gate that will decline. This is
+/// a grep over the workflow text, which is a weaker instrument than reading the
+/// scripts it calls -- it finds the context the WORKFLOW passes down, not every
+/// way a script might depend on a pull request. It errs toward marking fewer
+/// files, so the column understates rather than overstates.
+fn reads_pr_context(root: &std::path::Path, rel: &str) -> bool {
+    match std::fs::read_to_string(root.join(rel)) {
+        Ok(t) => text_reads_pr_context(&t),
+        Err(_) => false,
+    }
+}
+
+/// Split from the file read so the markers can be tested without a tree.
+fn text_reads_pr_context(text: &str) -> bool {
+    const MARKERS: [&str; 4] = [
+        "github.event.pull_request",
+        "PR_BASE_SHA",
+        "PR_HEAD_SHA",
+        "github.event.number",
+    ];
+    MARKERS.iter().any(|m| text.contains(m))
+}
+
 /// Can this workflow ever produce a default-branch run WITHOUT a human?
 ///
 /// `unmeasured` above reports staleness: how long since the last default-branch
@@ -2525,7 +2562,7 @@ fn has_dispatch(root: &std::path::Path, rel: &str) -> bool {
 
 fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     let root = repo_root()?;
-    let mut no_auto: Vec<(String, String, bool, String)> = Vec::new();
+    let mut no_auto: Vec<(String, String, bool, bool, String)> = Vec::new();
     // Named once, so the printed sentence quotes the branch actually queried
     // rather than the word "master" hardcoded into a message.
     let mut default_branch_seen = String::new();
@@ -2615,6 +2652,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                         repo.clone(),
                         name.to_string(),
                         has_dispatch(&root, path),
+                        reads_pr_context(&root, path),
                         if last.is_empty() {
                             "never".to_string()
                         } else {
@@ -2673,22 +2711,34 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             no_auto.len(),
             if default_branch_seen.is_empty() { "the default branch" } else { default_branch_seen.as_str() }
         );
-        println!("  {:<10}  {:<9}  {}", "LAST", "dispatch", "WORKFLOW");
-        for (repo, name, dispatch, last) in &no_auto {
+        println!(
+            "  {:<10}  {:<9}  {:<8}  {}",
+            "LAST", "dispatch", "pr-only", "WORKFLOW"
+        );
+        for (repo, name, dispatch, pr_only, last) in &no_auto {
             println!(
-                "  {:<10}  {:<9}  {}  ({})",
+                "  {:<10}  {:<9}  {:<8}  {}  ({})",
                 last,
                 if *dispatch { "yes" } else { "NO" },
+                if *pr_only { "YES" } else { "-" },
                 name,
                 repo
             );
         }
         println!(
-            "\n  `dispatch: yes` means the missing reading can be TAKEN -- fire it at the\n\
-               default branch rather than inferring the baseline from sibling branches.\n\
-               `LAST` here is a lifetime per-workflow query, not a window over recent\n\
-               runs: reading a window and reporting a lifetime is how this section came\n\
-               to exist.\n"
+            "\n  `dispatch: yes` with `pr-only: -` means the missing reading can be TAKEN:\n\
+               fire it at the default branch rather than inferring a baseline from\n\
+               sibling branches.\n\
+             \n  `pr-only: YES` means it CANNOT. Those workflows read pull-request context,\n\
+               so dispatching one starts it and measures nothing -- check-now-freshness\n\
+               prints \"NOT APPLICABLE ... nothing was checked and nothing is claimed\"\n\
+               and exits 0, which is green in the checks list. For those the answer is\n\
+               not a dispatch: either the check learns a default-branch mode, or the\n\
+               context is recorded as PR-only by construction and stops being read as a\n\
+               gap.\n\
+             \n  `LAST` is a lifetime per-workflow query, not a window over recent runs.\n\
+               Reading a window and reporting a lifetime is how this section came to\n\
+               exist.\n"
         );
     }
 
@@ -4219,5 +4269,39 @@ mod branch_pattern_tests {
     fn unimplemented_syntax_errs_toward_reporting() {
         assert!(!branch_pattern_matches("mast?r", "master"));
         assert!(!branch_pattern_matches("+([a-z])", "master"));
+    }
+}
+
+#[cfg(test)]
+mod pr_context_tests {
+    use super::text_reads_pr_context;
+
+    /// The three required-or-merge-critical shapes this separates. Dispatching
+    /// any of them at the default branch starts the workflow and measures
+    /// nothing, so "the reading can be taken" is false for them.
+    #[test]
+    fn the_three_marker_families_are_all_seen() {
+        assert!(text_reads_pr_context("env:\n  PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}\n"));
+        assert!(text_reads_pr_context("run: echo ${{ github.event.pull_request.title }}\n"));
+        assert!(text_reads_pr_context("run: gh pr view ${{ github.event.number }}\n"));
+    }
+
+    /// A workflow that only ever reads the ref or the SHA is measurable by
+    /// dispatch, and must not be marked.
+    #[test]
+    fn ordinary_context_is_not_pull_request_context() {
+        let y = "run: echo ${{ github.ref }} ${{ github.sha }} ${{ github.repository }}\n";
+        assert!(!text_reads_pr_context(y));
+    }
+
+    /// The column understates on purpose: this grep sees the context the
+    /// WORKFLOW passes down, not every way a script it calls might depend on a
+    /// pull request. A false "-" sends someone to dispatch a gate that then
+    /// declines, which is recoverable; a false "YES" would tell them not to
+    /// bother taking a reading that was available.
+    #[test]
+    fn a_script_that_reads_the_event_json_itself_is_not_seen() {
+        let y = "run: python3 tools/gate.py   # reads GITHUB_EVENT_PATH inside\n";
+        assert!(!text_reads_pr_context(y));
     }
 }
