@@ -36,7 +36,7 @@
 //! detector inputs and are counted on their own line, never as debt.
 use anyhow::Result;
 use clap::Subcommand;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 #[derive(Subcommand)]
@@ -59,6 +59,16 @@ pub enum UnparsedCmd {
         #[arg(long)]
         refuted: bool,
     },
+    /// Cross-check the census against an INDEPENDENTLY built population.
+    ///
+    /// `report`, `locate` and `prose` read ONE shared scope, so their agreeing
+    /// with each other proves nothing about the numbers -- only that they read
+    /// the same variable. This walks the working tree instead of asking git,
+    /// classifies every spec again, and demands the same answer.
+    ///
+    /// It also names what the census is structurally blind to: a spec on disk
+    /// that git does not track is invisible to every command here.
+    Agree,
     /// Run every construct's minimal source and say which the compiler rejects.
     ///
     /// This is the census's own control. A row it names must fail here; a row
@@ -460,8 +470,21 @@ fn accepted_head(line: &str) -> bool {
 pub(crate) struct Scope {
     pub failures: Vec<(String, String)>,
     pub fixtures: usize,
-    pub other_stage: usize,
-    pub tracked: usize,
+    pub lex: usize,
+    pub typecheck: usize,
+    pub semantic: usize,
+    /// Every spec the census may speak about, as git listed it.
+    pub list: Vec<String>,
+}
+
+impl Scope {
+    /// Failing specs the parse question does not apply to.
+    pub fn other_stage(&self) -> usize {
+        self.lex + self.typecheck + self.semantic
+    }
+    pub fn tracked(&self) -> usize {
+        self.list.len()
+    }
 }
 
 pub(crate) fn parse_failures(root: &Path, t27c: &Path) -> Scope {
@@ -480,8 +503,10 @@ pub(crate) fn parse_failures(root: &Path, t27c: &Path) -> Scope {
     let mut sc = Scope {
         failures: Vec::new(),
         fixtures: 0,
-        other_stage: 0,
-        tracked: list.len(),
+        lex: 0,
+        typecheck: 0,
+        semantic: 0,
+        list: list.clone(),
     };
     for spec in list {
         let Ok(o) = std::process::Command::new(t27c)
@@ -500,13 +525,146 @@ pub(crate) fn parse_failures(root: &Path, t27c: &Path) -> Scope {
             continue;
         }
         let text = String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout);
-        if stage_of(&text) != Stage::Parse {
-            sc.other_stage += 1;
-            continue;
+        match stage_of(&text) {
+            Stage::Lex => {
+                sc.lex += 1;
+                continue;
+            }
+            Stage::Typecheck => {
+                sc.typecheck += 1;
+                continue;
+            }
+            Stage::Semantic => {
+                sc.semantic += 1;
+                continue;
+            }
+            Stage::Parse => {}
         }
         sc.failures.push((spec, text.to_string()));
     }
     sc
+}
+
+/// Every `.t27` on disk, found by walking rather than by asking git.
+fn walk_specs(dir: &Path, root: &Path, out: &mut Vec<String>) {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in rd.flatten() {
+        let path = e.path();
+        let name = e.file_name();
+        let name = name.to_string_lossy();
+        if path.is_dir() {
+            if name == ".git" || name == "target" || name == "node_modules" {
+                continue;
+            }
+            walk_specs(&path, root, out);
+        } else if name.ends_with(".t27") {
+            if let Ok(rel) = path.strip_prefix(root) {
+                out.push(rel.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+}
+
+/// Demand the census's population and stage split survive an independent walk.
+///
+/// The three census commands share one scope, so they cannot disagree with
+/// each other any more -- which also means their agreement measures nothing.
+/// This builds the population the other way and compares.
+fn agree(root: &Path, t27c: &Path) -> Result<()> {
+    let sc = parse_failures(root, t27c);
+    let git: BTreeSet<String> = sc.list.iter().cloned().collect();
+
+    let mut walked = Vec::new();
+    walk_specs(root, root, &mut walked);
+    let disk: BTreeSet<String> = walked.into_iter().collect();
+
+    let (mut parse, mut lex, mut typecheck, mut semantic, mut fixtures) = (0, 0, 0, 0, 0);
+    let mut untracked_failing = 0usize;
+    for spec in &disk {
+        let Ok(o) = std::process::Command::new(t27c)
+            .arg("check")
+            .arg(spec)
+            .current_dir(root)
+            .output()
+        else {
+            continue;
+        };
+        if o.status.success() {
+            continue;
+        }
+        if !git.contains(spec) {
+            untracked_failing += 1;
+            continue;
+        }
+        if is_fixture(spec) {
+            fixtures += 1;
+            continue;
+        }
+        let text = String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout);
+        match stage_of(&text) {
+            Stage::Parse => parse += 1,
+            Stage::Lex => lex += 1,
+            Stage::Typecheck => typecheck += 1,
+            Stage::Semantic => semantic += 1,
+        }
+    }
+
+    let rows: [(&str, usize, usize); 5] = [
+        ("refused at PARSE", sc.failures.len(), parse),
+        ("refused at TYPECHECK", sc.typecheck, typecheck),
+        ("refused at LEX", sc.lex, lex),
+        ("refused at SEMANTICS", sc.semantic, semantic),
+        ("broken on purpose", sc.fixtures, fixtures),
+    ];
+
+    println!();
+    println!("  the census asks git; this walks the tree. Both must answer the same.");
+    println!();
+    println!("      {:<24}{:>10}{:>10}", "", "census", "walk");
+    for (name, a, b) in rows {
+        let mark = if a == b { "" } else { "   <- DISAGREE" };
+        println!("      {name:<24}{a:>10}{b:>10}{mark}");
+    }
+    println!();
+
+    let missing: Vec<&String> = git.difference(&disk).collect();
+    let extra = disk.difference(&git).count();
+    println!("      specs git tracks                   {}", git.len());
+    println!("      specs found on disk                {}", disk.len());
+    if extra > 0 {
+        println!(
+            "      on disk, NOT tracked               {extra}  ({untracked_failing} of them fail; the census cannot see any)"
+        );
+    }
+    if !missing.is_empty() {
+        println!("      tracked but absent from the walk   {}", missing.len());
+        for m in missing.iter().take(10) {
+            println!("          {m}");
+        }
+    }
+    println!();
+
+    let bad: Vec<&str> = rows
+        .iter()
+        .filter(|(_, a, b)| a != b)
+        .map(|(n, _, _)| *n)
+        .collect();
+    if !bad.is_empty() {
+        anyhow::bail!(
+            "two routes to one population disagree on: {}. One of them is filtering something it does not admit to.",
+            bad.join(", ")
+        );
+    }
+    if !missing.is_empty() {
+        anyhow::bail!(
+            "{} specs are in the census population but not on disk",
+            missing.len()
+        );
+    }
+    println!("  AGREED. Both routes name the same population and the same stages.");
+    Ok(())
 }
 
 pub(crate) fn is_fixture(path: &str) -> bool {
@@ -644,36 +802,26 @@ fn compiler(root: &Path) -> Result<PathBuf> {
 pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
     let t27c = compiler(&root)?;
 
+    if let UnparsedCmd::Agree = cmd {
+        return agree(&root, &t27c);
+    }
+
     if let UnparsedCmd::Locate { refuted } = cmd {
-        let out = std::process::Command::new("git")
-            .args(["ls-files", "*.t27"])
-            .current_dir(&root)
-            .output()?;
-        let specs: Vec<String> = String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .map(|s| s.to_string())
-            .filter(|s| root.join(s).is_file() && !is_fixture(s))
-            .collect();
+        // The population is the SHARED one, so this command cannot disagree
+        // with `report` about who is in it.
+        //
+        // It used to walk its own corpus and -- worse -- check the stage only
+        // AFTER demanding the error name a line. Three typecheck failures
+        // whose message names no line never reached the stage check and were
+        // printed as "nothing claimed": this command said 2 typecheck where
+        // its sibling, in the same binary, said 5.
+        let sc = parse_failures(&root, &t27c);
         let (mut found, mut refused, mut silent) = (Vec::new(), Vec::new(), 0usize);
-        let (mut tc, mut lex, mut sem) = (0usize, 0usize, 0usize);
-        for spec in &specs {
-            let p = root.join(spec);
-            let quick = std::process::Command::new(&t27c)
-                .arg("check")
-                .arg(&p)
-                .current_dir(&root)
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(true);
-            if quick {
-                continue;
-            }
-            match locate_one(&t27c, &root, &p) {
+        let (tc, lex, sem) = (sc.typecheck, sc.lex, sc.semantic);
+        for (spec, text) in &sc.failures {
+            match locate_one(&t27c, &root, &root.join(spec), text) {
                 Located::Item(a, b, alone) => found.push((spec.clone(), a, b, alone)),
                 Located::Refuted(a, b) => refused.push((spec.clone(), a, b)),
-                Located::WrongStage(Stage::Typecheck) => tc += 1,
-                Located::WrongStage(Stage::Lex) => lex += 1,
-                Located::WrongStage(_) => sem += 1,
                 Located::None(_) => silent += 1,
             }
         }
@@ -792,55 +940,16 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
         .collect();
     let retired = CONSTRUCTS.len() - live.len();
 
-    let out = std::process::Command::new("git")
-        .args(["ls-files", "*.t27"])
-        .current_dir(&root)
-        .output()?;
-    let specs: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(|s| s.to_string())
-        .filter(|s| root.join(s).is_file())
-        .collect();
+    let sc = parse_failures(&root, &t27c);
+    let (fixtures, lex, typecheck, semantic) = (sc.fixtures, sc.lex, sc.typecheck, sc.semantic);
+    let failing = sc.failures.len();
 
     let mut by: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
-    let (mut upstream, mut fixtures, mut unlocated, mut failing) = (0usize, 0usize, 0usize, 0usize);
+    let (mut upstream, mut unlocated) = (0usize, 0usize);
     let mut unnamed: Vec<(String, String)> = Vec::new();
-    let (mut lex, mut typecheck, mut semantic) = (0usize, 0usize, 0usize);
 
-    for spec in &specs {
-        let Ok(o) = std::process::Command::new(&t27c)
-            .arg("check")
-            .arg(spec)
-            .current_dir(&root)
-            .output()
-        else {
-            continue;
-        };
-        if o.status.success() {
-            continue;
-        }
-        if is_fixture(spec) {
-            fixtures += 1;
-            continue;
-        }
-        let text = String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout);
-        match stage_of(&text) {
-            Stage::Lex => {
-                lex += 1;
-                continue;
-            }
-            Stage::Typecheck => {
-                typecheck += 1;
-                continue;
-            }
-            Stage::Semantic => {
-                semantic += 1;
-                continue;
-            }
-            Stage::Parse => {}
-        }
-        failing += 1;
-        let (Some(n), Ok(src)) = (line_of(&text), std::fs::read_to_string(root.join(spec))) else {
+    for (spec, text) in &sc.failures {
+        let (Some(n), Ok(src)) = (line_of(text), std::fs::read_to_string(root.join(spec))) else {
             unlocated += 1;
             continue;
         };
@@ -858,7 +967,7 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
     }
 
     let named: usize = by.values().map(|v| v.len()).sum();
-    println!("  specs tracked                       {}", specs.len());
+    println!("  specs tracked                       {}", sc.tracked());
     println!("  ... refused at PARSE                {failing}   <- this census");
     if typecheck > 0 {
         println!("  ... refused at TYPECHECK            {typecheck}   (they parse; a construct");
@@ -1133,6 +1242,57 @@ mod tests {
     // `report` learned the stage split and `locate` did not: 8 of its first 40
     // answers were typecheck failures. A type error already names its line AND
     // its reason, so a bisection has nothing to add.
+    /// The stage is decided by the error's KIND, never by whether the message
+    /// happens to name a line.
+    ///
+    /// `locate` checked the line first and the stage second. Three typecheck
+    /// failures print no line at all -- `Typecheck FAILED (6 errors, ...)` --
+    /// so they never reached the stage check and were filed as "nothing
+    /// claimed". The command reported 2 typecheck where `report`, in the same
+    /// binary, reported 5, and its buckets summed to 80 against a population
+    /// of 76.
+    #[test]
+    fn stage_does_not_depend_on_the_error_naming_a_line() {
+        let no_line = "Typecheck FAILED (6 errors, 0 warnings):";
+        assert!(line_of(no_line).is_none(), "this message names no line");
+        assert!(
+            stage_of(no_line) == Stage::Typecheck,
+            "and is still a typecheck failure"
+        );
+    }
+
+    /// The corpus is walked in exactly ONE place.
+    ///
+    /// `report`, `locate` and `prose` each learned the fixture rule and the
+    /// stage split separately, and each got a different answer. Lifting the
+    /// rule into `parse_failures` only helps while the siblings actually read
+    /// it -- a doc comment saying "disagreement is structurally impossible" is
+    /// the claim, not its evidence. This is the evidence.
+    #[test]
+    fn one_corpus_walk() {
+        let needle = ["\"ls-files\"", ", ", "\"*.t27\""].concat();
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut walks: Vec<(String, usize)> = std::fs::read_dir(&dir)
+            .expect("src/")
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+            .filter_map(|p| {
+                let n = std::fs::read_to_string(&p).ok()?.matches(&needle).count();
+                if n == 0 {
+                    return None;
+                }
+                Some((p.file_name()?.to_string_lossy().to_string(), n))
+            })
+            .collect();
+        walks.sort();
+        assert_eq!(
+            walks,
+            vec![("unparsed.rs".to_string(), 1usize)],
+            "the corpus belongs to `parse_failures` alone"
+        );
+    }
+
     #[test]
     fn locate_answers_only_for_parse_failures() {
         assert!(stage_of("Typecheck FAILED (1 errors, 0 warnings):") != Stage::Parse);
@@ -1393,48 +1553,24 @@ enum Located {
     Item(usize, usize, bool),
     /// A candidate the causality check refuted, with the line it named.
     Refuted(usize, usize),
-    /// The file does not fail at PARSE, so there is no item to find.
-    ///
-    /// `report` learned this and `locate` did not: 8 of its first 40 answers
-    /// were typecheck failures, where "the item whose presence causes the
-    /// failure" is a category error. A type error already names its line AND
-    /// its reason -- `cannot assign F64 to F32` -- so there is nothing for a
-    /// bisection to add.
-    WrongStage(Stage),
     /// Nothing claimed, and why.
     None(&'static str),
 }
 
-fn locate_one(t27c: &Path, root: &Path, path: &Path) -> Located {
+/// `text` is the compiler's output for `path` AS THE SHARED SCOPE SAW IT.
+///
+/// Reading the line from a fresh run here would be a second ruler for one
+/// question. Measured on all 76 parse failures, the two agreed exactly and
+/// neither left a failure without a line -- which is a reason to keep one, not
+/// a reason to keep both.
+fn locate_one(t27c: &Path, root: &Path, path: &Path, text: &str) -> Located {
     let Ok(src) = std::fs::read_to_string(path) else {
         return Located::None("unreadable");
     };
     let lines: Vec<&str> = src.lines().collect();
-    let (ok0, orig) = check_text(t27c, root, &src);
-    if ok0 {
-        return Located::None("parses");
-    }
-    let Some(orig) = orig else {
+    let Some(orig) = line_of(text) else {
         return Located::None("error names no line");
     };
-    // Same stage split `report` uses. Without it this command answers a
-    // question about parsing with evidence from type checking.
-    let stage = {
-        let out = std::process::Command::new(t27c)
-            .arg("check")
-            .arg(path)
-            .current_dir(root)
-            .output();
-        match out {
-            Ok(o) => {
-                stage_of(&(String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout)))
-            }
-            Err(_) => Stage::Parse,
-        }
-    };
-    if stage != Stage::Parse {
-        return Located::WrongStage(stage);
-    }
     let (bstart, bend) = split_module(&lines);
     if bstart == 0 || bend <= bstart {
         return Located::None("no module body");

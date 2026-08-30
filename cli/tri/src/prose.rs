@@ -204,7 +204,7 @@ pub fn run(cmd: &ProseCmd, root: PathBuf) -> Result<()> {
     // reported "107 specs that do not parse" where `unparsed` reported 76 --
     // 21 fixtures broken ON PURPOSE, and 10 specs that parse and fail later.
     let scope = parse_failures(&root, &t27c);
-    let (fixtures, other_stage) = (scope.fixtures, scope.other_stage);
+    let (fixtures, other_stage) = (scope.fixtures, scope.other_stage());
 
     let mut prose: Vec<(PathBuf, usize, Vec<String>)> = Vec::new();
     let mut code: Vec<(PathBuf, usize, String)> = Vec::new();
