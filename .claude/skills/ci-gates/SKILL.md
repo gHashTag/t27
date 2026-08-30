@@ -9425,3 +9425,63 @@ any sentence of the form "the sweep found".
 And the recovery is the point: the class was closed anyway, by the independent
 route running in parallel. **Never let a fan-out be the only instrument pointed
 at a question you can also measure yourself.**
+
+## 377. The message that names the failure mode it cannot detect
+
+`tri mods orphan --gate` prints, for a crate with no entry in its ledger:
+
+> A crate the ledger does not name is a crate this gate does not watch.
+
+The sentence is exactly right. It could only ever fire for a crate that was
+already in the command's own hardcoded `let crates = ["bootstrap", "cli/tri"]`,
+while `Cargo.toml` named five members. Three crates were in neither the list nor
+the ledger, so nothing printed anything about them at all -- and the line that
+describes that situation sat one scope away from being able to say so.
+
+**When a guard's message describes a class, check that the guard's POPULATION is
+that class.** Here the population was two of five, and the census printed their
+sum -- `7 of 132 files` -- as the repository's, where the real number is 136.
+
+Reading the list cargo reads makes the message fire for the first time about the
+case it was written for. That run is the proof the fix is real, and it belongs in
+the pull request:
+
+```
+::error::cli/trios-bridge: no ceiling in docs/reports/orphan_modules.json. ...
+::error::cli/flash-spi:    ...
+::error::cli/dlc10:        ...
+```
+
+Companion rule, already twice in this document under other names: **a guard
+written as a list goes stale by addition.** The removal direction was guarded
+here -- "the crate list in this command is stale" -- and the addition direction
+was not. Guarding one direction of a list is the tell.
+
+## 378. An anchor on a `fn` line splits an attribute from its function
+
+Inserting tests with a text anchor of `    fn some_test() {` puts the new block
+BETWEEN that function and the `#[test]` above it. Result, in one edit:
+
+* the last inserted test carries **two** `#[test]` attributes and runs twice,
+* the anchor function carries **none** and silently stops being a test.
+
+The suite total does not move -- one test gained a run, one lost one -- so
+`test result: ok. 383 passed` reads identical before and after. Removing the
+"duplicate" attribute then disables the real test and the count falls by one,
+which looks like the duplicate going away.
+
+Two consequences, both bit here:
+
+* **The flake was mine and my first diagnosis was wrong.** The double run shared
+  a fixed temp directory and failed intermittently; I called it "two test
+  binaries racing" and rewrote the fixture. The fixture rewrite was right for
+  its own reasons and the cause was a duplicated attribute.
+* **`clippy` says it plainly** -- `duplicated attribute` and `function ... is
+  never used` -- and both were visible in a diff of warning counts against
+  master before any of this was understood. Compare the warning COUNT with the
+  base branch on every change; a single new line of clippy output was the whole
+  answer.
+
+**Anchor on the attribute, not the signature**, and after any test insertion
+assert what you actually rely on: every test function carries exactly one
+`#[test]`.

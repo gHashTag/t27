@@ -1195,6 +1195,36 @@ pub fn run_corpus(
     println!("  {:<26} {:>5}  {:>6}", "Zig AND Verilog accept", both, format!("{:.1}%", pct(both)));
     println!("  {:<26} {:>5}  {:>6}", "ALL FOUR accept", all4, format!("{:.1}%", pct(all4)));
 
+    // A TIMEOUT IS NOT A REJECTION, and until now the columns above could not
+    // tell them apart.
+    //
+    // Every backend runs under `run_timed(..., 15)`, whose `None` return meets
+    // `== Some(0)` and becomes "not accepted" -- the same value a compiler error
+    // produces. So under load the columns fall, silently, and the fall looks
+    // exactly like a regression.
+    //
+    // Measured: three consecutive runs of this command on ONE binary at ONE
+    // commit, while eight other compiler processes were running, gave
+    //
+    //     cc accepts        38.2%   37.2%   (~6 specs apart)
+    //     ALL FOUR accept   16.9%   17.7%   (~5 specs apart)
+    //
+    // The count was already collected. Nothing printed it, so a reading taken
+    // on a loaded machine was indistinguishable from one taken on an idle one,
+    // and both were quoted as measurements.
+    if to > 0 {
+        println!();
+        println!(
+            "  {:<26} {:>5}   <- NOT rejections",
+            "specs that TIMED OUT", to
+        );
+        println!("  Every column above is a LOWER BOUND on this run. A backend that");
+        println!("  exceeded its 15s limit is counted as not-accepted, which is what a");
+        println!("  compiler error also looks like. Re-run on an idle machine before");
+        println!("  quoting any of these numbers, and compare runs PER SPEC");
+        println!("  (`--per-spec`) rather than by their totals.");
+    }
+
     // W699: the columns above are all "how many specs", and none of them is
     // "how much of a spec". A number that goes UP when a silent drop is fixed
     // is measuring the drop; printing it here is what stops the columns from
