@@ -10744,3 +10744,42 @@ before committing** -- with the simulator on `PATH` (passes) and with it removed
 (prints `iverilog is not on PATH; skipping the runtime leg (nothing is claimed)`
 and passes). Running the test binary directly under a stripped `PATH` costs one
 command and is the only thing that could have caught this.
+## 427. The backtick rule is about the SHELL, not about heredocs
+
+Section 418 says: quote the heredoc delimiter whenever the body contains a
+backtick. That is true and it is too narrow, which this pass proved by walking
+through the other door.
+
+The commit message for `tri vsim funnel` went in as `git commit -m "..."` with
+the prose inline. Double quotes do not stop command substitution, so
+
+```
+* `silent` is its own row.
+```
+
+became
+
+```
+*  is its own row.
+```
+
+and zsh printed `command not found: silent` -- the only reason it was noticed.
+The escaped spans I had bothered to write as ``\` `` survived; the one I had not
+did not. **Third occurrence of this class in this repository's log**, and by its
+own rule a third instance is evidence the cure was wrong rather than another
+case: 418 named the heredoc, and the class is *any shell-interpolating context*.
+
+The cure that has no judgement in it: **prose containing a backtick never
+reaches the shell as an argument.** Write it to a file, or pipe it through a
+QUOTED heredoc, and let git read it:
+
+```
+git commit -F - <<'MSG'
+… prose with `backticks` …
+MSG
+```
+
+The damage here is unrepairable in place: the commit is pushed and this
+repository forbids force-pushing, so the message stands with a hole in it and
+the correction lives in a later commit and in the pull request body. That is the
+second cost of the trap and the reason to close the class rather than the case.
