@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:76b7fda96e46af51c64d563068cec1f2856a232b543d86e7f8bf98e25b50d550",
   "gen_hash_rust": "sha256:0046cab5d598ddd63a3a29362abc94f05d699f4d468df5374acc9dd596f32003",
   "gen_hash_verilog": "sha256:37d7dae007320108f1254e5876524e376754fe0ec77f90003409618d4771c001",
-  "gen_hash_zig": "sha256:164897c7b3d3ab011d1fa2e0d4e9d58e4464f75c4db256536438f126319ee710",
+  "gen_hash_zig": "sha256:4e08a8416b9749b2239dc3ef98cf8cbb5bbfdf89ddf02113a8c27ac05ac2ceb2",
   "module": "PellisPrecision",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

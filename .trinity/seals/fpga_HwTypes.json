@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:7cb95510bf163dae6aa84294038e5c8f9b7c80037863760046f9c5170117b499",
   "gen_hash_rust": "sha256:9ff9157a22257a42698db38de85cd956c7af62a7a549791be741ef6d615ce687",
   "gen_hash_verilog": "sha256:c6066e8cdba415e2b17e2ebe9795d896193160bc89549e24e5918b619f2c1d92",
-  "gen_hash_zig": "sha256:a4c5719bb4e2176d679143d7e384bfcea60524acda931fbfbcea3326f2165293",
+  "gen_hash_zig": "sha256:fff11cb5c00386c00ceb4a2f7a7c563c9adfe957d2eb5884bd8563d961c0a85a",
   "module": "HwTypes",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:23Z",
+  "sealed_at": "2026-08-30T19:43:01Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:40e271225fff7d99d8fe235c2347210c228f6c558af910e84bbbe85ef0312d94",
   "spec_path": "specs/fpga/hw_types.t27"

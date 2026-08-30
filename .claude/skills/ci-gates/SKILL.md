@@ -10551,9 +10551,49 @@ the body contains backticks, `$`, or `!`, which for prose about code is always.
 Recovery is `git checkout <file>` and a rewrite, and it cost nothing because the file was
 not yet committed. Had it been, the sections would have shipped with the holes and read as
 sloppy prose rather than as a shell bug.
+## 419. A commit on a detached HEAD succeeds, and says nothing
 
+An hour of work committed cleanly, and then:
 
-## 419. An address is not a count, and a count is not always a digit
+    pull request create failed: GraphQL: No commits between master and w801
+
+`w801` did not exist. HEAD had been detached at some point during the pass, the
+commit landed on no branch at all, and **nothing in the commit path said so**.
+Verified in a throwaway repository rather than assumed:
+
+    $ git checkout --detach && git add f && git commit -m "on detached head"
+    (succeeds, no warning)
+    $ git branch --show-current
+    (empty)
+    $ git status | head -1
+    HEAD detached from 775ca09
+
+So `git commit` is silent, `git push -u origin <name>` pushes the *current* HEAD
+under that name and is also silent, and the first thing that objects is a tool
+three steps downstream, with a message about the wrong subject.
+
+The check is one command and belongs beside the freeze check already run before
+every commit here:
+
+    test -n "$(git branch --show-current)" || echo "DETACHED -- commit will land on no branch"
+
+Recovery costs nothing once you know: `git branch -f <name> <sha> && git checkout <name>`.
+The commit is not lost; it is unreferenced, which looks identical from every
+command that asks about branches and nothing like it from `git log`.
+
+**What this is NOT evidence of.** Three background agents were running in the same
+repository at the time, and the obvious story is that one of them moved my HEAD.
+They did not: `git worktree list` shows each of them in its **own** worktree,
+detached there. The cause is unestablished, and writing "the agents did it" would
+have been a cause invented to fit a symptom — the failure mode this skill records
+more often than any other. What is established is the symptom, the silence, and
+the one-command check.
+
+The general rule, which is why this is worth a section: **the state you are
+committing to is not printed by the commit.** Branch, freeze hash, and clean tree
+are three preconditions that all fail silently and all cost one command each.
+
+## 420. An address is not a count, and a count is not always a digit
 
 I published "268 open issues carry a number in the title" one pass ago, from a matcher
 that read any two-digit run. Re-measured with an independent reader, the population is
@@ -10575,7 +10615,7 @@ Excluded on purpose and counted separately: 20 titles carrying only `every`, `al
 `none` or `half`. They quantify without giving a figure, so there is no number to
 re-read; dropping them silently would have made the population look cleaner than it is.
 
-## 420. Two readers of one population, and the loose one is a strict superset
+## 421. Two readers of one population, and the loose one is a strict superset
 
 The Rust command read **295** where an independent Python reader read **283**, on the same
 backlog. Subtracting was the whole diagnosis: 12 in Rust, 0 in Python, so the Rust rule

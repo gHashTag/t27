@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:e0f06241d4560c01c202c9ed8ad700ff4c61094f882eae938870eaaea3264bc5",
   "gen_hash_rust": "sha256:0ec3c5142c3b51031ad95a2773f44379a2835878f6b5b0f7ebdd7a78597680e3",
   "gen_hash_verilog": "sha256:f9a8de8fae36a6ae1bf310d76e478b1805b037f57e9ad83108ec51cdc8431e9a",
-  "gen_hash_zig": "sha256:044a145e45549b310a7a3705f919ff11f7f180413006daa6ccb378cbf8f7ed0a",
+  "gen_hash_zig": "sha256:adbaf5d87e2543064441a2a894c5d339d38a61561e127c9aa59e504e44f4a09b",
   "module": "Router",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",
