@@ -9529,7 +9529,7 @@ undercounted `generates Verilog` by exactly the same 29. That pipe was fixed.
 The conflation of slow with rejected sat directly under the paragraph explaining
 why conflating anything with a hang had been so expensive.
 
-## 381. The cure for a repeated class is the control, not the third patch
+## 380. The cure for a repeated class is the control, not the third patch
 
 Three passes, three instances of one shape: a command narrowed the set it spoke
 about, and the narrowing was invisible because the only number on screen was the
@@ -9567,7 +9567,7 @@ BOTH numbers and the row stayed green. No input makes them disagree, so it was
 not a control. **Three rows that bite beat four where one is decoration** -- and
 the mutation that proved it took two minutes.
 
-## 382. `rustfmt <file>` follows the mod graph
+## 381. `rustfmt <file>` follows the mod graph
 
 `rustfmt cli/tri/src/main.rs` reformatted **five files the change never
 touched**, because rustfmt walks `mod` declarations from the file it is given
