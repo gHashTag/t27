@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e18e1d11258b9c8461d3348f11909d10bde67bb4bb9cbce1b01411c9d826f873",
+  "gen_hash_c": "sha256:3606c1085b24b01e44f2afe765ad1a9fee2c7ffbde239a718c5ba622ca3e2c2b",
   "gen_hash_rust": "sha256:73b9008ef024a8c243ae843353180dc9fa2cbe57dc48fbd2084d2fa4a119d05b",
   "gen_hash_verilog": "sha256:ec0fb055beefa098d62e0ee431ff50b9ec4cf13e65570b2c4061a74aa44a9a0d",
   "gen_hash_zig": "sha256:6a1a72b0ad20e1408781befbce59d052c0adb3b6316be44253ca943635499ead",
   "module": "Lamb",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_at": "2026-08-30T01:11:17Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d8bd6eba31a437f911eec4ea0d056b1cd4a3b34039e40e207aa2aaa852e11f21",
   "spec_path": "specs/ml/optimizer/lamb.t27"
