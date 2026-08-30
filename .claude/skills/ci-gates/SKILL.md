@@ -9256,3 +9256,72 @@ range. W660's own comment names its sibling -- "The Zig backend has resolved the
 since W585 ... The VERILOG backend never did" -- and stops there. A defect class
 is not shut until every call-site of the risky primitive has been grepped, which
 this repository knows and which two waves of the same fix did not do.
+
+## 371. The cure was written down and applied to one caller of three
+
+§366 ended with a shared `parse_failures` and a doc comment saying disagreement
+was now *"structurally impossible rather than merely tested for"*. I wired
+`prose` to it and stopped. `report` and `locate` kept their own `git ls-files`
+loops, and the very next sweep found them disagreeing: 5 typecheck failures
+against 2, in one binary.
+
+**A helper does not cure a class; callers reading it do.** The comment described
+what I meant to build. Nothing failed when I built two thirds of it, because the
+claim lived in prose and prose does not run.
+
+The enforcement is four lines and it is what the comment should have been:
+
+```rust
+let needle = ["\"ls-files\"", ", ", "\"*.t27\""].concat();  // assembled, or
+                                       // this test matches its own source
+assert_eq!(walks, vec![("unparsed.rs".to_string(), 1usize)]);
+```
+
+Whenever a fix is "everyone now calls X", the deliverable is not X. It is the
+check that counts the callers.
+
+## 372. Guard order: the stage, then the formatting
+
+`locate` classified a failure only after demanding the compiler's message name a
+line. Three typecheck failures print `Typecheck FAILED (6 errors, 0 warnings):`
+and no line, so they never reached the stage check and were filed under
+**"nothing claimed"** -- which reads as *the question was asked and went
+unanswered*, not *the question does not apply here*.
+
+Two properties made it invisible for weeks:
+
+* **The buckets still summed.** 57 + 14 + 9 = 80 looks self-consistent until you
+  ask what the population is: 76. A sum-check over a partition cannot see items
+  that were never in the set.
+* **The test was green.** `locate_answers_only_for_parse_failures` asserts
+  `stage_of` classifies correctly -- the presence of the helper, never the order
+  the caller applies it in. Same shape as the audit test that measured a string's
+  presence instead of a branch's coverage.
+
+**Check what a thing IS before checking how it is WRITTEN.** A formatting guard
+ahead of a category guard silently reassigns whole categories, and every count
+downstream stays plausible.
+
+## 373. Agreement between commands that share a variable measures nothing
+
+Having put all three census commands on one scope, "do they agree?" became a
+tautology -- they read the same variable. A control has to vary something.
+
+`tri unparsed agree` builds the population **the other way**: it walks the
+working tree where the census asks git, classifies again, and demands the same
+numbers. Then it is mutation-checked in both directions -- a silent
+`specs/fpga/` filter inside `parse_failures` turns it red with the exact row
+named; an untracked failing spec on disk is reported without failing it, because
+the census legitimately speaks only about tracked specs and the job there is to
+name the blindness, not to die of it.
+
+**After you make disagreement impossible, the agreement check is worthless and
+the independent route is the only one left worth running.**
+
+The field name for this is **differential testing**, and its literature states
+the precondition I broke: two implementations act as an oracle *only while they
+are independent*. Three commands reading one shared variable are one
+implementation wearing three names. Whenever a sweep is described as "check that
+A and B agree", the first question is what, concretely, differs between A and B
+-- and if the honest answer is "nothing since I refactored them", the sweep has
+to be re-pointed at an axis that still varies.
