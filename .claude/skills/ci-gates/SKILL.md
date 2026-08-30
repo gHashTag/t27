@@ -10115,3 +10115,43 @@ have planted one. Mine set a seal hash to sixty-four zeros behind a
 honest `0` read as a gate that missed. **A planted-fault probe needs its own
 assertion that the plant took**, exactly like the anchor asserts on every text
 substitution in this repository.
+
+## 401. A scratch file shared with your own background agents is a moving population
+
+`/tmp/specs.txt` held the corpus list. A measurement started by printing it —
+**649 specs** — then launched a background fan-out whose prompt said *"or
+/tmp/specs.txt if present"*, then took a baseline and an after-reading from that
+same file.
+
+One of the agents regenerated it. By the time the baseline ran the file held
+**665** entries, and every reading afterwards was over a population the report
+had already described as 649.
+
+The A/B survived, and only by luck: both sides ran *after* the change, so the
+sets were comparable and the delta (+32, regressions 0) is sound. Had the
+regeneration landed between the before and the after, the two accept sets would
+have been drawn from different populations and the difference between them would
+have been read as a compiler change.
+
+The tell was there and cheap: every run printed `GEN 589` where the previous
+day's runs on the same command printed `GEN 581`, and the population line said
+649. **Three numbers that should have been two.**
+
+So:
+
+- **Snapshot the population into a per-run file** that nothing else writes:
+  `git ls-files … > /tmp/pop-$$.txt`, and pass that path to every reading of the
+  pair. A file named after the question is a file two processes will both answer.
+- **Never hand a mutable path to a background agent and then read it yourself.**
+  Give agents a copy, or give them the command and let them make their own.
+- **Print the population beside every count, from the same file, at the moment
+  the count is taken** — not once at the top. A denominator quoted from earlier
+  in the session is a claim with a timestamp, and this one was already stale when
+  it was printed.
+- Guarding with `[ -f … ] || regenerate` makes it worse, not better: it silently
+  keeps YESTERDAY's list, which is how the 649 got there in the first place.
+
+Related, from the same sweep: the agents reported the corpus population as
+**665**, not the 650 the brief gave them, and `cc` acceptance as **268 of 589
+generating** rather than 268 of 650. The numerator was right and the denominator
+was wrong in every report that quoted it, including mine.
