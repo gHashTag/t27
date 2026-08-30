@@ -20,7 +20,19 @@ use std::io::Write;
 use std::process::Command;
 
 fn gen_c(src: &str) -> String {
-    let dir = std::env::temp_dir().join(format!("t27-ptrparam-{}-{}", std::process::id(), src.len()));
+    // Keyed by a COUNTER, not by a property of the input. The old key was
+    // `(pid, src.len())`, and every test in this binary shares the pid -- so two
+    // tests whose sources happen to be the same length computed the SAME
+    // directory, which each of them deletes on the way out. Under the default
+    // parallel runner one test erases the spec another is mid-read of, `t27c`
+    // prints nothing, and the assertion reports an empty result.
+    //
+    // Measured with a probe asserting the directory is fresh: it fired 8 runs
+    // out of 8. The collision is not occasional -- it happens every run, and
+    // only the timing of the delete decides whether a test dies.
+    static SCRATCH_N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let scratch_n = SCRATCH_N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("t27-ptrparam-{}-{}", std::process::id(), scratch_n));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let path = dir.join("m.t27");
     let mut f = std::fs::File::create(&path).expect("write spec");

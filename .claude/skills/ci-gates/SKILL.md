@@ -9582,7 +9582,107 @@ file, not the crate") does not hold when the single file is a root.
 the test output, and on a shared repository it is somebody else's conflict
 tomorrow.
 
-## 382. A mutant the freeze rejects is not a measurement
+## 382. A matcher-defined population cannot be counted twice
+
+Two candidates for a second opinion were measured and refused, and the refusals
+name a rule the three working rows had been obeying by luck.
+
+`types dup` prints **1180** struct definitions. A counter loose enough to be
+independent reads **1182**, and the two extra are
+
+```
+specs/lsp/schema.t27:155   struct = 21,
+specs/lsp/schema.t27:204   struct = 22,
+```
+
+enum members *named* `struct`, which the census correctly rejects by requiring
+the name to start with an ascii letter. **The census is right.** Any counter
+accurate enough to agree with it is a copy of its matcher -- exactly why the
+`seals hollow` row was removed one pass earlier, where both sides tested the
+same json field and a planted seal moved both numbers.
+
+> **A census whose population is defined by a MATCHER cannot have an independent
+> counter, because any counter precise enough to agree IS that matcher. Only a
+> population defined by something EXTERNAL -- files on disk, workspace members,
+> a marker in a different file -- can honestly be counted twice.**
+
+The rows that work obey it: `.t27` on disk, `.rs` under the cargo workspace, the
+bare letters of a keyword, `theorem` lines in a file the census reads for
+something else. Before building a differential row, ask what defines its
+population. If the answer is "the code under test", stop.
+
+## 383. An exclusion is a measurement, not a shrug
+
+Having refused two rows, the audit had three green rows and no statement of what
+it was not checking -- its own coverage in exactly the shape it exists to catch.
+It now prints the uncovered censuses with the measurement behind each: what was
+tried, what it read, and why the two routes cannot disagree.
+
+Enforced rather than intended: a test refuses a census that appears in both
+lists, and refuses a reason shorter than sixty characters. `"too hard"` fails.
+
+The distinction being preserved is the one this whole document keeps circling:
+a reader must be able to tell **"looked and could not"** from **"never looked"**,
+and a blank space says the second while meaning the first.
+
+## 384. The list went stale by MY addition, into the gate that watches lists
+
+`tri ledgers audit` exists to catch a ledger whose entries have stopped being
+true. Its own list of ledgers was hardcoded at four. Two passes earlier I added
+a fifth ledger -- `docs/reports/orphan_modules.json` -- and did not add it here.
+
+§377 already says a guard written as a list goes stale by addition. This is that
+sentence coming back with my name on it, inside the meta-gate whose whole subject
+is stale lists.
+
+**Whenever you ADD a ledger, a ceiling, a baseline or an allowlist, the same
+commit adds it to whatever audits that kind of thing.** If you cannot name the
+audit, that is the finding.
+
+The repair is not a fifth entry. It is enumerating from the tree:
+
+```
+ledger-shaped files on disk   15   planted into 5, excused 2, unclassified 8
+```
+
+**An enumeration read from disk cannot go stale by addition.** A list written
+down always can, and writing it down is what feels like being thorough.
+
+## 385. A catch for the wrong reason is not a catch
+
+Adding a JSON ledger to an audit that plants a line into text files looked like
+one line of code. Appending a line to JSON makes the file unparseable, so the
+gate goes red -- and the audit records `caught`.
+
+It caught nothing. The gate failed on a **syntax error**, not on the stale
+entry, and the audit would have gone on reporting that ledger as protected while
+its actual staleness check was never exercised.
+
+The planted falsehood has to be **valid and false**: for a ceiling ledger, a
+ceiling naming a crate the workspace does not declare. Which promptly found a
+second defect -- the gate iterated crates and looked up their ceilings, so a
+ceiling for a crate that does not exist was never visited at all.
+
+**When a control reports a catch, ask which of the two possible reasons the
+subject failed for.** If the planted input breaks the reader rather than the
+claim, every downstream "caught" is a green light with nothing behind it -- the
+same family as a gate that prints FAILED and exits 0, one level in.
+
+## 386. The count you carry in your head is a sample
+
+I opened that pass writing "the audit covers four of seven ledgers". Seven was
+from memory, assembled while working on something else. Counting the tree:
+**fifteen** -- nine `tools/*baseline*.txt` and six `docs/reports/*.json`.
+
+§362 says the same thing about a note written while chasing another problem, and
+it was my note being corrected then too. The habit that fails is not the
+counting; it is *not re-counting* when the number becomes load-bearing.
+
+**Before a number decides scope -- what to cover, what to exclude, what to call
+done -- re-derive it from the tree in the same breath you use it.** It costs one
+command. Here it changed "we cover most of them" into "we cover a third", and
+the honest print of that ratio is worth more than the five rows above it.
+## 387. A mutant the freeze rejects is not a measurement
 
 Mutation testing on `bootstrap/src/compiler.rs` has a third outcome, and it looks
 exactly like the good one if you only check for the absence of `ok`.
@@ -9615,7 +9715,7 @@ The same shape catches a mutant that simply does not compile as Rust — a broke
 string escape, a moved value — which is the more common way a mutation run lies
 to you. Absence of "ok" is not death.
 
-## 383. A shape change breaks every reader keyed to the old shape
+## 388. A shape change breaks every reader keyed to the old shape
 
 Changing what the emitter writes is never only an emitter change. Anything that
 **slices** the output by pattern is a reader, and every reader keyed to the old
@@ -9639,7 +9739,7 @@ against the *actual generated output* rather than reasoning about which code
 path it came from. The third row above was confirmed by generating the file and
 running the regex, not by reading the emitter.
 
-## 384. A gate that never runs on master has no baseline — borrow one from siblings
+## 389. A gate that never runs on master has no baseline — borrow one from siblings
 
 `emit-bitexact-gate.yml` is `on: pull_request` with a `paths:` filter and no
 `push:`. It has therefore **never run on master**, so "is it red on master too?"
@@ -9663,7 +9763,7 @@ this" from "this gate is just broken today".
 lesson is this one: no baseline does not mean no measurement, it means look
 sideways instead of backwards.)
 
-## 385. `git checkout` does not rebuild
+## 390. `git checkout` does not rebuild
 
 Two local runs of a CI tool passed on a branch whose CI run had failed. Both
 readings came from a `t27c` built *before* the emitter change: the sequence was
@@ -9680,7 +9780,7 @@ git checkout <branch> && cargo build --release -p t27c   # never checkout alone
 The failure mode is asymmetric and mean: the stale binary is usually the *old*
 one, so a change measures as harmless exactly when it is not.
 
-## 386. A race that has not fired is not a test that passed
+## 391. A race that has not fired is not a test that passed
 
 `bootstrap/tests/scaffold_c.rs` keyed its scratch directory by
 `(process::id(), src.len())` and deleted the whole directory at the end of every
@@ -9714,7 +9814,7 @@ input and two inputs can agree.
 
 `tri harness scratch --gate --self-check` now guards the class.
 
-## 387. Two rulers that disagree: report both, and say which one the ratchet uses
+## 392. Two rulers that disagree: report both, and say which one the ratchet uses
 
 Declaring the missing `assert_eq` shim in the Zig prelude moved two different
 numbers:
@@ -9742,7 +9842,7 @@ never analyses them at all. A variant that scores higher by removing the code
 under test is the ceiling of the measurement, not a competing fix. Measure it on
 purpose so the number you ship has something to be compared against.
 
-## 388. Fix the emitter once, then count its call sites
+## 393. Fix the emitter once, then count its call sites
 
 The Zig `has_tests` prelude existed as two byte-identical copies, `gen_zig` and
 `gen_zig_project`. The measurement named one of them — the one `t27c gen` and
@@ -9765,7 +9865,7 @@ A structural test is weaker than a behavioural one and much stronger than the
 nothing that was there. It is the right tool exactly when the integration path is
 too expensive to drive and the defect is "one of N sites was missed".
 
-## 389. A detector needs a counterexample, not a review
+## 394. A detector needs a counterexample, not a review
 
 `tri harness scratch` was written to find scratch directories shared between
 tests. Its first rule asked whether the `format!` call contained a `{`.
