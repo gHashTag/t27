@@ -83,7 +83,25 @@ fn per_spec_carries_three_zig_digits_and_says_so_in_its_header() {
         eprintln!("zig not on PATH -- SKIPPED");
         return;
     }
-    let dir = std::env::temp_dir().join(format!("t27-corpuscols-{}", std::process::id()));
+    // Keyed by a COUNTER, not by the pid alone. Every test in this binary
+    // shares the pid, and the `remove_dir_all` below deletes the whole
+    // directory -- so two tests that both used it would race, one erasing the
+    // file the other is mid-read of.
+    //
+    // Only one test here touches the directory today, so the race cannot fire.
+    // The gate that caught this refuses the SHAPE rather than the outcome, and
+    // it is right to: a second test using the same helper is one edit away, and
+    // that edit would not look like the change that broke anything.
+    //
+    // `tri harness scratch` went red on master within a day of being wired, on
+    // a file written by the person who wired it.
+    static SCRATCH_N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let scratch_n = SCRATCH_N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!(
+        "t27-corpuscols-{}-{}",
+        std::process::id(),
+        scratch_n
+    ));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let path = dir.join("per-spec.txt");
     let out = Command::new(env!("CARGO_BIN_EXE_t27c"))
