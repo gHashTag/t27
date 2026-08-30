@@ -9366,3 +9366,62 @@ against the corpus does.
 **Where the reseal belongs.** In the same commit as the emitter change. Two
 consecutive passes left master red on `seal-coverage` by deferring it to a
 follow-up, both times mine, and both times the repair was one command.
+
+## 375. A matcher keyed on the spelling answers a question about the kind
+
+§372 found a guard on the *format of the error message* running ahead of a guard
+on the *stage*. Same class, one layer down: a matcher keyed on the SPELLING of a
+keyword, deciding whether a line is a clause at all.
+
+`scan_clauses` matched `find("forall ")` -- the letters plus a trailing space.
+One line in the corpus writes the keyword alone:
+
+```
+invariant benchmark_trinity_self_train_estimate_bounded:
+forall
+trinity_self_train_estimate() > 0.0
+```
+
+It matched nothing and never became a clause. The census reads **922** where the
+corpus holds **923**, and the bucket that clause belongs in -- `no binder this
+can read` -- was one short. The spec typechecks clean, so this was live, not
+debt.
+
+**A keyword is a token, not a prefix that happens to be followed by a
+delimiter.** `find("kw ")`, `starts_with("kw:")`, `split(", ")` -- each of these
+reads a *rendering convention* and returns a verdict about a *category*. The
+convention holds 882 times out of 883 and the exception is invisible.
+
+Two habits, both cheap:
+
+* **Count occurrences with a loose reader and subtract what the strict one
+  built.** 886 letters, 883 lines, 882 clauses -- three numbers that should have
+  been one, and the gap is the finding. This is how the defect was found: not by
+  reading the matcher, by counting past it.
+* **Measure the tightening before you ship it.** Reading the keyword as a word
+  is stricter on the LEFT edge too. Of 883 lines, zero put an identifier
+  character before the keyword -- so the change is additive by measurement. A
+  tightening you did not measure is a regression you have not found yet.
+
+## 376. A fan-out that dies wholesale returns the same shape as a clean sweep
+
+Eight agents were dispatched to sweep `cli/tri/src` for §372's class. All eight
+died on `You've hit your weekly limit`. The workflow completed normally and
+returned `{"survived":[],"killed":[]}`.
+
+That result is indistinguishable, at a glance, from **swept everything and found
+nothing** -- which is exactly the conclusion a tired reader writes into a report.
+955k subagent tokens were spent producing it.
+
+**An empty result from an orchestration is a reading about the ORCHESTRATION
+until you check the failure list.** The `<failures>` block and
+`agents_error: 8` were right there; the summary line was not.
+
+The same shape as every broken ruler in this document, one level up: the
+instrument reported cleanly about a measurement it never took. Read
+`journal.jsonl` -- or at minimum `agents_done` against `agent_count` -- before
+any sentence of the form "the sweep found".
+
+And the recovery is the point: the class was closed anyway, by the independent
+route running in parallel. **Never let a fan-out be the only instrument pointed
+at a question you can also measure yourself.**
