@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:8ad62adeaba7a0cf3abeb0c29065945dbcb2f8ddd189e7f2e80111084507ca0e",
   "gen_hash_rust": "sha256:6ab27a62b6a58a7f39bdb4fab960ec3bdfc298accd05ff9dbde6fd9dce565031",
   "gen_hash_verilog": "sha256:a193fa97c828a28f04d58e687e45a10eff3d7476c98c9cefe516dd5467583002",
-  "gen_hash_zig": "sha256:c684dcccaadded93b597c480f237af1d6ab467364c459106733e052544685415",
+  "gen_hash_zig": "sha256:a70f693962e27400dabc958c25855247d8db1e217b9fe71495b1e5bd844ac587",
   "module": "GftDot4Rne",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
+  "sealed_at": "2026-08-30T17:03:00Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7411a1ca05061742f6bf4dedaaf4fe6b88343896e80971c79f334978f2432d9d",
   "spec_path": "specs/ternary/gft_dot4_rne.t27"

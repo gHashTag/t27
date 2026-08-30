@@ -10076,3 +10076,42 @@ and it will be a minority -- which is exactly why it disappears into the list.
 The same reading applies to any "known limitations" section, any `#[ignore]`
 block, any `NOT covered here` comment. Grep them, ask of each which kind it is,
 and the answer usually names one item you can close today.
+## 400. `tail -N` reads the last section, not the summary
+
+`tri seals drift --fix` prints two sections: the re-seal it performed, then the
+twin synchronisation it performed afterwards. Both end in a count.
+
+```
+  re-sealed                                   33          <- what I wanted
+  ...
+  twinned specs already consistent  516
+  seal files written           0                          <- what tail -3 gave me
+```
+
+I read it with `tail -3` and concluded, on two consecutive days, two different
+wrong things: first that the command had **under-reported its own work** (it had
+not — `git status` showed 33 files rewritten), and then that an earlier drift
+reading must have been **taken before the rebuild finished** (it had not — the
+sequence was an ordinary drift → fix → clean). One of those explanations went
+into a merge commit message that is now on master.
+
+Neither was a defect in the tool. Both were a slice by **position** on output
+whose structure I had not read.
+
+- Grep the **label**, not the position: `| grep -E "re-sealed|refused"` says what
+  you meant; `| tail -3` says whatever happens to be last after the next section
+  is added to the command.
+- When a number surprises you, look at the **whole** output once before theorising
+  about the tool. `--fix` here is forty lines; reading them cost less than either
+  wrong explanation.
+- A count that disagrees with the filesystem is settled by the filesystem:
+  `git status --short .trinity/seals/ | wc -l` ended both arguments in one command
+  and neither time did I run it first.
+
+The related trap, met the same hour: a probe that plants a fault must be shown to
+have planted one. Mine set a seal hash to sixty-four zeros behind a
+`len(value) == 64` guard, and the hashes in these files are written
+`sha256:<hex>` — so the guard never matched, nothing was planted, and the gate's
+honest `0` read as a gate that missed. **A planted-fault probe needs its own
+assertion that the plant took**, exactly like the anchor asserts on every text
+substitution in this repository.

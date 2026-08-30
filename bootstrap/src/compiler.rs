@@ -7161,6 +7161,19 @@ pub struct Codegen {
     /// Lets ExprCast tell a narrowing integer cast (needs `@truncate`) from a
     /// widening one (needs `@intCast`) without a full type checker.
     zig_var_types: std::collections::HashMap<String, String>,
+    /// The declared integer type of the declaration whose initializer is being
+    /// emitted right now, if it has one.
+    ///
+    /// A shift with a runtime amount needs its LHS pinned to a width, because
+    /// `comptime_int << runtime` is not a thing in Zig. With no other
+    /// information the width was inferred from the literal's MAGNITUDE, so `1`
+    /// became `u32` -- and `var half: i32 = @as(u32, 1) << @intCast(d);` is a
+    /// u32 expression initialising an i32, which Zig rejects.
+    ///
+    /// Measured: 58 emitted sites carry `@as(u32, 1) <<`, and 33 of them are a
+    /// declaration that states its type. The type was in hand two lines above
+    /// the expression that had to guess it.
+    zig_decl_int_ty: Option<String>,
 }
 
 impl Codegen {
@@ -7186,6 +7199,7 @@ impl Codegen {
             signed_names: std::collections::HashSet::new(),
             current_return_type: String::new(),
             zig_var_types: std::collections::HashMap::new(),
+            zig_decl_int_ty: None,
         }
     }
 
@@ -8176,6 +8190,19 @@ impl Codegen {
         }
     }
 
+    /// The t27 type of a declaration, when it names an integer Zig can pin a
+    /// literal to. Anything else -- a float, a struct, a slice, an alias this
+    /// function cannot resolve -- returns None, so the caller falls back to the
+    /// magnitude default rather than emitting `@as(SomeStruct, 1)`.
+    fn zig_declared_int_type(t27_type: &str) -> Option<String> {
+        let t = t27_type.trim();
+        matches!(
+            t,
+            "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64" | "isize"
+        )
+        .then(|| t.to_string())
+    }
+
     fn zig_int_literal_default_type(init: &Node) -> Option<&'static str> {
         if !matches!(init.kind, NodeKind::ExprLiteral) {
             return None;
@@ -9148,6 +9175,11 @@ impl Codegen {
                         }
                     }
                     if !node.children.is_empty() {
+                        // The declared type is in hand here and the expression
+                        // emitter two thousand lines down had to guess a width
+                        // without it. Set for the initializer only, and cleared
+                        // below, so nothing outside this declaration sees it.
+                        self.zig_decl_int_ty = Self::zig_declared_int_type(&node.extra_type);
                         self.write(" = ");
                         // W572: a local bound to an array literal and later
                         // passed where a callee declares `[]T` must be a real
@@ -9229,6 +9261,7 @@ impl Codegen {
                         // Zig has no uninitialized declarations.
                         self.write(" = undefined");
                     }
+                    self.zig_decl_int_ty = None;
                     self.write_line(";");
                     if as_var {
                         // Mutability is inferred fn-wide, but the same name may be
@@ -9889,7 +9922,19 @@ impl Codegen {
                     let shift_runtime_rhs = matches!(op, "<<" | ">>")
                         && !matches!(node.children[1].kind, NodeKind::ExprLiteral);
                     if shift_runtime_rhs {
-                        if let Some(ty) = Self::zig_int_literal_default_type(&node.children[0]) {
+                        // The declaration's own type first; the literal's
+                        // magnitude only when there is nothing better. A
+                        // declared width beats an inferred one -- the same rule
+                        // `zig_int_literal_default_type` already applies to a
+                        // literal's SUFFIX, applied one level out.
+                        let declared = self
+                            .zig_decl_int_ty
+                            .clone()
+                            .filter(|_| matches!(node.children[0].kind, NodeKind::ExprLiteral))
+                            .filter(|_| node.children[0].extra_type.is_empty());
+                        let pinned = declared
+                            .or_else(|| Self::zig_int_literal_default_type(&node.children[0]).map(str::to_string));
+                        if let Some(ty) = pinned {
                             self.write(&format!("@as({}, ", ty));
                             self.gen_expr_maybe_paren(&node.children[0]);
                             self.write(")");
