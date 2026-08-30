@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:e39f134b5adc6d175e381ca724628b7b88a772a20f41bbeb9383e202306ee59b",
   "gen_hash_rust": "sha256:e120959c06137034188e39d499c2eb281b525fe71d70279c0fb5ebaaf6185193",
   "gen_hash_verilog": "sha256:2b88685645eaf6db4cff7ac0275dbad46f5d01b31b9e39077e1b9080bee14dc6",
-  "gen_hash_zig": "sha256:65a7fa978e7cc7c7ba220d645805d702ed1855c41fd07c708335cea21348ffbf",
+  "gen_hash_zig": "sha256:ef3bce2a05ce854dd7e1fd890938405b318996bdb6d9ab65b92859bc6f5bd425",
   "module": "Simulator_Testbench",
   "ring": 12,
   "sealed_at": "2026-08-28T00:22:25Z",

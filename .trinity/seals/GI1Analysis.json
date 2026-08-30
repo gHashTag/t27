@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:8404a1cc5ad88d416bacf54d6b09d8038c3a0fa960df741272e574276621d514",
   "gen_hash_rust": "sha256:f8391f00c8cb9a56240bff09dad9e9461a87274656dfcf6d6da94f819922a477",
   "gen_hash_verilog": "sha256:5b5c4c7f9baf0f5f22a018c251541ae42981478cbc8fa8d49d7241ae5b9f9c65",
-  "gen_hash_zig": "sha256:eacb6024e0189d94c31275c22d5a3ef5e5f1ca96af90ab9ef04a54ab682a6677",
+  "gen_hash_zig": "sha256:1d88fe4580deccb7652bbc74262c16ef5d759d333f05b8302d64f38622c04f43",
   "module": "GI1Analysis",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

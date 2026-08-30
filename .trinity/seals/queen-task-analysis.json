@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:c7423ece56487185f77983f8720d2d78bd4d37b6e3d874367d4cdb69693d4f83",
   "gen_hash_rust": "sha256:2c8b4fb60f007eef2f618e8bf6cfd78a1d953e848df28af2ea2d0b8818ec3598",
   "gen_hash_verilog": "sha256:665eb2d63070b12dbd2327f24423a3ea48a64457f58e1cab06a09191acfa44d8",
-  "gen_hash_zig": "sha256:0525149af85ea578bf0f5729419c16e507757be2498558da10cc94c4f5536c9a",
+  "gen_hash_zig": "sha256:66585c9758b058104490715c5bbef9dd362eac6be47a15a7088df80c25e16fde",
   "module": "queen-task-analysis",
   "ring": 12,
   "sealed_at": "2026-08-28T18:19:55Z",

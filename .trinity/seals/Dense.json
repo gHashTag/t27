@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:dbf55f8365ccabf0bae68c957702f424b346c16371867546e17fb32767098724",
   "gen_hash_rust": "sha256:85a1d00ef64c97a6118a38c8f762abb21aafc0b3ca99320856b7eb390e7211a4",
   "gen_hash_verilog": "sha256:558dcfe464018a5c3ae3d224f3c424d80899918c0f33c3a768b8e46c74e6160f",
-  "gen_hash_zig": "sha256:8676940092787661c54d2a6944a1d7feb526254bd52c65bd83be58407a471c44",
+  "gen_hash_zig": "sha256:af45078977a86bda927f6efa2245c75626446e7775dd3b722bbe2d3520eb1df5",
   "module": "Dense",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

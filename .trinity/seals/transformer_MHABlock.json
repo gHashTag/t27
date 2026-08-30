@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:f5550620d941d2430a4db46693601ebbffffd5480f2fd6e61baa8757a88e6a45",
   "gen_hash_rust": "sha256:abf31ba7aca1f23691667bb4a95c68d2c33d2b54e56a683f80919390dc57523b",
   "gen_hash_verilog": "sha256:9423b51f5aae46c1b07f54d10209b9ba5a196776b2a17d9eda9229503077e54b",
-  "gen_hash_zig": "sha256:f8b884fb954a33ec3f449102f31535407666a6c5d408e344926a2eb1c62f4f29",
+  "gen_hash_zig": "sha256:385ab9c0d68a4a70d9a633ba587ed4f11b71bc8ebd08f97310d8eb49b47179e5",
   "module": "MHABlock",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_at": "2026-08-30T14:32:49Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:45fd78626ad9ca71910d750669bd10a6f519d3eef067f24338c8b30e2681d067",
   "spec_path": "specs/ml/transformer/mha_block.t27"

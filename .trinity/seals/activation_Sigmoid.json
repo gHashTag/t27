@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:0d9b53fbfc8265027787d6d2e86b16845071abba94c050b8968702745a3d0ed8",
   "gen_hash_rust": "sha256:c7911c9451ad7788699058db5321983882dd301baf5d9be39308304969312400",
   "gen_hash_verilog": "sha256:b4c3e7600e893eaefb7a64efd3eb09e4f0cc5fd93aa6c45568996fe11f30307e",
-  "gen_hash_zig": "sha256:6c0104333d22b38b57f48b1b6a5277f961ada459ef6302aa243086f39fdcf600",
+  "gen_hash_zig": "sha256:35c42a702829bc5c6d36f95f0654cd9e9b9ef3e41372b4d1dc027bf5b91d827a",
   "module": "Sigmoid",
   "ring": 12,
-  "sealed_at": "2026-08-30T12:18:33Z",
+  "sealed_at": "2026-08-30T14:32:49Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:57354f8525068440df541ffe1bd2e9d059248b1c35fcfc3b1cda4cd0beb8c08a",
   "spec_path": "specs/ml/activation/sigmoid_activation.t27"

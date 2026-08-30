@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:d1b5da52e318c9798cd111abf1ab187419569c123998dcb482d92895711fc3c7",
   "gen_hash_rust": "sha256:fb6c931f2b31b3b710bdd2348fc8e9d95a1cd111b9c7276999ecccda54fd41f1",
   "gen_hash_verilog": "sha256:64b363d0d8c918cbcd72f3da0024a73e36ae2bcaebc640329fdf263d49b51355",
-  "gen_hash_zig": "sha256:af8d602d07b75565809bb491f21d693194b860dd41985e16c5cb429cf6f722c2",
+  "gen_hash_zig": "sha256:ba9e425069866871c9337ed7adc0824033da785ac218c42a392b8fbddd23e317",
   "module": "TriNet",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

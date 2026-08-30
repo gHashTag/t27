@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:81787faa9934f4a7a67f064cdc8967efad7b10dd0a6c6e00b71a904b5c2641f7",
   "gen_hash_rust": "sha256:6aee351e6bda975d85470feef9e379e0963ad79a94e0070cb76d69ccc4097766",
   "gen_hash_verilog": "sha256:3e2fb4ed167ac1510c1a86cfb3e824c778dccfaaa3b16baf9e6a7e97716bcc58",
-  "gen_hash_zig": "sha256:1af19bf82a281d9b75e6b3e66185c4c0142da25af667e93c0b80cdb19331a5f2",
+  "gen_hash_zig": "sha256:f15884261f7dbdc0dee80274d11768139dcb64e5269f56e51a5e3e1a1cb61ce6",
   "module": "tricgen-c",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

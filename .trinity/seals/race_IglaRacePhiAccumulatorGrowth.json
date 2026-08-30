@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:d4103b8f8b189239f6cbb79ea4ee28ee5668e2d33742a3a446b7272d2aaaf590",
   "gen_hash_rust": "sha256:fcdef5ce3a6947f6bd84b158ac4981964e215267e54620b916f3dac362190bd4",
   "gen_hash_verilog": "sha256:cc5ad24bb60e614cb37c2d45c0077ae965536e283b11cca7ee05310bcf951cbe",
-  "gen_hash_zig": "sha256:838fe090ff9ee2e43dfd2a3f64b516e9fc6a729a09c53d480c4774010215280c",
+  "gen_hash_zig": "sha256:aac3d9a0326ade0c2b3d3438839c90c40720ccad91951e1e50f12ead40759d1e",
   "module": "IglaRacePhiAccumulatorGrowth",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:12Z",
+  "sealed_at": "2026-08-30T14:32:48Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:e0db74fb04b07ce67ea824027d57b1d9da9853c9b36b609ef8cf54593b7d934d",
   "spec_path": "specs/igla/race/phi_accumulator_growth.t27"

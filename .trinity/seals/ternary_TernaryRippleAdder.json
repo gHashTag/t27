@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:15f8c1ac1105adb928e806e11622efbcc686621c62e24f6fd5a4a658fb084bbd",
   "gen_hash_rust": "sha256:de0671f125d2288ac9dd71ceac85696ccf84b72d4e60449b644c170c16ce98b2",
   "gen_hash_verilog": "sha256:156c923577c20c1a6e84b92d0d5ca1c78ab3a27e6ba4eb6316a0f34687cab296",
-  "gen_hash_zig": "sha256:8909b05e96f962dee6691de4d64171a34a2d091d9f265621e86bb21b4b97503e",
+  "gen_hash_zig": "sha256:18b69224be49221b210f54b1b837e0cfa2a84e3e3d80f5b649c005e21e648037",
   "module": "TernaryRippleAdder",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_at": "2026-08-30T14:32:50Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:a83c6908f56dff1e15cc256e2a5230eafc57bbda16908f5618b1a690bf34d4b8",
   "spec_path": "specs/ternary/ternary_ripple_adder.t27"

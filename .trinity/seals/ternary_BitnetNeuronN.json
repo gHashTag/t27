@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:bcc7b8b7796d94b44123141cdf6808e6272cf193a52b31543760eb1c5f4570b0",
   "gen_hash_rust": "sha256:694256b442ef79ee052d5a43c2c0005f9cf430990df365f7d7c9257a56cdc44b",
   "gen_hash_verilog": "sha256:58949d73f3dda75b74638316fd05c1a9abda31e0611030aaba8d4e4ac30210f5",
-  "gen_hash_zig": "sha256:41068505120b43a5add3c801491d8754c4bf2cf7683ecf6fdcc25c48d30d18b9",
+  "gen_hash_zig": "sha256:c7a2ce03fef7cfe7c2af15b41c2ebca334941650376b9de3d97ca4bcf7e1fbda",
   "module": "BitnetNeuronN",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:15Z",
+  "sealed_at": "2026-08-30T14:32:50Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:3ecc74e152223eb2912ded3c83f63e176a03c46c980887b379b1a83c2deeb3c3",
   "spec_path": "specs/ternary/bitnet_neuron_nchunk.t27"

@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:5973ac8c9c70b31552c79468c2487a6925823c746d1d6af5c44d94d730038236",
   "gen_hash_rust": "sha256:c0daa11aa22a85ed51f981701a640e8f04f1171ad9ad062f7a0643aea6e9522e",
   "gen_hash_verilog": "sha256:64107ae49a1e26f8dbfa31a6b93b6b643f9067e9aacb8a216ae97601687e5058",
-  "gen_hash_zig": "sha256:ab4953d9fcece20d83dc75ec0ae0e3178f14b2b8209c8db55b3d97cbcb6a229a",
+  "gen_hash_zig": "sha256:c2b47120007b2c17c1841a64e416fc797a3f7bd4aafc3d176cd3d6a40b5309d8",
   "module": "LucasAccumulator",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_at": "2026-08-30T14:32:49Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:786f94b80c9cc8da149e371886d2c2a515bb29a289dd287d9d8c2986692e0b1e",
   "spec_path": "specs/numeric/lucas_accumulator.t27"

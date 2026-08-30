@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:73aa46259e17ab7819bb33730e4f802a7b4db8b00838f41a7ce8a180a3bf96d0",
   "gen_hash_rust": "sha256:97587943ba3b88a69ebba5365f5afec5c308e84c473405b8e2274a63a33059da",
   "gen_hash_verilog": "sha256:89005285a974d21845f0e624be06d28835f1c0ef4bb138f2c62b75cd0c41e476",
-  "gen_hash_zig": "sha256:27e30f28d3f3629f7102031a7268fe0612da0fd28cbb057bce947b7bae55b26d",
+  "gen_hash_zig": "sha256:34e57b02c2ccb0713e4c35459f75a7ed0edf81cd831813452b80a0c78068dc75",
   "module": "brain-cognitive-loop",
   "ring": 12,
   "sealed_at": "2026-08-28T00:21:37Z",

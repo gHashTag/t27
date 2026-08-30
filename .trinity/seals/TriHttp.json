@@ -2,7 +2,7 @@
   "gen_hash_c": "sha256:c73486f33ae7044714172ca5435c373ed079678900611d4746d964a1addedca4",
   "gen_hash_rust": "sha256:fea58cfa071c08d9c5a3d5317880dbf68848fee167f217500bc4b0d0a94cf79d",
   "gen_hash_verilog": "sha256:522c99c5888b42a17280f23a4c75e53fa1eb5dd80ac8aa125a667572713f4893",
-  "gen_hash_zig": "sha256:16e7592347cdbf0b1498fbb9f9972637cef5c2dcd5a60b24fa8a887d0e5f638c",
+  "gen_hash_zig": "sha256:8e910795b178fe8b7fb7b44fe6afd94fd08abaa3fed32d7c347279e654af1db4",
   "module": "TriHttp",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",

@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:4f546e894fb4b4045299cdbe586fda559eddcb7e633010593c451d306ad660ba",
   "gen_hash_rust": "sha256:1f61e6eb2f16b5c17d679e6ee5bbb2da10c60bc6df6993c2d6e4b26f43904e92",
   "gen_hash_verilog": "sha256:312687ed25202f9abf21116d3b5827c43139d509402dac23a536aea03ce97173",
-  "gen_hash_zig": "sha256:861a40431b0353aca333dfcbb4506e20147205c13f3806c0b8d22b6222015c07",
+  "gen_hash_zig": "sha256:0f2a18ece1d49fe7a7995ea27998a8447587a83910e2253de1bea34fb413d74d",
   "module": "PositLadderControl",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_at": "2026-08-30T14:32:49Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:faa036d013136104c32830264768cb1d0342781e3066fabc393f358ed4b4ee3a",
   "spec_path": "specs/numeric/posit_ladder_control.t27"
