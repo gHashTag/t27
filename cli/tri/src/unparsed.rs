@@ -1271,12 +1271,27 @@ mod tests {
     #[test]
     fn one_corpus_walk() {
         let needle = ["\"ls-files\"", ", ", "\"*.t27\""].concat();
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut walks: Vec<(String, usize)> = std::fs::read_dir(&dir)
-            .expect("src/")
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+        // RECURSIVE. The first version read only the top level, so the five
+        // files under `src/depin/` could have grown a walk unseen -- a control
+        // whose claim was wider than its reach.
+        fn sources(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    sources(&p, out);
+                } else if p.extension().is_some_and(|x| x == "rs") {
+                    out.push(p);
+                }
+            }
+        }
+        let mut files = Vec::new();
+        sources(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+            &mut files,
+        );
+        assert!(files.len() > 10, "the walk found no sources");
+        let mut walks: Vec<(String, usize)> = files
+            .into_iter()
             .filter_map(|p| {
                 let n = std::fs::read_to_string(&p).ok()?.matches(&needle).count();
                 if n == 0 {
