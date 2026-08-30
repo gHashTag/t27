@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 147,
+  "max_entries": 152,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -1417,7 +1417,43 @@
       "reason": "Expected LBrace, got Semicolon (';')",
       "issue": 1959,
       "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gft64.t27",
+      "phase": "typecheck",
+      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
+      "issue": 2925,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gft128.t27",
+      "phase": "typecheck",
+      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
+      "issue": 2925,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gft256.t27",
+      "phase": "typecheck",
+      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
+      "issue": 2925,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gft512.t27",
+      "phase": "typecheck",
+      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
+      "issue": 2925,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gft1024.t27",
+      "phase": "typecheck",
+      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
+      "issue": 2925,
+      "expires": "2026-11-30"
     }
   ],
-  "_why_entries_fell": "151 -> 150: specs/pins/emitter_xdc.t27 [typecheck] was fixed by #2906 -- an integer literal above i64::MAX fell to the float branch, so a bit mask read as a float -- and the ledger entry outlived the failure. The ratchet reported it as an UNEXPECTED PASS and named the repair itself: 'fixed -- remove from the ledger'. Removed, and the cap lowered in the same commit so the next entry cannot hide in the slack."
+  "_why_entries_fell": "151 -> 150: specs/pins/emitter_xdc.t27 [typecheck] was fixed by #2906 -- an integer literal above i64::MAX fell to the float branch, so a bit mask read as a float -- and the ledger entry outlived the failure. The ratchet reported it as an UNEXPECTED PASS and named the repair itself: 'fixed -- remove from the ledger'. Removed, and the cap lowered in the same commit so the next entry cannot hide in the slack.",
+  "_why_entries_rose": "a new typecheck rule (constant literal must fit its declared type, #2925) detects a defect that was always present. The five gft specs are recorded rather than edited because their correct values are a question about the GF-T ladder's definition, not about the compiler. Nothing regressed."
 }
