@@ -23,6 +23,7 @@
 //! It never edits a line the compiler did not stop on, and it refuses outright
 //! when the line it stops on looks like code. A spec whose real obstacle is an
 //! unimplemented construct is reported as such and left alone.
+use crate::unparsed::parse_failures;
 use anyhow::Result;
 use clap::Subcommand;
 use std::path::{Path, PathBuf};
@@ -197,32 +198,21 @@ pub fn run(cmd: &ProseCmd, root: PathBuf) -> Result<()> {
         );
     };
 
-    let out = std::process::Command::new("git")
-        .args(["ls-files", "*.t27"])
-        .current_dir(&root)
-        .output()?;
-    let specs: Vec<PathBuf> = String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(|s| root.join(s))
-        .filter(|p| p.is_file())
-        .collect();
+    // ONE shared scope, so this command and `tri unparsed` cannot disagree
+    // about which specs a census may speak about. They did, and the gap was
+    // exactly the two rules each sibling had to learn on its own: this one
+    // reported "107 specs that do not parse" where `unparsed` reported 76 --
+    // 21 fixtures broken ON PURPOSE, and 10 specs that parse and fail later.
+    let scope = parse_failures(&root, &t27c);
+    let (fixtures, other_stage) = (scope.fixtures, scope.other_stage);
 
     let mut prose: Vec<(PathBuf, usize, Vec<String>)> = Vec::new();
     let mut code: Vec<(PathBuf, usize, String)> = Vec::new();
     let mut other = 0usize;
     let mut scanned = 0usize;
 
-    for spec in &specs {
-        let ok = std::process::Command::new(&t27c)
-            .arg("check")
-            .arg(spec)
-            .current_dir(&root)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-        if ok {
-            continue;
-        }
+    for (rel, _) in &scope.failures {
+        let spec = &root.join(rel);
         scanned += 1;
         let (fixed, outcome) = walk(&t27c, &root, spec, 200);
         match outcome {
@@ -235,7 +225,13 @@ pub fn run(cmd: &ProseCmd, root: PathBuf) -> Result<()> {
 
     let rel = |p: &Path| p.strip_prefix(&root).unwrap_or(p).display().to_string();
 
-    println!("  specs that do not parse            {scanned}");
+    println!("  specs refused at PARSE             {scanned}");
+    if other_stage > 0 {
+        println!("  ... refused at a LATER stage       {other_stage}  (they parse)");
+    }
+    if fixtures > 0 {
+        println!("  broken ON PURPOSE under fixtures/  {fixtures}  (detector inputs, not debt)");
+    }
     println!("  ... blocked ONLY by prose          {}", prose.len());
     println!("  ... blocked by code                {}", code.len());
     if other > 0 {

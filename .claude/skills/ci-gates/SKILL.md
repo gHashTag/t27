@@ -9122,3 +9122,38 @@ That is the guard working, not a defect, and it is worth stating in a report
 rather than quietly re-running later: **a tool that refuses is not the same as a
 tool that fails**, and a summary that lists both as RED is one line away from
 being wrong.
+
+## 366. Two of my own commands, one population, two answers
+
+`tri prose report` said **107 specs that do not parse**. `tri unparsed report`
+said **76**. Both are mine, both walk the same corpus, and neither had any
+reason to be believed over the other.
+
+The gap: 21 files under `fixtures/`, broken ON PURPOSE as detector inputs, and
+10 specs that parse and fail at a later stage. Exactly the two rules I added to
+`report`, then to `locate` after finding they had not travelled -- and which
+never reached the third sibling.
+
+**Two implementations of one question is a control you get for free. Run both
+and subtract.** The disagreement was visible in one command and I only saw it
+because I ran them side by side for an unrelated reason.
+
+## 367. Third occurrence means fix the class, not the case
+
+The same lesson had already been written down twice. A third instance is not
+another case; it is evidence the cure was wrong.
+
+So the scope moved into ONE function -- `parse_failures` -- returning the
+parse-stage failures and counts of what was set aside. Both commands call it.
+Disagreement is now structurally impossible rather than tested for, which is the
+difference between a fix and a rule.
+
+## 368. The options list carried a stale claim
+
+I opened this iteration on "the census abstains on ten, and `tri prose report`
+answers six of them". It answers **zero**: earlier repairs closed those specs,
+and the sentence had been true when written and never re-measured.
+
+**An option list is a claim with a date on it.** Re-measure the premise before
+spending an iteration on it -- the measurement took one command and would have
+saved picking it at all.
