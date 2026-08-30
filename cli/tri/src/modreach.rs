@@ -46,7 +46,9 @@ pub fn edges_from(src: &str, here: &Path, dir: &Path) -> Vec<Edge> {
             continue;
         }
         if let Some(p) = include_path(t) {
-            out.push(Edge { candidates: vec![own.join(p)] });
+            out.push(Edge {
+                candidates: vec![own.join(p)],
+            });
             continue;
         }
         let Some(name) = mod_decl(t) else {
@@ -56,7 +58,9 @@ pub fn edges_from(src: &str, here: &Path, dir: &Path) -> Vec<Edge> {
             continue;
         };
         if let Some(p) = pending_path.take() {
-            out.push(Edge { candidates: vec![own.join(p)] });
+            out.push(Edge {
+                candidates: vec![own.join(p)],
+            });
         } else {
             out.push(Edge {
                 candidates: vec![
@@ -71,10 +75,7 @@ pub fn edges_from(src: &str, here: &Path, dir: &Path) -> Vec<Edge> {
 
 /// `mod name;` -- the file-backed form only. `mod name {` is inline and needs no file.
 pub fn mod_decl(t: &str) -> Option<String> {
-    let r = t
-        .strip_prefix("pub ")
-        .map(|r| r.trim_start())
-        .unwrap_or(t);
+    let r = t.strip_prefix("pub ").map(|r| r.trim_start()).unwrap_or(t);
     let r = if r.starts_with("pub(") {
         r.split_once(')')?.1.trim_start()
     } else {
@@ -118,11 +119,15 @@ pub fn reach(root: &Path, src_dir: &Path) -> Result<BTreeSet<PathBuf>> {
     let mut seen: BTreeSet<PathBuf> = BTreeSet::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(p) = stack.pop() {
-        let Ok(c) = std::fs::canonicalize(&p) else { continue };
+        let Ok(c) = std::fs::canonicalize(&p) else {
+            continue;
+        };
         if !seen.insert(c.clone()) {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&c) else { continue };
+        let Ok(text) = std::fs::read_to_string(&c) else {
+            continue;
+        };
         // Children of `x/mod.rs`, `src/main.rs` and `src/lib.rs` live in that file's
         // own directory; children of `x/y.rs` live in `x/y/`.
         let stem = c.file_stem().and_then(|s| s.to_str()).unwrap_or("");
@@ -199,9 +204,73 @@ pub fn self_check() -> Result<()> {
     Ok(())
 }
 
+/// Every crate the workspace declares, rather than a list written once.
+///
+/// It was `["bootstrap", "cli/tri"]` while `Cargo.toml` named FIVE members, so
+/// the census walked two of five and printed their sum as the repository's
+/// population. The guard immediately below refuses a crate that has been
+/// REMOVED -- "the crate list in this command is stale, and a report of zero
+/// orphans would be that staleness" -- and there was none for one being ADDED.
+///
+/// A guard written as a list goes stale by addition. This reads the list cargo
+/// reads, so adding a member adds it to the census in the same commit.
+fn members(repo: &Path) -> Result<Vec<String>> {
+    members_from(&std::fs::read_to_string(repo.join("Cargo.toml"))?)
+}
+
+/// Split out so its test needs no fixture on disk. The first version wrote to a
+/// fixed path under the temp dir and the binary runs its tests twice, so the two
+/// runs raced over one file and the test failed intermittently -- green by luck
+/// until it was not.
+fn members_from(text: &str) -> Result<Vec<String>> {
+    let i = text.find("members").ok_or_else(|| {
+        anyhow::anyhow!("Cargo.toml names no `members` -- this census has no population")
+    })?;
+    let rest = &text[i..];
+    let (a, b) = (
+        rest.find('[')
+            .ok_or_else(|| anyhow::anyhow!("`members` is not a list"))?,
+        rest.find(']')
+            .ok_or_else(|| anyhow::anyhow!("`members` list is not closed"))?,
+    );
+    let out: Vec<String> = rest[a + 1..b]
+        .split(',')
+        .map(|s| s.trim().trim_matches('"').trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if out.is_empty() {
+        anyhow::bail!("`members` is empty -- a census over no crates would report zero orphans");
+    }
+    Ok(out)
+}
+
+/// The files cargo compiles without any `mod` line naming them.
+///
+/// `src/lib.rs` and `src/main.rs` are roots, and so is every `src/bin/*.rs`:
+/// cargo discovers binary targets by LAYOUT. Walking `mod` edges alone calls
+/// `cli/dlc10/src/bin/dlc10.rs` an orphan, which is a false positive -- and a
+/// detector's false positives are how a check gets muted.
+fn roots(src: &Path) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = ["lib.rs", "main.rs"]
+        .iter()
+        .map(|f| src.join(f))
+        .filter(|p| p.is_file())
+        .collect();
+    if let Ok(rd) = std::fs::read_dir(src.join("bin")) {
+        let mut bins: Vec<PathBuf> = rd
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+            .collect();
+        bins.sort();
+        out.extend(bins);
+    }
+    out
+}
+
 pub fn run(gate: bool) -> Result<()> {
     let repo = repo_root()?;
-    let crates = ["bootstrap", "cli/tri"];
+    let crates = members(&repo)?;
     println!("ORPHANED SOURCE FILES  (nothing declares them; nothing compiles them)");
     println!();
     let mut total_files = 0usize;
@@ -209,32 +278,55 @@ pub fn run(gate: bool) -> Result<()> {
     let mut total_tests = 0usize;
     let ceil = if gate { Some(ceilings(&repo)?) } else { None };
     let mut breaches: Vec<String> = Vec::new();
-    for c in crates {
+    for c in &crates {
+        let c = c.as_str();
         let src = repo.join(c).join("src");
         if !src.is_dir() {
-            anyhow::bail!("{} does not exist -- the crate list in this command is stale, \
-                           and a report of zero orphans would be that staleness", src.display());
-        }
-        let root = ["main.rs", "lib.rs"]
-            .iter()
-            .map(|f| src.join(f))
-            .find(|p| p.is_file())
-            .ok_or_else(|| anyhow::anyhow!("{}: no main.rs or lib.rs", src.display()))?;
-        let reached = reach(&root, &src)?;
-        if reached.len() < 2 {
             anyhow::bail!(
-                "{} reaches {} file(s) from {} -- `mod` lines are not being read, and \
-                 every other file would be a false orphan",
-                c,
-                reached.len(),
-                root.display()
+                "{} does not exist -- the crate list in this command is stale, \
+                           and a report of zero orphans would be that staleness",
+                src.display()
             );
+        }
+        let rs = roots(&src);
+        if rs.is_empty() {
+            anyhow::bail!("{}: no lib.rs, main.rs or src/bin/*.rs", src.display());
+        }
+        let mut reached: BTreeSet<PathBuf> = BTreeSet::new();
+        for r in &rs {
+            reached.extend(reach(r, &src)?);
         }
         let mut all = Vec::new();
         walk(&src, &mut all)?;
+        // The guard is for a reader that stopped working, not for a small crate.
+        // `cli/flash-spi` is ONE file: it reaches exactly its root, and that is
+        // the right answer. The blunt version -- "fewer than two files reached"
+        // -- called that a broken reader and reported a real orphan under the
+        // wrong name. Fire only when edges WERE declared and none resolved.
+        let declared: usize = rs
+            .iter()
+            .filter_map(|r| {
+                let t = std::fs::read_to_string(r).ok()?;
+                let dir = r.parent().unwrap_or(&src).to_path_buf();
+                Some(edges_from(&t, r, &dir).len())
+            })
+            .sum();
+        if declared > 0 && reached.len() <= rs.len() {
+            anyhow::bail!(
+                "{} declares {} `mod` edge(s) from {} root(s) and reaches only {} file(s) -- \
+                 the declarations are not being read, and every other file under src/ would \
+                 be a false orphan",
+                c,
+                declared,
+                rs.len(),
+                reached.len()
+            );
+        }
         let mut orphans: Vec<(PathBuf, usize, usize)> = Vec::new();
         for p in &all {
-            let Ok(cp) = std::fs::canonicalize(p) else { continue };
+            let Ok(cp) = std::fs::canonicalize(p) else {
+                continue;
+            };
             if reached.contains(&cp) {
                 continue;
             }
@@ -254,11 +346,15 @@ pub fn run(gate: bool) -> Result<()> {
         // the two sets that ARE comparable, and say where the rest went.
         let outside = reached.len() - (all.len() - orphans.len());
         println!(
-            "  {c:<12} {:>3} files under src/, {:>3} compiled, {:>3} orphaned{}",
+            "  {c:<18} {:>3} files under src/, {:>3} compiled, {:>3} orphaned{}",
             all.len(),
             all.len() - orphans.len(),
             orphans.len(),
-            if outside > 0 { format!("   (+{outside} reached outside src/ via #[path])") } else { String::new() }
+            if outside > 0 {
+                format!("   (+{outside} reached outside src/ via #[path])")
+            } else {
+                String::new()
+            }
         );
         if let Some(cmap) = &ceil {
             match cmap.get(c) {
@@ -322,7 +418,10 @@ mod tests {
         let e = edges_from("mod c;\n", Path::new("/s/a/b.rs"), Path::new("/s/a/b"));
         assert_eq!(
             e[0].candidates,
-            vec![PathBuf::from("/s/a/b/c.rs"), PathBuf::from("/s/a/b/c/mod.rs")],
+            vec![
+                PathBuf::from("/s/a/b/c.rs"),
+                PathBuf::from("/s/a/b/c/mod.rs")
+            ],
             "not /s/a/c.rs -- a stem-name match anywhere in the tree would hide orphans"
         );
     }
@@ -347,6 +446,89 @@ mod tests {
         assert_eq!(e[1].candidates, vec![PathBuf::from("/s/a/g/y.rs")]);
     }
 
+    /// PROBE: the population is what the workspace declares, all of it.
+    ///
+    /// The list was written once as `["bootstrap", "cli/tri"]` and the
+    /// workspace grew to five members, so the census walked two of five and
+    /// printed their sum -- 132 -- as the repository's Rust population. The
+    /// real number is 136, and the three unwalked crates were watched by no
+    /// ratchet at all.
+    ///
+    /// What this does NOT cover: it exercises `members()` and nothing else, so
+    /// it stays green if `run` keeps a list of its own. Measured -- restoring
+    /// the hardcoded list left this test passing while the report went back to
+    /// 132. `the_ratchet_watches_every_member_and_no_ghost` is the one that
+    /// bites.
+    #[test]
+    fn every_workspace_member_is_in_the_census() {
+        let ok = "[workspace]\nresolver = \"2\"\nmembers = [\"a\", \"b/c\", \"d\"]\nexclude = [\"zz\"]\n";
+        assert_eq!(members_from(ok).unwrap(), vec!["a", "b/c", "d"]);
+
+        // A census over no crates would report zero orphans and look healthy.
+        assert!(
+            members_from("[workspace]\nmembers = []\n").is_err(),
+            "an empty members list is refused"
+        );
+        assert!(
+            members_from("[package]\nname = \"x\"\n").is_err(),
+            "a manifest with no members is refused"
+        );
+    }
+
+    /// The ledger names every workspace member, and only members.
+    ///
+    /// This is the test that has teeth. The first version of it exercised
+    /// `members()` on a fixture and PASSED while `run` kept its own hardcoded
+    /// list -- a test of the helper's existence, not of the caller reading it,
+    /// which is the exact defect class this change is about. Written again as
+    /// a comparison of two files read by two different readers: `Cargo.toml`
+    /// says who the members are, `docs/reports/orphan_modules.json` says who
+    /// the ratchet watches, and a member in one and not the other is a crate
+    /// nothing would have reported.
+    #[test]
+    fn the_ratchet_watches_every_member_and_no_ghost() {
+        let repo = repo_root().expect("repo root");
+        let declared: std::collections::BTreeSet<String> =
+            members(&repo).expect("members").into_iter().collect();
+        let watched: std::collections::BTreeSet<String> =
+            ceilings(&repo).expect("ceilings").keys().cloned().collect();
+        let unwatched: Vec<&String> = declared.difference(&watched).collect();
+        let ghosts: Vec<&String> = watched.difference(&declared).collect();
+        assert!(
+            unwatched.is_empty(),
+            "workspace members with no ceiling -- watched by nothing: {unwatched:?}"
+        );
+        assert!(
+            ghosts.is_empty(),
+            "ceilings for crates the workspace does not declare: {ghosts:?}"
+        );
+    }
+
+    /// COUNTER: a `src/bin/*.rs` is compiled without any `mod` line naming it.
+    ///
+    /// Cargo discovers binary targets by LAYOUT. Walking `mod` edges alone
+    /// calls `cli/dlc10/src/bin/dlc10.rs` an orphan, and a detector's false
+    /// positives are how a check gets muted.
+    #[test]
+    fn a_bin_target_is_a_root_not_an_orphan() {
+        // Per-process, because the binary runs its tests more than once and a
+        // fixed path makes the two runs race over one directory.
+        let dir = std::env::temp_dir().join(format!("tri-modreach-bin-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let src = dir.join("src");
+        std::fs::create_dir_all(src.join("bin")).unwrap();
+        std::fs::write(src.join("lib.rs"), "pub fn f() {}\n").unwrap();
+        std::fs::write(src.join("bin").join("tool.rs"), "fn main() {}\n").unwrap();
+
+        let rs = roots(&src);
+        assert_eq!(rs.len(), 2, "lib.rs and the bin target are both roots");
+        assert!(
+            rs.iter().any(|p| p.ends_with("bin/tool.rs")),
+            "the bin target is one of them"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn a_path_attribute_does_not_carry_to_a_later_unrelated_mod() {
         let e = edges_from(
@@ -354,6 +536,10 @@ mod tests {
             Path::new("/s/a/b.rs"),
             Path::new("/s/a/b"),
         );
-        assert_eq!(e[1].candidates[0], PathBuf::from("/s/a/b/d.rs"), "d is ordinary");
+        assert_eq!(
+            e[1].candidates[0],
+            PathBuf::from("/s/a/b/d.rs"),
+            "d is ordinary"
+        );
     }
 }
