@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7ebd1046c472e0813a0b0686baa3b91ce3846e0bf6f04df746e2f953d4152faf",
+  "gen_hash_c": "sha256:b9fcfb8fd370feab2664d53c02544721f4e778d84462094c4549e7de7a51455a",
   "gen_hash_rust": "sha256:87444c635343bfd7777168f82abccd54214fc56cb6445df14c6db0b15f95e7e8",
   "gen_hash_verilog": "sha256:b9a0c37dc409df444aeeaa105ef0514ee6c526075d2742a82f104293e51af3c9",
   "gen_hash_zig": "sha256:c60d2c46a5fe2df68032b4ab03af4df19ea556d80f8c64ee396a30ed71df8415",
   "module": "TriArray",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
+  "sealed_at": "2026-08-30T15:19:26Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:60653d3f4d6594d26519e2a2da5fb21c191c1e6c5823d192a0d0518df6010f87",
   "spec_path": "specs/tri/collections/array.t27"

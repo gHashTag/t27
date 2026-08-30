@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:aebd4f4323ea550a1c6132f13421255374d2056c7f8a7f7b8467653bcc0089fe",
+  "gen_hash_c": "sha256:70f28ee85e6af89b8af0716d348c20978b5824892fadecb3c157985b9427331d",
   "gen_hash_rust": "sha256:eafa96dddf6ae0c5caf226a2ad43607c68060bbaf35b659a65549289f5b216da",
   "gen_hash_verilog": "sha256:98a7310690ee35a91ba0fdf0129b99d57e77c683f46f46d657814b5717e0cf94",
   "gen_hash_zig": "sha256:40199c433de987a0df517e17991f7978d90af886d3988dd8c1ec3adae1c8d1db",
   "module": "TriRabinKarp",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:51Z",
+  "sealed_at": "2026-08-30T15:19:26Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b8c4bb5052b100a6e9fd6fdd7e3c760a73fa72ea05dddbe0c51bb2541dea0dff",
   "spec_path": "specs/tri/search/rabin_karp.t27"

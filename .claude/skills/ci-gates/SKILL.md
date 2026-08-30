@@ -9682,3 +9682,218 @@ counting; it is *not re-counting* when the number becomes load-bearing.
 done -- re-derive it from the tree in the same breath you use it.** It costs one
 command. Here it changed "we cover most of them" into "we cover a third", and
 the honest print of that ratio is worth more than the five rows above it.
+## 387. A mutant the freeze rejects is not a measurement
+
+Mutation testing on `bootstrap/src/compiler.rs` has a third outcome, and it looks
+exactly like the good one if you only check for the absence of `ok`.
+
+The M5 freeze is a **build script**: it compares `sha256(compiler.rs)` against
+`bootstrap/stage0/FROZEN_HASH` and refuses to build when they differ. Plant a
+mutant and the crate never compiles, so `cargo test` prints
+
+- no `test result:` line — nothing ran, and
+- no `error[E…]:` or `error:` line either — the failure is
+  `failed to run custom build command`, which most greps for a compiler error
+  will not match.
+
+Three mutants in one session came back as blank output and were nearly recorded
+as killed. Reseal `FROZEN_HASH` for each mutant, and write the verdict with
+**three** arms:
+
+```bash
+verdict() {
+  shasum -a 256 bootstrap/src/compiler.rs | awk '{print $1}' > bootstrap/stage0/FROZEN_HASH
+  o=$(cargo test -q -p t27c --test <name> 2>&1)
+  r=$(printf '%s' "$o" | grep -E '^test result' | head -1)
+  if   [ -z "$r" ];                          then echo "NEVER BUILT — not a measurement"
+  elif printf '%s' "$r" | grep -q 'ok\.';    then echo "SURVIVED"
+  else                                             echo "KILLED: $r"; fi
+}
+```
+
+The same shape catches a mutant that simply does not compile as Rust — a broken
+string escape, a moved value — which is the more common way a mutation run lies
+to you. Absence of "ok" is not death.
+
+## 388. A shape change breaks every reader keyed to the old shape
+
+Changing what the emitter writes is never only an emitter change. Anything that
+**slices** the output by pattern is a reader, and every reader keyed to the old
+spelling silently stops matching.
+
+Changing the C struct emission from `typedef struct { … } Name;` to a forward
+declaration plus `struct Name { … };` broke three of them at once:
+
+| reader | how it failed |
+|---|---|
+| `bootstrap/tests/struct_order_c.rs` | read closing `} Name;` lines → returned an empty list → **every ordering assertion passed vacuously** |
+| `tools/verify_igla_race.py` `_core_c` | `re.search(r"typedef struct\s*\{[^}]*\}\s*TernaryWeight\s*;")` → `None` → all three C arms reported *"C backend failed to build/run"*, which reads like an arithmetic disagreement and is not one |
+| `tools/verify_igla_race.py` line 441 | **not** broken — it slices the hoisted tuple typedef, emitted by a different path and still anonymous |
+
+The first is the dangerous one: a test whose ruler stops matching does not go
+red, it goes **vacuously green**.
+
+So: after changing an emitted shape, grep for the old shape across `tools/`,
+`scripts/`, `.github/`, `cli/` and the test directory, and check each hit
+against the *actual generated output* rather than reasoning about which code
+path it came from. The third row above was confirmed by generating the file and
+running the regex, not by reading the emitter.
+
+## 389. A gate that never runs on master has no baseline — borrow one from siblings
+
+`emit-bitexact-gate.yml` is `on: pull_request` with a `paths:` filter and no
+`push:`. It has therefore **never run on master**, so "is it red on master too?"
+is unanswerable, and `gh run list --branch master` returns nothing for it — which
+reads like "no data" and is easy to mistake for "no problem".
+
+The baseline is still available: the same workflow ran on every other recent
+branch.
+
+```bash
+gh run list --repo <r> --workflow <file>.yml -L 20 \
+  --json headBranch,conclusion,createdAt
+```
+
+Green on five sibling branches, including two from other agents and one of my
+own from the same hour — red on exactly one. That convicts the change without
+any master run existing. It is also the cheapest way to separate "my change did
+this" from "this gate is just broken today".
+
+(See also 348 on gates with `paths:` and no `push:`. The complement of that
+lesson is this one: no baseline does not mean no measurement, it means look
+sideways instead of backwards.)
+
+## 390. `git checkout` does not rebuild
+
+Two local runs of a CI tool passed on a branch whose CI run had failed. Both
+readings came from a `t27c` built *before* the emitter change: the sequence was
+`git stash`, `git checkout master`, `cargo build`, `git checkout <branch>` — and
+the last step restored the source without touching `target/`.
+
+The binary is the ruler. Any A/B across branches must rebuild on **both** sides,
+and the check is one line:
+
+```bash
+git checkout <branch> && cargo build --release -p t27c   # never checkout alone
+```
+
+The failure mode is asymmetric and mean: the stale binary is usually the *old*
+one, so a change measures as harmless exactly when it is not.
+
+## 391. A race that has not fired is not a test that passed
+
+`bootstrap/tests/scaffold_c.rs` keyed its scratch directory by
+`(process::id(), src.len())` and deleted the whole directory at the end of every
+test. One process per binary, so the key is really `src.len()`: two tests whose
+sources are the same length share one directory, and under the parallel runner
+one erases the input another is mid-read of.
+
+It failed about **one run in three**, and it passed the first time it was
+written. Four sibling files carried the same shape and had never once failed.
+
+Repetition is a weak instrument for this — 12 runs of `const_width` were all
+green while the collision was happening on every single one. **Probe the
+identity, not the outcome:**
+
+```rust
+assert!(!dir.exists(), "another test already owns {}", dir.display());
+```
+
+That fired 8 runs out of 8 on three files repetition had cleared. Or read the
+identities directly, which is even harder to argue with — print each path and
+count the distinct ones:
+
+| | distinct directories | tests |
+|---|---|---|
+| before | **3** | 6 |
+| after | **6** | 6 |
+
+Key by an `AtomicUsize` counter: unique per **call**. A pid is unique per
+process and every test shares it; anything derived from the input is unique per
+input and two inputs can agree.
+
+`tri harness scratch --gate --self-check` now guards the class.
+
+## 392. Two rulers that disagree: report both, and say which one the ratchet uses
+
+Declaring the missing `assert_eq` shim in the Zig prelude moved two different
+numbers:
+
+```
+zig build-obj -fno-emit-bin    222 -> 282   +60   regressions 0
+zig test --test-no-exec        105 -> 133   +28   regressions 0
+```
+
+Both are true. `build-obj` resolves identifiers but never Sema-analyses a test
+body, so it certifies that a name is *in scope* — nothing more. The corpus
+acceptance column is measured with it, so **+60 is the honest number for that
+column** and **+28 is the honest number for "this code now compiles"**.
+
+Quoting only the larger one is a lie of selection; quoting only the smaller one
+understates the gate that actually moved. Report both, name which ruler each
+belongs to, and account for the gap: here the 32-file difference is a separate
+defect (`1 << n` lowered as `@as(u32, 1)`) that the undeclared identifier was
+masking, filed as its own issue.
+
+**The inflation control belongs in the same table.** Deleting every `assert_eq`
+line instead of declaring it scores 60/60 on the deep ruler — better than the
+real fix — because with the calls gone the functions are unreferenced and Zig
+never analyses them at all. A variant that scores higher by removing the code
+under test is the ceiling of the measurement, not a competing fix. Measure it on
+purpose so the number you ship has something to be compared against.
+
+## 393. Fix the emitter once, then count its call sites
+
+The Zig `has_tests` prelude existed as two byte-identical copies, `gen_zig` and
+`gen_zig_project`. The measurement named one of them — the one `t27c gen` and
+the corpus harness run — so a shim added there would have passed every gate
+while `compile_project_file` kept emitting the broken prelude.
+
+Duplication of an emitter is not a style complaint. It is the seam where the
+next fix lands on one side only, and no test that drives the CLI can see it.
+
+Extract to one function, call it from both, and assert the arity **structurally**
+when the second path needs a whole repository on disk to exercise:
+
+```rust
+let src = include_str!("../src/compiler.rs");
+assert_eq!(src.matches("fn write_zig_test_prelude(&mut self)").count(), 1);
+assert_eq!(src.matches("self.write_zig_test_prelude();").count(), 2);
+```
+
+A structural test is weaker than a behavioural one and much stronger than the
+nothing that was there. It is the right tool exactly when the integration path is
+too expensive to drive and the defect is "one of N sites was missed".
+
+## 394. A detector needs a counterexample, not a review
+
+`tri harness scratch` was written to find scratch directories shared between
+tests. Its first rule asked whether the `format!` call contained a `{`.
+
+That is true of every single-line format call ever written. A key interpolating
+only `process::id()` — the worst case, where *all* the tests in a binary share
+one directory — therefore looked variable and was passed over. The detector
+reported nothing on `verilog_imported_enum.rs` while an independent probe was
+firing on it 8 runs out of 8.
+
+Judging the arguments instead then convicted `backend_behaviour.rs`, whose key is
+`format!("…-{tag}")`: an inline capture, distinct per test, with no argument list
+at all. A second counterexample, a second hole.
+
+Neither hole was visible by reading the rule. Both appeared the moment it was run
+against files whose answer was already known by other means. So:
+
+- build the population by an independent instrument first (here: the probe),
+- run the detector against it, and
+- treat every disagreement in **either** direction as a defect in the detector
+  until proven otherwise.
+
+Then freeze both counterexamples into `--self-check` so the next edit cannot
+reopen them. The control here has five legs — a planted collision and a pid-only
+key must be seen; counter-keyed, inline-capture and single-test files must not —
+and it exits non-zero saying the clean run claims nothing if any leg fails.
+
+Grepping the symptom rather than the construct has the same failure in the other
+direction: `src.len()` also appears in `String::with_capacity(src.len())`, which
+has nothing to do with a path. `verilog_r_si_1.rs` would have been convicted by a
+grep and is clean.

@@ -266,14 +266,34 @@ def _core_c(t27c):
     src = _gen(t27c, "c", SPEC, ROOT)
     if src is None:
         return None
-    st = re.search(r"typedef struct\s*\{[^}]*\}\s*TernaryWeight\s*;", src)
+    # Two shapes, because the C backend changed its struct emission (#2948).
+    #
+    #   tagged     typedef struct TernaryWeight TernaryWeight;
+    #              struct TernaryWeight { ... };
+    #   anonymous  typedef struct { ... } TernaryWeight;
+    #
+    # The forward declaration is what lets a struct name itself; the body had to
+    # become tagged for that declaration to refer to anything. This reader was
+    # keyed to the anonymous shape alone, so it returned None the moment the
+    # emitter changed -- and a None here fails all three C arms with
+    # "C backend failed to build/run", which reads like an arithmetic
+    # disagreement and is not one.
+    #
+    # Both shapes are accepted so this tool judges the arithmetic, not the
+    # spelling, and so it keeps working on either side of that change.
+    st = re.search(r"struct\s+TernaryWeight\s*\{[^}]*\}\s*;", src)
+    if st:
+        st_text = "typedef struct TernaryWeight TernaryWeight;\n" + st.group(0)
+    else:
+        st = re.search(r"typedef struct\s*\{[^}]*\}\s*TernaryWeight\s*;", src)
+        st_text = st.group(0) if st else None
     defs = [_extract_def(src, s) for s in (
         "int8_t ternary_decode(TernaryWeight w)",
         "int8_t ternary_mul(int8_t a, TernaryWeight w)",
         "int32_t ternary_mac(int32_t acc, int8_t a, TernaryWeight w)")]
     if not st or any(d is None for d in defs):
         return None
-    return "#include <stdint.h>\n#include <stdio.h>\n" + st.group(0) + "\n" + "\n".join(defs)
+    return "#include <stdint.h>\n#include <stdio.h>\n" + st_text + "\n" + "\n".join(defs)
 
 
 def _core_rust(t27c):
