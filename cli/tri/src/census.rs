@@ -61,7 +61,7 @@ struct Row {
     reading: &'static str,
 }
 
-const ROWS: [Row; 3] = [
+const ROWS: [Row; 4] = [
     Row {
         census: "unparsed report",
         args: &["unparsed", "report"],
@@ -88,6 +88,48 @@ const ROWS: [Row; 3] = [
         what: ".rs under every workspace member",
         soft: false,
         reading: "the census walked a list; this walks the cargo workspace",
+    },
+    Row {
+        census: "lean vacuous",
+        args: &["lean", "vacuous"],
+        marker: "models in the file",
+        nth: 0,
+        what: "`theorem` lines in Completeness.lean",
+        soft: false,
+        reading: "the census counts `def NAME : Module := {`; this counts the theorems, \
+                  one per model, and a hand-transcribed file can gain either without the other",
+    },
+];
+
+/// A census this audit does NOT check, and the reason.
+///
+/// Without this list the audit is narrow in exactly the way it exists to
+/// catch: a page of green rows looks like coverage until somebody asks what is
+/// not on it. Each entry is a measurement, not a shrug.
+struct Uncovered {
+    census: &'static str,
+    why: &'static str,
+}
+
+const UNCOVERED: [Uncovered; 3] = [
+    Uncovered {
+        census: "seals hollow",
+        why: "built and removed. Its counter tested json text for `\"spec_path\"` while the \
+              census parses that same field, so planting one more seal moved BOTH numbers \
+              to 1314 and the row stayed green. No input makes them disagree.",
+    },
+    Uncovered {
+        census: "types dup",
+        why: "measured: a counter loose enough to be independent reads 1182 where the census \
+              reads 1180, and the two extra are `struct = 21,` -- enum members named `struct`, \
+              which the census correctly rejects. Any counter accurate enough to agree is a \
+              copy of its matcher.",
+    },
+    Uncovered {
+        census: "discard classify",
+        why: "its population is parser events produced at run time, not artefacts on disk. \
+              Counting them a second way means running the same parser, which is not a \
+              second opinion.",
     },
 ];
 
@@ -282,8 +324,43 @@ fn independent(census: &str, repo: &Path) -> Result<usize> {
             }
             Ok(n)
         }
+        "lean vacuous" => {
+            // A different marker for the same population: the census counts
+            // `def NAME : Module := {`, this counts the theorem each model is
+            // supposed to carry. The file is found by name rather than by the
+            // path the census uses.
+            let mut v = Vec::new();
+            walk(&repo.join("proofs"), "Completeness.lean", &mut v);
+            let p = v.first().ok_or_else(|| {
+                anyhow::anyhow!("no Completeness.lean under proofs/ -- nothing to count")
+            })?;
+            let src = std::fs::read_to_string(p)?;
+            Ok(src
+                .lines()
+                .filter(|l| l.trim_start().starts_with("theorem "))
+                .count())
+        }
         other => anyhow::bail!("no independent counter for {other}"),
     }
+}
+
+/// Break a sentence into lines of at most `w` characters, on word boundaries.
+fn wrap(s: &str, w: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for word in s.split_whitespace() {
+        if !cur.is_empty() && cur.len() + 1 + word.len() > w {
+            out.push(std::mem::take(&mut cur));
+        }
+        if !cur.is_empty() {
+            cur.push(' ');
+        }
+        cur.push_str(word);
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
 }
 
 fn repo_root() -> Result<PathBuf> {
@@ -369,6 +446,16 @@ pub fn run(cmd: &CensusCmd) -> Result<()> {
         );
     }
     println!("  AGREED. Every census speaks about the population it prints.");
+    println!();
+    println!("  Not checked here, and why -- because a page of green rows looks");
+    println!("  like coverage until somebody asks what is missing from it:");
+    for u in &UNCOVERED {
+        println!();
+        println!("      {}", u.census);
+        for chunk in wrap(u.why, 68) {
+            println!("          {chunk}");
+        }
+    }
     Ok(())
 }
 
@@ -420,6 +507,41 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A census is either checked or explicitly not, never neither.
+    ///
+    /// The audit's own coverage is the same class it exists to catch: a page
+    /// of green rows looks like the whole story. A name in both lists, or an
+    /// exclusion with no measurement behind it, puts it back there.
+    #[test]
+    fn nothing_is_both_checked_and_excused() {
+        for u in &UNCOVERED {
+            assert!(
+                !ROWS.iter().any(|r| r.census == u.census),
+                "{} is listed as unchecked and also has a row",
+                u.census
+            );
+            assert!(
+                u.why.len() > 60,
+                "{}: an exclusion is a measurement, not a shrug -- {:?}",
+                u.census,
+                u.why
+            );
+        }
+    }
+
+    /// The reasons are printed, so they have to fit the page.
+    #[test]
+    fn a_reason_wraps_on_word_boundaries() {
+        let w = wrap("one two three four five", 9);
+        assert_eq!(w, vec!["one two", "three", "four five"]);
+        assert!(wrap("", 10).is_empty());
+        // A word longer than the width is not cut in half.
+        assert_eq!(
+            wrap("supercalifragilistic ok", 8),
+            vec!["supercalifragilistic", "ok"]
+        );
     }
 
     /// A soft row states why its difference is not a defect.
