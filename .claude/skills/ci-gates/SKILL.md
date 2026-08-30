@@ -9624,3 +9624,61 @@ lists, and refuses a reason shorter than sixty characters. `"too hard"` fails.
 The distinction being preserved is the one this whole document keeps circling:
 a reader must be able to tell **"looked and could not"** from **"never looked"**,
 and a blank space says the second while meaning the first.
+
+## 384. The list went stale by MY addition, into the gate that watches lists
+
+`tri ledgers audit` exists to catch a ledger whose entries have stopped being
+true. Its own list of ledgers was hardcoded at four. Two passes earlier I added
+a fifth ledger -- `docs/reports/orphan_modules.json` -- and did not add it here.
+
+§377 already says a guard written as a list goes stale by addition. This is that
+sentence coming back with my name on it, inside the meta-gate whose whole subject
+is stale lists.
+
+**Whenever you ADD a ledger, a ceiling, a baseline or an allowlist, the same
+commit adds it to whatever audits that kind of thing.** If you cannot name the
+audit, that is the finding.
+
+The repair is not a fifth entry. It is enumerating from the tree:
+
+```
+ledger-shaped files on disk   15   planted into 5, excused 2, unclassified 8
+```
+
+**An enumeration read from disk cannot go stale by addition.** A list written
+down always can, and writing it down is what feels like being thorough.
+
+## 385. A catch for the wrong reason is not a catch
+
+Adding a JSON ledger to an audit that plants a line into text files looked like
+one line of code. Appending a line to JSON makes the file unparseable, so the
+gate goes red -- and the audit records `caught`.
+
+It caught nothing. The gate failed on a **syntax error**, not on the stale
+entry, and the audit would have gone on reporting that ledger as protected while
+its actual staleness check was never exercised.
+
+The planted falsehood has to be **valid and false**: for a ceiling ledger, a
+ceiling naming a crate the workspace does not declare. Which promptly found a
+second defect -- the gate iterated crates and looked up their ceilings, so a
+ceiling for a crate that does not exist was never visited at all.
+
+**When a control reports a catch, ask which of the two possible reasons the
+subject failed for.** If the planted input breaks the reader rather than the
+claim, every downstream "caught" is a green light with nothing behind it -- the
+same family as a gate that prints FAILED and exits 0, one level in.
+
+## 386. The count you carry in your head is a sample
+
+I opened that pass writing "the audit covers four of seven ledgers". Seven was
+from memory, assembled while working on something else. Counting the tree:
+**fifteen** -- nine `tools/*baseline*.txt` and six `docs/reports/*.json`.
+
+§362 says the same thing about a note written while chasing another problem, and
+it was my note being corrected then too. The habit that fails is not the
+counting; it is *not re-counting* when the number becomes load-bearing.
+
+**Before a number decides scope -- what to cover, what to exclude, what to call
+done -- re-derive it from the tree in the same breath you use it.** It costs one
+command. Here it changed "we cover most of them" into "we cover a third", and
+the honest print of that ratio is worth more than the five rows above it.
