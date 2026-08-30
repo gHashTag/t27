@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3a34c56e36031b26e0adcd83994ef52713f730bf054623cf86e80014c1eb63a1",
+  "gen_hash_c": "sha256:9722171431a61959f79381aea8b3301f55dd56789a377343ecb5d1aff0dae78a",
   "gen_hash_rust": "sha256:b7692467d86b0541400ef525eecf45eb4eb281f1c6e2c0f06f696b4ecb98c5f2",
   "gen_hash_verilog": "sha256:7b35edb5bc3ed929719b47503133359720e6f63e68f4d92286ed52588a680339",
   "gen_hash_zig": "sha256:b1ef93ff6135dafe50b7598d762171f7e23c4527b88d86aad7747cd6efed6454",
   "module": "Mlp",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_at": "2026-08-30T01:11:17Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:38e27adb2b1502fe1200eaaaf794baf678bedb3dcf17667cba1c5d1f6eb393ab",
   "spec_path": "specs/ml/pathway/mlp.t27"

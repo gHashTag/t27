@@ -17413,6 +17413,12 @@ pub struct CCodegen {
     /// Function name -> t27 return type, used to resolve tuple element types at
     /// a `let (a, b) = call()` destructuring site.
     fn_return_types: std::collections::HashMap<String, String>,
+    /// Function name -> declared t27 parameter types. A scaffold binding has no
+    /// type of its own; its consumer's parameter is declared, so the type is
+    /// recoverable from the use. Zig has done this since W585.
+    fn_param_types: std::collections::HashMap<String, Vec<String>>,
+    /// Scaffold binding name -> the C type recovered for it.
+    scaffold_locals_c: std::collections::HashMap<String, String>,
     /// t27 tuple return type of the function currently being emitted, so an
     /// `ExprTuple` in a `return` can be cast to the right C compound-literal type.
     current_ret_tuple_type: Option<String>,
@@ -17436,6 +17442,8 @@ impl CCodegen {
             indent: 0,
             module_name: String::new(),
             fn_return_types: std::collections::HashMap::new(),
+            fn_param_types: std::collections::HashMap::new(),
+            scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
             array_typed_names: std::collections::HashSet::new(),
@@ -17726,6 +17734,13 @@ impl CCodegen {
                 self.fn_return_types
                     .insert(f.name.clone(), f.extra_return_type.clone());
             }
+        }
+
+        for f in &functions {
+            self.fn_param_types.insert(
+                f.name.clone(),
+                f.params.iter().map(|(_, t)| t.clone()).collect(),
+            );
         }
 
         // Hoist a C struct typedef for every distinct tuple shape used as a
@@ -18350,6 +18365,7 @@ impl CCodegen {
     }
 
     fn gen_c_fn(&mut self, node: &Node) {
+        self.collect_scaffold_locals_c(&node.children);
         let ret_type = self.c_return_type_r(&node.extra_return_type);
         let ret_type = if ret_type.is_empty() {
             "void".to_string()
@@ -18401,6 +18417,7 @@ impl CCodegen {
     }
 
     fn gen_c_test(&mut self, node: &Node) {
+        self.collect_scaffold_locals_c(&node.children);
         // Convert test name to valid C identifier
         let fn_name = node.name.replace(|c: char| !c.is_alphanumeric(), "_");
         let fn_name = format!("test_{}", fn_name);
@@ -18853,6 +18870,26 @@ impl CCodegen {
                         // unsigned comparison against it inverts (the same
                         // class the Zig backend fixed as comptime_int).
                         if w == "u64" { "uint64_t".to_string() } else { "uint32_t".to_string() }
+                    } else if self.init_is_void_call(node) {
+                        // `when result = f(input)` where `f` returns nothing.
+                        // `__auto_type` cannot deduce from `void` -- "variable
+                        // has incomplete type 'void'" -- and there is no value
+                        // to bind. Emit the CALL and drop the binding; the
+                        // clause's effect is the call.
+                        //
+                        // Only for functions this module declares WITHOUT a
+                        // return type. An undeclared callee is a different fact
+                        // and keeps its old treatment, or the arm would silently
+                        // swallow every unresolved name.
+                        if let Some(init) = node.children.first() {
+                            self.gen_c_expr(init);
+                        }
+                        self.write_line(";");
+                        return;
+                    } else if let Some(t) = self.scaffold_locals_c.get(&node.name).cloned() {
+                        // A scaffold binding: typed from its consumer, not from
+                        // its initialiser. Same recovery Zig made in W585.
+                        t
                     } else if !node.children.is_empty() {
                         // GNU `__auto_type`: the type follows the INITIALISER,
                         // which is what Rust's `let` and Zig's `const` do.
@@ -19123,6 +19160,112 @@ impl CCodegen {
     }
 
     /// Map a t27/Zig type to C for use in parameter/return positions
+    /// Bindings made by the scaffold helpers, typed from their consumer.
+    ///
+    /// Verilog's W660 needed none of this: its bindings are already declared as
+    /// a `reg` of the right width, so the literal `0` carries the type. C has no
+    /// such declaration, and `__auto_type input = 0` makes an `int`. Measured:
+    /// writing a plain `0` moved `call to undeclared function` from 86 to 13 and
+    /// raised `incompatible integer to pointer conversion` to 68, with the accept
+    /// count unchanged -- one error family traded for another. The type has to
+    /// come from the consumer.
+    /// Whether an expression mentions the identifier `undefined` anywhere.
+    ///
+    /// Not just at the top: the clause arrives as `result != undefined`, so the
+    /// identifier is a child of the comparison, and a check that looked only at
+    /// the node itself would find nothing and change no output.
+    fn mentions_undefined(node: Option<&Node>) -> bool {
+        let Some(n) = node else { return false };
+        if n.kind == NodeKind::ExprIdentifier && n.name == "undefined" {
+            return true;
+        }
+        n.children.iter().any(|c| Self::mentions_undefined(Some(c)))
+    }
+
+    /// Whether this local's initialiser is a call to a function this module
+    /// declares with no return type.
+    ///
+    /// `fn_return_types` holds an entry only when `extra_return_type` is
+    /// non-empty, so "absent" means either void OR undeclared. Those are
+    /// different facts: `fn_param_types` has an entry for every function in the
+    /// module, so the pair separates them.
+    fn init_is_void_call(&self, node: &Node) -> bool {
+        let Some(init) = node.children.first() else {
+            return false;
+        };
+        if init.kind != NodeKind::ExprCall {
+            return false;
+        }
+        if !self.fn_param_types.contains_key(&init.name) {
+            return false;
+        }
+        // Two spellings of the same thing: an omitted return type leaves no
+        // entry, and an explicit `-> void` leaves one whose value is "void".
+        // Checking only for absence missed 80 specs, all of which say it out
+        // loud.
+        match self.fn_return_types.get(&init.name) {
+            None => true,
+            Some(t) => t.trim() == "void",
+        }
+    }
+
+    fn collect_scaffold_locals_c(&mut self, stmts: &[Node]) {
+        self.scaffold_locals_c.clear();
+        let mut names: std::collections::HashSet<String> = std::collections::HashSet::new();
+        Self::collect_scaffold_names_c(stmts, &mut names);
+        if names.is_empty() {
+            return;
+        }
+        let params = self.fn_param_types.clone();
+        let mut found: Vec<(String, String)> = Vec::new();
+        Self::visit_calls_c(stmts, &mut |call: &Node| {
+            let Some(sig) = params.get(&call.name) else {
+                return;
+            };
+            for (i, arg) in call.children.iter().enumerate() {
+                if arg.kind != NodeKind::ExprIdentifier || !names.contains(&arg.name) {
+                    continue;
+                }
+                if let Some(ty) = sig.get(i) {
+                    let c = Self::param_type_to_c(ty);
+                    if !c.is_empty() {
+                        found.push((arg.name.clone(), c));
+                    }
+                }
+            }
+        });
+        for (name, ty) in found {
+            self.scaffold_locals_c.insert(name, ty);
+        }
+    }
+
+    fn collect_scaffold_names_c(stmts: &[Node], out: &mut std::collections::HashSet<String>) {
+        for stmt in stmts {
+            if matches!(stmt.kind, NodeKind::StmtLocal | NodeKind::StmtAssign)
+                && !stmt.name.is_empty()
+            {
+                if let Some(init) = stmt.children.first() {
+                    if init.kind == NodeKind::ExprCall
+                        && init.children.is_empty()
+                        && matches!(init.name.as_str(), "default_input" | "valid_input")
+                    {
+                        out.insert(stmt.name.clone());
+                    }
+                }
+            }
+            Self::collect_scaffold_names_c(&stmt.children, out);
+        }
+    }
+
+    fn visit_calls_c(nodes: &[Node], f: &mut impl FnMut(&Node)) {
+        for n in nodes {
+            if n.kind == NodeKind::ExprCall {
+                f(n);
+            }
+            Self::visit_calls_c(&n.children, f);
+        }
+    }
+
     fn param_type_to_c(ty: &str) -> String {
         // A dotted foreign type (`std.mem.Allocator`) has no C spelling at all.
         // It reached the header as `std.mem.Allocator x;`, which is not C;
@@ -19247,6 +19390,32 @@ impl CCodegen {
             }
             NodeKind::ExprCall => {
                 let fname = &node.name;
+                // The third call-site of the scaffold class. `default_input()`
+                // and `valid_input()` are TEMPLATE SCAFFOLD, not functions: 571
+                // test blocks call them and nothing in the tree defines either.
+                // Zig resolved them in W585, Verilog in W660 -- whose comment
+                // names its sibling and stops there. Nobody grepped the C path.
+                if matches!(fname.as_str(), "default_input" | "valid_input")
+                    && node.children.is_empty()
+                {
+                    self.write("0");
+                    return;
+                }
+                // A `then` clause lowers to `assert(cond)` with ONE child.
+                // C has no `undefined`, and `{0}` -- what the identifier arm
+                // writes for it -- is a brace initialiser, not an operand, so
+                // `assert((result != {0}))` is "expected expression". Writing
+                // `0` instead would assert something the spec does not claim,
+                // and `(typeof(result)){0}` is still illegal for a struct.
+                // The Zig backend's own comment records that these tests
+                // "constrain the value not at all"; saying so is honest.
+                if fname == "assert"
+                    && node.children.len() == 1
+                    && Self::mentions_undefined(node.children.first())
+                {
+                    self.write("/* t27: `!= undefined` constrains nothing (W585) */");
+                    return;
+                }
                 if fname == "assert" && node.children.len() == 2 {
                     // t27 assert(cond, "msg"): C's assert macro takes ONE argument
                     // and the message literal must be re-quoted (the parser stores

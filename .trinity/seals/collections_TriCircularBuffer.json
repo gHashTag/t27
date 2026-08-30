@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:00e66e150ef4441e0ca2f092ef0ceb8284d86221b730161cf4e80ac13c8f3a7f",
+  "gen_hash_c": "sha256:1569b77197598c2ce91459b855be710758e9fe0f620e806f79ba5dd575925970",
   "gen_hash_rust": "sha256:3b3c8e3e5490901f8f074a524848cd6c43dd7fb1d819d7d12307580829c698f6",
   "gen_hash_verilog": "sha256:14ea79c0867b3077ca828290ff0656bc30b192d348c5b66f17b45777924be16e",
   "gen_hash_zig": "sha256:20259fafb50bf74eb913ddfd848eae84475d6016cd4ddc1e621ef911ac8c387a",
   "module": "TriCircularBuffer",
   "ring": 12,
-  "sealed_at": "2026-08-30T00:44:18Z",
+  "sealed_at": "2026-08-30T01:11:17Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:9a8156c31cf1ff378730d53a4e55d2265fb101558dabfa1c3cf9f3c9e3e3ed5a",
   "spec_path": "specs/tri/collections/circular_buffer.t27"

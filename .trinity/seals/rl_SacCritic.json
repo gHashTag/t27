@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c5795939d209807f58057ed73c6a4f31437f61f9e0f39e4920f5ca35bf475a91",
+  "gen_hash_c": "sha256:fd225adc7c25b29a8404121114a81c29941e91e157e7562ecd34d3c5e7ca3e45",
   "gen_hash_rust": "sha256:457c85cae4d022d81abf1f8448ca41fa7406f2566a885593bcb7790e380c81d4",
   "gen_hash_verilog": "sha256:ef7120b2347e474440bb0a5896ab4f29d6af1eaa70f8cbaa2d79b9eeca34b79b",
   "gen_hash_zig": "sha256:93cd18970d01a8ad3376277165ad845bf072e4fee1a7084a5290a0f25d0e2509",
   "module": "SacCritic",
   "ring": 12,
-  "sealed_at": "2026-08-29T22:37:14Z",
+  "sealed_at": "2026-08-30T01:11:17Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:87f4df6699be1253d8cb35dc7ff8065613c923bfb72af25822078017897d1177",
   "spec_path": "specs/ml/rl/sac_critic.t27"
