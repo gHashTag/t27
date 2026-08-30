@@ -12,6 +12,7 @@ mod discard;
 mod abandoned;
 mod orphaned;
 mod census;
+mod competitors;
 mod cibase;
 mod fleet;
 mod fpga;
@@ -234,6 +235,12 @@ enum Commands {
     Census {
         #[command(subcommand)]
         action: census::CensusCmd,
+    },
+    /// The competitor table against its own contract: how many of its published
+    /// scores were never published, and how many papers it counts twice.
+    Competitors {
+        #[command(subcommand)]
+        action: competitors::CompetitorsCmd,
     },
     Unparsed {
         #[command(subcommand)]
@@ -891,6 +898,7 @@ fn main() -> Result<()> {
         Commands::Prose { action } => prose::run(action, std::env::current_dir()?)?,
         Commands::Ledgers { action } => ledgers::run(action, std::env::current_dir()?)?,
         Commands::Census { action } => census::run(action)?,
+        Commands::Competitors { action } => competitors::run(action)?,
         Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,

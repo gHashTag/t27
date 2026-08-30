@@ -24,7 +24,7 @@
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Subcommand)]
 pub enum TypesCmd {
@@ -61,7 +61,13 @@ pub enum TypesCmd {
     /// defines a name twice. They are different defects: the first is a naming
     /// collision, the second is a copy whose halves have drifted apart. Fails
     /// when two copies of one name state different values.
-    Redef,
+    Redef {
+        /// Measure the consequence this command reports, instead of asserting
+        /// it: plant two definitions of one name, run the generator, and read
+        /// its output.
+        #[arg(long)]
+        probe: bool,
+    },
 }
 
 /// Where the conflicted set is pinned.
@@ -806,14 +812,94 @@ fn redef(root: &std::path::Path) -> Result<()> {
     if numbers > 0 {
         println!();
         println!(
-            "A name whose copies state different numbers has no single answer: the\n\
-             consumer takes whichever copy the compiler kept, and `t27c parse` accepts\n\
-             all of them with exit 0 and no diagnostic. Text and field drift are\n\
-             reported, not failed -- a citation getting more specific is not a\n\
-             contradiction."
+            "A name whose copies state different numbers has no single answer, and\n\
+             the answer is worse than a wrong number. `t27c parse` accepts the file\n\
+             with exit 0 and no diagnostic -- but `t27c gen-rust` then emits EVERY\n\
+             copy, and the generated crate does not compile: rustc E0428, the name\n\
+             is defined multiple times. Nothing picks a copy. Measured by\n\
+             `tri types redef --probe`, which plants two definitions and reads the\n\
+             generator's own output. Text and field drift are reported, not failed\n\
+             -- a citation getting more specific is not a contradiction."
         );
         std::process::exit(1);
     }
+    Ok(())
+}
+
+/// Does a redefinition really reach the generator, or does something pick a copy?
+///
+/// The message `redef` prints names a consequence, and a named consequence that
+/// nothing measures is the same shape of claim this repository keeps catching
+/// elsewhere. So it is measured here: two definitions of one name, through the
+/// real `t27c gen-rust`, and the output read back.
+///
+/// The probe fails if the generator ever starts de-duplicating -- at which point
+/// the message is wrong and has to be rewritten, which is the point of having it.
+fn redef_probe(root: &Path) -> Result<()> {
+    let t27c = ["target/release/t27c", "target/debug/t27c"]
+        .iter()
+        .map(|p| root.join(p))
+        .find(|p| p.exists())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "no t27c binary under target/ -- build it first, or the probe would \
+                 report \"cannot reproduce\" for want of a compiler rather than for \
+                 want of the defect"
+            )
+        })?;
+
+    let dir = std::env::temp_dir().join(format!("tri-redef-probe-{}", std::process::id()));
+    std::fs::create_dir_all(&dir)?;
+    let spec = dir.join("redef_probe.t27");
+    std::fs::write(
+        &spec,
+        "/// planted_twice() -> u32\n\
+         /// Two definitions of one name, planted to measure what the generator does.\n\
+         pub fn planted_twice() -> u32 {\n    return 11;\n}\n\n\
+         pub fn planted_twice() -> u32 {\n    return 22;\n}\n\n\
+         test planted_twice_reads_eleven { assert_eq(planted_twice(), 11); }\n",
+    )?;
+
+    let parse = std::process::Command::new(&t27c)
+        .arg("parse")
+        .arg(&spec)
+        .output()?;
+    let gen = std::process::Command::new(&t27c)
+        .arg("gen-rust")
+        .arg(&spec)
+        .output()?;
+    let rust = String::from_utf8_lossy(&gen.stdout).to_string();
+    let emitted = rust.matches("fn planted_twice").count();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    println!(
+        "REDEF PROBE -- two definitions of one name, through {}\n",
+        t27c.display()
+    );
+    println!(
+        "  t27c parse       exit {}   {}",
+        parse.status.code().unwrap_or(-1),
+        if parse.status.success() {
+            "accepted, no diagnostic"
+        } else {
+            "rejected"
+        }
+    );
+    println!("  t27c gen-rust    emitted `fn planted_twice` {emitted} time(s)");
+
+    if emitted < 2 {
+        anyhow::bail!(
+            "the generator emitted the name {emitted} time(s), not twice. Something \
+             now picks a copy, so the sentence `redef` prints -- that every copy is \
+             emitted and the crate does not compile -- is no longer true. Rewrite it \
+             from what this probe measures."
+        );
+    }
+    println!(
+        "\n  Every copy is emitted, so the generated crate does not compile: two `fn`\n  \
+         items of one name is rustc E0428. The file is accepted by `t27c parse` and\n  \
+         fails at the consumer, which is why `redef` fails rather than warns."
+    );
     Ok(())
 }
 
@@ -842,7 +928,13 @@ pub fn run(cmd: &TypesCmd) -> Result<()> {
                 .collect();
             return ratchet(&root, &observed, *bless);
         }
-        TypesCmd::Redef => return redef(&root),
+        TypesCmd::Redef { probe } => {
+            return if *probe {
+                redef_probe(&root)
+            } else {
+                redef(&root)
+            }
+        }
         TypesCmd::Classified => {
             let specs = read_specs(&root);
             if specs.is_empty() {
