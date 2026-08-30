@@ -10116,7 +10116,47 @@ honest `0` read as a gate that missed. **A planted-fault probe needs its own
 assertion that the plant took**, exactly like the anchor asserts on every text
 substitution in this repository.
 
-## 401. A sentinel that is a legal value writes a claim nobody made
+## 401. A scratch file shared with your own background agents is a moving population
+
+`/tmp/specs.txt` held the corpus list. A measurement started by printing it —
+**649 specs** — then launched a background fan-out whose prompt said *"or
+/tmp/specs.txt if present"*, then took a baseline and an after-reading from that
+same file.
+
+One of the agents regenerated it. By the time the baseline ran the file held
+**665** entries, and every reading afterwards was over a population the report
+had already described as 649.
+
+The A/B survived, and only by luck: both sides ran *after* the change, so the
+sets were comparable and the delta (+32, regressions 0) is sound. Had the
+regeneration landed between the before and the after, the two accept sets would
+have been drawn from different populations and the difference between them would
+have been read as a compiler change.
+
+The tell was there and cheap: every run printed `GEN 589` where the previous
+day's runs on the same command printed `GEN 581`, and the population line said
+649. **Three numbers that should have been two.**
+
+So:
+
+- **Snapshot the population into a per-run file** that nothing else writes:
+  `git ls-files … > /tmp/pop-$$.txt`, and pass that path to every reading of the
+  pair. A file named after the question is a file two processes will both answer.
+- **Never hand a mutable path to a background agent and then read it yourself.**
+  Give agents a copy, or give them the command and let them make their own.
+- **Print the population beside every count, from the same file, at the moment
+  the count is taken** — not once at the top. A denominator quoted from earlier
+  in the session is a claim with a timestamp, and this one was already stale when
+  it was printed.
+- Guarding with `[ -f … ] || regenerate` makes it worse, not better: it silently
+  keeps YESTERDAY's list, which is how the 649 got there in the first place.
+
+Related, from the same sweep: the agents reported the corpus population as
+**665**, not the 650 the brief gave them, and `cc` acceptance as **268 of 589
+generating** rather than 268 of 650. The numerator was right and the denominator
+was wrong in every report that quoted it, including mine.
+
+## 402. A sentinel that is a legal value writes a claim nobody made
 
 `CompetitorScore` in `specs/igla/coder/benchmark.t27` carries `pass_at_1: f32`
 and a doc line saying the fields are "published Pass@K scores from external
@@ -10138,7 +10178,7 @@ claims nobody made, and no gate over the *values* will see it — every value is
 valid. See also §314 (`none == none` is agreement, not health): the same shape
 one layer down, where the sentinel is a string rather than a number.
 
-## 402. Two counts of one population are two questions, or one of them is wrong
+## 403. Two counts of one population are two questions, or one of them is wrong
 
 The same file gave 141 and 144 for "records with no score". Both were right:
 141 cite nothing at any metric, and 3 more cite pass@10 alone. The 3 are real
@@ -10150,7 +10190,7 @@ labelled with the question it answers. A single number here would have been true
 and useless: the consumer's behaviour is governed by 144, and the table's
 honesty by 141.
 
-## 403. Print the attribution rule next to the number it produced
+## 404. Print the attribution rule next to the number it produced
 
 Counting "papers entered twice" needs a rule mapping a record to a citation.
 The first rule was *the last `arXiv:` id within 400 characters before the
@@ -10167,7 +10207,7 @@ A rule the reader cannot see is a rule the reader cannot check. When a
 measurement depends on a boundary — a window, a radius, a "nearby" — the
 boundary is part of the result and belongs in the output, not only in the code.
 
-## 404. A false consequence is worse when it is the mild one
+## 405. A false consequence is worse when it is the mild one
 
 `tri types redef` found real defects and then explained them wrongly:
 
@@ -10189,7 +10229,7 @@ is measured on demand. Swap in a generator that de-duplicates and the probe
 fails with the sentence that must be rewritten. Every named consequence in a
 diagnostic is a claim, and a claim nothing measures rots at the usual rate.
 
-## 405. The compiler already reports a test that lost its attribute
+## 406. The compiler already reports a test that lost its attribute
 
 An insertion anchored on `fn <name>(` landed between a `#[test]` and its
 function. `a_second_forall_keyword_is_not_a_body` lost the attribute and had
@@ -10207,7 +10247,7 @@ legitimate helpers. The compiler's reachability answer is exact where a body
 heuristic is not; when a defect is "nothing calls this", ask the thing that
 already computes what calls what.
 
-## 406. Format only your own hunks when the tree is not formatted
+## 407. Format only your own hunks when the tree is not formatted
 
 `cargo fmt --check` on `cli/tri` reports diffs in five files nobody touched, and
 no workflow runs it — so master is fmt-dirty by consent. Running `cargo fmt`

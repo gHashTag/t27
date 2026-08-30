@@ -840,6 +840,15 @@ struct SpecOutcome {
     discarded: usize,
     zig_gen: bool,
     zig_build: bool,
+    /// `zig test --test-no-exec` accepted it -- the ruler that ANALYSES bodies.
+    ///
+    /// `zig build-obj` resolves identifiers and never Sema-analyses a function
+    /// nothing references, so a defect inside a body is invisible to it. On
+    /// 2026-08-31 a repair unblocked 32 specs under this ruler and moved
+    /// `zig_build` by exactly 0. Without this column that repair had no number
+    /// in the report it belongs to, and no future body defect could redden a
+    /// ratchet or be credited for being fixed.
+    zig_bodies: bool,
     /// Does gen-rust produce something rustc accepts?
     ///
     /// `corpus` calls itself "the only corpus metric that does not lie" and
@@ -1056,6 +1065,26 @@ pub fn run_corpus(
                         if zt == "__TIMEOUT__" { o.timed_out = true; }
                         o.zig_build = zc == Some(0);
                     }
+                    // The deeper reading, taken from the same generated file.
+                    //
+                    // `-femit-bin` needs a REAL path. `-femit-bin=/dev/null`
+                    // fails on every input with "failed to invalidate kernel
+                    // cache: PermissionDenied", which would report 0 of 589 and
+                    // read as a catastrophic regression rather than as a broken
+                    // ruler -- found while measuring #2952 by hand.
+                    let bin = tmp.join("c-test.o");
+                    if let Some((tc, tt)) = run_timed(
+                        Command::new("zig").args([
+                            "test",
+                            "--test-no-exec",
+                            &format!("-femit-bin={}", bin.to_string_lossy()),
+                            &zp.to_string_lossy(),
+                        ]),
+                        30,
+                    ) {
+                        if tt == "__TIMEOUT__" { o.timed_out = true; }
+                        o.zig_bodies = tc == Some(0);
+                    }
                 }
             }
         }
@@ -1128,10 +1157,13 @@ pub fn run_corpus(
             .iter()
             .map(|(rel, o)| {
                 let b = |x: bool| if x { '1' } else { '0' };
+                // Three digits for Zig, not two: a defect inside a body moves
+                // the third and neither of the first two, and a diff of this
+                // file is how a wave-to-wave comparison is actually made.
                 format!(
-                    "{}\t{}{}\t{}{}\t{}{}\t{}{}\t{}",
+                    "{}\t{}{}{}\t{}{}\t{}{}\t{}{}\t{}",
                     rel,
-                    b(o.zig_gen), b(o.zig_build),
+                    b(o.zig_gen), b(o.zig_build), b(o.zig_bodies),
                     b(o.rust_gen), b(o.rust_build),
                     b(o.c_gen), b(o.c_build),
                     b(o.v_gen), b(o.v_build),
@@ -1141,7 +1173,7 @@ pub fn run_corpus(
             .collect();
         rows.sort();
         let body = format!(
-            "# spec\tzig(gen,build)\trust\tc\tverilog\tdropped\n{}\n",
+            "# spec\tzig(gen,build,bodies)\trust\tc\tverilog\tdropped\n{}\n",
             rows.join("\n")
         );
         std::fs::write(path, body)
@@ -1153,6 +1185,7 @@ pub fn run_corpus(
     let c = |f: fn(&SpecOutcome) -> bool| out.iter().filter(|(_, o)| f(o)).count();
     let zg = c(|o| o.zig_gen);
     let zb = c(|o| o.zig_build);
+    let zbo = c(|o| o.zig_bodies);
     let vg = c(|o| o.v_gen);
     let vb = c(|o| o.v_build);
     // T180: the column the instrument does not control.
@@ -1172,7 +1205,7 @@ pub fn run_corpus(
     let to = c(|o| o.timed_out);
 
     if json {
-        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"verilog_synth\":{vsy},\"rust_gen\":{rg},\"rust_build\":{rb},\"c_gen\":{cg},\"c_build\":{cb},\"both_build\":{both},\"all_four_build\":{all4},\"timed_out\":{to}}}");
+        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"zig_bodies\":{zbo},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"verilog_synth\":{vsy},\"rust_gen\":{rg},\"rust_build\":{rb},\"c_gen\":{cg},\"c_build\":{cb},\"both_build\":{both},\"all_four_build\":{all4},\"timed_out\":{to}}}");
         return Ok(());
     }
 
@@ -1182,6 +1215,7 @@ pub fn run_corpus(
     println!("  {}", "-".repeat(52));
     println!("  {:<26} {:>5}  {:>6}", "generates Zig", zg, format!("{:.1}%", pct(zg)));
     println!("  {:<26} {:>5}  {:>6}", "  ... and Zig accepts it", zb, format!("{:.1}%", pct(zb)));
+    println!("  {:<26} {:>5}  {:>6}", "  ... and Zig ANALYSES it", zbo, format!("{:.1}%", pct(zbo)));
     println!("  {:<26} {:>5}  {:>6}", "generates Rust", rg, format!("{:.1}%", pct(rg)));
     println!("  {:<26} {:>5}  {:>6}", "  ... and rustc accepts it", rb, format!("{:.1}%", pct(rb)));
     println!("  {:<26} {:>5}  {:>6}", "generates C", cg, format!("{:.1}%", pct(cg)));
