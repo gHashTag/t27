@@ -9949,3 +9949,60 @@ list that never covered the directory at all, and said so in numbers nobody
 subtracted. The controls that hold it are three, each seen failing on purpose —
 a 28th unclassified file, a name in both lists, and the restored filter on
 `corpus-ratchet.yml`, which is also the historical control for the two findings.
+
+## 396. A ledger that is entirely stale is stronger emptied than held
+
+Teaching `check_json_parses.py` to notice a stale entry turned it red on a clean
+tree: **six** entries naming files in neither git nor the working tree. The scan
+finds **zero** unparseable and **zero** empty tracked JSON today. The whole
+ledger was debt about things that had already left.
+
+The reflex is to keep the file and fix the check. The measurement says otherwise:
+an empty ledger holds the line at **zero**, so any unparseable JSON now fails
+with no slack to hide in. A ledger of six ghosts held nothing and read as debt
+being managed.
+
+**When a stale-entry check turns a ledger red on arrival, count what the ledger
+would hold if it were empty.** If the true debt is zero, the ledger is not a
+record -- it is six lines of noise standing between the gate and its job. Write
+the measurement into the file where the entries were, so the next reader knows
+the emptiness was earned rather than skipped.
+
+## 397. Two ways to be false by construction, and the second needs its own test
+
+A planted entry has to be FALSE the moment it lands. There are two mechanisms
+and they fail differently:
+
+* **Resolved at run time** -- `{spec}` becomes a spec that passes today,
+  `{json}` a tracked file that parses today. Cannot rot: the lookup re-runs.
+* **A name that cannot exist** -- `planted_by_ledgers_audit`. Cheap, and it rots
+  the day something in the tree is actually called that. Then the planted line
+  is TRUE, the gate is right to stay green, and the audit reports `caught` for a
+  ledger it has stopped testing.
+
+The second mechanism is only sound while nobody uses the name, which is a claim
+about the whole repository -- so it needs a check, not a convention:
+
+```rust
+git grep -l SYNTHETIC -- ':!cli/tri/src/ledgers.rs'   // must be empty
+```
+
+**Any hardcoded sentinel carries an unstated claim that it is unique.** Assert
+it, or use a runtime lookup instead.
+
+## 398. A pathspec resolves against the current directory
+
+The test above failed on its own source: it ran `git grep` from the crate
+directory while excluding `cli/tri/src/ledgers.rs`, the path as seen from the
+repository ROOT. Git was matching `src/ledgers.rs`, the exclusion hit nothing.
+
+Same family as every `cd`-shaped ruler in this document, and the fix is the same:
+resolve the root explicitly and run there.
+
+```rust
+.current_dir(&root)   // root from `git rev-parse --show-toplevel`
+```
+
+**A path in a command is relative to where the command runs, not to where you
+wrote it.** In a test that is the crate; in a hook that is the worktree; in CI it
+is whatever the last `working-directory` said.

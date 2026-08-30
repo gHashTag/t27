@@ -241,6 +241,37 @@ def main():
     known = baseline()
     new_bad = [(r, w) for r, w in bad if r not in known]
     new_empty = [r for r in empty if r not in known]
+
+    # An entry that outlives its debt. `known` was only ever SUBTRACTED from the
+    # current bad set, so a line naming a file that now parses was never looked
+    # at -- `tri ledgers audit` planted one naming a file it had just parsed and
+    # this gate stayed green. Two classes, as check_specs_generate.py separates
+    # them: a file that started parsing is progress and its line must go; a file
+    # that stopped being tracked did NOT start parsing, and reading its removal
+    # as progress is how a count improves by subtraction.
+    tracked = set(tracked_json())
+    current = {r for r, _ in bad} | set(empty)
+    departed = sorted(known - tracked)
+    fixed = sorted((known & tracked) - current)
+    if departed or fixed:
+        if departed:
+            print(f"DEPARTED: {len(departed)} baseline entr(ies) name a file this "
+                  f"repository no longer tracks.")
+            print("They did not start parsing -- they left the measured set, which")
+            print("reads as progress in the count below and is not:")
+            for r in departed[:10]:
+                print(f"  {r}")
+            print()
+        if fixed:
+            print(f"FAIL: {len(fixed)} baseline entr(ies) name a file that PARSES today.")
+            print(f"An entry that outlives its debt is slack the next one hides in.")
+            print(f"Remove them from {BASELINE.name}:")
+            for r in fixed[:10]:
+                print(f"  {r}")
+            print()
+        print("  python3 tools/check_json_parses.py --update-baseline")
+        return 1
+
     if not new_bad and not new_empty:
         print(f"OK: {total} tracked JSON files, none newly unparseable "
               f"({len(bad) + len(empty)} known, listed in {BASELINE.name})")
