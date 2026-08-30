@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:5bdd353851584caaa1dc93480adfd3b931be932ab56b2c182ede8231f3239cf1",
   "gen_hash_rust": "sha256:7d711711161b344b7507b3a793f6be910bf50a3a965a824c5beed19827bd2746",
   "gen_hash_verilog": "sha256:6fbc823e97fc6bcda6e7762da01b9cfef198d5c1e4260c4be49a9c0b26b259df",
-  "gen_hash_zig": "sha256:6c590203970d0b93d8407115ed382b98397c566738d8ff7f3bad4103091d4a7a",
+  "gen_hash_zig": "sha256:a5528f2fd9d97a2b65e9c65cf5be60e74c561d22c64230958f2dbc34ba3b6476",
   "module": "GftTrain2",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
+  "sealed_at": "2026-08-30T17:03:00Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:1bfab3b3ae5373ca4bcfe5f87bb793833baf91dc8c9c4f9e65182eb68fef9d72",
   "spec_path": "specs/ternary/gft_train2.t27"

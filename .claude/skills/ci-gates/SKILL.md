@@ -10076,8 +10076,47 @@ and it will be a minority -- which is exactly why it disappears into the list.
 The same reading applies to any "known limitations" section, any `#[ignore]`
 block, any `NOT covered here` comment. Grep them, ask of each which kind it is,
 and the answer usually names one item you can close today.
+## 400. `tail -N` reads the last section, not the summary
 
-## 400. A sentinel that is a legal value writes a claim nobody made
+`tri seals drift --fix` prints two sections: the re-seal it performed, then the
+twin synchronisation it performed afterwards. Both end in a count.
+
+```
+  re-sealed                                   33          <- what I wanted
+  ...
+  twinned specs already consistent  516
+  seal files written           0                          <- what tail -3 gave me
+```
+
+I read it with `tail -3` and concluded, on two consecutive days, two different
+wrong things: first that the command had **under-reported its own work** (it had
+not — `git status` showed 33 files rewritten), and then that an earlier drift
+reading must have been **taken before the rebuild finished** (it had not — the
+sequence was an ordinary drift → fix → clean). One of those explanations went
+into a merge commit message that is now on master.
+
+Neither was a defect in the tool. Both were a slice by **position** on output
+whose structure I had not read.
+
+- Grep the **label**, not the position: `| grep -E "re-sealed|refused"` says what
+  you meant; `| tail -3` says whatever happens to be last after the next section
+  is added to the command.
+- When a number surprises you, look at the **whole** output once before theorising
+  about the tool. `--fix` here is forty lines; reading them cost less than either
+  wrong explanation.
+- A count that disagrees with the filesystem is settled by the filesystem:
+  `git status --short .trinity/seals/ | wc -l` ended both arguments in one command
+  and neither time did I run it first.
+
+The related trap, met the same hour: a probe that plants a fault must be shown to
+have planted one. Mine set a seal hash to sixty-four zeros behind a
+`len(value) == 64` guard, and the hashes in these files are written
+`sha256:<hex>` — so the guard never matched, nothing was planted, and the gate's
+honest `0` read as a gate that missed. **A planted-fault probe needs its own
+assertion that the plant took**, exactly like the anchor asserts on every text
+substitution in this repository.
+
+## 401. A sentinel that is a legal value writes a claim nobody made
 
 `CompetitorScore` in `specs/igla/coder/benchmark.t27` carries `pass_at_1: f32`
 and a doc line saying the fields are "published Pass@K scores from external
@@ -10099,7 +10138,7 @@ claims nobody made, and no gate over the *values* will see it — every value is
 valid. See also §314 (`none == none` is agreement, not health): the same shape
 one layer down, where the sentinel is a string rather than a number.
 
-## 401. Two counts of one population are two questions, or one of them is wrong
+## 402. Two counts of one population are two questions, or one of them is wrong
 
 The same file gave 141 and 144 for "records with no score". Both were right:
 141 cite nothing at any metric, and 3 more cite pass@10 alone. The 3 are real
@@ -10111,7 +10150,7 @@ labelled with the question it answers. A single number here would have been true
 and useless: the consumer's behaviour is governed by 144, and the table's
 honesty by 141.
 
-## 402. Print the attribution rule next to the number it produced
+## 403. Print the attribution rule next to the number it produced
 
 Counting "papers entered twice" needs a rule mapping a record to a citation.
 The first rule was *the last `arXiv:` id within 400 characters before the
@@ -10128,7 +10167,7 @@ A rule the reader cannot see is a rule the reader cannot check. When a
 measurement depends on a boundary — a window, a radius, a "nearby" — the
 boundary is part of the result and belongs in the output, not only in the code.
 
-## 403. A false consequence is worse when it is the mild one
+## 404. A false consequence is worse when it is the mild one
 
 `tri types redef` found real defects and then explained them wrongly:
 
@@ -10150,7 +10189,7 @@ is measured on demand. Swap in a generator that de-duplicates and the probe
 fails with the sentence that must be rewritten. Every named consequence in a
 diagnostic is a claim, and a claim nothing measures rots at the usual rate.
 
-## 404. The compiler already reports a test that lost its attribute
+## 405. The compiler already reports a test that lost its attribute
 
 An insertion anchored on `fn <name>(` landed between a `#[test]` and its
 function. `a_second_forall_keyword_is_not_a_body` lost the attribute and had
@@ -10168,7 +10207,7 @@ legitimate helpers. The compiler's reachability answer is exact where a body
 heuristic is not; when a defect is "nothing calls this", ask the thing that
 already computes what calls what.
 
-## 405. Format only your own hunks when the tree is not formatted
+## 406. Format only your own hunks when the tree is not formatted
 
 `cargo fmt --check` on `cli/tri` reports diffs in five files nobody touched, and
 no workflow runs it — so master is fmt-dirty by consent. Running `cargo fmt`

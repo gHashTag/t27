@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:6352b40360f9407a4ce7abe3890db9241da9c583aa2dc97ab708b7429514e12a",
   "gen_hash_rust": "sha256:f0850dd1360623618cfa9fdd07511896e48ebcfc4ecf8069e996769b4ae272a8",
   "gen_hash_verilog": "sha256:d0a245b7a778519a2ef6c1f53f1dd85aa11ca307111f529f81f3f6e6aa3e7721",
-  "gen_hash_zig": "sha256:5fbdc6860812f05df48033a4cad740048451519af897abae4c5256d9dad99bb8",
+  "gen_hash_zig": "sha256:cf15cf81dfe83aa524aa9c14d57ab9f28823f6a21890fc7379ba414d84f8cbe7",
   "module": "GftMlp3",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
+  "sealed_at": "2026-08-30T17:03:00Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:78c06cefeddc0d7ed407e1edb5d6c88305e04fd7994a58410ab8bb8d59234d28",
   "spec_path": "specs/ternary/gft_mlp3.t27"
