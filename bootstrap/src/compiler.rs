@@ -18889,7 +18889,23 @@ impl CCodegen {
                     } else if let Some(t) = self.scaffold_locals_c.get(&node.name).cloned() {
                         // A scaffold binding: typed from its consumer, not from
                         // its initialiser. Same recovery Zig made in W585.
-                        t
+                        //
+                        // The ZERO has to be written as a compound literal, not
+                        // as `0`. The previous pass recovered the type and left
+                        // the initialiser to `gen_c_expr`, which writes `0` for
+                        // the scaffold call -- correct for a scalar and not an
+                        // initialiser at all for a struct:
+                        //
+                        //     EmbeddingWeights input = 0;
+                        //     error: initializing 'EmbeddingWeights' with an
+                        //            expression of incompatible type 'int'
+                        //
+                        // 15 specs carried that as their ONLY remaining error
+                        // family. `(T){0}` is valid for every complete object
+                        // type, scalars included, so one spelling serves both.
+                        self.write(&format!("{} {} = ({}){{0}};", t, node.name, t));
+                        self.write_line("");
+                        return;
                     } else if !node.children.is_empty() {
                         // GNU `__auto_type`: the type follows the INITIALISER,
                         // which is what Rust's `let` and Zig's `const` do.
