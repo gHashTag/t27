@@ -155,6 +155,22 @@ pub enum GatesCmd {
         #[arg(long)]
         repo: Option<String>,
     },
+    /// What the tree says is required, against what the ruleset requires.
+    ///
+    /// The only drift class in this repository with no detector. A required
+    /// status check is named in repository SETTINGS; no file in the tree can
+    /// read it, so a comment claiming a gate blocks cannot go stale against
+    /// anything. `seal-coverage.yml` records learning "the hard way in #2191"
+    /// that renaming its job made a PR go BLOCKED -- true evidence that its
+    /// context WAS required, and no evidence that it still is. It is not:
+    /// `coverage` failed on 32 of the last 40 merged pull requests, and all 40
+    /// merged.
+    Required {
+        /// owner/repo. Defaults to the repository of the working directory.
+        #[arg(long)]
+        repo: Option<String>,
+    },
+
     /// List active workflows whose lifetime success count is zero.
     Dead {
         /// owner/repo, repeatable. Defaults to the three this fleet uses.
@@ -2272,6 +2288,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             };
             unmeasured(&list, *stale_days)
         }
+        GatesCmd::Required { repo } => required(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
@@ -2526,6 +2543,223 @@ fn days_since(iso: &str) -> Option<u64> {
     Some(secs as u64 / 86_400)
 }
 
+/// The job contexts a workflow file emits: each job's `name:` if set, else its id.
+///
+/// GitHub matches a required check by CONTEXT, and a job's context is its display
+/// name when one is given. Matching by file name instead would report every
+/// workflow as unrequired.
+pub fn contexts_of(yaml: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let Some(pos) = yaml.find("\njobs:") else {
+        return out;
+    };
+    let body = &yaml[pos + 6..];
+    let mut cur: Option<String> = None;
+    let mut named = false;
+    for line in body.lines() {
+        if line.starts_with("  ") && !line.starts_with("   ") && line.trim_end().ends_with(':') {
+            if let Some(id) = cur.take() {
+                if !named {
+                    out.push(id);
+                }
+            }
+            let id = line.trim().trim_end_matches(':').to_string();
+            named = false;
+            cur = Some(id);
+            continue;
+        }
+        if cur.is_some() && !named {
+            if let Some(rest) = line.strip_prefix("    name:") {
+                out.push(rest.trim().trim_matches('"').trim_matches('\'').to_string());
+                named = true;
+            }
+        }
+        if !line.starts_with(' ') && !line.trim().is_empty() {
+            break;
+        }
+    }
+    if let Some(id) = cur {
+        if !named {
+            out.push(id);
+        }
+    }
+    out
+}
+
+/// Workflow files the tree claims are required, with where the claim is written.
+fn claims(root: &std::path::Path) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let doc = root.join("docs/BRANCH-PROTECTION.md");
+    if let Ok(t) = std::fs::read_to_string(&doc) {
+        for line in t.lines() {
+            if let Some(i) = line.find(".github/workflows/") {
+                let rest = &line[i + 18..];
+                let f: String = rest
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
+                    .collect();
+                if f.ends_with(".yml") {
+                    out.push((f, "docs/BRANCH-PROTECTION.md".into()));
+                }
+            }
+        }
+    }
+    let script = root.join("scripts/ci/check_pr_branch_filters.py");
+    if let Ok(t) = std::fs::read_to_string(&script) {
+        // The DEFINITION, not the first mention. `MERGE_CRITICAL` appears in this
+        // script's own docstring five lines above the assignment, and anchoring on
+        // the bare name matched the prose: the segment that followed held no
+        // quoted filenames at all, so fifteen claims read as zero.
+        if let Some(i) = t.find("MERGE_CRITICAL = (") {
+            let seg = &t[i..];
+            let end = seg.find(")\n").unwrap_or(seg.len());
+            for m in seg[..end].split('"').skip(1).step_by(2) {
+                if m.ends_with(".yml") {
+                    out.push((m.to_string(), "check_pr_branch_filters.py MERGE_CRITICAL".into()));
+                }
+            }
+        }
+    }
+    out.sort();
+    out.dedup();
+    // One row per workflow, listing every place the claim is written. Two rows for
+    // the same file read as two workflows, and the count of hollow gates is the
+    // number that matters.
+    let mut grouped: Vec<(String, String)> = Vec::new();
+    for (f, w) in out {
+        match grouped.last_mut() {
+            Some((lf, lw)) if *lf == f => {
+                lw.push_str(" and ");
+                lw.push_str(&w);
+            }
+            _ => grouped.push((f, w)),
+        }
+    }
+    grouped
+}
+
+fn required(repo: Option<&str>) -> Result<()> {
+    let root = {
+        let out = std::process::Command::new("git")
+            .args(["rev-parse", "--show-toplevel"])
+            .output()?;
+        if !out.status.success() {
+            anyhow::bail!("not inside a git repository");
+        }
+        std::path::PathBuf::from(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    };
+    let slug = match repo {
+        Some(r) => r.to_string(),
+        None => {
+            let out = std::process::Command::new("git")
+                .args(["remote", "get-url", "origin"])
+                .output()?;
+            let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let s = url.trim_end_matches(".git");
+            let tail = s.rsplit_once(':').map(|(_, t)| t).unwrap_or(s);
+            let parts: Vec<&str> = tail.trim_start_matches('/').rsplit('/').take(2).collect();
+            if parts.len() != 2 {
+                anyhow::bail!("cannot read owner/name from origin url `{url}`");
+            }
+            format!("{}/{}", parts[1], parts[0])
+        }
+    };
+
+    let listing = gh(&[
+        "api",
+        &format!("repos/{slug}/rules/branches/master"),
+        "--jq",
+        r#".[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context"#,
+    ])?;
+    let req: Vec<String> = listing.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect();
+    if req.is_empty() {
+        anyhow::bail!(
+            "no required contexts came back for {slug}. That is either a branch with \
+             none, or a token that cannot read rules -- and those are different facts, \
+             so this refuses rather than calling every claim in the tree false."
+        );
+    }
+
+    let claimed = claims(&root);
+    if claimed.is_empty() {
+        anyhow::bail!(
+            "no workflow file is claimed as required anywhere in the tree. Either \
+             docs/BRANCH-PROTECTION.md and MERGE_CRITICAL changed shape, or the claims \
+             are gone -- a clean report here would be this parser."
+        );
+    }
+
+    println!("CLAIMED REQUIRED vs ACTUALLY REQUIRED   ({slug}, branch master)");
+    println!();
+    println!("  ruleset requires {} context(s):", req.len());
+    for c in &req {
+        println!("    {c}");
+    }
+    println!();
+
+    let mut satisfied: Vec<String> = Vec::new();
+    let mut hollow: Vec<(String, String, Vec<String>)> = Vec::new();
+    for (file, where_) in &claimed {
+        let path = root.join(".github/workflows").join(file);
+        let Ok(y) = std::fs::read_to_string(&path) else {
+            hollow.push((file.clone(), format!("{where_} (no such file)"), vec![]));
+            continue;
+        };
+        let ctx = contexts_of(&y);
+        if ctx.iter().any(|c| req.contains(c)) {
+            satisfied.extend(ctx.iter().filter(|c| req.contains(c)).cloned());
+        } else {
+            hollow.push((file.clone(), where_.clone(), ctx));
+        }
+    }
+    satisfied.sort();
+    satisfied.dedup();
+
+    if hollow.is_empty() {
+        println!("  Every workflow the tree calls required emits a required context.");
+    } else {
+        println!("  Claimed required, emits no required context -- cannot block a merge:");
+        for (file, where_, ctx) in &hollow {
+            println!(
+                "    {:<34} {}",
+                file,
+                if ctx.is_empty() {
+                    "(no jobs read)".to_string()
+                } else {
+                    format!("emits: {}", ctx.join(", "))
+                }
+            );
+            println!("      claimed in {where_}");
+        }
+    }
+
+    let unclaimed: Vec<&String> = req.iter().filter(|c| !satisfied.contains(c)).collect();
+    if !unclaimed.is_empty() {
+        println!();
+        println!("  Required by the ruleset and claimed by nothing in the tree:");
+        for c in &unclaimed {
+            println!("    {c}");
+        }
+        println!("  A check that blocks every merge and that no document mentions is as");
+        println!("  hard to reason about as one that claims to block and does not.");
+    }
+    println!();
+    println!(
+        "  {} claim(s), {} of them hollow; {} required context(s), {} unclaimed.",
+        claimed.len(),
+        hollow.len(),
+        req.len(),
+        unclaimed.len()
+    );
+    println!();
+    println!(
+        "A required check is named in repository SETTINGS. No file in the tree can read\n\
+         it, so a comment claiming a gate blocks cannot go stale against anything --\n\
+         this is the only drift here with no detector, which is why it is a command."
+    );
+    Ok(())
+}
+
 /// GitHub keeps a workflow registered as `active` after its file is deleted, so
 /// `state=="active"` is the API's word and not the repository's: 61 registrations
 /// here against 48 files, and 13 of the registrations have nothing left to fix.
@@ -2668,6 +2902,61 @@ fn report_suppressed_and_deleted(
 mod tests {
     use super::*;
     use clap::Parser;
+
+    /// The tuple is found by its assignment, not by its name.
+    ///
+    /// `MERGE_CRITICAL` occurs in the checker's own docstring thirty lines before
+    /// the assignment, and the text between the two holds an ODD number of
+    /// quotes -- the docstring's own closing `"""` plus one quoted phrase. Pairing
+    /// quotes from the wrong start inverts the parity, so every filename lands on
+    /// an even index and `.skip(1).step_by(2)` sees none of them. Fifteen claims
+    /// read as zero, and the report looked cleaner than the tree.
+    #[test]
+    fn the_tuple_is_found_by_its_assignment_not_its_name() {
+        let q = '"';
+        let src = format!(
+            "{q}{q}{q}Every workflow in MERGE_CRITICAL must exist.\n\
+             A rule inferred as {q}anything named gate{q} would stop covering it.\n\
+             {q}{q}{q}\n\
+             MERGE_CRITICAL = (\n    {q}a.yml{q},\n    {q}b.yml{q},\n)\n"
+        );
+        let mention = src.find("MERGE_CRITICAL").expect("docstring mention");
+        let assignment = src.find("MERGE_CRITICAL = (").expect("assignment");
+        assert!(mention < assignment, "the mention comes first -- that is the trap");
+        assert_eq!(
+            src[mention..assignment].matches('"').count() % 2,
+            1,
+            "the gap must hold an odd number of quotes, or the trap is not reproduced"
+        );
+
+        let pick = |from: usize| -> Vec<String> {
+            let seg = &src[from..];
+            let end = seg.find(")\n").unwrap_or(seg.len());
+            seg[..end]
+                .split('"')
+                .skip(1)
+                .step_by(2)
+                .filter(|m| m.ends_with(".yml"))
+                .map(|m| m.to_string())
+                .collect()
+        };
+        assert_eq!(pick(assignment), vec!["a.yml", "b.yml"], "anchored on the assignment");
+        assert!(
+            pick(mention).is_empty(),
+            "anchored on the name it must find nothing, or this test proves nothing"
+        );
+    }
+
+    /// A job's context is its `name:` when it has one, else its id.
+    ///
+    /// GitHub matches a required check by context. Matching by file name would
+    /// report every workflow as unrequired; matching by job id alone would miss
+    /// every job that sets a display name.
+    #[test]
+    fn a_jobs_context_is_its_name_when_it_has_one() {
+        let y = "on:\n  push:\n\njobs:\n  bare:\n    runs-on: x\n  named:\n    name: Pretty Name\n    runs-on: x\n";
+        assert_eq!(contexts_of(y), vec!["bare", "Pretty Name"]);
+    }
 
     /// A registration with no file is history, whatever its run count.
     ///
