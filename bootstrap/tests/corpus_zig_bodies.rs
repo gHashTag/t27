@@ -83,7 +83,12 @@ fn per_spec_carries_three_zig_digits_and_says_so_in_its_header() {
         eprintln!("zig not on PATH -- SKIPPED");
         return;
     }
-    let dir = std::env::temp_dir().join(format!("t27-corpuscols-{}", std::process::id()));
+    // Unique per CALL, not per process: a pid is one value for the whole test
+    // binary, so every test in this file would resolve the same directory and
+    // the `remove_dir_all` below would erase a sibling's input mid-read.
+    static NTH: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let nth = NTH.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("t27-corpuscols-{}-{nth}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let path = dir.join("per-spec.txt");
     let out = Command::new(env!("CARGO_BIN_EXE_t27c"))
