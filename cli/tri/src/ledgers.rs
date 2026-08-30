@@ -550,7 +550,22 @@ mod tests {
             return;
         };
         let Ok(out) = std::process::Command::new("git")
-            .args(["grep", "-l", SYNTHETIC, "--", ":!cli/tri/src/ledgers.rs"])
+            // Prose is excluded, and the exclusion is the claim being made
+            // narrow rather than weak: the sentinel must not name a MODULE or a
+            // DATA FILE that a gate reads, and a Markdown paragraph can become
+            // neither. This test first failed in CI on the skill section that
+            // documents it -- the guard firing on its own documentation, which
+            // is evidence it works and a reminder that the tests have to be
+            // re-run after the commit that writes the prose.
+            .args([
+                "grep",
+                "-l",
+                SYNTHETIC,
+                "--",
+                ":!cli/tri/src/ledgers.rs",
+                ":!*.md",
+                ":!docs/now/*",
+            ])
             .current_dir(&root)
             .output()
         else {
