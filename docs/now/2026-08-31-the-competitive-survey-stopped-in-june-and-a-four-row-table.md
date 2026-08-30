@@ -1,0 +1,10 @@
+# NOW -- The competitive survey stopped in June, and a four-row table carries a 'no competitor' claim (2026-08-31)
+
+## The competitive survey stopped in June, and a four-row table carries a 'no competitor' claim (Refs #2977)
+
+- New tri competitors freshness: an arXiv identifier dates its paper (YYMM.NNNNN is the month of first submission), so the survey behind specs/igla/coder/benchmark.t27 can be read for age without a network. Newest paper cited by a record is 2026-06; July and August are empty against 49 records in June alone.
+- It reports the gap and refuses to call it a defect. A table with nothing recent either stopped looking or the field published nothing, and those are indistinguishable from inside the repository. What settles it is one counterexample -- and two exist: arXiv:2607.13079 (ChipVerilog) and arXiv:2607.18519, both 2026-07, both absent.
+- No --gate, on purpose: a gate that reddens because a month passed, with nobody having changed anything, is a gate that gets muted. The reading is pinned by --as-of so it can be asserted in a test at all; the system clock makes a number that changes while nobody edits.
+- Two populations are printed apart and must not be summed: papers cited by a competitor record (the survey) and every arXiv id in the file (including ids inside a benchmark: string). A test plants an id in a string and asserts it is mentioned and not cited.
+- Filed as #2977, not fixed here: docs/BITNET_STACK.md claims no competitor has and unique position above a four-row table, while POSITIONING_CONFORMANCE_LAYER.md:122 states the banned-hype rule and COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md:337 says such a claim is not established without an exhaustive survey. The 168-record table is a different population -- LLMs that write Verilog, not ternary spec-first compilers.
+- A superlative-claim detector was designed, measured and NOT shipped: over 2149 first-party markdown files the word only appears 3437 times, and the narrowed matcher scored 2 real claims in 6 hits, with two of the false positives being the sentences that STATE the rule. Three false positives in six is how a check dies.
