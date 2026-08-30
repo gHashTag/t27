@@ -9581,3 +9581,46 @@ file, not the crate") does not hold when the single file is a root.
 --stat` before every commit: five unrelated files is not a thing you notice in
 the test output, and on a shared repository it is somebody else's conflict
 tomorrow.
+
+## 382. A matcher-defined population cannot be counted twice
+
+Two candidates for a second opinion were measured and refused, and the refusals
+name a rule the three working rows had been obeying by luck.
+
+`types dup` prints **1180** struct definitions. A counter loose enough to be
+independent reads **1182**, and the two extra are
+
+```
+specs/lsp/schema.t27:155   struct = 21,
+specs/lsp/schema.t27:204   struct = 22,
+```
+
+enum members *named* `struct`, which the census correctly rejects by requiring
+the name to start with an ascii letter. **The census is right.** Any counter
+accurate enough to agree with it is a copy of its matcher -- exactly why the
+`seals hollow` row was removed one pass earlier, where both sides tested the
+same json field and a planted seal moved both numbers.
+
+> **A census whose population is defined by a MATCHER cannot have an independent
+> counter, because any counter precise enough to agree IS that matcher. Only a
+> population defined by something EXTERNAL -- files on disk, workspace members,
+> a marker in a different file -- can honestly be counted twice.**
+
+The rows that work obey it: `.t27` on disk, `.rs` under the cargo workspace, the
+bare letters of a keyword, `theorem` lines in a file the census reads for
+something else. Before building a differential row, ask what defines its
+population. If the answer is "the code under test", stop.
+
+## 383. An exclusion is a measurement, not a shrug
+
+Having refused two rows, the audit had three green rows and no statement of what
+it was not checking -- its own coverage in exactly the shape it exists to catch.
+It now prints the uncovered censuses with the measurement behind each: what was
+tried, what it read, and why the two routes cannot disagree.
+
+Enforced rather than intended: a test refuses a census that appears in both
+lists, and refuses a reason shorter than sixty characters. `"too hard"` fails.
+
+The distinction being preserved is the one this whole document keeps circling:
+a reader must be able to tell **"looked and could not"** from **"never looked"**,
+and a blank space says the second while meaning the first.
