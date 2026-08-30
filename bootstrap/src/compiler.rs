@@ -17792,13 +17792,34 @@ impl CCodegen {
             }
         }
 
+        // A constant declared with a struct or enum type cannot be emitted here:
+        // this section precedes both, and C wants the type first. But the
+        // sections cannot simply swap -- a `[T; N]` value struct may size itself
+        // with a const name, so constants must also come first.
+        //
+        // Both are true, and they are true of DIFFERENT constants. Untyped and
+        // primitive-typed constants stay here, where the array structs need
+        // them; the ones naming a struct or enum move below the Structs section.
+        // Measured: 22 specs whose remaining `unknown type name` errors are all
+        // struct-typed constants emitted above their own type.
+        let declared_types: std::collections::HashSet<&str> = structs
+            .iter()
+            .chain(enums.iter())
+            .map(|d| d.name.as_str())
+            .collect();
+        let (typed_consts, plain_consts): (Vec<&Node>, Vec<&Node>) =
+            consts.iter().partition(|c| {
+                Self::referenced_type_name(&c.extra_type)
+                    .is_some_and(|n| declared_types.contains(n.as_str()))
+            });
+
         // Section: Constants
-        if !consts.is_empty() {
+        if !plain_consts.is_empty() {
             self.write_line("/* -------------------------------------------------------");
             self.write_line("   Constants");
             self.write_line("   ------------------------------------------------------- */");
             self.write_line("");
-            for c in &consts {
+            for c in &plain_consts {
                 self.gen_c_const(c);
             }
             self.write_line("");
@@ -17882,8 +17903,20 @@ impl CCodegen {
             self.write_line("   Structs");
             self.write_line("   ------------------------------------------------------- */");
             self.write_line("");
-            for s in &structs {
+            for s in Self::structs_in_declaration_order(&structs) {
                 self.gen_c_struct(s);
+            }
+            self.write_line("");
+        }
+
+        // Section: constants whose type is one of the above.
+        if !typed_consts.is_empty() {
+            self.write_line("/* -------------------------------------------------------");
+            self.write_line("   Constants of declared types");
+            self.write_line("   ------------------------------------------------------- */");
+            self.write_line("");
+            for c in &typed_consts {
+                self.gen_c_const(c);
             }
             self.write_line("");
         }
@@ -18305,6 +18338,102 @@ impl CCodegen {
         self.dedent();
         self.write_line(&format!("}} {};", node.name));
         self.write_line("");
+    }
+
+    /// The base type name a field refers to, or `None` for a primitive.
+    ///
+    /// Strips the spellings that wrap a name without changing which type is
+    /// named: `*T`, `?T`, `[]T`, `[]const T`, `[N]T`, `[T; N]`.
+    pub fn referenced_type_name(ty: &str) -> Option<String> {
+        let mut t = ty.trim();
+        loop {
+            let before = t;
+            t = t.trim_start_matches('*').trim_start_matches('?').trim();
+            if let Some(r) = t.strip_prefix("[]") {
+                t = r.trim();
+            } else if t.starts_with('[') {
+                match t.find(']') {
+                    Some(i) => t = t[i + 1..].trim(),
+                    None => break,
+                }
+            }
+            t = t.strip_prefix("const ").unwrap_or(t).trim();
+            if t == before {
+                break;
+            }
+        }
+        // `[T; N]` -- the element is inside the brackets and the loop above
+        // consumed them, leaving `T; N`.
+        if let Some((head, _)) = t.split_once(';') {
+            t = head.trim();
+        }
+        let name: String = t
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        if name.is_empty() || name.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+            None
+        } else {
+            Some(name)
+        }
+    }
+
+    /// Struct declarations reordered so every one is defined before it is used.
+    ///
+    /// C requires the complete type at the point of a by-value member and the
+    /// name at the point of a pointer member; Zig and Rust require neither, so
+    /// the corpus writes them in whatever order reads well:
+    ///
+    ///     typedef struct { ... Reduction reduction; } BinaryCEConfig;   // :30
+    ///     typedef struct { ... } Reduction;                             // :34
+    ///
+    /// `error: unknown type name 'Reduction'`. Measured: 36 specs whose every
+    /// unknown-type-name error is a type declared LATER in the same file.
+    ///
+    /// Kahn's algorithm, stable: among the structs whose dependencies are all
+    /// emitted, the earliest in source order goes first, so a file with no
+    /// forward references is emitted exactly as before. A cycle -- impossible
+    /// by value, possible through pointers -- leaves the remainder in source
+    /// order rather than dropping it: reordering is an improvement to attempt,
+    /// never a reason to lose a declaration.
+    pub fn structs_in_declaration_order<'a>(structs: &[&'a Node]) -> Vec<&'a Node> {
+        let names: std::collections::HashSet<&str> =
+            structs.iter().map(|s| s.name.as_str()).collect();
+        let deps: Vec<std::collections::HashSet<String>> = structs
+            .iter()
+            .map(|s| {
+                s.children
+                    .iter()
+                    .filter_map(|f| Self::referenced_type_name(&f.extra_type))
+                    .filter(|n| names.contains(n.as_str()) && n != &s.name)
+                    .collect()
+            })
+            .collect();
+
+        let mut emitted: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut out: Vec<&Node> = Vec::new();
+        let mut done = vec![false; structs.len()];
+        loop {
+            let mut progressed = false;
+            for i in 0..structs.len() {
+                if done[i] || !deps[i].iter().all(|d| emitted.contains(d)) {
+                    continue;
+                }
+                done[i] = true;
+                emitted.insert(structs[i].name.clone());
+                out.push(structs[i]);
+                progressed = true;
+            }
+            if !progressed {
+                break;
+            }
+        }
+        for i in 0..structs.len() {
+            if !done[i] {
+                out.push(structs[i]);
+            }
+        }
+        out
     }
 
     fn gen_c_struct(&mut self, node: &Node) {

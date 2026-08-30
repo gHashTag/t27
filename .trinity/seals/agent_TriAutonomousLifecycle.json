@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:ef0cae049ba3c920dd0c129fd0e87ebb0a9331c06e8cb7d9ab5882c5d7072357",
+  "gen_hash_c": "sha256:a87602735a49582bb4a68caf3811e5992c7aea8a16d613b36a0c5b758db98eb3",
   "gen_hash_rust": "sha256:5552ccea3d26587423476f94b814fd5f925c784b4b0bcbc427c8aa56d62e1021",
   "gen_hash_verilog": "sha256:06495caab4af8610a87939e34817feade94e5c0fb9787bf27e6b8f7b1711d826",
   "gen_hash_zig": "sha256:f795c1f285d8b7e1d860ffd9e71b945e7abe2b5853eca71e6f79cbf410806425",
   "module": "TriAutonomousLifecycle",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
+  "sealed_at": "2026-08-30T12:28:27Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:3518b9f0a302e6ba36ab0c41a65e331231b6824a51316201991894f58708c92e",
   "spec_path": "specs/tri/agent/autonomous_lifecycle.t27"
 }
