@@ -9898,7 +9898,59 @@ direction: `src.len()` also appears in `String::with_capacity(src.len())`, which
 has nothing to do with a path. `verilog_r_si_1.rs` would have been convicted by a
 grep and is clean.
 
-## 395. A ledger that is entirely stale is stronger emptied than held
+## 395. A guard's clean line is a claim about a population — print the remainder
+
+`scripts/ci/check_pr_branch_filters.py` ended every run with
+
+```
+merge-critical workflows checked: 15
+workflow files present:           49
+explicitly not merge-critical:    4
+
+CLEAN: no merge-critical workflow filters pull_request by branch.
+```
+
+The two list sizes and the file count are printed **three lines apart and never
+subtracted**. `15 + 4 = 19` against `49`, so thirty files were read by nothing,
+and the last line still said CLEAN.
+
+**Two of the thirty carried the exact defect the check exists to detect** —
+`corpus-ratchet.yml` and `withdrawn-live-gate.yml` both had
+`pull_request: branches: [master]`, which means the gate does not run at all when
+a PR targets any other base, so a stacked PR shows a green check list with that
+gate simply absent from it.
+
+The check was not wrong about the fifteen it read. It was wrong about what its
+clean line **meant** — and the numbers that would have said so were already on
+the screen.
+
+So, for any guard that walks a list:
+
+- **Make the parts sum to the directory, out loud.** One line,
+  `15 + 4 + 30 = 49  (must equal 49)`, is the whole finding.
+- **Name the remainder as its own bucket.** "Not classified" is a third state
+  between pass and fail, and it must be printed even when nobody intends to act
+  on it.
+- **Run the same read over the remainder and REPORT it.** Whether an unclassified
+  workflow ought to block a merge is a human call; whether anybody looked is not.
+  That is how the two offenders surfaced. Print the count as a zero when it is
+  zero, or the next reader cannot tell "none" from "not asked".
+- **Ceiling, not refusal, on the remainder.** Twenty-seven files cannot be
+  classified in the commit that discovers them, and a gate red on the day it
+  lands teaches everyone to ignore red. `MAX_UNCLASSIFIED`, down only, buys the
+  thing that actually matters: the *next* file added cannot land unread.
+- **Make the final line state the scope it earned.** "CLEAN … and 27 file(s)
+  remain unread at a ceiling of 27" is a sentence a reader can act on. "CLEAN" is
+  one they cannot.
+
+This is the same shape as 384 (the list that went stale by MY addition) seen from
+the other side: 384 is a list that stops covering something it used to; this is a
+list that never covered the directory at all, and said so in numbers nobody
+subtracted. The controls that hold it are three, each seen failing on purpose —
+a 28th unclassified file, a name in both lists, and the restored filter on
+`corpus-ratchet.yml`, which is also the historical control for the two findings.
+
+## 396. A ledger that is entirely stale is stronger emptied than held
 
 Teaching `check_json_parses.py` to notice a stale entry turned it red on a clean
 tree: **six** entries naming files in neither git nor the working tree. The scan
@@ -9916,7 +9968,7 @@ record -- it is six lines of noise standing between the gate and its job. Write
 the measurement into the file where the entries were, so the next reader knows
 the emptiness was earned rather than skipped.
 
-## 396. Two ways to be false by construction, and the second needs its own test
+## 397. Two ways to be false by construction, and the second needs its own test
 
 A planted entry has to be FALSE the moment it lands. There are two mechanisms
 and they fail differently:
@@ -9938,7 +9990,7 @@ git grep -l SYNTHETIC -- ':!cli/tri/src/ledgers.rs'   // must be empty
 **Any hardcoded sentinel carries an unstated claim that it is unique.** Assert
 it, or use a runtime lookup instead.
 
-## 397. A pathspec resolves against the current directory
+## 398. A pathspec resolves against the current directory
 
 The test above failed on its own source: it ran `git grep` from the crate
 directory while excluding `cli/tri/src/ledgers.rs`, the path as seen from the

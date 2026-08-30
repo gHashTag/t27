@@ -1,0 +1,76 @@
+# Shared scratch directories -- test binaries whose tests delete each other's input.
+#
+# The shape, found in five test files at once (#2954):
+#
+#     let dir = temp_dir().join(format!("t27-scaffold-{}-{}", process::id(), src.len()));
+#     std::fs::create_dir_all(&dir)?;
+#     ...
+#     let _ = std::fs::remove_dir_all(&dir);      // deletes the WHOLE directory
+#
+# One process per test binary, so the pid is constant and the key is really
+# `src.len()`. Two tests whose sources happen to be the same length compute the
+# same path, and each deletes it on the way out. Under the default parallel
+# runner one erases the spec another is mid-read of, `t27c` prints nothing, and
+# the assertion reports an empty result.
+#
+# It is not a slow test, it is a WRONG one, and it does not announce itself:
+# `scaffold_c` failed about one run in three, and the four siblings carrying the
+# same shape had never failed once. Printing the paths of a single run is what
+# settled it -- six tests produced THREE directories before the repair and six
+# after.
+#
+# NO `paths:` FILTER, deliberately, for two reasons. The first is the same one
+# the orphan gate gives: the file that introduces the collision is not
+# necessarily the file that dies of it, so a filter on the failing path would be
+# silent for exactly this defect. The second is newer and cost a measurement
+# today -- `emit-bitexact-gate.yml` is `pull_request` with a `paths:` filter and
+# no `push:`, so it has NEVER run on master. When a change made it fail there was
+# no baseline to compare against and `gh run list --branch master` returned
+# nothing, which reads like "no data" and is one careless sentence away from
+# "no problem". A gate with no master history cannot answer the only question
+# that matters when it goes red.
+#
+# A refusal, not a ratchet: the class is CLOSED as of #2949 and #2955 -- the
+# command reports `none` on master today, and there is no ceiling to hold, no
+# slack for the next one to hide in.
+
+name: Harness scratch directories
+
+on:
+  pull_request:
+    # No `branches:` filter, matching the rest of this repository: a branch
+    # filter makes a gate silent on any PR whose base is not listed, and a
+    # stacked PR then shows a green check list a master-based PR would not get.
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: harness-scratch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scratch:
+    name: No test binary shares one scratch directory
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build the tool
+        run: cargo build --release -p tri
+
+      # A gate that cannot fail is not a gate, and CI reads the exit code, not
+      # the prose. Five legs, because this detector had two holes that were
+      # invisible by reading it and only appeared when it was run against files
+      # whose answer was already known by other means: a key interpolating only
+      # `process::id()` looked variable to its first rule, and judging the
+      # arguments alone then convicted an inline-capture key that is distinct
+      # per test. A clean run of a control that cannot fail claims nothing.
+      - name: Negative control
+        run: ./target/release/tri harness scratch --self-check
+
+      - name: No shared scratch directory
+        run: ./target/release/tri harness scratch --gate

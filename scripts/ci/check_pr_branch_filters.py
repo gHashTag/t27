@@ -69,7 +69,30 @@ MERGE_CRITICAL = (
     "secret-scan.yml",
     "verilog-widths.yml",
     "damage-negatives.yml",
+    # Added when the third bucket below was first printed. All three were in
+    # NEITHER list, so this check reported CLEAN without ever reading them --
+    # and two of them carried the exact defect it exists to detect.
+    "corpus-ratchet.yml",
+    "withdrawn-live-gate.yml",
+    "harness-scratch.yml",
 )
+
+# The two lists above are a partition ONLY of the files they name. Everything
+# else in .github/workflows/ was read by nothing here, and the summary printed
+# the two counts beside the file count without ever subtracting them: 15 + 4
+# against 49 present, so 30 files were never examined and the last line still
+# said CLEAN.
+#
+# Two of those 30 carried `pull_request: branches: [master]` -- the very defect
+# this check exists to detect -- and one of them was `corpus-ratchet.yml`, which
+# does not run at all on a stacked pull request and shows a green check list
+# instead.
+#
+# A ceiling rather than a refusal, because 27 files cannot be classified in the
+# commit that discovers them and a gate that is red on the day it lands teaches
+# everyone to ignore red. It moves DOWN only: classify a file and lower this in
+# the same commit, so the next unclassified workflow cannot hide in the slack.
+MAX_UNCLASSIFIED = 27
 
 # Not merge-critical, and each exclusion is stated with its reason so that a
 # future reader can disagree with the reason rather than guess at the omission.
@@ -144,9 +167,55 @@ def main():
                         (name, f"{ev}.{k} = {cfg[k]!r} -- this gate does not run "
                                f"when a PR targets any other base"))
 
+    unclassified = sorted(present - set(MERGE_CRITICAL) - set(NOT_MERGE_CRITICAL))
+    both = sorted(set(MERGE_CRITICAL) & set(NOT_MERGE_CRITICAL))
+
+    # The same read, over the files no list names. Reported, not failed: whether
+    # one of these ought to block a merge is a human call. What is NOT a human
+    # call is whether anybody looked.
+    unclassified_filtered = []
+    for name in unclassified:
+        path = os.path.join(wf_dir, name)
+        try:
+            doc = load(path)
+        except Exception:
+            continue
+        on = on_block(doc)
+        if on is None:
+            continue
+        for ev in PR_EVENTS:
+            cfg = on.get(ev)
+            if not isinstance(cfg, dict):
+                continue
+            for k in FILTER_KEYS:
+                if k in cfg:
+                    unclassified_filtered.append((name, f"{ev}.{k} = {cfg[k]!r}"))
+
     print(f"merge-critical workflows checked: {len(MERGE_CRITICAL)}")
-    print(f"workflow files present:           {len(present)}")
     print(f"explicitly not merge-critical:    {len(NOT_MERGE_CRITICAL)}")
+    print(f"in NEITHER list, never read:      {len(unclassified)}")
+    print(f"workflow files present:           {len(present)}")
+    print(f"  {len(MERGE_CRITICAL)} + {len(NOT_MERGE_CRITICAL)} + {len(unclassified)}"
+          f" = {len(MERGE_CRITICAL) + len(NOT_MERGE_CRITICAL) + len(unclassified)}"
+          f"  (must equal {len(present)})")
+
+    if unclassified:
+        print(f"\nNOT CLASSIFIED ({len(unclassified)}, ceiling {MAX_UNCLASSIFIED}):")
+        for name in unclassified:
+            print(f"  {name}")
+        print("  This check reads none of these. Put each in one of the two lists")
+        print("  above -- NOT_MERGE_CRITICAL carries its reason, so a later reader")
+        print("  can disagree with the reason rather than guess at the omission.")
+
+    if unclassified_filtered:
+        print(f"\nWORK LIST -- unclassified AND branch-filtered ({len(unclassified_filtered)}):")
+        for name, why in unclassified_filtered:
+            print(f"  {name}\n      {why}")
+        print("  Each does not run when a PR targets any base but master. That is")
+        print("  a gating hole if the workflow is merge-critical and a cost")
+        print("  decision if it is not, and nothing here can tell which.")
+    else:
+        print("\nUnclassified workflows carrying a pull_request branch filter: 0")
 
     # An unparseable file is split by whether it is merge-critical, and the split
     # is a deliberate judgement rather than leniency. A merge-critical workflow
@@ -186,10 +255,24 @@ def main():
         print("any `paths:` filter -- it selects by what changed, not by target.")
         return 1
 
+    if both:
+        print(f"\nIN BOTH LISTS ({len(both)}): {', '.join(both)}")
+        print("  A file cannot be merge-critical and explicitly not. One list is")
+        print("  wrong and this check cannot say which.")
+        return 1
+
+    if len(unclassified) > MAX_UNCLASSIFIED:
+        print(f"\nUNCLASSIFIED ROSE {MAX_UNCLASSIFIED} -> {len(unclassified)}")
+        print("  A workflow was added and named in neither list, so this check")
+        print("  does not read it. Classify it and the ceiling holds; classify an")
+        print("  old one too and lower the ceiling in the same commit.")
+        return 1
+
     if missing or hard:
         return 1
 
-    print("\nCLEAN: no merge-critical workflow filters pull_request by branch.")
+    print(f"\nCLEAN: no merge-critical workflow filters pull_request by branch,"
+          f" and\n{len(unclassified)} file(s) remain unread at a ceiling of {MAX_UNCLASSIFIED}.")
     print("Scope: this checks trigger configuration only. It does not verify that")
     print("the gates are registered as required checks in branch protection, which")
     print("is repository settings and cannot be read from the tree.")
