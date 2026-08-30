@@ -446,7 +446,70 @@ fn accepted_head(line: &str) -> bool {
 /// A file under `fixtures/` is BROKEN ON PURPOSE -- the reference input for a
 /// detector, not debt. `tools/specs_generate_baseline.txt` omits all of them; a
 /// census that counts them disagrees with the repository's own ledger.
-fn is_fixture(path: &str) -> bool {
+/// The specs a census may speak about, with the two exclusions every command
+/// here needs and each one had to learn separately.
+///
+/// `report` learned the stage split, `locate` did not and answered about type
+/// errors, `prose` learned neither and reported 107 where its sibling reported
+/// 76. Three commands, one rule, three separate discoveries -- so the rule now
+/// lives in ONE function and disagreement is structurally impossible rather
+/// than merely tested for.
+///
+/// Returns the parse-stage failures with the compiler's output, and counts of
+/// what was set aside.
+pub(crate) struct Scope {
+    pub failures: Vec<(String, String)>,
+    pub fixtures: usize,
+    pub other_stage: usize,
+    pub tracked: usize,
+}
+
+pub(crate) fn parse_failures(root: &Path, t27c: &Path) -> Scope {
+    let out = std::process::Command::new("git")
+        .args(["ls-files", "*.t27"])
+        .current_dir(root)
+        .output();
+    let list: Vec<String> = match out {
+        Ok(o) => String::from_utf8_lossy(&o.stdout)
+            .lines()
+            .map(|s| s.to_string())
+            .filter(|s| root.join(s).is_file())
+            .collect(),
+        Err(_) => Vec::new(),
+    };
+    let mut sc = Scope {
+        failures: Vec::new(),
+        fixtures: 0,
+        other_stage: 0,
+        tracked: list.len(),
+    };
+    for spec in list {
+        let Ok(o) = std::process::Command::new(t27c)
+            .arg("check")
+            .arg(&spec)
+            .current_dir(root)
+            .output()
+        else {
+            continue;
+        };
+        if o.status.success() {
+            continue;
+        }
+        if is_fixture(&spec) {
+            sc.fixtures += 1;
+            continue;
+        }
+        let text = String::from_utf8_lossy(&o.stderr) + String::from_utf8_lossy(&o.stdout);
+        if stage_of(&text) != Stage::Parse {
+            sc.other_stage += 1;
+            continue;
+        }
+        sc.failures.push((spec, text.to_string()));
+    }
+    sc
+}
+
+pub(crate) fn is_fixture(path: &str) -> bool {
     path.contains("/fixtures/")
 }
 
@@ -461,15 +524,17 @@ fn is_fixture(path: &str) -> bool {
 ///
 /// The discriminator is checked both ways: no typecheck output contains a
 /// parse word, and no parse output contains "Typecheck".
+/// Shared with `prose`, which counted every failing `.t27` as a parse failure
+/// until this was lifted out: the same category error, in the third sibling.
 #[derive(PartialEq, Clone, Copy)]
-enum Stage {
+pub(crate) enum Stage {
     Lex,
     Parse,
     Typecheck,
     Semantic,
 }
 
-fn stage_of(text: &str) -> Stage {
+pub(crate) fn stage_of(text: &str) -> Stage {
     if text.contains("Typecheck FAILED") {
         Stage::Typecheck
     } else if text.contains("unterminated string literal") {

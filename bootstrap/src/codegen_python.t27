@@ -33,7 +33,7 @@ module codegen_python {
             return "bool";
         } else {
             return "int";  // For unknown, use int (0 or 1)
-        };
+        }
     }
 
     /// T27 array → Python list
