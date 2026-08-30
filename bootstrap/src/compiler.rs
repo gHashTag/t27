@@ -19143,6 +19143,18 @@ impl CCodegen {
                 format!("{}*", base)
             };
         }
+        // Prefix pointer: t27 spells it `*T`, C spells it `T*`. There was no
+        // arm for this, so the text passed through verbatim and the header read
+        //
+        //     uint64_t set(*Bitmap bitmap);
+        //
+        // where C parses `Bitmap` as the declared NAME with an implicit-int
+        // type, then finds a second identifier: "type specifier missing" and
+        // "expected ')'". 52 generated files carried it.
+        if let Some(inner) = ty.strip_prefix('*') {
+            let base = Self::param_type_to_c(inner.trim());
+            return format!("{}*", base);
+        }
         // Slice types: []Type → Type*, including the `[]const T` spelling --
         // without stripping `const` the inner type was the literal string
         // "const u8" and C received `[]const u8* positional;`.
