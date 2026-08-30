@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1f582327e258f40158a2eb680c2407f1c82be8820933192a9f490c4f025a90ac",
   "gen_hash_rust": "sha256:0844351cfb893378747b0d3ad41bca05613953dcc411fe313d45e1cbc5bb4898",
-  "gen_hash_verilog": "sha256:644d8c5309231400b435250fd966219bd5b5b28c9ae8732a5a48884088072fa0",
+  "gen_hash_verilog": "sha256:1787306b5e73d8b8367bf0a45cc55a92e126dc5e403e44a5289007c43a676108",
   "gen_hash_zig": "sha256:65e27a6927d244586c6f1abc58f5b0c3feda0c60412f493cd6167badcf23162a",
   "module": "JonesPolynomial",
   "ring": 12,
-  "sealed_at": "2026-08-30T19:43:02Z",
+  "sealed_at": "2026-08-30T21:18:17Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:cc960e5ccb68352c21b7479e7f775cc698d4a8fec103c05683cc962e5107b86a",
   "spec_path": "specs/vsa/jones_polynomial.t27"

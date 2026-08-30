@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:55d2b44f985fbd1be8ec09860670dac3cdd063a1820f051bfbc3bb06f22c0e74",
   "gen_hash_rust": "sha256:cb355ff32682bd0746fa77a124bfdfa4ee482dab32e5d3d96c18d97367e5533a",
-  "gen_hash_verilog": "sha256:c0063bb88e37822a1fadcbd91eac46f0b2ea84c40311b68ed2ee943c8e6f67f5",
+  "gen_hash_verilog": "sha256:919297d9ff18b53a0995f927d3d6b73a294bd57c8fe7de296a7c77a2faac773f",
   "gen_hash_zig": "sha256:28f692d09607637c8506eaad4c63d92533fbc96db1de0b7682dada7aca853eb5",
   "module": "triformat-gf16",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
+  "sealed_at": "2026-08-30T21:18:16Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:1b204a1ef4013b32da4d2c0053a89ef417770d751fb61d89e391517e4fff9974",
   "spec_path": "specs/numeric/gf16.t27"

@@ -10464,6 +10464,57 @@ impl VerilogCodegen {
         matches!(ty, "f32" | "f64")
     }
 
+    /// Does this expression denote a Verilog `real` value?
+    ///
+    /// The multiply site in `gen_verilog_expr` routes EVERY `*` through
+    /// `__mul_noop`, the shift-and-add ladder introduced by #741 so that
+    /// synthesizable RTL carries no `*` operator (rule R-SI-1). The ladder is
+    /// declared `function [63:0] __mul_noop; input [63:0] a; input [63:0] b;`
+    /// -- integer ports -- so a float operand is ROUNDED before it is used:
+    /// `__mul_noop(0.3, 10.0)` is 0 * 10 = 0, and `ewma_step` returns 5.0 where
+    /// C, Rust, Zig and hand arithmetic all say 6.5.
+    ///
+    /// R-SI-1 governs synthesizable RTL. Verilog `real` is a simulation-only
+    /// type that no synthesis flow accepts in the first place, so a real
+    /// multiply is outside the rule's subject and may use the operator.
+    ///
+    /// Deliberately conservative: it answers from DECLARED types
+    /// (`local_types` / `param_types`, the maps every other width-aware site in
+    /// this backend already consults) and from float literals. An expression it
+    /// cannot resolve is reported as not-real, which keeps the integer ladder --
+    /// the behaviour that has shipped since #741.
+    fn verilog_expr_is_real(&self, node: &Node) -> bool {
+        match node.kind {
+            // The decimal point is the whole signal. An earlier version of this
+            // arm also tested `extra_kind == "float"`; nothing in the compiler
+            // ever sets that string, so the disjunct could not fire -- a
+            // condition invented rather than read, found by mutating the arm.
+            NodeKind::ExprLiteral => {
+                node.value.contains('.')
+                    && node
+                        .value
+                        .trim_start_matches('-')
+                        .starts_with(|c: char| c.is_ascii_digit())
+            }
+            NodeKind::ExprIdentifier => self
+                .local_types
+                .get(&node.name)
+                .or_else(|| self.param_types.get(&node.name))
+                .map(|t| Self::type_is_float(t.trim()))
+                .unwrap_or(false),
+            NodeKind::ExprCast => Self::type_is_float(node.extra_type.trim()),
+            NodeKind::ExprCall => self
+                .fn_return_types
+                .get(&node.name)
+                .map(|t| Self::type_is_float(t.trim()))
+                .unwrap_or(false),
+            NodeKind::ExprBinary | NodeKind::ExprUnary => {
+                node.children.iter().any(|c| self.verilog_expr_is_real(c))
+            }
+            _ => false,
+        }
+    }
+
     // Restored from Wave Loop 455 (same botched merge).
     fn gen_verilog_let_destructuring(
         &mut self,
@@ -15135,12 +15186,28 @@ impl VerilogCodegen {
                         // simulation only sees the specs it reaches (T21) while
                         // the artefact check is total (T54).
                         let name = Self::verilog_safe_identifier(&stmt.name);
+                        // A binding whose initializer is real needs the `real`
+                        // keyword. `reg [63:0] e; e = ewma_step(0.5,0.5,1.0);`
+                        // ROUNDS 0.75 to 1 on assignment, so `e == 0.75` is false
+                        // and the test reports FAILED against a correct function.
+                        // The sibling `given e = link_etx(0.5,0.5)` passed only
+                        // because its expected value, 4.0, survives rounding --
+                        // an accident, not a check.
+                        let is_real_binding = stmt
+                            .children
+                            .first()
+                            .map(|i| self.verilog_expr_is_real(i))
+                            .unwrap_or(false);
                         self.write_indent();
-                        self.write_line(&format!(
-                            "{} {}; // t27#1948 let binding",
-                            reg_decl(width, signed),
-                            name
-                        ));
+                        if is_real_binding {
+                            self.write_line(&format!("real {}; // t27#1948 let binding", name));
+                        } else {
+                            self.write_line(&format!(
+                                "{} {}; // t27#1948 let binding",
+                                reg_decl(width, signed),
+                                name
+                            ));
+                        }
                         // #2413: same type registration as the assign-binding
                         // path -- a struct-returning call bound by `given`/`and`
                         // needs its TYPE on record or `r0.raw` flattens to the
@@ -16800,10 +16867,21 @@ impl VerilogCodegen {
                     // R-SI-1: Multiplication must not appear as `*` operator in
                     // synthesizable RTL. Emit `__mul_noop(a, b)` instead — the
                     // function definition is injected once per module preamble.
-                    if matches!(node.extra_op.as_str(), "*" | "*%") {
+                    let real_mul = matches!(node.extra_op.as_str(), "*" | "*%")
+                        && (self.verilog_expr_is_real(&node.children[0])
+                            || self.verilog_expr_is_real(&node.children[1]));
+                    if matches!(node.extra_op.as_str(), "*" | "*%") && !real_mul {
                         self.write("__mul_noop(");
                         self.gen_verilog_expr(&node.children[0]);
                         self.write(", ");
+                        self.gen_verilog_expr(&node.children[1]);
+                        self.write(")");
+                    } else if real_mul {
+                        // A `real` multiply: the ladder would round both operands
+                        // to integers. R-SI-1 does not reach a simulation-only type.
+                        self.write("(");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" * ");
                         self.gen_verilog_expr(&node.children[1]);
                         self.write(")");
                     } else {

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9f8ed0c85dc4c119d1fdaf4713f640d9fc1f3ab546af86ef4f7fb02c2ad20056",
   "gen_hash_rust": "sha256:5202e8470c8873c77750fb8fa7b6b106e91a96fe79cf8d56bbd391a126813252",
-  "gen_hash_verilog": "sha256:bb9f5a7575bb039523ec05b929e3845f84fabf2ec5563eaa0bd2070819019649",
+  "gen_hash_verilog": "sha256:008cae266f9eeb3b5636167740f915c5b74576ff91fca5bb8ed11883c750bf73",
   "gen_hash_zig": "sha256:caea78bf059d6ca7c6a626749c218107b598bc7b13e4a0a09ffe2d28f287db3c",
   "module": "GammaConjecture",
   "ring": 12,
-  "sealed_at": "2026-08-30T19:43:02Z",
+  "sealed_at": "2026-08-30T21:18:17Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7825f7dc3e52ed55629715cafb917773d53c396372836ab1db119fbfa5934984",
   "spec_path": "specs/physics/gamma_conjecture.t27"
