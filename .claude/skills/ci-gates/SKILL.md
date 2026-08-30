@@ -10353,3 +10353,30 @@ attempt appended it with an UNQUOTED heredoc. The text is full of backticks, so 
 shell ran them as command substitutions, the append never happened, and the command
 hung until it was killed. `git status` showed a clean tree — the silent no-op again,
 one layer below the lesson being recorded. Quote the delimiter: `<<'MD'`.
+
+### The ids are not even monotone
+
+Three of these notifications arrived in one session, and the versions they named
+went **backwards**:
+
+| notification | named | live at the moment of the fetch |
+|---|---|---|
+| 1 | `1788102406-8d4f` | `1788102406-8d4f` — my own publish |
+| 2 | `1788113439-87c9` | `1788115237-56b7` — mine, newer |
+| 3 | `1788114931-eac9` | `1788115237-56b7` — mine, unchanged |
+
+The third named a version **older** than the second. So the stream is replaying
+superseded versions, not announcing new ones, and the check does not need
+judgement at all — it needs an **ordering comparison**:
+
+> If the id the notification names is older than the one the fetch returns, it
+> cannot be a publish you have not seen. Stop there.
+
+The version prefix is a unix timestamp, so `1788114931 < 1788115237` settles it
+without opening the file. That is one integer comparison against the ninety
+thousand tokens the first of these three cost.
+
+The check as written above still runs — the fetch is needed to learn the live id
+— but its second half, the body diff, is only reached when the ids say something
+actually moved. On its first use after being written, this section turned a
+re-read into two commands.
