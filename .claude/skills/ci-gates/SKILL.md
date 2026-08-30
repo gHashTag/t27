@@ -10783,3 +10783,45 @@ The damage here is unrepairable in place: the commit is pushed and this
 repository forbids force-pushing, so the message stands with a hole in it and
 the correction lives in a later commit and in the pull request body. That is the
 second cost of the trap and the reason to close the class rather than the case.
+
+## 428. "Did it finish" and "what did it conclude" are two fields; an empty one is neither
+
+Three times in one session I read a tool's status with the wrong predicate, and
+each time the wrong reading was **toward a verdict the tool had not given**:
+
+1. `yosys -p "read_verilog $f" | grep -c '^ERROR'` returned **0** for six files
+   that all exit 1. Yosys writes `<path>:<line>: ERROR: …`, so the line does not
+   start with `ERROR` and my anchor matched nothing. I read the empty count as
+   *no error*.
+2. `t27c icarus-simulate spec | head -12; echo "rc=$?"` printed **rc=0** for a
+   run that exits 1 — `$?` is *head's* status. This one is already section 245 of
+   this page, met again through a pipe I wrote myself.
+3. `gh run list --json conclusion` and a filter of
+   `conclusion not in ('success','skipped',None)`. An **in-progress** run has
+   `conclusion: ''`, not `null`, so my own summary line printed
+   `FAIL: FPGA E2E Build` for a workflow that was still running. Master was
+   clean; my reader said it was not.
+
+The third is the general one and it is what the other two are instances of.
+GitHub gives two fields for a reason: `status` says whether it finished,
+`conclusion` says what it decided, and **`conclusion` is empty until `status` is
+`completed`**. Collapsing them means an unfinished run reads as a verdict — and
+which verdict depends on how your filter is spelled, which is not a property of
+the world.
+
+The rule with no judgement in it:
+
+* **Read the finished-ness first.** Filter on `status == completed`, then read
+  `conclusion`. Never test `conclusion` against a list and treat "not in the
+  list" as failure.
+* **An empty value is a third state.** Print it as its own count. If your summary
+  has two columns where the data has three, one of the three is being silently
+  reassigned.
+* **When the status lives in an exit code, do not put a pipe between it and
+  `$?`.** Redirect to a file, read the code on its own line, then grep the file.
+
+This is the same shape as the `none == none` finding on this page — a sentinel
+that means *no answer* compared as though it were an answer — one layer up, in
+the reader instead of the record. The tell in all three: **the wrong reading was
+the reassuring one.** A ruler that fails toward "fine" is the only kind that
+survives long enough to be quoted.
