@@ -33,6 +33,7 @@ mod kinddrift;
 mod leanreach;
 mod leanvac;
 mod skillnum;
+mod scratch;
 mod seals;
 mod sweep;
 mod types_dup;
@@ -44,6 +45,19 @@ mod synth;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Subcommand)]
+pub enum HarnessCmd {
+    /// Test binaries whose tests share one scratch directory.
+    Scratch {
+        /// Exit non-zero when any binary shares a scratch directory.
+        #[arg(long)]
+        gate: bool,
+        /// Negative control: prove this gate can see a planted collision.
+        #[arg(long)]
+        self_check: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -160,6 +174,11 @@ enum Commands {
         action: gates::GatesCmd,
     },
     /// Source files no crate root reaches, and so nothing compiles.
+    /// Test-harness hygiene.
+    Harness {
+        #[command(subcommand)]
+        action: HarnessCmd,
+    },
     Mods {
         #[command(subcommand)]
         action: ModsCmd,
@@ -316,7 +335,7 @@ struct AkashicEvent {
     detail: Option<serde_json::Value>,
 }
 
-fn find_trinity_root() -> Result<PathBuf> {
+pub fn find_trinity_root() -> Result<PathBuf> {
     let mut dir = std::env::current_dir()?;
     loop {
         if dir.join(".trinity").is_dir() {
@@ -850,6 +869,9 @@ fn main() -> Result<()> {
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,
+        Commands::Harness { action } => match action {
+            HarnessCmd::Scratch { gate, self_check } => scratch::run(*gate, *self_check)?,
+        },
         Commands::Mods { action } => match action {
             ModsCmd::Orphan { gate, self_check } => {
                 if *self_check {
