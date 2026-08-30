@@ -5,7 +5,16 @@
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
 
-This file is the **honest, living** per-crate compilation status for every
+> **This file is hand-maintained and does not read CI.** It was last updated
+> **2026-05-22**. Between **2026-05-23 and 2026-08-20** seven master runs of
+> `rings-rust` had all 17 crate jobs failing to compile while this file said
+> they compile -- and every one of those runs concluded `success`, because the
+> build job is `continue-on-error` on purpose. The crates were repaired by
+> 2026-08-28. Each matrix job now writes its own verdict line into the run
+> summary, so where this file and a run disagree, **the run was measured and
+> this file was remembered**.
+
+This file is the per-crate compilation status for every
 `rings/ring-*-rust/` crate. Wave 13 introduces the **Toolchain & Compilation
 Gate**: a non-blocking GitHub Actions matrix that runs `cargo check` and
 `cargo test` against the pinned 1.83 toolchain. Results here are updated

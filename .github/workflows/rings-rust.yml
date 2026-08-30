@@ -4,6 +4,14 @@
 # non-blocking (continue-on-error: true) on purpose: this is an *honesty gate*
 # that surfaces real per-crate compile state without yet enforcing it.
 #
+# It did not surface it. The summary printed a crate COUNT and a pointer to
+# rings/COMPILE_STATUS.md, and never read what the matrix had just measured.
+# Between 2026-05-23 and 2026-08-20 seven master runs had all 17 crate jobs
+# failing; every one concluded `success`, and COMPILE_STATUS.md -- last updated
+# 2026-05-22 and calling itself "honest, living" -- said they compile. The
+# crates were repaired by 2026-08-28, and nothing in either instrument had said
+# they were broken. Each matrix job now writes its own verdict row.
+#
 # Anchor: phi^2 + 1/phi^2 = 3
 name: rings-rust
 
@@ -74,12 +82,42 @@ jobs:
           cargo --version
 
       - name: cargo check
+        id: check
         working-directory: ${{ matrix.path }}
         run: cargo check --all-targets --locked || cargo check --all-targets
 
       - name: cargo test
+        id: test
         working-directory: ${{ matrix.path }}
         run: cargo test --locked || cargo test
+
+      # The job is `continue-on-error`, so a crate that does not compile leaves
+      # no mark on the run's conclusion. Between 2026-05-23 and 2026-08-20,
+      # SEVEN master runs had all 17 crate jobs failing and every one of them
+      # concluded `success` -- while rings/COMPILE_STATUS.md, the file this
+      # gate's summary points readers at, still said they compile. Two
+      # instruments, three months, both silent.
+      #
+      # `outcome` is the step's result BEFORE continue-on-error is applied, so
+      # this row is the honest one. Each matrix job appends its own line and
+      # GitHub concatenates them into one table on the run summary page.
+      - name: Record this crate's verdict
+        if: always()
+        env:
+          CRATE: ${{ matrix.crate }}
+          CHECK: ${{ steps.check.outcome }}
+          TEST: ${{ steps.test.outcome }}
+        run: |
+          # A list line, not a table row: the matrix jobs finish in no fixed
+          # order and GitHub concatenates their summaries in completion order,
+          # so a header written anywhere would not stay above the rows.
+          if [ "$CHECK" = "success" ] && [ "$TEST" = "success" ]; then
+            mark="ok"
+          else
+            mark="DID NOT BUILD"
+          fi
+          printf -- '- `%s` -- %s (check: %s, test: %s)\n' \
+            "$CRATE" "$mark" "$CHECK" "$TEST" >> "$GITHUB_STEP_SUMMARY"
 
   summary:
     name: Compile gate summary
@@ -89,9 +127,20 @@ jobs:
     steps:
       - name: Report
         run: |
-          echo "## rings-rust compile gate" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Discovered crates: ${{ needs.discover.outputs.count }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "This is a non-blocking honesty gate (Wave 13)." >> "$GITHUB_STEP_SUMMARY"
-          echo "See rings/COMPILE_STATUS.md for the living per-crate table." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## rings-rust compile gate"
+            echo ""
+            echo "Discovered crates: ${{ needs.discover.outputs.count }}"
+            echo ""
+            echo "This is a non-blocking honesty gate (Wave 13): the run stays"
+            echo "green whatever the crates do. The per-crate rows above are"
+            echo "therefore the only place the compile state is stated -- read"
+            echo "them, not this run's conclusion."
+            echo ""
+            echo "\`check\` and \`test\` are step outcomes taken BEFORE"
+            echo "continue-on-error, so a \`failure\` row means that crate"
+            echo "really did not build."
+            echo ""
+            echo "rings/COMPILE_STATUS.md is hand-maintained and can lag this"
+            echo "table; where they disagree, this table was measured today."
+          } >> "$GITHUB_STEP_SUMMARY"
