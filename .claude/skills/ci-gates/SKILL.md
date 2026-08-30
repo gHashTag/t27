@@ -9898,7 +9898,7 @@ direction: `src.len()` also appears in `String::with_capacity(src.len())`, which
 has nothing to do with a path. `verilog_r_si_1.rs` would have been convicted by a
 grep and is clean.
 
-## 390. A ledger that is entirely stale is stronger emptied than held
+## 395. A ledger that is entirely stale is stronger emptied than held
 
 Teaching `check_json_parses.py` to notice a stale entry turned it red on a clean
 tree: **six** entries naming files in neither git nor the working tree. The scan
@@ -9916,7 +9916,7 @@ record -- it is six lines of noise standing between the gate and its job. Write
 the measurement into the file where the entries were, so the next reader knows
 the emptiness was earned rather than skipped.
 
-## 391. Two ways to be false by construction, and the second needs its own test
+## 396. Two ways to be false by construction, and the second needs its own test
 
 A planted entry has to be FALSE the moment it lands. There are two mechanisms
 and they fail differently:
@@ -9938,7 +9938,7 @@ git grep -l SYNTHETIC -- ':!cli/tri/src/ledgers.rs'   // must be empty
 **Any hardcoded sentinel carries an unstated claim that it is unique.** Assert
 it, or use a runtime lookup instead.
 
-## 392. A pathspec resolves against the current directory
+## 397. A pathspec resolves against the current directory
 
 The test above failed on its own source: it ran `git grep` from the crate
 directory while excluding `cli/tri/src/ledgers.rs`, the path as seen from the
