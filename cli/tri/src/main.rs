@@ -40,6 +40,7 @@ mod seals;
 mod sweep;
 mod types_dup;
 mod vectors;
+mod vsim;
 mod synth;
 
 #[derive(Parser)]
@@ -252,6 +253,14 @@ enum Commands {
     Unparsed {
         #[command(subcommand)]
         action: unparsed::UnparsedCmd,
+    },
+    /// How far each spec gets when its generated Verilog is actually RUN.
+    ///
+    /// The one arm that can catch a defect whose nature is that it compiles,
+    /// and the one arm whose gate has had no targets since #2283 -- see #2987.
+    Vsim {
+        #[command(subcommand)]
+        action: vsim::VsimCmd,
     },
     /// What `.trinity/seals` says about a spec, when it says it twice.
     Seals {
@@ -908,6 +917,7 @@ fn main() -> Result<()> {
         Commands::Competitors { action } => competitors::run(action)?,
         Commands::Issues { action } => issues::run(action)?,
         Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
+        Commands::Vsim { action } => vsim::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
