@@ -1,6 +1,624 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-08-13
+Last updated: 2026-08-31
+
+## Zig emitter 201 -> 344 valid, 63 -> 2 walls, 0 in scope, over 58 commits
+
+- Branch: `fix/struct-field-brace-nesting`
+- Rigs: `formal/zig_emit_scan.py`, `formal/zig_run_scan.py`, `formal/dialect_manifest_scan.py`
+
+    zig ast-check     201/520 -> 344/520
+    walls (parse)      63 -> 2      in-scope walls 28 -> 0
+    truncated sigs    426 -> 0      restored across 155 specs
+    behaviours         -- -> 615    put back after regeneration destroyed them
+
+The largest single finding was not an emitter defect. The .tri -> .t27 converter
+truncated EVERY generated signature to its first parameter and a `void` return:
+`fn multiply(a: *Matrix) -> void`, `fn rgb(r: u8) -> void`. 426 declarations,
+66 files where every function matched. Two trivial causes -- a loop variable
+never incremented, and an inner loop breaking on the `type:` line belonging to
+the parameter it had just read.
+
+No instrument could see it. A one-parameter function is valid Zig; ast-check
+passes, the wall count is unaffected, the error total does not move. The only
+signal was three tests someone had written to fail on purpose, saying so in a
+comment. **When a defect would still compile, the red test is the whole alarm.**
+
+Regenerating cost what it should have been expected to cost, and one thing it
+should not have. 155 specs traded validity for meaning -- they are valid today
+BECAUSE they are truncated, and a real signature does not compile against a stub
+body. That trade was measured per file before it was taken. What was not
+foreseen: the converter writes `// TODO: behaviour` over hand-written tests, and
+615 of them across 155 specs were destroyed, including all three FAILING ON
+PURPOSE markers that had found the defect. Merged back from the prior commit --
+each file keeps its new signatures and takes its test section back.
+
+    compiled and ran       244 -> 239 -> 223      through the regeneration
+    running ZERO tests      49 -> 143 ->  45
+    assertions executed    973 -> 577 -> 906
+    ASSERTION FAILED         7 ->   2 ->  13
+
+The second row is the honest one. Demolishing a wall moves a spec from blocked
+to merely wrong: of 17 specs whose walls fell, TWO compile and run. The walls
+were about visibility, not working code.
+
+Those three run figures predate the last fifteen commits. A fresh full run does
+not fit on this machine: `zig_run_scan.py` consumes ~15 MB/s building a mirrored
+tree plus Zig caches, and after freeing 0.95 GB of rebuildable artifacts
+(cargo target trees, the registry) the guarded attempt was killed at 395 MB free,
+152 seconds in. The host's data volume sits at 196 of 228 GB all day and swings
+by gigabytes without local cause. The emit scan fits; the run scan does not.
+
+### Three habits this corpus punished
+
+**A census counts its own pattern.** Eight censuses this session were
+contaminated, all the same way: a regex matching the SHAPE of a construct also
+matches that shape inside something else. `("a","b")` read as a tuple, the tail
+of `"b"` read as a byte-string prefix, `pin: E3` read as a struct field. 384,
+53 and 20 "tuples" were really 12; 201 comma-less fields were really 1; 21 byte
+strings were really 3. Only a scanner that tracks syntactic context can count
+here -- and the rule it validates becomes the fix.
+
+**Scope is a fact about the code, not about the source.** Four times work was
+called out of scope because the input LOOKED like Rust. The parser already
+mapped `let`; zig_type already mapped `Option`, `Map` and `List`. `const mut;`
+was one missing qualifier -- 8 walls, 371 declarations. `Vec<T>` was one more
+arm -- 3 walls. 4 of 28 "dialect" files were plain t27, taken from a manifest
+that was never re-derived. Eighteen fixable walls stood while the report said
+none were left.
+
+**Zero in the corpus table is not evidence.** A wall coming down does not move
+the error count -- it changes which error is first. Four fixes this session read
+as no-ops and were three walls and a silent mis-firing. Read the emitted line.
+
+### Decided, not derived
+
+`Vec<T>` -> `std.ArrayList(T)` while `List<T>` -> `[]T`, because the corpus
+distinguishes them: 34 of 39 Vec fields have a method call, 0 of 17 List fields
+do. The comment asserting they were the same was already written when the count
+contradicted it.
+
+`array_semi` retired as a dialect marker and twelve specs delisted -- the
+emitter now lowers `[x; N]` in value, type, field-default and nested-type
+position. Zero of the twelve is still a wall. Reversible in one commit.
+
+### Open
+
+Two walls remain, both verified by reading the code rather than the source:
+`forall i in 0..N` has no quantifier lowering anywhere in the compiler and four
+different syntaxes in the corpus, so implementing it is specifying a semantics;
+`https_enforce.t27` carries 40+ Rust constructs on 223 lines.
+
+15 of 17 unwalled specs still do not compile. That is the next class of work and
+it is semantic, not syntactic.
+
+
+Last updated: 2026-08-29
+
+## Zig emitter 25 -> 201 valid, 848 -> 570 errors, 0 regressions in 42 commits
+
+- Branch: `fix/struct-field-brace-nesting`
+- Measurement rigs: `formal/zig_emit_scan.py`, `formal/gate_per_spec.py`
+
+    zig ast-check   25/520 -> 201/520     pure t27 197/454 = 43%
+    total errors    848 -> 570
+    spec parse gate 161 -> 154 events, 0 blind, ratchet held throughout
+
+Three things this corpus taught, each after getting them wrong first:
+
+**A pattern defines its own scope.** The corruption count was published as 115,
+then 123, then 131 -- each the reach of a grep. A sample does the same: 3 files
+then 14 both said "emitted nowhere"; 60 found it. Count by structure.
+
+**A census is bounded by the checker's reach.** Clearing a parse blocker makes
+the next census LARGER, not smaller. `==` on strings went 12 -> 21 that way, and
+a seventh discard spec appeared only after an unrelated fix.
+
+**A correct fix can raise the error count.** Three iterations running, an
+unblocked file exposed errors that were always there. The per-spec diff is the
+only thing that separates that from a regression.
+
+Two decisions are open and are not measurements: reentrant struct-body parsing
+trades one valid spec for 22 emitted methods (#2536), and generic `T` in a
+signature can be `comptime T: type` (breaks 103 call sites), `anytype` (drops the
+constraint), or left alone (#2576).
+
+## Zig emitter 25 -> 121 over one night, and a missing space was worth 13 of it
+
+- Branch: `fix/struct-field-brace-nesting`
+- Issues: #2336 #2346 #2347 #2349 #2350 #2354 #2355 #2358 #2393 #2394
+  #2397 #2398 #2404 #2405 #2406 #2525
+
+    zig ast-check   25/520 -> 121/520      0 regressions across 18 commits
+    pure t27 only   ...    -> 120/454      26%
+    spec parse gate 161 -> 154 events, 0 blind, ratchet holds throughout
+
+Prop. 191 landed after two prior attempts had been reverted as regressions.
+They were correct; the corrupt corpus was not. Repairing 131 corrupted lines
+first made the same patch pass, and the flagged set shrank one-for-one with
+each ambiguous field decided (#2350, #2358).
+
+`[]const u8` was emitted as `[]constu8` -- lexemes concatenated with no
+separator. The symptom read as an undeclared identifier, so three iterations of
+measurement went past it (#2525).
+
+Between 32 and 66 files under specs/ are Rust, not t27: the lexer has no KwLet
+and no KwMatch. They cannot be fixed by emitter work and were inflating every
+denominator. `specs/RUST_DIALECT.json` records which; it decides nothing (#2398,
+#2406).
+
+Not derived, decided: six field types in mime/fs/regex/aho_corasick, and the
+`[hidden_size]` class in #2405. A passing gate does not validate them --
+`[][]const u8` and `[][]u8` both parse. `aho_corasick.output` is the weakest.
+
+`formal/zig_emit_scan.py` is the measurement rig, now in the repo rather than
+/tmp, which was cleaned mid-session and briefly made every number above
+unreproducible.
+
+## Corpus repair: four batches landed, 89 of 115 lines
+
+- Branch: `fix/struct-field-brace-nesting`
+- Issues: #2336 (producer), #2346, #2347, #2349 (batches)
+
+`[[]Const u8]` 33 · primitives 26 · generics 13 · remaining balanced 17.
+Target forms checked against the producer fixed in #2336, never guessed.
+
+    zig ast-check   25/520 -> 25/520, 0 regressions throughout
+    spec parse gate 161 events -> 154, 0 blind, ratchet holds
+
+All 7 recovered events came from the first batch. Position matters more than
+volume, and volume is the number that would flatter the work.
+
+Batch 4 introduced and corrected its own defect: the pattern preserved case for
+every balanced `[[]Identifier]`, which is right for user types and wrong for
+five primitives. Neither metric would have caught it.
+
+Remaining 26: 18 unbalanced (#2128 class, still the blocker on the
+nesting-aware `parse_struct_body` repair), 4 const declarations with a quoted
+right-hand side, 4 unclassified.
+
+## Prop. 191: the struct field type parser now counts brace nesting
+
+- Branch: `fix/struct-field-brace-nesting`
+- Issue: none
+- PR: (direct commit)
+
+### What landed
+
+The note at `bootstrap/src/compiler.rs` asked for a counterexample field type
+rather than a third guess, after two repairs regressed (161/0 -> 171/6, twice).
+The counterexample is in `test_highlight.t27`:
+
+    buffer: [_]u8{0} ** 128,
+
+`RBrace` was in the terminator set, so the `}` closing the array initialiser was
+read as the struct's own closing brace. The field came out as `[_]u8{0,` and the
+field after it was dropped in silence -- no error, exit 0, and Zig that does not
+parse. Attempt 2 tracked `<>`, `()` and `[]`; braces are absent from that list
+and a brace is what this turns on.
+
+`<` and `>` are still not counted, deliberately: they are comparison operators as
+often as generic brackets, and one unbalanced `>` would swallow the rest of the
+struct. `Map<K, V>` still truncates at the first comma.
+
+### Measured
+
+All 520 `.t27` specs in this tree, generated and run through `zig ast-check`:
+
+    valid        25 -> 33
+    regressions  0
+
+The per-spec diff is the point, not the total -- both earlier attempts died on
+exactly this comparison.
+
+### What this does not fix
+
+The other 487 failures are spread across many distinct defects: field commas,
+array brackets, declaration semicolons, string escaping, undeclared identifiers,
+and at least one emission of Rust `&str` where Zig wants `[]const u8`. Zig
+generation stands at **33/520**. The Verilog path, measured the same way through
+`yosys -p read_verilog`, stands at **354/520** -- the hardware branch is healthy
+and the software branch is not.
+
+
+## The L1 gate was not leaky, it was off (no issue -- see Honesty limits)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: none. `#2149` does not resolve on `gHashTag/t27` and neither does
+  `#2148`, which the entry below claims to close. The highest issue that exists
+  is `#2147`.
+- PR: (direct commit)
+
+### What landed
+
+Prop. 212 replayed the `prove` job on a clone and found it dead at step 9 of 65
+with one shrunk population. Replayed one commit later, at `c55e5075a`, the same
+step dies with **three**:
+
+```
+::error::corpus size scan: 3 population(s) shrank.
+  gate-scripts:       39 -> 38    (1 missing)
+  gate-scripts-lines: 6643 -> 6225  (418 missing)
+  specs-lines:        76092 -> 75936  (156 missing)
+```
+
+Two of the three were added by the commit that closed Prop. 212's refutation 13.
+It ratcheted `gate-scripts` to **39 / 6643**, a figure that counts
+`formal/index_drift_scan.py` -- while the same commit's message says
+**"index_drift_scan is NOT landed"**, `git log --all` finds that file in no
+commit on any branch, and it is not on disk here. The baseline's own comment
+predicted the failure four lines above the numbers it predicted about
+(*"Landing a subset makes the scan report a shrink"*). Nothing reads a comment.
+
+Corrected to **38 / 6225**, which is not giving growth back: measured from the
+objects, the series is `f66561f33` 37/5768, `69e8f5884` 38/6103, `c55e5075a`
+38/6225 -- monotone -- and `git diff --name-status 69e8f5884 c55e5075a --
+'formal/*.py'` is 13 `M`, 0 `D`. A number true of no commit is withdrawn.
+Verified without a clone: the populations are functions of the object store, so
+`git ls-tree -r HEAD` plus `git show` re-derives HEAD's figures host-independently.
+
+**And the same defect was running in the hook that guards every commit on this
+branch.** The file git actually ran was `.git/hooks/commit-msg`, mtime
+2026-04-30, untracked, superseded four months ago by `bootstrap/src/hooks.rs`;
+`core.hooksPath` was unset, so the tracked `.githooks/` shims were dead files
+beside it. Two defects:
+
+- its acceptance regex is seven literal characters with **no digit in it**, so a
+  bare `Closes #` is the strongest possible match;
+- its "skip for amends" branch never checks for an amend. It reads **HEAD's**
+  message, and HEAD (`c55e5075a`) ends in a bare `Closes #` -- so it exited 0
+  before ever reading the candidate.
+
+Seven messages through the stale hook, invoked as git invokes it: **rc 0 with
+empty stdout on all seven**, including the one a broken regex would still have
+caught. That is not a leaky gate; it is one bypass repeated seven times, and the
+silence is the tell. The modern implementation refuses six of the seven.
+
+Census, `main..HEAD`: 986 commits, 186 merges exempt, **800** non-merge --
+**410** carry a closing verb and a number, **10** carry a closing verb and a bare
+`#` (`c55e5075a`, `a8010547c`, `a346961b0`, `ff93ea459`, `aaec99f96`,
+`c6e4a65c2`, `8def2d11f`, `a4c38e43b`, `2955cfd1a`, `c8c3e7fcb`), **380** carry
+no closing verb at all. **390 of 800 -- 48.8% -- fail a correct form check.**
+
+Landed:
+
+- `bootstrap/src/hooks.rs` -- a digit is required after `#`; the amend exemption
+  is deleted outright; a `gh` existence check blocks only on the one stderr
+  phrase meaning GitHub answered *absent*. 18 unit tests pass, up from 10.
+- `.githooks/commit-msg`, `.githooks/pre-commit` -- a missing
+  `target/release/t27c` now refuses the commit instead of printing "skipping"
+  and exiting 0. That was the same wrong-state defect one layer down.
+- `formal/corpus_size_baseline.txt` -- 39/6643 -> 38/6225 with the evidence in
+  the file.
+- `scripts/verify_all_152.py` -- six committed conflict markers resolved; it now
+  compiles and runs. Neither side ran alone, so the resolution is forced rather
+  than chosen; outside every marker, identical on both sides,
+  `expected, tolerance = EXPECTED.get(...)` made the next line raise
+  `TypeError`, so the file had never reached its own comparison.
+- `core.hooksPath` set to `.githooks`; the three shadow copies renamed
+  `DISABLED-*`, not deleted, so the measurements above stay reproducible.
+
+Prop. 213 names the theorem: **a gate is a pair -- a predicate and the state it
+reads -- and its name records only the predicate.** When the state read is not
+the state the claim is about, the verdict carries no information about the
+subject, and the failure is silent because "always accepts" and "subject is
+clean" are the same observation. The corollary is about evidence: an accepting
+run is compatible with the gate being absent, so only a **refusal** distinguishes
+them. 800 green commits were worth nothing; seven deliberate refusals settled it.
+
+Four meta-gates: `doc_gate` 0, `claims_check` 0, `faith_check` 0,
+`coverage_gate` 0.
+
+### Honesty limits (BINDING)
+
+- **A clean clone at HEAD still fails CI at step 9.** One shrink remains --
+  `specs-lines: 76092 -> 75936` -- caused by the 55 uncommitted `.t27` files
+  under `specs/`, and this entry does not fix it. The fix is a commit of
+  `specs/`, which was out of scope. It is the same unfixed item Prop. 212
+  recorded, one wave older.
+- **Do not lower `specs-lines` to 75936.** It would canonicalise a corpus in
+  which 22 declarations are silently swallowed by the parser, and would unblock
+  step 9 only for the job to die at `spec_parse_gate`. The same 55 files are why
+  `spec_parse_gate`, `runaway_string_scan`, `delimiter_balance_scan`,
+  `capture_density_scan` and `replacement_scan` are red in a clean clone.
+- **Nothing here was committed and nothing was staged.** HEAD is still
+  `c55e5075a`; 100 files dirty; the 3 stashes are pre-existing. Every "landed"
+  item above is a working-tree change, which is precisely the state Prop. 212
+  says cannot be promoted to a claim about CI.
+- **The step 1--8 exit codes are a replay's, carried forward, not re-measured
+  here.** What was re-measured for this entry: the step 9 verdict, the
+  population figures (from `git ls-tree`/`git show`, no clone), the seven-message
+  hook table, the 800-commit census, the `gh`-absent degradation path, the 18
+  hook unit tests, `py_compile` and the run of `verify_all_152.py`, and the four
+  meta-gate exits.
+- **The host is macOS 26 arm64, not `ubuntu-latest`.** Step 5 (`sudo apt-get
+  install -y yosys`) cannot run; host Yosys 0.63 was substituted, so step 7
+  carries a version caveat. Step 9 does not -- it is pure Python over the file
+  tree. Steps 1--3 are marketplace actions and were simulated. Steps 10--65 were
+  not re-executed.
+- **Three of the four `gh` degradation paths are carried, not re-measured.**
+  Only "gh not on PATH" was reproduced here (passes with a printed note for a
+  valid reference, still refuses an empty one). "No GitHub remote", "host
+  unreachable" and "gh hangs, 4s" come from the repair's measurement.
+- **10 further committed `.py` files do not parse**, unrelated to conflict
+  markers: `clara-bridge/benchmarks/vsa_performance.py`,
+  `clara-bridge/tests/ta2/test_redteam.py`,
+  `contrib/backend/github/tests/test_tri_integration.py`,
+  `contrib/backend/notebooklm/gen_audio.py`,
+  `scripts/compare_gamma_candidates.py`, `scripts/overnight_research_agent.py`,
+  `scripts/pslq_ramanujan.py`, `scripts/pysr_trinity_blind_test_v2.py`,
+  `scripts/ultra_engine_v120_hyperbolic.py`,
+  `scripts/ultra_engine_v69_lee_control_clean.py`. Untouched: resolving ten
+  research scripts blind is how you author wrong results.
+- **No gate detects that class.** Nothing checks that committed Python parses,
+  and nothing checks for committed conflict markers -- two files carried them,
+  one of them `.gitignore`, for an unknown duration with everything green. No
+  gate was added, because it would start red on the ten above and a gate that is
+  red on arrival gets disabled, which is exactly how the L1 hook reached this
+  state (Prop. 26).
+- **The hook and CI disagree on what L1 means.**
+  `.github/workflows/l1-traceability.yml:61` also accepts `Refs #N` /
+  `Updates #N` and the singular verbs; the hook accepts `closes|fixes|resolves`
+  only. The local gate is the stricter one, so nobody gets a surprise red in CI,
+  but two definitions exist. Over the same 800 commits the CI gate passes 422
+  and fails **378** -- it is red on history today and nothing here made it
+  redder.
+- **The fix applies to new commits only.** `commit-msg` runs on new commits, so
+  none of the 390 is touched. Any CI gate proposed over history must ratchet
+  from 390, not from 0.
+- **`core.hooksPath` also activated `.githooks/pre-push`**, a NotebookLM gate.
+  Dry-run passes today, but it is a behaviour change nobody asked for;
+  `SKIP_NOTEBOOK_GATE=1 git push` is its documented bypass.
+- **`.githooks/*` now refuse to commit when `target/release/t27c` is absent.** A
+  fresh clone must `cargo build --release -p t27c` before its first commit. This
+  is the deliberate opposite of the old self-disabling behaviour;
+  `git commit --no-verify` remains the visible escape.
+- **`run_all.py` and `absence_sweep.py` were not run for this entry.**
+  `absence_sweep.py` is destructive to `build/rtl`. The repair reports
+  `41 passed, 5 failed, 1 soft-failed` in a fixed clean clone, unchanged from the
+  clone before it -- carried, not re-measured.
+- **This entry cites no issue, deliberately.** `#2149` does not exist and
+  `#2148` -- claimed by the entry below -- does not either. Writing a reference
+  that names nothing is the exact defect this wave measured 10 times over in the
+  commit log; it would be a poor way to record having found it.
+- **Prop. numbering deviates from the wave plan.** This is Prop. **213**, not
+  211: `### Prop. 211` and `### Prop. 212` both already exist and are cited from
+  README. Reusing a number would make every existing citation ambiguous, which
+  is the collision Prop. 211's NUMBERING paragraph resolves by withdrawal rather
+  than reuse -- and which the entry below already resolved the same way once.
+- **The README sentence was appended to the cell that now ends at Prop. 212**,
+  not the one ending at Prop. 210 that the wave plan named; that cell absorbed
+  Props. 211 and 212 in the two preceding waves and is the same cell.
+
+
+## Every gate green, on a tree no checkout produces (Closes #2148)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2148
+- PR: (direct commit)
+
+### What landed
+
+Last wave closed with every meta-gate at exit 0, `run_all.py` at 46 passed / 0
+failed, and 13 of 13 guards exercised -- all measured on the **working tree**.
+The `prove` job was then replayed on a clone instead of read.
+
+**A clean clone of `69e8f5884` does not pass CI. It dies at step 9 of 65.** The
+job has 3 marketplace `uses:` actions and 62 named `run:` blocks; steps 4--8
+return 0 and step 9 is a hard fail with no `continue-on-error`:
+
+```
+::error::corpus size scan: 1 population(s) shrank.
+  specs-lines: 76092 -> 75936  (156 missing)
+```
+
+`corpus_size_baseline.txt` records `specs-lines 76092`, measured on a tree
+carrying **55 uncommitted `.t27` files** (51 added `test "..._smoke_test"`
+blocks, the rest parser fixes such as `module ;` -> `module string;`) totalling
+exactly the 156 missing lines. `8c8914ce4` committed the baseline; the spec edits
+it was measured from were never committed.
+
+Identified causally -- overlay those 55 files into the clone and five gates flip:
+
+| gate | clean clone | + the 55 specs |
+|---|---|---|
+| `corpus_size_scan` | **1** -- `specs-lines 76092 -> 75936` | **0** |
+| `spec_parse_gate` | **1** -- `22 declarations swallowed` | **0** |
+| `runaway_string_scan` | **1** -- 17 unbalanced quote lines | **0** |
+| `delimiter_balance_scan` | **1** -- 22 specs, 31 imbalances | **0** |
+| `capture_density_scan` | **1** -- 3 specs below 0.05 nodes/line | **0** |
+
+Prop. 212 names the theorem: a pipeline's source determines a *program*, but an
+outcome is a property of `(source, tree)`. Reading the YAML, or running it
+locally, is a claim about CI only under the premise `git status --porcelain` is
+empty -- which nothing in the pipeline checks and no gate here reports, because
+every gate reads disk and disk is where the premise fails. It was false by 110
+files. A **red** local run transfers; a **green** one does not, and green is what
+every wave promotes.
+
+Also landed: the adversarial review's four defects in `index_drift_scan.py` are
+closed (`staged` class removed, self-exemption removed, Prop. 209b answered as
+liveness, baseline gitignored and per-machine), each with a harness that fails on
+the old code. `gate-scripts` 37->39 and `gate-scripts-lines` 5768->6643 ratcheted
+up, since the scan only prints growth and an unratcheted rise can be given back
+silently. Three unresolved merge-conflict markers were found committed at HEAD in
+`.gitignore` (lines 42/46/54) -- git read each as a literal pathspec, so nothing
+ever went red -- and are resolved.
+
+Four meta-gates: `doc_gate` 0, `claims_check` 0, `faith_check` 0,
+`coverage_gate` 0.
+
+### Honesty limits (BINDING)
+
+- **A clean clone at HEAD still fails CI at step 9, and this wave does not fix
+  it.** The fix is `git add specs/ && git commit` on the 55 spec files. That is
+  outside this change's scope, so the failure is recorded, not repaired. It is
+  the wave's headline finding and its headline unfixed item.
+- **Do not "fix" it by lowering `specs-lines` to 75936.** That would canonicalise
+  a corpus in which 22 declarations are silently swallowed by the parser, and
+  would unblock step 9 only for the job to die at `spec_parse_gate` instead. The
+  reason is a comment inside `corpus_size_baseline.txt`.
+- **Steps 10--65 were not re-executed for this entry.** A verifier reports all 57
+  remaining steps pass once the specs are committed inside the clone, with step
+  48 (`workflow_reachable_scan`, `continue-on-error`, Prop. 169) the sole soft
+  failure. That is a verifier's measurement carried forward, not re-measured
+  here.
+- **The host is macOS 26 arm64, not `ubuntu-latest`.** Step 5 (`sudo apt-get
+  install -y yosys`) cannot run; host Yosys 0.63 was substituted, so every yosys
+  verdict in any replay on this host carries a version caveat. Step 9 does not --
+  it is pure Python over the file tree. Steps 1--3 are marketplace actions and
+  were simulated. Shell is bash 3.2, not 5.x.
+- **Step 48 soft-fails in every run.** Pre-existing, `continue-on-error`, Prop.
+  169: `formal-yosys.yml` is not on the default branch.
+- **`run_all.py` and `absence_sweep.py` were not run for this entry.** The
+  46 passed / 0 failed figure quoted above is last wave's, re-quoted; no
+  before/after comparison was taken on the current tree. `absence_sweep.py` is
+  destructive to `build/rtl` and was left alone deliberately.
+- **`index_drift_scan.py` is still run by no workflow**, by design: `actions/
+  checkout` makes disk, index and HEAD identical, so all its classes are 0 by
+  construction on a runner. It is an operator tool, holds no gate number, and is
+  named at run time by `run_all.py`. A green run of it is evidence of nothing.
+- **Its baseline is gitignored and per-machine**, so no two machines agree on it.
+  That is safe only because a missing baseline is now `::error::` and exit 1 --
+  if that guard is ever weakened, this becomes a silent re-mint.
+- **One verified-tree gap carried from the repair**: a 3-line wording edit to
+  `formal/index_drift_scan.py` was made after the verification clone was taken.
+  `gate-scripts-lines` is 6643 either way and no CI step executes that file, so
+  no step outcome depends on it -- but those three lines are the only bytes in
+  the verified tree that differ from the current worktree.
+- **The 110-file dirty count is this tree's, today.** The adversarial review
+  measured 108 before the repair added files. Neither number is a property of any
+  commit.
+- **Prop. numbering deviates from the wave plan.** This is Prop. **212**, not
+  211: `### Prop. 211` already exists in the working tree and is cited from
+  README and from the entry below. A second heading with the same number would
+  make every existing citation ambiguous, which is the collision Prop. 211's own
+  NUMBERING paragraph resolves by withdrawal rather than by reuse.
+- Nothing was committed. No RTL, spec, or proof content changed by this entry.
+
+
+## A missing baseline re-mints itself and passes (Closes #2147)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2147
+- PR: (direct commit)
+
+### What landed
+
+Props. 209 and 210 ratcheted the corpus. Neither looked at the ratchet's own
+**reference**. Measured by deleting each baseline in a clean clone and running
+its owner:
+
+| clean clone, baseline deleted | gates |
+|---|---|
+| writes a fresh baseline, **exit 0** | **8** |
+| writes, then exits 1 on an unrelated check | 1 -- `runaway_string_scan` |
+| bails on a missing `target/release/t27c` or `build/rtl` | 3 |
+| refuses deliberately | 1 -- `replacement_scan` |
+
+The three that bail do so *incidentally* -- CI builds `t27c` and emits
+`build/rtl` before those steps run, so on a runner they reach the write path too.
+`replacement_scan.py` is the only deliberate guard, and it asks git whether the
+baseline is **tracked**: inert precisely when the baseline is untracked, which
+was the state of all eight.
+
+And `git log -- formal/replacement_scan.py` is **empty**. 38 `.py` on disk, 37 in
+the index. The scanner written to detect the re-baseline idiom had never been
+committed, so the detector for this bug class was itself the last file missing
+from the index. `f66561f33` restored 8 baselines and 15 property files and not
+that script, because nothing knew it was gone.
+
+Fix: all 13 baseline-owning scripts refuse a missing baseline unless given
+`--init`. Exercised in a clean clone with each baseline moved aside -- **13 of 13
+exit 1**, one `::error::` each, none writes, every baseline restores
+byte-identical. `--init` is passed by no workflow and by no `run_all.py`
+invocation, and all 13 baselines are tracked at HEAD, so the branch is
+unreachable on a fresh clone.
+
+`run_all.py` exit 0 (46 passed, 0 failed, 1 continue-on-error);
+`absence_sweep.py` exit 0 (55 diagnosed, 0 indeterminate, 7 exempt, 0 passing on
+nothing); all 13 tracked baselines byte-identical to HEAD.
+
+Gate 33, `formal/index_drift_scan.py`, compares disk / index / HEAD over the 20
+top-level trees the workflows name. On the working tree: 17 disk-only, 0
+index-only, **44 case-only**, 0 staged, exit 0. The 44 are real and new --
+`.trinity/seals/*.json` where the index holds `ar_Composition.json` and disk
+holds `ar_composition.json`, silent in `git status` because `core.ignorecase=true`
+here and not on an ubuntu runner. It is **not** wired into any workflow, and the
+honesty limits below say why it must not be.
+
+### Honesty limits (BINDING)
+
+- **Gate 33 is vacuous in CI, and three adversarial lenses returned REFUTED on
+  it.** `actions/checkout` materialises HEAD into index and disk together, so all
+  four of its classes are 0 by construction on a runner. Fresh clone at
+  `f66561f33` with the gate added: exit **0**. Clean clone at `f66561f33^` -- the
+  broken commit itself -- `--init` writes a **0-entry** baseline and exits **0**.
+  It cannot see its own motivating incident.
+- **The repository root is in no population.** The population token requires a
+  `/`, so 64 tracked root files are enumerated nowhere. `git rm --cached
+  Cargo.toml` with the file still on disk -- the `f66561f33` shape exactly -- is
+  exit **0**, census unmoved at `2402 tracked, 2402 on disk`; the same divergence
+  one directory down is exit 1. Four untracked root files exist right now and it
+  reports none.
+- **`gen/` is printed as a population in which no `disk-only` finding is
+  reachable.** `.gitignore:6` names `gen/`; `git check-ignore` calls the tree
+  un-ignored and every untracked file inside it ignored. A 35,892-byte tracked
+  file de-indexed *and committed* there: exit **0**.
+- **Self-exclusion is not applied to the `staged` class.** `git add -A formal/`
+  makes the gate print its Prop. 209b self-exclusion sentence and then list
+  `staged A formal/index_drift_scan.py` among 15 findings, exit 1. The printed
+  claim and the printed findings contradict each other in one output.
+- **The remedy the error prints does not clear the error.** "Add the file"
+  converts `disk-only <path>` into `staged A <path>`: still new, still exit 1.
+  Only `git commit` returns 0.
+- **Gate 33 passes on nothing.** Alone in a tree where it is the only tracked
+  file, self-exclusion empties the population on both sides: exit **0**, zero-byte
+  baseline. The Prop. 209b liveness check reads `tracked` *before* exclusion. That
+  is Prop. 208's shape for the third time.
+- **Its baseline is not reproducible.** Minted from a dirty tree, so any clean
+  checkout prints `61 baselined disagreement(s) are gone`, and the 44 case-only
+  rows exist only where `core.ignorecase=true`.
+- **Only `case-only` is new information.** Filtered to the same trees, the
+  `disk-only`, `index-only` and `staged` classes `diff` to zero lines against
+  `git status --porcelain`.
+- **Ordinary Coq rebuild residue trips it.** `.glob`/`.aux`/`.vo` under `proofs/`
+  are not ignored (`coq/.gitignore` covers `coq/` only), and 16 of the 17
+  baselined disk-only entries are exactly that residue. 14 of the last 25 commits
+  added at least one new file under a cited tree, so red-for-a-legitimate-reason
+  is the normal case, work in progress included.
+- **The populations are 20 of 53 top-level directories.** `sim/`, `compiler/`,
+  `tests/`, `tools/`, `backend/` and anything a workflow reaches only through a
+  script-internal constant are outside it; the docstring names only `sim/`.
+- **Gate 33 and its baseline are untracked**, so they are currently an instance
+  of the defect they measure, and the gate excludes itself by resolved path and
+  cannot see its own absence. Both need `git add` when this lands.
+- **Gate-number collision**: `replacement_scan.py` already titles itself "Gate
+  33". Recorded rather than silently renumbered.
+- **The implementer exercised 3 of the 13 guards**; verifiers exercised all 13
+  and corrected the reachability figure. The guard is *reached* in 9 of 13 --
+  `capture_density_scan`, `spec_parse_gate`, `value_sweep` and `replacement_scan`
+  bail earlier, so their guard path is untested without a `t27c` build.
+- **There is no before/after `run_all` comparison.** No pre-change run was taken.
+  "The guards are inert whenever a baseline exists" is an argument from the code
+  path, not a measurement.
+- **The `f66561f33` re-baseline hazard was real in code but unreachable in CI**:
+  the job dies at step 2, and the 8 restored baselines' gates sit at lines
+  859--902 and never execute. It is reachable on any local run and via
+  `formal/run_all.py`.
+- **CI is red at step 2 and this wave does not fix it.**
+  `corpus_size_baseline.txt` records `generated-rtl=13` and
+  `generated-rtl-lines=1247` from a dirty worktree, while `build/` is gitignored
+  and the scan runs before the RTL emit step. Clean clone at HEAD: exit 1,
+  `generated-rtl: 13 -> 0`, `generated-rtl-lines: 1247 -> 0`, `specs-lines: 76092
+  -> 75936` -- the last from roughly 40 uncommitted `.t27` edits that predate the
+  fix.
+- 16 Coq artifacts under `proofs/` stay untracked (`proofs/` has no `.gitignore`);
+  no gate reads them. Two tracked paths fail `test -e` and are **not** drift --
+  symlinks whose targets do not resolve.
+- Nothing was committed. No RTL, spec, or proof content changed, and no baseline
+  file changed: `git diff -- 'formal/*baseline*.txt'` is empty.
+
 
 ## A hollowed corpus defeats a file-count guard (Closes #2146)
 
