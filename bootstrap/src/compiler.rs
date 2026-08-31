@@ -2348,18 +2348,107 @@ impl Parser {
                 return Ok(decl);
             }
 
-            // After reading the first value token, skip any remaining expression
-            // tokens (operators, more operands) until semicolon
-            // But don't skip past module body closing brace or next declaration
+            // THE REST OF THE VALUE EXPRESSION, kept instead of discarded.
+            //
+            // Every arm above reads exactly ONE token -- one identifier, one
+            // number, one string -- and this block used to throw away whatever
+            // followed. A const whose value is anything but a single token was
+            // therefore emitted with a DIFFERENT value, silently:
+            //
+            //     spec      const PIN_CLK : PinAssignment = PinAssignment{ .port_name = "clk", ... };
+            //     emitted   const PIN_CLK: PinAssignment = PinAssignment;
+            //     spec      const PHI : f64 = constants::PHI;
+            //     emitted   const PHI: f64 = constants;
+            //     spec      const PHI_SQ : f64 = PHI * PHI;
+            //     emitted   const PHI_SQ: f64 = PHI;
+            //
+            // The first two are `expected type 'T', found 'type'` -- a bare
+            // type name IS a value in Zig, of type `type`. The third is worse:
+            // it COMPILES and is wrong.
+            //
+            // The parser's own probe counted 118 of these across 39 specs:
+            // LBrace 48, Star 23, Slash 20, Colon 18, Plus 4, other 5.
+            //
+            // Collected verbatim, like the sibling LBracket arm at the top of
+            // this function -- this parser does not need an expression tree
+            // here, only the text, and gen_const_decl already has a branch for
+            // raw text carrying a struct literal.
             if self.current.kind != TokenKind::Semicolon
                 && self.current.kind != TokenKind::RBrace
                 && !self.is_top_level_start()
                 && self.current.kind != TokenKind::Eof
+                && !decl.children.is_empty()
             {
-                eprintln!(
-                    "PROBE2261 const `{}` discarding from token {:?} `{}` line {}",
-                    decl.name, self.current.kind, self.current.lexeme, self.current.line
-                );
+                let mut text = {
+                    let v = &decl.children[decl.children.len() - 1];
+                    if v.name.is_empty() {
+                        v.value.clone()
+                    } else {
+                        v.name.clone()
+                    }
+                };
+                let mut depth = 0i32;
+                loop {
+                    // The stop test comes FIRST, before the depth is adjusted.
+                    // Adjusting first and testing after ate the closing brace
+                    // of every struct literal: `}` took depth 1 -> 0, and
+                    // is_top_level_start() -- which lists RBrace -- then broke
+                    // out while that same `}` was still the current token.
+                    // `PinAssignment{.port_name="clk",...,;` is a parse error,
+                    // so the class's error merely CHANGED rather than closed.
+                    if depth == 0
+                        && (self.is_top_level_start()
+                            || self.current.kind == TokenKind::Semicolon
+                            // A missing semicolon: the probe saw KwConst twice.
+                            // Neither starts a value, so reaching one at depth
+                            // 0 means the declaration already ended and
+                            // swallowing it deletes the NEXT declaration.
+                            || self.current.kind == TokenKind::KwConst
+                            || self.current.kind == TokenKind::KwVar)
+                    {
+                        break;
+                    }
+                    match self.current.kind {
+                        TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace => {
+                            depth += 1
+                        }
+                        TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace => {
+                            depth -= 1
+                        }
+                        TokenKind::Eof => break,
+                        _ => {}
+                    }
+                    // Tokens carry no trivia, so `a and b` would concatenate
+                    // into the identifier `aandb`. Re-separate only where two
+                    // word characters would meet; `PHI*PHI` and `.x=1` are
+                    // unambiguous without it.
+                    let t = self.current_text();
+                    let joins = text
+                        .chars()
+                        .last()
+                        .is_some_and(|c| c.is_alphanumeric() || c == '_')
+                        && t.chars()
+                            .next()
+                            .is_some_and(|c| c.is_alphanumeric() || c == '_');
+                    if joins {
+                        text.push(' ');
+                    }
+                    text.push_str(&t);
+                    self.advance();
+                }
+                // The corpus's path separator. `zig_path`/`zig_type` fold it
+                // for types; a VALUE reaches the output verbatim, so it has to
+                // be folded here or `constants::PHI` is a parse error.
+                let text = text.replace("::", ".");
+                let last = decl.children.len() - 1;
+                decl.children[last].kind = NodeKind::ExprIdentifier;
+                decl.children[last].value.clear();
+                decl.children[last].name = text;
+            } else if self.current.kind != TokenKind::Semicolon
+                && self.current.kind != TokenKind::RBrace
+                && !self.is_top_level_start()
+                && self.current.kind != TokenKind::Eof
+            {
                 self.skip_to_semicolon()?;
             }
             // Prop. 146: this path returned WITHOUT consuming the trailing
@@ -3434,6 +3523,42 @@ impl Parser {
             let mut inner = self.parse_body_stmt()?;
             inner.extra_op = keyword;
             return Ok(inner);
+        }
+
+        // `assert EXPR;` -- the bare, paren-less form.
+        //
+        // `assert` is not a TokenKind, so it arrived as a plain identifier and
+        // the expression parser took `assert` ALONE as the whole statement.
+        // Everything after it started a SECOND statement:
+        //
+        //     spec      assert RING_NUMBER == 32;
+        //     emitted   assert;
+        //               RING_NUMBER == 32;
+        //
+        // Both lines are errors -- `value of type 'fn (bool) void' ignored` and
+        // `value of type 'bool' ignored` -- but the errors are not the damage.
+        // The damage is that THE ASSERTION DOES NOT RUN: its condition became a
+        // discarded expression, so a spec whose invariant is false would have
+        // passed just as quietly as one whose invariant holds. Same shape as
+        // the `defer` bug above, and for the same reason.
+        //
+        // Only when the next token is not `(`. `assert(cond);` already parses
+        // as a call, 799 occurrences of it, and is left exactly as it was.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "assert"
+            && self.peek.kind != TokenKind::LParen
+        {
+            self.advance(); // consume 'assert'
+            let cond = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            let mut call = Node::new(NodeKind::ExprCall);
+            call.name = "assert".to_string();
+            call.children.push(cond);
+            let mut stmt = Node::new(NodeKind::StmtExpr);
+            stmt.children.push(call);
+            return Ok(stmt);
         }
 
         // break statement
@@ -6417,7 +6542,20 @@ impl Codegen {
             ) || inner.starts_with(|c: char| c.is_uppercase())
                 && inner.chars().any(|c| c.is_lowercase());
             if is_ident && looks_like_type {
-                return format!("[]{}", Self::zig_type(inner));
+                // `[]const T`, not `[]T`. A t27 `[T]` says a list of T and says
+                // NOTHING about mutating it -- and the mutable reading is the
+                // one no call site can satisfy: the only way this corpus ever
+                // produces a value for one is a literal, and a literal's
+                // address is `*const [N]T`, which coerces to `[]const T` and
+                // not to `[]T`. Emitting the stronger claim made the weaker
+                // one unreachable; every `fits(c, [s1, s2], 2)` in the corpus
+                // stopped at "type '[]BootStage' does not support array
+                // initialization syntax".
+                //
+                // Same call as `List<T>` above: the spec says nothing, so emit
+                // the weaker type. The day a spec writes through one of these
+                // this is where to look -- and it will say so, loudly.
+                return format!("[]const {}", Self::zig_type(inner));
             }
             // A slice OF a slice. `[[str]]` reached neither branch: the guard
             // above wants one bare identifier inside, and the `[N]T` branch
@@ -6568,10 +6706,15 @@ impl Codegen {
                 // Same omission as the comma branch a few lines down, which was
                 // fixed earlier today; this arm was the other half and kept its
                 // own copy of the bug.
+                //
+                // `rewrite_empty_struct_literal` is on the OUTSIDE, after the
+                // field rewrite: `[Project{}; 32]` is the repeat's whole reason
+                // for existing in three server specs -- 32 blank slots -- and
+                // `.{Project{}} ** 32` is `missing struct field: id`.
                 self.write(&format!(
                     "{}}} ** {}",
-                    rewrite_tuples(&rewrite_struct_literal_fields(&rewrite_list_literals(
-                        &rewrite_array_repeats(&zig_path(val.trim())),
+                    rewrite_empty_struct_literal(&rewrite_tuples(&rewrite_struct_literal_fields(
+                        &rewrite_list_literals(&rewrite_array_repeats(&zig_path(val.trim()))),
                     ))),
                     zig_path(count[1..].trim())
                 ));
@@ -6640,7 +6783,31 @@ impl Codegen {
             self.write("pub ");
         }
 
-        self.write(&format!("const {}", zig_ident(&node.name)));
+        // A container-level `var` is emitted `var`, not `const`.
+        //
+        // parse_var_decl sets extra_mutable on the node it builds; this
+        // function was the only emitter that never read it, so EVERY
+        // module-level `var` in the corpus reached Zig as a `const` and every
+        // assignment to it became `error: cannot assign to constant`. The
+        // local-declaration emitter (gen_stmt, NodeKind::StmtLocal) already
+        // spells the keyword from this same flag -- one shape, two emitters,
+        // and only the local one was wired.
+        //
+        // Measured over the whole corpus by emitting all 497 specs before and
+        // after: the diff is 345 lines in 41 files, every one of them a
+        // `const NAME` becoming `var NAME` and nothing else, so no line number
+        // moves anywhere. 52 names in 23 files were being assigned after being
+        // declared `const`; all 52 are declared `var` in their .t27, so none
+        // of this is a spec defect.
+        //
+        // Not a widening. Zig requires a comptime-known initializer for a
+        // container-level `var` exactly as it does for a `const`, so nothing
+        // that compiled before can stop compiling for want of one -- confirmed
+        // by re-running the 16 touched specs that were not in the class under
+        // both compilers: identical exit code and identical first diagnostic
+        // on all 16.
+        let kw = if node.extra_mutable { "var" } else { "const" };
+        self.write(&format!("{} {}", kw, zig_ident(&node.name)));
 
         if !node.extra_type.is_empty() {
             self.write(&format!(": {}", Self::zig_type(&node.extra_type)));
@@ -7700,6 +7867,21 @@ impl Codegen {
                 self.write(&zig_ident(&node.name));
                 if !node.extra_type.is_empty() {
                     self.write(&format!(": {}", Self::zig_type(&node.extra_type)));
+                } else if let Some(t) = node.children.first().and_then(literal_only_if_type) {
+                    // `const sign = if (value < 0.0) { 1 } else { 0 };` is a
+                    // perfectly ordinary binding in the t27 dialect, and the
+                    // emitter reproduced it faithfully. Zig disagrees: when
+                    // EVERY arm is a bare numeric literal, peer type resolution
+                    // lands on `comptime_int`/`comptime_float`, and a
+                    // comptime-only value whose arm is chosen at RUN time is
+                    // `value with comptime-only type 'comptime_int' depends on
+                    // runtime control flow` -- the first error in 5 specs.
+                    //
+                    // One typed arm would already fix it, which is why
+                    // `if (value < 0.0) -value else value` on the very next
+                    // line is fine: `value` carries f32. So the annotation goes
+                    // on ONLY when no arm carries a type of its own.
+                    self.write(&format!(": {}", t));
                 }
                 if !node.children.is_empty() {
                     self.write(" = ");
@@ -8037,7 +8219,23 @@ impl Codegen {
                             self.write(")");
                         }
                     }
-                } else if node.name == "@compileAssert" || node.name == "assert" {
+                // `@compileAssert` ONLY -- `assert` used to be routed here too.
+                //
+                // `if (!(cond)) @compileError("assertion failed")` is a COMPTIME
+                // assertion: Zig analyses both arms of a runtime `if`, so the
+                // @compileError fires whatever the condition's value is. Probed
+                // on a two-line fixture whose assertion is TRUE at run time:
+                //
+                //     var n: u32 = 3; n = n + 1;
+                //     assert twice(n) == 8;      // 4*2 == 8, holds
+                //   -> error: assertion failed
+                //
+                // The prelude already binds `const assert = std.debug.assert;`
+                // whenever a spec mentions the name, so falling through to the
+                // ordinary call path emits `assert(cond)` -- the runtime check
+                // the spec asked for. `@compileAssert` keeps the comptime form,
+                // which is what its name says.
+                } else if node.name == "@compileAssert" {
                     if !node.children.is_empty() {
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
@@ -8285,25 +8483,37 @@ impl Codegen {
                 self.write("}");
             }
             NodeKind::ExprStructLit => {
-                self.write(&zig_expr_name(&node.name));
-                self.write("{ ");
-                for (i, field) in node.children.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
+                // NO FIELDS is not the empty case of "some fields": Zig reads
+                // `T{}` as "every field takes its DEFAULT", and this emitter
+                // writes no field defaults at all -- one field in the whole
+                // emitted corpus has one. `var p = Parser{}` emitted
+                // `Parser{  }` and died on `missing struct field: lexer`.
+                //
+                // Same lowering the elided form `T{...}` already gets, for the
+                // same reason: `std.mem.zeroes(T)` is total.
+                if node.children.is_empty() {
+                    self.write(&format!("std.mem.zeroes({})", zig_expr_name(&node.name)));
+                } else {
+                    self.write(&zig_expr_name(&node.name));
+                    self.write("{ ");
+                    for (i, field) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        // Eighth binding site. `return Result{ .error = "" }` --
+                        // `error` and `align` are Zig keywords and the natural
+                        // names for those fields. 39 sites in 13 files, 34 of them
+                        // `.error`.
+                        //
+                        // zig_ident, not zig_expr_name: this is a binding, so a
+                        // field called `usize` needs quoting too.
+                        self.write(&format!(".{} = ", zig_ident(&field.name)));
+                        if !field.children.is_empty() {
+                            self.gen_expr(&field.children[0]);
+                        }
                     }
-                    // Eighth binding site. `return Result{ .error = "" }` --
-                    // `error` and `align` are Zig keywords and the natural
-                    // names for those fields. 39 sites in 13 files, 34 of them
-                    // `.error`.
-                    //
-                    // zig_ident, not zig_expr_name: this is a binding, so a
-                    // field called `usize` needs quoting too.
-                    self.write(&format!(".{} = ", zig_ident(&field.name)));
-                    if !field.children.is_empty() {
-                        self.gen_expr(&field.children[0]);
-                    }
+                    self.write(" }");
                 }
-                self.write(" }");
             }
             // A node kind with no arm above USED to write nothing at all: the
             // node and its whole subtree simply disappeared, with no error at
@@ -11096,6 +11306,87 @@ fn rewrite_elided_struct_literal(s: &str) -> String {
     out
 }
 
+/// `T{}` -> `std.mem.zeroes(T)`.
+///
+/// The corpus's OTHER spelling of the elided literal above: `T{}` says the same
+/// "an instance of T whose fields do not matter here". Zig reads `T{}` as "every
+/// field takes its DEFAULT", and this emitter writes no field defaults at all --
+/// ONE field in the whole 520-spec emitted corpus carries one -- so the emitted
+/// Zig cannot mean what the spec means, and the file dies on `missing struct
+/// field: <first field>`.
+///
+/// Two guards, both structural, both measured over the corpus with strings and
+/// comments stripped (136 one-line `Ident{}` sites in 43 files):
+///
+///   * an UPPERCASE initial. `[_]*const fn (...) void{}` (jit) and `[_][]u8{}`
+///     (bus/schema) are empty ARRAYS of a lowercase primitive -- already legal
+///     Zig -- and a `fn ... void { }` body has the same shape.
+///   * NOT preceded by `]`. `&[_]Subscription{}` is the empty array of a STRUCT
+///     type: uppercase, and just as much not a struct literal. 119 of the 136
+///     sites are that form, which is why the shape alone cannot be trusted.
+///
+/// What is left is 11 sites in 7 specs, every one a struct literal with no
+/// fields written.
+fn rewrite_empty_struct_literal(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if c == '"' {
+            in_str = !in_str;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if in_str || c != '{' {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        // `{` then only spaces then `}`
+        let mut j = i + 1;
+        while j < b.len() && (b[j] == ' ' || b[j] == '\t') {
+            j += 1;
+        }
+        if j >= b.len() || b[j] != '}' {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        // walk back over the type name already written to `out`
+        let name_end = out.len();
+        let name_start = out
+            .char_indices()
+            .rev()
+            .take_while(|(_, ch)| ch.is_alphanumeric() || *ch == '_' || *ch == '.')
+            .last()
+            .map(|(idx, _)| idx);
+        let Some(start) = name_start else {
+            out.push(c);
+            i += 1;
+            continue;
+        };
+        let name = out[start..name_end].to_string();
+        let head_ok = name
+            .split('.')
+            .next_back()
+            .and_then(|seg| seg.chars().next())
+            .is_some_and(|ch| ch.is_ascii_uppercase());
+        let array_of = out[..start].trim_end().ends_with(']');
+        if !head_ok || array_of {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        out.truncate(start);
+        out.push_str(&format!("std.mem.zeroes({})", name));
+        i = j + 1;
+    }
+    out
+}
+
 /// `not x` -> `!x`. Two sites, both walls.
 ///
 /// Zig has no `not`, so a bare one in value position is always the t27 spelling
@@ -11781,7 +12072,24 @@ fn rewrite_list_literals(s: &str) -> String {
             !matches!(next, Some(c) if c.is_alphanumeric() || c == '_' || c == '?' || c == '*' || c == '[')
         };
         if closed && (comma || empty || single) && ok {
+            // `&.{...}` when the list is a CALL ARGUMENT, `.{...}` everywhere
+            // else. A t27 `[T]` parameter emits `[]const T`, and an anonymous
+            // list does not coerce to a slice however const it is:
+            //
+            //     fits(c, .{s1, s2}, 2)    type '[]const BootStage' does not
+            //                              support array initialization syntax
+            //     fits(c, &.{s1, s2}, 2)   ok -- *const [2]BootStage -> slice
+            //
+            // Only argument position, and the guard is both ends: an opening
+            // paren or a comma before the `[`, a comma or a closing paren
+            // after the `]`. A binding -- `given xs = [a, b]` -- keeps the
+            // bare form, because there the literal has no result type to
+            // coerce THROUGH and `&.{...}` would be a pointer to a tuple.
+            let arg = matches!(prev, Some('(') | Some(',')) && matches!(next, Some(',') | Some(')'));
             let inner: String = b[i + 1..j].iter().collect();
+            if arg {
+                out.push('&');
+            }
             out.push_str(".{");
             out.push_str(&rewrite_list_literals(&inner));
             out.push('}');
@@ -13374,6 +13682,135 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
             }
         }
         _ => {}
+    }
+}
+
+/// A bare numeric literal's value, or `None` if this is not a literal at all.
+///
+/// `parse::<i64>` alone is not the test: it rejects `0x0F`, `0b1010` and
+/// `1_000`, all of which the corpus writes and all of which are still
+/// comptime_int.
+enum LitValue {
+    Int(i128),
+    Float,
+}
+
+fn numeric_literal(text: &str) -> Option<LitValue> {
+    let t = text.trim().replace('_', "");
+    let (neg, t) = match t.strip_prefix('-') {
+        Some(r) => (true, r.to_string()),
+        None => (false, t),
+    };
+    if t.is_empty() {
+        return None;
+    }
+    let sign = if neg { -1 } else { 1 };
+    for (prefix, radix) in [("0x", 16u32), ("0b", 2), ("0o", 8)] {
+        if let Some(rest) = t.strip_prefix(prefix) {
+            return i128::from_str_radix(rest, radix)
+                .ok()
+                .map(|v| LitValue::Int(sign * v));
+        }
+    }
+    if let Ok(v) = t.parse::<i128>() {
+        return Some(LitValue::Int(sign * v));
+    }
+    if t.parse::<f64>().is_ok() {
+        return Some(LitValue::Float);
+    }
+    None
+}
+
+/// The narrowest Zig integer type holding every value in `min..=max`.
+///
+/// NARROWEST, not `i32`, and the difference is the whole point. A
+/// `comptime_int` coerces to any type that can hold it; the annotation has to
+/// replace that, and Zig only coerces an integer type UPWARDS. `u1` reaches
+/// `i8`, `u16`, `u32` and `i32` alike, so it stands in for what the literal
+/// used to do at every use site. Annotating `i32` instead reaches almost
+/// nothing: measured, it turned the two `tf3_from_components(sign, ...)` calls
+/// in numeric/tf3 into `expected type 'i8', found 'i32'` -- one error traded
+/// for another, which is not a fix.
+fn narrowest_int_type(min: i128, max: i128) -> String {
+    if min >= 0 {
+        let bits = (128 - max.leading_zeros()).max(1);
+        return format!("u{}", bits);
+    }
+    // Signed: the width has to hold the negative end too, and `i1` is the
+    // legitimate answer for `-1 else 0`.
+    let mut bits = 1u32;
+    while bits < 128 {
+        let lo = -(1i128 << (bits - 1));
+        let hi = (1i128 << (bits - 1)) - 1;
+        if min >= lo && max <= hi {
+            return format!("i{}", bits);
+        }
+        bits += 1;
+    }
+    "i128".to_string()
+}
+
+/// Every arm of this if/else chain is a bare numeric literal.
+///
+/// Zig resolves such a chain to `comptime_int` / `comptime_float`, and binding
+/// it under a runtime condition is an error. The caller writes the returned
+/// type onto the binding; one arm with a type of its own is enough for peer
+/// resolution to work, so those return `None` and are left alone.
+///
+/// `f32` and not `f64` for the float case, for the same coercion reason plus a
+/// measurement: all three float sites in the corpus (numeric/gf4, numeric/gf16,
+/// numeric/tf3) multiply the binding against an `f32`, and `f64` would trade
+/// this error for `incompatible types`.
+fn literal_only_if_type(node: &Node) -> Option<String> {
+    fn arm(n: &Node, float: &mut bool, lo: &mut i128, hi: &mut i128) -> bool {
+        match n.kind {
+            NodeKind::ExprLiteral => match numeric_literal(&n.value) {
+                Some(LitValue::Int(v)) => {
+                    *lo = (*lo).min(v);
+                    *hi = (*hi).max(v);
+                    true
+                }
+                Some(LitValue::Float) => {
+                    *float = true;
+                    true
+                }
+                None => false,
+            },
+            // The lexer folds `-1` into the literal in some positions and
+            // leaves it as a unary node in others, so both spellings appear.
+            NodeKind::ExprUnary if n.extra_op == "-" && n.children.len() == 1 => {
+                let (mut clo, mut chi) = (0i128, 0i128);
+                if !arm(&n.children[0], float, &mut clo, &mut chi) {
+                    return false;
+                }
+                *lo = (*lo).min(-chi);
+                *hi = (*hi).max(-clo);
+                true
+            }
+            // `else if` -- the chain nests, and one typed arm anywhere in it is
+            // enough, so every level has to be walked.
+            NodeKind::ExprIf if n.children.len() >= 3 => {
+                arm(&n.children[1], float, lo, hi) && arm(&n.children[2], float, lo, hi)
+            }
+            _ => false,
+        }
+    }
+    if node.kind != NodeKind::ExprIf || node.children.len() < 3 {
+        return None;
+    }
+    let mut float = false;
+    let (mut lo, mut hi) = (0i128, 0i128);
+    if arm(&node.children[1], &mut float, &mut lo, &mut hi)
+        && arm(&node.children[2], &mut float, &mut lo, &mut hi)
+    {
+        // A chain mixing `1` and `2.0` is float in Zig's peer resolution too.
+        Some(if float {
+            "f32".to_string()
+        } else {
+            narrowest_int_type(lo, hi)
+        })
+    } else {
+        None
     }
 }
 
