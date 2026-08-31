@@ -617,6 +617,27 @@ impl Lexer {
             };
         }
 
+        // `b"..."` -- a BYTE STRING. Rust marks a byte-array literal this way;
+        // in Zig a string literal already IS a byte array, so the prefix is
+        // redundant rather than foreign, and the token is an ordinary String
+        // from here on.
+        //
+        // Consumed at token start only. A `b` that ENDS an identifier (`sub"`)
+        // or that closes a one-character string (`"b"`) never reaches this
+        // branch, which is what a regex over the same text could not manage --
+        // counting these by pattern returned 21 sites where 3 were real.
+        if ch == b'b'
+            && self.pos + 1 < self.source.len()
+            && self.source[self.pos + 1] == b'"'
+            && (self.pos == 0
+                || !(self.source[self.pos - 1].is_ascii_alphanumeric()
+                    || self.source[self.pos - 1] == b'_'))
+        {
+            self.advance(); // drop the `b`, fall into the string branch below
+        }
+
+        let ch = self.peek();
+
         // [BUG 3 FIX] String literal "..."
         if ch == b'"' {
             self.advance(); // consume opening "
@@ -10898,14 +10919,14 @@ fn is_zig_primitive(name: &str) -> bool {
 /// form before list literals would rewrite the brackets away; casts and the
 /// `in` operator last, because both walk left over already-rewritten text.
 fn rewrite_all(text: &str) -> String {
-    rewrite_keyword_identifiers(&rewrite_tuples(&rewrite_empty_slice_cast(
+    rewrite_forall(&rewrite_keyword_identifiers(&rewrite_tuples(&rewrite_empty_slice_cast(
         &rewrite_elided_struct_literal(&rewrite_not_operator(
         &rewrite_in_operator(&rewrite_as_casts(
             &rewrite_struct_literal_fields(&rewrite_list_literals(&rewrite_paren_destructuring(
                 &rewrite_array_repeats(text),
             ))),
         )),
-    )))))
+    ))))))
 }
 
 /// `[a, b] as []T` -> `&[_]T{a, b}`; the empty case is just elems = "".
@@ -11593,7 +11614,20 @@ fn rewrite_tuples(s: &str) -> String {
             }
             j += 1;
         }
-        if named || j >= b.len() || !comma {
+        // ...and not an ASSIGNMENT TARGET. `(exp, mant) = f(15)` is a
+        // destructuring, which this emitter already handles through
+        // bind_destructured -- but only if it still looks like one. Converting
+        // the left side to `.{exp,mant}` hid it from that path and emitted
+        // `.{exp,mant} = f(15);`, which is `invalid left-hand side to
+        // assignment`.
+        //
+        // My own regression, from adding rewrite_tuples earlier today. A `=`
+        // that is not `==` after the closing paren is the whole test.
+        let after = b[j + 1..].iter().position(|c| !c.is_whitespace());
+        let assigns = after.is_some_and(|k| {
+            b[j + 1 + k] == '=' && b.get(j + 2 + k) != Some(&'=')
+        });
+        if named || assigns || j >= b.len() || !comma {
             out.push(c);
             i += 1;
             continue;
@@ -11605,6 +11639,70 @@ fn rewrite_tuples(s: &str) -> String {
         i = j + 1;
     }
     out
+}
+
+/// `forall i in A..B, P` -> a labelled block that evaluates to a bool.
+///
+/// Zig has no quantifier, but it has a block expression, and "P holds for every
+/// i" is a loop with an early exit:
+///
+///     t27_forall: {
+///         var ok = true;
+///         for (A..B) |i| { if (!(P)) { ok = false; break; } }
+///         break :t27_forall ok;
+///     }
+///
+/// Only the RANGE form. The corpus writes `forall` four different ways --
+/// `forall F, D : pred`, `forall x : T where g, pred`, this one, and one with a
+/// block body -- and the other three appear in invariant and assert blocks that
+/// never emit their body. This is the only shape that reaches generated Zig, so
+/// it is the only one lowered; the rest would be inventing a semantics rather
+/// than translating one.
+fn rewrite_forall(s: &str) -> String {
+    let Some(at) = s.find("forall ") else {
+        return s.to_string();
+    };
+    // `forall` must start a term, not end an identifier.
+    if at > 0 {
+        let p = s.as_bytes()[at - 1];
+        if p.is_ascii_alphanumeric() || p == b'_' {
+            return s.to_string();
+        }
+    }
+    let rest = &s[at + 7..];
+    let Some(in_at) = rest.find(" in ") else {
+        return s.to_string();
+    };
+    let var = rest[..in_at].trim();
+    if var.is_empty() || !var.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return s.to_string();
+    }
+    // the range runs to the comma at depth 0; the predicate is everything after
+    let tail = &rest[in_at + 4..];
+    let (mut depth, mut comma) = (0i32, None);
+    for (i, c) in tail.char_indices() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ',' if depth == 0 => {
+                comma = Some(i);
+                break;
+            }
+            _ => {}
+        }
+    }
+    let Some(ci) = comma else {
+        return s.to_string();
+    };
+    let range = tail[..ci].trim();
+    let pred = tail[ci + 1..].trim().trim_end_matches(';');
+    if range.is_empty() || pred.is_empty() {
+        return s.to_string();
+    }
+    format!(
+        "{}t27_forall: {{ var ok = true; for ({}) |{}| {{ if (!({})) {{ ok = false; break; }} }} break :t27_forall ok; }}",
+        &s[..at], range, var, pred
+    )
 }
 
 fn rewrite_list_literals(s: &str) -> String {
