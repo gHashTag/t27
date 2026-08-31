@@ -33,21 +33,29 @@ foreseen: the converter writes `// TODO: behaviour` over hand-written tests, and
 PURPOSE markers that had found the defect. Merged back from the prior commit --
 each file keeps its new signatures and takes its test section back.
 
-    compiled and ran       244 -> 239 -> 223      through the regeneration
-    running ZERO tests      49 -> 143 ->  45
-    assertions executed    973 -> 577 -> 906
-    ASSERTION FAILED         7 ->   2 ->  13
+    compiled and ran       211 -> 244 -> 239 -> 223 -> 225
+    running ZERO tests      49 ->  49 -> 143 ->  45 ->  46
+    assertions executed    973 -> 973 -> 577 -> 906 -> 926
+    ASSERTION FAILED         7 ->   7 ->   2 ->  13 ->  13
+
+The last column is a full run taken after every commit in this section, on a
+host with room for it for the first time today. Fourteen more specs compile and
+run than this morning, and FORTY-SEVEN FEWER assertions execute: the merge did
+not recover everything the regeneration cost, because some behaviours went with
+specs that stopped compiling. Failing assertions nearly doubled, which is the
+restored tests meeting honest signatures -- six claims that were previously
+indistinguishable from true turned out false.
 
 The second row is the honest one. Demolishing a wall moves a spec from blocked
 to merely wrong: of 17 specs whose walls fell, TWO compile and run. The walls
 were about visibility, not working code.
 
-Those three run figures predate the last fifteen commits. A fresh full run does
-not fit on this machine: `zig_run_scan.py` consumes ~15 MB/s building a mirrored
-tree plus Zig caches, and after freeing 0.95 GB of rebuildable artifacts
-(cargo target trees, the registry) the guarded attempt was killed at 395 MB free,
-152 seconds in. The host's data volume sits at 196 of 228 GB all day and swings
-by gigabytes without local cause. The emit scan fits; the run scan does not.
+The run scan did not fit until 30.5 GB of caches came off the host -- 27 GB of
+it Xcode DerivedData, which `du -sh` reported as 250 MB, wrong by two orders of
+magnitude. A guarded attempt before that was killed at 395 MB free, 152 seconds
+in; after, the same run completed in 264s with a low-water mark of 2538 MB. The
+guard stays: an unguarded run filled the disk twice today, once costing an hour
+and the scratchpad.
 
 ### Three habits this corpus punished
 
