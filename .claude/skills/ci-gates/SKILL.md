@@ -11735,6 +11735,40 @@ compares the first notice against the version live *at that moment*, and the
 readings of two different questions, and the smaller one is not a correction of
 the larger. Say what the count is counted over.
 
+**REFUTED, the same day, by three refusals.** The recipe below is what worked
+once. It then failed on the next publish and I could not make it work again:
+
+    fetch  ->  bash (merge + verify)  ->  Read all 3061 lines  ->  publish
+        -> refused: "a newer version ... is live and this publish was not built on it"
+    publish again, unchanged
+        -> refused: "identical content already refused ... resent unchanged"
+    fetch again (its result again said the version counts as viewed once Read)
+        -> publish -> refused, same message
+
+Two COMPLETE reads of the same 3061-line file in one turn, each with nothing
+between the last Read and the publish, and neither counted. The mechanism is
+not observable from here, and that is the point at which to stop: **a third
+attempt would be a state change made while blind.**
+
+What is established, and what is not:
+
+- **Established:** a full read satisfied the gate exactly once, on a file this
+  session had never successfully published before. Every attempt after that
+  session's first successful publish of the same local path was refused.
+- **Not established:** whether the block is a per-path base version recorded by
+  the successful publish, whether a refusal invalidates prior reads, or
+  whether a fetch does. Three candidate mechanisms, no way to separate them
+  from inside.
+- **Measured cost:** roughly 250k tokens of context on one artifact in one
+  turn, for a page that was already merged and verified on disk.
+
+So the honest form of this section is not a recipe. It is: **when a
+precondition cannot be inspected and following its stated instruction twice
+does not satisfy it, the loop is the defect** -- hand the artefact over and
+say what refused it, rather than paying for a third reading of the same file.
+The tool that would end this is filed as #3023; that is the fix, not another
+read.
+
 **The read must be the last thing before the write.** Three full reads of a
 2,886-line file were spent in one session, which is roughly 300k tokens of
 context for one publish. The sequence that worked, on the third attempt:
