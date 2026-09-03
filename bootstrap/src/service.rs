@@ -2326,6 +2326,26 @@ fn close(a: f64, b: f64, tol_pct: f64) -> bool {
 /// which is the cheapest thing to read and the last thing I read.
 pub fn run_known(repo_root: &Path, dir: String, about: String) -> anyhow::Result<()> {
     let root = repo_root.join(&dir);
+
+    // A --dir THAT IS NOT THERE READS AS THREE EMPTY SIGNALS (#3073).
+    //
+    // The project's own record invokes this as
+    //
+    //     $ t27c known --dir research/arxiv_tnf --about d_posit16
+    //
+    // and `research/arxiv_tnf` does not exist. Every section then fell through to
+    // its `(none)`, and the command signed off with "Nothing speaks to this.
+    // Measure -- and record the negative, it is a result." It had read nothing.
+    //
+    // This is the sentence the comment below already pays to avoid for the gates
+    // directory: a silent "(none)" from looking in the wrong place is the false
+    // all-clear this command exists to prevent.
+    if !root.is_dir() {
+        eprintln!("known: REFUSED -- {} is not a directory.", root.display());
+        eprintln!("  Nothing was read, so none of the three sections would mean anything.");
+        eprintln!("  Exit code 2 = could not take a reading, not \"no prior art\".");
+        std::process::exit(2);
+    }
     let needle = about.to_lowercase();
     let mut hits = 0usize;
 
@@ -2408,7 +2428,34 @@ pub fn run_known(repo_root: &Path, dir: String, about: String) -> anyhow::Result
     let paper = [root.join("tnf_paper.tex"), root.join("research/arxiv_tnf/tnf_paper.tex")]
         .into_iter()
         .find(|p| p.is_file());
-    if let Ok(tex) = std::fs::read_to_string(paper.unwrap_or_else(|| root.join("tnf_paper.tex"))) {
+    // SAY WHICH PAPER, OR SAY THERE IS NONE.
+    //
+    // `find` yields None when neither candidate is a file; the old code then
+    // handed `unwrap_or_else` a path it had just proven absent, `read_to_string`
+    // returned Err, and `if let Ok` skipped the whole loop. `chits` stayed 0 and
+    // printed `(none)` -- byte-identical to "no caption mentions this".
+    //
+    // No file named `tnf_paper.tex` exists in this repository: 0 on disk, 0 in
+    // the index, 0 ever added on any branch. (`git log --all --diff-filter=A`
+    // with the same glob DOES find `tnf_paper.FIXED.tex`, so the zero is a real
+    // absence and not a bad pathspec.) The caption signal has been structurally
+    // dead, while docs/theory/IGLA-FORMAL-RESULTS.md publishes "Nothing in
+    // fourteen gates, ninety baselines or sixty captions speaks to it".
+    //
+    // The rule was stated twenty lines above for the gates directory and paid
+    // for with a `gates read from` line. This is that line, for captions.
+    match &paper {
+        Some(p) => println!("  captions read from {}", p.display()),
+        None => println!(
+            "  NO PAPER FOUND -- looked for {} and {}. The caption signal below is \
+             EMPTY BECAUSE NOTHING WAS OPENED.",
+            root.join("tnf_paper.tex").display(),
+            root.join("research/arxiv_tnf/tnf_paper.tex").display()
+        ),
+    }
+    if let Ok(tex) =
+        std::fs::read_to_string(paper.clone().unwrap_or_else(|| root.join("tnf_paper.tex")))
+    {
         for (lab, body) in tables_of(&tex) {
             // tables_of strips the caption, so search the raw environment instead
             let _ = &body;
@@ -2434,7 +2481,11 @@ pub fn run_known(repo_root: &Path, dir: String, about: String) -> anyhow::Result
         }
     }
     if chits == 0 {
-        println!("  (none)");
+        if paper.is_some() {
+            println!("  (none)");
+        } else {
+            println!("  (not read) -- see NO PAPER FOUND above; this is an absence, not a zero");
+        }
     }
 
     // THE THREE SIGNALS ARE NOT EQUAL, and saying so is the point. Run over 58
@@ -2447,7 +2498,11 @@ pub fn run_known(repo_root: &Path, dir: String, about: String) -> anyhow::Result
     println!("\n== how much of that is evidence ==");
     println!("  baseline  {bhits:2}   STRONG -- your artefact is listed by name, with a verdict");
     println!("  gate      {hits:2}   MEDIUM -- read it; the gate may state your defect, or merely share a word");
-    println!("  caption   {chits:2}   WEAK   -- naming the table a claim is about is not prior art");
+    if paper.is_some() {
+        println!("  caption   {chits:2}   WEAK   -- naming the table a claim is about is not prior art");
+    } else {
+        println!("  caption    -   NOT READ -- no paper was found; absent, not zero");
+    }
     if bhits > 0 {
         println!("\nA baseline hit is the one to read first. It has already decided this.");
     } else if hits > 0 {
