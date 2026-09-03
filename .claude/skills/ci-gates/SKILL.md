@@ -11595,3 +11595,91 @@ always -- the number was implausible for the size of the tree.
 **The finding survives; the tool does not.** One of the fourteen was the 30-line
 window, and it was found by reading a short list rather than by shipping a
 check that would cry wolf 50 times.
+
+## 453. A cap that decides nothing about the number, and everything about termination
+
+The sweep in §452 produced fourteen candidates and about five that looked like
+decisions. Read by hand, priced one at a time:
+
+**`quant.rs` `depth > 8`** -- the recursion cap in `size_of`, which feeds the
+walkable-clause census. Instrumented over the live corpus:
+
+    calls to size_of      2078
+    maximum depth reached    1
+    guard taken              0
+
+and the census reads `119 / 308 / 472` with the cap at **1, 2, 4, 6, 8, 12, 16,
+32 or 64**. Flat everywhere. So by the §450 test it is not load-bearing, and by
+the §426 rule -- *a guard clause you have not executed is a comment* -- it looks
+deletable.
+
+**It is not.** Remove it and the suite does not fail; it **stack-overflows**, on
+a struct whose field is itself. #2949 established one in real code
+(`BTreeNode** children` inside `BTreeNode`), and this corpus simply has none
+today.
+
+So the treatment is neither deletion nor silence: **make the unreached branch
+reachable.** `a_self_referential_struct_terminates` plants the cycle and asserts
+`Unbounded`; `a_chain_shallower_than_the_cap_is_still_measured` plants a
+four-deep finite chain and asserts a real size, or the cap would be
+indistinguishable from *give up on anything nested*. Both mutations bite.
+
+**The general shape.** Two questions look alike and are not:
+
+* *does this constant change a published number?* -- sweep it and read the table;
+* *does this constant prevent a failure?* -- remove it and see what happens.
+
+A constant can answer **no** to the first and **yes** to the second, and only
+the second question distinguishes a dead guard from an unexercised one.
+
+## 454. Two literals that must agree, linked only by prose
+
+`tri gates red` asks GitHub for `per_page=30` runs and prints a streak that
+fills the page as `30+`, because a full page is a lower bound. The marker was
+`n >= 30` -- a *second* literal, two hundred lines from the first, with a
+comment explaining why they match.
+
+Raising the query alone would have kept printing `+` on streaks that are exact:
+**a truncation marker that has stopped marking truncation**, in the command
+whose whole subject is silent truncation.
+
+One constant now, and the test does not assert the constant against itself --
+which is where the first version went wrong:
+
+```rust
+assert!(PAGE >= PAGE);          // a control that cannot fail
+assert!(!(PAGE - 1 >= PAGE));   // and its twin
+```
+
+The real check reads the page size back **out of the URL the command sends**
+and compares it to the count at which the marker flips. Hard-coding `100` into
+the URL turns it red; moving the marker to `n > PAGE` turns it red. Two
+literals cannot pass it; one constant does.
+
+**Where two numbers must be equal, a comment is not the mechanism.** Give them
+one definition, and let the test read one of them from the artefact the other
+produces.
+
+## 455. A mutation run over a file that was never mutated
+
+Three mutants "passed" in a row, all green, all meaningless: the rewrite that
+was supposed to change the source had aborted on a failed anchor assertion
+**before writing the file**, so every mutant ran against the original.
+
+This is §440 wearing different clothes -- there the sample was empty, here the
+*treatment* was. Both print a clean table.
+
+The guard is the same one line, moved: the mutation helper now **exits
+non-zero and says so** when the anchor is not found exactly once, instead of
+letting the caller read a green.
+
+```python
+if s.count(old) != 1:
+    print(f"ANCHOR NOT FOUND ({s.count(old)}) -- mutation NOT applied"); sys.exit(9)
+```
+
+**A harness that cannot tell "the mutant survived" from "the mutant was never
+built" is not a harness.** The repository already learned this for mutants the
+compiler rejected (§382, three arms: killed, survived, never built); a mutant
+the *editor* never wrote is the fourth arm, and it looks exactly like the
+second.

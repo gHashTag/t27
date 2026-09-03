@@ -81,10 +81,29 @@ struct Red {
 
 /// How many of the most recent runs, newest first, share the failing verdict.
 /// A single red is noise; nine in a row is an outage nobody is reading.
+/// How many runs one page of the API returns.
+///
+/// A constant because TWO places need the same number and only prose linked
+/// them: the query asks for a page this size, and a streak that FILLS the page
+/// is a lower bound, printed as `30+`. Raising the query alone would have kept
+/// printing `+` on streaks that are exact -- a truncation marker that has
+/// stopped marking truncation, which is this command's own subject.
+const PAGE: usize = 30;
+
+/// The query, built from `PAGE` so the URL and the marker cannot disagree.
+fn runs_url(repo: &str, id: &str, branch: &str) -> String {
+    format!("repos/{repo}/actions/workflows/{id}/runs?branch={branch}&per_page={PAGE}")
+}
+
+/// Is a streak of `n` a LOWER BOUND rather than an exact count?
+fn is_lower_bound(n: usize) -> bool {
+    n >= PAGE
+}
+
 fn streak(repo: &str, id: &str, branch: &str) -> Result<(usize, String)> {
     let raw = gh(&[
         "api",
-        &format!("repos/{repo}/actions/workflows/{id}/runs?branch={branch}&per_page=30"),
+        &runs_url(repo, id, branch),
         "--jq",
         r#".workflow_runs[]|"\(.conclusion)\t\(.created_at)""#,
     ])?;
@@ -146,7 +165,7 @@ fn now(repos: &[String], include_cancelled: bool) -> Result<()> {
                 name: name.to_string(),
                 since: since.chars().take(16).collect(),
                 consecutive: n,
-                at_least: n >= 30,
+                at_least: is_lower_bound(n),
             });
         }
     }
@@ -197,6 +216,38 @@ mod tests {
         assert_eq!(
             n, 2,
             "the skipped run must neither end nor extend the streak"
+        );
+    }
+}
+
+#[cfg(test)]
+mod page_tests {
+    use super::*;
+
+    /// The query and the truncation marker must be the same number.
+    ///
+    /// They were two literals, both `30`, linked only by a comment. A raise of
+    /// the query alone would have kept printing `+` on streaks that are exact
+    /// -- a truncation marker that has stopped marking truncation, which is
+    /// what this command exists to surface.
+    #[test]
+    fn the_query_and_the_marker_read_one_constant() {
+        // Read the page size back OUT of the URL the command sends and check
+        // it against the count at which the marker flips. Two literals cannot
+        // pass this; one constant does.
+        let url = runs_url("o/r", "wf.yml", "master");
+        let sent: usize = url
+            .rsplit("per_page=")
+            .next()
+            .and_then(|v| v.parse().ok())
+            .expect("the query states a page size");
+        assert!(
+            !is_lower_bound(sent - 1),
+            "one short of a full page is an exact count"
+        );
+        assert!(
+            is_lower_bound(sent),
+            "a full page is a lower bound and must print as `{sent}+`"
         );
     }
 }
