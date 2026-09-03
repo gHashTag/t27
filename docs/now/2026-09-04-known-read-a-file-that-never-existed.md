@@ -1,4 +1,4 @@
-# NOW -- `known` read a file that has never existed (2026-09-05)
+# NOW -- `known` read a file that has never existed (2026-09-04)
 
 ## Three empty signals, and a sign-off telling you to record the negative
 
