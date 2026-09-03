@@ -80,14 +80,38 @@ lesson_numbers() { grep -oE '^\*\*[0-9]+\.[[:space:]]' "$WAVE_SKILL" 2>/dev/null
 # theorems: T709, T709a, T709b are three distinct entries, not a triple collision.
 theorem_tokens() { grep -oE '^#{2,4} T[0-9]+[a-z]*' "$THEORY_DOC" | awk '{ print $2 }'; }
 
+# AN EMPTY MATCH IS NOT A NUMBER.
+#
+# These returned empty-and-exit-0 when the file existed and the matcher found
+# nothing, so `$(last_lesson_no || echo '-')` never substituted the '-' and
+# `no="$(last_lesson_no)" || die` never died. Measured on the real document:
+# `.claude/skills/t27-wave-loop.md` is 242 KB and present, its worked examples
+# are headed `## Worked example -- Wave Loop 898`, and `grep -cE '^\*\*[0-9]+\.'`
+# on it is **0**. `tri wave` therefore printed
+#
+#     lesson    last  -> next 1
+#
+# where the document's own last wave loop is 898. `tri lesson` took the same
+# path to `next=1` -- traced with `bash -x`: `no=` then `next=1`, with the die
+# skipped -- and wrote nothing only because an unrelated downstream step failed
+# on the same empty anchor. The guard that exists for this could not fire.
+#
+# The `-f` test only catches an ABSENT file. A present file whose format has
+# moved past the matcher is the case that actually happened.
 last_lesson_no() {
   [ -f "$WAVE_SKILL" ] || return 1
-  lesson_numbers | sort -n | tail -1
+  local n
+  n="$(lesson_numbers | sort -n | tail -1)"
+  [ -n "$n" ] || return 1
+  printf '%s\n' "$n"
 }
 
 last_theorem_no() {
   [ -f "$THEORY_DOC" ] || return 1
-  theorem_tokens | tr -dc '0-9\n' | sort -n | tail -1
+  local n
+  n="$(theorem_tokens | tr -dc '0-9\n' | sort -n | tail -1)"
+  [ -n "$n" ] || return 1
+  printf '%s\n' "$n"
 }
 
 origin_slug() {
@@ -138,10 +162,16 @@ case "$cmd" in
     printf 'branch    %s @ %s (%s dirty)\n' "$branch" "$head" "$dirty"
     printf 'disk      %s GiB free (floor %s GiB)%s\n' "$free" "$DISK_FLOOR_GIB" \
       "$(awk -v f="$free" -v fl="$DISK_FLOOR_GIB" 'BEGIN { print (f + 0 < fl + 0) ? "  <<< BELOW FLOOR" : "" }')"
-    printf 'lesson    last %s -> next %s\n' "$lesson" \
-      "$([ "$lesson" = '-' ] && echo '-' || echo $((lesson + 1)))"
-    printf 'theorem   last T%s -> next T%s\n' "$theorem" \
-      "$([ "$theorem" = '-' ] && echo '-' || echo $((theorem + 1)))"
+    if [ "$lesson" = '-' ]; then
+      printf 'lesson    UNREADABLE -- no line matched in %s\n' "${WAVE_SKILL#"$REPO_ROOT"/}"
+    else
+      printf 'lesson    last %s -> next %s\n' "$lesson" "$((lesson + 1))"
+    fi
+    if [ "$theorem" = '-' ]; then
+      printf 'theorem   UNREADABLE -- no heading matched in %s\n' "${THEORY_DOC#"$REPO_ROOT"/}"
+    else
+      printf 'theorem   last T%s -> next T%s\n' "$theorem" "$((theorem + 1))"
+    fi
     printf 't27c      %s\n' "${t27c_path:-not built (compiler commands unavailable)}"
     exit 0
     ;;
