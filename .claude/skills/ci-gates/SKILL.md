@@ -12220,3 +12220,64 @@ was among the twelve, so the membership complaint falls and the matcher defect s
 And the first mutant written to prove the fix **did not compile** (`break` outside a
 loop, left over from the loop it removed). It was reported as *never built* rather than
 scored as a kill, which is &sect;455's fourth arm arriving in a new place.
+
+## 466. A reading stamp is a command, not a warning
+
+&sect;461 gave one command an `--as-of` flag and made the flagless case print a sentence:
+*this reading is NOT anchored, pass --as-of to fix it*. A sentence is something to
+agree with. Every count over the live backlog now prints two lines instead, above the
+numbers rather than below them:
+
+```
+  read at 2026-09-03T18:27:56Z   NOT PINNED -- this count changes on every open and close
+  re-take:  tri issues numbers --as-of 2026-09-02 --limit 3039   (the most recent day that has ended)
+```
+
+The second line is the whole point. It names **the most recent day that has ended** --
+the only date `--as-of` will accept, since today is refused for having a future end --
+so the distance between *what I have* and *what you can check* is one paste. A warning
+tells the reader their number is unpinned; this hands them the pinned one.
+
+**Above the numbers, not below.** A reader who stops at the first interesting figure has
+already seen whether it can be taken again.
+
+**And the line is a fixed point.** Run what it suggests and the reading it produces
+carries the identical `re-take:` line, so the suggestion converges instead of sending
+the reader down a chain. That was checked by running it, not reasoned about.
+
+`--as-of` now exists on `tri issues dated` as well, over the same rule, because half a
+symmetry is worse than none: `dated` printed eight figures over the same live backlog
+with no way to pin any of them.
+
+One detail that is not decoration: completeness is asked of the READ, before the as-of
+filter removes rows. Asking afterwards would see a short page and call a truncated read
+complete -- the guard would report exactly backwards in the one case it exists for.
+
+## 467. The guard from the last pass caught the suggestion from this one
+
+The first version of that `re-take:` line suggested the limit the command had just
+used. It was wrong, and wrong in precisely the case the line exists for.
+
+Without `--as-of` the query is `--state open` and **489 rows fit under a limit of 500**.
+With `--as-of` the query is `--state all`, and there are **1486**. So the suggestion
+read `--as-of 2026-09-02 --limit 500`, and running it printed:
+
+```
+  issues read from gh   500   *** EQUALS the --limit of 500: a LOWER BOUND, not a total ***
+  open issues read      360
+```
+
+The true figure is **484**. A helpful line, offered as the cure for unpinned numbers,
+handed the reader a wrong one -- and **&sect;462's truncation guard, written one pass
+earlier for an unrelated reason, is what said so.** Two rules from two passes; the
+second caught the first's mistake, and neither author was a person reading carefully.
+
+That is the argument for a guard that PRINTS rather than one that merely returns a
+bool. A predicate consulted in an `if` protects the code that calls it. A predicate that
+puts a line in the output protects everything downstream of the output, including a
+suggestion written later by someone who had forgotten the predicate existed.
+
+The fix does not guess a bigger number: the suggested limit is **the largest issue
+number seen**, because GitHub numbers issues and pull requests from one sequence
+starting at 1, so the count can never exceed the largest number. Derived from the rows
+in hand -- not a round number someone would have to raise again next quarter.
