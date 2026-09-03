@@ -105,6 +105,49 @@ fn replace_ref(text: &str, marker: &str, old: usize, new: usize) -> String {
     out
 }
 
+/// The tail of `mine`, found by TITLE when the byte prefix no longer matches.
+///
+/// The prefix test above is exact and fails for a reason that turned up on this
+/// command's first real use: the base branch edited an EXISTING section while
+/// the branch was open. The branch's file is then not any commit's file plus an
+/// append -- it is an older base plus a tail, and the base has moved underneath
+/// it in the middle.
+///
+/// Titles survive that. A section whose title appears in the base is the base's,
+/// however its body was reworded; everything after the LAST such section is what
+/// this branch added. Returns `None` when no section is shared, which would mean
+/// the two files have nothing to do with each other.
+pub fn tail_by_title<'a>(at_base: &str, mine: &'a str) -> Option<&'a str> {
+    let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
+        .into_iter()
+        .map(|(_, t)| t)
+        .collect();
+    let mut last_shared_end: Option<usize> = None;
+    let mut offset = 0usize;
+    let mut current_shared_start: Option<usize> = None;
+    for line in mine.split_inclusive('\n') {
+        if let Some(rest) = line.strip_prefix("## ") {
+            if let Some((num, title)) = rest.split_once(". ") {
+                if num.parse::<usize>().is_ok() {
+                    if let Some(start) = current_shared_start.take() {
+                        let _ = start;
+                        last_shared_end = Some(offset);
+                    }
+                    if base_titles.contains(title.trim()) {
+                        current_shared_start = Some(offset);
+                    }
+                }
+            }
+        }
+        offset += line.len();
+    }
+    if current_shared_start.is_some() {
+        // The last numbered section is the base's: nothing was appended.
+        return Some(&mine[mine.len()..]);
+    }
+    last_shared_end.map(|i| &mine[i..])
+}
+
 /// The rewritten tail and the moves, given the base file and the appended tail.
 ///
 /// The first number comes from `at_base` and NEVER from `tail`. The tail already
@@ -143,7 +186,16 @@ pub fn run(base: &str, file: &str, check: bool) -> Result<()> {
     let at_base = show(base, file, &root)?;
     let mine = std::fs::read_to_string(root.join(file))?;
 
-    let Some(tail) = appended_tail(&at_mb, &mine) else {
+    let (tail, how) = match appended_tail(&at_mb, &mine) {
+        Some(t) => (Some(t), "byte prefix of the merge base"),
+        None => (
+            tail_by_title(&at_base, &mine),
+            "TITLES shared with the base -- the merge base is not a prefix, which\n  \
+             happens when the base edited an existing section while this branch\n  \
+             was open",
+        ),
+    };
+    let Some(tail) = tail else {
         bail!(
             "{file} is not {} plus an append.\n  \
              This command moves the sections you APPENDED; it cannot tell which\n  \
@@ -161,10 +213,32 @@ pub fn run(base: &str, file: &str, check: bool) -> Result<()> {
     println!("  merge base {}   {} section(s) there", &mb[..9.min(mb.len())], crate::skillnum::sections(&at_mb).len());
     println!("  {base} highest section  {}", max_section(&at_base));
     println!("  appended here           {}", crate::skillnum::sections(tail).len());
+    println!("  tail identified by      {how}");
+    // The joiner is explicit, and it is the defect this command shipped with:
+    // a tail from `tail_by_title` starts AT its first `## ` heading with no
+    // leading newline, so concatenating it onto a trimmed base glued the
+    // heading to the base's last line. The heading stopped being a heading --
+    // 435 sections where 436 were expected -- and the count is what caught it,
+    // not reading the file.
+    let out = format!(
+        "{}\n\n\n{}",
+        at_base.trim_end_matches('\n'),
+        moved.trim_start_matches('\n')
+    );
+    let rebuilt = out != mine;
     if moves.is_empty() {
         println!();
         println!("  Nothing to move -- your numbers already follow {base}.");
-        return Ok(());
+        if !rebuilt {
+            return Ok(());
+        }
+        // The numbers are right and the FILE is still stale: this is the other
+        // half of the same repair. Rebuilding on `at_base` is exactly the
+        // conflict resolution, so say what it costs before doing it.
+        println!("  The base region is still behind {base}, so the file is rebuilt");
+        println!("  on it. Sections you APPENDED are kept; any edit you made to a");
+        println!("  section the base already had is discarded -- that is the one");
+        println!("  thing this command cannot tell from a base-side rewording.");
     }
     println!();
     for (o, n) in &moves {
@@ -177,11 +251,21 @@ pub fn run(base: &str, file: &str, check: bool) -> Result<()> {
         return Ok(());
     }
 
-    let out = at_base.trim_end_matches('\n').to_string() + &moved;
     debug_assert!(out.starts_with(at_base.trim_end_matches('\n')));
-    std::fs::write(root.join(file), &out)?;
     let secs = crate::skillnum::sections(&out);
+    let expected = crate::skillnum::sections(&at_base).len() + crate::skillnum::sections(tail).len();
+    if secs.len() != expected {
+        bail!(
+            "the rebuilt file has {} section(s) and must have {} ({} from {base} + {} appended). \
+             Nothing was lost from disk -- the write is refused.",
+            secs.len(),
+            expected,
+            crate::skillnum::sections(&at_base).len(),
+            crate::skillnum::sections(tail).len()
+        );
+    }
     let problems = crate::skillnum::problems(&secs);
+    std::fs::write(root.join(file), &out)?;
     println!("  Written. {} section(s); {}", secs.len(), if problems.is_empty() {
         "no number is used twice.".to_string()
     } else {
@@ -240,6 +324,60 @@ mod tests {
             "a longer number was corrupted by a prefix match:\n{out}"
         );
         assert!(!out.contains("&sect;4710"), "{out}");
+    }
+
+    /// The case that broke the prefix test on this command's first real use:
+    /// the base REWORDED a section this branch also has. Byte-prefix says no;
+    /// titles still separate the two files correctly.
+    #[test]
+    fn a_reworded_base_section_does_not_hide_the_tail() {
+        let base = "## 10. Ten\n\nbody ten, REWRITTEN by master\n";
+        let mine = "## 10. Ten\n\nbody ten\n\n## 11. Mine\n\nmine\n";
+        assert!(
+            appended_tail(base, mine).is_none(),
+            "the exact test must still say no"
+        );
+        let t = tail_by_title(base, mine).expect("titles must find it");
+        assert!(t.contains("## 11. Mine"), "{t:?}");
+        assert!(!t.contains("## 10. Ten"), "the base's section leaked in: {t:?}");
+    }
+
+    #[test]
+    fn a_branch_that_appended_nothing_yields_an_empty_tail() {
+        let base = "## 10. Ten\n\nbody\n";
+        let mine = "## 10. Ten\n\nbody reworded here\n";
+        let t = tail_by_title(base, mine).expect("shares a section");
+        assert!(
+            crate::skillnum::sections(t).is_empty(),
+            "nothing was appended, so nothing may move: {t:?}"
+        );
+    }
+
+    /// The joiner, at the level where it can be tested without a repository.
+    /// A tail found by title starts at `## `, and gluing that onto a trimmed
+    /// base turns the heading into ordinary text.
+    #[test]
+    fn rebuilding_keeps_every_heading_at_the_start_of_a_line() {
+        let base = "## 10. Ten\n\nbody ends here.";
+        let mine = "## 10. Ten\n\nbody ends here.\n\n## 11. Mine\n\nmine\n";
+        let tail = tail_by_title(base, mine).expect("tail");
+        let (moved, _) = plan(base, tail);
+        let out = format!(
+            "{}\n\n\n{}",
+            base.trim_end_matches('\n'),
+            moved.trim_start_matches('\n')
+        );
+        assert_eq!(
+            crate::skillnum::sections(&out).len(),
+            2,
+            "a heading was glued to the previous line:\n{out}"
+        );
+        assert!(out.contains("\n## 11. Mine"), "{out}");
+    }
+
+    #[test]
+    fn two_files_with_no_shared_section_are_refused() {
+        assert!(tail_by_title("## 10. Ten\n", "## 99. Other\n").is_none());
     }
 
     #[test]
