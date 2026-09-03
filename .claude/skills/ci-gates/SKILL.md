@@ -12092,14 +12092,87 @@ At exactly `limit` rows there may or may not be more, and the honest answer is t
 cannot tell -- so it reports incomplete. Mutating `<` to `<=` kills a test; the fixture
 is `(486, 500)` and `(500, 500)`, the live boundary rather than an invented one.
 
-**The class was four call sites, not one.** Grepping `"--limit"` across `cli/tri/src/`
-found `numbers`, `dated`, `stale` and `gates prs` -- and `gates prs` carries a
-**hardcoded 50** with no flag at all (10 open PRs at the time of measuring, so it does
-not bite, and when it does it will bite in silence). Fixing only the command that
-prompted the reading would have left three. Each was then run at its own boundary:
-`--limit 486` prints the LOWER BOUND line, `--limit 487` prints COMPLETE.
+**The class was four call sites, not one** -- and four was wrong too. Grepping
+`"--limit"` across `cli/tri/src/` found `numbers`, `dated`, `stale` and `gates prs`, the
+last carrying a **hardcoded 50** with no flag at all. Each was then run at its own
+boundary: `--limit 486` prints the LOWER BOUND line, `--limit 487` prints COMPLETE.
+
+**But `--limit` is one of two spellings.** The same class is written `per_page=` in a
+URL, and that is 22 more lines. `tri gates fetches` now walks the crate and reports it:
+**24 fetch sites**, of which 5 are complete by `--paginate`, 2 read the API's own
+`total_count`, 6 ask whether the page filled, 2 take one row and read no total, and
+**9 print what they got**. The four fixed here are among the six guarded; nine remain,
+in `gates unmeasured`, `gates dead`, `red now` and four in `prcheck`. None bites today
+-- 62 workflows against a page of 100, 35 check-runs against 100 -- and the margin that
+matters is still the issue one, 486 against 500.
+
+Grepping one spelling and calling the class closed is the same error as counting one
+population and calling it the subject. The count that was published as "four call
+sites" was four call sites *of one spelling*.
 
 This is &sect;457 one level down. There the population was a query and the figure went
 stale; here the population is a query **and the tool does not know whether it saw all of
 it**. An anchor on an incomplete read is worse than none: it says *this number can be
 taken again* about a number that was never the whole thing.
+
+## 463. A day that has not ended is not a date you can read
+
+`tri issues numbers --as-of 2027-01-01` printed **486** open issues -- today's number --
+under the heading `AS OF 2027-01-01T23:59:59Z`. The reading looked anchored, read as
+history, and was a clock reading wearing next year's label.
+
+GitHub does not object: `created:<=2027-01-01` composed with `closed:>2027-01-01`
+answers `486 + 0 = 486` without complaint, because every issue that exists was created
+before next year and none has been closed after it. The query is well-formed and its
+answer is worthless.
+
+**An anchor that cannot be wrong is not an anchor.** &sect;461 refused a malformed date
+on the grounds that a date silently becoming "today" is worse than no anchor. A future
+date does exactly that while parsing perfectly -- so the refusal has to be about the
+day being CLOSED, not about the string being well-shaped.
+
+Today is refused for the same reason as tomorrow: its end is still in the future, so the
+count differs from itself by evening. The rule is `date >= today`, and mutating it to
+`date > today` kills a test.
+
+The comparison needs today's UTC date, which needs a civil calendar, which is twenty
+lines transcribed rather than invented -- and tested on the dates that break a wrong
+one: the epoch, the day before it, a leap day, and the day after February in a century
+that is not a leap year. That last is not decoration. **The century divisor is
+load-bearing on exactly two days in a hundred thousand**, 1900-03-01 and 2100-03-01;
+swap `36_524` for `36_525` and the calendar invents `1900-02-29`, a date that does not
+exist. The discriminating input was found by sweeping the mutant against an independent
+calendar, not by choosing dates that looked interesting.
+
+And one expectation in that test was wrong when written -- `civil_from_days(20_699)`
+guessed at 2026-09-04, and the answer is 2026-09-03. The code was right and the test was
+mine. That is what an independently derived expectation is for.
+
+## 464. The census counted itself, twice
+
+`tri gates fetches` walks this crate for bounded GitHub fetches. Its first rule was
+"the line mentions `per_page=` and mentions `repos/`", and it matched **its own
+definition**, which names both. A census that counts itself is reporting a fact about
+the census.
+
+The fix is not an exception list: both needles must live in the SAME string literal,
+which a rule never has and a URL always does. Three lines, no function named as special.
+
+**Then it counted its own test fixtures.** The test that proves the rule works contains
+`is_fetch_site("...repos/{repo}/actions/workflows?per_page=100")` -- a perfectly good
+fetch URL, in a string, in a test. Twenty-five sites where the crate has twenty-four.
+
+Excluding test modules looked like one line -- *everything after the first
+`#[cfg(test)]`* -- and that was checked rather than assumed: **five files in this crate
+carry real top-level functions AFTER their test module**, `gates.rs` fifteen of them.
+The module has to be closed by a `}` in the first column, and the attribute has to be
+seen before the `mod` or `main.rs`'s forty ordinary module declarations put the walker
+in test mode for the rest of the file -- silently dropping every fetch after the first
+one, which is the exact failure this command exists to name.
+
+Both self-references had the same shape and neither was visible from inside the number.
+What made them visible was the LIST: the count said 25 where a hand count said 24, and
+the list named the line. **A census that prints only its total cannot be checked; one
+that prints its members can.** The command prints the excluded lines too, under
+`--excluded`, because the exclusion is half the reading -- 25 lines name a spelling
+without fetching, against 24 that fetch.
