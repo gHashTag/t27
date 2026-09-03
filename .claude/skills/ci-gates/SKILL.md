@@ -12384,3 +12384,66 @@ The rule that follows is narrow and mechanical: a figure describing the state AF
 change is taken as the LAST action before the commit, from the tree that is committed,
 and is written with that commit's sha. Any earlier reading describes a different tree,
 however few minutes earlier it was.
+
+## 471. `grep` has three answers and `2>/dev/null || echo OK` keeps one
+
+`grep` exits **0** for a match, **1** for no match, and **2** for no such file. Those are
+three answers. `2>/dev/null` deletes the message and an `||` arm deletes the exit code,
+and what survives is one bit: *clean*. A missing subject and a clean subject then print
+the same characters.
+
+`tri gates quiet` walks the workflows and reports the shapes in which that happens:
+
+```
+  workflow files read           49
+  steps in a quiet shape        32
+    failure branch passes       16   `… 2>/dev/null … || echo PASSED`
+    a count that reads zero      9   `$(… 2>/dev/null | wc -l)`
+    gated on the file existing   7   often legitimate, reported apart
+```
+
+The counter is the same defect in a different costume: `ADMISSIONS=$(grep -r "^Admitted"
+*.v 2>/dev/null | wc -l)` reads **0** from a directory with no proofs in it, and 0 is the
+number a clean tree prints.
+
+**`[ -f X ]` is listed apart because it is often exactly right.** A step that
+legitimately has nothing to do should not fail. What separates it from the defect is
+whether the output NAMES what it read -- and nothing here does.
+
+**The reading that matters is not the count of shapes.** Of the 32, exactly **one** names
+a tracked path: `phi-loop-ci.yml:30`, whose subject `ffi/src/` is on disk today. So no
+gate here is currently guarding nothing, which is a result and is said plainly. **Twenty-two
+name no path at all** -- and that is the harder finding, because a step that does not say
+what it read cannot be checked by this tool, by a reader, or by the next person to rename
+something.
+
+## 472. "Cannot check" is not "absent"
+
+The first version of that command reported **25 of 32** subjects missing. It was wrong,
+and the way it was wrong is worth more than the number.
+
+Three different answers had been collapsed into one:
+
+* **no path on the line** -- 22 of them. The tool cannot say anything, and *cannot say*
+  is not *is missing*.
+* **the run builds it** -- `build/fpga/synth/synth.log` is absent from a checkout
+  because the workflow creates it later. Its absence is evidence of nothing.
+* **a variable in the path** -- `specs/fpga/${m}.v` names a different file per run.
+
+And one more, which the tool invented outright: `subject_of` took the first token
+carrying a `/`, so from an inline python one-liner it returned
+`json;print(len(json.load(open('/tmp/r.json'))['checks']` and reported **that** as a
+tracked path that is missing. Punctuation which cannot appear in a path -- `(`, `)`,
+`;`, `=`, `,` -- now rules the token out.
+
+With the four separated, the honest count of tracked paths missing today is **0**.
+
+**A detector that cannot distinguish its own ignorance from a finding will always find
+something**, and 25 of 32 is 78% -- just under the 80% line at which this file
+calls a matcher one that describes its input, which is exactly why the ratio alone would not have caught it.
+What caught it was reading the list: the first row was python source.
+
+That is &sect;464 arriving for the third time. **The list is the check.** The command
+prints `--list` for every step counted and `--excluded` for every line it refused,
+because a census that prints only its totals cannot be argued with -- and this one was
+wrong in its totals while every total looked plausible.
