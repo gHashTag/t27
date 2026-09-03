@@ -4832,6 +4832,89 @@ fn find_invocation(line: &str) -> Option<usize> {
     None
 }
 
+
+/// What a gate's script can reach, decided from its SOURCE.
+///
+/// THE SUBJECT IS THE SCRIPT, NOT THE INVOCATION, and the difference is not
+/// academic: `tools/pack_index_consistency_gate.py` calls `os.listdir` at line
+/// 164, so the file reads a directory -- and the invocation CI runs is
+/// `--selftest`, which points it at a `tempfile.mkdtemp` of its own. Both
+/// readings are correct about different things. A script that reads a directory
+/// AND builds one is reported separately for exactly that reason.
+///
+/// `gates empty` reports every invocation that passed over nothing. That is a
+/// shape, not a verdict, and going through the five it found by hand showed why:
+/// four of them never touch the tree -- they are self-tests with their own
+/// fixtures, and three say so in their own last line ("Scope: JavaScript source
+/// in actions/github-script", "selftest OK: the gate is falsifiable"). Only
+/// `tools/check_conflict_markers.py` reads the tree, and it prints the
+/// population it read (`tracked files read 7741` here, `0` in the empty tree),
+/// so a reader can tell. The honest count of defects among the five was 0.
+///
+/// This column is the part of that pass a command can do. It separates "passed
+/// over nothing because there was nothing for it to do" from "passed over
+/// nothing and would have passed over anything", which is the only one worth a
+/// reader's time.
+///
+/// `None` means the script could not be read -- an absent file, a command with
+/// no script in it. Not `false`: a source nobody read cannot be reported as one
+/// that touches nothing.
+///
+/// SYNTACTIC, and the list is printed so it can be argued with. A script that
+/// reaches the tree through a name not in `TREE_READERS` reads as `no`, and a
+/// script that mentions one in a comment reads as `yes`.
+#[derive(PartialEq, Clone, Copy)]
+pub enum Reach {
+    /// No call in this file reads a directory. A pass says nothing about a tree.
+    SelfContained,
+    /// Some call in this file reads a directory.
+    ReadsADirectory,
+}
+
+pub fn reach_of(text: &str) -> Reach {
+    if TREE_READERS.iter().any(|m| text.contains(m)) {
+        Reach::ReadsADirectory
+    } else {
+        Reach::SelfContained
+    }
+}
+
+fn reads_the_tree(root: &std::path::Path, cmd: &str) -> Option<Reach> {
+    let script = cmd
+        .split_whitespace()
+        .find(|t| t.ends_with(".py") || t.ends_with(".sh"))?;
+    let text = std::fs::read_to_string(root.join(script)).ok()?;
+    Some(reach_of(&text))
+}
+
+// A THIRD STATE WAS TRIED AND REMOVED, which is worth more than the two that
+// stayed. "Reads a directory AND builds one" was meant to catch
+// `pack_index_consistency_gate.py --selftest`, whose `os.listdir` is aimed at a
+// `mkdtemp` of its own. It did -- and it also swallowed
+// `check_conflict_markers.py`, which really does read 7741 tracked files and
+// merely uses a `TemporaryDirectory` inside its `--self-check` at line 141. The
+// bucket ended with two members and neither belonged in it: the count of the
+// category worth reading went to ZERO while the output looked richer.
+//
+// A file-level marker cannot answer an invocation-level question, and a second
+// heuristic added to cover the first one's false positive produced a category
+// with no correct members. Two states and a stated limitation beat three states
+// and a hidden one.
+
+/// Ways a gate script in this repository reaches the working tree. Taken from
+/// the five `gates empty` reports plus the twenty-two it skips, not invented.
+const TREE_READERS: [&str; 9] = [
+    "glob(",
+    "rglob(",
+    "iterdir(",
+    "os.walk(",
+    "listdir(",
+    "ls-files",
+    "read_dir(",
+    "git diff",
+    "git show",
+];
+
 fn empty(verbose: bool) -> Result<()> {
     let root = repo_root()?;
     let wf = root.join(".github/workflows");
@@ -4908,8 +4991,30 @@ fn empty(verbose: bool) -> Result<()> {
         "  PASSED over nothing                      {}",
         passed.len()
     );
+    let marks: Vec<(String, Option<Reach>)> = passed
+        .iter()
+        .map(|(c, _)| (c.clone(), reads_the_tree(&root, c)))
+        .collect();
+    let n = |r: Reach| marks.iter().filter(|(_, m)| *m == Some(r)).count();
+    println!(
+        "    ... the script reads a directory      {}   <- a pass here may be about a tree",
+        n(Reach::ReadsADirectory)
+    );
+    println!(
+        "    ... self-contained                    {}   <- a pass says nothing about any tree",
+        n(Reach::SelfContained)
+    );
+    let unread = marks.iter().filter(|(_, m)| m.is_none()).count();
+    if unread > 0 {
+        println!("    ... source not read                   {unread}   <- no reading either way");
+    }
     for (cmd, text) in &passed {
-        println!("    {cmd}");
+        let mark = match reads_the_tree(&root, cmd) {
+            Some(Reach::ReadsADirectory) => "reads a directory",
+            Some(Reach::SelfContained) => "self-contained",
+            None => "source not read",
+        };
+        println!("    {cmd}   [{mark}]");
         if verbose {
             for l in text.lines().take(3) {
                 println!("        {l}");
@@ -5039,6 +5144,49 @@ mod empty_tests {
 
     /// An empty tree that carries the data is not an empty tree. The first
     /// version copied every file, and two gates read backwards because of it.
+    /// A pass over nothing is a shape, not a verdict. This is the column that
+    /// separates the two, and each state has a case.
+    #[test]
+    fn a_script_that_reads_a_directory_is_told_from_one_that_cannot() {
+        assert!(matches!(
+            super::reach_of("import os\nfor f in os.listdir(d): pass\n"),
+            super::Reach::ReadsADirectory
+        ));
+        assert!(matches!(
+            super::reach_of("print('four payloads matched their declared class')\n"),
+            super::Reach::SelfContained
+        ));
+        assert!(matches!(
+            super::reach_of("subprocess.run(['git', 'ls-files'])\n"),
+            super::Reach::ReadsADirectory
+        ));
+    }
+
+    /// The third state that was tried and removed, pinned so its absence is a
+    /// decision. `check_conflict_markers.py` reads 7741 tracked files AND uses a
+    /// `TemporaryDirectory` inside its self-check; bucketing those together took
+    /// the count of the category worth reading to zero.
+    #[test]
+    fn a_temporary_directory_does_not_excuse_a_script_that_reads_one() {
+        assert!(matches!(
+            super::reach_of(
+                "import tempfile, os\n                 with tempfile.TemporaryDirectory() as d: pass\n                 for f in os.listdir(root): pass\n"
+            ),
+            super::Reach::ReadsADirectory
+        ));
+    }
+
+    /// SYNTACTIC, and that is stated rather than discovered. A mention in a
+    /// comment counts, and a reader who expects otherwise should meet this test
+    /// instead of a surprise.
+    #[test]
+    fn the_column_is_syntactic_and_a_comment_counts() {
+        assert!(matches!(
+            super::reach_of("# this used to call os.walk(root)\nprint(1)\n"),
+            super::Reach::ReadsADirectory
+        ));
+    }
+
     #[test]
     fn only_scripts_are_carried_into_the_empty_tree() {
         let from = std::env::temp_dir().join(format!("tri_copy_from_{}", std::process::id()));

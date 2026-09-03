@@ -33,8 +33,18 @@ fn tool_present(tool: &str) -> bool {
 
 fn tmp_dir(tag: &str) -> std::path::PathBuf {
     // Deterministic per-test, so a failing run leaves its artefacts behind to
-    // look at instead of a random name nobody can find again.
-    let d = std::env::temp_dir().join(format!("t27c-backend-behaviour-{tag}"));
+    // look at instead of a random name nobody can find again. The pid keeps
+    // that property while separating concurrent RUNS: the tag is already
+    // distinct per test, so nothing here collides inside one process, and this
+    // binary still failed 30 of 32 runs with 16 copies going at once -- every
+    // one of them writing `-{tag}` into the same `$TMPDIR`, and
+    // `remove_dir_all` two lines down deleting a sibling run's directory
+    // mid-read. A counter is deliberately NOT added: it would make the path
+    // unpredictable, which is the property this comment is defending.
+    let d = std::env::temp_dir().join(format!(
+        "t27c-backend-behaviour-{tag}-{}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).expect("create temp dir");
     d
