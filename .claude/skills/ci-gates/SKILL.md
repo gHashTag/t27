@@ -11912,3 +11912,44 @@ assert!(!window_markers(title).is_empty());  // the rule needs it
 ```
 
 If that heading ever gains a digit the test says so, rather than quietly proving nothing.
+
+## 459. The anchor a text does not carry, git still holds
+
+Section 457 established that a figure over a sliding population needs its anchor, and
+counted **nine** sections here that state one and name none. The obvious follow-through
+was to write a date into each of the nine. That was the wrong move twice over: it edits
+nine sections of prose to fix a defect that is not in the prose, and the dates would be
+**invented by the editor** rather than measured.
+
+They are not missing. `git blame` over the section's own line range answers the
+question the text does not:
+
+```
+NO ANCHOR  ci-gates  179  A `--limit` on a run list is a time window in disguise
+                     last written no later than 2026-08-29  (e817fbec5)
+```
+
+`tri skill claims --windowed` now prints that line for every windowed section the text
+does not date. Nine dates recovered, none written by hand.
+
+**What the recovered date does and does not say.** It is the newest commit touching any
+line of the section, so it bounds how FRESH the figure can be -- the reading was taken
+no later than this. It is not when the reading was taken, and it cannot be: a section
+edited for a typo in September carries a September date over an August number. So it is
+a bound, printed as a bound, in a file whose §457 already says the anchor rule above it
+is an upper bound. Two rules, two directions, both stated.
+
+**The newest, not the oldest**, and the test fixture is deliberately out of order so
+that *the last one seen* and *the newest* cannot both pass. The oldest would answer when
+the section was started, which any later edit invalidates.
+
+**And it prints a DATE, not an age.** "Stale by 12 days" was the first thing I wrote,
+and it is precisely the defect this whole line of work is about: an age is a figure over
+a sliding population -- it changes every midnight, so quoting it anywhere makes a claim
+that rots. A date does not move. The rule caught its own tool before the tool shipped.
+
+Seven clauses were mutated -- newest-versus-oldest, newest-versus-last, the
+forty-character commit id, the `author-time` key, and all three range boundaries -- and
+each killed a test. The forty-character check earns its place on a real shape: blame
+content lines are tab-prefixed, so `deadbeef` written inside a code block would
+otherwise be adopted as the answer.
