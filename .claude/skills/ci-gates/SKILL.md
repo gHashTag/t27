@@ -12383,7 +12383,10 @@ twenty-one above for the same reason -- these two sections quote the shape again
 The rule that follows is narrow and mechanical: a figure describing the state AFTER a
 change is taken as the LAST action before the commit, from the tree that is committed,
 and is written with that commit's sha. Any earlier reading describes a different tree,
-however few minutes earlier it was.## 471. A lesson written down four times, and the command run anyway
+however few minutes earlier it was.
+
+
+## 471. A lesson written down four times, and the command run anyway
 
 `cargo fmt -p t27c`, on a branch holding a two-file change, came back with **155
 tracked files modified**. `cargo fmt --all` on a one-file change: **165 dirty, 164
