@@ -12447,3 +12447,49 @@ That is &sect;464 arriving for the third time. **The list is the check.** The co
 prints `--list` for every step counted and `--excluded` for every line it refused,
 because a census that prints only its totals cannot be argued with -- and this one was
 wrong in its totals while every total looked plausible.
+
+
+## 473. A second heuristic to cover the first one's false positive
+
+`tri gates empty` reports every gate invocation that PASSES against a tree with
+nothing in it -- five of them. That is a shape and not a verdict, and going
+through the five by hand took an hour and found **zero** defects: three never
+touch a tree at all, and the two that do are honest about it. One prints
+`Scope: this tests the two shell forms, not the live workflow`; the other prints
+`tracked files read 7741` here and `tracked files read 0` in an empty tree I
+built to check. The discriminator is not "did it pass over nothing" but **can
+this thing reach a tree, and does it say what it read.**
+
+So: put the first half in the command, as a column decided from the script's
+source. Two states, plus *source not read* -- never `false`, because a file
+nobody opened cannot be reported as one that touches nothing.
+
+It printed **2** where my hand pass had said 1. The extra was
+`pack_index_consistency_gate.py --selftest`, whose `os.listdir` at line 164 is
+aimed at a `tempfile.mkdtemp` of its own. Both readings were right about
+different subjects: the FILE reads a directory, the INVOCATION reads its own.
+
+**Then I did the wrong thing, and the wrong thing is the section.** I added a
+third state -- *reads one and builds one* -- keyed on `mkdtemp` and
+`TemporaryDirectory`. It captured the selftest, and it also captured
+`check_conflict_markers.py`, which really does read 7741 tracked files and
+merely uses a `TemporaryDirectory` inside its `--self-check` at line 141. The
+new bucket held two members and **neither belonged in it**, while the count of
+the category actually worth reading went from 2 to **zero**. The output looked
+richer and said less.
+
+A file-level marker cannot answer an invocation-level question. A second
+heuristic stacked on the first to cover its false positive does not narrow the
+error; it moves it somewhere with no name. **Two states and a stated limitation
+beat three states and a hidden one** -- the limitation is now a sentence in the
+doc comment with `--selftest` named in it, and the removal has its own test so
+that its absence is a decision rather than an omission.
+
+Two process notes from the same hour, both my own rules arriving again. The
+mutation round for this ran under `cargo test ... reach`, which matched
+**sixteen** tests in `leanreach` and `modreach` and **none of mine**: the filter
+is a SUBSTRING, the mutant looked like it survived, and what caught it was
+expecting 3 and reading 16. And the earlier `--base origin/<sibling>` mistake
+in the same session was the same species one level up -- a flag pointed at the
+wrong subject, producing a correct-looking answer about something nobody asked
+about.
