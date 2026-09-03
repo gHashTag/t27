@@ -33,6 +33,12 @@ pub enum SkillCmd {
         #[arg(long)]
         gaps: bool,
     },
+    /// Every cross-reference in the skills, and whether it resolves.
+    Refs {
+        /// Print every reference counted, not only the ones that dangle.
+        #[arg(long)]
+        list: bool,
+    },
     /// Sections that state a FIGURE, and which of those a reader can re-take.
     Claims {
         /// Print every section in the free population, one line each.
@@ -146,6 +152,7 @@ fn skill_files(root: &std::path::Path) -> Vec<PathBuf> {
 
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let show_gaps = match cmd {
+        SkillCmd::Refs { list } => return refs(*list),
         SkillCmd::Claims {
             list,
             numbers,
@@ -1053,5 +1060,236 @@ author-time 9999\n";
             None,
             "a commit with no author-time dates nothing"
         );
+    }
+}
+
+/// How a section is pointed at from prose.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RefKind {
+    /// `&sect;179` or `§179` -- unambiguous, this file's own convention.
+    Symbol,
+    /// `section 179` / `Section 179` -- the same pointer written out. Counted apart
+    /// because the words can also appear about something that is not this file, and
+    /// a reader deserves to see which population a dangling count came from.
+    Word,
+}
+
+/// Every cross-reference in a chunk of skill prose, as `(number, kind)`.
+///
+/// Deliberately does NOT read `## 179.` headings as references: a heading is the
+/// target, not a pointer at one, and counting it would make every section resolve to
+/// itself.
+pub fn references(text: &str) -> Vec<(usize, RefKind)> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        if line.starts_with("## ") {
+            continue;
+        }
+        let low = line.to_lowercase();
+        for (needle, kind) in [
+            ("&sect;", RefKind::Symbol),
+            ("\u{a7}", RefKind::Symbol),
+            ("section ", RefKind::Word),
+        ] {
+            for (i, _) in low.match_indices(needle) {
+                let rest = low[i + needle.len()..].trim_start();
+                let n: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if let Ok(v) = n.parse::<usize>() {
+                    out.push((v, kind));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// A reference written with no number at all: `(&sect;—the same rule …)`.
+///
+/// One of these is real and in the file. It resolves to nothing and never will, and a
+/// count of dangling NUMBERS cannot see it, because there is no number to fail to
+/// resolve.
+pub fn empty_references(text: &str) -> usize {
+    let mut n = 0;
+    for line in text.lines() {
+        if line.starts_with("## ") {
+            continue;
+        }
+        for needle in ["&sect;", "\u{a7}"] {
+            for (i, _) in line.match_indices(needle) {
+                let rest = &line[i + needle.len()..];
+                if !rest.trim_start().starts_with(|c: char| c.is_ascii_digit()) {
+                    n += 1;
+                }
+            }
+        }
+    }
+    n
+}
+
+fn refs(list: bool) -> Result<()> {
+    let root = repo_root()?;
+    let files = skill_files(&root);
+    println!("CROSS-REFERENCES IN THE SKILLS, AND WHETHER THEY RESOLVE\n");
+    let mut any_dead = false;
+    for f in &files {
+        let Ok(text) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let have: std::collections::BTreeSet<usize> =
+            section_bodies(&text).iter().map(|(n, _, _)| *n).collect();
+        if have.is_empty() {
+            continue;
+        }
+        let name = f
+            .parent()
+            .and_then(|p| p.file_name())
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let all = references(&text);
+        let dead: Vec<&(usize, RefKind)> = all.iter().filter(|(n, _)| !have.contains(n)).collect();
+        let empty = empty_references(&text);
+        let sym = all.iter().filter(|r| r.1 == RefKind::Symbol).count();
+        println!("  {name}");
+        println!("    sections                    {}", have.len());
+        println!(
+            "    references                  {}   ({sym} by symbol, {} written out)",
+            all.len(),
+            all.len() - sym
+        );
+        println!("    with no number at all       {empty}   a count of dangling NUMBERS cannot see these");
+        let mut nums: Vec<usize> = dead.iter().map(|(n, _)| *n).collect();
+        nums.sort_unstable();
+        nums.dedup();
+        println!(
+            "    POINTING AT NOTHING         {}   across {} distinct numbers",
+            dead.len(),
+            nums.len()
+        );
+        if !nums.is_empty() {
+            any_dead = true;
+            println!("      never existed: {nums:?}");
+            for (i, line) in text.lines().enumerate() {
+                if line.starts_with("## ") {
+                    continue;
+                }
+                for (n, _) in references(line) {
+                    if !have.contains(&n) {
+                        let t = line.trim();
+                        println!("      {}:{}  {}", name, i + 1, &t[..t.len().min(92)]);
+                        break;
+                    }
+                }
+            }
+        }
+        if list {
+            let mut seen: Vec<usize> = all.iter().map(|(n, _)| *n).collect();
+            seen.sort_unstable();
+            seen.dedup();
+            println!("      all targets: {seen:?}");
+        }
+    }
+
+    println!(
+        "\n  A pointer at a section that does not exist is not a broken link; it is a\n  \
+         claim about what this file says, and the claim is false. The numbers here are\n  \
+         the fingerprint of a renumbering: a block of consecutive missing targets means\n  \
+         the sections moved and the pointers did not.\n\n  \
+         References written OUT (`section 179`) are counted apart from the symbol form\n  \
+         because the words can also be about a document that is not this one -- so a\n  \
+         dangling count drawn only from the symbols is the conservative reading, and\n  \
+         both are printed rather than merged."
+    );
+    if any_dead {
+        println!(
+            "\n  Reported, not failed: fixing a pointer means deciding what it MEANT,\n  \
+                  and that is a reading, not a rename."
+        );
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod reference_tests {
+    use super::{empty_references, references, RefKind};
+
+    #[test]
+    fn both_spellings_of_a_pointer_are_found_and_kept_apart() {
+        let t = "Related: &sect;234 for the ruler, and section 179 says otherwise.\n";
+        assert_eq!(
+            references(t),
+            vec![(234, RefKind::Symbol), (179, RefKind::Word)]
+        );
+    }
+
+    /// A HEADING is the target, not a pointer at one. Counting it would make every
+    /// section resolve to itself and the dangling count would always be zero.
+    /// The literal section sign is the same pointer as the HTML entity, and both are
+    /// the SYMBOL form. A mutation filing the sign under the written-out form survived
+    /// until a fixture used the character itself.
+    #[test]
+    fn the_section_sign_and_the_entity_are_one_kind() {
+        assert_eq!(
+            references("see \u{a7}234 now\n"),
+            vec![(234, RefKind::Symbol)]
+        );
+        assert_eq!(
+            references("see &sect;234 now\n"),
+            vec![(234, RefKind::Symbol)]
+        );
+    }
+
+    #[test]
+    fn a_heading_is_not_a_reference() {
+        assert!(references("## 179. A `--limit` on a run list\n").is_empty());
+        assert_eq!(
+            references("## 179. See &sect;234\n"),
+            vec![],
+            "the whole heading line is skipped, targets included"
+        );
+    }
+
+    /// Several pointers on one line all count -- the first version searched with
+    /// `find` and would have seen only one, which is the defect section 465 records.
+    #[test]
+    fn every_pointer_on_a_line_counts_not_the_first() {
+        let t =
+            "Related: &sect;234 for the ruler, &sect;235 for the check, &sect;241 for the guard.\n";
+        assert_eq!(references(t).len(), 3);
+    }
+
+    /// `(&sect;—the same rule …)` resolves to nothing and never will. A count of
+    /// dangling NUMBERS cannot see it, because there is no number to fail.
+    #[test]
+    fn a_pointer_with_no_number_is_counted_separately() {
+        let t = "(&sect;\u{2014}the same rule the widths ledger states)\n";
+        assert!(references(t).is_empty(), "no number, so no target");
+        assert_eq!(empty_references(t), 1);
+    }
+
+    #[test]
+    fn a_numbered_pointer_is_not_an_empty_one() {
+        assert_eq!(empty_references("see &sect;234 and \u{a7}235\n"), 0);
+        assert_eq!(
+            empty_references("## 234. heading &sect;x\n"),
+            0,
+            "headings skipped"
+        );
+    }
+
+    /// The word form needs the space, or `sections` and `sectional` would each
+    /// contribute a phantom pointer to whatever digits followed.
+    #[test]
+    fn the_word_form_requires_the_separator() {
+        assert_eq!(references("section 12 says\n"), vec![(12, RefKind::Word)]);
+        assert!(references("sections12 says\n").is_empty());
+        // The discriminating input, and the only one the trailing space earns its
+        // place on: digits glued straight to the word. Without the space this reads
+        // as a pointer at section 12; a mutation dropping it survived until this
+        // line existed.
+        assert!(
+            references("section12 says\n").is_empty(),
+            "`section12` is a word, not a pointer at 12"
+        );
+        assert!(references("section twelve says\n").is_empty());
     }
 }
