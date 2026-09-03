@@ -1,7 +1,7 @@
 {
   "gen_hash_c": "sha256:1f44f5bce3f507d9725e735e400cb653c47fb6a84ed8e07fa41ade76f363805f",
   "gen_hash_rust": "sha256:6916f8bdd58994706257552271c025df1af9f0c75a876434a9040ad849e30528",
-  "gen_hash_verilog": "sha256:2b09822e0a3ee17d0329aadf6aceb966dba903d1651a2a1125423d10e5de1c99",
+  "gen_hash_verilog": "sha256:04b632aa441fe627113a46fa103e4bc8adf64523238f04960d0ea737b54fae8d",
   "gen_hash_zig": "sha256:fe65321a25cd30568372c17d88944f22a4b2dd9905b37142f5f3204305fdfb50",
   "module": "QueenLotus",
   "ring": 12,
