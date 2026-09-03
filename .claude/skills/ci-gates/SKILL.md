@@ -11614,10 +11614,25 @@ file, and confirmed against the refusal message, which had printed the same
 the one it was announcing as current.** Merging onto the version it named would
 have discarded the newer page.
 
+**And a second notice, which settled the mechanism.** Minutes later a second
+notice named `1788435789-8f03` -- `11:43:09Z` -- while live was
+`1788439613-732b`, `12:46:53Z`. Two notices, both behind live, and **ascending
+between themselves**: 11:05, then 11:43. So the ids are not wrong and the
+stream is not noise. It replays real past publishes, in order, lagging by over
+an hour.
+
+That distinction is the whole finding. "The notice is wrong" would mean
+distrust it; "the notice is late" means it is reliable about the past and says
+nothing about the present. A change notice means *something moved*, which is
+worth acting on. It never means *your copy is stale right now*, and it never
+names the version to merge onto.
+
 The rule this is an instance of is already in this file from four directions: a
 reading has a timestamp, and a report *about* a reading has a second one. Only
-the fetch establishes what is live. A change notice says *something moved*,
-which is worth acting on; it does not say *what is there now*.
+the fetch establishes what is live.
+
+One data point could not have told these apart, and the first version of this
+section stopped there. It took the second notice to see the ordering.
 
 **The read must be the last thing before the write.** Three full reads of a
 2,886-line file were spent in one session, which is roughly 300k tokens of
