@@ -316,6 +316,9 @@ enum SkillAction {
         /// Print every section in the free population, one line each.
         #[arg(long)]
         list: bool,
+        /// Print `<skill>:<number>` for every counted section and nothing else.
+        #[arg(long)]
+        numbers: bool,
     },
     Begin {
         #[arg(long)]
@@ -880,8 +883,11 @@ fn main() -> Result<()> {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
                 }
-                SkillAction::Claims { list } => {
-                    skillnum::run(&skillnum::SkillCmd::Claims { list: *list })?
+                SkillAction::Claims { list, numbers } => {
+                    skillnum::run(&skillnum::SkillCmd::Claims {
+                        list: *list,
+                        numbers: *numbers,
+                    })?
                 }
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,

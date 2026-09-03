@@ -38,6 +38,13 @@ pub enum SkillCmd {
         /// Print every section in the free population, one line each.
         #[arg(long)]
         list: bool,
+        /// Print `<skill>:<number>` for every section counted, and nothing
+        /// else. A second reader can then subtract SETS rather than strings:
+        /// four attempts to locate a two-section disagreement failed because
+        /// each compared truncated titles, which is a defect in the comparison
+        /// and not in either reader.
+        #[arg(long)]
+        numbers: bool,
     },
 }
 
@@ -135,7 +142,7 @@ fn skill_files(root: &std::path::Path) -> Vec<PathBuf> {
 
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let show_gaps = match cmd {
-        SkillCmd::Claims { list } => return claims(*list),
+        SkillCmd::Claims { list, numbers } => return claims(*list, *numbers),
         SkillCmd::Check { gaps } => gaps,
     };
     if *show_gaps {
@@ -348,24 +355,63 @@ pub fn names_a_command(body: &str) -> bool {
     false
 }
 
-fn claims(list: bool) -> Result<()> {
+/// A path as the repository writes it.
+fn rel(root: &std::path::Path, p: &std::path::Path) -> String {
+    p.strip_prefix(root)
+        .unwrap_or(p)
+        .to_string_lossy()
+        .to_string()
+}
+
+fn claims(list: bool, numbers: bool) -> Result<()> {
     let root = repo_root()?;
-    let files = skill_files(&root);
-    // Name what is outside the population rather than leaving it silent: this
-    // reads `.claude/skills/*/SKILL.md`, and the repository tracks SKILL.md
-    // files under other roots that no command here has ever opened.
-    let mut unread: Vec<String> = Vec::new();
+    // Every tracked SKILL.md, not just `.claude/skills/*`.
+    //
+    // The previous version read that one directory and NAMED the three files
+    // outside it, which was honest and incomplete. Measured before widening:
+    // `.agents/skills/phi-loop/SKILL.md` and `.agents/skills/tri-pipeline/SKILL.md`
+    // are **byte-identical** to their `.claude/skills` counterparts -- copies,
+    // not forks -- and all three unread files carry **zero** numbered sections.
+    // So widening adds nothing to the figure count, which is exactly why it is
+    // safe to do and why the previous iteration's worry (that counting copies
+    // would double every figure) turned out to be about an empty set.
+    //
+    // Copies are still detected and named: they contribute nothing today, and
+    // the day one of them gains a section the count would double it silently.
+    let mut files = skill_files(&root);
+    let mut copies: Vec<(String, String)> = Vec::new();
     if let Ok(out) = std::process::Command::new("git")
         .args(["ls-files", "*SKILL.md"])
         .current_dir(&root)
         .output()
     {
         for line in String::from_utf8_lossy(&out.stdout).lines() {
-            if !line.starts_with(".claude/skills/") {
-                unread.push(line.to_string());
+            let p = root.join(line);
+            if p.is_file() && !files.contains(&p) {
+                files.push(p);
             }
         }
     }
+    files.sort();
+    // Byte-identical duplicates: keep the first, name the rest.
+    let mut seen: BTreeMap<String, PathBuf> = BTreeMap::new();
+    let mut keep: Vec<PathBuf> = Vec::new();
+    for f in files {
+        let Ok(text) = std::fs::read_to_string(&f) else {
+            continue;
+        };
+        let digest = format!("{}:{}", text.len(), text.lines().count());
+        match seen.get(&digest) {
+            Some(first) if std::fs::read_to_string(first).ok().as_deref() == Some(&text) => {
+                copies.push((rel(&root, &f), rel(&root, first)));
+            }
+            _ => {
+                seen.insert(digest, f.clone());
+                keep.push(f);
+            }
+        }
+    }
+    let files = keep;
     if files.is_empty() {
         anyhow::bail!(
             "no SKILL.md under {}/.claude/skills -- nothing was read, and a zero \
@@ -408,6 +454,9 @@ fn claims(list: bool) -> Result<()> {
             }
             carrying += 1;
             fcar += 1;
+            if numbers {
+                println!("{name}:{n}");
+            }
             if names_a_command(&body) {
                 with_cmd += 1;
             }
@@ -423,10 +472,13 @@ fn claims(list: bool) -> Result<()> {
         per_file.push((name, fsecs, fcar));
     }
 
+    if numbers {
+        return Ok(());
+    }
     println!("FIGURES IN THE KNOWLEDGE BASE, AND WHAT COULD RE-TAKE THEM\n");
     println!("  SKILL.md files read           {}", files.len());
-    for f in &unread {
-        println!("    NOT read (outside .claude/skills): {f}");
+    for (dup, first) in &copies {
+        println!("    byte-identical copy, counted once: {dup} == {first}");
     }
     println!("  numbered sections             {total}");
     println!("  stating a figure              {carrying}");

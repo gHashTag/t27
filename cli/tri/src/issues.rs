@@ -35,6 +35,9 @@ pub enum IssuesCmd {
     },
     /// Open issues that state a COUNT in the title, and a reproducible sample.
     Numbers {
+        /// Print the titles excluded by the two-digit rule alone.
+        #[arg(long)]
+        single: bool,
         /// Print a systematic sample of this size. 0 prints only the population.
         #[arg(long, default_value_t = 0)]
         sample: usize,
@@ -162,6 +165,48 @@ pub fn named_workflows(text: &str, keys: &BTreeMap<String, String>) -> Vec<Strin
     out.sort();
     out.dedup();
     out
+}
+
+/// Titles excluded from the population by the two-digit rule alone.
+///
+/// The digit rule requires a run of **two or more** digits. That threshold was
+/// never documented and it does real work: 20 open titles carry a single-digit
+/// figure and nothing else, and they are not one kind of thing. Roughly a dozen
+/// state a count -- *"`implies` appears 9 times in live source and 0 times in
+/// the compiler"*, *"MAX_SORRY counts 5 admitted proofs; 4 are in files nothing
+/// compiles"*, *"4 of 7 passes have no precondition"*. The rest state a VALUE:
+/// an exit code (`seal exits 0`), a literal (`the lexer turns 0o777 into 0`),
+/// or arithmetic (`-3/2 is -1, -3>>1 is -2`).
+///
+/// So the threshold is a crude proxy for *not a value*, wrong in one direction,
+/// and removing it takes the population from **288 to 308** while adding about
+/// eight titles that state no count. It is kept -- and it is now **printed**.
+/// A silent threshold makes 288 read as the whole population; a stated one
+/// makes it read as 288 plus a named 20 that a reader can judge.
+pub fn single_digit_only(title: &str) -> bool {
+    let t = strip_addresses(title);
+    let c: Vec<char> = t.chars().collect();
+    let (mut i, mut one, mut two) = (0usize, false, false);
+    while i < c.len() {
+        if !c[i].is_ascii_digit() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < c.len() && c[i].is_ascii_digit() {
+            i += 1;
+        }
+        let left = start == 0 || !c[start - 1].is_alphanumeric();
+        let right = i >= c.len() || !c[i].is_alphanumeric();
+        if left && right {
+            if i - start >= 2 {
+                two = true;
+            } else {
+                one = true;
+            }
+        }
+    }
+    one && !two && !NUMERALS.iter().any(|w| has_word(&t, w))
 }
 
 /// What kind of number a title carries.
@@ -341,6 +386,9 @@ pub fn carries(title: &str) -> Carries {
             if i - start >= 2 && left && right {
                 found = true;
             }
+            // A single digit with the boundary satisfied is NOT counted here.
+            // The threshold is deliberate and measured; `single_digit_only`
+            // carries the reason and the twenty titles it excludes.
         }
         found
     };
@@ -365,7 +413,7 @@ pub fn carries(title: &str) -> Carries {
 /// sample is SYSTEMATIC -- every k-th issue by ascending number -- rather than
 /// chosen. Nothing here is random: run it next month and the overlap is exact
 /// wherever the backlog has not moved.
-fn numbers(sample: usize, limit: usize) -> Result<()> {
+fn numbers(sample: usize, limit: usize, single: bool) -> Result<()> {
     let lim = limit.to_string();
     let raw = gh(&[
         "issue",
@@ -413,6 +461,12 @@ fn numbers(sample: usize, limit: usize) -> Result<()> {
         c(Carries::QuantifierOnly)
     );
     println!("  no figure                     {}", c(Carries::None));
+    let singles: Vec<&(u64, String, Carries)> =
+        rows.iter().filter(|r| single_digit_only(&r.1)).collect();
+    println!(
+        "  single-digit only, excluded   {}   (--single prints them)",
+        singles.len()
+    );
 
     println!(
         "\n  An ADDRESS is not a count. `#2841`, `Wave Loop 369`, `Prop. 65`, `w699`\n  \
@@ -427,6 +481,26 @@ fn numbers(sample: usize, limit: usize) -> Result<()> {
          they are excluded and counted separately rather than dropped in silence.",
         c(Carries::Words)
     );
+
+    println!(
+        "\n  The digit rule requires TWO or more digits, and that threshold was\n  \
+         never written down. Measured: it excludes {} titles, and they are not\n  \
+         one kind of thing. Roughly a dozen state a count -- \"`implies` appears\n  \
+         9 times in live source and 0 times in the compiler\" -- and the rest\n  \
+         state a VALUE: an exit code, a literal, arithmetic. Dropping the\n  \
+         threshold takes the population to {} and admits about eight titles that\n  \
+         count nothing. It is kept, and now it is PRINTED: a silent threshold\n  \
+         makes this population read as complete.",
+        singles.len(),
+        pop.len() + singles.len()
+    );
+
+    if single {
+        println!("\n  EXCLUDED BY THE TWO-DIGIT RULE ALONE:\n");
+        for (n, t, _) in singles.iter().copied() {
+            println!("    #{n}  {}", &t[..t.len().min(88)]);
+        }
+    }
 
     if sample > 0 {
         let k = pop.len().checked_div(sample).unwrap_or(1).max(1);
@@ -491,7 +565,11 @@ struct Row {
 
 pub fn run(cmd: &IssuesCmd) -> Result<()> {
     let limit = match cmd {
-        IssuesCmd::Numbers { sample, limit } => return numbers(*sample, *limit),
+        IssuesCmd::Numbers {
+            sample,
+            limit,
+            single,
+        } => return numbers(*sample, *limit, *single),
         IssuesCmd::Dated { limit, list } => return dated(*limit, *list),
         IssuesCmd::Stale { limit } => limit,
     };
@@ -1101,5 +1179,67 @@ mod dated_tests {
         assert_eq!(anchor_of("at `40003ed1`, as of then", 3), Anchor::Revision);
         assert_eq!(anchor_of("as of 2026-08-20", 3), Anchor::AsOf);
         assert_eq!(anchor_of("plain prose", 1), Anchor::Answered);
+    }
+}
+
+#[cfg(test)]
+mod single_digit_tests {
+    use super::*;
+
+    /// The twenty titles the two-digit threshold removes, in miniature.
+    #[test]
+    fn a_lone_digit_is_excluded_and_said_so() {
+        // Real ones from this backlog: counts the population does not carry.
+        assert!(single_digit_only(
+            "t27c seal exits 0 on a spec every backend rejects"
+        ));
+        assert!(single_digit_only("4 of 7 passes have no precondition"));
+        assert!(single_digit_only("parser-fix blocker drops 6 -> 5"));
+    }
+
+    #[test]
+    fn a_two_digit_run_anywhere_takes_it_out_of_the_excluded_set() {
+        // It is IN the population, so it is not what this reports.
+        assert!(!single_digit_only("5 of 36 gates pass an empty tree"));
+        assert!(!single_digit_only("283 titles state a count"));
+    }
+
+    #[test]
+    fn a_numeral_word_takes_it_out_too() {
+        // Already counted as `Words`; reporting it as excluded would double it.
+        assert!(!single_digit_only("Nine live sites and 0 in the compiler"));
+    }
+
+    #[test]
+    fn an_address_is_not_a_lone_digit() {
+        // `#2841` is stripped first; what remains states nothing.
+        assert!(!single_digit_only(
+            "Grep before you file -- #2964 duplicated #2822"
+        ));
+        assert!(!single_digit_only("Wave Loop 369 is an address"));
+        // A SINGLE-digit address is the case that actually exercises the
+        // stripping here: without it, `#7` reads as a lone figure. The
+        // four-digit examples above pass either way, which is why they are
+        // not a control on their own.
+        assert!(!single_digit_only("The gate refuses an empty tree -- #7"));
+        assert!(!single_digit_only("Prop. 5 is an address, not a count"));
+    }
+
+    /// The two sets must not overlap, or the printed totals double-count.
+    #[test]
+    fn the_population_and_the_excluded_set_are_disjoint() {
+        for t in [
+            "t27c seal exits 0 on a spec every backend rejects",
+            "4 of 7 passes have no precondition",
+            "5 of 36 gates pass an empty tree",
+            "Nine live sites and 0 in the compiler",
+            "#2964 duplicated #2822",
+        ] {
+            let in_pop = matches!(carries(t), Carries::Digits | Carries::Words | Carries::Both);
+            assert!(
+                !(in_pop && single_digit_only(t)),
+                "{t:?} is in both the population and the excluded set"
+            );
+        }
     }
 }
