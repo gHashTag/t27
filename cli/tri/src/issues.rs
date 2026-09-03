@@ -55,12 +55,17 @@ pub enum IssuesCmd {
     },
     /// Open issues whose figure is ANCHORED, so re-measuring it proves nothing.
     Dated {
-        /// How many open issues to read.
+        /// How many issues to read. The read is a LOWER BOUND when this many come
+        /// back, and the output says so.
         #[arg(long, default_value_t = 500)]
         limit: usize,
         /// Also print the anchored issues, one line each.
         #[arg(long)]
         list: bool,
+        /// Count the backlog as it stood at the END of this UTC day (`YYYY-MM-DD`).
+        /// Without it the population is a query and the number cannot be re-taken.
+        #[arg(long)]
+        as_of: Option<String>,
     },
 }
 
@@ -465,6 +470,90 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
+/// The most recent UTC day that has ENDED.
+///
+/// The only date `--as-of` will accept without argument, and therefore the one worth
+/// suggesting: today is refused because its end is still in the future.
+pub fn yesterday_utc() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let (y, m, d) = civil_from_days(secs.div_euclid(86_400) - 1);
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// A `--limit` guaranteed to cover every issue in the repository.
+///
+/// The highest issue NUMBER seen, because GitHub numbers issues and pull requests from
+/// one sequence starting at 1 -- so the count of issues can never exceed the largest
+/// number. Derived from the rows in hand, not guessed and not a round number someone
+/// will have to raise later.
+///
+/// This exists because the first version of the re-take line suggested the limit the
+/// command had just used, and that was WRONG in the one case the line is for: without
+/// `--as-of` the query is `--state open` and 489 rows fit under 500, while WITH it the
+/// query is `--state all` and there are 1486. The suggestion read
+/// `--as-of 2026-09-02 --limit 500`, and running it printed 360 under a LOWER BOUND
+/// warning. **The truncation guard from the previous pass caught the re-take line from
+/// this one** -- which is what a guard is for, and the reason it prints rather than
+/// merely returning a bool.
+pub fn limit_that_covers_everything(numbers: impl Iterator<Item = u64>) -> usize {
+    numbers.max().unwrap_or(0) as usize
+}
+
+/// Say what this reading is a reading OF, and hand over the line that repeats it.
+///
+/// Printed by every command here that counts a live backlog, anchored or not, and
+/// printed BEFORE the numbers rather than after: a reader who stops at the first
+/// interesting figure has already seen whether it can be taken again.
+///
+/// The unanchored case is the one that matters. It does not merely warn -- a warning
+/// is a sentence, and this is a command. It names the most recent day that has ended,
+/// which is the nearest reading a second reader could actually reproduce, so the gap
+/// between "what I have" and "what you could check" is one paste wide.
+pub fn reading_stamp(cmd: &str, instant: Option<&str>, suggest_limit: usize) -> String {
+    let mut out = String::new();
+    match instant {
+        Some(t) => {
+            out.push_str(&format!(
+                "  as of {t}   PINNED -- this population does not move\n"
+            ));
+            out.push_str(&format!(
+                "  re-take:  tri {cmd} --as-of {} --limit {suggest_limit}\n",
+                &t[..10]
+            ));
+        }
+        None => {
+            out.push_str(&format!(
+                "  read at {}   NOT PINNED -- this count changes on every open and close\n",
+                now_utc_stamp()
+            ));
+            out.push_str(&format!(
+                "  re-take:  tri {cmd} --as-of {} --limit {suggest_limit}   (the most recent day that has ended)\n",
+                yesterday_utc()
+            ));
+        }
+    }
+    out
+}
+
+/// `YYYY-MM-DDTHH:MM:SSZ` for right now.
+fn now_utc_stamp() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
+    let t = secs.rem_euclid(86_400);
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        t / 3600,
+        (t % 3600) / 60,
+        t % 60
+    )
+}
+
 /// `YYYY-MM-DD` to the last instant of that UTC day.
 ///
 /// The END of the day, not the start, because that is what GitHub's own search means
@@ -586,20 +675,16 @@ fn numbers(sample: usize, limit: usize, single: bool, as_of: Option<&str>) -> Re
         .filter(|r| matches!(r.2, Carries::Digits | Carries::Words | Carries::Both))
         .collect();
 
-    match instant.as_deref() {
-        Some(t) => println!(
-            "OPEN ISSUES THAT STATE A COUNT IN THE TITLE, AS OF {t}\n\n  \
-             This reading is ANCHORED: the population is the set of issues created\n  \
-             at or before {t} and not closed by then, which does not move. Run it\n  \
-             again next month and every number below is the same.\n"
-        ),
-        None => println!(
-            "OPEN ISSUES THAT STATE A COUNT IN THE TITLE\n\n  \
-             This reading is NOT anchored: `open issues` is a query, not a set, and\n  \
-             its answer changes on every open and close. Pass --as-of YYYY-MM-DD to\n  \
-             take a number a second reader can take again.\n"
-        ),
-    }
+    println!("OPEN ISSUES THAT STATE A COUNT IN THE TITLE\n");
+    print!(
+        "{}",
+        reading_stamp(
+            "issues numbers",
+            instant.as_deref(),
+            limit_that_covers_everything(rows.iter().map(|r| r.0)).max(limit)
+        )
+    );
+    println!();
     if complete {
         println!("  issues read from gh           {}   (fewer than the --limit of {limit}, so the read is COMPLETE)", arr.len());
     } else {
@@ -725,7 +810,7 @@ pub fn run(cmd: &IssuesCmd) -> Result<()> {
             single,
             as_of,
         } => return numbers(*sample, *limit, *single, as_of.as_deref()),
-        IssuesCmd::Dated { limit, list } => return dated(*limit, *list),
+        IssuesCmd::Dated { limit, list, as_of } => return dated(*limit, *list, as_of.as_deref()),
         IssuesCmd::Stale { limit } => limit,
     };
     let root = repo_root()?;
@@ -1178,18 +1263,36 @@ pub fn anchor_of(body: &str, comments: usize) -> Anchor {
     }
 }
 
-fn dated(limit: usize, list: bool) -> Result<()> {
+fn dated(limit: usize, list: bool, as_of: Option<&str>) -> Result<()> {
     let lim = limit.to_string();
-    let raw = gh(&[
-        "issue",
-        "list",
-        "--state",
-        "open",
-        "--limit",
-        &lim,
-        "--json",
-        "number,title,body,comments",
-    ])?;
+    let today = today_utc();
+    let instant = as_of.map(|d| instant_of(d, &today)).transpose()?;
+    // The same reason as `numbers`: with --as-of the state filter has to come off,
+    // because an issue open THEN may be closed NOW and that filter drops exactly the
+    // rows the two readings disagree about.
+    let raw = if instant.is_some() {
+        gh(&[
+            "issue",
+            "list",
+            "--state",
+            "all",
+            "--limit",
+            &lim,
+            "--json",
+            "number,title,body,comments,createdAt,closedAt",
+        ])?
+    } else {
+        gh(&[
+            "issue",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            &lim,
+            "--json",
+            "number,title,body,comments",
+        ])?
+    };
     let issues: serde_json::Value = serde_json::from_str(&raw).context("gh returned no JSON")?;
     let issues = issues.as_array().cloned().unwrap_or_default();
     if issues.is_empty() {
@@ -1198,6 +1301,25 @@ fn dated(limit: usize, list: bool) -> Result<()> {
              or a query that did not run, and the two print the same zero."
         );
     }
+    // Completeness is a property of the READ, so it is taken before the as-of filter
+    // removes rows. Asking it afterwards would report a short page and call a
+    // truncated read complete.
+    let complete = read_is_complete(issues.len(), limit);
+    let read_from_gh = issues.len();
+
+    let issues: Vec<serde_json::Value> = match instant.as_deref() {
+        None => issues,
+        Some(t) => issues
+            .into_iter()
+            .filter(|i| {
+                open_at(
+                    i["createdAt"].as_str().unwrap_or(""),
+                    i["closedAt"].as_str().unwrap_or(""),
+                    t,
+                )
+            })
+            .collect(),
+    };
 
     let mut pop: Vec<(u64, String, Anchor)> = Vec::new();
     let mut no_figure = 0usize;
@@ -1224,8 +1346,20 @@ fn dated(limit: usize, list: bool) -> Result<()> {
     let anchored = pop.len() - c(Anchor::Free);
 
     println!("OPEN ISSUES WHOSE FIGURE RE-MEASUREMENT CANNOT JUDGE\n");
-    if !read_is_complete(issues.len(), limit) {
-        println!("  issues read from gh           {}   *** EQUALS the --limit of {limit}: a LOWER BOUND, not a total. Raise --limit and read again. ***", issues.len());
+    print!(
+        "{}",
+        reading_stamp(
+            "issues dated",
+            instant.as_deref(),
+            limit_that_covers_everything(issues.iter().map(|i| i["number"].as_u64().unwrap_or(0)))
+                .max(limit)
+        )
+    );
+    println!();
+    if complete {
+        println!("  issues read from gh           {read_from_gh}   (fewer than the --limit of {limit}, so the read is COMPLETE)");
+    } else {
+        println!("  issues read from gh           {read_from_gh}   *** EQUALS the --limit of {limit}: a LOWER BOUND, not a total. Raise --limit and read again. ***");
     }
     println!("  open issues read              {}", issues.len());
     println!("  no figure in the title        {no_figure}");
@@ -1543,5 +1677,74 @@ mod as_of_tests {
             read_is_complete(0, 1),
             "an empty read of a non-zero limit is complete"
         );
+    }
+}
+
+#[cfg(test)]
+mod reading_stamp_tests {
+    use super::{limit_that_covers_everything, reading_stamp, today_utc, yesterday_utc};
+
+    /// The largest issue NUMBER, because GitHub numbers issues and pull requests from
+    /// one sequence starting at 1, so the count can never exceed the largest number.
+    #[test]
+    fn the_suggested_limit_is_the_largest_number_seen() {
+        assert_eq!(
+            limit_that_covers_everything([7u64, 3039, 12].into_iter()),
+            3039
+        );
+        assert_eq!(limit_that_covers_everything([1u64].into_iter()), 1);
+    }
+
+    /// Nothing read suggests nothing, and the caller raises it to the limit it used --
+    /// a suggestion of zero would be a command that reads no issues at all.
+    #[test]
+    fn an_empty_read_suggests_nothing_on_its_own() {
+        assert_eq!(limit_that_covers_everything(std::iter::empty()), 0);
+        assert_eq!(
+            limit_that_covers_everything(std::iter::empty()).max(500),
+            500
+        );
+    }
+
+    /// The unanchored stamp is not a warning, it is a command: it names the most recent
+    /// day that HAS ENDED, which is the nearest reading a second reader can reproduce.
+    #[test]
+    fn the_unpinned_stamp_hands_over_a_runnable_line() {
+        let s = reading_stamp("issues numbers", None, 3039);
+        assert!(s.contains("NOT PINNED"), "{s}");
+        assert!(
+            s.contains(&format!("--as-of {} --limit 3039", yesterday_utc())),
+            "the suggestion must carry BOTH the date and a limit that covers everything: {s}"
+        );
+        // Not `!contains("PINNED --")`: "NOT PINNED --" contains it, and that
+        // assertion failed on correct output. The distinguishing text is the pinned
+        // form's own opening, which the unpinned form never prints.
+        assert!(
+            !s.contains("  as of "),
+            "the unpinned form must not open with the pinned form's line: {s}"
+        );
+    }
+
+    #[test]
+    fn the_pinned_stamp_repeats_the_date_it_was_given() {
+        let s = reading_stamp("issues dated", Some("2026-08-01T23:59:59Z"), 3039);
+        assert!(s.contains("as of 2026-08-01T23:59:59Z"), "{s}");
+        assert!(s.contains("PINNED"), "{s}");
+        assert!(
+            s.contains("--as-of 2026-08-01 --limit 3039"),
+            "the re-take line takes the DATE, not the instant: {s}"
+        );
+        assert!(!s.contains("NOT PINNED"), "{s}");
+    }
+
+    /// Yesterday is one day before today and never the same day. Written as a property
+    /// rather than a fixture because both sides read the same clock, so a fixture would
+    /// go stale by tomorrow -- which is the defect this whole file is about.
+    #[test]
+    fn yesterday_is_a_different_day_and_sorts_before_today() {
+        let (y, t) = (yesterday_utc(), today_utc());
+        assert!(y < t, "{y} must sort before {t}");
+        assert_ne!(y, t);
+        assert_eq!(y.len(), 10);
     }
 }
