@@ -90,7 +90,15 @@ BRANCH_NAME=$(git branch --show-current)
 # With the prefix required, the three documented forms still work --
 # `issue-357-xyz` -> 357, `feature/issue-42` -> 42, `#1031-topic` -> 1031 --
 # and a `wNN-` branch correctly yields nothing.
-ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '(issue-|#)[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
+# And `tr -d 'issue-#'` is a REVERSE RANGE, not a set of characters.
+# `e` is 0x65 and `#` is 0x23, so `e-#` runs backwards. BSD tr tolerates it and
+# returns 357; GNU tr rejects a reverse range and exits non-zero, so `|| echo ""`
+# swallowed it and the parser returned EMPTY for every input on Linux. That is
+# why the 1048 wrong answers below are a macOS reading: on CI the feature was
+# dead a different way, and this test is what surfaced it -- the three
+# documented forms came back `''` on ubuntu while passing here.
+# `tr -cd '0-9'` says what the line means: keep the digits.
+ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '(issue-|#)[0-9]+' | head -1 | tr -cd '0-9' || echo "")
 
 # Run sync on interval or spec change
 if [ $((COMMIT_COUNT % SYNC_INTERVAL)) -eq 0 ] || [ "$SPEC_CHANGED" -eq 1 ]; then

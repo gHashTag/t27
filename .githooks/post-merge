@@ -31,7 +31,15 @@ echo "📊 NotebookLM post-merge sync..."
 # `issue-357-xyz` -> 357, `feature/issue-42` -> 42, `#1031-topic` -> 1031 --
 # and a `wNN-` branch correctly yields nothing.
 MERGED_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-ISSUE_NUM=$(echo "$MERGED_BRANCH" | grep -oE '(issue-|#)[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
+# And `tr -d 'issue-#'` is a REVERSE RANGE, not a set of characters.
+# `e` is 0x65 and `#` is 0x23, so `e-#` runs backwards. BSD tr tolerates it and
+# returns 357; GNU tr rejects a reverse range and exits non-zero, so `|| echo ""`
+# swallowed it and the parser returned EMPTY for every input on Linux. That is
+# why the 1048 wrong answers below are a macOS reading: on CI the feature was
+# dead a different way, and this test is what surfaced it -- the three
+# documented forms came back `''` on ubuntu while passing here.
+# `tr -cd '0-9'` says what the line means: keep the digits.
+ISSUE_NUM=$(echo "$MERGED_BRANCH" | grep -oE '(issue-|#)[0-9]+' | head -1 | tr -cd '0-9' || echo "")
 
 # THE INTERPRETER, RESOLVED ONCE AND NAMED WHEN ABSENT.
 #
