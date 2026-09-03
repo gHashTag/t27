@@ -11595,3 +11595,50 @@ always -- the number was implausible for the size of the tree.
 **The finding survives; the tool does not.** One of the fourteen was the 30-line
 window, and it was found by reading a short list rather than by shipping a
 check that would cry wolf 50 times.
+
+## 453. A change notice is a hint; the fetch is the reading
+
+The loop dashboard is one artifact written by two sessions. The publisher
+refuses a write that was not built on the version currently live, and the live
+version counts as seen only once its fetched copy has been read end to end.
+
+Two things measured while trying to publish it, both about the instrument
+rather than the page.
+
+**The notice was 83 minutes stale.** A background notification announced the
+live version as `1788433537-8a6c`. The prefix is a unix timestamp: `date -r
+1788433537 -u` is `2026-09-03T11:05:37Z`. The version actually live was
+`1788438525-553a`, `12:28:45Z` -- established because the fetch returned that
+file, and confirmed against the refusal message, which had printed the same
+`12:28:45Z` earlier. **The notice named a version an hour and a half older than
+the one it was announcing as current.** Merging onto the version it named would
+have discarded the newer page.
+
+The rule this is an instance of is already in this file from four directions: a
+reading has a timestamp, and a report *about* a reading has a second one. Only
+the fetch establishes what is live. A change notice says *something moved*,
+which is worth acting on; it does not say *what is there now*.
+
+**The read must be the last thing before the write.** Three full reads of a
+2,886-line file were spent in one session, which is roughly 300k tokens of
+context for one publish. The sequence that worked, on the third attempt:
+
+    fetch the live version
+    do every check and every edit in ONE shell call     <- content final here
+    read the fetched file end to end, nothing in between
+    publish
+
+**Not established:** whether the shell call that failed the second attempt
+invalidated the read, or whether the failed publish before it had already spent
+the credit. Both were true in that attempt and I did not separate them, so the
+mechanism is unknown and the recipe above is written to be safe under either.
+What *is* established is the cost of guessing: three reads, two refusals.
+
+Filed as #3023: the merge itself is mechanical and belongs in a command.
+
+The general form, and the reason this is in a file about gates: **when an
+operation has a precondition you cannot inspect, the cheap move is to make the
+precondition the immediately preceding step**, rather than to reason about how
+long it stays satisfied. That is the same argument as re-sealing in the commit
+that moved the output (§211), and as taking the corpus reading with the binary
+you just built rather than the one on disk (§385).
