@@ -12727,7 +12727,6 @@ covered this branch, which is the same fact the docstring got wrong, restated in
 form that fails if someone deletes it.
 
 
-<<<<<<< HEAD
 ## 479. An optional qualifier over an empty population
 
 `grep -oE '(issue-|#)?[0-9]+'` extracts an issue number from a branch name. The
@@ -12782,8 +12781,9 @@ distinction matters enough to argue about. This repository has converged on
 one distinction: *the instrument is missing* and *the population is empty* share
 a code here and have different codes there. Worth knowing before the next gate
 picks a number.
-=======
-## 479. The check said no and I pushed anyway
+
+
+## 480. The check said no and I pushed anyway
 
 Two things happened an hour apart, and only the second one is a lesson.
 
@@ -12826,4 +12826,3 @@ in this file about a gate reporting the wrong subject is about a machine doing
 it. This one is about me: the instrument was correct, its message was correct,
 and the failure was entirely in the reading. **Instruments that only print are
 sized for a reader who is not tired.**
->>>>>>> origin/master
