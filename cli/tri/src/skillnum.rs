@@ -508,7 +508,7 @@ pub fn names_its_anchor(body: &str) -> bool {
 /// A left-hand word-boundary check used to sit here too (`v2026-08-20` should not
 /// count). It was removed rather than kept unproved: no natural counter-example
 /// exists in this corpus and removing it changed no section.
-fn is_iso_date(w: &[char]) -> bool {
+pub fn is_iso_date(w: &[char]) -> bool {
     w.len() == 10
         && w[0] == '2'
         && w[1] == '0'
