@@ -321,6 +321,12 @@ enum SkillAction {
         #[arg(long)]
         gaps: bool,
     },
+    /// Every cross-reference in the skills, and whether it resolves.
+    Refs {
+        /// Print every reference counted, not only the ones that dangle.
+        #[arg(long)]
+        list: bool,
+    },
     /// Sections that state a FIGURE, and which of those a reader can re-take.
     Claims {
         /// Print every section in the free population, one line each.
@@ -895,6 +901,9 @@ fn main() -> Result<()> {
             match action {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
+                }
+                SkillAction::Refs { list } => {
+                    skillnum::run(&skillnum::SkillCmd::Refs { list: *list })?
                 }
                 SkillAction::Claims {
                     list,
