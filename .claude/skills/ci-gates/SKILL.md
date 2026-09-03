@@ -12447,3 +12447,90 @@ That is &sect;464 arriving for the third time. **The list is the check.** The co
 prints `--list` for every step counted and `--excluded` for every line it refused,
 because a census that prints only its totals cannot be argued with -- and this one was
 wrong in its totals while every total looked plausible.
+
+## 473. A pointer at a section that does not exist is a false claim
+
+`tri skill refs` resolves every cross-reference in the skills against the sections that
+actually exist. On this file:
+
+```
+  sections                    438
+  references                  224   (212 by symbol, 12 written out)
+  with no number at all         8   a count of dangling NUMBERS cannot see these
+  POINTING AT NOTHING          17   across 7 distinct numbers
+    never existed: [126, 234, 235, 240, 241, 245, 253]
+```
+
+Read from the committed tree as the last action before the commit, per &sect;470 -- and
+the rule earned its place immediately. Written against the tree before these two
+sections existed, the same command said `436 / 189 / 6 / 12`. **This section and the
+next quote the dead numbers as examples, so writing about dangling pointers created
+five more of them.** The DISTINCT count did not move, because a citation of a dead
+number is not a new dead number; the occurrence count did.
+
+And the total on the second line moves with **every sentence written about it** --
+correcting it from 223 to 224 was itself a citation. It is quoted here as of this
+commit and is the one figure in the block that cannot be stable, which is why the
+line that matters is the third and the fourth: `7 distinct numbers`, and `8` with no
+number at all. Those hold.
+
+**The numbers are a fingerprint.** `234, 235, 240, 241, 245, 253` is a consecutive block
+inside the never-used 226&ndash;260 gap, and the sections those pointers describe are
+alive at `+47`: &sect;234&rarr;&sect;281, &sect;241&rarr;&sect;288, &sect;253&rarr;&sect;300,
+each verified by reading what the pointer SAYS the target says. **A renumbering moved
+the sections and left the pointers.**
+
+A dangling pointer is not a broken link. `Related: §241, a guard whose precondition had
+stopped holding` is a claim about what this file contains, and the claim is false --
+which is worse than a missing one, because a reader who does not check believes it.
+
+Two details the count would hide, and both are printed:
+
+* **Six references carry no number at all** -- `(&sect;—the same rule the widths ledger
+  states…)`. A check that resolves numbers cannot see these; there is no number to fail.
+* The written-out form (`section 245`) is counted **apart** from the symbol form,
+  because the words can be about a document that is not this one. The conservative
+  reading is the symbols alone; both are printed rather than merged.
+
+It reports and does not fail. **Fixing a pointer means deciding what it MEANT**, and
+that is a reading, not a rename -- the tool that can prove a pointer is dead cannot
+prove which live section it wanted.
+
+## 474. Three pairs of sections here contradict each other
+
+Not duplicates. Contradictions: acting on one violates the other, and both read as
+established.
+
+**&sect;19 against &sect;23.** The same `coverage` gate, the same breakdown -- *99
+orphaned by a rename, 81 with a current twin* -- under two totals: **136 stale seals**
+and **121 stale seals**. Nothing marks the change. Which is right cannot be told from
+here: neither names an anchor and the seal state is a sliding population, so both may
+have been true when written.
+
+**&sect;369 against &sect;370.** &sect;369: *"**Zero.** Fixing it perfectly moves the
+accept count by nothing."* &sect;370: *"+68, honest … the largest single lever in the
+project, called noise by a…"*. &sect;370 is right -- **and it corrects the wrong
+section.** It opens *"Section 366 says the top first-error family was worth zero"*,
+while &sect;366 is about `tri prose report` against `tri unparsed report`. The sentence
+it quotes is &sect;369's.
+
+So one correction produced two defects: **&sect;369 is left standing uncorrected, and
+&sect;366 is blamed for a sentence it never wrote.** A correction aimed at the wrong
+target is worse than none -- it consumes the reader's attention and leaves the error in
+place.
+
+**&sect;281 against &sect;290.** &sect;281 says a bracket-depth-zero reading *"gets both
+conventions right at once"*; &sect;290 says there are three conventions and depth zero
+*"finds no definition at all in 231 of 650 specs"*, naming a duplicate &sect;281's method
+could not see. &sect;290 is right and &sect;281 carries no marker.
+
+**This file already has the mechanism and did not use it.** Two sections carry an
+in-place `**RETRACTED, see §N.**`, and &sect;34 rules that the marker goes at the top of
+the paragraph it retracts. None of &sect;281, &sect;369 or &sect;366 has one. A
+convention that exists and is skipped is not a convention; it is a thing three sections
+happened to do.
+
+Reported, not repaired. Two of the three need a reading -- which total is right, what
+&sect;370 meant to cite -- and one of them may need neither, if both figures were true
+on their own day. **That is exactly why the anchor rule exists**: had &sect;19 and
+&sect;23 each named a sha, this would be a history rather than a contradiction.
