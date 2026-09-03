@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""#3045: an absent compiler must be exit 2, not exit 1.
+
+1 says a check ran and said no. 2 says the check could not run at all. The
+distinction is load-bearing because `.githooks/pre-commit` runs
+`scripts/tri check-now` under `set -e`: with `t27c` unbuilt the commit was
+refused by a message naming a build step, followed by "local commands still
+work". The gate had never run and had found nothing wrong.
+
+The not-built condition is produced rather than waited for: `scripts/tri`
+derives REPO_ROOT from its own location, so a temporary directory holding only
+`scripts/` has none of the four binary paths. That makes this test deterministic
+on a developer machine with a build AND in CI without one -- the alternative,
+asserting on whatever the ambient checkout happens to contain, is a test whose
+population depends on the machine.
+
+Every assertion has a control: the same tree with TRI_T27C pointing at a binary
+that exits 0 must NOT produce exit 2, or this file cannot fail.
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+FAILURES = []
+
+
+def check(name, ok, detail=""):
+    print(f"  {'ok      ' if ok else 'FAILED  '}{name}")
+    if not ok:
+        FAILURES.append(f"{name}: {detail}")
+
+
+def tri_in(root, *args, env=None):
+    e = dict(os.environ)
+    e.pop("TRI_T27C", None)
+    if env:
+        e.update(env)
+    return subprocess.run(
+        ["bash", str(root / "scripts" / "tri"), *args],
+        capture_output=True,
+        text=True,
+        env=e,
+        cwd=str(root),
+    )
+
+
+def main():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "repo"
+        (root).mkdir()
+        shutil.copytree(REPO / "scripts", root / "scripts")
+        assert not (root / "target").exists(), "the fixture must have no build"
+
+        out = tri_in(root, "check-now")
+        check(
+            "an absent compiler exits 2, not 1",
+            out.returncode == 2,
+            f"got {out.returncode}; stderr={out.stderr!r}",
+        )
+        check(
+            "and says nothing was checked",
+            "nothing was checked" in out.stderr,
+            f"stderr={out.stderr!r}",
+        )
+        check(
+            "and does not offer reassurance while refusing",
+            "local commands still work" not in out.stderr,
+            f"stderr={out.stderr!r}",
+        )
+        check(
+            "and names the subcommand that could not run",
+            "check-now" in out.stderr,
+            f"stderr={out.stderr!r}",
+        )
+
+        # THE CONTROL. Without it every assertion above is satisfied by a script
+        # that exits 2 for everything, including success.
+        true_bin = shutil.which("true") or "/usr/bin/true"
+        ctl = tri_in(root, "check-now", env={"TRI_T27C": true_bin})
+        check(
+            "control: a resolvable compiler is not reported as could-not-run",
+            ctl.returncode != 2,
+            f"got {ctl.returncode}; stderr={ctl.stderr!r}",
+        )
+
+        # The claim the deleted line made, verified rather than asserted.
+        for local in ("help", "loop-help", "disk"):
+            r = tri_in(root, local)
+            check(
+                f"local command {local!r} still runs with no compiler",
+                r.returncode == 0,
+                f"got {r.returncode}; stderr={r.stderr!r}",
+            )
+
+    print()
+    if FAILURES:
+        print("FAILED:")
+        for f in FAILURES:
+            print(f"  - {f}")
+        return 1
+    print("ok: an absent compiler is UNSUPPORTED (2), not a failed check (1).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
