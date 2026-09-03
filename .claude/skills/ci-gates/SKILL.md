@@ -12727,6 +12727,7 @@ covered this branch, which is the same fact the docstring got wrong, restated in
 form that fails if someone deletes it.
 
 
+<<<<<<< HEAD
 ## 479. An optional qualifier over an empty population
 
 `grep -oE '(issue-|#)?[0-9]+'` extracts an issue number from a branch name. The
@@ -12781,3 +12782,48 @@ distinction matters enough to argue about. This repository has converged on
 one distinction: *the instrument is missing* and *the population is empty* share
 a code here and have different codes there. Worth knowing before the next gate
 picks a number.
+=======
+## 479. The check said no and I pushed anyway
+
+Two things happened an hour apart, and only the second one is a lesson.
+
+The first: resolving a numbering conflict, my own verification printed
+`OK=False` -- **442 sections where 440 were expected** -- and I committed and
+pushed. The file had three of master's sections duplicated. The mechanism is
+ordinary: after `git checkout HEAD -- <file>` the tail no longer stood in the
+append relation the command needs, so the renumber moved a slice that included
+master's own sections. Any tool can be handed the wrong input.
+
+The second: **the check that caught it ran, printed the right answer, and I
+scrolled past it.** In a file whose sections are almost entirely about counting
+populations, in a session that had spent the day on gates that report the wrong
+subject, the guard reported the right subject and reached nobody.
+
+What separates the two repairs is not care. It is where the answer goes:
+
+```
+  ...verify...   ->  print "OK=False"        # advisory. I read it or I do not.
+  ...verify...   ->  exit 1, and the push is downstream of it
+```
+
+The second form cannot be scrolled past, and it is one line further. The rule:
+**a verification whose output is a line of text is a suggestion; a verification
+whose exit code gates the next command is a check.** If the next thing you do
+after looking at a number is push, then the number belongs in an `if`.
+
+The same hour produced two smaller versions of the same shape, both caught
+because the guard was in the right place. `tri skill renumber` answered with its
+usage text twice, because the merge that would have brought the command into the
+worktree was resolved but never concluded -- so the binary predated the code.
+**An exit code from a tool that did not just build is not a reading of the code
+you are holding.** And `git merge origin/master` completed while master moved
+underneath it, so the merge commit still did not have `origin/master` as an
+ancestor: fetch, merge, and CHECK the ancestry in a loop, because on a
+repository where someone else merges every few minutes the first two are a race.
+
+The generalisation is uncomfortable and worth writing down anyway. Every section
+in this file about a gate reporting the wrong subject is about a machine doing
+it. This one is about me: the instrument was correct, its message was correct,
+and the failure was entirely in the reading. **Instruments that only print are
+sized for a reader who is not tired.**
+>>>>>>> origin/master
