@@ -174,6 +174,16 @@ pub enum GatesCmd {
         #[arg(long, default_value = "origin/master")]
         base: String,
     },
+    /// Gate steps whose PASS is reachable with the thing they check absent.
+    Quiet {
+        /// Print every step counted, with its shape and what is known about its
+        /// subject. A census that prints only its total cannot be checked.
+        #[arg(long)]
+        list: bool,
+        /// Print the lines this rule REFUSED, so the exclusion can be argued with.
+        #[arg(long)]
+        excluded: bool,
+    },
     /// Every bounded GitHub fetch in this crate, and whether it can tell a page
     /// from a total.
     Fetches {
@@ -2380,6 +2390,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             };
             unmeasured(&list, *stale_days)
         }
+        GatesCmd::Quiet { list, excluded } => quiet(*list, *excluded),
         GatesCmd::Fetches { excluded } => fetches(*excluded),
         GatesCmd::Empty { verbose } => empty(*verbose),
         GatesCmd::Preview { base } => preview(base),
@@ -5694,5 +5705,430 @@ mod call_scope_tests {
             "        \"--limit\",\n        &format!(\"repos/a?per_page=100\"),\n        let z = 1;";
         assert_eq!(fetch_sites_in(body), 2);
         assert_eq!(fetch_sites_in("        let z = 1;"), 0);
+    }
+}
+
+/// The shapes in which a missing subject reads as a clean one.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Quiet {
+    /// `cmd ... 2>/dev/null ... || echo PASSED` -- grep exits 2 for "no such file"
+    /// and 1 for "no match", the silenced stderr removes the only difference, and
+    /// the `||` arm treats both as clean.
+    FailureBranchPasses,
+    /// `N=$(cmd ... 2>/dev/null | wc -l)` -- a counter whose "no files" and "no
+    /// matches" are both zero, and zero is the number a clean tree prints.
+    CountsZero,
+    /// `if [ -f X ]; then ... fi` with no failing `else`. Often legitimate, which is
+    /// why it is reported apart rather than folded in.
+    ExistenceGated,
+}
+
+/// Does this line silence the channel that says "no such file"?
+///
+/// `grep` exits **2** when the path is missing and **1** when nothing matched, and
+/// those are different answers. `2>/dev/null` deletes the message; an `||` arm then
+/// deletes the exit code. One of the two is survivable; together they make a missing
+/// subject and a clean subject print the same characters.
+pub fn silences_stderr(line: &str) -> bool {
+    line.contains("2>/dev/null") || line.contains("2>&-")
+}
+
+/// Does the failure branch of this line reach a PASS?
+///
+/// `|| exit 1` and `|| { echo …; exit 1; }` are failures and do not count. What counts
+/// is an `||` whose arm prints and continues: `|| echo "PASSED"`, `|| true`, `|| :`,
+/// `|| echo 0`.
+pub fn failure_branch_passes(line: &str) -> bool {
+    let Some(i) = line.find("||") else {
+        return false;
+    };
+    let arm = &line[i + 2..];
+    if arm.contains("exit 1") || arm.contains("exit 2") {
+        return false;
+    }
+    let t = arm.trim_start();
+    t.starts_with("echo") || t.starts_with("true") || t.starts_with(':') || t.starts_with("exit 0")
+}
+
+/// `$( … 2>/dev/null | wc -l )` -- a count that reads zero from an absent subject.
+pub fn counts_zero_when_absent(line: &str) -> bool {
+    silences_stderr(line) && line.contains("wc -l") && line.contains("$(")
+}
+
+/// `if [ -f X ]` / `test -d X` and friends.
+pub fn existence_gated(line: &str) -> bool {
+    for m in [
+        "[ -f ", "[ -d ", "[ -e ", "test -f ", "test -d ", "test -e ",
+    ] {
+        if line.contains(m) {
+            return true;
+        }
+    }
+    false
+}
+
+/// The path or glob a gate line reads.
+///
+/// The first token that looks like a path -- carries a `/` or a `*.` -- and is not a
+/// url, a redirect, or a flag. Returns `None` when the line names none, and the caller
+/// prints that rather than inventing one: a subject this cannot name is a gate this
+/// cannot check, and saying so is the honest half of the reading.
+pub fn subject_of(line: &str) -> Option<String> {
+    for raw in line.split_whitespace() {
+        let t = raw.trim_matches(['"', '\'', '(', ')', ';', '`', '$']);
+        if t.starts_with('-') || t.starts_with("2>") || t.contains("://") || t == "/dev/null" {
+            continue;
+        }
+        if t.starts_with("/dev/") || t.starts_with("/tmp") {
+            continue;
+        }
+        // A path is not code. The first version took the first token carrying a `/`
+        // and so returned `json;print(len(json.load(open('/tmp/r.json'))['checks']`
+        // from an inline python one-liner -- then reported it as a TRACKED PATH THAT
+        // IS MISSING, which is a defect the tool invented. Punctuation that cannot
+        // appear in a path this repository uses rules the token out.
+        if t.contains(['(', ')', ';', '=', ',']) {
+            continue;
+        }
+        if t.contains('/') || t.starts_with("*.") {
+            return Some(t.to_string());
+        }
+    }
+    None
+}
+
+/// What can be said about a gate's subject without running the workflow.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Subject {
+    /// A tracked path that is not there. The gate is guarding nothing right now.
+    Absent,
+    /// A tracked path that is there.
+    Present,
+    /// The workflow BUILDS it -- `build/`, `target/`, `/tmp` -- so its absence from a
+    /// checkout says nothing at all. Counted apart rather than as evidence.
+    BuiltByTheRun,
+    /// A shell variable in the path (`${m}.v`), so what it names depends on the run.
+    Interpolated,
+    /// No path on the line. This cannot be checked, and "cannot check" is not
+    /// "absent" -- collapsing the two would let the tool report a defect it did not
+    /// find. The first version of this command did exactly that and reported 25 of 32.
+    Unnamed,
+}
+
+/// Classify the subject of a gate line against the tree on disk.
+pub fn subject_state(subject: Option<&str>, exists: impl Fn(&str) -> bool) -> Subject {
+    let Some(s) = subject else {
+        return Subject::Unnamed;
+    };
+    let p = s.trim_end_matches('/');
+    if p.contains('$') {
+        return Subject::Interpolated;
+    }
+    for built in [
+        "build/",
+        "target/",
+        "/tmp",
+        "dist/",
+        "node_modules/",
+        "out/",
+    ] {
+        if p.starts_with(built) || p.contains(&format!("/{built}")) {
+            return Subject::BuiltByTheRun;
+        }
+    }
+    let probe = match p.rsplit_once('/') {
+        Some((d, f)) if f.contains('*') => d.to_string(),
+        _ => p.to_string(),
+    };
+    if probe.contains('*') || probe.is_empty() {
+        return Subject::Unnamed;
+    }
+    if exists(&probe) {
+        Subject::Present
+    } else {
+        Subject::Absent
+    }
+}
+
+/// Classify one gate line, or `None` when its pass does not survive the subject going
+/// missing.
+pub fn quiet_shape(line: &str) -> Option<Quiet> {
+    let t = line.trim();
+    if t.starts_with('#') {
+        return None;
+    }
+    if counts_zero_when_absent(t) {
+        return Some(Quiet::CountsZero);
+    }
+    if silences_stderr(t) && failure_branch_passes(t) {
+        return Some(Quiet::FailureBranchPasses);
+    }
+    if existence_gated(t) {
+        return Some(Quiet::ExistenceGated);
+    }
+    None
+}
+
+fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
+    let root = repo_root()?;
+    let dir = root.join(".github/workflows");
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+        .with_context(|| format!("cannot read {}", dir.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|e| e == "yml" || e == "yaml"))
+        .collect();
+    files.sort();
+
+    let mut rows: Vec<(Quiet, String, usize, Option<String>, Subject)> = Vec::new();
+    let mut excluded = 0usize;
+    for f in &files {
+        let Ok(text) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let name = f
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        for (i, line) in text.lines().enumerate() {
+            let names_a_path = line.contains('/') || line.contains("*.");
+            match quiet_shape(line) {
+                Some(k) => {
+                    let subj = subject_of(line);
+                    let st = subject_state(subj.as_deref(), |p| root.join(p).exists());
+                    rows.push((k, name.clone(), i + 1, subj, st));
+                }
+                None => {
+                    if names_a_path && (silences_stderr(line) || line.contains("||")) {
+                        excluded += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let n = |k: Quiet| rows.iter().filter(|r| r.0 == k).count();
+    println!("GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING\n");
+    println!("  workflow files read           {}", files.len());
+    println!("  steps in a quiet shape        {}", rows.len());
+    println!("  named a path but not quiet    {excluded}   (--excluded prints them)");
+    println!("\n  by shape:");
+    println!(
+        "    failure branch passes       {}   `… 2>/dev/null … || echo PASSED`",
+        n(Quiet::FailureBranchPasses)
+    );
+    println!(
+        "    a count that reads zero     {}   `$(… 2>/dev/null | wc -l)`",
+        n(Quiet::CountsZero)
+    );
+    println!(
+        "    gated on the file existing  {}   often legitimate, reported apart",
+        n(Quiet::ExistenceGated)
+    );
+
+    let sn = |x: Subject| rows.iter().filter(|r| r.4 == x).count();
+    println!("\n  and what can be said about the subject WITHOUT running the workflow:");
+    println!(
+        "    a tracked path, ABSENT      {}   <- guarding nothing right now",
+        sn(Subject::Absent)
+    );
+    println!("    a tracked path, present     {}", sn(Subject::Present));
+    println!(
+        "    the run builds it           {}   absence from a checkout says nothing",
+        sn(Subject::BuiltByTheRun)
+    );
+    println!(
+        "    a variable in the path      {}   depends on the run",
+        sn(Subject::Interpolated)
+    );
+    println!(
+        "    no path on the line         {}   cannot be checked -- NOT the same as absent",
+        sn(Subject::Unnamed)
+    );
+
+    let gone: Vec<&(Quiet, String, usize, Option<String>, Subject)> =
+        rows.iter().filter(|r| r.4 == Subject::Absent).collect();
+    if gone.is_empty() {
+        println!(
+            "\n  No quiet gate names a tracked path that is missing today. That is a\n  \
+                  result, not an absence of one: the shapes are there and the subjects\n  \
+                  are still on disk."
+        );
+    } else {
+        println!("\n  GUARDING NOTHING RIGHT NOW:\n");
+        for (k, file, line, subj, _) in &gone {
+            println!(
+                "    {file}:{line}  {}   [{k:?}]",
+                subj.as_deref().unwrap_or("?")
+            );
+        }
+    }
+
+    if show_list {
+        println!("\n  EVERY STEP COUNTED:\n");
+        for (k, file, line, subj, st) in &rows {
+            let sj = subj.as_deref().unwrap_or("-");
+            println!(
+                "    {:<20} {:<14} {file}:{line}  {sj}",
+                format!("{k:?}"),
+                format!("{st:?}")
+            );
+        }
+    }
+
+    if show_excluded {
+        println!("\n  NAMED A PATH AND WAS NOT QUIET:\n");
+        for f in &files {
+            let Ok(text) = std::fs::read_to_string(f) else {
+                continue;
+            };
+            let name = f
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            for (i, line) in text.lines().enumerate() {
+                if quiet_shape(line).is_none()
+                    && (line.contains('/') || line.contains("*."))
+                    && (silences_stderr(line) || line.contains("||"))
+                {
+                    println!(
+                        "    {name}:{}  {}",
+                        i + 1,
+                        &line.trim()[..line.trim().len().min(84)]
+                    );
+                }
+            }
+        }
+    }
+
+    println!(
+        "\n  `grep` exits 2 for \"no such file\" and 1 for \"no match\", and those are\n  \
+         different answers. `2>/dev/null` deletes the message and an `||` arm deletes\n  \
+         the exit code; together they make a MISSING subject and a CLEAN subject print\n  \
+         the same characters. A counter reads the same way: no files and no matches are\n  \
+         both zero, and zero is what a clean tree prints.\n\n  \
+         This does not say the gates are wrong. It says a reader cannot tell, from the\n  \
+         output, which of the two happened -- and the column above says which subjects\n  \
+         are absent RIGHT NOW, where the question is no longer hypothetical.\n\n  \
+         `[ -f X ]` is listed apart because it is often exactly right: a step that\n  \
+         legitimately has nothing to do should not fail. What separates it from the\n  \
+         defect is whether the output NAMES what it read."
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod quiet_gate_tests {
+    use super::{
+        counts_zero_when_absent, existence_gated, failure_branch_passes, quiet_shape,
+        silences_stderr, subject_of, subject_state, Quiet, Subject,
+    };
+
+    const REAL: &str = "grep -rn 'as f64' ffi/src/ --include='*.rs' 2>/dev/null | grep -v 'x' && echo \"L8 FAILED\" && exit 1 || echo \"L8 PASSED\"";
+
+    /// The shape this command exists for, taken verbatim from the repository.
+    #[test]
+    fn the_real_line_is_quiet() {
+        assert!(silences_stderr(REAL));
+        assert!(
+            failure_branch_passes(REAL),
+            "the || arm echoes and continues"
+        );
+        assert_eq!(quiet_shape(REAL), Some(Quiet::FailureBranchPasses));
+        assert_eq!(subject_of(REAL).as_deref(), Some("ffi/src/"));
+    }
+
+    /// An `||` arm that FAILS is not a quiet pass. Without this the rule fires on
+    /// every defensive chain in the file.
+    #[test]
+    fn a_failing_arm_is_not_a_pass() {
+        assert!(!failure_branch_passes("cmd 2>/dev/null || exit 1"));
+        assert!(!failure_branch_passes(
+            "cmd 2>/dev/null || { echo bad; exit 1; }"
+        ));
+        // The discriminating case, and the only one the `exit 1` check earns its
+        // place on: an arm that STARTS by echoing and then fails. The whitelist
+        // alone says pass; reading the whole arm says otherwise. A mutation removing
+        // the check survived until this line existed.
+        assert!(
+            !failure_branch_passes("cmd 2>/dev/null || echo \"FAILED\" && exit 1"),
+            "an arm that echoes and then exits 1 is a failure, not a quiet pass"
+        );
+        assert!(failure_branch_passes("cmd 2>/dev/null || true"));
+        assert!(failure_branch_passes("cmd 2>/dev/null || :"));
+    }
+
+    /// Silencing alone is survivable and an `||` alone is survivable. It is the pair
+    /// that erases the difference between "no such file" and "no match".
+    #[test]
+    fn neither_half_alone_is_the_defect() {
+        assert_eq!(quiet_shape("grep x src/ 2>/dev/null"), None);
+        assert_eq!(quiet_shape("grep x src/ || echo ok"), None);
+    }
+
+    /// A counter reads the same way: no files and no matches are both zero.
+    #[test]
+    fn a_count_that_reads_zero_is_the_same_defect_in_a_different_costume() {
+        let l = "ADMISSIONS=$(grep -r \"^Admitted\" *.v 2>/dev/null | wc -l)";
+        assert!(counts_zero_when_absent(l));
+        assert_eq!(quiet_shape(l), Some(Quiet::CountsZero));
+        assert!(
+            !counts_zero_when_absent("N=$(ls | wc -l)"),
+            "no silencing, no defect"
+        );
+    }
+
+    #[test]
+    fn existence_gating_is_recognised_but_kept_apart() {
+        assert!(existence_gated("if [ -f build/x.log ]; then"));
+        assert!(existence_gated("test -d coq/Kernel && make"));
+        assert_eq!(
+            quiet_shape("if [ -f build/x.log ]; then"),
+            Some(Quiet::ExistenceGated)
+        );
+    }
+
+    /// A path is not code. The first version of `subject_of` returned an inline
+    /// python one-liner from `cli-tri.yml` and the command then reported it as a
+    /// TRACKED PATH THAT IS MISSING -- a defect the tool invented.
+    #[test]
+    fn an_inline_script_is_not_a_path() {
+        let l = "N=$(python3 -c \"import json;print(len(json.load(open('/tmp/r.json'))['checks']))\" 2>/dev/null || echo 0)";
+        assert_eq!(
+            subject_of(l),
+            None,
+            "punctuation that cannot appear in a path rules the token out"
+        );
+    }
+
+    /// Five different answers, and the one that matters is that "cannot check" is not
+    /// "absent". Collapsing them let the first version report 25 of 32 missing.
+    #[test]
+    fn cannot_check_is_not_absent() {
+        let never = |_: &str| false;
+        let always = |_: &str| true;
+        assert_eq!(subject_state(None, never), Subject::Unnamed);
+        assert_eq!(subject_state(Some("ffi/src/"), always), Subject::Present);
+        assert_eq!(subject_state(Some("ffi/src/"), never), Subject::Absent);
+        assert_eq!(
+            subject_state(Some("build/fpga/synth.log"), never),
+            Subject::BuiltByTheRun,
+            "the run creates it, so its absence from a checkout says nothing"
+        );
+        assert_eq!(
+            subject_state(Some("specs/fpga/${m}.v"), never),
+            Subject::Interpolated
+        );
+    }
+
+    /// A glob resolves to its directory, because that is the thing that can go
+    /// missing; a bare glob names no directory and cannot be checked.
+    #[test]
+    fn a_glob_is_checked_by_its_directory() {
+        let only_dir = |p: &str| p == "coq/Kernel";
+        assert_eq!(
+            subject_state(Some("coq/Kernel/*.v"), only_dir),
+            Subject::Present
+        );
+        assert_eq!(subject_state(Some("*.v"), only_dir), Subject::Unnamed);
     }
 }
