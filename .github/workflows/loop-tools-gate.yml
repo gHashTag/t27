@@ -64,6 +64,13 @@ jobs:
         # workflow produced (#2327). Pure Python, no compiler, no corpus.
         run: python3 scripts/ci/test_damage_repair_snapshot_required.py
 
+      - name: An empty match is not a number
+        # #3067. `tri wave` printed "lesson last  -> next 1" against a 242 KB
+        # document whose own last wave loop is 898, because the matcher found
+        # nothing and empty-plus-exit-0 is not a failure. Runs here: no compiler
+        # is needed, and the test builds its own two-document fixture.
+        run: python3 scripts/ci/test_an_empty_match_is_not_a_number.py
+
       - name: An absent compiler is "could not run", not "the check failed"
         # #3045. This job has no compiler, which is what makes it the right
         # place: the assertion is about the no-build path and nowhere else can

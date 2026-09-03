@@ -43,6 +43,14 @@ jobs:
         # it needs no Coq toolchain: the test builds its own two-file tree.
         run: python3 scripts/ci/test_admitted_gate_reads_both_files.py
 
+      - name: An empty rings matrix refuses instead of skipping the build
+        # #3069. The build job is guarded by `count != '0'`, a skipped job is
+        # green, and a crate rename matches rings-rust.yml's own paths filter --
+        # so the commit that empties the matcher runs the workflow and collects
+        # a green tick. Runs here: needs no Rust, and the test builds its own
+        # ring tree and executes the workflow step under GitHub's shell flags.
+        run: python3 scripts/ci/test_rings_matrix_refuses_an_empty_population.py
+
       - name: The two required gates name their own subject, not the wrong one
         # #3061. Both are in docs/BRANCH-PROTECTION.md's required list, so a
         # wrong message lands on a check nobody can merge past: the NOW gate
