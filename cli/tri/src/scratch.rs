@@ -20,6 +20,14 @@
 //! every run; only the timing of the delete decides whether a test dies. It
 //! failed roughly one run in three, and passed the first time it was written.
 //!
+//! TWO COLLISIONS, AND THIS DETECTOR SEES ONE. Everything below is about tests
+//! inside ONE process. A second collision is between concurrent RUNS of the same
+//! binary sharing `$TMPDIR`, and a key that separates threads does not separate
+//! those: `verilog_real_arithmetic.rs` with a counter but no pid still failed
+//! 29 of 64 runs with 16 copies going at once, and 0 of 64 with both. Nothing
+//! here detects that; the printed advice now says so rather than recommending
+//! against the pid.
+//!
 //! What this looks for is the CONJUNCTION -- more than one `#[test]`, a scratch
 //! path under `temp_dir()`, a `remove_dir_all` of that path, and a key with no
 //! per-call component. Any one of those alone is fine.
@@ -45,16 +53,42 @@ pub struct Finding {
 /// The per-call components that make a scratch path unique per invocation.
 const PER_CALL: [&str; 3] = ["AtomicUsize", "SystemTime", "thread::current"];
 
-pub fn scan(root: &Path) -> Result<Vec<Finding>> {
+/// What a scan looked at, beside what it found.
+///
+/// `none` was printed for two different runs: one over 60 test files with no
+/// collision in them, and one over ZERO test files because neither directory
+/// existed. Measured on a tree holding only `.trinity/`: `--gate` printed
+/// `none` and exited 0. The gate was green and had read nothing.
+pub struct Scan {
+    pub findings: Vec<Finding>,
+    /// `.rs` files actually opened. A verdict over zero of them is not a verdict.
+    pub files_read: usize,
+    /// Directories that were looked for and are not there.
+    pub missing_dirs: Vec<PathBuf>,
+}
+
+/// Whether this scan is a reading at all.
+///
+/// Split out from `run` so the decision has a test. The equivalent line inside
+/// `run` had none, and an untested branch in an integration path is exactly
+/// where a mutation of this shape survives -- one did, in `tri skill renumber`,
+/// hours before this was written.
+pub fn refuses(scan: &Scan) -> bool {
+    scan.files_read == 0
+}
+
+pub fn scan(root: &Path) -> Result<Scan> {
     let mut out = Vec::new();
-    let mut dirs = vec![root.join("bootstrap/tests"), root.join("cli/tri/tests")];
-    dirs.retain(|d| d.is_dir());
-    for d in dirs {
-        for e in std::fs::read_dir(&d)? {
+    let mut files_read = 0usize;
+    let wanted = vec![root.join("bootstrap/tests"), root.join("cli/tri/tests")];
+    let missing_dirs: Vec<PathBuf> = wanted.iter().filter(|d| !d.is_dir()).cloned().collect();
+    for d in wanted.iter().filter(|d| d.is_dir()) {
+        for e in std::fs::read_dir(d)? {
             let p = e?.path();
             if p.extension().and_then(|s| s.to_str()) != Some("rs") {
                 continue;
             }
+            files_read += 1;
             let s = std::fs::read_to_string(&p)?;
             if let Some(f) = judge(&p, &s) {
                 out.push(f);
@@ -62,7 +96,11 @@ pub fn scan(root: &Path) -> Result<Vec<Finding>> {
         }
     }
     out.sort_by(|a, b| a.file.cmp(&b.file));
-    Ok(out)
+    Ok(Scan {
+        findings: out,
+        files_read,
+        missing_dirs,
+    })
 }
 
 /// Split out so the self-check can drive it on a string with no file on disk.
@@ -123,20 +161,66 @@ pub fn judge(path: &Path, s: &str) -> Option<Finding> {
     })
 }
 
+pub fn advice() -> String {
+    [
+        "  Fix: an AtomicUsize counter AND the pid. Not either one, and not",
+        "  any property of the input (two inputs can agree).",
+        "",
+        "  The two are for different collisions, and this used to say \"not",
+        "  the pid\". Measured on bootstrap/tests/verilog_real_arithmetic.rs,",
+        "  release build, four arms:",
+        "",
+        "      key                  1 process, 4 threads   16 processes",
+        "      neither                        6 / 150         41 / 64",
+        "      process::id only               7 / 150          0 / 64",
+        "      counter only                   0 / 150         29 / 64",
+        "      both                           0 / 150          0 / 64",
+        "",
+        "  The counter separates the THREADS of one run; the pid separates",
+        "  concurrent RUNS, which is not hypothetical -- two agents, two",
+        "  worktrees, or a `cargo test` beside a manual run share $TMPDIR.",
+        "  This detector only looks for the first collision. The middle two",
+        "  rows are what each half alone costs.",
+    ]
+    .join("\n")
+}
+
 pub fn run(gate: bool, self_check: bool) -> Result<()> {
     if self_check {
         return run_self_check();
     }
     let root = crate::find_trinity_root()?;
-    let found = scan(&root)?;
+    let scan = scan(&root)?;
+    let found = &scan.findings;
 
     println!();
     println!("  test binaries whose tests share one scratch directory");
     println!();
+    println!("      test files read           {}", scan.files_read);
+    for d in &scan.missing_dirs {
+        println!(
+            "      directory NOT THERE       {}",
+            d.strip_prefix(&root).unwrap_or(d).display()
+        );
+    }
+    println!();
+    // A verdict over zero files is not a verdict. `none` used to be printed for
+    // a clean 60-file scan and for a tree with neither directory in it, and
+    // `--gate` exited 0 on both -- measured on a tree holding only `.trinity/`.
+    // Exit 2 rather than 1: nothing failed, the check could not run. Same code
+    // `scripts/tri` uses for an unbuilt compiler and `t27c corpus` for a spec
+    // tree with nothing in it.
+    if refuses(&scan) {
+        println!("  REFUSED -- no test file was read, so `none` would be the shape");
+        println!("  of a result rather than one. Check the paths above. Exit code 2.");
+        println!();
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        std::process::exit(2);
+    }
     if found.is_empty() {
         println!("      none");
     }
-    for f in &found {
+    for f in found {
         println!(
             "      {:<44} {} tests   key {}",
             f.file.strip_prefix(&root).unwrap_or(&f.file).display(),
@@ -151,9 +235,7 @@ pub fn run(gate: bool, self_check: bool) -> Result<()> {
     println!("  It passes the first time it runs. A green run does not clear it --");
     println!("  print the paths of a single run and count the distinct ones.");
     println!();
-    println!("  Fix: key the directory by an AtomicUsize counter, not by the pid");
-    println!("  (shared by every test in the binary) and not by any property of");
-    println!("  the input (two inputs can agree).");
+    println!("{}", advice());
     println!();
 
     if gate && !found.is_empty() {
@@ -243,5 +325,95 @@ fn yn(b: bool) -> &'static str {
         "yes"
     } else {
         "NO"
+    }
+}
+
+#[cfg(test)]
+mod advice_tests {
+    /// The advice is the deliverable, so it is pinned like one. It used to read
+    /// "an AtomicUsize counter, NOT the pid", and the four-arm table it now
+    /// carries is what that cost: counter-only left 29 of 64 concurrent runs
+    /// failing. Both components are required, and this asserts the text says so.
+    #[test]
+    fn the_advice_asks_for_both_components_and_not_one_instead_of_the_other() {
+        let a = super::advice();
+        assert!(a.contains("AtomicUsize"), "the per-call half is missing:\n{a}");
+        assert!(a.contains("pid"), "the per-process half is missing:\n{a}");
+        assert!(
+            a.contains("AND"),
+            "both are required; the text must not offer a choice:\n{a}"
+        );
+        // The exact sentence that was wrong. Anywhere in the text, in any
+        // casing, it is the old advice coming back.
+        let lower = a.to_lowercase();
+        assert!(
+            !lower.contains("not by the pid") && !lower.contains("not the pid"),
+            "the old advice is back:\n{a}"
+        );
+    }
+
+    /// The numbers are the reason the sentence changed, so losing them turns the
+    /// advice back into an assertion. All four arms, or none of this is evidence.
+    #[test]
+    fn the_advice_carries_the_measurement_that_settled_it() {
+        let a = super::advice();
+        for arm in ["6 / 150", "41 / 64", "0 / 150", "29 / 64", "0 / 64"] {
+            assert!(a.contains(arm), "missing the {arm} arm:\n{a}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod population_tests {
+    use super::*;
+
+    fn tmp(tag: &str) -> PathBuf {
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        // pid AND a counter: the pid separates concurrent runs, the counter
+        // separates the tests inside one. Measured elsewhere in this repository
+        // that neither alone is enough.
+        std::env::temp_dir().join(format!("tri-scratch-pop-{tag}-{}-{n}", std::process::id()))
+    }
+
+    #[test]
+    fn a_scan_reports_the_files_it_opened_and_the_directories_that_are_not_there() {
+        let root = tmp("read");
+        let d = root.join("bootstrap/tests");
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("a.rs"), "#[test] fn a() {}\n").unwrap();
+        std::fs::write(d.join("b.rs"), "#[test] fn b() {}\n").unwrap();
+        std::fs::write(d.join("notes.txt"), "not rust").unwrap();
+        let s = scan(&root).unwrap();
+        assert_eq!(s.files_read, 2, "only .rs files are opened");
+        assert_eq!(s.missing_dirs.len(), 1, "cli/tri/tests is absent here");
+        assert!(!refuses(&s), "two files read is a reading");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The defect: `none` was printed for a clean 85-file scan and for a tree
+    /// with neither directory in it, and `--gate` exited 0 on both.
+    #[test]
+    fn a_scan_that_opened_nothing_is_not_a_clean_result() {
+        let root = tmp("empty");
+        std::fs::create_dir_all(&root).unwrap();
+        let s = scan(&root).unwrap();
+        assert_eq!(s.files_read, 0);
+        assert_eq!(s.missing_dirs.len(), 2, "both directories must be named");
+        assert!(refuses(&s), "a verdict over zero files is not a verdict");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A directory that EXISTS and holds no `.rs` file is the same nothing as a
+    /// directory that is absent, and the earlier version could say neither.
+    #[test]
+    fn an_empty_directory_reads_the_same_as_a_missing_one() {
+        let root = tmp("hollow");
+        std::fs::create_dir_all(root.join("bootstrap/tests")).unwrap();
+        let s = scan(&root).unwrap();
+        assert_eq!(s.files_read, 0);
+        assert_eq!(s.missing_dirs.len(), 1, "the one that is really absent");
+        assert!(refuses(&s));
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
