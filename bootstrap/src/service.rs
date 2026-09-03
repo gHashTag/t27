@@ -889,10 +889,173 @@ struct SpecOutcome {
     /// control: it moved 57 -> 57 across the change that moved the headline by
     /// +170, and it is the number to quote.
     v_data_port: bool,
-    timed_out: bool,
+    /// Every step on THIS spec that produced no verdict, with the tool's name.
+    ///
+    /// #2943 gave the corpus ONE "not a rejection" channel, `timed_out: bool`,
+    /// and a timeout turned out to be one of FOUR ways a step can fail to
+    /// answer. This field replaces it. Non-empty means every bool above is a
+    /// LOWER BOUND for this spec: the column reads `false` because nothing
+    /// asked the question, not because a compiler said no.
+    ///
+    /// #2945's counter is now
+    /// `unresolved.iter().any(|(_, u)| *u == Unresolved::Timeout)`, so it keeps
+    /// its meaning exactly and gains three siblings.
+    unresolved: Vec<(&'static str, Unresolved)>,
 }
 
-fn run_timed(cmd: &mut Command, secs: u64) -> Option<(Option<i32>, String)> {
+/// Why a step produced no verdict at all.
+///
+/// The word is not an invention. POSIX 1003.3 names this category UNRESOLVED,
+/// DejaGnu implements it, and LLVM `lit` -- the closest analogue to this
+/// command, a compiler-driven file-at-a-time harness -- reports it as a status
+/// distinct from FAIL, with TIMEOUT split out again exactly as here. Automake
+/// calls the same thing a "hard error" and gives it its own exit status, 99,
+/// rather than letting it share the failure band. DejaGnu's definition is the
+/// one to carry: the harness could not determine the outcome automatically.
+///
+/// A value of this type may NEVER be counted in a column a reader will quote as
+/// "the compiler rejected it". #2943 closed ONE of these channels. The corpus
+/// run that produced #3025 died on `No space left on device` and reported a
+/// corpus-wide collapse in acceptance that looked exactly like a regression.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Unresolved {
+    /// Killed at the wall-clock bound. #2943. A property of ONE spec on ONE
+    /// machine: a re-run on an idle machine may resolve it, and the per-spec
+    /// set difference #2945 tells readers to take survives it.
+    Timeout,
+    /// The tool could not be spawned: absent, EPERM, EAGAIN. A property of the
+    /// WHOLE run -- it will hit every remaining spec identically.
+    NotSpawned,
+    /// The HARNESS failed, not the tool: create/write/read of a capture file
+    /// was refused. ENOSPC arrives here. Also a property of the whole run.
+    HostIo,
+    /// The child died by a signal, so it has no exit code at all. A `cc` that
+    /// segfaults or is OOM-killed is not a `cc` that rejected the file.
+    ///
+    /// Classed with the machine-wide causes rather than with the timeout, on
+    /// the asymmetry of the two errors: an OOM sweep across the corpus that is
+    /// allowed to stand publishes a false collapse, while one genuinely
+    /// compiler-crashing spec that refuses the run costs a re-read.
+    Signalled,
+}
+
+impl Unresolved {
+    fn label(self) -> &'static str {
+        match self {
+            Unresolved::Timeout => "timed out",
+            Unresolved::NotSpawned => "tool ABSENT (no spawn)",
+            Unresolved::HostIo => "harness I/O (ENOSPC)",
+            Unresolved::Signalled => "killed by a signal",
+        }
+    }
+
+    /// Short form for the `--per-spec` table, which is diffed by machine.
+    fn token(self) -> &'static str {
+        match self {
+            Unresolved::Timeout => "timeout",
+            Unresolved::NotSpawned => "absent",
+            Unresolved::HostIo => "hostio",
+            Unresolved::Signalled => "signal",
+        }
+    }
+
+    /// Does this reason stop the WHOLE run from being a reading?
+    ///
+    /// A timeout lands on one slow spec and the rest of the corpus is still
+    /// honestly measured. The other three are properties of the machine: once
+    /// `cc` cannot be spawned, or the volume is full, every remaining spec's
+    /// column is `false` for a reason that has nothing to do with the spec, so
+    /// the totals are not a lower bound on anything -- they are a reading of
+    /// the disk printed in the format of a reading of the compiler.
+    fn machine_wide(self) -> bool {
+        !matches!(self, Unresolved::Timeout)
+    }
+}
+
+/// What one tool invocation is allowed to say. There is no third thing.
+///
+/// This replaces `Option<(Option<i32>, String)>`, in which the outer `None`
+/// meant three unrelated failures, the inner `None` meant a fourth, and the
+/// timeout rode inside the OUTPUT channel as the magic string `__TIMEOUT__` --
+/// a value a generated file could in principle have produced. Every call site
+/// is now a match the compiler will not let anyone forget an arm of.
+enum Ran {
+    /// Exit code and combined stdout+stderr. The ONLY value that may become a
+    /// pass/fail column.
+    Exited(i32, String),
+    NoVerdict(Unresolved),
+}
+
+/// The one bridge from a run to a column. Anything that is not an exit code is
+/// recorded against the spec and yields nothing, so `== 0` cannot see it.
+fn verdict(o: &mut SpecOutcome, tool: &'static str, r: Ran) -> Option<(i32, String)> {
+    match r {
+        Ran::Exited(c, t) => Some((c, t)),
+        Ran::NoVerdict(u) => {
+            o.unresolved.push((tool, u));
+            None
+        }
+    }
+}
+
+/// The run's verdict on whether it is a reading at all: the first (reason, tool,
+/// spec) for each MACHINE-WIDE (reason, tool) pair, first-seen order. Empty
+/// means the run stands.
+///
+/// Keyed by the PAIR and not by the reason alone: three absent tools share the
+/// reason `NotSpawned`, and reporting only the first of them sends the reader
+/// round the loop once per tool -- install `rustc`, re-run, refused on `zig`,
+/// re-run, refused on `iverilog`. The list is bounded by the tools this
+/// function drives, which is eight.
+///
+/// A timeout is deliberately absent -- see `Unresolved::machine_wide`.
+fn first_machine_wide(out: &[(String, SpecOutcome)]) -> Vec<(Unresolved, &'static str, String)> {
+    let mut seen: Vec<(Unresolved, &'static str, String)> = Vec::new();
+    for (rel, o) in out {
+        for (tool, u) in &o.unresolved {
+            if u.machine_wide() && !seen.iter().any(|(k, t, _)| k == u && t == tool) {
+                seen.push((*u, tool, rel.clone()));
+            }
+        }
+    }
+    seen
+}
+
+/// #2945 printed the timeout count ONLY under `if to > 0`, so a clean run said
+/// nothing at all and a reader could not tell "0 timeouts" from "this binary
+/// has no timeout counter". These four lines are printed unconditionally.
+fn print_unresolved(all: usize, timeout: usize, spawn: usize, io: usize, sig: usize) {
+    println!("  {:<30} {:>5}", "unresolved (no verdict)", all);
+    println!(
+        "    {:<28} {:>5}   <- lower bound, re-run idle",
+        format!("... {}", Unresolved::Timeout.label()),
+        timeout
+    );
+    println!(
+        "    {:<28} {:>5}   <- REFUSES the run",
+        format!("... {}", Unresolved::NotSpawned.label()),
+        spawn
+    );
+    println!(
+        "    {:<28} {:>5}   <- REFUSES the run",
+        format!("... {}", Unresolved::HostIo.label()),
+        io
+    );
+    println!(
+        "    {:<28} {:>5}   <- REFUSES the run",
+        format!("... {}", Unresolved::Signalled.label()),
+        sig
+    );
+}
+
+fn run_timed(cmd: &mut Command, secs: u64) -> Ran {
+    run_timed_in(&std::env::temp_dir().join("t27-runtimed"), cmd, secs)
+}
+
+/// `run_timed` with the capture directory named, which is the only way a test
+/// can reach the `HostIo` branch without setting `TMPDIR` -- a process-global
+/// that would poison every sibling test in this binary.
+fn run_timed_in(dir: &Path, cmd: &mut Command, secs: u64) -> Ran {
     // std::process has no timeout, so spawn and poll. A wait_with_output() would
     // block forever on the hanging testbenches this corpus is known to contain
     // (four orphaned vvp processes at 98% CPU were found this way in W659).
@@ -913,13 +1076,19 @@ fn run_timed(cmd: &mut Command, secs: u64) -> Option<(Option<i32>, String)> {
     //
     // A file has no buffer limit, so the child never blocks and the timeout once
     // again means what it says.
-    let dir = std::env::temp_dir().join("t27-runtimed");
-    let _ = std::fs::create_dir_all(&dir);
+    // No check on the result, deliberately, and measured rather than assumed:
+    // a mutation that dropped the check was behaviourally EQUIVALENT, because
+    // if this fails then `File::create` below cannot succeed and reports the
+    // same HostIo. `File::create` is the guard; a second one is untestable.
+    let _ = std::fs::create_dir_all(dir);
     let pid = std::process::id();
     let op = dir.join(format!("{pid}.out"));
     let ep = dir.join(format!("{pid}.err"));
+    // ENOSPC LANDS HERE (#3025). This returned the same `None` as an absent
+    // compiler and as a `try_wait` error, and every call site read that `None`
+    // as "the backend did not accept it".
     let (Ok(of), Ok(ef)) = (std::fs::File::create(&op), std::fs::File::create(&ep)) else {
-        return None;
+        return Ran::NoVerdict(Unresolved::HostIo);
     };
 
     let mut child = match cmd
@@ -928,25 +1097,45 @@ fn run_timed(cmd: &mut Command, secs: u64) -> Option<(Option<i32>, String)> {
         .spawn()
     {
         Ok(c) => c,
-        Err(_) => return None,
+        Err(_) => return Ran::NoVerdict(Unresolved::NotSpawned),
     };
     let start = Instant::now();
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                let out = std::fs::read_to_string(&op).unwrap_or_default();
-                let err = std::fs::read_to_string(&ep).unwrap_or_default();
-                return Some((status.code(), format!("{out}{err}")));
+                // A failed READ of the capture is the harness failing, not the
+                // tool: `read_to_string(..).unwrap_or_default()` turned it into
+                // an empty string, and empty output is tested downstream as
+                // "did not generate".
+                //
+                // Bytes, not `read_to_string`. The reachable failure of
+                // `read_to_string` is INVALID UTF-8 -- one non-UTF-8 byte in a
+                // diagnostic -- and that is not a harness failure at all: the
+                // tool ran, and its exit code is the verdict. Under
+                // `read_to_string` it silently became "generated nothing"; under
+                // a refusal it would abandon the whole corpus over one byte.
+                // Lossy here, and `Err` reserved for a real I/O failure.
+                let (Ok(out), Ok(err)) = (std::fs::read(&op), std::fs::read(&ep)) else {
+                    return Ran::NoVerdict(Unresolved::HostIo);
+                };
+                let out = String::from_utf8_lossy(&out);
+                let err = String::from_utf8_lossy(&err);
+                // `status.code()` is None when the child died by a signal, and
+                // that None met `!= Some(0)` and was recorded as a rejection.
+                return match status.code() {
+                    Some(c) => Ran::Exited(c, format!("{out}{err}")),
+                    None => Ran::NoVerdict(Unresolved::Signalled),
+                };
             }
             Ok(None) => {
                 if start.elapsed().as_secs() >= secs {
                     let _ = child.kill();
                     let _ = child.wait();
-                    return Some((None, String::from("__TIMEOUT__")));
+                    return Ran::NoVerdict(Unresolved::Timeout);
                 }
                 std::thread::sleep(std::time::Duration::from_millis(25));
             }
-            Err(_) => return None,
+            Err(_) => return Ran::NoVerdict(Unresolved::HostIo),
         }
     }
 }
@@ -985,20 +1174,59 @@ pub fn run_corpus(
         specs.truncate(limit);
     }
 
+    // #3025: the refusal below fires on a MACHINE that could not answer. This
+    // one fires on a POPULATION that was never asked, and it is the same
+    // defect wearing the other hat: a run over zero specs printed every column
+    // as `0` and exited 0 -- `{"specs":0,"verilog_build":0,...}`, the constant
+    // 0 in the format of a measurement, which is the exact sentence the
+    // machine-wide refusal exists to avoid printing. A typo in `--specs-dir`
+    // reached it too: a directory that does not exist reads as a tree with no
+    // specs in it, so the guard is on the count and not on the path.
+    if specs.is_empty() {
+        if json {
+            println!(
+                "{{\"refused\":\"no_specs\",\"specs\":0,\"specs_dir\":\"{}\"}}",
+                specs_dir.replace('\\', "\\\\").replace('"', "\\\"")
+            );
+        } else {
+            println!();
+            println!("  corpus: REFUSED -- this run is not a reading.");
+            println!("  {}", "-".repeat(52));
+            println!("  No .t27 spec was found under {specs_dir:?}.");
+            println!();
+            println!("  Zero specs is not zero acceptance. Every column would be");
+            println!("  0 because nothing was asked, not because something failed,");
+            println!("  and the two are indistinguishable once printed. Check the");
+            println!("  --specs-dir path (a directory that does not exist reaches");
+            println!("  here identically) and re-run. Exit code 2.");
+        }
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        std::process::exit(2);
+    }
+
     let mut out: Vec<(String, SpecOutcome)> = Vec::new();
     for (i, p) in specs.iter().enumerate() {
         let mut o = SpecOutcome::default();
         let sp = p.to_string_lossy().to_string();
 
         // ---- Rust ----
-        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen-rust", &sp]), 15) {
-            if text == "__TIMEOUT__" {
-                o.timed_out = true;
-            } else if c == Some(0) && !text.trim().is_empty() {
+        if let Some((c, text)) = verdict(
+            &mut o,
+            "gen-rust",
+            run_timed(Command::new(&me).args(["gen-rust", &sp]), 15),
+        ) {
+            if c == 0 && !text.trim().is_empty() {
                 o.rust_gen = true;
                 let rp = tmp.join("c.rs");
-                if std::fs::write(&rp, &text).is_ok() {
-                    if let Some((rc, rt)) = run_timed(
+                // #3025: no `else` here meant an ENOSPC on the GENERATED
+                // file left the column false with nothing recorded. This write
+                // happens BEFORE `run_timed`, so the capture-file guard inside
+                // it never sees this disk failure -- and this is the write that
+                // the run which opened the issue actually died on.
+                if std::fs::write(&rp, &text).is_err() {
+                    o.unresolved.push(("write c.rs", Unresolved::HostIo));
+                } else {
+                    if let Some((rc, _)) = verdict(&mut o, "rustc", run_timed(
                         Command::new("rustc").args([
                             "--edition", "2021", "--crate-type", "lib",
                             "--emit=metadata", "-A", "warnings",
@@ -1014,30 +1242,32 @@ pub fn run_corpus(
                             &rp.to_string_lossy(),
                         ]),
                         30,
-                    ) {
-                        if rt == "__TIMEOUT__" { o.timed_out = true; }
-                        o.rust_build = rc == Some(0);
+                    )) {
+                        o.rust_build = rc == 0;
                     }
                 }
             }
         }
 
         // ---- C ----
-        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen-c", &sp]), 15) {
-            if text == "__TIMEOUT__" {
-                o.timed_out = true;
-            } else if c == Some(0) && !text.trim().is_empty() {
+        if let Some((c, text)) = verdict(
+            &mut o,
+            "gen-c",
+            run_timed(Command::new(&me).args(["gen-c", &sp]), 15),
+        ) {
+            if c == 0 && !text.trim().is_empty() {
                 o.c_gen = true;
                 let cp = tmp.join("c.c");
-                if std::fs::write(&cp, &text).is_ok() {
-                    if let Some((cc, ct)) = run_timed(
+                if std::fs::write(&cp, &text).is_err() {
+                    o.unresolved.push(("write c.c", Unresolved::HostIo));
+                } else {
+                    if let Some((cc, _)) = verdict(&mut o, "cc", run_timed(
                         Command::new("cc").args([
                             "-fsyntax-only", "-std=gnu11", &cp.to_string_lossy(),
                         ]),
                         30,
-                    ) {
-                        if ct == "__TIMEOUT__" { o.timed_out = true; }
-                        o.c_build = cc == Some(0);
+                    )) {
+                        o.c_build = cc == 0;
                     }
                 }
             }
@@ -1051,19 +1281,22 @@ pub fn run_corpus(
         }
 
         // ---- Zig ----
-        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen", &sp]), 15) {
-            if text == "__TIMEOUT__" {
-                o.timed_out = true;
-            } else if c == Some(0) && !text.trim().is_empty() {
+        if let Some((c, text)) = verdict(
+            &mut o,
+            "gen",
+            run_timed(Command::new(&me).args(["gen", &sp]), 15),
+        ) {
+            if c == 0 && !text.trim().is_empty() {
                 o.zig_gen = true;
                 let zp = tmp.join("c.zig");
-                if std::fs::write(&zp, &text).is_ok() {
-                    if let Some((zc, zt)) =
+                if std::fs::write(&zp, &text).is_err() {
+                    o.unresolved.push(("write c.zig", Unresolved::HostIo));
+                } else {
+                    if let Some((zc, _)) = verdict(&mut o, "zig build-obj",
                         run_timed(Command::new("zig").args(["build-obj", "-fno-emit-bin",
-                                                            &zp.to_string_lossy()]), 30)
+                                                            &zp.to_string_lossy()]), 30))
                     {
-                        if zt == "__TIMEOUT__" { o.timed_out = true; }
-                        o.zig_build = zc == Some(0);
+                        o.zig_build = zc == 0;
                     }
                     // The deeper reading, taken from the same generated file.
                     //
@@ -1073,7 +1306,7 @@ pub fn run_corpus(
                     // read as a catastrophic regression rather than as a broken
                     // ruler -- found while measuring #2952 by hand.
                     let bin = tmp.join("c-test.o");
-                    if let Some((tc, tt)) = run_timed(
+                    if let Some((tc, _)) = verdict(&mut o, "zig test", run_timed(
                         Command::new("zig").args([
                             "test",
                             "--test-no-exec",
@@ -1081,21 +1314,24 @@ pub fn run_corpus(
                             &zp.to_string_lossy(),
                         ]),
                         30,
-                    ) {
-                        if tt == "__TIMEOUT__" { o.timed_out = true; }
-                        o.zig_bodies = tc == Some(0);
+                    )) {
+                        o.zig_bodies = tc == 0;
                     }
                 }
             }
         }
 
         // ---- Verilog ----
-        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen-verilog", &sp]), 15) {
+        if let Some((c, text)) = verdict(
+            &mut o,
+            "gen-verilog",
+            run_timed(Command::new(&me).args(["gen-verilog", &sp]), 15),
+        ) {
             // The compiler emits this banner itself when the module it wrote has
             // no port that can move a value. Reading its own verdict is cheaper
             // and more honest than re-deriving one.
-            o.v_data_port = c == Some(0) && !text.contains("NO DATA PORTS");
-            if synth && c == Some(0) && !text.is_empty() {
+            o.v_data_port = c == 0 && !text.contains("NO DATA PORTS");
+            if synth && c == 0 && !text.is_empty() {
                 // The top module is the first one the generator emits.
                 let top = text
                     .lines()
@@ -1105,32 +1341,33 @@ pub fn run_corpus(
                     .unwrap_or_default();
                 if !top.is_empty() {
                     let vp2 = std::env::temp_dir().join(format!("t27-synth-{}.v", std::process::id()));
-                    if std::fs::write(&vp2, &text).is_ok() {
+                    if std::fs::write(&vp2, &text).is_err() {
+                        o.unresolved.push(("write synth .v", Unresolved::HostIo));
+                    } else {
                         let script = format!(
                             "read_verilog -sv {}; {}",
                             vp2.display(),
                             synth_xilinx_noshare(&top)
                         );
-                        if let Some((yc, _)) =
-                            run_timed(Command::new("yosys").args(["-p", &script]), synth_secs)
+                        if let Some((yc, _)) = verdict(&mut o, "yosys",
+                            run_timed(Command::new("yosys").args(["-p", &script]), synth_secs))
                         {
-                            o.v_synth = yc == Some(0);
+                            o.v_synth = yc == 0;
                         }
                     }
                 }
             }
-            if text == "__TIMEOUT__" {
-                o.timed_out = true;
-            } else if c == Some(0) && !text.trim().is_empty() {
+            if c == 0 && !text.trim().is_empty() {
                 o.v_gen = true;
                 let vp = tmp.join("c.v");
-                if std::fs::write(&vp, &text).is_ok() {
-                    if let Some((vc, vt)) = run_timed(
+                if std::fs::write(&vp, &text).is_err() {
+                    o.unresolved.push(("write c.v", Unresolved::HostIo));
+                } else {
+                    if let Some((vc, _)) = verdict(&mut o, "iverilog", run_timed(
                         Command::new("iverilog").args(["-g2012", "-o", "/dev/null",
-                                                       &vp.to_string_lossy()]), 30)
+                                                       &vp.to_string_lossy()]), 30))
                     {
-                        if vt == "__TIMEOUT__" { o.timed_out = true; }
-                        o.v_build = vc == Some(0);
+                        o.v_build = vc == 0;
                     }
                 }
             }
@@ -1141,6 +1378,97 @@ pub fn run_corpus(
         }
         let rel = p.strip_prefix(repo_root).unwrap_or(p).to_string_lossy().to_string();
         out.push((rel, o));
+    }
+
+    // #3025: DECIDE WHETHER THIS IS A READING AT ALL, BEFORE WRITING ANYTHING.
+    //
+    // #2943 gave the corpus one "not a rejection" channel. This is the second,
+    // and it is worse than the first: a timeout hits one slow spec, while a
+    // full volume or an absent `cc` hits EVERY backend of EVERY remaining spec
+    // identically -- so the columns do not fall by a little, they fall to the
+    // floor, and a run taken on a full disk reports a corpus-wide collapse in
+    // acceptance that is indistinguishable from a catastrophic regression.
+    // That run happened; it is what #3025 was opened on.
+    //
+    // Per STEP, not per spec: one full disk can lose four backends on one spec,
+    // and "1 spec" understates that by four.
+    let steps = |k: Unresolved| {
+        out.iter()
+            .flat_map(|(_, o)| o.unresolved.iter())
+            .filter(|(_, u)| *u == k)
+            .count()
+    };
+    let un_timeout = steps(Unresolved::Timeout);
+    let un_spawn = steps(Unresolved::NotSpawned);
+    let un_io = steps(Unresolved::HostIo);
+    let un_sig = steps(Unresolved::Signalled);
+    let un_all = un_timeout + un_spawn + un_io + un_sig;
+    let refused = first_machine_wide(&out);
+
+    // WHY REFUSE RATHER THAN PRINT THE TABLE UNDER A BANNER.
+    //
+    // The banner was tried here already and it is not enough. #2945 printed the
+    // timeout paragraph directly beneath the percentages, and the percentages
+    // are still what gets quoted -- that is the whole lesson of the count that
+    // reached the JSON and not the human report. A number on screen in the
+    // shape of a measurement will be read as one, whatever stands next to it.
+    //
+    // And a banner would be dishonest in a way the timeout banner is not. The
+    // timeout paragraph can truthfully say "these columns are a LOWER BOUND",
+    // because the specs that did not time out were really measured. When `cc`
+    // cannot spawn, `c_build` is not a lower bound on anything -- it is the
+    // constant 0, a reading of the machine wearing the format of a reading of
+    // the compiler. There is no honest sentence to print above it.
+    //
+    // The field agrees at every level of severity: `lit` counts UNRESOLVED as a
+    // failure for its exit code unless `--ignore-fail` is passed; TAP's
+    // `Bail out!` halts the whole harness when a precondition of measurement is
+    // gone; pytest exits 5 and nextest exits 4 when nothing was measured;
+    // Bazel returns an infra code (32/34/36/37) INSTEAD of a build verdict.
+    // A run that produced zero usable numbers must not be able to exit 0.
+    //
+    // Exit 2 and not 1, on Bazel's reasoning: 1 is an ordinary error from this
+    // command, 2 says the machine is why, and a script can branch on the band
+    // without parsing text.
+    if !refused.is_empty() {
+        if json {
+            // NOT a `{"specs":N,"zig_build":...}` object. A ratchet reading
+            // this must get no acceptance key at all rather than a 0.
+            let first: Vec<String> = refused
+                .iter()
+                .map(|(u, tool, spec)| {
+                    format!(
+                        "{{\"reason\":\"{}\",\"tool\":\"{}\",\"spec\":\"{}\"}}",
+                        u.token(),
+                        tool,
+                        spec.replace('\\', "\\\\").replace('"', "\\\"")
+                    )
+                })
+                .collect();
+            println!(
+                "{{\"refused\":\"unresolved\",\"specs\":{},\"unresolved\":{un_all},\"unresolved_timeout\":{un_timeout},\"unresolved_not_spawned\":{un_spawn},\"unresolved_host_io\":{un_io},\"unresolved_signalled\":{un_sig},\"first\":[{}]}}",
+                out.len(),
+                first.join(",")
+            );
+        } else {
+            println!();
+            println!("  corpus: REFUSED -- this run is not a reading.");
+            println!("  {}", "-".repeat(52));
+            print_unresolved(un_all, un_timeout, un_spawn, un_io, un_sig);
+            println!();
+            for (u, tool, spec) in &refused {
+                println!("  first {:<22} {} on {}", u.label(), tool, spec);
+            }
+            println!();
+            println!("  No percentages are printed, and no --per-spec table was");
+            println!("  written. Each reason above is a property of the MACHINE, not");
+            println!("  of a spec: it hits every remaining spec identically, so the");
+            println!("  columns would not be a lower bound -- they would be the");
+            println!("  constant 0 in the format of a measurement. Fix the machine");
+            println!("  (free space, install the tool) and re-run. Exit code 2.");
+        }
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        std::process::exit(2);
     }
 
     // W699: the aggregate cannot name a spec, and a column that MOVES is
@@ -1160,20 +1488,34 @@ pub fn run_corpus(
                 // Three digits for Zig, not two: a defect inside a body moves
                 // the third and neither of the first two, and a diff of this
                 // file is how a wave-to-wave comparison is actually made.
+                // #3025: the per-spec set difference is the comparison #2945
+                // told readers to take, and until now it could not tell a spec
+                // whose backend never ran from one that regressed. `-` when the
+                // spec resolved every step, else `tool:reason`.
+                let un = if o.unresolved.is_empty() {
+                    String::from("-")
+                } else {
+                    o.unresolved
+                        .iter()
+                        .map(|(t, u)| format!("{t}:{}", u.token()))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                };
                 format!(
-                    "{}\t{}{}{}\t{}{}\t{}{}\t{}{}\t{}",
+                    "{}\t{}{}{}\t{}{}\t{}{}\t{}{}\t{}\t{}",
                     rel,
                     b(o.zig_gen), b(o.zig_build), b(o.zig_bodies),
                     b(o.rust_gen), b(o.rust_build),
                     b(o.c_gen), b(o.c_build),
                     b(o.v_gen), b(o.v_build),
                     o.discarded,
+                    un,
                 )
             })
             .collect();
         rows.sort();
         let body = format!(
-            "# spec\tzig(gen,build,bodies)\trust\tc\tverilog\tdropped\n{}\n",
+            "# spec\tzig(gen,build,bodies)\trust\tc\tverilog\tdropped\tunresolved\n{}\n",
             rows.join("\n")
         );
         std::fs::write(path, body)
@@ -1202,10 +1544,12 @@ pub fn run_corpus(
         .iter()
         .filter(|(_, o)| o.zig_build && o.v_build && o.rust_build && o.c_build)
         .count();
-    let to = c(|o| o.timed_out);
+    // #2945's counter, meaning unchanged: how many SPECS lost a step to the
+    // wall-clock bound. Derived now, so it cannot drift from the reasons.
+    let to = c(|o| o.unresolved.iter().any(|(_, u)| *u == Unresolved::Timeout));
 
     if json {
-        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"zig_bodies\":{zbo},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"verilog_synth\":{vsy},\"rust_gen\":{rg},\"rust_build\":{rb},\"c_gen\":{cg},\"c_build\":{cb},\"both_build\":{both},\"all_four_build\":{all4},\"timed_out\":{to}}}");
+        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"zig_bodies\":{zbo},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"verilog_synth\":{vsy},\"rust_gen\":{rg},\"rust_build\":{rb},\"c_gen\":{cg},\"c_build\":{cb},\"both_build\":{both},\"all_four_build\":{all4},\"timed_out\":{to},\"unresolved\":{un_all},\"unresolved_timeout\":{un_timeout},\"unresolved_not_spawned\":{un_spawn},\"unresolved_host_io\":{un_io},\"unresolved_signalled\":{un_sig}}}");
         return Ok(());
     }
 
@@ -1246,6 +1590,17 @@ pub fn run_corpus(
     // The count was already collected. Nothing printed it, so a reading taken
     // on a loaded machine was indistinguishable from one taken on an idle one,
     // and both were quoted as measurements.
+    //
+    // #3025: printed UNCONDITIONALLY, and split by reason. Under `if to > 0` a
+    // clean run said nothing, so a reader could not tell "0 timeouts" from "the
+    // binary that produced this has no timeout counter" -- the same three-way
+    // distinction `cli/tri/src/cibase.rs` already draws for CI gates between
+    // NeverFailed, NeverRan and Unreadable. The three REFUSES rows are
+    // necessarily 0 here: a non-zero one exits above and never reaches this
+    // table. They are printed anyway, because their names are what tell a
+    // reader that this run was checked for them.
+    println!();
+    print_unresolved(un_all, un_timeout, un_spawn, un_io, un_sig);
     if to > 0 {
         println!();
         println!(
@@ -1360,6 +1715,12 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
 
     let mut clean = 0usize;
     let mut no_gen = 0usize;
+    // #3025: `no_gen` used to count FIVE things -- an unspawnable tool, a full
+    // disk, a timeout, a signalled child, and a compiler that actually refused
+    // the spec. Only the last is "does not generate Verilog". The other four
+    // are the same UNRESOLVED category the corpus table now names, and they are
+    // counted apart from the rejection rather than added to it.
+    let mut unresolved = 0usize;
     // (depth, spec, the one class) for defect specs
     let mut by_depth: Vec<(usize, String, String)> = Vec::new();
     let mut unwritten = 0usize;
@@ -1368,21 +1729,18 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
 
     for (i, p) in specs.iter().enumerate() {
         let sp = p.to_string_lossy().to_string();
-        let Some((c, text)) = run_timed(Command::new(&me).args(["gen-verilog", &sp]), 15) else {
-            no_gen += 1;
-            continue;
-        };
-        if text == "__TIMEOUT__" || c != Some(0) || text.trim().is_empty() {
+        let Ran::Exited(c, text) = run_timed(Command::new(&me).args(["gen-verilog", &sp]), 15)
+        else { unresolved += 1; continue };
+        if c != 0 || text.trim().is_empty() {
             no_gen += 1;
             continue;
         }
         let vp = tmp.join("d.v");
-        if std::fs::write(&vp, &text).is_err() { no_gen += 1; continue; }
-        let Some((vc, vt)) = run_timed(
+        if std::fs::write(&vp, &text).is_err() { unresolved += 1; continue; }
+        let Ran::Exited(vc, vt) = run_timed(
             Command::new("iverilog").args(["-g2012", "-o", "/dev/null", &vp.to_string_lossy()]), 30)
-        else { no_gen += 1; continue };
-        if vt == "__TIMEOUT__" { no_gen += 1; continue; }
-        if vc == Some(0) { clean += 1; continue; }
+        else { unresolved += 1; continue };
+        if vc == 0 { clean += 1; continue; }
 
         let classes: std::collections::BTreeSet<String> = vt
             .lines()
@@ -1431,6 +1789,10 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
     println!("  {}", "-".repeat(64));
     println!("  {:<34} {:>5}", "iverilog accepts", clean);
     println!("  {:<34} {:>5}", "does not generate Verilog", no_gen);
+    println!(
+        "  {:<34} {:>5}   <- NOT rejections",
+        "UNRESOLVED (no verdict)", unresolved
+    );
     println!("  {:<34} {:>5}", "UNWRITTEN (every fn body empty)", unwritten);
     println!("  {:<34} {:>5}", "PARTIAL (some fn bodies empty)", partial);
     println!("  {:<34} {:>5}   <- the real defect backlog", "DEFECT specs", by_depth.len());
@@ -3469,5 +3831,344 @@ mod w693_bscan_parser {
         let (c, s) = fasm_bscan_chain_and_site("SOME.OTHER.FEATURE\n");
         assert_eq!(c, None);
         assert!(s.is_empty());
+    }
+}
+
+
+/// #3025. Four ways a step can fail to produce a verdict, and the one way it can
+/// produce a rejection, must not be the same value.
+///
+/// Every test here runs `run_timed_in` against its OWN capture directory. The
+/// shared one is keyed by pid, and every test in this binary shares the pid, so
+/// two concurrent tests through `run_timed` would write and read the same
+/// `{pid}.out`. Only the spawn-failure test uses the real `run_timed`, to prove
+/// the wrapper is wired to the function underneath it; it never reads a capture.
+#[cfg(test)]
+mod unresolved_is_not_a_rejection {
+    use super::*;
+
+    fn name(r: &Ran) -> String {
+        match r {
+            Ran::Exited(c, _) => format!("Exited({c})"),
+            Ran::NoVerdict(u) => format!("NoVerdict({u:?})"),
+        }
+    }
+
+    /// Private per-test path. Counter as well as pid: the pid is shared by the
+    /// whole test binary, which is the race `corpus_zig_bodies.rs` documents.
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "t27-unresolved-{tag}-{}-{}",
+            std::process::id(),
+            n
+        ))
+    }
+
+    /// THE CASE #3025 ASKS FOR. A tool that cannot be spawned answered nothing.
+    /// It must not reach a column, and it must not look like an exit code.
+    #[test]
+    fn a_binary_that_cannot_be_spawned_is_not_a_rejection() {
+        let r = run_timed(
+            &mut Command::new("t27c-there-is-no-such-binary-3025"),
+            5,
+        );
+        assert!(
+            matches!(r, Ran::NoVerdict(Unresolved::NotSpawned)),
+            "an absent tool must be NotSpawned, got {}",
+            name(&r)
+        );
+        assert!(
+            !matches!(r, Ran::Exited(..)),
+            "an absent tool must carry no exit code at all, got {}",
+            name(&r)
+        );
+    }
+
+    /// THE CONTROL. Without it, a `run_timed` that answered `NoVerdict` to
+    /// everything would pass every other test in this module, and the corpus
+    /// would report nothing at all as a rejection.
+    #[test]
+    fn a_tool_that_ran_and_said_no_is_still_a_rejection() {
+        let d = scratch("exit3");
+        let r = run_timed_in(&d, Command::new("/bin/sh").args(["-c", "exit 3"]), 5);
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            matches!(r, Ran::Exited(3, _)),
+            "a real non-zero exit is a verdict and must survive as one, got {}",
+            name(&r)
+        );
+    }
+
+    /// And a tool that accepted must still be an exit code of 0, or every
+    /// column in the table goes to zero.
+    #[test]
+    fn a_tool_that_ran_and_said_yes_is_exit_zero_with_its_output() {
+        let d = scratch("exit0");
+        let r = run_timed_in(
+            &d,
+            Command::new("/bin/sh").args(["-c", "echo hello; echo bad >&2"]),
+            5,
+        );
+        let _ = std::fs::remove_dir_all(&d);
+        match &r {
+            Ran::Exited(0, t) => {
+                assert!(t.contains("hello"), "stdout must be captured: {t:?}");
+                assert!(t.contains("bad"), "stderr must be captured too: {t:?}");
+            }
+            _ => panic!("a clean run must be Exited(0, _), got {}", name(&r)),
+        }
+    }
+
+    /// A `cc` killed by SIGSEGV or by the OOM killer has no exit code. That
+    /// `None` used to meet `!= Some(0)` and be recorded as a rejection.
+    #[test]
+    fn a_child_killed_by_a_signal_is_not_a_rejection() {
+        let d = scratch("signal");
+        let r = run_timed_in(&d, Command::new("/bin/sh").args(["-c", "kill -9 $$"]), 5);
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            matches!(r, Ran::NoVerdict(Unresolved::Signalled)),
+            "a signalled child has no exit code, got {}",
+            name(&r)
+        );
+    }
+
+    /// #2943's channel, now carried by the type rather than by the magic string
+    /// `__TIMEOUT__` riding in the output it describes.
+    #[test]
+    fn a_timeout_is_a_reason_and_not_a_string_in_the_output() {
+        let d = scratch("timeout");
+        let r = run_timed_in(&d, Command::new("/bin/sh").args(["-c", "sleep 5"]), 1);
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            matches!(r, Ran::NoVerdict(Unresolved::Timeout)),
+            "the wall-clock bound must report Timeout, got {}",
+            name(&r)
+        );
+    }
+
+    /// ENOSPC's branch, reached by the nearest cause a test can actually
+    /// produce: a capture directory that refuses a new file.
+    ///
+    /// WHAT THIS DOES AND DOES NOT COVER. A full volume makes
+    /// `File::create` return `Err`, and so does a directory with no write
+    /// permission -- the same branch, which is the one under test. It does NOT
+    /// cover ENOSPC arriving mid-write, which truncates a capture file; a
+    /// truncated capture is still a successful read of a shorter string, and
+    /// remains indistinguishable from a compiler that emitted a prefix.
+    #[cfg(unix)]
+    #[test]
+    fn a_capture_directory_that_refuses_a_file_is_a_harness_failure() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = scratch("readonly");
+        std::fs::create_dir_all(&d).expect("scratch dir");
+        std::fs::set_permissions(&d, std::fs::Permissions::from_mode(0o500))
+            .expect("chmod 0500");
+
+        // Precondition, probed rather than assumed: root ignores the mode bits,
+        // and a test that cannot reach its branch must SAY so rather than pass.
+        let reachable = std::fs::File::create(d.join("probe")).is_err();
+        if !reachable {
+            let _ = std::fs::set_permissions(&d, std::fs::Permissions::from_mode(0o700));
+            let _ = std::fs::remove_dir_all(&d);
+            eprintln!(
+                "a read-only directory still accepts files here (running as root?) \
+                 -- SKIPPED, and saying so rather than passing silently"
+            );
+            return;
+        }
+
+        let r = run_timed_in(&d, Command::new("/bin/sh").args(["-c", "exit 0"]), 5);
+        let _ = std::fs::set_permissions(&d, std::fs::Permissions::from_mode(0o700));
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            matches!(r, Ran::NoVerdict(Unresolved::HostIo)),
+            "a refused capture file is the HARNESS failing, not the tool, got {}",
+            name(&r)
+        );
+    }
+
+    /// The other half of the same branch, and this one root cannot defeat: a
+    /// capture directory whose parent is a regular file. `create_dir_all` gets
+    /// ENOTDIR before any child is spawned.
+    #[test]
+    fn a_capture_directory_that_cannot_exist_is_a_harness_failure() {
+        let f = scratch("notadir");
+        std::fs::write(&f, b"this is a file, not a directory").expect("write file");
+        let r = run_timed_in(&f.join("sub"), Command::new("/bin/sh").args(["-c", "exit 0"]), 5);
+        let _ = std::fs::remove_file(&f);
+        assert!(
+            matches!(r, Ran::NoVerdict(Unresolved::HostIo)),
+            "a capture directory that cannot be created is HostIo, got {}",
+            name(&r)
+        );
+    }
+
+    /// A tool that answered with a non-UTF-8 byte in its diagnostics ANSWERED.
+    /// `read_to_string(..).unwrap_or_default()` blanked the capture, and an
+    /// empty capture is tested downstream as "did not generate" -- a verdict
+    /// that was produced, lost to an encoding.
+    #[test]
+    fn output_that_is_not_utf8_does_not_erase_the_verdict() {
+        let d = scratch("notutf8");
+        let r = run_timed_in(
+            &d,
+            Command::new("/bin/sh")
+                .args(["-c", r"printf 'BEFORE\377AFTER\n'; exit 0"]),
+            5,
+        );
+        let _ = std::fs::remove_dir_all(&d);
+        match &r {
+            Ran::Exited(0, t) => {
+                assert!(
+                    t.contains("BEFORE") && t.contains("AFTER"),
+                    "the readable text must survive the bad byte: {t:?}"
+                );
+            }
+            _ => panic!("a tool that exited 0 must be Exited(0, _), got {}", name(&r)),
+        }
+    }
+
+    /// And a capture that genuinely cannot be READ is the harness failing.
+    ///
+    /// Reached by having the CHILD chmod its own stdout capture to 000. That
+    /// couples the test to the `{pid}.out` naming inside `run_timed_in`, which
+    /// is the point: it is the only way to fail a read of a file the harness
+    /// itself just created and owns.
+    #[cfg(unix)]
+    #[test]
+    fn a_capture_that_cannot_be_read_back_is_a_harness_failure() {
+        let d = scratch("unreadable");
+        std::fs::create_dir_all(&d).expect("scratch dir");
+        let op = d.join(format!("{}.out", std::process::id()));
+
+        // Precondition, probed: root reads a 000 file regardless.
+        std::fs::write(&op, b"probe").expect("probe file");
+        let mut perm = std::fs::metadata(&op).expect("stat").permissions();
+        {
+            use std::os::unix::fs::PermissionsExt;
+            perm.set_mode(0o000);
+        }
+        std::fs::set_permissions(&op, perm).expect("chmod 000");
+        let reachable = std::fs::read(&op).is_err();
+        let _ = std::fs::remove_file(&op);
+        if !reachable {
+            let _ = std::fs::remove_dir_all(&d);
+            eprintln!(
+                "a 000 file is still readable here (running as root?) -- SKIPPED, \
+                 and saying so rather than passing silently"
+            );
+            return;
+        }
+
+        let r = run_timed_in(
+            &d,
+            Command::new("/bin/sh")
+                .args(["-c", &format!("chmod 000 '{}'", op.display())]),
+            5,
+        );
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            matches!(r, Ran::NoVerdict(Unresolved::HostIo)),
+            "a capture the harness cannot read back is HostIo, got {}",
+            name(&r)
+        );
+    }
+
+    /// The bridge to the columns. This is the assertion #3025 is actually
+    /// about: a non-verdict yields NO exit code to the call site, so no
+    /// `== 0` anywhere downstream can turn it into a bool.
+    #[test]
+    fn a_non_verdict_reaches_the_spec_and_never_reaches_a_column() {
+        let mut o = SpecOutcome::default();
+
+        assert!(
+            verdict(&mut o, "cc", Ran::NoVerdict(Unresolved::HostIo)).is_none(),
+            "a non-verdict must yield no exit code for a column to test"
+        );
+        assert_eq!(
+            o.unresolved,
+            vec![("cc", Unresolved::HostIo)],
+            "and it must be recorded against the spec, with the tool named"
+        );
+
+        let got = verdict(&mut o, "cc", Ran::Exited(1, String::from("error: no")));
+        assert_eq!(
+            got.map(|(c, _)| c),
+            Some(1),
+            "a real rejection must pass through unchanged"
+        );
+        assert_eq!(
+            o.unresolved.len(),
+            1,
+            "and must not be recorded as unresolved: {:?}",
+            o.unresolved
+        );
+    }
+
+    /// The refusal rule. A timeout is a property of one spec and the run still
+    /// stands; the other three are properties of the machine and it does not.
+    #[test]
+    fn only_a_timeout_leaves_the_run_standing() {
+        assert!(!Unresolved::Timeout.machine_wide(), "a timeout hits one spec");
+        for u in [
+            Unresolved::NotSpawned,
+            Unresolved::HostIo,
+            Unresolved::Signalled,
+        ] {
+            assert!(
+                u.machine_wide(),
+                "{u:?} hits every remaining spec identically and must refuse the run"
+            );
+        }
+    }
+
+    fn spec(rel: &str, un: &[(&'static str, Unresolved)]) -> (String, SpecOutcome) {
+        let mut o = SpecOutcome::default();
+        o.unresolved = un.to_vec();
+        (rel.to_string(), o)
+    }
+
+    /// A run whose only non-verdicts are timeouts is still a reading.
+    #[test]
+    fn a_run_of_timeouts_alone_is_not_refused() {
+        let out = vec![
+            spec("a.t27", &[("cc", Unresolved::Timeout)]),
+            spec("b.t27", &[]),
+            spec("c.t27", &[("zig test", Unresolved::Timeout)]),
+        ];
+        assert!(
+            first_machine_wide(&out).is_empty(),
+            "timeouts alone must not refuse the run: {:?}",
+            first_machine_wide(&out)
+        );
+    }
+
+    /// And one machine-wide reason refuses it, naming the tool and the FIRST
+    /// spec that hit it -- once per (reason, tool), so a reader is not sent
+    /// round the loop once per absent tool.
+    #[test]
+    fn a_machine_wide_reason_refuses_the_run_and_names_every_tool() {
+        let out = vec![
+            spec("a.t27", &[("cc", Unresolved::Timeout)]),
+            spec(
+                "b.t27",
+                &[("rustc", Unresolved::NotSpawned), ("zig test", Unresolved::NotSpawned)],
+            ),
+            spec("c.t27", &[("rustc", Unresolved::NotSpawned)]),
+            spec("d.t27", &[("iverilog", Unresolved::HostIo)]),
+        ];
+        let got = first_machine_wide(&out);
+        assert_eq!(
+            got,
+            vec![
+                (Unresolved::NotSpawned, "rustc", String::from("b.t27")),
+                (Unresolved::NotSpawned, "zig test", String::from("b.t27")),
+                (Unresolved::HostIo, "iverilog", String::from("d.t27")),
+            ],
+            "one line per (reason, tool), first spec each, timeout excluded"
+        );
     }
 }
