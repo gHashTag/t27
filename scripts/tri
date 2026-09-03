@@ -358,9 +358,23 @@ if [[ -z "$T27C" ]]; then
   done
 fi
 if [[ ! -x "$T27C" ]]; then
-  echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
-  echo "tri: local commands still work -- see 'tri help'" >&2
-  exit 1
+  # Exit 2, not 1, and the two are different claims (#3045).
+  #
+  # 1 says a check ran and said no. 2 says the check could not run at all --
+  # POSIX 1003.3 calls that UNSUPPORTED, "the testing environment lacks basic
+  # support for compiling or running the test case", and tools/check_now_entry
+  # _shape.py already uses 2 for the same thing one layer up.
+  #
+  # The distinction is load-bearing because .githooks/pre-commit runs
+  # `scripts/tri check-now` under `set -e`: an absent binary aborted the commit
+  # with a message naming a build step and a second line reading "local commands
+  # still work", which is true and is not what the reader needs to know while
+  # their commit is being refused. That line is gone from this path; `tri help`
+  # says it, and `tri help` runs without a compiler.
+  echo "tri: cannot run '${cmd:-<no subcommand>}' -- t27c is not built." >&2
+  echo "tri: nothing was checked. Build it (cd bootstrap && cargo build --release)" >&2
+  echo "tri: or point TRI_T27C at a binary. Exit 2 = could not run, not failed." >&2
+  exit 2
 fi
 # Loop helpers live in scripts/tri_loop/ as Python, and are dispatched before
 # anything is forwarded to t27c. They are separate from the compiler on purpose:

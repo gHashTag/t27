@@ -55,12 +55,39 @@ test int_binding_stays_integer
 /// It PANICS rather than returning when the binary fails. A test that returns
 /// quietly on a broken front end reports PASSED while measuring nothing -- the
 /// exact shape this file exists to catch in the emitter.
+
+/// Two axes, and a key needs BOTH. Measured on this file, release build:
+///
+/// | key                | one process, 4 threads | 16 concurrent processes |
+/// |--------------------|------------------------|-------------------------|
+/// | neither            |               6 / 150  |                41 / 64  |
+/// | `process::id` only |               7 / 150  |                 0 / 64  |
+/// | counter only       |               0 / 150  |                29 / 64  |
+/// | both               |               0 / 150  |                 0 / 64  |
+///
+/// The counter separates the THREADS of one run -- six tests here call
+/// `emit("gen-verilog")`, so six writers share one path. The pid separates
+/// concurrent RUNS, which is not hypothetical: two agents, two worktrees, or a
+/// `cargo test` beside a manual run all share `$TMPDIR`.
+///
+/// `tri harness scratch` advises "an AtomicUsize counter, not the pid". The
+/// first half is right and the second is what the middle row of that table
+/// costs.
+fn unique() -> String {
+    static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    format!(
+        "{}-{}",
+        std::process::id(),
+        N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    )
+}
+
 fn emit(subcommand: &str) -> String {
     let bin = env!("CARGO_BIN_EXE_t27c");
     // Keyed by subcommand: `icarus-simulate` writes its scratch file into the
     // shared temp dir under the spec's BASENAME, so two probes sharing a stem
     // overwrite each other's Verilog.
-    let spec_path = std::env::temp_dir().join(format!("t27_real_arith_{subcommand}.t27"));
+    let spec_path = std::env::temp_dir().join(format!("t27_real_arith_{subcommand}_{}.t27", unique()));
     let mut f = std::fs::File::create(&spec_path).expect("create probe spec");
     f.write_all(SPEC.as_bytes()).expect("write probe spec");
     drop(f);
@@ -191,7 +218,7 @@ fn integer_given_binding_is_still_a_reg() {
 #[test]
 fn the_specs_own_tests_pass_under_the_simulator() {
     let bin = env!("CARGO_BIN_EXE_t27c");
-    let spec_path = std::env::temp_dir().join("t27_real_arith_sim.t27");
+    let spec_path = std::env::temp_dir().join(format!("t27_real_arith_sim_{}.t27", unique()));
     let mut f = std::fs::File::create(&spec_path).expect("create probe spec");
     f.write_all(SPEC.as_bytes()).expect("write probe spec");
     drop(f);
