@@ -51,6 +51,20 @@ jobs:
         # ring tree and executes the workflow step under GitHub's shell flags.
         run: python3 scripts/ci/test_rings_matrix_refuses_an_empty_population.py
 
+      - name: No hook invents an issue number from a branch name
+        # #3071. `(issue-|#)?[0-9]+` with the prefix OPTIONAL gave 1048 of this
+        # repository's 1294 branches an issue number they do not carry, while
+        # ZERO branches use the documented `issue-N` form. Runs here: pure bash
+        # and git, no compiler.
+        run: python3 scripts/ci/test_hooks_do_not_invent_an_issue_number.py
+
+      - name: The published catalog table still matches the tree
+        # #3079. P17 published a seven-row table of what catalog-gate checks; the
+        # catalog has since gone 83 -> 109 records, one listed check was renamed
+        # away, and three unlisted ones run. Pure grep, no compiler: the
+        # mandatory-field population is exactly `grep -c 'CATALOG:'`.
+        run: python3 scripts/ci/test_catalog_table_matches_the_gate.py
+
       - name: No untrusted event data interpolated into shell
         run: python3 scripts/ci/check_untrusted_shell_interp.py
 

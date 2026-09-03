@@ -40,6 +40,7 @@ mod skillnum;
 mod scratch;
 mod seals;
 mod sweep;
+mod topic;
 mod types_dup;
 mod vectors;
 mod gendet;
@@ -219,6 +220,15 @@ enum Commands {
     Types {
         #[command(subcommand)]
         action: types_dup::TypesCmd,
+    },
+    /// Has anyone already done this, or are they doing it now?
+    Topic {
+        /// Words to look for. A row matches on any; rows carrying more come first.
+        #[arg(required = true)]
+        keywords: Vec<String>,
+        /// How many recent commits on the base branch to read.
+        #[arg(long, default_value = "40")]
+        commits: usize,
     },
     /// Every quantified clause, its binders, and the size of its domain.
     Quantifiers {
@@ -1000,6 +1010,7 @@ fn main() -> Result<()> {
             fmtmine::run(&find_trinity_root()?, package.as_deref(), *dry_run)?
         }
         Commands::Types { action } => types_dup::run(action)?,
+        Commands::Topic { keywords, commits } => topic::run(keywords, *commits)?,
         Commands::Quantifiers { action } => quant::run(action)?,
         Commands::Orphaned { action } => orphaned::run(action)?,
         Commands::Discard { action } => discard::run(action)?,

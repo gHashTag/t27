@@ -1713,6 +1713,30 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
     specs.sort();
     if limit > 0 && specs.len() > limit { specs.truncate(limit); }
 
+    // THE SAME GUARD `run_corpus` HAS, ON THE SAME WALKER (#3077).
+    //
+    // Five hundred lines up, `run_corpus` refuses a population of zero, with a
+    // comment stating the rule: "the guard is on the count and not on the path",
+    // because a directory that does not exist and a directory with no specs in
+    // it reach the walker identically -- `read_dir(..).else { continue }`.
+    //
+    // This function walks with the same loop and had no such guard, so a
+    // mistyped --specs-dir produced a table of zeros and exit 0. A histogram of
+    // first-error classes over nothing is not a smaller histogram; it is the
+    // shape of one.
+    if specs.is_empty() {
+        println!();
+        // Named for the SUBCOMMAND a user typed, not for the function. `run_depth`
+        // is dispatched by `t27c backlog`; a refusal saying "depth" sends the
+        // reader to `t27c depth`, which is a different command taking a file.
+        println!("  backlog: REFUSED -- no .t27 spec was found under {specs_dir:?}.");
+        println!("  Every column below would be 0 because nothing was asked, not");
+        println!("  because nothing was found, and the two are indistinguishable");
+        println!("  once printed. Check the --specs-dir path. Exit code 2.");
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        std::process::exit(2);
+    }
+
     let mut clean = 0usize;
     let mut no_gen = 0usize;
     // #3025: `no_gen` used to count FIVE things -- an unspawnable tool, a full

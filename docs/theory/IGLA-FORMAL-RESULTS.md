@@ -4250,6 +4250,42 @@ the codegen reads from the AST".
 **Consequence: nothing the compiler does can check any of it.** 83 records, 0
 checks, until this wave. `t27c catalog-gate`:
 
+> **RE-TAKEN AT `15ac5b5b1` AND EVERY ROW HAS MOVED.** The table below is the W602
+> reading and is kept as one. Today the catalog holds **109** records, not 83 --
+> `grep -c 'CATALOG:' specs/numeric/formats_catalog.t27`, which is an exact
+> re-take because `mandatory-field` is bumped once per parsed record with no
+> predicate. Two commits did it: 83 -> 92 at `08adcc39f` ("register the GF-T
+> ladder in the catalog SSOT, all nine rungs") and 92 -> 109 at `b92872507`.
+>
+> | Check | W602 | `15ac5b5b1` |
+> |---|---:|---:|
+> | `mandatory-field` | 83 | **109** |
+> | `widths-partition` | 65 | **91** |
+> | `gf-closed-form` | 21 | **30** |
+> | `gf-ratio-optimal` | 21 | **30** |
+> | `gf-phi-distance` | 21 | **30** |
+> | `source-agrees` | 10 | **36** |
+> | `no-spurious-layout` | 10 | **the check no longer exists** |
+>
+> `no-spurious-layout` was replaced by `fields-fit-concrete-width` in the W603
+> correction above; `grep -rn no-spurious-layout --exclude-dir=target` hits only
+> this document and the two W602/W603 reports, never the source. Three checks the
+> table has no row for run today: `emitted-agrees` (436), `getter-parity`, and
+> `gf-rule-unstated` (17). The gf rows moved for a reason, not by drift: since
+> #2792 the phi checks are gated on `rule=phi-ratio` rather than on
+> `cluster=GoldenFloat`, so their population is 30 and the 17 GoldenFloat records
+> that state no rule are reported separately instead of silently included.
+>
+> **The findings column is the sharpest part.** It publishes six zeros and one 5.
+> Today the gate reports **3 findings** and **exits non-zero** -- `getter-parity`
+> (109 records against 83 getters), `fields-fit-concrete-width` (gfternary), and
+> `gf-rule-unstated`. A reader auditing the catalog against this table would look
+> for the wrong checks over the wrong populations and conclude it is clean.
+>
+> The repository already contradicted itself in a single build: the command's own
+> help string at `bootstrap/src/main.rs:405` was updated to "whose **109** records
+> live in structured comments", while this table and T397 below both still said 83.
+
 | Check | Population | Findings |
 |---|---:|---:|
 | `mandatory-field` | 83 | 0 |
@@ -16964,8 +17000,11 @@ not implementation, is the source of truth."* It is now a `.t27` module.
 
 ### T397 — the catalogue gate finds a defect in the programme's own headline format
 
-`t27c catalog-gate` checks the 83-record numeric catalogue: 83 mandatory-field
-records, 332 numeric fields compared. **One finding:**
+`t27c catalog-gate` checks the numeric catalogue. **As written, W603: 83
+mandatory-field records, 332 numeric fields compared.** Re-taken at `15ac5b5b1`:
+**109** records and **436** fields, with three findings rather than one -- the
+figure below is the W603 reading and P17 above carries the current table.
+**One finding, as of W603:**
 
 ```
 [fields-fit-concrete-width] gfternary: bits=2 is concrete,
