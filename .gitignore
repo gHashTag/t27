@@ -39,19 +39,23 @@ tmp/
 .trinity/queues/
 #.trinity/events/ # Keeping events might be okay if they are small, but they grow.
 
-<<<<<<< Updated upstream
 # Python cache
 __pycache__/
 *.pyc
-=======
-# Keep notebook gate files tracked (L7 UNITY requirement)
-!.trinity/current_task/.notebook_id
-!.trinity/current_task/notebook_meta.json
 
-# But not local session data and bypass logs
-.trinity/current_task/session_log.jsonl
-.trinity/gate_bypasses.log
->>>>>>> Stashed changes
+# Coq build byproducts (proofs/**); Rust build byproducts left outside target/
+*.aux
+*.glob
+*.rlib
+/t27c-built
+
+# The three conflict markers that stood here were COMMITTED, at HEAD, unresolved
+# ("<<<<<<< Updated upstream" / "=======" / ">>>>>>> Stashed changes"). git does
+# not parse them: each was read as a literal pathspec, so the file kept working
+# and nothing went red for however long it stood. Both sides are kept -- the
+# upstream side is the three lines above, and the stashed side was character-for-
+# character the "NotebookLM Gate" block that already appears below, so resolving
+# it means deleting the duplicate, not choosing between them.
 
 # Specific project paths (vendored upstream lives under external/)
 external/opencode/dist/
@@ -71,3 +75,12 @@ bootstrap/.trinity/
 docker/wi_authentication_key
 docker/FPGAs_AdaptiveSoCs_Unified_SDI_*.bin
 docker/Xilinx_Unified_*.bin
+
+# index_drift_scan.py's ratchet reference. Deliberately NOT tracked: it records
+# which disk-vs-index disagreements were already present on ONE machine (here,
+# 44 .trinity/seals case foldings that only exist because core.ignorecase=true,
+# plus untracked Coq build outputs). None of that can occur on a fresh checkout,
+# so committing it would hand every other clone one laptop's residue as the
+# accepted state. The tool refuses to write one without --init, so an untracked
+# baseline cannot silently re-mint itself (Prop. 211).
+formal/index_drift_baseline.txt
