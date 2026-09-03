@@ -74,7 +74,23 @@ fi
 
 # Extract issue number from branch name for targeted sync
 BRANCH_NAME=$(git branch --show-current)
-ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '(issue-|#)?[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
+# THE PREFIX IS REQUIRED (#3071).
+#
+# This read `(issue-|#)?[0-9]+` -- the prefix OPTIONAL -- so any digits anywhere
+# in a branch name became an issue number. Measured over every branch in this
+# repository, local and remote: 1294 examined, **1048 given a number the branch
+# does not carry**, and **0** branches actually using the `issue-N` or `#N` form
+# the comment documents. `w42-status-ruler`, `w42-tri-vsim`, `w42-verilog-break`
+# and `w42-vsim-unknown` all answer #42, which is a WAVE number.
+#
+# The documented population is empty and the optional prefix turned that
+# emptiness into 1048 confident wrong answers. Nothing visible went wrong only
+# because the sync these feed cannot run at all (see PY below).
+#
+# With the prefix required, the three documented forms still work --
+# `issue-357-xyz` -> 357, `feature/issue-42` -> 42, `#1031-topic` -> 1031 --
+# and a `wNN-` branch correctly yields nothing.
+ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '(issue-|#)[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
 
 # Run sync on interval or spec change
 if [ $((COMMIT_COUNT % SYNC_INTERVAL)) -eq 0 ] || [ "$SPEC_CHANGED" -eq 1 ]; then

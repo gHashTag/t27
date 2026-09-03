@@ -43,6 +43,13 @@ jobs:
         # it needs no Coq toolchain: the test builds its own two-file tree.
         run: python3 scripts/ci/test_admitted_gate_reads_both_files.py
 
+      - name: No hook invents an issue number from a branch name
+        # #3071. `(issue-|#)?[0-9]+` with the prefix OPTIONAL gave 1048 of this
+        # repository's 1294 branches an issue number they do not carry, while
+        # ZERO branches use the documented `issue-N` form. Runs here: pure bash
+        # and git, no compiler.
+        run: python3 scripts/ci/test_hooks_do_not_invent_an_issue_number.py
+
       - name: No untrusted event data interpolated into shell
         run: python3 scripts/ci/check_untrusted_shell_interp.py
 
