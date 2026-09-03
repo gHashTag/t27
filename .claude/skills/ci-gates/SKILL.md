@@ -11820,3 +11820,95 @@ precondition the immediately preceding step**, rather than to reason about how
 long it stays satisfied. That is the same argument as re-sealing in the commit
 that moved the output (§211), and as taking the corpus reading with the binary
 you just built rather than the one on disk (§385).
+
+## 457. A figure over a sliding population is stale by construction
+
+Seven headline figures published in this session, one per merged pull request, read
+again hours later. **Three had moved**, and all three stand over a population that is a
+QUERY rather than a set:
+
+| figure | published | hours later | population |
+|---|---|---|---|
+| L1 vocabulary, local against the gates' | 4 / 33 | **3 / 37** | the last 20 commits |
+| `tri skill claims` figures / instruments / free | 121 / 40 / 116 | **126 / 44 / 121** | the skill itself grows |
+| `tri issues numbers` population | 288 | **287** | the live backlog |
+| `tri gates empty` | 5 of 36 | unchanged | workflow files -- FIXED |
+| `tri quantifiers report` | 119 / 308 / 472 | unchanged | the corpus -- FIXED |
+| `tri gates sweep` verdicts | 1 | unchanged | `tools/` -- FIXED |
+
+"The last 20 commits on master" is not a set; it is a query whose answer changes on
+every push. **The CLAIM survives -- the local vocabulary really does see a fraction of
+what the gates accept -- and the NUMBER does not.** Re-measuring such a figure is not a
+second reading of the same population; it is a first reading of a different one, which
+is §431 arriving from a third direction.
+
+**Measured across the skill, on top of `c039ebebe` and including this section and the
+next:** 422 numbered sections, **14** describe a windowed population (`last N
+commits/runs/prs/issues`, `--limit`, `per_page=`, `master run`, `open issue`). Before
+these two were written it was 12 of 420 -- **the figure moved because writing it moved
+the population**, which is the rule demonstrating itself and the reason the commit is
+named here instead of the word "currently". `tri skill claims --windowed` lists them.
+
+Among the twelve is **§179, whose title is the rule**: *"A `--limit` on a run list is a
+time window in disguise"*. §439 is mine, two days old, and is the 4-against-33 row above.
+So the cure is not another lesson -- the lesson exists, is named, and is cited. It is
+that **the anchor is part of the number**: write *"over the 20 commits ending at
+`c039ebebe`"*, not *"over the last 20"*.
+
+**The anchor count is an upper bound, and saying so cost one section.** The rule asks
+"does this section name a revision or an ISO date anywhere", which is necessary but not
+sufficient. Over the twelve that existed before these two sections it reported **3**;
+all three were read by hand and one does not survive. (With these two it reports 5 of
+14, and both of the new ones are anchored on purpose.)
+§125 says *"checks have not fired since 2026-08-24 11:06"* -- a date that anchors the
+CLAIM, while the window it actually read was "the last 10, then 60 runs" and is dated
+nowhere. A section the rule rejects is definitely unanchored; a section it accepts merely
+might be. No lower bound is claimed, because tying the date to the query needs a rule
+this does not have.
+
+A looser matcher keyed on the word **today** fires on **28 further sections** that state
+no window at all. It is excluded as a matcher describing its input -- with that count
+printed rather than dropped.
+
+## 458. A new rule nested inside an old filter inherits the old filter's population
+
+The windowed-figure rule above was written into `tri skill claims`, which already walks
+every section and keeps the ones whose HEADING states a figure (§455). Placing the new
+check after that filter was the obvious edit and it was wrong:
+
+```
+nested inside the figure filter    4 of 126
+above it, over every section      12 of 420
+```
+
+Neither number is an error. They answer different questions, and only one of them is the
+question the rule was written to ask. The filter reads the heading, so a section that
+argues about a window without putting a digit in its title never reached the check --
+and **the section it dropped was §179, whose title IS the rule**: *"A `--limit` on a run
+list is a time window in disguise"*.
+
+The tell was cheap and it was available before the code: a hand count over the sections
+said twelve, the build said four, and the gap was not a bug in either reader. **A
+disagreement between a hand count and a fresh matcher is a population question first and
+a logic question second.** Four earlier failures in this file were the same shape from
+the other side -- §448 compared truncated titles four times before subtracting sets.
+
+Read on `c039ebebe`, 2026-09-03. The anchor is here because the section above says it
+must be, and because this count moves the moment anyone adds a section -- as adding this
+one did.
+
+The fix is three lines and the discipline is one: when a rule is added beside an existing
+one, state which population it walks, and if that population is narrower than the
+subject of the claim, hoist the rule out. `tri skill claims` now prints both counts on
+adjacent lines, `12 (of ALL 420 sections, not of the 126)`, so neither can stand alone.
+
+The test that would have caught it does not need the corpus. It asserts the two rules
+disagree on one string:
+
+```rust
+let title = "A `--limit` on a run list is a time window in disguise";
+assert!(!states_a_figure(title));       // the filter drops it
+assert!(!window_markers(title).is_empty());  // the rule needs it
+```
+
+If that heading ever gains a digit the test says so, rather than quietly proving nothing.
