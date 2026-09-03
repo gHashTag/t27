@@ -12727,6 +12727,62 @@ covered this branch, which is the same fact the docstring got wrong, restated in
 form that fails if someone deletes it.
 
 
+<<<<<<< HEAD
+## 479. An optional qualifier over an empty population
+
+`grep -oE '(issue-|#)?[0-9]+'` extracts an issue number from a branch name. The
+comment above it says `feature/issue-357-xyz -> 357`, and it does that
+correctly. Measured over every branch in this repository, local and remote:
+
+    branches examined                 1294
+    given a number by that matcher    1048
+    branches carrying `issue-N`/`#N`     0
+    branches named `wNN-`              140
+
+**Zero.** The form the parser documents has never once been used here. `wNN-` is
+the convention, and `w42-status-ruler`, `w42-tri-vsim`, `w42-verilog-break` and
+`w42-vsim-unknown` all answer **#42** -- a wave number wearing an issue's name.
+
+The `?` is the whole defect. Without it the matcher would have answered nothing,
+1294 times, and someone would have noticed within a day that the feature was
+dead. With it, the empty population became **1048 confident wrong answers**, and
+the parser looked like it was working every single time.
+
+The general form, and it is not about regexes: **an optional qualifier is a
+promise that the unqualified case is still meaningful.** When the qualified
+population turns out to be empty, that promise is the only thing left, and it is
+false. Before writing `?`, `unwrap_or`, a default arm, or a fallback branch, ask
+what fraction of real inputs will take it -- and if the answer is "all of them",
+the fallback is not a fallback, it is the implementation.
+
+Nothing visibly broke, which is the second half. The number feeds a `sync.py
+--issue N` call that cannot run: three sites hard-code `python3.10`, absent on
+this host while `python3` is 3.14.3. Each failed into an `|| echo` blaming
+CONFIGURATION, and the output contradicted itself two lines apart --
+`Could not update metadata`, then `Metadata updated`, then `Post-merge
+complete`. **A broken feature hid a wrong answer**: had the sync worked, 1048
+branches would have written to arbitrary notebooks.
+
+Two neighbours from the same hour, same family. `rings_matrix.py` returns `[]`
+when no directory matches `ring-*-rust` with a `Cargo.toml`, and the workflow
+guards its build job with `if: needs.discover.outputs.count != '0'` -- so an
+empty matrix SKIPS the build, **and a skipped job is green**. The commit that
+renames the crates matches that workflow's own `paths:` filter, runs it, and
+collects a tick for compiling nothing. And in the test written for it, emptying
+`$GITHUB_OUTPUT` instead of pointing it at a file made all three defect arms
+fail on the wrong line and *pass*; the control asserting SUCCESS on a real tree
+is what caught it.
+
+Prior art, looked up rather than assumed: **pytest reserves exit code 5 for
+"No tests were collected"**, a public-API outcome distinct from 1 (tests
+failed), 2 (interrupted), 3 (internal error) and 4 (usage error) -- and tools
+like Pants ship a flag to treat it as success, which is itself proof the
+distinction matters enough to argue about. This repository has converged on
+**2 for everything that is not a reading**, which is coarser than the field's by
+one distinction: *the instrument is missing* and *the population is empty* share
+a code here and have different codes there. Worth knowing before the next gate
+picks a number.
+=======
 ## 479. The check said no and I pushed anyway
 
 Two things happened an hour apart, and only the second one is a lesson.
@@ -12770,3 +12826,4 @@ in this file about a gate reporting the wrong subject is about a machine doing
 it. This one is about me: the instrument was correct, its message was correct,
 and the failure was entirely in the reading. **Instruments that only print are
 sized for a reader who is not tired.**
+>>>>>>> origin/master
