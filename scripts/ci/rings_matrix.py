@@ -41,6 +41,43 @@ def discover(repo_root: Path) -> list[dict[str, str]]:
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     include = discover(repo_root)
+
+    # AN EMPTY MATRIX IS NOT A CLEAN BUILD (#3069).
+    #
+    # `discover` drops a directory on three conditions -- the name must start
+    # `ring-`, end `-rust`, and hold a `Cargo.toml` -- and every one of them is a
+    # rename away. With the matrix empty the workflow does not fail: the build
+    # job is guarded by `if: needs.discover.outputs.count != '0'`, a SKIPPED job
+    # is green, and the whole run concludes success having compiled nothing.
+    #
+    # The trigger is not hypothetical. `.github/workflows/rings-rust.yml` filters
+    # on `rings/ring-*-rust/**`, so the very commit that renames the crates
+    # matches the filter, RUNS this workflow, and gets a green tick for it.
+    #
+    # This file has been here before. Its workflow's own header records seven
+    # master runs between 2026-05-23 and 2026-08-20 in which all 17 crate jobs
+    # failed and every run concluded `success`, because the summary printed a
+    # COUNT and never read what the matrix had measured. That door was closed
+    # per job; this is the same door one step earlier, at the matrix itself.
+    #
+    # Exit 2, not 1: nothing failed to compile, the population was never built.
+    # `t27c corpus` refuses a spec tree with no specs the same way, `scripts/tri`
+    # uses 2 for an unbuilt compiler, and pytest reserves a code of its own --
+    # 5, "No tests were collected" -- for exactly this outcome.
+    if not include:
+        rings_dir = repo_root / "rings"
+        print(
+            f"rings_matrix: REFUSED -- no ring-*-rust crate with a Cargo.toml under "
+            f"{rings_dir}.\n"
+            "  Nothing was compiled and nothing failed to compile: the matrix is empty,\n"
+            "  the build job would be SKIPPED, and a skipped job reads as green.\n"
+            "  If the crates were renamed or removed on purpose, update this script and\n"
+            "  the `paths:` filter in .github/workflows/rings-rust.yml in the same commit.\n"
+            "  Exit code 2 = could not take a reading, not a failed build.",
+            file=sys.stderr,
+        )
+        return 2
+
     matrix = {"include": include}
     out = json.dumps(matrix, separators=(",", ":"))
     # GitHub Actions consumes `matrix=...` on a single line.
