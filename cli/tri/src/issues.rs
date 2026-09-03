@@ -41,9 +41,17 @@ pub enum IssuesCmd {
         /// Print a systematic sample of this size. 0 prints only the population.
         #[arg(long, default_value_t = 0)]
         sample: usize,
-        /// How many open issues to read.
+        /// How many issues to read. The read is a LOWER BOUND when this many
+        /// come back -- the output says so rather than presenting a page as a
+        /// total.
         #[arg(long, default_value_t = 500)]
         limit: usize,
+        /// Count the backlog as it stood at the END of this UTC day
+        /// (`YYYY-MM-DD`), instead of now. Without it the population is a
+        /// query whose answer changes on every open and close, and the number
+        /// cannot be re-taken by a second reader.
+        #[arg(long)]
+        as_of: Option<String>,
     },
     /// Open issues whose figure is ANCHORED, so re-measuring it proves nothing.
     Dated {
@@ -407,24 +415,89 @@ pub fn carries(title: &str) -> Carries {
     }
 }
 
+/// Was this issue open at `instant`?
+///
+/// Both timestamps come from GitHub as ISO-8601 with a `Z` suffix, and such strings
+/// compare lexicographically in chronological order -- so this needs no date library
+/// and cannot drift from one. An issue with no `closedAt` is open now and was open
+/// then, provided it existed.
+///
+/// The empty-`created` case returns false rather than defaulting to open: a row whose
+/// creation time did not arrive is a row this cannot classify, and guessing would put
+/// it in the population silently.
+pub fn open_at(created: &str, closed: &str, instant: &str) -> bool {
+    if created.is_empty() || created > instant {
+        return false;
+    }
+    closed.is_empty() || closed > instant
+}
+
+/// `YYYY-MM-DD` to the last instant of that UTC day.
+///
+/// The END of the day, not the start, because that is what GitHub's own search means
+/// by `created:<=2026-08-01` -- a bare date there covers the whole day. Two tools
+/// answering the same question must mean the same thing by the same date, or the
+/// second reader gets a different number and blames the first.
+///
+/// The shape check is `skillnum::is_iso_date`, the rule already mutation-proved for
+/// the skill anchors, rather than a second copy of the same ten conjuncts here.
+pub fn instant_of(date: &str) -> Result<String> {
+    let c: Vec<char> = date.chars().collect();
+    if c.len() != 10 || !crate::skillnum::is_iso_date(&c) {
+        anyhow::bail!(
+            "--as-of wants YYYY-MM-DD and got `{date}`. A date this cannot read is \
+             refused rather than silently treated as today, which would print a \
+             number over the wrong population under an anchor that looks right."
+        );
+    }
+    Ok(format!("{date}T23:59:59Z"))
+}
+
+/// Did the read reach the end, or did it fill the page?
+///
+/// `gh` returns at most `--limit` rows and says nothing about what it left behind, so
+/// a FULL page is a lower bound and anything short of one is complete. The boundary is
+/// the whole content of this function: at exactly `limit` rows there may or may not be
+/// more, and the honest answer is that this cannot tell -- so it reports incomplete.
+pub fn read_is_complete(returned: usize, limit: usize) -> bool {
+    returned < limit
+}
+
 /// The population of re-measurable open issues, and a reproducible sample of it.
 ///
 /// A rate is only worth taking if the same sample can be taken again, so the
 /// sample is SYSTEMATIC -- every k-th issue by ascending number -- rather than
 /// chosen. Nothing here is random: run it next month and the overlap is exact
 /// wherever the backlog has not moved.
-fn numbers(sample: usize, limit: usize, single: bool) -> Result<()> {
+fn numbers(sample: usize, limit: usize, single: bool, as_of: Option<&str>) -> Result<()> {
     let lim = limit.to_string();
-    let raw = gh(&[
-        "issue",
-        "list",
-        "--state",
-        "open",
-        "--limit",
-        &lim,
-        "--json",
-        "number,title",
-    ])?;
+    let instant = as_of.map(instant_of).transpose()?;
+    // With --as-of the state filter has to come off: an issue open THEN may be
+    // closed NOW, and `--state open` would drop exactly the ones that make the two
+    // readings differ. The filtering is done here from the timestamps instead.
+    let raw = if instant.is_some() {
+        gh(&[
+            "issue",
+            "list",
+            "--state",
+            "all",
+            "--limit",
+            &lim,
+            "--json",
+            "number,title,createdAt,closedAt",
+        ])?
+    } else {
+        gh(&[
+            "issue",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            &lim,
+            "--json",
+            "number,title",
+        ])?
+    };
     let v: serde_json::Value = serde_json::from_str(&raw).context("gh returned no JSON")?;
     let arr = v.as_array().cloned().unwrap_or_default();
     if arr.is_empty() {
@@ -433,8 +506,22 @@ fn numbers(sample: usize, limit: usize, single: bool) -> Result<()> {
              did not run print the same zero."
         );
     }
+    // Whether the READ is complete is a different question from what it contains,
+    // and it has to be asked before any total is printed. `gh` returns at most
+    // --limit rows and says nothing about what it left behind, so a full page is a
+    // LOWER BOUND. Measured 2026-09-03: 486 open against a default limit of 500 --
+    // fourteen issues from printing a page as a census, in silence.
+    let complete = read_is_complete(arr.len(), limit);
     let mut rows: Vec<(u64, String, Carries)> = arr
         .iter()
+        .filter(|i| match instant.as_deref() {
+            None => true,
+            Some(t) => open_at(
+                i["createdAt"].as_str().unwrap_or(""),
+                i["closedAt"].as_str().unwrap_or(""),
+                t,
+            ),
+        })
         .map(|i| {
             let n = i["number"].as_u64().unwrap_or(0);
             let t = i["title"].as_str().unwrap_or("").to_string();
@@ -450,7 +537,25 @@ fn numbers(sample: usize, limit: usize, single: bool) -> Result<()> {
         .filter(|r| matches!(r.2, Carries::Digits | Carries::Words | Carries::Both))
         .collect();
 
-    println!("OPEN ISSUES THAT STATE A COUNT IN THE TITLE\n");
+    match instant.as_deref() {
+        Some(t) => println!(
+            "OPEN ISSUES THAT STATE A COUNT IN THE TITLE, AS OF {t}\n\n  \
+             This reading is ANCHORED: the population is the set of issues created\n  \
+             at or before {t} and not closed by then, which does not move. Run it\n  \
+             again next month and every number below is the same.\n"
+        ),
+        None => println!(
+            "OPEN ISSUES THAT STATE A COUNT IN THE TITLE\n\n  \
+             This reading is NOT anchored: `open issues` is a query, not a set, and\n  \
+             its answer changes on every open and close. Pass --as-of YYYY-MM-DD to\n  \
+             take a number a second reader can take again.\n"
+        ),
+    }
+    if complete {
+        println!("  issues read from gh           {}   (fewer than the --limit of {limit}, so the read is COMPLETE)", arr.len());
+    } else {
+        println!("  issues read from gh           {}   *** EQUALS the --limit of {limit}: this is a LOWER BOUND, not a total. Raise --limit and read again. ***", arr.len());
+    }
     println!("  open issues read              {}", rows.len());
     println!("  count in digits only          {}", c(Carries::Digits));
     println!("  count in words only           {}", c(Carries::Words));
@@ -569,7 +674,8 @@ pub fn run(cmd: &IssuesCmd) -> Result<()> {
             sample,
             limit,
             single,
-        } => return numbers(*sample, *limit, *single),
+            as_of,
+        } => return numbers(*sample, *limit, *single, as_of.as_deref()),
         IssuesCmd::Dated { limit, list } => return dated(*limit, *list),
         IssuesCmd::Stale { limit } => limit,
     };
@@ -641,6 +747,9 @@ pub fn run(cmd: &IssuesCmd) -> Result<()> {
     }
 
     println!("OPEN ISSUES THAT CALL A WORKFLOW RED, AND WHAT IT DOES ON MASTER TODAY\n");
+    if !read_is_complete(issues.len(), *limit) {
+        println!("  issues read from gh     {}   *** EQUALS the --limit of {limit}: a LOWER BOUND, not a total. Raise --limit and read again. ***", issues.len());
+    }
     println!("  open issues read        {}", issues.len());
     println!("  workflow files          {}", files.len());
     println!("  titles claiming red     {}", rows.len());
@@ -1066,6 +1175,9 @@ fn dated(limit: usize, list: bool) -> Result<()> {
     let anchored = pop.len() - c(Anchor::Free);
 
     println!("OPEN ISSUES WHOSE FIGURE RE-MEASUREMENT CANNOT JUDGE\n");
+    if !read_is_complete(issues.len(), limit) {
+        println!("  issues read from gh           {}   *** EQUALS the --limit of {limit}: a LOWER BOUND, not a total. Raise --limit and read again. ***", issues.len());
+    }
     println!("  open issues read              {}", issues.len());
     println!("  no figure in the title        {no_figure}");
     println!("  POPULATION (carries a figure) {}", pop.len());
@@ -1241,5 +1353,91 @@ mod single_digit_tests {
                 "{t:?} is in both the population and the excluded set"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod as_of_tests {
+    use super::{instant_of, open_at, read_is_complete};
+
+    const T: &str = "2026-08-01T23:59:59Z";
+
+    /// The probe: the two shapes that ARE open at the instant.
+    #[test]
+    fn an_issue_is_open_then_if_it_existed_and_had_not_closed() {
+        assert!(open_at("2026-07-01T10:00:00Z", "", T), "still open today");
+        assert!(
+            open_at("2026-07-01T10:00:00Z", "2026-09-01T10:00:00Z", T),
+            "closed later, so it was open then"
+        );
+    }
+
+    /// The counter-examples, and the second is the whole reason `--state open` cannot
+    /// be left on the query: an issue closed before the instant is open NOW-negative
+    /// and then-negative, but one closed AFTER it is open then and closed now.
+    #[test]
+    fn it_is_not_open_then_if_it_did_not_exist_or_had_closed() {
+        assert!(!open_at("2026-09-01T10:00:00Z", "", T), "created after");
+        assert!(
+            !open_at("2026-07-01T10:00:00Z", "2026-07-15T10:00:00Z", T),
+            "closed before"
+        );
+    }
+
+    /// Both boundaries are inclusive-of-existing and exclusive-of-surviving, and they
+    /// are opposite: created AT the instant counts as existing, closed AT the instant
+    /// counts as closed. An issue opened and closed in the same second is not open.
+    #[test]
+    fn the_two_boundaries_point_opposite_ways() {
+        assert!(open_at(T, "", T), "created exactly at the instant existed");
+        assert!(!open_at(T, T, T), "closed exactly at the instant is closed");
+    }
+
+    /// A row this cannot classify does not get a default. Guessing "open" would put it
+    /// in the population in silence, which is the failure this whole command is about.
+    #[test]
+    fn a_row_with_no_creation_time_is_not_counted() {
+        assert!(!open_at("", "", T));
+        assert!(!open_at("", "2026-09-01T10:00:00Z", T));
+    }
+
+    #[test]
+    fn a_date_becomes_the_last_instant_of_that_utc_day() {
+        assert_eq!(instant_of("2026-08-01").unwrap(), "2026-08-01T23:59:59Z");
+        assert_eq!(instant_of("2099-12-31").unwrap(), "2099-12-31T23:59:59Z");
+    }
+
+    /// Refused, not defaulted. A date this cannot read must not become "today" under
+    /// a heading that says the reading is anchored.
+    #[test]
+    fn a_date_it_cannot_read_is_refused() {
+        for bad in [
+            "2026-8-1",
+            "01-08-2026",
+            "2026-08-01T00:00:00Z",
+            "",
+            "yesterday",
+        ] {
+            assert!(instant_of(bad).is_err(), "{bad} must be refused");
+        }
+    }
+
+    /// The boundary IS the rule. Measured 2026-09-03: 486 open against a default limit
+    /// of 500, so this is fourteen issues from mattering.
+    #[test]
+    fn a_full_page_is_a_lower_bound_and_a_short_one_is_a_total() {
+        assert!(read_is_complete(486, 500), "short page: complete");
+        assert!(
+            !read_is_complete(500, 500),
+            "full page: cannot tell, so not complete"
+        );
+        assert!(
+            !read_is_complete(501, 500),
+            "over the limit is not complete either"
+        );
+        assert!(
+            read_is_complete(0, 1),
+            "an empty read of a non-zero limit is complete"
+        );
     }
 }

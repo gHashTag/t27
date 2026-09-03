@@ -1535,6 +1535,10 @@ fn prs(repo: Option<&str>) -> Result<()> {
         "--state",
         "open",
         "--limit",
+        // A hard 50 with no flag: 10 open at 2026-09-03T16:35Z, so it does not
+        // bite -- and when it does it will bite in silence unless the read says
+        // whether it reached the end. The check below is why the constant can
+        // stay a constant.
         "50",
         "--json",
         "number,title,mergeable",
@@ -1561,6 +1565,13 @@ fn prs(repo: Option<&str>) -> Result<()> {
         return Ok(());
     }
 
+    if !crate::issues::read_is_complete(items.len(), 50) {
+        println!(
+            "*** {} open PRs came back and the query asked for 50: this is a LOWER \
+             BOUND, not the open set. ***",
+            items.len()
+        );
+    }
     println!(
         "{:<7} {:<13} {:>7}  {}",
         "pr", "mergeable", "checks", "title"

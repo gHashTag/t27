@@ -12029,3 +12029,77 @@ renaming a required check. A reader who matches file name to subject opens the w
 file, finds a shape checker, and concludes the freshness gate does not run. That has
 already happened, in this loop's own notes. Both files now say so in their first ten
 lines, which costs nothing and is the whole fix available.
+
+## 461. A count over a live backlog is a clock reading nobody wrote down
+
+`tri issues numbers` printed `486` open issues. That is not a fact about this
+repository; it is a fact about the moment it was asked. Read as of a date one month
+back, the same query answers **140** -- a 3.5x move in 33 days, and nothing in the old
+output says which month it belonged to.
+
+`--as-of YYYY-MM-DD` fixes the population instead of the phrasing. It drops `--state
+open` -- an issue open THEN may be closed NOW, and that filter removes exactly the rows
+that make the two readings differ -- reads `--state all` with `createdAt`/`closedAt`,
+and keeps what was open at the end of that UTC day:
+
+```
+open_at(created, closed, t) = created <= t && (closed is empty || closed > t)
+```
+
+**The two boundaries point opposite ways** and that is the whole rule: created AT the
+instant counts as existing, closed AT the instant counts as closed, so an issue opened
+and closed in the same second is not open. A row with no creation time is not counted
+rather than defaulted to open -- guessing would put it in the population in silence,
+which is the failure the command exists to expose.
+
+**The END of the day, not the start.** GitHub's own search reads a bare date in
+`created:<=2026-08-01` as covering that whole day. Two tools answering the same question
+must mean the same thing by the same date, or the second reader gets a different number
+and blames the first.
+
+**Three independent routes agree on 140:** GitHub search as two queries
+(`created:<=T state:open` 43, plus `created:<=T closed:>T` 97); a full walk of all 1482
+issues computing open-at-T from timestamps; and this command. The first two were run by
+separate readers before the command existed.
+
+A malformed date is **refused, not defaulted**. `--as-of 2026-8-1` errors out, because a
+date the tool cannot read silently becoming "today" would print a number over the wrong
+population under a heading that says the reading is anchored -- worse than no anchor at
+all. The shape check is `skillnum::is_iso_date`, the rule already mutation-proved for
+&sect;459's recovered anchors, not a second copy of the same ten conjuncts.
+
+Without the flag the command now says so in its own first line: *this reading is NOT
+anchored*. The default still answers, because refusing to count today's backlog would
+be a different tool -- but it no longer lets the number pass as a fact.
+
+## 462. `--limit 500` against 486 open issues: fourteen from printing a page as a census
+
+Every `gh`-backed count in this CLI asked for at most `--limit` rows and then printed
+what came back as a total. `gh` returns at most that many and says nothing about what it
+left behind, so **a full page is a lower bound and only a short page is a total**.
+
+Measured `2026-09-03T16:35Z`: **486** open issues against a default `--limit` of
+**500**. Fourteen issues away from every figure this command prints becoming a page, in
+silence, with no line of output different.
+
+The check is one comparison and the boundary is its whole content:
+
+```rust
+pub fn read_is_complete(returned: usize, limit: usize) -> bool { returned < limit }
+```
+
+At exactly `limit` rows there may or may not be more, and the honest answer is that this
+cannot tell -- so it reports incomplete. Mutating `<` to `<=` kills a test; the fixture
+is `(486, 500)` and `(500, 500)`, the live boundary rather than an invented one.
+
+**The class was four call sites, not one.** Grepping `"--limit"` across `cli/tri/src/`
+found `numbers`, `dated`, `stale` and `gates prs` -- and `gates prs` carries a
+**hardcoded 50** with no flag at all (10 open PRs at the time of measuring, so it does
+not bite, and when it does it will bite in silence). Fixing only the command that
+prompted the reading would have left three. Each was then run at its own boundary:
+`--limit 486` prints the LOWER BOUND line, `--limit 487` prints COMPLETE.
+
+This is &sect;457 one level down. There the population was a query and the figure went
+stale; here the population is a query **and the tool does not know whether it saw all of
+it**. An anchor on an incomplete read is worse than none: it says *this number can be
+taken again* about a number that was never the whole thing.
