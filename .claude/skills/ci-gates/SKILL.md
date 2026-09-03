@@ -10975,7 +10975,66 @@ What to add before any measurement over a checkout that is not the main one:
 directory must match `git ls-tree`. A worktree is an instrument, and this one had been
 quietly losing parts.
 
-## 434. Two rules that always fire together are one rule, and neither is tested
+## 434. The pipeline rule is about the LAST command, not about `$?`
+
+Section 428 says: do not put a pipe between a status and `$?`. That is the third
+time this class has been recorded here and the third time I walked into it
+afterwards -- this time without touching `$?` at all:
+
+```
+git apply --check "$patch" | head -3 && echo "    APPLIES"
+```
+
+printed `APPLIES` for two patches that do not apply. `head` succeeded, so `&&`
+fired. The real answer -- `error: bootstrap/stage0/FROZEN_HASH: patch does not
+apply` -- went past on the line I was piping through.
+
+**`$?` was never the subject.** Every shell construct that branches on success
+reads the *last* command of a pipeline: `$?`, `&&`, `||`, `if`, `while`, `until`
+and `set -e`. Naming `$?` made the rule read as a caution about one variable when
+it is a property of pipelines.
+
+The form with no judgement in it: **a command whose exit code you care about does
+not go in a pipeline.**
+
+```
+git apply --check "$patch" > /tmp/out 2>&1
+rc=$?
+head -3 /tmp/out
+```
+
+Redirect, read the code on its own line, then look at the text. Three lines
+instead of one, and it cannot lie. `set -o pipefail` closes the same hole for
+`&&` and `if` where the shell offers it, but not for a `$?` read after a pipeline
+written to be looked at -- so the redirect is the rule and `pipefail` is the belt.
+
+## 435. A verification of applicability is dated, and you are the likeliest person to expire it
+
+I checked two externally-authored patches against `HEAD`, confirmed both applied
+cleanly and that the `FROZEN_HASH` they carry was still valid, and published
+that -- with the correct hedge: *"that stops being true the moment anything else
+edits `compiler.rs`, so whoever picks this up should re-run the two-line check
+rather than trust this paragraph."*
+
+Four hours later it stopped being true, and **I** stopped it: my own pull request
+landed, rewrote the seal, and both patches now fail with
+`bootstrap/stage0/FROZEN_HASH: patch does not apply`.
+
+The hedge was right and was not enough, because a hedge moves the work to a
+reader who may never come. What the situation needs is smaller:
+
+* **Name the commit, not the branch.** "Applies to master" is a claim about a
+  moving target; "applies at `9503515aa`" is a fact.
+* **When you then merge something touching the same files, go back and say so.**
+  You are the one person holding both facts at once. Nobody else is watching for
+  the collision, and the artefact is now a trap with your verification attached.
+
+The tell was not the patches. It was a review agent reporting that the brief's
+premise -- *"`compiler.rs` is byte-identical between X and master"* -- **had
+expired during its own run**. A premise with a date in it can go stale
+mid-measurement.
+
+## 436. Two rules that always fire together are one rule, and neither is tested
 
 `revision_pins` had to tell an abbreviated commit id from a chunk of a float.
 Two counter-examples from the live backlog forced it: `-1.7594823e-05` (#2824)
