@@ -1,7 +1,7 @@
 {
   "gen_hash_c": "sha256:6dcf5c047a260499881acf884f1fb827595c8f70c3a844703585ed812426a965",
   "gen_hash_rust": "sha256:954def57ac19634c34be75da98bf994ce27f803640557de2553aeee2ead342c7",
-  "gen_hash_verilog": "sha256:2c748f867a6fbc5ed6c056a049105cef2be81740dd4574c9a8f83f37653a62ec",
+  "gen_hash_verilog": "sha256:b3db80277da1fb04df35971a571aa5ac42d4ab5e06f83f137295ef2ce54d3dfa",
   "gen_hash_zig": "sha256:4cd65db1abe106eed5726b91c38c0d5e30e2ca39406a4041af7c7c53ba4d7387",
   "module": "triruntime",
   "ring": 12,

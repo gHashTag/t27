@@ -16575,12 +16575,45 @@ impl VerilogCodegen {
         self.write_indent();
         if body_idx > 0 {
             let iterable = &node.children[0];
-            // Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; iter_var = iter_var + 1)
-            self.write_line("// for-each over iterable");
-            self.write_indent();
-            self.write(&format!("for ({} = 0; {} < ", iter_var, iter_var));
-            self.gen_verilog_expr(iterable);
-            self.write(&format!("; {} = {} + 1)", iter_var, iter_var));
+            // #2997: a RANGE is not a bound. Writing the iterable whole put the
+            // range expression where the comparison belongs --
+            // `for (i = 0; i < (0 .. 1000); i = i + 1)` -- which `iverilog`
+            // answers with `syntax error`. 38 specs carried it in the simulation
+            // path and 10 in synthesizable RTL.
+            //
+            // The range is an `ExprBinary` whose `extra_op` is "..", NOT the
+            // `ExprRange` variant: that variant is declared in `NodeKind` and
+            // constructed nowhere, so matching on it matches nothing. #2849
+            // learned that in the C emitter and this is the same test; the
+            // repair did not travel when it was made.
+            let is_range = iterable.kind == NodeKind::ExprBinary
+                && iterable.extra_op == ".."
+                && iterable.children.len() == 2;
+            if is_range {
+                // The counter keeps whatever `collect_fn_loop_vars` DECLARED for
+                // this loop, and nothing else. The C emitter renames a `_`
+                // capture to a reserved name (#2849) and can afford to, because
+                // it declares the counter in the `for` header. Here the
+                // declaration is hoisted to the top of the function body by a
+                // different function, so a rename in one place and not the other
+                // is `register `__t27_i' unknown in …` -- which is what the
+                // first version of this change did, caught by the probe and not
+                // by the corpus, because all 36 carriers already failed to
+                // elaborate for the very defect being repaired.
+                let var = &iter_var;
+                self.write(&format!("for ({var} = "));
+                self.gen_verilog_expr(&iterable.children[0]);
+                self.write(&format!("; {var} < "));
+                self.gen_verilog_expr(&iterable.children[1]);
+                self.write(&format!("; {var} = {var} + 1)"));
+            } else {
+                // Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; iter_var = iter_var + 1)
+                self.write_line("// for-each over iterable");
+                self.write_indent();
+                self.write(&format!("for ({} = 0; {} < ", iter_var, iter_var));
+                self.gen_verilog_expr(iterable);
+                self.write(&format!("; {} = {} + 1)", iter_var, iter_var));
+            }
         } else {
             self.write(&format!("for ({0} = 0; {0} < 1; {0} = {0} + 1)", iter_var));
         }
