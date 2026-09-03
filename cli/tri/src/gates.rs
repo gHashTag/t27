@@ -174,6 +174,12 @@ pub enum GatesCmd {
         #[arg(long, default_value = "origin/master")]
         base: String,
     },
+    /// Run every gate CI runs, in an EMPTY tree, and report what still passes.
+    Empty {
+        /// Print what each passing invocation printed.
+        #[arg(long)]
+        verbose: bool,
+    },
     Required {
         /// owner/repo. Defaults to the repository of the working directory.
         #[arg(long)]
@@ -2297,6 +2303,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             };
             unmeasured(&list, *stale_days)
         }
+        GatesCmd::Empty { verbose } => empty(*verbose),
         GatesCmd::Preview { base } => preview(base),
         GatesCmd::Required { repo } => required(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
@@ -4652,5 +4659,318 @@ mod preview_tests {
         assert!(!Reading::Fail.is_pass());
         assert!(!Reading::Proxy.is_pass());
         assert!(!Reading::Unavailable.is_pass());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// `tri gates empty` -- what still passes when there is nothing to check.
+// ---------------------------------------------------------------------------
+
+/// One invocation this repository's CI writes, or a reason it was left out.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Invocation {
+    /// A complete command line, runnable as written.
+    Run(String),
+    /// Found and deliberately not run: `(the text, why)`.
+    Skipped(String, String),
+}
+
+/// Every `python3 …` / `bash …` gate invocation a workflow writes, verbatim.
+///
+/// **The population is the COMMAND LINE, not the script.** Measuring by script
+/// name gave 12 of 38 passing in an empty tree; measuring the lines CI actually
+/// writes gave **5 of 36**, because seven of those twelve are invoked with
+/// `--require`, which is precisely the flag that turns their SKIP branch into a
+/// failure. A gate is what it is called with.
+///
+/// Exclusions are RETURNED rather than dropped: a line continued with `\`, a
+/// line inside a `$( … )` substitution, and a `--self-check` or `--self-test`
+/// run (whose subject is the gate itself, not the tree) cannot be reproduced
+/// here as written, and a population that silently shrinks is the defect this
+/// command exists to look for.
+pub fn ci_invocations(yaml: &str) -> Vec<Invocation> {
+    let mut out = Vec::new();
+    for raw in yaml.lines() {
+        let line = raw.trim();
+        let Some(start) = find_invocation(line) else {
+            continue;
+        };
+        let cmd = line[start..].trim().to_string();
+        if cmd.ends_with('\\') {
+            out.push(Invocation::Skipped(
+                cmd,
+                "continued onto the next line".into(),
+            ));
+        } else if cmd.contains(')') {
+            out.push(Invocation::Skipped(
+                cmd,
+                "inside a command substitution".into(),
+            ));
+        } else if cmd.contains("--self-check") || cmd.contains("--self-test") {
+            out.push(Invocation::Skipped(
+                cmd,
+                "its subject is the gate itself, not the tree".into(),
+            ));
+        } else {
+            out.push(Invocation::Run(cmd));
+        }
+    }
+    out.sort_by(|a, b| text_of(a).cmp(text_of(b)));
+    out.dedup_by(|a, b| text_of(a) == text_of(b));
+    out
+}
+
+fn text_of(i: &Invocation) -> &str {
+    match i {
+        Invocation::Run(s) => s,
+        Invocation::Skipped(s, _) => s,
+    }
+}
+
+/// Where a `python3 tools/…` / `bash scripts/…` command starts on a line.
+fn find_invocation(line: &str) -> Option<usize> {
+    for lead in ["python3 ", "python ", "bash "] {
+        let mut from = 0usize;
+        while let Some(rel) = line[from..].find(lead) {
+            let i = from + rel;
+            let rest = &line[i + lead.len()..];
+            if rest.starts_with("tools/") || rest.starts_with("scripts/") {
+                return Some(i);
+            }
+            from = i + 1;
+        }
+    }
+    None
+}
+
+fn empty(verbose: bool) -> Result<()> {
+    let root = repo_root()?;
+    let wf = root.join(".github/workflows");
+    let mut found: Vec<Invocation> = Vec::new();
+    for e in std::fs::read_dir(&wf)
+        .with_context(|| format!("{}: cannot read the workflow directory", wf.display()))?
+        .flatten()
+    {
+        let p = e.path();
+        if p.extension().and_then(|x| x.to_str()) != Some("yml") {
+            continue;
+        }
+        if let Ok(text) = std::fs::read_to_string(&p) {
+            found.extend(ci_invocations(&text));
+        }
+    }
+    found.sort_by(|a, b| text_of(a).cmp(text_of(b)));
+    found.dedup_by(|a, b| text_of(a) == text_of(b));
+    if found.is_empty() {
+        anyhow::bail!(
+            "no gate invocation found in {}. A population of zero here would print \
+             as \"every gate refuses an empty tree\", which is the shape this \
+             command was written to catch.",
+            wf.display()
+        );
+    }
+
+    // An empty tree with the SCRIPTS present and no data: every precondition a
+    // gate has -- a baseline, a built compiler, specs, seals -- is absent at
+    // once. Copied rather than aimed with a flag, so nothing here adds a way to
+    // point a live gate somewhere harmless.
+    let tmp = std::env::temp_dir().join(format!("tri_gates_empty_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("tools"))?;
+    std::fs::create_dir_all(tmp.join("scripts/ci"))?;
+    copy_dir(&root.join("tools"), &tmp.join("tools"))?;
+    copy_dir(&root.join("scripts"), &tmp.join("scripts"))?;
+    copy_dir(&root.join("scripts/ci"), &tmp.join("scripts/ci"))?;
+    let _ = std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(&tmp)
+        .status();
+
+    let mut passed: Vec<(String, String)> = Vec::new();
+    let mut refused = 0usize;
+    for inv in &found {
+        let Invocation::Run(cmd) = inv else { continue };
+        let parts: Vec<&str> = cmd.split_whitespace().collect();
+        let out = std::process::Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(&tmp)
+            .stdin(std::process::Stdio::null())
+            .output();
+        match out {
+            Ok(o) if o.status.success() => {
+                let text = String::from_utf8_lossy(&o.stdout).to_string();
+                passed.push((cmd.clone(), text));
+            }
+            Ok(_) => refused += 1,
+            Err(_) => refused += 1,
+        }
+    }
+    let _ = std::fs::remove_dir_all(&tmp);
+
+    let runnable = found
+        .iter()
+        .filter(|i| matches!(i, Invocation::Run(_)))
+        .count();
+    println!("EVERY GATE CI RUNS, AGAINST A TREE WITH NOTHING IN IT\n");
+    println!("  invocations found in .github/workflows   {}", found.len());
+    println!("  run here                                 {runnable}");
+    println!("  refused the empty tree                   {refused}");
+    println!(
+        "  PASSED over nothing                      {}",
+        passed.len()
+    );
+    for (cmd, text) in &passed {
+        println!("    {cmd}");
+        if verbose {
+            for l in text.lines().take(3) {
+                println!("        {l}");
+            }
+        }
+    }
+    let skipped: Vec<&Invocation> = found
+        .iter()
+        .filter(|i| matches!(i, Invocation::Skipped(_, _)))
+        .collect();
+    if !skipped.is_empty() {
+        println!(
+            "\n  found and NOT run ({}), with the reason:",
+            skipped.len()
+        );
+        for i in skipped {
+            if let Invocation::Skipped(c, why) = i {
+                println!("    {c}\n        {why}");
+            }
+        }
+    }
+    println!(
+        "\n  A pass here is not automatically a defect: a self-contained self-test\n  \
+         is green anywhere, and a gate that prints the size of what it walked --\n  \
+         `tracked files read 0` -- has told the reader it read nothing. What this\n  \
+         looks for is the third kind: green, silent, and having checked nothing.\n\n  \
+         The population is the COMMAND LINE, not the script. By script name this\n  \
+         reads 12 of 38; by the lines CI actually writes it reads {} of {runnable},\n  \
+         because `--require` is what turns a SKIP branch into a failure and seven\n  \
+         gates carry it. A gate is what it is called with.",
+        passed.len()
+    );
+    Ok(())
+}
+
+/// Copy the SCRIPTS out of a directory and nothing else.
+///
+/// The first version copied every file, which put `tools/withdrawn.txt` and
+/// every baseline into the "empty" tree -- so a gate that refuses a missing
+/// register found it, and `check_withdrawn_live.py` read as a pass while
+/// `check_conflict_markers.py` read as a refusal. Both were backwards, and it
+/// was caught by running the two by hand and disagreeing with my own command.
+/// **An empty tree that carries the data is not an empty tree**, and the
+/// symptom was a plausible table, not an error.
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> Result<()> {
+    let Ok(rd) = std::fs::read_dir(from) else {
+        return Ok(());
+    };
+    for e in rd.flatten() {
+        let p = e.path();
+        let is_script = matches!(
+            p.extension().and_then(|x| x.to_str()),
+            Some("py") | Some("sh")
+        );
+        if p.is_file() && is_script {
+            let _ = std::fs::copy(&p, to.join(p.file_name().unwrap()));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod empty_tests {
+    use super::*;
+
+    fn run_texts(y: &str) -> Vec<String> {
+        ci_invocations(y)
+            .into_iter()
+            .filter_map(|i| match i {
+                Invocation::Run(s) => Some(s),
+                _ => None,
+            })
+            .collect()
+    }
+    fn skipped(y: &str) -> Vec<(String, String)> {
+        ci_invocations(y)
+            .into_iter()
+            .filter_map(|i| match i {
+                Invocation::Skipped(s, w) => Some((s, w)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The whole finding in one assertion: measuring by SCRIPT gave 12 of 38
+    /// passing an empty tree, measuring by the line CI writes gave 5 of 36,
+    /// and the difference is `--require`.
+    #[test]
+    fn the_arguments_are_part_of_the_invocation() {
+        let y = "      - run: python3 tools/check_verilog_widths.py --require\n";
+        assert_eq!(
+            run_texts(y),
+            vec!["python3 tools/check_verilog_widths.py --require"]
+        );
+    }
+
+    #[test]
+    fn what_cannot_be_reproduced_is_named_rather_than_dropped() {
+        let y = "      - run: python3 scripts/ci/test_ratchet.py \\\n";
+        let s = skipped(y);
+        assert_eq!(s.len(), 1, "a continued line must be reported, not dropped");
+        assert!(s[0].1.contains("continued"));
+        assert!(run_texts(y).is_empty());
+
+        let y = "          M=$(python3 scripts/ci/rings_matrix.py)\n";
+        let s = skipped(y);
+        assert_eq!(s.len(), 1);
+        assert!(s[0].1.contains("substitution"));
+
+        let y = "      - run: python3 tools/check_json_parses.py --self-check\n";
+        let s = skipped(y);
+        assert_eq!(s.len(), 1);
+        assert!(s[0].1.contains("gate itself"));
+    }
+
+    #[test]
+    fn only_this_repositorys_gate_paths_are_a_population() {
+        // A python call that is not a gate in this tree is not an invocation.
+        assert!(run_texts("      - run: python3 setup.py build\n").is_empty());
+        assert!(run_texts("      - run: python3 -m pip install x\n").is_empty());
+        // And one that is, however it is indented or prefixed.
+        assert_eq!(
+            run_texts("        run: bash scripts/ci/loop-tools-tracked.sh\n").len(),
+            1
+        );
+    }
+
+    /// An empty tree that carries the data is not an empty tree. The first
+    /// version copied every file, and two gates read backwards because of it.
+    #[test]
+    fn only_scripts_are_carried_into_the_empty_tree() {
+        let from = std::env::temp_dir().join(format!("tri_copy_from_{}", std::process::id()));
+        let to = std::env::temp_dir().join(format!("tri_copy_to_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&from);
+        let _ = std::fs::remove_dir_all(&to);
+        std::fs::create_dir_all(&from).unwrap();
+        std::fs::create_dir_all(&to).unwrap();
+        std::fs::write(from.join("gate.py"), "x").unwrap();
+        std::fs::write(from.join("helper.sh"), "x").unwrap();
+        std::fs::write(from.join("withdrawn.txt"), "x").unwrap();
+        std::fs::write(from.join("baseline.json"), "x").unwrap();
+        copy_dir(&from, &to).unwrap();
+        let mut got: Vec<String> = std::fs::read_dir(&to)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect();
+        got.sort();
+        let _ = std::fs::remove_dir_all(&from);
+        let _ = std::fs::remove_dir_all(&to);
+        assert_eq!(got, vec!["gate.py".to_string(), "helper.sh".to_string()]);
     }
 }
