@@ -11440,3 +11440,72 @@ lines changed, 20 of them deletions, for a two-line wiring change.
 **The check that catches it is the shape of the diff, not the list of files.**
 A wiring change that adds a subcommand has no deletions; when the stat shows
 some, the question is what else the formatter decided while it was in there.
+
+## 448. Subtract sets, not strings -- and the gap was an undocumented threshold
+
+§446 shipped **121** where an independent probe said **123**, and said the gap
+was not resolved. Four attempts to locate it had failed, and every one failed
+the same way: the comparison matched **truncated titles**. That is a defect in
+the comparison, not in either reader, and it survives four tries because a
+title-prefix match is *almost* right -- it finds most rows and quietly misses
+the ones whose text was cut differently.
+
+The fix is one flag. `tri skill claims --numbers` prints one
+`<skill>:<number>` per counted section and nothing else, so the comparison is
+
+```sh
+comm -13 <(sort -n rust.txt) <(sort -n probe.txt)
+```
+
+Two lines of output, first try: sections **54** and **303**.
+
+**When two readers of one population disagree, compare the IDENTITIES they
+counted, not renderings of them.** A count has an index; use it. Every failed
+attempt here was a string comparison standing in for a set operation.
+
+**And the cause was worth the hunt.** Both sections carry a *single* digit --
+"the gate that exited 0", "Typecheck FAILED, exit 0" -- and `carries()` requires
+a run of **two or more**. That threshold was in the code with no comment, doing
+work the documented rule (a word boundary on both sides) does not claim.
+
+Measured on 485 open issues: the threshold excludes **20 titles**, and they are
+not one kind of thing.
+
+* About a dozen state a **count**: *"`implies` appears 9 times in live source
+  and 0 times in the compiler"*, *"MAX_SORRY counts 5 admitted proofs; 4 are in
+  files nothing compiles"*, *"4 of 7 passes have no precondition"*.
+* The rest state a **value**: an exit code (`seal exits 0`), a literal (`the
+  lexer turns 0o777 into 0`), arithmetic (`-3/2 is -1, -3>>1 is -2`).
+
+So the threshold is a crude proxy for *not a value*: wrong in one direction, and
+dropping it takes the population **288 → 308** while admitting about eight
+titles that count nothing. It stays -- and it is now **printed**, with
+`--single` to list what it removes.
+
+**A silent threshold makes a population read as complete.** The repair for a
+rule you cannot cleanly justify is not always to delete it; where the
+alternative is measurably worse, state it, size it, and let the reader see the
+set it removed.
+
+## 449. Widening a population is safe exactly when you measured it first
+
+§446 named three tracked `SKILL.md` files outside `.claude/skills` and did not
+read them, and the option written for the next pass said widening was blocked on
+a question: *are they copies, forks, or the originals?* -- because counting
+copies would double every figure.
+
+Measured, in two commands: `.agents/skills/phi-loop/SKILL.md` and
+`.agents/skills/tri-pipeline/SKILL.md` are **byte-identical** to their
+`.claude/skills` counterparts, and all three unread files carry **zero**
+numbered sections. So the worry was about an empty set: widening the walk to
+every tracked `SKILL.md` leaves the figure count **unchanged at 123**.
+
+The widening shipped, and so did the guard the worry deserved: byte-identical
+files are detected, **named in the output**, and counted once. They contribute
+nothing today; the day one of them gains a section, the count would otherwise
+double it in silence.
+
+**The pattern: a blocked option is often blocked on a measurement rather than a
+decision.** Two `shasum` calls and a `grep -c` turned "this needs an owner's
+call about which directory is authoritative" into "this changes nothing, and
+here is the guard for the day it would".
