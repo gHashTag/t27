@@ -12826,3 +12826,44 @@ in this file about a gate reporting the wrong subject is about a machine doing
 it. This one is about me: the instrument was correct, its message was correct,
 and the failure was entirely in the reading. **Instruments that only print are
 sized for a reader who is not tired.**
+
+
+## 481. My exit code collided with the framework's, and every arm agreed
+
+Three arms, written to tell three states apart:
+
+    empty tree   -> rc=2   (the new guard)
+    absent dir   -> rc=2   (the new guard)
+    real tree    -> rc=2   (the control, which was supposed to be 0)
+
+The control failing is what saved it. All three had run `t27c depth --specs-dir
+specs`, and **`depth` is a different subcommand** -- it takes a file. Every run
+was a **clap usage error**, and clap exits **2**, which is exactly the code the
+new guard uses. Three arms, one wrong command, unanimous agreement, and the two
+that "passed" would have been reported as evidence.
+
+The general form: **when your refusal code collides with the framework's error
+code, an arm that never reached your code is indistinguishable from an arm that
+did.** Exit 2 is not neutral ground -- clap, `grep` (cannot open), and
+`getopt`-style parsers all use it. If a guard exits 2, at least one arm must
+assert on the MESSAGE, not only the code; the arms here now assert
+`REFUSED` and the subcommand name, and the control asserts the table's own
+footer text so it cannot pass on a command that merely exited 0.
+
+Two smaller ones from the same hour, both the same species.
+
+The refusal was first written as `depth: REFUSED`, after the function
+`run_depth`. The function is dispatched by `t27c backlog`. A refusal named for
+the function sends the reader to a command that does not do this. **Name the
+refusal for what the user typed.**
+
+And a mutant read as SURVIVING because it never applied: 32 spaces of indent in
+the patch against 28 in the file. The three-way verdict this file already
+records -- killed, survived, **never built** -- has a fourth member that looks
+like the second: *never applied*. Assert the old text is gone before running the
+suite, or the report is of a run that mutated nothing.
+
+What ties all three together is that none was found by reading. The wrong
+subcommand, the wrong refusal label and the unapplied mutant were each caught by
+a control asserting a POSITIVE outcome on a real input. **A suite made only of
+arms that expect failure cannot tell "the guard fired" from "nothing ran".**
