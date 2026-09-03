@@ -40915,9 +40915,17 @@ fn read_it() -> u16 {
 
     #[test]
     fn a_loop_without_a_jump_is_unchanged() {
-        // The population that must NOT move: the corpus delta is 37 of 581
-        // generated .v files precisely because a loop with no `break`, no
-        // `continue` and no `return` allocates nothing and tests nothing.
+        // The population that must NOT move: the corpus delta is 7 of 581
+        // generated .v files precisely because a loop with no `break` and no
+        // `continue` allocates nothing and tests nothing.
+        //
+        // The 37 this comment used to say was patch C's figure, for a change
+        // that also guarded `return` -- the half deliberately cut before
+        // landing. Measured on what shipped: 7 files, and the branch's own
+        // `5063edb19` re-sealed 19 seals over those 7 specs. A stale number in
+        // the comment of the test that DEFINES the untouched population is the
+        // shape this repository has a section about, so it is corrected in
+        // place rather than left beside a newer one.
         let src = r#"module M {
             pub fn f(n: i64) -> i64 {
                 var i: i64 = 0;
