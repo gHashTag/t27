@@ -23,7 +23,7 @@
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Subcommand)]
 pub enum SkillCmd {
@@ -323,6 +323,98 @@ pub fn section_bodies(text: &str) -> Vec<(usize, String, String)> {
     out
 }
 
+/// The 1-based inclusive line range each numbered section occupies.
+///
+/// Kept separate from `section_bodies` rather than widening its tuple: three call
+/// sites and four tests read that shape, and a range is wanted by exactly one of
+/// them. The two walk the headings by the same rule, and a test pins them together
+/// so the pair cannot drift apart silently.
+pub fn section_ranges(text: &str) -> Vec<(usize, usize, usize)> {
+    let mut out: Vec<(usize, usize, usize)> = Vec::new();
+    let mut cur: Option<(usize, usize)> = None;
+    let mut last = 0usize;
+    for (i, line) in text.lines().enumerate() {
+        last = i + 1;
+        let head = line.strip_prefix("## ").and_then(|rest| {
+            rest.split_once(". ")
+                .and_then(|(n, _)| n.parse::<usize>().ok())
+        });
+        if let Some(n) = head {
+            if let Some((pn, pstart)) = cur.take() {
+                out.push((pn, pstart, i));
+            }
+            cur = Some((n, i + 1));
+        }
+    }
+    if let Some((n, start)) = cur {
+        out.push((n, start, last));
+    }
+    out
+}
+
+/// The newest commit touching any line of a `git blame --porcelain` block.
+///
+/// The NEWEST, not the oldest, and that is the whole point: it answers "this section
+/// was last written no later than X", which bounds how fresh its figure can be. The
+/// oldest would answer when the section was started, which a later edit invalidates.
+///
+/// Returns the commit id; the date is asked of git separately rather than computed
+/// here, because a civil-date conversion is fifteen lines of arithmetic this file has
+/// no other reason to own.
+pub fn newest_blamed_commit(porcelain: &str) -> Option<String> {
+    let mut best: Option<(i64, String)> = None;
+    let mut sha: Option<String> = None;
+    for line in porcelain.lines() {
+        let head = line.split(' ').next().unwrap_or("");
+        if head.len() == 40 && head.chars().all(|c| c.is_ascii_hexdigit()) {
+            sha = Some(head.to_string());
+        } else if let Some(t) = line.strip_prefix("author-time ") {
+            if let (Ok(t), Some(s)) = (t.trim().parse::<i64>(), sha.clone()) {
+                if best.as_ref().is_none_or(|(bt, _)| t > *bt) {
+                    best = Some((t, s));
+                }
+            }
+        }
+    }
+    best.map(|(_, s)| s)
+}
+
+/// Ask git when a section was last written. `None` when git cannot answer -- an
+/// untracked file, no repository, a blame that fails -- and the caller says so
+/// rather than printing a date it did not get.
+fn recovered_anchor(file: &Path, start: usize, end: usize) -> Option<(String, String)> {
+    let dir = file.parent()?;
+    let blame = std::process::Command::new("git")
+        .args([
+            "blame",
+            "-L",
+            &format!("{start},{end}"),
+            "--porcelain",
+            "--",
+        ])
+        .arg(file)
+        .current_dir(dir)
+        .output()
+        .ok()?;
+    if !blame.status.success() {
+        return None;
+    }
+    let sha = newest_blamed_commit(&String::from_utf8_lossy(&blame.stdout))?;
+    let show = std::process::Command::new("git")
+        .args(["show", "-s", "--date=short", "--format=%ad", &sha])
+        .current_dir(dir)
+        .output()
+        .ok()?;
+    if !show.status.success() {
+        return None;
+    }
+    let date = String::from_utf8_lossy(&show.stdout).trim().to_string();
+    if date.is_empty() {
+        return None;
+    }
+    Some((sha[..9.min(sha.len())].to_string(), date))
+}
+
 /// Does this section's HEADING state a figure?
 ///
 /// The heading is where a section makes its claim, the way an issue's title
@@ -520,7 +612,19 @@ fn claims(list: bool, numbers: bool, windowed_list: bool) -> Result<()> {
     let mut carrying = 0usize;
     let mut with_cmd = 0usize;
     let mut anchored = 0usize;
-    let mut windowed: Vec<(String, usize, String, bool, bool)> = Vec::new();
+    /// A section whose population is a query. `anchored` is the upper bound the
+    /// text itself supports; `range` is what lets git answer when the text was
+    /// last written, for the ones the text does not date.
+    struct Windowed {
+        skill: String,
+        n: usize,
+        title: String,
+        anchored: bool,
+        figure: bool,
+        file: PathBuf,
+        range: (usize, usize),
+    }
+    let mut windowed: Vec<Windowed> = Vec::new();
     let mut free: Vec<(String, usize, String)> = Vec::new();
     for f in &files {
         let Ok(text) = std::fs::read_to_string(f) else {
@@ -532,6 +636,10 @@ fn claims(list: bool, numbers: bool, windowed_list: bool) -> Result<()> {
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
         let (mut fsecs, mut fcar) = (0usize, 0usize);
+        let ranges: std::collections::HashMap<usize, (usize, usize)> = section_ranges(&text)
+            .into_iter()
+            .map(|(n, a, b)| (n, (a, b)))
+            .collect();
         for (n, title, body) in section_bodies(&text) {
             total += 1;
             fsecs += 1;
@@ -562,7 +670,15 @@ fn claims(list: bool, numbers: bool, windowed_list: bool) -> Result<()> {
             // allowed to stand alone.
             let fig = states_a_figure(&title);
             if !window_markers(&format!("{title}\n{body}")).is_empty() {
-                windowed.push((name.clone(), n, title.clone(), names_its_anchor(&body), fig));
+                windowed.push(Windowed {
+                    skill: name.clone(),
+                    n,
+                    title: title.clone(),
+                    anchored: names_its_anchor(&body),
+                    figure: fig,
+                    file: f.clone(),
+                    range: *ranges.get(&n).unwrap_or(&(0, 0)),
+                });
             }
             if !fig {
                 continue;
@@ -600,8 +716,8 @@ fn claims(list: bool, numbers: bool, windowed_list: bool) -> Result<()> {
     println!("  of those, naming a command    {with_cmd}");
     println!("  of those, anchored (dated)    {anchored}");
     println!("  free to go stale              {}", free.len());
-    let anchored_windows = windowed.iter().filter(|w| w.3).count();
-    let fig_windows = windowed.iter().filter(|w| w.4).count();
+    let anchored_windows = windowed.iter().filter(|w| w.anchored).count();
+    let fig_windows = windowed.iter().filter(|w| w.figure).count();
     println!(
         "  over a SLIDING population     {}   (of ALL {total} sections, not of the {carrying})",
         windowed.len()
@@ -649,11 +765,26 @@ fn claims(list: bool, numbers: bool, windowed_list: bool) -> Result<()> {
 
     if windowed_list {
         println!("\n  OVER A SLIDING POPULATION, and whether the anchor is named:\n");
-        for (skill, n, title, anch, fig) in &windowed {
-            let mark = if *anch { "anchored" } else { "NO ANCHOR" };
-            let f = if *fig { "figure" } else { "  ..  " };
-            let short = &title[..title.len().min(52)];
-            println!("    {mark:<10} {f} {skill:<11} {n:>4}  {short}");
+        for w in &windowed {
+            let mark = if w.anchored { "anchored" } else { "NO ANCHOR" };
+            let f = if w.figure { "figure" } else { "  ..  " };
+            let short = &w.title[..w.title.len().min(52)];
+            println!("    {mark:<10} {f} {:<11} {:>4}  {short}", w.skill, w.n);
+            // For the ones the text does not date, git can. This is not the date
+            // the reading was TAKEN -- it is the date the section was last
+            // written, so the figure is no fresher than this. A bound recovered
+            // rather than invented, and printed as a DATE: an age in days would
+            // itself be a figure over a sliding population.
+            if !w.anchored && w.range.1 > 0 {
+                match recovered_anchor(&w.file, w.range.0, w.range.1) {
+                    Some((sha, date)) => println!(
+                        "                      last written no later than {date}  ({sha})"
+                    ),
+                    None => println!(
+                        "                      git could not date this section, so nothing is claimed"
+                    ),
+                }
+            }
         }
     }
 
@@ -804,5 +935,90 @@ mod iso_date_tests {
         assert!(!d("20260820ab"), "no separators at all");
         let short: Vec<char> = "2026-08-2".chars().collect();
         assert!(!is_iso_date(&short), "nine characters is not the shape");
+    }
+}
+
+#[cfg(test)]
+mod anchor_recovery_tests {
+    use super::{newest_blamed_commit, section_bodies, section_ranges};
+
+    const DOC: &str = "intro line\n\
+        ## 7. First\n\
+        body a\n\
+        body b\n\
+        ## 9. Second\n\
+        body c\n";
+
+    /// The two walkers must agree on WHICH sections exist. They read the same
+    /// headings by the same rule and are written apart, so nothing but a test stops
+    /// them drifting -- and a range attached to the wrong section would date the
+    /// wrong claim, silently and plausibly.
+    #[test]
+    fn ranges_and_bodies_see_the_same_sections() {
+        let a: Vec<usize> = section_bodies(DOC).iter().map(|(n, _, _)| *n).collect();
+        let b: Vec<usize> = section_ranges(DOC).iter().map(|(n, _, _)| *n).collect();
+        assert_eq!(a, b);
+        assert_eq!(a, vec![7, 9]);
+    }
+
+    /// One-based and inclusive, ending at the line before the next heading -- not at
+    /// the heading itself, which belongs to the next section and would date it.
+    #[test]
+    fn a_range_stops_before_the_next_heading() {
+        assert_eq!(section_ranges(DOC), vec![(7, 2, 4), (9, 5, 6)]);
+    }
+
+    const BLAME: &str = "\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 1 1 1\n\
+author Someone\n\
+author-time 1000\n\
+\tolder line\n\
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 2 2 1\n\
+author Someone\n\
+author-time 3000\n\
+\tnewer line\n\
+cccccccccccccccccccccccccccccccccccccccc 3 3 1\n\
+author Someone\n\
+author-time 2000\n\
+\tmiddle line\n";
+
+    /// The NEWEST, and the fixture is deliberately out of order so that "the last one
+    /// seen" and "the newest" cannot both pass.
+    #[test]
+    fn the_newest_commit_wins_not_the_first_or_the_last() {
+        assert_eq!(
+            newest_blamed_commit(BLAME).as_deref(),
+            Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        );
+    }
+
+    /// Content lines are tab-prefixed, so a line of source that happens to look like
+    /// a commit id is not one. Without the length check `deadbeef` in a code block
+    /// becomes the answer.
+    #[test]
+    fn a_hex_word_in_the_content_is_not_a_commit() {
+        let tricky = "\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 1 1 1\n\
+author-time 1000\n\
+\tdeadbeef is not a commit here\n\
+deadbeef 2 2 1\n\
+author-time 9999\n";
+        assert_eq!(
+            newest_blamed_commit(tricky).as_deref(),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            "a short hex token must not be adopted as the blamed commit"
+        );
+    }
+
+    /// Nothing to date is not a date. The caller prints that it claims nothing.
+    #[test]
+    fn no_blame_is_no_answer() {
+        assert_eq!(newest_blamed_commit(""), None);
+        assert_eq!(newest_blamed_commit("fatal: no such path\n"), None);
+        assert_eq!(
+            newest_blamed_commit("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 1 1 1\n"),
+            None,
+            "a commit with no author-time dates nothing"
+        );
     }
 }
