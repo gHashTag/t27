@@ -64,6 +64,13 @@ jobs:
         # workflow produced (#2327). Pure Python, no compiler, no corpus.
         run: python3 scripts/ci/test_damage_repair_snapshot_required.py
 
+      - name: An absent compiler is "could not run", not "the check failed"
+        # #3045. This job has no compiler, which is what makes it the right
+        # place: the assertion is about the no-build path and nowhere else can
+        # exercise it honestly. The test builds its own compiler-less tree
+        # rather than relying on this job staying that way.
+        run: python3 scripts/ci/test_tri_says_it_could_not_run.py
+
       - name: The dispatcher runs its helpers without a built compiler
         # tri triage and tri damage read the tracker and the spec text and have no
         # use for t27c. The dispatcher used to look for the binary first and
