@@ -1245,6 +1245,44 @@ fn is_gate_by_property(root: &std::path::Path, name: &str, src: &str) -> bool {
     })
 }
 
+/// Is this line a `paths:` trigger entry rather than a call?
+///
+/// A workflow's `paths:` list says which changes make the workflow RUN. It
+/// names files the workflow never opens, so a script mentioned there has not
+/// been invoked and nothing near it is a control for it.
+///
+/// Shape only -- a list item whose payload is a quoted or bare path with no
+/// spaces and no shell in it. Deliberately narrow: a `run:` line that happens
+/// to start with a dash is not this, and neither is `- name: …`.
+pub fn is_paths_entry(line: &str) -> bool {
+    let t = line.trim();
+    let Some(rest) = t.strip_prefix("- ") else {
+        return false;
+    };
+    let v = rest.trim().trim_matches(['"', '\'']);
+    // TWO clauses, and no more. Four were written first and three of them
+    // survived their own mutation:
+    //
+    // * a colon test -- the space test already rejects `- name: …`,
+    //   `- uses: …` and `- run: …`;
+    // * a path-shape test (slash, `*`, `.py`, `.sh`) -- which would have made
+    //   `- main` under `branches:` read as a call;
+    // * a non-empty test -- unreachable, because this is only ever asked of a
+    //   line that CONTAINS a script name, and such a line is not empty.
+    //
+    // Each was removed rather than kept as prose with a compiler behind it.
+    !v.contains(' ')
+}
+
+/// Does this workflow line INVOKE `name`, rather than merely name it?
+///
+/// Split out so both directions can be mutated and seen to fail: dropping the
+/// `paths:` rule makes a trigger entry read as a call, and dropping the name
+/// check makes every line one.
+pub fn mentions_a_call(line: &str, name: &str) -> bool {
+    line.contains(name) && !is_paths_entry(line)
+}
+
 fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
     let mut found = Vec::new();
 
@@ -1293,11 +1331,31 @@ fn control_forms(root: &std::path::Path, src: &str, name: &str) -> Vec<String> {
                 // `broken` and `must` are dropped: both are ordinary English in
                 // a workflow comment. `fixture`, `expect_` and `planted` are
                 // vocabulary somebody chose on purpose.
+                // A mention is not a CALL, and the distinction is structural
+                // rather than positional. `catalog-count-gate.yml` names this
+                // script twice: once at line 29 as a `paths:` trigger entry,
+                // once nowhere else -- and the word `planted` sits at line 74,
+                // in a comment about a different control entirely. Forty-five
+                // lines apart.
+                //
+                // Priced before changing anything: with the window at 3, 5, 10,
+                // 20 or 30 this reports 0 candidates and one NONE; at 50, 100 or
+                // unbounded it reports 1 candidate and no NONE. **The verdict
+                // the command exists to give flips between 30 and 50**, and the
+                // constant was one step below a cliff for a reason nobody wrote
+                // down. That is the 400-character arXiv window again, an order
+                // of magnitude closer.
+                //
+                // Dropping `paths:` entries makes the reading structural: a
+                // trigger list says which changes RUN the workflow, never what
+                // the workflow does. After it the verdict is the same at every
+                // width, which is what a number that has stopped being
+                // load-bearing looks like.
                 let lines: Vec<&str> = body.lines().collect();
                 let calls: Vec<usize> = lines
                     .iter()
                     .enumerate()
-                    .filter(|(_, l)| l.contains(name))
+                    .filter(|(_, l)| mentions_a_call(l, name))
                     .map(|(i, _)| i)
                     .collect();
                 if calls.is_empty() {
@@ -4972,5 +5030,54 @@ mod empty_tests {
         let _ = std::fs::remove_dir_all(&from);
         let _ = std::fs::remove_dir_all(&to);
         assert_eq!(got, vec!["gate.py".to_string(), "helper.sh".to_string()]);
+    }
+}
+
+#[cfg(test)]
+mod paths_entry_tests {
+    use super::*;
+
+    /// The line that made the whole verdict window-dependent: a `paths:`
+    /// trigger entry 45 lines from the word `planted`.
+    #[test]
+    fn a_paths_entry_is_not_a_call() {
+        assert!(!mentions_a_call(
+            "      - \"tools/gen_formats_catalog.py\"",
+            "gen_formats_catalog.py"
+        ));
+        assert!(is_paths_entry(
+            "      - \"specs/numeric/formats_catalog.t27\""
+        ));
+        assert!(is_paths_entry("      - tools/*.py"));
+        assert!(is_paths_entry("      - \"scripts/ci/rings_matrix.py\""));
+    }
+
+    /// And the other direction: a real invocation must still be a call, or the
+    /// rule buys a false NONE for every controlled gate.
+    #[test]
+    fn a_run_line_is_still_a_call() {
+        assert!(mentions_a_call(
+            "        run: python3 tools/gen_formats_catalog.py --check",
+            "gen_formats_catalog.py"
+        ));
+        assert!(mentions_a_call(
+            "          python3 tools/gen_formats_catalog.py",
+            "gen_formats_catalog.py"
+        ));
+    }
+
+    /// A list item that is not a path: `- name:`, `- uses:`, `- run:` all
+    /// begin with a dash and none is a trigger entry.
+    #[test]
+    fn a_dash_alone_does_not_make_a_paths_entry() {
+        assert!(!is_paths_entry(
+            "      - name: Both catalog gates must go red"
+        ));
+        assert!(!is_paths_entry("      - uses: actions/checkout@v4"));
+        assert!(!is_paths_entry(
+            "      - run: python3 tools/x.py --self-check"
+        ));
+        assert!(!is_paths_entry("not a list item at all"));
+        assert!(!is_paths_entry("      - "));
     }
 }
