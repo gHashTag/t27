@@ -8,7 +8,28 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
 # ===== NOW entry Gate =====
-bash "$ROOT/scripts/tri" check-now
+# `set -e` would abort here with whatever scripts/tri printed, and #3045 is what
+# that looked like: with t27c unbuilt the commit was refused by a message naming
+# a build step, followed by "local commands still work". The gate had not run.
+# It found nothing wrong. Exit 2 from scripts/tri means exactly that, and this
+# says so rather than letting the reader infer a verdict from a tool's complaint.
+#
+# The commit is still refused. A gate that could not run must not pass.
+# `if ! cmd; then rc=$?` does NOT capture the command's code -- it captures the
+# negation's, which is 0. Probed rather than assumed, because this file is one
+# of the places that trap has already cost this repository a wrong reading.
+rc=0
+bash "$ROOT/scripts/tri" check-now || rc=$?
+if [ "$rc" -ne 0 ]; then
+  if [ "$rc" -eq 2 ]; then
+    echo ""
+    echo "❌ The NOW entry gate could NOT RUN -- it did not examine this commit."
+    echo "   Reason is printed above. Nothing about your change was checked."
+    echo "   Build the compiler, or set TRI_T27C, and commit again."
+    echo ""
+  fi
+  exit "$rc"
+fi
 
 # Entries are one file per unit of work: docs/now/<YYYY-MM-DD>-<slug>.md .
 # They used to be prepended to the single file docs/NOW.md, which made every
