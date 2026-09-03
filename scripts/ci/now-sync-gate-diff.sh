@@ -68,9 +68,17 @@ fi
 # The window includes TOMORROW so a contributor east of UTC (e.g. UTC+07) who
 # names the entry with their LOCAL calendar date is not rejected while UTC is
 # still on the previous day. Identical to the window the old gate enforced.
+# GNU date first, then BSD/macOS -- the same two-form lookup scripts/pre-commit
+# and scripts/verify.sh already use for exactly these three values.
+#
+# Without the fallback this script cannot RUN on a Mac: `date -u -d yesterday`
+# prints `date: illegal option -- d` and, under `set -e`, the gate exits 1. A
+# contributor there cannot ask this gate its question at all, and the answer
+# they get if they try is indistinguishable from a refusal. CI is Linux, so
+# the first form still decides there and this changes no verdict.
 TODAY=$(date -u +%Y-%m-%d)
-YESTERDAY=$(date -u -d yesterday +%Y-%m-%d)
-TOMORROW=$(date -u -d tomorrow +%Y-%m-%d)
+YESTERDAY=$(date -u -d yesterday +%Y-%m-%d 2>/dev/null || date -u -v-1d +%Y-%m-%d)
+TOMORROW=$(date -u -d tomorrow +%Y-%m-%d 2>/dev/null || date -u -v+1d +%Y-%m-%d)
 
 QUALIFIED=""
 while IFS= read -r f; do
