@@ -37,6 +37,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: The two required gates name their own subject, not the wrong one
+        # #3061. Both are in docs/BRANCH-PROTECTION.md's required list, so a
+        # wrong message lands on a check nobody can merge past: the NOW gate
+        # said "adds no docs/now/ entry" about a comparison git refused to make,
+        # and the Issue Gate said "No issue reference found in PR title/body"
+        # about a pull request that does not exist. Runs here rather than in
+        # either gate's own workflow so a break in the test cannot turn a
+        # required context red for a reason unrelated to the change under test.
+        run: python3 scripts/ci/test_required_gates_name_their_subject.py
+
       - name: No untrusted event data interpolated into shell
         run: python3 scripts/ci/check_untrusted_shell_interp.py
 

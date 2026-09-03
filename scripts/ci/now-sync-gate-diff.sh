@@ -31,18 +31,62 @@ ENTRY_RE='^docs/now/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z0-9._-]+\.md$'
 
 event="${GITHUB_EVENT_NAME:?GITHUB_EVENT_NAME must be set}"
 
+# A REVISION THAT IS NOT IN THIS CHECKOUT IS NOT AN ABSENT ENTRY.
+#
+# `${PR_BASE_SHA:?}` catches unset and empty. It does not catch a non-empty SHA
+# naming an object this clone does not have -- a shallow fetch, a force-push
+# that orphaned the base, a rerun after the branch moved. `git diff` then exits
+# 128 with `fatal: bad object`, the `|| true` that exists to absorb grep's
+# no-match absorbs that identically, ADDED comes out empty, and the gate reports
+#
+#     ::error::SYNC REQUIRED: this PR/push adds no docs/now/ entry.
+#
+# against a comparison it never made. Reproduced:
+#
+#   $ GITHUB_EVENT_NAME=pull_request PR_BASE_SHA=00...01 PR_HEAD_SHA=$(git rev-parse HEAD) \
+#       bash scripts/ci/now-sync-gate-diff.sh
+#   fatal: bad object 0000000000000000000000000000000000000001
+#   ::error::SYNC REQUIRED: this PR/push adds no docs/now/ entry.
+#   EXIT=1
+#
+# This gate is a required context (docs/BRANCH-PROTECTION.md), so the wrong
+# subject is printed on the one check a contributor cannot merge past.
+#
+# Exit 2, not 1: nothing about the change was examined. Same code scripts/tri
+# uses for an unbuilt compiler and t27c corpus for a spec tree with no specs.
+have_rev() {
+  git cat-file -e "${1}^{commit}" 2>/dev/null
+}
+require_rev() {
+  if ! have_rev "$1"; then
+    echo "::error::the NOW sync gate could not run: $2=$1 is not an object in this checkout."
+    echo ""
+    echo "Nothing about this change was examined -- this is NOT a report that the"
+    echo "entry is missing. A shallow fetch, a force-push that orphaned the base,"
+    echo "or a rerun after the branch moved all reach here."
+    echo ""
+    echo "Fix the checkout (actions/checkout with fetch-depth: 0) and re-run."
+    echo "Exit code 2 = could not run, not failed."
+    exit 2
+  fi
+}
+
 # --diff-filter=A: only ADDED files count. A PR that merely edits an existing
 # entry has not written an entry for itself.
 if [ "$event" = "pull_request" ]; then
   BASE="${PR_BASE_SHA:?}"
   HEAD="${PR_HEAD_SHA:?}"
+  require_rev "$BASE" PR_BASE_SHA
+  require_rev "$HEAD" PR_HEAD_SHA
   ADDED=$(git diff --diff-filter=A --name-only "$BASE" "$HEAD" | grep -E "$ENTRY_RE" || true)
 elif [ "$event" = "push" ]; then
   BEFORE="${PUSH_BEFORE:?}"
   AFTER="${PUSH_AFTER:?}"
+  require_rev "$AFTER" PUSH_AFTER
   if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
     ADDED=$(git show --diff-filter=A --name-only --pretty=format: "$AFTER" | grep -E "$ENTRY_RE" || true)
   else
+    require_rev "$BEFORE" PUSH_BEFORE
     ADDED=$(git diff --diff-filter=A --name-only "$BEFORE" "$AFTER" | grep -E "$ENTRY_RE" || true)
   fi
 else
