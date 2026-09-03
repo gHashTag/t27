@@ -102,9 +102,30 @@ fn gh(args: &[&str], root: &Path) -> Result<String> {
     }
 }
 
+/// A keyword carrying whitespace, which is a quoting mistake nine times in ten.
+///
+/// Found on this command's SECOND use. `for q in "a b c"; do tri topic $q; done` in zsh does
+/// not word-split, so the whole phrase arrives as ONE keyword, matches nothing,
+/// and the command answers `rows matching 0` -- which reads as "nobody else is
+/// working on this". That is the exact sentence this command exists to keep
+/// from being said wrongly, produced by its own input handling.
+pub fn quoted_phrase(keywords: &[String]) -> Option<&String> {
+    keywords.iter().find(|k| k.trim().contains(char::is_whitespace))
+}
+
 pub fn run(keywords: &[String], commits: usize) -> Result<()> {
     if keywords.iter().all(|k| k.trim().is_empty()) {
         bail!("tri topic needs at least one keyword");
+    }
+    if let Some(k) = quoted_phrase(keywords) {
+        bail!(
+            "tri topic: {k:?} is one keyword carrying spaces, and it will match nothing.\n  \
+             Pass the words separately: `tri topic {}`.\n  \
+             Refused rather than answered, because \"0 rows matching\" here reads as\n  \
+             \"nobody else is working on this\", which is what this command exists to\n  \
+             keep from being said wrongly.",
+            k.split_whitespace().collect::<Vec<_>>().join(" ")
+        );
     }
     let root = crate::find_trinity_root()?;
     let mut rows: Vec<Row> = Vec::new();
@@ -189,6 +210,20 @@ mod tests {
 
     fn kw(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// The trap this command fell into on its own second use.
+    #[test]
+    fn a_keyword_carrying_spaces_is_refused_rather_than_answered() {
+        assert!(quoted_phrase(&kw(&["gate absent quiet"])).is_some());
+        assert!(quoted_phrase(&kw(&["gate", "absent", "quiet"])).is_none());
+        // A single word padded with spaces is not a quoting mistake.
+        assert!(quoted_phrase(&kw(&["  gate  "])).is_none());
+        // And it must find the phrase even when other keywords are fine.
+        assert_eq!(
+            quoted_phrase(&kw(&["gate", "two words"])).map(|s| s.as_str()),
+            Some("two words")
+        );
     }
 
     #[test]
