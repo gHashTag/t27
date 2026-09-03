@@ -326,7 +326,9 @@ enum SkillAction {
     },
     /// Move sections you appended to the numbers the base branch left free.
     Renumber {
-        /// The branch whose numbering yours must follow.
+        /// The branch whose numbering yours must follow. Use the shared base,
+        /// not a peer branch: numbering against a sibling also rebuilds your
+        /// file on it, and your PR would then carry the sibling's sections.
         #[arg(long, default_value = "origin/master")]
         base: String,
         /// Which skill file.

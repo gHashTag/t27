@@ -13,6 +13,14 @@
 //! existing section, or a previous conflict was resolved by hand -- this refuses
 //! and says so rather than guessing which lines are yours.
 //!
+//! `--base` TAKES A BRANCH, AND POINTING IT AT A SIBLING IS A TRAP. Two of my own
+//! open branches once claimed the same number, and `--base origin/<sibling>`
+//! numbered correctly around it -- and rebuilt my file on the SIBLING, so my
+//! branch then carried the sibling's sections too and would have merged them
+//! under my PR. Number every branch against the shared base; whoever merges
+//! second conflicts and renumbers, which is now one command. The flag is for a
+//! different base branch, not for a peer.
+//!
 //! References are rewritten only for the numbers being moved and only INSIDE the
 //! tail. A section that cites `&sect;447` keeps citing 447; a section that cites
 //! its own sibling follows it. Both spellings are handled, and the word boundary
