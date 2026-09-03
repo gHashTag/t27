@@ -10974,3 +10974,37 @@ What to add before any measurement over a checkout that is not the main one:
 `git status --porcelain | grep -c '^ D'` must be zero, and a count of the population
 directory must match `git ls-tree`. A worktree is an instrument, and this one had been
 quietly losing parts.
+
+## 434. Two rules that always fire together are one rule, and neither is tested
+
+`revision_pins` had to tell an abbreviated commit id from a chunk of a float.
+Two counter-examples from the live backlog forced it: `-1.7594823e-05` (#2824)
+and `` `5.391247e-44` `` (#2658), the second one inside backticks, so "quoted
+like code" separates nothing.
+
+I wrote two rules -- no decimal point immediately before the run, and no `e`
+immediately before a sign -- and both tests went green. Then I deleted the first
+rule: still green. Deleted the second instead: still green. **Across all 486
+open bodies, both rejections were caught by both rules**, so on this corpus each
+rule was redundant with the other and neither could ever be the reason a test
+passed.
+
+That is the same failure as a control that cannot fail, one level down. A green
+suite proved the pair, and proved nothing about either member. Two ways out, and
+you must pick one deliberately:
+
+* **Delete one.** If the rules are genuinely equivalent on every input you will
+  ever see, the second is prose with a compiler behind it. An unprovable line
+  gets removed.
+* **Separate them with a constructed input.** They were *not* equivalent in
+  general: `5391247e-44` has no dot for the first rule to see, and
+  `1.2345678e12` has no sign for the `e` of the second to sit before. Two lines
+  of test, and now each mutation turns the suite red.
+
+The test that lives in the repository is the second one, named for the property
+rather than the case: `each_float_rule_decides_a_case_the_other_misses`.
+
+**How to find it.** Coverage will not: both rules execute on every input. Only
+deletion answers. Mutate each clause of a compound guard **separately** and
+require a red for each; a clause whose removal leaves the suite green is either
+dead or untested, and those two are indistinguishable until you go looking.
