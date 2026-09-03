@@ -174,6 +174,14 @@ pub enum GatesCmd {
         #[arg(long, default_value = "origin/master")]
         base: String,
     },
+    /// Every bounded GitHub fetch in this crate, and whether it can tell a page
+    /// from a total.
+    Fetches {
+        /// Print the lines this rule REFUSED as fetch sites, so the exclusion can
+        /// be argued with.
+        #[arg(long)]
+        excluded: bool,
+    },
     /// Run every gate CI runs, in an EMPTY tree, and report what still passes.
     Empty {
         /// Print what each passing invocation printed.
@@ -2372,6 +2380,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             };
             unmeasured(&list, *stale_days)
         }
+        GatesCmd::Fetches { excluded } => fetches(*excluded),
         GatesCmd::Empty { verbose } => empty(*verbose),
         GatesCmd::Preview { base } => preview(base),
         GatesCmd::Required { repo } => required(repo.as_deref()),
@@ -5090,5 +5099,402 @@ mod paths_entry_tests {
         ));
         assert!(!is_paths_entry("not a list item at all"));
         assert!(!is_paths_entry("      - "));
+    }
+}
+
+/// The two spellings a bounded GitHub fetch uses in this crate.
+///
+/// A LINE mentioning either is not a fetch. Of the 41 lines that do, 17 are prose in
+/// a `println!`, a doc comment, a marker table (`("per_page=", "API window")` in
+/// `skillnum`) or a test assertion -- and a matcher that took all of them would report
+/// 41 fetch sites in a crate that has 24. The exclusions are COUNTED, and `--excluded`
+/// prints them, rather than dropped in silence.
+pub fn is_fetch_site(line: &str) -> bool {
+    let t = line.trim();
+    if t.starts_with("//") {
+        return false;
+    }
+    if t == "\"--limit\"," {
+        return true;
+    }
+    // Both needles must live in the SAME string literal, and that is not fussiness:
+    // the first version of this rule asked only that the line contain each somewhere,
+    // and so it matched ITS OWN DEFINITION, which names both. A census that counts
+    // itself is reporting a fact about the census. Splitting on the quote character
+    // and requiring one segment to carry both costs three lines and removes the
+    // self-reference without naming any function as an exception.
+    line.split('"')
+        .any(|seg| seg.contains("per_page=") && seg.contains("repos/"))
+}
+
+/// `per_page=1`, and not `per_page=10` or `per_page=100`.
+pub fn single_page(site: &str) -> bool {
+    let Some(i) = site.find("per_page=1") else {
+        return false;
+    };
+    !site[i + 10..].starts_with(|c: char| c.is_ascii_digit())
+}
+
+/// What a fetch site can say about its own completeness.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Fetch {
+    /// `--paginate`: the client walks every page, so the read IS the set.
+    Paginated,
+    /// `per_page=1` beside a `total_count` read: the API states the total and the
+    /// page length is irrelevant.
+    SingleWithTotal,
+    /// `per_page=1` and no total read anywhere in the function. One row came back and
+    /// nothing says how many there were.
+    SingleNoTotal,
+    /// A bounded list whose function asks whether the page filled.
+    Guarded,
+    /// A bounded list that prints what it got. This is the class.
+    Unguarded,
+}
+
+/// Classify one site by the body of the function containing it.
+///
+/// The subject is the ENCLOSING FUNCTION, and that choice has a known cost: a function
+/// that only BUILDS a url and hands it to a guarded caller reads as unguarded.
+/// `red.rs`'s `runs_url` is exactly that and is one of the nine reported -- named here
+/// rather than special-cased, because the alternative is a rule that follows values
+/// across function boundaries, which this is not.
+///
+/// The guard names are plural on purpose: `read_is_complete` is this crate's and
+/// `is_lower_bound` is `red.rs`'s own predicate for the same question. One rule, two
+/// spellings, and a classifier that knew only the first would report a guarded fetch
+/// as bare.
+pub fn classify_fetch(site: &str, body: &str) -> Fetch {
+    if body.contains("--paginate") {
+        return Fetch::Paginated;
+    }
+    if single_page(site) {
+        return if body.contains("total_count") {
+            Fetch::SingleWithTotal
+        } else {
+            Fetch::SingleNoTotal
+        };
+    }
+    for guard in ["read_is_complete", "is_lower_bound", "total_count"] {
+        if body.contains(guard) {
+            return Fetch::Guarded;
+        }
+    }
+    Fetch::Unguarded
+}
+
+/// Which lines of a Rust file sit inside a `#[cfg(test)]` module.
+///
+/// A test fixture is not a fetch, and the census counted its own fixtures until this
+/// existed: the line `is_fetch_site("...repos/{repo}/...?per_page=100")` in the test
+/// below is a perfectly good fetch URL, in a string, in a test.
+///
+/// "Everything after the first `#[cfg(test)]`" would be wrong here and was checked
+/// rather than assumed: five files in this crate carry real top-level functions AFTER
+/// their test module, `gates.rs` fifteen of them. So the module is closed properly, by
+/// a `}` in the first column -- which holds for rustfmt-formatted code and is the
+/// assumption this states rather than hides.
+pub fn test_module_lines(text: &str) -> Vec<bool> {
+    let mut out = Vec::new();
+    let mut inside = false;
+    let mut armed = false;
+    for line in text.lines() {
+        if inside && line == "}" {
+            inside = false;
+            out.push(true);
+            continue;
+        }
+        if armed && line.starts_with("mod ") {
+            inside = true;
+            armed = false;
+        } else if line.starts_with("#[cfg(test)]") {
+            armed = true;
+        }
+        out.push(inside);
+    }
+    out
+}
+
+/// `(name, first line, last line)` for every top-level `fn` in a Rust source file.
+///
+/// Structural, not a line window: the body of a function runs to the next top-level
+/// `fn`, so a guard eight hundred lines away in the same function still counts and a
+/// guard three lines away in the next one does not.
+pub fn fn_spans(text: &str) -> Vec<(String, usize, usize)> {
+    let mut out: Vec<(String, usize, usize)> = Vec::new();
+    let mut cur: Option<(String, usize)> = None;
+    let mut last = 0usize;
+    for (i, line) in text.lines().enumerate() {
+        last = i + 1;
+        let name = line
+            .strip_prefix("pub fn ")
+            .or_else(|| line.strip_prefix("fn "))
+            .and_then(|r| r.split(['(', '<', ' ']).next())
+            .filter(|n| !n.is_empty());
+        if let Some(n) = name {
+            if let Some((pn, ps)) = cur.take() {
+                out.push((pn, ps, i));
+            }
+            cur = Some((n.to_string(), i + 1));
+        }
+    }
+    if let Some((n, s)) = cur {
+        out.push((n, s, last));
+    }
+    out
+}
+
+fn fetches(show_excluded: bool) -> Result<()> {
+    let dir = repo_root()?.join("cli/tri/src");
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+        .with_context(|| format!("cannot read {}", dir.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|e| e == "rs"))
+        .collect();
+    files.sort();
+
+    let mut sites: Vec<(Fetch, String, usize, String)> = Vec::new();
+    let mut excluded: Vec<(String, usize, String)> = Vec::new();
+    for f in &files {
+        let Ok(text) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let spans = fn_spans(&text);
+        let in_test = test_module_lines(&text);
+        let lines: Vec<&str> = text.lines().collect();
+        let name = f
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        for (i, line) in lines.iter().enumerate() {
+            if !line.contains("--limit") && !line.contains("per_page=") {
+                continue;
+            }
+            if in_test.get(i).copied().unwrap_or(false) {
+                continue;
+            }
+            if !is_fetch_site(line) {
+                excluded.push((name.clone(), i + 1, line.trim().to_string()));
+                continue;
+            }
+            let span = spans.iter().find(|s| s.1 <= i + 1 && i + 1 <= s.2);
+            let body = span
+                .map(|s| lines[s.1 - 1..s.2.min(lines.len())].join("\n"))
+                .unwrap_or_default();
+            let fname = span.map(|s| s.0.clone()).unwrap_or_else(|| "?".into());
+            sites.push((classify_fetch(line, &body), name.clone(), i + 1, fname));
+        }
+    }
+
+    let n = |k: Fetch| sites.iter().filter(|s| s.0 == k).count();
+    println!("BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL\n");
+    println!("  files read                    {}", files.len());
+    println!(
+        "  lines naming either spelling  {}",
+        sites.len() + excluded.len()
+    );
+    println!("  of those, FETCH SITES         {}", sites.len());
+    println!(
+        "  refused as not a fetch        {}   (--excluded prints them)",
+        excluded.len()
+    );
+    println!("\n  complete by construction:");
+    println!("    --paginate                  {}", n(Fetch::Paginated));
+    println!(
+        "    per_page=1 + total_count    {}",
+        n(Fetch::SingleWithTotal)
+    );
+    println!("\n  bounded, and:");
+    println!("    asks whether the page filled  {}", n(Fetch::Guarded));
+    println!(
+        "    per_page=1, NO total read     {}",
+        n(Fetch::SingleNoTotal)
+    );
+    println!("    prints what it got            {}", n(Fetch::Unguarded));
+
+    for (label, kind) in [
+        ("PRINTS WHAT IT GOT", Fetch::Unguarded),
+        ("ONE ROW, NO TOTAL", Fetch::SingleNoTotal),
+    ] {
+        let rows: Vec<&(Fetch, String, usize, String)> =
+            sites.iter().filter(|s| s.0 == kind).collect();
+        if rows.is_empty() {
+            continue;
+        }
+        println!("\n  {label}:");
+        for (_, file, line, func) in rows {
+            println!("    {file}:{line}  fn {func}");
+        }
+    }
+
+    if show_excluded {
+        println!("\n  REFUSED AS NOT A FETCH SITE:\n");
+        for (file, line, text) in &excluded {
+            println!("    {file}:{line}  {}", &text[..text.len().min(84)]);
+        }
+    }
+
+    println!(
+        "\n  A full page is a LOWER BOUND and only a short one is a total, so a\n  \
+         bounded fetch that prints what it got is stating a page as a census. The\n  \
+         subject of the guard question is the ENCLOSING FUNCTION, which has a cost\n  \
+         this states rather than hides: a function that only BUILDS a url and hands\n  \
+         it to a guarded caller reads as unguarded, and `red.rs`'s `runs_url` is\n  \
+         exactly that. One of the nine is that shape.\n\n  \
+         The exclusions are the other half of the reading. Taking every line that\n  \
+         merely NAMES `--limit` or `per_page=` reports 41 sites in a crate that has\n  \
+         24: prose, doc comments, a marker table and test assertions. A matcher that\n  \
+         swallowed them would be describing its input."
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod fetch_census_tests {
+    use super::{classify_fetch, fn_spans, is_fetch_site, single_page, Fetch};
+
+    #[test]
+    fn the_two_shapes_a_bounded_fetch_takes() {
+        assert!(is_fetch_site("        \"--limit\","));
+        assert!(is_fetch_site(
+            "        &format!(\"repos/{repo}/actions/workflows?per_page=100\"),"
+        ));
+    }
+
+    /// The rule matched its OWN definition until both needles were required in one
+    /// string literal. A census that counts itself is reporting a fact about the
+    /// census, and this is the line that did it.
+    #[test]
+    fn the_rule_does_not_match_its_own_definition() {
+        assert!(
+            !is_fetch_site(
+                "    line.split('\"').any(|s| s.contains(\"per_page=\") && s.contains(\"repos/\"))"
+            ),
+            "two needles in two literals is a rule, not a fetch"
+        );
+    }
+
+    /// Prose, doc comments and marker tables name the spellings without fetching.
+    /// Twenty-eight lines in this crate do, against twenty-four that fetch.
+    #[test]
+    fn naming_a_spelling_is_not_fetching() {
+        assert!(!is_fetch_site("/// raise --limit past the open count"));
+        // The comment guard earns its place on this shape and only this one: a doc
+        // comment quoting a real URL. Its population in the crate today is ZERO
+        // lines, measured -- so nothing but this test can kill the clause, and
+        // without the test the clause would be unproved rather than unnecessary.
+        assert!(!is_fetch_site(
+            "/// e.g. `\"repos/o/r/actions/runs?per_page=100\"`"
+        ));
+        assert!(!is_fetch_site("        (\"per_page=\", \"API window\"),"));
+        assert!(!is_fetch_site(
+            "    println!(\"  raise --limit and read again\");"
+        ));
+    }
+
+    #[test]
+    fn one_row_is_per_page_one_and_not_ten_or_a_hundred() {
+        assert!(single_page("runs?per_page=1"));
+        assert!(single_page("runs?per_page=1&branch=master"));
+        assert!(!single_page("workflows?per_page=100"));
+        assert!(!single_page("runs?per_page=10"));
+        assert!(!single_page("runs?per_page={PAGE}"));
+    }
+
+    /// `--paginate` outranks everything: a client that walks every page has the set,
+    /// whatever the page size says.
+    #[test]
+    fn paginate_outranks_the_page_size() {
+        assert_eq!(
+            classify_fetch("x?per_page=100", "fn f() { \"--paginate\" }"),
+            Fetch::Paginated
+        );
+        assert_eq!(
+            classify_fetch("x?per_page=1", "fn f() { \"--paginate\" }"),
+            Fetch::Paginated,
+            "a paginated single-page read is still complete"
+        );
+    }
+
+    #[test]
+    fn one_row_is_only_safe_beside_a_total() {
+        assert_eq!(
+            classify_fetch("x?per_page=1", "let n = v[\"total_count\"];"),
+            Fetch::SingleWithTotal
+        );
+        assert_eq!(
+            classify_fetch("x?per_page=1", "let n = arr.len();"),
+            Fetch::SingleNoTotal
+        );
+    }
+
+    /// Two spellings of one question. A classifier that knew only this crate's own
+    /// `read_is_complete` would call `red.rs` bare, and `red.rs` is the file that got
+    /// this right first.
+    #[test]
+    fn a_guard_is_recognised_under_either_name() {
+        assert_eq!(
+            classify_fetch("x?per_page=30", "read_is_complete(n, lim)"),
+            Fetch::Guarded
+        );
+        assert_eq!(
+            classify_fetch("x?per_page=30", "is_lower_bound(n)"),
+            Fetch::Guarded
+        );
+        assert_eq!(
+            classify_fetch("x?per_page=30", "println!(\"{}\", rows.len());"),
+            Fetch::Unguarded
+        );
+    }
+
+    /// The body of a function runs to the next top-level `fn`, so a guard eight
+    /// hundred lines down in the same function counts and one three lines away in
+    /// the next one does not.
+    #[test]
+    fn a_function_body_ends_at_the_next_function() {
+        let src = "use x;\nfn a() {\n  one\n}\nfn b(z: u8) {\n  two\n}\n";
+        assert_eq!(
+            fn_spans(src),
+            vec![("a".to_string(), 2, 4), ("b".to_string(), 5, 7)]
+        );
+    }
+
+    /// A test fixture is not a fetch, and real functions live AFTER the test module
+    /// in five files of this crate -- so the module has to be CLOSED, not run to the
+    /// end of the file.
+    #[test]
+    fn a_test_module_ends_at_its_own_closing_brace() {
+        let src = "fn a() {}\n#[cfg(test)]\nmod t {\n    fn fixture() {}\n}\nfn b() {}\n";
+        assert_eq!(
+            super::test_module_lines(src),
+            vec![false, false, true, true, true, false],
+            "line 1 code, 2 the attribute, 3-5 the module, 6 code again"
+        );
+    }
+
+    /// `main.rs` declares forty top-level modules. Without the attribute check the
+    /// first of them puts the walker in test mode for the rest of the file, and every
+    /// fetch after it disappears from the census -- silently, which is the failure
+    /// mode this whole command exists to name.
+    #[test]
+    fn an_ordinary_module_declaration_is_not_a_test_module() {
+        let src = "mod issues;\nmod gates;\nfn f() {}\n";
+        assert_eq!(super::test_module_lines(src), vec![false, false, false]);
+    }
+
+    /// An inner brace must not close the module early, or everything after a nested
+    /// block reads as production code.
+    #[test]
+    fn an_indented_brace_does_not_close_the_module() {
+        let src = "#[cfg(test)]\nmod t {\n    fn f() {\n    }\n    fn g() {}\n}\nfn after() {}\n";
+        let m = super::test_module_lines(src);
+        assert!(m[4], "still inside the module after an indented close");
+        assert!(!m[6], "and out of it after the column-zero close");
+    }
+
+    #[test]
+    fn an_indented_fn_is_not_a_top_level_one() {
+        let src = "fn a() {\n    fn inner() {}\n    x\n}\n";
+        assert_eq!(fn_spans(src), vec![("a".to_string(), 1, 4)]);
     }
 }

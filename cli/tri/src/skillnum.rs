@@ -443,17 +443,29 @@ pub fn window_markers(text: &str) -> Vec<&'static str> {
     let low = text.to_lowercase();
     let mut out = Vec::new();
     // `last 20 commits`, `of the last 40`
-    if let Some(i) = low.find("last ") {
+    //
+    // EVERY occurrence, not the first. `find` answers "does the FIRST `last ` satisfy
+    // this?" and the question is "does ANY?" -- a difference invisible on one line and
+    // certain on a page of prose, which is the only kind of text this reads. Section
+    // 439 says "reads the last COMMIT message" on its line 18, where no digit follows,
+    // and "Over the last 20 commit messages on master" on line 27. With `find` the
+    // rule stopped at the first and 439 was absent from its own population, though it
+    // is the section that produced the 4-against-33 row this rule was written for.
+    // Exactly one section is masked, at HEAD and at the anchor alike: 15 was 16 and 12
+    // was 13.
+    for (i, _) in low.match_indices("last ") {
         let rest = &low[i + 5..];
         let n: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-        if !n.is_empty() {
-            let after = rest[n.len()..].trim_start();
-            for w in ["commit", "run", "pr", "pull request", "issue", "merged"] {
-                if after.starts_with(w) {
-                    out.push("last N");
-                    break;
-                }
-            }
+        if n.is_empty() {
+            continue;
+        }
+        let after = rest[n.len()..].trim_start();
+        if ["commit", "run", "pr", "pull request", "issue", "merged"]
+            .iter()
+            .any(|w| after.starts_with(w))
+        {
+            out.push("last N");
+            break;
         }
     }
     for (needle, label) in [
@@ -859,6 +871,27 @@ mod window_tests {
         );
         assert_eq!(window_markers("gh run list --limit 40"), vec!["API window"]);
         assert_eq!(window_markers("?per_page=100"), vec!["API window"]);
+    }
+
+    /// The probe the shipped rule failed. `last ` occurs twice and only the SECOND
+    /// occurrence is a window; `find` stops at the first and reports nothing. Section
+    /// 439 is exactly this shape -- "reads the last COMMIT message" before "Over the
+    /// last 20 commit messages on master" -- and it was absent from its own population
+    /// until the rule walked every occurrence.
+    #[test]
+    fn a_window_after_a_non_window_is_still_a_window() {
+        assert_eq!(
+            window_markers("reads the last commit message. Over the last 20 commits on master"),
+            vec!["last N"],
+            "the first `last ` has no digit; the second does"
+        );
+    }
+
+    /// And two non-windows are still not a window, so the fix did not simply widen
+    /// the rule into agreeing with everything.
+    #[test]
+    fn two_non_windows_remain_two_non_windows() {
+        assert!(window_markers("the last commit, and at last the last word").is_empty());
     }
 
     /// The counter-example, and it is the whole reason the rule enumerates nouns

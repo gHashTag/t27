@@ -432,6 +432,39 @@ pub fn open_at(created: &str, closed: &str, instant: &str) -> bool {
     closed.is_empty() || closed > instant
 }
 
+/// Today's UTC date as `YYYY-MM-DD`.
+///
+/// Days since the epoch, then the civil date, by the standard algorithm. No
+/// subprocess and no date crate: this file already compares ISO-8601 strings from
+/// GitHub, and one more string of the same shape keeps the comparison lexicographic.
+pub fn today_utc() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Days since 1970-01-01 to a civil `(year, month, day)`.
+///
+/// Hinnant's algorithm, shifted to a March-based year so that the leap day lands at
+/// the end and the month lengths become a single linear formula. It is transcribed
+/// rather than invented, and it is tested against dates chosen for what they break:
+/// an epoch, a leap day, a century that is not a leap year, and one that is.
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
 /// `YYYY-MM-DD` to the last instant of that UTC day.
 ///
 /// The END of the day, not the start, because that is what GitHub's own search means
@@ -441,13 +474,28 @@ pub fn open_at(created: &str, closed: &str, instant: &str) -> bool {
 ///
 /// The shape check is `skillnum::is_iso_date`, the rule already mutation-proved for
 /// the skill anchors, rather than a second copy of the same ten conjuncts here.
-pub fn instant_of(date: &str) -> Result<String> {
+pub fn instant_of(date: &str, today: &str) -> Result<String> {
     let c: Vec<char> = date.chars().collect();
     if c.len() != 10 || !crate::skillnum::is_iso_date(&c) {
         anyhow::bail!(
             "--as-of wants YYYY-MM-DD and got `{date}`. A date this cannot read is \
              refused rather than silently treated as today, which would print a \
              number over the wrong population under an anchor that looks right."
+        );
+    }
+    // A day that has not ENDED cannot be read as a completed day, and GitHub does not
+    // say so: `created:<=2027-01-01` answers with today's set, and the first version
+    // of this command printed today's 486 under the heading "AS OF 2027-01-01" -- a
+    // number that looks anchored, reads as history, and is a clock reading wearing
+    // next year's label. Today itself is refused for the same reason as tomorrow: its
+    // end is still in the future, so the count will differ from itself by evening.
+    if date >= today {
+        anyhow::bail!(
+            "--as-of {date} asks for a day that has not ended (today is {today} UTC). \
+             The answer would be TODAY'S count under a heading that reads as history, \
+             which is worse than no anchor at all -- GitHub answers such a query \
+             without complaint. Ask for {today} or later tomorrow, or pick a day that \
+             has closed."
         );
     }
     Ok(format!("{date}T23:59:59Z"))
@@ -471,7 +519,8 @@ pub fn read_is_complete(returned: usize, limit: usize) -> bool {
 /// wherever the backlog has not moved.
 fn numbers(sample: usize, limit: usize, single: bool, as_of: Option<&str>) -> Result<()> {
     let lim = limit.to_string();
-    let instant = as_of.map(instant_of).transpose()?;
+    let today = today_utc();
+    let instant = as_of.map(|d| instant_of(d, &today)).transpose()?;
     // With --as-of the state filter has to come off: an issue open THEN may be
     // closed NOW, and `--state open` would drop exactly the ones that make the two
     // readings differ. The filtering is done here from the timestamps instead.
@@ -1401,10 +1450,65 @@ mod as_of_tests {
         assert!(!open_at("", "2026-09-01T10:00:00Z", T));
     }
 
+    const TODAY: &str = "2026-09-04";
+
     #[test]
     fn a_date_becomes_the_last_instant_of_that_utc_day() {
-        assert_eq!(instant_of("2026-08-01").unwrap(), "2026-08-01T23:59:59Z");
-        assert_eq!(instant_of("2099-12-31").unwrap(), "2099-12-31T23:59:59Z");
+        assert_eq!(
+            instant_of("2026-08-01", TODAY).unwrap(),
+            "2026-08-01T23:59:59Z"
+        );
+        assert_eq!(
+            instant_of("2026-09-03", TODAY).unwrap(),
+            "2026-09-03T23:59:59Z",
+            "yesterday has ended, so it can be read"
+        );
+    }
+
+    /// A day that has not ENDED cannot be read as a completed day. GitHub answers
+    /// `created:<=2027-01-01` with today's set and no complaint, so the first version
+    /// of this command printed today's 486 under the heading `AS OF 2027-01-01` -- a
+    /// clock reading wearing next year's label. Today is refused for the same reason
+    /// as tomorrow: its end is still in the future.
+    #[test]
+    fn a_day_that_has_not_ended_is_refused() {
+        assert!(instant_of("2027-01-01", TODAY).is_err(), "next year");
+        assert!(instant_of("2026-09-05", TODAY).is_err(), "tomorrow");
+        assert!(
+            instant_of(TODAY, TODAY).is_err(),
+            "today has not ended either -- its count differs from itself by evening"
+        );
+    }
+
+    /// The transcribed calendar, tested on the dates that break a wrong one: the
+    /// epoch, a leap day, a century that is NOT a leap year, and one that is.
+    #[test]
+    fn the_civil_calendar_lands_on_the_dates_that_break_it() {
+        use super::civil_from_days;
+        assert_eq!(civil_from_days(0), (1970, 1, 1), "the epoch");
+        assert_eq!(civil_from_days(-1), (1969, 12, 31), "before the epoch");
+        assert_eq!(civil_from_days(59), (1970, 3, 1), "1970 is not a leap year");
+        assert_eq!(
+            civil_from_days(11_016),
+            (2000, 2, 29),
+            "2000 IS a leap year"
+        );
+        assert_eq!(civil_from_days(-25_567), (1900, 1, 1), "1900 is NOT");
+        // The century divisor is load-bearing on exactly TWO days in a hundred
+        // thousand -- 1900-03-01 and 2100-03-01, the day after a non-leap century's
+        // February. Swap 36_524 for 36_525 and the calendar invents 1900-02-29, a
+        // date that does not exist. Found by sweeping the mutant against an
+        // independent calendar rather than left unproved.
+        assert_eq!(
+            civil_from_days(-25_508),
+            (1900, 3, 1),
+            "no 1900-02-29 exists"
+        );
+        assert_eq!(civil_from_days(47_541), (2100, 3, 1), "nor 2100-02-29");
+        // Cross-checked against an independent calendar (python `datetime`), which
+        // is how the sixth line of this test got fixed: the code was right and the
+        // expectation was mine.
+        assert_eq!(civil_from_days(20_699), (2026, 9, 3));
     }
 
     /// Refused, not defaulted. A date this cannot read must not become "today" under
@@ -1418,7 +1522,7 @@ mod as_of_tests {
             "",
             "yesterday",
         ] {
-            assert!(instant_of(bad).is_err(), "{bad} must be refused");
+            assert!(instant_of(bad, TODAY).is_err(), "{bad} must be refused");
         }
     }
 
