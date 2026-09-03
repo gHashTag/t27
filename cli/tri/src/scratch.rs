@@ -20,6 +20,14 @@
 //! every run; only the timing of the delete decides whether a test dies. It
 //! failed roughly one run in three, and passed the first time it was written.
 //!
+//! TWO COLLISIONS, AND THIS DETECTOR SEES ONE. Everything below is about tests
+//! inside ONE process. A second collision is between concurrent RUNS of the same
+//! binary sharing `$TMPDIR`, and a key that separates threads does not separate
+//! those: `verilog_real_arithmetic.rs` with a counter but no pid still failed
+//! 29 of 64 runs with 16 copies going at once, and 0 of 64 with both. Nothing
+//! here detects that; the printed advice now says so rather than recommending
+//! against the pid.
+//!
 //! What this looks for is the CONJUNCTION -- more than one `#[test]`, a scratch
 //! path under `temp_dir()`, a `remove_dir_all` of that path, and a key with no
 //! per-call component. Any one of those alone is fine.
@@ -153,6 +161,30 @@ pub fn judge(path: &Path, s: &str) -> Option<Finding> {
     })
 }
 
+pub fn advice() -> String {
+    [
+        "  Fix: an AtomicUsize counter AND the pid. Not either one, and not",
+        "  any property of the input (two inputs can agree).",
+        "",
+        "  The two are for different collisions, and this used to say \"not",
+        "  the pid\". Measured on bootstrap/tests/verilog_real_arithmetic.rs,",
+        "  release build, four arms:",
+        "",
+        "      key                  1 process, 4 threads   16 processes",
+        "      neither                        6 / 150         41 / 64",
+        "      process::id only               7 / 150          0 / 64",
+        "      counter only                   0 / 150         29 / 64",
+        "      both                           0 / 150          0 / 64",
+        "",
+        "  The counter separates the THREADS of one run; the pid separates",
+        "  concurrent RUNS, which is not hypothetical -- two agents, two",
+        "  worktrees, or a `cargo test` beside a manual run share $TMPDIR.",
+        "  This detector only looks for the first collision. The middle two",
+        "  rows are what each half alone costs.",
+    ]
+    .join("\n")
+}
+
 pub fn run(gate: bool, self_check: bool) -> Result<()> {
     if self_check {
         return run_self_check();
@@ -203,9 +235,7 @@ pub fn run(gate: bool, self_check: bool) -> Result<()> {
     println!("  It passes the first time it runs. A green run does not clear it --");
     println!("  print the paths of a single run and count the distinct ones.");
     println!();
-    println!("  Fix: key the directory by an AtomicUsize counter, not by the pid");
-    println!("  (shared by every test in the binary) and not by any property of");
-    println!("  the input (two inputs can agree).");
+    println!("{}", advice());
     println!();
 
     if gate && !found.is_empty() {
@@ -295,6 +325,41 @@ fn yn(b: bool) -> &'static str {
         "yes"
     } else {
         "NO"
+    }
+}
+
+#[cfg(test)]
+mod advice_tests {
+    /// The advice is the deliverable, so it is pinned like one. It used to read
+    /// "an AtomicUsize counter, NOT the pid", and the four-arm table it now
+    /// carries is what that cost: counter-only left 29 of 64 concurrent runs
+    /// failing. Both components are required, and this asserts the text says so.
+    #[test]
+    fn the_advice_asks_for_both_components_and_not_one_instead_of_the_other() {
+        let a = super::advice();
+        assert!(a.contains("AtomicUsize"), "the per-call half is missing:\n{a}");
+        assert!(a.contains("pid"), "the per-process half is missing:\n{a}");
+        assert!(
+            a.contains("AND"),
+            "both are required; the text must not offer a choice:\n{a}"
+        );
+        // The exact sentence that was wrong. Anywhere in the text, in any
+        // casing, it is the old advice coming back.
+        let lower = a.to_lowercase();
+        assert!(
+            !lower.contains("not by the pid") && !lower.contains("not the pid"),
+            "the old advice is back:\n{a}"
+        );
+    }
+
+    /// The numbers are the reason the sentence changed, so losing them turns the
+    /// advice back into an assertion. All four arms, or none of this is evidence.
+    #[test]
+    fn the_advice_carries_the_measurement_that_settled_it() {
+        let a = super::advice();
+        for arm in ["6 / 150", "41 / 64", "0 / 150", "29 / 64", "0 / 64"] {
+            assert!(a.contains(arm), "missing the {arm} arm:\n{a}");
+        }
     }
 }
 
