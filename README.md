@@ -228,7 +228,7 @@ The language is built around three pillars:
 - **GoldenFloat family** -- phi-structured floating-point formats (GF4-GF32) where `exp/mant ~ 1/phi`
 - **Sacred physics** -- fundamental constants derived from `phi^2 + 1/phi^2 = 3`
 
-t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neuroanatomical AI framework targeting FPGA acceleration and DARPA CLARA compliance.
+t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neuroanatomical AI framework targeting FPGA acceleration, with an automated-reasoning pipeline written against the public DARPA CLARA solicitation as a specification target. No DARPA award or engagement -- see [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
 
 ## Quick Start
 
@@ -358,7 +358,7 @@ t27/
 
 ## CLARA Automated Reasoning
 
-The AR domain (Rings 18-24) implements a full DARPA CLARA-compliant reasoning pipeline in ternary logic:
+The AR domain (Rings 18-24) implements a reasoning pipeline in ternary logic, written against the ten assurance requirements described in the public DARPA CLARA solicitation -- CLARA-style, not certified (DARPA does not certify compliance):
 
 
 | Module             | Spec                          | Description                                                                                                 |
