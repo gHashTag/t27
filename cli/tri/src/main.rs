@@ -337,6 +337,11 @@ enum SkillAction {
         /// Report the moves and write nothing.
         #[arg(long)]
         check: bool,
+        /// Start at this number instead of one past the base's highest. For a
+        /// second open branch numbering against the same base -- pass a number,
+        /// not a different --base.
+        #[arg(long)]
+        first: Option<usize>,
     },
     Begin {
         #[arg(long)]
@@ -910,9 +915,12 @@ fn main() -> Result<()> {
                     numbers: *numbers,
                     windowed: *windowed,
                 })?,
-                SkillAction::Renumber { base, file, check } => {
-                    renum::run(base, file, *check)?
-                }
+                SkillAction::Renumber {
+                    base,
+                    file,
+                    check,
+                    first,
+                } => renum::run(base, file, *check, *first)?,
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
             }

@@ -17,9 +17,10 @@
 //! open branches once claimed the same number, and `--base origin/<sibling>`
 //! numbered correctly around it -- and rebuilt my file on the SIBLING, so my
 //! branch then carried the sibling's sections too and would have merged them
-//! under my PR. Number every branch against the shared base; whoever merges
-//! second conflicts and renumbers, which is now one command. The flag is for a
-//! different base branch, not for a peer.
+//! under my PR. `--first N` is the answer that documentation was standing in
+//! for: both branches number against the SHARED base, and the second one starts
+//! higher. A number, not a different base. `--base` is for a different base
+//! BRANCH, not for a peer.
 //!
 //! References are rewritten only for the numbers being moved and only INSIDE the
 //! tail. A section that cites `&sect;447` keeps citing 447; a section that cites
@@ -165,6 +166,30 @@ pub fn plan(at_base: &str, tail: &str) -> (String, Vec<(usize, usize)>) {
     renumber(tail, max_section(at_base) + 1)
 }
 
+/// The first number to use, given the base and an optional caller-chosen start.
+///
+/// `--first` exists because two of my own open branches once claimed the same
+/// number and I reached for `--base origin/<sibling>`. That numbered correctly
+/// around the sibling -- and rebuilt my file ON it, so my branch carried the
+/// sibling's sections and would have merged them under my PR. The right move is
+/// for both branches to number against the SHARED base and for the second one to
+/// start higher, which needs a number and not a different base.
+///
+/// A start at or below the base's highest is refused. It would produce a
+/// collision with the very file it is numbering against, which is the one thing
+/// this command exists to prevent.
+pub fn first_number(at_base: &str, requested: Option<usize>) -> Result<usize> {
+    let floor = max_section(at_base);
+    match requested {
+        None => Ok(floor + 1),
+        Some(n) if n > floor => Ok(n),
+        Some(n) => bail!(
+            "--first {n} is not above the base's highest section ({floor}). \
+             Starting there collides with the file being numbered against."
+        ),
+    }
+}
+
 fn show(rev: &str, path: &str, root: &Path) -> Result<String> {
     let out = Command::new("git")
         .args(["show", &format!("{rev}:{path}")])
@@ -187,7 +212,7 @@ fn merge_base(rev: &str, root: &Path) -> Result<String> {
     Ok(String::from_utf8(out.stdout)?.trim().to_string())
 }
 
-pub fn run(base: &str, file: &str, check: bool) -> Result<()> {
+pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Result<()> {
     let root = crate::find_trinity_root()?;
     let mb = merge_base(base, &root)?;
     let at_mb = show(&mb, file, &root)?;
@@ -214,12 +239,16 @@ pub fn run(base: &str, file: &str, check: bool) -> Result<()> {
         );
     };
 
-    let (moved, moves) = plan(&at_base, tail);
+    let first = first_number(&at_base, first_req)?;
+    let (moved, moves) = renumber(tail, first);
 
     println!();
     println!("  {file}");
     println!("  merge base {}   {} section(s) there", &mb[..9.min(mb.len())], crate::skillnum::sections(&at_mb).len());
     println!("  {base} highest section  {}", max_section(&at_base));
+    if first_req.is_some() {
+        println!("  --first                 {first}   (asked for, not derived)");
+    }
     println!("  appended here           {}", crate::skillnum::sections(tail).len());
     println!("  tail identified by      {how}");
     // The joiner is explicit, and it is the defect this command shipped with:
@@ -386,6 +415,30 @@ mod tests {
     #[test]
     fn two_files_with_no_shared_section_are_refused() {
         assert!(tail_by_title("## 10. Ten\n", "## 99. Other\n").is_none());
+    }
+
+    /// Two open branches, one shared base. Both number against the base and the
+    /// second starts higher -- which needs a NUMBER, not a different base. The
+    /// alternative I actually reached for, `--base origin/<sibling>`, rebuilds
+    /// the file on the sibling and carries its sections into your PR.
+    #[test]
+    fn a_requested_start_above_the_base_is_used_verbatim() {
+        let base = "## 470. last\n\nbody\n";
+        assert_eq!(first_number(base, Some(475)).unwrap(), 475);
+        assert_eq!(first_number(base, None).unwrap(), 471);
+    }
+
+    #[test]
+    fn a_requested_start_that_would_collide_is_refused() {
+        let base = "## 470. last\n\nbody\n";
+        for n in [1, 470] {
+            let e = first_number(base, Some(n));
+            assert!(e.is_err(), "--first {n} must be refused against a base whose highest is 470");
+            let msg = format!("{}", e.unwrap_err());
+            assert!(msg.contains("470"), "the refusal must name the floor: {msg}");
+        }
+        // And the boundary is strict on the right side too.
+        assert_eq!(first_number(base, Some(471)).unwrap(), 471);
     }
 
     #[test]
