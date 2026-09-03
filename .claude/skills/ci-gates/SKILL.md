@@ -12725,3 +12725,104 @@ JSON kills it too; and **neither moves any other test in the file**. That last
 clause is not decoration — it is the measurement that the six existing tests never
 covered this branch, which is the same fact the docstring got wrong, restated in a
 form that fails if someone deletes it.
+
+
+## 479. An optional qualifier over an empty population
+
+`grep -oE '(issue-|#)?[0-9]+'` extracts an issue number from a branch name. The
+comment above it says `feature/issue-357-xyz -> 357`, and it does that
+correctly. Measured over every branch in this repository, local and remote:
+
+    branches examined                 1294
+    given a number by that matcher    1048
+    branches carrying `issue-N`/`#N`     0
+    branches named `wNN-`              140
+
+**Zero.** The form the parser documents has never once been used here. `wNN-` is
+the convention, and `w42-status-ruler`, `w42-tri-vsim`, `w42-verilog-break` and
+`w42-vsim-unknown` all answer **#42** -- a wave number wearing an issue's name.
+
+The `?` is the whole defect. Without it the matcher would have answered nothing,
+1294 times, and someone would have noticed within a day that the feature was
+dead. With it, the empty population became **1048 confident wrong answers**, and
+the parser looked like it was working every single time.
+
+The general form, and it is not about regexes: **an optional qualifier is a
+promise that the unqualified case is still meaningful.** When the qualified
+population turns out to be empty, that promise is the only thing left, and it is
+false. Before writing `?`, `unwrap_or`, a default arm, or a fallback branch, ask
+what fraction of real inputs will take it -- and if the answer is "all of them",
+the fallback is not a fallback, it is the implementation.
+
+Nothing visibly broke, which is the second half. The number feeds a `sync.py
+--issue N` call that cannot run: three sites hard-code `python3.10`, absent on
+this host while `python3` is 3.14.3. Each failed into an `|| echo` blaming
+CONFIGURATION, and the output contradicted itself two lines apart --
+`Could not update metadata`, then `Metadata updated`, then `Post-merge
+complete`. **A broken feature hid a wrong answer**: had the sync worked, 1048
+branches would have written to arbitrary notebooks.
+
+Two neighbours from the same hour, same family. `rings_matrix.py` returns `[]`
+when no directory matches `ring-*-rust` with a `Cargo.toml`, and the workflow
+guards its build job with `if: needs.discover.outputs.count != '0'` -- so an
+empty matrix SKIPS the build, **and a skipped job is green**. The commit that
+renames the crates matches that workflow's own `paths:` filter, runs it, and
+collects a tick for compiling nothing. And in the test written for it, emptying
+`$GITHUB_OUTPUT` instead of pointing it at a file made all three defect arms
+fail on the wrong line and *pass*; the control asserting SUCCESS on a real tree
+is what caught it.
+
+Prior art, looked up rather than assumed: **pytest reserves exit code 5 for
+"No tests were collected"**, a public-API outcome distinct from 1 (tests
+failed), 2 (interrupted), 3 (internal error) and 4 (usage error) -- and tools
+like Pants ship a flag to treat it as success, which is itself proof the
+distinction matters enough to argue about. This repository has converged on
+**2 for everything that is not a reading**, which is coarser than the field's by
+one distinction: *the instrument is missing* and *the population is empty* share
+a code here and have different codes there. Worth knowing before the next gate
+picks a number.
+
+
+## 480. The check said no and I pushed anyway
+
+Two things happened an hour apart, and only the second one is a lesson.
+
+The first: resolving a numbering conflict, my own verification printed
+`OK=False` -- **442 sections where 440 were expected** -- and I committed and
+pushed. The file had three of master's sections duplicated. The mechanism is
+ordinary: after `git checkout HEAD -- <file>` the tail no longer stood in the
+append relation the command needs, so the renumber moved a slice that included
+master's own sections. Any tool can be handed the wrong input.
+
+The second: **the check that caught it ran, printed the right answer, and I
+scrolled past it.** In a file whose sections are almost entirely about counting
+populations, in a session that had spent the day on gates that report the wrong
+subject, the guard reported the right subject and reached nobody.
+
+What separates the two repairs is not care. It is where the answer goes:
+
+```
+  ...verify...   ->  print "OK=False"        # advisory. I read it or I do not.
+  ...verify...   ->  exit 1, and the push is downstream of it
+```
+
+The second form cannot be scrolled past, and it is one line further. The rule:
+**a verification whose output is a line of text is a suggestion; a verification
+whose exit code gates the next command is a check.** If the next thing you do
+after looking at a number is push, then the number belongs in an `if`.
+
+The same hour produced two smaller versions of the same shape, both caught
+because the guard was in the right place. `tri skill renumber` answered with its
+usage text twice, because the merge that would have brought the command into the
+worktree was resolved but never concluded -- so the binary predated the code.
+**An exit code from a tool that did not just build is not a reading of the code
+you are holding.** And `git merge origin/master` completed while master moved
+underneath it, so the merge commit still did not have `origin/master` as an
+ancestor: fetch, merge, and CHECK the ancestry in a loop, because on a
+repository where someone else merges every few minutes the first two are a race.
+
+The generalisation is uncomfortable and worth writing down anyway. Every section
+in this file about a gate reporting the wrong subject is about a machine doing
+it. This one is about me: the instrument was correct, its message was correct,
+and the failure was entirely in the reading. **Instruments that only print are
+sized for a reader who is not tired.**
