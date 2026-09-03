@@ -10825,3 +10825,63 @@ that means *no answer* compared as though it were an answer — one layer up, in
 the reader instead of the record. The tell in all three: **the wrong reading was
 the reassuring one.** A ruler that fails toward "fine" is the only kind that
 survives long enough to be quoted.
+
+## 429. A corpus of already-broken files is not a control
+
+Repairing #2997 — a range literal emitted where a loop bound belongs — I also
+renamed a `_` capture to a reserved counter, copying what the C emitter does.
+C declares its counter in the `for` header. The Verilog backend hoists the
+declaration to the top of the function body from a *different* function,
+`collect_fn_loop_vars`, so the rename produced
+
+```
+register `__t27_i' unknown in RangeBound.count_anon.count_anon_body.
+```
+
+in every file it touched. **And the corpus said nothing.** `iverilog` accepted
+380 of 581 before and 380 after, with the accepted set identical — because all
+**36** files carrying the defect were already in the 201 that fail, *on the very
+defect being repaired*. No acceptance number could move in either direction
+whatever I emitted into them.
+
+This is not the familiar "acceptance cannot see a defect that compiles". It is
+the inverse and it is worse: **when the population you are fixing is entirely
+inside the failing set, the corpus is not a weak control — it is no control at
+all**, and every aggregate you quote will be reassuringly flat.
+
+What caught it in under a second was a probe that RUNS: a four-line spec whose
+own declared tests go through `t27c icarus-simulate`. Before the change the probe
+did not elaborate; after the broken version it elaborated and died on the
+undeclared identifier; after the repair its three tests print PASSED.
+
+The rule: **before quoting an unchanged aggregate as evidence of no regression,
+ask how many of the files you touched are inside the failing set.** If the answer
+is all of them, say so in the same sentence as the number, and get your evidence
+from something that executes.
+
+## 430. A count of a wobble measures the draw, not the population
+
+`gen-c`, `gen-rust` and `gen` are not byte-deterministic: the same binary from
+the same source emits different output on a second run. The first harness read
+**1 / 3 / 2** differing files. A second harness on the same tree with the same
+binary read **4 / 2 / 4**.
+
+Neither is wrong. Which files wobble is itself a draw, so a count taken once
+measures that draw. What is stable is the **union of names**, and it is small:
+four specs, two of which wobble in all three backends and two in two of them.
+
+That changes the finding. Three counts read as *three independent emitter
+defects*. Four names, largely shared, read as **one shared path that four specs
+reach** — a different investigation, and a tractable one.
+
+The rule has two halves and the second is the useful one:
+
+* For a nondeterministic phenomenon, **a count is not a population**. Report the
+  union over runs, or report the count with the number of runs beside it.
+* **Print the names.** The instrument that produced the count was three lines of
+  shell; the instrument that produced the names was a `tri` subcommand, and only
+  the second one told anybody what to look at next.
+
+Same shape as §421 one layer over: there a loose matcher inflated a count, here a
+sound matcher measured a moving one. Both times the repair was to stop quoting
+the number and start naming the members.
