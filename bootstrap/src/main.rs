@@ -8564,6 +8564,23 @@ fn run_deadcode_cmd(input: &Option<String>, repo: bool) -> anyhow::Result<()> {
         let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
         let mut total_fns = 0u64;
         let mut total_dead = 0u64;
+        // A RATIO NAMES ITS DENOMINATOR (#3077).
+        //
+        // Three drops sit between the walk and the count: a directory that will
+        // not open, a file that will not read, and -- the one that matters -- a
+        // spec whose `parse_ast` returns Err. Each contributed 0 to BOTH
+        // accumulators, so an unparseable spec shrank the denominator, and a
+        // shrinking denominator makes `Dead ratio` go UP, which reads as
+        // improvement.
+        //
+        // The population that takes that path is enumerated in-tree:
+        // docs/reports/suite_expectations.json records 69 `parse` and 76
+        // `parse-no-discard` blessed failures -- 145 files that provably do not
+        // parse -- against 666 `.t27` under specs/ and compiler/. The census
+        // printed 4593 functions and 13.5% without saying how many it skipped.
+        let mut walked = 0u64;
+        let mut unreadable = 0u64;
+        let mut unparsed = 0u64;
         for dir in &dirs {
             let path = std::path::Path::new(dir);
             if !path.exists() { continue; }
@@ -8574,8 +8591,15 @@ fn run_deadcode_cmd(input: &Option<String>, repo: bool) -> anyhow::Result<()> {
                         let p = entry.path();
                         if p.is_dir() { stack.push(p); continue; }
                         if !p.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
-                        if let Ok(source) = std::fs::read_to_string(&p) {
-                            if let Ok(ast) = compiler::Compiler::parse_ast(&source) {
+                        walked += 1;
+                        let Ok(source) = std::fs::read_to_string(&p) else {
+                            unreadable += 1;
+                            continue;
+                        };
+                        let Ok(ast) = compiler::Compiler::parse_ast(&source) else {
+                            unparsed += 1;
+                            continue;
+                        };
                                 let mut all_fns: std::collections::HashSet<String> = std::collections::HashSet::new();
                                 let mut called: std::collections::HashSet<String> = std::collections::HashSet::new();
                                 fn collect_calls(node: &compiler::Node, calls: &mut std::collections::HashSet<String>) {
@@ -8600,17 +8624,30 @@ fn run_deadcode_cmd(input: &Option<String>, repo: bool) -> anyhow::Result<()> {
                                     let short = p.strip_prefix(std::path::Path::new(".")).unwrap_or(&p).to_string_lossy();
                                     for f in &dead { println!("  {} :: {}", short, f); }
                                 }
-                            }
-                        }
                     }
                 }
             }
         }
         println!("---");
-        println!("Total functions: {}", total_fns);
+        let counted = walked - unreadable - unparsed;
+        println!("Specs walked:     {walked}");
+        println!("  did not read:   {unreadable}");
+        println!("  did not parse:  {unparsed}");
+        println!("Specs counted:    {counted}");
+        println!("Total functions:  {}", total_fns);
         println!("Potentially dead: {}", total_dead);
-        if total_dead > 0 {
-            println!("Dead ratio: {:.1}%", 100.0 * total_dead as f64 / total_fns as f64);
+        if counted == 0 {
+            println!();
+            println!("REFUSED -- no spec was counted, so a ratio would be a division over");
+            println!("nothing wearing the shape of a measurement. Exit code 2.");
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+            std::process::exit(2);
+        }
+        if total_fns > 0 {
+            println!(
+                "Dead ratio: {:.1}%   over {counted} of {walked} specs",
+                100.0 * total_dead as f64 / total_fns as f64
+            );
         }
     } else if let Some(path) = input {
         run_deadcode(path)?;
