@@ -1,4 +1,24 @@
 name: NOW Sync Gate
+#
+# READ THE JOB ID, NOT THE FILE NAME. The job below is `check-now-freshness`,
+# and it IS the freshness check -- despite living in a file called
+# now-sync-gate.yml, while a file called check-now-freshness.yml holds a job
+# called `check` that does NOT check freshness (it checks entry SHAPE, via
+# tools/check_now_entry_shape.py). The two names are crossed, both jobs are in
+# the required set, and a reader who matches file name to subject gets the wrong
+# one. This comment is the fix that costs nothing; renaming either file would
+# rename a required check and break every open PR.
+#
+# What this job's freshness means: scripts/ci/now-sync-gate-diff.sh accepts an
+# entry whose FILENAME date falls in [yesterday .. tomorrow] UTC, computed from
+# the clock at run time. That baseline is a window, not a fixed reference, so a
+# branch whose gate runs on two different UTC days can flip without any change
+# to the branch. Measured 2026-09-03 over the 100 most recent runs of this
+# workflow (2026-08-30 .. 2026-09-03): 5 failures, ZERO of them from the window
+# -- three "adds no entry", two "entry has no bullet". And the reason is that
+# the precondition never arose: of 36 branches in that set, only `master` ran on
+# more than one calendar day. The cost is zero because nothing here stays open
+# overnight, not because the window is safe.
 on:
   # No `branches:` filter on pull_request, deliberately. This gate is in the
   # required-check set, and with the filter it did not run at all on a PR whose

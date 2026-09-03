@@ -1,4 +1,15 @@
 name: Check Now Freshness
+#
+# READ THE JOB ID, NOT THE FILE NAME. Despite the file name, this workflow does
+# NOT check freshness: its job is `check`, and it runs
+# tools/check_now_entry_shape.py, which reads an entry's SHAPE -- heading,
+# bullets, well-formed name. Freshness lives in now-sync-gate.yml, whose job is
+# called `check-now-freshness`. The two names are crossed. Both jobs are
+# required, so neither file can be renamed without renaming a required check.
+#
+# The practical consequence, and it has already happened: a reader looking for
+# "why did the freshness gate behave that way" opens this file, finds a shape
+# checker, and concludes the freshness gate does not run.
 
 on:
   pull_request:
