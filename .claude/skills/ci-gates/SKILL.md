@@ -11614,12 +11614,17 @@ file, and confirmed against the refusal message, which had printed the same
 the one it was announcing as current.** Merging onto the version it named would
 have discarded the newer page.
 
-**And a second notice, which settled the mechanism.** Minutes later a second
-notice named `1788435789-8f03` -- `11:43:09Z` -- while live was
-`1788439613-732b`, `12:46:53Z`. Two notices, both behind live, and **ascending
-between themselves**: 11:05, then 11:43. So the ids are not wrong and the
-stream is not noise. It replays real past publishes, in order, lagging by over
-an hour.
+**And two more notices, which settled the mechanism.** Two more arrived, naming
+`1788435789-8f03` and `1788437269-721d`, while live stayed `1788439613-732b`,
+`12:46:53Z`. All three notices are behind live and **ascending between
+themselves**, and their lag is *closing*:
+
+    notice   11:05:37Z    101 min behind live
+    notice   11:43:09Z     63 min behind
+    notice   12:07:49Z     39 min behind
+
+So the ids are not wrong and the stream is not noise. It replays real past
+publishes, in order, draining a backlog.
 
 That distinction is the whole finding. "The notice is wrong" would mean
 distrust it; "the notice is late" means it is reliable about the past and says
@@ -11632,7 +11637,16 @@ reading has a timestamp, and a report *about* a reading has a second one. Only
 the fetch establishes what is live.
 
 One data point could not have told these apart, and the first version of this
-section stopped there. It took the second notice to see the ordering.
+section stopped there. It took the second to see the ordering and the third to
+see the lag closing -- and the third also falsified this section's own first
+correction, which said *"lagging by over an hour"* on the strength of two
+points. **Two points establish a direction and not a rate.**
+
+Note what is NOT changed above: the `83 minutes` in the previous paragraph
+compares the first notice against the version live *at that moment*, and the
+`101 min` here compares the same notice against the version live *now*. Two
+readings of two different questions, and the smaller one is not a correction of
+the larger. Say what the count is counted over.
 
 **The read must be the last thing before the write.** Three full reads of a
 2,886-line file were spent in one session, which is roughly 300k tokens of
