@@ -10885,3 +10885,92 @@ The rule has two halves and the second is the useful one:
 Same shape as §421 one layer over: there a loose matcher inflated a count, here a
 sound matcher measured a moving one. Both times the repair was to stop quoting
 the number and start naming the members.
+
+## 431. Re-measuring the number is not testing the claim
+
+I hand-verified three STALE verdicts because the adversarial phase of a fan-out had
+not run, and one of the three was wrong. `tri`'s own skeptic, arriving hours later,
+refuted it on four independent grounds — and I had written all four into that
+skeptic's prompt myself and then not applied them.
+
+The issue claimed **125 damaged lines in 65 files**. I measured the shape and got
+**0**, confirmed the pattern could match by feeding it a planted file, and confirmed
+from history that 63 files once carried it. Every step was sound and the verdict was
+still wrong:
+
+- **The number is dated by construction.** The title's own subject is *freeze*; the
+  body pins a snapshot hash; and the companion script prints *"REFUSING: the corpus
+  moved since the snapshot was frozen"*. A number whose own tooling declares itself
+  invalid the moment the tree moves is a historical reading, not a claim about today.
+- **A later comment already recorded the movement** — the owner posted the new figures
+  a week after filing. An issue that announces its own supersession misleads nobody.
+- **The load-bearing sentence was about a RULE, not a tree.** "The rule does not reach
+  18 lines" describes the substitution rule's reach; those 18 were then settled by an
+  owner language decision, which is exactly what the issue predicted. Reporting `0`
+  presented a **confirmed forecast as a wrong number**.
+- **Their own control reproduces the headline**: run the script over the pre-repair
+  corpus and it prints 125 / 65 / 15 exactly.
+
+The rule that survives: before calling a number stale, ask what KIND of claim carries
+it. A dated snapshot, a statement about an instrument's reach, and a prediction that
+came true all produce "the number is different today" while the issue is entirely
+sound. **Only a claim about the tree AS IT IS can be stale**, and the cheapest test is
+one `gh issue view` for a comment that already says so.
+
+And the meta-lesson, which is the expensive half: I substituted my own check for the
+adversary's because the adversary was late. My check was weaker in exactly the way an
+adversary is built to be strong — it asked *is the number different* where the skeptic
+asked *is the claim wrong*. **A verification you write for yourself tends to test the
+half you already believe.**
+
+## 432. A replacement number can be a moving target too
+
+Correcting a stale figure with an undated one repeats the failure being audited.
+
+Two readers measured the same branch divergence twenty minutes apart and got
+`behind_by` **1833** and **1841**, whole-tree difference **5309** and **5315** — master
+advanced eight commits between them. Both were right when taken. Published without a
+timestamp, either is the next stale number on the page.
+
+The skeptic separated the two kinds in its own correction, which is the practice worth
+copying: **1 commit ahead**, **10 files in the three-dot compare**, and *the branch
+head's parent IS the merge-base* are structural facts that will not drift. `behind_by`
+and the two-dot tree difference move with every push to master and must carry the date
+they were read.
+
+When you withdraw a number, sort its replacements into the ones that are stable and
+the ones that are readings, and date the second group in the same sentence.
+
+
+## 433. The measurement tree lost 296 files, and nothing said so
+
+`git status` in the loop's worktree reported **296 tracked files deleted**. They were
+not deleted from the repository: **293 of the 296 exist on `origin/master`**. The
+worktree had been silently truncated. Worst of it: **19 of 49 files were gone from
+`.github/workflows/`**, and two commands shipped this week read that directory off
+disk to build their population.
+
+It was found by accident. `git` itself stopped working — all three worktrees under
+`/private/tmp` had lost their `.git` pointer file, while the checkout outside
+`/private/tmp` still had one. `git -C <main> worktree repair <path>` restored all
+three in one call, and `git checkout -f origin/master` restored the files.
+
+**The cause is not established.** A `/private/tmp` reaper is the obvious hypothesis
+and fits both symptoms, and I did not test it; writing "tmp cleanup did it" would be
+a cause invented to fit a symptom. What IS established is the shape: a tool that reads
+a directory off disk reports the truncation as a measurement.
+
+Two things saved the published numbers, and both were luck rather than design:
+
+- **A printed population is a timestamp.** `tri issues stale` had printed
+  `workflow files 49` at the time it ran, which matches `origin/master` — so that
+  reading was taken on an intact tree. Had the command printed only its verdict, the
+  reading would be unrecoverable now. **Print the size of what you walked, every time.**
+- **The adversary routed around the damage.** The skeptic verifying a branch-divergence
+  claim found no `.git` at all and measured against the GitHub API instead. Its answer
+  is therefore stronger than the scout's, which read local refs.
+
+What to add before any measurement over a checkout that is not the main one:
+`git status --porcelain | grep -c '^ D'` must be zero, and a count of the population
+directory must match `git ls-tree`. A worktree is an instrument, and this one had been
+quietly losing parts.
