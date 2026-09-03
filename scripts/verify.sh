@@ -180,6 +180,26 @@ else
             NOW_DATE="now-date:STALE (${LAST:-none})"
             GATE_ISSUES="${GATE_ISSUES} now-entry-date-stale"
         fi
+        # (b2) SHAPE of the added entries, asked of the gate itself.
+        #      (a) and (b) are FRESHNESS -- an entry exists, dated in the
+        #      window. The required `check` context reads SHAPE, and this file
+        #      claimed to preview "the same three conditions" while never
+        #      opening an entry. Measured on one malformed entry dated today:
+        #      the gate had three complaints and this preview said nothing.
+        #      Delegated rather than reimplemented, so the preview cannot drift
+        #      away from the gate it previews.
+        NOW_SHAPE="now-shape:not-run"
+        if [ -n "$ADDED_NOW" ] && command -v python3 >/dev/null 2>&1 \
+           && [ -f tools/check_now_entry_shape.py ]; then
+            if python3 tools/check_now_entry_shape.py --check-files $ADDED_NOW >/dev/null 2>&1; then
+                NOW_SHAPE="now-shape:ok"
+            else
+                NOW_SHAPE="now-shape:MALFORMED"
+                GATE_ISSUES="${GATE_ISSUES} now-entry-malformed"
+            fi
+        elif [ -z "$ADDED_NOW" ]; then
+            NOW_SHAPE="now-shape:nothing-added"
+        fi
         # (c) Added lines in the diff vs base are ASCII-only (L3 PURITY preview).
         NONASCII="$(git diff "$BASE_REF"...HEAD 2>/dev/null | grep -n '^+' | grep -P '[^\x00-\x7F]' | head -5 || true)"
         if [ -z "$NONASCII" ]; then
@@ -189,12 +209,12 @@ else
             GATE_ISSUES="${GATE_ISSUES} non-ascii-added-lines"
         fi
         if [ -z "$GATE_ISSUES" ]; then
-            GATES_VERDICT="gates:OK ($NOW_IN_DIFF, $NOW_DATE, $ASCII)"
-            log " [4/5] gate-preview-> OK ($NOW_IN_DIFF | $NOW_DATE | $ASCII) [base $BASE_REF]"
+            GATES_VERDICT="gates:OK ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII)"
+            log " [4/5] gate-preview-> OK ($NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII) [base $BASE_REF]"
         else
-            GATES_VERDICT="gates:WARN ($NOW_IN_DIFF, $NOW_DATE, $ASCII) -- advisory"
+            GATES_VERDICT="gates:WARN ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII) -- advisory"
             log " [4/5] gate-preview-> WARN [base $BASE_REF]:"
-            log "        $NOW_IN_DIFF | $NOW_DATE | $ASCII"
+            log "        $NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII"
             log "        likely CI-gate issue(s):$GATE_ISSUES (advisory; fix before push)"
             if [ -n "$NONASCII" ]; then
                 log "        first non-ASCII added line(s):"
