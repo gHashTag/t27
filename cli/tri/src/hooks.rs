@@ -69,9 +69,35 @@ pub fn l1_check() -> Result<()> {
     Ok(())
 }
 
+/// The vocabulary BOTH CI gates use, character for character.
+///
+/// `issue-gate.yml` (the required `check-linked-issue` context, over the PR
+/// title and body) and `l1-traceability.yml` (over the commits) each run
+///
+/// ```text
+/// grep -qiE "(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+"
+/// ```
+///
+/// This function is a LOCAL PREVIEW of those, and it used to run
+/// `(?i)(Closes|Fixes|Resolves|Reference)\s+#(\d+)` -- wrong in both
+/// directions at once. It missed `Refs`, `Ref`, `Updates`, `Update` and every
+/// singular/plural variant the gates accept, and it invented `Reference`,
+/// which neither gate accepts. It also demanded whitespace where the gates
+/// allow none, so `Closes#5` passed CI and failed here.
+///
+/// Measured over the last 20 commit messages on master: the old vocabulary
+/// matched **4** references, the gates' matched **33**. This repository writes
+/// `Refs #N` as its normal spelling -- Law L1 names it -- so the preview was
+/// rejecting the convention it exists to enforce, and doing it on every
+/// commit.
+///
+/// No word boundary, deliberately: `grep -E` has none either, so `prefs #1`
+/// matches in CI. A preview that is stricter than its gate sends people to fix
+/// something the gate does not object to, which is how a preview gets ignored.
+const L1_PATTERN: &str = r"(?i)(closes?|fixes?|resolves?|refs?|updates?)\s*#(\d+)";
+
 fn check_commit_message(msg: &str) -> Result<()> {
-    let re = Regex::new(r"(?i)(Closes|Fixes|Resolves|Reference)\s+#(\d+)")
-        .expect("static regex always compiles");
+    let re = Regex::new(L1_PATTERN).expect("static regex always compiles");
     match re.captures(msg) {
         Some(caps) => {
             let issue = caps.get(2).map(|m| m.as_str()).unwrap_or("?");
@@ -81,7 +107,10 @@ fn check_commit_message(msg: &str) -> Result<()> {
         None => {
             eprintln!("L1 VIOLATION: Commit missing issue reference");
             eprintln!("Commit message: {}", msg.trim());
-            eprintln!("Required pattern: Closes #N | Fixes #N | Resolves #N | Reference #N");
+            eprintln!(
+                "Required pattern (both CI gates, case-insensitive): \
+                 Close(s) | Fix(es) | Resolve(s) | Ref(s) | Update(s) followed by #N"
+            );
             Err(anyhow!("L1 traceability violation"))
         }
     }
@@ -201,9 +230,47 @@ mod tests {
         assert!(check_commit_message("fix: bar\n\nfixes #1\n").is_ok());
     }
 
+    /// `Refs #N` is this repository's normal spelling and BOTH gates accept it.
+    /// A test used to pin the opposite here, with no reason stated, and the
+    /// preview rejected every commit that followed the convention.
     #[test]
-    fn l1_rejects_refs() {
-        assert!(check_commit_message("feat: foo\n\nRefs #1\n").is_err());
+    fn l1_accepts_every_spelling_the_gates_accept() {
+        for m in [
+            "Closes #1",
+            "Close #1",
+            "Fixes #1",
+            "Fixe #1",
+            "Resolves #1",
+            "Resolve #1",
+            "Refs #1",
+            "Ref #1",
+            "Updates #1",
+            "Update #1",
+            "refs #1",
+            "Closes#1",
+        ] {
+            assert!(
+                check_commit_message(&format!("feat: foo\n\n{m}\n")).is_ok(),
+                "the gates accept {m:?} and this preview must not be stricter"
+            );
+        }
+    }
+
+    /// And not looser: `Reference` was in the old list and is in neither gate.
+    #[test]
+    fn l1_rejects_what_the_gates_reject() {
+        // `Fix #1` is here because the GATES reject it: `Fixes?` is `Fixe`
+        // plus an optional `s`, so the bare `Fix` never matches -- while the
+        // gate's own comment beside that regex promises "Fix(es)". Mirroring
+        // includes mirroring the quirk; a preview that accepted `Fix #1` would
+        // pass a commit CI then blocks. Filed rather than silently widened: a
+        // blocking rule's vocabulary is the owner's to change.
+        for m in ["Reference #1", "Fix #1", "see #1", "issue 1", "Closes # 1"] {
+            assert!(
+                check_commit_message(&format!("feat: foo\n\n{m}\n")).is_err(),
+                "the gates reject {m:?} and this preview must not be looser"
+            );
+        }
     }
 
     #[test]

@@ -165,6 +165,15 @@ pub enum GatesCmd {
     /// context WAS required, and no evidence that it still is. It is not:
     /// `coverage` failed on 32 of the last 40 merged pull requests, and all 40
     /// merged.
+    /// Ask each REQUIRED context its own question, here, before pushing.
+    ///
+    /// Not a fifth opinion: every row runs the gate's own implementation, or
+    /// says it could not and counts that as a failure rather than a pass.
+    Preview {
+        /// Compare against this revision (the PR's base).
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+    },
     Required {
         /// owner/repo. Defaults to the repository of the working directory.
         #[arg(long)]
@@ -2288,6 +2297,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             };
             unmeasured(&list, *stale_days)
         }
+        GatesCmd::Preview { base } => preview(base),
         GatesCmd::Required { repo } => required(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
@@ -2480,7 +2490,13 @@ fn has_auto_default_run(text: &str, default_branch: &str) -> bool {
         // `branches:` written as a block list under `push:`.
         if in_push && branches.is_some() && trimmed.starts_with("- ") {
             if let Some(b) = branches.as_mut() {
-                b.push(trimmed[2..].trim().trim_matches('"').trim_matches('\'').to_string());
+                b.push(
+                    trimmed[2..]
+                        .trim()
+                        .trim_matches('"')
+                        .trim_matches('\'')
+                        .to_string(),
+                );
             }
         }
     }
@@ -2492,7 +2508,9 @@ fn has_auto_default_run(text: &str, default_branch: &str) -> bool {
         // `push:` with nothing under it fires on every branch.
         None => true,
         Some(list) if list.is_empty() => true,
-        Some(list) => list.iter().any(|b| branch_pattern_matches(b, default_branch)),
+        Some(list) => list
+            .iter()
+            .any(|b| branch_pattern_matches(b, default_branch)),
     }
 }
 
@@ -2709,7 +2727,11 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
              human dispatched them, so \"is it red on the default branch too?\" has no\n\
              standing answer when one of them goes red on a pull request.\n",
             no_auto.len(),
-            if default_branch_seen.is_empty() { "the default branch" } else { default_branch_seen.as_str() }
+            if default_branch_seen.is_empty() {
+                "the default branch"
+            } else {
+                default_branch_seen.as_str()
+            }
         );
         println!(
             "  {:<10}  {:<9}  {:<8}  {}",
@@ -2865,7 +2887,10 @@ fn claims(root: &std::path::Path) -> Vec<(String, String)> {
             let end = seg.find(")\n").unwrap_or(seg.len());
             for m in seg[..end].split('"').skip(1).step_by(2) {
                 if m.ends_with(".yml") {
-                    out.push((m.to_string(), "check_pr_branch_filters.py MERGE_CRITICAL".into()));
+                    out.push((
+                        m.to_string(),
+                        "check_pr_branch_filters.py MERGE_CRITICAL".into(),
+                    ));
                 }
             }
         }
@@ -2921,7 +2946,11 @@ fn required(repo: Option<&str>) -> Result<()> {
         "--jq",
         r#".[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context"#,
     ])?;
-    let req: Vec<String> = listing.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect();
+    let req: Vec<String> = listing
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
     if req.is_empty() {
         anyhow::bail!(
             "no required contexts came back for {slug}. That is either a branch with \
@@ -3172,7 +3201,10 @@ mod tests {
         );
         let mention = src.find("MERGE_CRITICAL").expect("docstring mention");
         let assignment = src.find("MERGE_CRITICAL = (").expect("assignment");
-        assert!(mention < assignment, "the mention comes first -- that is the trap");
+        assert!(
+            mention < assignment,
+            "the mention comes first -- that is the trap"
+        );
         assert_eq!(
             src[mention..assignment].matches('"').count() % 2,
             1,
@@ -3190,7 +3222,11 @@ mod tests {
                 .map(|m| m.to_string())
                 .collect()
         };
-        assert_eq!(pick(assignment), vec!["a.yml", "b.yml"], "anchored on the assignment");
+        assert_eq!(
+            pick(assignment),
+            vec!["a.yml", "b.yml"],
+            "anchored on the assignment"
+        );
         assert!(
             pick(mention).is_empty(),
             "anchored on the name it must find nothing, or this test proves nothing"
@@ -4147,8 +4183,14 @@ mod auto_default_run_tests {
 
     #[test]
     fn the_inline_on_form_is_read() {
-        assert!(has_auto_default_run("on: [push, pull_request]\njobs: {}\n", "master"));
-        assert!(!has_auto_default_run("on: [pull_request]\njobs: {}\n", "master"));
+        assert!(has_auto_default_run(
+            "on: [push, pull_request]\njobs: {}\n",
+            "master"
+        ));
+        assert!(!has_auto_default_run(
+            "on: [pull_request]\njobs: {}\n",
+            "master"
+        ));
     }
 
     /// COUNTEREXAMPLE. `harness-scratch.yml` recommends `push: branches:
@@ -4281,9 +4323,15 @@ mod pr_context_tests {
     /// nothing, so "the reading can be taken" is false for them.
     #[test]
     fn the_three_marker_families_are_all_seen() {
-        assert!(text_reads_pr_context("env:\n  PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}\n"));
-        assert!(text_reads_pr_context("run: echo ${{ github.event.pull_request.title }}\n"));
-        assert!(text_reads_pr_context("run: gh pr view ${{ github.event.number }}\n"));
+        assert!(text_reads_pr_context(
+            "env:\n  PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}\n"
+        ));
+        assert!(text_reads_pr_context(
+            "run: echo ${{ github.event.pull_request.title }}\n"
+        ));
+        assert!(text_reads_pr_context(
+            "run: gh pr view ${{ github.event.number }}\n"
+        ));
     }
 
     /// A workflow that only ever reads the ref or the SHA is measurable by
@@ -4303,5 +4351,306 @@ mod pr_context_tests {
     fn a_script_that_reads_the_event_json_itself_is_not_seen() {
         let y = "run: python3 tools/gate.py   # reads GITHUB_EVENT_PATH inside\n";
         assert!(!text_reads_pr_context(y));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// `tri gates preview` -- the four questions that can block a merge.
+// ---------------------------------------------------------------------------
+
+/// What a local reading of one required context came to.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Reading {
+    /// The gate's own implementation ran here and was satisfied.
+    Pass,
+    /// The gate's own implementation ran here and refused.
+    Fail,
+    /// Its subject does not exist locally, so a stand-in was read instead.
+    /// Never a pass: a proxy answers a different question.
+    Proxy,
+    /// Could not be run. Also never a pass.
+    Unavailable,
+}
+
+impl Reading {
+    fn tag(self) -> &'static str {
+        match self {
+            Reading::Pass => "PASS       ",
+            Reading::Fail => "FAIL       ",
+            Reading::Proxy => "PROXY      ",
+            Reading::Unavailable => "UNAVAILABLE",
+        }
+    }
+    /// Only `Pass` is a pass. Stated as a function because the whole point of
+    /// this command is that three other things have been read as one.
+    pub fn is_pass(self) -> bool {
+        matches!(self, Reading::Pass)
+    }
+}
+
+/// The issue-linking pattern, read out of the workflow that enforces it.
+///
+/// Transcribing it would create a fifth vocabulary. There were already two:
+/// both CI gates run `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+`,
+/// and `tri hooks l1-check` ran `(Closes|Fixes|Resolves|Reference)\s+#(\d+)`
+/// -- missing `Refs`, which is this repository's normal spelling, and adding
+/// `Reference`, which neither gate accepts. Over the last 20 commits on master
+/// the two matched **4** references and **33**.
+///
+/// Reading the pattern from `issue-gate.yml` means the day someone edits the
+/// gate, this follows. Returning `None` when it cannot be found is the whole
+/// safety property: an unreadable gate is `UNAVAILABLE`, not `PASS`.
+pub fn issue_pattern(yaml: &str) -> Option<String> {
+    for line in yaml.lines() {
+        let l = line.trim();
+        if !l.contains("grep") || !l.contains("#[0-9]+") {
+            continue;
+        }
+        // The pattern is the single-quoted argument on that line.
+        let start = l.find('\'')?;
+        let rest = &l[start + 1..];
+        let end = rest.find('\'')?;
+        let pat = &rest[..end];
+        if pat.contains("#[0-9]+") {
+            return Some(pat.to_string());
+        }
+    }
+    None
+}
+
+fn preview(base: &str) -> Result<()> {
+    let root = repo_root()?;
+    let mut rows: Vec<(&str, Reading, String)> = Vec::new();
+
+    // 1. `check` -- the shape of the docs/now entry this change adds.
+    let r = match crate::nownote::check_added(base) {
+        Ok(true) => (Reading::Pass, "the docs/now entry this change adds".into()),
+        Ok(false) => (
+            Reading::Fail,
+            "the docs/now entry this change adds (none, or malformed)".into(),
+        ),
+        Err(e) => (Reading::Unavailable, format!("{e}")),
+    };
+    rows.push(("check", r.0, r.1));
+
+    // 2. `check-now-freshness` -- the gate's own shell script, given the range
+    //    it reads from the pull-request environment in CI.
+    let script = root.join("scripts/ci/now-sync-gate-diff.sh");
+    let r = if !script.is_file() {
+        (
+            Reading::Unavailable,
+            format!("{} is missing", script.display()),
+        )
+    } else {
+        let head = rev(&root, "HEAD")?;
+        let b = rev(&root, base)?;
+        let out = std::process::Command::new("bash")
+            .arg(&script)
+            .current_dir(&root)
+            .env("PR_BASE_SHA", &b)
+            .env("PR_HEAD_SHA", &head)
+            .env("GITHUB_EVENT_NAME", "pull_request")
+            .output();
+        match out {
+            Ok(o) if o.status.success() => (
+                Reading::Pass,
+                "an entry is ADDED and dated in the window".into(),
+            ),
+            Ok(_) => (
+                Reading::Fail,
+                "an entry is ADDED and dated in the window".into(),
+            ),
+            Err(e) => (Reading::Unavailable, format!("{e}")),
+        }
+    };
+    rows.push(("check-now-freshness", r.0, r.1));
+
+    // 3. `validate` -- every tracked JSON parses, ratcheted against a ledger.
+    //    Measured: this context had NO local reader of any kind. A broken
+    //    tracked JSON turned it red while `verify.sh`, `scripts/pre-commit`
+    //    and `tri hooks pre-commit` said nothing about JSON at all.
+    let json = root.join("tools/check_json_parses.py");
+    let r = if !json.is_file() {
+        (
+            Reading::Unavailable,
+            format!("{} is missing", json.display()),
+        )
+    } else {
+        match std::process::Command::new("python3")
+            .arg(&json)
+            .current_dir(&root)
+            .output()
+        {
+            Ok(o) if o.status.success() => {
+                (Reading::Pass, "every tracked JSON parses (ledgered)".into())
+            }
+            Ok(_) => (Reading::Fail, "every tracked JSON parses (ledgered)".into()),
+            Err(e) => (Reading::Unavailable, format!("{e}")),
+        }
+    };
+    rows.push(("validate", r.0, r.1));
+
+    // 4. `check-linked-issue` -- the gate reads the PULL REQUEST title and
+    //    body. Locally there may be no pull request, and the commit messages
+    //    are a different subject: a PR body can carry the reference while no
+    //    commit does, which is exactly what #3013 did.
+    let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml"));
+    let r = match (yaml.ok().as_deref().and_then(issue_pattern), pr_text(&root)) {
+        (None, _) => (
+            Reading::Unavailable,
+            "issue-gate.yml does not state a pattern this can read".into(),
+        ),
+        (Some(pat), Some(text)) => {
+            let re = regex::Regex::new(&format!("(?i){pat}"))
+                .map_err(|e| anyhow::anyhow!("issue-gate.yml pattern does not compile: {e}"))?;
+            if re.is_match(&text) {
+                (
+                    Reading::Pass,
+                    "this branch's pull-request title and body".into(),
+                )
+            } else {
+                (
+                    Reading::Fail,
+                    "this branch's pull-request title and body".into(),
+                )
+            }
+        }
+        (Some(pat), None) => {
+            let re = regex::Regex::new(&format!("(?i){pat}"))
+                .map_err(|e| anyhow::anyhow!("issue-gate.yml pattern does not compile: {e}"))?;
+            let msgs = commit_messages(&root, base).unwrap_or_default();
+            let hit = re.is_match(&msgs);
+            (
+                Reading::Proxy,
+                format!(
+                    "no pull request for this branch, so the COMMITS were read \
+                     instead ({}). The gate does not read them.",
+                    if hit {
+                        "they carry a reference"
+                    } else {
+                        "they carry none"
+                    }
+                ),
+            )
+        }
+    };
+    rows.push(("check-linked-issue", r.0, r.1));
+
+    println!("THE FOUR CONTEXTS THAT CAN BLOCK A MERGE, ASKED HERE\n");
+    for (name, reading, subject) in &rows {
+        println!("  {}  {:<20} {}", reading.tag(), name, subject);
+    }
+    let passed = rows.iter().filter(|r| r.1.is_pass()).count();
+    println!(
+        "\n  {passed} of {} answered PASS by the gate's own implementation.",
+        rows.len()
+    );
+    println!(
+        "  PROXY and UNAVAILABLE are not passes. A local check that reports a\n  \
+         pass it did not earn is the shape this repository keeps finding: five\n  \
+         readers of docs/now/ all checked freshness while the blocking one\n  \
+         checked shape, and one of them went green BECAUSE of the file the gate\n  \
+         rejects."
+    );
+    if rows.iter().any(|r| r.1 == Reading::Fail) {
+        anyhow::bail!("a required context would refuse this change");
+    }
+    Ok(())
+}
+
+fn rev(root: &std::path::Path, r: &str) -> Result<String> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", r])
+        .current_dir(root)
+        .output()
+        .context("failed to invoke git rev-parse")?;
+    if !out.status.success() {
+        anyhow::bail!("git rev-parse {r} failed -- the revision is wrong, not the tree");
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// The pull request's title and body, if this branch has one open.
+fn pr_text(root: &std::path::Path) -> Option<String> {
+    let out = std::process::Command::new("gh")
+        .args([
+            "pr",
+            "view",
+            "--json",
+            "title,body",
+            "--jq",
+            ".title + \"\\n\" + .body",
+        ])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
+}
+
+fn commit_messages(root: &std::path::Path, base: &str) -> Result<String> {
+    let out = std::process::Command::new("git")
+        .args(["log", "--pretty=%B", &format!("{base}..HEAD")])
+        .current_dir(root)
+        .output()
+        .context("failed to invoke git log")?;
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+
+    #[test]
+    fn the_pattern_is_read_out_of_the_gate_that_enforces_it() {
+        let root = repo_root().expect("tests run inside the repository");
+        let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml"))
+            .expect("issue-gate.yml is the file this command reads");
+        let pat = issue_pattern(&yaml).expect("issue-gate.yml states a pattern");
+        let re = regex::Regex::new(&format!("(?i){pat}")).expect("it compiles");
+        // What the gate accepts, measured against the gate's own grep.
+        for m in [
+            "Closes #1",
+            "Refs #1",
+            "Ref #1",
+            "Updates #1",
+            "refs #1",
+            "Closes#1",
+        ] {
+            assert!(re.is_match(m), "the gate accepts {m:?}");
+        }
+        // And what it does not. `Reference` was in the local preview's old
+        // vocabulary and is in neither gate; `Fix` is rejected because
+        // `Fixes?` is `Fixe` plus an optional `s`.
+        for m in ["Reference #1", "Fix #1", "see #1", "issue 1"] {
+            assert!(!re.is_match(m), "the gate rejects {m:?}");
+        }
+    }
+
+    #[test]
+    fn a_workflow_with_no_pattern_reads_as_none_rather_than_as_anything() {
+        assert_eq!(
+            issue_pattern("jobs:\n  x:\n    steps:\n      - run: true\n"),
+            None
+        );
+        // A grep line that is not the issue check must not be mistaken for it.
+        assert_eq!(issue_pattern("      - run: grep -q 'hello' file\n"), None);
+    }
+
+    /// The one line the whole command rests on. Three readings are not passes,
+    /// and this repository has repeatedly read one of them as one.
+    #[test]
+    fn only_pass_is_a_pass() {
+        assert!(Reading::Pass.is_pass());
+        assert!(!Reading::Fail.is_pass());
+        assert!(!Reading::Proxy.is_pass());
+        assert!(!Reading::Unavailable.is_pass());
     }
 }

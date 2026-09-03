@@ -11159,7 +11159,94 @@ from the reflog, whole. **A probe that mutates shared state is not an
 observation** -- probe on a throwaway branch, stage explicit paths, and never
 `-A` while the thing being measured is uncommitted.
 
-## 439. Your new marker is only yours if the BASE count is zero
+## 439. The other three blocking contexts: no reader, a different subject, a different vocabulary
+
+§437 fixed one of the four contexts that can block a merge here. The method it
+used -- plant an artefact the gate rejects, run every local reader, tabulate
+what each one opened -- was then pointed at the other three. All three were
+wrong, in three different ways.
+
+**`validate` had no local reader of any kind.** Its subject is *every tracked
+JSON file parses*, ratcheted against a ledger. Planted a syntax error into a
+tracked JSON: the gate exits 1, and `scripts/verify.sh`, `scripts/pre-commit`
+and `tri hooks pre-commit` say nothing about JSON. `verify.sh` reports seal,
+warnings, test, gate-preview and reseal -- five readings, and none of them is
+this one. Not a wrong preview: an absent one, which is invisible because the
+list of what it *does* report looks thorough.
+
+**`check-linked-issue` reads a different subject.** The gate reads the PULL
+REQUEST title and body. The only local stand-in, `tri hooks l1-check`, reads
+the last COMMIT message. On the previous pass's own PR the body carried the
+reference and the squashed commit did not -- so the gate passed and the local
+check failed, on the same change.
+
+**And a different vocabulary, wrong in both directions at once.** Both CI gates
+run `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+`. The local one ran
+`(Closes|Fixes|Resolves|Reference)\s+#(\d+)`: it missed `Refs`, which Law L1
+names and which this repository writes on nearly every commit, and it invented
+`Reference`, which neither gate accepts; it also demanded whitespace where the
+gates allow none. **Over the last 20 commit messages on master the two matched
+4 references and 33.** That is why `tri hooks pre-commit` had been exiting 1 on
+ordinary commits -- twice misattributed to probe commits before anyone measured
+it, by me.
+
+**A preview that cannot RUN is not a preview.** `scripts/ci/now-sync-gate-diff.sh`
+-- the freshness gate itself -- calls `date -u -d yesterday`, which is GNU-only.
+On a Mac it prints `date: illegal option -- d` and, under `set -e`, exits 1. So
+the gate was unrunnable on a contributor's machine, and the failure was
+**indistinguishable from a refusal**: same exit code, and the first attempt to
+delegate to it reported a false FAIL for that reason. The two-form lookup
+already existed in `scripts/pre-commit` and `scripts/verify.sh`; the gate did
+not have it.
+
+The repair is `tri gates preview`: four rows, each run by the gate's own
+implementation. Two properties are the whole design.
+
+* **The pattern is READ OUT of `issue-gate.yml`, not transcribed.** There were
+  already two vocabularies; a third would have been mine. If the pattern cannot
+  be found the row is `UNAVAILABLE`.
+* **Three of the four readings are not passes.** `FAIL`, `PROXY` (no pull
+  request here, so the commits were read -- a different subject, said out loud)
+  and `UNAVAILABLE` all print, and only `PASS` counts. `is_pass()` is a
+  function rather than a comparison precisely because this repository has read
+  each of the other three as a pass at least once.
+
+One deliberate asymmetry, stated where it lives: an empty `docs/now/` set is a
+`FAIL` in `gates preview` and an `OK` in `tri now check`. The gate's own words
+on an empty set are *"FAIL: this change adds no docs/now/ entry"*, and
+`gates preview` asks what the gate would say about this branch as a pull
+request; `tri now check` runs mid-work, where there is nothing to judge.
+
+## 440. `cargo test` takes a substring, and four kills were scored over an empty set
+
+The mutation run for the above printed, for every mutant:
+
+```text
+test result: ok. 0 passed; 0 failed; 0 ignored; 458 filtered out
+```
+
+`cargo test -p tri 'preview_tests|l1_'` -- the filter is a **substring**, not an
+alternation, so it matched nothing and four "kills" were measured over an empty
+sample. The word `ok` was on every line. This is the same shape as
+`cargo test <name>` printing `ok. 0 passed` and being read as a pass, which is
+already on this page; met again through the door of a filter that looks like a
+regex.
+
+The guard is one line and belongs in every mutation harness: **refuse a run
+whose sample is smaller than the number of tests you expect.**
+
+```sh
+[ "$total" -lt "$expected" ] && echo "SAMPLE $total < $expected -- not a measurement"
+```
+
+And the first version of that guard was itself wrong: it summed only `passed`,
+so a genuinely RED mutant -- where the total splits across `passed` and
+`failed` -- reported `SAMPLE TOO SMALL` instead of a kill. **A guard over a
+count has to add up every bucket the count can land in**, which is the
+parts-sum-to-the-whole rule from the other side. Total = passed + failed;
+compare that.
+
+## 441. Your new marker is only yours if the BASE count is zero
 
 I added a comment the emitter prints where a `break` cannot be lowered, then
 counted it in the regenerated corpus to see how often that happens:
@@ -11186,7 +11273,7 @@ count on `t27#2988:` -- the issue number -- and not on the English, precisely
 because the English collides. A marker you intend to count later should carry
 something no prose would contain.
 
-## 440. A two-part construct needs its two parts asserted as a pair
+## 442. A two-part construct needs its two parts asserted as a pair
 
 A guard flag is a `reg` the loop declares and an assignment the `break` writes.
 I had five tests on the lowering, killed five mutants with them, added a sixth
@@ -11213,7 +11300,7 @@ the binding, and those are the interesting ones. This repository already learned
 the same shape in money: a refund equal to the *tariff* passes every total, and
 only reconciling against the *actual charge* finds the divergence.
 
-## 441. When only the bytes moved, only the moved bytes need the expensive ruler
+## 443. When only the bytes moved, only the moved bytes need the expensive ruler
 
 The change regenerates 581 Verilog files and **7** of them differ. The question
 was whether it costs anything under `yosys` -- a ruler slow enough that nobody

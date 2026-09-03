@@ -353,6 +353,36 @@ fn gate_script(root: &Path) -> Result<PathBuf> {
     Ok(script)
 }
 
+/// Did the entries this branch adds satisfy the gate? For `tri gates preview`,
+/// which needs the verdict rather than a process exit, and quietly.
+///
+/// **An empty set is a FAIL here and an OK in `tri now check`, and that is not
+/// an inconsistency.** `tri now check` runs mid-work, where a commit that adds
+/// no entry has no shape to judge. `gates preview` asks what the gate would
+/// say about this branch AS A PULL REQUEST, and the gate's own words on an
+/// empty set are *"FAIL: this change adds no docs/now/ entry"*. Mirroring the
+/// gate includes mirroring what it does with nothing.
+pub fn check_added(base: &str) -> Result<bool> {
+    let root = repo_root()?;
+    let script = gate_script(&root)?;
+    let files = git_paths(
+        &root,
+        &["diff", "--name-only", "--diff-filter=A"],
+        Some(&format!("{base}...HEAD")),
+    )?;
+    if files.is_empty() {
+        return Ok(false);
+    }
+    let out = std::process::Command::new("python3")
+        .arg(&script)
+        .arg("--check-files")
+        .args(&files)
+        .current_dir(&root)
+        .output()
+        .context("failed to run tools/check_now_entry_shape.py")?;
+    Ok(out.status.success())
+}
+
 /// The shape of what the index adds -- the pre-commit hook's entry point.
 pub fn check_staged() -> Result<()> {
     check(&[], true, "origin/master")
