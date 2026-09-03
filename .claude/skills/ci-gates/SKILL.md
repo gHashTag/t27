@@ -11509,3 +11509,89 @@ double it in silence.
 decision.** Two `shasum` calls and a `grep -c` turned "this needs an owner's
 call about which directory is authoritative" into "this changes nothing, and
 here is the guard for the day it would".
+
+## 450. Price the constant before you defend it -- the window was one step below a cliff
+
+`tri gates sweep` decides whether a gate has ever been demonstrated to fail. One
+of its four forms asks whether `fixture`, `expect_` or `planted` appears within
+**30 lines** of a mention of the script in a workflow. The comment above that
+code explains which *words* were chosen and why two were dropped. It says
+nothing about the 30.
+
+Priced by sweeping the constant and re-running:
+
+| window | `workflow candidate` | `NONE` |
+|---|---|---|
+| 3, 5, 10, 20, **30** | 0 | 1 |
+| **50**, 100, unbounded | 1 | 0 |
+
+**The verdict this command exists to give flips between 30 and 50.** The
+constant was one step below a cliff, and which side it landed on was luck --
+nobody had run this table.
+
+What lies at 45 lines: `catalog-count-gate.yml` names the script at line 29 as a
+`paths:` **trigger entry**, and the word `planted` is at line 74, inside a
+comment about a *different* control. So the wider window buys a false candidate
+-- exactly the failure the code's own comment describes ("the word `must`
+sitting in a prose comment 760 lines away"), one order of magnitude closer and
+therefore invisible.
+
+**The repair is structural, not a better number.** A `paths:` list says which
+changes RUN a workflow, never what it does; a script named there has not been
+invoked. After that rule the verdict is **identical at every width from 3 to
+unbounded** -- which is what a constant that has stopped being load-bearing
+looks like, and is the check to run after any such repair.
+
+Same shape as the 400-character arXiv window replaced by the contiguous `///`
+block. *When attribution is by PROXIMITY, the number is doing the work of a rule
+you have not written yet.*
+
+## 451. Four clauses, three survived their own mutation, three deleted
+
+The `paths:`-entry predicate was written with four conditions: a `- ` prefix,
+non-empty, no space, no colon, and a path shape (`/`, `*`, `.py`, `.sh`).
+Mutating each separately -- §436's rule, applied on purpose this time rather
+than after the fact:
+
+* **no colon** -- survived. The space test already rejects `- name: …`,
+  `- uses: …` and `- run: …`; there is no realistic line the colon catches
+  alone.
+* **path shape** -- survived, and was worse than redundant: it would have made
+  `- main` under `branches:` read as a call.
+* **non-empty** -- survived, and is *unreachable*: the predicate is only ever
+  asked of a line that CONTAINS a script name, and such a line is not empty.
+
+All three removed. What remains is two clauses, and each turns the suite red
+when broken: the `- ` prefix, and the absence of a space.
+
+**A guard that grows by accretion ends up mostly untestable.** The cost of
+writing five plausible conditions and then mutating them is one build each; the
+cost of not doing it is a predicate where nobody can say which line is deciding.
+
+## 452. A sweep for the class, measured and declined
+
+The option that produced §450 was *"sweep the code for other undocumented
+thresholds"*. It was run, and the sweep is not shippable.
+
+Numeric literals in a comparison, outside tests and outside string literals,
+excluding 0 and 1: **66** in `cli/tri/src`, of which **57** have no comment
+within two lines. But by shape:
+
+    bit shift / hex mask       11
+    a len()/count() minimum    25
+    an enum or constant         7
+    everything else            14
+
+Only the last group can contain the defect, and reading all fourteen by hand
+gives about five that are thresholds inside a decision. **A detector with a
+precision of 5 in 57 is the one that died as `tri claims superlative`** (2 real
+in 6 hits), and this is worse.
+
+The first attempt was worse still: matching `[<>]=?\s*\d+` without stripping
+string literals reported **234** hits, most of them format-width specifiers
+like `{:>10}`. A matcher describing its input, caught by the same tell as
+always -- the number was implausible for the size of the tree.
+
+**The finding survives; the tool does not.** One of the fourteen was the 30-line
+window, and it was found by reading a short list rather than by shipping a
+check that would cry wolf 50 times.
