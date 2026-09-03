@@ -10271,6 +10271,53 @@ impl Codegen {
 // Verilog Code Generator
 // ============================================================================
 
+/// #2988: the guard flags ONE loop owns.
+///
+/// Verilog has no `break` and no `continue`. The classic translation for a
+/// target without a jump is a flag: set it where the jump was, test it
+/// everywhere the jump would have skipped. `disable` is the other candidate and
+/// this is deliberately NOT it -- `disable <block>` unwinds a named block, and
+/// it cannot express `continue` at all without wrapping every iteration in a
+/// block of its own.
+///
+/// A flag is only allocated when the body actually contains the statement that
+/// sets it, so a loop with no jump emits byte for byte what it emitted before.
+///
+/// SCOPE. `return` inside a loop is the OTHER half of this defect (#2989) and
+/// is deliberately not here: `__t27_ret` already exists at function scope, it
+/// is set correctly today, and what is missing is only that no loop tests it.
+/// That repair moves loops which contain no jump at all, so it is measured and
+/// landed on its own.
+#[derive(Clone, Copy)]
+struct LoopGuard {
+    /// Drawn from `while_fuel_counter`, the same counter W700's `__t27_fuel_N`
+    /// uses, so two loops in one module never declare the same name.
+    id: u32,
+    /// The body contains a `break` that binds to THIS loop.
+    brk: bool,
+    /// ... a `continue`.
+    cnt: bool,
+}
+
+impl LoopGuard {
+    /// The terms that stop the LOOP. `continue` is not one of them: it ends an
+    /// iteration, not the loop.
+    fn loop_cond(&self) -> String {
+        let mut t: Vec<String> = Vec::new();
+        if self.brk {
+            t.push(format!("!__t27_brk_{}", self.id));
+        }
+        t.join(" && ")
+    }
+
+    /// True when this loop needs a `reg` of its own -- and therefore a NAMED
+    /// block to declare it in, because Verilog-2001 allows a declaration only
+    /// at the top of one.
+    fn needs_block(&self) -> bool {
+        self.brk || self.cnt
+    }
+}
+
 pub struct VerilogCodegen {
     output: String,
     indent: u32,
@@ -10279,6 +10326,10 @@ pub struct VerilogCodegen {
     /// Verilog rejects the redeclaration -- turning a synthesis repair into a
     /// compile failure.
     while_fuel_counter: u32,
+    /// #2988: the enclosing loops that own a guard flag, innermost LAST.
+    /// A `break` needs to know which loop it binds to, and nothing else in this
+    /// emitter carries that; the stack is the only new state the repair adds.
+    loop_guards: Vec<LoopGuard>,
     module_name: String,
     current_fn_name: String,
     current_fn_return_type: String,
@@ -10382,6 +10433,7 @@ impl VerilogCodegen {
     pub fn with_options(emit_test_assertions: bool) -> Self {
         Self {
             while_fuel_counter: 0,
+            loop_guards: Vec::new(),
             output: String::new(),
             indent: 0,
             module_name: String::new(),
@@ -12116,6 +12168,7 @@ impl VerilogCodegen {
             output: String::new(),
             indent: 0,
             while_fuel_counter: 0,
+            loop_guards: Vec::new(),
             module_name: String::new(),
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
@@ -12333,6 +12386,7 @@ impl VerilogCodegen {
             for sub in outer.iter().take(current_dim) {
                 let mut tmp = VerilogCodegen {
                     while_fuel_counter: 0,
+                    loop_guards: Vec::new(),
                     output: String::new(),
                     indent: 0,
                     module_name: String::new(),
@@ -14992,6 +15046,136 @@ impl VerilogCodegen {
         node.children.iter().any(Self::subtree_has_return)
     }
 
+    /// #2988: does this subtree contain a `break`/`continue` that binds to the
+    /// ENCLOSING loop? A nested loop captures its own, so the scan STOPS at
+    /// one -- otherwise an inner `break` would set the outer loop's flag and
+    /// the repair would be a second wrong answer.
+    fn subtree_has_loop_exit(node: &Node, kind: &NodeKind) -> bool {
+        if node.kind == *kind {
+            return true;
+        }
+        if matches!(
+            node.kind,
+            NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange
+        ) {
+            return false;
+        }
+        node.children
+            .iter()
+            .any(|c| Self::subtree_has_loop_exit(c, kind))
+    }
+
+    fn stmts_have_loop_exit(stmts: &[Node], kind: &NodeKind) -> bool {
+        stmts.iter().any(|s| Self::subtree_has_loop_exit(s, kind))
+    }
+
+    /// #2988: decide which flags this loop body needs, allocate an id if any,
+    /// and push the guard. The CALLER emits the declarations, because only the
+    /// caller knows where its named block starts, and the caller must call
+    /// `pop_loop_guard` after the body.
+    /// `preset_id` is for the W700 branch, which has ALREADY drawn an id for
+    /// its `__t27_loop_N` / `__t27_fuel_N` pair. Drawing a second one there
+    /// would renumber every later loop in the module and churn generated files
+    /// that contain no jump at all.
+    fn push_loop_guard(&mut self, body: &[Node], preset_id: Option<u32>) -> LoopGuard {
+        // A clocked (`<=`) body cannot carry a blocking control flag -- a
+        // nonblocking write does not settle inside the time step that reads it.
+        // The early-return machinery refuses there for exactly this reason (see
+        // `__t27_ret`), so this refuses too, and the `break` arm SAYS SO in the
+        // output instead of emitting something that looks like a lowering.
+        let live = !self.clocked_nonblocking;
+        let brk = live && Self::stmts_have_loop_exit(body, &NodeKind::StmtBreak);
+        let cnt = live && Self::stmts_have_loop_exit(body, &NodeKind::StmtContinue);
+        let mut g = LoopGuard { id: 0, brk, cnt };
+        if let Some(id) = preset_id {
+            g.id = id;
+        } else if g.needs_block() {
+            g.id = self.while_fuel_counter;
+            self.while_fuel_counter += 1;
+        }
+        self.loop_guards.push(g);
+        g
+    }
+
+    fn pop_loop_guard(&mut self) {
+        self.loop_guards.pop();
+    }
+
+    /// Emit this loop's `reg` declarations and the one initialisation that
+    /// belongs OUTSIDE the loop. Legal only at the top of a named block.
+    fn emit_loop_guard_decls(&mut self, g: LoopGuard) {
+        // Every declaration FIRST. Verilog forbids a declaration after a
+        // procedural statement even inside a named block (#1741), so the
+        // `= 1'b0` cannot be interleaved with the `reg`s.
+        if g.brk {
+            self.write_indent();
+            self.write_line(&format!("reg __t27_brk_{};", g.id));
+        }
+        if g.cnt {
+            self.write_indent();
+            self.write_line(&format!("reg __t27_cnt_{};", g.id));
+        }
+        if g.brk {
+            self.write_indent();
+            self.write_line(&format!("__t27_brk_{} = 1'b0;", g.id));
+        }
+        // `__t27_cnt_N` is cleared at the TOP of each iteration instead: that
+        // is what makes it per-iteration and `__t27_brk_N` persistent.
+    }
+
+    /// Emit `__t27_cnt_N = 1'b0;` as the first statement of an iteration.
+    fn emit_continue_reset(&mut self, g: LoopGuard) {
+        if g.cnt {
+            self.write_indent();
+            self.write_line(&format!("__t27_cnt_{} = 1'b0;", g.id));
+        }
+    }
+
+    /// The condition under which the REST of this iteration still runs, given
+    /// that `stmt` has just been emitted. Empty when `stmt` cannot jump, which
+    /// is why a loop body with no jump is unchanged.
+    fn iteration_guard_cond(&self, stmt: &Node) -> String {
+        let Some(g) = self.loop_guards.last() else {
+            return String::new();
+        };
+        let mut t: Vec<String> = Vec::new();
+        if g.brk && Self::subtree_has_loop_exit(stmt, &NodeKind::StmtBreak) {
+            t.push(format!("!__t27_brk_{}", g.id));
+        }
+        if g.cnt && Self::subtree_has_loop_exit(stmt, &NodeKind::StmtContinue) {
+            t.push(format!("!__t27_cnt_{}", g.id));
+        }
+        t.join(" && ")
+    }
+
+    /// Emit a statement sequence that lives inside a loop. After a statement
+    /// that can jump, the remainder of the iteration is wrapped in the guard --
+    /// the same barrier `gen_verilog_fn_body` already builds for `__t27_ret`,
+    /// extended to the two flags a loop owns. With no guard in scope this is
+    /// exactly the `for stmt in .. { gen_verilog_stmt }` it replaces, character
+    /// for character, which is what keeps the corpus delta down to the loops
+    /// that actually jump.
+    fn gen_verilog_stmt_seq(&mut self, stmts: &[Node]) {
+        for (idx, stmt) in stmts.iter().enumerate() {
+            self.gen_verilog_stmt(stmt);
+            if idx + 1 >= stmts.len() {
+                continue;
+            }
+            let cond = self.iteration_guard_cond(stmt);
+            if cond.is_empty() {
+                continue;
+            }
+            self.write_indent();
+            self.write_line(&format!("if ({cond}) begin"));
+            self.indent();
+            self.gen_verilog_stmt_seq(&stmts[idx + 1..]);
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            return;
+        }
+    }
+
     // W551: hoist probe registers and block-local variable declarations for
     // any simulation block (test or deterministic bench) that contains
     // assert_eq statements. Returns the names of block-local variables whose
@@ -16294,10 +16478,50 @@ impl VerilogCodegen {
                 self.gen_verilog_for_range_stmt(node);
             }
             NodeKind::StmtBreak => {
-                self.write_line("disable fork;");
+                // t27#2988: this emitted `disable fork;`. `disable fork` kills
+                // processes spawned by a `fork` in the CURRENT SCOPE, and the
+                // token `fork` occurs nowhere in the 581 generated .v files
+                // except inside that very line -- so all fourteen sites were
+                // no-ops, the loop ran to completion, and later iterations
+                // overwrote whatever the break was meant to preserve.
+                // `iverilog -g2012` accepts it silently.
+                //
+                // It was also emitted at COLUMN 0: `write_line` without
+                // `write_indent`. Both are fixed here.
+                let g = self.loop_guards.last().copied();
+                match g {
+                    Some(g) if g.brk => {
+                        self.write_indent();
+                        self.write_line(&format!("__t27_brk_{} = 1'b1;", g.id));
+                    }
+                    _ => {
+                        // No flag in scope: a clocked (`<=`) body, where a
+                        // blocking guard would not settle. Say it, do not fake
+                        // it -- a comment that names the issue is findable; a
+                        // `disable fork;` that reads like a lowering is not.
+                        self.write_indent();
+                        self.write_line(
+                            "// t27#2988: `break` NOT LOWERED -- no guard flag in this scope.",
+                        );
+                    }
+                }
             }
             NodeKind::StmtContinue => {
-                self.write_line("/* continue */;");
+                // t27#2988: this emitted `/* continue */;` -- a comment and an
+                // empty statement. Same repair, same reason.
+                let g = self.loop_guards.last().copied();
+                match g {
+                    Some(g) if g.cnt => {
+                        self.write_indent();
+                        self.write_line(&format!("__t27_cnt_{} = 1'b1;", g.id));
+                    }
+                    _ => {
+                        self.write_indent();
+                        self.write_line(
+                            "// t27#2988: `continue` NOT LOWERED -- no guard flag in this scope.",
+                        );
+                    }
+                }
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -16324,9 +16548,7 @@ impl VerilogCodegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_verilog_stmt(stmt);
-            }
+            self.gen_verilog_stmt_seq(&node.children[1].children);
         }
         self.dedent();
 
@@ -16341,9 +16563,7 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line("end else begin");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_verilog_stmt(stmt);
-                }
+                self.gen_verilog_stmt_seq(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("end");
@@ -16363,9 +16583,7 @@ impl VerilogCodegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_verilog_stmt(stmt);
-            }
+            self.gen_verilog_stmt_seq(&node.children[1].children);
         }
         self.dedent();
 
@@ -16379,9 +16597,7 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line("end else begin");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_verilog_stmt(stmt);
-                }
+                self.gen_verilog_stmt_seq(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("end");
@@ -16454,30 +16670,57 @@ impl VerilogCodegen {
             //   yosys:    Left hand side of 1st expression of procedural
             //             for-loop is not a register!
             // Louder, and still broken. The named block fixes both.
+            // t27#2988: this loop's guard flags. The trip count MUST stay
+            // static -- that is the whole point of W700 -- so the guard goes on
+            // the inner `if`, never on the `for` header.
+            let body: &[Node] = if node.children.len() > 1 {
+                &node.children[node.children.len() - 1].children
+            } else {
+                &[]
+            };
+            let g = self.push_loop_guard(body, Some(n));
             self.write_indent();
             self.write_line(&format!("begin : {blk}"));
             self.indent();
             self.write_indent();
             self.write_line(&format!("integer {fuel};"));
+            self.emit_loop_guard_decls(g);
             self.write_indent();
             self.write_line(&format!("for ({fuel} = 0; {fuel} < {bound}; {fuel} = {fuel} + 1) begin"));
             self.indent();
             self.write_indent();
             self.write("if (");
+            let lc = g.loop_cond();
+            if !lc.is_empty() {
+                self.write(&format!("{lc} && "));
+            }
             if !node.children.is_empty() {
                 self.gen_verilog_expr(&node.children[0]);
             }
             self.write_line(") begin");
             self.indent();
             if node.children.len() > 1 {
-                for stmt in &node.children[node.children.len() - 1].children {
-                    self.gen_verilog_stmt(stmt);
-                }
+                self.emit_continue_reset(g);
+                self.gen_verilog_stmt_seq(body);
                 // W-27: body is the LAST child; a `while (c) : (step)` puts the step at [1].
+                // t27#2988: the step runs on `continue` (Zig semantics), so it
+                // sits OUTSIDE the iteration barrier and is guarded only by the
+                // flags that stop the loop.
                 if node.children.len() > 2 {
-                    self.gen_verilog_stmt(unwrap_single(&node.children[1]));
+                    if lc.is_empty() {
+                        self.gen_verilog_stmt(unwrap_single(&node.children[1]));
+                    } else {
+                        self.write_indent();
+                        self.write_line(&format!("if ({lc}) begin"));
+                        self.indent();
+                        self.gen_verilog_stmt(unwrap_single(&node.children[1]));
+                        self.dedent();
+                        self.write_indent();
+                        self.write_line("end");
+                    }
                 }
             }
+            self.pop_loop_guard();
             self.dedent();
             self.write_indent();
             self.write_line("end");
@@ -16536,8 +16779,32 @@ impl VerilogCodegen {
         );
         self.write_indent();
         self.write_line("// on data is sequential; naming it combinational is the error.");
+        // t27#2988: this loop has NO static trip count, so a `break` guard on
+        // the body would stop the writes and not the spinning -- the flag has to
+        // be in the CONDITION or the loop never ends. That is also why `disable`
+        // cannot serve here: there is nothing to disable until a block exists,
+        // and a block per iteration is exactly the cost this shape avoids.
+        //
+        // The same argument applies to a `return` inside this loop and is NOT
+        // acted on here; see #2989 and the note on `LoopGuard`.
+        let body: &[Node] = if node.children.len() > 1 {
+            &node.children[node.children.len() - 1].children
+        } else {
+            &[]
+        };
+        let g = self.push_loop_guard(body, None);
+        if g.needs_block() {
+            self.write_indent();
+            self.write_line(&format!("begin : __t27_loop_{}", g.id));
+            self.indent();
+            self.emit_loop_guard_decls(g);
+        }
         self.write_indent();
         self.write("while (");
+        let lc = g.loop_cond();
+        if !lc.is_empty() {
+            self.write(&format!("{lc} && "));
+        }
         if !node.children.is_empty() {
             self.gen_verilog_expr(&node.children[0]);
         }
@@ -16545,22 +16812,53 @@ impl VerilogCodegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[node.children.len() - 1].children {
-                self.gen_verilog_stmt(stmt);
-            }
+            self.emit_continue_reset(g);
+            self.gen_verilog_stmt_seq(body);
             // W-27: body is the LAST child; a `while (c) : (step)` puts the step at [1].
             if node.children.len() > 2 {
-                self.gen_verilog_stmt(unwrap_single(&node.children[1]));
+                if lc.is_empty() {
+                    self.gen_verilog_stmt(unwrap_single(&node.children[1]));
+                } else {
+                    self.write_indent();
+                    self.write_line(&format!("if ({lc}) begin"));
+                    self.indent();
+                    self.gen_verilog_stmt(unwrap_single(&node.children[1]));
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
             }
         }
+        self.pop_loop_guard();
         self.dedent();
         self.write_indent();
         self.write_line("end");
+        if g.needs_block() {
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+        }
     }
 
     fn gen_verilog_for_stmt(&mut self, node: &Node) {
         // Emit as integer for loop: for (i = 0; i < N; i = i + 1)
         let body_idx = node.children.len().saturating_sub(1);
+        // t27#2988: allocate this loop's guard flags before anything is
+        // written, because a `reg` may only be declared at the top of a NAMED
+        // block and that block has to open first.
+        let body: &[Node] = if node.children.is_empty() {
+            &[]
+        } else {
+            &node.children[body_idx].children
+        };
+        let g = self.push_loop_guard(body, None);
+        let lc = g.loop_cond();
+        if g.needs_block() {
+            self.write_indent();
+            self.write_line(&format!("begin : __t27_loop_{}", g.id));
+            self.indent();
+            self.emit_loop_guard_decls(g);
+        }
 
         // Use capture variable name if available, else default to __i
         let iter_var_raw = if !node.params.is_empty() {
@@ -16617,21 +16915,49 @@ impl VerilogCodegen {
         } else {
             self.write(&format!("for ({0} = 0; {0} < 1; {0} = {0} + 1)", iter_var));
         }
-        self.write_line(" begin");
+        // t27#2988: the guard rides the loop BODY, not the `for` header. A
+        // data-dependent header would cost the static trip count yosys needs to
+        // unroll this; `for (..) if (guard) begin` keeps it and adds no nesting
+        // level, so the body's indentation -- and its bytes -- do not move.
+        if lc.is_empty() {
+            self.write_line(" begin");
+        } else {
+            self.write_line(&format!(" if ({lc}) begin"));
+        }
 
         self.indent();
         if !node.children.is_empty() {
-            for stmt in &node.children[body_idx].children {
-                self.gen_verilog_stmt(stmt);
-            }
+            self.emit_continue_reset(g);
+            self.gen_verilog_stmt_seq(&node.children[body_idx].children);
         }
+        self.pop_loop_guard();
         self.dedent();
         self.write_indent();
         self.write_line("end");
+        if g.needs_block() {
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+        }
     }
 
     fn gen_verilog_for_range_stmt(&mut self, node: &Node) {
         let var = Self::verilog_safe_identifier(&node.name);
+        // t27#2988: same shape as gen_verilog_for_stmt -- guard the body,
+        // keep the header's trip count static.
+        let body: &[Node] = if node.children.len() > 2 {
+            &node.children[2].children
+        } else {
+            &[]
+        };
+        let g = self.push_loop_guard(body, None);
+        let lc = g.loop_cond();
+        if g.needs_block() {
+            self.write_indent();
+            self.write_line(&format!("begin : __t27_loop_{}", g.id));
+            self.indent();
+            self.emit_loop_guard_decls(g);
+        }
         self.write_indent();
         if node.children.len() >= 2 {
             self.write(&format!("for ({var} = "));
@@ -16640,16 +16966,25 @@ impl VerilogCodegen {
             self.gen_verilog_expr(&node.children[1]);
             self.write(&format!("; {var} = {var} + 1)"));
         }
-        self.write_line(" begin");
+        if lc.is_empty() {
+            self.write_line(" begin");
+        } else {
+            self.write_line(&format!(" if ({lc}) begin"));
+        }
         self.indent();
         if node.children.len() > 2 {
-            for stmt in &node.children[2].children {
-                self.gen_verilog_stmt(stmt);
-            }
+            self.emit_continue_reset(g);
+            self.gen_verilog_stmt_seq(body);
         }
+        self.pop_loop_guard();
         self.dedent();
         self.write_indent();
         self.write_line("end");
+        if g.needs_block() {
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+        }
     }
 
     fn gen_verilog_expr(&mut self, node: &Node) {
@@ -40397,6 +40732,211 @@ fn read_it() -> u16 {
         assert_eq!(super::Codegen::sized_int_type("f64"), None);
         assert_eq!(super::Codegen::sized_int_type("string"), None);
         assert_eq!(super::Codegen::sized_int_type("[]i8"), None);
+    }
+
+    // ---- t27#2988: the loop-guard lowering -------------------------------
+    //
+    // Every assertion below FAILS on the emitter these tests were written
+    // against: `break` was `disable fork;` (a no-op -- the corpus has no
+    // `fork`) and `continue` was `/* continue */;`.
+
+    #[test]
+    fn break_lowers_to_a_guard_flag_not_disable_fork() {
+        let src = r#"module M {
+            pub fn f(n: i64) -> i64 {
+                var i: i64 = 0;
+                var out: i64 = -1;
+                while (i < n) {
+                    if (i > 2) { out = i; break; }
+                    out = -2;
+                    i = i + 1;
+                }
+                return out;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            !v.contains("disable fork"),
+            "`disable fork` is a no-op without a `fork`; it must be gone:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg __t27_brk_0;") && v.contains("__t27_brk_0 = 1'b0;"),
+            "the loop must declare and clear its guard flag:\n{}",
+            v
+        );
+        assert!(
+            v.contains("__t27_brk_0 = 1'b1;"),
+            "`break` must SET the flag:\n{}",
+            v
+        );
+        // Stopping the loop, and stopping the rest of the iteration, are two
+        // different things and both are required: without the second, `out`
+        // is overwritten by the statement that follows the break.
+        assert!(
+            v.contains("while (!__t27_brk_0 &&"),
+            "the flag must stop the LOOP, in the condition:\n{}",
+            v
+        );
+        assert!(
+            v.contains("if (!__t27_brk_0) begin"),
+            "the flag must stop the REST OF THE ITERATION:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn continue_lowers_to_a_per_iteration_flag() {
+        let src = r#"module M {
+            pub fn f(n: i64) -> i64 {
+                var i: i64 = 0;
+                var acc: i64 = 0;
+                while (i < n) {
+                    i = i + 1;
+                    if (i == 3) { continue; }
+                    acc = acc + i;
+                }
+                return acc;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            !v.contains("/* continue */"),
+            "a comment plus an empty statement is not a lowering:\n{}",
+            v
+        );
+        assert!(
+            v.contains("__t27_cnt_0 = 1'b1;") && v.contains("if (!__t27_cnt_0) begin"),
+            "`continue` must set a flag the iteration tail tests:\n{}",
+            v
+        );
+        // The continue flag is per-ITERATION -- it must be cleared at the top
+        // of the body, or the first `continue` skips every later iteration too.
+        // Written as ONE assertion on purpose: the first draft said
+        // `contains(<indented form>) || contains(<bare form>)`, and the first
+        // disjunct implies the second, so the `||` tested nothing.
+        assert!(
+            v.contains("__t27_cnt_0 = 1'b0;"),
+            "the continue flag must be cleared each iteration:\n{}",
+            v
+        );
+        // A `continue` must NOT stop the loop.
+        assert!(
+            !v.contains("while (!__t27_cnt_0"),
+            "`continue` ends an iteration, not the loop:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn a_for_loop_keeps_its_static_trip_count() {
+        // The guard rides the BODY of a `for`, never the header: a
+        // data-dependent header costs the static trip count yosys needs to
+        // unroll it, and W702 already documents what yosys does then.
+        let src = r#"module M {
+            pub fn f(n: usize) -> usize {
+                var out: usize = 9;
+                for i in 0..8 {
+                    if (i >= n) { out = i; break; }
+                }
+                return out;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("for (i = 0; i < 8; i = i + 1) if (!__t27_brk_0) begin"),
+            "the guard belongs on the body, not in the `for` header:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn a_break_binds_to_the_INNERMOST_loop_only() {
+        // The scan for a jump STOPS at a nested loop. Without that stop the
+        // outer loop allocates a flag its body can never set: the emission is
+        // still correct, so no runtime probe can see it, and the only witness
+        // is the declaration that should not be there. This is also what keeps
+        // the corpus delta to the loops that actually jump.
+        let src = r#"module M {
+            pub fn f(n: i64) -> i64 {
+                var acc: i64 = 0;
+                var i: i64 = 0;
+                while (i < n) {
+                    var j: i64 = 0;
+                    while (j < n) {
+                        j = j + 1;
+                        if (j > 2) { break; }
+                        acc = acc + 1;
+                    }
+                    i = i + 1;
+                }
+                return acc;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert_eq!(
+            v.matches("reg __t27_brk_").count(),
+            1,
+            "only the INNER loop owns a break flag; the outer must allocate \
+             nothing:\n{}",
+            v
+        );
+        // ... and the flag the `break` SETS is the flag that was DECLARED.
+        // Counting declarations does not say that: a mutant binding `break` to
+        // the OUTERMOST guard instead of the innermost still declares exactly
+        // one flag, sets nothing, and emits the "no guard flag in this scope"
+        // refusal for a scope that has one. It survived until this assertion.
+        let ids = |marker: &str| -> Vec<String> {
+            v.match_indices(marker)
+                .map(|(i, m)| {
+                    v[i + m.len()..]
+                        .chars()
+                        .take_while(char::is_ascii_digit)
+                        .collect()
+                })
+                .collect()
+        };
+        assert_eq!(
+            ids("reg __t27_brk_"),
+            ids("__t27_brk_")
+                .into_iter()
+                .filter(|id| v.contains(&format!("__t27_brk_{id} = 1'b1;")))
+                .take(1)
+                .collect::<Vec<_>>(),
+            "the flag the `break` sets must be the flag the loop declared:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("NOT LOWERED"),
+            "a `break` with a guard in scope must not report that it has none:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn a_loop_without_a_jump_is_unchanged() {
+        // The population that must NOT move: the corpus delta is 37 of 581
+        // generated .v files precisely because a loop with no `break`, no
+        // `continue` and no `return` allocates nothing and tests nothing.
+        let src = r#"module M {
+            pub fn f(n: i64) -> i64 {
+                var i: i64 = 0;
+                var acc: i64 = 0;
+                while (i < n) { acc = acc + i; i = i + 1; }
+                return acc;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            !v.contains("__t27_brk_") && !v.contains("__t27_cnt_"),
+            "a jump-free loop must allocate no guard:\n{}",
+            v
+        );
+        assert!(
+            v.contains("while ((i < n)) begin") || v.contains("while (($signed(i) < $signed(n))) begin"),
+            "a jump-free loop's condition must be untouched:\n{}",
+            v
+        );
     }
 
     #[test]
