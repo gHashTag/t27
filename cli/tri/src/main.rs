@@ -7,43 +7,43 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod abandoned;
+mod census;
+mod cibase;
+mod competitors;
 mod depin;
 mod discard;
-mod abandoned;
-mod orphaned;
-mod census;
-mod competitors;
-mod issues;
-mod cibase;
+mod elab;
 mod fleet;
 mod fpga;
-mod elab;
-mod modreach;
 mod gates;
-mod ledgers;
-mod prose;
-mod unparsed;
+mod gendet;
 mod hooks;
-mod mutate;
-mod nownote;
-mod reseal;
-mod prcheck;
-mod quant;
-mod red;
-mod rtl;
+mod issues;
+mod jumps;
 mod kinddrift;
 mod leanreach;
 mod leanvac;
-mod skillnum;
+mod ledgers;
+mod modreach;
+mod mutate;
+mod nownote;
+mod orphaned;
+mod prcheck;
+mod prose;
+mod quant;
+mod red;
+mod reseal;
+mod rtl;
 mod scratch;
 mod seals;
+mod skillnum;
 mod sweep;
-mod types_dup;
-mod vectors;
-mod gendet;
-mod jumps;
-mod vsim;
 mod synth;
+mod types_dup;
+mod unparsed;
+mod vectors;
+mod vsim;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
@@ -310,6 +310,12 @@ enum SkillAction {
         /// Also print the gaps, which are reported but never fail.
         #[arg(long)]
         gaps: bool,
+    },
+    /// Sections that state a FIGURE, and which of those a reader can re-take.
+    Claims {
+        /// Print every section in the free population, one line each.
+        #[arg(long)]
+        list: bool,
     },
     Begin {
         #[arg(long)]
@@ -873,6 +879,9 @@ fn main() -> Result<()> {
             match action {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
+                }
+                SkillAction::Claims { list } => {
+                    skillnum::run(&skillnum::SkillCmd::Claims { list: *list })?
                 }
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
