@@ -1,0 +1,279 @@
+//! `tri skill renumber` -- give appended sections the numbers master left free.
+//!
+//! Six times in one week a branch and master appended sections to
+//! `.claude/skills/ci-gates/SKILL.md` at the same time and took the same
+//! numbers. Every one of those cost the same manual repair: rebuild the file
+//! from `origin/master`, move my sections to the end, assert the master prefix
+//! is byte-identical, re-run `tri skill check`. Six repetitions is the argument
+//! for a command; the repair itself never varied.
+//!
+//! The invariant this leans on is the one the workflow already has: a section is
+//! APPENDED. So the branch's file is the merge-base's file plus a tail, and the
+//! tail is exactly what has to move. If that is not true -- someone edited an
+//! existing section, or a previous conflict was resolved by hand -- this refuses
+//! and says so rather than guessing which lines are yours.
+//!
+//! References are rewritten only for the numbers being moved and only INSIDE the
+//! tail. A section that cites `&sect;447` keeps citing 447; a section that cites
+//! its own sibling follows it. Both spellings are handled, and the word boundary
+//! matters: renumbering 46 must not touch 460.
+
+use anyhow::{bail, Result};
+use std::path::Path;
+use std::process::Command;
+
+/// The tail of `mine` that is not in `base`, or `None` when `mine` is not
+/// `base` plus an append.
+pub fn appended_tail<'a>(base: &str, mine: &'a str) -> Option<&'a str> {
+    // Trailing-newline differences are not an edit. Compare on the trimmed
+    // prefix and hand back everything after it.
+    let b = base.trim_end_matches('\n');
+    if !mine.starts_with(b) {
+        return None;
+    }
+    Some(&mine[b.len()..])
+}
+
+/// The highest section number in a file, or 0 when it has none.
+pub fn max_section(text: &str) -> usize {
+    crate::skillnum::sections(text)
+        .iter()
+        .map(|(n, _)| *n)
+        .max()
+        .unwrap_or(0)
+}
+
+/// Rewrite the tail's section headings to run from `first`, and follow every
+/// reference to a moved number that lives inside the tail.
+///
+/// Returns the new text and the moves, old to new, in heading order.
+pub fn renumber(tail: &str, first: usize) -> (String, Vec<(usize, usize)>) {
+    let olds: Vec<usize> = crate::skillnum::sections(tail)
+        .iter()
+        .map(|(n, _)| *n)
+        .collect();
+    let moves: Vec<(usize, usize)> = olds
+        .iter()
+        .enumerate()
+        .map(|(i, o)| (*o, first + i))
+        .filter(|(o, n)| o != n)
+        .collect();
+
+    let mut out = String::with_capacity(tail.len());
+    let mut heading = 0usize;
+    for line in tail.split_inclusive('\n') {
+        if let Some(rest) = line.strip_prefix("## ") {
+            if let Some((num, title)) = rest.split_once(". ") {
+                if num.parse::<usize>().is_ok() {
+                    out.push_str(&format!("## {}. {title}", first + heading));
+                    heading += 1;
+                    continue;
+                }
+            }
+        }
+        out.push_str(line);
+    }
+
+    // References, after the headings, so a heading is never rewritten twice.
+    let mut text = out;
+    for (old, new) in &moves {
+        for marker in ["&sect;", "\u{a7}"] {
+            text = replace_ref(&text, marker, *old, *new);
+        }
+    }
+    (text, moves)
+}
+
+/// `<marker><old>` -> `<marker><new>`, but only when `<old>` is the whole
+/// number. `&sect;46` must not match inside `&sect;460`.
+fn replace_ref(text: &str, marker: &str, old: usize, new: usize) -> String {
+    let needle = format!("{marker}{old}");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find(&needle) {
+        let after = &rest[i + needle.len()..];
+        let bounded = !after.chars().next().is_some_and(|c| c.is_ascii_digit());
+        out.push_str(&rest[..i]);
+        out.push_str(&if bounded {
+            format!("{marker}{new}")
+        } else {
+            needle.clone()
+        });
+        rest = after;
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The rewritten tail and the moves, given the base file and the appended tail.
+///
+/// The first number comes from `at_base` and NEVER from `tail`. The tail already
+/// carries the numbers that collided; reading them back is exactly how the same
+/// branch collided a second time, four hours after the first repair.
+pub fn plan(at_base: &str, tail: &str) -> (String, Vec<(usize, usize)>) {
+    renumber(tail, max_section(at_base) + 1)
+}
+
+fn show(rev: &str, path: &str, root: &Path) -> Result<String> {
+    let out = Command::new("git")
+        .args(["show", &format!("{rev}:{path}")])
+        .current_dir(root)
+        .output()?;
+    if !out.status.success() {
+        bail!("git show {rev}:{path} failed -- is {rev} fetched?");
+    }
+    Ok(String::from_utf8(out.stdout)?)
+}
+
+fn merge_base(rev: &str, root: &Path) -> Result<String> {
+    let out = Command::new("git")
+        .args(["merge-base", "HEAD", rev])
+        .current_dir(root)
+        .output()?;
+    if !out.status.success() {
+        bail!("no merge base with {rev}");
+    }
+    Ok(String::from_utf8(out.stdout)?.trim().to_string())
+}
+
+pub fn run(base: &str, file: &str, check: bool) -> Result<()> {
+    let root = crate::find_trinity_root()?;
+    let mb = merge_base(base, &root)?;
+    let at_mb = show(&mb, file, &root)?;
+    let at_base = show(base, file, &root)?;
+    let mine = std::fs::read_to_string(root.join(file))?;
+
+    let Some(tail) = appended_tail(&at_mb, &mine) else {
+        bail!(
+            "{file} is not {} plus an append.\n  \
+             This command moves the sections you APPENDED; it cannot tell which\n  \
+             lines are yours once an existing section has been edited. Resolve by\n  \
+             hand, or reset the file to {} and re-append.",
+            &mb[..9.min(mb.len())],
+            &mb[..9.min(mb.len())]
+        );
+    };
+
+    let (moved, moves) = plan(&at_base, tail);
+
+    println!();
+    println!("  {file}");
+    println!("  merge base {}   {} section(s) there", &mb[..9.min(mb.len())], crate::skillnum::sections(&at_mb).len());
+    println!("  {base} highest section  {}", max_section(&at_base));
+    println!("  appended here           {}", crate::skillnum::sections(tail).len());
+    if moves.is_empty() {
+        println!();
+        println!("  Nothing to move -- your numbers already follow {base}.");
+        return Ok(());
+    }
+    println!();
+    for (o, n) in &moves {
+        println!("      {o}  ->  {n}");
+    }
+    println!();
+
+    if check {
+        println!("  --check: nothing written.");
+        return Ok(());
+    }
+
+    let out = at_base.trim_end_matches('\n').to_string() + &moved;
+    debug_assert!(out.starts_with(at_base.trim_end_matches('\n')));
+    std::fs::write(root.join(file), &out)?;
+    let secs = crate::skillnum::sections(&out);
+    let problems = crate::skillnum::problems(&secs);
+    println!("  Written. {} section(s); {}", secs.len(), if problems.is_empty() {
+        "no number is used twice.".to_string()
+    } else {
+        format!("STILL WRONG: {}", problems.join("; "))
+    });
+    if !problems.is_empty() {
+        bail!("the rewrite did not settle the numbering");
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BASE: &str = "intro\n\n## 10. Ten\n\nbody ten\n";
+
+    #[test]
+    fn an_append_is_recognised_and_an_edit_is_not() {
+        let mine = format!("{BASE}\n## 10. Ten\n\nmine\n");
+        assert!(appended_tail(BASE, &mine).is_some());
+        // An edited word inside the base is NOT an append, and the whole point
+        // is that this returns None instead of guessing a split point.
+        let edited = BASE.replace("body ten", "body TEN") + "\n## 11. X\n";
+        assert!(appended_tail(BASE, &edited).is_none());
+    }
+
+    #[test]
+    fn the_first_number_comes_from_the_base_not_from_the_tail() {
+        let tail = "\n## 11. A\n\na\n\n## 12. B\n\nb\n";
+        let (out, moves) = renumber(tail, 471);
+        assert_eq!(moves, vec![(11, 471), (12, 472)]);
+        assert!(out.contains("## 471. A"), "{out}");
+        assert!(out.contains("## 472. B"), "{out}");
+        assert!(!out.contains("## 11."), "{out}");
+    }
+
+    #[test]
+    fn a_reference_to_a_moved_sibling_follows_it_and_a_foreign_one_does_not() {
+        let tail = "\n## 11. A\n\nsee &sect;12 and &sect;447\n\n## 12. B\n\nb\n";
+        let (out, _) = renumber(tail, 471);
+        assert!(out.contains("&sect;472"), "the sibling did not follow:\n{out}");
+        assert!(
+            out.contains("&sect;447"),
+            "a reference this command does not own was rewritten:\n{out}"
+        );
+    }
+
+    #[test]
+    fn a_prefix_of_a_longer_number_is_not_a_reference_to_it() {
+        // The bug this exists for: renumbering 11 must not touch &sect;110.
+        let tail = "\n## 11. A\n\nsee &sect;110\n";
+        let (out, _) = renumber(tail, 471);
+        assert!(
+            out.contains("&sect;110"),
+            "a longer number was corrupted by a prefix match:\n{out}"
+        );
+        assert!(!out.contains("&sect;4710"), "{out}");
+    }
+
+    #[test]
+    fn a_tail_with_no_sections_moves_nothing() {
+        let (out, moves) = renumber("\njust prose, no headings\n", 471);
+        assert!(moves.is_empty());
+        assert_eq!(out, "\njust prose, no headings\n");
+    }
+
+    /// The numbers a tail ALREADY carries must not reach the plan. Two tails
+    /// with different existing numbers and the same shape must be renumbered
+    /// identically -- otherwise the tail is deciding, and a branch that was
+    /// already renumbered once will renumber itself off its own numbers instead
+    /// of off the base. That is not hypothetical: it is the second of the six
+    /// collisions.
+    #[test]
+    fn the_plan_ignores_the_numbers_the_tail_already_carries() {
+        let base = "## 470. last\n\nbody\n";
+        let fresh = "\n## 1. A\n\na\n\n## 2. B\n\nb\n";
+        let already_moved = "\n## 468. A\n\na\n\n## 469. B\n\nb\n";
+        let (o1, m1) = plan(base, fresh);
+        let (o2, m2) = plan(base, already_moved);
+        assert_eq!(
+            m1.iter().map(|(_, n)| *n).collect::<Vec<_>>(),
+            m2.iter().map(|(_, n)| *n).collect::<Vec<_>>(),
+            "the tail's own numbers changed the destination"
+        );
+        assert_eq!(m1.iter().map(|(_, n)| *n).collect::<Vec<_>>(), vec![471, 472]);
+        assert_eq!(o1, o2, "same base, same shape, different output");
+    }
+
+    #[test]
+    fn the_highest_section_is_read_from_the_text_it_is_given() {
+        assert_eq!(max_section("## 3. a\n## 470. b\n## 12. c\n"), 470);
+        assert_eq!(max_section("no sections here"), 0);
+    }
+}
