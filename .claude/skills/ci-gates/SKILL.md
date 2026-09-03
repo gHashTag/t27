@@ -12191,9 +12191,13 @@ line 18, where no digit follows, and *"Over the last 20 commit messages on maste
 line 27. The rule stopped at the first and returned nothing.
 
 So **&sect;439 was absent from its own population**, and it is the section that produced
-the 4-against-33 row of &sect;457's own table. Exactly one section is masked, and the
-one-variable probe is the whole proof: same tree, same command, `find` versus
-`match_indices`, **19 against 20**.
+the 4-against-33 row of &sect;457's own table. The one-variable probe is the whole proof:
+same tree, same command, `find` versus `match_indices`.
+
+*Corrected in place; &sect;470 is the correction's subject.* The numbers first published
+here were **19 against 20**, and at the commit that shipped them, `d448b1864`, they are
+**19 against 21** -- because THIS SECTION is a second instance of the shape it describes,
+and writing it changed the count it reports.
 
 `find` answers *"does the FIRST occurrence satisfy this?"* and the question is *"does
 ANY?"*. On one line the two agree; on a page of prose they do not, and a page of prose
@@ -12346,3 +12350,37 @@ which one does it cover?`. That names **five** sites here: four are the two-bran
 is `red.rs:140`, the real mis-attribution. Five lines read by hand in a minute to find
 the one that matters is what the category is for -- and it is stated as a question in the
 output, not folded into either total.
+
+## 470. I measured before I wrote it down, and published the first as the third
+
+&sect;465 and the body of the pull request carrying it both said: *same tree, same
+command, `find` against `match_indices` -- **19 against 20***. At `d448b1864`, the commit
+that shipped them, it is **19 against 21**.
+
+Not the instrument, and not a population from outside. **&sect;465 itself carries the
+shape it documents.** It quotes &sect;439 -- *"reads the last COMMIT message"* before
+*"the last 20 commit messages on master"* -- so under the old `find` it would have been
+masked too, and it is the second masked section the fixed rule now sees.
+
+The order was: take the reading, write the section, ship. The reading described the tree
+before the section existed, and it was published as a description of the tree that
+shipped.
+
+That is **&sect;457 word for word** -- *the figure moved because writing it moved the
+population* -- unlearned one pass after being written, by the author, in the section
+that cites it.
+
+Two things made the gap findable, and only one of them was mine. The number was
+re-taken by a fan-out told to attack the previous pass's own figures. And the anchor in
+the pull request body was the words **"same tree"** rather than a sha: had it named
+`cfa32871c` the pair would have been exactly right and merely stale, instead of wrong
+about the commit it shipped in. **"Same tree" does not name a tree.**
+
+And the reading for THIS section, taken as the last action before its own commit, from
+the tree being committed: **25 windowed of 434 sections**. It is larger than the
+twenty-one above for the same reason -- these two sections quote the shape again.
+
+The rule that follows is narrow and mechanical: a figure describing the state AFTER a
+change is taken as the LAST action before the commit, from the tree that is committed,
+and is written with that commit's sha. Any earlier reading describes a different tree,
+however few minutes earlier it was.
