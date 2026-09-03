@@ -33,6 +33,19 @@ pub enum TypesCmd {
         /// Print the fields of every definition, not just the conflicted ones.
         #[arg(long)]
         all: bool,
+        /// Print `<file>:<line>\t<Name>` for every struct definition counted,
+        /// and nothing else, so a second reader can subtract SETS.
+        ///
+        /// `--all` prints a multi-line block per name and cannot be subtracted;
+        /// this prints one line per definition and can. Chosen over the other
+        /// censuses because `tri census audit` measured this exact number and
+        /// then REFUSED to add a row for it: a looser counter reads 1182 where
+        /// this reads 1180, and its note says "any counter accurate enough to
+        /// agree is a copy of its matcher". That is true of counters and false
+        /// of populations -- `comm` on two lists names the two rows in one
+        /// command, which is how the `struct = 21,` pair was found by hand.
+        #[arg(long)]
+        defs: bool,
     },
     /// Hold the conflicted set: a new conflict fails, and a resolved one fails
     /// until it is blessed away.
@@ -903,10 +916,30 @@ fn redef_probe(root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// The counted definitions, one line each, in BYTE order -- `LC_ALL=C sort`
+/// order, so `comm` takes the output directly.
+///
+/// Deliberately NOT shared with `jumps::site_lines`: two call sites over two
+/// different tuples, and a shared formatter would have to be told which fields
+/// make the identity. The rule that is worth repeating is the shape, not the
+/// code.
+fn def_lines(defs: &[(String, String, usize)]) -> Vec<String> {
+    let mut v: Vec<String> = defs
+        .iter()
+        .map(|(name, file, line)| format!("{file}:{line}\t{name}"))
+        .collect();
+    v.sort();
+    v
+}
+
 pub fn run(cmd: &TypesCmd) -> Result<()> {
     let root = repo_root()?;
+    let mut defs_only = false;
     let all = match cmd {
-        TypesCmd::Dup { all } => *all,
+        TypesCmd::Dup { all, defs } => {
+            defs_only = *defs;
+            *all
+        }
         TypesCmd::Ratchet { bless } => {
             let specs = read_specs(&root);
             if specs.is_empty() {
@@ -962,13 +995,23 @@ pub fn run(cmd: &TypesCmd) -> Result<()> {
         );
     }
     let mut by_name: BTreeMap<String, Vec<Def>> = BTreeMap::new();
-    let mut total = 0usize;
+    let mut counted: Vec<(String, String, usize)> = Vec::new();
     for (f, src) in &specs {
         for (n, d) in defs_in(f, src) {
-            total += 1;
+            counted.push((n.clone(), d.file.clone(), d.line));
             by_name.entry(n).or_default().push(d);
         }
     }
+    // ONE enumeration behind the headline and the list: `total` used to be its
+    // own counter, and a counter cannot be subtracted from another reader's.
+    let def_lines = def_lines(&counted);
+    if defs_only {
+        for l in &def_lines {
+            println!("{l}");
+        }
+        return Ok(());
+    }
+    let total = def_lines.len();
 
     let multi: Vec<(&String, &Vec<Def>)> = by_name.iter().filter(|(_, v)| v.len() > 1).collect();
     let conflicted: Vec<_> = multi
@@ -1029,6 +1072,81 @@ mod tests {
 
     fn parse(src: &str) -> Vec<(String, Def)> {
         defs_in("x.t27", src)
+    }
+
+    /// The three spellings the corpus uses, one newtype, and the row that made
+    /// the loose counter read 1182: `struct = 21,` is an ENUM MEMBER named
+    /// `struct`, which is not a definition. Written on its own line because
+    /// that is how the corpus writes it -- `specs/lsp/schema.t27:155` and
+    /// `:204`, which are the only two, and so are the whole 1182-vs-1180 gap.
+    const THREE_SPELLINGS: &str = "\
+struct Alpha { a: u32 }
+pub struct Beta { b: u32 }
+const Gamma = struct { c: u32 };
+struct Delta(str);
+enum E {
+    struct = 21,
+}
+";
+
+    /// A SECOND reader of `tri types dup --defs`: count the LINES that open a
+    /// type. Written from the three spellings in the doc comment rather than
+    /// from `defs_in`, and deliberately as loose as the counter `tri census
+    /// audit` describes -- which is why it also counts the enum member.
+    fn defs_by_a_loose_second_reader(src: &str) -> usize {
+        src.lines()
+            .map(|l| l.trim())
+            .filter(|t| {
+                t.starts_with("struct ") || t.starts_with("pub struct ") || t.contains("= struct ")
+            })
+            .count()
+    }
+
+    #[test]
+    fn the_count_and_the_emitted_definitions_are_the_same_number() {
+        // THE POINT OF THE FLAG. The headline prints `def_lines.len()`; this
+        // asserts that number against a reader written independently of it,
+        // and then NAMES the row the two disagree about -- which is the thing
+        // `tri census audit` says a second COUNTER cannot do.
+        let counted: Vec<(String, String, usize)> = defs_in("x.t27", THREE_SPELLINGS)
+            .into_iter()
+            .map(|(n, d)| (n, d.file, d.line))
+            .collect();
+        let lines = def_lines(&counted);
+        assert_eq!(lines.len(), 4, "four definitions and one enum member");
+        assert_eq!(
+            defs_by_a_loose_second_reader(THREE_SPELLINGS),
+            5,
+            "the loose reader counts `struct = 21,` -- the 1182-vs-1180 shape"
+        );
+        // And the disagreement is LOCATABLE, not just a difference of two:
+        // the only line the census declined is the enum member's.
+        let census_lines: BTreeMap<usize, ()> = counted.iter().map(|(_, _, l)| (*l, ())).collect();
+        assert!(!census_lines.contains_key(&6), "line 6 is the enum member");
+        assert_eq!(census_lines.len(), lines.len(), "one line per definition");
+    }
+
+    #[test]
+    fn the_emitted_definitions_are_unique_and_sorted() {
+        let lines = def_lines(&[
+            ("B".into(), "z.t27".into(), 1),
+            ("A".into(), "a.t27".into(), 10),
+            ("A".into(), "a.t27".into(), 2),
+        ]);
+        let mut sorted = lines.clone();
+        sorted.sort();
+        assert_eq!(lines, sorted, "unsorted output cannot be `comm`ed");
+        assert_eq!(
+            lines
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            lines.len()
+        );
+        // Byte order, not numeric: `a.t27:10` before `a.t27:2`. Stated because
+        // it looks like a bug and is the property `comm` requires.
+        assert_eq!(lines[0], "a.t27:10\tA");
+        assert_eq!(lines[1], "a.t27:2\tA");
     }
 
     /// W715: a `//` tail is not part of the type. `verdict()` decides
