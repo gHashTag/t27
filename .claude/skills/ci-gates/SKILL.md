@@ -12635,3 +12635,93 @@ The general form is that same rule arriving a second time in one week, and
 therefore worth trusting: **a repair you have performed more than
 about three times, that never varies, is a command you have not written yet.**
 The count is the evidence. Six is well past it.
+
+
+## 477. A lesson written down four times, and the command run anyway
+
+`cargo fmt -p t27c`, on a branch holding a two-file change, came back with **155
+tracked files modified**. `cargo fmt --all` on a one-file change: **165 dirty, 164
+of them collateral**. Both sets include `bootstrap/src/compiler.rs`, which is
+M5-frozen — `build.rs` refuses to build unless `FROZEN_HASH` matches its sha256 —
+so the formatter turns a real gate red while tidying a file in another crate.
+
+The diagnosis takes one grep and it is already in this file. &sect;72 has it, with
+150 files, the same frozen file, and the same command:
+`grep -rn "cargo fmt" .github/workflows/` returns nothing. &sect;381 has the mod-graph
+half. &sect;407 says format only your own hunks. &sect;447 has the forty sorted
+`mod` lines.
+
+**Four sections, and I ran it anyway.** That is the finding. The failure was not
+that the knowledge was missing; it was that nothing stood between the habit and
+the command, and a fifth paragraph would stand exactly as far from it as the other
+four.
+
+So the section ends in a binary rather than in advice. `tri fmt` takes the dirty
+set, runs the formatter, and restores every file that was **clean before and is
+dirty after**. Clean-before means identical to HEAD, so the restore loses nothing,
+and that is the whole reason the dirty set is taken first rather than derived from
+a base ref. Measured on this repository: 165 dirty, 1 kept, 164 restored,
+`FROZEN_HASH` intact afterwards.
+
+Two things it does not do, both said out loud rather than discovered later. A
+concurrent process sharing the same worktree can dirty a file between the two
+`git status` calls and have it reverted; the window is the formatter's runtime,
+and every restored path is printed for that reason. And untracked files are never
+restored — they are yours by construction — which is also why the summary counts
+"modified tracked files you kept" and not "files formatted", a larger number
+this command is in no position to state.
+
+And the limitation the FIRST use exposed, which is &sect;447 arriving inside the
+new tool: the command protects every file except the one you edited. `cargo fmt`
+sorted the `mod` declarations at the top of `cli/tri/src/main.rs` while formatting
+the thirteen lines this command added to it, and a 13-insertion diff was reported
+as **31 insertions and 18 deletions**. `tri fmt` kept that file because it was
+yours, which is correct and is also exactly why it cannot help there. The shape of
+the diff gave it away, as it did in &sect;447: deletions on a pure addition.
+
+The general form: **when a rule has been written down repeatedly and broken
+anyway, the next unit of work is an executable, not another paragraph.** The count
+of prior sections is the evidence for that, and it is worth taking before writing
+the new one — `grep -c` on the file you are about to append to. And write down
+what the executable does not reach, at the moment you find out, rather than
+leaving it for whoever trusts it next.
+
+
+## 478. The machine that could not answer, and the population nobody asked
+
+`t27c corpus` was given an UNRESOLVED channel: a tool that could not be spawned, a
+capture file that could not be written, and a child killed by a signal are not
+rejections, and the run refuses rather than publishing them as zeros. Six tests
+pinned it. The module docstring stated the rule as a universal — *a run that
+produced no usable numbers must not be able to exit 0.*
+
+The sentence was false for the simplest input in its own space:
+
+```
+$ t27c corpus --specs-dir <an empty directory> --json
+{"specs":0,"zig_build":0,...,"verilog_build":0,...}
+$ echo $?
+0
+```
+
+The constant 0 in the format of a measurement — the exact thing the refusal exists
+to prevent — arriving through the one door the refusal does not watch. A
+**mistyped** `--specs-dir` reaches it identically, because the walk opens the tree
+with `read_dir(..).else { continue }`, so a path that does not exist is
+indistinguishable from a tree with no specs in it.
+
+Two classes produce no numbers: **the machine could not answer**, and **nothing was
+asked**. All six tests fed a non-empty tree, so every one of them lived in the
+first class, while the docstring quantified over both.
+
+It was found by running the binary against an empty directory. The reading had
+already been done — twice, by two agents — and both wrote the universal down as
+though the guard implied it. A docstring that states a universal is a claim about a
+**population**, and the population's edges are cheap: empty, absent, one.
+
+The mutation is the other half. Deleting the new empty-population guard kills the
+new test; keeping the guard but re-adding a single acceptance key to its refusal
+JSON kills it too; and **neither moves any other test in the file**. That last
+clause is not decoration — it is the measurement that the six existing tests never
+covered this branch, which is the same fact the docstring got wrong, restated in a
+form that fails if someone deletes it.
