@@ -11882,6 +11882,12 @@ these two were written it was 12 of 420 -- **the figure moved because writing it
 the population**, which is the rule demonstrating itself and the reason the commit is
 named here instead of the word "currently". `tri skill claims --windowed` lists them.
 
+*Corrected in place, and the correction is &sect;465's subject:* those two numbers are
+what the tool printed **at `efec78113`**. The rule searched only the FIRST `last ` in a
+section and so could not see one of them. Re-run at the same anchor `c039ebebe`, the
+fixed tool says **13 of 420**, and 14 of 422 is 15. The anchor was right and the
+instrument was not -- a figure needs both.
+
 Among the twelve is **§179, whose title is the rule**: *"A `--limit` on a run list is a
 time window in disguise"*. §439 is mine, two days old, and is the 4-against-33 row above.
 So the cure is not another lesson -- the lesson exists, is named, and is cited. It is
@@ -12176,3 +12182,41 @@ the list named the line. **A census that prints only its total cannot be checked
 that prints its members can.** The command prints the excluded lines too, under
 `--excluded`, because the exclusion is half the reading -- 25 lines name a spelling
 without fetching, against 24 that fetch.
+
+## 465. An anchor pins the population, not the instrument
+
+`window_markers` asked `low.find("last ")` -- the FIRST occurrence and no other -- and
+then whether a digit followed. &sect;439 says *"reads the last COMMIT message"* on its
+line 18, where no digit follows, and *"Over the last 20 commit messages on master"* on
+line 27. The rule stopped at the first and returned nothing.
+
+So **&sect;439 was absent from its own population**, and it is the section that produced
+the 4-against-33 row of &sect;457's own table. Exactly one section is masked, and the
+one-variable probe is the whole proof: same tree, same command, `find` versus
+`match_indices`, **19 against 20**.
+
+`find` answers *"does the FIRST occurrence satisfy this?"* and the question is *"does
+ANY?"*. On one line the two agree; on a page of prose they do not, and a page of prose
+is the only kind of text this rule reads.
+
+**Then the sharper half.** &sect;457 published `12 of 420`, anchored to `c039ebebe`, and
+that number reproduces exactly at that commit -- an audit re-took it and every other
+anchored figure, twelve of twelve, and none failed. But re-run at the same anchor with
+the FIXED tool it is **13 of 420**.
+
+The anchor was right and the instrument was not. **A figure over a fixed population is
+re-takeable only by someone holding the same binary**, and nothing in `over the 20
+commits ending at <sha>` says which binary. The data anchor and the tool version are two
+different anchors, and &sect;457 named one of them.
+
+This does not weaken anchoring; it completes it. An unanchored figure cannot be re-taken
+at all. An anchored one can be re-taken and *disagreed with*, which is what happened
+here -- the disagreement is the finding.
+
+Two process notes, both cheap and both load-bearing. **The probe was not mine:** a
+read-only fan-out with instructions to attack the previous pass's own numbers wrote it,
+and its refuter then narrowed the charge correctly -- &sect;457 never claimed &sect;439
+was among the twelve, so the membership complaint falls and the matcher defect stands.
+And the first mutant written to prove the fix **did not compile** (`break` outside a
+loop, left over from the loop it removed). It was reported as *never built* rather than
+scored as a kill, which is &sect;455's fourth arm arriving in a new place.
