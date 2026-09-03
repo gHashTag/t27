@@ -40,6 +40,7 @@ mod seals;
 mod sweep;
 mod types_dup;
 mod vectors;
+mod gendet;
 mod vsim;
 mod synth;
 
@@ -253,6 +254,16 @@ enum Commands {
     Unparsed {
         #[command(subcommand)]
         action: unparsed::UnparsedCmd,
+    },
+    /// Does the same binary produce the same generated code twice?
+    ///
+    /// Every byte-comparison over emitted output -- seals, emit-bitexact,
+    /// `corpus --per-spec` diffing -- assumes it does. Three of the four
+    /// emitters do not; see #3006. (`Gen` is taken by the single-spec emitter,
+    /// so this is `Emit`.)
+    Emit {
+        #[command(subcommand)]
+        action: gendet::EmitCmd,
     },
     /// How far each spec gets when its generated Verilog is actually RUN.
     ///
@@ -917,6 +928,7 @@ fn main() -> Result<()> {
         Commands::Competitors { action } => competitors::run(action)?,
         Commands::Issues { action } => issues::run(action)?,
         Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
+        Commands::Emit { action } => gendet::run(action)?,
         Commands::Vsim { action } => vsim::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
