@@ -118,8 +118,49 @@ jobs:
 
       - name: Verify Kernel PHI layer has no Admitted
         run: |
-          if grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v 2>/dev/null; then
-            echo "ERROR: Admitted remains in Phi / PhiFloat" >&2
-            exit 1
-          fi
-          echo "OK: no Admitted in Phi.v or PhiFloat.v"
+          set -uo pipefail
+          # GREP HAS THREE ANSWERS AND THIS USED TO KEEP ONE.
+          #
+          # 0 matched, 1 no match, 2 cannot open. The old line was
+          #
+          #     if grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v 2>/dev/null; then
+          #
+          # and `if` merges 1 with 2, so a missing operand fell through to
+          # "OK: no Admitted". Reproduced with coq/Kernel/Phi.v absent and one
+          # `Admitted.` in PhiFloat.v: grep PRINTS the match, exits 2, and the
+          # step prints OK underneath it and exits 0.
+          #
+          # That is one ordinary rename away. `grep -rn "Kernel/Phi.v"` finds
+          # three hits in the whole tree -- this line, and two Coq `Require`s
+          # resolved by MODULE name -- so moving the file and updating
+          # coq/_CoqProject, as any Coq rename must, leaves the build green and
+          # this gate dead from that commit onward.
+          #
+          # Exit 2 for "could not run", matching scripts/tri and
+          # tools/check_now_entry_shape.py.
+          #
+          # An `[ -f ]` loop over the two operands was written first and then
+          # REMOVED: mutation showed it redundant -- deleting it left every test
+          # green, because the three-way case below already turns grep's 2 into
+          # exit 2, and dropping `2>/dev/null` lets grep name the file it could
+          # not open. Two rules with one testable consequence is one rule and a
+          # decoration.
+          # Three-way, with stderr kept. 2 is "cannot open" -- a missing file, a
+          # permission, a directory -- and none of those is a clean file.
+          HITS=$(grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v)
+          rc=$?
+          case "$rc" in
+            0)
+              echo "$HITS"
+              echo "ERROR: Admitted remains in Phi / PhiFloat" >&2
+              exit 1
+              ;;
+            1)
+              echo "OK: no Admitted in Phi.v or PhiFloat.v (both files read)"
+              ;;
+            *)
+              echo "::error::this gate could not run: grep exited $rc." >&2
+              echo "::error::Nothing was checked." >&2
+              exit 2
+              ;;
+          esac
