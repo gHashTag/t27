@@ -41,6 +41,7 @@ mod sweep;
 mod types_dup;
 mod vectors;
 mod gendet;
+mod jumps;
 mod vsim;
 mod synth;
 
@@ -264,6 +265,17 @@ enum Commands {
     Emit {
         #[command(subcommand)]
         action: gendet::EmitCmd,
+    },
+    /// What happened to every `break` and `continue` the Verilog emitter had
+    /// to lower?
+    ///
+    /// `break` was `disable fork;` and `continue` was `/* continue */;`. Both
+    /// parse, both synthesise, both are no-ops -- so every instrument that
+    /// asks whether the output PARSES said yes for as long as the emitter has
+    /// existed. See #2988.
+    Jumps {
+        #[command(subcommand)]
+        action: jumps::JumpsCmd,
     },
     /// How far each spec gets when its generated Verilog is actually RUN.
     ///
@@ -929,6 +941,7 @@ fn main() -> Result<()> {
         Commands::Issues { action } => issues::run(action)?,
         Commands::Unparsed { action } => unparsed::run(action, std::env::current_dir()?)?,
         Commands::Emit { action } => gendet::run(action)?,
+        Commands::Jumps { action } => jumps::run(action)?,
         Commands::Vsim { action } => vsim::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,

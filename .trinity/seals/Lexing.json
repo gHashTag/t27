@@ -1,7 +1,7 @@
 {
   "gen_hash_c": "sha256:d54d21bda496461e70febcf8855037a45164dc0a2212cc71411580a23d4da74f",
   "gen_hash_rust": "sha256:6a0e73f0d133ae0a90cf5b68b139de266a5d32b6fb2dafe1df7e62047cff6ad7",
-  "gen_hash_verilog": "sha256:88761f053fa391f6d6f86fa180b7011c0e6f82547d8dd32cab658fe4f54d7f84",
+  "gen_hash_verilog": "sha256:5807318b282900d93a6563366b253d985000e27818282d4253c1d24c0167f6a6",
   "gen_hash_zig": "sha256:7da42e5e458cb1a4fe300a2001f5edeb792cc9ff8278efd87ab589562ebbb2ee",
   "module": "Lexing",
   "ring": 12,
