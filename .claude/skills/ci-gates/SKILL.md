@@ -11786,6 +11786,39 @@ What *is* established is the cost of guessing: three reads, two refusals.
 
 Filed as #3023: the merge itself is mechanical and belongs in a command.
 
+**The discriminating experiment, and it eliminates the read.** The three
+candidate mechanisms above were separated by waiting for the artifact to move to
+a version this session had never seen, and running the documented sequence on
+that clean slate:
+
+    fetch a NEVER-READ version -> one shell call (merge + verify) -> Read all
+    3061 lines, no gaps -> publish, with nothing in between
+        -> refused: "not built on it"
+
+That is a third complete read, on a second version, with no prior refusal
+against it and no prior read of it. **It still refused.** So:
+
+- **eliminated:** the turn boundary (a fresh turn refused identically)
+- **eliminated:** tangled state from earlier refusals against the old version
+- **eliminated:** "the read has not been done" -- it has, three times, twice in
+  full on two different versions
+- **surviving:** the writer tracks what MY FILE is based on, independently of
+  what I read. One successful publish recorded a base version for that local
+  path, and nothing a reader does moves it.
+
+**So the read is not the lever, and paying it again cannot become the answer.**
+Measured cost across the two turns that established this: roughly **450k
+tokens** on one artifact -- three full reads of a ~3000-line file -- for a page
+that merged correctly every time (counts closing to the item, and only the
+publisher's own injected wrapper and the deliberately-replaced stamp differing).
+
+The general rule, which is what this section is for: **when an instruction has
+been followed exactly and the refusal does not change, stop executing the
+instruction and start discriminating the mechanism.** Three attempts that vary
+nothing are one observation repeated; one attempt that varies the STATE is a
+measurement. The variation here cost one read and eliminated two hypotheses,
+where the two repetitions before it eliminated none.
+
 **A prediction, and it failed usefully.** With four points in hand I wrote down
 what the next notice would be: `1788439613-732b`, my own publish, the last
 version in the series nobody had announced -- and then silence.
