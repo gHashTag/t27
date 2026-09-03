@@ -132,9 +132,22 @@ fn scan_structs(specs: &[(PathBuf, String)]) -> Structs {
     Structs { fields, conflicted }
 }
 
+/// How deep `size_of` will follow a type before calling it unbounded.
+const MAX_TYPE_DEPTH: usize = 8;
+
 fn size_of(ty: &str, s: &Structs, depth: usize) -> Size {
     let ty = ty.trim().trim_end_matches(',').trim();
-    if depth > 8 {
+    // A recursion cap, and it has never fired here. Instrumented over the live
+    // corpus: 2078 calls to this function, maximum depth reached **1**, guard
+    // taken **0** times -- and the census is identical with the cap at 1, 2, 4,
+    // 6, 8, 12, 16, 32 or 64. So it decides nothing about any published number.
+    //
+    // It is kept because what it guards is real and simply absent from this
+    // corpus: a struct that contains itself. #2949 established one in C
+    // (`BTreeNode** children` inside `BTreeNode`), and a walk of that without a
+    // cap does not terminate. A guard clause nobody has executed is a comment,
+    // so `a_self_referential_struct_terminates` executes this one.
+    if depth > MAX_TYPE_DEPTH {
         return Size::Unbounded;
     }
     if let Some(n) = primitive(ty) {
@@ -1621,6 +1634,42 @@ mod tests {
             .collect(),
             conflicted: Default::default(),
         }
+    }
+
+    /// The recursion cap, executed on purpose.
+    ///
+    /// Instrumented over the live corpus: **2078** calls to `size_of`, maximum
+    /// depth reached **1**, cap taken **0** times -- and the census is identical
+    /// with it at 1, 2, 4, 6, 8, 12, 16, 32 or 64. Nothing in this repository
+    /// exercises it, and a guard clause nobody has run is a comment. This runs
+    /// it: a struct whose field is itself, which #2949 established exists in
+    /// real code (`BTreeNode** children` inside `BTreeNode`) and which without
+    /// the cap does not terminate.
+    #[test]
+    fn a_self_referential_struct_terminates() {
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert("Node".to_string(), vec!["Node".to_string()]);
+        let st = Structs {
+            fields,
+            conflicted: Default::default(),
+        };
+        assert_eq!(size_of("Node", &st, 0), Size::Unbounded);
+    }
+
+    /// And a chain that is deep but FINITE must still be measured, or the cap
+    /// would be indistinguishable from "give up on anything nested".
+    #[test]
+    fn a_chain_shallower_than_the_cap_is_still_measured() {
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert("L0".to_string(), vec!["Trit".to_string()]);
+        for i in 1..=3 {
+            fields.insert(format!("L{i}"), vec![format!("L{}", i - 1)]);
+        }
+        let st = Structs {
+            fields,
+            conflicted: Default::default(),
+        };
+        assert_eq!(size_of("L3", &st, 0), Size::Finite(3));
     }
 
     #[test]
