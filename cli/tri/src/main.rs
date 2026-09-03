@@ -16,6 +16,7 @@ mod competitors;
 mod issues;
 mod cibase;
 mod fleet;
+mod fmtmine;
 mod fpga;
 mod elab;
 mod modreach;
@@ -205,6 +206,15 @@ enum Commands {
         action: abandoned::AbandonedCmd,
     },
     /// Type names with more than one definition in the spec tree.
+    /// Run the formatter and restore every file it rewrote that you had not touched.
+    Fmt {
+        /// One package instead of the whole workspace.
+        #[arg(short, long)]
+        package: Option<String>,
+        /// Report what is dirty and whether a workflow formats, and stop.
+        #[arg(long)]
+        dry_run: bool,
+    },
     Types {
         #[command(subcommand)]
         action: types_dup::TypesCmd,
@@ -951,6 +961,9 @@ fn main() -> Result<()> {
         Commands::Elab { action } => elab::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Abandoned { action } => abandoned::run(action)?,
+        Commands::Fmt { package, dry_run } => {
+            fmtmine::run(&find_trinity_root()?, package.as_deref(), *dry_run)?
+        }
         Commands::Types { action } => types_dup::run(action)?,
         Commands::Quantifiers { action } => quant::run(action)?,
         Commands::Orphaned { action } => orphaned::run(action)?,
