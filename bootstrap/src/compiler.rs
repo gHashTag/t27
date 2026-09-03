@@ -10283,11 +10283,26 @@ impl Codegen {
 /// A flag is only allocated when the body actually contains the statement that
 /// sets it, so a loop with no jump emits byte for byte what it emitted before.
 ///
-/// SCOPE. `return` inside a loop is the OTHER half of this defect (#2989) and
-/// is deliberately not here: `__t27_ret` already exists at function scope, it
-/// is set correctly today, and what is missing is only that no loop tests it.
-/// That repair moves loops which contain no jump at all, so it is measured and
-/// landed on its own.
+/// #2989, the `return` half, IS here now. `__t27_ret` already exists at
+/// function scope (`gen_verilog_fn`) and is already set by every lowered
+/// `return`; what was missing is that no loop tested it.
+///
+/// WHY THE SAME TERM DOES TWO DIFFERENT THINGS. `loop_cond()` feeds the slot
+/// each shape uses as its real termination test, and the emitter has already
+/// decided per shape which slot that is:
+///
+///   * a `while` the emitter could NOT bound (`while_literal_bound` returned
+///     `None`) has no trip count, so the term goes in the Verilog `while (...)`
+///     condition and STOPS THE LOOP. Without it a `return` on the branch that
+///     advances neither bound means the loop cannot end at all.
+///   * every other shape carries a bound this emitter wrote itself -- W700's
+///     `__t27_fuel_N < <literal>`, `for`/`for_range`'s induction step -- so the
+///     term rides the BODY and stops only the writes. Those loops terminate by
+///     construction and their headers must stay static, which is what
+///     `gen_verilog_for_stmt`'s own comment exists to protect.
+///
+/// Measured over the corpus: 61 sites take the condition, 23 take a body gate.
+/// A commit saying this "stops the loop" is true of the 61 and false of the 23.
 #[derive(Clone, Copy)]
 struct LoopGuard {
     /// Drawn from `while_fuel_counter`, the same counter W700's `__t27_fuel_N`
@@ -10297,6 +10312,12 @@ struct LoopGuard {
     brk: bool,
     /// ... a `continue`.
     cnt: bool,
+    /// #2989: the body contains a `return`. Unlike `brk`/`cnt` a `return`
+    /// binds to EVERY enclosing loop, so this is decided with
+    /// `subtree_has_return` -- which does NOT stop at a nested loop -- and not
+    /// with `subtree_has_loop_exit`, which does. False in a clocked body and
+    /// outside a function, the two places `__t27_ret` is never declared.
+    ret: bool,
 }
 
 impl LoopGuard {
@@ -10307,12 +10328,29 @@ impl LoopGuard {
         if self.brk {
             t.push(format!("!__t27_brk_{}", self.id));
         }
+        // #2989: a taken `return` ends the loop as well as the function. `brk`
+        // is pushed first so a loop that only breaks keeps its exact bytes.
+        //
+        // NOT TESTED BY THE CORPUS: no loop today carries both a `brk`/`cnt`
+        // term and this one, so a mutant swapping the two survives all 643
+        // generated files. The unit test below is the only thing that pins it.
+        if self.ret {
+            t.push("!__t27_ret".to_string());
+        }
         t.join(" && ")
     }
 
     /// True when this loop needs a `reg` of its own -- and therefore a NAMED
     /// block to declare it in, because Verilog-2001 allows a declaration only
     /// at the top of one.
+    ///
+    /// `ret` is deliberately NOT here and must never be. `__t27_ret` is
+    /// declared once per function body (`gen_verilog_fn`) and is already in
+    /// scope at every loop inside it, so a return-carrying loop needs no
+    /// register. Adding `ret` would open a `begin : __t27_loop_N` that declares
+    /// nothing AND draw an id from `while_fuel_counter`, renumbering every
+    /// later `__t27_fuel_N` in the module -- exactly the churn `preset_id`
+    /// exists to prevent.
     fn needs_block(&self) -> bool {
         self.brk || self.cnt
     }
@@ -15086,7 +15124,24 @@ impl VerilogCodegen {
         let live = !self.clocked_nonblocking;
         let brk = live && Self::stmts_have_loop_exit(body, &NodeKind::StmtBreak);
         let cnt = live && Self::stmts_have_loop_exit(body, &NodeKind::StmtContinue);
-        let mut g = LoopGuard { id: 0, brk, cnt };
+        // #2989. Two differences from `brk`/`cnt`, both load-bearing:
+        //   * `subtree_has_return` does NOT stop at a nested loop, because a
+        //     `return` escapes every enclosing loop, not just the innermost;
+        //   * `__t27_ret` only exists inside a function body, so the gate also
+        //     asks whether we are in one. Outside -- a `test`/`initial` block --
+        //     testing it would emit `register '__t27_ret' unknown`.
+        // The body scan is what keeps this to 34 files: gating on function
+        // scope alone, as the first draft of this repair did, arms every loop
+        // in every non-clocked function and moves 132.
+        let ret = live
+            && !self.current_fn_name.is_empty()
+            && body.iter().any(Self::subtree_has_return);
+        let mut g = LoopGuard {
+            id: 0,
+            brk,
+            cnt,
+            ret,
+        };
         if let Some(id) = preset_id {
             g.id = id;
         } else if g.needs_block() {
@@ -15144,6 +15199,16 @@ impl VerilogCodegen {
         }
         if g.cnt && Self::subtree_has_loop_exit(stmt, &NodeKind::StmtContinue) {
             t.push(format!("!__t27_cnt_{}", g.id));
+        }
+        // #2989: stopping the LOOP is not stopping the rest of the ITERATION.
+        // `gen_verilog_fn_body` builds an `if (!__t27_ret)` barrier for exactly
+        // this, but it is never called for a loop body -- loop bodies go
+        // through `gen_verilog_stmt_seq`, which is this function's caller.
+        // Measured: without this term, a lookup that returns 0 on an empty slot
+        // returns 111 instead, because the second `if` in the same iteration
+        // overwrites it. Shipping the condition term ALONE is a regression.
+        if g.ret && Self::subtree_has_return(stmt) {
+            t.push("!__t27_ret".to_string());
         }
         t.join(" && ")
     }
@@ -40943,6 +41008,293 @@ fn read_it() -> u16 {
         assert!(
             v.contains("while ((i < n)) begin") || v.contains("while (($signed(i) < $signed(n))) begin"),
             "a jump-free loop's condition must be untouched:\n{}",
+            v
+        );
+    }
+
+    // ---- t27#2989: the return half of the loop-guard lowering ------------
+    //
+    // `__t27_ret` has always existed and has always been set correctly. No
+    // loop tested it, so a `return` inside a loop stopped the function and not
+    // the loop. Where the emitter could not write a trip count that is a
+    // NON-TERMINATION; where it could, it is a wrong value -- the last
+    // qualifying iteration wins instead of the first.
+
+    #[test]
+    fn a_return_inside_an_unbounded_while_stops_the_loop() {
+        // The founding shape, reduced from specs/isa/ternary_search.t27: the
+        // returning branch is the one branch that moves neither bound, so the
+        // loop cannot end. Measured on this shape before the fix: `vvp` is
+        // SIGKILLed with zero output; after, 462 of 462 swept cases correct.
+        let src = r#"module M {
+            pub fn bsearch(target: i64, n: i64) -> i64 {
+                var lo: i64 = 0;
+                var hi: i64 = n;
+                while (lo < hi) {
+                    var mid: i64 = lo + (hi - lo) / 2;
+                    if (mid == target) { return mid; }
+                    else if (mid < target) { lo = mid + 1; }
+                    else { hi = mid; }
+                }
+                return -1;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("while (!__t27_ret &&"),
+            "an unbounded `while` whose body can return must test the flag in \
+             its CONDITION -- a body guard stops the writes and leaves the \
+             spinning:\n{}",
+            v
+        );
+        // No new register: `__t27_ret` is declared once per function body.
+        assert!(
+            !v.contains("reg __t27_brk_") && !v.contains("reg __t27_cnt_"),
+            "a loop with no break and no continue must allocate no flag:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn a_return_carrying_for_keeps_its_static_trip_count() {
+        // The guard rides the BODY of a counted loop, never the header: a
+        // data-dependent header costs the trip count yosys needs to unroll it.
+        //
+        // The bound is a PARAMETER and not a literal on purpose. `for i in
+        // 0..4` with a literal bound is unrolled into if/else copies and emits
+        // no `for` at all, so a test written that way asserts nothing -- the
+        // assertion below on the header's presence is what makes that visible.
+        let src = r#"module M {
+            pub fn f(n: usize, lim: usize) -> usize {
+                var out: usize = 0;
+                for i in 0..lim {
+                    out = out + 1;
+                    if (i >= n) { return out; }
+                }
+                return 0;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("for (i = 0; i < lim; i = i + 1) if (!__t27_ret) begin"),
+            "the guard belongs on the body; the header must stay static:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("!__t27_ret &&") || v.matches("for (").count() > 0,
+            "the `for` header must be present at all -- a literal bound is \
+             unrolled and this test would assert nothing:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn a_return_in_an_inner_loop_stops_the_outer_loop_too() {
+        // The scan for a `return` must NOT stop at a nested loop: a `return`
+        // escapes every enclosing loop, which is the opposite of `break`.
+        // Reusing stage 1's `subtree_has_loop_exit` here would arm only the
+        // inner loop and the outer would spin.
+        let src = r#"module M {
+            pub fn f(n: i64) -> i64 {
+                var i: i64 = 0;
+                while (i < n) {
+                    var j: i64 = 0;
+                    while (j < n) {
+                        if (j == 3) { return j; }
+                        j = j + 1;
+                    }
+                    i = i + 1;
+                }
+                return -1;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert_eq!(
+            v.matches("while (!__t27_ret &&").count(),
+            2,
+            "BOTH loops must test the flag; a scan that stops at the nested \
+             loop arms only the inner one:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn the_rest_of_an_iteration_does_not_run_after_a_return() {
+        // Stopping the loop is only half. Two returns in one iteration: the
+        // second `if` overwrites the first's value unless the tail is guarded.
+        // Measured on this shape: the condition term ALONE turns a lookup that
+        // returns 0 into one that returns 111, which is a regression, not an
+        // omission -- so the two terms ship together.
+        let src = r#"module M {
+            pub fn lookup(n: i64, key: i64) -> i64 {
+                var i: i64 = 0;
+                while (i < n) {
+                    if (i == 0) { return 0; }
+                    if (i < n) { return 111; }
+                    i = i + 1;
+                }
+                return -1;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // The barrier must be INSIDE the loop, and only indentation says so.
+        //
+        // The first version of this test sliced everything after the `while`
+        // and asserted the first `if (!__t27_ret) begin` came after the first
+        // `__t27_ret = 1'b1;`. That is satisfied by the pre-existing
+        // FUNCTION-level barrier `gen_verilog_fn_body` has always emitted,
+        // which sits below the loop -- so the mutant that removes the
+        // in-iteration term SURVIVED it. A test of an adjacent construct that
+        // happens to hold.
+        let indent_of = |l: &str| l.len() - l.trim_start().len();
+        let while_indent = v
+            .lines()
+            .find(|l| l.contains("while (!__t27_ret &&"))
+            .map(indent_of)
+            .expect("the loop must carry the condition guard");
+        assert!(
+            v.lines()
+                .any(|l| l.trim_start().starts_with("if (!__t27_ret) begin")
+                    && indent_of(l) > while_indent),
+            "the iteration tail must be guarded INSIDE the loop; a barrier at \
+             or below the loop's own indentation is the function-level one \
+             that has always been there:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn a_clocked_body_gets_no_return_guard() {
+        // `__t27_ret` is never declared in an `on_clock` body, so testing it
+        // there is `register '__t27_ret' unknown`. A blocking flag would not
+        // settle inside the time step that reads it either.
+        let src = r#"module M {
+            pub fn on_clock(n: i64) -> i64 {
+                var i: i64 = 0;
+                while (i < n) {
+                    if (i == 2) { return i; }
+                    i = i + 1;
+                }
+                return -1;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        let clocked = v.split("always @(posedge").nth(1).unwrap_or("");
+        assert!(
+            !clocked.contains("__t27_ret"),
+            "a clocked body must not test a flag it never declares:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn a_loop_outside_a_function_never_tests___t27_ret() {
+        // The other half of the gate. A loop in a `test` block is not inside a
+        // function body, so no `reg __t27_ret;` is in scope; arming the guard
+        // on function scope alone would emit an undeclared identifier here.
+        let src = r#"module M {
+            pub fn g(x: i64) -> i64 { return x; }
+        }
+
+        test loop_in_a_test_block {
+            var i: i64 = 0;
+            while (i < 3) {
+                i = i + 1;
+                if (i == 2) { return; }
+            }
+            assert_eq(i, 2);
+        }"#;
+        // Two things this test had to learn the hard way, both from a mutant
+        // that survived it:
+        //
+        //  1. The SYNTHESIS path emits a test block as a comment, so it cannot
+        //     exercise this at all. The simulation path lowers it for real.
+        //  2. The guard does not necessarily land on a line starting `while (`
+        //     -- this loop has a literal bound, so W700 unrolls it and the term
+        //     rides the inner `if`. A filter keyed on the loop keyword misses
+        //     exactly the shape the mutant produces.
+        //
+        // So the assertion is scoped by DECLARATION, not by keyword:
+        // `reg __t27_ret;` exists only inside a function body, and every
+        // function body ends at an `endfunction`/`endtask`. Nothing after the
+        // last one may name the flag.
+        let v = Compiler::compile_verilog_for_simulation(src)
+            .expect("compile should succeed");
+        let end_of_functions = v
+            .rfind("endfunction")
+            .or_else(|| v.rfind("endtask"))
+            .expect("the fixture declares a function");
+        assert!(
+            !v[end_of_functions..].contains("__t27_ret"),
+            "nothing outside a function body may test a flag that is declared \
+             only inside one:\n{}",
+            &v[end_of_functions..]
+        );
+    }
+
+    #[test]
+    fn a_return_carrying_loop_draws_no_block_and_no_id() {
+        // `ret` must never reach `needs_block()`. If it did, this loop would
+        // open a `begin : __t27_loop_0` declaring nothing and take id 0 from
+        // `while_fuel_counter`, pushing the W700 loop below it to
+        // `__t27_fuel_1` and churning every later file for no reason.
+        let src = r#"module M {
+            pub fn f(n: i64) -> i64 {
+                var i: i64 = 0;
+                while (i < n) {
+                    if (i == 2) { return i; }
+                    i = i + 1;
+                }
+                var k: i64 = 0;
+                while (k < 8) { k = k + 1; }
+                return -1;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // The W700 loop below legitimately opens ONE named block. The property
+        // is that the return-carrying loop above it opens none and takes no id
+        // -- so the count is one, and the id is still 0.
+        //
+        // The first version of this test asserted `!contains("__t27_loop_")`
+        // and failed on the W700 block it was written to protect: an assertion
+        // wider than the property it means.
+        assert_eq!(
+            v.matches("begin : __t27_loop_").count(),
+            1,
+            "only the W700 loop opens a named block:\n{}",
+            v
+        );
+        assert!(
+            v.contains("integer __t27_fuel_0;") && !v.contains("__t27_fuel_1"),
+            "the W700 loop must keep id 0 -- the return guard must not draw \
+             one:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn the_break_term_precedes_the_return_term() {
+        // Pinned here because the CORPUS CANNOT: no loop in 643 generated
+        // files carries both a stage-1 `brk`/`cnt` term and the `ret` term, so
+        // a mutant swapping the two in `loop_cond()` survives every one of
+        // them. This is the only thing that reads the order.
+        let src = r#"module M {
+            pub fn f(n: i64) -> i64 {
+                var i: i64 = 0;
+                var acc: i64 = 0;
+                while (i < n) {
+                    i = i + 1;
+                    if (i == 2) { return acc; }
+                    if (i == 5) { break; }
+                    acc = acc + i;
+                }
+                return acc;
+            }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("while (!__t27_brk_0 && !__t27_ret &&"),
+            "`brk` is written first so a break-only loop keeps its bytes:\n{}",
             v
         );
     }
