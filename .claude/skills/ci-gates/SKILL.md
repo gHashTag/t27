@@ -11246,7 +11246,92 @@ count has to add up every bucket the count can land in**, which is the
 parts-sum-to-the-whole rule from the other side. Total = passed + failed;
 compare that.
 
-## 441. Three readings of one question, and only the third measured the gate
+## 441. Your new marker is only yours if the BASE count is zero
+
+I added a comment the emitter prints where a `break` cannot be lowered, then
+counted it in the regenerated corpus to see how often that happens:
+
+```
+files with NOT LOWERED      535
+```
+
+535 of 581 -- for a change that alters **7** files. Two measurements of the same
+run, flatly contradicting each other.
+
+The emitter already prints `// NOT LOWERED BY THIS BACKEND`, for something
+unrelated, in 535 files. My marker fired **zero** times. The grep was not wrong
+about anything; it answered the question I asked, and I had asked for a phrase
+that was not mine.
+
+**The control for "my change introduced N of these" is the count on the BASE.**
+It costs one more grep and it is the only thing that distinguishes a marker from
+a substring of somebody else's sentence. A base count of zero is what earns the
+word "mine".
+
+The same rule survives into the instrument: `tri jumps census` keys its refusal
+count on `t27#2988:` -- the issue number -- and not on the English, precisely
+because the English collides. A marker you intend to count later should carry
+something no prose would contain.
+
+## 442. A two-part construct needs its two parts asserted as a pair
+
+A guard flag is a `reg` the loop declares and an assignment the `break` writes.
+I had five tests on the lowering, killed five mutants with them, added a sixth
+test that counted declarations -- *"only the inner loop owns a flag"* -- and
+then ran the mutant that binds `break` to the OUTERMOST enclosing loop instead
+of the innermost.
+
+It **survived**. Of course it did: the declarations are emitted by the loop and
+the mutation is in the jump, so exactly one flag is still declared per loop that
+needs one. Every count is satisfied. What breaks is the *pairing* -- the flag is
+declared, cleared, and never set, and the `break` prints the "no guard flag in
+this scope" refusal for a scope that has one.
+
+The assertion that kills it is one line and does not count anything:
+
+```rust
+assert_eq!(declared_ids, ids_that_are_written_with(" = 1'b1;"));
+```
+
+**Where a construct has two halves that must name each other -- declare/use,
+open/close, charge/refund, allocate/free -- assert the CORRESPONDENCE.** A count
+of either half is satisfied by every mutant that keeps the arithmetic and breaks
+the binding, and those are the interesting ones. This repository already learned
+the same shape in money: a refund equal to the *tariff* passes every total, and
+only reconciling against the *actual charge* finds the divergence.
+
+## 443. When only the bytes moved, only the moved bytes need the expensive ruler
+
+The change regenerates 581 Verilog files and **7** of them differ. The question
+was whether it costs anything under `yosys` -- a ruler slow enough that nobody
+runs it over the corpus casually.
+
+574 files are byte-identical, and `yosys read_verilog` is a deterministic
+function of the bytes, so their verdicts cannot move. Running the ruler on 7
+files answers the question for 581: **+2 pass, 0 lost**.
+
+Two conditions make this legitimate, and both need saying out loud rather than
+assuming:
+
+* the ruler is **per-file** (no whole-corpus state, no ordering effect), and
+* the byte comparison covered the **whole population**, not a sample.
+
+Say which one you did. A bare "+2 under yosys" and "yosys, on the 7 files that
+changed, +2 with no losses; the other 574 are byte-identical" are the same fact,
+but only the second one survives a reader asking how long that took -- and only
+the second one refuses to be read as a whole-corpus absolute that was never
+taken.
+
+And carry the population to EVERY consumer, not just the one you were looking at.
+I had "7 generated files differ" and still shipped without a reseal, because I
+never asked what 7 files are in the units the seal gate counts. They are **19
+seal files** -- specs here are twinned, several `.trinity/seals/*.json` per spec
+-- and `coverage` said so on the first CI round. The rule "the reseal belongs in
+the same commit" is already written down three times on this page; what was
+missing this time was not the rule but the arithmetic that connects a delta in
+one unit to a gate that counts in another.
+
+## 444. Three readings of one question, and only the third measured the gate
 
 The question: **which gates report success over a tree with nothing in it?**
 Three attempts, three answers, and the first two were artefacts of the
@@ -11280,7 +11365,7 @@ hunting until something breaks.
 unit is the invocation, not the file -- the same distinction as an issue's
 headline versus the issue, one layer down.
 
-## 442. An empty tree that carries the data is not an empty tree
+## 445. An empty tree that carries the data is not an empty tree
 
 The command shipped for the above copies the scripts into a scratch directory
 and runs them there. Its first version copied **every** file out of `tools/` and
