@@ -12582,3 +12582,56 @@ Reported, not repaired. Two of the three need a reading -- which total is right,
 &sect;370 meant to cite -- and one of them may need neither, if both figures were true
 on their own day. **That is exactly why the anchor rule exists**: had &sect;19 and
 &sect;23 each named a sha, this would be a history rather than a contradiction.
+
+
+## 476. Six collisions, and a repair that never varied
+
+Six times in one week a branch and master appended a section to
+`.claude/skills/ci-gates/SKILL.md` at the same time and took the same number.
+Two of those six happened to the SAME branch, four hours apart: it was
+renumbered to 468/469, master then took 468, 469 and 470, and it had to move
+again to 471/472.
+
+Every repair was identical, and I performed it by hand every time: rebuild the
+file from `origin/master`, re-append my sections at the end with the next free
+numbers, assert the master prefix is byte-identical rather than eyeballing it,
+re-run `tri skill check`. Nothing about it needed judgement. The only part that
+ever needed care was the assertion, and only because a bad merge here is
+invisible -- the file is 12,000 lines and a lost section looks exactly like a
+file that never had it.
+
+So, by the rule that a lesson written down repeatedly and broken anyway earns
+an executable rather than another paragraph: `tri skill renumber`. It leans on the
+invariant the workflow already has -- a section is APPENDED, so the branch's
+file is the merge base's file plus a tail -- and moves exactly that tail to the
+numbers the base leaves free.
+
+Three things it does that the manual repair kept getting right by attention
+rather than by construction:
+
+  * **references follow, and only the right ones.** A section citing its own
+    renumbered sibling follows it; `&sect;447` stays 447. The word boundary is
+    load-bearing and has its own test: renumbering 11 must not rewrite
+    `&sect;110`, and a prefix match would silently produce `&sect;4710`.
+  * **it refuses rather than guesses.** If the file is not the merge base plus
+    an append -- someone edited an existing section, or a previous conflict was
+    resolved by hand -- it says so and stops. The whole method rests on that
+    invariant, and a command that quietly picked a split point would be worse
+    than the manual repair it replaces.
+  * **the first number comes from the BASE**, never from the tail. Reading it
+    from the tail is how the second collision happened: the branch already
+    carried 468/469 and nothing in it knew master had moved.
+
+What it does not do: it will not save you from a section whose CONTENT master
+also wrote. Numbering is the mechanical half; two people writing the same
+lesson twice is a different problem and this tool has no opinion about it.
+
+One more thing this section learned about itself: it first said "by the rule
+two sections up", and a POSITIONAL cross-reference is broken by the very
+renumbering this command performs -- the section it pointed at is on an
+unmerged branch and will land somewhere else. Name the rule, not its address.
+
+The general form is that same rule arriving a second time in one week, and
+therefore worth trusting: **a repair you have performed more than
+about three times, that never varies, is a command you have not written yet.**
+The count is the evidence. Six is well past it.

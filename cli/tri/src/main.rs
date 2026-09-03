@@ -26,6 +26,7 @@ mod unparsed;
 mod hooks;
 mod mutate;
 mod nownote;
+mod renum;
 mod reseal;
 mod prcheck;
 mod quant;
@@ -328,6 +329,25 @@ enum SkillAction {
         /// List the sections whose figure stands over a SLIDING population.
         #[arg(long)]
         windowed: bool,
+    },
+    /// Move sections you appended to the numbers the base branch left free.
+    Renumber {
+        /// The branch whose numbering yours must follow. Use the shared base,
+        /// not a peer branch: numbering against a sibling also rebuilds your
+        /// file on it, and your PR would then carry the sibling's sections.
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+        /// Which skill file.
+        #[arg(long, default_value = ".claude/skills/ci-gates/SKILL.md")]
+        file: String,
+        /// Report the moves and write nothing.
+        #[arg(long)]
+        check: bool,
+        /// Start at this number instead of one past the base's highest. For a
+        /// second open branch numbering against the same base -- pass a number,
+        /// not a different --base.
+        #[arg(long)]
+        first: Option<usize>,
     },
     Begin {
         #[arg(long)]
@@ -904,6 +924,12 @@ fn main() -> Result<()> {
                     numbers: *numbers,
                     windowed: *windowed,
                 })?,
+                SkillAction::Renumber {
+                    base,
+                    file,
+                    check,
+                    first,
+                } => renum::run(base, file, *check, *first)?,
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
             }
