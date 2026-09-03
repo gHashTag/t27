@@ -11330,3 +11330,60 @@ seal files** -- specs here are twinned, several `.trinity/seals/*.json` per spec
 the same commit" is already written down three times on this page; what was
 missing this time was not the rule but the arithmetic that connects a delta in
 one unit to a gate that counts in another.
+
+## 444. Three readings of one question, and only the third measured the gate
+
+The question: **which gates report success over a tree with nothing in it?**
+Three attempts, three answers, and the first two were artefacts of the
+instrument.
+
+**34 of 34 refuse.** Every gate copied into an empty directory and run under
+`timeout 25`. Clean, plausible, and entirely false: **`timeout` does not exist
+on macOS**, so all 34 exited 127 with `command not found`, and the classifier
+put every one of them in the `refused` bucket. The tell was the table itself --
+*a classifier that puts 34 of 34 in one bucket is describing its input*, which
+is a rule already on this page and is what made me look. The output had been
+discarded; re-running to print it took ten seconds and showed 34 identical
+shell errors.
+
+**12 of 38 pass.** Real runs this time, by script name. Also wrong, and in the
+more interesting way: CI does not invoke a script, it invokes a **command
+line**. Seven of those twelve are written `--require` in the workflow, which is
+precisely the flag that turns their `SKIP: t27c is not built` branch into a
+failure. Measuring `tools/check_verilog_widths.py` when the workflow writes
+`tools/check_verilog_widths.py --require` measures a program that is not run
+anywhere.
+
+**5 of 36.** The invocations as the workflows write them. Four of the five are
+self-contained self-tests, green anywhere by construction; the fifth prints
+`tracked files read 0` before it says the tree is clean, which is a gate
+telling a reader it read nothing. **A clean audit is a result**, and after
+three passes that each found a defect it is worth saying plainly rather than
+hunting until something breaks.
+
+**A gate is what it is called with.** When the population is "the gates", the
+unit is the invocation, not the file -- the same distinction as an issue's
+headline versus the issue, one layer down.
+
+## 445. An empty tree that carries the data is not an empty tree
+
+The command shipped for the above copies the scripts into a scratch directory
+and runs them there. Its first version copied **every** file out of `tools/` and
+`scripts/`, which carried `tools/withdrawn.txt` and every baseline along with
+them. The result was not an error -- it was a plausible table with two rows
+inverted: `check_withdrawn_live.py`, whose whole job is to refuse when its
+register is missing, found the register and passed; `check_conflict_markers.py`
+read as a refusal.
+
+It was caught by **running the two by hand and disagreeing with my own
+command** -- the free control this page keeps naming, used deliberately for
+once rather than by accident. Two readings of one question, and the difference
+is in the observer.
+
+The repair is a filter, and the test is the filter's own mutation: plant
+`gate.py`, `helper.sh`, `withdrawn.txt` and `baseline.json`, copy, and demand
+exactly the two scripts arrive. Removing the extension check turns it red.
+
+**The general shape:** when a probe builds a world to run something in, the
+world is a component with its own defects, and the cheapest check on it is to
+ask what it contains rather than what you meant to put there.
