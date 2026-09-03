@@ -16545,11 +16545,20 @@ impl VerilogCodegen {
             NodeKind::StmtBreak => {
                 // t27#2988: this emitted `disable fork;`. `disable fork` kills
                 // processes spawned by a `fork` in the CURRENT SCOPE, and the
-                // token `fork` occurs nowhere in the 581 generated .v files
-                // except inside that very line -- so all fourteen sites were
-                // no-ops, the loop ran to completion, and later iterations
-                // overwrote whatever the break was meant to preserve.
-                // `iverilog -g2012` accepts it silently.
+                // token `fork` occurred nowhere in the generated corpus except
+                // inside that very line -- so every site was a no-op, the loop
+                // ran to completion, and later iterations overwrote whatever
+                // the break was meant to preserve. `iverilog -g2012` accepts
+                // it silently.
+                //
+                // Two numbers stood here and both were scoped to a reading this
+                // fix superseded. The population is 643 generated .v files, not
+                // the 581 under specs/. And the sites are 17 in 8 files, not
+                // fourteen: `tri jumps census` reads 17 sites sharing 14 guard
+                // FLAGS, and fourteen was the count of `disable fork;` lines
+                // before the fix. The old wrong number equals a real current
+                // number of a different quantity, so checking it against the
+                // census confirms it. Quote the census, not this comment.
                 //
                 // It was also emitted at COLUMN 0: `write_line` without
                 // `write_indent`. Both are fixed here.
