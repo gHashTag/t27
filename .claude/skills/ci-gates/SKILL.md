@@ -11683,3 +11683,106 @@ built" is not a harness.** The repository already learned this for mutants the
 compiler rejected (§382, three arms: killed, survived, never built); a mutant
 the *editor* never wrote is the fourth arm, and it looks exactly like the
 second.
+## 456. A change notice is a hint; the fetch is the reading
+
+The loop dashboard is one artifact written by two sessions. The publisher
+refuses a write that was not built on the version currently live, and the live
+version counts as seen only once its fetched copy has been read end to end.
+
+Two things measured while trying to publish it, both about the instrument
+rather than the page.
+
+**The notice was 83 minutes stale.** A background notification announced the
+live version as `1788433537-8a6c`. The prefix is a unix timestamp: `date -r
+1788433537 -u` is `2026-09-03T11:05:37Z`. The version actually live was
+`1788438525-553a`, `12:28:45Z` -- established because the fetch returned that
+file, and confirmed against the refusal message, which had printed the same
+`12:28:45Z` earlier. **The notice named a version an hour and a half older than
+the one it was announcing as current.** Merging onto the version it named would
+have discarded the newer page.
+
+**And two more notices, which settled the mechanism.** Two more arrived, naming
+`1788435789-8f03` and `1788437269-721d`, while live stayed `1788439613-732b`,
+`12:46:53Z`. All three notices are behind live and **ascending between
+themselves**, and their lag is *closing*:
+
+    notice   11:05:37Z    101 min behind live
+    notice   11:43:09Z     63 min behind
+    notice   12:07:49Z     39 min behind
+
+So the ids are not wrong and the stream is not noise. It replays real past
+publishes, in order, draining a backlog.
+
+That distinction is the whole finding. "The notice is wrong" would mean
+distrust it; "the notice is late" means it is reliable about the past and says
+nothing about the present. A change notice means *something moved*, which is
+worth acting on. It never means *your copy is stale right now*, and it never
+names the version to merge onto.
+
+The rule this is an instance of is already in this file from four directions: a
+reading has a timestamp, and a report *about* a reading has a second one. Only
+the fetch establishes what is live.
+
+One data point could not have told these apart, and the first version of this
+section stopped there. It took the second to see the ordering and the third to
+see the lag closing -- and the third also falsified this section's own first
+correction, which said *"lagging by over an hour"* on the strength of two
+points. **Two points establish a direction and not a rate.**
+
+Note what is NOT changed above: the `83 minutes` in the previous paragraph
+compares the first notice against the version live *at that moment*, and the
+`101 min` here compares the same notice against the version live *now*. Two
+readings of two different questions, and the smaller one is not a correction of
+the larger. Say what the count is counted over.
+
+**The read must be the last thing before the write.** Three full reads of a
+2,886-line file were spent in one session, which is roughly 300k tokens of
+context for one publish. The sequence that worked, on the third attempt:
+
+    fetch the live version
+    do every check and every edit in ONE shell call     <- content final here
+    read the fetched file end to end, nothing in between
+    publish
+
+**Not established:** whether the shell call that failed the second attempt
+invalidated the read, or whether the failed publish before it had already spent
+the credit. Both were true in that attempt and I did not separate them, so the
+mechanism is unknown and the recipe above is written to be safe under either.
+What *is* established is the cost of guessing: three reads, two refusals.
+
+Filed as #3023: the merge itself is mechanical and belongs in a command.
+
+**A prediction, and it failed usefully.** With four points in hand I wrote down
+what the next notice would be: `1788439613-732b`, my own publish, the last
+version in the series nobody had announced -- and then silence.
+
+It named `1788440807-d39e`, `13:06:47Z`. **Later than my own publish, and a
+version I had never seen.**
+
+Wrong in its specific, and the reason makes the model cleaner rather than
+weaker: **you are not notified of your own publish.** My `12:46:53Z` was
+skipped by a stream that reported `12:28:45Z` before it and `13:06:47Z` after
+it. Nothing was replaying my writes; the stream reports what OTHER writers did,
+and it had simply caught up.
+
+That gives the rule this section was missing, and it is the actionable half:
+
+> A notice is worth acting on exactly when its stamp is **later than your own
+> last publish**. An earlier stamp is backlog.
+
+Four notices in this session were backlog and cost nothing to ignore. The fifth
+was the first that actually meant *your copy is stale*, and the arithmetic that
+says which is which is one `date -u -r`.
+
+So the paragraph above, which said a notice *never* means your copy is stale
+right now, was too strong -- written when every notice I had seen was backlog.
+It does mean that, when its stamp beats yours. **A rule derived from four
+observations of one kind is a rule about that kind**, and the fifth observation
+is the one that was worth having.
+
+The general form, and the reason this is in a file about gates: **when an
+operation has a precondition you cannot inspect, the cheap move is to make the
+precondition the immediately preceding step**, rather than to reason about how
+long it stays satisfied. That is the same argument as re-sealing in the commit
+that moved the output (§211), and as taking the corpus reading with the binary
+you just built rather than the one on disk (§385).
