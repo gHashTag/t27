@@ -164,6 +164,17 @@ def main():
     if "--self-check" in sys.argv:
         return self_check()
 
+    # `--check-files <path>...`: judge exactly these paths, no git range.
+    # An empty list is refused rather than passed -- a caller that computed no
+    # files and got a green back would read it as "the entries are fine".
+    if "--check-files" in sys.argv:
+        paths = sys.argv[sys.argv.index("--check-files") + 1:]
+        if not paths:
+            print("FAIL: --check-files was given no paths. Nothing was checked,")
+            print("  and a pass over an empty set is the shape this file replaces.")
+            return 1
+        return report(paths)
+
     base = os.environ.get("PR_BASE_SHA", "")
     head = os.environ.get("PR_HEAD_SHA", "HEAD")
 
@@ -199,6 +210,19 @@ def main():
         print("  refuses rather than passing over an empty set.")
         return 1
 
+    return report(entries)
+
+
+def report(entries):
+    """Read and judge each entry. The ONE body both callers share.
+
+    `--check-files` exists so a contributor can ask this gate its own question
+    before pushing. It must not be a second implementation of the answer: five
+    local instruments already check `docs/now/` and every one of them reads
+    FRESHNESS -- that an entry exists, dated inside the window -- while the
+    required `check` context reads SHAPE. Same directory, same label, different
+    question, and the local ones went green on an entry this gate rejects.
+    """
     bad = 0
     for path in entries:
         full = ROOT / path

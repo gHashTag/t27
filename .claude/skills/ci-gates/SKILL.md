@@ -11067,3 +11067,94 @@ rather than the case: `each_float_rule_decides_a_case_the_other_misses`.
 deletion answers. Mutate each clause of a compound guard **separately** and
 require a red for each; a clause whose removal leaves the suite green is either
 dead or untested, and those two are indistinguishable until you go looking.
+
+## 437. Five local previews of a gate, and not one asked its question
+
+`docs/now/` is read by five instruments before a push: `.githooks/pre-commit`
+(via `scripts/tri check-now`), `scripts/pre-commit`, `scripts/verify.sh`,
+`tri hooks now-gate` and `tri hooks pre-commit`. Every one of them checks
+**freshness** -- an entry exists, dated inside the window. The *required*
+`check` context checks **shape** -- `# NOW -- <title> (YYYY-MM-DD)` as the
+first line, the heading date matching the filename, a `## ` section, at least
+one bullet that is not a placeholder.
+
+Same directory, same label, a different question. Measured by planting one
+malformed entry dated today:
+
+| reader | verdict | what it actually read |
+|---|---|---|
+| `tools/check_now_entry_shape.py` (**required**) | **FAIL**, 3 complaints | the entry |
+| `scripts/pre-commit` | PASS | that *some* entry is dated today |
+| `tri hooks now-gate` | PASS | the same |
+| `tri hooks pre-commit` | fail, **for L1** | the commit message |
+| `scripts/verify.sh` | WARN, **for staleness** | the committed diff, not the file |
+
+The line that matters is the second. `scripts/pre-commit` went green
+**because of** the malformed file: its freshness loop found the entry the gate
+rejects, stopped looking, and reported health. A preview that the offending
+artefact *satisfies* is worse than no preview -- it converts the defect into
+evidence of correctness.
+
+This costs a full CI round every time, and it has now been paid at least three
+times on this repository (#2991, #2994, and the pass that wrote this section).
+
+**The repair is not a sixth reader.** A local check that re-implements a gate
+answers the question once and then drifts away from it -- and drift here is
+invisible, because both sides stay green until the day they disagree. `tri now
+check` shells out to the gate's own file, `tools/check_now_entry_shape.py
+--check-files`, so the local answer *is* the gate's answer and there is nothing
+to keep in sync. The script grew one flag; nobody grew a second opinion.
+
+Two properties the wrapper needs, and both are refusals:
+
+* **Unreachable is not green.** If the script is missing or `python3` is not on
+  PATH, it exits non-zero saying nothing was checked. Ask the OS whether the
+  interpreter exists -- `python3 -c ""` -- rather than matching an error
+  message, which is the tool's to reword.
+* **Empty is not green either, and it is not red.** A change that adds no entry
+  has no shape to judge; the command says exactly that and points at
+  `tri hooks now-gate`, which asks the other question. Printing `OK` over an
+  empty set is the shape the gate itself was written to replace.
+
+**Generalisation.** When a local tool "previews" a gate, the thing to check is
+not whether it is *strict enough* -- it is whether it reads the same **subject**.
+Two populations under one label is a defect this page has recorded from four
+other directions; a preview and its gate is the cheapest place to meet it,
+because the preview is the one everybody trusts.
+
+## 438. A test that moves the process makes its siblings pass vacuously
+
+The suite for the above went green at 3 of 3, and one of the three was a lie.
+
+`every_shape_the_gate_names_reaches_the_same_verdict_from_here` plants six
+entry shapes and asserts each gets the gate's own verdict. It opened with a
+guard: `let root = match repo_root() { Ok(r) => r, Err(_) => return };`. A
+sibling test in the same binary changed the process working directory to a
+scratch tree to prove that a missing gate script is refused -- and
+`std::env::set_current_dir` is **process-global**, so while it held, the first
+test's `git rev-parse --show-toplevel` failed and the test took its silent
+early return.
+
+That hid a second, independent defect: the planted filenames were
+`zz-check-test-<date>-…`, which the gate's own filename rule rejects, so the
+`well formed` case could never have passed. **Two defects, one green line**, and
+neither is visible in the output -- a skipped test and a passing test print the
+same nothing.
+
+Both repairs are structural rather than careful:
+
+* **No test moves the process.** The refusal was reachable without it: lift the
+  guard into `fn gate_script(root: &Path) -> Result<PathBuf>` and hand it a
+  scratch directory. A test needing `set_current_dir` is a function that should
+  have taken a path.
+* **A guard that returns is a skip, and a silent skip is a pass.** `Err(_) =>
+  return` reads as caution and behaves as a green. Tests here run inside the
+  repository; `expect("tests run inside the repository")` states that, and
+  fails loudly on the day it stops being true.
+
+Related, from the same hour: the probe that *found* the disagreement ran
+`git add -A` and `git reset --hard HEAD~1` in a loop, which swept the
+implementation under test into a probe commit and then deleted it. Recovered
+from the reflog, whole. **A probe that mutates shared state is not an
+observation** -- probe on a throwaway branch, stage explicit paths, and never
+`-A` while the thing being measured is uncommitted.
