@@ -1,6 +1,58 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-08-31
+Last updated: 2026-09-04
+
+## Corpus 74.2% -> 76.7% clean, a silent infinite loop found and closed, six sibling passes swept
+
+- Branch: `fix/struct-field-brace-nesting`
+- Instrument: `gen/zig/measure.py` (497 specs, single sanctioned source of truth)
+
+    real files with >=1 error   128 -> 116   (74.2% -> 76.7% clean)
+    undeclared identifier       430 -> 378
+    gen failures                  0 -> 0
+
+Twelve fixes staged, each measured against the artifact individually before
+and after, not assumed from the diff: `parse_expr_range` (open-ended `a[0..]`
+and `for (xs, 0..) |i|` were guaranteed parse errors), `parse_expr_unary`
+(`*table`, Rust-style prefix deref -- Zig has none, only postfix `x.*`),
+`parse_expr_primary` (`.{ .field = val }` anonymous literals, whose failure
+could corrupt an enclosing test's closing brace), `gen_if_stmt_inline` (every
+`else if`/final `else` skipped `gen_scoped_stmts` entirely, so a `let` never
+demoted to `const` in that branch), the array-literal bracket-content
+capture (zero-separator token joining glued a NUMBER against `else`,
+`1else0`, read by Zig as a malformed scientific-notation literal), and
+twelve spec-content corrections (two import-path typos, an alias rename that
+needed 24 call-site renames alongside it, missing `@intCast`/`@floatCast`
+result-type annotations, `@pow` calls that should have hit the existing `pow`
+shim, a missing for-loop capture, four missing semicolons after inline
+struct declarations).
+
+**The one worth naming twice.** `copy_propagate`'s write-tracking scan only
+recognises `NodeKind::StmtAssign` -- blind to a `while` loop's continue
+expression, stored as text. `var i = BASE_FEATURE_COUNT; while (i < DIM) :
+(i += 1)` had every read of `i` -- including the loop's OWN CONDITION --
+silently inlined to the constant it started at. Compiles clean, zero
+diagnostic, infinite loop. Swept all six `optimize_stmts` passes for the same
+blind spot afterward rather than trusting the one catch was the only one:
+`const_propagate` is immune by its own `!extra_mutable` guard,
+`strength_reduce` is inert (the real rewrite was removed in a prior
+commit), `common_subexpr_elim` is REMOVED from the pipeline entirely (its own
+removal comment already names this exact bug class), `dead_store_elim` was
+already protected on the read side. Blast radius measured, not assumed:
+regenerated the full 497-spec corpus with the pre-fix compiler, diffed
+byte-for-byte against the fix. Exactly one file changed.
+
+**Not attempted, and why.** ~20+ builtin names the specs invent
+(`@toLower`, `@contains`, `@indexOf`, ...) are invisible today because Zig's
+analyzer reports only the first invalid builtin per call chain and stops --
+confirmed with a fixture, not assumed. Census by SPEC SOURCE (not the masked
+compiler output) narrows this to 6 files; one of them describes subprocess
+execution and network I/O as if they were builtins, which needs real
+implementation code, not a syntax fix. Two Rust-only constructs (tagged-enum
+payloads, tuple structs) are the same family already reverted once elsewhere
+in this history for delivering harm while fixing nothing -- not retried
+without a real design. `@ptrFrom`'s two call sites want incompatible things;
+left for a human decision rather than guessed.
 
 ## Zig emitter 201 -> 344 valid, 63 -> 2 walls, 0 in scope, over 58 commits
 

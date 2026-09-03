@@ -8,7 +8,7 @@
 module forward_pass;
 
 import numeric::gf16;
-import tritype::Trit;
+import tritype-base::Trit;
 import vsa::vsa_core::{bind, unbind, bundle2, bundle3, permute, cosine_similarity};
 
 // ============================================================================

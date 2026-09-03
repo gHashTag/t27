@@ -9,8 +9,8 @@ module SDK {
     // ========================================================================
     use base::types;
     use numeric::gf16;
-    use vsa::core;
-    use hybrid_arithmetic;
+    use vsa::vsa_core;
+    use ternary::hybrid_arithmetic;
     use tritype-base::Trit;
 
     // ========================================================================
@@ -56,7 +56,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_random(dim: usize, seed: u64) Hypervector {
         return Hypervector{
-            .data = core::random_vector(dim, seed),
+            .data = vsa_core::random_vector(dim, seed),
             .label = null,
         };
     }
@@ -68,7 +68,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_random_labeled(dim: usize, seed: u64, label: []const u8) Hypervector {
         return Hypervector{
-            .data = core::random_vector(dim, seed),
+            .data = vsa_core::random_vector(dim, seed),
             .label = label,
         };
     }
@@ -126,7 +126,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_bind(self: Hypervector, other: Hypervector) Hypervector {
         return Hypervector{
-            .data = core::bind(&self.data, &other.data),
+            .data = vsa_core::bind(&self.data, &other.data),
             .label = null,
         };
     }
@@ -140,7 +140,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_unbind(self: Hypervector, key: Hypervector) Hypervector {
         return Hypervector{
-            .data = core::unbind(&self.data, &key.data),
+            .data = vsa_core::unbind(&self.data, &key.data),
             .label = null,
         };
     }
@@ -154,7 +154,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_bundle(self: Hypervector, other: Hypervector) Hypervector {
         return Hypervector{
-            .data = core::bundle2(&self.data, &other.data),
+            .data = vsa_core::bundle2(&self.data, &other.data),
             .label = null,
         };
     }
@@ -168,7 +168,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_bundle3(self: Hypervector, b: Hypervector, c: Hypervector) Hypervector {
         return Hypervector{
-            .data = core::bundle3(&self.data, &b.data, &c.data),
+            .data = vsa_core::bundle3(&self.data, &b.data, &c.data),
             .label = null,
         };
     }
@@ -180,7 +180,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_permute(self: Hypervector, k: usize) Hypervector {
         return Hypervector{
-            .data = core::permute(&self.data, k),
+            .data = vsa_core::permute(&self.data, k),
             .label = null,
         };
     }
@@ -192,7 +192,7 @@ module SDK {
     // ========================================================================
     pub fn hypervector_inverse_permute(self: Hypervector, k: usize) Hypervector {
         return Hypervector{
-            .data = core::inverse_permute(&self.data, k),
+            .data = vsa_core::inverse_permute(&self.data, k),
             .label = null,
         };
     }
@@ -210,7 +210,7 @@ module SDK {
     // Complexity: O(n) where n = dimension
     // ========================================================================
     pub fn hypervector_similarity(self: Hypervector, other: Hypervector) gf16 {
-        return core::cosine_similarity(&self.data, &other.data);
+        return vsa_core::cosine_similarity(&self.data, &other.data);
     }
 
     // hypervector_hamming_distance(self: Hypervector, other: Hypervector) -> usize
@@ -221,7 +221,7 @@ module SDK {
     // Complexity: O(n) where n = dimension
     // ========================================================================
     pub fn hypervector_hamming_distance(self: Hypervector, other: Hypervector) usize {
-        return core::hamming_distance(&self.data, &other.data);
+        return vsa_core::hamming_distance(&self.data, &other.data);
     }
 
     // hypervector_hamming_similarity(self: Hypervector, other: Hypervector) -> gf16
@@ -233,7 +233,7 @@ module SDK {
     // Complexity: O(n) where n = dimension
     // ========================================================================
     pub fn hypervector_hamming_similarity(self: Hypervector, other: Hypervector) gf16 {
-        const dist = core::hamming_distance(&self.data, &other.data);
+        const dist = vsa_core::hamming_distance(&self.data, &other.data);
         const dim = gf16::from_f64(@as(f64, @floatFromInt(self.data.get_dimension())));
         const similarity = gf16::sub(gf16::from_f64(1.0), gf16::div(dist, dim));
         return similarity;
@@ -248,7 +248,7 @@ module SDK {
     // Complexity: O(n) where n = dimension
     // ========================================================================
     pub fn hypervector_dot_product(self: Hypervector, other: Hypervector) i32 {
-        return core::dot_product(&self.data, &other.data);
+        return vsa_core::dot_product(&self.data, &other.data);
     }
 
     // ========================================================================
@@ -273,7 +273,7 @@ module SDK {
     // Complexity: O(n) where n = dimension
     // ========================================================================
     pub fn hypervector_count_non_zero(self: Hypervector) usize {
-        return core::count_non_zero(&self.data);
+        return vsa_core::count_non_zero(&self.data);
     }
 
     // hypervector_density(self: Hypervector) -> gf16

@@ -813,7 +813,7 @@ invariant vsa_vector_norm_max_value {
     // vector_norm <= sqrt(dim) for trits in {-1, 0, 1}
     const v = random_vector(1, 100);
     const norm = vector_norm(v);
-    @compileAssert(norm <= @sqrt(@floatCast(v.len)));
+    @compileAssert(norm <= @sqrt(@as(gf16, @floatCast(v.len))));
 }
 
 invariant vsa_count_non_zero_accurate {

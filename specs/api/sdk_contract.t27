@@ -32,7 +32,7 @@ pub const Hypervector = struct {
 
     fn fromRaw(raw: HybridBigInt) -> Hypervector
         Create hypervector from existing HybridBigInt
-}
+};
 ```
 
 ### VSA Operations
@@ -110,7 +110,7 @@ pub const Codebook = struct {
 
     fn count(self) -> usize
         Number of symbols in codebook
-}
+};
 ```
 
 ### Associative Memory
@@ -138,7 +138,7 @@ pub const AssociativeMemory = struct {
 
     fn count(self) -> usize
         Number of stored items
-}
+};
 ```
 
 ### Sequence Encoder
@@ -157,7 +157,7 @@ pub const SequenceEncoder = struct {
 
     fn findPosition(self, sequence, candidate, max_length, threshold) -> ?usize
         Find position with highest similarity, or null if below threshold
-}
+};
 ```
 
 ## Tests

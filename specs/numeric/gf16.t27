@@ -117,7 +117,7 @@ pub fn gf16_encode_f32(value: f32) GF16 {
 
     // Get f32 components
     const f32_bits: u32 = @bitCast(abs_value);
-    var f32_exp: i8 = @intCast((f32_bits >> 23) & 0xFF) - 127;
+    var f32_exp: i8 = @as(i8, @intCast((f32_bits >> 23) & 0xFF)) - 127;
     var f32_mant: u32 = f32_bits & 0x7FFFFF;
 
     // Convert exp from f32 bias (127) to GF16 bias (31)
@@ -202,7 +202,7 @@ pub fn gf16_round_phi(value: f32) GF16 {
 
     // Get f32 components
     const f32_bits: u32 = @bitCast(abs_value);
-    var f32_exp: i8 = @intCast((f32_bits >> 23) & 0xFF) - 127;
+    var f32_exp: i8 = @as(i8, @intCast((f32_bits >> 23) & 0xFF)) - 127;
     var f32_mant: u32 = f32_bits & 0x7FFFFF;
 
     // Convert exp from f32 bias (127) to GF16 bias (31)
@@ -921,7 +921,7 @@ pub fn gf16_pow(base: GF16, exponent: GF16) GF16 {
     if (exp_val == 1.0) return base;
 
     // Use stdlib pow for general case
-    const result = @pow(base_val, exp_val);
+    const result = pow(base_val, exp_val);
 
     return gf16_encode_f32(result);
 }

@@ -6,7 +6,7 @@
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module VSASimilaritySearch {
-    use vsa::core;
+    use vsa::vsa_core;
     use math::constants;
 
     // =====================================================

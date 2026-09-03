@@ -95,7 +95,15 @@ fn type_mentions_word(node: &Node, word: &str) -> bool {
             edge(before) && after.map_or(true, |c| c == '.' || !c.is_ascii_alphanumeric())
         })
     };
-    if has(&node.extra_type) || node.params.iter().any(|(_, ty)| has(ty)) {
+    // `extra_return_type` was missing, and it is where a Result's error type
+    // lives. specs/git/diff.t27 writes `-> Result<[Item], GitError>` on every
+    // function and mentions GitError NOWHERE else, so no binding was emitted
+    // and all 33 of its undeclared-identifier errors were that one name. Item
+    // in the same signature was aliased only because it also appears in a body.
+    if has(&node.extra_type)
+        || has(&node.extra_return_type)
+        || node.params.iter().any(|(_, ty)| has(ty))
+    {
         return true;
     }
     node.children.iter().any(|c| type_mentions_word(c, word))
@@ -526,6 +534,18 @@ impl Lexer {
             // declaration-start set, so a sentence containing the word ended
             // error recovery early.
             "use" => TokenKind::KwUse,
+            // `import numeric::gf16;` is the same declaration as `use`, and 5
+            // specs write it that way. Nothing lexed it, so it fell to
+            // parse_top_level_decl, failed, and recovery discarded the line --
+            // hybrid_bigint.t27 declares three imports and emitted none, which
+            // is why its TRIT_POS/Trit/gf16 were undeclared.
+            //
+            // Safe as a keyword where `using` was NOT: that one was reverted
+            // because it appears in prose ("using different number formats"
+            // became an import of `different.zig`). Checked before adding this:
+            // `import` occurs in the corpus ONLY as a leading declaration --
+            // zero occurrences in comments, behaviour text or as an identifier.
+            "import" => TokenKind::KwUse,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -1074,6 +1094,15 @@ impl Lexer {
                 }
             }
 
+            // Zig rejects a digit separator that is not BETWEEN digits, and the
+            // dialect borrows Rust's typed literal: `1.618_f64`. The scan above
+            // takes the `_` as a separator, the suffix strip below removes
+            // `f64` from the SOURCE, and what is left in `number` is `1.618_` --
+            // `trailing digit separator`, a parse error that walls the file.
+            while number.ends_with('_') {
+                number.pop();
+            }
+
             return Token {
                 kind: TokenKind::Number,
                 lexeme: number,
@@ -1227,6 +1256,33 @@ fn node_mentions(node: &Node, name: &str) -> bool {
         }
     }
     node.children.iter().any(|c| node_mentions(c, name))
+}
+
+/// Like `node_mentions`, but a binding's own NAME is a DEFINITION, not a use.
+///
+/// `var dummy: [27]EnvVar = undefined;` carries `dummy` in `node.name`, so the
+/// spec-authored `_ = dummy;` on the next line read as "used elsewhere" and was
+/// dropped -- leaving a local nothing reads. The INITIALISER is still searched:
+/// only the declared name itself is skipped.
+fn node_mentions_use(node: &Node, name: &str) -> bool {
+    let declares = node.kind == NodeKind::StmtLocal
+        && node.name.split(':').next().unwrap_or(&node.name).trim() == name;
+    if !declares
+        && node
+            .name
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .any(|tok| tok == name)
+    {
+        return true;
+    }
+    if node
+        .value
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .any(|tok| tok == name)
+    {
+        return true;
+    }
+    node.children.iter().any(|c| node_mentions_use(c, name))
 }
 
 fn node_assigns(node: &Node, name: &str) -> bool {
@@ -1443,13 +1499,82 @@ const ZIG_KEYWORDS_ALL: &[&str] = &[
 ///
 /// Segment by segment because `mod.union` needs `mod.@"union"`, not a quoted
 /// whole. Builtins keep their `@` and are never touched.
+/// Does this subtree READ `_`?
+///
+/// The left side of `_ = x;` is a discard, not a read, and is skipped.
+fn reads_underscore(node: &Node) -> bool {
+    if node.kind == NodeKind::StmtAssign
+        && !node.children.is_empty()
+        && node.children[0].kind == NodeKind::ExprIdentifier
+        && node.children[0].name == "_"
+    {
+        return node.children.iter().skip(1).any(reads_underscore);
+    }
+    if node.kind == NodeKind::ExprIdentifier && node.name == "_" {
+        return true;
+    }
+    node.children.iter().any(reads_underscore)
+}
+
+/// Rename every READ of `_` to `to`, leaving discard statements alone.
+fn rename_underscore_reads(node: &mut Node, to: &str) {
+    if node.kind == NodeKind::StmtAssign
+        && !node.children.is_empty()
+        && node.children[0].kind == NodeKind::ExprIdentifier
+        && node.children[0].name == "_"
+    {
+        for c in node.children.iter_mut().skip(1) {
+            rename_underscore_reads(c, to);
+        }
+        return;
+    }
+    if node.kind == NodeKind::ExprIdentifier && node.name == "_" {
+        node.name = to.to_string();
+        return;
+    }
+    for c in node.children.iter_mut() {
+        rename_underscore_reads(c, to);
+    }
+}
+
 /// Rewrite every identifier `from` to `to` in this subtree.
+/// Does any `while` continue expression under `node` assign `name`?
+///
+/// The continue expression is stored as TEXT (patch Q), so the ordinary
+/// node-walking checks are blind to it. `replace_whole_ident` is reused as a
+/// boundary-aware "contains": if substituting changes the string, the whole
+/// identifier is present -- which keeps `i` from matching inside `idx`.
+fn while_continue_assigns(node: &Node, name: &str) -> bool {
+    if node.kind == NodeKind::StmtWhile
+        && !node.extra_op.is_empty()
+        && replace_whole_ident(&node.extra_op, name, "\u{1}") != node.extra_op
+    {
+        return true;
+    }
+    node.children
+        .iter()
+        .any(|c| while_continue_assigns(c, name))
+}
+
 fn rename_ident(node: &mut Node, from: &str, to: &str) {
     if node.kind == NodeKind::ExprIdentifier && node.name == from {
         node.name = to.to_string();
     }
     for c in node.children.iter_mut() {
         rename_ident(c, from, to);
+    }
+}
+
+/// Rename a local BINDING's own declaration. `rename_ident` rewrites uses, which
+/// are ExprIdentifier nodes; a StmtLocal keeps its name in `name`, so the
+/// declaration itself needs this or the rename trades a shadow error for an
+/// undeclared one.
+fn rename_local_decl(node: &mut Node, from: &str, to: &str) {
+    if node.kind == NodeKind::StmtLocal && node.name == from {
+        node.name = to.to_string();
+    }
+    for c in node.children.iter_mut() {
+        rename_local_decl(c, from, to);
     }
 }
 
@@ -1686,6 +1811,56 @@ impl Parser {
             }
         }
         Ok(())
+    }
+
+    /// `skip_to_semicolon`'s twin: the same walk, keeping the text.
+    ///
+    /// The const emitter writes a value VERBATIM -- it reads `v.name` or
+    /// `v.value` and never calls gen_expr -- so a structured node from
+    /// parse_expr would emit nothing. Raw text is what the downstream wants.
+    ///
+    /// Depth handling is copied rather than reinvented: the sibling carries
+    /// fixes for an unmatched closing brace and for empty initialisers like
+    /// `&[_][]u8{}`, and those were paid for once already.
+    ///
+    /// String lexemes arrive WITHOUT their delimiters, which the String arm of
+    /// parse_const_decl also had to correct; quotes are restored here.
+    fn capture_to_semicolon(&mut self) -> Result<String, String> {
+        let mut out: Vec<String> = Vec::new();
+        let mut bracket_depth: i32 = 0;
+        let mut paren_depth: i32 = 0;
+        let mut brace_depth: i32 = 0;
+        while self.current.kind != TokenKind::Eof {
+            if self.current.kind == TokenKind::Semicolon
+                && bracket_depth == 0
+                && paren_depth == 0
+                && brace_depth == 0
+            {
+                self.advance();
+                return Ok(out.join(" "));
+            }
+            match self.current.kind {
+                TokenKind::LBrace => brace_depth += 1,
+                TokenKind::RBrace => {
+                    if brace_depth == 0 {
+                        return Ok(out.join(" "));
+                    }
+                    brace_depth -= 1;
+                }
+                TokenKind::LBracket => bracket_depth += 1,
+                TokenKind::RBracket => bracket_depth -= 1,
+                TokenKind::LParen => paren_depth += 1,
+                TokenKind::RParen => paren_depth -= 1,
+                _ => {}
+            }
+            if self.current.kind == TokenKind::String {
+                out.push(format!("\"{}\"", self.current.lexeme));
+            } else {
+                out.push(self.current.lexeme.clone());
+            }
+            self.advance();
+        }
+        Ok(out.join(" "))
     }
 
     // Check if the current token starts a new top-level declaration.
@@ -2055,7 +2230,22 @@ impl Parser {
                 } else {
                     let mut segs = full_path.rsplit("::");
                     let last = segs.next().unwrap_or(&full_path);
-                    let chosen = if last.trim_start().starts_with('{') {
+                    // A GLOB tail (`import ffi::gf16::*;`) is the same case as a
+                    // brace list: the final segment names WHAT is imported, not
+                    // the module, so the segment before it is the name.
+                    //
+                    // `*` is not an Ident, so the path loop stops before it and
+                    // full_path keeps a TRAILING `::` -- rsplit then yields an
+                    // EMPTY last segment, not "*". Testing for the star alone
+                    // would have missed it. Left unhandled it panicked the whole
+                    // generator (`byte index 1 is out of bounds of ''`), and a
+                    // spec that fails to generate writes no file at all, which
+                    // the measurement reads as a file with no errors -- a
+                    // regression wearing the costume of a fix.
+                    let chosen = if last.trim_start().starts_with('{')
+                        || last.trim().is_empty()
+                        || last.trim() == "*"
+                    {
                         segs.next().unwrap_or(last)
                     } else {
                         last
@@ -2342,6 +2532,67 @@ impl Parser {
                     format!("\"{}\"", zig_string_body(&self.current.lexeme));
                 decl.children.push(val_node);
                 self.advance();
+            } else if self.current.kind == TokenKind::LParen {
+                // A parenthesised expression, `(sqrt(5.0) - 1.0) / 4.0`. There
+                // was no arm for it either -- the `else` below says so in its
+                // own words, "Other RHS (tilde, parens, etc.)" -- so the
+                // declaration came back valueless and the emitter wrote
+                // nothing. 32 of the 48 errors where a file declares a name and
+                // then cannot see it are consts of this shape.
+                let text = self.capture_to_semicolon()?;
+                if text.trim().is_empty() {
+                    return Ok(decl);
+                }
+                let mut val_node = Node::new(NodeKind::ExprLiteral);
+                val_node.value = text;
+                decl.children.push(val_node);
+                return Ok(decl);
+            } else if self.current.kind == TokenKind::KwFn
+                || self.current.kind == TokenKind::Star
+            {
+                // A function TYPE as the value: `fn([]u8) HttpResponse` and
+                // `*const fn (*anyopaque, *anyopaque) void`. Same family as the
+                // LParen and Dot arms above -- a value shape with no branch, so
+                // the declaration came back with no value child and the emitter
+                // wrote nothing at all. Only 2 declarations corpus-wide, but
+                // they are USED, so the cost is 8 undeclared-identifier errors.
+                //
+                // capture_to_semicolon joins lexemes with a space, giving
+                // `* const fn ( * anyopaque , * anyopaque ) void`. Zig's parser
+                // is whitespace-insensitive between tokens, so that is the same
+                // type -- verified by measurement, not by reading.
+                let text = self.capture_to_semicolon()?;
+                if text.trim().is_empty() {
+                    return Ok(decl);
+                }
+                let mut val_node = Node::new(NodeKind::ExprLiteral);
+                val_node.value = text;
+                decl.children.push(val_node);
+                return Ok(decl);
+            } else if self.current.kind == TokenKind::Dot {
+                // An enum literal, `.pos`. There was no arm for a leading dot,
+                // so it fell to the skip-to-semicolon default below and the
+                // declaration came back with NO value child -- the emitter then
+                // wrote nothing at all, silently. specs/ternary/bigint.t27
+                // declares TRIT_NEG/TRIT_ZERO/TRIT_POS this way and its own
+                // generated file contains none of them while using two: 41 of
+                // the undeclared-identifier errors are those names.
+                //
+                // Locals were unaffected because they take a different path,
+                // which is why 2 of the 6 enum-literal consts in the corpus DID
+                // emit and made this look like it was about enum literals.
+                let mut val_node = Node::new(NodeKind::ExprLiteral);
+                self.advance(); // consume '.'
+                if self.current.kind == TokenKind::Ident {
+                    val_node.value = format!(".{}", self.current.lexeme);
+                    self.advance();
+                } else {
+                    // `.` not followed by a name is not an enum literal; leave
+                    // it to the default rather than guess at it.
+                    self.skip_to_semicolon()?;
+                    return Ok(decl);
+                }
+                decl.children.push(val_node);
             } else {
                 // Other RHS (tilde, parens, etc.) — skip to semicolon
                 self.skip_to_semicolon()?;
@@ -3478,6 +3729,15 @@ impl Parser {
             return self.parse_local_decl();
         }
 
+        // `switch (x) { ... }` in STATEMENT position. parse_switch_expr was
+        // reachable only from an expression, so a switch used as a statement
+        // fell through to the generic path and took the function body with it.
+        // Inert on its own -- measured as patch T -- because every real switch
+        // in the corpus also needs the block-arm parsing above.
+        if self.current.kind == TokenKind::KwSwitch {
+            return self.parse_switch_expr();
+        }
+
         // return statement
         if self.current.kind == TokenKind::KwReturn {
             return self.parse_return_statement();
@@ -3486,6 +3746,96 @@ impl Parser {
         // if statement
         if self.current.kind == TokenKind::KwIf {
             return self.parse_if_stmt();
+        }
+
+        // `inline for (values) |val| { ... }` -- the loop MODIFIER.
+        //
+        // Exactly the failure the `let` note above describes, with a different
+        // word: `inline` is not a keyword in this lexer, so it arrived as an
+        // identifier and the expression parser took it as a whole statement.
+        // The loop itself survived intact; what landed in front of it was
+        // `@"inline";`, a bare escaped keyword that Zig reads as an undeclared
+        // identifier. 16 sites in 2 specs, 11 of them live errors, all inside
+        // invariant blocks -- which is why they looked like "free variables in
+        // a quantified property" until the generated line was read.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "inline"
+            && matches!(self.peek.kind, TokenKind::KwFor | TokenKind::KwWhile)
+        {
+            self.advance(); // consume 'inline'
+            let mut node = if self.current.kind == TokenKind::KwFor {
+                self.parse_for_stmt()?
+            } else {
+                self.parse_while_stmt()?
+            };
+            node.extra_kind = "inline".to_string();
+            return Ok(node);
+        }
+
+        // A statement-position `forall`.
+        //
+        // The corpus writes four UNBOUNDED shapes -- `forall F, D : pred`,
+        // `forall D : pred`, and two `forall x : T where g,` -- none of which
+        // has a RANGE, so `rewrite_forall` (which lowers only
+        // `forall i in A..B, P`) does not apply and there is no loop to emit.
+        //
+        // Nothing consumed the word, so it became a bare identifier statement:
+        // `forall;` in two files, and in math/phi_universal_attractor the
+        // property vanished from the output entirely -- a silent loss, not even
+        // an error. Statement position NEVER worked; the range form that does
+        // work is in EXPRESSION position and goes through a different route,
+        // which is why intercepting here breaks nothing.
+        //
+        // Inventing a semantics for an unbounded quantifier is not translation,
+        // so the property is RECORDED rather than asserted -- the same honesty
+        // the empty-invariant branch already applies, and countable with
+        // `grep -c "unchecked property"`.
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
+            let mut line = self.current.line;
+            let mut text: Vec<String> = Vec::new();
+            let mut depth: i32 = 0;
+            while self.current.kind != TokenKind::Eof {
+                // The quantifier CONTINUES onto the next line when the current
+                // one ends in a comma -- `forall lang : str where g,` binds and
+                // the line below is the predicate. A line-bounded capture cut
+                // that in half and left the predicate as an orphan statement
+                // reading `lang`, a name the comment above it had just taken
+                // out of scope: one fixed error traded for two new ones in
+                // enrichment/audio_overview.zig. The trailing comma is the
+                // structural signal, so continue on it rather than guessing
+                // from the next line's shape.
+                if depth == 0 && self.current.line != line {
+                    if text.last().map(|t| t != ",").unwrap_or(true) {
+                        break;
+                    }
+                    line = self.current.line;
+                }
+                match self.current.kind {
+                    TokenKind::LBrace | TokenKind::LParen | TokenKind::LBracket => depth += 1,
+                    TokenKind::RBrace | TokenKind::RParen | TokenKind::RBracket => {
+                        if depth == 0 {
+                            break;
+                        }
+                        depth -= 1;
+                    }
+                    _ => {}
+                }
+                // A string literal's lexeme carries no quotes, so `!= ""`
+                // rendered as `!=` followed by nothing at all.
+                if self.current.kind == TokenKind::String {
+                    text.push(format!("\"{}\"", self.current.lexeme));
+                } else {
+                    text.push(self.current.lexeme.clone());
+                }
+                self.advance();
+                if depth == 0 && self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                    break;
+                }
+            }
+            let mut node = Node::new(NodeKind::StmtExpr);
+            node.extra_op = format!("unchecked property: {}", text.join(" "));
+            return Ok(node);
         }
 
         // while statement
@@ -3998,6 +4348,43 @@ impl Parser {
         // same fix.
         self.parse_capture_list(&mut while_node.params)?;
 
+        // `while (cond) : (i += 1) { ... }` -- Zig's CONTINUE EXPRESSION. Nothing
+        // consumed it, so `expect(LBrace)` below failed on the `:`, the error
+        // propagated, and the caller's recovery threw away THE ENTIRE FUNCTION
+        // BODY. Measured on a 9-line fixture: everything before the return
+        // vanished and the return was left referencing names that no longer
+        // existed. That is how memory/semantic_search.zig lost two arrays, a
+        // counter, its loop and `top_matches`, keeping only
+        // `return SearchResult{ .matches = top_matches, ... }`.
+        //
+        // Kept as TEXT rather than folded into the body: the continue expression
+        // runs after `continue` too, so appending it as a trailing statement
+        // would be a loop that compiles and counts wrong -- the silent kind.
+        if self.current.kind == TokenKind::Colon {
+            self.advance();
+            if self.current.kind == TokenKind::LParen {
+                self.advance();
+                let mut depth = 1i32;
+                let mut parts: Vec<String> = Vec::new();
+                while self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LParen => depth += 1,
+                        TokenKind::RParen => {
+                            depth -= 1;
+                            if depth == 0 {
+                                self.advance();
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    parts.push(self.current_text());
+                    self.advance();
+                }
+                while_node.extra_op = parts.join(" ");
+            }
+        }
+
         // Body: { ... }
         self.expect(TokenKind::LBrace)?;
         let mut body_block = Node::new(NodeKind::Module);
@@ -4031,6 +4418,22 @@ impl Parser {
         // reading of it; this replaces the whole block against its exact text.
         let parenthesised = self.current.kind == TokenKind::LParen;
         if parenthesised {
+            self.advance();
+        }
+        // `for (const names_seen) |name| { ... }` -- the specs write a
+        // `const`/`var` marker inside the iterable, consistently enough to be an
+        // idiom rather than a typo (13 occurrences in 5 specs, `for (const i)`,
+        // `for (const v)`, `for (const names_seen)`). Zig has no such form.
+        //
+        // Nothing skipped it, so parse_expr met a keyword where it wanted an
+        // expression, the error propagated, and the caller's recovery discarded
+        // THE WHOLE FUNCTION BODY -- exactly the failure the while continue
+        // expression caused, from a different token. numeric/goldenfloat_family
+        // kept only its return, referencing an `avg_dist` that no longer existed.
+        //
+        // Dropping the marker is safe: it carries no meaning Zig can express,
+        // and `for (X) |item|` is what the loop means either way.
+        if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
             self.advance();
         }
         let saved_nsl = self.no_struct_literal;
@@ -4168,6 +4571,32 @@ impl Parser {
         while self.current.kind == TokenKind::DotDot {
             let op = self.current.lexeme.clone();
             self.advance();
+            // An OPEN-ENDED range: `a[0..]` (slice to the end) and Zig's own
+            // `for (items, 0..) |item, i|` (index-generating idiom). The right
+            // side was required UNCONDITIONALLY, so parse_expr_bitor() choked
+            // on the closing `]` or `)`, the error propagated through the
+            // enclosing call's argument list or the for-loop's iterable list,
+            // and recovery discarded the whole enclosing STATEMENT.
+            //
+            // `var k = set_union(a[0..], 2, b[0..], 2, result[0..]);` vanished
+            // complete -- isa/ternary_set.zig's only trace of it was the
+            // surviving `try eq(k, 3)` two lines later, rewritten with a `k`
+            // nothing declares. Same shape emptied `var final_stage =
+            // pipeline_run(stages[0..], results[0..], &count);` in
+            // pipeline/e2e_test.zig. 99 sites corpus-wide, 98 closed by `]`
+            // and one -- `for (delta.operations, 0..) |op|` -- by `)`.
+            //
+            // Purely additive: both tokens were parse errors here before, so
+            // no working parse changes.
+            if matches!(self.current.kind, TokenKind::RBracket | TokenKind::RParen) {
+                left = Node {
+                    kind: NodeKind::ExprBinary,
+                    extra_op: op,
+                    children: vec![left],
+                    ..Default::default()
+                };
+                break;
+            }
             let right = self.parse_expr_bitor()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
@@ -4308,12 +4737,50 @@ impl Parser {
 
     /// Parse unary expressions (-x, !x, ~x, &x)
     fn parse_expr_unary(&mut self) -> Result<Node, String> {
+        // `*table` -- a PREFIX dereference, Rust/C style, matching the pointer
+        // TYPE syntax this corpus already writes (`table: *SymbolTable`). Zig
+        // spells the same thing postfix (`table.*`), and nothing here parsed
+        // the prefix form: `Star` reached this function unmatched, fell
+        // through to parse_expr_postfix -> parse_expr_primary, which has no
+        // arm for a leading `*`, so the whole call argument list failed --
+        // `infer_expr(stmt.children[0], *table, reg)` and its `var ret_type =`
+        // vanished, leaving only the `if (check_assign(..., ret_type) ...)`
+        // that reads it two lines later. At least 8 sites corpus-wide
+        // (`*table` x5, `*target` x2, plus the type-position `*Node` this does
+        // not touch since types go through a separate parser).
+        //
+        // Purely additive: `*` starting an expression was a guaranteed parse
+        // error before -- Zig/Rust grammars never open a valid expression with
+        // a bare `*` any other way, so no working parse can regress.
         if matches!(
             self.current.kind,
-            TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde | TokenKind::Amp
+            TokenKind::Minus
+                | TokenKind::Bang
+                | TokenKind::Tilde
+                | TokenKind::Amp
+                | TokenKind::Star
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
+            // `&mut expr` in EXPRESSION position, e.g. `a.add(&mut b)`.
+            //
+            // `mut` is not a keyword in this lexer; it arrives as an Ident.
+            // parse_type_annotation already skips it for a `&mut T` TYPE and
+            // parse_local_decl for `let mut x`; expression position had no
+            // rule at all, so the operand reader took `mut` for the entire
+            // operand and left `b` sitting in the stream. parse_call_args
+            // then read `b` as a SECOND argument.
+            //
+            // Zig has no `mut`: address-of is `&` and mutability is var vs
+            // const, so the qualifier is dropped rather than lowered. Guarded
+            // on `op == "&"` because this branch also serves `-`, `!`, `~`
+            // and `&&`.
+            if op == "&"
+                && self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "mut"
+            {
+                self.advance();
+            }
             let operand = self.parse_expr_unary()?;
             return Ok(Node {
                 kind: NodeKind::ExprUnary,
@@ -4462,6 +4929,55 @@ impl Parser {
         Ok(expr)
     }
 
+    /// Render a call-shaped node back to source text, or None if any part of it
+    /// is a shape this cannot reproduce exactly.
+    ///
+    /// Used to rebuild a method call's RECEIVER when the receiver is itself a
+    /// call: `a.mul(b.add(c)).compare(x)`. K2 handled only identifier and literal
+    /// arguments and bailed on `b.add(c)`, which is the same node kind as the
+    /// receiver it was already rebuilding -- so recursion covers it and no
+    /// gen_expr-side work is needed after all. I asserted twice that it was.
+    ///
+    /// It still returns None for anything else (operator expressions, casts,
+    /// struct literals). That is deliberate: the caller drops the receiver
+    /// exactly as before, which is a known-wrong output rather than a guessed
+    /// one. Widening this further means proving each new shape round-trips.
+    fn render_simple_call(n: &Node) -> Option<String> {
+        match n.kind {
+            NodeKind::ExprIdentifier => Some(n.name.clone()),
+            NodeKind::ExprLiteral => Some(n.value.clone()),
+            NodeKind::ExprCall => {
+                let args: Option<Vec<String>> =
+                    n.children.iter().map(Self::render_simple_call).collect();
+                args.map(|a| format!("{}({})", n.name, a.join(", ")))
+            }
+            // A parenthesised arithmetic expression as the receiver:
+            // `(ntr_phi - LITEBIRD_NT_DIV_R_MEASURED).abs()`. parse_expr_primary
+            // returns the INNER node for a parenthesised group (`Ok(inner)`, no
+            // wrapper), so the receiver arrives here as a bare ExprBinary.
+            //
+            // ONLY these four operators, and always re-parenthesised:
+            //   - `extra_op` holds the operator as the parser stored it. For
+            //     `+ - * /` the t27 and Zig spellings coincide, so emitting it
+            //     verbatim is safe. A comparison or logical word whose spelling
+            //     differs would produce code that compiles and means something
+            //     else -- silently wrong beats visibly incomplete only in the
+            //     wrong direction.
+            //   - dropping the parentheses changes what the receiver IS:
+            //     `(a - b).abs()` is not `a - b.abs()`. Redundant parens are
+            //     free in Zig; missing ones cost correctness.
+            NodeKind::ExprBinary
+                if n.children.len() == 2
+                    && matches!(n.extra_op.as_str(), "+" | "-" | "*" | "/") =>
+            {
+                let l = Self::render_simple_call(&n.children[0])?;
+                let r = Self::render_simple_call(&n.children[1])?;
+                Some(format!("({} {} {})", l, n.extra_op, r))
+            }
+            _ => None,
+        }
+    }
+
     /// Flatten a chain of ExprFieldAccess nodes into a dotted name
     /// e.g. ExprFieldAccess("expectEqual", ExprFieldAccess("testing", ExprIdentifier("std")))
     /// becomes "std.testing.expectEqual"
@@ -4482,7 +4998,41 @@ impl Parser {
                     parts.push(current.name.clone());
                     break;
                 }
-                _ => break,
+                // A receiver that is ITSELF a call: `remainder.abs().compare_abs(b)`.
+                // Before this arm it fell to the `_ => break` below and every part
+                // accumulated so far was silently discarded, so the whole receiver
+                // vanished and the emitter wrote `compare_abs(b)`. Measured: 36
+                // emitted sites, of which only 4 surfaced as errors -- the other
+                // ~32 COMPILED with the receiver gone.
+                //
+                // A zero-argument receiver is exactly reconstructible: the inner
+                // `.abs()` came through this same code path, so its node already
+                // carries the fully qualified name "remainder.abs". Appending
+                // "()" rebuilds it verbatim.
+                //
+                // Arguments are rebuilt too, but ONLY when every one of them is a
+                // plain identifier or literal -- `a.mul(b).add(c)`, which is the
+                // shape every remaining site in the corpus actually has. Anything
+                // else (a nested call, an operator expression) needs gen_expr and
+                // is left to the old behaviour: `collect()` into an Option yields
+                // None, nothing is pushed, and the receiver is dropped exactly as
+                // before. A half-right name would be worse than no name.
+                // Anything else that render_simple_call can reproduce exactly --
+                // today an ExprCall receiver or a parenthesised arithmetic one.
+                //
+                // This arm replaced a bare `_ => break`, and that placement is
+                // why patch K4 fired ZERO times: K4 added the ExprBinary case to
+                // render_simple_call, but an ExprBinary receiver never reached
+                // that function, because the match here sent it straight to the
+                // catch-all. The shape hypothesis was right; the arm was in the
+                // wrong function, and a zero-effect measurement looked like
+                // evidence against the hypothesis instead of against the patch.
+                _ => {
+                    if let Some(rendered) = Self::render_simple_call(current) {
+                        parts.push(rendered);
+                    }
+                    break;
+                }
             }
         }
         parts.reverse();
@@ -4588,6 +5138,36 @@ impl Parser {
             // Enum value: .variant
             TokenKind::Dot => {
                 self.advance(); // consume .
+                // `.{ .opcode = .v_bind, .dst = 2, ... }` -- Zig's own
+                // anonymous struct/array literal, already exactly the target
+                // syntax. Nothing here recognised `.{`: only `.ident` (the
+                // enum-value shorthand) was handled, so this branch returned
+                // `Err("Expected identifier after '.'")`.
+                //
+                // `try machine.loadProgram(&[_]vm.VSAInstruction{ .{...},
+                // .{...}, .{...} });` was the whole call's only argument, so
+                // the error propagated through the call, then the statement,
+                // then recovery mis-tracked brace depth across the multi-line
+                // argument and consumed the enclosing test's OWN closing `}`
+                // -- the three statements written after it in the spec came
+                // out as orphaned MODULE-level declarations. Reproduced on an
+                // 8-line fixture before this fix, isolated to exactly this
+                // shape by removing one nesting layer at a time: a plain
+                // `[_]i32{1,2,3}` and a bare `.{ .field = val }` local each
+                // parse fine alone; only the NESTED `[_]T{ .{...}, .{...} }`
+                // cascades past the statement into the next scope.
+                //
+                // Reused wholesale: parse_struct_literal already parses
+                // `.field = expr` pairs generically for `Name{ ... }`; calling
+                // it with an empty name marks the literal ANONYMOUS for
+                // codegen. Scoped to NAMED fields only -- a positional
+                // `.{ 1, 2, 3 }` falls through the same way it did before,
+                // since no corpus site needs it through the real parser (the
+                // corpus's other 26 `.{` sites are `&.{}` inside behaviour
+                // clauses, captured as text and never reaching this code).
+                if self.current.kind == TokenKind::LBrace {
+                    return self.parse_struct_literal(String::new());
+                }
                 if self.current.kind == TokenKind::Ident {
                     let name = self.current.lexeme.clone();
                     self.advance();
@@ -4826,6 +5406,32 @@ impl Parser {
                     TokenKind::RBracket => depth -= 1,
                     _ => {}
                 }
+                // This loop captures more than a size: `elements_in_size`
+                // (see ExprArrayLiteral's codegen) means a Rust-style bracket
+                // literal -- `[if (c) 1u8 else 0u8, ...]` -- comes through
+                // here too, with the whole comma list as raw text. Joining
+                // tokens with NO separator glued the NUMBER token `1` (the
+                // lexer already strips `u8`) directly onto `else`: `1else0`.
+                // Zig's own lexer then reads that as one malformed literal
+                // starting a scientific-notation exponent (`1e`), and dies on
+                // `l` -- "invalid digit 'l' for decimal base", pointing at a
+                // token that is not the actual defect.
+                //
+                // Same word-boundary rule as parse_behavior_clauses' text
+                // capture (`wordish`, below): a space only between two tokens
+                // that both start alphanumeric. `f(x)`, `a.b`, `Err::X` stay
+                // glued (`(`, `.`, `:` are not wordish), so this cannot
+                // resplit anything that already worked.
+                let wordish = |t: &str| {
+                    t.chars()
+                        .next()
+                        .map_or(false, |c| c.is_alphanumeric() || c == '_' || c == '"')
+                };
+                if wordish(bracket_content.chars().last().map(|c| c.to_string()).unwrap_or_default().as_str())
+                    && wordish(&self.current.lexeme)
+                {
+                    bracket_content.push(' ');
+                }
                 bracket_content.push_str(&self.current_text());
                 self.advance();
             }
@@ -4878,10 +5484,30 @@ impl Parser {
     fn parse_if_expr(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // The condition's parentheses are OPTIONAL, exactly as they already are
+        // for `while` -- specs write `const a = if e < 0.0 { -e } else { e };`
+        // and `expect(LParen)` failed on the first token, taking the whole
+        // enclosing function body with it: specs/physics/sacred_verification.t27
+        // lost `abs_error`, `abs_err` and `rel_error` and kept only a `return`
+        // referencing them.
+        //
+        // The ARMS were never the problem -- parse_braced_or_bare_expr below
+        // already accepts a block. Only the parentheses were mandatory.
+        //
+        // no_struct_literal mirrors parse_while_stmt: without the parens, a `{`
+        // after the condition opens the THEN arm, not a struct literal.
+        let parenthesised = self.current.kind == TokenKind::LParen;
+        if parenthesised {
+            self.advance();
+        }
+        let saved_nsl = self.no_struct_literal;
+        self.no_struct_literal = !parenthesised;
+        let cond = self.parse_expr();
+        self.no_struct_literal = saved_nsl;
+        let cond = cond?;
+        if parenthesised {
+            self.expect(TokenKind::RParen)?;
+        }
 
         let mut if_node = Node::new(NodeKind::ExprIf);
         self.parse_capture_list(&mut if_node.params)?;
@@ -4991,9 +5617,35 @@ impl Parser {
                 self.advance();
             }
 
-            // Arm expression
-            let arm_expr = self.parse_expr()?;
-            arm.children.push(arm_expr);
+            // Arm body: an expression, or a BLOCK. The corpus's real switches
+            // are all block-armed -- `.v_load => { ... }`, 59 of them -- and
+            // nothing parsed that, so parse_expr met `{`, the `?` propagated,
+            // and the whole switch was lost. With it went the enclosing function
+            // body: the switch's braces were never consumed, so the function's
+            // closing brace matched them and every following statement leaked to
+            // container level.
+            //
+            // Blocks are stored the way while/if store theirs -- a Module named
+            // "body" -- rather than as a new node kind, so nothing downstream
+            // needs to learn a new shape.
+            let arm_body = if self.current.kind == TokenKind::LBrace {
+                self.advance();
+                let mut blk = Node::new(NodeKind::Module);
+                blk.name = "body".to_string();
+                while self.current.kind != TokenKind::RBrace
+                    && self.current.kind != TokenKind::Eof
+                {
+                    match self.parse_body_stmt() {
+                        Ok(s) => blk.children.push(s),
+                        Err(_) => self.recover_to_stmt_boundary(),
+                    }
+                }
+                self.expect(TokenKind::RBrace)?;
+                blk
+            } else {
+                self.parse_expr()?
+            };
+            arm.children.push(arm_body);
 
             if self.current.kind == TokenKind::Comma {
                 self.advance();
@@ -5340,6 +5992,73 @@ impl Parser {
         self.advance(); // consume 'invariant'
         block.name = self.parse_block_name();
 
+        // `invariant k3_and_associative(a, b, c: Trit) { ... }` -- a
+        // PARAMETERISED invariant. Nothing consumed the parameter list, so the
+        // token after the name was `(` and not the `{` the brace branch wants;
+        // the body was never parsed, and the emitter then wrote
+        // `// invariant NAME: no body in the spec, nothing asserted`.
+        //
+        // That message is a statement ABOUT THE SPEC and it is false: the body
+        // is right there, and the output blamed the spec for the parser's miss.
+        //
+        // TWO invariants carry this form, both in ar/ternary_logic.t27
+        // (k3_and_associative, k3_or_associative). An earlier census said 34 in
+        // 6 specs; that regex also matched `invariant clog2(1) == 0;`, which is
+        // an invariant EXPRESSION inside a test body and a different construct
+        // entirely. Confirmed by the artifact: the corpus-wide count of the
+        // false line went 1139 -> 1137, exactly these two.
+        //
+        // Shared type suffixes are the corpus form -- `(a, b, c: Trit)` types
+        // all three -- so names accumulate until a `:` is met and take the type
+        // that follows. A name that never meets one gets `anytype`, which is a
+        // legal Zig parameter and keeps the invariant checkable.
+        if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            let mut params: Vec<(String, Option<String>)> = Vec::new();
+            let mut pending: Vec<String> = Vec::new();
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Ident {
+                    let nm = self.current.lexeme.clone();
+                    self.advance();
+                    if self.current.kind == TokenKind::Colon {
+                        self.advance(); // consume :
+                        let mut ty = String::new();
+                        while !matches!(
+                            self.current.kind,
+                            TokenKind::Comma | TokenKind::RParen | TokenKind::Eof
+                        ) {
+                            if !ty.is_empty() {
+                                ty.push(' ');
+                            }
+                            ty.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                        for p in pending.drain(..) {
+                            params.push((p, Some(ty.clone())));
+                        }
+                        params.push((nm, Some(ty)));
+                    } else {
+                        pending.push(nm);
+                    }
+                } else {
+                    self.advance();
+                }
+            }
+            if self.current.kind == TokenKind::RParen {
+                self.advance(); // consume )
+            }
+            for p in pending.drain(..) {
+                params.push((p, None));
+            }
+            block.extra_type = params
+                .iter()
+                .map(|(n, t)| {
+                    format!("{}: {}", n, t.clone().unwrap_or_else(|| "anytype".to_string()))
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+        }
+
         if self.current.kind == TokenKind::LBrace {
             // Brace-style invariant: invariant "name" { ... }
             self.advance(); // consume {
@@ -5434,6 +6153,13 @@ pub struct Codegen {
     /// methods of unrelated structs, which are not in scope and would cause
     /// renames that change output for no reason.
     declared_top: std::collections::HashSet<String>,
+    /// Names a behaviour clause binds MORE THAN ONCE inside one test, and the
+    /// ones already emitted. `given a = X` then `when a = Y` is a setup followed
+    /// by a change, not two declarations, so the first must be `var` and the
+    /// second an assignment. Filled by a pre-scan in the test emitter because the
+    /// first binding's mutability is only knowable after reading all the clauses.
+    clause_rebound: std::collections::HashSet<String>,
+    clause_seen: std::collections::HashSet<String>,
     /// Names already emitted for bench blocks and tests.
     ///
     /// Two prose names can sanitise to the same identifier, and a block with no
@@ -5457,6 +6183,15 @@ pub struct Codegen {
     /// `try` needs a function that can return an error, which a test block is
     /// and an ordinary void function is not, so the fix has to know where it is.
     in_test_block: bool,
+    /// Inside an emitted `comptime { ... }` block.
+    ///
+    /// Zig rejects `inline for` there -- "redundant inline keyword in comptime
+    /// scope" -- so the modifier the parser captures must be dropped when the
+    /// loop lands inside one. Measured, not assumed: emitting it unconditionally
+    /// traded 11 undeclared identifiers for 16 of these. Only ONE emitter writes
+    /// `comptime {` (gen_invariant_block), so a flag is enough; a depth counter
+    /// would be machinery for a nesting that does not exist.
+    in_comptime: bool,
     /// Where this spec lives in the tree, e.g. "ml/activation/silu".
     ///
     /// `use base::types` has to become `@import("../../base/types.zig")`, and
@@ -5489,9 +6224,12 @@ impl Codegen {
             indent: 0,
             declared: std::collections::HashSet::new(),
             declared_top: std::collections::HashSet::new(),
+            clause_rebound: std::collections::HashSet::new(),
+            clause_seen: std::collections::HashSet::new(),
             emitted_names: std::collections::HashSet::new(),
             fn_returns: std::collections::HashMap::new(),
             in_test_block: false,
+            in_comptime: false,
             rel_path: None,
             module_paths: std::collections::HashMap::new(),
             module_decls: std::collections::HashMap::new(),
@@ -5611,6 +6349,12 @@ impl Codegen {
         let needs = |n: &str| uses(n) && !declares(n);
         let needs_expect = needs("expect");
         let needs_assert = needs("assert");
+        // Specs write Rust macro syntax, `assert_eq!(a, b)`, and the emitter
+        // drops the `!` -- leaving a call to a function nobody declares. 29 of
+        // the remaining undeclared-identifier errors are this one name. Same
+        // shape as `pow`: it needs a wrapper, not a binding, because there is
+        // no std function with that arity and name.
+        let needs_assert_eq = needs("assert_eq");
 
         // `needs_pow` belongs in this guard, not only in the body. It was
         // inside the block, so a spec that uses pow but has no tests, no expect
@@ -5649,6 +6393,9 @@ impl Codegen {
             }
             if needs_assert {
                 self.write_line("const assert = std.debug.assert;");
+            }
+            if needs_assert_eq {
+                self.write_line("fn assert_eq(a: anytype, b: anytype) void { std.debug.assert(a == b); }");
             }
             // `pow` cannot be a plain binding: std.math.pow takes the type as its
             // first argument, so a wrapper is needed. Every call site passes
@@ -5708,6 +6455,24 @@ impl Codegen {
             .filter(|d| d.kind != NodeKind::UseDecl && !d.name.is_empty())
             .map(|d| d.name.clone())
             .collect();
+        // The container-level math shims are injected by a DIFFERENT emitter
+        // (`math_shims_for`, and `fn pow`), and each guards only against the
+        // spec's own declarations. Neither knows about the other, so an alias
+        // and a shim of the same name both land and Zig reports `duplicate
+        // struct member name 'abs'`. That collision is invisible today only
+        // because the name pool is starved; it appears the moment the pool is
+        // filled. Reserve the shim names here so the alias yields to them.
+        // Reserve them UNCONDITIONALLY. Asking `math_shims_for` which shims
+        // this file needs looks tighter but is wrong: it matches names exactly,
+        // while a behaviour clause carries its whole text in `name`
+        // (`err = abs(g - pdg) / pdg`), so it answers "no shim" for a file the
+        // emitter then gives one to. Measured: gf4/gf8/gf12/gf20/gf24/gf32 each
+        // got `fn abs` at line 6 AND `const abs = phi_ratio.abs;` at line 28.
+        // If a spec uses one of these names, the shim supplies it and an alias
+        // is redundant as well as illegal.
+        for shim in ["abs", "sqrt", "ln", "PI", "E", "pow"] {
+            taken.insert(shim.to_string());
+        }
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
@@ -5797,7 +6562,25 @@ impl Codegen {
                         // Word-aware, not equality. A behaviour clause holds
                         // its whole text in `name` -- `err = abs(g - pdg) / pdg`
                         // -- so an exact match never sees the call inside it.
-                        if !ast.children.iter().any(|c| node_mentions_word(c, &name)) {
+                        //
+                        // ...and a name used only as a TYPE is invisible to
+                        // node_mentions_word, which reads `name`, `value` and
+                        // `extra_field` and never `extra_type` or the type half
+                        // of `params`. `use ternary::packed_trit;` puts
+                        // PackedBigInt in the pool and the spec then writes it
+                        // ONLY as a struct field type and a parameter type, so
+                        // no binding was emitted.
+                        //
+                        // type_mentions_word was kept out of this test on the
+                        // grounds that "an unused binding is a Zig error". That
+                        // is true of a LOCAL and false of what this loop writes:
+                        // these are container-level `const`s, and an unused
+                        // container-level const is legal Zig (checked on 0.16).
+                        if !ast
+                            .children
+                            .iter()
+                            .any(|c| node_mentions_word(c, &name) || type_mentions_word(c, &name))
+                        {
                             continue;
                         }
                         taken.insert(name.clone());
@@ -5981,6 +6764,12 @@ impl Codegen {
         let needs = |n: &str| uses(n) && !declares(n);
         let needs_expect = needs("expect");
         let needs_assert = needs("assert");
+        // Specs write Rust macro syntax, `assert_eq!(a, b)`, and the emitter
+        // drops the `!` -- leaving a call to a function nobody declares. 29 of
+        // the remaining undeclared-identifier errors are this one name. Same
+        // shape as `pow`: it needs a wrapper, not a binding, because there is
+        // no std function with that arity and name.
+        let needs_assert_eq = needs("assert_eq");
 
         // `needs_pow` belongs in this guard, not only in the body. It was
         // inside the block, so a spec that uses pow but has no tests, no expect
@@ -6011,6 +6800,9 @@ impl Codegen {
             }
             if needs_assert {
                 self.write_line("const assert = std.debug.assert;");
+            }
+            if needs_assert_eq {
+                self.write_line("fn assert_eq(a: anytype, b: anytype) void { std.debug.assert(a == b); }");
             }
             // `pow` cannot be a plain binding: std.math.pow takes the type as its
             // first argument, so a wrapper is needed. Every call site passes
@@ -6455,6 +7247,27 @@ impl Codegen {
             "Float" | "float" => return "f64".to_string(),
             "Bool" | "boolean" => return "bool".to_string(),
             "Int" | "int" => return "i64".to_string(),
+            // The WIDTH-SUFFIXED spellings. The table above lowered the bare
+            // ones and stopped, so `Int64` and `UInt32` reached Zig verbatim and
+            // came out as undeclared identifiers -- 10 of them, and they sit in
+            // the UNREACHABLE half of the census: no spec declares any of these
+            // names, so no import could ever have resolved them. They are
+            // primitive spellings with no lowering, not missing types.
+            //
+            // Checked before adding: zero `struct`/`enum`/`type` declarations
+            // for any of these names corpus-wide, so nothing user-defined is
+            // shadowed. `Vec32` is deliberately NOT here -- it IS declared, in
+            // specs/ternary/hybrid_bigint.t27.
+            "Int8" => return "i8".to_string(),
+            "Int16" => return "i16".to_string(),
+            "Int32" => return "i32".to_string(),
+            "Int64" => return "i64".to_string(),
+            "UInt8" => return "u8".to_string(),
+            "UInt16" => return "u16".to_string(),
+            "UInt32" => return "u32".to_string(),
+            "UInt64" => return "u64".to_string(),
+            "Float32" => return "f32".to_string(),
+            "Float64" => return "f64".to_string(),
             _ => {}
         }
         if let Some(rest) = t.strip_prefix("&mut ") {
@@ -7101,6 +7914,17 @@ impl Codegen {
                 .join(", ");
             self.write_line(&format!("fn {}({}) type {{", node.name, params));
             self.indent();
+            // A generic the returned struct never mentions is still a parameter
+            // Zig requires something to read. `pub const Channel(T) = struct {
+            // capacity: usize, ... }` uses T only at its CALL sites.
+            for g in &generic {
+                if !node.children.iter().any(|c| {
+                    c.name != "generic" && (node_mentions_word(c, g) || type_mentions_word(c, g))
+                }) {
+                    self.write_indent();
+                    self.write_line(&format!("_ = {};", g));
+                }
+            }
             self.write_indent();
             self.write_line("return struct {");
             self.indent();
@@ -7212,12 +8036,38 @@ impl Codegen {
         // Renaming is invisible to callers: Zig has no named arguments. The
         // body's references are rewritten to match, or the rename would trade
         // a shadow error for an undeclared one.
-        let renames: Vec<(String, String)> = node
+        let mut renames: Vec<(String, String)> = node
             .params
             .iter()
             .filter(|(n, _)| self.declared_top.contains(n))
             .map(|(n, _)| (n.clone(), format!("{}_arg", n)))
             .collect();
+
+        // LOCALS shadow container declarations exactly the same way, and Zig
+        // counts a shadowed container FUNCTION too: specs/fpga/memory.t27
+        // declares `fn addr_width(mem)` and then `var addr_width` inside
+        // make_bram and make_rom. Only parameters were being renamed, so the
+        // machinery to fix this already existed and covered half the cases.
+        //
+        // `rename_ident` touching only ExprIdentifier is exactly right HERE --
+        // a call named `addr_width` is a call TO the container function and must
+        // survive untouched. That is the opposite of patch M, where the receiver
+        // text baked into a call NAME did need rewriting. Same-looking passes,
+        // opposite requirements, because one renames a binding and the other
+        // substitutes a value.
+        let mut stack: Vec<&Node> = node.children.iter().collect();
+        while let Some(n) = stack.pop() {
+            if n.kind == NodeKind::StmtLocal
+                && !n.name.is_empty()
+                && self.declared_top.contains(&n.name)
+                && !renames.iter().any(|(f, _)| f == &n.name)
+            {
+                renames.push((n.name.clone(), format!("{}_local", n.name)));
+            }
+            for c in &n.children {
+                stack.push(c);
+            }
+        }
         let body: Vec<Node> = if renames.is_empty() {
             Vec::new()
         } else {
@@ -7227,6 +8077,7 @@ impl Codegen {
                     let mut c = c.clone();
                     for (from, to) in &renames {
                         rename_ident(&mut c, from, to);
+                        rename_local_decl(&mut c, from, to);
                     }
                     c
                 })
@@ -7347,7 +8198,7 @@ impl Codegen {
                 // Same spelling as the declaration above, or the discard names
                 // something that does not exist.
                 self.write_indent();
-                self.write_line(&format!("_ = {};", zig_ident(pname)));
+                self.write_line(&format!("_ = &{};", zig_ident(&pname_of(pname))));
             }
         }
 
@@ -7413,7 +8264,7 @@ impl Codegen {
                 let used_elsewhere = stmts
                     .iter()
                     .enumerate()
-                    .any(|(j, other)| j != i && node_mentions(other, name));
+                    .any(|(j, other)| j != i && node_mentions_use(other, name));
                 if used_elsewhere {
                     continue;
                 }
@@ -7461,15 +8312,26 @@ impl Codegen {
                 let bare = stmt.name.split(':').next().unwrap_or(&stmt.name).trim();
                 let rest = &stmts[i + 1..];
                 let read = rest.iter().any(|n| node_mentions(n, bare));
-                let assigned = rest.iter().any(|n| node_assigns(n, bare));
+                // A while CONTINUE EXPRESSION assigns too, and patch Q stores it
+                // as TEXT in extra_op, where node_assigns cannot see it. Without
+                // this, `while (i < n) : (i += 1)` demotes its own counter to
+                // `const i` and the loop assigns to a constant.
+                //
+                // Latent rather than loud today: `zig test` analyses lazily, so
+                // an unreferenced function keeps the defect out of the error
+                // count. Relying on that would be measuring the instrument's
+                // reach instead of the output's correctness -- the same trap as
+                // judging a compiling defect by an error count.
+                let assigned = rest.iter().any(|n| node_assigns(n, bare))
+                    || rest.iter().any(|n| while_continue_assigns(n, bare));
                 let mut fixed = stmt.clone();
                 if !assigned {
                     fixed.extra_mutable = false;
                 }
                 self.gen_stmt(&fixed);
-                if !read {
+                if !read && bare != "_" {
                     self.write_indent();
-                    self.write_line(&format!("_ = {};", zig_ident(bare)));
+                    self.write_line(&format!("_ = &{};", zig_ident(bare)));
                 }
             } else {
                 self.gen_stmt(stmt);
@@ -7504,18 +8366,101 @@ impl Codegen {
             ));
             return;
         }
-        let tname = self.unique_name(format!("test:{}", node.name));
+        // `test "" { ... }` is `empty test name must be omitted`, a parse error,
+        // so it capped its file's count and hid everything after it.
+        //
+        // (helper for the shadow rename below lives at rename_shadowing_locals)
+        let tbase = if node.name.trim().is_empty() {
+            "unnamed".to_string()
+        } else {
+            node.name.clone()
+        };
+        let tname = self.unique_name(format!("test:{}", tbase));
         let tname = tname.strip_prefix("test:").unwrap_or(&tname).to_string();
         self.write(&format!("test \"{}\"", tname));
         self.write_line(" {");
 
         self.indent();
 
+        // Pre-scan the clauses for names bound more than once. `given a = X`
+        // followed by `when a = Y` is one test setting a value and then changing
+        // it, so the first needs `var` -- which is only knowable from here, with
+        // the whole list in hand.
+        self.clause_rebound.clear();
+        self.clause_seen.clear();
+        {
+            let mut once: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for c in &node.children {
+                if !matches!(c.extra_kind.as_str(), "given" | "when" | "then") {
+                    continue;
+                }
+                let text = c.name.clone();
+                if let Some(k) = top_level_assign(&text) {
+                    let lhs = text[..k].trim();
+                    let bare = lhs.split(':').next().unwrap_or(lhs).trim().to_string();
+                    if !bare.is_empty() && !once.insert(bare.clone()) {
+                        self.clause_rebound.insert(bare);
+                    }
+                }
+            }
+        }
         self.in_test_block = true;
-        self.gen_scoped_stmts(&node.children);
+        // A test block is a SCOPE, and Zig applies the same shadowing rule
+        // inside it. Patch N's rename lives in the function emitter, which a
+        // test block never reaches. Same defect, different emission path.
+        let renamed = self.rename_shadowing_locals(&node.children);
+        self.gen_scoped_stmts(&renamed);
         self.in_test_block = false;
         self.dedent();
         self.write_line("}");
+    }
+
+    /// Rename locals in `body` that shadow a container-level declaration.
+    ///
+    /// Zig forbids a local shadowing a file-scope name, and it counts a shadowed
+    /// container FUNCTION too. Patch N did this for function bodies inline; a
+    /// test block is just as much a scope but is emitted by a different path,
+    /// which is why shadow errors survived N inside `test "..."` blocks.
+    ///
+    /// (I first recorded those survivors as "all 19, in one file". That was a
+    /// `head -6` of the error list read as a census; they are spread over six
+    /// files. The patch was right anyway, but the claim was not.)
+    ///
+    /// `rename_ident` rewrites USES and deliberately ignores call names: a call
+    /// named `foo` is a call TO the container declaration this local is being
+    /// renamed away from, and rewriting it would silently redirect the call.
+    /// (Patch M needed the opposite for the same-looking code, because it
+    /// propagates a value rather than renaming a binding.) `rename_local_decl`
+    /// handles the declaration itself, which lives in `name` rather than in a
+    /// child node.
+    fn rename_shadowing_locals(&self, body: &[Node]) -> Vec<Node> {
+        let mut renames: Vec<(String, String)> = Vec::new();
+        let mut stack: Vec<&Node> = body.iter().collect();
+        while let Some(n) = stack.pop() {
+            if n.kind == NodeKind::StmtLocal
+                && !n.name.is_empty()
+                && self.declared_top.contains(&n.name)
+                && !renames.iter().any(|(f, _)| f == &n.name)
+            {
+                renames.push((n.name.clone(), format!("{}_local", n.name)));
+            }
+            for c in &n.children {
+                stack.push(c);
+            }
+        }
+        if renames.is_empty() {
+            return body.to_vec();
+        }
+        body.iter()
+            .map(|c| {
+                let mut c = c.clone();
+                for (from, to) in &renames {
+                    rename_ident(&mut c, from, to);
+                    rename_local_decl(&mut c, from, to);
+                }
+                c
+            })
+            .collect()
     }
 
     /// Render one behaviour clause as Zig.
@@ -7561,14 +8506,31 @@ impl Codegen {
                 let k = top_level_assign(p).unwrap();
                 let (lhs, rhs) = p.split_at(k);
                 let val = rewrite_struct_literal_fields(rhs[1..].trim());
-                self.write_line(&format!("const {} = {};", zig_ident(lhs.trim()), val));
+                let nm = zig_ident(lhs.trim());
+                // `given rst_n = false` on a name the file ALREADY declares is
+                // an assignment, not a new binding. Emitting `const` there
+                // produced two defects at once in specs/fpga/testbench/*.t27:
+                // the local shadows the container `var rst_n`, and a second
+                // clause binding the same name (`and rst_n = true`) redeclares
+                // it in the same scope.
+                //
+                // Patches N and O could not reach this: they rename StmtLocal
+                // nodes, and a clause is rendered straight to text here. Renaming
+                // would have been wrong anyway -- the clause means "set the
+                // module's variable", so a renamed copy would leave the real one
+                // untouched and the test asserting about the wrong thing.
+                if self.declared_top.contains(&nm) {
+                    self.write_line(&format!("{} = {};", nm, val));
+                } else {
+                    self.write_line(&format!("const {} = {};", nm, val));
+                }
             }
             for p in &parts {
                 let k = top_level_assign(p).unwrap();
                 let lhs = p[..k].trim();
                 let name = zig_ident(lhs.split(':').next().unwrap_or(lhs).trim());
                 self.write_indent();
-                self.write_line(&format!("_ = {};", name));
+                self.write_line(&format!("_ = &{};", name));
             }
             return;
         }
@@ -7576,6 +8538,17 @@ impl Codegen {
         match top_level_assign(&text) {
             Some(i) => {
                 let (lhs, rhs) = text.split_at(i);
+                // `given _ = vec_push(&v, 42)` -- the clause performs an action
+                // and throws the result away. Zig spells that `_ = expr;`.
+                // `const _ = expr;` is not a binding it accepts, and two of them
+                // in one test block are a redeclaration on top of that.
+                if lhs.trim() == "_" {
+                    self.write_line(&format!(
+                        "_ = {};",
+                        rewrite_struct_literal_fields(rhs[1..].trim())
+                    ));
+                    return;
+                }
                 let mut val = rhs[1..].trim().to_string();
                 // `given trits = [TRIT_POS, TRIT_ZERO]` -- a bracketed list on
                 // the value side, emitted with its brackets. 80 lines in 11
@@ -7617,7 +8590,7 @@ impl Codegen {
                     // discard is safe where the guess would not be.
                     for n in names.iter().filter(|n| *n != "_") {
                         self.write_indent();
-                        self.write_line(&format!("_ = {};", n));
+                        self.write_line(&format!("_ = &{};", n));
                     }
                     return;
                 }
@@ -7646,13 +8619,56 @@ impl Codegen {
                         val
                     )),
                     None => {
-                        self.write_line(&format!("const {} = {};", zig_ident(lhs_t), val))
+                        // `given rst_n = false` on a name the file ALREADY
+                        // declares is an ASSIGNMENT, not a new binding. Emitting
+                        // `const` produced two defects at once in
+                        // specs/fpga/testbench/*.t27: the binding shadows the
+                        // container `var rst_n`, and a second clause on the same
+                        // name (`and rst_n = true`) redeclares it in one scope.
+                        //
+                        // Patches N and O could not reach this -- they rename
+                        // StmtLocal nodes, and a clause is rendered straight to
+                        // text here. Renaming would have been WRONG anyway: the
+                        // clause means "set the module's variable", so a renamed
+                        // copy leaves the real one untouched and the test then
+                        // asserts about the wrong thing.
+                        let nm = zig_ident(lhs_t);
+                        if self.declared_top.contains(&nm) {
+                            self.write_line(&format!("{} = {};", nm, val))
+                        } else if self.clause_rebound.contains(lhs_t.trim()) {
+                            // The same rule one scope DOWN: a name an earlier
+                            // clause in THIS test already bound. `given a = X`
+                            // then `when a = Y` is a setup and a change, so the
+                            // first is `var` and the rest are assignments.
+                            // Which occurrence this is comes from clause_seen;
+                            // the pre-scan in the test emitter decided the set.
+                            if self.clause_seen.insert(lhs_t.trim().to_string()) {
+                                self.write_line(&format!("var {} = {};", nm, val))
+                            } else {
+                                self.write_line(&format!("{} = {};", nm, val))
+                            }
+                        } else {
+                            self.write_line(&format!("const {} = {};", nm, val))
+                        }
                     }
                 }
             }
             // Zig rejects a discarded-free expression statement, so an action
             // clause is bound to `_`.
-            None => self.write_line(&format!("_ = {};", text)),
+            // A bare identifier here is a BINDING, and `_ = x;` is rejected when x is
+            // read later ("pointless discard"). `_ = &x;` is accepted either way.
+            // Anything else is an expression, where `&` would be wrong.
+            None => {
+                let bare = text.trim();
+                let is_ident = !bare.is_empty()
+                    && bare.chars().next().map(|c| c.is_ascii_alphabetic() || c == '_').unwrap_or(false)
+                    && bare.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                if is_ident {
+                    self.write_line(&format!("_ = &{};", bare));
+                } else {
+                    self.write_line(&format!("_ = {};", text));
+                }
+            }
         }
         // Zig rejects a binding nothing reads. 126 of the errors this
         // rendering introduced were that -- a `given` whose name no later
@@ -7672,19 +8688,80 @@ impl Codegen {
                 let lhs = text[..i].trim();
                 let name = zig_ident(lhs.split(':').next().unwrap_or(lhs).trim());
                 self.write_indent();
-                self.write_line(&format!("_ = {};", name));
+                self.write_line(&format!("_ = &{};", name));
             }
         }
     }
 
     fn gen_invariant_block(&mut self, node: &Node) {
+        // A PARAMETERISED invariant is a property over its parameters, so it
+        // becomes a function that takes them. A `comptime` block cannot hold
+        // it: the parameters have no compile-time values, which is the same
+        // reason the unparameterised invariants emit free variables and fail.
+        if !node.extra_type.is_empty() && !node.children.is_empty() {
+            let params = node
+                .extra_type
+                .split(", ")
+                .map(|p| match p.split_once(": ") {
+                    Some((n, t)) => format!("{}: {}", zig_ident(n), Self::zig_type(t)),
+                    None => p.to_string(),
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.write_line(&format!("fn {}({}) void {{", zig_ident(&node.name), params));
+            self.indent();
+            self.gen_scoped_stmts(&node.children);
+            self.dedent();
+            self.write_line("}");
+            return;
+        }
+        // An UNPARAMETERISED invariant whose body reads names nothing declares
+        // is quantified too -- the spec just did not write the parameter list.
+        // Give it one, so the property is preserved and compile-checked instead
+        // of emitting undeclared identifiers.
+        //
+        // ONLY when there is at least one free name. 763 invariant blocks have
+        // a body and 732 of them COMPILE TODAY, evaluated at comptime; turning
+        // one of those into an uncalled function would silently downgrade a
+        // real evaluation to a mere type-check. The guard is what keeps a 24:1
+        // trade from happening.
+        //
+        // `anytype` because the free names have no types anywhere to take. A
+        // fixture confirmed the shape holds: an uncalled function with anytype
+        // parameters compiles as long as everything ELSE it names is declared,
+        // and the parameters make the quantified names declared.
+        if node.extra_type.is_empty() && !node.children.is_empty() {
+            let mut bound = std::collections::HashSet::new();
+            let mut free = std::collections::BTreeSet::new();
+            for c in &node.children {
+                self.collect_free_idents(c, &mut bound, &mut free);
+            }
+            if !free.is_empty() {
+                let params = free
+                    .iter()
+                    .map(|n| format!("{}: anytype", zig_ident(n)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let fname = self.unique_name(node.name.clone());
+                self.write_line(&format!("fn {}({}) void {{", zig_ident(&fname), params));
+                self.indent();
+                self.gen_scoped_stmts(&node.children);
+                self.dedent();
+                self.write_line("}");
+                return;
+            }
+        }
+
         self.write_line("comptime {");
 
         self.indent();
         self.write_indent();
         self.write_line(&format!("// invariant: {}", node.name));
 
+        let was_comptime = self.in_comptime;
+        self.in_comptime = true;
         self.gen_scoped_stmts(&node.children);
+        self.in_comptime = was_comptime;
 
         if node.children.is_empty() {
             self.write_indent();
@@ -7709,6 +8786,79 @@ impl Codegen {
     }
 
     /// A name not yet emitted in this file, suffixed if it collides.
+    /// The names an invariant body READS that nothing in scope declares.
+    ///
+    /// `invariant k3_and_commutative { assert k3_and(a, b) == k3_and(b, a) }`
+    /// is universally quantified: `a` and `b` are bound by the property, not
+    /// declared, so the emitted `comptime` block referenced undeclared names.
+    /// Naming them lets the block become a function that TAKES them.
+    ///
+    /// Only `ExprIdentifier` counts -- a call's own name is not a value being
+    /// read, and a field-access base is reached as text. `bound` accumulates
+    /// across siblings rather than following block scope exactly: over-binding
+    /// classifies FEWER names as free, so the error is always toward leaving an
+    /// invariant alone, which is the safe direction when 732 of them compile.
+    fn collect_free_idents(
+        &self,
+        node: &Node,
+        bound: &mut std::collections::HashSet<String>,
+        out: &mut std::collections::BTreeSet<String>,
+    ) {
+        // A local binds its name -- but a BEHAVIOUR CLAUSE carries its whole
+        // text in `name` (`u = utilization(0, 0, 0, 0)`), so inserting it whole
+        // bound a string no identifier can ever equal. `given u = ...` then
+        // looked like a free variable, `u` became a parameter, and the clause
+        // redeclared it in the body: "local constant shadows declaration",
+        // 3 -> 7 of them, in files this patch was supposed to leave alone.
+        // Take the head of the binding, not the sentence.
+        if !node.name.is_empty() && node.kind != NodeKind::ExprIdentifier {
+            let head = node
+                .name
+                .split('=')
+                .next()
+                .unwrap_or(&node.name)
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim();
+            if !head.is_empty() {
+                bound.insert(head.to_string());
+            }
+            bound.insert(node.name.clone());
+        }
+        for (p, _) in node.params.iter() {
+            bound.insert(p.clone());
+        }
+        if node.kind == NodeKind::ExprIdentifier {
+            let n = &node.name;
+            if !n.is_empty()
+                && !bound.contains(n)
+                && !self.declared_top.contains(n)
+                && !self.declared.contains(n)
+                && !is_zig_primitive(n)
+                // The SHIMS, which `declared_top` cannot see: they are injected
+                // by a different emitter (math_shims_for, plus assert/assert_eq/
+                // pow), exactly the split the import emitter already warns about
+                // a hundred lines up. Missing `assert_eq` from this list turned
+                // math/gf_competitive.zig's invariant into
+                // `fn NAME(assert_eq: anytype, ...)` and Zig called it
+                // "function parameter shadows declaration of 'assert_eq'" --
+                // one file BROKEN while another was fixed, which the file count
+                // reported as "unchanged".
+                && !matches!(
+                    n.as_str(),
+                    "std" | "assert" | "assert_eq" | "abs" | "sqrt" | "ln" | "PI" | "E" | "pow"
+                        | "true" | "false" | "null" | "undefined" | "_"
+                )
+            {
+                out.insert(n.clone());
+            }
+        }
+        for c in &node.children {
+            self.collect_free_idents(c, bound, out);
+        }
+    }
+
     fn unique_name(&mut self, base: String) -> String {
         if self.emitted_names.insert(base.clone()) {
             return base;
@@ -7836,6 +8986,17 @@ impl Codegen {
                 if node.name.trim().is_empty() {
                     return;
                 }
+                // `let _ = h.to_i64();` is Rust's DISCARD, not a binding, and
+                // Zig spells the same thing `_ = h.to_i64();`.
+                if node.name.trim() == "_" && node.extra_kind != "destructure" {
+                    if let Some(v) = node.children.first() {
+                        self.write_indent();
+                        self.write("_ = ");
+                        self.gen_expr(v);
+                        self.write_line(";");
+                    }
+                    return;
+                }
                 // `const (x, y) = f()` -- Zig writes each name with its own
                 // keyword: `const x, const y = f();`.
                 if node.extra_kind == "destructure" && !node.params.is_empty() {
@@ -7855,7 +9016,15 @@ impl Codegen {
                     return;
                 }
                 self.write_indent();
-                if node.extra_mutable {
+                // A typed local with no initializer is a forward declaration
+                // whose value arrives by later assignment, so it must be `var`.
+                // The ` = undefined` it also needs was ALREADY emitted further
+                // down -- my first attempt added a second one and produced
+                // `var b: f64 = undefined = undefined`. The emitter was never
+                // the problem here; dead-code elimination deleting the statement
+                // was.
+                let forward_decl = node.children.is_empty() && !node.extra_type.is_empty();
+                if node.extra_mutable || forward_decl {
                     self.write("var ");
                 } else {
                     self.write("const ");
@@ -7939,6 +9108,16 @@ impl Codegen {
             NodeKind::StmtIf => {
                 self.gen_if_stmt(node);
             }
+            // A switch in STATEMENT position takes NO trailing semicolon in Zig
+            // -- `switch (x) { ... }` IS the statement. Reaching it through the
+            // expression path appended one, and Zig answered `expected
+            // statement, found ';'` on the `};` closing the switch. One slip in
+            // 312 restored lines, and the only error left in server/vm.zig.
+            NodeKind::ExprSwitch => {
+                self.write_indent();
+                self.gen_expr(node);
+                self.write_line("");
+            }
             NodeKind::StmtWhile => {
                 self.gen_while_stmt(node);
             }
@@ -7952,6 +9131,17 @@ impl Codegen {
                 self.write_line("continue;");
             }
             NodeKind::StmtExpr => {
+                // An UNBOUNDED quantifier, recorded rather than asserted. See
+                // the parser note: `forall F, D : pred` has no range, so there
+                // is no loop to emit and lowering it would be inventing a
+                // semantics. Emitting the text keeps the property visible in
+                // the artifact instead of dropping it, and
+                // `grep -c "unchecked property"` counts what is not checked.
+                if !node.extra_op.is_empty() && node.extra_op.starts_with("unchecked property:") {
+                    self.write_indent();
+                    self.write_line(&format!("// {}", node.extra_op));
+                    return;
+                }
                 self.write_indent();
                 // A call whose value is dropped. Zig rejects it, and the spec
                 // clearly means "run this", so bind it to `_`.
@@ -8050,10 +9240,24 @@ impl Codegen {
         self.write_line(" {");
 
         self.indent();
+        // `gen_if_stmt`'s OWN branches call gen_scoped_stmts, which demotes a
+        // `let` (default extra_mutable=true) to `const` when nothing in the
+        // rest of the block assigns it, and discards an unread one. This
+        // sibling function -- reached for every `else if` and the final
+        // `else` of a chain, since that is what "inline" means here -- called
+        // gen_stmt per statement directly instead, skipping that pass
+        // entirely. `if x > 10 { let k = ...; ... } else if x < -10 { let k =
+        // ...; ... }` demoted the FIRST k to `const` and left the second, in
+        // this very function's body, as `var k = ...;` with nothing ever
+        // assigning it -- Zig's "local variable is never mutated". Same root
+        // cause put an unmutated `var power = ...;` in numeric/jones_
+        // polynomial.zig's final `else`. Matches gen_if_stmt exactly (that
+        // sibling calls gen_scoped_stmts with no pre-processing either) --
+        // both branches carry the identical indent state at this point (only
+        // the opening `if (` line itself differs in whether ITS OWN indent is
+        // written), so this is a mechanical parity fix, not a new behaviour.
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_scoped_stmts(&node.children[1].children);
         }
         self.dedent();
 
@@ -8067,9 +9271,7 @@ impl Codegen {
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_stmt(stmt);
-                }
+                self.gen_scoped_stmts(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -8088,6 +9290,11 @@ impl Codegen {
         }
         self.write(")");
         self.write_capture(node);
+        // Zig puts the continue expression AFTER the capture:
+        // `while (cond) |x| : (i += 1) { ... }`.
+        if !node.extra_op.is_empty() {
+            self.write(&format!(" : ({})", node.extra_op));
+        }
         self.write_line(" {");
 
         self.indent();
@@ -8100,7 +9307,40 @@ impl Codegen {
     }
 
     fn gen_for_stmt(&mut self, node: &Node) {
+        // `for (xs) |_| { f(acc, _) }` -- the spec spells the capture with the
+        // discard and then READS it. `_` is not a name in Zig. Discard
+        // statements inside the body keep their `_`, which is why this is not
+        // rename_ident: that would rewrite the left side of `_ = x;` too.
+        let renamed;
+        let node = if node
+            .params
+            .iter()
+            .any(|(n, _)| n == "_")
+            && node.children.last().map_or(false, reads_underscore)
+        {
+            let mut c = node.clone();
+            for (n, _) in c.params.iter_mut() {
+                if n == "_" {
+                    *n = "t27_item".to_string();
+                }
+            }
+            if let Some(body) = c.children.last_mut() {
+                rename_underscore_reads(body, "t27_item");
+            }
+            renamed = c;
+            &renamed
+        } else {
+            node
+        };
         self.write_indent();
+        // The `inline` modifier the parser captured -- but NOT inside a
+        // `comptime` block, where Zig rejects it as redundant. Every one of the
+        // corpus's 16 sites is inside an invariant, so this is the whole
+        // difference between the patch working and it swapping one error class
+        // for a larger one.
+        if node.extra_kind == "inline" && !self.in_comptime {
+            self.write("inline ");
+        }
         self.write("for (");
 
         // Iterables are children[0..n-1], last child is the body block
@@ -8146,7 +9386,28 @@ impl Codegen {
 
         self.indent();
         if !node.children.is_empty() {
-            self.gen_scoped_stmts(&node.children[body_idx].children);
+            let body = &node.children[body_idx].children;
+            // A NAMED capture the body never reads -- `for (server.clients)
+            // |client| { // Send formatted event to client }`, a stub that
+            // spells its intent in a comment and does nothing yet. The empty-
+            // capture case just above already discards `_` for a body with no
+            // params at all; this is the same shape one step later, once the
+            // spec has given the capture a name the body does not use. Zig
+            // calls it "unused capture" rather than the parameter version's
+            // "unused function parameter", but the fix is the same discard
+            // this emitter already writes for every other unused binding.
+            //
+            // mentions_identifier, not a raw `==`: it already carries the
+            // fix for `allocator.alloc(...)` reading as unrelated to
+            // `allocator` under exact equality -- the same false-unused risk
+            // applies to a capture used only via `.field` or `[i]`.
+            for (name, _) in &node.params {
+                if name != "_" && !body.iter().any(|c| mentions_identifier(c, name)) {
+                    self.write_indent();
+                    self.write_line(&format!("_ = &{};", zig_ident(name)));
+                }
+            }
+            self.gen_scoped_stmts(body);
         }
         self.dedent();
         self.write_indent();
@@ -8181,6 +9442,21 @@ impl Codegen {
             // 3 lines in 2 files. Only this one: the other builtins in the
             // corpus already carry their arguments.
             NodeKind::ExprIdentifier if node.name == "@This" => self.write("@This()"),
+            // A parameter named `type` is DECLARED escaped -- zig_ident lists it
+            // among ZIG_PRIMITIVES -- and was USED bare, because zig_expr_name
+            // only escapes ZIG_KEYWORDS_ALL and `type` is a primitive type name
+            // rather than a keyword:
+            //
+            //     pub fn make(@"type": u8) R { return R{ .kind = type }; }
+            //
+            // Zig then reports the parameter as unused (nothing reads `@"type"`)
+            // and reads the body's `type` as the primitive. The field name on the
+            // same line IS escaped, which is what makes the asymmetry visible.
+            //
+            // Only `type`, and only as a BARE identifier. Escaping every
+            // primitive here would reach type annotations, which do not come
+            // through this path but are not worth the risk for five errors.
+            NodeKind::ExprIdentifier if node.name == "type" => self.write("@\"type\""),
             NodeKind::ExprIdentifier => self.write(&zig_expr_name(&node.name)),
             NodeKind::ExprEnumValue => {
                 self.write(".");
@@ -8319,9 +9595,27 @@ impl Codegen {
                     self.gen_expr_maybe_paren(&node.children[0]);
                     self.write(&format!(" {} ", node.extra_op));
                     self.gen_expr_maybe_paren(&node.children[1]);
+                } else if node.children.len() == 1 && node.extra_op == ".." {
+                    // The OPEN-ENDED range's other half: `a[0..]` and
+                    // `for (xs, 0..) |x, i|` both need the bare `left..` Zig
+                    // itself accepts, with no trailing operand or space --
+                    // `0 ..` is likewise valid but `0..` is what every one of
+                    // the 99 corpus sites already reads like.
+                    self.gen_expr_maybe_paren(&node.children[0]);
+                    self.write("..");
                 }
             }
             NodeKind::ExprUnary => {
+                // Zig has no PREFIX deref -- `*x` is not legal syntax, only
+                // the postfix `x.*`. This is the one prefix operator that
+                // needs to swap sides rather than just carry its spelling.
+                if node.extra_op == "*" {
+                    if !node.children.is_empty() {
+                        self.gen_expr_maybe_paren(&node.children[0]);
+                    }
+                    self.write(".*");
+                    return;
+                }
                 self.write(&node.extra_op);
                 if !node.children.is_empty() {
                     self.gen_expr(&node.children[0]);
@@ -8409,7 +9703,17 @@ impl Codegen {
                         }
                         self.write(" => ");
                         if !case_node.children.is_empty() {
-                            self.gen_expr(&case_node.children[0]);
+                            let body = &case_node.children[0];
+                            if body.kind == NodeKind::Module && body.name == "body" {
+                                self.write_line("{");
+                                self.indent();
+                                self.gen_scoped_stmts(&body.children);
+                                self.dedent();
+                                self.write_indent();
+                                self.write("}");
+                            } else {
+                                self.gen_expr(body);
+                            }
                         }
                         self.write_line(",");
                     }
@@ -8491,10 +9795,25 @@ impl Codegen {
                 //
                 // Same lowering the elided form `T{...}` already gets, for the
                 // same reason: `std.mem.zeroes(T)` is total.
+                // An ANONYMOUS literal (`.{ ... }`) has no type name to write
+                // -- `node.name` is empty exactly when parse_expr_primary's
+                // `.{` branch built this node, since a NAMED literal's name
+                // always comes from a non-empty Ident token. `std.mem.zeroes`
+                // needs a type argument it does not have; `.{}` is what Zig
+                // itself spells an empty anonymous literal.
+                let anon = node.name.is_empty();
                 if node.children.is_empty() {
-                    self.write(&format!("std.mem.zeroes({})", zig_expr_name(&node.name)));
+                    if anon {
+                        self.write(".{}");
+                    } else {
+                        self.write(&format!("std.mem.zeroes({})", zig_expr_name(&node.name)));
+                    }
                 } else {
-                    self.write(&zig_expr_name(&node.name));
+                    if anon {
+                        self.write(".");
+                    } else {
+                        self.write(&zig_expr_name(&node.name));
+                    }
                     self.write("{ ");
                     for (i, field) in node.children.iter().enumerate() {
                         if i > 0 {
@@ -10936,6 +12255,19 @@ fn split_use_path(
             .map(String::from)
             .collect();
     }
+    // A GLOB tail -- `import ffi::gf16::*;` -- means "bring in everything this
+    // module declares", which is exactly what the whole-module branch already
+    // does: it binds the module and then binds every pooled name the file uses
+    // bare. So drop the star and let that path handle it.
+    //
+    // Dropping it is also what keeps the star out of BINDING position. Left in,
+    // it is the last segment, and the emitter writes `const * = @import(...)`
+    // -- not an error in the file that caused it but a PARSE error, which caps
+    // that file at one reported error and would have shown up as an improvement.
+    // Two such lines in the corpus, both in interop/gf_cross_language.t27.
+    if segs.last().map(|s| s == "*").unwrap_or(false) {
+        segs.pop();
+    }
     let mut cut = segs.len();
     let mut resolved: Option<Vec<String>> = None;
     while cut > 0 {
@@ -12611,9 +13943,23 @@ fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStat
 }
 
 fn is_dead_local(node: &Node) -> bool {
-    if node.kind == NodeKind::StmtLocal && node.children.is_empty() && !node.extra_type.is_empty() {
-        return true;
-    }
+    // A typed local with no initializer is a FORWARD DECLARATION, not dead code:
+    //
+    //     const success_rate : f64;          specs/queen/brain_summaries.t27:146
+    //     if (...) { success_rate = ... } else { success_rate = 0.0; }
+    //
+    // Dead-code elimination used to delete exactly this shape -- `StmtLocal &&
+    // children.is_empty() && !extra_type.is_empty()` -- and the assignments that
+    // followed were left referencing a name nothing declared. The rest of the
+    // body survived, which is why it read as an ordinary undeclared identifier
+    // rather than as anything DCE-shaped, and why four passes over the emitter
+    // did not find it.
+    //
+    // Nothing is dead here now. The predicate is kept rather than deleted
+    // because it is the documented hook for the next real case, and because
+    // stats.dead_removed reading 0 is honest where a silently removed pass would
+    // not be.
+    let _ = node;
     false
 }
 
@@ -12750,6 +14096,20 @@ fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             && !written.contains(&stmt.children[0].name)
             // `undefined` is the absence of a value, not a copy of one.
             && stmt.children[0].name != "undefined"
+            // `collect_written`/`assign_root` only see NodeKind::StmtAssign --
+            // a while loop's CONTINUE EXPRESSION is stored as TEXT in
+            // extra_op (patch Q), invisible to that walk. `var i = BASE_
+            // FEATURE_COUNT; while (i < DIM) : (i += 1) { ...i... }` then
+            // looked like `i` was never written anywhere, and every
+            // subsequent read of `i` -- including the LOOP'S OWN CONDITION --
+            // got replaced with `BASE_FEATURE_COUNT`. `i < DIM` became
+            // `BASE_FEATURE_COUNT < DIM`, a condition the loop can never
+            // change by iterating: an infinite loop if true, dead code if
+            // false. Reuses while_continue_assigns verbatim -- already
+            // proven correct for the READ side of this same blind spot
+            // (dead_store_elim, patch Z) -- rather than rebuilding its
+            // word-boundary text scan a second time.
+            && !stmts.iter().any(|s| while_continue_assigns(s, &stmt.name))
         {
             replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
         }
@@ -12812,9 +14172,57 @@ fn replace_ident_with_literal(node: &mut Node, name: &str, val: &str, stats: &mu
     }
 }
 
+/// Replace whole-identifier occurrences of `from` with `to` inside call-name
+/// TEXT, leaving anything that is merely a substring alone.
+///
+/// A call node's name is a String, not a tree: patches K..K5 rebuild a method
+/// call's receiver into it, so `(3.0 * phi).pow` is text by the time any AST
+/// pass runs. Boundaries matter more than usual here -- a naive replace turns
+/// `phi_sq` into `sacred_physics.PHI_sq` and `sacred_physics.phi` into
+/// `sacred_physics.sacred_physics.PHI`, both of which compile as something else.
+/// So a match must not be flanked by an identifier character, and must not
+/// follow a `.` (it would be a field, not the local).
+fn replace_whole_ident(text: &str, from: &str, to: &str) -> String {
+    let b: Vec<char> = text.chars().collect();
+    let f: Vec<char> = from.chars().collect();
+    let idc = |c: char| c.is_alphanumeric() || c == '_';
+    let mut out = String::new();
+    let mut i = 0usize;
+    while i < b.len() {
+        if b[i..].starts_with(f.as_slice())
+            && (i == 0 || (!idc(b[i - 1]) && b[i - 1] != '.'))
+            && (i + f.len() >= b.len() || !idc(b[i + f.len()]))
+        {
+            out.push_str(to);
+            i += f.len();
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
 fn propagate_ident(node: &mut Node, from: &str, to: &str) {
     if node.kind == NodeKind::ExprIdentifier && node.name == *from {
         node.name = to.to_string();
+    }
+    // A CALL NAME is text, and copy propagation could not see into it. The local
+    // was inlined at every ExprIdentifier use and its declaration removed, while
+    // a use baked into a call name survived unsubstituted -- so the output
+    // referenced a name that no longer existed.
+    //
+    // Minimal reproduction (9 lines, scratchpad/probe2.t27):
+    //     const phi = sacred_physics::PHI;
+    //     const a = phi + 1.0;              -> const a = sacred_physics.PHI + 1.0;   substituted
+    //     const b = (3.0 * phi).pow(-5.0);  -> const b = (3.0 * phi).pow(-5.0);      NOT substituted
+    //
+    // This surfaced only after K5 restored the receiver; before that the whole
+    // receiver was deleted, so the dangling use was deleted along with it. The
+    // error K5 "introduced" in pellis_precision_verify is this one, and it was
+    // always there -- one defect was hiding inside another.
+    if node.kind == NodeKind::ExprCall && node.name.contains(from) {
+        node.name = replace_whole_ident(&node.name, from, to);
     }
     for (i, child) in node.children.iter_mut().enumerate() {
         if node.kind == NodeKind::StmtAssign && i == 0 {
@@ -13058,6 +14466,34 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             NodeKind::StmtWhile => {
                 for child in &stmt.children {
                     collect_reads(child, &mut reads);
+                }
+                // The CONTINUE EXPRESSION is text (patch Q stores it in
+                // extra_op), so collect_reads cannot walk it. A variable read
+                // ONLY there is invisible to this pass and its declaration gets
+                // deleted as a dead store:
+                //
+                //     var step : usize = 2;
+                //     while (i < n) : (i += step) { ... }
+                //
+                // emitted the loop with `i += step` and no `step`. Predicted from
+                // the absence of extra_op in this match, then reproduced.
+                //
+                // Deliberately over-collects: every identifier-shaped token in
+                // the text counts as a read. Keeping a store that is genuinely
+                // dead costs an unused-variable warning; deleting a live one
+                // costs a compile error, so the bias belongs on this side.
+                if !stmt.extra_op.is_empty() {
+                    let mut word = String::new();
+                    for ch in stmt.extra_op.chars().chain(std::iter::once(' ')) {
+                        if ch.is_alphanumeric() || ch == '_' {
+                            word.push(ch);
+                        } else {
+                            if !word.is_empty() && !word.chars().next().unwrap().is_numeric() {
+                                reads.insert(std::mem::take(&mut word));
+                            }
+                            word.clear();
+                        }
+                    }
                 }
             }
             NodeKind::StmtFor => {
