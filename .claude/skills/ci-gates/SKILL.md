@@ -11387,3 +11387,56 @@ exactly the two scripts arrive. Removing the extension check turns it red.
 **The general shape:** when a probe builds a world to run something in, the
 world is a component with its own defects, and the cheapest check on it is to
 ask what it contains rather than what you meant to put there.
+
+## 446. The knowledge base has 121 figures and 40 instruments
+
+This file is 11,389 lines and 409 numbered sections, and until now nothing had
+ever asked how many of its own claims a second reader could re-take.
+
+    numbered sections             409
+    stating a figure              121
+    of those, naming a command     40
+    of those, anchored (dated)      5
+    free to go stale              116
+
+A figure with no command beside it is not wrong -- it is **unre-takeable by
+anyone but its author**, and that is the rot surface. The three files under
+`.agents/skills/` and `.trinity/agents/` are named in the output as outside the
+population, because a count that quietly excludes part of its subject is the
+defect this page keeps recording.
+
+The population rule and the anchor rule are the ones `tri issues numbers` and
+`tri issues dated` already use, pointed at a second subject: an address is not a
+count in a skill either -- these headings are full of `#2994`, `Wave Loop 369`
+and `w699` -- and a section that says *"I published 268 and it was wrong in both
+directions"* is history rather than a claim about the tree.
+
+**But the subject had to change with the rule.** Read from section BODIES the
+same matcher reports **404 of 409**, which is a matcher describing its input: a
+section here is twenty-five lines of prose about numbers, so of course almost
+all of them mention one. Read from the HEADING -- where the claim is actually
+made, the way an issue's title is -- it reports **121**. *A rule written for a
+one-line claim does not transfer to a page of argument by being pointed at it;
+the subject has to be the place the claim is made.*
+
+**Not resolved, and said rather than smoothed over.** A throwaway probe over the
+same headings reports **123**. Four attempts to locate the two-section gap
+failed -- the comparison kept matching on truncated titles rather than on
+sections -- and the shipped number is the one the tested matcher gives. Two
+readings of one population disagree by 2, the direction is not established, and
+§421 is what to do about it: report both and say which one the tool uses.
+
+## 447. `cargo fmt` sorted forty `mod` lines the change never touched
+
+The trap already written down for a crate root, met one door over: this time
+the reordering landed **inside the one file the change does edit**, so it was
+not visible as "other files are dirty" -- `git status` showed exactly the two
+files I meant to touch. It surfaced only in `git diff --stat`: `main.rs`, 45
+lines changed, 20 of them deletions, for a two-line wiring change.
+
+`git checkout origin/master -- <file>` and replay the edit brings it to
+**9 insertions, 0 deletions**.
+
+**The check that catches it is the shape of the diff, not the list of files.**
+A wiring change that adds a subcommand has no deletions; when the stat shows
+some, the question is what else the formatter decided while it was in there.

@@ -311,6 +311,12 @@ enum SkillAction {
         #[arg(long)]
         gaps: bool,
     },
+    /// Sections that state a FIGURE, and which of those a reader can re-take.
+    Claims {
+        /// Print every section in the free population, one line each.
+        #[arg(long)]
+        list: bool,
+    },
     Begin {
         #[arg(long)]
         issue: u64,
@@ -873,6 +879,9 @@ fn main() -> Result<()> {
             match action {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
+                }
+                SkillAction::Claims { list } => {
+                    skillnum::run(&skillnum::SkillCmd::Claims { list: *list })?
                 }
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
