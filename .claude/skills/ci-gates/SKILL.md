@@ -12449,7 +12449,7 @@ because a census that prints only its totals cannot be argued with -- and this o
 wrong in its totals while every total looked plausible.
 
 
-## 999. A second heuristic to cover the first one's false positive
+## 473. A second heuristic to cover the first one's false positive
 
 `tri gates empty` reports every gate invocation that PASSES against a tree with
 nothing in it -- five of them. That is a shape and not a verdict, and going
