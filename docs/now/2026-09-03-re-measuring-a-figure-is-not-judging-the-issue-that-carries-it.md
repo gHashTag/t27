@@ -1,4 +1,8 @@
-# Re-measuring a figure is not judging the issue that carries it
+# NOW -- Re-measuring a figure is not judging the issue that carries it (2026-09-03)
+
+- `tri issues dated` reports which stated figures a second reading can decide: of 486 open issues, 289 carry a figure and **83 are anchored** (27 pin a revision, 31 say as-of, 25 already answered).
+- It flags **#2160**, the issue whose figure I wrongly called stale by re-measuring it to 0.
+- The revision matcher's two float rules were each redundant on this corpus -- deleting either left every test green -- so mutation, not reading, found the untested control.
 
 `tri issues dated` reads every open issue whose title states a figure and reports
 which of those figures a second reading can actually decide.
