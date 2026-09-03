@@ -45,6 +45,12 @@ pub fn run(cmd: &HooksCmd) -> Result<()> {
 
 fn pre_commit() -> Result<()> {
     now_gate(None, None)?;
+    // Freshness and shape are two questions, and until this line only the
+    // first was asked here. Measured on one malformed entry dated today: the
+    // required `check` context reported three complaints while this hook, and
+    // three of the other four local readers, went green -- one of them green
+    // BECAUSE of that file, since its freshness loop found it and stopped.
+    crate::nownote::check_staged()?;
     l1_check()?;
     println!("tri hooks pre-commit: PASSED");
     Ok(())

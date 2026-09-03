@@ -42,6 +42,15 @@ pub enum IssuesCmd {
         #[arg(long, default_value_t = 500)]
         limit: usize,
     },
+    /// Open issues whose figure is ANCHORED, so re-measuring it proves nothing.
+    Dated {
+        /// How many open issues to read.
+        #[arg(long, default_value_t = 500)]
+        limit: usize,
+        /// Also print the anchored issues, one line each.
+        #[arg(long)]
+        list: bool,
+    },
 }
 
 /// The phrases a title uses to call something red.
@@ -483,6 +492,7 @@ struct Row {
 pub fn run(cmd: &IssuesCmd) -> Result<()> {
     let limit = match cmd {
         IssuesCmd::Numbers { sample, limit } => return numbers(*sample, *limit),
+        IssuesCmd::Dated { limit, list } => return dated(*limit, *list),
         IssuesCmd::Stale { limit } => limit,
     };
     let root = repo_root()?;
@@ -827,4 +837,269 @@ mod tests {
         d
     }
     static NTH: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+}
+
+// ---------------------------------------------------------------------------
+// `tri issues dated` -- the figures that re-measurement cannot judge.
+// ---------------------------------------------------------------------------
+
+/// The revisions a body pins, by their spelling in the text.
+///
+/// A hex run of 7..=40 characters carrying at least one letter and one digit is
+/// the shape of an abbreviated commit id -- and it is also the shape of a chunk
+/// of a float. Two counter-examples from this backlog, both real:
+///
+/// * #2824 prints `s[0] = -1.7594823e-05`, whose `7594823e` is a perfect match.
+/// * #2658 lists `` `5.391247e-44` `` INSIDE BACKTICKS, so "quoted like code"
+///   does not separate them either.
+///
+/// Two rules reject them: a revision is never preceded by a decimal point, and
+/// a hex run ending in `e` immediately before a sign is a mantissa, not an id.
+/// Shape alone matched 45 of the 486 open BODIES; the rules bring it to 43,
+/// and both dropped were floats. (The command's own population is smaller --
+/// only issues whose title carries a figure -- so its `pins a revision` line
+/// is not this 43.)
+///
+/// Neither rule is redundant, and measuring that took a mutation: across all
+/// 486 open bodies BOTH rejections are caught by BOTH rules, so deleting either
+/// one leaves every test green. `each_float_rule_decides_a_case_the_other_misses`
+/// supplies the two inputs that separate them -- `5391247e-44` has no dot, and
+/// `1.2345678e12` has no sign for the `e` to sit before.
+pub fn revision_pins(body: &str) -> Vec<String> {
+    let b: Vec<char> = body.chars().collect();
+    let hex = |c: char| c.is_ascii_digit() || ('a'..='f').contains(&c);
+    let mut out: Vec<String> = Vec::new();
+    let mut i = 0usize;
+    while i < b.len() {
+        if !hex(b[i]) || (i > 0 && b[i - 1].is_alphanumeric()) {
+            i += 1;
+            continue;
+        }
+        let mut j = i;
+        while j < b.len() && hex(b[j]) {
+            j += 1;
+        }
+        let s: String = b[i..j].iter().collect();
+        let long = (7..=40).contains(&s.len());
+        let mixed =
+            s.chars().any(|c| c.is_ascii_digit()) && s.chars().any(|c| c.is_ascii_alphabetic());
+        let after_point = i > 0 && b[i - 1] == '.';
+        let exponent = s.ends_with('e') && b.get(j).is_some_and(|c| *c == '-' || *c == '+');
+        if long && mixed && !after_point && !exponent && (j >= b.len() || !b[j].is_alphanumeric()) {
+            out.push(s);
+        }
+        i = j.max(i + 1);
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Does the body say, in words, that its figure was taken at a fixed point?
+///
+/// Matched on token boundaries so `unfrozen` and `snapshots/` do not decide it.
+pub fn says_as_of(body: &str) -> bool {
+    const WORDS: [&str; 8] = [
+        "as of",
+        "as-of",
+        "snapshot",
+        "frozen",
+        "freeze",
+        "frozen_hash",
+        "at commit",
+        "pinned",
+    ];
+    let low = body.to_lowercase();
+    WORDS.iter().any(|w| names(&low, w))
+}
+
+/// Why re-measuring this issue's figure would not judge it.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Anchor {
+    /// The body pins a revision, so the figure is a reading OF that revision.
+    Revision,
+    /// The body says the figure was taken at a fixed point.
+    AsOf,
+    /// Someone has already answered in the thread.
+    Answered,
+    /// Nothing anchors it: this figure is a claim about the tree as it is, and
+    /// re-measuring it is a real test.
+    Free,
+}
+
+/// Classify one issue. `Revision` outranks `AsOf` outranks `Answered`: the
+/// order is from most mechanical to least, so the reported reason is the one a
+/// second reader can check with the least judgement.
+pub fn anchor_of(body: &str, comments: usize) -> Anchor {
+    if !revision_pins(body).is_empty() {
+        Anchor::Revision
+    } else if says_as_of(body) {
+        Anchor::AsOf
+    } else if comments > 0 {
+        Anchor::Answered
+    } else {
+        Anchor::Free
+    }
+}
+
+fn dated(limit: usize, list: bool) -> Result<()> {
+    let lim = limit.to_string();
+    let raw = gh(&[
+        "issue",
+        "list",
+        "--state",
+        "open",
+        "--limit",
+        &lim,
+        "--json",
+        "number,title,body,comments",
+    ])?;
+    let issues: serde_json::Value = serde_json::from_str(&raw).context("gh returned no JSON")?;
+    let issues = issues.as_array().cloned().unwrap_or_default();
+    if issues.is_empty() {
+        anyhow::bail!(
+            "gh returned no open issues. That is either a repository with none \
+             or a query that did not run, and the two print the same zero."
+        );
+    }
+
+    let mut pop: Vec<(u64, String, Anchor)> = Vec::new();
+    let mut no_figure = 0usize;
+    for it in &issues {
+        let title = it["title"].as_str().unwrap_or("");
+        match carries(title) {
+            Carries::Digits | Carries::Words | Carries::Both => {}
+            _ => {
+                no_figure += 1;
+                continue;
+            }
+        }
+        let body = it["body"].as_str().unwrap_or("");
+        let comments = it["comments"].as_array().map(|a| a.len()).unwrap_or(0);
+        pop.push((
+            it["number"].as_u64().unwrap_or(0),
+            title.to_string(),
+            anchor_of(body, comments),
+        ));
+    }
+    pop.sort_by_key(|(n, _, _)| *n);
+
+    let c = |a: Anchor| pop.iter().filter(|(_, _, x)| *x == a).count();
+    let anchored = pop.len() - c(Anchor::Free);
+
+    println!("OPEN ISSUES WHOSE FIGURE RE-MEASUREMENT CANNOT JUDGE\n");
+    println!("  open issues read              {}", issues.len());
+    println!("  no figure in the title        {no_figure}");
+    println!("  POPULATION (carries a figure) {}", pop.len());
+    println!("  pins a revision               {}", c(Anchor::Revision));
+    println!("  says as-of / snapshot         {}", c(Anchor::AsOf));
+    println!("  already answered in thread    {}", c(Anchor::Answered));
+    println!("  ANCHORED                      {anchored}");
+    println!("  free to re-measure            {}", c(Anchor::Free));
+
+    println!(
+        "\n  Re-measuring a number is not testing the claim that carries it. An\n  \
+         issue that pins a revision states a reading OF that revision; today's\n  \
+         tree disagreeing with it is what a snapshot IS, not a defect. An issue\n  \
+         someone has already answered has been judged by a person, and a fresh\n  \
+         reading adds nothing a reader of the thread does not have.\n\n  \
+         This command names no issue stale and never suggests closing one. It\n  \
+         says only which figures a second reading can decide: {} of {}. The\n  \
+         other {anchored} need the claim read, not the number re-run.\n\n  \
+         Cost of skipping it, measured: one verdict of mine called a figure\n  \
+         stale by re-measuring it to 0. The issue pinned a snapshot hash, its\n  \
+         own script refuses to run once the corpus moves, the owner had already\n  \
+         commented the new figures, and the 18 lines I read as missing were\n  \
+         settled by a decision the issue PREDICTED. Every one of those four is\n  \
+         visible from the fields above -- and that issue, #2160, is in the\n  \
+         anchored list this command prints.",
+        c(Anchor::Free),
+        pop.len()
+    );
+
+    if list {
+        println!("\n  ANCHORED, by number:\n");
+        for (n, t, a) in pop.iter().filter(|(_, _, x)| *x != Anchor::Free) {
+            let tag = match a {
+                Anchor::Revision => "revision",
+                Anchor::AsOf => "as-of   ",
+                Anchor::Answered => "answered",
+                Anchor::Free => unreachable!(),
+            };
+            println!("    {tag}  #{n}  {}", &t[..t.len().min(78)]);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod dated_tests {
+    use super::*;
+
+    #[test]
+    fn a_float_is_not_a_revision() {
+        // #2824, verbatim: the exponent form puts a hex-shaped run after a dot.
+        assert!(revision_pins("s[0] = -1.7594823e-05  required > 0.02").is_empty());
+        // #2658, verbatim, and inside backticks -- quoting does not separate them.
+        assert!(revision_pins("literals in 23 specs: `1.0e38`, `5.391247e-44`").is_empty());
+    }
+
+    /// Two rules reject those floats, and on this backlog neither ever fires
+    /// alone: 486 bodies, 2 rejections, both caught twice over. Removing either
+    /// rule left the tests green, which is a control that cannot fail. These
+    /// two inputs are constructed so that exactly one rule decides each.
+    #[test]
+    fn each_float_rule_decides_a_case_the_other_misses() {
+        // No decimal point before it -- only the exponent rule sees this.
+        assert!(revision_pins("delta 5391247e-44 rad").is_empty());
+        // Exponent without a sign, so the run swallows it -- only the dot sees this.
+        assert!(revision_pins("scale 1.2345678e12 units").is_empty());
+    }
+
+    #[test]
+    fn a_revision_is_a_revision() {
+        assert_eq!(revision_pins("merged as `9adbb6910`;"), vec!["9adbb6910"]);
+        assert_eq!(
+            revision_pins("built from `t27` @ `40003ed1`,"),
+            vec!["40003ed1"]
+        );
+        assert_eq!(
+            revision_pins("spec_hash=sha256:9597edff..."),
+            vec!["9597edff"]
+        );
+    }
+
+    #[test]
+    fn shape_alone_is_not_enough() {
+        assert!(revision_pins("deadbee").is_empty(), "no digit");
+        assert!(revision_pins("1234567").is_empty(), "no letter");
+        assert!(revision_pins("32cb50").is_empty(), "six is too short");
+        assert!(
+            revision_pins("c0ffee1c0ffee1c0ffee1c0ffee1c0ffee1c0ffee1").is_empty(),
+            "41 is too long"
+        );
+    }
+
+    #[test]
+    fn as_of_needs_a_whole_token() {
+        assert!(says_as_of("measured as of 2026-08-20"));
+        assert!(says_as_of("the FROZEN_HASH in stage0"));
+        assert!(!says_as_of("the unfrozen corpus"));
+        assert!(!says_as_of("counted the snapshots directory"));
+    }
+
+    #[test]
+    fn a_plain_claim_about_the_tree_is_free() {
+        assert_eq!(
+            anchor_of("125 lines in 65 files are corrupt.", 0),
+            Anchor::Free
+        );
+    }
+
+    #[test]
+    fn every_anchor_is_reachable_and_ordered() {
+        assert_eq!(anchor_of("at `40003ed1`, as of then", 3), Anchor::Revision);
+        assert_eq!(anchor_of("as of 2026-08-20", 3), Anchor::AsOf);
+        assert_eq!(anchor_of("plain prose", 1), Anchor::Answered);
+    }
 }
