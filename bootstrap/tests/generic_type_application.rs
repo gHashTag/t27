@@ -8,7 +8,15 @@ use std::process::{Command, Output};
 
 fn parse_source(source: &str, stem: &str) -> Output {
     let bin = env!("CARGO_BIN_EXE_t27c");
-    let path = std::env::temp_dir().join(format!("t27c_issue_2164_{stem}.t27"));
+    // The two tests pass distinct stems, so nothing collides inside one
+    // process -- confirmed by running this binary with `--test-threads=1`,
+    // which still failed 6 of 128 times with 16 copies concurrent. The
+    // collision is between RUNS sharing `$TMPDIR`, and the pid is what
+    // separates those.
+    let path = std::env::temp_dir().join(format!(
+        "t27c_issue_2164_{stem}_{}.t27",
+        std::process::id()
+    ));
     std::fs::write(&path, source).expect("failed to write generic application fixture");
     Command::new(bin)
         .arg("parse")
