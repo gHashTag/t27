@@ -11234,3 +11234,12 @@ changed, +2 with no losses; the other 574 are byte-identical" are the same fact,
 but only the second one survives a reader asking how long that took -- and only
 the second one refuses to be read as a whole-corpus absolute that was never
 taken.
+
+And carry the population to EVERY consumer, not just the one you were looking at.
+I had "7 generated files differ" and still shipped without a reseal, because I
+never asked what 7 files are in the units the seal gate counts. They are **19
+seal files** -- specs here are twinned, several `.trinity/seals/*.json` per spec
+-- and `coverage` said so on the first CI round. The rule "the reseal belongs in
+the same commit" is already written down three times on this page; what was
+missing this time was not the rule but the arithmetic that connects a delta in
+one unit to a gate that counts in another.

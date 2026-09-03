@@ -1,7 +1,7 @@
 {
   "gen_hash_c": "sha256:139f23c2090f084346521cfe837e4ffa8d37f08b3e842d4716fbdb3190091cc0",
   "gen_hash_rust": "sha256:8738a44fa55571fa8453b760e3e32aa6c79313f43a95f627cb5696bcd58ce19e",
-  "gen_hash_verilog": "sha256:f7fd8fe95e20ee934f3827616c8a04dda78dab92848cac2ee3a587b54f3c4822",
+  "gen_hash_verilog": "sha256:0c5b53a94b6fc4cd73c9da958ac20aa162c1490b095e695a63b1c4d236d78085",
   "gen_hash_zig": "sha256:48dd28714d3e6c9c8218f67b308c5bffcdd7c264da631e7b33d1844c86ca1ccc",
   "module": "sync-schema",
   "ring": 12,
