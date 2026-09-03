@@ -174,6 +174,16 @@ pub enum GatesCmd {
         #[arg(long, default_value = "origin/master")]
         base: String,
     },
+    /// Gate steps whose PASS is reachable with the thing they check absent.
+    Quiet {
+        /// Print every step counted, with its shape and what is known about its
+        /// subject. A census that prints only its total cannot be checked.
+        #[arg(long)]
+        list: bool,
+        /// Print the lines this rule REFUSED, so the exclusion can be argued with.
+        #[arg(long)]
+        excluded: bool,
+    },
     /// Every bounded GitHub fetch in this crate, and whether it can tell a page
     /// from a total.
     Fetches {
@@ -2380,6 +2390,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             };
             unmeasured(&list, *stale_days)
         }
+        GatesCmd::Quiet { list, excluded } => quiet(*list, *excluded),
         GatesCmd::Fetches { excluded } => fetches(*excluded),
         GatesCmd::Empty { verbose } => empty(*verbose),
         GatesCmd::Preview { base } => preview(base),
@@ -5150,6 +5161,75 @@ pub enum Fetch {
     Guarded,
     /// A bounded list that prints what it got. This is the class.
     Unguarded,
+    /// A bounded list whose function DOES contain a guard -- and also contains another
+    /// bounded fetch, so which one the guard covers cannot be read from here.
+    GuardAmbiguous,
+}
+
+/// The function body with its test modules removed.
+///
+/// The guard check reads the enclosing function's body, and `fn_spans` ends a function
+/// at the next top-level `fn` -- so a function that is LAST in its file swallows every
+/// test module after it. `red.rs`'s `fn now` is exactly that: 253-line file, `fn now`
+/// at 134, and two `#[cfg(test)]` modules at 198 and 223 inside its span. Two test
+/// assertions there mention `is_lower_bound`, which excused a production fetch.
+///
+/// Test lines were already excluded from being SITES. They were not excluded from
+/// being EVIDENCE, and one of those two exclusions without the other is worse than
+/// neither: it hides the fetch that a test would have explained and keeps the guard
+/// string that a test happened to contain.
+pub fn body_without_tests(text: &str, first: usize, last: usize) -> String {
+    let in_test = test_module_lines(text);
+    text.lines()
+        .enumerate()
+        .filter(|(i, _)| {
+            let n = i + 1;
+            n >= first && n <= last && !in_test.get(*i).copied().unwrap_or(false)
+        })
+        .map(|(_, l)| l)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The `gh(&[ ... ])` call a site sits inside.
+///
+/// `--paginate` is an ARGUMENT of the call, not a property of the function, and the
+/// distinction bites: `prcheck.rs`'s `ready` holds four bounded fetches, and paginating
+/// one of them marked all four complete when the check read the function body. That is
+/// the same function-as-subject error that made a guard cover the wrong fetch, arriving
+/// from the opposite direction -- one produced a false bare, the other a false
+/// complete.
+///
+/// Scans out from the site to the bracket that opens the argument list and the one that
+/// closes it, staying inside the given bounds. Returns just the site line when no call
+/// encloses it, which classifies conservatively rather than borrowing a neighbour's
+/// flags.
+pub fn enclosing_call(lines: &[&str], site: usize, first: usize, last: usize) -> String {
+    let mut a = site;
+    while a > first.saturating_sub(1) && !lines[a].contains("&[") {
+        if a == 0 {
+            break;
+        }
+        a -= 1;
+    }
+    if !lines[a].contains("&[") {
+        return lines[site].to_string();
+    }
+    let mut b = site;
+    while b + 1 < lines.len() && b + 1 <= last && !lines[b].contains("])") {
+        b += 1;
+    }
+    lines[a..=b.min(lines.len() - 1)].join("\n")
+}
+
+/// Does this function hold more than one bounded fetch?
+///
+/// If it does, a guard somewhere in its body cannot be attributed to any one of them,
+/// and the census says so instead of picking. `red.rs`'s `fn now` holds two fetches and
+/// one guard, and the guard covers the OTHER one -- it is applied to a streak returned
+/// by `streak()`, and nothing in `fn now` compares the workflow listing to its page.
+pub fn fetch_sites_in(body: &str) -> usize {
+    body.lines().filter(|l| is_fetch_site(l)).count()
 }
 
 /// Classify one site by the body of the function containing it.
@@ -5164,8 +5244,8 @@ pub enum Fetch {
 /// `is_lower_bound` is `red.rs`'s own predicate for the same question. One rule, two
 /// spellings, and a classifier that knew only the first would report a guarded fetch
 /// as bare.
-pub fn classify_fetch(site: &str, body: &str) -> Fetch {
-    if body.contains("--paginate") {
+pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
+    if call.contains("--paginate") {
         return Fetch::Paginated;
     }
     if single_page(site) {
@@ -5177,7 +5257,14 @@ pub fn classify_fetch(site: &str, body: &str) -> Fetch {
     }
     for guard in ["read_is_complete", "is_lower_bound", "total_count"] {
         if body.contains(guard) {
-            return Fetch::Guarded;
+            // One guard and two fetches in one function is not one guarded fetch; it
+            // is a question this cannot answer, and answering it anyway is how
+            // `red.rs:140` read as guarded by a check applied to a different fetch.
+            return if fetch_sites_in(body) > 1 {
+                Fetch::GuardAmbiguous
+            } else {
+                Fetch::Guarded
+            };
         }
     }
     Fetch::Unguarded
@@ -5279,10 +5366,18 @@ fn fetches(show_excluded: bool) -> Result<()> {
             }
             let span = spans.iter().find(|s| s.1 <= i + 1 && i + 1 <= s.2);
             let body = span
-                .map(|s| lines[s.1 - 1..s.2.min(lines.len())].join("\n"))
+                .map(|s| body_without_tests(&text, s.1, s.2))
                 .unwrap_or_default();
+            let call = span
+                .map(|s| enclosing_call(&lines, i, s.1, s.2))
+                .unwrap_or_else(|| line.to_string());
             let fname = span.map(|s| s.0.clone()).unwrap_or_else(|| "?".into());
-            sites.push((classify_fetch(line, &body), name.clone(), i + 1, fname));
+            sites.push((
+                classify_fetch(line, &call, &body),
+                name.clone(),
+                i + 1,
+                fname,
+            ));
         }
     }
 
@@ -5307,6 +5402,10 @@ fn fetches(show_excluded: bool) -> Result<()> {
     println!("\n  bounded, and:");
     println!("    asks whether the page filled  {}", n(Fetch::Guarded));
     println!(
+        "    a guard, but two fetches       {}   <- which one does it cover?",
+        n(Fetch::GuardAmbiguous)
+    );
+    println!(
         "    per_page=1, NO total read     {}",
         n(Fetch::SingleNoTotal)
     );
@@ -5315,6 +5414,10 @@ fn fetches(show_excluded: bool) -> Result<()> {
     for (label, kind) in [
         ("PRINTS WHAT IT GOT", Fetch::Unguarded),
         ("ONE ROW, NO TOTAL", Fetch::SingleNoTotal),
+        (
+            "A GUARD IN THE FUNCTION, BUT MORE THAN ONE FETCH",
+            Fetch::GuardAmbiguous,
+        ),
     ] {
         let rows: Vec<&(Fetch, String, usize, String)> =
             sites.iter().filter(|s| s.0 == kind).collect();
@@ -5401,29 +5504,39 @@ mod fetch_census_tests {
         assert!(!single_page("runs?per_page={PAGE}"));
     }
 
-    /// `--paginate` outranks everything: a client that walks every page has the set,
-    /// whatever the page size says.
+    /// `--paginate` outranks everything -- but it must be in the CALL, not merely
+    /// somewhere in the function. `prcheck.rs`'s `ready` holds four bounded fetches,
+    /// and paginating one of them marked all four complete while this read the
+    /// function body. Same function-as-subject error as the guard check, arriving from
+    /// the opposite direction: one produced a false bare, the other a false complete.
     #[test]
-    fn paginate_outranks_the_page_size() {
+    fn paginate_must_be_in_the_call_not_merely_in_the_function() {
+        let call = "gh(&[\"api\", &url, \"--paginate\", \"--jq\", \".x\"])";
+        assert_eq!(classify_fetch("x?per_page=100", call, ""), Fetch::Paginated);
         assert_eq!(
-            classify_fetch("x?per_page=100", "fn f() { \"--paginate\" }"),
-            Fetch::Paginated
-        );
-        assert_eq!(
-            classify_fetch("x?per_page=1", "fn f() { \"--paginate\" }"),
+            classify_fetch("x?per_page=1", call, ""),
             Fetch::Paginated,
             "a paginated single-page read is still complete"
+        );
+        assert_eq!(
+            classify_fetch(
+                "x?per_page=100",
+                "gh(&[\"api\", &url])",
+                "fn f() { \"--paginate\" }"
+            ),
+            Fetch::Unguarded,
+            "a sibling call's --paginate does not travel to this one"
         );
     }
 
     #[test]
     fn one_row_is_only_safe_beside_a_total() {
         assert_eq!(
-            classify_fetch("x?per_page=1", "let n = v[\"total_count\"];"),
+            classify_fetch("x?per_page=1", "", "let n = v[\"total_count\"];"),
             Fetch::SingleWithTotal
         );
         assert_eq!(
-            classify_fetch("x?per_page=1", "let n = arr.len();"),
+            classify_fetch("x?per_page=1", "", "let n = arr.len();"),
             Fetch::SingleNoTotal
         );
     }
@@ -5434,15 +5547,15 @@ mod fetch_census_tests {
     #[test]
     fn a_guard_is_recognised_under_either_name() {
         assert_eq!(
-            classify_fetch("x?per_page=30", "read_is_complete(n, lim)"),
+            classify_fetch("x?per_page=30", "", "read_is_complete(n, lim)"),
             Fetch::Guarded
         );
         assert_eq!(
-            classify_fetch("x?per_page=30", "is_lower_bound(n)"),
+            classify_fetch("x?per_page=30", "", "is_lower_bound(n)"),
             Fetch::Guarded
         );
         assert_eq!(
-            classify_fetch("x?per_page=30", "println!(\"{}\", rows.len());"),
+            classify_fetch("x?per_page=30", "", "println!(\"{}\", rows.len());"),
             Fetch::Unguarded
         );
     }
@@ -5496,5 +5609,526 @@ mod fetch_census_tests {
     fn an_indented_fn_is_not_a_top_level_one() {
         let src = "fn a() {\n    fn inner() {}\n    x\n}\n";
         assert_eq!(fn_spans(src), vec![("a".to_string(), 1, 4)]);
+    }
+}
+
+#[cfg(test)]
+mod call_scope_tests {
+    use super::{body_without_tests, enclosing_call, fetch_sites_in};
+
+    const SRC: &str = "fn a() {\n    let x = gh(&[\n        \"api\",\n        &url,\n        \"--paginate\",\n    ])?;\n    let y = gh(&[\n        \"api\",\n        &url2,\n    ])?;\n}\n";
+
+    /// The call, not the function. The second fetch here must not borrow the first
+    /// one's `--paginate`.
+    #[test]
+    fn a_call_ends_at_its_own_closing_bracket() {
+        let lines: Vec<&str> = SRC.lines().collect();
+        let first = enclosing_call(&lines, 3, 1, 11);
+        assert!(first.contains("--paginate"), "{first}");
+        let second = enclosing_call(&lines, 8, 1, 11);
+        assert!(
+            !second.contains("--paginate"),
+            "the sibling call's flag must not travel: {second}"
+        );
+    }
+
+    /// A site with no `&[` before it inside the bounds classifies on its own line,
+    /// which is conservative -- it borrows nothing.
+    #[test]
+    fn a_site_outside_any_call_is_its_own_scope() {
+        let lines: Vec<&str> = vec!["let u = format!(\"repos/x?per_page=100\");"];
+        assert_eq!(enclosing_call(&lines, 0, 1, 1), lines[0]);
+    }
+
+    /// And the fallback has to be a fallback. Without it the backward walk runs to the
+    /// start of the function and returns every line before the site -- so a
+    /// `--paginate` written for something else, anywhere above, would classify this
+    /// fetch as complete. A one-line fixture cannot show that; this one can.
+    #[test]
+    fn a_site_outside_a_call_does_not_swallow_the_lines_above_it() {
+        let lines: Vec<&str> = vec![
+            "fn f() {",
+            "    let other = gh_paginated(\"--paginate\");",
+            "    let u = format!(\"repos/x?per_page=100\");",
+            "}",
+        ];
+        let scope = enclosing_call(&lines, 2, 1, 4);
+        assert_eq!(scope, lines[2]);
+        assert!(
+            !scope.contains("--paginate"),
+            "a flag on an unrelated line above must not reach this site: {scope}"
+        );
+    }
+
+    /// Test lines were already excluded from being SITES. They must also be excluded
+    /// from being EVIDENCE: `red.rs`'s `fn now` is last in its file, so its span
+    /// swallowed two test modules whose assertions name `is_lower_bound`, and that
+    /// excused a production fetch.
+    #[test]
+    fn a_guard_string_inside_a_test_module_is_not_evidence() {
+        let src = "fn now() {\n    let u = \"repos/x?per_page=100\";\n}\n#[cfg(test)]\nmod t {\n    fn f() { is_lower_bound(1); }\n}\n";
+        let body = body_without_tests(src, 1, 7);
+        assert!(
+            body.contains("per_page=100"),
+            "the production line stays: {body}"
+        );
+        assert!(
+            !body.contains("is_lower_bound"),
+            "the test line must not count as a guard: {body}"
+        );
+    }
+
+    /// The category itself, through `classify_fetch`: one guard and TWO fetches is a
+    /// question, and one guard and ONE fetch is an answer. On this crate the question
+    /// names five sites, four of which are the two-branch shape (`if instant.is_some()`
+    /// picking between two reads guarded once) and one of which -- `red.rs:140` -- is a
+    /// guard applied to a different fetch entirely. Five sites read by hand in a minute
+    /// to find the one that matters is what this category is for.
+    #[test]
+    fn a_guard_with_two_fetches_is_a_question_and_with_one_an_answer() {
+        let two = "        \"--limit\",\n        &format!(\"repos/a?per_page=100\"),\n        read_is_complete(n, lim);";
+        assert_eq!(
+            super::classify_fetch("repos/a?per_page=100", "", two),
+            super::Fetch::GuardAmbiguous
+        );
+        let one = "        &format!(\"repos/a?per_page=100\"),\n        read_is_complete(n, lim);";
+        assert_eq!(
+            super::classify_fetch("repos/a?per_page=100", "", one),
+            super::Fetch::Guarded
+        );
+    }
+
+    /// One guard and two fetches in one function is a question, not an answer.
+    #[test]
+    fn two_fetches_in_one_body_are_counted() {
+        let body =
+            "        \"--limit\",\n        &format!(\"repos/a?per_page=100\"),\n        let z = 1;";
+        assert_eq!(fetch_sites_in(body), 2);
+        assert_eq!(fetch_sites_in("        let z = 1;"), 0);
+    }
+}
+
+/// The shapes in which a missing subject reads as a clean one.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Quiet {
+    /// `cmd ... 2>/dev/null ... || echo PASSED` -- grep exits 2 for "no such file"
+    /// and 1 for "no match", the silenced stderr removes the only difference, and
+    /// the `||` arm treats both as clean.
+    FailureBranchPasses,
+    /// `N=$(cmd ... 2>/dev/null | wc -l)` -- a counter whose "no files" and "no
+    /// matches" are both zero, and zero is the number a clean tree prints.
+    CountsZero,
+    /// `if [ -f X ]; then ... fi` with no failing `else`. Often legitimate, which is
+    /// why it is reported apart rather than folded in.
+    ExistenceGated,
+}
+
+/// Does this line silence the channel that says "no such file"?
+///
+/// `grep` exits **2** when the path is missing and **1** when nothing matched, and
+/// those are different answers. `2>/dev/null` deletes the message; an `||` arm then
+/// deletes the exit code. One of the two is survivable; together they make a missing
+/// subject and a clean subject print the same characters.
+pub fn silences_stderr(line: &str) -> bool {
+    line.contains("2>/dev/null") || line.contains("2>&-")
+}
+
+/// Does the failure branch of this line reach a PASS?
+///
+/// `|| exit 1` and `|| { echo …; exit 1; }` are failures and do not count. What counts
+/// is an `||` whose arm prints and continues: `|| echo "PASSED"`, `|| true`, `|| :`,
+/// `|| echo 0`.
+pub fn failure_branch_passes(line: &str) -> bool {
+    let Some(i) = line.find("||") else {
+        return false;
+    };
+    let arm = &line[i + 2..];
+    if arm.contains("exit 1") || arm.contains("exit 2") {
+        return false;
+    }
+    let t = arm.trim_start();
+    t.starts_with("echo") || t.starts_with("true") || t.starts_with(':') || t.starts_with("exit 0")
+}
+
+/// `$( … 2>/dev/null | wc -l )` -- a count that reads zero from an absent subject.
+pub fn counts_zero_when_absent(line: &str) -> bool {
+    silences_stderr(line) && line.contains("wc -l") && line.contains("$(")
+}
+
+/// `if [ -f X ]` / `test -d X` and friends.
+pub fn existence_gated(line: &str) -> bool {
+    for m in [
+        "[ -f ", "[ -d ", "[ -e ", "test -f ", "test -d ", "test -e ",
+    ] {
+        if line.contains(m) {
+            return true;
+        }
+    }
+    false
+}
+
+/// The path or glob a gate line reads.
+///
+/// The first token that looks like a path -- carries a `/` or a `*.` -- and is not a
+/// url, a redirect, or a flag. Returns `None` when the line names none, and the caller
+/// prints that rather than inventing one: a subject this cannot name is a gate this
+/// cannot check, and saying so is the honest half of the reading.
+pub fn subject_of(line: &str) -> Option<String> {
+    for raw in line.split_whitespace() {
+        let t = raw.trim_matches(['"', '\'', '(', ')', ';', '`', '$']);
+        if t.starts_with('-') || t.starts_with("2>") || t.contains("://") || t == "/dev/null" {
+            continue;
+        }
+        if t.starts_with("/dev/") || t.starts_with("/tmp") {
+            continue;
+        }
+        // A path is not code. The first version took the first token carrying a `/`
+        // and so returned `json;print(len(json.load(open('/tmp/r.json'))['checks']`
+        // from an inline python one-liner -- then reported it as a TRACKED PATH THAT
+        // IS MISSING, which is a defect the tool invented. Punctuation that cannot
+        // appear in a path this repository uses rules the token out.
+        if t.contains(['(', ')', ';', '=', ',']) {
+            continue;
+        }
+        if t.contains('/') || t.starts_with("*.") {
+            return Some(t.to_string());
+        }
+    }
+    None
+}
+
+/// What can be said about a gate's subject without running the workflow.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Subject {
+    /// A tracked path that is not there. The gate is guarding nothing right now.
+    Absent,
+    /// A tracked path that is there.
+    Present,
+    /// The workflow BUILDS it -- `build/`, `target/`, `/tmp` -- so its absence from a
+    /// checkout says nothing at all. Counted apart rather than as evidence.
+    BuiltByTheRun,
+    /// A shell variable in the path (`${m}.v`), so what it names depends on the run.
+    Interpolated,
+    /// No path on the line. This cannot be checked, and "cannot check" is not
+    /// "absent" -- collapsing the two would let the tool report a defect it did not
+    /// find. The first version of this command did exactly that and reported 25 of 32.
+    Unnamed,
+}
+
+/// Classify the subject of a gate line against the tree on disk.
+pub fn subject_state(subject: Option<&str>, exists: impl Fn(&str) -> bool) -> Subject {
+    let Some(s) = subject else {
+        return Subject::Unnamed;
+    };
+    let p = s.trim_end_matches('/');
+    if p.contains('$') {
+        return Subject::Interpolated;
+    }
+    for built in [
+        "build/",
+        "target/",
+        "/tmp",
+        "dist/",
+        "node_modules/",
+        "out/",
+    ] {
+        if p.starts_with(built) || p.contains(&format!("/{built}")) {
+            return Subject::BuiltByTheRun;
+        }
+    }
+    let probe = match p.rsplit_once('/') {
+        Some((d, f)) if f.contains('*') => d.to_string(),
+        _ => p.to_string(),
+    };
+    if probe.contains('*') || probe.is_empty() {
+        return Subject::Unnamed;
+    }
+    if exists(&probe) {
+        Subject::Present
+    } else {
+        Subject::Absent
+    }
+}
+
+/// Classify one gate line, or `None` when its pass does not survive the subject going
+/// missing.
+pub fn quiet_shape(line: &str) -> Option<Quiet> {
+    let t = line.trim();
+    if t.starts_with('#') {
+        return None;
+    }
+    if counts_zero_when_absent(t) {
+        return Some(Quiet::CountsZero);
+    }
+    if silences_stderr(t) && failure_branch_passes(t) {
+        return Some(Quiet::FailureBranchPasses);
+    }
+    if existence_gated(t) {
+        return Some(Quiet::ExistenceGated);
+    }
+    None
+}
+
+fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
+    let root = repo_root()?;
+    let dir = root.join(".github/workflows");
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+        .with_context(|| format!("cannot read {}", dir.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|e| e == "yml" || e == "yaml"))
+        .collect();
+    files.sort();
+
+    let mut rows: Vec<(Quiet, String, usize, Option<String>, Subject)> = Vec::new();
+    let mut excluded = 0usize;
+    for f in &files {
+        let Ok(text) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let name = f
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        for (i, line) in text.lines().enumerate() {
+            let names_a_path = line.contains('/') || line.contains("*.");
+            match quiet_shape(line) {
+                Some(k) => {
+                    let subj = subject_of(line);
+                    let st = subject_state(subj.as_deref(), |p| root.join(p).exists());
+                    rows.push((k, name.clone(), i + 1, subj, st));
+                }
+                None => {
+                    if names_a_path && (silences_stderr(line) || line.contains("||")) {
+                        excluded += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let n = |k: Quiet| rows.iter().filter(|r| r.0 == k).count();
+    println!("GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING\n");
+    println!("  workflow files read           {}", files.len());
+    println!("  steps in a quiet shape        {}", rows.len());
+    println!("  named a path but not quiet    {excluded}   (--excluded prints them)");
+    println!("\n  by shape:");
+    println!(
+        "    failure branch passes       {}   `… 2>/dev/null … || echo PASSED`",
+        n(Quiet::FailureBranchPasses)
+    );
+    println!(
+        "    a count that reads zero     {}   `$(… 2>/dev/null | wc -l)`",
+        n(Quiet::CountsZero)
+    );
+    println!(
+        "    gated on the file existing  {}   often legitimate, reported apart",
+        n(Quiet::ExistenceGated)
+    );
+
+    let sn = |x: Subject| rows.iter().filter(|r| r.4 == x).count();
+    println!("\n  and what can be said about the subject WITHOUT running the workflow:");
+    println!(
+        "    a tracked path, ABSENT      {}   <- guarding nothing right now",
+        sn(Subject::Absent)
+    );
+    println!("    a tracked path, present     {}", sn(Subject::Present));
+    println!(
+        "    the run builds it           {}   absence from a checkout says nothing",
+        sn(Subject::BuiltByTheRun)
+    );
+    println!(
+        "    a variable in the path      {}   depends on the run",
+        sn(Subject::Interpolated)
+    );
+    println!(
+        "    no path on the line         {}   cannot be checked -- NOT the same as absent",
+        sn(Subject::Unnamed)
+    );
+
+    let gone: Vec<&(Quiet, String, usize, Option<String>, Subject)> =
+        rows.iter().filter(|r| r.4 == Subject::Absent).collect();
+    if gone.is_empty() {
+        println!(
+            "\n  No quiet gate names a tracked path that is missing today. That is a\n  \
+                  result, not an absence of one: the shapes are there and the subjects\n  \
+                  are still on disk."
+        );
+    } else {
+        println!("\n  GUARDING NOTHING RIGHT NOW:\n");
+        for (k, file, line, subj, _) in &gone {
+            println!(
+                "    {file}:{line}  {}   [{k:?}]",
+                subj.as_deref().unwrap_or("?")
+            );
+        }
+    }
+
+    if show_list {
+        println!("\n  EVERY STEP COUNTED:\n");
+        for (k, file, line, subj, st) in &rows {
+            let sj = subj.as_deref().unwrap_or("-");
+            println!(
+                "    {:<20} {:<14} {file}:{line}  {sj}",
+                format!("{k:?}"),
+                format!("{st:?}")
+            );
+        }
+    }
+
+    if show_excluded {
+        println!("\n  NAMED A PATH AND WAS NOT QUIET:\n");
+        for f in &files {
+            let Ok(text) = std::fs::read_to_string(f) else {
+                continue;
+            };
+            let name = f
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            for (i, line) in text.lines().enumerate() {
+                if quiet_shape(line).is_none()
+                    && (line.contains('/') || line.contains("*."))
+                    && (silences_stderr(line) || line.contains("||"))
+                {
+                    println!(
+                        "    {name}:{}  {}",
+                        i + 1,
+                        &line.trim()[..line.trim().len().min(84)]
+                    );
+                }
+            }
+        }
+    }
+
+    println!(
+        "\n  `grep` exits 2 for \"no such file\" and 1 for \"no match\", and those are\n  \
+         different answers. `2>/dev/null` deletes the message and an `||` arm deletes\n  \
+         the exit code; together they make a MISSING subject and a CLEAN subject print\n  \
+         the same characters. A counter reads the same way: no files and no matches are\n  \
+         both zero, and zero is what a clean tree prints.\n\n  \
+         This does not say the gates are wrong. It says a reader cannot tell, from the\n  \
+         output, which of the two happened -- and the column above says which subjects\n  \
+         are absent RIGHT NOW, where the question is no longer hypothetical.\n\n  \
+         `[ -f X ]` is listed apart because it is often exactly right: a step that\n  \
+         legitimately has nothing to do should not fail. What separates it from the\n  \
+         defect is whether the output NAMES what it read."
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod quiet_gate_tests {
+    use super::{
+        counts_zero_when_absent, existence_gated, failure_branch_passes, quiet_shape,
+        silences_stderr, subject_of, subject_state, Quiet, Subject,
+    };
+
+    const REAL: &str = "grep -rn 'as f64' ffi/src/ --include='*.rs' 2>/dev/null | grep -v 'x' && echo \"L8 FAILED\" && exit 1 || echo \"L8 PASSED\"";
+
+    /// The shape this command exists for, taken verbatim from the repository.
+    #[test]
+    fn the_real_line_is_quiet() {
+        assert!(silences_stderr(REAL));
+        assert!(
+            failure_branch_passes(REAL),
+            "the || arm echoes and continues"
+        );
+        assert_eq!(quiet_shape(REAL), Some(Quiet::FailureBranchPasses));
+        assert_eq!(subject_of(REAL).as_deref(), Some("ffi/src/"));
+    }
+
+    /// An `||` arm that FAILS is not a quiet pass. Without this the rule fires on
+    /// every defensive chain in the file.
+    #[test]
+    fn a_failing_arm_is_not_a_pass() {
+        assert!(!failure_branch_passes("cmd 2>/dev/null || exit 1"));
+        assert!(!failure_branch_passes(
+            "cmd 2>/dev/null || { echo bad; exit 1; }"
+        ));
+        // The discriminating case, and the only one the `exit 1` check earns its
+        // place on: an arm that STARTS by echoing and then fails. The whitelist
+        // alone says pass; reading the whole arm says otherwise. A mutation removing
+        // the check survived until this line existed.
+        assert!(
+            !failure_branch_passes("cmd 2>/dev/null || echo \"FAILED\" && exit 1"),
+            "an arm that echoes and then exits 1 is a failure, not a quiet pass"
+        );
+        assert!(failure_branch_passes("cmd 2>/dev/null || true"));
+        assert!(failure_branch_passes("cmd 2>/dev/null || :"));
+    }
+
+    /// Silencing alone is survivable and an `||` alone is survivable. It is the pair
+    /// that erases the difference between "no such file" and "no match".
+    #[test]
+    fn neither_half_alone_is_the_defect() {
+        assert_eq!(quiet_shape("grep x src/ 2>/dev/null"), None);
+        assert_eq!(quiet_shape("grep x src/ || echo ok"), None);
+    }
+
+    /// A counter reads the same way: no files and no matches are both zero.
+    #[test]
+    fn a_count_that_reads_zero_is_the_same_defect_in_a_different_costume() {
+        let l = "ADMISSIONS=$(grep -r \"^Admitted\" *.v 2>/dev/null | wc -l)";
+        assert!(counts_zero_when_absent(l));
+        assert_eq!(quiet_shape(l), Some(Quiet::CountsZero));
+        assert!(
+            !counts_zero_when_absent("N=$(ls | wc -l)"),
+            "no silencing, no defect"
+        );
+    }
+
+    #[test]
+    fn existence_gating_is_recognised_but_kept_apart() {
+        assert!(existence_gated("if [ -f build/x.log ]; then"));
+        assert!(existence_gated("test -d coq/Kernel && make"));
+        assert_eq!(
+            quiet_shape("if [ -f build/x.log ]; then"),
+            Some(Quiet::ExistenceGated)
+        );
+    }
+
+    /// A path is not code. The first version of `subject_of` returned an inline
+    /// python one-liner from `cli-tri.yml` and the command then reported it as a
+    /// TRACKED PATH THAT IS MISSING -- a defect the tool invented.
+    #[test]
+    fn an_inline_script_is_not_a_path() {
+        let l = "N=$(python3 -c \"import json;print(len(json.load(open('/tmp/r.json'))['checks']))\" 2>/dev/null || echo 0)";
+        assert_eq!(
+            subject_of(l),
+            None,
+            "punctuation that cannot appear in a path rules the token out"
+        );
+    }
+
+    /// Five different answers, and the one that matters is that "cannot check" is not
+    /// "absent". Collapsing them let the first version report 25 of 32 missing.
+    #[test]
+    fn cannot_check_is_not_absent() {
+        let never = |_: &str| false;
+        let always = |_: &str| true;
+        assert_eq!(subject_state(None, never), Subject::Unnamed);
+        assert_eq!(subject_state(Some("ffi/src/"), always), Subject::Present);
+        assert_eq!(subject_state(Some("ffi/src/"), never), Subject::Absent);
+        assert_eq!(
+            subject_state(Some("build/fpga/synth.log"), never),
+            Subject::BuiltByTheRun,
+            "the run creates it, so its absence from a checkout says nothing"
+        );
+        assert_eq!(
+            subject_state(Some("specs/fpga/${m}.v"), never),
+            Subject::Interpolated
+        );
+    }
+
+    /// A glob resolves to its directory, because that is the thing that can go
+    /// missing; a bare glob names no directory and cannot be checked.
+    #[test]
+    fn a_glob_is_checked_by_its_directory() {
+        let only_dir = |p: &str| p == "coq/Kernel";
+        assert_eq!(
+            subject_state(Some("coq/Kernel/*.v"), only_dir),
+            Subject::Present
+        );
+        assert_eq!(subject_state(Some("*.v"), only_dir), Subject::Unnamed);
     }
 }

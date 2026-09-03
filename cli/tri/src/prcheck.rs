@@ -294,9 +294,15 @@ fn failures_of(repo: &str, n: u64) -> Result<Vec<String>> {
         ".head.sha",
     ])?;
     let sha = raw.trim();
+    // `--paginate`, and it is not cosmetic. This list feeds `VERDICT: safe to
+    // merge`, and `--merge` runs `gh pr merge` on that verdict. One page of 100 was
+    // enough on the day it was written; a failing check at position 101 would be
+    // invisible, the verdict would read safe, and the merge would happen. The cure
+    // was already in this file at the `pulls/{n}/files` fetch and did not travel.
     let runs = gh(&[
         "api",
         &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
+        "--paginate",
         "--jq",
         r#".check_runs[]|select(.conclusion=="failure"or .conclusion=="timed_out")|.name"#,
     ])?;
@@ -321,13 +327,34 @@ fn completed_of(repo: &str, n: u64) -> Result<Vec<String>> {
         ".head.sha",
     ])?;
     let sha = raw.trim();
+    // A truncated read here reads as "this check never ran", which prints
+    // CANNOT TELL about a check that is green.
     let runs = gh(&[
         "api",
         &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
+        "--paginate",
         "--jq",
         r#".check_runs[]|select(.status=="completed")|.name"#,
     ])?;
     Ok(runs.lines().map(|s| s.to_string()).collect())
+}
+
+/// Sum the per-page counts `gh --paginate --jq '...|length'` prints.
+///
+/// One number per page, newline separated. A single `.parse()` on that string fails
+/// the moment there are two pages, and the `unwrap_or(0)` behind it turns "two pages
+/// of checks" into "no checks" -- silently, and in the direction that says finished.
+///
+/// A line that does not parse is skipped. That is written as `filter_map(...ok())`
+/// rather than `map(...unwrap_or(0))`, and the first draft of this comment claimed the
+/// two differ -- they do not, in a SUM: adding a skipped line and adding a zero give
+/// the same total, and a mutation swapping them survived every test. The form is kept
+/// for saying what it means, not for changing what it computes, and the claim that it
+/// changes something is removed rather than left standing.
+pub fn sum_per_page(out: &str) -> usize {
+    out.lines()
+        .filter_map(|l| l.trim().parse::<usize>().ok())
+        .sum()
 }
 
 /// Number of checks not yet completed on this pull request's head.
@@ -351,19 +378,24 @@ fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
         "repos/{repo}/commits/{}/check-runs?per_page=100",
         sha.trim()
     );
-    let pending: usize = gh(&[
+    // With `--paginate` a `|length` jq prints one number PER PAGE, so a bare
+    // `.parse()` sees "12\n7", fails, and `unwrap_or(0)` reports ZERO pending --
+    // the exact false "finished" this function's own doc comment exists to prevent.
+    // The counts are summed instead.
+    let pending = sum_per_page(&gh(&[
         "api",
         &path,
+        "--paginate",
         "--jq",
         r#"[.check_runs[]|select(.status!="completed")]|length"#,
-    ])?
-    .trim()
-    .parse()
-    .unwrap_or(0);
-    let total: usize = gh(&["api", &path, "--jq", ".check_runs|length"])?
-        .trim()
-        .parse()
-        .unwrap_or(0);
+    ])?);
+    let total = sum_per_page(&gh(&[
+        "api",
+        &path,
+        "--paginate",
+        "--jq",
+        ".check_runs|length",
+    ])?);
     Ok((pending, total))
 }
 
@@ -480,6 +512,7 @@ fn ready(
         let runs = gh(&[
             "api",
             &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
+            "--paginate",
             "--jq",
             r#".check_runs[]|select(.status=="completed")|[.name,.conclusion]|@tsv"#,
         ])
@@ -752,5 +785,47 @@ mod tests {
             verdict, "WAIT",
             "pending must outrank an empty failure list"
         );
+    }
+}
+
+#[cfg(test)]
+mod paginated_count_tests {
+    use super::sum_per_page;
+
+    /// One page prints one number and the sum is that number -- the shape the code
+    /// had before `--paginate`, which must keep working.
+    #[test]
+    fn one_page_sums_to_itself() {
+        assert_eq!(sum_per_page("12\n"), 12);
+        assert_eq!(sum_per_page("0\n"), 0);
+    }
+
+    /// The shape that broke it. `gh --paginate --jq '...|length'` prints one number
+    /// PER PAGE, and a single `.parse()` on "12\n7" fails -- with `unwrap_or(0)`
+    /// behind it, two pages of running checks reported ZERO pending, which is the
+    /// false "finished" this function exists to prevent.
+    #[test]
+    fn two_pages_sum_rather_than_fail_to_parse() {
+        assert_eq!(sum_per_page("12\n7\n"), 19);
+        assert_eq!(
+            "12\n7\n".trim().parse::<usize>().unwrap_or(0),
+            0,
+            "the old shape"
+        );
+    }
+
+    /// Nothing to read is zero, and that is honest: an empty output means gh printed
+    /// no page at all.
+    #[test]
+    fn no_pages_is_zero() {
+        assert_eq!(sum_per_page(""), 0);
+        assert_eq!(sum_per_page("\n\n"), 0);
+    }
+
+    /// A line that is not a number is SKIPPED, not counted as zero. Losing a page is
+    /// an undercount the caller can still notice; inventing a zero is the failure.
+    #[test]
+    fn an_unparseable_line_does_not_become_a_zero() {
+        assert_eq!(sum_per_page("5\ngh: rate limit\n4\n"), 9);
     }
 }
