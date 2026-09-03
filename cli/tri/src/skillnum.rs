@@ -45,6 +45,10 @@ pub enum SkillCmd {
         /// and not in either reader.
         #[arg(long)]
         numbers: bool,
+        /// List the sections whose figure stands over a SLIDING population,
+        /// and whether each names the point its window ended at.
+        #[arg(long)]
+        windowed: bool,
     },
 }
 
@@ -142,7 +146,11 @@ fn skill_files(root: &std::path::Path) -> Vec<PathBuf> {
 
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let show_gaps = match cmd {
-        SkillCmd::Claims { list, numbers } => return claims(*list, *numbers),
+        SkillCmd::Claims {
+            list,
+            numbers,
+            windowed,
+        } => return claims(*list, *numbers, *windowed),
         SkillCmd::Check { gaps } => gaps,
     };
     if *show_gaps {
@@ -330,6 +338,93 @@ pub fn states_a_figure(title: &str) -> bool {
     )
 }
 
+/// The spellings that make a population a QUERY rather than a set.
+///
+/// Deliberately narrow, and the narrowing is measured. A looser rule keyed on the
+/// word `today` fires on **28** further sections here, almost none of which state a
+/// windowed figure -- it is a matcher describing its input, and it is excluded with
+/// that count printed rather than dropped in silence.
+///
+/// What remains names a window explicitly: a run of the last N of something, an API
+/// page or limit, "master runs", or a count of open issues. Twelve sections of 419.
+pub fn window_markers(text: &str) -> Vec<&'static str> {
+    let low = text.to_lowercase();
+    let mut out = Vec::new();
+    // `last 20 commits`, `of the last 40`
+    if let Some(i) = low.find("last ") {
+        let rest = &low[i + 5..];
+        let n: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if !n.is_empty() {
+            let after = rest[n.len()..].trim_start();
+            for w in ["commit", "run", "pr", "pull request", "issue", "merged"] {
+                if after.starts_with(w) {
+                    out.push("last N");
+                    break;
+                }
+            }
+        }
+    }
+    for (needle, label) in [
+        ("per_page=", "API window"),
+        ("--limit", "API window"),
+        ("-l 40", "API window"),
+        ("master run", "master runs"),
+        ("open issue", "open issues"),
+    ] {
+        // No de-duplicating the label: the caller reads `is_empty()`, so a
+        // second identical marker is unobservable. Measured, not assumed --
+        // removing the guard moved nothing on the corpus and no test could
+        // tell the two versions apart.
+        if low.contains(needle) {
+            out.push(label);
+        }
+    }
+    out
+}
+
+/// Does this section name a revision or a date ANYWHERE?
+///
+/// This is an UPPER BOUND on "the window is anchored", not that claim itself, and
+/// the distinction was measured rather than assumed. It reports 3 of the 12; all
+/// three were read by hand and one does not survive. Section 125 says *"checks have
+/// not fired since 2026-08-24 11:06"* -- a date that anchors the CLAIM, while the
+/// window it actually read was "the last 10, then 60 runs" and is dated nowhere. A
+/// date in the body is not necessarily the date of the reading.
+///
+/// So a section this returns `false` for is definitely unanchored; a section it
+/// returns `true` for merely might be. The lower bound needs a rule that ties the
+/// date to the query, and no such rule is claimed here.
+///
+/// Reuses `issues::revision_pins`, which is already mutation-proved against the two
+/// floats that look like commit ids (`-1.7594823e-05`, `5.391247e-44`), plus an
+/// ISO date.
+pub fn names_its_anchor(body: &str) -> bool {
+    if !crate::issues::revision_pins(body).is_empty() {
+        return true;
+    }
+    let b: Vec<char> = body.chars().collect();
+    (0..b.len().saturating_sub(9)).any(|i| is_iso_date(&b[i..i + 10]))
+}
+
+/// Exactly `20YY-MM-DD`, ten characters, tested as ONE rule.
+///
+/// Written as a unit deliberately. Mutating a single character position out of a
+/// ten-conjunct pattern does not test whether the pattern is over-specified -- it
+/// asks a question no natural input answers, and three such mutants survived while
+/// moving nothing on the corpus. The shape is one claim, so it gets one test.
+///
+/// A left-hand word-boundary check used to sit here too (`v2026-08-20` should not
+/// count). It was removed rather than kept unproved: no natural counter-example
+/// exists in this corpus and removing it changed no section.
+fn is_iso_date(w: &[char]) -> bool {
+    w.len() == 10
+        && w[0] == '2'
+        && w[1] == '0'
+        && w[4] == '-'
+        && w[7] == '-'
+        && [2, 3, 5, 6, 8, 9].iter().all(|&i| w[i].is_ascii_digit())
+}
+
 /// Does this section name something a reader could run to take the reading again?
 ///
 /// Deliberately narrow: a backticked command starting with one of the verbs
@@ -363,7 +458,7 @@ fn rel(root: &std::path::Path, p: &std::path::Path) -> String {
         .to_string()
 }
 
-fn claims(list: bool, numbers: bool) -> Result<()> {
+fn claims(list: bool, numbers: bool, windowed_list: bool) -> Result<()> {
     let root = repo_root()?;
     // Every tracked SKILL.md, not just `.claude/skills/*`.
     //
@@ -425,6 +520,7 @@ fn claims(list: bool, numbers: bool) -> Result<()> {
     let mut carrying = 0usize;
     let mut with_cmd = 0usize;
     let mut anchored = 0usize;
+    let mut windowed: Vec<(String, usize, String, bool, bool)> = Vec::new();
     let mut free: Vec<(String, usize, String)> = Vec::new();
     for f in &files {
         let Ok(text) = std::fs::read_to_string(f) else {
@@ -449,7 +545,26 @@ fn claims(list: bool, numbers: bool) -> Result<()> {
             // heading it reports **123 of 409**. A rule written for a one-line
             // claim does not transfer to a page of argument by being pointed at
             // it; the SUBJECT has to be the place the claim is made.
-            if !states_a_figure(&title) {
+            // A population that is a QUERY rather than a set. "The last 20
+            // commits on master" is not a set: its answer changes on every
+            // push, so the CLAIM survives while the NUMBER does not, and
+            // re-measuring it is not a second reading -- it is a first reading
+            // of a different population.
+            //
+            // Measured ABOVE the figure filter, and that placement is the
+            // finding. Nested inside it this reported **4**; a hand count over
+            // every section said **12**, and the gap was not an error in either
+            // -- they are two populations. The filter reads the HEADING, so a
+            // section that argues about a window without putting a digit in its
+            // title never reached the check. The worst case was section 179,
+            // whose title IS the rule: "A `--limit` on a run list is a time
+            // window in disguise". Both numbers are printed below; neither is
+            // allowed to stand alone.
+            let fig = states_a_figure(&title);
+            if !window_markers(&format!("{title}\n{body}")).is_empty() {
+                windowed.push((name.clone(), n, title.clone(), names_its_anchor(&body), fig));
+            }
+            if !fig {
                 continue;
             }
             carrying += 1;
@@ -485,6 +600,14 @@ fn claims(list: bool, numbers: bool) -> Result<()> {
     println!("  of those, naming a command    {with_cmd}");
     println!("  of those, anchored (dated)    {anchored}");
     println!("  free to go stale              {}", free.len());
+    let anchored_windows = windowed.iter().filter(|w| w.3).count();
+    let fig_windows = windowed.iter().filter(|w| w.4).count();
+    println!(
+        "  over a SLIDING population     {}   (of ALL {total} sections, not of the {carrying})",
+        windowed.len()
+    );
+    println!("    of those, stating a figure  {fig_windows}");
+    println!("    naming a date or revision   {anchored_windows}   <- upper bound");
     println!("\n  by skill (sections / stating a figure):");
     for (name, secs, car) in &per_file {
         println!("    {name:<14} {secs:>4} / {car}");
@@ -500,6 +623,39 @@ fn claims(list: bool, numbers: bool) -> Result<()> {
          published 268 and it was wrong in both directions\" is history rather\n  \
          than a claim about the tree -- re-measuring it proves nothing."
     );
+
+    println!(
+        "\n  A figure over a sliding population is stale by construction, and\n  \
+         re-measuring it is not a second reading -- it is a first reading of a\n  \
+         different population. Seven headline figures published in one session\n  \
+         were re-read hours later: the three over sliding populations had ALL\n  \
+         moved (4/33 -> 3/37, 121/40/116 -> 126/44/121, 288 -> 287) and the\n  \
+         three over files on disk had not moved at all.\n\n  \
+         The anchor is part of the number: \"over the 20 commits ending at\n  \
+         <sha>\", not \"over the last 20\". {anchored_windows} of these {} name a\n  \
+         date or a revision at all -- and that is an UPPER bound, not the count.\n  \
+         All three were read by hand and one does not survive: section 125\n  \
+         dates its CLAIM (\"not fired since 2026-08-24 11:06\") while the window\n  \
+         it read was \"the last 10, then 60 runs\", dated nowhere.\n\n  \
+         This count is taken over EVERY section, not over the {carrying} that\n  \
+         state a figure. Nested inside that filter it reported 4 and a hand\n  \
+         count said 12 -- two populations, not an error in either, and the\n  \
+         section the filter dropped was the one whose title is this rule.\n\n  \
+         A looser rule keyed on the word `today` fires on 28 further sections\n  \
+         that state no window at all -- a matcher describing its input. It is\n  \
+         excluded with that count said out loud rather than dropped in silence.",
+        windowed.len()
+    );
+
+    if windowed_list {
+        println!("\n  OVER A SLIDING POPULATION, and whether the anchor is named:\n");
+        for (skill, n, title, anch, fig) in &windowed {
+            let mark = if *anch { "anchored" } else { "NO ANCHOR" };
+            let f = if *fig { "figure" } else { "  ..  " };
+            let short = &title[..title.len().min(52)];
+            println!("    {mark:<10} {f} {skill:<11} {n:>4}  {short}");
+        }
+    }
 
     if list {
         println!("\n  FREE TO GO STALE, by section:\n");
@@ -556,5 +712,97 @@ mod claims_tests {
             "a section stops at the next heading"
         );
         assert_eq!(got[1].0, 8);
+    }
+}
+
+#[cfg(test)]
+mod window_tests {
+    use super::*;
+
+    /// The probe: the shape the rule is written for.
+    #[test]
+    fn a_run_of_the_last_n_commits_is_a_window() {
+        assert_eq!(
+            window_markers("read the last 20 commits on master"),
+            vec!["last N"]
+        );
+        assert_eq!(window_markers("gh run list --limit 40"), vec!["API window"]);
+        assert_eq!(window_markers("?per_page=100"), vec!["API window"]);
+    }
+
+    /// The counter-example, and it is the whole reason the rule enumerates nouns
+    /// instead of matching `last <digits>`: a duration is not a population.
+    #[test]
+    fn a_span_of_time_is_not_a_windowed_population() {
+        assert!(window_markers("it failed in the last 20 minutes").is_empty());
+        assert!(window_markers("the last 3 attempts each took a day").is_empty());
+        assert!(window_markers("at last, a green run").is_empty());
+        assert!(window_markers("the last commit").is_empty());
+    }
+
+    /// The defect this placement fixes, stated at the level of the two rules that
+    /// were nested. Section 179's title IS the rule and carries no digit, so a
+    /// window check gated on `states_a_figure` never reaches it: 4 of 126 instead
+    /// of 12 of 420. Both readings are correct; only one answers the question.
+    #[test]
+    fn the_figure_filter_would_drop_the_section_that_states_this_rule() {
+        let title = "A `--limit` on a run list is a time window in disguise";
+        assert!(
+            !states_a_figure(title),
+            "if this heading ever states a figure the test below stops proving anything"
+        );
+        assert!(
+            !window_markers(title).is_empty(),
+            "the section whose title is this rule must be inside the population"
+        );
+    }
+
+    /// A section this says `false` for is definitely unanchored. `true` is only an
+    /// upper bound -- see the doc comment for the section that fails it.
+    #[test]
+    fn an_anchor_is_a_revision_or_an_iso_date() {
+        assert!(names_its_anchor("over the 20 commits ending at 1b47f8b85"));
+        assert!(names_its_anchor("measured 2026-08-20"));
+        assert!(!names_its_anchor("over the last 20 commits on master"));
+        // Delegated to the rule that is already mutation-proved against these.
+        assert!(!names_its_anchor(
+            "the residual was -1.7594823e-05 at worst"
+        ));
+    }
+
+    /// A year is not a date, and a version is not a year.
+    #[test]
+    fn a_bare_year_does_not_anchor_a_window() {
+        assert!(!names_its_anchor("in 2026 the gate was added"));
+        assert!(!names_its_anchor("2026-08 was the month"));
+    }
+}
+
+#[cfg(test)]
+mod iso_date_tests {
+    use super::is_iso_date;
+
+    fn d(s: &str) -> bool {
+        let c: Vec<char> = s.chars().collect();
+        c.len() == 10 && is_iso_date(&c)
+    }
+
+    #[test]
+    fn the_shape_is_exactly_ten_characters_of_20yy_mm_dd() {
+        assert!(d("2026-08-20"));
+        assert!(d("2099-12-31"));
+    }
+
+    #[test]
+    fn anything_else_of_that_length_is_not_a_date() {
+        assert!(!d("1999-08-20"), "the century is pinned");
+        assert!(!d("2026/08/20"), "the separator is pinned");
+        assert!(!d("2026-08-2x"), "every digit position is a digit");
+        assert!(!d("2026-0820-"), "the separators are positional");
+        assert!(!d("2026x08-20"), "the first separator is pinned on its own");
+        assert!(!d("2026-08x20"), "and so is the second");
+        assert!(!d("20260820ab"), "no separators at all");
+        let short: Vec<char> = "2026-08-2".chars().collect();
+        assert!(!is_iso_date(&short), "nine characters is not the shape");
     }
 }

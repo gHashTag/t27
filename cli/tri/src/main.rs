@@ -319,6 +319,9 @@ enum SkillAction {
         /// Print `<skill>:<number>` for every counted section and nothing else.
         #[arg(long)]
         numbers: bool,
+        /// List the sections whose figure stands over a SLIDING population.
+        #[arg(long)]
+        windowed: bool,
     },
     Begin {
         #[arg(long)]
@@ -883,12 +886,15 @@ fn main() -> Result<()> {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
                 }
-                SkillAction::Claims { list, numbers } => {
-                    skillnum::run(&skillnum::SkillCmd::Claims {
-                        list: *list,
-                        numbers: *numbers,
-                    })?
-                }
+                SkillAction::Claims {
+                    list,
+                    numbers,
+                    windowed,
+                } => skillnum::run(&skillnum::SkillCmd::Claims {
+                    list: *list,
+                    numbers: *numbers,
+                    windowed: *windowed,
+                })?,
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
             }
