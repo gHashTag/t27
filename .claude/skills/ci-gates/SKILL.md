@@ -12191,9 +12191,13 @@ line 18, where no digit follows, and *"Over the last 20 commit messages on maste
 line 27. The rule stopped at the first and returned nothing.
 
 So **&sect;439 was absent from its own population**, and it is the section that produced
-the 4-against-33 row of &sect;457's own table. Exactly one section is masked, and the
-one-variable probe is the whole proof: same tree, same command, `find` versus
-`match_indices`, **19 against 20**.
+the 4-against-33 row of &sect;457's own table. The one-variable probe is the whole proof:
+same tree, same command, `find` versus `match_indices`.
+
+*Corrected in place; &sect;470 is the correction's subject.* The numbers first published
+here were **19 against 20**, and at the commit that shipped them, `d448b1864`, they are
+**19 against 21** -- because THIS SECTION is a second instance of the shape it describes,
+and writing it changed the count it reports.
 
 `find` answers *"does the FIRST occurrence satisfy this?"* and the question is *"does
 ANY?"*. On one line the two agree; on a page of prose they do not, and a page of prose
@@ -12282,8 +12286,106 @@ number seen**, because GitHub numbers issues and pull requests from one sequence
 starting at 1, so the count can never exceed the largest number. Derived from the rows
 in hand -- not a round number someone would have to raise again next quarter.
 
+## 468. A verdict that gates an irreversible action must not stand on a page
 
-## 468. A lesson written down four times, and the command run anyway
+`tri pr ready` answers *is this pull request safe to merge*, prints
+`VERDICT: safe to merge`, and with `--merge` runs `gh pr merge` on that verdict. It
+built the answer from `commits/{sha}/check-runs?per_page=100` -- **one page, no
+`--paginate`**. A failing check at position 101 is invisible, the verdict reads safe,
+and the merge happens.
+
+It does not bite today: 19 check-runs on master, 100 asked for. That is the whole
+character of this defect class -- latent, and one busy branch away.
+
+**The cure was already in the same file.** `prcheck.rs` paginates its
+`pulls/{n}/files` fetch and says why. Four sibling fetches in the same file did not,
+and &sect;437 named that shape: *a fix does not travel*. All four now paginate.
+
+The severity ladder is worth keeping, because they are not all the same defect:
+
+| site | what a truncated read does |
+|---|---|
+| `failures_of` | a red check beyond the page is invisible &rarr; **safe to merge** &rarr; `--merge` merges |
+| `in_flight` | pending reads 0, the verdict is not WAIT, and the merge proceeds |
+| `completed_of` | a green check reads as *never ran* &rarr; CANNOT TELL about a check that passed |
+| the 15-commit loop | a baseline check reads as absent, so a failure looks new |
+
+**And pagination changed what one of them means.** With `--paginate`, a `jq '…|length'`
+prints one number PER PAGE. The old code did `.trim().parse().unwrap_or(0)` on it, so
+two pages of checks would have parsed as nothing and reported **zero pending** -- the
+exact false "finished" that function's own doc comment was written to prevent, arriving
+through the cure rather than the disease. The counts are summed instead.
+
+One honest subtraction: that summing helper's first doc comment claimed skipping an
+unparseable line differs from counting it as zero. **In a sum it does not**, a mutation
+swapping them survived every test, and the claim was removed rather than left standing.
+
+## 469. The unit of a flag is the call, not the function
+
+`tri gates fetches` classified each bounded fetch by reading the ENCLOSING FUNCTION for
+guard words. That subject is wrong in both directions, and this pass found both.
+
+**False bare.** `red.rs`'s `fn now` holds two fetches and one `is_lower_bound`, and the
+guard is applied to a streak returned by a *different* fetch. The census called the
+workflow listing guarded on the strength of a check that never looks at it.
+
+**False complete.** Adding `--paginate` to one of the four fetches in `prcheck.rs`'s
+`ready` marked **all four** complete, because `--paginate` was looked for in the function
+body. A flag is an argument of a CALL. The scan now runs from the site out to the
+brackets that open and close its own argument list, and a site with no call around it
+classifies on its own line -- borrowing nothing.
+
+**And a guard string inside a test module is not evidence.** `fn_spans` ends a function
+at the next top-level `fn`, so a function that is LAST in its file swallows every test
+module after it: `red.rs` is 253 lines, `fn now` starts at 134, and two `#[cfg(test)]`
+modules at 198 and 223 sit inside its span. Test lines were already excluded from being
+SITES and were not excluded from being EVIDENCE -- and one of those exclusions without
+the other is worse than neither, since it hides the fetch a test would explain while
+keeping the guard word the test happened to contain.
+
+**Where the subject genuinely cannot be read, the census now asks instead of answering.**
+A function holding a guard AND more than one fetch reports `a guard, but two fetches --
+which one does it cover?`. That names **five** sites here: four are the two-branch shape
+(`if instant.is_some()` choosing between two reads that share one guard, benign) and one
+is `red.rs:140`, the real mis-attribution. Five lines read by hand in a minute to find
+the one that matters is what the category is for -- and it is stated as a question in the
+output, not folded into either total.
+
+## 470. I measured before I wrote it down, and published the first as the third
+
+&sect;465 and the body of the pull request carrying it both said: *same tree, same
+command, `find` against `match_indices` -- **19 against 20***. At `d448b1864`, the commit
+that shipped them, it is **19 against 21**.
+
+Not the instrument, and not a population from outside. **&sect;465 itself carries the
+shape it documents.** It quotes &sect;439 -- *"reads the last COMMIT message"* before
+*"the last 20 commit messages on master"* -- so under the old `find` it would have been
+masked too, and it is the second masked section the fixed rule now sees.
+
+The order was: take the reading, write the section, ship. The reading described the tree
+before the section existed, and it was published as a description of the tree that
+shipped.
+
+That is **&sect;457 word for word** -- *the figure moved because writing it moved the
+population* -- unlearned one pass after being written, by the author, in the section
+that cites it.
+
+Two things made the gap findable, and only one of them was mine. The number was
+re-taken by a fan-out told to attack the previous pass's own figures. And the anchor in
+the pull request body was the words **"same tree"** rather than a sha: had it named
+`cfa32871c` the pair would have been exactly right and merely stale, instead of wrong
+about the commit it shipped in. **"Same tree" does not name a tree.**
+
+And the reading for THIS section, taken as the last action before its own commit, from
+the tree being committed: **25 windowed of 434 sections**. It is larger than the
+twenty-one above for the same reason -- these two sections quote the shape again.
+
+The rule that follows is narrow and mechanical: a figure describing the state AFTER a
+change is taken as the LAST action before the commit, from the tree that is committed,
+and is written with that commit's sha. Any earlier reading describes a different tree,
+however few minutes earlier it was.
+
+## 471. A lesson written down four times, and the command run anyway
 
 `cargo fmt -p t27c`, on a branch holding a two-file change, came back with **155
 tracked files modified**. `cargo fmt --all` on a one-file change: **165 dirty, 164
@@ -12333,7 +12435,7 @@ what the executable does not reach, at the moment you find out, rather than
 leaving it for whoever trusts it next.
 
 
-## 469. The machine that could not answer, and the population nobody asked
+## 472. The machine that could not answer, and the population nobody asked
 
 `t27c corpus` was given an UNRESOLVED channel: a tool that could not be spawned, a
 capture file that could not be written, and a child killed by a signal are not

@@ -5150,6 +5150,75 @@ pub enum Fetch {
     Guarded,
     /// A bounded list that prints what it got. This is the class.
     Unguarded,
+    /// A bounded list whose function DOES contain a guard -- and also contains another
+    /// bounded fetch, so which one the guard covers cannot be read from here.
+    GuardAmbiguous,
+}
+
+/// The function body with its test modules removed.
+///
+/// The guard check reads the enclosing function's body, and `fn_spans` ends a function
+/// at the next top-level `fn` -- so a function that is LAST in its file swallows every
+/// test module after it. `red.rs`'s `fn now` is exactly that: 253-line file, `fn now`
+/// at 134, and two `#[cfg(test)]` modules at 198 and 223 inside its span. Two test
+/// assertions there mention `is_lower_bound`, which excused a production fetch.
+///
+/// Test lines were already excluded from being SITES. They were not excluded from
+/// being EVIDENCE, and one of those two exclusions without the other is worse than
+/// neither: it hides the fetch that a test would have explained and keeps the guard
+/// string that a test happened to contain.
+pub fn body_without_tests(text: &str, first: usize, last: usize) -> String {
+    let in_test = test_module_lines(text);
+    text.lines()
+        .enumerate()
+        .filter(|(i, _)| {
+            let n = i + 1;
+            n >= first && n <= last && !in_test.get(*i).copied().unwrap_or(false)
+        })
+        .map(|(_, l)| l)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The `gh(&[ ... ])` call a site sits inside.
+///
+/// `--paginate` is an ARGUMENT of the call, not a property of the function, and the
+/// distinction bites: `prcheck.rs`'s `ready` holds four bounded fetches, and paginating
+/// one of them marked all four complete when the check read the function body. That is
+/// the same function-as-subject error that made a guard cover the wrong fetch, arriving
+/// from the opposite direction -- one produced a false bare, the other a false
+/// complete.
+///
+/// Scans out from the site to the bracket that opens the argument list and the one that
+/// closes it, staying inside the given bounds. Returns just the site line when no call
+/// encloses it, which classifies conservatively rather than borrowing a neighbour's
+/// flags.
+pub fn enclosing_call(lines: &[&str], site: usize, first: usize, last: usize) -> String {
+    let mut a = site;
+    while a > first.saturating_sub(1) && !lines[a].contains("&[") {
+        if a == 0 {
+            break;
+        }
+        a -= 1;
+    }
+    if !lines[a].contains("&[") {
+        return lines[site].to_string();
+    }
+    let mut b = site;
+    while b + 1 < lines.len() && b + 1 <= last && !lines[b].contains("])") {
+        b += 1;
+    }
+    lines[a..=b.min(lines.len() - 1)].join("\n")
+}
+
+/// Does this function hold more than one bounded fetch?
+///
+/// If it does, a guard somewhere in its body cannot be attributed to any one of them,
+/// and the census says so instead of picking. `red.rs`'s `fn now` holds two fetches and
+/// one guard, and the guard covers the OTHER one -- it is applied to a streak returned
+/// by `streak()`, and nothing in `fn now` compares the workflow listing to its page.
+pub fn fetch_sites_in(body: &str) -> usize {
+    body.lines().filter(|l| is_fetch_site(l)).count()
 }
 
 /// Classify one site by the body of the function containing it.
@@ -5164,8 +5233,8 @@ pub enum Fetch {
 /// `is_lower_bound` is `red.rs`'s own predicate for the same question. One rule, two
 /// spellings, and a classifier that knew only the first would report a guarded fetch
 /// as bare.
-pub fn classify_fetch(site: &str, body: &str) -> Fetch {
-    if body.contains("--paginate") {
+pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
+    if call.contains("--paginate") {
         return Fetch::Paginated;
     }
     if single_page(site) {
@@ -5177,7 +5246,14 @@ pub fn classify_fetch(site: &str, body: &str) -> Fetch {
     }
     for guard in ["read_is_complete", "is_lower_bound", "total_count"] {
         if body.contains(guard) {
-            return Fetch::Guarded;
+            // One guard and two fetches in one function is not one guarded fetch; it
+            // is a question this cannot answer, and answering it anyway is how
+            // `red.rs:140` read as guarded by a check applied to a different fetch.
+            return if fetch_sites_in(body) > 1 {
+                Fetch::GuardAmbiguous
+            } else {
+                Fetch::Guarded
+            };
         }
     }
     Fetch::Unguarded
@@ -5279,10 +5355,18 @@ fn fetches(show_excluded: bool) -> Result<()> {
             }
             let span = spans.iter().find(|s| s.1 <= i + 1 && i + 1 <= s.2);
             let body = span
-                .map(|s| lines[s.1 - 1..s.2.min(lines.len())].join("\n"))
+                .map(|s| body_without_tests(&text, s.1, s.2))
                 .unwrap_or_default();
+            let call = span
+                .map(|s| enclosing_call(&lines, i, s.1, s.2))
+                .unwrap_or_else(|| line.to_string());
             let fname = span.map(|s| s.0.clone()).unwrap_or_else(|| "?".into());
-            sites.push((classify_fetch(line, &body), name.clone(), i + 1, fname));
+            sites.push((
+                classify_fetch(line, &call, &body),
+                name.clone(),
+                i + 1,
+                fname,
+            ));
         }
     }
 
@@ -5307,6 +5391,10 @@ fn fetches(show_excluded: bool) -> Result<()> {
     println!("\n  bounded, and:");
     println!("    asks whether the page filled  {}", n(Fetch::Guarded));
     println!(
+        "    a guard, but two fetches       {}   <- which one does it cover?",
+        n(Fetch::GuardAmbiguous)
+    );
+    println!(
         "    per_page=1, NO total read     {}",
         n(Fetch::SingleNoTotal)
     );
@@ -5315,6 +5403,10 @@ fn fetches(show_excluded: bool) -> Result<()> {
     for (label, kind) in [
         ("PRINTS WHAT IT GOT", Fetch::Unguarded),
         ("ONE ROW, NO TOTAL", Fetch::SingleNoTotal),
+        (
+            "A GUARD IN THE FUNCTION, BUT MORE THAN ONE FETCH",
+            Fetch::GuardAmbiguous,
+        ),
     ] {
         let rows: Vec<&(Fetch, String, usize, String)> =
             sites.iter().filter(|s| s.0 == kind).collect();
@@ -5401,29 +5493,39 @@ mod fetch_census_tests {
         assert!(!single_page("runs?per_page={PAGE}"));
     }
 
-    /// `--paginate` outranks everything: a client that walks every page has the set,
-    /// whatever the page size says.
+    /// `--paginate` outranks everything -- but it must be in the CALL, not merely
+    /// somewhere in the function. `prcheck.rs`'s `ready` holds four bounded fetches,
+    /// and paginating one of them marked all four complete while this read the
+    /// function body. Same function-as-subject error as the guard check, arriving from
+    /// the opposite direction: one produced a false bare, the other a false complete.
     #[test]
-    fn paginate_outranks_the_page_size() {
+    fn paginate_must_be_in_the_call_not_merely_in_the_function() {
+        let call = "gh(&[\"api\", &url, \"--paginate\", \"--jq\", \".x\"])";
+        assert_eq!(classify_fetch("x?per_page=100", call, ""), Fetch::Paginated);
         assert_eq!(
-            classify_fetch("x?per_page=100", "fn f() { \"--paginate\" }"),
-            Fetch::Paginated
-        );
-        assert_eq!(
-            classify_fetch("x?per_page=1", "fn f() { \"--paginate\" }"),
+            classify_fetch("x?per_page=1", call, ""),
             Fetch::Paginated,
             "a paginated single-page read is still complete"
+        );
+        assert_eq!(
+            classify_fetch(
+                "x?per_page=100",
+                "gh(&[\"api\", &url])",
+                "fn f() { \"--paginate\" }"
+            ),
+            Fetch::Unguarded,
+            "a sibling call's --paginate does not travel to this one"
         );
     }
 
     #[test]
     fn one_row_is_only_safe_beside_a_total() {
         assert_eq!(
-            classify_fetch("x?per_page=1", "let n = v[\"total_count\"];"),
+            classify_fetch("x?per_page=1", "", "let n = v[\"total_count\"];"),
             Fetch::SingleWithTotal
         );
         assert_eq!(
-            classify_fetch("x?per_page=1", "let n = arr.len();"),
+            classify_fetch("x?per_page=1", "", "let n = arr.len();"),
             Fetch::SingleNoTotal
         );
     }
@@ -5434,15 +5536,15 @@ mod fetch_census_tests {
     #[test]
     fn a_guard_is_recognised_under_either_name() {
         assert_eq!(
-            classify_fetch("x?per_page=30", "read_is_complete(n, lim)"),
+            classify_fetch("x?per_page=30", "", "read_is_complete(n, lim)"),
             Fetch::Guarded
         );
         assert_eq!(
-            classify_fetch("x?per_page=30", "is_lower_bound(n)"),
+            classify_fetch("x?per_page=30", "", "is_lower_bound(n)"),
             Fetch::Guarded
         );
         assert_eq!(
-            classify_fetch("x?per_page=30", "println!(\"{}\", rows.len());"),
+            classify_fetch("x?per_page=30", "", "println!(\"{}\", rows.len());"),
             Fetch::Unguarded
         );
     }
@@ -5496,5 +5598,101 @@ mod fetch_census_tests {
     fn an_indented_fn_is_not_a_top_level_one() {
         let src = "fn a() {\n    fn inner() {}\n    x\n}\n";
         assert_eq!(fn_spans(src), vec![("a".to_string(), 1, 4)]);
+    }
+}
+
+#[cfg(test)]
+mod call_scope_tests {
+    use super::{body_without_tests, enclosing_call, fetch_sites_in};
+
+    const SRC: &str = "fn a() {\n    let x = gh(&[\n        \"api\",\n        &url,\n        \"--paginate\",\n    ])?;\n    let y = gh(&[\n        \"api\",\n        &url2,\n    ])?;\n}\n";
+
+    /// The call, not the function. The second fetch here must not borrow the first
+    /// one's `--paginate`.
+    #[test]
+    fn a_call_ends_at_its_own_closing_bracket() {
+        let lines: Vec<&str> = SRC.lines().collect();
+        let first = enclosing_call(&lines, 3, 1, 11);
+        assert!(first.contains("--paginate"), "{first}");
+        let second = enclosing_call(&lines, 8, 1, 11);
+        assert!(
+            !second.contains("--paginate"),
+            "the sibling call's flag must not travel: {second}"
+        );
+    }
+
+    /// A site with no `&[` before it inside the bounds classifies on its own line,
+    /// which is conservative -- it borrows nothing.
+    #[test]
+    fn a_site_outside_any_call_is_its_own_scope() {
+        let lines: Vec<&str> = vec!["let u = format!(\"repos/x?per_page=100\");"];
+        assert_eq!(enclosing_call(&lines, 0, 1, 1), lines[0]);
+    }
+
+    /// And the fallback has to be a fallback. Without it the backward walk runs to the
+    /// start of the function and returns every line before the site -- so a
+    /// `--paginate` written for something else, anywhere above, would classify this
+    /// fetch as complete. A one-line fixture cannot show that; this one can.
+    #[test]
+    fn a_site_outside_a_call_does_not_swallow_the_lines_above_it() {
+        let lines: Vec<&str> = vec![
+            "fn f() {",
+            "    let other = gh_paginated(\"--paginate\");",
+            "    let u = format!(\"repos/x?per_page=100\");",
+            "}",
+        ];
+        let scope = enclosing_call(&lines, 2, 1, 4);
+        assert_eq!(scope, lines[2]);
+        assert!(
+            !scope.contains("--paginate"),
+            "a flag on an unrelated line above must not reach this site: {scope}"
+        );
+    }
+
+    /// Test lines were already excluded from being SITES. They must also be excluded
+    /// from being EVIDENCE: `red.rs`'s `fn now` is last in its file, so its span
+    /// swallowed two test modules whose assertions name `is_lower_bound`, and that
+    /// excused a production fetch.
+    #[test]
+    fn a_guard_string_inside_a_test_module_is_not_evidence() {
+        let src = "fn now() {\n    let u = \"repos/x?per_page=100\";\n}\n#[cfg(test)]\nmod t {\n    fn f() { is_lower_bound(1); }\n}\n";
+        let body = body_without_tests(src, 1, 7);
+        assert!(
+            body.contains("per_page=100"),
+            "the production line stays: {body}"
+        );
+        assert!(
+            !body.contains("is_lower_bound"),
+            "the test line must not count as a guard: {body}"
+        );
+    }
+
+    /// The category itself, through `classify_fetch`: one guard and TWO fetches is a
+    /// question, and one guard and ONE fetch is an answer. On this crate the question
+    /// names five sites, four of which are the two-branch shape (`if instant.is_some()`
+    /// picking between two reads guarded once) and one of which -- `red.rs:140` -- is a
+    /// guard applied to a different fetch entirely. Five sites read by hand in a minute
+    /// to find the one that matters is what this category is for.
+    #[test]
+    fn a_guard_with_two_fetches_is_a_question_and_with_one_an_answer() {
+        let two = "        \"--limit\",\n        &format!(\"repos/a?per_page=100\"),\n        read_is_complete(n, lim);";
+        assert_eq!(
+            super::classify_fetch("repos/a?per_page=100", "", two),
+            super::Fetch::GuardAmbiguous
+        );
+        let one = "        &format!(\"repos/a?per_page=100\"),\n        read_is_complete(n, lim);";
+        assert_eq!(
+            super::classify_fetch("repos/a?per_page=100", "", one),
+            super::Fetch::Guarded
+        );
+    }
+
+    /// One guard and two fetches in one function is a question, not an answer.
+    #[test]
+    fn two_fetches_in_one_body_are_counted() {
+        let body =
+            "        \"--limit\",\n        &format!(\"repos/a?per_page=100\"),\n        let z = 1;";
+        assert_eq!(fetch_sites_in(body), 2);
+        assert_eq!(fetch_sites_in("        let z = 1;"), 0);
     }
 }
