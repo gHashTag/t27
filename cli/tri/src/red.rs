@@ -33,6 +33,21 @@
 //!
 //! So a bounded read now says so in BOTH values, and `--deep` paginates until
 //! the streak actually ends, for when the real number is wanted.
+//!
+//! AND THE LISTING ITSELF WAS ONE PAGE
+//! -----------------------------------
+//! The streak was not the only bounded read here. The workflow LISTING that
+//! decides which workflows to examine at all asked `per_page=100` and did not
+//! paginate. Measured: `gHashTag/trinity-fpga` carries **405** active
+//! workflows, so **305 of them were never looked at** -- by the command whose
+//! subject is "what is failing right now".
+//!
+//! The same fetch in `cibase.rs` has paginated all along, so this was one fix
+//! that did not travel to its sibling. It was invisible for a second reason:
+//! `tri gates fetches` takes the ENCLOSING FUNCTION as the subject of its
+//! guard question, and `fn now` held more than one fetch, so the site sat in
+//! `a guard, but two fetches` -- an honest "cannot tell" -- until the function
+//! changed shape and the census resolved it to `prints what it got`.
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
@@ -255,9 +270,20 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
     let mut reds: Vec<Red> = Vec::new();
     for repo in repos {
         let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
+        // `--paginate`, because the population is the workflows themselves and a
+        // page of them is not the list. Measured: `gHashTag/trinity-fpga` has
+        // 405 active workflows and one page holds 100, so three quarters of the
+        // repository were never examined for redness -- silently, by a command
+        // whose whole subject is "what is failing right now".
+        //
+        // The identical fetch in `cibase.rs` has paginated all along. This is
+        // one fix that did not travel to its sibling, and the census that would
+        // have said so classified this site as ambiguous until the surrounding
+        // function changed shape.
         let listing = gh(&[
             "api",
             &format!("repos/{repo}/actions/workflows?per_page=100"),
+            "--paginate",
             "--jq",
             r#".workflows[]|select(.state=="active")|"\(.id)\t\(.name)""#,
         ])?;
@@ -468,6 +494,32 @@ mod page_tests {
         assert!(
             "2026-09-04T06:01" > "2026-09-03T07:19",
             "and it is LATER than the truth, which is why it needs `or earlier`"
+        );
+    }
+
+    /// The workflow LISTING decides which workflows get examined at all, and
+    /// it asked for one page. Measured: `gHashTag/trinity-fpga` has 405 active
+    /// workflows against a page of 100, so three quarters of the repository was
+    /// never looked at by a command whose subject is "what is failing now".
+    ///
+    /// Structural, because the defect is in the request and not in any value:
+    /// the listing fetch must carry `--paginate`. The identical fetch in
+    /// `cibase.rs` has carried it all along -- this is the sibling it did not
+    /// travel to, so the test names both.
+    #[test]
+    fn the_workflow_listing_walks_every_page() {
+        let src = include_str!("red.rs");
+        let at = src
+            .find("actions/workflows?per_page=100")
+            .expect("the listing fetch is still here");
+        // The flag must appear inside the same gh() argument list, which ends at
+        // the closing bracket of the call.
+        let tail = &src[at..];
+        let end = tail.find("])?").unwrap_or(tail.len());
+        assert!(
+            tail[..end].contains("--paginate"),
+            "the workflow listing is the POPULATION, and one page of it is not \
+             the list -- 405 active workflows against a page of 100"
         );
     }
 
