@@ -14030,3 +14030,68 @@ luck, and at most one is the guarantee.**
 the price is paid in the currency of the thing it is protecting. Before refreshing
 anything on a timer, ask what one refresh costs and **at what moment staleness actually
 blocks**. Often the answer is: only at the end, and only once.
+
+## 511. Eleven false deaths, and the gate that already said why
+
+An audit of this file's own checkable claims: which `tri <verb>` spellings named here still
+exist. Built the list from `./target/debug/tri --help` on a binary rebuilt at master --
+48 top-level verbs -- and found **11** verbs the file names that are not among them.
+
+**All eleven exist. The number is entirely mine.**
+
+`tri` resolves through **four** surfaces, and I asked one:
+
+```text
+scripts/tri            bash case arms                    (audit, which, disk, wave, …)
+scripts/tri_loop/*.py  dispatched BEFORE the binary      (claims, damage, gate-sweep, …)
+cli/tri  (Rust)        48 top-level verbs                 the one I asked
+t27c                   the forward-anything fallthrough
+```
+
+`./scripts/tri claims` prints `names carrying a strong word: 18`; `./scripts/tri damage
+specs` prints `files scanned: 650`; `.github/workflows/loop-tools-gate.yml` **runs the
+second one in CI**. None of the three is in the binary's help, and none is missing.
+
+**The repository already gates exactly this**, on every pull request and on master, and
+its own header says the thing I got wrong before I got it wrong:
+
+> `tri` needs all four surfaces it resolves through -- bash case arms in scripts/tri,
+> scripts/tri_loop/*.py, the Rust binary, and t27c via the forward-anything fallthrough.
+> **Missing the last one alone would report 155 false deaths**, so the checker refuses
+> rather than guessing when either binary is absent.
+
+I missed three surfaces and reported eleven. `tools/check_documented_commands_exist.py`
+reads `README.md`, `docs/**` **and `.claude/skills/**`** -- this very file -- so the sweep
+I hand-wrote was already running, on a wider population, with the refusal I lacked.
+
+**Second time in one pass.** Earlier the same day the poll-and-merge loop was a worse copy
+of `tri pr ready --wait --merge`, and what it dropped was the refusal to score a check
+whose status it could not classify -- a check with `conclusion: null` AND `state: null`.
+**Both rewrites dropped the same kind of thing: the enumeration of sources.** One field or
+four surfaces; either way I asked one and read its answer as the whole. The part you drop
+when you re-implement a check is the part that made it correct, and it is usually the part
+that says where the truth can live.
+
+**The other two classes came back clean, and the numbers are here so nobody re-runs them:**
+
+| class | population | dangling |
+|---|---|---|
+| `tri <verb>` named in a section | 36 verbs, 11 absent from the binary | **0** |
+| file path in backticks | 170 distinct paths across 143 sections | **0** |
+| "`tri X` exits N" | 7 claims in 7 sections | **0** |
+
+The 170 paths: 8 are abbreviations resolving as suffixes of tracked files (`src/ledgers.rs`
+-> `cli/tri/src/ledgers.rs`), and the 17 that resolve to nothing are generic examples
+(`a/b.rs`), a quoted *wrong* path the section is reporting as its own arithmetic error
+(&sect;199), another repository named as such (&sect;45), or the subject itself -- &sect;120 says of
+`board/bpseq.v` that `git log --all` is empty and **the path has never existed**, which is
+the finding, not a lapse.
+
+The 7 exit-code claims are each a defect narrative dated to its own repair, and two
+re-measured today reproduce exactly: &sect;489's graph reads `cycles 1` and `backward 5`, the
+numbers it shipped its down-only ledger at, and the empty-directory control that used to
+print byte-identical output now exits **2**. &sect;103's `FAIL lessons` is today `ok lessons`.
+
+**Nothing shipped from this audit, and that is the result.** A gate over a population
+measured at zero would watch an empty set, and the one gap worth having is already filled
+by a checker better than the one I was about to write.
