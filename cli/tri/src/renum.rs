@@ -126,6 +126,28 @@ fn replace_ref(text: &str, marker: &str, old: usize, new: usize) -> String {
 /// however its body was reworded; everything after the LAST such section is what
 /// this branch added. Returns `None` when no section is shared, which would mean
 /// the two files have nothing to do with each other.
+/// Whether every section in `tail` is genuinely absent from `at_base`.
+///
+/// A byte-prefix tail is everything appended since the merge base, and that is
+/// wrong the moment a SIBLING branch of yours lands part of it on the base: a
+/// squash merge puts the section on `base` under a new commit, the same content
+/// sits on both sides, and rebuilding as `at_base + tail` emits it twice.
+///
+/// Reproduced on this repository, 2026-09-05: branch tip 2ded340a against master
+/// 747e4a1, merge base 013b829. `appended here 2`, moves 546 -> 547 and
+/// 547 -> 548, and the output carried two sections with the same title, because
+/// #3199 had squash-merged the first of them onto master while the branch was
+/// open.
+pub fn tail_is_new(tail: &str, at_base: &str) -> bool {
+    let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
+        .into_iter()
+        .map(|(_, t)| t)
+        .collect();
+    !crate::skillnum::sections(tail)
+        .into_iter()
+        .any(|(_, t)| base_titles.contains(&t))
+}
+
 pub fn tail_by_title<'a>(at_base: &str, mine: &'a str) -> Option<&'a str> {
     let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
         .into_iter()
@@ -219,13 +241,34 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
     let at_base = show(base, file, &root)?;
     let mine = std::fs::read_to_string(root.join(file))?;
 
-    let (tail, how) = match appended_tail(&at_mb, &mine) {
+    // The byte-prefix tail is everything appended since the merge base -- which
+    // is wrong the moment a SIBLING branch of yours lands part of that tail on
+    // the base. A squash merge puts the section on `base` under a new commit, so
+    // the same content sits on both sides, and rebuilding as `at_base + tail`
+    // emits it twice.
+    //
+    // Reproduced on this repository, 2026-09-05: branch tip 2ded340a against
+    // master 747e4a1, merge base 013b829. The tool reported `appended here 2`
+    // and moved 546 -> 547, 547 -> 548, producing
+    //
+    //     ## 546. A mutation that also edits the test is not a mutation test
+    //     ## 547. A mutation that also edits the test is not a mutation test
+    //     ## 548. The tool that finds unchecked constants was counting its own tests
+    //
+    // because #3199 had squash-merged that first section onto master while this
+    // branch was open. `tail_by_title` -- already here for the case where the
+    // merge base is not a prefix -- answers exactly this, so the byte-prefix
+    // tail is accepted only when it shares no title with the base.
+    let prefix_tail = appended_tail(&at_mb, &mine).filter(|t| tail_is_new(t, &at_base));
+    let (tail, how) = match prefix_tail {
         Some(t) => (Some(t), "byte prefix of the merge base"),
         None => (
             tail_by_title(&at_base, &mine),
-            "TITLES shared with the base -- the merge base is not a prefix, which\n  \
-             happens when the base edited an existing section while this branch\n  \
-             was open",
+            "TITLES shared with the base -- either the merge base is not a prefix\n  \
+             (the base edited an existing section while this branch was open), or\n  \
+             the appended tail carries a section the base ALREADY HAS, which is\n  \
+             what a sibling branch of yours squash-merging does. Renumbering that\n  \
+             tail by position would emit it twice.",
         ),
     };
     let Some(tail) = tail else {
@@ -317,6 +360,98 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A sibling branch of yours squash-merging is the case the byte-prefix tail
+    /// cannot see. Reproduced on this repository, 2026-09-05: branch tip
+    /// 2ded340a against master 747e4a1, merge base 013b829. The tool reported
+    /// `appended here 2` and produced two sections with the SAME title, because
+    /// #3199 had landed the first of them on master while the branch was open.
+    #[test]
+    fn a_tail_the_base_already_carries_is_not_an_append() {
+        let at_mb = "## 1. A\n\nbody a\n";
+        // The base gained B -- which is also sitting in this branch's tail,
+        // because it came from a sibling PR of the same author.
+        let at_base = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        let mine = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n\n## 3. C\n\nbody c\n";
+
+        // The byte-prefix tail sees both B and C as appended here.
+        let raw = appended_tail(at_mb, mine).expect("mb is a prefix of mine");
+        assert_eq!(
+            crate::skillnum::sections(raw).len(),
+            2,
+            "B and C both look appended, and rebuilding on the base would emit B twice"
+        );
+
+        // By title, only C is genuinely new.
+        let by_title = tail_by_title(at_base, mine).expect("a shared title exists");
+        let secs = crate::skillnum::sections(by_title);
+        assert_eq!(secs.len(), 1, "only C is new: {secs:?}");
+        assert_eq!(secs[0].1, "C");
+    }
+
+    /// The predicate that decides whether the byte-prefix tail may be trusted.
+    #[test]
+    fn a_tail_is_new_only_when_the_base_has_none_of_it() {
+        let base = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        assert!(
+            tail_is_new("## 3. C\n\nbody c\n", base),
+            "C is nowhere on the base, so the byte-prefix tail is the precise answer"
+        );
+        assert!(
+            !tail_is_new("## 2. B\n\nbody b\n\n## 3. C\n\nbody c\n", base),
+            "B is ALREADY on the base -- renumbering this tail by position emits it twice"
+        );
+        assert!(
+            !tail_is_new("## 9. B\n\nbody b\n", base),
+            "the match is by TITLE, not by number: a renumbered duplicate is still a duplicate"
+        );
+        assert!(
+            tail_is_new("", base),
+            "an empty tail carries nothing the base could already have"
+        );
+    }
+
+    /// `tail_is_new` can be right while `run` never consults it. Dropping the
+    /// `.filter(...)` restores the defect with every test above still green.
+    ///
+    /// SIXTH change in six passes whose surviving mutant was the wiring rather
+    /// than the function. The needle is split across two literals so this test's
+    /// own body does not contain the string it searches for.
+    #[test]
+    fn run_actually_filters_the_byte_prefix_tail() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let guarded = concat!(".filter(|t| ", "tail_is_new(t, &at_base))");
+        assert!(
+            code.contains(guarded),
+            "without this the byte-prefix tail is trusted even when the base \
+             already carries part of it, and the rebuild emits a section twice"
+        );
+    }
+
+    /// The ordinary case must not change: with no overlap the byte-prefix tail
+    /// is still the precise answer, and it is the one that keeps a base-side
+    /// rewording of an EXISTING section from being silently discarded.
+    #[test]
+    fn a_clean_append_still_uses_the_byte_prefix() {
+        let at_mb = "## 1. A\n\nbody a\n";
+        let at_base = "## 1. A\n\nbody a\n";
+        let mine = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        let raw = appended_tail(at_mb, mine).expect("mb is a prefix");
+        let base_titles: std::collections::BTreeSet<String> =
+            crate::skillnum::sections(at_base)
+                .into_iter()
+                .map(|(_, t)| t)
+                .collect();
+        let overlaps = crate::skillnum::sections(raw)
+            .into_iter()
+            .any(|(_, t)| base_titles.contains(&t));
+        assert!(!overlaps, "nothing in the tail is on the base, so the prefix stands");
+    }
 
     const BASE: &str = "intro\n\n## 10. Ten\n\nbody ten\n";
 

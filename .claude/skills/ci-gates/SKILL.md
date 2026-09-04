@@ -15536,3 +15536,57 @@ distinguishable value.
 **This is the first one I went looking for before running it, and it was there.** The pattern is not
 about any of these functions. It is about where attention goes when a fix is written: into the thing
 being fixed, never into the line that reaches it.
+
+## 548. I hand-wrote the resolver six times, and the tool for it already existed
+
+Six consecutive passes have ended with the same conflict in this file and a fresh throwaway Python
+script to resolve it. **Measured on `gHashTag/t27`: 172 of the 281 commits on master since
+2026-08-29 touch `SKILL.md` -- 61%** -- and it grew from 257 sections to 510 in seven days. A branch
+that lives minutes conflicts.
+
+`tri skill renumber` has existed the whole time. "Move sections you appended to the numbers the base
+branch left free", `--base`, `--check`, `--first`. That is the operation, and I wrote it by hand six
+times without looking. This is the fourth entry in this file about rewriting a tool the repository
+already had.
+
+### And it was wrong on exactly the case I kept hitting
+
+Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge base `013b829`:
+
+```
+  appended here           2
+  tail identified by      byte prefix of the merge base
+      546  ->  547
+      547  ->  548
+```
+
+and the file it wrote contained:
+
+```
+## 546. A mutation that also edits the test is not a mutation test
+## 547. A mutation that also edits the test is not a mutation test     <-- twice
+## 548. The tool that finds unchecked constants was counting its own tests
+```
+
+**The byte-prefix tail is everything appended since the merge base, and that is wrong the moment a
+SIBLING branch of yours lands part of it on the base.** #3199 had squash-merged &sect;546 onto master
+while this branch was open, so the same content sat on both sides and the rebuild emitted it twice.
+The squash is what hides it: the section arrives on `base` under a commit this branch has never seen,
+so no ancestry relates them and only the TITLE does.
+
+**The instrument was already in the file, again.** `tail_by_title` sits forty lines above, written for
+the neighbouring case where the merge base is not a prefix. The fix is to accept the byte-prefix tail
+only when it shares no title with the base, and fall through to the function that was already there.
+After: `appended here 1`, 511 sections, no duplicate title, no duplicate number, nothing of master's
+lost.
+
+### Sixth pass, sixth surviving mutant, still the wiring
+
+`tail_is_new` is covered four ways and dropping `.filter(|t| tail_is_new(t, &at_base))` from the call
+site leaves every one of them green. Killed by a structural test reading the call site, needle split
+across two literals.
+
+The list is now `last_pass` &middot; `claims_seen` &middot; `single_digit_only` &middot; both
+`competitors` print sites &middot; `drop_test_module_sites` &middot; and this. **Six for six.** The
+lesson has stopped being about any individual fix: after extracting a helper, the very next act
+should be mutating the line that calls it, before writing a single test for the helper itself.
