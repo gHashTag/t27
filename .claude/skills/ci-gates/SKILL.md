@@ -13798,7 +13798,7 @@ With it, the honest count of tracked subjects missing today is **0** -- the same
 the previous pass gave for a different reason, and this time the reason is measured
 rather than lucky.
 
-## 504. An extension is not a language, and two spellings of the same thing are not two
+## 506. An extension is not a language, and two spellings of the same thing are not two
 
 Counting the Coq files nothing compiles took four corrections, and three of them were about the
 population rather than the arithmetic. The finished number is small and the discarded ones were not.
@@ -13833,3 +13833,94 @@ its workflow has run once in sixty (§3142). Three Coq proofs lost two thirds of
 merge and are among these 18. **Work that nothing compiles cannot report its own state**, and a gate
 whose population is the compiled set will stay green however bad the rest becomes. The population is
 the finding; the count is the footnote.
+
+## 507. Twenty steps run under a shell nobody named
+
+`coq-kernel.yml` cost hours because its container's shell is dash and a repair added
+`set -uo pipefail`. `tri gates shell` asks the question that would have caught it, of
+every step:
+
+```
+  jobs                          71
+  run: steps                    227
+
+  who names the shell:
+    the runner does            207   no container, so bash -eo pipefail
+    a `shell:` key does          0
+    NOBODY                      20   a container and no `shell:` key
+```
+
+**Zero.** The repository has exactly one `shell:` key and no `defaults: run: shell:`.
+
+*The first draft of this section said the image decides -- bash if the image has it,
+`sh -e` otherwise. That is wrong, and the log says so.* In run 33840876340, inside
+`coqorg/coq`, **both shells appear in one job**: this repository's own `run:` steps get
+`sh -e {0}`, while a composite action's steps, which declare `shell: bash`, get
+`bash --noprofile --norc -e -o pipefail {0}` and succeed. **Bash is present in that
+image.** What selects `sh` is the CONTAINER, not the absence of bash -- on the runner
+host the default is bash, inside a container it is `sh`, and only a `shell:` key changes
+it.
+
+An Unknown step is therefore not wrong but unnamed, and the practical consequence is the
+opposite of what the first draft implied: `shell: bash` is not a gamble on the image, it
+is measured to work in the one image tested here.
+
+**The payload is the syntax scan, and only inside those twenty.** Bash-only constructs
+elsewhere are fine; the same text in a container is a coin flip. Split by consequence,
+because they are not one defect: `pipefail`, `[[ `, `<<<`, `${var,,}` are **fatal** --
+the step ends and nothing in it runs -- while `echo -e` and `source` are **quiet**, and
+mean something else.
+
+**Validated against the failure it was written for.** Run against the commit that
+carried `set -uo pipefail`, the command prints `FATAL coq-kernel.yml:121 pipefail`. It
+would have named that outage before it happened. On master today it prints **one**
+hazard, and that one is quiet: `source ` in `vivado-synth.yml`.
+
+**The needle is `pipefail`, not `-o pipefail`**, and that distinction was found by a
+test rather than by reading. The line that actually broke the gate is `set -uo pipefail`
+-- the flags are joined, so `-o pipefail` is **not a substring of it**. A rule written
+for the textbook spelling would have missed the only instance this repository has ever
+had.
+
+**And a hand count disagreed, five against one.** The five were three lines of prose
+explaining this very defect, one `<<<` in a job that has no container and therefore runs
+under bash, and the one real hit. Every one of the four is a case the narrower
+population is right to exclude -- the disagreement was the tool being correct and the
+grep being loose, which is worth writing down because it usually runs the other way.
+
+## 508. Two sections numbered 504, and nothing was going to say so
+
+This file's first law about itself is that no number is used twice. On master today two
+sections were both **504** -- "The subject of a step is the step, not the line" and "An
+extension is not a language" -- landed 26 minutes apart by two sessions, each appending
+above the same highest number it had read.
+
+`tri skill check` **finds it**, and prints:
+
+```
+  ci-gates   470 section(s)  PROBLEMS
+      section 504 appears 2 times: "The subject of a step…", "An extension is not…"
+      section 504 comes after 505 -- the file reads out of order
+```
+
+**And then exits 0.** Nothing fails. Worse, `grep -rn "skill check"` across
+`.github/workflows/`, `scripts/` and `tools/` returns **nothing**: no gate calls it, no
+hook calls it, no script calls it. The law is enforced by a command that detects the
+violation, reports it as text, exits successfully, and is never run.
+
+That is three independent failures stacked, and any one of them alone would have been
+enough to catch this: a checker that exited non-zero would fail a PR; a checker wired
+into CI would print the line where someone might read it; a checker that did neither but
+was run by hand would still have shown it.
+
+**The collision itself is not carelessness.** Both sessions did the correct thing --
+read the highest number, append above it -- and the numbers were assigned from readings
+taken minutes apart against a file that moved between them. It is the same shape as a
+figure over a sliding population, in the one place this file legislates about: **"the
+highest number" is a query, not a fact**, and two readers get the same answer and
+different truth.
+
+Resolved here by moving the LATER of the two, since the earlier one already had
+references in flight and the later had none -- checked, not assumed: `grep` for
+`&sect;504` across the file returns zero either way, so the tie was broken by merge time
+rather than by cost.
