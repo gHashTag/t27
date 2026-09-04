@@ -83,6 +83,13 @@ jobs:
         # planted-row control.
         run: python3 scripts/ci/test_status_tables_name_paths_that_exist.py
 
+      - name: Every re-taken proposition is still anchored
+        # #3086. Three figures in the living document had drifted -- 1,135 ->
+        # 1,953, 101/397 -> 290/650, 608 specs -> 650 -- and each re-take is
+        # written beside the original with a commit. This guards the re-takes:
+        # a number labelled "Now" with no anchor is the defect they record.
+        run: python3 scripts/ci/test_retaken_propositions_still_match.py
+
       - name: No untrusted event data interpolated into shell
         run: python3 scripts/ci/check_untrusted_shell_interp.py
 
