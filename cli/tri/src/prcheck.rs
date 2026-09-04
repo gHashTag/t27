@@ -443,12 +443,33 @@ pub fn merge_outcome(ran_ok: bool, on_branch: bool) -> i32 {
 /// `tri gates fetches` flags and this is one of its five sites.
 ///
 /// Saying the number actually compared costs one word and cannot drift.
+/// Was the closed-pull-request page full, meaning more may lie beyond it?
+///
+/// This is the question `tri gates fetches` asks and the reason it kept flagging
+/// this site after the sentence was made honest: saying how many were compared
+/// is not the same as saying whether more existed. A shortfall matters only when
+/// the page was full -- a quiet week returns fewer merged PRs and that is the
+/// true answer, not a truncation.
+pub fn page_was_full(lines_returned: usize, per_page: usize) -> bool {
+    lines_returned >= per_page
+}
+
 pub fn baseline_phrase(compared: usize, asked: usize) -> String {
     match compared {
         0 => "no merged PR (none were found to compare against)".to_string(),
         1 => "the 1 merged PR read".to_string(),
         n if n < asked => format!("the {n} merged PRs found (fewer than the {asked} asked for)"),
         n => format!("the last {n} merged PRs"),
+    }
+}
+
+/// The same sentence, with the truncation the page can hide.
+pub fn baseline_phrase_bounded(compared: usize, asked: usize, page_full: bool) -> String {
+    let base = baseline_phrase(compared, asked);
+    if compared < asked && page_full {
+        format!("{base}; the fetch page was FULL, so more may exist beyond it")
+    } else {
+        base
     }
 }
 
@@ -604,6 +625,9 @@ fn ready(
         "--jq",
         ".[]|select(.merged_at!=null)|.number",
     ])?;
+    let page_size = baseline * 3;
+    let returned = merged.lines().filter(|l| !l.trim().is_empty()).count();
+    let page_full = page_was_full(returned, page_size);
     let mut compared = 0usize;
     for num in merged.lines().take(baseline) {
         if let Ok(p) = num.parse::<u64>() {
@@ -633,14 +657,14 @@ fn ready(
             }
             None if !observed.contains(name) => {
                 println!("  {name}\n      NO BASELINE — this check did not run on any recent");
-                println!("      {branch} commit nor on any of {}, so", baseline_phrase(compared, baseline));
+                println!("      {branch} commit nor on any of {}, so", baseline_phrase_bounded(compared, baseline, page_full));
                 println!("      there is nothing to compare against. Usually a `paths:` filter");
                 println!("      with no `push:` trigger. Read the log; this command cannot say");
                 println!("      whether the failure is yours.");
                 no_baseline.push(name.clone());
             }
             None => {
-                println!("  {name}\n      NOT failing on recent {branch} commits or in {}\n      (it ran there and passed)", baseline_phrase(compared, baseline));
+                println!("  {name}\n      NOT failing on recent {branch} commits or in {}\n      (it ran there and passed)", baseline_phrase_bounded(compared, baseline, page_full));
                 new_here.push(name.clone());
             }
         }
@@ -911,6 +935,44 @@ mod paginated_count_tests {
     #[test]
     fn an_unparseable_line_does_not_become_a_zero() {
         assert_eq!(sum_per_page("5\ngh: rate limit\n4\n"), 9);
+    }
+}
+
+#[cfg(test)]
+mod page_was_full_tests {
+    use super::{baseline_phrase_bounded, page_was_full};
+
+    #[test]
+    fn a_full_page_may_hide_more() {
+        assert!(page_was_full(15, 15));
+        assert!(page_was_full(16, 15));
+    }
+
+    #[test]
+    fn a_short_page_is_the_whole_answer() {
+        assert!(!page_was_full(14, 15));
+        assert!(!page_was_full(0, 15));
+    }
+
+    /// A shortfall matters only when the page was FULL. A quiet week returns
+    /// fewer merged pull requests and that is the true answer, not a truncation
+    /// -- saying "more may exist" there would be the opposite lie.
+    #[test]
+    fn a_shortfall_on_a_short_page_is_not_a_truncation() {
+        let s = baseline_phrase_bounded(2, 5, false);
+        assert!(!s.contains("FULL"), "{s}");
+    }
+
+    #[test]
+    fn a_shortfall_on_a_full_page_says_so() {
+        let s = baseline_phrase_bounded(2, 5, true);
+        assert!(s.contains("page was FULL"), "{s}");
+    }
+
+    /// Reaching the number asked for is not a shortfall, full page or not.
+    #[test]
+    fn reaching_the_target_is_never_a_truncation() {
+        assert!(!baseline_phrase_bounded(5, 5, true).contains("FULL"));
     }
 }
 
