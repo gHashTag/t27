@@ -125,6 +125,7 @@ pub(crate) fn clear_derived_caches(file: &Path) {
     }
 }
 
+#[derive(Debug, Clone)]
 struct Mutant {
     line: usize,
     /// 1-based column. Without it, two identical literals on one line produce
@@ -210,6 +211,25 @@ fn masked(text: &str) -> Vec<bool> {
         i += 1;
     }
     mask
+}
+
+/// Drop the sites that sit inside a Rust `#[cfg(test)]` module.
+///
+/// Returns the survivors and how many were dropped, so the count can be
+/// PRINTED rather than silently applied -- a population that shrinks without
+/// saying so is the defect one level up from the one this fixes.
+fn drop_test_module_sites(file: &Path, text: &str, all: Vec<Mutant>) -> (Vec<Mutant>, usize) {
+    if file.extension().and_then(|e| e.to_str()) != Some("rs") {
+        return (all, 0);
+    }
+    let mask = crate::gates::test_module_lines(text);
+    let before = all.len();
+    let kept: Vec<Mutant> = all
+        .into_iter()
+        .filter(|m| !mask.get(m.line.saturating_sub(1)).copied().unwrap_or(false))
+        .collect();
+    let dropped = before - kept.len();
+    (kept, dropped)
 }
 
 /// Every integer literal in the file, with a perturbed value.
@@ -308,7 +328,29 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
         );
     }
 
-    let mutants = find_mutants(&original, max);
+    let all = find_mutants(&original, max);
+    // A literal inside `#[cfg(test)]` is not a constant the checker fails to
+    // check -- it is the checker's own arithmetic. Perturbing it breaks the test
+    // that holds it, and that red is reported as the checker NOTICING, which is
+    // a tautology: something went red and nothing was learned about production.
+    //
+    // Measured 2026-09-05 on this crate: 45 of the 59 sites this tool finds in
+    // `red.rs` are inside its test module -- 76% -- and 1545 of 3198 across the
+    // whole crate. Reproduced end to end: perturbing `render_headline(50, ...)`
+    // in a test call fails the suite, and `50` is a number that appears only in
+    // that test.
+    //
+    // Rust only, by the same rule `gates` uses. The tool is deliberately
+    // language-agnostic and runs on Python, Verilog and YAML, none of which have
+    // `#[cfg(test)]`; there the population is unchanged.
+    let (mutants, skipped) = drop_test_module_sites(file, &original, all);
+    if skipped > 0 {
+        println!(
+            "  {skipped} literal(s) skipped: they sit inside a `#[cfg(test)]` module.\n  \
+             Perturbing a test's own arithmetic fails that test, and reporting it as\n  \
+             `the checker noticed` says nothing about the code under test.\n"
+        );
+    }
     if mutants.is_empty() {
         println!("No numeric literals found in {}.", file.display());
         return Ok(());
@@ -395,6 +437,91 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A literal inside `#[cfg(test)]` is the checker's own arithmetic, not a
+    /// constant the checker fails to check. Perturbing it fails the test that
+    /// holds it, and that red was reported as the checker NOTICING.
+    ///
+    /// Measured 2026-09-05: 45 of the 59 sites this tool finds in `red.rs` are
+    /// inside its test module, and 1545 of 3198 across the crate. Reproduced end
+    /// to end: perturbing `render_headline(50, ...)` in a test call fails the
+    /// suite, and that `50` appears only in that test.
+    #[test]
+    fn a_literal_inside_a_test_module_is_not_a_site() {
+        let src = "const CAP: usize = 30;\n#[cfg(test)]\nmod t {\n    #[test]\n    fn a() {\n        assert_eq!(f(7), 8);\n    }\n}\n";
+        let all = find_mutants(src, 40);
+        assert_eq!(
+            all.len(),
+            3,
+            "the raw finder sees all three: 30, 7 and 8 -- {all:?}"
+        );
+        let (kept, dropped) = drop_test_module_sites(Path::new("x.rs"), src, all);
+        assert_eq!(dropped, 2, "the two inside the test module are dropped");
+        assert_eq!(kept.len(), 1, "the production constant remains");
+        assert_eq!(kept[0].from, "30", "and it is the right one: {kept:?}");
+    }
+
+    /// The filter can be right while `mutate` never calls it.
+    ///
+    /// Replacing the call with `(all, 0)` leaves the three value-level tests
+    /// here green and restores the defect exactly. This is the FIFTH change in
+    /// five passes whose surviving mutant was the wiring rather than the
+    /// function, and the first one I went looking for before running it.
+    ///
+    /// The needle is split across two literals so this test's own body does not
+    /// contain the string it searches for -- a structural test that finds itself
+    /// passes against its own mutant, which happened once already.
+    #[test]
+    fn mutate_actually_calls_the_filter() {
+        let src = include_str!("mutate.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own, not a mention in prose");
+        let code: String = src
+            .lines()
+            .take(boundary)
+            .collect::<Vec<_>>()
+            .join("\n");
+        let call = concat!("drop_test_module_", "sites(file, &original, all)");
+        assert!(
+            code.contains(call),
+            "the filter has to be reached from `mutate`, or a test-module literal \
+             is perturbed and its red is reported as the checker noticing"
+        );
+    }
+
+    /// The tool runs on a Python oracle, a Verilog header and a YAML workflow.
+    /// None of them has `#[cfg(test)]`, and none may lose a site to a rule
+    /// written for Rust.
+    #[test]
+    fn a_non_rust_file_keeps_every_site() {
+        let src = "CAP = 30\n# cfg(test) is not a thing here\nassert f(7) == 8\n";
+        let all = find_mutants(src, 40);
+        let n = all.len();
+        assert!(n >= 3, "the finder sees the literals: {all:?}");
+        for name in ["x.py", "x.v", "x.yml", "x"] {
+            let (kept, dropped) = drop_test_module_sites(Path::new(name), src, all.clone());
+            assert_eq!(dropped, 0, "{name}: no Rust rule may apply");
+            assert_eq!(kept.len(), n, "{name}: every site survives");
+        }
+    }
+
+    /// A population that shrinks without saying so is the defect one level up
+    /// from the one this fixes, so the count comes back to be printed.
+    #[test]
+    fn the_number_dropped_is_returned_to_be_printed() {
+        let src = "let a = 1;\n#[cfg(test)]\nmod t {\n    fn z() { let b = 2; let c = 3; }\n}\n";
+        let all = find_mutants(src, 40);
+        let before = all.len();
+        let (kept, dropped) = drop_test_module_sites(Path::new("x.rs"), src, all);
+        assert_eq!(
+            kept.len() + dropped,
+            before,
+            "every site is either kept or counted as dropped -- none may vanish"
+        );
+        assert!(dropped > 0, "this fixture has test-module literals to drop");
+    }
 
     /// `gf16` and `sha1` are names, not constants. An early version of this
     /// scanner mutated the `16` in `gf16` and produced a mutant that failed for

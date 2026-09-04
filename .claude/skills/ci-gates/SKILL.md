@@ -15473,3 +15473,66 @@ where the mutated token appears nowhere in the tests the result was sound, and h
 In every one the function was correct and covered, and a line elsewhere put its result to no use or
 the wrong use. Each needed a structural test reading the call site, with the needle split across two
 literals. **Four for four is not a coincidence: it is where my attention goes when I write a fix.**
+
+## 547. The tool that finds unchecked constants was counting its own tests
+
+&sect;546 found that my ad-hoc mutation harness edited test code along with production code and
+reported a false `killed`. The obvious next question was how far that reached. It reaches the shipped
+tool.
+
+`tri mutate run` perturbs every integer literal in a file and asks whether the checker notices. Its
+`find_mutants` masks comments and string bodies **and nothing else** -- there is no test-module
+filter. So a literal inside `#[cfg(test)]` is perturbed like any other, the test holding it fails,
+and that red is reported as the checker NOTICING.
+
+**Measured by the tool itself, with `--cmd true` so every mutant survives and it simply lists its
+sites:**
+
+| file | sites the tool finds | inside `#[cfg(test)]` | |
+|---|---|---|---|
+| `red.rs` | 59 | **45** | 76% |
+| whole crate (simulated) | 3198 | **1545** | 48% |
+
+**Reproduced end to end rather than inferred.** `red.rs:826` is `let h = render_headline(50, 3, 44, 7);`
+inside a test. Perturbing that `50` to `51` fails the suite. `tri mutate run` would call that a killed
+mutant -- over a number that exists only in a test, in a tool whose entire subject is *constants
+nothing actually checks*.
+
+**Shipped.** Sites inside a Rust `#[cfg(test)]` module are dropped, by the same
+`gates::test_module_lines` rule used elsewhere, and **the number dropped is printed**:
+
+```
+  45 literal(s) skipped: they sit inside a `#[cfg(test)]` module.
+  Perturbing a test's own arithmetic fails that test, and reporting it as
+  `the checker noticed` says nothing about the code under test.
+
+  14 literal(s) in cli/tri/src/red.rs, one mutation each.
+```
+
+A population that shrinks without saying so is the defect one level up from the one this fixes.
+`.rs` only: the tool deliberately runs on Python, Verilog and YAML, none of which have
+`#[cfg(test)]`, and `diffbin.py` still reports all 61 of its literals with no skip line.
+
+### The harness refused four mutants, and was right to
+
+Running the four mutants against this change, `mutate-production` refused all four:
+`ANCHOR ABSENT FROM PRODUCTION CODE (1 occurrence in tests)`. The production sites were plainly
+there. **The harness cut the file at the first textual occurrence of `#[cfg(test)]`, and the new doc
+comment MENTIONS `#[cfg(test)]` in prose forty lines above the real module** -- so everything below
+that sentence read as test code.
+
+A matcher matching prose, in the tool written to stop a matcher matching the wrong half. Fixed: the
+boundary is a line that IS the attribute, at column zero -- the rule `test_module_lines` already uses.
+
+**It cost nothing because the refusal was loud.** It printed
+`Nothing mutated -- do not read this as a surviving mutant` rather than a silent zero, so four
+"survivors" were never believed. That is &sect;536's rule paying for itself: give every miss a loud,
+distinguishable value.
+
+### Five passes, five surviving mutants, every one the wiring
+
+`last_pass` (red.rs) &middot; `claims_seen` (gates.rs) &middot; `single_digit_only` (issues.rs)
+&middot; both print sites (competitors.rs) &middot; and here, `drop_test_module_sites` never called.
+**This is the first one I went looking for before running it, and it was there.** The pattern is not
+about any of these functions. It is about where attention goes when a fix is written: into the thing
+being fixed, never into the line that reaches it.
