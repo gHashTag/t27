@@ -13373,3 +13373,37 @@ worktree: one for the fan-out, one for the hand measuring, never the same path.
 The agent caught it only because it ran its own script twice and subtracted —
 which is the habit that makes a moving baseline visible at all.
 
+
+## 496. The field's name for it is "assertionless", and mutation score is the ruler
+
+Prior art, looked up rather than reinvented. The shape this file keeps recording
+— a test that passes while asserting nothing about the code under test — is a
+catalogued **test smell**: *Assertionless Test*, in a mapping study of **22**
+detection tools (TestLint reports 26 smell types, JNose 21, TSDETECT 19). So the
+class has a name, a literature, and tooling, and three things follow.
+
+**The diagnostic is mutation score, not coverage.** A tautological test scores
+100% line coverage and kills nothing. That is why this repository's habit of
+shipping a mutation beside every guard is the right one and coverage would not
+be: coverage answers *was the line executed*, mutation answers *would anything
+have noticed if the line were wrong*. Both readings of the same test can be
+green at once, and only one of them is evidence.
+
+**And the warning that lands closest to home.** The literature's sharpest point
+about generated tests: *when the same author writes the code and the test, any
+bug in the logic becomes the expected value*. That is exactly the position I am
+in on every pass. It is the argument for the two habits already in this file —
+the mutation that must kill, and the CONTROL that must not — because both are
+questions the author cannot answer by agreeing with themselves.
+
+**What this does not license.** Adopting a smell detector is not obviously worth
+it here: §494 measured a sweep at eight false positives out of eight flags, and
+a detector with that precision dies whatever its pedigree. The finding worth
+keeping is narrower and free: *when a guard ships without a mutation, the reason
+should be written down beside it* — because "I did not think it needed one" and
+"the mutation was impossible to construct" are different claims and only the
+second is a fact.
+
+Sources: *Test Smell Detection Tools: A Systematic Mapping Study* (arXiv
+2104.14640); *Assertion Inferring Mutants* (arXiv 2301.12284).
+
