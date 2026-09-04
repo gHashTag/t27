@@ -13144,8 +13144,31 @@ positive control settles it in one move: **run it in the repository and run it
 from an empty directory — byte-identical output, exit 0 both times.**
 
 What the graph actually holds: **55 nodes, 91 edges — 65 forward, 21 same-tier,
-5 tier-backward, and one cycle `17 -> 19 -> 18 -> 17`.** LAW 8 does not hold, and
-has not, under a script that says it does.
+5 tier-backward, and one cycle `17 -> 19 -> 18 -> 17`**, under a script that says
+it holds.
+
+**Corrected in place, one pass later, and the correction is the better finding.**
+"LAW 8 does not hold" was over-stated: the graph carries **twelve edge kinds**,
+three of which are documentation relations — `documented-by` (a spec to the doc
+that documents it), `references` (doc to doc), `standardizes` (doc to spec).
+`documented-by` is the *inverse* of a dependency, so counting it makes a spec
+depend on its own documentation. Dropping one kind at a time:
+
+```
+all 91 edges              cycles 1   backward 5
+drop documented-by (2)    cycles 0   backward 3
+drop references    (1)    cycles 0   backward 5
+```
+
+The one cycle is a `documented-by`, a `references` and an `import` in series;
+either documentation edge removes it. Over **dependencies** LAW 8 has **0 cycles
+and 3 backward edges**, and those three are worth a reading: `affects_benchmark`
+t2→t1, `codegen` t6→t2, and an `import` from `math/constants` into a *docs* node.
+
+**A law stated over one relation, measured over twelve, reports the other eleven
+as violations.** The first reading was not wrong about the numbers; it was wrong
+about which graph LAW 8 is about — and the check now prints both, so nobody has
+to trust one file's opinion of which kinds are documentation.
 
 Three things worth keeping apart:
 
