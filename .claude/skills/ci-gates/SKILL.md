@@ -13797,3 +13797,48 @@ workflow.
 With it, the honest count of tracked subjects missing today is **0** -- the same answer
 the previous pass gave for a different reason, and this time the reason is measured
 rather than lucky.
+
+## 506. Twenty steps run under a shell nobody named
+
+`coq-kernel.yml` cost hours because its container's shell is dash and a repair added
+`set -uo pipefail`. `tri gates shell` asks the question that would have caught it, of
+every step:
+
+```
+  jobs                          71
+  run: steps                    227
+
+  who names the shell:
+    the runner does            207   no container, so bash -eo pipefail
+    a `shell:` key does          0
+    NOBODY                      20   a container and no `shell:` key
+```
+
+**Zero.** The repository has exactly one `shell:` key and no `defaults: run: shell:`, so
+for every step inside a container the interpreter is whatever the image happens to
+carry. GitHub uses bash when the image HAS bash and `sh -e` otherwise, **and the image's
+contents are not visible from the workflow** -- so an Unknown step is not wrong, it is
+unnamed, and the only direct evidence is a run log.
+
+**The payload is the syntax scan, and only inside those twenty.** Bash-only constructs
+elsewhere are fine; the same text in a container is a coin flip. Split by consequence,
+because they are not one defect: `pipefail`, `[[ `, `<<<`, `${var,,}` are **fatal** --
+the step ends and nothing in it runs -- while `echo -e` and `source` are **quiet**, and
+mean something else.
+
+**Validated against the failure it was written for.** Run against the commit that
+carried `set -uo pipefail`, the command prints `FATAL coq-kernel.yml:121 pipefail`. It
+would have named that outage before it happened. On master today it prints **one**
+hazard, and that one is quiet: `source ` in `vivado-synth.yml`.
+
+**The needle is `pipefail`, not `-o pipefail`**, and that distinction was found by a
+test rather than by reading. The line that actually broke the gate is `set -uo pipefail`
+-- the flags are joined, so `-o pipefail` is **not a substring of it**. A rule written
+for the textbook spelling would have missed the only instance this repository has ever
+had.
+
+**And a hand count disagreed, five against one.** The five were three lines of prose
+explaining this very defect, one `<<<` in a job that has no container and therefore runs
+under bash, and the one real hit. Every one of the four is a case the narrower
+population is right to exclude -- the disagreement was the tool being correct and the
+grep being loose, which is worth writing down because it usually runs the other way.
