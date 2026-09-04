@@ -14173,3 +14173,31 @@ sentence away from being published as *"the population drifted by one overnight"
 a difference becomes a finding, run it twice. This is 297 (`PROVEN requires reproduction`)
 applied to the thing most likely to escape it: not the headline result, which gets scrutiny,
 but the incidental reading that merely *supports* one.
+
+## 516. A republish notice names a version, not the live one -- decode the stamp
+
+An `artifact-changed` notice said the page was "now version `1788523848-b8d8`" and that my copy
+was stale. The stamps are unix seconds and they decode:
+
+    1788523848  2026-09-04T12:10:48Z   named by the NOTICE
+    1788524500  2026-09-04T12:21:40Z   the base I had merged onto
+    1788528713  2026-09-04T13:31:53Z   actually live
+
+**The notice named a version 11 minutes older than the base I had already merged onto, and 81
+minutes older than the live page** -- which was my own publish, confirmed byte-identical:
+750,681 bytes and 622 distinct `<h3>` on both sides, zero difference in either direction.
+
+**Acting on it would have been destructive.** "Re-read before republishing" against `b8d8` means
+merging onto a tree that predates both sessions' latest work: my 176 entries and their newest
+entries would both have been dropped, by following the instruction literally.
+
+Second measured instance -- this page already carried *"a republish notice named a version 83
+minutes older than the live one"*. Twice is a class, not an accident.
+
+**The check costs two commands and settles it:** `action: "read"` the URL to learn what is
+actually live, then compare the fetched file against your own by CONTENT -- h3 sets and byte
+length -- not by the version string. A size match alone is weak; a set comparison in both
+directions is not. Only re-merge when the fetched content actually differs from yours.
+
+Same shape as 268: a signal that is inside the failure domain it reports on. A staleness notice
+that can be stale is a broken ruler for staleness.
