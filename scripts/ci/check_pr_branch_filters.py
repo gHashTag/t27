@@ -69,6 +69,11 @@ MERGE_CRITICAL = (
     "secret-scan.yml",
     "verilog-widths.yml",
     "damage-negatives.yml",
+    # Reads README, .claude/skills and docs against `t27c --help`. Merge-
+    # critical because the defect it catches is a document telling a reader
+    # to run a command that does not exist, and a branch filter would skip
+    # it on exactly the PR that renames one.
+    "documented-commands.yml",
     # Added when the third bucket below was first printed. All three were in
     # NEITHER list, so this check reported CLEAN without ever reading them --
     # and two of them carried the exact defect it exists to detect.
