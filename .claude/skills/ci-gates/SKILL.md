@@ -15863,3 +15863,145 @@ concluded the opposite about the same rows -- that no compiler change could ever
 retire them. Whether an unsupported construct is a gap to implement or a position to
 defend is a question the project answers, and it had answered it; a reader arriving
 from the outside cannot derive that from the keyword list alone.
+## 555. The audit that found nothing, and why that is the result
+
+&sect;552 repaired one section whose body the tooling had destroyed. The obvious next question is
+whether it was the only one. `tri skill lost` asks it: walk every commit that touched this file,
+record each section's body the first time it appeared, and report any whose body on the base is a
+strict PREFIX of that first version. An edit in place is not a prefix. A truncation is.
+
+**Measured over 281 commits and 518 titles ever written.**
+
+| | |
+|---|---|
+| titles ever written | **518** |
+| present on master | **516** |
+| bodies that are a strict prefix of an earlier version | 40 |
+| &nbsp;&nbsp;of those, differing by trailing blank lines only | **38** |
+| &nbsp;&nbsp;real cut tails | **2** |
+
+**Both real cut tails are reorganisations, not losses**, and both were checked rather than assumed:
+
+* `Renaming a CI job silently breaks branch protection`, -21 lines. What left was an unnumbered
+  `## Writing a gate here` block and its list. A body runs to the next NUMBERED heading, so an
+  unnumbered block that later moved elsewhere in the document reads exactly like a truncation.
+  `grep` finds it on master.
+* `Emitter-class repair`, -5 lines: one paragraph, `Hold the win with a per-module ratchet`. Still
+  on master, one occurrence.
+
+**Both absent titles are deliberate, and both were read before being judged:**
+
+* `What to do when the fix is behind a seal` was **rewritten under a longer title** -- 43 of its 43
+  substantial lines are present on master under `... -- and how to check it is`.
+* `A gate that never runs on master has no baseline` was **withdrawn on purpose**, by commit
+  `7071b071` whose subject is *"withdraw a claim of mine"* and whose body gives the two master runs
+  that refuted it.
+
+**So: zero unexplained losses. &sect;550 was the only one, it was caused by the tool in this session,
+and it is repaired.** A clean audit is a result -- it is what makes the &sect;552 repair a closed
+incident rather than a sample of an unknown population.
+
+### Three ways this audit could have lied, and what each cost
+
+* **Counting titles.** 518 ever, 516 now, so "2 lost" -- and both are fine. A missing title is not a
+  loss; the command says so in its own output, because the next reader will hit the same two.
+* **Counting prefix hits.** 40, of which 38 are trailing blanks. Reporting all 40 would have buried
+  the two that were real under noise that is an artefact of where a section ends.
+* **Believing the two.** Both looked like damage and neither was. `grep` for a distinctive line
+  settled each in one command. **The audit's value was entirely in the four checks that turned
+  findings back into non-findings.**
+
+### Eighth pass, eighth wiring mutant -- and the first found before the helper was tested
+
+`if truncated(then, n)` replaced with `if false` makes the command walk 281 commits, find nothing by
+construction, and print a clean bill of health for any file forever. Three tests on `truncated`
+itself stay green.
+
+This one was found by mutating the call site **first**, before writing a single test for the helper --
+which is the rule the previous seven produced. **The rule works, and it took seven repetitions to
+write down.**
+## 556. Two bare headings in NOW.md, and the extension that would have audited nothing
+
+The plan carried out of &sect;555 was "run the same audit over `docs/NOW.md`". Checked before built:
+**that file has ZERO numbered headings.** 312 of them, every one of the shape `## fix(...)` or
+`## Wave Loop 434 — ...`. A `--file` flag on a command that insists on `## N. ` would have walked 810
+commits, found an empty population, and printed a clean bill of health.
+
+**The check that stopped it cost one `grep -c`, and it is the same question as "does this gate have a
+subject".** The habit that made it happen is newer than the habit of writing the flag.
+
+So the key generalised instead: strip a leading `N. ` when there is one, otherwise the heading IS the
+key. Renumbering stays invisible -- which matters, because half of what happens to `SKILL.md` is
+renumbering -- and `NOW.md` becomes a population for the first time.
+
+### What it found, present tense, with no history at all
+
+```text
+2 heading(s) with an EMPTY body on origin/master:
+  SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
+  Wave Loop 434 — FPGA boot-evidence live XADC validation + synthetic CCLK proof-of-pipeline
+```
+
+`docs/NOW.md` lines 6359 and 6361 -- **two consecutive bare headings**, nothing written under either.
+`SKILL.md`: 0 of 523.
+
+Their history says how much: 25 lines and 59 lines. For `Wave Loop 434`, 31 of its 34 substantial
+lines are still elsewhere in the file, so most of that content survives under another entry. For
+`SW-conformance`, **2 of 21 survive, and the rest is in no tracked file at all.**
+
+**This question is strictly cheaper than the history walk and answers most of it.** One read against
+810 `git show` invocations, and it is asked first.
+
+### The number I did not publish
+
+The same run says `titles ever written 792, present 310` -- 482 absent. **That is not 482 losses, and
+saying so would have been the &sect;535 unit error again.** `NOW.md` mixes two kinds of heading: rotating
+status sections (`Active Work`, `Next check-in`, `Anchor`, `Previous Active Work`) that are *meant* to
+be replaced, and per-change log entries that are not. Only the second kind is append-only, and
+separating them is a different measurement than this one.
+
+The command prints the figure and does not characterise it, which is the honest state: **a population
+I have not classified is a number, not a finding.**
+
+## 559. A by-title rebuild cannot tell my section from one the base withdrew
+
+Every conflict in this file for eight passes has been resolved the same way: rebuild on the base,
+keep every section present here and absent there. Today master **withdrew** a section for the first
+time, and the rule quietly resurrected it.
+
+`6d333d37` (#3205) added &sect;554 *"Debt a fix cannot retire is a different kind of debt"*.
+`6a49402c` (#3207) replaced it with *"The anti-rediscovery tool's scope is not the repository"*,
+because the original claim was wrong. My branch had merged the first and not the second, so the
+withdrawn title read as **present here, absent on master** -- exactly like a section I had written --
+and the rebuild put it back under a fresh number.
+
+**And the guard shipped two passes ago SAW it.** `tri skill renumber` refused, naming the section it
+would drop. I then resolved the conflict with `git checkout --ours`, which takes my side wholesale
+and discards whatever master added. **The guard lives in the tool; my hand procedure walks around it**
+-- &sect;536 again, with the probe now being a git command rather than a shell pipeline.
+
+### Two discriminators failed before one worked
+
+| rule | why it fails |
+|---|---|
+| **merge base** | useless once you have already merged: the base becomes master's head, and my sections and the withdrawn one look equally new |
+| **ancestry** (`merge-base --is-ancestor`) | useless because master squashes: the commit that introduced the withdrawn section is not an ancestor of master, and neither are mine -- &sect;550's squash problem, one level up |
+
+What works is master's own history OF THE TEXT:
+
+```sh
+git log origin/master -S'<title>' -- .claude/skills/ci-gates/SKILL.md
+```
+
+`Debt a fix cannot retire` &rarr; **2** commits, one adding and one removing. My two sections &rarr;
+**0** each. **A title master's history has ever held, but its head does not, was taken out on
+purpose.** Absence from the head is not evidence of authorship; absence from the whole history is.
+
+520 sections, nothing of master's lost, nothing withdrawn resurrected.
+
+### What this cost and what it bought
+
+Three rebuilds of the same file in one pass, two of them wrong: one dropped a master section, the next
+resurrected a withdrawn one. **Both were caught by re-deriving the answer rather than by trusting the
+previous step** -- `master lost N` and `withdrawn resurrected N` printed after every attempt. A repair
+that does not verify itself is another edit.
