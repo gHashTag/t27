@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - 'coq/**'
+      - 'proofs/**'
+      - 'tools/check_coq_in_build.py'
+      - 'tools/coq_outside_build_baseline.txt'
       - '.github/workflows/coq-kernel.yml'
       # The IEEE 754 literal gate (#2324) lives in the Rust binary, not under
       # coq/. Without this path the gate's own source could be edited into a
@@ -16,6 +19,9 @@ on:
     # exists, is left alone: restricting post-merge runs is a cost decision.
     paths:
       - 'coq/**'
+      - 'proofs/**'
+      - 'tools/check_coq_in_build.py'
+      - 'tools/coq_outside_build_baseline.txt'
       - '.github/workflows/coq-kernel.yml'
       - 'bootstrap/src/phi_f64_literals.rs'
   # Without this the missing reading cannot be taken on purpose: a gate with
@@ -115,6 +121,21 @@ jobs:
           cargo build --release -p t27c
           ./target/release/t27c validate-phi-identity
           ./target/release/t27c validate-phi-f64-literals
+
+      # The Kernel PHI check above reads two files. Zero Admitted there is true
+      # and says nothing about the other 56 Coq files: 41 are in a _CoqProject
+      # and carry 234 Qed with zero Admitted, and 18 are in none and hold all 32
+      # Admitted in the repository (#3153). This does not fix that -- it pins the
+      # 18 so a nineteenth cannot arrive unnoticed.
+      #
+      # The paths: filter above was widened to proofs/** in the same commit,
+      # because a gate whose trigger is narrower than its subject is the shape
+      # this pass spent its time measuring.
+      - name: No new Coq file falls outside every build
+        run: |
+          set -euo pipefail
+          python3 tools/check_coq_in_build.py --self-check
+          python3 tools/check_coq_in_build.py
 
       - name: Verify Kernel PHI layer has no Admitted
         run: |
