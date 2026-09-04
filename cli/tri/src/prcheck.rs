@@ -83,6 +83,21 @@ pub enum PrCmd {
         /// session. Handing the merge to the command makes the two inseparable.
         #[arg(long)]
         merge: bool,
+        /// Refuse unless the pull request's head branch is this one.
+        ///
+        /// The number is the only thing this command is given, and a number is
+        /// the one part of a pull request that cannot be checked against
+        /// anything. A serial lander typed `3160` where `gh pr create` had
+        /// printed `3161`, and #3160 belonged to a different session working in
+        /// the same repository -- it was queued for merge on a green verdict and
+        /// caught by hand.
+        ///
+        /// An author check does NOT catch this: every session here authenticates
+        /// as the same GitHub user, so both pull requests read as mine. The head
+        /// branch is what differs, and the caller always knows which branch it
+        /// just pushed.
+        #[arg(long, value_name = "NAME")]
+        expect_branch: Option<String>,
     },
 }
 
@@ -95,7 +110,16 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             wait,
             poll,
             merge,
-        } => ready(*number, repo.as_deref(), *baseline, *wait, *poll, *merge),
+            expect_branch,
+        } => ready(
+            *number,
+            repo.as_deref(),
+            *baseline,
+            *wait,
+            *poll,
+            *merge,
+            expect_branch.as_deref(),
+        ),
         PrCmd::Landed {
             number,
             repo,
@@ -399,6 +423,17 @@ fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
     Ok((pending, total))
 }
 
+/// Does this pull request's head branch match what the caller expected?
+///
+/// `None` means the caller did not say, which is not an error -- the flag is
+/// opt-in and its absence is the old behaviour.
+pub fn branch_matches(expected: Option<&str>, actual: &str) -> bool {
+    match expected {
+        None => true,
+        Some(want) => want == actual.trim(),
+    }
+}
+
 /// What `--merge` should leave in the exit code.
 ///
 /// Three outcomes, two of which are not a merge: `gh pr merge` refused, or it
@@ -471,6 +506,7 @@ fn ready(
     wait: bool,
     poll: u64,
     merge: bool,
+    expect_branch: Option<&str>,
 ) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
@@ -489,6 +525,36 @@ fn ready(
     // logging to one file produced a transcript where one PR's verdict read
     // as the other's -- diagnosing through a channel shared by two sources,
     // which is the error this project's own doctrine is named after.
+    // Before anything else, and before any wait: is this the pull request the
+    // caller meant? A number is the one part of a PR that cannot be checked
+    // against anything, and several sessions share this repository. `3160` was
+    // typed where `gh pr create` had printed `3161`; both read as the same
+    // author, because every session authenticates as the same GitHub user, so
+    // the head branch is the only thing that distinguishes them.
+    if expect_branch.is_some() {
+        let head = gh(&[
+            "pr",
+            "view",
+            &n.to_string(),
+            "--repo",
+            &repo,
+            "--json",
+            "headRefName",
+            "--jq",
+            ".headRefName",
+        ])?;
+        if !branch_matches(expect_branch, &head) {
+            println!("{repo}#{n} — NOT the pull request you meant.");
+            println!("  expected head branch: {}", expect_branch.unwrap_or(""));
+            println!("  this PR's head branch: {}", head.trim());
+            println!();
+            println!("  Refusing before reading a single check. A PR number is an");
+            println!("  identifier, not a computed value, and neighbouring numbers in a");
+            println!("  shared repository belong to somebody else.");
+            std::process::exit(6);
+        }
+    }
+
     println!("{repo}#{n} — gate started");
 
     // Anything still running makes the answer provisional, so say so rather
@@ -997,6 +1063,44 @@ mod refusal_kind_tests {
     #[test]
     fn not_mergeable_alone_is_not_the_race() {
         assert_eq!(refusal_kind("is not mergeable"), 4);
+    }
+}
+
+#[cfg(test)]
+mod branch_matches_tests {
+    use super::branch_matches;
+
+    /// The near miss: 3160 typed where 3161 was printed. Same author, different
+    /// branch, and the branch is the only thing that told them apart.
+    #[test]
+    fn a_different_branch_is_refused() {
+        assert!(!branch_matches(Some("w-workflow-listing"), "loop/merge-in-flight"));
+    }
+
+    #[test]
+    fn the_expected_branch_passes() {
+        assert!(branch_matches(Some("w-workflow-listing"), "w-workflow-listing"));
+    }
+
+    /// Absence of the flag must not become a refusal: it is opt-in, and every
+    /// existing caller passes nothing.
+    #[test]
+    fn no_expectation_is_not_a_refusal() {
+        assert!(branch_matches(None, "anything-at-all"));
+        assert!(branch_matches(None, ""));
+    }
+
+    /// `gh --jq` output arrives with a trailing newline.
+    #[test]
+    fn trailing_whitespace_is_not_a_mismatch() {
+        assert!(branch_matches(Some("w-x"), "w-x\n"));
+        assert!(branch_matches(Some("w-x"), "  w-x  "));
+    }
+
+    /// A prefix is not a match -- `w-tri` must not accept `w-tri-status`.
+    #[test]
+    fn a_prefix_is_not_a_match() {
+        assert!(!branch_matches(Some("w-tri"), "w-tri-status"));
     }
 }
 
