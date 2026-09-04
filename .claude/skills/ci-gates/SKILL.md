@@ -13085,7 +13085,148 @@ or an `if … ; then`. Every candidate lands in counted or refused. The totals m
 `32 + 18` to **`32 + 122 = 154`**, and the 90 lines that appeared are not new defects --
 they are what the first version was silently declining to mention.
 
-## 488. The subject of a step is the step, not the line
+## 488. The tool existed, it was right, and I merged around it — the fifth time
+
+`documented-commands.yml` landed in #3094 and turned master red within four
+minutes. The obvious story — two branches merged from separate roots, neither
+containing the other — is wrong, and the timestamps say so:
+
+```
+#3097 (the skill sections)  merged 01:29:56
+#3094 (the gate)            merged 01:38:11  as 12bcc001d
+is #3097 an ancestor of #3094's merge?  YES
+```
+
+`strict_required_status_checks_policy=true`, so #3094's head **already
+contained** #3097. The gate ran on that head at **01:35:11 and concluded
+failure**, naming the six mentions. It merged three minutes later anyway.
+
+Nothing malfunctioned. `gh pr merge --auto` decides on the **required set**, and
+this repository requires four contexts — `check-now-freshness`, `validate`,
+`check`, `check-linked-issue`. Everything else is advisory, including the gate I
+had just written. Measured the same hour: **19 workflows claim MERGE_CRITICAL in
+the tree and 15 of those claims are hollow**, the newest being mine.
+
+`tri pr ready` answers exactly this, and its `--merge` flag exists because of
+this class. Its own help says so:
+
+> The verdict cannot gate anything if the caller puts `gh pr merge` in the same
+> batch as this command … That happened four times in one session.
+
+This was the fifth. At 01:35 the gate had run nowhere but that branch, so it was
+absent from the baseline and the verdict would have been **CANNOT TELL, exit 3**
+— the honest answer, from a tool already in the tree.
+
+**A safety check you route around is not a safety check, and the routing is
+invisible afterwards**: `gh pr merge --auto` and `tri pr ready --merge` leave
+the same trace in the merge log. The only defence is the habit, so it is written
+here as a habit and not as a guard: *the merge is a subcommand of the verdict.*
+
+## 489. A tick computed from a literal, in the script named for the check
+
+`docs/TECHNOLOGY-TREE.md` states LAW 8 — every edge flows forward, no cycles —
+and `.claude/skills/tri/skill.md:485` advertises
+`scripts/graph-depcheck.sh` as **"Validate graph dependencies"**. The script:
+
+```bash
+GRAPH_FILE="architecture/graph.tri"      # assigned, never read
+check_tiers() {
+    local violations=0
+    # Check if lower tiers depend on higher tiers
+    # Simplified check - real implementation parses graph.tri
+    if [[ $violations -eq 0 ]]; then
+        echo "  ✓ No forward tier dependencies detected"
+```
+
+The tick is printed from a literal that nothing can change. `check_cycles`
+prints a Note pointing at `tri graph check`, which is not a command. The
+positive control settles it in one move: **run it in the repository and run it
+from an empty directory — byte-identical output, exit 0 both times.**
+
+What the graph actually holds: **55 nodes, 91 edges — 65 forward, 21 same-tier,
+5 tier-backward, and one cycle `17 -> 19 -> 18 -> 17`.** LAW 8 does not hold, and
+has not, under a script that says it does.
+
+Three things worth keeping apart:
+
+* **A comment naming the real implementation is a scoped-and-abandoned fix.**
+  *"Simplified check — real implementation parses graph.tri"* is somebody who
+  understood the problem and stopped. This file has recorded that shape four
+  times in the parser; it is the same shape in a shell script.
+* **The advertisement is what a reader trusts**, not the body. `skill.md` says
+  *validate*; nobody reads sixty lines of bash to check a word in an index.
+* **Nothing runs it**, which is why it survived — and also why fixing it costs
+  nothing to land. The repair ships green: the two readings go into a down-only
+  ledger at today's 1 and 5, because repairing a graph is an architectural
+  decision and a checker red on arrival is a checker that gets muted.
+
+## 490. What a reader copies starts the line
+
+Extending the documented-command gate to fenced blocks — the surface a reader
+**copies** — the first version matched the invocation anywhere in the line and
+reported **110 findings**. The majority were English: `t27c` followed by `was`,
+scraped out of *"a run in which t27c was present"*; the same with `is`, from a
+table row; and `tri` followed by `binary`, from *"37 of the tri binary's 47
+subcommands"*.
+
+Writing that sentence is how I hit it a third time. The first draft of this
+section quoted the two false positives **as backticked invocations**, which is
+exactly the shape the gate reads, and the gate went red on the pull request
+carrying it. A section about a matcher is written in the matcher's own
+vocabulary, and that is the one place a quotation has consequences.
+
+Anchoring the match to the start of the line, after an optional `$ ` prompt,
+took it to 101 and every survivor was an invocation. **A fenced block holds
+prose as often as commands** — a table row, a quoted sentence, a shell comment —
+and the property that separates them is position, not vocabulary.
+
+The measurement that justified the work is the reason to check the ungated half
+first:
+
+| surface | invocations | distinct | dead |
+|---|---|---|---|
+| backticked (already gated) | 486 | 81 | 15 — **18.5%** |
+| fenced (ungated) | 276 | 52 | 19 — **36.5%** |
+
+The README's own Quick Start was in the fenced half, still naming `tri` with
+`gen-zig` after it — the command the commit that built the first half of this
+gate calls *the one that cost a run*. **The gate was written by someone
+looking at the exact defect it did not cover.**
+
+And a counting error of my own, caught by disagreement rather than by care: I
+tallied dead names by grepping the whole printed report, which includes the
+**quoted source line** under each finding — so `tri seal` and `tri parse`
+appeared in the tally while both resolve. The count said one thing and the
+calibration said another. **Count from the report's own header lines, not from
+its prose.**
+
+## 491. Report under a ceiling when the honest verdict is 97
+
+The same extension found **97 live mentions of 24 `tri` names that resolve on
+none of four surfaces** — `git` 23 mentions, `spec` 14, `queen` 9. Three
+tempting moves, all wrong:
+
+* **Fail on them.** A gate landing red by 97 is muted within a day; this file
+  records that outcome three times.
+* **Exclude the families.** They are spread across **13** document families, so
+  no path rule describes them — it would be an exclusion made by argument.
+* **Call them typos and fix them.** They are not. `docs/nona-03-manifest` and
+  `.claude/skills/tri` describe an **intended product CLI**; deleting the names
+  would delete the design.
+
+So: the list prints every run and a down-only ceiling holds the count. A new
+dead name fails; removing one fails until the ceiling moves in the same commit.
+**The number is the check, and the list is what makes the number arguable.**
+
+One thing the gate cannot see, stated in its own docstring rather than papered
+over: it reads the **first token** after the binary. `tri skill seal` and
+`tri skill commit` both pass, because `skill` resolves — and neither exists
+(`tri skill` offers check, refs, claims, renumber, begin, end). On the README's
+nine-step cycle, **which every change is told to follow, 4 steps are dead and
+this gate can see 2**. Second-level resolution is available and is not built;
+naming the gap beats half-building it.
+
+## 492. The subject of a step is the step, not the line
 
 `tri gates quiet` reported **22 of 32** quiet steps as naming no path. That number was
 about the LINE, and the thing it describes is a STEP.
@@ -13121,7 +13262,7 @@ never swallowed -- a subject borrowed from a neighbouring gate would be worse th
 none. A blank line inside a block does not end it: a command split by one would
 otherwise lose everything below the gap.
 
-## 489. A redirection is not a path, and this is the second time
+## 493. A redirection is not a path, and this is the second time
 
 `>/dev/null` carries a `/`, so `subject_of` returned it as the path a gate reads -- and
 the command then reported it as **a tracked path that is missing**, under the heading
