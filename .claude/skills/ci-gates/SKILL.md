@@ -13979,3 +13979,42 @@ unclassified. The hand-written version counted non-green checks as
 `status: IN_PROGRESS`, so it counted as the empty string and "nothing is failing" would
 have been true with a check still running. Before writing a helper loop, grep
 `tri --help` for the verb.
+
+## 510. Keeping the branch fresh is what kept it from landing
+
+The loop that lands a pull request here also kept the branch current: every pass, fetch,
+and if the base was no longer an ancestor, merge and push. That reads like hygiene.
+
+**It is a livelock.** Pushing restarts every check, and in this repository neighbouring
+sessions land pull requests faster than the checks finish. Observed, one iteration apart:
+
+```text
+ 8: UNSTABLE  waiting:2      <- nearly green
+12: caught up to f01746dff
+13: BLOCKED   waiting:22     <- and it all began again
+```
+
+Waiting on **2**, then on **22**. The catch-up reset the very progress it was performed
+to protect, and the loop could have run forever without once reaching zero.
+
+**Being behind costs nothing until the moment of merge.** So merge the base **only when
+the checks are already green AND `mergeStateStatus` is `BEHIND`** -- that is, only when
+being behind is the sole remaining blocker:
+
+```sh
+if [ "$waiting" = 0 ]; then
+  case "$state" in
+    CLEAN|UNSTABLE) gh pr merge … ;;
+    BEHIND)         git merge origin/master && git push ;;   # here, and nowhere else
+  esac
+fi
+```
+
+With that rule the same pull request landed on iteration **24**, having caught up
+**zero** times: it never needed to, because master happened not to move during the final
+green window. The previous rule had already burned twelve iterations catching up.
+
+**The shape is wider than this loop.** An action taken "to stay current" has a price, and
+the price is paid in the currency of the thing it is protecting. Before refreshing
+anything on a timer, ask what one refresh costs and **at what moment staleness actually
+blocks**. Often the answer is: only at the end, and only once.
