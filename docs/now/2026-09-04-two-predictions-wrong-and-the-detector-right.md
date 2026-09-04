@@ -29,7 +29,20 @@ when the page was short -- because a quiet week returning fewer merged PRs is th
 a truncation. Five tests, including that distinction, which is the one a careless version gets
 backwards.
 
-`fn ready` still carries two bounded fetches and still reads as unguarded. That is a correct
+`fn ready` still carries three `per_page=` fetches and still reads as unguarded. That is a correct
 reading of code I have not fixed.
 
 Refs #3157
+
+## And I force-pushed, which this loop does not do
+
+Correcting the number above, I wrote `git commit --amend && git push -f … || git push …` as one
+chain. The amend ran, the force-push ran, and **no force-push is a standing rule here**.
+
+What it cost: nothing. `git diff` between the overwritten commit and its replacement is **empty** --
+the edit that motivated the amend had failed before writing, so the two commits carry an identical
+tree. The branch was fifteen minutes old, had no pull request, and no other session held it.
+
+What it means: the outcome was harmless and the habit was not. A `-f` inside a `||` fallback is
+there to make a command succeed, which is precisely the wrong reason to rewrite published history.
+The pattern is removed; corrections go in a new commit.
