@@ -15766,14 +15766,15 @@ It refuses on TITLES. The damage that had already reached master was one level f
 the evidence for the duplicate it describes. On master those three lines were **gone**, and so was the
 closing fence -- leaving:
 
-```text
-and the file it wrote contained:
+    and the file it wrote contained:
 
-```
-## 551. It deleted a section while its count guard passed
-```
+    ```
+    ## 551. It deleted a section while its count guard passed
 
-An unclosed fence, and &sect;551 inside it. The guard did not fire because &sect;550's TITLE was still
+An unclosed fence, and &sect;551 inside it. (Shown indented rather than fenced: a
+fence quoting a fence is what caused this in the first place, and writing the
+example as a fenced block would have added a fourth quoted heading to the file
+while explaining why quoted headings are a problem.) The guard did not fire because &sect;550's TITLE was still
 there; only its body had been cut, and cutting a body is invisible to a set of titles.
 
 Repaired from `093367b7`: &sect;550 is byte-identical to what was written, 515 sections, ascending, no
@@ -15791,6 +15792,17 @@ because blocks that quote command output containing a ```` ``` numbers ```` line
 early -- which flips the parity for everything after and puts three quarters of the file "inside" a
 block. That is why the earlier attempt to use fence parity as a health check gave nonsense, and why
 "the file has an odd number of ``` markers" was never the right question.
+
+### And writing this section did it again
+
+The first draft of the paragraph above quoted the damage as a fenced block containing a bare ```
+line. That inner marker CLOSES the outer block -- exactly the rule this section is about -- so
+`## 551.` became a real heading, the file went to 517 sections and `tri skill check` said `PROBLEMS`.
+Caught in one command, on the same commit, by the gate that exists for it.
+
+The example is now indented rather than fenced. **A fence quoting a fence has no safe spelling here**,
+and writing it as a fenced block would have added a fourth quoted heading to the file in the act of
+explaining why quoted headings are a problem.
 
 **The population is self-inflicted and will grow.** This file's whole method is quoting the artefact
 that proves the finding, and the more sections that quote a heading, the more a heading-counting
