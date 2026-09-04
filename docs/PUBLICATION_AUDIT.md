@@ -67,7 +67,7 @@ theorem ids** (T482 highest; the results file runs to T628a).
 
 ### Blocker 1 — the silicon table is a single-placement measurement [high]
 
-`TNF_ARTICLE_RU.md:309` publishes six post-route rows with $F_{\max}$ to two
+`TNF_ARTICLE_RU.md:354`  *(cited as :309; the file has moved -- the post-route rows are at :354 today)* publishes six post-route rows with $F_{\max}$ to two
 decimals (161.11 / 153.23 / 131.73 / 83.27 / 53.26 / 33.23 MHz), plus 81.35 vs
 147.32 MHz for the pipeline cut and 136.44 vs 131.73 for the $M{=}11$ choice.
 The section says *"один стенд на всю линейку, чтобы строки были сопоставимы"* and
@@ -84,7 +84,7 @@ table reports a range or a median with the seed set named.
 
 ### Blocker 2 — the declared toolchain is not the bench's toolchain [high]
 
-`TNF_ARTICLE_RU.md:305` declares **Yosys 0.65** and **nextpnr-xilinx 1743d0f**.
+`TNF_ARTICLE_RU.md:340`  *(cited as :305; the file has moved -- the Yosys 0.65 / nextpnr line is at :340 today)* declares **Yosys 0.65** and **nextpnr-xilinx 1743d0f**.
 Measured on this bench 2026-08-18: **Yosys 0.63** (`70a11c6b`) and nextpnr
 **c32135b0**. A reader following the article's own method on this repository gets
 neither version.

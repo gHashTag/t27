@@ -1,10 +1,19 @@
 # Spec-first ternary stack — synthesis report (Artix-7)
 
 Real FPGA resource cost of the spec-first ternary hardware designs, measured with
-**yosys 0.65 `synth_xilinx`** (the AX7203 / Artix-7 XC7A200T family — the same
+**yosys 0.65 `synth_xilinx`** *(the instrument as measured; the bench now runs
+0.68+post — see the note below)* (the AX7203 / Artix-7 XC7A200T family — the same
 flow openXC7 uses, no Vivado). Every design is generated from a `.t27` spec by
 `t27c gen-verilog` — no hand-written RTL — and is functionally cross-checked in
 iverilog against an independent reference (see `bootstrap/tests/*.rs`).
+
+> **THE INSTRUMENT HAS MOVED SINCE THESE NUMBERS WERE TAKEN.** Every figure in
+> this report was produced by **yosys 0.65**; `yosys -V` on the bench today
+> reports **0.68+post**. This document was last touched 2026-08-06 and carries no
+> date of its own, so it reads as current. It is not being re-measured here --
+> that needs a run, not an edit -- but a resource figure is a reading of an
+> instrument, and the instrument is named now rather than implied. Anyone
+> quoting a LUT count from this file should say "yosys 0.65" beside it.
 
 ## Why this report exists
 
