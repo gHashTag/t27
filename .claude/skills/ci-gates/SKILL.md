@@ -13797,3 +13797,39 @@ workflow.
 With it, the honest count of tracked subjects missing today is **0** -- the same answer
 the previous pass gave for a different reason, and this time the reason is measured
 rather than lucky.
+
+## 504. An extension is not a language, and two spellings of the same thing are not two
+
+Counting the Coq files nothing compiles took four corrections, and three of them were about the
+population rather than the arithmetic. The finished number is small and the discarded ones were not.
+
+**`git ls-files '*.v' | wc -l` returns 225, and 166 of them are Verilog.** `.v` is the extension
+for both Coq and Verilog, and this repository is full of both. A first pass was about to report
+"184 uncompiled Coq files"; classifying by content — `Require`/`Theorem`/`Qed` against
+`module`/`endmodule`/`always` — gives **58 Coq, 166 Verilog, 1 ambiguous**. Four fifths of the
+headline would have been Verilog that no `_CoqProject` was ever going to name.
+
+**`Admitted` and `admit` are not two occurrences.** `admit` is a tactic used inside a proof;
+`Admitted` is the command that closes one, and a proof using the tactic ends with the command.
+A matcher of `(?:Admitted|admit)` returned 64 where the answer is **32** — exactly double, because
+they pair. Two spellings of one event are one event.
+
+**`while read` silently drops the last entry of a file with no trailing newline.** The bash loop
+counted 17 where python counted 18 over the same list. Neither number is wrong about what it read;
+one of the readers was reading less than the file held. When two counts of one list differ by
+exactly one, suspect the terminator before the logic.
+
+**And `-R .` in a `_CoqProject` maps a logical path, it does not add files.** `coq_makefile`
+compiles the files listed, so the file list *is* the population. Reading `-R .` as "everything
+below here" would have made the whole question vanish.
+
+**What the surviving number says is worth the four corrections.** The compiled set — 41 files,
+234 `Qed` — carries **zero** `Admitted`. All 32 are in the 18 files no `_CoqProject` names, five
+files holding them, one of which (`Bounds_LeptonMasses.v`) has 8 theorems, 8 `Admitted` and 0 `Qed`:
+nothing in it is proven. The `Admitted` gate reads two files and both are clean.
+
+That is the third instance of one shape in two passes. `lake build` is red on two unsolved goals and
+its workflow has run once in sixty (§3142). Three Coq proofs lost two thirds of their content to a
+merge and are among these 18. **Work that nothing compiles cannot report its own state**, and a gate
+whose population is the compiled set will stay green however bad the rest becomes. The population is
+the finding; the count is the footnote.
