@@ -443,17 +443,6 @@ pub fn merge_outcome(ran_ok: bool, on_branch: bool) -> i32 {
 /// `tri gates fetches` flags and this is one of its five sites.
 ///
 /// Saying the number actually compared costs one word and cannot drift.
-/// Was the closed-pull-request page full, meaning more may lie beyond it?
-///
-/// This is the question `tri gates fetches` asks and the reason it kept flagging
-/// this site after the sentence was made honest: saying how many were compared
-/// is not the same as saying whether more existed. A shortfall matters only when
-/// the page was full -- a quiet week returns fewer merged PRs and that is the
-/// true answer, not a truncation.
-pub fn page_was_full(lines_returned: usize, per_page: usize) -> bool {
-    lines_returned >= per_page
-}
-
 pub fn baseline_phrase(compared: usize, asked: usize) -> String {
     match compared {
         0 => "no merged PR (none were found to compare against)".to_string(),
@@ -461,6 +450,40 @@ pub fn baseline_phrase(compared: usize, asked: usize) -> String {
         n if n < asked => format!("the {n} merged PRs found (fewer than the {asked} asked for)"),
         n => format!("the last {n} merged PRs"),
     }
+}
+
+/// The recent default-branch commits, and whether that read was complete.
+///
+/// One fetch, one guard. `classify_fetch` takes the ENCLOSING FUNCTION as the
+/// subject, so a guard beside a second fetch answers a question nobody can tell
+/// it is answering -- `fn ready` held two and the census called it unguarded
+/// twice, correctly. Splitting is the fix; renaming a helper until the matcher
+/// recognises it is not.
+fn recent_commits(repo: &str, branch: &str) -> Result<(Vec<String>, bool)> {
+    const PAGE: usize = 15;
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/commits?sha={branch}&per_page={PAGE}"),
+        "--jq",
+        ".[].sha",
+    ])?;
+    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let complete = crate::issues::read_is_complete(rows.len(), PAGE);
+    Ok((rows, complete))
+}
+
+/// The recently merged pull requests, and whether that read was complete.
+fn merged_recently(repo: &str, baseline: usize) -> Result<(Vec<String>, bool)> {
+    let page = baseline * 3;
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls?state=closed&per_page={page}"),
+        "--jq",
+        ".[]|select(.merged_at!=null)|.number",
+    ])?;
+    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let complete = crate::issues::read_is_complete(rows.len(), page);
+    Ok((rows, complete))
 }
 
 /// The same sentence, with the truncation the page can hide.
@@ -587,14 +610,9 @@ fn ready(
     // from zero observations and printed as if it were evidence. So record what
     // was OBSERVED, not only what was red.
     let mut observed: BTreeSet<String> = BTreeSet::new();
-    let recent = gh(&[
-        "api",
-        &format!("repos/{repo}/commits?sha={branch}&per_page=15"),
-        "--jq",
-        ".[].sha",
-    ])?;
+    let (recent, _recent_complete) = recent_commits(&repo, &branch)?;
     let mut decided: BTreeMap<String, bool> = BTreeMap::new(); // name -> failing
-    for sha in recent.lines() {
+    for sha in recent.iter() {
         let runs = gh(&[
             "api",
             &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
@@ -619,17 +637,10 @@ fn ready(
             *seen.entry(name.clone()).or_insert(0) += 1;
         }
     }
-    let merged = gh(&[
-        "api",
-        &format!("repos/{repo}/pulls?state=closed&per_page={}", baseline * 3),
-        "--jq",
-        ".[]|select(.merged_at!=null)|.number",
-    ])?;
-    let page_size = baseline * 3;
-    let returned = merged.lines().filter(|l| !l.trim().is_empty()).count();
-    let page_full = page_was_full(returned, page_size);
+    let (merged, merged_complete) = merged_recently(&repo, baseline)?;
+    let page_full = !merged_complete;
     let mut compared = 0usize;
-    for num in merged.lines().take(baseline) {
+    for num in merged.iter().take(baseline) {
         if let Ok(p) = num.parse::<u64>() {
             if p == n {
                 continue;
@@ -940,18 +951,23 @@ mod paginated_count_tests {
 
 #[cfg(test)]
 mod page_was_full_tests {
-    use super::{baseline_phrase_bounded, page_was_full};
+    use super::baseline_phrase_bounded;
+    use crate::issues::read_is_complete;
 
+    /// This crate already had the predicate, inverted, in `issues.rs`, and
+    /// `classify_fetch` recognises it by name. Writing a second one under a new
+    /// name was two literals of one definition -- and the reason the census kept
+    /// reading these fetches as unguarded.
     #[test]
-    fn a_full_page_may_hide_more() {
-        assert!(page_was_full(15, 15));
-        assert!(page_was_full(16, 15));
+    fn a_full_page_is_not_a_complete_read() {
+        assert!(!read_is_complete(15, 15));
+        assert!(!read_is_complete(16, 15));
     }
 
     #[test]
     fn a_short_page_is_the_whole_answer() {
-        assert!(!page_was_full(14, 15));
-        assert!(!page_was_full(0, 15));
+        assert!(read_is_complete(14, 15));
+        assert!(read_is_complete(0, 15));
     }
 
     /// A shortfall matters only when the page was FULL. A quiet week returns
