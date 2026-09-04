@@ -49,6 +49,13 @@ pub enum SkillCmd {
     /// reported -- measured across 281 commits, 38 of the 40 prefix hits were
     /// exactly that.
     Lost {
+        /// Which document. `docs/NOW.md` is the other append-only file here and
+        /// has NO numbered headings at all -- 312 of them, every one of the
+        /// shape `## fix(...)`. A version of this command that insisted on
+        /// `## N. ` would have walked its whole history, found nothing, and
+        /// printed a clean bill of health over an empty population.
+        #[arg(long, default_value = ".claude/skills/ci-gates/SKILL.md")]
+        file: String,
         /// Compare against this ref instead of `origin/master`.
         #[arg(long, default_value = "origin/master")]
         base: String,
@@ -227,6 +234,35 @@ pub fn truncated(then: &[String], now: &[String]) -> bool {
     then[now.len()..].iter().any(|l| !l.trim().is_empty())
 }
 
+/// Headings with nothing under them.
+///
+/// The same damage as a truncation and visible with no history at all, so it is
+/// the cheaper question. Measured 2026-09-05: `docs/NOW.md` has 2 of 312, at
+/// two CONSECUTIVE lines, and `SKILL.md` has 0 of 523.
+pub fn hollow_headings(
+    bodies: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Vec<&String> {
+    bodies
+        .iter()
+        .filter(|(_, b)| !b.iter().any(|l| !l.trim().is_empty()))
+        .map(|(t, _)| t)
+        .collect()
+}
+
+/// The key a section is tracked by, from its heading text.
+///
+/// A leading `N. ` is stripped, so renumbering is invisible to any comparison
+/// built on this -- that is the whole point, since half of what happens to
+/// `SKILL.md` is renumbering. A heading with no number is its own key, which is
+/// what makes `docs/NOW.md` -- 312 headings, not one of them numbered -- a
+/// population this can see at all.
+pub fn section_key(heading: &str) -> String {
+    match heading.split_once(". ") {
+        Some((n, rest)) if n.parse::<usize>().is_ok() => rest.trim().to_string(),
+        _ => heading.trim().to_string(),
+    }
+}
+
 /// Section bodies, keyed by title, fence-aware.
 pub fn bodies(text: &str) -> std::collections::BTreeMap<String, Vec<String>> {
     let mut out = std::collections::BTreeMap::new();
@@ -249,14 +285,12 @@ pub fn bodies(text: &str) -> std::collections::BTreeMap<String, Vec<String>> {
             None
         } else {
             line.strip_prefix("## ")
-                .and_then(|r| r.split_once(". "))
-                .filter(|(n, _)| n.parse::<usize>().is_ok())
         };
-        if let Some((_, title)) = head {
+        if let Some(h) = head {
             if let Some(c) = cur.take() {
                 out.insert(c, std::mem::take(&mut body));
             }
-            cur = Some(title.trim().to_string());
+            cur = Some(section_key(h));
             continue;
         }
         if cur.is_some() {
@@ -269,9 +303,8 @@ pub fn bodies(text: &str) -> std::collections::BTreeMap<String, Vec<String>> {
     out
 }
 
-fn lost(base: &str, gate: bool) -> Result<()> {
+fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
     let root = repo_root()?;
-    let path = ".claude/skills/ci-gates/SKILL.md";
     let log = std::process::Command::new("git")
         .args(["log", base, "--format=%H", "--reverse", "--", path])
         .current_dir(&root)
@@ -299,6 +332,28 @@ fn lost(base: &str, gate: bool) -> Result<()> {
     println!("  titles ever written    {}", first.len());
     println!("  present on {base:<12} {}", now.len());
 
+    // A heading with nothing under it is the same damage, visible WITHOUT any
+    // history: whatever was there is gone and the heading is left standing.
+    // It is the cheaper question and it is asked first, because the history
+    // walk above costs one `git show` per commit and this costs one read.
+    //
+    // Measured 2026-09-05: `docs/NOW.md` has 2 of 312, at lines 6359 and 6361 --
+    // two CONSECUTIVE bare headings -- and `SKILL.md` has 0 of 523.
+    let hollow = hollow_headings(&now);
+    if hollow.is_empty() {
+        println!("  Every heading has a body.");
+    } else {
+        println!(
+            "  {} heading(s) with an EMPTY body on {base}:",
+            hollow.len()
+        );
+        for t in &hollow {
+            println!("    {t}");
+        }
+        println!("  Nothing was written under these. No history was needed to see it.");
+    }
+    println!();
+
     let mut cut = Vec::new();
     let mut gone = Vec::new();
     for (title, (sha, then)) in &first {
@@ -320,11 +375,10 @@ fn lost(base: &str, gate: bool) -> Result<()> {
             println!("    -{:>3} lines ({a} -> {b})  first in {}  {}", a - b, &sha[..9], t);
         }
         println!();
-        println!("  A cut tail is not by itself a loss either. A section's body runs to the");
-        println!("  next NUMBERED heading, so an unnumbered block that later moved elsewhere");
-        println!("  in the document reads exactly like a truncation. Both hits on this file");
-        println!("  were that: `## Writing a gate here` and one paragraph, both still present.");
-        println!("  Grep for a distinctive line before calling it damage.");
+        println!("  A cut tail is not by itself a loss. A section's body runs to the next");
+        println!("  heading, so a block that later MOVED elsewhere in the document reads");
+        println!("  exactly like a truncation -- both hits on SKILL.md were that, and both");
+        println!("  are still present. Grep for a distinctive line before calling it damage.");
     }
     if !gone.is_empty() {
         println!();
@@ -351,7 +405,7 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
             numbers,
             windowed,
         } => return claims(*list, *numbers, *windowed),
-        SkillCmd::Lost { base, gate } => return lost(base, *gate),
+        SkillCmd::Lost { file, base, gate } => return lost(file, base, *gate),
         SkillCmd::Check { gaps } => gaps,
     };
     if *show_gaps {
@@ -444,6 +498,19 @@ mod tests {
     /// EIGHTH change in eight passes whose surviving mutant was the wiring --
     /// and the first found by mutating the call site BEFORE writing a single
     /// test for the helper, which is the rule the previous seven produced.
+    /// `hollow_headings` can be right while `lost` never calls it.
+    #[test]
+    fn lost_actually_reports_hollow_headings() {
+        let src = include_str!("skillnum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let hollow = hollow_", "headings(&now);");
+        assert!(code.contains(call), "the cheap check has to actually be asked");
+    }
+
     #[test]
     fn lost_actually_consults_truncated() {
         let src = include_str!("skillnum.rs");
@@ -457,6 +524,52 @@ mod tests {
             code.contains(call),
             "without this the walk runs, finds nothing by construction, and \
              prints a clean bill of health for any file"
+        );
+    }
+
+    /// The key strips a leading number so RENUMBERING is invisible -- half of
+    /// what happens to SKILL.md is renumbering, and a rename it is not. A
+    /// heading with no number is its own key, which is what makes docs/NOW.md
+    /// visible at all: 312 headings there and not one of them numbered.
+    #[test]
+    fn the_key_ignores_a_number_and_keeps_everything_else() {
+        assert_eq!(super::section_key("553. The audit"), "The audit");
+        assert_eq!(super::section_key("1. A"), "A");
+        assert_eq!(
+            super::section_key("fix(freeze): reseal FROZEN_HASH (Closes #2316)"),
+            "fix(freeze): reseal FROZEN_HASH (Closes #2316)",
+            "an unnumbered heading is its own key, or NOW.md has no population"
+        );
+        assert_eq!(
+            super::section_key("2026-04-08 — CI stabilization"),
+            "2026-04-08 — CI stabilization",
+            "a leading token that is not `N. ` is not a number to strip"
+        );
+        assert_eq!(
+            super::section_key("v1. Something"),
+            "v1. Something",
+            "`v1` is not a number, so nothing is stripped -- otherwise any \
+             heading with a dotted prefix silently loses it and two different \
+             sections can collide on one key"
+        );
+        assert_eq!(
+            super::section_key("fix(x): a. b"),
+            "fix(x): a. b",
+            "and the split must be anchored at the START, not at any `. `"
+        );
+    }
+
+    /// A heading with nothing under it is the same damage as a truncation, and
+    /// visible without any history. Measured: docs/NOW.md has 2 of 312, at two
+    /// CONSECUTIVE lines; SKILL.md has 0 of 523.
+    #[test]
+    fn a_heading_with_no_body_is_found_without_history() {
+        let src = "## 1. Has one\nbody\n\n## 2. Has none\n\n## 3. Also has one\ntext\n";
+        let b = super::bodies(src);
+        assert_eq!(
+            super::hollow_headings(&b),
+            vec!["Has none"],
+            "blank lines are not a body: {b:?}"
         );
     }
 

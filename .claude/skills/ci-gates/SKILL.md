@@ -15908,3 +15908,46 @@ itself stay green.
 This one was found by mutating the call site **first**, before writing a single test for the helper --
 which is the rule the previous seven produced. **The rule works, and it took seven repetitions to
 write down.**
+
+## 556. Two bare headings in NOW.md, and the extension that would have audited nothing
+
+The plan carried out of &sect;555 was "run the same audit over `docs/NOW.md`". Checked before built:
+**that file has ZERO numbered headings.** 312 of them, every one of the shape `## fix(...)` or
+`## Wave Loop 434 — ...`. A `--file` flag on a command that insists on `## N. ` would have walked 810
+commits, found an empty population, and printed a clean bill of health.
+
+**The check that stopped it cost one `grep -c`, and it is the same question as "does this gate have a
+subject".** The habit that made it happen is newer than the habit of writing the flag.
+
+So the key generalised instead: strip a leading `N. ` when there is one, otherwise the heading IS the
+key. Renumbering stays invisible -- which matters, because half of what happens to `SKILL.md` is
+renumbering -- and `NOW.md` becomes a population for the first time.
+
+### What it found, present tense, with no history at all
+
+```text
+2 heading(s) with an EMPTY body on origin/master:
+  SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
+  Wave Loop 434 — FPGA boot-evidence live XADC validation + synthetic CCLK proof-of-pipeline
+```
+
+`docs/NOW.md` lines 6359 and 6361 -- **two consecutive bare headings**, nothing written under either.
+`SKILL.md`: 0 of 523.
+
+Their history says how much: 25 lines and 59 lines. For `Wave Loop 434`, 31 of its 34 substantial
+lines are still elsewhere in the file, so most of that content survives under another entry. For
+`SW-conformance`, **2 of 21 survive, and the rest is in no tracked file at all.**
+
+**This question is strictly cheaper than the history walk and answers most of it.** One read against
+810 `git show` invocations, and it is asked first.
+
+### The number I did not publish
+
+The same run says `titles ever written 792, present 310` -- 482 absent. **That is not 482 losses, and
+saying so would have been the &sect;535 unit error again.** `NOW.md` mixes two kinds of heading: rotating
+status sections (`Active Work`, `Next check-in`, `Anchor`, `Previous Active Work`) that are *meant* to
+be replaced, and per-change log entries that are not. Only the second kind is append-only, and
+separating them is a different measurement than this one.
+
+The command prints the figure and does not characterise it, which is the honest state: **a population
+I have not classified is a number, not a finding.**

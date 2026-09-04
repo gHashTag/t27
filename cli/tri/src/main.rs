@@ -340,6 +340,9 @@ enum SkillAction {
     },
     /// Sections whose body was cut short at some point in the file's history.
     Lost {
+        /// Which document.
+        #[arg(long, default_value = ".claude/skills/ci-gates/SKILL.md")]
+        file: String,
         /// Compare against this ref instead of `origin/master`.
         #[arg(long, default_value = "origin/master")]
         base: String,
@@ -947,10 +950,13 @@ fn main() -> Result<()> {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
                 }
-                SkillAction::Lost { base, gate } => skillnum::run(&skillnum::SkillCmd::Lost {
-                    base: base.clone(),
-                    gate: *gate,
-                })?,
+                SkillAction::Lost { file, base, gate } => {
+                    skillnum::run(&skillnum::SkillCmd::Lost {
+                        file: file.clone(),
+                        base: base.clone(),
+                        gate: *gate,
+                    })?
+                }
                 SkillAction::Refs { list } => {
                     skillnum::run(&skillnum::SkillCmd::Refs { list: *list })?
                 }
