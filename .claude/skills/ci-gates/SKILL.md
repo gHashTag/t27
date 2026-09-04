@@ -13407,3 +13407,47 @@ second is a fact.
 Sources: *Test Smell Detection Tools: A Systematic Mapping Study* (arXiv
 2104.14640); *Assertion Inferring Mutants* (arXiv 2301.12284).
 
+## 497. I probed in bash and CI runs dash
+
+The previous pass praised a repair to `coq-kernel.yml`. **That gate has failed on every
+run since it landed**, and my first diagnosis of why was wrong in a way worth keeping.
+
+**What I said.** GitHub runs a step under `bash -eo pipefail`, so `HITS=$(grep …)` aborts
+on grep's exit 1 -- the CLEAN case -- and `rc=$?` is never reached. I probed that in
+bash, watched a clean tree exit 1, and shipped a fix.
+
+**What the log said.** The job runs in `coqorg/coq:8.19-ocaml-4.14-flambda`, and in that
+container the step shell is **`sh -e`** -- dash. The step died on its **first line**:
+
+```
+shell: sh -e {0}
+/__w/_temp/….sh: 1: set: Illegal option -o pipefail
+```
+
+`set -uo pipefail`, added by the repair, is not valid in dash. **Nothing in the step ever
+ran.** Every sibling step in the same job uses `set -eux`; this was the only `-o
+pipefail`, and the step contains no pipeline for pipefail to guard.
+
+**And a local `sh` probe would not have caught it either.** On this machine `/bin/sh` is
+bash in POSIX mode and accepts `-o pipefail` without complaint. The probe world was not
+the world twice over: the wrong shell, and then a stand-in for the right shell that
+behaves like the wrong one.
+
+**The `set -e` reasoning was still needed.** Measured under real dash: a plain
+`HITS=$(grep …)` on a clean tree exits 1 and never reaches `rc=`, while the `if` form
+reaches `rc=1` and exits 0. So the repair takes both -- `set -eu` in place of `set -uo
+pipefail`, and the assignment inside an `if` condition.
+
+Verified under `sh -e` in three planted worlds: clean exits **0** and prints the OK line,
+a real `Admitted.` exits **1**, a deleted operand exits **2** and names the file it could
+not open.
+
+**The lesson is the shell, not grep.** A gate's behaviour is a property of the
+interpreter it is handed to, and the interpreter is named in the run log and nowhere
+else -- not in the workflow, not in the step, not in the container image's name. Read the
+line that says `shell:` before probing, and probe with that binary. A right answer about
+bash is a wrong answer about a step that dash executes.
+
+The original repair remains right about its own subject: `grep` has three answers and the
+old `if … 2>/dev/null` kept one. It moved the defect from *passes when it should fail* to
+*dies before it can check* -- louder, and caught in a day.
