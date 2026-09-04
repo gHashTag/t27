@@ -15418,3 +15418,58 @@ thoroughly tested, and one line elsewhere put its result to no use or the wrong 
 mutation found any of them, and each needed a structural test reading the call site -- with the
 needle split across two literals, because the first such test written in this series searched the
 file for a string it also contained and passed against its own mutant.
+
+## 546. A mutation that also edits the test is not a mutation test
+
+Fourth confirmed finding from the &sect;542 fan-out, and the method defect it exposed in my own
+harness -- which is the more valuable half.
+
+`tri competitors audit` printed:
+
+```
+stating zero at pass@1      144   (3 of them cite pass@10 only)
+```
+
+The parenthetical was `c.zero_at_1 - c.cites_nothing`. **Wrong in two independent ways, both
+reachable with records this table already accepts:**
+
+* **`cites_nothing` is not a subset of `zero_at_1`.** Scores are `Option<f32>`, and the struct's own
+  doc says a `None` "is a different thing from a stated zero". A record that OMITS `pass@1` and
+  states `pass@10: 0.0` cites nothing and is not zero-at-one -- it decrements a difference it does
+  not belong to. It is a plain `usize` subtraction, so a large enough population of them **underflows
+  and panics**.
+* **Even where the subset holds, the difference is "cites SOMETHING nonzero", not "cites pass@10".**
+  A record citing pass@5 alone, whose `pass@10` is a stated zero, was reported as citing pass@10 only.
+
+Counted directly instead, as a free function rather than a field on `Counts`: the ratchet file
+carries five keys and this is not one of them, so widening the struct would either add a key nothing
+ratchets on or leave a field that reads back as zero from a parsed ceiling. Today's answer is the
+same `3` -- and now it is the answer to the question the label asks.
+
+### The harness lied to me, and said `killed`
+
+The mutant that matters here is reverting both print sites to the subtraction. Run once, it reported
+**killed**. It was not. The harness replaced **all four** occurrences of the call -- and two of them
+are in the test module. The test panicked on its own mutated body, and the red result was read as
+proof that production was covered.
+
+Restricted to the source ABOVE `#[cfg(test)]`: **two production sites, two test sites, and the mutant
+SURVIVES.**
+
+**A mutant must be applied to production code only.** Editing the test alongside the code turns a
+mutation run into a tautology: something goes red, and nothing has been learned about whether the
+suite would have noticed. This harness has been doing a whole-file `str::replace` for several passes;
+where the mutated token appears nowhere in the tests the result was sound, and here it was not.
+
+### Four passes, four surviving mutants, every one of them the wiring
+
+| pass | function | tests on it | mutant that lived |
+|---|---|---|---|
+| &sect;541 | `last_pass` (red.rs) | 4 | asked only on truncated reads |
+| &sect;542 | `claims_by_scope` (gates.rs) | 3 | call site added both halves |
+| &sect;545 | `render_no_figure` (issues.rs) | 3 | tally never taken |
+| &sect;546 | `zero_at_1_citing_something` (competitors.rs) | 1 + 2 | **both** print sites still subtracting |
+
+In every one the function was correct and covered, and a line elsewhere put its result to no use or
+the wrong use. Each needed a structural test reading the call site, with the needle split across two
+literals. **Four for four is not a coincidence: it is where my attention goes when I write a fix.**
