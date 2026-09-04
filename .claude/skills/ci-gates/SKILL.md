@@ -15815,8 +15815,43 @@ is about; it will not be the last unless the parser knows a quotation when it se
 truncated one, a reordered one, or a body edited in place -- and the loss here was exactly a truncated
 body. **A guard is only as fine as the unit it compares**, and the unit is worth saying out loud
 whenever a guard is written: this one is the section, not the line.
+## 553. The filter that strips the progress strips the report
 
-## 553. The audit that found nothing, and why that is the result
+`t27c corpus` prints progress as `  ... 51/650` and prints its own continuation
+rows as `  ... and Zig accepts it`. A filter written to drop the first —
+`grep -vE '^\s*\.\.\.'` — drops the second, and the report loses nine of its
+fourteen rows without a word. I read the five survivors as the whole table and
+was one step from publishing `iverilog accepts 380` without the row directly
+under it, `AND has a data port 74`, which is the row that says 306 of those
+modules cannot carry a value across their boundary.
+
+Anchor an exclusion on the shape that is unique to what you are excluding
+(`^\s*\.\.\. [0-9]+/[0-9]+$`), never on the prefix it happens to share with the
+data. And when a report's row count is load-bearing, count the rows before and
+after the filter; a silent drop of nine looks exactly like a report with five.
+
+## 554. Debt a fix cannot retire is a different kind of debt
+
+A ledger of known failures dates each entry as though the tool under test will
+grow to accept it. Some entries are not waiting on the tool at all: the input
+uses a construct the language does not have, so no version of the compiler ever
+accepts it, and the expiry date is a promise nobody can keep.
+
+Separating them needs a discriminator, and the obvious one is wrong. "The spec
+leads a line with a word that is not a keyword" caught eighteen, but `type`,
+`class`, `interface` and `package` all appear in specs that parse — inside
+comments, strings and fenced blocks. The discriminator that holds is *zero
+occurrences among everything that passes*: `import` and `algorithm` appear in
+none of the 581 parsing specs, which is what makes eight defensible.
+
+Then price the repair before proposing it. Mechanical conversion to the
+language's own names was run over all eight; `use` is accepted where `import`
+was not, and 0 of 8 parsed afterwards, because each carried further
+non-conformance behind the first. A conversion that only moves the error is not
+a fix, and measuring that costs one loop over eight files.
+
+
+## 555. The audit that found nothing, and why that is the result
 
 &sect;552 repaired one section whose body the tooling had destroyed. The obvious next question is
 whether it was the only one. `tri skill lost` asks it: walk every commit that touched this file,
