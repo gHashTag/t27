@@ -15863,26 +15863,7 @@ concluded the opposite about the same rows -- that no compiler change could ever
 retire them. Whether an unsupported construct is a gap to implement or a position to
 defend is a question the project answers, and it had answered it; a reader arriving
 from the outside cannot derive that from the keyword list alone.
-## 555. Debt a fix cannot retire is a different kind of debt
-
-A ledger of known failures dates each entry as though the tool under test will
-grow to accept it. Some entries are not waiting on the tool at all: the input
-uses a construct the language does not have, so no version of the compiler ever
-accepts it, and the expiry date is a promise nobody can keep.
-
-Separating them needs a discriminator, and the obvious one is wrong. "The spec
-leads a line with a word that is not a keyword" caught eighteen, but `type`,
-`class`, `interface` and `package` all appear in specs that parse — inside
-comments, strings and fenced blocks. The discriminator that holds is *zero
-occurrences among everything that passes*: `import` and `algorithm` appear in
-none of the 581 parsing specs, which is what makes eight defensible.
-
-Then price the repair before proposing it. Mechanical conversion to the
-language's own names was run over all eight; `use` is accepted where `import`
-was not, and 0 of 8 parsed afterwards, because each carried further
-non-conformance behind the first. A conversion that only moves the error is not
-a fix, and measuring that costs one loop over eight files.
-## 556. The audit that found nothing, and why that is the result
+## 555. The audit that found nothing, and why that is the result
 
 &sect;552 repaired one section whose body the tooling had destroyed. The obvious next question is
 whether it was the only one. `tri skill lost` asks it: walk every commit that touched this file,
@@ -15939,7 +15920,7 @@ itself stay green.
 This one was found by mutating the call site **first**, before writing a single test for the helper --
 which is the rule the previous seven produced. **The rule works, and it took seven repetitions to
 write down.**
-## 557. Two bare headings in NOW.md, and the extension that would have audited nothing
+## 556. Two bare headings in NOW.md, and the extension that would have audited nothing
 
 The plan carried out of &sect;555 was "run the same audit over `docs/NOW.md`". Checked before built:
 **that file has ZERO numbered headings.** 312 of them, every one of the shape `## fix(...)` or
