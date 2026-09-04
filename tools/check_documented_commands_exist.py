@@ -65,7 +65,20 @@ HIT = re.compile(
 FENCED_HIT = re.compile(
     r"^\s*(?:[$>] )?(?:\./)?(?:scripts/)?(t27c|tri) ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
 )
-FENCE = re.compile(r"^\s*(```|~~~)")
+# NO fence state machine, for two measured reasons. Tracking ``` toggles needs
+# the parities to balance,
+# and 2 of the 232 live files do not: .claude/skills/ci-gates/SKILL.md (221
+# fence lines) and docs/MIGRATION.md (15). One unbalanced fence inverts the
+# classification for the whole tail of the file, which is how a state machine
+# fails silently. And the state machine ran only ONE matcher per line: inside a
+# fence the backticked matcher was skipped, so a backticked invocation inside a
+# fenced diagram was invisible to both -- `tri git` at
+# docs/agents/AGENTS_ALPHABET.md:99 and :100, inside a box-drawing block, are
+# exactly that, and they are the +2 this change recovered.
+#
+# Both matchers now run on every line. The anchored one needs no state: a line
+# that STARTS with an invocation is one wherever it sits, and prose does not
+# start that way.
 
 # The document says, in its own words, that this one is not built yet.
 DECLARED = re.compile(
@@ -102,7 +115,7 @@ MUST_NOT_EXIST = ("gen-zig",)
 # is how a gate gets muted, and excluding those families by path would be an
 # exclusion made by argument. So: the list prints every run, and the number can
 # only fall. A new dead `tri` name still fails.
-MAX_DEAD_TRI = 97
+MAX_DEAD_TRI = 99
 
 TRI_MUST_EXIST = ("now", "wave", "gen", "skill", "seal")
 TRI_MUST_NOT_EXIST = ("gen-zig", "gen-dir", "spec", "git")
@@ -287,31 +300,17 @@ def scan(paths: list[Path], real: dict[str, set[str]]) -> tuple[list[tuple], int
             lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError as exc:
             refuse(f"could not read {p}: {exc}")
-        in_fence = False
-        fence_opened_at = 0
         for i, line in enumerate(lines):
-            if FENCE.match(line):
-                if not in_fence:
-                    fence_opened_at = i
-                in_fence = not in_fence
-                continue
-            if in_fence:
-                m = FENCED_HIT.match(line)
-                hits = [(m.group(1), m.group(2), "fenced")] if m else []
-                # Prose introducing a block sits above the fence, not inside it.
-                declare_at = fence_opened_at
-            else:
-                hits = [(b, c, "inline") for b, c in HIT.findall(line)]
-                declare_at = i
+            anchored = FENCED_HIT.match(line)
+            hits = [(m0, m1, "command-line") for m0, m1 in HIT.findall(line)]
+            if anchored:
+                hits.append((anchored.group(1), anchored.group(2), "command-line"))
+            declare_at = i
             for which, sub, where in hits:
                 seen += 1
                 if sub in real[which]:
                     continue
-                if (
-                    declared_near(lines, declare_at)
-                    or declared_near(lines, i)
-                    or DECLARED.search(heading_above(lines, i))
-                ):
+                if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
                     excused += 1
                     continue
                 findings.append(
