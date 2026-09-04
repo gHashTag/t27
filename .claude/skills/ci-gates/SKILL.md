@@ -14567,6 +14567,28 @@ of four, one exit channel of two. And the third was reachable by the same comman
 other two: `git grep -n "test result"` returns the rule, in a file whose whole subject is
 reading a cargo log.
 
+**And the gate nearly took a reading from a stale ruler while this was being written.**
+`tri census pin --gate` went red on a change of **56 inserted lines across two documents**,
+reporting the fetch census `SURFACE … 4 bounded` -> `7 bounded`. The gate's own message
+says to re-bless in the same commit -- and following it would have written **7** into the
+ledger for everyone, over a reading no source change could have produced.
+
+The control said so first: the gate is red on **clean master too**, which no docs-only diff
+can cause. What it was is one command:
+
+```sh
+find target/debug/tri -newer cli/tri/src/gates.rs   # empty = the binary predates the code
+```
+
+The binary predated a neighbouring session's tightening of that very census -- their pass
+took it from 7 to 4 by rejecting a local corpus walk that never touches the API, and blessed
+4. My ruler still computed 7. `cargo build` and the same command prints
+`PASS: no pinned census moved`.
+
+**A re-bless is a statement that the new output is the one you want**, so it is exactly the
+wrong response to a number your instrument produced and the tree did not. The order is:
+control first (is it red on master?), then age the ruler, and only then consider the ledger.
+
 **Measured and clean:** no classifier in `tools/`, `scripts/` or `.github/` decides
 compilation by `^error:`. The defect existed only in ephemeral shell, which is exactly why
 it can recur every pass and why it belongs here rather than in a gate. The population of a
