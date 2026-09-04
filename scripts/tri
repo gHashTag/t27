@@ -50,6 +50,7 @@ Local commands (no compiler needed):
   tri frontier                list the committed measurement records and reports
   tri cells TOP FILE.v ...    cell census of a Verilog top via local yosys (LUT/CARRY4/MUXF/FF)
   tri wave                    one-screen wave state: branch, dirt, disk, lesson/theorem counters
+  tri which NAME              which binary serves a subcommand (2 = a binary that could answer is not built)
   tri disk [--min GIB]        free-space gate; exits 1 below the floor (default 2 GiB)
   tri ci [SLUG ...]           live (non-completed) CI runs; defaults to this repo's origin
   tri lesson "TITLE" "BODY"   append the next-numbered lesson to the wave-loop skill
@@ -151,6 +152,57 @@ case "$cmd" in
   help|-h|--help)
     usage
     exit 0
+    ;;
+
+  which)
+    # Which binary serves a subcommand? Two front doors carry the name `tri` --
+    # this script and the Rust binary in cli/tri -- and t27c carries 155
+    # subcommands behind the same word. A reader who takes a command name out of
+    # a document has no way to ask where it goes, and the dead-command census
+    # found 16 names in the docs that go nowhere at all.
+    #
+    # A binary that is not built cannot be asked, so this does not pretend it
+    # answered: an absent binary prints "not built (not checked)", and when
+    # nothing else claims the name the exit is 2 rather than 1. "No such
+    # subcommand" and "I could not find out" are different answers.
+    name="${2:-}"
+    [ -n "$name" ] || die "which: name a subcommand, e.g. 'tri which now'"
+    found=0
+    unknown=0
+
+    if grep -qE "^  ${name}\)" "$0"; then
+      printf '  %-13s %s\n' "bash arm" "${0#"$REPO_ROOT"/}"
+      found=1
+    fi
+    if [ -f "$SCRIPT_DIR/tri_loop/${name//-/_}.py" ]; then
+      printf '  %-13s %s\n' "loop helper" "scripts/tri_loop/${name//-/_}.py"
+      found=1
+    fi
+
+    # TRI_T27C and TRI_BIN are the documented overrides; a report that ignores
+    # them describes a tree the caller is not using.
+    for spec in "t27c|${TRI_T27C:-} $REPO_ROOT/target/release/t27c $REPO_ROOT/target/debug/t27c $REPO_ROOT/bootstrap/target/release/t27c" \
+                "tri binary|${TRI_BIN:-} $REPO_ROOT/target/release/tri $REPO_ROOT/target/debug/tri"; do
+      label="${spec%%|*}"
+      bin=""
+      for c in ${spec#*|}; do [ -x "$c" ] && bin="$c" && break; done
+      if [ -z "$bin" ]; then
+        printf '  %-13s not built (not checked)\n' "$label"
+        unknown=1
+      elif "$bin" --help 2>&1 | grep -qE "^[[:space:]]+${name}([[:space:]]|$)"; then
+        printf '  %-13s %s\n' "$label" "${bin#"$REPO_ROOT"/}"
+        found=1
+      fi
+    done
+
+    [ "$found" -eq 1 ] && exit 0
+    if [ "$unknown" -eq 1 ]; then
+      echo "tri which: nothing local serves '$name', and a binary that could answer" >&2
+      echo "tri which: is not built. Exit 2 = could not find out, not 'no such name'." >&2
+      exit 2
+    fi
+    echo "tri which: no route serves '$name'." >&2
+    exit 1
     ;;
 
   disk)
