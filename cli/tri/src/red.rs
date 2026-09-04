@@ -142,6 +142,9 @@ struct Red {
     /// When the latest run happened. A streak says how many; this says whether
     /// the thing is still being exercised at all.
     last_at: String,
+    /// The branch the runs were read from. Carried per row because `no success`
+    /// is a claim about a branch, and the row has to be able to name it.
+    branch: String,
 }
 
 /// How many of the most recent runs, newest first, share the failing verdict.
@@ -225,11 +228,23 @@ fn last_pass(repo: &str, id: &str, branch: &str) -> Option<String> {
 /// the whole response. The failure mode has no name in monitoring, but it does
 /// in survival analysis: the spell is LEFT-CENSORED, and the observation window
 /// is not its beginning.
-fn render_since(since: &str, bounded: bool, last_pass: Option<&str>) -> String {
+/// `None` for `last_pass` is the strongest thing this command can say about a
+/// row, and it was previously invisible on the majority of them: a workflow with
+/// no success on the branch never regressed, because it never worked. Measured
+/// on `gHashTag/trinity-fpga`: 44 of the 50 red rows have never once been green.
+/// A check that never passed is not a broken check -- it is an unfinished file,
+/// and the two want opposite responses.
+///
+/// The branch is named because the population depends on it. Runs are read with
+/// `branch=`, so "no success" means no success ON THAT BRANCH, which is not the
+/// same set as "no success anywhere" -- on trinity-fpga the two happened to
+/// coincide, and that is a fact about that repository, not about the question.
+fn render_since(since: &str, bounded: bool, last_pass: Option<&str>, branch: &str) -> String {
     match (bounded, last_pass) {
-        (false, _) => format!("since {since}"),
+        (false, Some(_)) => format!("since {since}"),
+        (false, None) => format!("since {since}, never green on {branch}"),
         (true, Some(p)) => format!("after {p}, by {since}"),
-        (true, None) => format!("by {since}, no pass on record"),
+        (true, None) => format!("by {since}, never green on {branch}"),
     }
 }
 
@@ -252,14 +267,22 @@ fn is_fresh(last_at: &str, today: NaiveDate, days: i64) -> bool {
     }
 }
 
-fn render_headline(total: usize, fresh: usize, days: i64) -> String {
+fn render_headline(total: usize, fresh: usize, never: usize, days: i64) -> String {
     let head = format!("{total} workflow(s) red on the default branch");
-    if fresh == total {
-        format!("{head}, every one within the last {days} days.")
+    let recency = if fresh == total {
+        format!("{head}, every one within the last {days} days")
     } else if fresh == 0 {
-        format!("{head} -- NOT ONE of them in the last {days} days.")
+        format!("{head} -- NOT ONE of them in the last {days} days")
     } else {
-        format!("{head} -- {fresh} of them in the last {days} days.")
+        format!("{head} -- {fresh} of them in the last {days} days")
+    };
+    // Said second because it is the louder number when it is large, and it is
+    // large: it separates "this broke" from "this never worked", and only the
+    // first of those is a regression anyone can be asked to fix.
+    match never {
+        0 => format!("{recency}."),
+        n if n == total => format!("{recency}, and NOT ONE has ever been green."),
+        n => format!("{recency}, and {n} have never once been green."),
     }
 }
 
@@ -392,11 +415,12 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
             let (n, since, bounded) = streak(repo, id, &branch, deep)?;
             // Only worth a request when the read was truncated: an exact start
             // needs no bracket, and this is one call per red workflow.
-            let pass = if bounded {
-                last_pass(repo, id, &branch)
-            } else {
-                None
-            };
+            // Asked for every red row now, not only truncated ones. It costs one
+            // request per red workflow -- on `gHashTag/trinity-fpga`, 50 on top of
+            // the 405-workflow listing and its per-workflow streak reads, about
+            // 11% more. It buys the difference between a regression and a file
+            // that never worked, which turned out to be 44 of those 50 rows.
+            let pass = last_pass(repo, id, &branch);
             reds.push(Red {
                 repo: repo.clone(),
                 name: name.to_string(),
@@ -405,6 +429,7 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
                 at_least: bounded,
                 last_pass: pass,
                 last_at: last_at.clone(),
+                branch: branch.clone(),
             });
         }
     }
@@ -431,7 +456,11 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
         .iter()
         .filter(|r| is_fresh(&r.last_at, today, STALE_AFTER_DAYS))
         .count();
-    println!("{}\n", render_headline(reds.len(), fresh, STALE_AFTER_DAYS));
+    let never = reds.iter().filter(|r| r.last_pass.is_none()).count();
+    println!(
+        "{}\n",
+        render_headline(reds.len(), fresh, never, STALE_AFTER_DAYS)
+    );
     for (i, r) in reds.iter().enumerate() {
         if i == fresh {
             let stale: Vec<&str> = reds[fresh..].iter().map(|r| r.last_at.as_str()).collect();
@@ -446,7 +475,7 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
         // The same bit governs both. `since` is an UPPER bound when the read was
         // truncated: the failures continue past the last row seen, so the outage
         // began at or before this instant.
-        let since = render_since(&r.since, r.at_least, r.last_pass.as_deref());
+        let since = render_since(&r.since, r.at_least, r.last_pass.as_deref(), &r.branch);
         println!(
             "  {:>5} in a row  last run {}  {:<48}  {:<26} {}",
             count, r.last_at, since, r.repo, short
@@ -463,6 +492,12 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
     println!("push -- 1541 of them, never one success -- and #2256 repaired it. A date");
     println!("beside the count separates a live outage from a settled one.");
     println!();
+    println!();
+    println!("`never green on <branch>` is the loudest thing on a row. A workflow with no success");
+    println!("on the branch did not break -- it never worked, and it is an unfinished file rather");
+    println!("than a regression. Measured on `gHashTag/trinity-fpga`: 44 of 50 red rows had never");
+    println!("once been green, and only 6 were regressions. The two want opposite responses, and");
+    println!("a bare count of `red` asks for neither.");
     println!("Rows below the divider are counted, not hidden -- but they are not news. In");
     println!("`gHashTag/trinity-fpga` the 50 red rows carry 11 distinct latest-run instants,");
     println!("and 39 of the 50 are four batches from one afternoon of 2026-07-09/10: files");
@@ -472,12 +507,12 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
         println!();
         if deep {
             println!(
-                "`no pass on record` means the WHOLE recorded history is failures -- the read walked"
+                "`never green on <branch>` means the read never reached a success -- for a deep read"
             );
             println!(
-                "every page and never reached a success, so the streak began before what the API"
+                "that is the WHOLE recorded history, so the streak began before what the API still"
             );
-            println!("still retains. The count is a floor and the date is a ceiling either way.");
+            println!("retains. The count is a floor and the date is a ceiling either way.");
         } else {
             println!(
                 "`after X, by Y` brackets a truncated read: the outage began after the last pass and"
@@ -541,7 +576,7 @@ mod page_tests {
         );
         // The live case: last pass 2026-08-31T13:50, oldest failure on the page
         // 2026-09-04T06:01, true start 2026-09-03T07:19 -- inside the bracket.
-        let bracketed = render_since("2026-09-04T06:01", true, Some("2026-08-31T13:50"));
+        let bracketed = render_since("2026-09-04T06:01", true, Some("2026-08-31T13:50"), "master");
         assert_eq!(
             bracketed, "after 2026-08-31T13:50, by 2026-09-04T06:01",
             "a truncated read with a known pass must print a bracket, not a point"
@@ -550,14 +585,19 @@ mod page_tests {
             "2026-08-31T13:50" < "2026-09-03T07:19" && "2026-09-03T07:19" <= "2026-09-04T06:01",
             "and the true start must lie inside it, which is the whole claim"
         );
-        let ceiling = render_since("2026-04-14T18:15", true, None);
+        let ceiling = render_since("2026-04-14T18:15", true, None, "master");
         assert_eq!(
-            ceiling, "by 2026-04-14T18:15, no pass on record",
+            ceiling, "by 2026-04-14T18:15, never green on master",
             "with no pass ever, only the ceiling is known and it says so"
         );
-        let exact = render_since("2026-04-07T02:43", false, None);
+        let exact = render_since("2026-04-07T02:43", false, None, "master");
         assert_eq!(
-            exact, "since 2026-04-07T02:43",
+            exact, "since 2026-04-07T02:43, never green on master",
+            "the instant stays UNHEDGED -- no `by`, no `or earlier`. `never green` is a \
+             separate fact appended to it, not a weakening of it"
+        );
+        assert!(
+            !exact.contains("by ") && exact.starts_with("since 2026-04-07T02:43"),
             "an exact instant must NOT be hedged, or the marker stops marking"
         );
     }
@@ -604,7 +644,7 @@ mod page_tests {
             PAGE <= real_streak,
             "the printed count never exceeds the truth: it is a floor"
         );
-        let printed = render_since("2026-09-04T06:01", true, None);
+        let printed = render_since("2026-09-04T06:01", true, None, "master");
         assert!(
             printed.contains("2026-09-04T06:01"),
             "the instant printed is the one that was read"
@@ -653,6 +693,39 @@ mod page_tests {
         );
     }
 
+    /// `last_pass` decides whether a row reads `never green` or nothing at all,
+    /// and it used to be asked ONLY when the streak read was truncated. Every
+    /// row with a short streak therefore got `None` for a reason that had nothing
+    /// to do with whether it had ever passed -- and short streaks are the
+    /// majority: 43 of the 50 red rows on `gHashTag/trinity-fpga` read `1 in a
+    /// row`. Reverting this guard is invisible to every value-level test here,
+    /// because the difference is a request that is or is not made, so the guard
+    /// against it has to read the call site.
+    #[test]
+    fn the_last_pass_lookup_is_asked_for_every_row() {
+        // Search only the half of the file ABOVE the test module. Every needle
+        // below is also a string literal in this test's own body, so a search
+        // over the whole file finds ITSELF when the real call site changes --
+        // which is precisely the mutation this test exists to catch. The first
+        // version of this test did exactly that and passed against the mutant.
+        let src = include_str!("red.rs");
+        let code = &src[..src
+            .find("#[cfg(test)]")
+            .expect("the test module marks the boundary")];
+        let at = code
+            .find("let pass = last_pass(repo, id, &branch);")
+            .expect("the call site is unconditional -- no `if bounded` around it");
+        // Nothing between the previous statement and the call may reintroduce
+        // the condition.
+        let prev = code[..at].rfind(";\n").map(|i| i + 2).unwrap_or(0);
+        assert!(
+            !code[prev..at].contains("if bounded"),
+            "asking only on truncated reads answers `has it ever passed?` with \
+             `was the page full?` -- two different questions, and the second one \
+             says None for 43 of 50 rows that were never asked"
+        );
+    }
+
     #[test]
     fn the_workflow_listing_walks_every_page() {
         let src = include_str!("red.rs");
@@ -670,7 +743,55 @@ mod page_tests {
         );
     }
 
+    /// A workflow with no success on the branch did not break -- it never worked.
+    /// Measured on `gHashTag/trinity-fpga`: 44 of 50 red rows, so this is the
+    /// majority case and it was previously invisible on every unbounded row.
     #[test]
+    fn never_green_is_distinguished_from_regressed() {
+        assert_eq!(
+            render_since("2026-07-10T03:15", false, None, "main"),
+            "since 2026-07-10T03:15, never green on main",
+            "no success on the branch: an unfinished file, and the row must say so"
+        );
+        assert_eq!(
+            render_since("2026-07-10T03:15", false, Some("2026-07-01T00:00"), "main"),
+            "since 2026-07-10T03:15",
+            "a known pass means it WORKED and then broke -- that is a regression, \
+             and appending `never green` to it would be a false statement"
+        );
+        // The branch is part of the claim: runs are read with `branch=`, so `no
+        // success` is scoped to it and a row that does not name the branch is
+        // asserting something wider than it measured.
+        assert!(
+            render_since("2026-07-10T03:15", false, None, "trunk").ends_with("on trunk"),
+            "the row names the branch it read, not a hard-coded one"
+        );
+    }
+
+    /// The headline carries the never-green count because it is the larger and
+    /// louder number: 44 of 50 on the measured repository. `red` alone asks for
+    /// a fix; 44 of those rows have nothing to fix back to.
+    #[test]
+    fn the_headline_separates_never_worked_from_broke() {
+        let h = render_headline(50, 3, 44, 7);
+        assert!(
+            h.contains("44"),
+            "the never-green count is in the headline: {h}"
+        );
+        assert!(
+            h.contains("never once been green"),
+            "and it is named, not implied: {h}"
+        );
+        assert!(
+            render_headline(6, 3, 0, 7).ends_with("days."),
+            "with none never-green the clause is absent, not printed as zero"
+        );
+        assert!(
+            render_headline(9, 0, 9, 7).contains("NOT ONE has ever been green"),
+            "all-never-green is the loudest case and gets said outright"
+        );
+    }
+
     /// A workflow that stopped running is not a workflow that is failing. The
     /// boundary is the policy constant, so pin BOTH sides of it: the last day
     /// that counts as fresh and the first that does not.
@@ -709,7 +830,7 @@ mod page_tests {
     /// numbers, because 50 alone is what six passes of my own reports repeated.
     #[test]
     fn the_headline_carries_both_numbers() {
-        let h = render_headline(50, 3, 7);
+        let h = render_headline(50, 3, 44, 7);
         assert!(h.contains("50"), "the total is still there: {h}");
         assert!(h.contains('3'), "and so is the live count: {h}");
         assert!(
@@ -717,12 +838,12 @@ mod page_tests {
             "and the threshold is stated, not hidden: {h}"
         );
         assert_eq!(
-            render_headline(4, 4, 7),
+            render_headline(4, 4, 0, 7),
             "4 workflow(s) red on the default branch, every one within the last 7 days.",
             "with nothing stale there is no split to report"
         );
         assert!(
-            render_headline(11, 0, 7).contains("NOT ONE"),
+            render_headline(11, 0, 0, 7).contains("NOT ONE"),
             "all-fossil is the loudest case and gets said outright"
         );
     }
@@ -751,6 +872,7 @@ mod page_tests {
         );
     }
 
+    #[test]
     fn the_query_and_the_marker_read_one_constant() {
         // Read the page size back OUT of the URL the command sends and check
         // it against the count at which the marker flips. Two literals cannot

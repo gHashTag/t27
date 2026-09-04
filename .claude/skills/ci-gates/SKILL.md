@@ -14976,3 +14976,84 @@ gone into the report.
 genuinely faster, give every miss a LOUD, distinguishable value. A probe that reports absence and
 truncation with the same symbol cannot tell you which one it found. See also &sect;528: the population
 of that day's trap was zero because the trap was the shell's, not the tree's.
+
+## 537. A dead test and a phantom test cancel in every total
+
+&sect;535 was shipped as `f7c1ff5`. It carried two defects into master, and the pass that wrote it
+verified their absence and read a clean answer.
+
+The insert anchored on `fn the_query_and_the_marker_read_one_constant() {`. That line's `#[test]`
+sits ABOVE it, so the new text landed **between the attribute and the function it belonged to**:
+the newcomer inherited the attribute and got a second of its own, and the neighbour was left with
+none. Measured on `f7c1ff5`:
+
+* `the_query_and_the_marker_read_one_constant` -- **does not run.** `cargo test <name>` returns
+  `0 passed; 685 filtered out`.
+* `the_freshness_boundary_is_pinned_on_both_sides` -- **runs twice.** `cargo test -- --list` prints
+  it on two consecutive lines.
+
+**The check that missed it counted totals.** The pass printed `#[test] attrs: 11   fn defs: 11`, saw
+a match, and moved on. But one function holding two attributes and one holding none leaves BOTH
+totals unchanged. So does the suite size: the phantom fills the seat the dead test left, which is
+why `675` looked exactly right. **Two errors that cancel are invisible to every instrument that
+sums.** Only per-function pairing sees them, and that is the whole design of the new gate.
+
+**Shipped: `tri gates tests`** (`--gate` for exit 1), wired into `cli-tri.yml`. Two rules:
+
+1. a test attribute followed by another test attribute, stepping over doc comments -- the accident
+   routinely leaves one above the newcomer's prose and one below;
+2. a function inside a `#[cfg(test)]` module with no test attribute, containing an assertion, and
+   named nowhere else in the file.
+
+**Rule 2's discriminator is the reference count, not the assertion.** A helper exists to be called,
+so its name appears at least twice; a test that lost its attribute is called by nobody and appears
+exactly once. An earlier attempt at this class by assertion alone returned 18 candidates of which 16
+were helpers. Measured across all 57 files of `cli/`: rule 1 finds exactly 1, rule 2 exactly 1, both
+real, and the three assert-bearing fixtures in test modules are correctly silent. Positive control:
+exit 1 against `f7c1ff5`'s tree, exit 0 against the repaired one.
+
+### The gate reproduced its own subject four times while being written
+
+Every one of these was caught by a test or by an existing comment, not by review.
+
+* **It matched itself.** The first structural test searched `include_str!("red.rs")` for the very
+  string it contained as a literal. The mutation it existed to catch changes the real call site --
+  at which point `find` falls through to the test's own body and the test passes. Fixed by slicing
+  the source at `#[cfg(test)]` and searching only the half above. See &sect;'s census-counted-itself.
+* **The instrument was already in the file.** `orphaned_tests` first took "everything after the
+  first `#[cfg(test)]`" as the test module. Forty lines above it sat `test_module_lines`, whose own
+  doc comment says that approach was *checked rather than assumed* and is wrong: five files in this
+  crate keep real top-level functions after their test module, and `gates.rs` has fifteen.
+* **Two blind spots that cancelled.** The check recognised only `#[test]`, and matched only `fn `.
+  So the thirteen `#[tokio::test]` functions in `cli/trios-bridge` were invisible in BOTH directions
+  -- the attribute unrecognised and the `async fn` under it unrecognised -- and read as clean. The
+  gate had, in miniature, exactly the cancelling-pair defect it was written to find.
+* **Substring, not token.** The reference count used `str::matches`, so a function named `a` is
+  "referenced" by every `assert`, `match` and `pat` in the file. Its own test caught it: an orphaned
+  `async fn a()` was reported as a called helper. Now counts whole identifiers.
+
+## 538. `never green` is a different finding from `red`, and it was the majority
+
+&sect;535 counted the fifty red workflows in `gHashTag/trinity-fpga` by history and found that **44 of
+them had never once succeeded**. `tri red` could not say so: it asked for the last success only when
+the streak read was truncated, which is a question about **whether the page was full**, not about
+whether the thing ever worked. 43 of the 50 rows read `1 in a row`, so the majority were never asked.
+
+`last_pass` is now requested for every red row. It costs one extra request per red workflow -- 50 on
+top of a 405-workflow listing and its per-workflow streak reads, about 11% -- and it buys the
+distinction between a regression and a file that never worked:
+
+```
+50 workflow(s) red on the default branch -- 3 of them in the last 7 days, and 44 have never once been green.
+    1 in a row  last run 2026-07-10T03:15  since 2026-07-10T03:15, never green on main   AX7203 Corona Compute ...
+```
+
+**The row names the branch, because the population depends on it.** Runs are read with `branch=`, so
+"no success" is a claim scoped to that branch and not the same set as "no success anywhere". On
+`trinity-fpga` the two coincided -- all six regressions have successes on `main` as well as
+elsewhere -- and that is a fact about that repository, not about the question. A row that does not
+name its branch asserts something wider than it measured.
+
+The mutation that reverts `last_pass` to the old guard is invisible to every value-level test,
+because the difference is a request that is or is not made. It survived until a structural test read
+the call site.
