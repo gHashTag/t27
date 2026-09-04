@@ -14855,7 +14855,129 @@ nothing and whose acceptance would let the walk run past it onto an unrelated pa
 whose whole trimmed content is `"--limit",` -- one argument per line -- and I had written
 the flag and its value inline. Read the matcher, then write the fixture.
 
-## 535. A budget half the cost, on the half of the page nobody runs
+## 535. Fifty red workflows were eleven events, and three of them were this week
+
+Six of my own passes carried the line "50 red workflows in `gHashTag/trinity-fpga`" into the report as
+outstanding work. &sect;532 gave `tri red` a date on every row. Re-running it against that repository
+answered the item in one command, and the answer was not 50.
+
+**Measured, `gHashTag/trinity-fpga`, 2026-09-05.** 405 active workflows; 50 red on the default branch.
+Grouped by the instant of their latest run:
+
+| last run | red workflows | what they are |
+|---|---|---|
+| 2026-09-03T03:32 | **3** | `S³AI Brain CI`, `Orphaned artefacts`, `Withdrawn numbers` |
+| 2026-08-03 .. 2026-07-13 | 5 | five singletons, five different days |
+| 2026-07-10T03:15 | 16 | `AX7203 Corona Compute *` |
+| 2026-07-10T02:57 | 8 | `AX7203 Corona Compute *` |
+| 2026-07-09T23:24 | 8 | `AX7203 Corona Compute *` |
+| 2026-07-09T22:54 | 7 | `AX7203 Corona Compute *` |
+| 2026-04-19T08:59 | 3 | the three `FPGA * Bitstream/Docker` files |
+
+**50 rows, 11 distinct instants, 3 of them inside a week.** Thirty-nine of the fifty are four batches
+from a single afternoon: workflow files generated together, run once on the commit that added them,
+failed, and never triggered since. `FPGA HSLM Bitstream` has **one run in its entire history**, 139
+days old, and no success -- that is not an outage, it is a file that was tried once.
+
+The count was not wrong. **Its unit was.** `50` counts FILES; the reader of "50 red" takes away 50
+PROBLEMS, and the problems number 11 -- or 3, if the question is what is failing now. A number lands
+in the reader's unit, not the counter's, and when those differ the number lies while every digit of it
+is correct.
+
+The tell was available before any grouping: **the streak column read `1 in a row` on 43 of the 50
+rows.** A one-long streak is not an outage; it is a single event. I had been reading the count and not
+the shape.
+
+**I first wrote `47` there, and 47 is a different population.** 47 is how many rows are DORMANT (last
+run over seven days ago); 43 is how many read `1 in a row`. The two sets are nested, not equal: all 43
+one-streak rows are dormant, and the other four dormant rows carry real streaks of 2, 3, 5 and 13 --
+`Decode RTL exhaustive verification` among them. Checks: 43 + 4 = 47 dormant, plus 3 live = 50.
+
+I reached for a number that was already on the page instead of counting the thing I had just named,
+**in the section whose entire subject is a count answering a question other than the one it is put
+to.** It reached a commit message, a pull-request body, an issue body and the dashboard before an
+audit of my own claims caught it, and the commit message cannot be corrected without a force-push,
+which is forbidden -- so the correction lives in the commit that follows it. Two populations quoted
+with one number is the same defect as the unit error above, one level down: there the number counted
+files and was heard as incidents; here it counted dormancy and was published as streak length.
+
+**Then I checked the history of all fifty, and it refuted a second claim of mine.** I had written
+that `Decode RTL exhaustive verification` was "the one genuine regression in the list", on the
+strength of having looked up exactly one workflow. Looking up all fifty:
+
+| history | count | what it means |
+|---|---|---|
+| **1 run ever, never a success** | **42** | the 39 July files, plus `FPGA HSLM Bitstream`, `FPGA Bitstream Generation`, `FPGA Docker Build` |
+| 2--5 runs, never a success | 2 | `Build AX7203 MUL Bitstream` (2/0), `AX7203 Format Cost Ablation` (5/0) |
+| has succeeded, then regressed, now dormant | 3 | `Decode RTL` (66/49), `TRI-NET Baud Ladder` (3/2), `TRI-NET Node v2` (8/4) |
+| has succeeded, then regressed, **live** | 3 | `S³AI Brain CI` (2654/1570), `Orphaned artefacts` (1241/264), `Withdrawn numbers` (1256/682) |
+
+**44 of the 50 have never had one successful run in their entire recorded history.** A check that
+never once passed is not a broken check; it is an unfinished file. The regressions -- the only rows
+where something that worked stopped working -- number **six**, three of them live. So "the one genuine
+regression" was wrong by a factor of six, and it was wrong because I generalised from a single lookup
+in the same breath as correcting a number I had generalised from a single glance.
+
+**The discipline that caught both:** after finding one published figure wrong, check its neighbours.
+The first audit found `47` should be `43`. The second, run only because the first had found something,
+found that a one-sample generalisation had become a stated count. Neither was caught by a test.
+
+**Shipped.** `tri red now` sorts by the latest-run instant instead of the streak (the old order put a
+July fossil with 30+ failures ABOVE a live 3), states the split in the headline, and draws a divider
+that names the fossils' batch structure rather than their file count:
+
+```
+50 workflow(s) red on the default branch -- 3 of them in the last 7 days.
+  ...
+  --- the 47 below last ran over 7 days ago: 10 instant(s) between 2026-04-19T08:59
+      and 2026-08-03T08:13, largest batch 16 ---
+```
+
+Grouping to the printed minute can split one push across a minute boundary and so **over**-count
+batches. That direction is deliberate: it never merges two events into one, so the incident count is
+never understated.
+
+**Prior art, and the vocabulary it supplies.** Nagios forces a passive check result older than its
+`freshness_threshold` into UNKNOWN rather than carrying the last value forward; Prometheus marks a
+series stale after its staleness delta and drops it from queries; Grafana separates `No Data` from
+`Alerting`; Datadog monitors take an explicit no-data timeframe. Every one of them treats "the last
+value I saw" and "the value now" as different questions, and every one makes the threshold a stated
+number rather than a hidden one. `STALE_AFTER_DAYS = 7` is therefore printed in the output: **the
+threshold is a policy, not a discovery, and policy that is not stated is policy that is not reviewable.**
+
+## 536. The fix lived in the tool; the probe walked around it
+
+Pass 86 found that `tri red` read the workflow LISTING with `per_page=100` and no `--paginate`, so in a
+405-workflow repository it examined 100 and reported on the rest by not reporting them. Commit
+`a61db02e`, 2026-09-04, added `--paginate` and a test that asserts the listing fetch carries it.
+
+**On 2026-09-05 I wrote this in a shell**, to ask a question about that same repository:
+
+```sh
+gh api "repos/$R/actions/workflows?per_page=100" --jq '.workflows[]|[.id,.state,.name]|@tsv'
+```
+
+and concluded from it that `AX7203 Corona Compute TF32-MUL` was **NOT REGISTERED**. It is registered.
+It was on page 2. The defect I had fixed the previous day reappeared inside twenty-four hours, in a
+false claim, because I asked the question **beside** the tool instead of **with** it.
+
+A guard that lives in a tool protects calls to that tool. It does not protect the ad-hoc probe, and the
+ad-hoc probe is where the claims get made. **The tool is not where the risk is; the shell is.** Two
+existing sections are the same shape seen from other angles -- a fix that does not travel to its
+sibling call-site, and a class that is not closed until every call-site is grepped. This is the third
+face: the call-site that did not exist yet when the fix landed, because I was about to type it.
+
+What actually caught it was **the probe's own printing**. It emitted the distinguishable string
+`NOT REGISTERED` on a lookup miss rather than a `0` or an empty line, and `NOT REGISTERED` for one
+member of a 63-file family is implausible on its face. Had it printed `0`, the false claim would have
+gone into the report.
+
+**Rule.** When a `tri` subcommand already answers the question, ask it -- and when a shell probe is
+genuinely faster, give every miss a LOUD, distinguishable value. A probe that reports absence and
+truncation with the same symbol cannot tell you which one it found. See also &sect;528: the population
+of that day's trap was zero because the trap was the shell's, not the tree's.
+
+## 537. A budget half the cost, on the half of the page nobody runs
 
 `tri whats-open` prints every gate instrument's reading, and skips two of them by default
 because they are slow -- saying so out loud, because *"a report that quietly drops its

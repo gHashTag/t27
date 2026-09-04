@@ -66,6 +66,7 @@
 //! changed shape and the census resolved it to `prints what it got`.
 
 use anyhow::{Context, Result};
+use chrono::{NaiveDate, Utc};
 use clap::Subcommand;
 use std::process::Command;
 
@@ -225,6 +226,64 @@ fn render_since(since: &str, bounded: bool, last_pass: Option<&str>) -> String {
     }
 }
 
+/// How recent a latest run has to be for the row to bear on a merge decision.
+/// Nagios calls this a freshness threshold and Prometheus a staleness delta;
+/// both make the same point, that an old observation must be MARKED rather than
+/// carried forward as the current value. The number is a policy, not a
+/// discovery -- so it is stated in the output instead of applied silently.
+const STALE_AFTER_DAYS: i64 = 7;
+
+/// Whether this row's latest run is recent enough to bear on a merge decision.
+///
+/// An instant that does not parse answers NO. The headline built on this claims
+/// recency, and a claim that cannot be supported is not one to make; the error
+/// direction is toward the smaller, more cautious headline.
+fn is_fresh(last_at: &str, today: NaiveDate, days: i64) -> bool {
+    match NaiveDate::parse_from_str(last_at.get(..10).unwrap_or(""), "%Y-%m-%d") {
+        Ok(d) => (today - d).num_days() < days,
+        Err(_) => false,
+    }
+}
+
+fn render_headline(total: usize, fresh: usize, days: i64) -> String {
+    let head = format!("{total} workflow(s) red on the default branch");
+    if fresh == total {
+        format!("{head}, every one within the last {days} days.")
+    } else if fresh == 0 {
+        format!("{head} -- NOT ONE of them in the last {days} days.")
+    } else {
+        format!("{head} -- {fresh} of them in the last {days} days.")
+    }
+}
+
+/// The line that separates live rows from fossils, and says what the fossils
+/// ARE: workflows sharing a latest-run instant were triggered by one event, so
+/// the honest unit below the line is the batch, not the file.
+///
+/// Grouping to the printed minute can split one push across a minute boundary,
+/// which inflates the batch count. That direction is safe: it never merges two
+/// events into one, so the number of distinct incidents is never understated.
+fn render_divider(stale: &[&str], days: i64) -> String {
+    let mut seen: Vec<&str> = stale.to_vec();
+    seen.sort_unstable();
+    let oldest = seen.first().copied().unwrap_or("?");
+    let newest = seen.last().copied().unwrap_or("?");
+    let largest = seen
+        .iter()
+        .map(|i| seen.iter().filter(|j| *j == i).count())
+        .max()
+        .unwrap_or(0);
+    seen.dedup();
+    format!(
+        "--- the {} below last ran over {days} days ago: {} instant(s) between {} and {}, largest batch {} ---",
+        stale.len(),
+        seen.len(),
+        oldest,
+        newest,
+        largest
+    )
+}
+
 /// Returns `(streak, oldest failure seen, bounded)`.
 ///
 /// `bounded` is true when the read ran out of rows while the streak was still
@@ -348,9 +407,29 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
         return Ok(());
     }
 
-    reds.sort_by(|a, b| b.consecutive.cmp(&a.consecutive));
-    println!("{} workflow(s) red on the default branch:\n", reds.len());
-    for r in &reds {
+    // Freshest first. The previous order was streak length, which is exactly the
+    // axis that misleads: a workflow that failed 30 times and then stopped
+    // running in July sorted ABOVE one that failed 3 times two days ago. The
+    // streak says how long nobody looked; only the date says whether the thing
+    // still runs, and that is what bears on the merge in front of you.
+    reds.sort_by(|a, b| {
+        b.last_at
+            .cmp(&a.last_at)
+            .then(b.consecutive.cmp(&a.consecutive))
+    });
+    let today = Utc::now().date_naive();
+    // Sorted newest-first and freshness is monotone in the date, so every fresh
+    // row precedes every stale one and this count doubles as the split index.
+    let fresh = reds
+        .iter()
+        .filter(|r| is_fresh(&r.last_at, today, STALE_AFTER_DAYS))
+        .count();
+    println!("{}\n", render_headline(reds.len(), fresh, STALE_AFTER_DAYS));
+    for (i, r) in reds.iter().enumerate() {
+        if i == fresh {
+            let stale: Vec<&str> = reds[fresh..].iter().map(|r| r.last_at.as_str()).collect();
+            println!("  {}", render_divider(&stale, STALE_AFTER_DAYS));
+        }
         let short: String = r.name.chars().take(38).collect();
         let count = if r.at_least {
             format!("{}+", r.consecutive)
@@ -376,6 +455,12 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
     println!("file had not parsed since 2026-07-07, so GitHub made a failed run on every");
     println!("push -- 1541 of them, never one success -- and #2256 repaired it. A date");
     println!("beside the count separates a live outage from a settled one.");
+    println!();
+    println!("Rows below the divider are counted, not hidden -- but they are not news. In");
+    println!("`gHashTag/trinity-fpga` the 50 red rows carry 11 distinct latest-run instants,");
+    println!("and 39 of the 50 are four batches from one afternoon of 2026-07-09/10: files");
+    println!("generated together, run once, failed, never triggered since. Counting files");
+    println!("reported 50 problems where the incidents number 11, and the live ones 3.");
     if reds.iter().any(|r| r.at_least) {
         println!();
         if deep {
@@ -579,6 +664,86 @@ mod page_tests {
     }
 
     #[test]
+    /// A workflow that stopped running is not a workflow that is failing. The
+    /// boundary is the policy constant, so pin BOTH sides of it: the last day
+    /// that counts as fresh and the first that does not.
+    #[test]
+    fn the_freshness_boundary_is_pinned_on_both_sides() {
+        let today = NaiveDate::from_ymd_opt(2026, 9, 5).unwrap();
+        assert!(is_fresh("2026-09-05T03:32", today, 7), "today is fresh");
+        assert!(
+            is_fresh("2026-08-30T00:00", today, 7),
+            "six days old is still inside a seven-day window"
+        );
+        assert!(
+            !is_fresh("2026-08-29T23:59", today, 7),
+            "seven days old is outside it -- the window is the last 7 days, not 8"
+        );
+        assert!(
+            !is_fresh("2026-07-10T03:15", today, 7),
+            "the trinity-fpga fossils are two months old"
+        );
+    }
+
+    /// The instant is read from the API and can be missing. A headline that says
+    /// "3 of them in the last 7 days" must not count a row it could not date.
+    #[test]
+    fn an_undatable_row_is_never_counted_as_fresh() {
+        let today = NaiveDate::from_ymd_opt(2026, 9, 5).unwrap();
+        for bad in ["", "none", "2026-13-99T00:00", "not-a-date"] {
+            assert!(
+                !is_fresh(bad, today, 7),
+                "{bad:?} cannot support a claim of recency"
+            );
+        }
+    }
+
+    /// The measured case: 50 red, 3 of them live. The headline has to carry both
+    /// numbers, because 50 alone is what six passes of my own reports repeated.
+    #[test]
+    fn the_headline_carries_both_numbers() {
+        let h = render_headline(50, 3, 7);
+        assert!(h.contains("50"), "the total is still there: {h}");
+        assert!(h.contains('3'), "and so is the live count: {h}");
+        assert!(
+            h.contains('7'),
+            "and the threshold is stated, not hidden: {h}"
+        );
+        assert_eq!(
+            render_headline(4, 4, 7),
+            "4 workflow(s) red on the default branch, every one within the last 7 days.",
+            "with nothing stale there is no split to report"
+        );
+        assert!(
+            render_headline(11, 0, 7).contains("NOT ONE"),
+            "all-fossil is the loudest case and gets said outright"
+        );
+    }
+
+    /// 39 of the 50 share four instants. The divider has to say `4`, not `39`:
+    /// files generated and triggered together are one incident, not many.
+    #[test]
+    fn the_divider_counts_instants_not_files() {
+        let stale = [
+            "2026-07-10T03:15",
+            "2026-07-10T03:15",
+            "2026-07-10T03:15",
+            "2026-07-09T23:24",
+            "2026-04-19T08:59",
+        ];
+        let d = render_divider(&stale, 7);
+        assert!(d.contains('5'), "every stale row is still counted: {d}");
+        assert!(d.contains("3 instant(s)"), "but they are three events: {d}");
+        assert!(
+            d.contains("largest batch 3"),
+            "and the biggest batch is named: {d}"
+        );
+        assert!(
+            d.contains("2026-04-19T08:59") && d.contains("2026-07-10T03:15"),
+            "both ends of the range are printed: {d}"
+        );
+    }
+
     fn the_query_and_the_marker_read_one_constant() {
         // Read the page size back OUT of the URL the command sends and check
         // it against the count at which the marker flips. Two literals cannot
