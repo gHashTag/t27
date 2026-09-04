@@ -14526,3 +14526,49 @@ changed nothing. Widening costs **25 of 200 commits** (12.5%) on top of the 22 a
 
 **A measured decline is a result.** The number that decides it is not the move rate; it is the
 distance between the census's subject and the gate's trigger.
+
+## 525. The channel was already in the tree, with a comment counting the times it was closed
+
+Third time in one pass that a hand-written helper was a worse copy of something shipped,
+and this is the sharpest of the three, because the existing code **names the class**.
+
+The mutation harness written this pass classified a mutant as *did not compile* by grepping
+its output for `^error:` -- and `cargo test` prints `error: test failed, to rerun pass …`
+when a **test** fails, so eight kills were scored as eight refusals. The repair was to read
+the line that only exists after compilation.
+
+**That repair is already in `scripts/ci/test_ratchet.py`, and has been:**
+
+```python
+RESULT = re.compile(r"^test result: (?:ok|FAILED)\.")
+…
+if not targets or results == 0:
+    error("test set NOT evaluated: the log has "
+          f"{len(targets)} target(s) and {results} 'test result:' line(s). "
+          "A run that did not happen is not a run that passed.")
+    return 2
+```
+
+Its comment above that block reads *"Refuse rather than certify. An empty or truncated log
+has no failures in it, and reading that as a clean set is the fail-open this repo has
+closed **ten times**."* It carries a second guard for the same family -- one target means
+`--no-fail-fast` was missing, *"the exact condition that hid 72 targets"*.
+
+**The three instances of this pass, and what each dropped:**
+
+| hand-written | already shipped | the part dropped |
+|---|---|---|
+| poll-and-merge loop | `tri pr ready --wait --merge` | its refusal to score a check with `conclusion: null` AND `state: null` |
+| `tri <verb>` census | `check_documented_commands_exist.py` | three of the four surfaces `tri` resolves through |
+| mutation harness | `test_ratchet.py`'s `RESULT` rule | the channel that exists only after compilation |
+
+Every one dropped **the enumeration of what can be true** -- one field of two, one surface
+of four, one exit channel of two. And the third was reachable by the same command as the
+other two: `git grep -n "test result"` returns the rule, in a file whose whole subject is
+reading a cargo log.
+
+**Measured and clean:** no classifier in `tools/`, `scripts/` or `.github/` decides
+compilation by `^error:`. The defect existed only in ephemeral shell, which is exactly why
+it can recur every pass and why it belongs here rather than in a gate. The population of a
+defect that lives in throwaway scripts is **zero on disk and once per pass in practice**,
+and a gate over the first number would watch an empty set.
