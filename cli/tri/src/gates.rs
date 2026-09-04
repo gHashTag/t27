@@ -4832,7 +4832,6 @@ fn find_invocation(line: &str) -> Option<usize> {
     None
 }
 
-
 /// What a gate's script can reach, decided from its SOURCE.
 ///
 /// THE SUBJECT IS THE SCRIPT, NOT THE INVOCATION, and the difference is not
@@ -5869,6 +5868,53 @@ pub enum Quiet {
     /// `if [ -f X ]; then ... fi` with no failing `else`. Often legitimate, which is
     /// why it is reported apart rather than folded in.
     ExistenceGated,
+    /// `if cmd … 2>/dev/null; then … exit 1; fi` followed by an unconditional line.
+    /// `grep` exits 2 for a missing path, the `if` takes the same branch it takes for
+    /// "no match", and the code after `fi` runs either way.
+    IfFallsThrough,
+}
+
+/// Does an `if` whose condition can fail for a MISSING subject fall through to a pass?
+///
+/// The shape is multi-line and a line-scoped rule cannot see it, which is how the first
+/// version of this command CLEARED `coq-kernel.yml:121`:
+///
+/// ```text
+/// if grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v 2>/dev/null; then
+///   echo "ERROR: …" >&2
+///   exit 1
+/// fi
+/// echo "OK: no Admitted in Phi.v or PhiFloat.v"
+/// ```
+///
+/// Probed: with the two files present and with both deleted, stdout is byte-identical,
+/// stderr is empty, and both exit 0 -- while a real `Admitted` still exits 1, so the
+/// gate works exactly when its subject is there. The census that finds quiet gates was
+/// quiet about this one.
+///
+/// The rule: the condition silences stderr, the THEN branch exits non-zero, and the
+/// block ends -- so the only way past `fi` is the branch a missing file takes.
+pub fn if_falls_through(line: &str, following: &[&str]) -> bool {
+    let t = line.trim();
+    if !t.starts_with("if ") || !t.ends_with("then") || !silences_stderr(t) {
+        return false;
+    }
+    let mut then_exits = false;
+    for f in following {
+        let ft = f.trim();
+        if ft == "fi" {
+            return then_exits;
+        }
+        if ft.starts_with("exit ") && ft != "exit 0" {
+            then_exits = true;
+        }
+        // An `else` means the missing-file path has its own branch, and whether that
+        // branch passes is a different question this does not answer.
+        if ft == "else" {
+            return false;
+        }
+    }
+    false
 }
 
 /// Does this line silence the channel that says "no such file"?
@@ -5913,6 +5959,30 @@ pub fn existence_gated(line: &str) -> bool {
         }
     }
     false
+}
+
+/// Could this line hide a subject going missing?
+///
+/// The population, stated once so both lists draw from it: a shell existence test, a
+/// silenced stderr, an `||` fallback, a `wc -l` counter, or an `if … ; then`. Anything
+/// matching lands in the counted list or the refused one, and the two must sum to this.
+///
+/// The first version had no such definition -- it refused only lines that named a path
+/// AND silenced or `||`-ed -- so ten of the eleven `[ ! -f … ]` lines in these
+/// workflows were in NEITHER list. A census with a third, invisible bucket cannot be
+/// argued with, which is the whole reason this one prints its exclusions.
+pub fn is_quiet_candidate(line: &str) -> bool {
+    let t = line.trim();
+    if t.starts_with('#') {
+        return false;
+    }
+    if silences_stderr(t) || t.contains("||") || t.contains("wc -l") {
+        return true;
+    }
+    if existence_gated(t) || t.contains("[ ! -f ") || t.contains("[ ! -d ") {
+        return true;
+    }
+    t.starts_with("if ") && t.ends_with("then")
 }
 
 /// The path or glob a gate line reads.
@@ -6000,10 +6070,13 @@ pub fn subject_state(subject: Option<&str>, exists: impl Fn(&str) -> bool) -> Su
 
 /// Classify one gate line, or `None` when its pass does not survive the subject going
 /// missing.
-pub fn quiet_shape(line: &str) -> Option<Quiet> {
+pub fn quiet_shape(line: &str, following: &[&str]) -> Option<Quiet> {
     let t = line.trim();
     if t.starts_with('#') {
         return None;
+    }
+    if if_falls_through(t, following) {
+        return Some(Quiet::IfFallsThrough);
     }
     if counts_zero_when_absent(t) {
         return Some(Quiet::CountsZero);
@@ -6037,16 +6110,24 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
-        for (i, line) in text.lines().enumerate() {
+        let lines: Vec<&str> = text.lines().collect();
+        for (i, line) in lines.iter().enumerate() {
+            let line = *line;
             let names_a_path = line.contains('/') || line.contains("*.");
-            match quiet_shape(line) {
+            match quiet_shape(line, &lines[(i + 1).min(lines.len())..]) {
                 Some(k) => {
                     let subj = subject_of(line);
                     let st = subject_state(subj.as_deref(), |p| root.join(p).exists());
                     rows.push((k, name.clone(), i + 1, subj, st));
                 }
                 None => {
-                    if names_a_path && (silences_stderr(line) || line.contains("||")) {
+                    // Every CANDIDATE lands in counted or refused, never in neither.
+                    // The first version refused only lines that named a path AND
+                    // silenced or `||`-ed, so ten of the eleven `[ ! -f … ]` lines in
+                    // these workflows appeared in no list at all -- and an omission a
+                    // reader cannot see is an omission a reader cannot argue with.
+                    let _ = names_a_path;
+                    if is_quiet_candidate(line) {
                         excluded += 1;
                     }
                 }
@@ -6071,6 +6152,10 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
     println!(
         "    gated on the file existing  {}   often legitimate, reported apart",
         n(Quiet::ExistenceGated)
+    );
+    println!(
+        "    an if that falls through    {}   an if whose then-branch exits and whose fi is followed by a pass",
+        n(Quiet::IfFallsThrough)
     );
 
     let sn = |x: Subject| rows.iter().filter(|r| r.4 == x).count();
@@ -6133,10 +6218,11 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
                 .file_name()
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_default();
-            for (i, line) in text.lines().enumerate() {
-                if quiet_shape(line).is_none()
-                    && (line.contains('/') || line.contains("*."))
-                    && (silences_stderr(line) || line.contains("||"))
+            let lines: Vec<&str> = text.lines().collect();
+            for (i, line) in lines.iter().enumerate() {
+                let line = *line;
+                if quiet_shape(line, &lines[(i + 1).min(lines.len())..]).is_none()
+                    && is_quiet_candidate(line)
                 {
                     println!(
                         "    {name}:{}  {}",
@@ -6167,8 +6253,9 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
 #[cfg(test)]
 mod quiet_gate_tests {
     use super::{
-        counts_zero_when_absent, existence_gated, failure_branch_passes, quiet_shape,
-        silences_stderr, subject_of, subject_state, Quiet, Subject,
+        counts_zero_when_absent, existence_gated, failure_branch_passes, if_falls_through,
+        is_quiet_candidate, quiet_shape, silences_stderr, subject_of, subject_state, Quiet,
+        Subject,
     };
 
     const REAL: &str = "grep -rn 'as f64' ffi/src/ --include='*.rs' 2>/dev/null | grep -v 'x' && echo \"L8 FAILED\" && exit 1 || echo \"L8 PASSED\"";
@@ -6181,7 +6268,7 @@ mod quiet_gate_tests {
             failure_branch_passes(REAL),
             "the || arm echoes and continues"
         );
-        assert_eq!(quiet_shape(REAL), Some(Quiet::FailureBranchPasses));
+        assert_eq!(quiet_shape(REAL, &[]), Some(Quiet::FailureBranchPasses));
         assert_eq!(subject_of(REAL).as_deref(), Some("ffi/src/"));
     }
 
@@ -6209,8 +6296,8 @@ mod quiet_gate_tests {
     /// that erases the difference between "no such file" and "no match".
     #[test]
     fn neither_half_alone_is_the_defect() {
-        assert_eq!(quiet_shape("grep x src/ 2>/dev/null"), None);
-        assert_eq!(quiet_shape("grep x src/ || echo ok"), None);
+        assert_eq!(quiet_shape("grep x src/ 2>/dev/null", &[]), None);
+        assert_eq!(quiet_shape("grep x src/ || echo ok", &[]), None);
     }
 
     /// A counter reads the same way: no files and no matches are both zero.
@@ -6218,11 +6305,83 @@ mod quiet_gate_tests {
     fn a_count_that_reads_zero_is_the_same_defect_in_a_different_costume() {
         let l = "ADMISSIONS=$(grep -r \"^Admitted\" *.v 2>/dev/null | wc -l)";
         assert!(counts_zero_when_absent(l));
-        assert_eq!(quiet_shape(l), Some(Quiet::CountsZero));
+        assert_eq!(quiet_shape(l, &[]), Some(Quiet::CountsZero));
         assert!(
             !counts_zero_when_absent("N=$(ls | wc -l)"),
             "no silencing, no defect"
         );
+    }
+
+    /// The multi-line shape a line-scoped rule cannot see, taken verbatim from
+    /// `coq-kernel.yml` as it stood at ee4d845f9. `grep` exits 2 for a missing file,
+    /// the `if` merges that with "no match", and the `echo` after `fi` runs either
+    /// way. Probed at the time: present and absent gave byte-identical stdout, empty
+    /// stderr and exit 0, while a real `Admitted` still exited 1.
+    #[test]
+    fn an_if_that_falls_through_to_a_pass_is_quiet() {
+        let head = "if grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v 2>/dev/null; then";
+        let rest = vec![
+            "  echo \"ERROR: Admitted remains\" >&2",
+            "  exit 1",
+            "fi",
+            "echo \"OK: no Admitted in Phi.v or PhiFloat.v\"",
+        ];
+        assert!(if_falls_through(head, &rest));
+        assert_eq!(quiet_shape(head, &rest), Some(Quiet::IfFallsThrough));
+    }
+
+    /// An `else` means the missing-file path has its OWN branch, and whether that
+    /// branch passes is a different question this does not answer. All three lines of
+    /// this shape left in the workflows have one, which is why the rule fires zero
+    /// times today -- reported, not hidden.
+    #[test]
+    fn an_else_branch_takes_it_out_of_scope() {
+        let head = "if yosys -p \"read_verilog $v\" -q 2>/dev/null; then";
+        let rest = vec!["  pass=1", "else", "  fail=1", "fi"];
+        assert!(!if_falls_through(head, &rest));
+        // The discriminating fixture, and the only one the `else` check earns its
+        // place on: a THEN branch that exits, so every other clause says "quiet",
+        // with an `else` that owns the missing-file path. A mutation deleting the
+        // check survived until this existed.
+        let exits = vec!["  exit 1", "else", "  echo cannot read", "fi", "echo OK"];
+        assert!(
+            !if_falls_through(head, &exits),
+            "an else branch owns the missing-file path; whether IT passes is another question"
+        );
+    }
+
+    /// The condition has to silence stderr, or a reader sees the error even when the
+    /// exit code is swallowed.
+    #[test]
+    fn a_loud_condition_is_not_quiet() {
+        let rest = vec!["  exit 1", "fi", "echo OK"];
+        assert!(!if_falls_through("if grep x src/a.v; then", &rest));
+    }
+
+    /// If the THEN branch does not fail, the `if` is not deciding anything and the
+    /// fall-through is not a laundered failure.
+    #[test]
+    fn a_then_branch_that_passes_is_not_this_shape() {
+        let rest = vec!["  echo found", "fi", "echo OK"];
+        assert!(!if_falls_through(
+            "if grep x src/a.v 2>/dev/null; then",
+            &rest
+        ));
+    }
+
+    /// Every candidate must land in counted or refused. The first version refused only
+    /// lines that named a path AND silenced or `||`-ed, so ten of the eleven
+    /// `[ ! -f … ]` lines were in NEITHER list -- an omission a reader cannot see is
+    /// one a reader cannot argue with.
+    #[test]
+    fn the_candidate_population_covers_the_negated_tests() {
+        assert!(is_quiet_candidate("if [ ! -f build/x.json ]; then"));
+        assert!(is_quiet_candidate("[ ! -d coq/Kernel ] && echo skip"));
+        assert!(is_quiet_candidate("N=$(ls | wc -l)"));
+        assert!(is_quiet_candidate("cmd || true"));
+        assert!(is_quiet_candidate("grep x src/ 2>/dev/null"));
+        assert!(!is_quiet_candidate("cargo build --release"));
+        assert!(!is_quiet_candidate("# [ ! -f x ] in a comment"));
     }
 
     #[test]
@@ -6230,7 +6389,7 @@ mod quiet_gate_tests {
         assert!(existence_gated("if [ -f build/x.log ]; then"));
         assert!(existence_gated("test -d coq/Kernel && make"));
         assert_eq!(
-            quiet_shape("if [ -f build/x.log ]; then"),
+            quiet_shape("if [ -f build/x.log ]; then", &[]),
             Some(Quiet::ExistenceGated)
         );
     }
