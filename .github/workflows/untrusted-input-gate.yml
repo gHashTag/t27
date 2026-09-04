@@ -65,6 +65,24 @@ jobs:
         # mandatory-field population is exactly `grep -c 'CATALOG:'`.
         run: python3 scripts/ci/test_catalog_table_matches_the_gate.py
 
+      - name: The two required gates name their own subject, not the wrong one
+        # #3061. Both are in docs/BRANCH-PROTECTION.md's required list, so a
+        # wrong message lands on a check nobody can merge past: the NOW gate
+        # said "adds no docs/now/ entry" about a comparison git refused to make,
+        # and the Issue Gate said "No issue reference found in PR title/body"
+        # about a pull request that does not exist. Runs here rather than in
+        # either gate's own workflow so a break in the test cannot turn a
+        # required context red for a reason unrelated to the change under test.
+        run: python3 scripts/ci/test_required_gates_name_their_subject.py
+
+      - name: Every path a status table marks COMPLETE is on disk
+        # #3082. META_DASHBOARD marked four CLARA deliverables COMPLETE against
+        # paths removed on 2026-04-19 by a 1214-file recovery commit. Pure
+        # os.path, no build. The matcher is deliberately narrow -- 12 rows, not
+        # the 232 a loose one gives -- and refuses to report if it fails its own
+        # planted-row control.
+        run: python3 scripts/ci/test_status_tables_name_paths_that_exist.py
+
       - name: No untrusted event data interpolated into shell
         run: python3 scripts/ci/check_untrusted_shell_interp.py
 

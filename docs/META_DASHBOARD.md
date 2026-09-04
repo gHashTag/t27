@@ -96,14 +96,28 @@ Phase 4: Crown (Queen)        ████████████  99% 🟢
 
 ## CLARA Deliverables Progress
 
+
+> **THE FOUR `docs/clara/` PATHS BELOW ARE NOT ON DISK.** They were produced --
+> `git log --diff-filter=A -- docs/clara/CLARA_TECHNICAL_NARRATIVE.md` names
+> `c1582008b` -- and then removed on **2026-04-19** by `91653d2b9`,
+> *"fix(bootstrap): restore working main.rs -- recovery from detached HEAD
+> (#523)"*, a 1214-file recovery that took them out as collateral. This table has
+> read COMPLETE ever since. `docs/clara/examples/` and `LICENSE`/`NOTICE` are
+> still there; the other four are recoverable from `91653d2b9^`.
+>
+> Kept as rows rather than deleted: the work happened, and a dashboard that
+> quietly drops a deliverable is worse than one that says where it went.
+> `scripts/ci/test_status_tables_name_paths_that_exist.py` now fails on any
+> status row naming a path that is not on disk.
+
 | Deliverable | Deadline | Status | Location |
 |-------------|----------|--------|----------|
-| Test vectors package (TA1+TA2) | Apr 10 | ✅ COMPLETE | `docs/clara/test_vectors/` |
-| Test vectors ZIP archive | Apr 10 | ✅ COMPLETE | `docs/clara/clara_test_vectors_2026-04-08.zip` |
-| Technical narrative | Apr 8 | ✅ COMPLETE | `docs/clara/CLARA_TECHNICAL_NARRATIVE.md` |
+| Test vectors package (TA1+TA2) | Apr 10 | DELIVERED, then removed in `91653d2b9` | docs/clara/test_vectors/ |
+| Test vectors ZIP archive | Apr 10 | DELIVERED, then removed in `91653d2b9` | docs/clara/clara_test_vectors_2026-04-08.zip |
+| Technical narrative | Apr 8 | DELIVERED, then removed in `91653d2b9` | docs/clara/CLARA_TECHNICAL_NARRATIVE.md |
 | Apache 2.0 license transition | Apr 8 | ✅ PR #284 | `LICENSE`, `NOTICE` |
-| Integration guide (VSA+AR+ML) | Apr 15 | ✅ COMPLETE | `docs/clara/CLARA_INTEGRATION_GUIDE.md` |
-| Example composition scripts (3+) | Apr 14 | ✅ COMPLETE | `docs/clara/examples/` (4 scripts) |
+| Integration guide (VSA+AR+ML) | Apr 15 | DELIVERED, then removed in `91653d2b9` | docs/clara/CLARA_INTEGRATION_GUIDE.md |
+| Example composition scripts (3+) | Apr 14 | ✅ COMPLETE | `docs/clara/examples/` |
 
 **Test Vectors Summary:**
 - TA1: 37 test cases across 7 files (ternary logic, proof trace, datalog, restraint, explainability, ASP, composition)
@@ -115,14 +129,28 @@ Phase 4: Crown (Queen)        ████████████  99% 🟢
 
 ## CLARA Deliverables Progress
 
+
+> **THE FOUR `docs/clara/` PATHS BELOW ARE NOT ON DISK.** They were produced --
+> `git log --diff-filter=A -- docs/clara/CLARA_TECHNICAL_NARRATIVE.md` names
+> `c1582008b` -- and then removed on **2026-04-19** by `91653d2b9`,
+> *"fix(bootstrap): restore working main.rs -- recovery from detached HEAD
+> (#523)"*, a 1214-file recovery that took them out as collateral. This table has
+> read COMPLETE ever since. `docs/clara/examples/` and `LICENSE`/`NOTICE` are
+> still there; the other four are recoverable from `91653d2b9^`.
+>
+> Kept as rows rather than deleted: the work happened, and a dashboard that
+> quietly drops a deliverable is worse than one that says where it went.
+> `scripts/ci/test_status_tables_name_paths_that_exist.py` now fails on any
+> status row naming a path that is not on disk.
+
 | Deliverable | Deadline | Status | Location |
 |-------------|----------|--------|----------|
-| Test vectors package (TA1+TA2) | Apr 10 | ✅ COMPLETE | `docs/clara/test_vectors/` |
-| Test vectors ZIP archive | Apr 10 | ✅ COMPLETE | `docs/clara/clara_test_vectors_2026-04-08.zip` |
-| Technical narrative | Apr 8 | ✅ COMPLETE | `docs/clara/CLARA_TECHNICAL_NARRATIVE.md` |
+| Test vectors package (TA1+TA2) | Apr 10 | DELIVERED, then removed in `91653d2b9` | docs/clara/test_vectors/ |
+| Test vectors ZIP archive | Apr 10 | DELIVERED, then removed in `91653d2b9` | docs/clara/clara_test_vectors_2026-04-08.zip |
+| Technical narrative | Apr 8 | DELIVERED, then removed in `91653d2b9` | docs/clara/CLARA_TECHNICAL_NARRATIVE.md |
 | Apache 2.0 license transition | Apr 8 | ✅ PR #284 | `LICENSE`, `NOTICE` |
-| Integration guide (VSA+AR+ML) | Apr 15 | ✅ COMPLETE | `docs/clara/CLARA_INTEGRATION_GUIDE.md` |
-| Example composition scripts (3+) | Apr 14 | ✅ COMPLETE | `docs/clara/examples/` (4 scripts) |
+| Integration guide (VSA+AR+ML) | Apr 15 | DELIVERED, then removed in `91653d2b9` | docs/clara/CLARA_INTEGRATION_GUIDE.md |
+| Example composition scripts (3+) | Apr 14 | ✅ COMPLETE | `docs/clara/examples/` |
 
 **Test Vectors Summary:**
 - TA1: 37 test cases across 7 files (ternary logic, proof trace, datalog, restraint, explainability, ASP, composition)
