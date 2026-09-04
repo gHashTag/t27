@@ -196,6 +196,27 @@ pub fn named_workflows(text: &str, keys: &BTreeMap<String, String>) -> Vec<Strin
 /// eight titles that state no count. It is kept -- and it is now **printed**.
 /// A silent threshold makes 288 read as the whole population; a stated one
 /// makes it read as 288 plus a named 20 that a reader can judge.
+/// The `no figure` line, and the caveat it owes the reader.
+///
+/// The count itself is the useful one: it is the complement of the population,
+/// so the three lines around it still add up. What was missing is that the rule
+/// producing it reads TWO or more digits, and a title whose only figure is a
+/// single digit lands here. Measured on `gHashTag/t27`, 2026-09-05: 509 issues
+/// read, 205 counted as carrying no figure, and **21 of those 205 carry a
+/// single-digit figure** -- #2627 "Census the optimizer: 4 of 7 passes have no
+/// precondition" among them.
+///
+/// The number stays; the label stops promising more than the rule delivers.
+fn render_no_figure(no_figure: usize, single_only: usize) -> String {
+    let head = format!("  no figure the TWO-digit rule reads  {no_figure}");
+    if single_only == 0 {
+        return head;
+    }
+    format!(
+        "{head}\n    of which carry a SINGLE digit   {single_only}   (`tri issues numbers --single` prints them)"
+    )
+}
+
 pub fn single_digit_only(title: &str) -> bool {
     let t = strip_addresses(title);
     let c: Vec<char> = t.chars().collect();
@@ -1323,8 +1344,17 @@ fn dated(limit: usize, list: bool, as_of: Option<&str>) -> Result<()> {
 
     let mut pop: Vec<(u64, String, Anchor)> = Vec::new();
     let mut no_figure = 0usize;
+    // Of the titles this loop rejects, some DO carry a figure -- `carries`
+    // requires a boundary-clean run of two or more digits, so "4 of 7 passes"
+    // reads as no figure at all. The sibling `numbers` command has printed that
+    // exclusion beside its own population since it was written; this one has
+    // never mentioned it, over the same rule, in the same file.
+    let mut single_only = 0usize;
     for it in &issues {
         let title = it["title"].as_str().unwrap_or("");
+        if single_digit_only(title) {
+            single_only += 1;
+        }
         match carries(title) {
             Carries::Digits | Carries::Words | Carries::Both => {}
             _ => {
@@ -1362,7 +1392,7 @@ fn dated(limit: usize, list: bool, as_of: Option<&str>) -> Result<()> {
         println!("  issues read from gh           {read_from_gh}   *** EQUALS the --limit of {limit}: a LOWER BOUND, not a total. Raise --limit and read again. ***");
     }
     println!("  open issues read              {}", issues.len());
-    println!("  no figure in the title        {no_figure}");
+    println!("{}", render_no_figure(no_figure, single_only));
     println!("  POPULATION (carries a figure) {}", pop.len());
     println!("  pins a revision               {}", c(Anchor::Revision));
     println!("  says as-of / snapshot         {}", c(Anchor::AsOf));
@@ -1746,5 +1776,97 @@ mod reading_stamp_tests {
         assert!(y < t, "{y} must sort before {t}");
         assert_ne!(y, t);
         assert_eq!(y.len(), 10);
+    }
+}
+
+#[cfg(test)]
+mod no_figure_tests {
+    use super::render_no_figure;
+
+    /// `render_no_figure` can be right while nothing ever feeds it a non-zero
+    /// second argument. Replacing the `single_digit_only` call in `dated` with
+    /// `false` leaves every test below green and silently restores the old
+    /// output, because the difference is a tally that is or is not taken.
+    ///
+    /// This is the THIRD change in three passes whose surviving mutant was the
+    /// wiring rather than the function -- `last_pass` in `red.rs`, `claims_seen`
+    /// in `gates.rs`, and this. A fix's call site is not covered by its
+    /// function's tests, and mutation is the only thing that says so.
+    ///
+    /// The needle is split across two literals so this test's own body does not
+    /// contain the string it searches for.
+    #[test]
+    fn the_tally_is_actually_taken_at_the_call_site() {
+        let src = include_str!("issues.rs");
+        let call = concat!("if ", "single_digit_only(title) {");
+        assert!(
+            src.contains(call),
+            "the caveat is only ever non-zero if something counts the titles"
+        );
+        let bump = concat!("single_only", " += 1;");
+        assert!(
+            src.contains(bump),
+            "and the count has to be incremented, not merely computed"
+        );
+    }
+
+    /// `carries` reads a run of TWO or more digits, so a title whose only figure
+    /// is a single digit is counted as carrying none. The sibling `numbers`
+    /// command has printed that exclusion beside its own population since it was
+    /// written; `dated` never mentioned it, over the same rule, in the same file.
+    ///
+    /// Measured on gHashTag/t27, 2026-09-05: 509 issues read, 205 counted as no
+    /// figure, and 21 of those 205 carry a single-digit figure.
+    #[test]
+    fn the_no_figure_line_names_the_rule_that_produced_it() {
+        let out = render_no_figure(205, 21);
+        assert!(
+            out.contains("205"),
+            "the count is the useful one and stays: it is the complement of the population"
+        );
+        assert!(
+            out.contains("TWO-digit"),
+            "and the label names the rule instead of promising `no figure`: {out}"
+        );
+        assert!(
+            out.contains("21") && out.contains("SINGLE digit"),
+            "the twenty-one that do carry a figure are named, not absorbed: {out}"
+        );
+        assert!(
+            out.contains("--single"),
+            "and the reader is told where to see them: {out}"
+        );
+    }
+
+    /// A caveat that prints when there is nothing to caveat teaches the reader
+    /// to skip the line.
+    #[test]
+    fn with_no_single_digit_titles_there_is_no_second_line() {
+        let out = render_no_figure(205, 0);
+        assert_eq!(
+            out.lines().count(),
+            1,
+            "nothing was excluded, so nothing is disclosed: {out}"
+        );
+        assert!(out.contains("205"), "the count is still there: {out}");
+        assert!(
+            !out.contains("SINGLE"),
+            "and the caveat is absent rather than printed as a zero: {out}"
+        );
+    }
+
+    /// Every title the loop rejects is counted once, and the single-digit tally
+    /// is a SUBSET of it -- if it ever exceeded the rejects, the two numbers
+    /// would be measuring different populations again.
+    #[test]
+    fn the_single_digit_tally_is_a_subset_of_the_no_figure_count() {
+        for (no_fig, single) in [(205usize, 21usize), (1, 1), (7, 0)] {
+            assert!(
+                single <= no_fig,
+                "a title with a single-digit figure is one carries() rejected"
+            );
+            let out = render_no_figure(no_fig, single);
+            assert!(out.contains(&no_fig.to_string()));
+        }
     }
 }
