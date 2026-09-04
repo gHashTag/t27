@@ -13641,3 +13641,61 @@ refuses to count declarations by design, and `test_ratchet.py` looked like the c
 `cargo test` output and never opens a `.t27`. Saying so is part of the finding — a cost that is not
 where you predicted is a different cost, and the write-up that omits the failed prediction reads as
 if the search had been narrower than it was.
+
+## 502. The subject of a step is the step, not the line
+
+`tri gates quiet` reported **22 of 32** quiet steps as naming no path. That number was
+about the LINE, and the thing it describes is a STEP.
+
+A GitHub step is a `run:` block. The path a gate reads is often on a different line of
+the same block -- a `cd`, a `for f in …` header, a variable holding the path. Searching
+the block instead of the line moves the figures:
+
+```
+                          line scope   step scope
+  a tracked path, present      1           11
+  the run builds it            5            7
+  a variable in the path       4            5
+  no path anywhere             22           9
+```
+
+Thirteen of the twenty-two gain a subject. **Nine still name none anywhere**, and those
+are the ones no reader and no probe can check: a step that never says what it reads
+cannot be told from a step that reads nothing.
+
+**Step scope is weaker evidence and is labelled.** A path on the line is what the gate
+demonstrably reads; a path elsewhere in the block is what it plausibly reads. Every row
+prints which, so the reader can discount the second.
+
+**And "the first path in the block" is a choice with a known cost.** A block that says
+`cd ffi/src` and then greps `tools/lint.rs` names two, and the subject is really the
+first joined with the second. First is reported because taking the last would hide the
+`cd` that sets the directory -- neither is right, and the test says so in as many words
+rather than asserting the convenient one.
+
+The block ends where the next key at the same indent begins, so the following step is
+never swallowed -- a subject borrowed from a neighbouring gate would be worse than
+none. A blank line inside a block does not end it: a command split by one would
+otherwise lose everything below the gap.
+
+## 503. A redirection is not a path, and this is the second time
+
+`>/dev/null` carries a `/`, so `subject_of` returned it as the path a gate reads -- and
+the command then reported it as **a tracked path that is missing**, under the heading
+*GUARDING NOTHING RIGHT NOW*.
+
+That is the same defect as the inline python one-liner two passes ago, in **the same
+function**, found the same way: not by the count, which was a plausible `1`, but by
+reading the row. The first fix ruled out punctuation that cannot appear in a path;
+this one rules out a leading `>` or `<` and anything under `/dev/`.
+
+**The cure is the shape of the rule, not the size of the list.** Both fixes rule out
+what cannot be a path rather than trying to recognise what can, because the second is
+open-ended and the first is not. A recogniser would have needed to know about python
+string literals and shell redirections in advance; an excluder only needs to know that
+neither is a path, which is true of every language this repository will ever embed in a
+workflow.
+
+With it, the honest count of tracked subjects missing today is **0** -- the same answer
+the previous pass gave for a different reason, and this time the reason is measured
+rather than lucky.
