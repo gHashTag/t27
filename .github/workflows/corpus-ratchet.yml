@@ -54,6 +54,28 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      # A `test` whose body is only comments parses, is counted as a test, and
+      # cannot fail. 1813 of 9752 .t27 declarations are that shape (18.6%). This
+      # does not fix them -- that is #3141 and it rewrites 28 spec files -- it
+      # pins them per file so a NEW one fails.
+      #
+      # Placed here rather than in its own workflow on purpose: this job is
+      # already the repository's ratchet over specs/, already runs on every pull
+      # request AND on push to master, and shares this one's exact philosophy --
+      # a ledger that moves in BOTH directions, where an unexpected improvement
+      # is also a failure because a ceiling left above the real number banks
+      # slack against the next regression. A separate workflow would have added
+      # a required context and a second baseline to keep honest.
+      #
+      # It reads each body to its closing brace rather than matching one line:
+      # a ratchet a newline can evade is not a ratchet, and reading the body is
+      # what found the 21 that a single-line census could not see -- including
+      # tests whose assertions are commented OUT.
+      - name: No new assertionless spec test
+        run: |
+          set -euo pipefail
+          python3 tools/check_assertionless_spec_tests.py --self-check
+          python3 tools/check_assertionless_spec_tests.py
 
       - name: Cache cargo
         uses: actions/cache@v4
