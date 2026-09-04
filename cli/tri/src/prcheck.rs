@@ -433,6 +433,25 @@ pub fn merge_outcome(ran_ok: bool, on_branch: bool) -> i32 {
 /// input and the two spellings GitHub actually returns are the fixtures. When a
 /// third appears this returns 4 and the caller stops, which is the safe way to
 /// be wrong.
+/// How to name the merged-PR baseline in a sentence, given what was actually read.
+///
+/// The fetch asks for `baseline * 3` CLOSED pull requests and keeps the merged
+/// ones, up to `baseline`. Nothing guarantees the page holds that many: a quiet
+/// week, or a run of closed-unmerged PRs, and the loop compares against fewer
+/// than it asked for. The sentence said "the last {baseline} merged PRs"
+/// regardless -- a page printed as a census, which is the shape
+/// `tri gates fetches` flags and this is one of its five sites.
+///
+/// Saying the number actually compared costs one word and cannot drift.
+pub fn baseline_phrase(compared: usize, asked: usize) -> String {
+    match compared {
+        0 => "no merged PR (none were found to compare against)".to_string(),
+        1 => "the 1 merged PR read".to_string(),
+        n if n < asked => format!("the {n} merged PRs found (fewer than the {asked} asked for)"),
+        n => format!("the last {n} merged PRs"),
+    }
+}
+
 pub fn refusal_kind(stderr: &str) -> i32 {
     let s = stderr.to_ascii_lowercase();
     let behind = s.contains("not up to date")
@@ -585,11 +604,13 @@ fn ready(
         "--jq",
         ".[]|select(.merged_at!=null)|.number",
     ])?;
+    let mut compared = 0usize;
     for num in merged.lines().take(baseline) {
         if let Ok(p) = num.parse::<u64>() {
             if p == n {
                 continue;
             }
+            compared += 1;
             for name in completed_of(&repo, p).unwrap_or_default() {
                 observed.insert(name);
             }
@@ -612,14 +633,14 @@ fn ready(
             }
             None if !observed.contains(name) => {
                 println!("  {name}\n      NO BASELINE — this check did not run on any recent");
-                println!("      {branch} commit nor on any of the last {baseline} merged PRs, so");
+                println!("      {branch} commit nor on any of {}, so", baseline_phrase(compared, baseline));
                 println!("      there is nothing to compare against. Usually a `paths:` filter");
                 println!("      with no `push:` trigger. Read the log; this command cannot say");
                 println!("      whether the failure is yours.");
                 no_baseline.push(name.clone());
             }
             None => {
-                println!("  {name}\n      NOT failing on recent {branch} commits or in the last {baseline} merged PRs\n      (it ran there and passed)");
+                println!("  {name}\n      NOT failing on recent {branch} commits or in {}\n      (it ran there and passed)", baseline_phrase(compared, baseline));
                 new_here.push(name.clone());
             }
         }
@@ -890,6 +911,41 @@ mod paginated_count_tests {
     #[test]
     fn an_unparseable_line_does_not_become_a_zero() {
         assert_eq!(sum_per_page("5\ngh: rate limit\n4\n"), 9);
+    }
+}
+
+#[cfg(test)]
+mod baseline_phrase_tests {
+    use super::baseline_phrase;
+
+    /// The sentence used to say "the last 5 merged PRs" whatever it read.
+    #[test]
+    fn fewer_than_asked_says_so() {
+        assert_eq!(baseline_phrase(2, 5), "the 2 merged PRs found (fewer than the 5 asked for)");
+    }
+
+    #[test]
+    fn the_full_count_reads_naturally() {
+        assert_eq!(baseline_phrase(5, 5), "the last 5 merged PRs");
+    }
+
+    /// Zero is the case that mattered: a sentence claiming a baseline built from
+    /// nothing is what the surrounding comment in this file was written about.
+    #[test]
+    fn none_found_is_not_a_baseline() {
+        assert!(baseline_phrase(0, 5).contains("no merged PR"));
+    }
+
+    #[test]
+    fn one_is_singular() {
+        assert_eq!(baseline_phrase(1, 5), "the 1 merged PR read");
+    }
+
+    /// More than asked cannot happen through `take(baseline)`, but the phrase
+    /// must not claim a shortfall if it ever does.
+    #[test]
+    fn more_than_asked_is_not_a_shortfall() {
+        assert_eq!(baseline_phrase(7, 5), "the last 7 merged PRs");
     }
 }
 
