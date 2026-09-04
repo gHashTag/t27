@@ -3061,17 +3061,7 @@ fn required(repo: Option<&str>) -> Result<()> {
         }
     };
 
-    let listing = gh(&[
-        "api",
-        &format!("repos/{slug}/rules/branches/master"),
-        "--jq",
-        r#".[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context"#,
-    ])?;
-    let req: Vec<String> = listing
-        .lines()
-        .map(|l| l.trim().to_string())
-        .filter(|l| !l.is_empty())
-        .collect();
+    let req: Vec<String> = required_contexts(&slug)?;
     if req.is_empty() {
         anyhow::bail!(
             "no required contexts came back for {slug}. That is either a branch with \
@@ -5414,6 +5404,26 @@ pub fn fetch_sites_in(body: &str) -> usize {
 /// `is_lower_bound` is `red.rs`'s own predicate for the same question. One rule, two
 /// spellings, and a classifier that knew only the first would report a guarded fetch
 /// as bare.
+/// The contexts the branch ruleset actually requires, read from the ruleset.
+///
+/// Extracted so a second caller cannot become a second literal of this query.
+/// The names live in repository SETTINGS -- no file in the tree holds them --
+/// which is why `tri gates required` exists at all, and why anything that wants
+/// to wait on "the checks that gate a merge" has to ask rather than assume.
+pub fn required_contexts(slug: &str) -> Result<Vec<String>> {
+    let listing = gh(&[
+        "api",
+        &format!("repos/{slug}/rules/branches/master"),
+        "--jq",
+        r#".[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context"#,
+    ])?;
+    Ok(listing
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect())
+}
+
 pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
     if call.contains("--paginate") {
         return Fetch::Paginated;
