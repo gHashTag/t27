@@ -38,9 +38,35 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GRAPH = ROOT / "architecture" / "graph_v2.json"
 
-# Measured at 12bcc001d. Down only: see the module docstring.
+# LAW 8 is stated over DEPENDENCIES, and this graph carries twelve edge kinds
+# of which three are documentation relations:
+#
+#   documented-by  a spec -> the doc that documents it   (2 edges)
+#   references     a doc  -> another doc                 (1)
+#   standardizes   a doc  -> the specs it standardises   (3)
+#
+# `documented-by` is the INVERSE of a dependency, so counting it makes a spec
+# "depend on" its own documentation. Measured by dropping one kind at a time:
+#
+#   all 91 edges                cycles 1   backward 5
+#   drop documented-by (2)      cycles 0   backward 3
+#   drop references    (1)      cycles 0   backward 5
+#
+# The single cycle 17 -> 19 -> 18 -> 17 is made of one `documented-by`, one
+# `references` and one `import`; remove either documentation edge and it is
+# gone. Two of the five backward edges are `documented-by`, backward by
+# construction.
+#
+# So both readings are reported and both are held. The dependency reading is
+# the one LAW 8 is about; the all-edges reading is kept beside it so nobody has
+# to trust this file's choice of which kinds are documentation.
+DOC_KINDS = ("documented-by", "references", "standardizes")
+
+# Measured at 3cee86539. Down only: see the module docstring.
 MAX_CYCLES = 1
 MAX_TIER_BACKWARD = 5
+MAX_DEP_CYCLES = 0
+MAX_DEP_TIER_BACKWARD = 3
 
 
 def refuse(msg: str) -> None:
@@ -118,6 +144,14 @@ def main() -> int:
 
     rings = cycles_of(edges)
 
+    dep = [e for e in edges if e.get("kind") not in DOC_KINDS]
+    dep_rings = cycles_of(dep)
+    dep_backward = []
+    for e in dep:
+        a, b = tier.get(e.get("from")), tier.get(e.get("to"))
+        if isinstance(a, int) and isinstance(b, int) and a > b:
+            dep_backward.append(e)
+
     print(f"graph: {len(nodes)} nodes, {len(edges)} edges  ({GRAPH.relative_to(ROOT)})")
     print(f"  forward {forward}   same-tier {same}   tier-backward {len(backward)}"
           f"   unrankable {unrankable}")
@@ -128,7 +162,25 @@ def main() -> int:
         print(f"    backward: {e.get('from')} (tier {tier.get(e.get('from'))})"
               f" -> {e.get('to')} (tier {tier.get(e.get('to'))})")
 
+    print(f"\ndependency reading -- {len(dep)} edges, excluding "
+          f"{', '.join(DOC_KINDS)}:")
+    print(f"  cycles {len(dep_rings)}   tier-backward {len(dep_backward)}")
+    for r in dep_rings:
+        print("    " + " -> ".join(str(x) for x in r))
+    for e in dep_backward:
+        print(f"    backward: {e.get('from')} (tier {tier.get(e.get('from'))})"
+              f" -> {e.get('to')} (tier {tier.get(e.get('to'))})  kind={e.get('kind')}")
+
     bad = False
+    if len(dep_rings) != MAX_DEP_CYCLES:
+        verb = "rose" if len(dep_rings) > MAX_DEP_CYCLES else "fell"
+        print(f"\nFAIL: dependency cycles {verb} {MAX_DEP_CYCLES} -> {len(dep_rings)}.")
+        bad = True
+    if len(dep_backward) != MAX_DEP_TIER_BACKWARD:
+        verb = "rose" if len(dep_backward) > MAX_DEP_TIER_BACKWARD else "fell"
+        print(f"FAIL: dependency tier-backward {verb} {MAX_DEP_TIER_BACKWARD}"
+              f" -> {len(dep_backward)}.")
+        bad = True
     if len(rings) != MAX_CYCLES:
         verb = "rose" if len(rings) > MAX_CYCLES else "fell"
         print(f"\nFAIL: cycles {verb} {MAX_CYCLES} -> {len(rings)}.")
@@ -142,8 +194,10 @@ def main() -> int:
               "  ledger in the same commit, so the next one cannot hide under slack.")
         return 1
 
-    print(f"\nok: LAW 8 violations are exactly the recorded {MAX_CYCLES} cycle(s) and"
-          f" {MAX_TIER_BACKWARD} backward edge(s). This is not a clean graph.")
+    print(f"\nok: over DEPENDENCIES, LAW 8 has {MAX_DEP_CYCLES} cycle(s) and"
+          f" {MAX_DEP_TIER_BACKWARD} backward edge(s) -- the recorded ledger."
+          f"\n    Over all {len(edges)} edges it reads {MAX_CYCLES} and"
+          f" {MAX_TIER_BACKWARD}, and the difference is documentation.")
     return 0
 
 
