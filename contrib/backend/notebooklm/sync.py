@@ -37,7 +37,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Paths
-REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent
+#
+# This file sits at contrib/backend/notebooklm/sync.py -- three separators, so
+# the repository root is FOUR .parent calls up. It used five, landing one level
+# ABOVE the repository: on a GitHub runner that is /home/runner/work, which is
+# not a git repository at all. Everything derived from it was therefore outside
+# the tree -- ACTIVITY_MD_PATH, spec_path, and four `cwd=REPO_ROOT` git
+# subprocess calls.
+#
+# Nothing noticed because the only caller is notebook-sync.yml's sync-activity
+# job, whose first step greps the last commit for `^activity.md$` -- a root path
+# with ZERO commits in the whole history and zero tracked files. The job has run
+# green on every push and executed nothing.
+REPO_ROOT = Path(__file__).parent.parent.parent.parent
 NOTEBOOKLM_DIR = Path(__file__).parent
 METADATA_PATH = NOTEBOOKLM_DIR / "enrichment_metadata.json"
 SYNC_STATE_PATH = NOTEBOOKLM_DIR / "sync_state.json"
@@ -378,6 +390,25 @@ class ContentRegistry:
             logger.warning(f"Failed to load content registry: {e}")
 
 
+def check_repo_root() -> bool:
+    """REPO_ROOT must be the repository, and say so out loud when it is not.
+
+    An off-by-one here is silent: every path still resolves, every git call
+    still runs, and they all describe a directory nobody meant. A marker check
+    turns that into one line at startup.
+    """
+    markers = ("bootstrap/Cargo.toml", "specs", ".github/workflows")
+    missing = [m for m in markers if not (REPO_ROOT / m).exists()]
+    if missing:
+        logger.error(
+            "REPO_ROOT=%s is not the repository: %s missing. "
+            "Refusing rather than reading a directory nobody meant.",
+            REPO_ROOT, ", ".join(missing),
+        )
+        return False
+    return True
+
+
 async def main():
     parser = argparse.ArgumentParser(
         description="NotebookLM continuous sync — Keep notebooks in sync with repo changes"
@@ -461,4 +492,9 @@ async def main():
 
 
 if __name__ == "__main__":
+    # The dependency guard above exits before this on a machine without
+    # notebooklm-py, so the check also lives in tools/ where it can be run
+    # without installing anything.
+    if not check_repo_root():
+        sys.exit(2)
     asyncio.run(main())
