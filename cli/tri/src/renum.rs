@@ -243,6 +243,39 @@ fn show(rev: &str, path: &str, root: &Path) -> Result<String> {
     Ok(String::from_utf8(out.stdout)?)
 }
 
+/// Titles in the tail that the base once held, in the order they appear.
+///
+/// The predicate is injected so the decision can be tested without a git
+/// history: what it does with a yes and a no is the part that has to be right,
+/// and `git log -S` is the part that has to be measured.
+pub fn withdrawn_titles<F>(carried: &[(usize, String)], once_held: F) -> Vec<String>
+where
+    F: Fn(&str) -> bool,
+{
+    carried
+        .iter()
+        .filter(|(_, t)| once_held(t))
+        .map(|(_, t)| t.clone())
+        .collect()
+}
+
+/// Whether `base`'s history has ever contained this section title.
+///
+/// A title the base once held and no longer does was taken out on purpose, and
+/// carrying it forward resurrects a retraction. `git log -S` is the test that
+/// survives squash-merging, which is what defeats both the merge base and
+/// ancestry here.
+fn base_once_held(base: &str, file: &str, title: &str, root: &Path) -> bool {
+    let out = Command::new("git")
+        .args(["log", base, "--format=%H", "-S", title, "--", file])
+        .current_dir(root)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => !String::from_utf8_lossy(&o.stdout).trim().is_empty(),
+        _ => false,
+    }
+}
+
 fn merge_base(rev: &str, root: &Path) -> Result<String> {
     let out = Command::new("git")
         .args(["merge-base", "HEAD", rev])
@@ -301,6 +334,36 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
             &mb[..9.min(mb.len())]
         );
     };
+
+    // A section in the tail that the BASE ONCE HELD AND REMOVED is not mine to
+    // carry. Absence from the base's head looks identical whether I wrote the
+    // section or the base withdrew it, and on 2026-09-05 that cost a
+    // resurrection: master rewrote 554 "Debt a fix cannot retire" in 6a49402c
+    // because the claim was wrong, my branch had merged the version before the
+    // correction, and a by-title rebuild put the withdrawn text back under a
+    // fresh number.
+    //
+    // Two cheaper discriminators do not work here. The MERGE BASE is useless
+    // once the branch has already merged the base -- it becomes the base's head
+    // and everything looks equally new. ANCESTRY is useless because this
+    // repository squash-merges, so the commit that introduced the withdrawn
+    // section is not an ancestor of the base, and neither are mine.
+    //
+    // What works is the base's own history OF THE TEXT. Measured: the withdrawn
+    // title returns 2 commits (one adding, one removing) and each of the two
+    // sections I had actually written returns 0.
+    let carried = crate::skillnum::sections(tail);
+    let withdrawn = withdrawn_titles(&carried, |t| base_once_held(base, file, t, &root));
+    if !withdrawn.is_empty() {
+        bail!(
+            "{} section(s) in the tail were REMOVED from {base} on purpose:\n    {}\n  \
+             Nothing was written. Absence from {base} today looks the same whether \
+             you wrote a section or the base withdrew it; its history does not. \
+             Drop them by hand, or keep them deliberately and say why.",
+            withdrawn.len(),
+            withdrawn.join("\n    ")
+        );
+    }
 
     let first = first_number(&at_base, first_req)?;
     let (moved, moves) = renumber(tail, first);
@@ -400,6 +463,66 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A section the base once held and dropped is not mine to carry forward.
+    ///
+    /// Measured 2026-09-05: master rewrote 554 "Debt a fix cannot retire" in
+    /// 6a49402c because the claim was wrong. My branch had merged the version
+    /// before the correction, so the withdrawn title read as present-here-
+    /// absent-there -- exactly like a section I had written -- and a by-title
+    /// rebuild put it back under a fresh number. `git log origin/master -S` on
+    /// that title returns 3 commits; on each section I had actually written, 0.
+    #[test]
+    fn a_title_the_base_once_held_is_not_carried() {
+        let carried = vec![
+            (554usize, "Debt a fix cannot retire".to_string()),
+            (555, "The audit that found nothing".to_string()),
+            (556, "Two bare headings in NOW.md".to_string()),
+        ];
+        let held = |t: &str| t == "Debt a fix cannot retire";
+        assert_eq!(
+            withdrawn_titles(&carried, held),
+            vec!["Debt a fix cannot retire".to_string()],
+            "only the one the base's history holds is refused"
+        );
+        assert!(
+            withdrawn_titles(&carried, |_| false).is_empty(),
+            "a base that never held any of them refuses none -- the ordinary case \
+             must not start failing"
+        );
+        assert_eq!(
+            withdrawn_titles(&carried, |_| true).len(),
+            3,
+            "and if the base held every one of them, every one is named"
+        );
+    }
+
+    /// An empty tail cannot contain a withdrawal, and must not be reported as
+    /// one: `renumber` runs on every merge and a false refusal blocks the work.
+    #[test]
+    fn an_empty_tail_refuses_nothing() {
+        assert!(withdrawn_titles(&[], |_| true).is_empty());
+    }
+
+    /// The predicate is right and the call site can still never ask it.
+    /// NINTH change in nine passes; mutating the call site first is now the rule.
+    #[test]
+    fn the_guard_is_consulted_before_the_renumber() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let withdrawn = withdrawn_", "titles(&carried,");
+        assert!(code.contains(call), "the guard has to be asked");
+        let refuses = concat!("if !withdrawn.is_", "empty() {");
+        assert!(code.contains(refuses), "and a non-empty answer must stop the write");
+        assert!(
+            code.find(call).unwrap() < code.find("let (moved, moves) = renumber(").unwrap(),
+            "before the renumber, not after it"
+        );
+    }
 
     /// A sibling branch of yours squash-merging is the case the byte-prefix tail
     /// cannot see. Reproduced on this repository, 2026-09-05: branch tip
