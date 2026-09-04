@@ -14,12 +14,14 @@ on:
     branches: [main, master]
     paths:
       - 'cli/**'
+      - '.claude/skills/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/cli-tri.yml'
   pull_request:
     paths:
       - 'cli/**'
+      - '.claude/skills/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/cli-tri.yml'
@@ -111,6 +113,21 @@ jobs:
       # nothing would pass the two steps above. yosys is already on PATH from
       # the install step above, so the command is exercised against a real
       # design rather than assumed.
+      # `tri skill check` finds two sections sharing a number, prints PROBLEMS
+      # and exits 1 -- and until now NOTHING called it. `grep -rn "skill check"`
+      # across .github/workflows/, scripts/ and tools/ returned zero.
+      #
+      # It was not hypothetical: two sections were both numbered 504 on master,
+      # landed 26 minutes apart by two sessions, each appending above the highest
+      # number it had read. The checker would have caught it on the second PR.
+      #
+      # This job already builds the binary, so the marginal cost is one command.
+      # Its `paths:` grows to .claude/skills/** in the same commit, because a
+      # gate whose trigger is narrower than its subject cannot fire on the change
+      # it exists for.
+      - name: No two skill sections share a number
+        run: ./target/debug/tri skill check
+
       - name: the CLI actually produces a report
         run: |
           set -uo pipefail
