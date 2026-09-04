@@ -14884,9 +14884,24 @@ PROBLEMS, and the problems number 11 -- or 3, if the question is what is failing
 in the reader's unit, not the counter's, and when those differ the number lies while every digit of it
 is correct.
 
-The tell was available before any grouping: **the streak column read `1 in a row` on 47 of the 50
+The tell was available before any grouping: **the streak column read `1 in a row` on 43 of the 50
 rows.** A one-long streak is not an outage; it is a single event. I had been reading the count and not
 the shape.
+
+**I first wrote `47` there, and 47 is a different population.** 47 is how many rows are DORMANT (last
+run over seven days ago); 43 is how many read `1 in a row`. The two sets are nested, not equal: all 43
+one-streak rows are dormant, and the other four dormant rows carry real streaks of 2, 3, 5 and 13 --
+`Decode RTL exhaustive verification` among them, which is the one genuine regression in the whole
+list (66 runs, 49 successes, then 13 consecutive failures ending 2026-08-01). Checks: 43 + 4 = 47
+dormant, plus 3 live = 50.
+
+I reached for a number that was already on the page instead of counting the thing I had just named,
+**in the section whose entire subject is a count answering a question other than the one it is put
+to.** It reached a commit message, a pull-request body, an issue body and the dashboard before an
+audit of my own claims caught it, and the commit message cannot be corrected without a force-push,
+which is forbidden -- so the correction lives in the commit that follows it. Two populations quoted
+with one number is the same defect as the unit error above, one level down: there the number counted
+files and was heard as incidents; here it counted dormancy and was published as streak length.
 
 **Shipped.** `tri red now` sorts by the latest-run instant instead of the streak (the old order put a
 July fossil with 30+ failures ABOVE a live 3), states the split in the headline, and draws a divider
