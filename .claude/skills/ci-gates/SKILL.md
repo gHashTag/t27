@@ -14751,7 +14751,58 @@ And state what it does NOT establish: a queue wins at batch >= 1.33, which is a 
 arrival rate rather than about the rule -- and it does nothing for the other half of the tax, the
 waiting on checks that cannot block, which `--required-only` already removes.
 
-## 532. Two sites, one read: the census abstained where the answer was on the page
+## 532. A streak counts; it does not date -- and I reported a repaired outage as live
+
+`tri red now` listed `Auto Merge Ready PRs` at **260+ in a row, no pass on record**, and I put that
+on the dashboard as the largest live finding of the pass. It was **settled**.
+
+Measured over its whole history: **1541 runs, every one a failure, never a success.** The cause was
+not the gate's logic -- `.github/workflows/auto-merge-ready-prs.yml` **had not parsed since
+2026-07-07** (`yaml.safe_load` fails at line 62), so GitHub could not read its `on:` block and
+created a failed run on every push. #2256 repaired the parse on **2026-08-20**. Of the 96 runs after
+that date, **95 came from one stale branch and 1 from another; ZERO came from master.** It has been
+dormant since 2026-08-28.
+
+**The tell was in the data the whole time:** 1541 runs recorded as `event: push`, from a file whose
+`on:` block has never in five commits contained `push`. A workflow triggering on an event it does
+not declare is not a mystery to reason about -- it is a file the parser could not read.
+
+**The command could not have known**, and that is the defect: it reports the LATEST run, which is
+the newest that EXISTS, not a recent one. So every row now carries the instant of its latest run,
+from the same single request that already asked for the verdict. It cost nothing and it reclassifies
+the list on sight:
+
+    30+ in a row  last run 2026-09-04T17:23   OpenSSF Scorecard        <- live
+    30+ in a row  last run 2026-08-19T22:21   Auto Merge Ready PRs     <- settled, 16 days
+     8 in a row   last run 2026-04-08T08:07   Issue Gate               <- five months
+
+**Only one of eleven rows was failing *now*.** The other ten are history that reads like news, in a
+command whose closing line asks you to read it before merging.
+
+This is the "repaired defect reported as live" shape already in this file, committed by me, one pass
+later, from this command's own output -- because the output had a count and no date, and I did not
+ask for one. **When a number says HOW MANY, ask what it says about WHEN.**
+
+## 533. The prose-matcher sweep: 3 candidates, 1 defect, and the honest arithmetic
+
+&sect;530 left "sweep for other matchers reading human-written strings". Run: **45 lines** read a
+commit message, branch name or PR title; **3** compare one against a literal. Judged one at a time,
+because the class is not "reads prose" -- it is "reads prose WHERE A STRUCTURAL PROPERTY DECIDES THE
+SAME QUESTION":
+
+  * `gates.rs:4630` reads commit messages against a pattern **extracted from `issue-gate.yml`
+    itself**, and labels the row `PROXY` saying the gate does not read them. It reads prose because
+    the GATE reads prose; the convention IS the subject. **Not a defect** -- and it already says so.
+  * `rule_observance.py:125` matches `headRefName.startswith("w699-")`. **0 of 40** merged pull
+    requests comply; the live prefixes are `w` (24) and `loop` (19). But the command already prints
+    that zero and names the clause as enforced by nothing. **The rule is dead, not the practice**,
+    and which way to resolve it belongs to whoever owns `LOOP-RULES.md`.
+  * `auto-merge-ready-prs.yml` reads a PR title -- and turned out to be &sect;532 above.
+
+**A sweep that finds one defect in three candidates has still earned itself**, because the two
+non-defects are now recorded as non-defects with the reason. The next pass will not re-open them.
+
+## 534. Two sites, one read: the census abstained where the answer was on the page
 
 `tri gates fetches` reported **4** sites as *a guard, but two fetches -- which one does it
 cover?* All four sit in two functions, `issues.rs`'s `numbers` and `dated`, and reading
