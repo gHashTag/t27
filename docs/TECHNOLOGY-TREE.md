@@ -337,20 +337,22 @@ Tier 0 (Base) ──► Tier 1 (Arithmetic) ──► Tier 2 (Specialized)
 
 ## Verification Commands
 
+Every command this section listed exited 2, `unrecognized subcommand` — all
+four of them, in the section that tells a reader how to verify the tree. One now
+has a real replacement; the other three are named as not built rather than
+printed as if they ran.
+
 ```bash
-# Verify no circular dependencies
-./bootstrap/target/release/t27c validate-graph --check-cycles
-
-# Verify all phase edges exist
-./scripts/tri verify-technology-tree
-
-# Generate DOT visualization
-./scripts/tri graph-to-dot > tech_tree.dot
-
-# Check phase completion status
-./scripts/tri phase-status --phase HARDEN
-./scripts/tri phase-status --phase EXTEND
+# Cycles and tier-backward edges, over the graph LAW 8 is about (#3092, #3112).
+# Reports BOTH readings -- all 91 edges, and the 85 that are dependencies once
+# documented-by / references / standardizes are set aside.
+python3 tools/check_graph_law8.py
 ```
+
+Not built, and named here so nobody copies a line that cannot run:
+`t27c validate-graph`, `tri verify-technology-tree`, `tri graph-to-dot`,
+`tri phase-status`. The first is what #3092 is about; the graph a DOT export
+would draw is `architecture/graph_v2.json`, which the checker above reads.
 
 ---
 
