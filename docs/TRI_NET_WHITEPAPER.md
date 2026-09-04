@@ -138,7 +138,7 @@ What `t27` actually ships today (mirrored from `STATUS.md`):
 - Bootstrap Rust compiler (`bootstrap/`) -- SPEC+, sealed.
 - `t27c parse` -- 170+ specs parse -- GREEN.
 - `t27c gen-verilog` -- 5/5 FPGA modules synthesise -- SIM.
-- `t27c gen-zig`, `t27c gen-c` -- RTL-equivalent software backends.
+- `t27c gen` (Zig), `t27c gen-c` -- RTL-equivalent software backends.
 - `t27c seal` -- GREEN, 729 sealed artefacts at audit time.
 - `./scripts/tri` -- canonical CLI wrapper -- GREEN.
 
