@@ -6,9 +6,15 @@
 # run" code. Generating the corpus with it produced 650 usage errors that read
 # as a measurement of 650 specs failing to generate.
 #
-# The ruler is the binary's own --help, so this job builds it. A list of
+# The ruler is the binary's own --help, so this job builds BOTH. A list of
 # subcommands kept in the checker would be a second source of truth, and the
 # first thing a drifting ruler reports is the ruler.
+#
+# `tri` needs all four surfaces it resolves through -- bash case arms in
+# scripts/tri, scripts/tri_loop/*.py, the Rust binary, and t27c via the
+# forward-anything fallthrough. Missing the last one alone would report 155
+# false deaths, so the checker refuses rather than guessing when either binary
+# is absent.
 #
 # No `paths:` filter, for the reason spelled out in verilog-widths.yml: a
 # filtered workflow is skipped on the PR whose merge diff cannot be computed,
@@ -47,8 +53,8 @@ jobs:
           key: ${{ runner.os }}-cargo-doccmds-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-doccmds-
 
-      - name: Build t27c (the ruler is its own --help)
-        run: cargo build --release -p t27c
+      - name: Build both rulers (each is its own --help)
+        run: cargo build --release -p t27c -p tri
 
       - name: Check that this checker can fail
         run: python3 tools/check_documented_commands_exist.py --self-check
