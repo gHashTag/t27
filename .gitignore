@@ -3,7 +3,19 @@
 /tri
 zig-cache/
 zig-out/
-gen/
+# gen/ hides the ~500 generated per-spec .zig files (real build output), but
+# measure.py is hand-written tooling this project calls "the ONLY sanctioned
+# instrument" for corpus correctness -- it had no git history at all until
+# this exception, a single-machine single point of failure exactly like the
+# one already found and fixed for the autonomous loop's own STATE.json. A
+# bare `gen/` blanket-excludes the directory itself, which git will not
+# traverse for `!` re-inclusion no matter how specific the negation --
+# hence the `gen/*` / `gen/zig/*` wildcard form below instead.
+gen/*
+!gen/zig/
+gen/zig/*
+!gen/zig/measure.py
+!gen/zig/test_measure.py
 dist/
 build/
 target/
