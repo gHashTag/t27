@@ -13548,3 +13548,47 @@ Corollary for the fan-out that found this: the population is worth re-running, b
 defined by a matcher and not by memory. The nine survivors are recorded in the sweep, and the
 lesson that produced the highest yield was not any single wrong figure — it was that *counts written
 in the present tense drift, and counts stated as fixed may never have been*.
+
+## 501. An identifier that lives only in the report announcing it
+
+A fan-out re-verified **133 sentences claiming an edit was made** — "corrected in place", "all seven
+fixed", "applied to all 27" — by finding the commit that shipped each sentence and asking
+`git show --numstat` and `git grep` what happened. **18 proposed, 12 survived** two adversarial
+lenses: 8 `CLAIM_NOT_APPLIED`, 4 `PARTIALLY_APPLIED`, across 11 files. The class from §499 is not
+one note's slip; it is the densest defect class this loop has measured — 12 survivors from 133
+claims against 9 from 158 in the previous sweep.
+
+**The sharpest instance needs no tooling.** `ExprAddressOf` appears in exactly one file in this
+repository: `WAVE_LOOP_51_REPORT.md`, which records adding it to the compiler's AST enum as
+`Status: COMPLETE`. `has_cycle_dfs` likewise, in `WAVE_LOOP_45_REPORT.md`. Two commits ever touched
+each token and both only *add the report file*.
+
+```
+git grep -l '<the identifier the report says it added>' HEAD
+```
+
+One file, and it is the report — that is a report of work that was not done, and it is a single
+command away. Where the deliverable is a name, the name is the check.
+
+**Correct the finder, keep the finding.** One finder reported `bootstrap/src/runtime/mod.rs` as
+having "exactly ONE commit in the 2990-commit history". It has **ten**, and a second finder on the
+same subject had it right — the two disagreed with each other, which is the signal to go and look.
+The conclusion survives on a better basis than the one offered: that file's newest commit is
+2026-05-28 and the W45 report is dated 2026-06-23, so no W43–W45 edit can be in a file nothing has
+touched since eighteen days before the wave. **A conclusion resting on a wrong number is not
+refuted, it is unsupported** — find the support or drop it, but do not publish either the wrong
+number or the unexamined conclusion.
+
+**Co-occurrence is not causation, and the natural reading was backwards.** The obvious frame was
+"issues closed on the strength of false reports". #975 closed 2026-06-17, #970 closed 2026-06-16,
+and both reports are dated 2026-06-23. **The reports post-date the closures.** The finding is only
+that they describe work not in the tree. Two dates killed a headline that would have been the most
+quotable sentence in the issue, and would have been false.
+
+**Report the absence you went looking for.** Verifying the same sweep turned up 1792 spec tests —
+18.2% of all 9842 — whose entire body is the identical string `{ /* verify baseline */ }`, exactly
+64 in each of 28 files. I expected a metric inflated by them and did not find one: `t27c corpus`
+refuses to count declarations by design, and `test_ratchet.py` looked like the consumer but parses
+`cargo test` output and never opens a `.t27`. Saying so is part of the finding — a cost that is not
+where you predicted is a different cost, and the write-up that omits the failed prediction reads as
+if the search had been narrower than it was.
