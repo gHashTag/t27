@@ -13,6 +13,7 @@ mod abandoned;
 mod orphaned;
 mod census;
 mod competitors;
+mod inflight;
 mod issues;
 mod cibase;
 mod fleet;
@@ -161,6 +162,8 @@ enum Commands {
         #[command(subcommand)]
         action: prcheck::PrCmd,
     },
+    /// Is a merge in flight here, and does this branch carry the base?
+    Merging(inflight::Merging),
     /// Synthesise across a parameter and check the area actually moves.
     Sweep {
         #[command(subcommand)]
@@ -986,6 +989,7 @@ fn main() -> Result<()> {
         Commands::Ci { action } => cibase::run(action)?,
         Commands::Fleet { action } => fleet::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
+        Commands::Merging(a) => inflight::run(a)?,
         Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
         Commands::Red { action } => red::run(action)?,
