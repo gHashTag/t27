@@ -88,6 +88,50 @@ def main():
             f"got {ctl.returncode}; stderr={ctl.stderr!r}",
         )
 
+        # #3090: a subcommand the OTHER binary serves must not be refused for
+        # the compiler's absence. `now`, `skill`, `topic` and 34 more live in
+        # the Rust `tri` binary and compile nothing; before this, hiding t27c
+        # turned `tri now` into "cannot run 'now' -- t27c is not built" and a
+        # build line for the wrong binary.
+        #
+        # The stand-in is a two-line shell script rather than the real binary:
+        # this file must run in CI, where cli/tri may not be built, and what is
+        # under test is the front door's routing, not the binary's behaviour.
+        tri_bin = root / "target" / "release" / "tri"
+        tri_bin.parent.mkdir(parents=True)
+        tri_bin.write_text(
+            '#!/bin/bash\n'
+            'if [[ "$1" == "--help" ]]; then echo "Commands:"; echo "  now  write an entry"; exit 0; fi\n'
+            'echo "STAND-IN RAN: $*"\n'
+        )
+        tri_bin.chmod(0o755)
+
+        routed = tri_in(root, "now", "add", "x")
+        check(
+            "a tri-binary subcommand runs with no compiler present",
+            routed.returncode == 0 and "STAND-IN RAN" in routed.stdout,
+            f"got {routed.returncode}; out={routed.stdout!r} err={routed.stderr!r}",
+        )
+
+        # THE CONTROL for that route. A stand-in that does not list the name
+        # must not swallow it, or the check above passes for any subcommand.
+        unlisted = tri_in(root, "parse", "x.t27")
+        check(
+            "control: a name the stand-in does not list still exits 2",
+            unlisted.returncode == 2,
+            f"got {unlisted.returncode}; stderr={unlisted.stderr!r}",
+        )
+
+        tri_bin.unlink()
+        (root / "cli" / "tri").mkdir(parents=True)
+        both_gone = tri_in(root, "now", "add", "x")
+        check(
+            "with neither binary built, the refusal names the tri binary too",
+            both_gone.returncode == 2
+            and "cargo build --release -p tri" in both_gone.stderr,
+            f"got {both_gone.returncode}; stderr={both_gone.stderr!r}",
+        )
+
         # The claim the deleted line made, verified rather than asserted.
         for local in ("help", "loop-help", "disk"):
             r = tri_in(root, local)
