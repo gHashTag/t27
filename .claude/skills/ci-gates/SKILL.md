@@ -14576,7 +14576,75 @@ Three structural facts sit behind the 3%, and only the third is a defect:
 it run here, does it cover this context -- before writing another one. All three answers were
 already in the repository.
 
-## 527. My trap was the shell's, not the tree's -- and the population here is zero
+## 527. The channel was already in the tree, with a comment counting the times it was closed
+
+Third time in one pass that a hand-written helper was a worse copy of something shipped,
+and this is the sharpest of the three, because the existing code **names the class**.
+
+The mutation harness written this pass classified a mutant as *did not compile* by grepping
+its output for `^error:` -- and `cargo test` prints `error: test failed, to rerun pass …`
+when a **test** fails, so eight kills were scored as eight refusals. The repair was to read
+the line that only exists after compilation.
+
+**That repair is already in `scripts/ci/test_ratchet.py`, and has been:**
+
+```python
+RESULT = re.compile(r"^test result: (?:ok|FAILED)\.")
+…
+if not targets or results == 0:
+    error("test set NOT evaluated: the log has "
+          f"{len(targets)} target(s) and {results} 'test result:' line(s). "
+          "A run that did not happen is not a run that passed.")
+    return 2
+```
+
+Its comment above that block reads *"Refuse rather than certify. An empty or truncated log
+has no failures in it, and reading that as a clean set is the fail-open this repo has
+closed **ten times**."* It carries a second guard for the same family -- one target means
+`--no-fail-fast` was missing, *"the exact condition that hid 72 targets"*.
+
+**The three instances of this pass, and what each dropped:**
+
+| hand-written | already shipped | the part dropped |
+|---|---|---|
+| poll-and-merge loop | `tri pr ready --wait --merge` | its refusal to score a check with `conclusion: null` AND `state: null` |
+| `tri <verb>` census | `check_documented_commands_exist.py` | three of the four surfaces `tri` resolves through |
+| mutation harness | `test_ratchet.py`'s `RESULT` rule | the channel that exists only after compilation |
+
+Every one dropped **the enumeration of what can be true** -- one field of two, one surface
+of four, one exit channel of two. And the third was reachable by the same command as the
+other two: `git grep -n "test result"` returns the rule, in a file whose whole subject is
+reading a cargo log.
+
+**And the gate nearly took a reading from a stale ruler while this was being written.**
+`tri census pin --gate` went red on a change of **56 inserted lines across two documents**,
+reporting the fetch census `SURFACE … 4 bounded` -> `7 bounded`. The gate's own message
+says to re-bless in the same commit -- and following it would have written **7** into the
+ledger for everyone, over a reading no source change could have produced.
+
+The control said so first: the gate is red on **clean master too**, which no docs-only diff
+can cause. What it was is one command:
+
+```sh
+find target/debug/tri -newer cli/tri/src/gates.rs   # empty = the binary predates the code
+```
+
+The binary predated a neighbouring session's tightening of that very census -- their pass
+took it from 7 to 4 by rejecting a local corpus walk that never touches the API, and blessed
+4. My ruler still computed 7. `cargo build` and the same command prints
+`PASS: no pinned census moved`.
+
+**A re-bless is a statement that the new output is the one you want**, so it is exactly the
+wrong response to a number your instrument produced and the tree did not. The order is:
+control first (is it red on master?), then age the ruler, and only then consider the ledger.
+
+**Measured and clean:** no classifier in `tools/`, `scripts/` or `.github/` decides
+compilation by `^error:`. The defect existed only in ephemeral shell, which is exactly why
+it can recur every pass and why it belongs here rather than in a gate. The population of a
+defect that lives in throwaway scripts is **zero on disk and once per pass in practice**,
+and a gate over the first number would watch an empty set.
+
+## 528. My trap was the shell's, not the tree's -- and the population here is zero
 
 &sect;526 left "sweep the tree for `for x in $VAR`" as the next step. Ran it, and the first
 measurement dissolved the question:
@@ -14600,7 +14668,7 @@ WARNING, so it is recorded and not fixed: severity is part of the reading.
 
 **Check whether your own defect exists in the subject before sweeping the subject for it.**
 
-## 528. Three installers, two destinations, and only one of them can run
+## 529. Three installers, two destinations, and only one of them can run
 
 The sweep surfaced something larger. This tree ships **three** hook installers:
 
