@@ -38,8 +38,33 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+
+          # NO PULL REQUEST IS NOT AN UNREFERENCED PULL REQUEST.
+          #
+          # workflow_dispatch (line 14, added in 40d616925) carries no
+          # `pull_request` object, so PR_TITLE and PR_BODY render as empty
+          # strings, grep matches nothing, and the block below used to print
+          # "L1 TRACEABILITY violation: No issue reference found in PR
+          # title/body" -- against a pull request that does not exist. This gate
+          # is a required context (docs/BRANCH-PROTECTION.md), so that is the
+          # wrong subject on a check nobody can merge past.
+          #
+          # Reported rather than hypothetical: tools/check_now_entry_shape.py
+          # records the dispatch run that produced it.
+          #
+          # Exit 0 and say so. POSIX 1003.3 calls this UNTESTED -- there is no
+          # subject, which is different from an instrument that failed. The gate
+          # asserts nothing here, and says that it asserts nothing.
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No pull request on this event (${GITHUB_EVENT_NAME:-unknown})."
+            echo "This gate reads a PR title and body; there is none, so it"
+            echo "examined nothing and asserts nothing. Not a pass for any PR."
+            exit 0
+          fi
+
           FOUND=$(echo "$PR_TITLE
           $PR_BODY" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+' || true)
 
