@@ -13249,60 +13249,127 @@ nine-step cycle, **which every change is told to follow, 4 steps are dead and
 this gate can see 2**. Second-level resolution is available and is not built;
 naming the gap beats half-building it.
 
-## 492. The subject of a step is the step, not the line
+## 492. A law stated over one relation, measured over twelve
 
-`tri gates quiet` reported **22 of 32** quiet steps as naming no path. That number was
-about the LINE, and the thing it describes is a STEP.
-
-A GitHub step is a `run:` block. The path a gate reads is often on a different line of
-the same block -- a `cd`, a `for f in …` header, a variable holding the path. Searching
-the block instead of the line moves the figures:
+I published *"LAW 8 is violated today: 1 cycle, 5 tier-backward edges"* and it is
+over-stated. `architecture/graph_v2.json` carries **twelve** edge kinds, and
+three of them are documentation relations:
 
 ```
-                          line scope   step scope
-  a tracked path, present      1           11
-  the run builds it            5            7
-  a variable in the path       4            5
-  no path anywhere             22           9
+documented-by  a spec -> the doc that documents it   2 edges
+references     a doc  -> another doc                 1
+standardizes   a doc  -> the specs it standardises   3
 ```
 
-Thirteen of the twenty-two gain a subject. **Nine still name none anywhere**, and those
-are the ones no reader and no probe can check: a step that never says what it reads
-cannot be told from a step that reads nothing.
+`documented-by` is the **inverse** of a dependency. Counting it makes a spec
+depend on its own documentation. Measured by dropping one kind at a time:
 
-**Step scope is weaker evidence and is labelled.** A path on the line is what the gate
-demonstrably reads; a path elsewhere in the block is what it plausibly reads. Every row
-prints which, so the reader can discount the second.
+| edges | cycles | backward |
+|---|---|---|
+| all 91 | 1 | 5 |
+| drop `documented-by` (2) | **0** | 3 |
+| drop `references` (1) | **0** | 5 |
 
-**And "the first path in the block" is a choice with a known cost.** A block that says
-`cd ffi/src` and then greps `tools/lint.rs` names two, and the subject is really the
-first joined with the second. First is reported because taking the last would hide the
-`cd` that sets the directory -- neither is right, and the test says so in as many words
-rather than asserting the convenient one.
+The single cycle `17 -> 19 -> 18 -> 17` is one `documented-by`, one `references`
+and one `import` in series; either documentation edge removes it. Two of the
+five backward edges are `documented-by`, backward by construction.
 
-The block ends where the next key at the same indent begins, so the following step is
-never swallowed -- a subject borrowed from a neighbouring gate would be worse than
-none. A blank line inside a block does not end it: a command split by one would
-otherwise lose everything below the gap.
+**Over dependencies LAW 8 has 0 cycles and 3 backward edges** — and those three
+are the reading worth having: `affects_benchmark` t2→t1, `codegen` t6→t2, and an
+`import` from `math/constants` into a *docs* node.
 
-## 493. A redirection is not a path, and this is the second time
+Two rules out of it.
 
-`>/dev/null` carries a `/`, so `subject_of` returned it as the path a gate reads -- and
-the command then reported it as **a tracked path that is missing**, under the heading
-*GUARDING NOTHING RIGHT NOW*.
+* **A law is stated over a relation. Measure the relation, not the file.** Every
+  number in the first reading was correct; the population was eleven kinds wider
+  than the claim. This is §458 — *the rule inherited the filter's question* —
+  arriving from the other direction: here the rule inherited the file's.
+* **When the choice of population is a judgement, print both.** The check now
+  reports the all-edges and dependency readings and holds a ledger for each, so
+  nobody has to trust one file's opinion of which kinds are documentation. The
+  mutation that proves the split works is the one that plants a *documentation*
+  cycle: it moves the all-edges ledger and leaves the dependency ledger alone.
 
-That is the same defect as the inline python one-liner two passes ago, in **the same
-function**, found the same way: not by the count, which was a plausible `1`, but by
-reading the row. The first fix ruled out punctuation that cannot appear in a path;
-this one rules out a leading `>` or `<` and anything under `/dev/`.
+And the finding this replaced is worth recording as a near miss. A fan-out
+proposed *"the cycle is one mis-wired endpoint — two edges point at node 18
+where node 54 is the real chern-simons spec"*. Node 18 really is
+`docs/NUMERIC-STANDARD-001` and node 54 really is `physics/chern-simons`, and
+there really are two parallel paths. But the `invariant` string naming
+chern-simons reads equally as *"this doc carries the constants it needs"*.
+**Editing architecture data on a reading of a prose field is not a repair.**
+Reading the kinds settled it without touching the data at all.
 
-**The cure is the shape of the rule, not the size of the list.** Both fixes rule out
-what cannot be a path rather than trying to recognise what can, because the second is
-open-ended and the first is not. A recogniser would have needed to know about python
-string literals and shell redirections in advance; an excluder only needs to know that
-neither is a path, which is true of every language this repository will ever embed in a
-workflow.
+## 493. Ask whether the first token is a group
 
-With it, the honest count of tracked subjects missing today is **0** -- the same answer
-the previous pass gave for a different reason, and this time the reason is measured
-rather than lucky.
+The documented-command gate read the **first** token after the binary and
+nothing after it, so `tri` followed by `skill seal`, and the same with
+`skill commit`, both passed on `skill` — and neither exists. Its own docstring
+named the gap; the gap was 4 dead steps of the README's nine-step cycle against
+2 it could see.
+
+*Written that way on the second attempt.* The first draft quoted both as
+backticked invocations and the gate went red on the branch carrying this
+section — the **third** time in one pass that a section about a matcher was
+written in the matcher's own vocabulary. §490 records the first two. Knowing a
+trap and recognising it in your own prose remain different skills.
+
+The rule that makes a second level safe is structural, not a list: **a command
+with subcommands prints its own `Commands:` block, and one that takes arguments
+does not.** So `tri skill` is a group and `seal` must be a member, while
+`t27c gen specs/x.t27` is a leaf and `specs` is never read as a subcommand.
+
+The mutation that proves it is the one worth copying: **force every leaf to look
+like a group** and the reading goes from 136 to 192 — all 56 of the additions
+are arguments. A rule that distinguishes two populations should be mutated by
+*collapsing* them, not by breaking it.
+
+Dead `tri` mentions 99 → 136, distinct names 24 → 35: `skill commit` 11,
+`skill seal` 8, `math compete` 4, `notebook query` 3, `experience record` 3 —
+each confirmed by running it, rc=2 every time. `notebook` and `math` turned out
+to be **t27c** groups reached through the forward-anything fallthrough, so
+dropping that fallthrough loses both; that is a third mutation and it bites.
+
+## 494. Eight false positives out of eight flags
+
+The obvious follow-through to a one-level-too-high `REPO_ROOT` is a checker for
+every repo-root computation in the tree. Measured before building it:
+
+* **41** assignments name a repo root (`REPO`, `ROOT`, `REPO_ROOT`)
+* **33** are exactly right — chain length equals the file's depth plus one
+* **8** were flagged, and **all eight are artifacts**: seven use `parents[N]`
+  rather than a `.parent` chain, and one is a `TEST_ROOT` *building* a path
+  rather than claiming a root
+
+Eight false positives out of eight flags. The class has exactly **one** member,
+and it is the one already fixed. So the checker that shipped reads that single
+assignment against that single file's depth, and the sweep is recorded as
+measured and declined with the numbers that decided it.
+
+The first, wider matcher is the instructive half. Keyed on *any* `Path(__file__)`
+with a `.parent` chain it reported 30-plus rows, and almost all were correct
+code: `Path(__file__).parent` is *my own directory* and needs no chain length at
+all. **The narrowing that made the question answerable was a NAME** — only a
+variable whose name claims to be the repository root makes a claim that can be
+wrong. A population defined by what the code *says about itself* is checkable;
+one defined by syntax is not.
+
+## 495. I gave five readers a read-only tree and then wrote into it
+
+The fan-out was pointed at a detached worktree pinned to master, with "do NOT
+modify, commit, or push anything" in its rules. One of its agents reported that
+the tree was **being written to while it read**: the same script, same argument,
+run twice, gave `342 exists / 135 missing` and then `355 / 122` — a delta of
+exactly 13, matching the 13 workflow sites naming two tokens that had appeared
+between the runs.
+
+The writer was me. I had copied `t27c` and `tri` into that tree at 08:48 and
+created `target/release/` in it at 09:02, while the readers were running, because
+I needed a calibrated `scripts/tri` for my own measurement.
+
+Nothing in the agents' rules could have prevented it — the rule bound *them*.
+**A baseline is not read-only because you told the readers not to write; it is
+read-only when nobody with a shell can.** The cheap version is a second
+worktree: one for the fan-out, one for the hand measuring, never the same path.
+The agent caught it only because it ran its own script twice and subtracted —
+which is the habit that makes a moving baseline visible at all.
+
