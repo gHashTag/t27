@@ -15830,7 +15830,40 @@ Anchor an exclusion on the shape that is unique to what you are excluding
 data. And when a report's row count is load-bearing, count the rows before and
 after the filter; a silent drop of nine looks exactly like a report with five.
 
-## 554. Debt a fix cannot retire is a different kind of debt
+## 554. The anti-rediscovery tool's scope is not the repository
+
+This tree ships `t27c known --about "<claim>"`, whose entire purpose is to answer
+"has this project already found what I am about to measure?" I ran it before
+shipping a census of eight specs. It replied *"Nothing speaks to this. Measure --
+and record the negative, it is a result."* I measured, wrote it up, and shipped it.
+
+The answer already existed in `cli/tri/src/unparsed.rs`: the same eight specs, ranked
+by construct, each backed by a live probe, and confirmed by a stronger test than mine
+-- causality by REMOVAL, "a confirmed item is one whose removal MOVES the reported
+error", with 14 candidates refuted that way. Its module header even stated the lesson
+I thought I had found, naming the same four examples.
+
+`known` was not wrong. It reads gates under `tools/`, baselines, and a paper; it does
+not read `cli/tri/src/`. Its verdict was true of its population and I read it as true
+of the repository. That is the narrow-population/broad-conclusion failure, committed
+while using the tool built to prevent it -- and the tool prints its own scope on its
+first line (`gates read from .../tools`), which I did not treat as the caveat it is.
+
+An all-clear is scoped to what was searched. Before believing one, name the population
+it covered and check that the answer could have lived there. Here it could not: the
+census was a Rust module in a CLI crate, and no directory the tool reads contains
+`cli/`. A cheap independent probe closes the gap -- `git grep` for the most specific
+noun in the claim, across the WHOLE tree, costs one command and would have printed
+`unparsed.rs` immediately.
+
+Corollary for what the finding then said. The census that already existed prints its
+rows under `work queue -- every row proved unsupported by its own probe`, and keeps a
+separate one-row list headed `refused ON PURPOSE -- a position, not a gap`. I had
+concluded the opposite about the same rows -- that no compiler change could ever
+retire them. Whether an unsupported construct is a gap to implement or a position to
+defend is a question the project answers, and it had answered it; a reader arriving
+from the outside cannot derive that from the keyword list alone.
+## 555. Debt a fix cannot retire is a different kind of debt
 
 A ledger of known failures dates each entry as though the tool under test will
 grow to accept it. Some entries are not waiting on the tool at all: the input
@@ -15849,9 +15882,7 @@ language's own names was run over all eight; `use` is accepted where `import`
 was not, and 0 of 8 parsed afterwards, because each carried further
 non-conformance behind the first. A conversion that only moves the error is not
 a fix, and measuring that costs one loop over eight files.
-
-
-## 555. The audit that found nothing, and why that is the result
+## 556. The audit that found nothing, and why that is the result
 
 &sect;552 repaired one section whose body the tooling had destroyed. The obvious next question is
 whether it was the only one. `tri skill lost` asks it: walk every commit that touched this file,
@@ -15908,8 +15939,7 @@ itself stay green.
 This one was found by mutating the call site **first**, before writing a single test for the helper --
 which is the rule the previous seven produced. **The rule works, and it took seven repetitions to
 write down.**
-
-## 556. Two bare headings in NOW.md, and the extension that would have audited nothing
+## 557. Two bare headings in NOW.md, and the extension that would have audited nothing
 
 The plan carried out of &sect;555 was "run the same audit over `docs/NOW.md`". Checked before built:
 **that file has ZERO numbered headings.** 312 of them, every one of the shape `## fix(...)` or
