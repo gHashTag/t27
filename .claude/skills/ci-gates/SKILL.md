@@ -13056,7 +13056,11 @@ branch a missing file takes. An `else` takes it out of scope, because then the
 missing-file path has its own branch and whether THAT passes is a different question.
 
 **It fires zero times today, and the reason is the point.** Three lines of that
-syntactic shape remain and all three have an `else`. The one it was written for was
+syntactic shape remain. *Corrected in place:* the first draft said all three have an
+`else`, and `sign-release.yml:58` does not -- it is out of scope for a different reason,
+its THEN branch not exiting. Two of the three are excluded by the `else` clause and one
+by the exit clause, which is what a rule with two clauses looks like when only one is
+checked. The line it was written for was
 repaired on master while this was being built -- by another session, quoting this
 file's own rule, with a comment that opens *"GREP HAS THREE ANSWERS AND THIS USED TO
 KEEP ONE"* and records that an `[ -f ]` loop was written first and **removed** because
@@ -13082,5 +13086,52 @@ stated whole are two lists and a silence.
 The population is now named once, in one function, and both lists draw from it: a shell
 existence test (negated or not), a silenced stderr, an `||` fallback, a `wc -l` counter,
 or an `if … ; then`. Every candidate lands in counted or refused. The totals moved from
-`32 + 18` to **`32 + 122 = 154`**, and the 90 lines that appeared are not new defects --
+`32 + 18` to **`32 + 122 = 154`**, and the **104** lines that appeared are not new
+defects --
 they are what the first version was silently declining to mention.
+
+## 490. The repair that fixed the fall-through broke the gate the other way
+
+The previous pass praised a repair: `coq-kernel.yml`, fixed by another session, quoting
+this file's rule, with a comment opening *"GREP HAS THREE ANSWERS AND THIS USED TO KEEP
+ONE"*. The praise was earned for the reading and wrong about the result. **That gate has
+failed on every run since the repair landed.**
+
+```
+HITS=$(grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v)
+rc=$?
+case "$rc" in …
+```
+
+GitHub runs a `run:` step under `bash -eo pipefail`. **A plain assignment from a command
+substitution is subject to `set -e`**, so when grep exits 1 -- *no match*, the CLEAN case
+-- the step aborts on that line. `rc=$?` is never reached, the `case` never runs, and a
+healthy tree exits **1**, indistinguishable by exit code from a real `Admitted.`.
+
+Measured three ways: the run history turns red from `2026-09-03T21:54` onward; both
+files carry **zero** `Admitted`; and the step's own body, extracted from the YAML and
+run under `bash -eo pipefail`, exits 1 on a clean tree.
+
+**A command in an `if` CONDITION is exempt from `set -e`**, so the fix is the shape of
+the assignment and nothing else:
+
+```
+if HITS=$(grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v); then
+  rc=0
+else
+  rc=$?
+fi
+```
+
+Verified in three planted worlds: clean exits **0** and prints the OK line, a real
+`Admitted.` exits **1**, a deleted operand exits **2** and names the file it could not
+open. That is the three-way behaviour the repair was written to have, now reachable.
+
+**The lesson is not about grep.** The repair was careful, documented, mutation-tested,
+and it moved the defect from one branch to the other -- from *passes when it should
+fail* to *fails when it should pass*. Nothing in the reading catches that; only running
+the step does. This file has said *probe, do not read* twice now, and both times the
+thing that needed probing was a repair rather than the original.
+
+And a green tree failing is the cheaper half of the pair: it is loud, and it was caught
+in a day. The version it replaced was silent and had been there for months.
