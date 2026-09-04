@@ -14976,3 +14976,141 @@ gone into the report.
 genuinely faster, give every miss a LOUD, distinguishable value. A probe that reports absence and
 truncation with the same symbol cannot tell you which one it found. See also &sect;528: the population
 of that day's trap was zero because the trap was the shell's, not the tree's.
+
+## 537. A budget half the cost, on the half of the page nobody runs
+
+`tri whats-open` prints every gate instrument's reading, and skips two of them by default
+because they are slow -- saying so out loud, because *"a report that quietly drops its
+slow half is the shape this repository keeps finding."* Run with `--all`, one of the two
+came back **`TIMEOUT after 420s`**.
+
+Measured rather than guessed: `tri gates dead` over its default fleet takes **899 s**.
+The budget was **420**. Less than half the cost, so `--all` has never printed this
+instrument's answer -- and the answer is not small: **15 workflows have never succeeded,
+across 8875 runs**, the top three at 1983, 1980 and 1541 runs apiece.
+
+**A budget under the measured cost does not make a slow instrument fast. It makes a
+working instrument unreadable**, and it does it in the honest-looking way: the word
+TIMEOUT sits where a number belongs, so the page looks complete and the reading is
+missing. Nobody had seen it because nobody passes `--all`, and `--all` could not deliver
+it.
+
+The tool's own prose carried the same gap: it said `dead` *"takes over four minutes"*
+where the measurement is **fifteen**. Both are now the measured number, with the date.
+
+**And the fleet was two lists.** `gates dead` defaulted to **three** repositories,
+`red now` to **four**, and both doc comments called it *"the three/four this fleet uses"*
+-- one word, two sets, nothing saying which was right. The difference is
+`gHashTag/ghashtag.github.io`.
+
+The cost of the divergence was measured before it was closed: that repository has **no**
+workflow with a file and >= 50 runs at a zero success count, and reading it adds
+**7 seconds**. So the gap hid nothing today. It is still a defect: the next dead workflow
+there would have been invisible to the command whose entire subject is dead workflows,
+and no reader could have known which of the two lists to believe.
+
+One `fleet_repos()`, both callers on it, for the reason `required_contexts` gives one
+screen above in the same file: **a second caller must not become a second literal of the
+same query.** Three tests: the list holds the repository the two disagreed about, every
+entry is `owner/repo` (a bare name reads as a different repository to `gh`), and no slug
+appears twice (a duplicate would double that repository's runs in every count).
+
+Census re-blessed here, and the move is a line number: removing seven lines of literal
+took `red.rs`'s `runs_url` from 159 to 152. The buckets are identical -- 25 sites,
+8 / 0 / 3 / 2 -- which is the check that says the move is address and not substance.
+
+## 538. Never succeeded, and never executed, are different facts
+
+`tri gates dead` says which workflows have a zero lifetime success count. It said three
+here, and reading them found two populations under one row:
+
+```text
+auto-merge-ready-prs.yml   1541 runs   0 jobs in 8 of 8 sampled   NEVER EXECUTED
+format-check.yml             31 runs   0 jobs in 8 of 8 sampled   NEVER EXECUTED
+coq-proofs.yml               62 runs   1 job  in 8 of 8 sampled   ran and failed
+```
+
+**A run that allocates zero jobs is a startup failure** -- invalid YAML, a trigger the
+file does not declare, a registration for a file that is gone. It is recorded as a failed
+run and it never executed a line. `auto-merge-ready-prs.yml` declares `workflow_dispatch`
+only and every sampled run has `event=push`: 1541 registrations, none of which ran.
+
+**The two want opposite repairs.** One is a broken workflow FILE, the other a broken
+CHECK, and "never succeeded" prints them identically. `coq-proofs.yml` is the control in
+the same output that says the probe distinguishes anything.
+
+Cost, measured: **109 s -> 114 s** on this repository, because the probe runs only for the
+rows the report prints -- bounded by the finding rather than by the fleet. `None` when
+nothing was sampled, because a probe that saw no run must not vote either way.
+
+**The new site reads as guarded and is not.** `tri gates fetches` files it under *asks
+whether the page filled*, because `classify_fetch` looks for `total_count` anywhere in the
+body and here that string is a **jq path to a job count**, not a check on this read's own
+page. What it really is has no bucket: a DECLARED SAMPLE, where the page size is the
+caller's own parameter. Named rather than special-cased -- a matcher with an exception
+list has stopped describing its subject.
+
+## 539. My resolver committed conflict markers, in a file it never looked at
+
+The same pass, the required `Conflict markers` check went red on the pull request:
+
+```text
+tools/census/fetches.txt
+    conflict marker on line 19, 35
+```
+
+The commit is `Merge origin/master: re-append above master's highest` -- **my own landing
+loop's conflict resolver**. It takes master's copy of the skill file, re-appends the
+carried section, and then runs `git add -A` and commits. The merge had conflicted on a
+SECOND file, a generated ledger, and `git add -A` staged it **verbatim, markers and all**.
+
+**This page already carries the mirror image**: an automated resolution that handled the
+workflow file, ran `git add -A`, and committed the conflict that was in the skill file.
+Same defect, other file. A resolver that fixes ONE path and then stages everything is a
+resolver that commits every path it did not think about.
+
+**Control first, and it was decisive.** `verify_all_152.py` carries 16 markers on master
+and the gate is green there -- five consecutive successes the same day -- so the failure
+could not be that known debt. Reading the gate's own output named the file in one line.
+
+Two rules, and the second is the durable one:
+
+* **A generated ledger is never hand-merged.** Regenerate it from the merged tree
+  (`--bless`) and let the gate confirm. Its content is an output, so a three-way merge of
+  it is meaningless even when it succeeds.
+* **After resolving, ask the repository's own checker before committing.**
+  `python3 tools/check_conflict_markers.py` exits 0 here and prints *"Every marker found
+  is recorded as debt. Nothing new."* -- one command, and it is the third time this pass
+  that the tool for the job was already in the tree.
+
+**And then the harder half: no local surface was asking.** Three claim to gate a commit --
+`.githooks/pre-commit`, `scripts/pre-commit`, and `tri hooks pre-commit` -- and
+`grep -c conflict` answers **0 on all three**. In this worktree `core.hooksPath` is unset
+and `.git/hooks/pre-commit` does not exist, so nothing local ran at all. The only barrier
+was CI, which is exactly why a resolver's `git add -A` cost a full round instead of a
+one-second refusal.
+
+A guard that lives in a *procedure* stops only the person who remembers it. This page had
+recorded the very command -- `git diff --cached --name-only | xargs grep -l '^<<<<<<<'` --
+and said it "has stopped two commits since"; it had not been wired anywhere, and mine was
+not one of the two.
+
+`tri hooks pre-commit` now calls the repository's own checker rather than growing a sixth
+reader with a sixth vocabulary. Four controls, all run: a clean tree from the root **0**,
+a clean tree from `cli/tri` **0**, a planted marker **exit 1** naming the file and its
+lines, and a moved-aside checker **exit 2** saying *nothing was checked* -- this
+repository's word for could-not-run, because a guard that cannot run is not a guard that
+agreed.
+
+**The path is resolved from the repository ROOT, and running the controls is what said
+so.** The first version used a relative path: a git hook is invoked at the root, but a
+person typing the command is often not, and from `cli/tri` it refused with a safe and
+useless 2. The checker itself needs no help -- run from `cli/` it still reads all 7870
+tracked files -- so the only thing that needed fixing was finding it.
+
+**And a fifth control was written and then withdrawn rather than claimed.** An arm
+returning exit 2 *outside a work tree* looked like a good refusal; running it from `/tmp`
+returned **1**, because `now_gate` runs `git rev-parse` first and errors there. The arm is
+unreachable through this command, so it is written as ordinary defence and the comment
+says it is not a control. **A guard clause you have not executed is a comment, and a
+comment claiming to be a control is worse than no comment.**

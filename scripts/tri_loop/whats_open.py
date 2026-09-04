@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 r"""tri whats-open -- every gate instrument's reading, on one page.
 
-Assembling this by hand cost a whole pass. `tri gates dead` takes over four
-minutes and `unmeasured` about fifty seconds, while the other three finish in
+Assembling this by hand cost a whole pass. `tri gates dead` takes about FIFTEEN
+minutes -- 899 s measured 2026-09-04, where this sentence used to say "over four" --
+and `unmeasured` about fifty seconds, while the other three finish in
 two, so nobody runs them together -- and the consequence was worse than the
 inconvenience. Two consecutive passes of loop work hunted a defect class and came
 back empty: once because every gate was already honest, once because the question
@@ -45,7 +46,14 @@ INSTRUMENTS = [
     ("gates quiet", ["gates", "quiet"], 90, True),
     ("gates fetches", ["gates", "fetches"], 90, True),
     ("gates unmeasured", ["gates", "unmeasured"], 180, False),
-    ("gates dead", ["gates", "dead"], 420, False),
+    # 1200, and the number is measured rather than chosen: `tri gates dead` over its
+    # default fleet took 899 s wall-clock on 2026-09-04 (t27 alone 109 s, the tiny
+    # ghashtag.github.io 7 s, the two trinity repositories the rest). The budget that
+    # stood here was 420 -- less than HALF the cost -- so `--all` printed TIMEOUT where
+    # a real reading sits, and the reading is not small: 15 workflows have never
+    # succeeded, across 8875 runs. A budget under the measured cost does not make a
+    # slow instrument fast, it makes a working instrument unreadable.
+    ("gates dead", ["gates", "dead"], 1200, False),
 ]
 
 # What to lift out of each instrument's prose. First group wins.
