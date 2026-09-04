@@ -1,6 +1,7 @@
 /- SPDX-License-Identifier: Apache-2.0
    t27/proofs/lean4/Trinity/TernaryInference.lean
-   Auto-generated from specs/igla/race/ternary_inference.t27 via tri-lean backend.
+   Corresponds to specs/igla/race/ternary_inference.t27. Written and maintained BY HAND --
+   no `tri-lean` generator has ever existed in this repository. See #3137.
    End-to-end ternary ML inference pipeline proof.
    phi^2 + 1/phi^2 = 3 | TRINITY -/
 
