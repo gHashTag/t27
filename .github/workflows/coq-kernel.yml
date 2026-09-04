@@ -133,7 +133,13 @@ jobs:
       # this pass spent its time measuring.
       - name: No new Coq file falls outside every build
         run: |
-          set -euo pipefail
+          # `set -eux`, not `set -euo pipefail`: this job runs in the
+          # coqorg/coq container, where /bin/sh is dash and `-o pipefail` is an
+          # illegal option. Every other step here already says `set -eux` for
+          # that reason, and the first version of this step said pipefail and
+          # died with `set: Illegal option -o pipefail` before running a line.
+          # Skill section 497 records the same shell, from the other direction.
+          set -eux
           python3 tools/check_coq_in_build.py --self-check
           python3 tools/check_coq_in_build.py
 
