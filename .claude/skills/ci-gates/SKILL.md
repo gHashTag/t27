@@ -15529,3 +15529,50 @@ time by a gate that pairs attributes to functions rather than counting them.
 on a closing brace, never on `fn`.** A `fn` line is not the top of the item -- the
 attributes and the doc comment above it are -- and an anchor that is not the top of the
 item splits it.
+
+## 548. Four questions asked, four zeros, and the zeros cost less than the sweeps
+
+A pass that ships six repairs also has to say what it looked at and did NOT find, or the
+next pass pays for the same look. Four questions, each priced before any tool was written.
+
+**1. Are there other budgets under their measured cost?** After `whats-open` gave
+`gates dead` **420 s** for a **899 s** job, the rest of the subprocess budgets in the gate
+tooling were measured. **No second instance**: `required`/`quiet`/`fetches` have 45×
+headroom, `unmeasured` 3.6×, and the tightest one -- `git log --all` with a glob pathspec,
+budget 30 s -- costs **1165 ms** over 6687 commits, with the exact-path form at 169 ms.
+Its `except` is annotated *"cannot tell: assume the milder classification"*, which is the
+honest failure the `dead` budget lacked. One hit in six; nothing to build.
+
+**2. Are the census's refusals right?** `tri gates quiet --list --excluded` refuses **123**
+steps. A systematic sample of ten, read one at a time: **ten of ten correct**. Three are
+`coqc … || exit 1` (the failure branch EXITS), one captures `rc=$?` rather than swallowing
+it, two are thresholds on numbers, and the one real candidate --
+`total_files=$(ls …/*.v | wc -l)` with no `2>/dev/null` -- is correct on a second reading,
+because that value is written **only** into `$GITHUB_STEP_SUMMARY` and nothing branches on
+it.
+
+That candidate carries the sharper rule: **a count reads zero when its subject is missing
+in both cases, and what makes it QUIET is not the shape but whether it has a consumer.**
+`targets=$(grep -c … || true)` is the same shape and is guarded downstream, where
+`test_ratchet.py` refuses on `targets == 0`. One `| wc -l` is a defect and the other is
+not, and the difference is entirely below them.
+
+**3. Is there a green mirror of "never executed"?** A failed run with zero jobs is a
+startup failure. The mirror -- a run recorded as SUCCESS that executed nothing -- was
+measured two ways on master: **0 of 30** successful runs allocate zero jobs, and **0 of 20**
+have every job `skipped`. All twenty carry at least one `success`, and one honestly shows
+`2 skipped, 2 success`.
+
+**And the instrument nearly lied by silence.** The first summary used a `jq` expression
+with a misplaced `as` binding and returned **nothing**, which reads exactly like *there are
+none*. The control was one command -- print the raw `.conclusion` values for one known run
+-- and it showed the expression simply did not work. **An empty result is not a finding
+until the same expression is shown to print something on a known case**, or the zero is a
+report about the instrument rather than about the world.
+
+**4. What does chasing the base actually cost?** &sect;510 said the narrow rule pays *at most
+one reset per green window*. Measured on one pull request: **2 commits landed on master
+while it was open, and the poller caught up exactly twice** -- one full round of **35**
+checks each. So the rule holds and the window RECURS: the tax is one reset per neighbouring
+landing, not one per pull request. That is an argument for a merge queue rather than for a
+cleverer catch-up.
