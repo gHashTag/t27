@@ -44,9 +44,16 @@ HIT = re.compile(r"`(?:\./)?(?:scripts/)?t27c ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)")
 # The document says, in its own words, that this one is not built yet.
 DECLARED = re.compile(
     r"(?i)not implemented|does not exist|never existed|no such subcommand|"
-    r"new subcommand|proposed|planned|long-term|future|would be|was to |"
-    r"do not assume it exists"
+    r"has ever existed|new subcommand|proposed|planned|long-term|future|"
+    r"would be|was to |do not assume it exists"
 )
+
+# English corrects AFTER it names the thing: "`t27c gen-zig` ... There is no
+# such subcommand." A window of the line alone reads the name and misses the
+# sentence that retracts it two lines down. This gate went red on master for
+# exactly that, on the skill section describing this gate -- so the window is
+# the mention's own paragraph, not its own line.
+DECLARE_LOOKAHEAD = 3
 
 EXCLUDED_PREFIXES = ("docs/now/", "docs/reports/")
 EXCLUDED_FILES = ("docs/theory/IGLA-FORMAL-RESULTS.md",)
@@ -134,6 +141,21 @@ def heading_above(lines: list[str], idx: int) -> str:
     return ""
 
 
+def declared_near(lines: list[str], idx: int) -> bool:
+    """The document declares this one unbuilt, within its own paragraph.
+
+    Stops at a blank line: a retraction belongs to the sentence that names the
+    command, and a window that runs past the paragraph would excuse a live
+    instruction sitting above an unrelated one.
+    """
+    for j in range(idx, min(idx + DECLARE_LOOKAHEAD + 1, len(lines))):
+        if j > idx and not lines[j].strip():
+            break
+        if DECLARED.search(lines[j]):
+            return True
+    return False
+
+
 def scan(paths: list[Path], real: set[str]) -> tuple[list[tuple], int, int]:
     findings, excused, seen = [], 0, 0
     for p in paths:
@@ -146,7 +168,7 @@ def scan(paths: list[Path], real: set[str]) -> tuple[list[tuple], int, int]:
                 seen += 1
                 if sub in real:
                     continue
-                if DECLARED.search(line) or DECLARED.search(heading_above(lines, i)):
+                if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
                     excused += 1
                     continue
                 findings.append((p.relative_to(ROOT).as_posix(), i + 1, sub, line.strip()))
@@ -173,6 +195,16 @@ def main() -> int:
         ok_finds = hits == ["gen-zig"]
         excused_line = "`t27c gen-zig` -- proposed, not implemented"
         ok_excuse = bool(DECLARED.search(excused_line))
+        para = ["`t27c gen-zig` is named in the whitepaper.", "There",
+                "is no such subcommand."]
+        ok_para = declared_near(para, 0)
+        stops = declared_near(["`t27c gen-zig` is named here.", "",
+                               "There is no such subcommand."], 0)
+        print(f"  self-check  reads the paragraph, not the line: "
+              f"{'ok' if ok_para else 'BROKEN'}")
+        print(f"  self-check  stops at the blank line:            "
+              f"{'ok' if not stops else 'BROKEN'}")
+        ok_excuse = ok_excuse and ok_para and not stops
         print(f"  self-check  finds a dead command:      {'ok' if ok_finds else 'BROKEN'}")
         print(f"  self-check  excuses a declared one:    {'ok' if ok_excuse else 'BROKEN'}")
         return 0 if (ok_finds and ok_excuse) else 2

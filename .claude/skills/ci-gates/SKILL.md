@@ -12936,8 +12936,8 @@ the `-ctrl` suffix its own `--help` spells out), `parse-accounted` in this file,
 of that table.
 
 The wide matcher is the usual trap and the usual fix. `\bt27c [a-z-]+` returned
-2,736 hits including `t27c and`, `t27c does`, `t27c cannot`, `t27c silently` --
-prose, matched because the sentence continues. Requiring the opening backtick
+2,736 hits, including `t27c` followed by `and`, `does`, `cannot` and
+`silently` -- prose, matched because the sentence continues past the name. Requiring the opening backtick
 dropped it to 2,229 and to a population that is invocations.
 
 Two exclusions, both printed rather than argued:
