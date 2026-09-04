@@ -13903,15 +13903,22 @@ above the same highest number it had read.
       section 504 comes after 505 -- the file reads out of order
 ```
 
-**And then exits 0.** Nothing fails. Worse, `grep -rn "skill check"` across
-`.github/workflows/`, `scripts/` and `tools/` returns **nothing**: no gate calls it, no
-hook calls it, no script calls it. The law is enforced by a command that detects the
-violation, reports it as text, exits successfully, and is never run.
+**CORRECTION, measured 2026-09-04 after this section landed: it exits 1, and always has**
+-- `skillnum.rs` has carried `std::process::exit(1)` since #2789. Planting a duplicate
+and reading the code gives `rc=1`. The claim above that it "exits 0" was **my own reading
+of the wrong run**: I read the exit code of an invocation made after I had already removed
+the duplicate. That is the clean case, reported as the duplicate case, and it is worse
+than a guess -- a guess does not come with a number attached. **When an exit code is the
+finding, the run that produced it must be the run that contained the defect**, and the
+cheapest proof is to plant the defect deliberately and watch it fail.
 
-That is three independent failures stacked, and any one of them alone would have been
-enough to catch this: a checker that exited non-zero would fail a PR; a checker wired
-into CI would print the line where someone might read it; a checker that did neither but
-was run by hand would still have shown it.
+What was true is the other half: `grep -rn "skill check"` across `.github/workflows/`,
+`scripts/` and `tools/` returned **nothing**. A checker that exits 1 correctly and is
+called by nobody fails just as silently as one that exits 0. A neighbouring session wired
+it into `cli-tri.yml` (#3165) after reading this section and checking the half I got
+wrong -- which is the behaviour this file asks for, applied to this file.
+
+So: two failures, not three, and the surviving one was enough on its own.
 
 **The collision itself is not carelessness.** Both sessions did the correct thing --
 read the highest number, append above it -- and the numbers were assigned from readings
@@ -13979,3 +13986,47 @@ unclassified. The hand-written version counted non-green checks as
 `status: IN_PROGRESS`, so it counted as the empty string and "nothing is failing" would
 have been true with a check still running. Before writing a helper loop, grep
 `tri --help` for the verb.
+
+## 510. Keeping the branch fresh is what kept it from landing
+
+The loop that lands a pull request here also kept the branch current: every pass, fetch,
+and if the base was no longer an ancestor, merge and push. That reads like hygiene.
+
+**It is a livelock.** Pushing restarts every check, and in this repository neighbouring
+sessions land pull requests faster than the checks finish. Observed, one iteration apart:
+
+```text
+ 8: UNSTABLE  waiting:2      <- nearly green
+12: caught up to f01746dff
+13: BLOCKED   waiting:22     <- and it all began again
+```
+
+Waiting on **2**, then on **22**. The catch-up reset the very progress it was performed
+to protect, and the loop could have run forever without once reaching zero.
+
+**Being behind costs nothing until the moment of merge.** So merge the base **only when
+the checks are already green AND `mergeStateStatus` is `BEHIND`** -- that is, only when
+being behind is the sole remaining blocker:
+
+```sh
+if [ "$waiting" = 0 ]; then
+  case "$state" in
+    CLEAN|UNSTABLE) gh pr merge … ;;
+    BEHIND)         git merge origin/master && git push ;;   # here, and nowhere else
+  esac
+fi
+```
+
+**The rule minimises the resets; it does not remove them.** To merge, the branch must be
+up to date, and bringing it up to date restarts the checks -- so a reset is unavoidable
+whenever master moves inside the final green window. What changes is how many: the eager
+rule paid one reset per move of master at any time, the narrow rule pays at most one per
+green window. #3160 landed on iteration 24 with **zero** catch-ups because master
+happened not to move in its last window; the very next pull request, under the same rule,
+went `BEHIND waiting:0` -> caught up -> `BLOCKED waiting:22` and paid one. **Zero was
+luck, and at most one is the guarantee.**
+
+**The shape is wider than this loop.** An action taken "to stay current" has a price, and
+the price is paid in the currency of the thing it is protecting. Before refreshing
+anything on a timer, ask what one refresh costs and **at what moment staleness actually
+blocks**. Often the answer is: only at the end, and only once.
