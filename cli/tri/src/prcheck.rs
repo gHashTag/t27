@@ -415,6 +415,36 @@ pub fn merge_outcome(ran_ok: bool, on_branch: bool) -> i32 {
     }
 }
 
+/// Why the merge was refused, when it was.
+///
+/// Under `strict_required_status_checks_policy` every merge that lands on the
+/// base makes every other open pull request stale, and the refusal that follows
+/// is not a verdict about the change -- it is a race the caller wins by taking
+/// another round. Measured on one morning: four pull requests, five content
+/// commits, **seven** `update-branch` merges between them, each one a full
+/// re-run of checks that had already passed on the same tree.
+///
+/// Code 4 could not tell that apart from a refusal that means stop, so a caller
+/// looping on 4 would loop on a genuinely dead pull request, and a caller
+/// stopping on 4 would give up on one that a single command fixes. Code 5 says
+/// the refusal is the staleness race and names the remedy.
+///
+/// `gh` does not expose this as a code, only as English, so the wording is the
+/// input and the two spellings GitHub actually returns are the fixtures. When a
+/// third appears this returns 4 and the caller stops, which is the safe way to
+/// be wrong.
+pub fn refusal_kind(stderr: &str) -> i32 {
+    let s = stderr.to_ascii_lowercase();
+    let behind = s.contains("not up to date")
+        || s.contains("head branch is out of date")
+        || (s.contains("not mergeable") && s.contains("base branch"));
+    if behind {
+        5
+    } else {
+        4
+    }
+}
+
 fn ready(
     n: u64,
     repo: Option<&str>,
@@ -677,11 +707,17 @@ fn ready(
                 // branch is not up to date" printed while the command returned
                 // 0, so a caller could not tell landed from refused. Seen on
                 // three pull requests in one batch.
-                println!(
-                    "Merge refused: {}",
-                    String::from_utf8_lossy(&out.stderr).trim()
-                );
-                code = merge_outcome(false, false);
+                let err = String::from_utf8_lossy(&out.stderr);
+                println!("Merge refused: {}", err.trim());
+                code = refusal_kind(&err);
+                if code == 5 {
+                    println!();
+                    println!("That refusal is the up-to-date race, not a verdict on this change:");
+                    println!("  gh pr update-branch {n} --repo {repo}");
+                    println!("then run this command again. Exit 5 says so; 4 would mean stop.");
+                    println!("Never --admin, and never a force-push: update-branch is an");
+                    println!("ordinary merge of the base and is what the rule is asking for.");
+                }
             }
         }
     } else {
@@ -854,6 +890,57 @@ mod paginated_count_tests {
     #[test]
     fn an_unparseable_line_does_not_become_a_zero() {
         assert_eq!(sum_per_page("5\ngh: rate limit\n4\n"), 9);
+    }
+}
+
+#[cfg(test)]
+mod refusal_kind_tests {
+    use super::refusal_kind;
+
+    /// The wording `gh` actually printed on three pull requests in one batch.
+    #[test]
+    fn the_up_to_date_race_is_five() {
+        let real = "X Pull request gHashTag/t27#3127 is not mergeable: the head \
+                    branch is not up to date with the base branch.";
+        assert_eq!(refusal_kind(real), 5);
+    }
+
+    /// The real fixture above carries BOTH spellings -- "not up to date" AND
+    /// "not mergeable ... base branch" -- so it cannot tell which clause caught
+    /// it. Mutation said so: deleting the first clause left all tests passing.
+    /// This one carries only the first, so that clause is the only thing that
+    /// can answer it.
+    #[test]
+    fn the_first_spelling_alone_is_five() {
+        assert_eq!(refusal_kind("the head branch is not up to date"), 5);
+    }
+
+    #[test]
+    fn the_other_spelling_is_five_too() {
+        assert_eq!(refusal_kind("The head branch is out of date"), 5);
+    }
+
+    /// A refusal that is NOT the race must stay 4, or a looping caller spins
+    /// forever on a pull request no round will fix.
+    #[test]
+    fn a_real_refusal_stays_four() {
+        assert_eq!(refusal_kind("Pull request is in a conflicted state"), 4);
+        assert_eq!(refusal_kind("At least 1 approving review is required"), 4);
+        assert_eq!(refusal_kind(""), 4);
+    }
+
+    /// Unknown wording is 4, because stopping on an unknown refusal is the safe
+    /// way to be wrong and looping on one is not.
+    #[test]
+    fn an_unrecognised_refusal_stops() {
+        assert_eq!(refusal_kind("some future message nobody has seen"), 4);
+    }
+
+    /// "not mergeable" alone is not enough -- a conflicted pull request says it
+    /// too, and that one no amount of updating fixes.
+    #[test]
+    fn not_mergeable_alone_is_not_the_race() {
+        assert_eq!(refusal_kind("is not mergeable"), 4);
     }
 }
 
