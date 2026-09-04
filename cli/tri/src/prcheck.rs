@@ -98,6 +98,13 @@ pub enum PrCmd {
         /// just pushed.
         #[arg(long, value_name = "NAME")]
         expect_branch: Option<String>,
+        /// Wait only for the contexts the branch ruleset requires.
+        ///
+        /// Without this the wait counts every check. Four decide the merge here
+        /// and the other thirty are signal, not gates -- waiting on them held a
+        /// five-deep queue for hours while every required context was green.
+        #[arg(long)]
+        required_only: bool,
     },
 }
 
@@ -111,6 +118,7 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             poll,
             merge,
             expect_branch,
+            required_only,
         } => ready(
             *number,
             repo.as_deref(),
@@ -119,6 +127,7 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             *poll,
             *merge,
             expect_branch.as_deref(),
+            *required_only,
         ),
         PrCmd::Landed {
             number,
@@ -434,6 +443,53 @@ pub fn branch_matches(expected: Option<&str>, actual: &str) -> bool {
     }
 }
 
+/// Every check on the head commit, as `(name, completed)`.
+fn check_states(repo: &str, n: u64) -> Result<Vec<(String, bool)>> {
+    let sha = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}"),
+        "--jq",
+        ".head.sha",
+    ])?;
+    let out = gh(&[
+        "api",
+        "--paginate",
+        &format!("repos/{repo}/commits/{}/check-runs", sha.trim()),
+        "--jq",
+        r#".check_runs[]|"\(.name)\t\(.status)""#,
+    ])?;
+    Ok(out
+        .lines()
+        .filter_map(|l| l.split_once('\t'))
+        .map(|(name, status)| (name.to_string(), status == "completed"))
+        .collect())
+}
+
+/// Of the checks on a pull request, how many that the ruleset REQUIRES are unfinished.
+///
+/// The wait loop used to count every check -- 28 to 37 of them -- when four
+/// decide the merge. Five pull requests sat behind that for hours with all four
+/// required contexts already green; the only blocker was the up-to-date rule.
+/// Waiting on thirty when four gate is not caution, it is the wrong population
+/// to wait on.
+///
+/// `(name, completed)` pairs in, and the required set is passed rather than
+/// known: those names live in repository SETTINGS and no file in the tree holds
+/// them, so anything that wants to wait on "the checks that gate a merge" has to
+/// ask. An empty required set returns `None` -- the caller must refuse rather
+/// than treat "nothing required" as "nothing to wait for".
+pub fn required_pending(checks: &[(String, bool)], required: &[String]) -> Option<usize> {
+    if required.is_empty() {
+        return None;
+    }
+    Some(
+        checks
+            .iter()
+            .filter(|(name, done)| !done && required.iter().any(|r| r == name))
+            .count(),
+    )
+}
+
 /// What `--merge` should leave in the exit code.
 ///
 /// Three outcomes, two of which are not a merge: `gh pr merge` refused, or it
@@ -502,7 +558,11 @@ fn recent_commits(repo: &str, branch: &str) -> Result<(Vec<String>, bool)> {
         "--jq",
         ".[].sha",
     ])?;
-    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let rows: Vec<String> = out
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(String::from)
+        .collect();
     let complete = crate::issues::read_is_complete(rows.len(), PAGE);
     Ok((rows, complete))
 }
@@ -516,7 +576,11 @@ fn merged_recently(repo: &str, baseline: usize) -> Result<(Vec<String>, bool)> {
         "--jq",
         ".[]|select(.merged_at!=null)|.number",
     ])?;
-    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let rows: Vec<String> = out
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(String::from)
+        .collect();
     let complete = crate::issues::read_is_complete(rows.len(), page);
     Ok((rows, complete))
 }
@@ -551,6 +615,7 @@ fn ready(
     poll: u64,
     merge: bool,
     expect_branch: Option<&str>,
+    required_only: bool,
 ) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
@@ -612,22 +677,39 @@ fn ready(
             // this loop met a TLS handshake timeout it propagated the error,
             // the caller's merge ran anyway, and the gate protected nothing --
             // the third time in this project that a verdict failed to gate.
-            let (p, total) = match in_flight(&repo, n) {
-                Ok(v) => {
-                    blips = 0;
-                    v
+            // In required-only mode the population of the wait is the ruleset's,
+            // not every check on the commit. An empty required set is refused
+            // rather than read as "nothing to wait for" -- that is the failure
+            // this whole family of gates exists to prevent.
+            let (p, total) = if required_only {
+                let req = crate::gates::required_contexts(&repo)?;
+                let states = check_states(&repo, n)?;
+                match required_pending(&states, &req) {
+                    None => anyhow::bail!(
+                        "the ruleset lists no required context for master, so \
+                         --required-only has nothing to wait on. Refusing rather \
+                         than treating an empty requirement as a finished one."
+                    ),
+                    Some(pending) => (pending, req.len()),
                 }
-                Err(e) => {
-                    blips += 1;
-                    if blips > 5 {
-                        return Err(e).context(
-                            "the check API failed six times running; refusing to \
-                             report a verdict rather than guess at the state",
-                        );
+            } else {
+                match in_flight(&repo, n) {
+                    Ok(v) => {
+                        blips = 0;
+                        v
                     }
-                    println!("  waiting: check API failed ({blips}/5), retrying");
-                    std::thread::sleep(std::time::Duration::from_secs(poll));
-                    continue;
+                    Err(e) => {
+                        blips += 1;
+                        if blips > 5 {
+                            return Err(e).context(
+                                "the check API failed six times running; refusing to \
+                             report a verdict rather than guess at the state",
+                            );
+                        }
+                        println!("  waiting: check API failed ({blips}/5), retrying");
+                        std::thread::sleep(std::time::Duration::from_secs(poll));
+                        continue;
+                    }
                 }
             };
             if p > 0 {
@@ -646,11 +728,23 @@ fn ready(
             }
             std::thread::sleep(std::time::Duration::from_secs(poll));
         }
-        pending = match in_flight(&repo, n) {
-            Ok(v) => v.0,
-            // Unknown is not zero. If the final read fails, say so and let the
-            // verdict be WAIT rather than inventing a clean list.
-            Err(_) => 1,
+        // The final read must ask the same question the wait asked. Reading it
+        // back over EVERY check while the wait watched four would print
+        // `VERDICT: WAIT` with all four green -- the flag would shorten the wait
+        // and then refuse the merge it exists to enable.
+        pending = if required_only {
+            let req = crate::gates::required_contexts(&repo).unwrap_or_default();
+            match check_states(&repo, n) {
+                Ok(states) => required_pending(&states, &req).unwrap_or(1),
+                Err(_) => 1,
+            }
+        } else {
+            match in_flight(&repo, n) {
+                Ok(v) => v.0,
+                // Unknown is not zero. If the final read fails, say so and let the
+                // verdict be WAIT rather than inventing a clean list.
+                Err(_) => 1,
+            }
         };
         println!();
     }
@@ -734,7 +828,10 @@ fn ready(
             }
             None if !observed.contains(name) => {
                 println!("  {name}\n      NO BASELINE — this check did not run on any recent");
-                println!("      {branch} commit nor on any of {}, so", baseline_phrase_bounded(compared, baseline, page_full));
+                println!(
+                    "      {branch} commit nor on any of {}, so",
+                    baseline_phrase_bounded(compared, baseline, page_full)
+                );
                 println!("      there is nothing to compare against. Usually a `paths:` filter");
                 println!("      with no `push:` trigger. Read the log; this command cannot say");
                 println!("      whether the failure is yours.");
@@ -1065,7 +1162,10 @@ mod baseline_phrase_tests {
     /// The sentence used to say "the last 5 merged PRs" whatever it read.
     #[test]
     fn fewer_than_asked_says_so() {
-        assert_eq!(baseline_phrase(2, 5), "the 2 merged PRs found (fewer than the 5 asked for)");
+        assert_eq!(
+            baseline_phrase(2, 5),
+            "the 2 merged PRs found (fewer than the 5 asked for)"
+        );
     }
 
     #[test]
@@ -1145,6 +1245,56 @@ mod refusal_kind_tests {
 }
 
 #[cfg(test)]
+mod required_pending_tests {
+    use super::required_pending;
+
+    fn c(n: &str, done: bool) -> (String, bool) { (n.to_string(), done) }
+
+    /// The case that held a five-deep queue for hours: thirty checks running,
+    /// every required one already finished.
+    #[test]
+    fn unfinished_non_required_checks_do_not_count() {
+        let checks = vec![c("validate", true), c("check", true),
+                          c("cargo test", false), c("Lean proofs", false)];
+        let req = vec!["validate".to_string(), "check".to_string()];
+        assert_eq!(required_pending(&checks, &req), Some(0));
+    }
+
+    #[test]
+    fn an_unfinished_required_check_counts() {
+        let checks = vec![c("validate", true), c("check", false)];
+        let req = vec!["validate".to_string(), "check".to_string()];
+        assert_eq!(required_pending(&checks, &req), Some(1));
+    }
+
+    /// An empty requirement is not a finished one. Returning Some(0) here would
+    /// make a repository with no ruleset merge instantly, which is the exact
+    /// shape of every "gate over an empty population" this loop has found.
+    #[test]
+    fn an_empty_requirement_is_not_zero_pending() {
+        let checks = vec![c("validate", false)];
+        assert_eq!(required_pending(&checks, &[]), None);
+    }
+
+    /// A required context that has not appeared at all is not pending here --
+    /// it is absent, and the merge itself refuses on that. Counting it as
+    /// pending would wait forever for a check that will never be posted.
+    #[test]
+    fn a_required_context_not_yet_posted_is_not_counted() {
+        let checks = vec![c("validate", true)];
+        let req = vec!["validate".to_string(), "never-posted".to_string()];
+        assert_eq!(required_pending(&checks, &req), Some(0));
+    }
+
+    #[test]
+    fn names_match_exactly_not_by_prefix() {
+        let checks = vec![c("check-linked-issue", false)];
+        let req = vec!["check".to_string()];
+        assert_eq!(required_pending(&checks, &req), Some(0));
+    }
+}
+
+#[cfg(test)]
 mod branch_matches_tests {
     use super::branch_matches;
 
@@ -1152,12 +1302,18 @@ mod branch_matches_tests {
     /// branch, and the branch is the only thing that told them apart.
     #[test]
     fn a_different_branch_is_refused() {
-        assert!(!branch_matches(Some("w-workflow-listing"), "loop/merge-in-flight"));
+        assert!(!branch_matches(
+            Some("w-workflow-listing"),
+            "loop/merge-in-flight"
+        ));
     }
 
     #[test]
     fn the_expected_branch_passes() {
-        assert!(branch_matches(Some("w-workflow-listing"), "w-workflow-listing"));
+        assert!(branch_matches(
+            Some("w-workflow-listing"),
+            "w-workflow-listing"
+        ));
     }
 
     /// Absence of the flag must not become a refusal: it is opt-in, and every
