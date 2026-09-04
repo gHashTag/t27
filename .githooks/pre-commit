@@ -18,8 +18,41 @@ cd "$ROOT"
 # `if ! cmd; then rc=$?` does NOT capture the command's code -- it captures the
 # negation's, which is 0. Probed rather than assumed, because this file is one
 # of the places that trap has already cost this repository a wrong reading.
+# PREFER THE RUST READER WHEN IT IS THERE.
+#
+# `scripts/tri check-now` reaches `t27c`, the compiler. In a checkout that has
+# not built it -- which is every checkout whose work is in `cli/tri` -- this
+# exits 2, "could not run", and the hook correctly refuses. Correct, and it
+# means the hook cannot be installed at all in those checkouts.
+#
+# `tri hooks pre-commit` is the migrated port of the same gates plus the SHAPE
+# check, needs only the `tri` binary, and takes about a tenth of a second.
+# Measured on a planted entry with no `- ` bullets it exits 1 naming the gate's
+# own words: "no `- ` bullets: the entry states nothing" -- which is exactly the
+# failure that cost a CI round on #3182, from a reader that already existed and
+# that nothing called.
+#
+# It is a PREFERENCE, not a replacement: when no `tri` is built the t27c path
+# runs unchanged and the exit-2 refusal stands. A gate that could not run still
+# must not pass.
+#
+# NOT established: that this is why `core.hooksPath` is unset in this clone.
+# The hook being unusable without a compiler is a fact; that it is the CAUSE of
+# nobody installing it is a story, and this comment does not claim it.
+TRI_BIN=""
+for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+  [ -x "$cand" ] && TRI_BIN="$cand" && break
+done
+if [ -z "$TRI_BIN" ] && command -v tri >/dev/null 2>&1; then
+  TRI_BIN="$(command -v tri)"
+fi
+
 rc=0
-bash "$ROOT/scripts/tri" check-now || rc=$?
+if [ -n "$TRI_BIN" ]; then
+  "$TRI_BIN" hooks pre-commit || rc=$?
+else
+  bash "$ROOT/scripts/tri" check-now || rc=$?
+fi
 if [ "$rc" -ne 0 ]; then
   if [ "$rc" -eq 2 ]; then
     echo ""
