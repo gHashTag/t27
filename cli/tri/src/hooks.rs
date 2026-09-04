@@ -32,6 +32,8 @@ pub enum HooksCmd {
     /// status string to stdout; never blocks (the Bash gate is a soft
     /// telemetry hook).
     SessionGate,
+    /// Which hooks git will actually run, and whose installer output is dead.
+    Status,
 }
 
 pub fn run(cmd: &HooksCmd) -> Result<()> {
@@ -40,6 +42,7 @@ pub fn run(cmd: &HooksCmd) -> Result<()> {
         HooksCmd::L1Check => l1_check(),
         HooksCmd::NowGate { path, today } => now_gate(path.as_deref(), today.as_deref()),
         HooksCmd::SessionGate => session_gate(),
+        HooksCmd::Status => status(),
     }
 }
 
@@ -429,5 +432,171 @@ mod tests {
             "{} has no bullet; CI would reject it as a vacuous touch",
             path.display()
         );
+    }
+}
+
+/// What running a given installer would actually achieve, in one place so the
+/// report and its test cannot disagree.
+///
+/// The whole content is that the two destinations are mutually exclusive, so an
+/// installer's success says nothing about whether its hooks can run.
+fn installer_effect(hooks_path_set: bool, writes_hooks_path: bool) -> &'static str {
+    match (hooks_path_set, writes_hooks_path) {
+        (true, true) => "LIVE",
+        (true, false) => "its output would be SHADOWED",
+        (false, true) => "would make .git/hooks dead",
+        (false, false) => "LIVE",
+    }
+}
+
+/// The two places a git hook can live, and the fact that only one of them runs.
+///
+/// PROVEN, not assumed, in a scratch repository: with `core.hooksPath` unset a
+/// hook in `.git/hooks/` runs; with it set, that hook is IGNORED and the one
+/// under the configured directory runs instead. The two are mutually exclusive,
+/// and nothing in this repository said so.
+///
+/// That matters because this tree ships THREE installers writing to BOTH:
+///
+///   * `scripts/setup-git-hooks.sh`        -> `git config core.hooksPath .githooks`
+///   * `scripts/install-git-hooks.sh`      -> writes `.git/hooks/{pre-commit,pre-push,commit-msg}`
+///   * `scripts/install-constitutional-hook.sh` -> writes `.git/hooks/pre-commit`
+///
+/// Run the first and the other two install hooks that can never run, while
+/// reporting success. A gate that reports success having done nothing is the
+/// class this repository keeps finding; here it is in the installers themselves.
+///
+/// This command answers only "what would run", which is a fact. It does not say
+/// which SHOULD run -- that is a decision, and the three installers disagree
+/// about it.
+fn status() -> Result<()> {
+    let root = repo_root()?;
+    let configured = std::process::Command::new("git")
+        .args(["config", "--get", "core.hooksPath"])
+        .current_dir(&root)
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    println!("WHICH HOOKS GIT WILL ACTUALLY RUN\n");
+    match &configured {
+        Some(p) => println!("  core.hooksPath = {p}   -> `.git/hooks/` is IGNORED"),
+        None => println!("  core.hooksPath = <unset>   -> `.git/hooks/` is the live directory"),
+    }
+
+    // In a WORKTREE `.git` is a file and `$GIT_DIR` is `.git/worktrees/<name>`,
+    // while git resolves hooks from the COMMON directory. Joining
+    // `root/.git/hooks` reports "none" in every worktree however many hooks are
+    // installed -- a false clean, in the command whose whole subject is whether
+    // anything runs. Ask git instead of constructing the path.
+    let common = std::process::Command::new("git")
+        .args(["rev-parse", "--git-common-dir"])
+        .current_dir(&root)
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            let p = std::path::PathBuf::from(&s);
+            if p.is_absolute() {
+                p
+            } else {
+                root.join(p)
+            }
+        })
+        .unwrap_or_else(|| root.join(".git"));
+    let git_hooks = common.join("hooks");
+
+    let live_dir = match &configured {
+        Some(p) => root.join(p),
+        None => git_hooks.clone(),
+    };
+    let dead_dir = match &configured {
+        Some(_) => Some(git_hooks.clone()),
+        None => None,
+    };
+
+    let names = ["pre-commit", "pre-push", "commit-msg", "post-merge"];
+    let mut live = 0usize;
+    println!("\n  LIVE ({}):", live_dir.display());
+    for n in names {
+        let f = live_dir.join(n);
+        if f.is_file() {
+            live += 1;
+            println!("    {n}");
+        }
+    }
+    if live == 0 {
+        println!("    <none>   nothing runs at commit time in this clone");
+    }
+
+    if let Some(d) = dead_dir {
+        let mut dead = 0usize;
+        let mut rows = Vec::new();
+        for n in names {
+            if d.join(n).is_file() {
+                dead += 1;
+                rows.push(n);
+            }
+        }
+        if dead > 0 {
+            println!("\n  SHADOWED ({}):", d.display());
+            for n in rows {
+                println!("    {n}   installed, and git will never run it");
+            }
+        }
+    }
+
+    println!("\n  INSTALLERS IN THIS TREE, and where each writes:");
+    for (script, target) in [
+        ("scripts/setup-git-hooks.sh", "core.hooksPath -> .githooks"),
+        ("scripts/install-git-hooks.sh", ".git/hooks/"),
+        ("scripts/install-constitutional-hook.sh", ".git/hooks/pre-commit"),
+    ] {
+        let exists = root.join(script).is_file();
+        let effective = installer_effect(configured.is_some(), target.starts_with("core.hooksPath"));
+        println!(
+            "    {:<42} {:<24} {}",
+            script,
+            if exists { target } else { "<missing>" },
+            effective
+        );
+    }
+
+    println!(
+        "\n  Proven in a scratch repository rather than assumed: `core.hooksPath`\n  \
+         and `.git/hooks/` are mutually exclusive, so running the wrong installer\n  \
+         succeeds and installs nothing that runs. This reports what WOULD run; it\n  \
+         does not say what should -- the three installers disagree about that."
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod status_tests {
+    use super::installer_effect;
+
+    /// Proven in a scratch repository before this was written: with
+    /// `core.hooksPath` set, a hook in `.git/hooks/` is IGNORED; with it unset,
+    /// that hook runs. The two destinations are mutually exclusive, and this
+    /// tree ships three installers writing to both.
+    #[test]
+    fn an_installer_can_succeed_and_install_nothing_that_runs() {
+        // core.hooksPath is set: the two .git/hooks installers are dead letters.
+        assert_eq!(installer_effect(true, false), "its output would be SHADOWED");
+        assert_eq!(installer_effect(true, true), "LIVE");
+        // Unset: .git/hooks is live, and the hooksPath installer would kill it.
+        assert_eq!(installer_effect(false, false), "LIVE");
+        assert_eq!(installer_effect(false, true), "would make .git/hooks dead");
+    }
+
+    /// The verdict must depend on BOTH inputs. A report that ignores either one
+    /// would read "LIVE" for an installer whose output git will never execute --
+    /// which is the exact false clean this command exists to end.
+    #[test]
+    fn both_inputs_change_the_verdict() {
+        assert_ne!(installer_effect(true, false), installer_effect(false, false));
+        assert_ne!(installer_effect(true, true), installer_effect(false, true));
     }
 }

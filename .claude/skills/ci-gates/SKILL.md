@@ -14575,3 +14575,62 @@ Three structural facts sit behind the 3%, and only the third is a defect:
 **The rule this keeps producing:** when a preview does not fire, ask in order -- is it installed, can
 it run here, does it cover this context -- before writing another one. All three answers were
 already in the repository.
+
+## 527. My trap was the shell's, not the tree's -- and the population here is zero
+
+&sect;526 left "sweep the tree for `for x in $VAR`" as the next step. Ran it, and the first
+measurement dissolved the question:
+
+    /bin/bash  iterations over "a b c": 3
+    /bin/sh    iterations over "a b c": 3
+    /bin/zsh   iterations over "a b c": 1
+
+**The defect that has cost me four readings is zsh-only**, and every script in this tree runs under
+bash or `sh` in CI. A repository gate for it would watch an empty set. The trap lives in my own
+ad-hoc Bash-tool commands, which are zsh -- so its fix is a habit and a memory entry, not code, and
+saying that plainly is the result.
+
+The adjacent bash-shaped hazard IS real and was measured rather than assumed: of **122**
+`for X in ...` lines in tracked shell and workflow code, 93 are literal lists or globs, 20 are
+quoted, 3 iterate `$(seq ...)` (numbers, safe by construction), and **3 are a bare `$VAR`**. Two of
+those hold PR numbers and family names. **One holds filenames** --
+`scripts/install-git-hooks.sh:58`, `for file in $NON_ASCII` -- and the population is not empty:
+**11 tracked paths contain a space**, including `.trinity/seals/[]const u8.json`. It skips a
+WARNING, so it is recorded and not fixed: severity is part of the reading.
+
+**Check whether your own defect exists in the subject before sweeping the subject for it.**
+
+## 528. Three installers, two destinations, and only one of them can run
+
+The sweep surfaced something larger. This tree ships **three** hook installers:
+
+    scripts/setup-git-hooks.sh            -> git config core.hooksPath .githooks
+    scripts/install-git-hooks.sh          -> writes .git/hooks/{pre-commit,pre-push,commit-msg}
+    scripts/install-constitutional-hook.sh -> writes .git/hooks/pre-commit
+
+**Proven in a scratch repository rather than asserted:** with `core.hooksPath` unset, a hook in
+`.git/hooks/` runs; with it set, that hook is **ignored** and the configured directory runs instead.
+The destinations are mutually exclusive.
+
+So **running the first installer makes the other two dead letters** -- they copy files, report
+success, and install nothing git will execute. A tool that reports success having done nothing is
+the class this file keeps recording; here it is in the installers themselves, three of them, and
+nothing in the tree said the destinations conflict.
+
+Beside it: `.githooks/pre-commit` is 157 lines and `scripts/githooks/pre-commit` is **3**, and they
+are not the same gate. Four hook directories exist (`.githooks`, `scripts/githooks`,
+`.claude/hooks`, `.codex/hooks`).
+
+`tri hooks status` reports what WOULD run: the configured path, the live directory and its hooks,
+the shadowed directory and its hooks, and per installer whether its output would be live or dead.
+On this clone it reads **"nothing runs at commit time"**, which is the honest state &sect;526 measured
+and could not name.
+
+**A worktree nearly made it lie.** `.git` there is a FILE and `$GIT_DIR` is `.git/worktrees/<name>`,
+while git resolves hooks from the COMMON directory -- so `root.join(".git/hooks")` reports "none" in
+every worktree however many hooks are installed. A false clean, in the command whose whole subject
+is whether anything runs. It asks `git rev-parse --git-common-dir` instead; the control is one
+planted file, seen and then not seen.
+
+It reports what would run and refuses to say what SHOULD -- the three installers disagree about
+that, and choosing between them is not a measurement.
