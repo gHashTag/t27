@@ -408,8 +408,21 @@ def main(argv):
             if n.endswith(".t27"):
                 files.append(os.path.join(root, n))
     files.sort()
+    # The corpus is what is THERE. `--limit` selects a sample from it, and every
+    # number printed below is about the sample -- so the corpus size has to be
+    # captured before the truncation, or the report has no way to say which of
+    # the two it is talking about.
+    #
+    # It did not, and said "of the corpus" over the sample. Measured 2026-09-05:
+    # `--limit 10` over `specs` printed "corpus: 10 specs under specs" while 650
+    # .t27 files were there, and "MEASURED COVERAGE: m/10 = p% of the corpus".
+    # A 2% sample could print 100% coverage, under a paragraph that reads
+    # "Coverage below 100% bounds what the run can claim" -- so the one number
+    # that bounds the claim was the one the truncation had already destroyed.
+    corpus_total = len(files)
     if limit:
         files = files[:limit]
+    sampled = len(files) < corpus_total
     if not files:
         print(f"no .t27 files under {corpus}", file=sys.stderr)
         return 2
@@ -444,8 +457,13 @@ def main(argv):
     if fh:
         fh.close()
 
-    print(f"corpus: {len(files)} specs under {corpus}"
-          f"{'' if include_scratch else ' (scratch excluded)'}")
+    if sampled:
+        print(f"sample: {len(files)} of {corpus_total} specs under {corpus}"
+              f"{'' if include_scratch else ' (scratch excluded)'}"
+              f"  [--limit {limit}]")
+    else:
+        print(f"corpus: {corpus_total} specs under {corpus}"
+              f"{'' if include_scratch else ' (scratch excluded)'}")
     print(f"base:      {base_bin}")
     print(f"candidate: {cand_bin}\n")
     total = len(files)
@@ -457,7 +475,7 @@ def main(argv):
     # asserted in a docstring.
     s = sum(counts.get(c, 0) for c in CATEGORIES)
     if s != total:
-        print(f"internal: categories sum to {s} but the corpus has {total} files",
+        print(f"internal: categories sum to {s} but {total} file(s) were compared",
               file=sys.stderr)
         return 2
 
@@ -471,7 +489,14 @@ def main(argv):
                 print(f"    {ne_codes[code]:5d}  {code}")
 
     pct = (100.0 * measured / total) if total else 0.0
-    print(f"\nMEASURED COVERAGE: {measured}/{total} = {pct:.1f}% of the corpus")
+    scope = "the corpus" if not sampled else f"the {total} compared"
+    print(f"\nMEASURED COVERAGE: {measured}/{total} = {pct:.1f}% of {scope}")
+    if sampled:
+        frac = 100.0 * total / corpus_total if corpus_total else 0.0
+        print(f"  THIS IS A SAMPLE: {total} of {corpus_total} specs "
+              f"({frac:.1f}% of the corpus) were compared at all.")
+        print("  Coverage above is of the sample. No sentence about the corpus is")
+        print("  admissible from this run.")
     print(f"  {ne} file(s) yielded no verdict and are NOT counted as agreement.")
     print("  Any sentence of the form 'no regressions' is admissible only with")
     print("  this coverage figure attached, and only when field-loss = 0 and")

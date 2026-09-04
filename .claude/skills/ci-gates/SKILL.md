@@ -15261,3 +15261,58 @@ its function's tests, and mutation is the only thing that says so.**
 
 The needle in that structural test is split across two literals, because the first such test written
 this pass searched the file for a string it also contained, and passed against its own mutant.
+
+## 543. The denominator was the cap, under a paragraph about denominators
+
+&sect;542's fan-out returned eight surviving findings. This one was found by two lenses
+independently, which is the closest thing a sweep gives to a second opinion.
+
+`scripts/tri_loop/diffbin.py` walks a spec corpus, compares two compiler binaries over it, and
+closes with a coverage figure. It truncated its file list:
+
+```python
+files.sort()
+if limit:
+    files = files[:limit]
+...
+total = len(files)          # <- AFTER the truncation
+print(f"corpus: {len(files)} specs under {corpus}")
+print(f"\nMEASURED COVERAGE: {measured}/{total} = {pct:.1f}% of the corpus")
+```
+
+**Measured on the real tree, 2026-09-05:** `--limit 10` over `specs` printed
+`corpus: 10 specs under specs`. There are **650** `.t27` files there. A 2% sample would report
+`100.0% of the corpus` on a clean run.
+
+**And the paragraph immediately below the number is about exactly this:**
+
+> Any sentence of the form 'no regressions' is admissible only with this coverage figure attached
+> ... Coverage below 100% bounds what the run can claim.
+
+So the one figure whose job is to bound the claim was the figure the truncation had already
+destroyed. The safety rail was wired to the wrong number.
+
+**Shipped.** The corpus size is captured BEFORE truncation. A sampled run prints
+`sample: 10 of 650 specs under specs [--limit 10]`, names the coverage denominator
+`of the 10 compared`, and adds a block that says so where the number is read rather than only in a
+header eight lines up. An untruncated run is byte-identical to before.
+
+`scripts/ci/test_a_sample_is_not_the_corpus.py` builds its own 25-file fixture with a fake binary
+that never produces a verdict -- irrelevant to the question, which is about the denominator -- so it
+needs no compiler and runs in `loop-tools-gate.yml`. Exit 1 against the pre-fix file, exit 0 after,
+and moving the capture below the truncation kills it.
+
+### The exclusion that cleared it was true and too narrow
+
+An earlier audit of BOUNDED READS in this repository named these files and let them pass:
+
+> `cost.py` and `diffbin.py` take `--limit N` over a LOCAL corpus directory and never touch the API
+
+Every word of that is correct. It is also **an argument about where the data comes from, used to
+settle a question about what the label says.** A local `--limit` truncates the population exactly as
+thoroughly as a page boundary does, and the printed word "corpus" does not care which one did it.
+
+**An exclusion is only as wide as the reason given for it.** A reason that is true but narrower than
+the exclusion silently drops cases, and nobody revisits them, because the file is on a list headed
+"checked". That is a worse state than never having looked -- an unexamined file invites examination;
+an examined one repels it.
