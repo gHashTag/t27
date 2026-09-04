@@ -245,9 +245,9 @@ cd ..
 ./scripts/tri parse specs/base/types.t27
 
 # Generate Zig (stdout for one file; if the path is a directory, batch → gen/zig/… by default)
-./scripts/tri gen-zig specs/numeric/gf16.t27
-./scripts/tri gen-zig specs/numeric
-# Or: ./scripts/tri gen-dir --backend zig --out-root gen/zig <dir>
+./scripts/tri gen specs/numeric/gf16.t27
+./scripts/tri gen specs/numeric
+# `gen-dir` does not exist; generate a tree by looping over its specs.
 
 # Generate Verilog (file or directory → gen/verilog/…)
 ./scripts/tri gen-verilog specs/fpga/mac.t27
@@ -638,14 +638,14 @@ Every change follows this exact 9-step cycle:
 
 ```
 tri skill begin <task> --issue <N>    <- bind to GitHub Issue
-tri spec edit <module>                <- edit ONE .t27 spec
-tri skill seal --hash                 <- record 4 SHA-256 hashes
+tri spec edit <module>                <- NOT BUILT: edit the .t27 spec directly
+tri seal <file.t27> --save            <- record 4 SHA-256 hashes  (`tri skill seal` is not built)
 tri gen                               <- generate Zig/Verilog/C
 tri test                              <- run tests
 tri verdict --toxic                   <- TOXIC? -> rollback. CLEAN? -> proceed
 tri experience save                   <- append episode to Akashic journal
-tri skill commit                      <- verify hashes + issue binding
-tri git commit                        <- push with "Closes #N"
+tri skill end                         <- verify hashes + issue binding  (`tri skill commit` is not built)
+tri git commit                        <- NOT BUILT: use git; the hook enforces "Closes #N"
 ```
 
 ## Contributing
