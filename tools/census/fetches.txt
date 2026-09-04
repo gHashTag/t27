@@ -16,13 +16,13 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     prints what it got            2
 
   PRINTS WHAT IT GOT:
-    red.rs:140  fn runs_url
-    red.rs:151  fn deep_runs_url
+    red.rs:159  fn runs_url
+    red.rs:170  fn deep_runs_url
 
   ONE ROW, NO TOTAL:
     gates.rs:2758  fn unmeasured
-    red.rs:178  fn last_pass
-    red.rs:298  fn now
+    red.rs:197  fn last_pass
+    red.rs:320  fn now
 
   A GUARD IN THE FUNCTION, BUT MORE THAN ONE FETCH:
     issues.rs:622  fn numbers
