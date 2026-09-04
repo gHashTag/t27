@@ -71,6 +71,16 @@ jobs:
         # is needed, and the test builds its own two-document fixture.
         run: python3 scripts/ci/test_an_empty_match_is_not_a_number.py
 
+      - name: A --limit sample is not the corpus
+        # diffbin truncated its file list with `files = files[:limit]` and then
+        # took its denominator from the truncated list. Measured against the real
+        # tree: `--limit 10` over `specs` printed "corpus: 10 specs under specs"
+        # while 650 .t27 files were present, and a 2% sample could print 100%
+        # coverage -- directly under a paragraph reading "Coverage below 100%
+        # bounds what the run can claim". No compiler is needed here: the fake
+        # binary never produces a verdict, and the subject is the denominator.
+        run: python3 scripts/ci/test_a_sample_is_not_the_corpus.py
+
       - name: An absent compiler is "could not run", not "the check failed"
         # #3045. This job has no compiler, which is what makes it the right
         # place: the assertion is about the no-build path and nowhere else can
