@@ -125,8 +125,8 @@ tying every tape-out to a specific t27 commit + trinity-invariant SHA-256.
 | 1 | `weight_bram` | W36a | `t27c gen-weight-bram` |
 | 2 | `pipeline_stage2_compute` | W36b | `t27c gen-pipeline-stage2` |
 | 3 | `layer_sequencer` | W36b | `t27c gen-layer-sequencer` |
-| 4 | `double_buffer_ctrl` | W36c | `t27c gen-double-buffer` |
-| 5 | `weight_prefetch_ctrl` | W36c | `t27c gen-weight-prefetch` |
+| 4 | `double_buffer_ctrl` | W36c | `t27c gen-double-buffer-ctrl` |
+| 5 | `weight_prefetch_ctrl` | W36c | `t27c gen-weight-prefetch-ctrl` |
 | 6 | `bitnet_axi_slave` | W36d | (in bundle) |
 | 7 | `bitnet_dma` | W36d | (in bundle) |
 | 8 | `bitnet_irq` | W36d | (in bundle) |

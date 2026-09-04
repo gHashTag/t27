@@ -316,7 +316,7 @@ Ring 720 (Research Frontiers)
 - All edges flow forward: lower ring → higher ring
 - Within phases: strict ordering
 - Across phases: phase boundary enforces direction
-- Verification: `t27c validate-graph` checks for cycles
+- Verification: none -- `t27c validate-graph` was named here but does not exist, so LAW 8 is stated and unchecked (#3092)
 
 ### Tiered Dependency Model
 ```

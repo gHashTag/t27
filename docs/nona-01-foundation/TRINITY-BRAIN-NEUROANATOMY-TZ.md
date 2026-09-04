@@ -200,10 +200,10 @@ From repo root, after `cargo build --release` in `bootstrap/`:
 
 | Was (wrong in TZ) | Use instead |
 |-------------------|-------------|
-| `t27c gen-zig` | `tri gen-zig` (this repo: `./scripts/tri gen-zig`) |
+| `t27c gen-zig` | `tri gen` (this repo: `./scripts/tri gen`) -- `gen-zig` does not exist on either binary |
 | `t27c gen-c` | `tri gen-c` |
 | `t27c gen-verilog` | `tri gen-verilog` |
-| `t27c gen` | `tri gen-zig` (single file) or `tri gen` (same Zig backend) |
+| `t27c gen` | `tri gen` (single file; the Zig backend) |
 | `t27c seal --save` | `tri seal <file.t27> --save` or `tri skill-seal <file.t27>` |
 | `t27c validate-conformance` | `tri validate-conformance` |
 | `./bootstrap/target/release/t27c` | `tri` (via `./scripts/tri`) |
