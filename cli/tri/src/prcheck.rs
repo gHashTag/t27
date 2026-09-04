@@ -83,6 +83,21 @@ pub enum PrCmd {
         /// session. Handing the merge to the command makes the two inseparable.
         #[arg(long)]
         merge: bool,
+        /// Refuse unless the pull request's head branch is this one.
+        ///
+        /// The number is the only thing this command is given, and a number is
+        /// the one part of a pull request that cannot be checked against
+        /// anything. A serial lander typed `3160` where `gh pr create` had
+        /// printed `3161`, and #3160 belonged to a different session working in
+        /// the same repository -- it was queued for merge on a green verdict and
+        /// caught by hand.
+        ///
+        /// An author check does NOT catch this: every session here authenticates
+        /// as the same GitHub user, so both pull requests read as mine. The head
+        /// branch is what differs, and the caller always knows which branch it
+        /// just pushed.
+        #[arg(long, value_name = "NAME")]
+        expect_branch: Option<String>,
     },
 }
 
@@ -95,7 +110,16 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             wait,
             poll,
             merge,
-        } => ready(*number, repo.as_deref(), *baseline, *wait, *poll, *merge),
+            expect_branch,
+        } => ready(
+            *number,
+            repo.as_deref(),
+            *baseline,
+            *wait,
+            *poll,
+            *merge,
+            expect_branch.as_deref(),
+        ),
         PrCmd::Landed {
             number,
             repo,
@@ -399,6 +423,17 @@ fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
     Ok((pending, total))
 }
 
+/// Does this pull request's head branch match what the caller expected?
+///
+/// `None` means the caller did not say, which is not an error -- the flag is
+/// opt-in and its absence is the old behaviour.
+pub fn branch_matches(expected: Option<&str>, actual: &str) -> bool {
+    match expected {
+        None => true,
+        Some(want) => want == actual.trim(),
+    }
+}
+
 /// What `--merge` should leave in the exit code.
 ///
 /// Three outcomes, two of which are not a merge: `gh pr merge` refused, or it
@@ -452,6 +487,50 @@ pub fn baseline_phrase(compared: usize, asked: usize) -> String {
     }
 }
 
+/// The recent default-branch commits, and whether that read was complete.
+///
+/// One fetch, one guard. `classify_fetch` takes the ENCLOSING FUNCTION as the
+/// subject, so a guard beside a second fetch answers a question nobody can tell
+/// it is answering -- `fn ready` held two and the census called it unguarded
+/// twice, correctly. Splitting is the fix; renaming a helper until the matcher
+/// recognises it is not.
+fn recent_commits(repo: &str, branch: &str) -> Result<(Vec<String>, bool)> {
+    const PAGE: usize = 15;
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/commits?sha={branch}&per_page={PAGE}"),
+        "--jq",
+        ".[].sha",
+    ])?;
+    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let complete = crate::issues::read_is_complete(rows.len(), PAGE);
+    Ok((rows, complete))
+}
+
+/// The recently merged pull requests, and whether that read was complete.
+fn merged_recently(repo: &str, baseline: usize) -> Result<(Vec<String>, bool)> {
+    let page = baseline * 3;
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls?state=closed&per_page={page}"),
+        "--jq",
+        ".[]|select(.merged_at!=null)|.number",
+    ])?;
+    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let complete = crate::issues::read_is_complete(rows.len(), page);
+    Ok((rows, complete))
+}
+
+/// The same sentence, with the truncation the page can hide.
+pub fn baseline_phrase_bounded(compared: usize, asked: usize, page_full: bool) -> String {
+    let base = baseline_phrase(compared, asked);
+    if compared < asked && page_full {
+        format!("{base}; the fetch page was FULL, so more may exist beyond it")
+    } else {
+        base
+    }
+}
+
 pub fn refusal_kind(stderr: &str) -> i32 {
     let s = stderr.to_ascii_lowercase();
     let behind = s.contains("not up to date")
@@ -471,6 +550,7 @@ fn ready(
     wait: bool,
     poll: u64,
     merge: bool,
+    expect_branch: Option<&str>,
 ) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
@@ -489,6 +569,36 @@ fn ready(
     // logging to one file produced a transcript where one PR's verdict read
     // as the other's -- diagnosing through a channel shared by two sources,
     // which is the error this project's own doctrine is named after.
+    // Before anything else, and before any wait: is this the pull request the
+    // caller meant? A number is the one part of a PR that cannot be checked
+    // against anything, and several sessions share this repository. `3160` was
+    // typed where `gh pr create` had printed `3161`; both read as the same
+    // author, because every session authenticates as the same GitHub user, so
+    // the head branch is the only thing that distinguishes them.
+    if expect_branch.is_some() {
+        let head = gh(&[
+            "pr",
+            "view",
+            &n.to_string(),
+            "--repo",
+            &repo,
+            "--json",
+            "headRefName",
+            "--jq",
+            ".headRefName",
+        ])?;
+        if !branch_matches(expect_branch, &head) {
+            println!("{repo}#{n} — NOT the pull request you meant.");
+            println!("  expected head branch: {}", expect_branch.unwrap_or(""));
+            println!("  this PR's head branch: {}", head.trim());
+            println!();
+            println!("  Refusing before reading a single check. A PR number is an");
+            println!("  identifier, not a computed value, and neighbouring numbers in a");
+            println!("  shared repository belong to somebody else.");
+            std::process::exit(6);
+        }
+    }
+
     println!("{repo}#{n} — gate started");
 
     // Anything still running makes the answer provisional, so say so rather
@@ -566,14 +676,9 @@ fn ready(
     // from zero observations and printed as if it were evidence. So record what
     // was OBSERVED, not only what was red.
     let mut observed: BTreeSet<String> = BTreeSet::new();
-    let recent = gh(&[
-        "api",
-        &format!("repos/{repo}/commits?sha={branch}&per_page=15"),
-        "--jq",
-        ".[].sha",
-    ])?;
+    let (recent, _recent_complete) = recent_commits(&repo, &branch)?;
     let mut decided: BTreeMap<String, bool> = BTreeMap::new(); // name -> failing
-    for sha in recent.lines() {
+    for sha in recent.iter() {
         let runs = gh(&[
             "api",
             &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
@@ -598,14 +703,10 @@ fn ready(
             *seen.entry(name.clone()).or_insert(0) += 1;
         }
     }
-    let merged = gh(&[
-        "api",
-        &format!("repos/{repo}/pulls?state=closed&per_page={}", baseline * 3),
-        "--jq",
-        ".[]|select(.merged_at!=null)|.number",
-    ])?;
+    let (merged, merged_complete) = merged_recently(&repo, baseline)?;
+    let page_full = !merged_complete;
     let mut compared = 0usize;
-    for num in merged.lines().take(baseline) {
+    for num in merged.iter().take(baseline) {
         if let Ok(p) = num.parse::<u64>() {
             if p == n {
                 continue;
@@ -633,14 +734,14 @@ fn ready(
             }
             None if !observed.contains(name) => {
                 println!("  {name}\n      NO BASELINE — this check did not run on any recent");
-                println!("      {branch} commit nor on any of {}, so", baseline_phrase(compared, baseline));
+                println!("      {branch} commit nor on any of {}, so", baseline_phrase_bounded(compared, baseline, page_full));
                 println!("      there is nothing to compare against. Usually a `paths:` filter");
                 println!("      with no `push:` trigger. Read the log; this command cannot say");
                 println!("      whether the failure is yours.");
                 no_baseline.push(name.clone());
             }
             None => {
-                println!("  {name}\n      NOT failing on recent {branch} commits or in {}\n      (it ran there and passed)", baseline_phrase(compared, baseline));
+                println!("  {name}\n      NOT failing on recent {branch} commits or in {}\n      (it ran there and passed)", baseline_phrase_bounded(compared, baseline, page_full));
                 new_here.push(name.clone());
             }
         }
@@ -915,6 +1016,49 @@ mod paginated_count_tests {
 }
 
 #[cfg(test)]
+mod page_was_full_tests {
+    use super::baseline_phrase_bounded;
+    use crate::issues::read_is_complete;
+
+    /// This crate already had the predicate, inverted, in `issues.rs`, and
+    /// `classify_fetch` recognises it by name. Writing a second one under a new
+    /// name was two literals of one definition -- and the reason the census kept
+    /// reading these fetches as unguarded.
+    #[test]
+    fn a_full_page_is_not_a_complete_read() {
+        assert!(!read_is_complete(15, 15));
+        assert!(!read_is_complete(16, 15));
+    }
+
+    #[test]
+    fn a_short_page_is_the_whole_answer() {
+        assert!(read_is_complete(14, 15));
+        assert!(read_is_complete(0, 15));
+    }
+
+    /// A shortfall matters only when the page was FULL. A quiet week returns
+    /// fewer merged pull requests and that is the true answer, not a truncation
+    /// -- saying "more may exist" there would be the opposite lie.
+    #[test]
+    fn a_shortfall_on_a_short_page_is_not_a_truncation() {
+        let s = baseline_phrase_bounded(2, 5, false);
+        assert!(!s.contains("FULL"), "{s}");
+    }
+
+    #[test]
+    fn a_shortfall_on_a_full_page_says_so() {
+        let s = baseline_phrase_bounded(2, 5, true);
+        assert!(s.contains("page was FULL"), "{s}");
+    }
+
+    /// Reaching the number asked for is not a shortfall, full page or not.
+    #[test]
+    fn reaching_the_target_is_never_a_truncation() {
+        assert!(!baseline_phrase_bounded(5, 5, true).contains("FULL"));
+    }
+}
+
+#[cfg(test)]
 mod baseline_phrase_tests {
     use super::baseline_phrase;
 
@@ -997,6 +1141,44 @@ mod refusal_kind_tests {
     #[test]
     fn not_mergeable_alone_is_not_the_race() {
         assert_eq!(refusal_kind("is not mergeable"), 4);
+    }
+}
+
+#[cfg(test)]
+mod branch_matches_tests {
+    use super::branch_matches;
+
+    /// The near miss: 3160 typed where 3161 was printed. Same author, different
+    /// branch, and the branch is the only thing that told them apart.
+    #[test]
+    fn a_different_branch_is_refused() {
+        assert!(!branch_matches(Some("w-workflow-listing"), "loop/merge-in-flight"));
+    }
+
+    #[test]
+    fn the_expected_branch_passes() {
+        assert!(branch_matches(Some("w-workflow-listing"), "w-workflow-listing"));
+    }
+
+    /// Absence of the flag must not become a refusal: it is opt-in, and every
+    /// existing caller passes nothing.
+    #[test]
+    fn no_expectation_is_not_a_refusal() {
+        assert!(branch_matches(None, "anything-at-all"));
+        assert!(branch_matches(None, ""));
+    }
+
+    /// `gh --jq` output arrives with a trailing newline.
+    #[test]
+    fn trailing_whitespace_is_not_a_mismatch() {
+        assert!(branch_matches(Some("w-x"), "w-x\n"));
+        assert!(branch_matches(Some("w-x"), "  w-x  "));
+    }
+
+    /// A prefix is not a match -- `w-tri` must not accept `w-tri-status`.
+    #[test]
+    fn a_prefix_is_not_a_match() {
+        assert!(!branch_matches(Some("w-tri"), "w-tri-status"));
     }
 }
 
