@@ -13903,15 +13903,22 @@ above the same highest number it had read.
       section 504 comes after 505 -- the file reads out of order
 ```
 
-**And then exits 0.** Nothing fails. Worse, `grep -rn "skill check"` across
-`.github/workflows/`, `scripts/` and `tools/` returns **nothing**: no gate calls it, no
-hook calls it, no script calls it. The law is enforced by a command that detects the
-violation, reports it as text, exits successfully, and is never run.
+**CORRECTION, measured 2026-09-04 after this section landed: it exits 1, and always has**
+-- `skillnum.rs` has carried `std::process::exit(1)` since #2789. Planting a duplicate
+and reading the code gives `rc=1`. The claim above that it "exits 0" was **my own reading
+of the wrong run**: I read the exit code of an invocation made after I had already removed
+the duplicate. That is the clean case, reported as the duplicate case, and it is worse
+than a guess -- a guess does not come with a number attached. **When an exit code is the
+finding, the run that produced it must be the run that contained the defect**, and the
+cheapest proof is to plant the defect deliberately and watch it fail.
 
-That is three independent failures stacked, and any one of them alone would have been
-enough to catch this: a checker that exited non-zero would fail a PR; a checker wired
-into CI would print the line where someone might read it; a checker that did neither but
-was run by hand would still have shown it.
+What was true is the other half: `grep -rn "skill check"` across `.github/workflows/`,
+`scripts/` and `tools/` returned **nothing**. A checker that exits 1 correctly and is
+called by nobody fails just as silently as one that exits 0. A neighbouring session wired
+it into `cli-tri.yml` (#3165) after reading this section and checking the half I got
+wrong -- which is the behaviour this file asks for, applied to this file.
+
+So: two failures, not three, and the surviving one was enough on its own.
 
 **The collision itself is not carelessness.** Both sessions did the correct thing --
 read the highest number, append above it -- and the numbers were assigned from readings
