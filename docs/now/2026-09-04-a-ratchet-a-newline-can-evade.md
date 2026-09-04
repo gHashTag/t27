@@ -5,7 +5,7 @@
 - A `test` whose body is only comments parses, is counted as a test, and cannot fail.
   `tools/check_assertionless_spec_tests.py` pins them **per file**: a file that GROWS fails, a
   file that SHRINKS fails until re-blessed in the same commit. It does not fix them -- giving
-  1813 tests real assertions, or deleting them, rewrites 28 spec files and is the owner's call.
+  1813 tests real assertions, or deleting them, rewrites 32 spec files and is the owner's call.
 - **The census undercounted by 21.** It matched one line; the tool reads each body to its closing
   brace. **1813 in 32 files**, not 1792 in 28. The extra 21 sit in 4 files a single-line grep
   called clean:
@@ -26,5 +26,9 @@
 Prior art, and this repository is stricter than it: Betterer, ESLint bulk suppressions,
 SonarQube clean-as-you-code and `baseline` all hold a ceiling that only moves down. Letting the
 number fall silently banks slack -- fix three, add two, and the ceiling never notices.
+
+**Correction (2026-09-04, later the same day).** That sentence said **28** spec files; the 1813
+comment-only tests span **32**, which the next bullet states correctly. 28 is the file count of
+the 1792 identical one-liners only -- a subset attributing its own denominator to the larger set.
 
 Refs #3141

@@ -14095,3 +14095,81 @@ print byte-identical output now exits **2**. &sect;103's `FAIL lessons` is today
 **Nothing shipped from this audit, and that is the result.** A gate over a population
 measured at zero would watch an empty set, and the one gap worth having is already filled
 by a checker better than the one I was about to write.
+
+## 512. A second count is not an adjudicator
+
+Audited every number this session published: **260 numbers, 11 wrong** (#3172). Nine of the
+eleven are one defect -- **a figure measured over a narrower or wider population than the
+sentence it sits in**. A table row read `| named in none | 18 | 21 | 32 |` where `files` and
+`Admitted` were over all eighteen files and `Qed` was over the five that also carried an
+`Admitted`: **21 should be 102**. Same shape: `28` was the file count of the 1792 one-liners,
+written against the 1813; `~55` averaged a set the entry had already pinned as seven.
+
+**The audit was itself wrong nine times in twenty.** Seven died in an adversarial stage. Two
+survived both stages: a claimed refutation of `1792 of 9842 spec tests (18.2%)` on the grounds
+that the repository's ratchet counts **4867**. Both counts are real. 4867 is the brace form
+`test N { ... }`; the remainder are BDD-style
+
+    test sdk_hypervector_init
+        given hv = Hypervector.init(1024)
+        then nonzero == 0
+
+which `bootstrap/src/compiler.rs` parses as tests (`KwTest => parse_test_block`). 9842 is every
+spec test, 1792 is a subset of it, 18.2% is honest.
+
+**Two counts that disagree are two populations until something OUTSIDE both says which one the
+sentence meant.** Here that was the language definition. Not a third count -- a third count is
+a third population. This refines 421 (`census`, "count the population a different way and
+subtract"): the subtraction finds the disagreement, it does not settle it.
+
+And when the disagreement is between an ad-hoc command and a shipped tool, **the ad-hoc command
+is the prime suspect**. Twice in one pass: a hand-rolled body walker read 4031 where the tool
+reads 4054, and `git ls-files '*.tri'` repo-wide read 154 where `.tri` *specs* hold 90. The
+shipped tool names its population in its own source; a one-liner inherits whatever the glob
+happens to reach.
+
+## 513. Read the document before you run the command
+
+Of the eleven wrong numbers, **three were refuted by the entry that published them**. `a-ratchet`
+says *"1813 in 32 files"* one bullet after saying the 1813 rewrite touches **28**.
+`a-hyphen` calls five scripts real two bullets after calling **all fifty** dead. `the-tax`
+multiplies by a mean its own next section re-states differently.
+
+Nothing had to be measured to catch those three. The cheapest check on a number is the
+paragraph around it, and it runs before any tool does. Do that pass first: it is free, and it
+finds the errors that a re-measurement over the wrong population would have *confirmed*.
+
+## 514. `git log --since=<bare date>` inherits the current time of day
+
+    $ git log --oneline --since=2026-09-04 | wc -l          # 0
+    $ git log --oneline --since='2026-09-04 00:00' | wc -l   # 79
+    $ git log --oneline --until=2026-09-04 | wc -l           # 3016   (every commit)
+
+At 19:12 on 2026-09-04, `--since=2026-09-04` means *since 19:12 today*: approxidate fills the
+unspecified time-of-day from **now**, not from midnight. The same command returns fewer commits
+as the day advances -- **a window that slides through the day, supplied by the filter's own
+default**, and it answers `0` for a day holding 79.
+
+An empty result from a date filter is indistinguishable from "nothing happened", which is what
+makes this one expensive: it fed a conclusion (*"`specs/` has no commits today"*) that happened
+to be **true** -- `--since=midnight` also returns 0. Right answer, broken ruler, and nothing in
+the output to tell them apart. See 268 (caught for the wrong reason).
+
+Give it a time, or use `--after=<the day before>`. This repository's own nine uses are relative
+offsets (`--since=30.days`), which do not slide; the defect was in the audit's own commands.
+
+## 515. Re-run before you report a delta
+
+One run of a matcher printed **1791** and **9841**. Three later runs printed **1792** and
+**9842** on a tree with zero commits between them, and `28 files x 64 = 1792` confirms the
+larger reading structurally. Both mechanisms I could test -- concurrent agents mutating the
+shared worktree, and measuring the main checkout instead of the worktree -- were tested and
+**refuted** (the tree was clean; the main checkout reads 1728/9921).
+
+The reading is unexplained and does not reproduce, so it is not a measurement. It was one
+sentence away from being published as *"the population drifted by one overnight"*.
+
+**A delta of one against a population of 1792 is exactly the size a transient produces.** Before
+a difference becomes a finding, run it twice. This is 297 (`PROVEN requires reproduction`)
+applied to the thing most likely to escape it: not the headline result, which gets scrutiny,
+but the incidental reading that merely *supports* one.

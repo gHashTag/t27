@@ -13,10 +13,16 @@
 - Priced, same morning: four pull requests, **5 content commits against 7 `update-branch`
   merges**, each a full re-run of checks that had already passed on the same tree (#3134).
 
-**Mutation found an untested clause the tests hid.** Six tests, all green, and deleting the
+**Mutation found an untested clause the tests hid.** Five tests, all green, and deleting the
 `not up to date` clause left every one of them passing: the real `gh` fixture carries *both*
 spellings, so the third clause answered it and the first was never exercised. A fixture carrying
 only the first spelling now makes that clause the only thing that can answer. Three mutants tried,
 three dead -- and the one that survived is the one worth recording.
+
+**Correction (2026-09-04, later the same day).** That sentence said **six** tests survived the
+mutant. Six is the count *after* the fixture this paragraph describes was added; the mutation ran
+against the **five** originals. With all six present the mutant is killed (`5 passed; 1 failed`),
+which is the whole point of adding the sixth -- so "six tests and the mutant survived" states the
+opposite of what was measured.
 
 Refs #3134

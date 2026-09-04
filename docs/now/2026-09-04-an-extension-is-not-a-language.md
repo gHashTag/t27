@@ -19,12 +19,17 @@
 | | files | `Qed` | `Admitted` |
 |---|---:|---:|---:|
 | named in a `_CoqProject` | 41 | 234 | **0** |
-| named in none | 18 | 21 | **32** |
+| named in none | 18 | 102 | **32** |
 
 `proofs/trinity/Bounds_LeptonMasses.v`: 8 theorems, 8 `Admitted`, **0 `Qed`**. The `Admitted` gate
 reads `coq/Kernel/Phi.v` and `coq/Kernel/PhiFloat.v` -- two of 58, both clean.
 
 Third instance of one shape in two passes, with #3142 and the three Coq proofs a merge took in
 #3150. **Work that nothing compiles cannot report its own state.**
+
+**Correction (2026-09-04, later the same day).** The `Qed` cell of the second row read **21**; over
+the 18 files the row is about it is **102**. 21 counts only the five files that also carry an
+`Admitted` -- a cell measured over a narrower population than the row it sits in, while `files`
+and `Admitted` in the same row are over all 18.
 
 Refs #3153
