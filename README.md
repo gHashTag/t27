@@ -76,7 +76,7 @@ byte-identical) and for a live-operand `DSP48E1`. Both pass the wrong-part → o
 
 Discoverability mirror of the numeric corpus. GitHub remains the primary source of truth (one-way flow GitHub -> Zenodo -> Hugging Face).
 
-- **Catalog dataset:** [playra/numeric-format-catalog](https://huggingface.co/datasets/playra/numeric-format-catalog) -- the 83-format SSOT
+- **Catalog dataset:** [playra/numeric-format-catalog](https://huggingface.co/datasets/playra/numeric-format-catalog) -- the format-catalog SSOT (109 records as of 2026-09-04; the count is a CI invariant, not a fixed number)
 - **Conformance packs:** [playra/numeric-conformance-packs](https://huggingface.co/datasets/playra/numeric-conformance-packs) -- bit-exact JSON vectors (10 configs across GF4..GF32 + phi-identity)
 - **Paper page:** [arXiv:2606.09686 on HF](https://huggingface.co/papers/2606.09686)
 
