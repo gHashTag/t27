@@ -14643,3 +14643,56 @@ compilation by `^error:`. The defect existed only in ephemeral shell, which is e
 it can recur every pass and why it belongs here rather than in a gate. The population of a
 defect that lives in throwaway scripts is **zero on disk and once per pass in practice**,
 and a gate over the first number would watch an empty set.
+
+## 528. Two sites, one read: the census abstained where the answer was on the page
+
+`tri gates fetches` reported **4** sites as *a guard, but two fetches -- which one does it
+cover?* All four sit in two functions, `issues.rs`'s `numbers` and `dated`, and reading
+them answers the question the census declined:
+
+```rust
+let raw = if instant.is_some() {
+    gh(&[ ... "--limit", &lim ... ])?      // --as-of: --state all, timestamps kept
+} else {
+    gh(&[ ... "--limit", &lim ... ])?      // no flag: --state open
+};
+let complete = read_is_complete(arr.len(), limit);
+```
+
+**Two sites in the source, one read at run time.** Exactly one arm executes, both bind the
+same `raw`, and the single guard covers whichever ran. The guard was right the whole time.
+
+**The repair is not the one the precedent suggests.** When `fn ready` held three fetches
+and one guard, the fix was to SPLIT the function so each guard had one subject. Splitting
+here would be wrong: the two arms are one query with different filters -- with `--as-of`
+the state filter has to come off -- so a split duplicates the guard and the parse and
+fixes nothing. **The same symptom, and the opposite repair.**
+
+**Two questions were being answered by one number.** `fetch_sites_in` counts sites in the
+SOURCE and feeds the published total of 25; the guard question needs the reads that can
+RUN. Collapsing them in one function would have moved a figure this file has printed for
+passes. So `exclusive_fetch_sites_in` is a second function, used only by `classify_fetch`,
+and the total is untouched.
+
+**Predicted before the change, and held to the digit:** `a guard, but two fetches`
+**4 -> 0**, `asks whether the page filled` **4 -> 8**, `FETCH SITES` **25 -> 25**, the
+other three buckets unmoved. 7+5+8+0+3+2 = 25.
+
+**Mutation took two clauses out of the rule.** Seven mutants, three surviving on the first
+run, and two of the three were decoration:
+
+* `then_hits > 0 && else_hits > 0` -- `min` already answers it, so no input can tell the
+  two apart. Removed; the comment now says `min` IS the rule.
+* `starts_with("let ")` -- an assignment binds one value from two arms just as much, so
+  requiring `let` is narrower than the rule it claims to state. Removed, and the corpus
+  numbers did not move.
+
+The third survivor was a real gap and got a constructed counterexample instead: a nested
+`} else {` at a deeper indent must not be read as the binding's own. Two more arrived the
+same way -- a `let` line merely CONTAINING `if `, and a one-line if/else, which opens
+nothing and whose acceptance would let the walk run past it onto an unrelated pair.
+**7 of 7 after that, 10 tests.**
+
+**A fixture written from memory failed five of seven tests.** A fetch site here is a line
+whose whole trimmed content is `"--limit",` -- one argument per line -- and I had written
+the flag and its value inline. Read the matcher, then write the fixture.
