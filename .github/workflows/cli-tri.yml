@@ -160,6 +160,14 @@ jobs:
       - name: No census moved without saying so
         run: ./target/debug/tri census pin --gate
 
+      # `cargo test` cannot report this: a test that lost its `#[test]` and one
+      # that gained a second CANCEL in the total, so the suite count is
+      # unchanged and green. Commit f7c1ff5 shipped exactly that pair -- one
+      # test stopped running, another was registered twice -- and the pass that
+      # wrote it verified "11 attributes against 11 functions" and read a match.
+      - name: Every test runs, and runs once
+        run: ./target/debug/tri gates tests --gate
+
       - name: the CLI actually produces a report
         run: |
           set -uo pipefail

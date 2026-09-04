@@ -15114,3 +15114,150 @@ returned **1**, because `now_gate` runs `git rev-parse` first and errors there. 
 unreachable through this command, so it is written as ordinary defence and the comment
 says it is not a control. **A guard clause you have not executed is a comment, and a
 comment claiming to be a control is worse than no comment.**
+
+## 540. A dead test and a phantom test cancel in every total
+
+&sect;535 was shipped as `f7c1ff5`. It carried two defects into master, and the pass that wrote it
+verified their absence and read a clean answer.
+
+The insert anchored on `fn the_query_and_the_marker_read_one_constant() {`. That line's `#[test]`
+sits ABOVE it, so the new text landed **between the attribute and the function it belonged to**:
+the newcomer inherited the attribute and got a second of its own, and the neighbour was left with
+none. Measured on `f7c1ff5`:
+
+* `the_query_and_the_marker_read_one_constant` -- **does not run.** `cargo test <name>` returns
+  `0 passed; 685 filtered out`.
+* `the_freshness_boundary_is_pinned_on_both_sides` -- **runs twice.** `cargo test -- --list` prints
+  it on two consecutive lines.
+
+**The check that missed it counted totals.** The pass printed `#[test] attrs: 11   fn defs: 11`, saw
+a match, and moved on. But one function holding two attributes and one holding none leaves BOTH
+totals unchanged. So does the suite size: the phantom fills the seat the dead test left, which is
+why `675` looked exactly right. **Two errors that cancel are invisible to every instrument that
+sums.** Only per-function pairing sees them, and that is the whole design of the new gate.
+
+**Shipped: `tri gates tests`** (`--gate` for exit 1), wired into `cli-tri.yml`. Two rules:
+
+1. a test attribute followed by another test attribute, stepping over doc comments -- the accident
+   routinely leaves one above the newcomer's prose and one below;
+2. a function inside a `#[cfg(test)]` module with no test attribute, containing an assertion, and
+   named nowhere else in the file.
+
+**Rule 2's discriminator is the reference count, not the assertion.** A helper exists to be called,
+so its name appears at least twice; a test that lost its attribute is called by nobody and appears
+exactly once. An earlier attempt at this class by assertion alone returned 18 candidates of which 16
+were helpers. Measured across all 57 files of `cli/`: rule 1 finds exactly 1, rule 2 exactly 1, both
+real, and the three assert-bearing fixtures in test modules are correctly silent. Positive control:
+exit 1 against `f7c1ff5`'s tree, exit 0 against the repaired one.
+
+### The gate reproduced its own subject four times while being written
+
+Every one of these was caught by a test or by an existing comment, not by review.
+
+* **It matched itself.** The first structural test searched `include_str!("red.rs")` for the very
+  string it contained as a literal. The mutation it existed to catch changes the real call site --
+  at which point `find` falls through to the test's own body and the test passes. Fixed by slicing
+  the source at `#[cfg(test)]` and searching only the half above. See &sect;'s census-counted-itself.
+* **The instrument was already in the file.** `orphaned_tests` first took "everything after the
+  first `#[cfg(test)]`" as the test module. Forty lines above it sat `test_module_lines`, whose own
+  doc comment says that approach was *checked rather than assumed* and is wrong.
+  **That comment records "five files, `gates.rs` fifteen"; measuring it today gives nine files and
+  `gates.rs` sixty-eight.** The two rules are not the same -- mine counts every top-level function
+  after the FIRST test module closes, and a file with several test modules has many -- and the crate
+  has also grown since the comment was written. Both numbers say the same load-bearing thing, and I
+  am recording the disagreement rather than repeating a figure I had not measured. **A borrowed
+  number is still a number you published.**
+* **Two blind spots that cancelled.** The check recognised only `#[test]`, and matched only `fn `.
+  So the thirteen `#[tokio::test]` functions in `cli/trios-bridge` were invisible in BOTH directions
+  -- the attribute unrecognised and the `async fn` under it unrecognised -- and read as clean. The
+  gate had, in miniature, exactly the cancelling-pair defect it was written to find.
+* **Substring, not token.** The reference count used `str::matches`, so a function named `a` is
+  "referenced" by every `assert`, `match` and `pat` in the file. Its own test caught it: an orphaned
+  `async fn a()` was reported as a called helper. Now counts whole identifiers.
+
+## 541. `never green` is a different finding from `red`, and it was the majority
+
+&sect;535 counted the fifty red workflows in `gHashTag/trinity-fpga` by history and found that **44 of
+them had never once succeeded**. `tri red` could not say so: it asked for the last success only when
+the streak read was truncated, which is a question about **whether the page was full**, not about
+whether the thing ever worked. 43 of the 50 rows read `1 in a row`, so the majority were never asked.
+
+`last_pass` is now requested for every red row. It costs one extra request per red workflow -- 50 on
+top of a 405-workflow listing and its per-workflow streak reads, about 11% -- and it buys the
+distinction between a regression and a file that never worked:
+
+```
+50 workflow(s) red on the default branch -- 3 of them in the last 7 days, and 44 have never once been green.
+    1 in a row  last run 2026-07-10T03:15  since 2026-07-10T03:15, never green on main   AX7203 Corona Compute ...
+```
+
+**The row names the branch, because the population depends on it.** Runs are read with `branch=`, so
+"no success" is a claim scoped to that branch and not the same set as "no success anywhere". On
+`trinity-fpga` the two coincided -- all six regressions have successes on `main` as well as
+elsewhere -- and that is a fact about that repository, not about the question. A row that does not
+name its branch asserts something wider than it measured.
+
+The mutation that reverts `last_pass` to the old guard is invisible to every value-level test,
+because the difference is a request that is or is not made. It survived until a structural test read
+the call site.
+
+## 542. The gate said every mutant survived, and no mutant had been built
+
+A fan-out over the whole `tri` CLI, hunting &sect;535's class -- **a printed count whose label names a
+different population than the code counts** -- returned 10 candidates and 8 survived adversarial
+refutation. The strongest was in `gates.rs`, in the command whose entire subject is whether a claim
+was actually tested.
+
+`tri gates mutate` reports on `# mutant-equivalent:` markers, comments asserting that the mutant at
+some line cannot die. It printed:
+
+```
+N equivalence claim(s) in scope, none contradicted.
+Each says its mutant cannot die, and each mutant survived. That is
+the whole check -- a claim about the FUTURE of the code is worth
+only the run that could have refuted it and did not.
+```
+
+**`claims_seen` counted every marker in the file, textually, outside the per-direction loop.**
+`claims_broken`, its numerator, came from `contradicted_claims`, which drops any claimed line that is
+not a mutable site in the direction being run. Two populations, one sentence.
+
+**Measured, all eight markers in `tools/`:**
+
+| marker | binds to | a `silent` site? |
+|---|---|---|
+| `gft_backprop_microcode.py:210` | `if d >= 26: la = 0; sticky = 1` | no |
+| `gft_backprop_microcode.py:732` | an `assert` | no |
+| `verify_emit_bitexact.py:238` | a `def` | no |
+| `verify_exhaustive.py:177` | an assignment | no |
+| `verify_igla_race.py:37` | an assignment | no |
+| `verify_multitarget.py:40` | an assignment | no |
+| `verify_trainer_c.py:36` | an assignment | no |
+| `wp18_conformance_gate.py:453` | `roundtrip_ok = (math.isinf(dec) and ...)` | no |
+
+The default operator is `silent`, whose sites are `return <1..4>` lines only. **Not one of the eight
+is reachable by it.** So on every default run the command counted all of them "in scope" and printed
+*each mutant survived* -- while zero mutants had been built at any of them. The sentence directly
+below the number says a claim is worth only the run that could have refuted it. **That run could
+not, and the count was what hid it.**
+
+**The refutation was already in the file, one comment above the defect.** The block explaining
+`claims_seen` says the markers are *not* operator-scoped and that "every one in the tree today argues
+about a comparison". That is exactly the fact that makes the number wrong. It was written down, and
+the next line was written anyway -- an observation recorded and not carried one step further.
+
+**Shipped.** Claims are partitioned against the union of sites across the operators actually run.
+In-scope claims keep the survivor sentence; out-of-scope claims get their own paragraph naming each
+one and saying no mutant was built there. Verified live on `wp18_conformance_gate.py`: default run
+now prints `1 claim(s) NOT TESTED by this run` and `No claim was in scope`, and the same gate under
+`--boundary` prints `1 equivalence claim(s) in scope, none contradicted` -- truthfully, because that
+operator does build a mutant at line 469.
+
+**The mutant that survived was the CALL SITE, not the helper.** `claims_by_scope` is covered three
+ways, and reverting `claims_seen += in_scope.len()` to add both halves restores the original defect
+with every one of those tests still green. It took a structural test reading the call site -- the
+same gap, in the same pass, as the `last_pass` guard in &sect;541. **A fix's wiring is not covered by
+its function's tests, and mutation is the only thing that says so.**
+
+The needle in that structural test is split across two literals, because the first such test written
+this pass searched the file for a string it also contained, and passed against its own mutant.
