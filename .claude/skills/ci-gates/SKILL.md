@@ -15576,3 +15576,156 @@ while it was open, and the poller caught up exactly twice** -- one full round of
 checks each. So the rule holds and the window RECURS: the tax is one reset per neighbouring
 landing, not one per pull request. That is an argument for a merge queue rather than for a
 cleverer catch-up.
+
+
+## 549. The tool that finds unchecked constants was counting its own tests
+
+&sect;546 found that my ad-hoc mutation harness edited test code along with production code and
+reported a false `killed`. The obvious next question was how far that reached. It reaches the shipped
+tool.
+
+`tri mutate run` perturbs every integer literal in a file and asks whether the checker notices. Its
+`find_mutants` masks comments and string bodies **and nothing else** -- there is no test-module
+filter. So a literal inside `#[cfg(test)]` is perturbed like any other, the test holding it fails,
+and that red is reported as the checker NOTICING.
+
+**Measured by the tool itself, with `--cmd true` so every mutant survives and it simply lists its
+sites:**
+
+| file | sites the tool finds | inside `#[cfg(test)]` | |
+|---|---|---|---|
+| `red.rs` | 59 | **45** | 76% |
+| whole crate (simulated) | 3198 | **1545** | 48% |
+
+**Reproduced end to end rather than inferred.** `red.rs:826` is `let h = render_headline(50, 3, 44, 7);`
+inside a test. Perturbing that `50` to `51` fails the suite. `tri mutate run` would call that a killed
+mutant -- over a number that exists only in a test, in a tool whose entire subject is *constants
+nothing actually checks*.
+
+**Shipped.** Sites inside a Rust `#[cfg(test)]` module are dropped, by the same
+`gates::test_module_lines` rule used elsewhere, and **the number dropped is printed**:
+
+```
+  45 literal(s) skipped: they sit inside a `#[cfg(test)]` module.
+  Perturbing a test's own arithmetic fails that test, and reporting it as
+  `the checker noticed` says nothing about the code under test.
+
+  14 literal(s) in cli/tri/src/red.rs, one mutation each.
+```
+
+A population that shrinks without saying so is the defect one level up from the one this fixes.
+`.rs` only: the tool deliberately runs on Python, Verilog and YAML, none of which have
+`#[cfg(test)]`, and `diffbin.py` still reports all 61 of its literals with no skip line.
+
+### The harness refused four mutants, and was right to
+
+Running the four mutants against this change, `mutate-production` refused all four:
+`ANCHOR ABSENT FROM PRODUCTION CODE (1 occurrence in tests)`. The production sites were plainly
+there. **The harness cut the file at the first textual occurrence of `#[cfg(test)]`, and the new doc
+comment MENTIONS `#[cfg(test)]` in prose forty lines above the real module** -- so everything below
+that sentence read as test code.
+
+A matcher matching prose, in the tool written to stop a matcher matching the wrong half. Fixed: the
+boundary is a line that IS the attribute, at column zero -- the rule `test_module_lines` already uses.
+
+**It cost nothing because the refusal was loud.** It printed
+`Nothing mutated -- do not read this as a surviving mutant` rather than a silent zero, so four
+"survivors" were never believed. That is &sect;536's rule paying for itself: give every miss a loud,
+distinguishable value.
+
+### Five passes, five surviving mutants, every one the wiring
+
+`last_pass` (red.rs) &middot; `claims_seen` (gates.rs) &middot; `single_digit_only` (issues.rs)
+&middot; both print sites (competitors.rs) &middot; and here, `drop_test_module_sites` never called.
+**This is the first one I went looking for before running it, and it was there.** The pattern is not
+about any of these functions. It is about where attention goes when a fix is written: into the thing
+being fixed, never into the line that reaches it.
+
+## 550. I hand-wrote the resolver six times, and the tool for it already existed
+
+Six consecutive passes have ended with the same conflict in this file and a fresh throwaway Python
+script to resolve it. **Measured on `gHashTag/t27`: 172 of the 281 commits on master since
+2026-08-29 touch `SKILL.md` -- 61%** -- and it grew from 257 sections to 510 in seven days. A branch
+that lives minutes conflicts.
+
+`tri skill renumber` has existed the whole time. "Move sections you appended to the numbers the base
+branch left free", `--base`, `--check`, `--first`. That is the operation, and I wrote it by hand six
+times without looking. This is the fourth entry in this file about rewriting a tool the repository
+already had.
+
+### And it was wrong on exactly the case I kept hitting
+
+Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge base `013b829`:
+
+```
+  appended here           2
+  tail identified by      byte prefix of the merge base
+      546  ->  547
+      547  ->  548
+```
+
+and the file it wrote contained:
+
+```
+
+## 551. It deleted a section while its count guard passed
+
+The fix in &sect;550 was run on the branch that carried it, and it destroyed one of that branch's own
+sections. The command said:
+
+```text
+Written. 513 section(s); no number is used twice.
+```
+
+and &sect;550 -- *"I hand-wrote the resolver six times"* -- was gone, replaced by a second copy of the
+section before it.
+
+**Cause.** &sect;550 quotes three `## N.` heading lines inside a fenced block, as the evidence for the
+duplicate it is about. `skillnum::sections` counts every line beginning `## N. `, fenced or not, so
+those three were parsed as real sections. `tail_by_title` cut the tail at the last "shared" title --
+one of the quoted ones -- and the rebuild dropped the real section while the quoted headings filled
+its seats.
+
+**The section that documents a duplication was the one whose evidence caused a duplication.**
+
+### A total cannot see a substitution
+
+The command already had a guard, and it passed:
+
+```rust
+let expected = sections(&at_base).len() + sections(tail).len();
+if secs.len() != expected { bail!(...) }
+```
+
+Three quoted headings went in, one real section came out, and the arithmetic was satisfied. This is
+&sect;540 -- a dead test and a phantom test cancelling in every total -- one level up, in the tool
+rather than in a report. **Two errors that cancel are invisible to every instrument that sums, and
+that is as true of a guard as of a count.**
+
+Guarding on the SET of titles instead:
+
+```text
+Error: the rebuild would DROP 1 section(s) that are on disk now:
+    I hand-wrote the resolver six times, and the tool for it already existed
+  Nothing was written.
+```
+
+Renumbering is invisible to it by construction: every number changes and no title does. **This is the
+guard every hand-written resolver in this loop already had, and the shipped command did not** -- which
+is the second half of &sect;550's lesson. The tool I should have been using was both better than my
+script (it exists, it is tested, it has a `--check`) and worse (it lacked the one guard I wrote every
+single time), and I could only learn that by reading it.
+
+### Stated, not fixed
+
+`skillnum::sections` still counts headings inside fenced blocks. Fence parity is not currently a
+reliable way to skip them: the file carries an **odd** number of ``` markers on master (301) and on
+every recent commit, so a parity walk puts three quarters of the file "inside" a block. The guard
+makes the parser's blindness non-destructive, which is what matters today; the parser itself is a
+separate finding and is recorded here rather than half-fixed.
+
+### Seven passes, seven surviving mutants, all wiring
+
+`titles_lost` is covered two ways and replacing its call with an empty `Vec` leaves both green.
+Second one predicted before running it. The rule is now explicit: **after extracting a helper, mutate
+the line that calls it before writing a single test for the helper.**

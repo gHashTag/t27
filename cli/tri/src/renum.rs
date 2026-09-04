@@ -126,6 +126,48 @@ fn replace_ref(text: &str, marker: &str, old: usize, new: usize) -> String {
 /// however its body was reworded; everything after the LAST such section is what
 /// this branch added. Returns `None` when no section is shared, which would mean
 /// the two files have nothing to do with each other.
+/// Whether every section in `tail` is genuinely absent from `at_base`.
+///
+/// A byte-prefix tail is everything appended since the merge base, and that is
+/// wrong the moment a SIBLING branch of yours lands part of it on the base: a
+/// squash merge puts the section on `base` under a new commit, the same content
+/// sits on both sides, and rebuilding as `at_base + tail` emits it twice.
+///
+/// Reproduced on this repository, 2026-09-05: branch tip 2ded340a against master
+/// 747e4a1, merge base 013b829. `appended here 2`, moves 546 -> 547 and
+/// 547 -> 548, and the output carried two sections with the same title, because
+/// #3199 had squash-merged the first of them onto master while the branch was
+/// open.
+/// Titles present in `before` and absent from `after`, sorted.
+///
+/// By TITLE and not by count: a count guard passed while this command deleted a
+/// section, because three heading lines quoted inside a fenced code block were
+/// parsed as sections and made the arithmetic come out right.
+pub fn titles_lost(before: &str, after: &str) -> Vec<String> {
+    let have: std::collections::BTreeSet<String> = crate::skillnum::sections(after)
+        .into_iter()
+        .map(|(_, t)| t)
+        .collect();
+    let mut lost: Vec<String> = crate::skillnum::sections(before)
+        .into_iter()
+        .map(|(_, t)| t)
+        .filter(|t| !have.contains(t))
+        .collect();
+    lost.sort();
+    lost.dedup();
+    lost
+}
+
+pub fn tail_is_new(tail: &str, at_base: &str) -> bool {
+    let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
+        .into_iter()
+        .map(|(_, t)| t)
+        .collect();
+    !crate::skillnum::sections(tail)
+        .into_iter()
+        .any(|(_, t)| base_titles.contains(&t))
+}
+
 pub fn tail_by_title<'a>(at_base: &str, mine: &'a str) -> Option<&'a str> {
     let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
         .into_iter()
@@ -219,13 +261,34 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
     let at_base = show(base, file, &root)?;
     let mine = std::fs::read_to_string(root.join(file))?;
 
-    let (tail, how) = match appended_tail(&at_mb, &mine) {
+    // The byte-prefix tail is everything appended since the merge base -- which
+    // is wrong the moment a SIBLING branch of yours lands part of that tail on
+    // the base. A squash merge puts the section on `base` under a new commit, so
+    // the same content sits on both sides, and rebuilding as `at_base + tail`
+    // emits it twice.
+    //
+    // Reproduced on this repository, 2026-09-05: branch tip 2ded340a against
+    // master 747e4a1, merge base 013b829. The tool reported `appended here 2`
+    // and moved 546 -> 547, 547 -> 548, producing
+    //
+    //     ## 546. A mutation that also edits the test is not a mutation test
+    //     ## 547. A mutation that also edits the test is not a mutation test
+    //     ## 548. The tool that finds unchecked constants was counting its own tests
+    //
+    // because #3199 had squash-merged that first section onto master while this
+    // branch was open. `tail_by_title` -- already here for the case where the
+    // merge base is not a prefix -- answers exactly this, so the byte-prefix
+    // tail is accepted only when it shares no title with the base.
+    let prefix_tail = appended_tail(&at_mb, &mine).filter(|t| tail_is_new(t, &at_base));
+    let (tail, how) = match prefix_tail {
         Some(t) => (Some(t), "byte prefix of the merge base"),
         None => (
             tail_by_title(&at_base, &mine),
-            "TITLES shared with the base -- the merge base is not a prefix, which\n  \
-             happens when the base edited an existing section while this branch\n  \
-             was open",
+            "TITLES shared with the base -- either the merge base is not a prefix\n  \
+             (the base edited an existing section while this branch was open), or\n  \
+             the appended tail carries a section the base ALREADY HAS, which is\n  \
+             what a sibling branch of yours squash-merging does. Renumbering that\n  \
+             tail by position would emit it twice.",
         ),
     };
     let Some(tail) = tail else {
@@ -301,6 +364,26 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
             crate::skillnum::sections(tail).len()
         );
     }
+    // The count guard above is a TOTAL, and a total cannot see a substitution.
+    // It passed on 2026-09-05 while this command deleted a section: SKILL 548
+    // quotes three `## N.` heading lines inside a fenced block as evidence, the
+    // section parser counts every line that starts `## N. ` whether fenced or
+    // not, and those three made the arithmetic come out right while the real
+    // section they were quoting was dropped. Numbers matched; content did not.
+    //
+    // So the guard that matters is the SET of titles, which is the guard every
+    // hand-written resolver in this loop had and this command did not.
+    let lost = titles_lost(&mine, &out);
+    if !lost.is_empty() {
+        bail!(
+            "the rebuild would DROP {} section(s) that are on disk now:\n    {}\n  \
+             Nothing was written. The section count came out right, which is why \
+             the count guard above did not stop it -- a total cannot see a \
+             substitution. Resolve this file by hand.",
+            lost.len(),
+            lost.join("\n    ")
+        );
+    }
     let problems = crate::skillnum::problems(&secs);
     std::fs::write(root.join(file), &out)?;
     println!("  Written. {} section(s); {}", secs.len(), if problems.is_empty() {
@@ -317,6 +400,166 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A sibling branch of yours squash-merging is the case the byte-prefix tail
+    /// cannot see. Reproduced on this repository, 2026-09-05: branch tip
+    /// 2ded340a against master 747e4a1, merge base 013b829. The tool reported
+    /// `appended here 2` and produced two sections with the SAME title, because
+    /// #3199 had landed the first of them on master while the branch was open.
+    #[test]
+    fn a_tail_the_base_already_carries_is_not_an_append() {
+        let at_mb = "## 1. A\n\nbody a\n";
+        // The base gained B -- which is also sitting in this branch's tail,
+        // because it came from a sibling PR of the same author.
+        let at_base = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        let mine = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n\n## 3. C\n\nbody c\n";
+
+        // The byte-prefix tail sees both B and C as appended here.
+        let raw = appended_tail(at_mb, mine).expect("mb is a prefix of mine");
+        assert_eq!(
+            crate::skillnum::sections(raw).len(),
+            2,
+            "B and C both look appended, and rebuilding on the base would emit B twice"
+        );
+
+        // By title, only C is genuinely new.
+        let by_title = tail_by_title(at_base, mine).expect("a shared title exists");
+        let secs = crate::skillnum::sections(by_title);
+        assert_eq!(secs.len(), 1, "only C is new: {secs:?}");
+        assert_eq!(secs[0].1, "C");
+    }
+
+    /// `titles_lost` can be right while `run` never consults it, and the write
+    /// goes ahead. SEVENTH change in seven passes whose surviving mutant was
+    /// the wiring rather than the function -- and the second one predicted
+    /// before it was run.
+    #[test]
+    fn run_refuses_the_write_when_a_title_would_be_lost() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let lost = titles_", "lost(&mine, &out);");
+        assert!(code.contains(call), "the guard has to be consulted before the write");
+        let refuses = concat!("if !lost.is_", "empty() {");
+        assert!(
+            code.contains(refuses),
+            "and a non-empty answer has to stop the write, not merely be printed"
+        );
+        let write = code.find("std::fs::write(root.join(file)").expect("the write is here");
+        assert!(
+            code.find(call).unwrap() < write,
+            "the guard must run BEFORE the write, or it reports a loss already on disk"
+        );
+    }
+
+    /// A count is a total, and a total cannot see a substitution.
+    ///
+    /// On 2026-09-05 this command deleted a section while its count guard
+    /// passed. SKILL 548 quotes three `## N.` heading lines inside a fenced
+    /// block as evidence; the parser counts every line starting `## N. `
+    /// whether fenced or not, so those three filled the seats of the real
+    /// section that was dropped. The arithmetic was right and the content was
+    /// gone.
+    #[test]
+    fn a_lost_title_is_named_even_when_the_count_matches() {
+        let before = "## 1. A\n\n## 2. B\n\n## 3. C\n";
+        // Same number of sections; B has been replaced by a second copy of A.
+        let after = "## 1. A\n\n## 2. A\n\n## 3. C\n";
+        assert_eq!(
+            crate::skillnum::sections(before).len(),
+            crate::skillnum::sections(after).len(),
+            "the totals agree, which is exactly why a count guard let this through"
+        );
+        assert_eq!(
+            titles_lost(before, after),
+            vec!["B".to_string()],
+            "and the set says what the count could not"
+        );
+    }
+
+    #[test]
+    fn nothing_lost_is_an_empty_list_not_a_zero() {
+        let before = "## 1. A\n\n## 2. B\n";
+        let after = "## 1. A\n\n## 2. B\n\n## 3. C\n";
+        assert!(
+            titles_lost(before, after).is_empty(),
+            "adding C loses nothing, and a renumber that only appends must be allowed"
+        );
+        // Renumbering alone must never register as a loss: the guard is on
+        // TITLES precisely so that moving 547 -> 548 is invisible to it.
+        let moved = "## 41. A\n\n## 42. B\n";
+        assert!(
+            titles_lost(before, moved).is_empty(),
+            "the numbers all changed and not one title did"
+        );
+    }
+
+    /// The predicate that decides whether the byte-prefix tail may be trusted.
+    #[test]
+    fn a_tail_is_new_only_when_the_base_has_none_of_it() {
+        let base = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        assert!(
+            tail_is_new("## 3. C\n\nbody c\n", base),
+            "C is nowhere on the base, so the byte-prefix tail is the precise answer"
+        );
+        assert!(
+            !tail_is_new("## 2. B\n\nbody b\n\n## 3. C\n\nbody c\n", base),
+            "B is ALREADY on the base -- renumbering this tail by position emits it twice"
+        );
+        assert!(
+            !tail_is_new("## 9. B\n\nbody b\n", base),
+            "the match is by TITLE, not by number: a renumbered duplicate is still a duplicate"
+        );
+        assert!(
+            tail_is_new("", base),
+            "an empty tail carries nothing the base could already have"
+        );
+    }
+
+    /// `tail_is_new` can be right while `run` never consults it. Dropping the
+    /// `.filter(...)` restores the defect with every test above still green.
+    ///
+    /// SIXTH change in six passes whose surviving mutant was the wiring rather
+    /// than the function. The needle is split across two literals so this test's
+    /// own body does not contain the string it searches for.
+    #[test]
+    fn run_actually_filters_the_byte_prefix_tail() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let guarded = concat!(".filter(|t| ", "tail_is_new(t, &at_base))");
+        assert!(
+            code.contains(guarded),
+            "without this the byte-prefix tail is trusted even when the base \
+             already carries part of it, and the rebuild emits a section twice"
+        );
+    }
+
+    /// The ordinary case must not change: with no overlap the byte-prefix tail
+    /// is still the precise answer, and it is the one that keeps a base-side
+    /// rewording of an EXISTING section from being silently discarded.
+    #[test]
+    fn a_clean_append_still_uses_the_byte_prefix() {
+        let at_mb = "## 1. A\n\nbody a\n";
+        let at_base = "## 1. A\n\nbody a\n";
+        let mine = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        let raw = appended_tail(at_mb, mine).expect("mb is a prefix");
+        let base_titles: std::collections::BTreeSet<String> =
+            crate::skillnum::sections(at_base)
+                .into_iter()
+                .map(|(_, t)| t)
+                .collect();
+        let overlaps = crate::skillnum::sections(raw)
+            .into_iter()
+            .any(|(_, t)| base_titles.contains(&t));
+        assert!(!overlaps, "nothing in the tail is on the base, so the prefix stands");
+    }
 
     const BASE: &str = "intro\n\n## 10. Ten\n\nbody ten\n";
 
