@@ -212,7 +212,8 @@ pub enum GatesCmd {
 
     /// List active workflows whose lifetime success count is zero.
     Dead {
-        /// owner/repo, repeatable. Defaults to the three this fleet uses.
+        /// owner/repo, repeatable. Defaults to `fleet_repos()` -- one list, because
+        /// there were two and they disagreed by one repository.
         #[arg(long = "repo")]
         repos: Vec<String>,
         /// Ignore workflows with fewer lifetime runs than this, so a new or
@@ -2913,10 +2914,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
         GatesCmd::Required { repo } => required(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
-                ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect()
+                fleet_repos()
             } else {
                 repos.clone()
             };
@@ -2948,6 +2946,73 @@ fn count(repo: &str, id: &str, success_only: bool) -> Result<u64> {
     };
     let s = gh(&["api", &path, "--jq", ".total_count"])?;
     Ok(s.parse().unwrap_or(0))
+}
+
+/// Job counts of this workflow's newest runs, newest first.
+///
+/// One extra request per sampled run, and only for the rows the report actually prints
+/// -- the fifteen, not every workflow -- so the cost is bounded by the finding rather
+/// than by the fleet. Measured on t27 alone: 109 s before, 114 s after.
+///
+/// `tri gates fetches` files this site under *asks whether the page filled*, and that is
+/// a FALSE POSITIVE of the same family as `red.rs`'s `runs_url`: the classifier looks for
+/// `total_count` anywhere in the body, and here that string is a **jq path** to a job
+/// count, not a check on this read's own page. What this really is has no bucket yet --
+/// a DECLARED SAMPLE, where the page size is the caller's own parameter (`sample`), so a
+/// full page is not a truncated census but exactly what was asked for. Named here rather
+/// than special-cased, because a matcher with an exception list stops describing its
+/// subject.
+fn newest_run_job_counts(repo: &str, id: &str, sample: usize) -> Vec<u64> {
+    let listing = match gh(&[
+        "api",
+        &format!("repos/{repo}/actions/workflows/{id}/runs?per_page={sample}"),
+        "--jq",
+        ".workflow_runs[].id",
+    ]) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    listing
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|run| {
+            gh(&[
+                "api",
+                &format!("repos/{repo}/actions/runs/{}/jobs", run.trim()),
+                "--jq",
+                ".total_count",
+            ])
+            .ok()
+            .and_then(|s| s.trim().parse::<u64>().ok())
+        })
+        .collect()
+}
+
+/// Did this workflow ever get as far as ALLOCATING a job?
+///
+/// A run that allocates zero jobs is a **startup failure** -- invalid YAML, a trigger the
+/// file does not declare, a registration for a file that is gone. It is recorded as a
+/// failed run and it never executed a line, which is a different fact from "ran and
+/// failed" and wants the opposite repair: one is a broken workflow FILE, the other a
+/// broken CHECK.
+///
+/// Measured 2026-09-04 on this repository's own three dead workflows, and the third is
+/// the control that says the probe distinguishes anything:
+///
+/// ```text
+/// auto-merge-ready-prs.yml   1541 runs   0 jobs in 8 of 8 sampled   never executed
+/// format-check.yml             31 runs   0 jobs in 8 of 8 sampled   never executed
+/// coq-proofs.yml               62 runs   1 job  in 8 of 8 sampled   ran and failed
+/// ```
+///
+/// `None` when nothing was sampled: no run to look at is not evidence of either, and a
+/// probe that cannot see must not vote. Same rule as everywhere else here -- "cannot
+/// check" is not "absent".
+pub fn never_executed(jobs_seen: &[u64]) -> Option<bool> {
+    if jobs_seen.is_empty() {
+        return None;
+    }
+    Some(jobs_seen.iter().all(|n| *n == 0))
 }
 
 /// Is a zero success count over `total` lifetime runs too thin to mean
@@ -3695,13 +3760,13 @@ pub fn classify(on_disk: bool, total: u64, min_runs: u64) -> Bucket {
 }
 
 fn dead(repos: &[String], min_runs: u64) -> Result<()> {
-    let mut rows: Vec<(String, String, u64)> = Vec::new();
-    let mut deleted: Vec<(String, String, u64)> = Vec::new();
+    let mut rows: Vec<(String, String, u64, String)> = Vec::new();
+    let mut deleted: Vec<(String, String, u64, String)> = Vec::new();
     // Every workflow the threshold hid, so a bounded report never reads as a
     // complete one. `brain-seal-refresh.yml` fails structurally -- its last step
     // is a `git push` this repository's own ruleset rejects -- and has 8 lifetime
     // runs, so the shipped floor of 50 suppresses it entirely.
-    let mut suppressed: Vec<(String, String, u64)> = Vec::new();
+    let mut suppressed: Vec<(String, String, u64, String)> = Vec::new();
     let single_repo = repos.len() == 1;
     for repo in repos {
         let listing = workflow_listing(
@@ -3722,7 +3787,7 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
             // The path check only means anything for the repository we are standing
             // in; for any other repo in the list, take the API at its word.
             let on_disk = !single_repo || workflow_file_present(path);
-            let row = (repo.clone(), name.to_string(), total);
+            let row = (repo.clone(), name.to_string(), total, id.to_string());
             match classify(on_disk, total, min_runs) {
                 Bucket::Deleted => deleted.push(row),
                 Bucket::Suppressed => suppressed.push(row),
@@ -3746,15 +3811,35 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
         rows.len(),
         total
     );
-    for (repo, name, runs) in &rows {
-        let short: String = name.chars().take(44).collect();
-        println!("  {runs:>6}  {repo:<22} {short}");
+    let mut never_ran = 0usize;
+    for (repo, name, runs, id) in &rows {
+        let short: String = name.chars().take(38).collect();
+        // Ask the newest runs whether a job was ever allocated. A run with zero jobs
+        // is a startup failure: recorded as failed, never executed a line.
+        let mark = match never_executed(&newest_run_job_counts(repo, id, 3)) {
+            Some(true) => {
+                never_ran += 1;
+                "  NEVER EXECUTED"
+            }
+            Some(false) => "  ran and failed",
+            None => "  no run sampled",
+        };
+        println!("  {runs:>6}  {repo:<22} {short:<38}{mark}");
     }
     println!();
     println!("A gate that has never been green carries no information: red before");
     println!("your change and red after it. Decide per workflow — fix it, make it");
     println!("workflow_dispatch only, or delete it. Leaving it red is the one");
     println!("option that costs every other gate in the repository.");
+    if never_ran > 0 {
+        println!();
+        println!("{never_ran} of them NEVER EXECUTED: every sampled run allocated zero");
+        println!("jobs, which is a startup failure -- invalid YAML, a trigger the file");
+        println!("does not declare, or a registration for a file that is gone. Recorded");
+        println!("as a failed run, and it never executed a line. That is a broken");
+        println!("workflow FILE and wants a different repair from a broken CHECK, so the");
+        println!("two are no longer printed as one row.");
+    }
     report_suppressed_and_deleted(&suppressed, &deleted, min_runs);
     Ok(())
 }
@@ -3763,8 +3848,8 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
 /// a complete one, and the four workflows below the shipped floor include the two
 /// whose failure is structural rather than situational.
 fn report_suppressed_and_deleted(
-    suppressed: &[(String, String, u64)],
-    deleted: &[(String, String, u64)],
+    suppressed: &[(String, String, u64, String)],
+    deleted: &[(String, String, u64, String)],
     min_runs: u64,
 ) {
     if !suppressed.is_empty() {
@@ -3773,7 +3858,7 @@ fn report_suppressed_and_deleted(
             "{} more have never succeeded but fall under --min-runs {min_runs}:",
             suppressed.len()
         );
-        for (repo, name, runs) in suppressed {
+        for (repo, name, runs, _) in suppressed {
             let short: String = name.chars().take(44).collect();
             println!("  {runs:>6}  {repo:<22} {short}");
         }
@@ -3788,7 +3873,7 @@ fn report_suppressed_and_deleted(
             deleted.len()
         );
         println!("history, not a gate, and nothing to fix:");
-        for (repo, name, runs) in deleted {
+        for (repo, name, runs, _) in deleted {
             let short: String = name.chars().take(44).collect();
             println!("  {runs:>6}  {repo:<22} {short}");
         }
@@ -6012,6 +6097,32 @@ pub fn required_contexts(slug: &str) -> Result<Vec<String>> {
         .collect())
 }
 
+/// The repositories this fleet watches.
+///
+/// One list, because there were two. `gates dead` defaulted to three and `red now` to
+/// four, both doc comments calling it "the three/four this fleet uses" -- so the same
+/// word named two different sets and nothing said which was right. The omitted one was
+/// `gHashTag/ghashtag.github.io`, and the cost of the divergence was measured before it
+/// was closed rather than asserted: that repository has **no** workflow with a file and
+/// >= 50 runs at a zero success count, so the gap hid nothing today, and reading it adds
+/// **7 seconds**. A silent divergence that costs nothing today is still a divergence:
+/// the next dead workflow there would have been invisible to the command whose entire
+/// subject is dead workflows.
+///
+/// Extracted for the reason `required_contexts` states one screen above: a second caller
+/// must not become a second literal of the same query.
+pub fn fleet_repos() -> Vec<String> {
+    [
+        "gHashTag/trinity",
+        "gHashTag/ghashtag.github.io",
+        "gHashTag/trinity-fpga",
+        "gHashTag/t27",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
+}
+
 pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
     if call.contains("--paginate") {
         return Fetch::Paginated;
@@ -6533,6 +6644,68 @@ mod fetch_census_tests {
     fn an_indented_fn_is_not_a_top_level_one() {
         let src = "fn a() {\n    fn inner() {}\n    x\n}\n";
         assert_eq!(fn_spans(src), vec![("a".to_string(), 1, 4)]);
+    }
+}
+
+#[cfg(test)]
+mod never_executed_tests {
+    use super::*;
+
+    #[test]
+    fn all_zero_is_never_executed() {
+        // auto-merge-ready-prs.yml: 1541 runs, 0 jobs in every sample.
+        assert_eq!(never_executed(&[0, 0, 0, 0, 0, 0, 0, 0]), Some(true));
+    }
+
+    #[test]
+    fn one_job_anywhere_means_it_ran() {
+        // coq-proofs.yml is the control: same command, non-zero jobs.
+        assert_eq!(never_executed(&[1, 1, 1]), Some(false));
+        // And one execution among startup failures still means it ran.
+        assert_eq!(never_executed(&[0, 0, 1]), Some(false));
+    }
+
+    #[test]
+    fn no_sample_votes_for_neither() {
+        // A probe that saw nothing must not read as "never executed": that is the
+        // "cannot check is not absent" rule, and here it would accuse a workflow of a
+        // defect on the strength of an empty listing.
+        assert_eq!(never_executed(&[]), None);
+    }
+}
+
+#[cfg(test)]
+mod fleet_tests {
+    use super::*;
+
+    #[test]
+    fn the_fleet_is_one_list_and_holds_the_repository_that_was_missing() {
+        let f = fleet_repos();
+        assert_eq!(f.len(), 4, "three was the old `gates dead` reading");
+        assert!(
+            f.iter().any(|r| r == "gHashTag/ghashtag.github.io"),
+            "the repository the two lists disagreed about"
+        );
+        assert!(f.iter().any(|r| r == "gHashTag/t27"));
+    }
+
+    #[test]
+    fn every_entry_is_owner_slash_repo() {
+        // A bare name would silently read as a different repository to `gh`.
+        for r in fleet_repos() {
+            assert_eq!(r.matches('/').count(), 1, "{r} is not owner/repo");
+            assert!(!r.starts_with('/') && !r.ends_with('/'), "{r}");
+        }
+    }
+
+    #[test]
+    fn the_list_holds_no_duplicate() {
+        // A repeated slug would double that repository's runs in every count.
+        let f = fleet_repos();
+        let mut seen = f.clone();
+        seen.sort();
+        seen.dedup();
+        assert_eq!(seen.len(), f.len(), "a slug appears twice");
     }
 }
 
