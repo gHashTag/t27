@@ -5961,6 +5961,55 @@ pub fn existence_gated(line: &str) -> bool {
     false
 }
 
+/// The `run:` block a line sits inside: `(first, last)`, 1-based inclusive.
+///
+/// A step is a block, not a line, and the path a gate reads is often on a different
+/// line of the same block -- a `cd`, a `for f in …` header, a variable holding the
+/// path. The line-scoped subject search reported 22 of 32 quiet steps as naming no
+/// path, and that number is about the LINE, not about the step.
+///
+/// The block runs from the `run:` key to the last line indented deeper than it. YAML
+/// block scalars are exactly that, so this needs no parser -- and a line that is not
+/// inside a `run:` block gets its own line back, which borrows nothing.
+pub fn run_block(lines: &[&str], site: usize) -> (usize, usize) {
+    let indent = |l: &str| l.len() - l.trim_start().len();
+    let mut a = site;
+    loop {
+        let t = lines[a].trim_start();
+        if t.starts_with("run:") {
+            break;
+        }
+        if a == 0 {
+            return (site + 1, site + 1);
+        }
+        a -= 1;
+    }
+    let key = indent(lines[a]);
+    let mut b = a;
+    for (i, l) in lines.iter().enumerate().skip(a + 1) {
+        if l.trim().is_empty() {
+            continue;
+        }
+        if indent(l) <= key {
+            break;
+        }
+        b = i;
+    }
+    (a + 1, b + 1)
+}
+
+/// The first path the STEP names, when the line names none.
+///
+/// Weaker evidence than a path on the line itself, and reported as such: a step that
+/// names three paths gives this one the first, which may not be the one the quiet line
+/// reads. The count is printed apart so a reader can discount it.
+pub fn subject_in_step(lines: &[&str], first: usize, last: usize) -> Option<String> {
+    lines
+        .get(first - 1..last.min(lines.len()))?
+        .iter()
+        .find_map(|l| subject_of(l))
+}
+
 /// Could this line hide a subject going missing?
 ///
 /// The population, stated once so both lists draw from it: a shell existence test, a
@@ -5997,7 +6046,14 @@ pub fn subject_of(line: &str) -> Option<String> {
         if t.starts_with('-') || t.starts_with("2>") || t.contains("://") || t == "/dev/null" {
             continue;
         }
-        if t.starts_with("/dev/") || t.starts_with("/tmp") {
+        // A redirection is not a path. `>/dev/null` carries a `/` and was returned
+        // as one -- then reported as a TRACKED PATH THAT IS MISSING, the same defect
+        // the inline python one-liner produced and the same cure: rule out what
+        // cannot be a path here rather than trying to recognise what can.
+        if t.starts_with(['>', '<']) || t.contains("/dev/") {
+            continue;
+        }
+        if t.starts_with("/tmp") {
             continue;
         }
         // A path is not code. The first version took the first token carrying a `/`
@@ -6031,6 +6087,16 @@ pub enum Subject {
     /// "absent" -- collapsing the two would let the tool report a defect it did not
     /// find. The first version of this command did exactly that and reported 25 of 32.
     Unnamed,
+}
+
+/// Where a subject came from. Step scope is weaker evidence than the line itself and
+/// is counted apart so a reader can discount it: a step naming three paths hands over
+/// the first, which need not be the one the quiet line reads.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Whence {
+    Line,
+    Step,
+    Nowhere,
 }
 
 /// Classify the subject of a gate line against the tree on disk.
@@ -6100,7 +6166,7 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
         .collect();
     files.sort();
 
-    let mut rows: Vec<(Quiet, String, usize, Option<String>, Subject)> = Vec::new();
+    let mut rows: Vec<(Quiet, String, usize, Option<String>, Subject, Whence)> = Vec::new();
     let mut excluded = 0usize;
     for f in &files {
         let Ok(text) = std::fs::read_to_string(f) else {
@@ -6116,9 +6182,22 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
             let names_a_path = line.contains('/') || line.contains("*.");
             match quiet_shape(line, &lines[(i + 1).min(lines.len())..]) {
                 Some(k) => {
-                    let subj = subject_of(line);
+                    // The subject of a step is the STEP, not the line -- but only as a
+                    // fallback, and the fallback is labelled. A path on the line is
+                    // what the gate demonstrably reads; a path elsewhere in the block
+                    // is what it plausibly reads.
+                    let (subj, whence) = match subject_of(line) {
+                        Some(s) => (Some(s), Whence::Line),
+                        None => {
+                            let (a, b) = run_block(&lines, i);
+                            match subject_in_step(&lines, a, b) {
+                                Some(s) => (Some(s), Whence::Step),
+                                None => (None, Whence::Nowhere),
+                            }
+                        }
+                    };
                     let st = subject_state(subj.as_deref(), |p| root.join(p).exists());
-                    rows.push((k, name.clone(), i + 1, subj, st));
+                    rows.push((k, name.clone(), i + 1, subj, st, whence));
                 }
                 None => {
                     // Every CANDIDATE lands in counted or refused, never in neither.
@@ -6174,11 +6253,11 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
         sn(Subject::Interpolated)
     );
     println!(
-        "    no path on the line         {}   cannot be checked -- NOT the same as absent",
+        "    no path ANYWHERE in the step {}   cannot be checked -- NOT the same as absent",
         sn(Subject::Unnamed)
     );
 
-    let gone: Vec<&(Quiet, String, usize, Option<String>, Subject)> =
+    let gone: Vec<&(Quiet, String, usize, Option<String>, Subject, Whence)> =
         rows.iter().filter(|r| r.4 == Subject::Absent).collect();
     if gone.is_empty() {
         println!(
@@ -6188,9 +6267,9 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
         );
     } else {
         println!("\n  GUARDING NOTHING RIGHT NOW:\n");
-        for (k, file, line, subj, _) in &gone {
+        for (k, file, line, subj, _, w) in &gone {
             println!(
-                "    {file}:{line}  {}   [{k:?}]",
+                "    {file}:{line}  {}   [{k:?}, subject named on the {w:?}]",
                 subj.as_deref().unwrap_or("?")
             );
         }
@@ -6198,12 +6277,13 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
 
     if show_list {
         println!("\n  EVERY STEP COUNTED:\n");
-        for (k, file, line, subj, st) in &rows {
+        for (k, file, line, subj, st, w) in &rows {
             let sj = subj.as_deref().unwrap_or("-");
             println!(
-                "    {:<20} {:<14} {file}:{line}  {sj}",
+                "    {:<20} {:<14} {:<8} {file}:{line}  {sj}",
                 format!("{k:?}"),
-                format!("{st:?}")
+                format!("{st:?}"),
+                format!("{w:?}")
             );
         }
     }
@@ -6437,5 +6517,95 @@ mod quiet_gate_tests {
             Subject::Present
         );
         assert_eq!(subject_state(Some("*.v"), only_dir), Subject::Unnamed);
+    }
+}
+
+#[cfg(test)]
+mod step_scope_tests {
+    use super::{run_block, subject_in_step, subject_of};
+
+    const STEP: &str = "\
+jobs:
+  a:
+    steps:
+      - name: FPGA-Safety lint
+        run: |
+          cd ffi/src
+
+          grep -rn 'as f64' tools/lint.rs 2>/dev/null || echo PASSED
+      - name: next
+        run: |
+          echo other
+";
+
+    /// The block runs from the `run:` key to the last line indented deeper than it.
+    /// The NEXT step must not be swallowed, or a subject would be borrowed from a
+    /// gate that has nothing to do with this one.
+    #[test]
+    fn a_run_block_ends_where_the_next_key_begins() {
+        let lines: Vec<&str> = STEP.lines().collect();
+        // The blank line inside the block must NOT end it: a step whose command is
+        // split by one would otherwise lose everything below the gap.
+        assert_eq!(run_block(&lines, 7), (5, 8));
+        assert_eq!(run_block(&lines, 10), (10, 11));
+    }
+
+    /// A line outside any `run:` block gets its own line back and borrows nothing.
+    #[test]
+    fn a_line_outside_a_block_is_its_own_scope() {
+        let lines: Vec<&str> = vec!["name: x", "on: push"];
+        assert_eq!(run_block(&lines, 1), (2, 2));
+    }
+
+    /// The subject of a step is the STEP: the quiet line here says only `src/`, and
+    /// the path that matters is on the `cd` above it. Line scope reported 22 of 32
+    /// quiet steps as naming no path; step scope leaves 9.
+    #[test]
+    fn a_step_names_what_its_quiet_line_does_not() {
+        let lines: Vec<&str> = STEP.lines().collect();
+        let bare = "          [ ! -f x ] && echo skip";
+        assert_eq!(subject_of(bare), None, "the line names nothing");
+        // The FIRST path the block names, and first is a choice with a known cost:
+        // this block names two, and the one the gate reads is really `ffi/src` joined
+        // with what grep is pointed at. First is reported and labelled as coming from
+        // the step, so a reader can discount it -- taking the last would be no better
+        // and would hide the `cd` that sets the directory.
+        assert_eq!(
+            subject_in_step(&lines, 5, 8).as_deref(),
+            Some("ffi/src"),
+            "the FIRST path, not the last"
+        );
+    }
+
+    /// A redirection is not a path. `>/dev/null` carries a `/` and was returned as one,
+    /// then reported as a tracked path that is missing -- a defect the tool invented,
+    /// for the second time, in the same function.
+    #[test]
+    fn a_redirection_is_not_a_path() {
+        assert_eq!(
+            subject_of("./scripts/x >/dev/null || true").as_deref(),
+            Some("./scripts/x")
+        );
+        assert_eq!(subject_of("cmd >/dev/null 2>&1 || true"), None);
+        assert_eq!(subject_of("cmd </dev/null || true"), None);
+    }
+
+    /// And the earlier exclusions still hold, so the cure did not undo them.
+    #[test]
+    fn the_older_exclusions_survive() {
+        assert_eq!(
+            subject_of("N=$(python3 -c \"json.load(open('/tmp/r.json'))\")"),
+            None
+        );
+        assert_eq!(subject_of("        \"--limit\","), None);
+        // This extractor reads workflow SHELL lines, not Rust source, and the
+        // punctuation filter that keeps an inline python one-liner out also keeps a
+        // `format!` out. Written expecting Some(...) and corrected to what the code
+        // does, because the code is right about its own subject.
+        assert_eq!(
+            subject_of("          &format!(\"repos/{repo}/actions/runs?per_page=1\"),"),
+            None,
+            "a Rust call is not a workflow path"
+        );
     }
 }
