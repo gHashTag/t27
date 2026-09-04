@@ -37,13 +37,32 @@ def _who():
 
 
 def skip(msg):
-    """The environment is incomplete. Tolerated locally, fatal under --require."""
+    """The environment is incomplete. Tolerated locally, code 2 under --require.
+
+    The code is 2, not 1, and the difference is the whole reason this module
+    exists. This repository's written vocabulary is 0 pass, 1 a check RAN and
+    said no, 2 the check COULD NOT RUN -- POSIX 1003.3 calls that UNSUPPORTED,
+    and `.githooks/pre-commit` already branches on 2 to tell a contributor that
+    nothing about their commit was examined.
+
+    skip() is by its own docstring the could-not-run case: no compiler, no
+    simulator, the binary not built. Answering it with 1 says a comparison was
+    made and came out negative, which is exactly the confusion `broken()` was
+    split off to prevent -- and this module is the shared vocabulary for that
+    split, imported by 15 files with 26 live call sites, so it was teaching the
+    wrong word to every one of them.
+
+    Nothing regresses: any non-zero fails a workflow step, and the two readers
+    of 2 in this tree (`.githooks/pre-commit`, `check_catalog_count.py`) do not
+    call this path.
+    """
     if "--require" in sys.argv:
         print(f"FAIL {_who()}: {msg}")
         print("  --require was given, so a missing prerequisite is a failure, not a skip.")
         print("  The CI job builds t27c and the runner ships the toolchain; if one is")
         print("  absent the environment is broken and this check did not run.")
-        sys.exit(1)
+        print("  Exit 2 = could not run, not a check that ran and said no.")
+        sys.exit(2)
     print(f"SKIP {_who()}: {msg}")
     sys.exit(0)
 
