@@ -15530,30 +15530,139 @@ on a closing brace, never on `fn`.** A `fn` line is not the top of the item -- t
 attributes and the doc comment above it are -- and an anchor that is not the top of the
 item splits it.
 
+## 548. Four questions asked, four zeros, and the zeros cost less than the sweeps
 
-## 548. A mutation that also edits the test is not a mutation test     <-- twice
+A pass that ships six repairs also has to say what it looked at and did NOT find, or the
+next pass pays for the same look. Four questions, each priced before any tool was written.
+
+**1. Are there other budgets under their measured cost?** After `whats-open` gave
+`gates dead` **420 s** for a **899 s** job, the rest of the subprocess budgets in the gate
+tooling were measured. **No second instance**: `required`/`quiet`/`fetches` have 45×
+headroom, `unmeasured` 3.6×, and the tightest one -- `git log --all` with a glob pathspec,
+budget 30 s -- costs **1165 ms** over 6687 commits, with the exact-path form at 169 ms.
+Its `except` is annotated *"cannot tell: assume the milder classification"*, which is the
+honest failure the `dead` budget lacked. One hit in six; nothing to build.
+
+**2. Are the census's refusals right?** `tri gates quiet --list --excluded` refuses **123**
+steps. A systematic sample of ten, read one at a time: **ten of ten correct**. Three are
+`coqc … || exit 1` (the failure branch EXITS), one captures `rc=$?` rather than swallowing
+it, two are thresholds on numbers, and the one real candidate --
+`total_files=$(ls …/*.v | wc -l)` with no `2>/dev/null` -- is correct on a second reading,
+because that value is written **only** into `$GITHUB_STEP_SUMMARY` and nothing branches on
+it.
+
+That candidate carries the sharper rule: **a count reads zero when its subject is missing
+in both cases, and what makes it QUIET is not the shape but whether it has a consumer.**
+`targets=$(grep -c … || true)` is the same shape and is guarded downstream, where
+`test_ratchet.py` refuses on `targets == 0`. One `| wc -l` is a defect and the other is
+not, and the difference is entirely below them.
+
+**3. Is there a green mirror of "never executed"?** A failed run with zero jobs is a
+startup failure. The mirror -- a run recorded as SUCCESS that executed nothing -- was
+measured two ways on master: **0 of 30** successful runs allocate zero jobs, and **0 of 20**
+have every job `skipped`. All twenty carry at least one `success`, and one honestly shows
+`2 skipped, 2 success`.
+
+**And the instrument nearly lied by silence.** The first summary used a `jq` expression
+with a misplaced `as` binding and returned **nothing**, which reads exactly like *there are
+none*. The control was one command -- print the raw `.conclusion` values for one known run
+-- and it showed the expression simply did not work. **An empty result is not a finding
+until the same expression is shown to print something on a known case**, or the zero is a
+report about the instrument rather than about the world.
+
+**4. What does chasing the base actually cost?** &sect;510 said the narrow rule pays *at most
+one reset per green window*. Measured on one pull request: **2 commits landed on master
+while it was open, and the poller caught up exactly twice** -- one full round of **35**
+checks each. So the rule holds and the window RECURS: the tax is one reset per neighbouring
+landing, not one per pull request. That is an argument for a merge queue rather than for a
+cleverer catch-up.
+
 ## 549. The tool that finds unchecked constants was counting its own tests
+
+&sect;546 found that my ad-hoc mutation harness edited test code along with production code and
+reported a false `killed`. The obvious next question was how far that reached. It reaches the shipped
+tool.
+
+`tri mutate run` perturbs every integer literal in a file and asks whether the checker notices. Its
+`find_mutants` masks comments and string bodies **and nothing else** -- there is no test-module
+filter. So a literal inside `#[cfg(test)]` is perturbed like any other, the test holding it fails,
+and that red is reported as the checker NOTICING.
+
+**Measured by the tool itself, with `--cmd true` so every mutant survives and it simply lists its
+sites:**
+
+| file | sites the tool finds | inside `#[cfg(test)]` | |
+|---|---|---|---|
+| `red.rs` | 59 | **45** | 76% |
+| whole crate (simulated) | 3198 | **1545** | 48% |
+
+**Reproduced end to end rather than inferred.** `red.rs:826` is `let h = render_headline(50, 3, 44, 7);`
+inside a test. Perturbing that `50` to `51` fails the suite. `tri mutate run` would call that a killed
+mutant -- over a number that exists only in a test, in a tool whose entire subject is *constants
+nothing actually checks*.
+
+**Shipped.** Sites inside a Rust `#[cfg(test)]` module are dropped, by the same
+`gates::test_module_lines` rule used elsewhere, and **the number dropped is printed**:
+
+```
+  45 literal(s) skipped: they sit inside a `#[cfg(test)]` module.
+  Perturbing a test's own arithmetic fails that test, and reporting it as
+  `the checker noticed` says nothing about the code under test.
+
+  14 literal(s) in cli/tri/src/red.rs, one mutation each.
 ```
 
-**The byte-prefix tail is everything appended since the merge base, and that is wrong the moment a
-SIBLING branch of yours lands part of it on the base.** #3199 had squash-merged &sect;546 onto master
-while this branch was open, so the same content sat on both sides and the rebuild emitted it twice.
-The squash is what hides it: the section arrives on `base` under a commit this branch has never seen,
-so no ancestry relates them and only the TITLE does.
+A population that shrinks without saying so is the defect one level up from the one this fixes.
+`.rs` only: the tool deliberately runs on Python, Verilog and YAML, none of which have
+`#[cfg(test)]`, and `diffbin.py` still reports all 61 of its literals with no skip line.
 
-**The instrument was already in the file, again.** `tail_by_title` sits forty lines above, written for
-the neighbouring case where the merge base is not a prefix. The fix is to accept the byte-prefix tail
-only when it shares no title with the base, and fall through to the function that was already there.
-After: `appended here 1`, 511 sections, no duplicate title, no duplicate number, nothing of master's
-lost.
+### The harness refused four mutants, and was right to
 
-### Sixth pass, sixth surviving mutant, still the wiring
+Running the four mutants against this change, `mutate-production` refused all four:
+`ANCHOR ABSENT FROM PRODUCTION CODE (1 occurrence in tests)`. The production sites were plainly
+there. **The harness cut the file at the first textual occurrence of `#[cfg(test)]`, and the new doc
+comment MENTIONS `#[cfg(test)]` in prose forty lines above the real module** -- so everything below
+that sentence read as test code.
 
-`tail_is_new` is covered four ways and dropping `.filter(|t| tail_is_new(t, &at_base))` from the call
-site leaves every one of them green. Killed by a structural test reading the call site, needle split
-across two literals.
+A matcher matching prose, in the tool written to stop a matcher matching the wrong half. Fixed: the
+boundary is a line that IS the attribute, at column zero -- the rule `test_module_lines` already uses.
 
-The list is now `last_pass` &middot; `claims_seen` &middot; `single_digit_only` &middot; both
-`competitors` print sites &middot; `drop_test_module_sites` &middot; and this. **Six for six.** The
-lesson has stopped being about any individual fix: after extracting a helper, the very next act
-should be mutating the line that calls it, before writing a single test for the helper itself.
+**It cost nothing because the refusal was loud.** It printed
+`Nothing mutated -- do not read this as a surviving mutant` rather than a silent zero, so four
+"survivors" were never believed. That is &sect;536's rule paying for itself: give every miss a loud,
+distinguishable value.
+
+### Five passes, five surviving mutants, every one the wiring
+
+`last_pass` (red.rs) &middot; `claims_seen` (gates.rs) &middot; `single_digit_only` (issues.rs)
+&middot; both print sites (competitors.rs) &middot; and here, `drop_test_module_sites` never called.
+**This is the first one I went looking for before running it, and it was there.** The pattern is not
+about any of these functions. It is about where attention goes when a fix is written: into the thing
+being fixed, never into the line that reaches it.
+
+## 550. I hand-wrote the resolver six times, and the tool for it already existed
+
+Six consecutive passes have ended with the same conflict in this file and a fresh throwaway Python
+script to resolve it. **Measured on `gHashTag/t27`: 172 of the 281 commits on master since
+2026-08-29 touch `SKILL.md` -- 61%** -- and it grew from 257 sections to 510 in seven days. A branch
+that lives minutes conflicts.
+
+`tri skill renumber` has existed the whole time. "Move sections you appended to the numbers the base
+branch left free", `--base`, `--check`, `--first`. That is the operation, and I wrote it by hand six
+times without looking. This is the fourth entry in this file about rewriting a tool the repository
+already had.
+
+### And it was wrong on exactly the case I kept hitting
+
+Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge base `013b829`:
+
+```
+  appended here           2
+  tail identified by      byte prefix of the merge base
+      546  ->  547
+      547  ->  548
+```
+
+and the file it wrote contained:
+
+```

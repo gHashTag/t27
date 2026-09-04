@@ -138,6 +138,26 @@ fn replace_ref(text: &str, marker: &str, old: usize, new: usize) -> String {
 /// 547 -> 548, and the output carried two sections with the same title, because
 /// #3199 had squash-merged the first of them onto master while the branch was
 /// open.
+/// Titles present in `before` and absent from `after`, sorted.
+///
+/// By TITLE and not by count: a count guard passed while this command deleted a
+/// section, because three heading lines quoted inside a fenced code block were
+/// parsed as sections and made the arithmetic come out right.
+pub fn titles_lost(before: &str, after: &str) -> Vec<String> {
+    let have: std::collections::BTreeSet<String> = crate::skillnum::sections(after)
+        .into_iter()
+        .map(|(_, t)| t)
+        .collect();
+    let mut lost: Vec<String> = crate::skillnum::sections(before)
+        .into_iter()
+        .map(|(_, t)| t)
+        .filter(|t| !have.contains(t))
+        .collect();
+    lost.sort();
+    lost.dedup();
+    lost
+}
+
 pub fn tail_is_new(tail: &str, at_base: &str) -> bool {
     let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
         .into_iter()
@@ -344,6 +364,26 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
             crate::skillnum::sections(tail).len()
         );
     }
+    // The count guard above is a TOTAL, and a total cannot see a substitution.
+    // It passed on 2026-09-05 while this command deleted a section: SKILL 548
+    // quotes three `## N.` heading lines inside a fenced block as evidence, the
+    // section parser counts every line that starts `## N. ` whether fenced or
+    // not, and those three made the arithmetic come out right while the real
+    // section they were quoting was dropped. Numbers matched; content did not.
+    //
+    // So the guard that matters is the SET of titles, which is the guard every
+    // hand-written resolver in this loop had and this command did not.
+    let lost = titles_lost(&mine, &out);
+    if !lost.is_empty() {
+        bail!(
+            "the rebuild would DROP {} section(s) that are on disk now:\n    {}\n  \
+             Nothing was written. The section count came out right, which is why \
+             the count guard above did not stop it -- a total cannot see a \
+             substitution. Resolve this file by hand.",
+            lost.len(),
+            lost.join("\n    ")
+        );
+    }
     let problems = crate::skillnum::problems(&secs);
     std::fs::write(root.join(file), &out)?;
     println!("  Written. {} section(s); {}", secs.len(), if problems.is_empty() {
@@ -387,6 +427,74 @@ mod tests {
         let secs = crate::skillnum::sections(by_title);
         assert_eq!(secs.len(), 1, "only C is new: {secs:?}");
         assert_eq!(secs[0].1, "C");
+    }
+
+    /// `titles_lost` can be right while `run` never consults it, and the write
+    /// goes ahead. SEVENTH change in seven passes whose surviving mutant was
+    /// the wiring rather than the function -- and the second one predicted
+    /// before it was run.
+    #[test]
+    fn run_refuses_the_write_when_a_title_would_be_lost() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let lost = titles_", "lost(&mine, &out);");
+        assert!(code.contains(call), "the guard has to be consulted before the write");
+        let refuses = concat!("if !lost.is_", "empty() {");
+        assert!(
+            code.contains(refuses),
+            "and a non-empty answer has to stop the write, not merely be printed"
+        );
+        let write = code.find("std::fs::write(root.join(file)").expect("the write is here");
+        assert!(
+            code.find(call).unwrap() < write,
+            "the guard must run BEFORE the write, or it reports a loss already on disk"
+        );
+    }
+
+    /// A count is a total, and a total cannot see a substitution.
+    ///
+    /// On 2026-09-05 this command deleted a section while its count guard
+    /// passed. SKILL 548 quotes three `## N.` heading lines inside a fenced
+    /// block as evidence; the parser counts every line starting `## N. `
+    /// whether fenced or not, so those three filled the seats of the real
+    /// section that was dropped. The arithmetic was right and the content was
+    /// gone.
+    #[test]
+    fn a_lost_title_is_named_even_when_the_count_matches() {
+        let before = "## 1. A\n\n## 2. B\n\n## 3. C\n";
+        // Same number of sections; B has been replaced by a second copy of A.
+        let after = "## 1. A\n\n## 2. A\n\n## 3. C\n";
+        assert_eq!(
+            crate::skillnum::sections(before).len(),
+            crate::skillnum::sections(after).len(),
+            "the totals agree, which is exactly why a count guard let this through"
+        );
+        assert_eq!(
+            titles_lost(before, after),
+            vec!["B".to_string()],
+            "and the set says what the count could not"
+        );
+    }
+
+    #[test]
+    fn nothing_lost_is_an_empty_list_not_a_zero() {
+        let before = "## 1. A\n\n## 2. B\n";
+        let after = "## 1. A\n\n## 2. B\n\n## 3. C\n";
+        assert!(
+            titles_lost(before, after).is_empty(),
+            "adding C loses nothing, and a renumber that only appends must be allowed"
+        );
+        // Renumbering alone must never register as a loss: the guard is on
+        // TITLES precisely so that moving 547 -> 548 is invisible to it.
+        let moved = "## 41. A\n\n## 42. B\n";
+        assert!(
+            titles_lost(before, moved).is_empty(),
+            "the numbers all changed and not one title did"
+        );
     }
 
     /// The predicate that decides whether the byte-prefix tail may be trusted.
