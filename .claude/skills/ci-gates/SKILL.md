@@ -15018,3 +15018,67 @@ appears twice (a duplicate would double that repository's runs in every count).
 Census re-blessed here, and the move is a line number: removing seven lines of literal
 took `red.rs`'s `runs_url` from 159 to 152. The buckets are identical -- 25 sites,
 8 / 0 / 3 / 2 -- which is the check that says the move is address and not substance.
+
+## 538. Never succeeded, and never executed, are different facts
+
+`tri gates dead` says which workflows have a zero lifetime success count. It said three
+here, and reading them found two populations under one row:
+
+```text
+auto-merge-ready-prs.yml   1541 runs   0 jobs in 8 of 8 sampled   NEVER EXECUTED
+format-check.yml             31 runs   0 jobs in 8 of 8 sampled   NEVER EXECUTED
+coq-proofs.yml               62 runs   1 job  in 8 of 8 sampled   ran and failed
+```
+
+**A run that allocates zero jobs is a startup failure** -- invalid YAML, a trigger the
+file does not declare, a registration for a file that is gone. It is recorded as a failed
+run and it never executed a line. `auto-merge-ready-prs.yml` declares `workflow_dispatch`
+only and every sampled run has `event=push`: 1541 registrations, none of which ran.
+
+**The two want opposite repairs.** One is a broken workflow FILE, the other a broken
+CHECK, and "never succeeded" prints them identically. `coq-proofs.yml` is the control in
+the same output that says the probe distinguishes anything.
+
+Cost, measured: **109 s -> 114 s** on this repository, because the probe runs only for the
+rows the report prints -- bounded by the finding rather than by the fleet. `None` when
+nothing was sampled, because a probe that saw no run must not vote either way.
+
+**The new site reads as guarded and is not.** `tri gates fetches` files it under *asks
+whether the page filled*, because `classify_fetch` looks for `total_count` anywhere in the
+body and here that string is a **jq path to a job count**, not a check on this read's own
+page. What it really is has no bucket: a DECLARED SAMPLE, where the page size is the
+caller's own parameter. Named rather than special-cased -- a matcher with an exception
+list has stopped describing its subject.
+
+## 539. My resolver committed conflict markers, in a file it never looked at
+
+The same pass, the required `Conflict markers` check went red on the pull request:
+
+```text
+tools/census/fetches.txt
+    conflict marker on line 19, 35
+```
+
+The commit is `Merge origin/master: re-append above master's highest` -- **my own landing
+loop's conflict resolver**. It takes master's copy of the skill file, re-appends the
+carried section, and then runs `git add -A` and commits. The merge had conflicted on a
+SECOND file, a generated ledger, and `git add -A` staged it **verbatim, markers and all**.
+
+**This page already carries the mirror image**: an automated resolution that handled the
+workflow file, ran `git add -A`, and committed the conflict that was in the skill file.
+Same defect, other file. A resolver that fixes ONE path and then stages everything is a
+resolver that commits every path it did not think about.
+
+**Control first, and it was decisive.** `verify_all_152.py` carries 16 markers on master
+and the gate is green there -- five consecutive successes the same day -- so the failure
+could not be that known debt. Reading the gate's own output named the file in one line.
+
+Two rules, and the second is the durable one:
+
+* **A generated ledger is never hand-merged.** Regenerate it from the merged tree
+  (`--bless`) and let the gate confirm. Its content is an output, so a three-way merge of
+  it is meaningless even when it succeeds.
+* **After resolving, ask the repository's own checker before committing.**
+  `python3 tools/check_conflict_markers.py` exits 0 here and prints *"Every marker found
+  is recorded as debt. Nothing new."* -- one command, and it is the third time this pass
+  that the tool for the job was already in the tree.

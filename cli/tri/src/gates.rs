@@ -2443,7 +2443,16 @@ fn count(repo: &str, id: &str, success_only: bool) -> Result<u64> {
 ///
 /// One extra request per sampled run, and only for the rows the report actually prints
 /// -- the fifteen, not every workflow -- so the cost is bounded by the finding rather
-/// than by the fleet.
+/// than by the fleet. Measured on t27 alone: 109 s before, 114 s after.
+///
+/// `tri gates fetches` files this site under *asks whether the page filled*, and that is
+/// a FALSE POSITIVE of the same family as `red.rs`'s `runs_url`: the classifier looks for
+/// `total_count` anywhere in the body, and here that string is a **jq path** to a job
+/// count, not a check on this read's own page. What this really is has no bucket yet --
+/// a DECLARED SAMPLE, where the page size is the caller's own parameter (`sample`), so a
+/// full page is not a truncated census but exactly what was asked for. Named here rather
+/// than special-cased, because a matcher with an exception list stops describing its
+/// subject.
 fn newest_run_job_counts(repo: &str, id: &str, sample: usize) -> Vec<u64> {
     let listing = match gh(&[
         "api",
