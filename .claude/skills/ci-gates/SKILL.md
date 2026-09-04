@@ -12913,3 +12913,116 @@ Both numbers cost one command each. The argument they replaced cost nothing and
 was worth nothing: one of the two turned out right and the other turned out to be
 a detector nobody should build, and no amount of reasoning would have separated
 them.
+
+## 483. A command named in a document is a claim, and 16 of 83 were false
+
+`t27c gen-zig` is named in `docs/TRI_NET_WHITEPAPER.md` and in a nona-01
+replacement table -- in the right-hand column, as the thing to use instead. There
+is no such subcommand. The Zig generator is `t27c gen`.
+
+I found that by running it over 650 specs and reading the result as a
+measurement: **0 of 650 exited 0**. clap exits **2** for an unknown subcommand,
+and 2 is this repo's own "could not run" code, so 650 usage errors and 650 specs
+failing to generate produce the same column. An earlier timing run had put
+`gen-zig` at 6 ms per spec with stderr silenced; 6 ms is what a usage error
+costs.
+
+Then the census. Backticked `t27c <sub>` across `README.md`, `.claude/skills/**`
+and `docs/**`: **2,676 occurrences, 83 distinct names**, against **155** real
+subcommands. **16 of the 83 do not exist.** Seven of those are live
+instructions -- two rows of the README module table (`gen-double-buffer` wants
+the `-ctrl` suffix its own `--help` spells out), `parse-accounted` in this file,
+`editcheck` in `oracle-method`, `gen-zig` in the whitepaper and in both columns
+of that table.
+
+The wide matcher is the usual trap and the usual fix. `\bt27c [a-z-]+` returned
+2,736 hits including `t27c and`, `t27c does`, `t27c cannot`, `t27c silently` --
+prose, matched because the sentence continues. Requiring the opening backtick
+dropped it to 2,229 and to a population that is invocations.
+
+Two exclusions, both printed rather than argued:
+
+* **Dated records** -- `docs/now/**` (dated in the filename), `docs/reports/**`
+  (named by wave), `IGLA-FORMAL-RESULTS.md` (anchored per section). A record that
+  names a since-renamed command is not lying; a README is. **8** dead mentions
+  live there, and the gate prints that count every run instead of dropping them
+  in silence.
+* **Declared unbuilt** -- the document says so itself, on the line or in the
+  nearest heading above it: "do not assume it exists today", "long-term", and a
+  table of `tri run` under "### Proposed issue spine #11-#25". **6** today. Emptying
+  that vocabulary turns all six into findings, which is how I know it is not
+  excusing the population.
+
+`docs/TECHNOLOGY-TREE.md` was the one worth the whole exercise. LAW 8 -- no
+circular dependencies -- names its verification: `t27c validate-graph`. Nothing
+by that name has ever existed, the seven real `validate-*` commands do not walk
+the ring graph, and `gate-topology.yml` is about workflow triggers. **The
+invariant was stated, believed checked, and unchecked.** A dead command in a
+sentence about verification is not a typo.
+
+## 484. A stale checkout is a wrong ruler, and the calibration is what says so
+
+The gate above reads truth from `t27c --help`. Twice in one hour that ruler was
+wrong, in two different ways, and the same six-name calibration caught both
+before a single document was blamed.
+
+**First**: the parse returned **0 subcommands**, and the comparison dutifully
+reported that all 37 documented names were dead. The binary was not where I
+built it -- a workspace `target/` at the repo root, not `bootstrap/target/`.
+
+**Second**, after fixing the path: **121 subcommands**, and `corpus`, `backlog`
+and `parse-complete` were absent -- three commands I had run by hand that same
+session. The checkout was at a commit from **26 days earlier**. Every local
+measurement taken in that directory was of a tree nobody was working on.
+
+The calibration is six names that must parse out and one that must not:
+
+```
+MUST_EXIST     parse gen seal corpus backlog parse-complete
+MUST_NOT_EXIST gen-zig
+```
+
+It costs nothing and it fires before the population is read. Both times it said
+*the instrument is wrong*, not *the documents are wrong* -- and the difference
+matters, because the second reading was a plausible table of 37 findings.
+
+The rule generalises past this gate: **when the ruler is a build artefact, its
+age is part of the measurement.** A checkout is not a version. `git log -1` costs
+one command and answers what `--help` cannot.
+
+## 485. The comment says it was verified; the code says that path never runs
+
+`scripts/tri` carried a comment explaining the fresh-clone case -- neither binary
+built -- and closing with: verified by moving **BOTH** binaries aside. The block
+it explained is unreachable in that state. A guard twenty lines above exits 2
+when `t27c` is absent, so with both aside the guard answers and nothing below it
+executes. The claim described a run in which t27c was present.
+
+What the comment was covering up, measured with four arms and one variable each:
+
+| t27c | tri | `./scripts/tri now --help` |
+|---|---|---|
+| present | present | prints its help, exit 0 |
+| present | absent | "the Rust `tri` binary is not built", names `-p tri` |
+| **absent** | **present** | **"cannot run 'now' -- t27c is not built", exit 2** |
+| absent | absent | the same message, naming only t27c |
+
+Row three is the finding. `now` compiles nothing, the binary that serves it is
+sitting in `target/release`, and the front door sends the reader to build a
+different binary for two minutes twenty -- after which row two tells them to
+build the one they needed. **37 of the tri binary's 47 subcommands are in that
+position.** Row four is the fresh clone, which is where a failing NOW Sync Gate
+puts everybody, because its remediation is `./scripts/tri now add ...`.
+
+It cost me the same two minutes tonight, and I hand-wrote the entry the gate
+asked for rather than suspect the front door.
+
+Two rules out of it:
+
+* **A refusal must name the binary that serves the command**, not the first one
+  the script happened to look for. "X is not built" is a diagnosis, and a
+  diagnosis about the wrong organ sends the reader to the wrong operation.
+* **A comment claiming verification names a state, and states can become
+  unreachable.** The guard was added later; it silently retired the run the
+  comment describes. Rerunning the four arms took one command each. Reading the
+  comment would have cost the evening.
