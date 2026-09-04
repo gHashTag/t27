@@ -639,12 +639,12 @@ Every change follows this exact 9-step cycle:
 ```
 tri skill begin <task> --issue <N>    <- bind to GitHub Issue
 tri spec edit <module>                <- NOT BUILT: edit the .t27 spec directly
-tri skill seal --hash                 <- record 4 SHA-256 hashes
+tri seal <file.t27> --save            <- record 4 SHA-256 hashes  (`tri skill seal` is not built)
 tri gen                               <- generate Zig/Verilog/C
 tri test                              <- run tests
 tri verdict --toxic                   <- TOXIC? -> rollback. CLEAN? -> proceed
 tri experience save                   <- append episode to Akashic journal
-tri skill commit                      <- verify hashes + issue binding
+tri skill end                         <- verify hashes + issue binding  (`tri skill commit` is not built)
 tri git commit                        <- NOT BUILT: use git; the hook enforces "Closes #N"
 ```
 

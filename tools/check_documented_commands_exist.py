@@ -25,6 +25,15 @@ Excused inside the population: a hit that the document itself declares is not
 real yet -- on its own line, or in the nearest heading above it. "Proposed issue
 spine #11-#25" over a table of `tri run` is not a false claim about today.
 
+Scope, stated because it is narrower than the title sounds. This reads the FIRST
+token after the binary name and nothing after it. `tri skill seal` and
+`tri skill commit` both pass, because `skill` resolves -- and neither exists:
+`tri skill` offers check, refs, claims, renumber, begin, end. Measured on the
+README's own nine-step cycle, which every change is told to follow: this gate
+can see 2 dead steps and there are 4. Second-level resolution is available
+(each command's own --help lists its subcommands) and is not built here; naming
+the gap is honest, half-building it is not.
+
 Exit 0 clean, 1 on a finding, 2 when it could not be run at all.
 """
 
