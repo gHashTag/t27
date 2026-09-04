@@ -747,7 +747,7 @@ for build failures too, so a broken testbench would have been labelled
 
 `parse-no-discard` gates nineteen specs and reports pass/fail. The one question
 a reader asks — WHERE does the parser stop consuming — had no command, so nobody
-asked it. `t27c parse-accounted --bisect` answered it in two runs.
+asked it. `t27c parse-complete --bisect` answered it in two runs.
 
 It also **killed two plausible causes** I had already written down: "invariant
 inside a test is discarded" (fifteen such in a passing spec) and "it is the
