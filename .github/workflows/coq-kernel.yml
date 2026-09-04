@@ -118,7 +118,13 @@ jobs:
 
       - name: Verify Kernel PHI layer has no Admitted
         run: |
-          set -uo pipefail
+          # `set -eu`, NOT `set -uo pipefail`. This job runs in the
+          # coqorg/coq container, where the step shell is `sh -e` -- dash, which
+          # rejects `-o pipefail` with "Illegal option" ON LINE 1, killing the step
+          # before it reads a file. Every sibling step in this job uses `set -eux`;
+          # this one was the only `-o pipefail`, and there is no pipeline here for
+          # pipefail to guard.
+          set -eu
           # GREP HAS THREE ANSWERS AND THIS USED TO KEEP ONE.
           #
           # 0 matched, 1 no match, 2 cannot open. The old line was
@@ -147,8 +153,21 @@ jobs:
           # decoration.
           # Three-way, with stderr kept. 2 is "cannot open" -- a missing file, a
           # permission, a directory -- and none of those is a clean file.
-          HITS=$(grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v)
-          rc=$?
+          # `set -e` is on -- GitHub runs a `run:` step under `bash -eo pipefail` --
+          # and a plain `HITS=$(grep ...)` ABORTS THE STEP when grep exits 1, which is
+          # the CLEAN case. `rc=$?` was never reached, the `case` below never ran, and
+          # a healthy tree exited 1, indistinguishable from a real `Admitted.`.
+          # Measured: this gate failed on every run from 2026-09-03T21:54 onward while
+          # both files carried zero `Admitted`.
+          #
+          # A command in an `if` CONDITION is exempt from `set -e`, so its exit code
+          # survives to be read. That is the whole fix; the three-way handling below is
+          # unchanged and is what this gate was repaired to have.
+          if HITS=$(grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v); then
+            rc=0
+          else
+            rc=$?
+          fi
           case "$rc" in
             0)
               echo "$HITS"
