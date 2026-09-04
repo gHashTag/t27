@@ -25,14 +25,23 @@ Excused inside the population: a hit that the document itself declares is not
 real yet -- on its own line, or in the nearest heading above it. "Proposed issue
 spine #11-#25" over a table of `tri run` is not a false claim about today.
 
-Scope, stated because it is narrower than the title sounds. This reads the FIRST
-token after the binary name and nothing after it. `tri skill seal` and
-`tri skill commit` both pass, because `skill` resolves -- and neither exists:
-`tri skill` offers check, refs, claims, renumber, begin, end. Measured on the
-README's own nine-step cycle, which every change is told to follow: this gate
-can see 2 dead steps and there are 4. Second-level resolution is available
-(each command's own --help lists its subcommands) and is not built here; naming
-the gap is honest, half-building it is not.
+Two levels, and the second one needed a structural rule rather than a list. A
+command WITH subcommands prints its own `Commands:` block; one that takes
+arguments does not. So `tri skill` is a group and `seal` must be a member --
+`tri skill seal` and `tri skill commit` were passing on `skill` alone, and
+neither exists -- while `t27c gen specs/x.t27` is a leaf and `specs` is never
+read as a subcommand. Forcing every command to look like a group takes the
+dead-`tri` reading from 136 to 192, all 56 of them arguments.
+
+Measured when the second level was added: 99 mentions -> 136, 24 distinct names
+-> 35. `tri skill commit` 11, `tri skill seal` 8, `tri math compete` 4,
+`tri notebook query` 3, `tri experience record` 3 -- every one confirmed by
+running it. `notebook` and `math` are t27c groups reached through the
+forward-anything fallthrough, so dropping that fallthrough loses them.
+
+The README's own nine-step cycle, which every change is told to follow, was
+where this started: 4 of its 9 steps are dead and the first-token reading could
+see 2.
 
 Exit 0 clean, 1 on a finding, 2 when it could not be run at all.
 """
@@ -50,6 +59,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # A backticked invocation: `t27c sub`, `./tri sub`, `scripts/tri sub`.
 HIT = re.compile(
     r"`(?:\./)?(?:scripts/)?(t27c|tri) ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
+    r"(?:\s+([a-z][a-z0-9]*(?:-[a-z0-9]+)*))?"
 )
 
 # Inside a fenced block there are no backticks to key on, and the fenced surface
@@ -64,6 +74,7 @@ HIT = re.compile(
 # majority were English. What a reader COPIES starts the line.
 FENCED_HIT = re.compile(
     r"^\s*(?:[$>] )?(?:\./)?(?:scripts/)?(t27c|tri) ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
+    r"(?:\s+([a-z][a-z0-9]*(?:-[a-z0-9]+)*))?"
 )
 # NO fence state machine, for two measured reasons. Tracking ``` toggles needs
 # the parities to balance,
@@ -115,7 +126,7 @@ MUST_NOT_EXIST = ("gen-zig",)
 # is how a gate gets muted, and excluding those families by path would be an
 # exclusion made by argument. So: the list prints every run, and the number can
 # only fall. A new dead `tri` name still fails.
-MAX_DEAD_TRI = 99
+MAX_DEAD_TRI = 136
 
 TRI_MUST_EXIST = ("now", "wave", "gen", "skill", "seal")
 TRI_MUST_NOT_EXIST = ("gen-zig", "gen-dir", "spec", "git")
@@ -182,6 +193,17 @@ def real_subcommands(exe: Path) -> set[str]:
     return names
 
 
+def tri_binary() -> Path | None:
+    """The Rust tri binary, resolved the same way tri_surfaces resolves it."""
+    exe = os.environ.get("TRI_BIN")
+    cands = [Path(exe)] if exe else []
+    cands += [ROOT / "target" / "release" / "tri", ROOT / "target" / "debug" / "tri"]
+    for c in cands:
+        if c.is_file() and os.access(c, os.X_OK):
+            return c
+    return None
+
+
 def tri_surfaces(t27c_real: set[str]) -> set[str]:
     """Every name `tri X` can resolve to, from all four surfaces.
 
@@ -242,6 +264,48 @@ def calibrate_tri(real: set[str]) -> None:
         refuse(f"`tri` resolves {', '.join(present)}, which do not exist; the parse is too loose.")
 
 
+_GROUP_CACHE: dict[tuple[str, str], set[str]] = {}
+
+
+def group_members(which: str, first: str, exes: dict[str, Path]) -> set[str]:
+    """The subcommands of `<binary> <first>`, or an empty set if it is a leaf.
+
+    The structural rule that makes this safe: a command WITH subcommands prints
+    its own `Commands:` block, and a command that takes arguments does not. So
+    an empty set means "the next token is an argument, not a subcommand", and
+    the check simply does not fire -- `t27c gen specs/x.t27` is never read as a
+    subcommand `specs`.
+
+    Measured on the tree this was written for: `skill` 7, `gates` 11, `issues`
+    4, `pr` 3, `now` 3, `experience` 2 -- and `gen`, `seal`, `verdict`, `test`,
+    `parse`, `corpus` all 0.
+    """
+    key = (which, first)
+    if key in _GROUP_CACHE:
+        return _GROUP_CACHE[key]
+    names: set[str] = set()
+    exe = exes.get(which)
+    if exe is not None:
+        try:
+            out = subprocess.run(
+                [str(exe), first, "--help"], capture_output=True, text=True, timeout=60
+            )
+            text = out.stdout + out.stderr
+            if "Commands:" in text:
+                for line in text.split("Commands:", 1)[1].splitlines():
+                    m = re.match(r"^  ([a-z][a-z0-9-]*)(?:\s|$)", line)
+                    if m:
+                        names.add(m.group(1))
+        except (OSError, subprocess.SubprocessError):
+            names = set()
+    # `tri` forwards an unhandled name to t27c, so a tri group may really be a
+    # t27c group. Ask the compiler too rather than reporting a false death.
+    if which == "tri" and not names and exes.get("t27c") is not None:
+        names = group_members("t27c", first, exes)
+    _GROUP_CACHE[key] = names
+    return names
+
+
 def calibrate(real: set[str]) -> None:
     missing = [c for c in MUST_EXIST if c not in real]
     present = [c for c in MUST_NOT_EXIST if c in real]
@@ -293,7 +357,11 @@ def declared_near(lines: list[str], idx: int) -> bool:
     return False
 
 
-def scan(paths: list[Path], real: dict[str, set[str]]) -> tuple[list[tuple], int, int]:
+def scan(
+    paths: list[Path],
+    real: dict[str, set[str]],
+    exes: dict[str, Path] | None = None,
+) -> tuple[list[tuple], int, int]:
     findings, excused, seen = [], 0, 0
     for p in paths:
         try:
@@ -302,13 +370,32 @@ def scan(paths: list[Path], real: dict[str, set[str]]) -> tuple[list[tuple], int
             refuse(f"could not read {p}: {exc}")
         for i, line in enumerate(lines):
             anchored = FENCED_HIT.match(line)
-            hits = [(m0, m1, "command-line") for m0, m1 in HIT.findall(line)]
+            hits = [(a, b, c or "", "command-line") for a, b, c in HIT.findall(line)]
             if anchored:
-                hits.append((anchored.group(1), anchored.group(2), "command-line"))
+                hits.append((anchored.group(1), anchored.group(2),
+                             anchored.group(3) or "", "command-line"))
             declare_at = i
-            for which, sub, where in hits:
+            for which, sub, second, where in hits:
                 seen += 1
                 if sub in real[which]:
+                    # The first token resolves. If it is a GROUP, the second
+                    # token is a subcommand and gets the same treatment; if it
+                    # is a leaf, the second token is an argument and this does
+                    # not fire. `tri skill seal` and `tri skill commit` both
+                    # passed before this, because `skill` resolves -- and
+                    # neither exists.
+                    if not (second and exes):
+                        continue
+                    members = group_members(which, sub, exes)
+                    if not members or second in members:
+                        continue
+                    if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
+                        excused += 1
+                        continue
+                    findings.append(
+                        (p.relative_to(ROOT).as_posix(), i + 1, which,
+                         f"{sub} {second}", where, line.strip())
+                    )
                     continue
                 if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
                     excused += 1
@@ -338,10 +425,10 @@ def main() -> int:
 
     if self_check:
         # A checker that cannot fail is a green light with no bulb behind it.
-        hits = [c for b, c in HIT.findall("`t27c gen-zig` is how you generate Zig.")]
+        hits = [c for _b, c, _d in HIT.findall("`t27c gen-zig` is how you generate Zig.")]
         ok_finds = hits == ["gen-zig"]
-        fenced = [c for b, c in FENCED_HIT.findall("./scripts/tri gen-zig specs/x.t27")]
-        ok_fenced = fenced == ["gen-zig"]
+        fm = FENCED_HIT.match("./scripts/tri gen-zig specs/x.t27")
+        ok_fenced = bool(fm) and fm.group(2) == "gen-zig"
         ok_excuse = bool(DECLARED.search("`t27c gen-zig` -- proposed, not implemented"))
         para = ["`t27c gen-zig` is named in the whitepaper.", "There",
                 "is no such subcommand."]
@@ -349,6 +436,20 @@ def main() -> int:
         stops = declared_near(["`t27c gen-zig` is named here.", "",
                                "There is no such subcommand."], 0)
         ok_fwd = "parse" in tri_real  # the forward-anything fallthrough
+        # A group has a Commands: block; a leaf does not. That is what keeps
+        # `t27c gen specs/x.t27` from reading `specs` as a subcommand.
+        exes_sc = {"t27c": exe}
+        tb = tri_binary()
+        if tb is not None:
+            exes_sc["tri"] = tb
+        grp = group_members("tri", "skill", exes_sc)
+        leaf = group_members("t27c", "gen", exes_sc)
+        ok_group = ("begin" in grp) and ("seal" not in grp)
+        ok_leaf = leaf == set()
+        print(f"  self-check  a group lists its members:            "
+              f"{'ok' if ok_group else 'BROKEN'}")
+        print(f"  self-check  a leaf lists none, so args are safe:  "
+              f"{'ok' if ok_leaf else 'BROKEN'}")
         for label, ok in (
             ("finds a dead command", ok_finds),
             ("finds one inside a fence", ok_fenced),
@@ -358,12 +459,17 @@ def main() -> int:
             ("`tri` inherits t27c's names", ok_fwd),
         ):
             print(f"  self-check  {label:36} {'ok' if ok else 'BROKEN'}")
-        every = ok_finds and ok_fenced and ok_excuse and ok_para and not stops and ok_fwd
+        every = (ok_finds and ok_fenced and ok_excuse and ok_para
+                 and not stops and ok_fwd and ok_group and ok_leaf)
         return 0 if every else 2
 
     live, excluded = population()
-    dropped, _, _ = scan(excluded, real)
-    findings, excused, seen = scan(live, real)
+    exes = {"t27c": exe}
+    tri_exe = tri_binary()
+    if tri_exe is not None:
+        exes["tri"] = tri_exe
+    dropped, _, _ = scan(excluded, real, exes)
+    findings, excused, seen = scan(live, real, exes)
 
     if not live:
         refuse("no live documents were found to scan.")
