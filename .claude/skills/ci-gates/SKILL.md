@@ -13642,7 +13642,64 @@ refuses to count declarations by design, and `test_ratchet.py` looked like the c
 where you predicted is a different cost, and the write-up that omits the failed prediction reads as
 if the search had been narrower than it was.
 
-## 502. The subject of a step is the step, not the line
+## 502. The shell is part of the instrument, and a rule about one escape does not carry
+
+Two zeros this pass, from two different instruments, both of which would have read as "clean".
+
+**`git grep -E` knows no Perl escape at all.** A section above says `\b` is not a word boundary
+there. That is true and too narrow: the same is so of `\s`, `\d`, `\w`. Counting spec tests whose
+only statement is `assert true`:
+
+```
+git grep -cE '^\s*assert true\s*$'        -- specs   #    0     <- POSIX ERE
+git grep -cE '^[[:space:]]*assert true$'  -- specs   # 2247
+git grep -cP '^\s*assert true\s*$'        -- specs   # 2247
+```
+
+The zero was published in a working note before the second reading was taken. **A rule stated
+about one escape does not carry to its siblings** — write the rule about the dialect, not about
+the character that happened to bite.
+
+**zsh's parameter modifiers eat `:t` out of a path.** A verifier's evidence contained a loop of
+`git show $c:tests/ring0_trivial.t27 | grep -c '^test'` returning `0 0 0 0 0`, offered as proof
+that a file never had tests. Under this shell that is not the command it looks like:
+
+```
+c=c3356a4a6
+echo $c:tests/ring0_trivial.t27      # zsh  -> c3356a4a6ests/ring0_trivial.t27
+                                     # bash -> c3356a4a6:tests/ring0_trivial.t27
+```
+
+`:t` is the tail modifier. `git rev-parse` then fails on the mangled path and `| grep -c` renders
+the failure as `0`. The conclusion happened to be right, and its evidence was worthless. Quote the
+argument — `git show "$c:path"` — and remember that a sibling section already records the same
+shell being different from the one a gate runs under. **The shell is part of the instrument.**
+
+**What the audit of our own gates actually found, which was not what I expected.** 20 of the
+`tools/check_*.py` gates, 10 of which match text: **19 of 20 already carry a `--self-check`**. The
+one that did not — `check_sync_repo_root.py` — turned out to be the best-defended of the lot,
+because it **fails closed**: a matcher that finds nothing returns 2, could-not-run, never 0. That
+is the property that matters, and it is rarer and more valuable than owning a self-check.
+
+The distinction is worth stating precisely, because a self-check does not confer it:
+
+- A self-check over **constructed inputs** proves the matcher can distinguish. It says nothing
+  about whether the matcher found anything in the real corpus.
+- A gate that **fails closed on an empty match** cannot report a clean tree it never read.
+- A **ratchet** gets this for free and is the cheapest version: if the matcher silently breaks,
+  the count collapses to zero and the baseline reports a massive shrink. The assertionless-test
+  ratchet is protected this way without a line of code written for the purpose.
+
+Write the third if you can, the second if you cannot, and do not mistake the first for either.
+
+**And the rate, since this pass finally has one.** The named-but-absent class of §501 was narrowed
+3884 → 644 → 458 → 105 with both hand-checked instances surviving every stage as controls, then a
+random 24 were judged and every accusation attacked by two independent refuters. **19 of 24
+survived.** The other five are the honest shape of the residue: three built-then-renamed, one that
+was never a claim about this repository, one refuted. Four in five, and I am not extrapolating it
+to the 105 — the sample was drawn to measure a rate, not to enumerate a population.
+
+## 503. The subject of a step is the step, not the line
 
 `tri gates quiet` reported **22 of 32** quiet steps as naming no path. That number was
 about the LINE, and the thing it describes is a STEP.
@@ -13678,7 +13735,7 @@ never swallowed -- a subject borrowed from a neighbouring gate would be worse th
 none. A blank line inside a block does not end it: a command split by one would
 otherwise lose everything below the gap.
 
-## 503. A redirection is not a path, and this is the second time
+## 504. A redirection is not a path, and this is the second time
 
 `>/dev/null` carries a `/`, so `subject_of` returned it as the path a gate reads -- and
 the command then reported it as **a tracked path that is missing**, under the heading
