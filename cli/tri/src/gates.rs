@@ -5562,6 +5562,14 @@ fn fetches(show_excluded: bool) -> Result<()> {
     }
 
     let n = |k: Fetch| sites.iter().filter(|s| s.0 == k).count();
+    // A function whose name ends `_url` only BUILDS the request and hands it to
+    // a caller that may well be guarded, so it reads as unguarded here and is
+    // not necessarily a defect. The rule is stated so the reader can disagree
+    // with it; the count was a literal ("one of the nine") and went stale.
+    let url_builders = sites
+        .iter()
+        .filter(|s| s.0 == Fetch::Unguarded && s.3.ends_with("_url"))
+        .count();
     println!("BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL\n");
     println!("  files read                    {}", files.len());
     println!(
@@ -5617,24 +5625,109 @@ fn fetches(show_excluded: bool) -> Result<()> {
         }
     }
 
+    // The surface this census reads, and the one it does not. A count that
+    // quietly excludes part of its subject is the defect this command exists to
+    // find, and it had this shape itself: the walk is `cli/tri/src` only, while
+    // the loop helpers under `scripts/tri_loop/` make bounded `--limit` reads of
+    // the same API in Python. They are NOT classified here -- the matcher is
+    // Rust-shaped -- so they are counted loosely and named as outside.
+    let outside = bounded_reads_outside_the_crate();
+
     println!(
         "\n  A full page is a LOWER BOUND and only a short one is a total, so a\n  \
          bounded fetch that prints what it got is stating a page as a census. The\n  \
          subject of the guard question is the ENCLOSING FUNCTION, which has a cost\n  \
          this states rather than hides: a function that only BUILDS a url and hands\n  \
          it to a guarded caller reads as unguarded, and `red.rs`'s `runs_url` is\n  \
-         exactly that. One of the nine is that shape.\n\n  \
+         exactly that. {} of the {} in that bucket are that shape.\n\n  \
          The exclusions are the other half of the reading. Taking every line that\n  \
-         merely NAMES `--limit` or `per_page=` reports 41 sites in a crate that has\n  \
-         24: prose, doc comments, a marker table and test assertions. A matcher that\n  \
-         swallowed them would be describing its input."
+         merely NAMES `--limit` or `per_page=` reports {} sites in a crate that has\n  \
+         {}: prose, doc comments, a marker table and test assertions. A matcher that\n  \
+         swallowed them would be describing its input.",
+        url_builders,
+        n(Fetch::Unguarded),
+        sites.len() + excluded.len(),
+        sites.len()
+    );
+    println!(
+        "\n  SURFACE: this reads `cli/tri/src/*.rs` and nothing else. {} bounded\n  \
+         read(s) of the same API live in `scripts/tri_loop/*.py` and are NOT\n  \
+         classified above -- named here rather than left silent, because a census\n  \
+         that excludes part of its subject without saying so is this command's\n  \
+         own subject.",
+        outside
     );
     Ok(())
+}
+
+/// Bounded reads of the GitHub API that live OUTSIDE the crate this census
+/// walks. Deliberately loose: this is an exclusion notice, not a classification,
+/// and the honest thing to publish about a surface you do not read is its size.
+fn bounded_reads_outside_the_crate() -> usize {
+    let dir = match repo_root() {
+        Ok(r) => r.join("scripts/tri_loop"),
+        Err(_) => return 0,
+    };
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(e) => e,
+        Err(_) => return 0,
+    };
+    let mut n = 0usize;
+    for e in entries.flatten() {
+        let path = e.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("py") {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        n += bounded_reads_in_python(&text);
+    }
+    n
+}
+
+/// The matcher, separated from the walk so it can be tested on a fixture rather
+/// than on whatever the tree happens to hold today.
+///
+/// The shape a helper uses to bound a `gh` read is the flag as its own quoted
+/// argument in a list. A `#` comment and a docstring line name it too, so the
+/// quotes are required -- and the count is still an UPPER bound, which is why
+/// it is published as an exclusion notice and not as a classification.
+fn bounded_reads_in_python(text: &str) -> usize {
+    text.lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .filter(|line| line.contains("\"--limit\""))
+        .count()
 }
 
 #[cfg(test)]
 mod fetch_census_tests {
     use super::{classify_fetch, fn_spans, is_fetch_site, single_page, Fetch};
+
+    /// The census walked `cli/tri/src` and said nothing about the surface it
+    /// did not walk. Four loop helpers in `scripts/tri_loop/` bound the same
+    /// API with `--limit`, and three of them carry no guard at all -- invisible
+    /// to this command, which exists to find exactly that.
+    #[test]
+    fn the_python_surface_is_counted_but_not_classified() {
+        let src = concat!(
+            "raw = sh([\"gh\", \"pr\", \"list\", \"--limit\", str(last)])\n",
+            "# usage: tri cost <bin> [--limit N]   <- prose, not a read\n",
+            "    \"issue\", \"list\", \"--limit\", \"1000\",\n",
+            "if a == \"--limit\" and i + 1 < len(argv):\n",
+        );
+        // Three quoted-flag lines; the `#` comment is not one of them.
+        assert_eq!(
+            super::bounded_reads_in_python(src),
+            3,
+            "a commented usage line names the flag and is not a read"
+        );
+        assert_eq!(
+            super::bounded_reads_in_python("# --limit 5\nnothing here\n"),
+            0,
+            "naming the flag in prose is not a bounded read"
+        );
+    }
 
     #[test]
     fn the_two_shapes_a_bounded_fetch_takes() {
