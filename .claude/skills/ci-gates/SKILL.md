@@ -13548,3 +13548,52 @@ Corollary for the fan-out that found this: the population is worth re-running, b
 defined by a matcher and not by memory. The nine survivors are recorded in the sweep, and the
 lesson that produced the highest yield was not any single wrong figure — it was that *counts written
 in the present tense drift, and counts stated as fixed may never have been*.
+
+## 500. A hyphen is a different front door, and four matchers were wrong before one held
+
+`tools/check_documented_commands_exist.py` resolves 216 names across four surfaces and had a blind
+spot the width of one character: both its matchers require `(t27c|tri)` followed by a **space**, so
+`tri-lean` steps straight over them. Under the git convention — `git-foo` on `PATH` becomes
+`git foo` — a hyphenated sibling is a command in its own right, and this repository documents five
+of them: `./scripts/tri-sync.py`, `tri-search.py`, `tri-issue-create.py`, `tri-pr-create.py`,
+`tri-doc-sync.py`. A sixth, `scripts/tri-lean`, **has never existed as a git object anywhere in the
+history** — `git rev-list --all --objects | grep scripts/tri-lean` returns nothing — and two Lean
+*source* files carried `Do NOT hand-edit — regenerate via ./scripts/tri-lean`: a prohibition
+pointing at a tool that was never there.
+
+**The population took four attempts, and the first three failures are the lesson.**
+
+| matcher | hits | why it was wrong |
+|---|---|---|
+| bare `tri-<name>` | 462 | `tri-valued logic` is an adjective. Most hits are English. |
+| any path prefix | 102 | `../tri-net/src/lib.rs` is a path into a **sibling repository**. |
+| final path segment | 50 | still `tri-net`, `tri-language-core` — repo names, and **100% "dead"**. |
+| `scripts/tri-<name>` | 13 | this repository's own script dir. 6 names, **5 resolve**, 1 does not. |
+
+The third attempt is the one worth dwelling on. Fifty hits, every one of them absent from the tree,
+and it reads like a catastrophic finding. **A matcher whose every hit is a defect is describing its
+own population, not the tree.** The healthy signal is the fourth row: five live against one dead.
+A detector that never fires on something correct has not been shown to distinguish anything.
+
+Anchoring to `scripts/` is what turns a name-shaped guess into a claim about **this**
+repository rather than about the world: the missing sibling named above does not exist here,
+and that is a statement this tree can answer. `../tri-net` is a path into another repository
+and no absence here refutes it.
+
+That paragraph is the fifth time this trap has fired, and the first four are recorded in
+sections above. Writing it the obvious way put the dead name in a sentence that did not
+declare it dead, and the gate turned red on the section explaining the gate. The excuse
+logic is paragraph-scoped and worked exactly as built: four mentions here sit beside the
+words `never existed` and were excused; the fifth did not, and was reported. **Prose about
+a matcher must be written in a vocabulary the matcher forgives, or not in its vocabulary
+at all.**
+
+**And on its first real run it reported itself.** `tools/check_documented_commands_exist.py:558` —
+the self-check fixture that must name an absent sibling for the negative control to mean anything.
+Three earlier sections record this same shape from the prose side; this is the first time the
+detector's own *code* tripped it. A file whose job is to hold the pattern is not making a claim,
+and it is excluded by path, the same way `docs/now/` and `docs/reports/` already are.
+
+The new self-check carries five assertions, and two of them are negative: an adjective is not a
+sibling, and a sibling repository is not one either. Without those the matcher is the `gft*` mistake
+with a different prefix.
