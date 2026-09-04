@@ -16,13 +16,13 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     prints what it got            2
 
   PRINTS WHAT IT GOT:
-    red.rs:159  fn runs_url
-    red.rs:170  fn deep_runs_url
+    red.rs:160  fn runs_url
+    red.rs:171  fn deep_runs_url
 
   ONE ROW, NO TOTAL:
     gates.rs:2758  fn unmeasured
-    red.rs:197  fn last_pass
-    red.rs:320  fn now
+    red.rs:198  fn last_pass
+    red.rs:379  fn now
 
   A full page is a LOWER BOUND and only a short one is a total, so a
   bounded fetch that prints what it got is stating a page as a census. The
