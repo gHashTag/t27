@@ -136,11 +136,13 @@ jobs:
           # `Admitted.` in PhiFloat.v: grep PRINTS the match, exits 2, and the
           # step prints OK underneath it and exits 0.
           #
-          # That is one ordinary rename away. `grep -rn "Kernel/Phi.v"` finds
-          # three hits in the whole tree -- this line, and two Coq `Require`s
-          # resolved by MODULE name -- so moving the file and updating
-          # coq/_CoqProject, as any Coq rename must, leaves the build green and
-          # this gate dead from that commit onward.
+          # That is one ordinary rename away. The path is pinned in more files
+          # than a rename would think to touch -- `git grep -n 'Kernel/Phi\.v'`
+          # lists them, and two are machine-readable conformance files, not
+          # prose. Update them all, as any Coq rename must, and the build stays
+          # green with this gate dead from that commit onward. None of the hits
+          # is a Coq `Require`: those name the module T27.Kernel.Phi, which this
+          # string cannot match, so grep cannot warn you about them.
           #
           # Exit 2 for "could not run", matching scripts/tri and
           # tools/check_now_entry_shape.py.
