@@ -15397,3 +15397,24 @@ the control that stops a predicate that always answers YES from passing the firs
 path),` now occurs twice, so a replacement keyed on it is not unique and was rejected
 rather than applied to the wrong caller. A harness that edits the first match would have
 mutated the OTHER table and reported a clean result about the one under test.
+
+**Then a gate caught the insertion itself, and it is the third time for this shape.** The
+two tests went in anchored on `fn pull_request_only_cannot_produce_a_baseline() {` -- a
+`fn` line -- which put my doc comment **between that test's `#[test]` and its body**.
+`tri gates tests --gate` failed the build and named both halves:
+
+```text
+RUNS TWICE     gates.rs:4862  a second `#[test]` follows this one
+DOES NOT RUN   gates.rs       fn pull_request_only_cannot_produce_a_baseline asserts,
+                              has no `#[test]`, and nobody calls it
+```
+
+**The two cancel in every total**, which is the whole reason that gate exists and why the
+earlier occurrences went unnoticed: the suite count was identical either way. Previously
+this was caught by the compiler's `dead code` and clippy's `duplicated attribute`; this
+time by a gate that pairs attributes to functions rather than counting them.
+
+**The rule, now with three instances behind it: anchor an insertion on the attribute or
+on a closing brace, never on `fn`.** A `fn` line is not the top of the item -- the
+attributes and the doc comment above it are -- and an anchor that is not the top of the
+item splits it.

@@ -4860,15 +4860,25 @@ mod auto_default_run_tests {
     /// filter, no `push:` at all. Two default-branch runs exist for this file,
     /// both dispatched by hand, so a STALENESS check reports it healthy.
     #[test]
+    fn pull_request_only_cannot_produce_a_baseline() {
+        let y = "name: x\non:\n  pull_request:\n    paths:\n      - 'bootstrap/**'\n  workflow_dispatch:\njobs: {}\n";
+        assert!(!has_auto_default_run(y, "master"));
+    }
+
     /// The real file, character for character, as the reason this column exists.
     ///
     /// `issue-gate.yml` emits `check-linked-issue` -- one of the four contexts the
     /// ruleset REQUIRES -- and its last default-branch run is 2026-04-08. It was printed
     /// in the stale table as `dispatch: yes` with no pr-only column at all, which reads
     /// as an invitation to take a reading that a dispatch cannot take.
+    ///
+    /// This block was first inserted ABOVE that function, anchored on its `fn` line --
+    /// which put my doc comment between its `#[test]` and its body. `tri gates tests
+    /// --gate` caught it: one test RUNS TWICE and one DOES NOT RUN, and the two cancel
+    /// in every total. Anchor on the attribute or on a closing brace, never on `fn`.
     #[test]
     fn a_workflow_reading_pr_title_and_body_is_pr_only() {
-        let y = "name: Issue Gate\non:\n  pull_request_target:\njobs:\n  check:\n    steps:\n                 \x20     - env:\n          PR_TITLE: ${{ github.event.pull_request.title }}\n                 \x20         PR_NUMBER: ${{ github.event.pull_request.number }}\n";
+        let y = "name: Issue Gate\non:\n  pull_request_target:\njobs:\n  check:\n    steps:\n      - env:\n          PR_TITLE: ${{ github.event.pull_request.title }}\n          PR_NUMBER: ${{ github.event.pull_request.number }}\n";
         assert!(super::text_reads_pr_context(y));
     }
 
@@ -4876,13 +4886,8 @@ mod auto_default_run_tests {
     fn a_workflow_that_never_mentions_the_pr_object_is_not() {
         // The control: without it, a predicate that always says YES would pass the test
         // above and turn every row into "cannot be dispatched".
-        let y = "name: x\non:\n  push:\n    branches: [master]\njobs:\n  build:\n    steps:\n                 \x20     - run: cargo test\n";
+        let y = "name: x\non:\n  push:\n    branches: [master]\njobs:\n  build:\n    steps:\n      - run: cargo test\n";
         assert!(!super::text_reads_pr_context(y));
-    }
-
-    fn pull_request_only_cannot_produce_a_baseline() {
-        let y = "name: x\non:\n  pull_request:\n    paths:\n      - 'bootstrap/**'\n  workflow_dispatch:\njobs: {}\n";
-        assert!(!has_auto_default_run(y, "master"));
     }
 
     #[test]
