@@ -50,7 +50,33 @@ import json
 import subprocess
 import sys
 
-UPDATE_PREFIXES = ("Merge branch 'master'", "Merge remote-tracking", "Merge branch \"master\"")
+# A MERGE IS A SHAPE, NOT A SENTENCE.
+#
+# This used to count subjects starting with one of three spellings git writes by
+# default. The loop then began passing its own `-m "Merge origin/master into
+# <branch>"`, which matches none of them -- so the command reported
+# "update-branch merges 0" and "cost of the rule 0 minutes", pricing the
+# up-to-date rule as FREE while it was charging.
+#
+# Measured on four pull requests: by prefix 0/0/4/0, by parent count 1/1/4/3.
+# It agreed only on the one PR that happened to use git's default message, and
+# missed the other session's #3178 entirely (0 against 3).
+#
+# A merge commit has two parents. That is structural, immune to wording, and
+# cannot be broken by anyone choosing a nicer `-m`. The prefixes are gone rather
+# than widened: a longer list of spellings is the same defect with more rope.
+#
+# FAN_OUT is how many workflow runs ONE pull_request commit creates here.
+# Measured 2026-09-05 over 200 recent runs grouped by (head_sha, event): median
+# 23, min 20, max 23 across six sampled pull_request commits. It is a constant
+# because the comparison below is in runs and the number has to come from
+# somewhere nameable rather than from a guess.
+FAN_OUT = 23
+
+# WHAT THIS COUNTS, said plainly: every commit in the pull request with more
+# than one parent. In this repository that is an update-branch merge. A PR that
+# merged a SUB-branch of its own would also be counted, and none in the sampled
+# window did.
 
 
 def sh(args: list[str]) -> str:
@@ -115,8 +141,9 @@ def main() -> int:
         c, m = when(created), when(merged)
         if not (c and m):
             continue
-        msgs = sh(["gh", "api", f"repos/{slug}/pulls/{n}/commits", "--jq", ".[].commit.message"])
-        updates = sum(1 for l in msgs.split("\n") if l.startswith(UPDATE_PREFIXES))
+        parents = sh(["gh", "api", "--paginate", f"repos/{slug}/pulls/{n}/commits",
+                      "--jq", ".[]|.parents|length"])
+        updates = sum(1 for l in parents.split("\n") if l.strip().isdigit() and int(l) > 1)
         checks = sh(["gh", "api", "--paginate", f"repos/{slug}/commits/{sha}/check-runs",
                      "--jq", r'.check_runs[]|"\(.started_at)\t\(.completed_at)"'])
         st, en = [], []
@@ -160,6 +187,31 @@ def main() -> int:
         print(f"  mean CI cycle            {mean_cycle:.1f} minutes")
         print(f"  cost of the rule         {updates * mean_cycle:.0f} minutes "
               f"({updates} reruns x {mean_cycle:.1f})")
+    # THE QUEUE'S OWN ARITHMETIC, because "remove the reruns" is not the whole
+    # trade. A merge queue charges ONE build per pull request whether or not that
+    # PR ever had to catch up -- and half of them here never do. Measured
+    # 2026-09-05: every pull_request commit fires 23 workflow runs (median of 6
+    # sampled commits, min 20, max 23), so the comparison is in runs.
+    n_prs = len(rows)
+    zero = sum(1 for r in rows if r["updates"] == 0)
+    if n_prs and updates:
+        commits = content + updates
+        today = commits * FAN_OUT
+        queued = content * FAN_OUT + n_prs * FAN_OUT
+        breakeven = n_prs / updates
+        print()
+        print(f"  WHAT A MERGE QUEUE WOULD COST ON THIS WINDOW, in workflow runs")
+        print(f"    every pull_request commit fires   {FAN_OUT} runs")
+        print(f"    today   {commits} commits            = {today} runs")
+        print(f"    queued  {content} content + {n_prs} builds  = {queued} runs   "
+              f"({queued - today:+d})")
+        print(f"    {zero} of {n_prs} pull requests merged with ZERO catch-ups")
+        print(f"    average catch-ups per PR          {updates / n_prs:.2f}")
+        print(f"    break-even batch size             {breakeven:.2f} PRs per build")
+        print()
+        print("    A queue pays only if it GROUPS pull requests. Batching below that")
+        print("    figure makes it more expensive, not less, because the PRs that")
+        print("    currently catch up zero times start paying a build each.")
     print()
     print("  This does NOT establish that a merge queue is worth enabling -- that is a")
     print("  ruleset change and the owner's (#3134). Nor that this window is typical.")
