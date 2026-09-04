@@ -13406,7 +13406,97 @@ second is a fact.
 
 Sources: *Test Smell Detection Tools: A Systematic Mapping Study* (arXiv
 2104.14640); *Assertion Inferring Mutants* (arXiv 2301.12284).
-## 497. The subject of a step is the step, not the line
+
+## 497. I probed in bash and CI runs dash
+
+The previous pass praised a repair to `coq-kernel.yml`. **That gate has failed on every
+run since it landed**, and my first diagnosis of why was wrong in a way worth keeping.
+
+**What I said.** GitHub runs a step under `bash -eo pipefail`, so `HITS=$(grep …)` aborts
+on grep's exit 1 -- the CLEAN case -- and `rc=$?` is never reached. I probed that in
+bash, watched a clean tree exit 1, and shipped a fix.
+
+**What the log said.** The job runs in `coqorg/coq:8.19-ocaml-4.14-flambda`, and in that
+container the step shell is **`sh -e`** -- dash. The step died on its **first line**:
+
+```
+shell: sh -e {0}
+/__w/_temp/….sh: 1: set: Illegal option -o pipefail
+```
+
+`set -uo pipefail`, added by the repair, is not valid in dash. **Nothing in the step ever
+ran.** Every sibling step in the same job uses `set -eux`; this was the only `-o
+pipefail`, and the step contains no pipeline for pipefail to guard.
+
+**And a local `sh` probe would not have caught it either.** On this machine `/bin/sh` is
+bash in POSIX mode and accepts `-o pipefail` without complaint. The probe world was not
+the world twice over: the wrong shell, and then a stand-in for the right shell that
+behaves like the wrong one.
+
+**The `set -e` reasoning was still needed.** Measured under real dash: a plain
+`HITS=$(grep …)` on a clean tree exits 1 and never reaches `rc=`, while the `if` form
+reaches `rc=1` and exits 0. So the repair takes both -- `set -eu` in place of `set -uo
+pipefail`, and the assignment inside an `if` condition.
+
+Verified under `sh -e` in three planted worlds: clean exits **0** and prints the OK line,
+a real `Admitted.` exits **1**, a deleted operand exits **2** and names the file it could
+not open.
+
+**The lesson is the shell, not grep.** A gate's behaviour is a property of the
+interpreter it is handed to, and the interpreter is named in the run log and nowhere
+else -- not in the workflow, not in the step, not in the container image's name. Read the
+line that says `shell:` before probing, and probe with that binary. A right answer about
+bash is a wrong answer about a step that dash executes.
+
+The original repair remains right about its own subject: `grep` has three answers and the
+old `if … 2>/dev/null` kept one. It moved the defect from *passes when it should fail* to
+*dies before it can check* -- louder, and caught in a day.
+
+## 498. The error names the tool that answered, not the tool you meant
+
+`./scripts/tri pr ready 3127 --wait --merge` printed:
+
+```
+error: unrecognized subcommand 'pr'
+  tip: some similar subcommands exist: 'tt-profile', 'parse'
+Usage: t27c <COMMAND>
+```
+
+Two of three merge waiters died on that line; the third kept running. My first hypothesis
+was a build race -- three concurrent invocations colliding while the binary relinked. It was
+wrong, and it was wrong in the expensive direction: it explained the *difference* between the
+three and so felt confirmed by the very evidence that should have killed it. The surviving
+waiter was not a third invocation that won a race. It was **an older process from before the
+context break**, still polling, whose buffered writes into a freshly truncated log produced
+NUL padding I read as corruption.
+
+The actual cause: I ran `scripts/tri` from the repository's main checkout, which sits on
+`feat/rename-tef-to-tnf` at 2026-08-09 -- **1160 commits behind master**, with 10 uncommitted
+paths and 19 stashes belonging to another session. That copy of the script predates the
+Rust-binary routing entirely. Master's copy searches for a built `cli/tri`, picks the newest,
+warns when it is older than `cli/tri/src`, and execs it for any name `t27c` does not list. The
+month-old copy knows only `t27c`, so it forwarded `pr` there, and `t27c` answered the way any
+CLI answers an unknown name: with a tip drawn from **its own** vocabulary. `tt-profile` and
+`parse` are not near-misses for `pr ready`. They are near-misses for `pr` *in the wrong
+dictionary*, and reading them as a suggestion is what sent me looking for a race.
+
+**Two front doors share the name `tri`.** When a name is missing, the door that answers is
+whichever one the path reached, and its error is a true statement about a vocabulary you were
+not asking about. Before diagnosing "the command does not exist", establish **which binary
+answered** -- `git rev-parse --abbrev-ref HEAD` and `git rev-list --count HEAD..origin/master`
+in the directory you invoked from, then `find … -name tri -perm -111` to see what is actually
+built. The working waiters were running `wG/target/release/tri`; `ps -o command` said so, and
+that one line would have ended the investigation twenty minutes earlier.
+
+**The part worth keeping is what the fix cannot do.** The obvious repair -- teach `scripts/tri`
+to warn when its checkout is far behind master -- would not have prevented this and will not
+prevent its recurrence, because the guard would ship to master and the offending copy is the
+one that never sees master. A guard placed downstream of the staleness cannot detect the
+staleness. The durable fix is procedural: the loop invokes binaries from its own worktrees,
+never from the shared main checkout, which belongs to another session and must not be switched
+or stashed (see §5 on stashes crossing worktrees). Nothing was shipped for this section. It is
+a rule about where to stand, not a check to add.
+## 499. The subject of a step is the step, not the line
 
 `tri gates quiet` reported **22 of 32** quiet steps as naming no path. That number was
 about the LINE, and the thing it describes is a STEP.
@@ -13442,7 +13532,7 @@ never swallowed -- a subject borrowed from a neighbouring gate would be worse th
 none. A blank line inside a block does not end it: a command split by one would
 otherwise lose everything below the gap.
 
-## 498. A redirection is not a path, and this is the second time
+## 500. A redirection is not a path, and this is the second time
 
 `>/dev/null` carries a `/`, so `subject_of` returned it as the path a gate reads -- and
 the command then reported it as **a tracked path that is missing**, under the heading
