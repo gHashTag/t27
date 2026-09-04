@@ -10,8 +10,8 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     per_page=1 + total_count    5
 
   bounded, and:
-    asks whether the page filled  4
-    a guard, but two fetches       4   <- which one does it cover?
+    asks whether the page filled  8
+    a guard, but two fetches       0   <- which one does it cover?
     per_page=1, NO total read     3
     prints what it got            2
 
@@ -23,12 +23,6 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     gates.rs:2758  fn unmeasured
     red.rs:198  fn last_pass
     red.rs:379  fn now
-
-  A GUARD IN THE FUNCTION, BUT MORE THAN ONE FETCH:
-    issues.rs:622  fn numbers
-    issues.rs:633  fn numbers
-    issues.rs:1279  fn dated
-    issues.rs:1290  fn dated
 
   A full page is a LOWER BOUND and only a short one is a total, so a
   bounded fetch that prints what it got is stating a page as a census. The

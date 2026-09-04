@@ -14802,7 +14802,60 @@ SAME QUESTION":
 **A sweep that finds one defect in three candidates has still earned itself**, because the two
 non-defects are now recorded as non-defects with the reason. The next pass will not re-open them.
 
-## 534. Fifty red workflows were eleven events, and three of them were this week
+## 534. Two sites, one read: the census abstained where the answer was on the page
+
+`tri gates fetches` reported **4** sites as *a guard, but two fetches -- which one does it
+cover?* All four sit in two functions, `issues.rs`'s `numbers` and `dated`, and reading
+them answers the question the census declined:
+
+```rust
+let raw = if instant.is_some() {
+    gh(&[ ... "--limit", &lim ... ])?      // --as-of: --state all, timestamps kept
+} else {
+    gh(&[ ... "--limit", &lim ... ])?      // no flag: --state open
+};
+let complete = read_is_complete(arr.len(), limit);
+```
+
+**Two sites in the source, one read at run time.** Exactly one arm executes, both bind the
+same `raw`, and the single guard covers whichever ran. The guard was right the whole time.
+
+**The repair is not the one the precedent suggests.** When `fn ready` held three fetches
+and one guard, the fix was to SPLIT the function so each guard had one subject. Splitting
+here would be wrong: the two arms are one query with different filters -- with `--as-of`
+the state filter has to come off -- so a split duplicates the guard and the parse and
+fixes nothing. **The same symptom, and the opposite repair.**
+
+**Two questions were being answered by one number.** `fetch_sites_in` counts sites in the
+SOURCE and feeds the published total of 25; the guard question needs the reads that can
+RUN. Collapsing them in one function would have moved a figure this file has printed for
+passes. So `exclusive_fetch_sites_in` is a second function, used only by `classify_fetch`,
+and the total is untouched.
+
+**Predicted before the change, and held to the digit:** `a guard, but two fetches`
+**4 -> 0**, `asks whether the page filled` **4 -> 8**, `FETCH SITES` **25 -> 25**, the
+other three buckets unmoved. 7+5+8+0+3+2 = 25.
+
+**Mutation took two clauses out of the rule.** Seven mutants, three surviving on the first
+run, and two of the three were decoration:
+
+* `then_hits > 0 && else_hits > 0` -- `min` already answers it, so no input can tell the
+  two apart. Removed; the comment now says `min` IS the rule.
+* `starts_with("let ")` -- an assignment binds one value from two arms just as much, so
+  requiring `let` is narrower than the rule it claims to state. Removed, and the corpus
+  numbers did not move.
+
+The third survivor was a real gap and got a constructed counterexample instead: a nested
+`} else {` at a deeper indent must not be read as the binding's own. Two more arrived the
+same way -- a `let` line merely CONTAINING `if `, and a one-line if/else, which opens
+nothing and whose acceptance would let the walk run past it onto an unrelated pair.
+**7 of 7 after that, 10 tests.**
+
+**A fixture written from memory failed five of seven tests.** A fetch site here is a line
+whose whole trimmed content is `"--limit",` -- one argument per line -- and I had written
+the flag and its value inline. Read the matcher, then write the fixture.
+
+## 535. Fifty red workflows were eleven events, and three of them were this week
 
 Six of my own passes carried the line "50 red workflows in `gHashTag/trinity-fpga`" into the report as
 outstanding work. &sect;532 gave `tri red` a date on every row. Re-running it against that repository
@@ -14858,7 +14911,7 @@ value I saw" and "the value now" as different questions, and every one makes the
 number rather than a hidden one. `STALE_AFTER_DAYS = 7` is therefore printed in the output: **the
 threshold is a policy, not a discovery, and policy that is not stated is policy that is not reviewable.**
 
-## 535. The fix lived in the tool; the probe walked around it
+## 536. The fix lived in the tool; the probe walked around it
 
 Pass 86 found that `tri red` read the workflow LISTING with `per_page=100` and no `--paginate`, so in a
 405-workflow repository it examined 100 and reported on the rest by not reporting them. Commit
