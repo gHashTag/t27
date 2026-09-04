@@ -104,8 +104,16 @@ def main() -> int:
             "worktree the loop created."
         )
 
-    raw = sh(["gh", "pr", "list", "--state", "open", "--limit", "100",
+    # A full page is a LOWER BOUND (see triage.py for the dated measurement).
+    # 11 open pull requests here against the 100 asked for, so this is nowhere
+    # near biting -- which is exactly when the guard is free to add.
+    LIMIT = "100"
+    raw = sh(["gh", "pr", "list", "--state", "open", "--limit", LIMIT,
               "--json", "number,headRefName,title,mergeStateStatus"])
+    if raw.strip() and len(json.loads(raw)) >= int(LIMIT):
+        print(f"  open PRs read from gh  {len(json.loads(raw))}   *** EQUALS the "
+              f"--limit of {LIMIT}: a LOWER BOUND, not a total. Raise --limit "
+              f"and read again. ***", file=sys.stderr)
     if not raw.strip():
         refuse("gh returned nothing; not an empty list, an unanswered question.")
     try:

@@ -14465,3 +14465,64 @@ of those is a reason to stop.
 `tri worktrees` deletes nothing and takes no flag that would. Of the 122 trees, 96 belong
 to one other session's scratchpad, and a worktree is exactly where another session's
 uncommitted work lives -- the same hazard as a shared stash. 19 tests, 8 mutants, 8 dead.
+
+## 522. My own guard told me the number was a floor, and I took it anyway
+
+Measuring how fast the backlog approaches a helper's `--limit`, I ran
+`tri issues numbers --as-of 2026-08-01` and read **0**. Then 0, 0, 75, 305 across five dates --
+a curve that looked like explosive growth. Every one of those readings was wrong, and the tool had
+already said so, on the line above the one I grepped:
+
+    issues read from gh   500   *** EQUALS the --limit of 500: this is a LOWER BOUND,
+                                not a total. Raise --limit and read again. ***
+    open issues read      0
+
+With `--as-of` the query becomes `--state all`, so 500 rows is the newest 500 issues -- almost none
+of them open on a date five weeks back. **The guard fired correctly and I grepped past it**, then
+built a growth story on the zeros. Raising the limit as instructed: **140 / 267 / 484**, which
+matches the figure this repository already had on file for 2026-08-01.
+
+**A printing guard only protects a reader who reads.** &sect;467 argued that a guard which PRINTS
+beats one returning a bool, because it protects everything downstream. That is true of every
+downstream except a `grep` for the number, which walks straight past the sentence. When extracting
+one figure from a command's output, **grep the guard line first and refuse on it** -- the same
+discipline as checking `agents_done` before reading a fan-out.
+
+## 523. Tighten the matcher against counterexamples, not against the number you wanted
+
+&sect;518 published *"7 bounded reads in `scripts/tri_loop/*.py`"* as an upper bound by shape. Reading
+the seven: **`cost.py` and `diffbin.py` take `--limit N` over a LOCAL corpus directory** and never
+touch the API -- a matcher describing its input, inside the command whose subject is matchers
+describing their input.
+
+Tightening it took three passes and each one was decided by a counterexample rather than by taste:
+
+1. *Require `"gh"` within a few lines.* Predicted 5, measured **3**. Reading the difference:
+   `rule_observance.py` calls a wrapper, `gh_json(...)`, with no literal `"gh"` anywhere near.
+2. *Add the wrapper spellings* (`gh(`, `gh_json(`). Now the argv-parse line
+   `if a == "--limit" and i + 1 < len(argv)` swept in, because it sits two lines under a real call.
+3. *Reject the argv shape first.* **4 reads: 3 guarded, 1 not** -- matching a hand enumeration.
+
+The fixture carries all three cases and puts the argv line two lines under a `gh` call **on
+purpose**, because that is exactly where a window alone gets it wrong.
+
+**And the last one is not a defect.** `pr_cost.py`'s limit IS the caller's own `--last N`, so
+filling it is the normal case and a LOWER BOUND warning would be noise -- the *declared sample* this
+repository already names in `prcheck.rs`. The useful check there runs the **other way**: a SHORT
+read means the repository holds fewer merged pull requests than were asked for, so every per-PR
+average is over a smaller sample than the caller believes. Same class, opposite comparison.
+
+## 524. Declined: pinning `gates empty`, priced at 25 more builds per 200 commits
+
+&sect;520's open question, answered the way &sect;519 was. Walking the same 39 trees:
+**`gates empty` moved 2 of 39**, both on commits that ADD a gate -- which is its subject.
+
+It is not pinned, for a reason the earlier measurement makes precise rather than a preference. Its
+subject is not `.github/workflows` alone but **`tools/` and `scripts/`**, which `cli-tri.yml` does
+not trigger on. Pinning it without widening recreates exactly the misattribution &sect;519 fixed: the
+ledger goes stale on a `tools/` commit and the NEXT `cli/**` commit fails blaming someone who
+changed nothing. Widening costs **25 of 200 commits** (12.5%) on top of the 22 already added, plus
+15s per run -- to catch two deliberate gate additions a reviewer sees in the diff anyway.
+
+**A measured decline is a result.** The number that decides it is not the move rate; it is the
+distance between the census's subject and the gate's trigger.

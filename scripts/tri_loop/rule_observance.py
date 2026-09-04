@@ -95,6 +95,10 @@ def main(argv):
         print("  `tri loop-rules` seals; if it is gone the seal is about nothing.")
         return 2
 
+    # A full page is a LOWER BOUND (see triage.py for the dated measurement).
+    # `limit` here is the caller's own sample size, so filling it is expected --
+    # but "I asked for 30 and got 30" still cannot tell a sample from a total,
+    # and the caller is the one who needs to know which they have.
     prs = gh_json([
         "pr", "list", "--state", "merged", "--limit", limit,
         "--json", "number,headRefName,body,author",

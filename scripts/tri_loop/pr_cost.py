@@ -93,6 +93,17 @@ def main() -> int:
         refuse("gh did not return JSON for the merged list.")
     if not nums:
         refuse("no merged pull request was returned; that is an unanswered question, not a zero.")
+    # NOT the LOWER BOUND check the other helpers carry, and deliberately so.
+    # `--limit` here is the caller's OWN sample size (`--last N`), so filling it
+    # is the normal case and warning on it would be noise -- the same "declared
+    # sample" the Rust census names at prcheck.rs, where the page size IS the
+    # user's flag. The useful question runs the other way: a SHORT read means
+    # the repository holds fewer merged pull requests than were asked for, so
+    # every per-PR average below is over a smaller sample than the caller
+    # believes.
+    if len(nums) < last:
+        print(f"  merged PRs read      {len(nums)}   FEWER than the --last of {last}: "
+              f"the averages below are over {len(nums)}, not {last}.", file=sys.stderr)
 
     rows = []
     for n in nums:
