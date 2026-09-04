@@ -36,6 +36,151 @@ use std::path::{Path, PathBuf};
 pub enum CensusCmd {
     /// Every census's printed population, against one counted another way.
     Audit,
+    /// Pin each pure census's output, so a change that moves one has to say so.
+    Pin {
+        /// Compare against the ledger and exit 1 on any difference.
+        #[arg(long)]
+        gate: bool,
+        /// Rewrite the ledger from the current tree.
+        #[arg(long)]
+        bless: bool,
+    },
+}
+
+/// The censuses this pins, and why only these.
+///
+/// Each one's POPULATION IS A DIRECTORY, so it cannot move unless a file in that
+/// directory changes -- which is what makes a pin cheap rather than a daily tax.
+/// Measured over the 39 most recent transitions on master with one fixed
+/// instrument: **8 moved a census, and every one of the 8 had edited that
+/// census's own subject** (fetches 4/4 touched `cli/tri/src`, shell 4/4 and
+/// quiet 1/1 touched `.github/workflows`). Not one moved as a side effect of an
+/// unrelated change.
+///
+/// The other censuses are excluded and the reason is measured, not assumed:
+/// `dead` and `unmeasured` read the GitHub API, so their answer moves when the
+/// world moves and pinning them would redden on somebody else's push. `empty`
+/// runs 15s. `preview` exits non-zero by design outside a pull request.
+const PINNED: &[(&str, &[&str])] = &[
+    ("fetches", &["gates", "fetches"]),
+    ("quiet", &["gates", "quiet"]),
+    ("shell", &["gates", "shell"]),
+];
+
+/// Where the blessed output lives, one file per census.
+fn ledger_dir() -> Result<std::path::PathBuf> {
+    Ok(repo_root()?.join("tools/census"))
+}
+
+/// Run one census against the current tree, as the ledger records it.
+///
+/// This pins the OUTPUT, not numbers parsed out of it. Parsing a tool's own
+/// human report to check the tool is the re-implementation trap one layer up:
+/// the parser would disagree with the printer and the disagreement would be the
+/// parser's. A byte comparison cannot have that bug, and the failure prints the
+/// actual diff, which is what a reader needs.
+fn run_census(args: &[&str]) -> Result<String> {
+    let exe =
+        std::env::current_exe().map_err(|e| anyhow::anyhow!("cannot locate this binary: {e}"))?;
+    let out = std::process::Command::new(exe)
+        .args(args)
+        .output()
+        .map_err(|e| anyhow::anyhow!("running tri {}: {e}", args.join(" ")))?;
+    if !out.status.success() {
+        anyhow::bail!(
+            "tri {} exited {} -- refusing to pin a census that could not run",
+            args.join(" "),
+            out.status.code().unwrap_or(-1)
+        );
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+fn pin(gate: bool, bless: bool) -> Result<()> {
+    if gate && bless {
+        anyhow::bail!("--gate and --bless ask opposite questions; pick one");
+    }
+    let dir = ledger_dir()?;
+    if bless {
+        std::fs::create_dir_all(&dir)?;
+    }
+    let mut moved: Vec<String> = Vec::new();
+    for (name, args) in PINNED {
+        let now = run_census(args)?;
+        let path = dir.join(format!("{name}.txt"));
+        if bless {
+            std::fs::write(&path, &now)?;
+            println!("  blessed  {name}  ({} bytes)", now.len());
+            continue;
+        }
+        let was = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(_) => {
+                // Absence is not amnesty: a missing ledger is a census nothing
+                // is watching, which is the state this exists to end.
+                moved.push(format!("{name}: NO LEDGER at {}", path.display()));
+                continue;
+            }
+        };
+        if was != now {
+            let first = was
+                .lines()
+                .zip(now.lines())
+                .find(|(a, b)| a != b)
+                .map(|(a, b)| format!("\n      was: {}\n      now: {}", a.trim(), b.trim()))
+                .unwrap_or_else(|| " (length differs)".into());
+            moved.push(format!("{name} moved:{first}"));
+        }
+    }
+    if bless {
+        println!(
+            "\n  {} census(es) re-recorded. Say in the commit message WHICH number\n  \
+             moved and why -- the ledger records that it moved, not why.",
+            PINNED.len()
+        );
+        return Ok(());
+    }
+    if !gate {
+        for (name, _) in PINNED {
+            println!("  {name}");
+        }
+        println!(
+            "\n  {} census(es) pinned under tools/census/.",
+            PINNED.len()
+        );
+        println!("  `--gate` compares, `--bless` re-records.");
+        return Ok(());
+    }
+    if moved.is_empty() {
+        println!("PASS: no pinned census moved.\n");
+        println!(
+            "  This says the {} pinned readings are unchanged. It says nothing\n  \
+             about whether they are RIGHT -- that is what `tri census audit` asks.",
+            PINNED.len()
+        );
+        return Ok(());
+    }
+    let missing = moved.iter().filter(|m| m.contains("NO LEDGER")).count();
+    for m in &moved {
+        println!("FAIL: {m}");
+    }
+    if missing == moved.len() {
+        println!(
+            "\n  Absence is not amnesty: a census with no ledger is one nothing is\n  \
+             watching, which is the state this exists to end. Run\n  \
+             `tri census pin --bless` and commit the ledger."
+        );
+        std::process::exit(1);
+    }
+    println!(
+        "\n  A census moved. That is not a defect by itself -- it is a defect when\n  \
+         nobody says so. Measured over 39 commits: 8 moved a census and only 4\n  \
+         mentioned it, and one of the silent four had made 45 of 50 red workflows\n  \
+         invisible.\n\n  \
+         Re-bless in the SAME commit (`tri census pin --bless`) and say in the\n  \
+         message which number moved and why."
+    );
+    std::process::exit(1);
 }
 
 /// One census, the line it prints its population on, and how to count that
@@ -376,7 +521,14 @@ fn repo_root() -> Result<PathBuf> {
 }
 
 pub fn run(cmd: &CensusCmd) -> Result<()> {
-    let CensusCmd::Audit = cmd;
+    match cmd {
+        CensusCmd::Pin { gate, bless } => return pin(*gate, *bless),
+        CensusCmd::Audit => {}
+    }
+    audit()
+}
+
+fn audit() -> Result<()> {
     let repo = repo_root()?;
     let exe = std::env::current_exe()?;
 
@@ -556,6 +708,46 @@ mod tests {
                 "{} prints a difference with no reading",
                 r.census
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod pin_tests {
+    use super::PINNED;
+
+    /// Pinning a census that reads the GitHub API would redden this gate when
+    /// SOMEBODY ELSE pushes, which is how a gate gets muted. The exclusion is a
+    /// measurement, not a preference: `dead` takes over four minutes and
+    /// `unmeasured` about fifty seconds because both walk the API, and their
+    /// answers move with the world rather than with the tree.
+    #[test]
+    fn no_pinned_census_reads_the_network() {
+        for networked in ["dead", "unmeasured", "required", "prs"] {
+            assert!(
+                !PINNED.iter().any(|(n, _)| *n == networked),
+                "`{networked}` reads the API: pinning it makes this gate fail on \
+                 changes that are not in this repository at all"
+            );
+        }
+    }
+
+    /// Every pinned census must walk a DIRECTORY, because that is what makes the
+    /// pin cheap: it cannot move unless a file in that directory changes.
+    /// Measured over 39 transitions on master with one fixed instrument -- 8
+    /// moved a census and all 8 had edited that census's own subject.
+    #[test]
+    fn every_pinned_census_is_a_gates_subcommand_over_the_tree() {
+        assert!(!PINNED.is_empty(), "an empty pin list watches nothing");
+        for (name, args) in PINNED {
+            assert_eq!(
+                args.first().copied(),
+                Some("gates"),
+                "`{name}` is pinned but is not a `gates` census; the cheapness \
+                 argument rests on its population being a directory"
+            );
+            assert_eq!(args.len(), 2, "`{name}` should be `gates <name>`");
+            assert_eq!(args[1], *name, "the ledger file and the command must agree");
         }
     }
 }

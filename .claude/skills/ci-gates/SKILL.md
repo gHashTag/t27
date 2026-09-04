@@ -14311,3 +14311,51 @@ It now names that surface and sizes it (**7** bounded reads, counted loosely and
 exclusion notice rather than a classification), because a count that quietly excludes part of its
 subject is this command's own subject. Its closing prose also carried two literals -- *"one of the
 nine"*, *"a crate that has 24"* -- beside numbers it computes; both are computed now.
+
+## 519. Price a gate by measuring what moves the number, not by imagining it
+
+&sect;518 ended with a question: should *"a change that moves a census must say so"* be a gate, a
+snapshot test, or a habit? The worry was that an always-on gate over ~10 numbers reddens constantly
+and gets muted. **Measured, and the worry is refuted.**
+
+Method: run **one fixed instrument** (today's binary) against each of the 39 most recent trees on
+master. That isolates tree-driven drift from tool drift -- the anchor pins the population, and using
+today's tool for every commit is what makes the readings comparable at all (&sect;465).
+
+    transitions                        39
+    moved at least one census           8   (20%)
+    of those, the commit SAID so        4
+    per census   fetches 4   shell 4   quiet 1
+
+**And every one of the 8 had edited that census's own subject** -- fetches 4/4 touched
+`cli/tri/src`, shell 4/4 and quiet 1/1 touched `.github/workflows`. Not one moved as a side effect
+of an unrelated change. That is **structural, not statistical**: each census's population IS a
+directory, so it cannot move unless a file in that directory changes. The 8/8 confirms the
+structure; it is not the proof.
+
+So the re-bless falls only on commits already working in that area. **The tax the worry imagined
+does not exist, and measuring took one loop over `git checkout`.**
+
+**Pin the OUTPUT, not numbers parsed out of it.** Parsing a tool's own human report to check the
+tool is the re-implementation trap one layer up: the parser disagrees with the printer and the
+disagreement is the parser's. A byte comparison cannot have that bug, and the failure prints the
+actual diff -- which is what a reader needs.
+
+**Exclude by measurement, and make a test enforce the exclusion.** `dead` and `unmeasured` read the
+GitHub API: their answers move when the WORLD moves, so pinning them would redden the gate on
+somebody else's push, which is how a gate gets muted. A test refuses their addition to the list.
+
+**The historical control is the whole argument.** Bless the ledger at the parent of the commit whose
+census move was silent, then check out that commit: `PASS` becomes `FAIL: fetches moved / was 56 /
+now 59`. It would have caught the miss that hid 45 of 50 red workflows.
+
+**A trigger narrower than the subject is worse than no gate.** `cli-tri.yml` fired on `cli/**` and
+not on `.github/workflows/**`, which is the subject of two of the three pinned censuses. Left alone,
+a workflow-only commit moves `shell`, the gate does not run, the ledger goes stale, and **the next
+`cli/**` commit fails blaming an author who changed nothing**. Misattribution is a correctness bug,
+not a cost. Priced before widening: over 200 commits, 24 touch `.github/workflows/` and 2 of those
+already touch `cli/`, so it adds the job on **22 of 200** (11%).
+
+**And the rule bit its author on arrival:** adding the gate's own step moved `run: steps` **229 ->
+230**, so this commit re-blesses its own ledger. The byte length did not change -- only the diff
+showed it, which is the third time this session that a size match was weak evidence.
