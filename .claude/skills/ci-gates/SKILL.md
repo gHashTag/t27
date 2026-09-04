@@ -14010,9 +14010,14 @@ if [ "$waiting" = 0 ]; then
 fi
 ```
 
-With that rule the same pull request landed on iteration **24**, having caught up
-**zero** times: it never needed to, because master happened not to move during the final
-green window. The previous rule had already burned twelve iterations catching up.
+**The rule minimises the resets; it does not remove them.** To merge, the branch must be
+up to date, and bringing it up to date restarts the checks -- so a reset is unavoidable
+whenever master moves inside the final green window. What changes is how many: the eager
+rule paid one reset per move of master at any time, the narrow rule pays at most one per
+green window. #3160 landed on iteration 24 with **zero** catch-ups because master
+happened not to move in its last window; the very next pull request, under the same rule,
+went `BEHIND waiting:0` -> caught up -> `BLOCKED waiting:22` and paid one. **Zero was
+luck, and at most one is the guarantee.**
 
 **The shape is wider than this loop.** An action taken "to stay current" has a price, and
 the price is paid in the currency of the thing it is protecting. Before refreshing
