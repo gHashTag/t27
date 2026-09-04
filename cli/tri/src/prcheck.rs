@@ -399,6 +399,22 @@ fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
     Ok((pending, total))
 }
 
+/// What `--merge` should leave in the exit code.
+///
+/// Three outcomes, two of which are not a merge: `gh pr merge` refused, or it
+/// succeeded and the content is not on the default branch. Both used to print
+/// an honest line and return 0, so a caller could not tell them from a landing.
+///
+/// `ran_ok` is `gh pr merge`'s own status; `on_branch` is the answer from the
+/// API afterwards, which is the only one that means merged.
+pub fn merge_outcome(ran_ok: bool, on_branch: bool) -> i32 {
+    if ran_ok && on_branch {
+        0
+    } else {
+        4
+    }
+}
+
 fn ready(
     n: u64,
     repo: Option<&str>,
@@ -593,6 +609,7 @@ fn ready(
     //   1  DO NOT      a failure appears only here
     //   2  WAIT        the list is incomplete
     //   3  CANNOT TELL a failure has no baseline to compare against
+    //   4  NOT MERGED  --merge was asked for and the merge did not land
     let mut code = 0;
     if pending > 0 {
         code = 2;
@@ -644,17 +661,27 @@ fn ready(
                 // whatever sat on top of it. Ask the API instead of the
                 // exit code, and name what was verified.
                 match confirm_merged(&repo, n) {
-                    Ok(sha) => println!("Merged — {sha} is on the default branch."),
+                    Ok(sha) => {
+                        println!("Merged — {sha} is on the default branch.");
+                        code = merge_outcome(true, true);
+                    }
                     Err(e) => {
                         println!("Merge command succeeded but the branch does not show it: {e}");
                         println!("Do NOT report this as merged. Check the pull request.");
+                        code = merge_outcome(true, false);
                     }
                 }
             } else {
+                // An honest line under a zero exit is the defect this file
+                // exists to prevent, and it was here: "Merge refused: the head
+                // branch is not up to date" printed while the command returned
+                // 0, so a caller could not tell landed from refused. Seen on
+                // three pull requests in one batch.
                 println!(
                     "Merge refused: {}",
                     String::from_utf8_lossy(&out.stderr).trim()
                 );
+                code = merge_outcome(false, false);
             }
         }
     } else {
@@ -827,5 +854,30 @@ mod paginated_count_tests {
     #[test]
     fn an_unparseable_line_does_not_become_a_zero() {
         assert_eq!(sum_per_page("5\ngh: rate limit\n4\n"), 9);
+    }
+}
+
+#[cfg(test)]
+mod merge_outcome_tests {
+    use super::merge_outcome;
+
+    /// The only outcome that is a merge is the one the API confirms.
+    #[test]
+    fn only_a_confirmed_landing_is_zero() {
+        assert_eq!(merge_outcome(true, true), 0);
+    }
+
+    /// `gh pr merge` refusing -- "the head branch is not up to date" -- printed
+    /// a line and returned 0 before this. Three pull requests in one batch.
+    #[test]
+    fn a_refused_merge_is_not_zero() {
+        assert_eq!(merge_outcome(false, false), 4);
+    }
+
+    /// The worse half: the command succeeds, the content is not on the branch,
+    /// and the text already says "Do NOT report this as merged".
+    #[test]
+    fn succeeded_but_not_on_the_branch_is_not_zero() {
+        assert_eq!(merge_outcome(true, false), 4);
     }
 }
