@@ -12872,3 +12872,44 @@ What the check found is worth the file it took: four deliverables marked
 2026-04-19, unnoticed for four and a half months. The rows now say *DELIVERED,
 then removed in `91653d2b9`* rather than disappearing -- a dashboard that quietly
 drops a deliverable is worse than one that says where it went.
+
+
+## 482. The matcher was wrong inside the check of an exclusion made to avoid that
+
+Last pass I excluded `docs/reports/**` from a new status-table check, and I did
+it on an ARGUMENT: those are dated records of past waves, and a path that
+existed then and not now is not a defect in a log. Good reasoning, no number.
+
+This pass I went to measure it. First reading:
+
+    docs/reports/*.md                                    1569
+      carry a date or a wave tag in name or first lines  1506
+      carry NEITHER                                        63
+
+Sixty-three undated reports would have meant the exclusion was hiding a real
+population. It did not. **All 63 are named `WAVE_LOOP_NNN_*.md`** -- they name
+their wave in the filename, and my pattern was `\bW\d{3}\b`, which does not match
+`WAVE_LOOP_170`. Corrected: **1566 of 1569**, and the three exceptions are a
+reported-upstream note, an open question, and a PR body -- none a status claim.
+
+So the exclusion was right, and the check of it was wrong, in the way the check
+existed to prevent. That is the whole entry: **the matcher that verifies your
+matcher is a matcher.** There is no level at which the question stops being "what
+does this pattern actually match" -- and the cheapest guard is the one that
+worked here, printing the members rather than the count. Sixty-three filenames
+all starting `WAVE_LOOP_` is instantly wrong to a reader and invisible in a
+total.
+
+Same hour, the other half of the discipline, and it produced no code. Extending
+that status check from paths to code SYMBOLS looked obvious -- `PIN_COVERAGE.md`
+names two Rust functions with zero definitions in the tree. Measured before
+building: **8 table rows name a `fn()`, 5 "missing", 62%**. Reading the five,
+`uart_tx_ready` is a `.t27` function that does exist and `quantize_groups` is an
+RFC proposal. Eight rows spanning three languages and one proposal is not a
+population. **The finding survives; the tool does not** -- and the 62% was the
+signal, the same shape that had just been wrong twice.
+
+Both numbers cost one command each. The argument they replaced cost nothing and
+was worth nothing: one of the two turned out right and the other turned out to be
+a detector nobody should build, and no amount of reasoning would have separated
+them.
