@@ -3769,11 +3769,27 @@ code; this one *changed what the code said*.
 **Now.** `?` is a token; 1,135 characters still dropped, all Markdown punctuation
 in mis-named files or non-ASCII bytes.
 
+> **RE-TAKEN AT `9f233f265`: 1,953, not 1,135.** `t27c lex-dropped --specs-dir specs`
+> prints `1953  TOTAL across 30 spec(s)` today. Two things moved in opposite
+> directions and the published figure predates both: the corpus went from **608**
+> walked specs to **650**, and five days after this number was written `#` became
+> a line comment (W661), which *removes* drops. A build-free ruler modelling the
+> lexer's drop arm reproduces **1,135 exactly** on the publishing commit's tree,
+> which is what makes 1,953 a competing count rather than an estimate.
+> "Now" is the word that needs the anchor here.
+
 ### P5 — Nobody had ever compiled the C backend's output
 
 **Method.** `t27c cc-gate` — `cc -fsyntax-only` over every generated header.
 **First measurement (W583).** 36 of 397 compiled.
 **Now.** 101 of 397. The remaining 296 are attributed by class.
+
+> **RE-TAKEN AT `9f233f265`: 290 of 650 compile, not 101 of 397.** `t27c cc-gate`
+> today: `specs scanned 650 / headers that COMPILE 290 / headers that FAIL 291
+> (of those, UNWRITTEN 96) / no header generated 69`. Both halves of the ratio
+> moved -- the denominator by 253 specs -- so neither 101 nor 397 can be checked
+> against anything now. The W583 figure stays as the first measurement it is
+> labelled as.
 **Why it survived.** Every gate in this project measures the Zig path, because
 something runs it. Rust, C and Verilog shared one gate: *does `gen-<backend>`
 exit zero* — and emitting `[]u8 field;` exits zero.
@@ -3830,6 +3846,27 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 | Specs that do not parse | 211 |
 | Functions declared | 2,854 |
 | Functions with **no body** | **667** (23%) |
+
+> **RE-TAKEN AT `9f233f265`.** `t27c impl-status` today:
+>
+> | | W586 | `9f233f265` |
+> |---|---:|---:|
+> | fully implemented | 232 | **316** |
+> | with NO functions | — | **69** |
+> | partly written | 6 | 6 |
+> | entirely unwritten | 159 | **190** |
+> | do not parse | 211 | **69** |
+> | **total** | **608** | **650** |
+> | functions declared | 2,854 | **4,579** |
+> | functions with no body | 667 (23%) | **817 (18%)** |
+>
+> The `NO functions` row did not exist in W586 and is the reason the comparison
+> is not a subtraction: W689 split it out of `fully implemented`, and the command
+> says so in its own output -- *"That merge put 61 specs holding one module line
+> and two `use`s into the headline number, overstating it by 21%"*. So the W586
+> **232** and today's **316** are not the same measurement, and the headline
+> "40% of the specs that parse have no implementation" is over a denominator
+> that has changed twice.
 
 **Consequence for every earlier number.** `COMPILE_FAIL 216` was
 `COMPILE_FAIL 98 + UNIMPLEMENTED 118`. The metric this chain drove down from
