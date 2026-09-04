@@ -54,8 +54,49 @@ fn pre_commit() -> Result<()> {
     // three of the other four local readers, went green -- one of them green
     // BECAUSE of that file, since its freshness loop found it and stopped.
     crate::nownote::check_staged()?;
+    conflict_markers()?;
     l1_check()?;
     println!("tri hooks pre-commit: PASSED");
+    Ok(())
+}
+
+/// Refuse a commit carrying a conflict marker, by asking the repository's own checker.
+///
+/// Not a sixth reader: `tools/check_conflict_markers.py` already reads every tracked file
+/// from the working tree and honours `tools/conflict_markers_baseline.txt`, so a
+/// re-implementation here would be a second vocabulary that drifts. This calls it.
+///
+/// Why it was missing is the finding. Three surfaces claim to gate a commit --
+/// `.githooks/pre-commit`, `scripts/pre-commit` and this command -- and **none of the
+/// three mentioned a conflict marker**; `grep -c conflict` answers 0 on all of them. The
+/// only barrier was CI, and that is exactly how it went wrong: an automated conflict
+/// resolver of mine fixed one path and then ran `git add -A`, which staged a SECOND
+/// conflicted file verbatim. The required `Conflict markers` context caught it on the
+/// pull request, naming `tools/census/fetches.txt` lines 19 and 35 -- one full CI round
+/// after a one-second local check would have refused the commit.
+///
+/// A missing script or interpreter exits **2**, this repository's word for *could not
+/// run*, rather than passing: a guard that cannot run is not a guard that agreed.
+fn conflict_markers() -> Result<()> {
+    let script = std::path::Path::new("tools/check_conflict_markers.py");
+    if !script.exists() {
+        // Not the repository root, or the file is gone. Say which, and do not vote.
+        eprintln!(
+            "tri hooks pre-commit: COULD NOT RUN -- {} is not here. \
+             Nothing was checked for conflict markers.",
+            script.display()
+        );
+        std::process::exit(2);
+    }
+    let out = Command::new("python3")
+        .arg(script)
+        .output()
+        .context("failed to invoke python3 tools/check_conflict_markers.py")?;
+    if !out.status.success() {
+        print!("{}", String::from_utf8_lossy(&out.stdout));
+        eprint!("{}", String::from_utf8_lossy(&out.stderr));
+        bail!("a tracked file carries a conflict marker");
+    }
     Ok(())
 }
 

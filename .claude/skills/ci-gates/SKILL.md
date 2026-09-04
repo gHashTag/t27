@@ -15082,3 +15082,21 @@ Two rules, and the second is the durable one:
   `python3 tools/check_conflict_markers.py` exits 0 here and prints *"Every marker found
   is recorded as debt. Nothing new."* -- one command, and it is the third time this pass
   that the tool for the job was already in the tree.
+
+**And then the harder half: no local surface was asking.** Three claim to gate a commit --
+`.githooks/pre-commit`, `scripts/pre-commit`, and `tri hooks pre-commit` -- and
+`grep -c conflict` answers **0 on all three**. In this worktree `core.hooksPath` is unset
+and `.git/hooks/pre-commit` does not exist, so nothing local ran at all. The only barrier
+was CI, which is exactly why a resolver's `git add -A` cost a full round instead of a
+one-second refusal.
+
+A guard that lives in a *procedure* stops only the person who remembers it. This page had
+recorded the very command -- `git diff --cached --name-only | xargs grep -l '^<<<<<<<'` --
+and said it "has stopped two commits since"; it had not been wired anywhere, and mine was
+not one of the two.
+
+`tri hooks pre-commit` now calls the repository's own checker rather than growing a sixth
+reader with a sixth vocabulary. Three controls, all run: a planted marker gives **exit 1**
+naming the file and its lines, a missing checker gives **exit 2** and says *nothing was
+checked* -- this repository's word for could-not-run, because a guard that cannot run is
+not a guard that agreed -- and a clean tree gives **0**.
