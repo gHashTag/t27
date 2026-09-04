@@ -42,6 +42,7 @@ mod scratch;
 mod seals;
 mod sweep;
 mod topic;
+mod trees;
 mod types_dup;
 mod vectors;
 mod gendet;
@@ -164,6 +165,8 @@ enum Commands {
     },
     /// Is a merge in flight here, and does this branch carry the base?
     Merging(inflight::Merging),
+    /// What the checkouts on this disk are holding. Deletes nothing.
+    Worktrees(trees::Worktrees),
     /// Synthesise across a parameter and check the area actually moves.
     Sweep {
         #[command(subcommand)]
@@ -990,6 +993,7 @@ fn main() -> Result<()> {
         Commands::Fleet { action } => fleet::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
         Commands::Merging(a) => inflight::run(a)?,
+        Commands::Worktrees(a) => trees::run(a)?,
         Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
         Commands::Red { action } => red::run(action)?,

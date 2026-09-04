@@ -14408,7 +14408,65 @@ now a failure in its own right. The control is one `cp`: plant `orphan.txt` and 
 guard placed after the return it is meant to prevent is a comment (&sect;426), and only running it
 says so.
 
-## 521. My own guard told me the number was a floor, and I took it anyway
+## 521. `error:` is what a failed test says too, and it scored eight kills as zero
+
+Two findings, and the second one is about the instrument that measured the first.
+
+**A tree whose files are gone is the opposite of a tree holding work.** `tri worktrees`
+censuses the checkouts on this disk -- 122 of them, free space down from 45 GiB to 29 in
+one session, and a fan-out already killed by a full disk this week. Its first version
+counted `git status --porcelain` lines. Two trees came out on top:
+
+```text
+t27-om   7639 uncommitted file(s)     <- 7639 of 7639 tracked files, 55 entries on disk
+t27w     7433 uncommitted file(s)     <- 7414 deletions, 19 untracked, 5 unpushed
+```
+
+Both readings were deletions. **The census ranked the emptiest checkouts on the machine
+as the most valuable ones.** The fix takes no threshold, and it should not: deletions get
+their own field and are never summed into the work decision. `t27-om` now reads `HOLLOW --
+nothing to lose, and 7639 tracked file(s) gone from disk`; `t27w` reads `19 untracked, 5
+unpushed commit(s), (7414 gone from disk)`, because 19 untracked files and 5 commits ARE
+work and the 7414 rides along in the report instead of deciding it.
+
+A percentage tuned until two known trees land on the right side of it is a constant that
+decides the answer. The structural question -- *is anything here that exists nowhere
+else?* -- does not need one.
+
+**Then the mutation harness scored eight kills as eight refusals.** It classified a mutant
+as "did not compile" by grepping the output for `^error:`. `cargo test` prints this when a
+test fails:
+
+```text
+test result: FAILED. 18 passed; 1 failed; …
+error: test failed, to rerun pass `-p tri --bin tri`
+```
+
+A compile error and a **test failure** both open with `error:`. Every one of the eight
+mutants was killed, and all eight were reported as `НЕ СОБРАЛСЯ … (не засчитан)` -- not
+scored. Had that output been believed, the honest conclusion from it would have been *"the
+suite may not bite; nothing was scored"*, which is a false statement dressed as caution.
+
+The tell was the count: **eight different edits, in five different functions, all failing
+to compile is not a plausible reading.** One mutant re-run by hand settled it in one move.
+
+The repair reads the channel that only exists after compilation:
+
+```sh
+r=$(echo "$out" | grep 'test result:' | head -1)
+[ -z "$r" ] && echo "did not compile"          # no result line at all
+case "$r" in *" 0 failed"*) echo "SURVIVED";; *) echo "KILLED";; esac
+```
+
+**A refusal bucket is the dangerous one to get wrong**, because it looks like rigour. A
+harness that cannot score is indistinguishable from a suite that cannot fail, and only one
+of those is a reason to stop.
+
+`tri worktrees` deletes nothing and takes no flag that would. Of the 122 trees, 96 belong
+to one other session's scratchpad, and a worktree is exactly where another session's
+uncommitted work lives -- the same hazard as a shared stash. 19 tests, 8 mutants, 8 dead.
+
+## 522. My own guard told me the number was a floor, and I took it anyway
 
 Measuring how fast the backlog approaches a helper's `--limit`, I ran
 `tri issues numbers --as-of 2026-08-01` and read **0**. Then 0, 0, 75, 305 across five dates --
@@ -14430,7 +14488,7 @@ downstream except a `grep` for the number, which walks straight past the sentenc
 one figure from a command's output, **grep the guard line first and refuse on it** -- the same
 discipline as checking `agents_done` before reading a fan-out.
 
-## 522. Tighten the matcher against counterexamples, not against the number you wanted
+## 523. Tighten the matcher against counterexamples, not against the number you wanted
 
 &sect;518 published *"7 bounded reads in `scripts/tri_loop/*.py`"* as an upper bound by shape. Reading
 the seven: **`cost.py` and `diffbin.py` take `--limit N` over a LOCAL corpus directory** and never
@@ -14454,7 +14512,7 @@ repository already names in `prcheck.rs`. The useful check there runs the **othe
 read means the repository holds fewer merged pull requests than were asked for, so every per-PR
 average is over a smaller sample than the caller believes. Same class, opposite comparison.
 
-## 523. Declined: pinning `gates empty`, priced at 25 more builds per 200 commits
+## 524. Declined: pinning `gates empty`, priced at 25 more builds per 200 commits
 
 &sect;520's open question, answered the way &sect;519 was. Walking the same 39 trees:
 **`gates empty` moved 2 of 39**, both on commits that ADD a gate -- which is its subject.
