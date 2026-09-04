@@ -487,6 +487,50 @@ pub fn baseline_phrase(compared: usize, asked: usize) -> String {
     }
 }
 
+/// The recent default-branch commits, and whether that read was complete.
+///
+/// One fetch, one guard. `classify_fetch` takes the ENCLOSING FUNCTION as the
+/// subject, so a guard beside a second fetch answers a question nobody can tell
+/// it is answering -- `fn ready` held two and the census called it unguarded
+/// twice, correctly. Splitting is the fix; renaming a helper until the matcher
+/// recognises it is not.
+fn recent_commits(repo: &str, branch: &str) -> Result<(Vec<String>, bool)> {
+    const PAGE: usize = 15;
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/commits?sha={branch}&per_page={PAGE}"),
+        "--jq",
+        ".[].sha",
+    ])?;
+    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let complete = crate::issues::read_is_complete(rows.len(), PAGE);
+    Ok((rows, complete))
+}
+
+/// The recently merged pull requests, and whether that read was complete.
+fn merged_recently(repo: &str, baseline: usize) -> Result<(Vec<String>, bool)> {
+    let page = baseline * 3;
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls?state=closed&per_page={page}"),
+        "--jq",
+        ".[]|select(.merged_at!=null)|.number",
+    ])?;
+    let rows: Vec<String> = out.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect();
+    let complete = crate::issues::read_is_complete(rows.len(), page);
+    Ok((rows, complete))
+}
+
+/// The same sentence, with the truncation the page can hide.
+pub fn baseline_phrase_bounded(compared: usize, asked: usize, page_full: bool) -> String {
+    let base = baseline_phrase(compared, asked);
+    if compared < asked && page_full {
+        format!("{base}; the fetch page was FULL, so more may exist beyond it")
+    } else {
+        base
+    }
+}
+
 pub fn refusal_kind(stderr: &str) -> i32 {
     let s = stderr.to_ascii_lowercase();
     let behind = s.contains("not up to date")
@@ -632,14 +676,9 @@ fn ready(
     // from zero observations and printed as if it were evidence. So record what
     // was OBSERVED, not only what was red.
     let mut observed: BTreeSet<String> = BTreeSet::new();
-    let recent = gh(&[
-        "api",
-        &format!("repos/{repo}/commits?sha={branch}&per_page=15"),
-        "--jq",
-        ".[].sha",
-    ])?;
+    let (recent, _recent_complete) = recent_commits(&repo, &branch)?;
     let mut decided: BTreeMap<String, bool> = BTreeMap::new(); // name -> failing
-    for sha in recent.lines() {
+    for sha in recent.iter() {
         let runs = gh(&[
             "api",
             &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
@@ -664,14 +703,10 @@ fn ready(
             *seen.entry(name.clone()).or_insert(0) += 1;
         }
     }
-    let merged = gh(&[
-        "api",
-        &format!("repos/{repo}/pulls?state=closed&per_page={}", baseline * 3),
-        "--jq",
-        ".[]|select(.merged_at!=null)|.number",
-    ])?;
+    let (merged, merged_complete) = merged_recently(&repo, baseline)?;
+    let page_full = !merged_complete;
     let mut compared = 0usize;
-    for num in merged.lines().take(baseline) {
+    for num in merged.iter().take(baseline) {
         if let Ok(p) = num.parse::<u64>() {
             if p == n {
                 continue;
@@ -699,14 +734,14 @@ fn ready(
             }
             None if !observed.contains(name) => {
                 println!("  {name}\n      NO BASELINE — this check did not run on any recent");
-                println!("      {branch} commit nor on any of {}, so", baseline_phrase(compared, baseline));
+                println!("      {branch} commit nor on any of {}, so", baseline_phrase_bounded(compared, baseline, page_full));
                 println!("      there is nothing to compare against. Usually a `paths:` filter");
                 println!("      with no `push:` trigger. Read the log; this command cannot say");
                 println!("      whether the failure is yours.");
                 no_baseline.push(name.clone());
             }
             None => {
-                println!("  {name}\n      NOT failing on recent {branch} commits or in {}\n      (it ran there and passed)", baseline_phrase(compared, baseline));
+                println!("  {name}\n      NOT failing on recent {branch} commits or in {}\n      (it ran there and passed)", baseline_phrase_bounded(compared, baseline, page_full));
                 new_here.push(name.clone());
             }
         }
@@ -977,6 +1012,49 @@ mod paginated_count_tests {
     #[test]
     fn an_unparseable_line_does_not_become_a_zero() {
         assert_eq!(sum_per_page("5\ngh: rate limit\n4\n"), 9);
+    }
+}
+
+#[cfg(test)]
+mod page_was_full_tests {
+    use super::baseline_phrase_bounded;
+    use crate::issues::read_is_complete;
+
+    /// This crate already had the predicate, inverted, in `issues.rs`, and
+    /// `classify_fetch` recognises it by name. Writing a second one under a new
+    /// name was two literals of one definition -- and the reason the census kept
+    /// reading these fetches as unguarded.
+    #[test]
+    fn a_full_page_is_not_a_complete_read() {
+        assert!(!read_is_complete(15, 15));
+        assert!(!read_is_complete(16, 15));
+    }
+
+    #[test]
+    fn a_short_page_is_the_whole_answer() {
+        assert!(read_is_complete(14, 15));
+        assert!(read_is_complete(0, 15));
+    }
+
+    /// A shortfall matters only when the page was FULL. A quiet week returns
+    /// fewer merged pull requests and that is the true answer, not a truncation
+    /// -- saying "more may exist" there would be the opposite lie.
+    #[test]
+    fn a_shortfall_on_a_short_page_is_not_a_truncation() {
+        let s = baseline_phrase_bounded(2, 5, false);
+        assert!(!s.contains("FULL"), "{s}");
+    }
+
+    #[test]
+    fn a_shortfall_on_a_full_page_says_so() {
+        let s = baseline_phrase_bounded(2, 5, true);
+        assert!(s.contains("page was FULL"), "{s}");
+    }
+
+    /// Reaching the number asked for is not a shortfall, full page or not.
+    #[test]
+    fn reaching_the_target_is_never_a_truncation() {
+        assert!(!baseline_phrase_bounded(5, 5, true).contains("FULL"));
     }
 }
 
