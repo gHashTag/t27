@@ -75,6 +75,14 @@ jobs:
         # required context red for a reason unrelated to the change under test.
         run: python3 scripts/ci/test_required_gates_name_their_subject.py
 
+      - name: Every path a status table marks COMPLETE is on disk
+        # #3082. META_DASHBOARD marked four CLARA deliverables COMPLETE against
+        # paths removed on 2026-04-19 by a 1214-file recovery commit. Pure
+        # os.path, no build. The matcher is deliberately narrow -- 12 rows, not
+        # the 232 a loose one gives -- and refuses to report if it fails its own
+        # planted-row control.
+        run: python3 scripts/ci/test_status_tables_name_paths_that_exist.py
+
       - name: No untrusted event data interpolated into shell
         run: python3 scripts/ci/check_untrusted_shell_interp.py
 
