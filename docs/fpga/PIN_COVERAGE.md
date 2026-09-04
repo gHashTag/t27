@@ -131,8 +131,8 @@ Option A is recommended: reduces MISSING pins from 35 to 28 while preserving har
 | `specs/fpga/constraints/arty_a7.xdc` | Arty A7 XDC constraints |
 | `specs/pins/ir.t27` | Pins IR data model |
 | `specs/pins/emitter_xdc.t27` | XDC emitter from Pins IR |
-| `bootstrap/src/main.rs` `xdc_qmtech_minimal()` | Rust pin definitions (minimal) |
-| `bootstrap/src/main.rs` `xdc_qmtech_full()` | Rust pin definitions (full) |
+| ~~`bootstrap/src/main.rs` `xdc_qmtech_minimal()`~~ | **GONE.** Added `1911edc80` (2026-04-09, `gen-xdc`), removed `692ba5263` (2026-04-14). |
+| ~~`bootstrap/src/main.rs` `xdc_qmtech_full()`~~ | **GONE**, same two commits. `grep -rn 'fn xdc_qmtech' --include='*.rs'` is 0, and the `gen-xdc` subcommand went with them. |
 
 ## Tracking
 

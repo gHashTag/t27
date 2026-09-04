@@ -96,10 +96,18 @@ PY
 
 Read this before trusting a green run.
 
-- **Only the hand-written corpus.** `specs/scratch/` is excluded — 606,113,688
-  of 612,924,235 bytes (98.89%), generator output the ledger does not gate on.
-  That exclusion is what makes the check 314 s instead of 4057 s with a
-  bit-identical verdict.
+- **Only the hand-written corpus.** `specs/scratch/` is excluded — and since
+  `2255e4c32` (*"chore(specs): untrack specs/scratch — 455 files, 578 MB, 64.5%
+  of the tree"*, #2283) **that directory is not in the tree at all**: 0 files in
+  the index, absent from disk. The exclusion excludes nothing today, and the
+  saving it was written to justify — "314 s instead of 4057 s" — was banked by
+  the untracking, not by the filter. The corpus the ratchet walks is **650 files
+  / 7,030,194 bytes** as of this note; the 606,113,688-of-612,924,235 figure
+  described a tree that no longer exists. Note also that the untracking commit
+  puts the same exclusion at **64.5%** where this line put it at **98.89%** —
+  two numbers for one subject, and neither is re-takable now.
+  The filter itself is kept: it costs nothing and it is what makes the
+  exclusion explicit if the directory ever comes back.
 - **Only the phases `suite` runs**: `parse`, `parse-no-discard`, `typecheck`,
   `gen-zig`, `gen-rust`, `gen-verilog`, `gen-c`, `seal-verify`, plus the smoke
   gates. `lex-dropped` is not among them.
