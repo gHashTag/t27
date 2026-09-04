@@ -40,7 +40,42 @@ TARGET = ROOT / "contrib" / "backend" / "notebooklm" / "sync.py"
 ASSIGN = re.compile(r"^\s*REPO_ROOT\s*=\s*Path\(__file__\)((?:\.parent)+)\s*$", re.M)
 
 
+def self_check() -> int:
+    """The matcher, against inputs it must and must not find.
+
+    This gate already fails CLOSED -- a matcher that finds nothing returns 2,
+    not 0 -- which is the property that actually protects it, and is rarer than
+    having a self-check at all. The cases below are here so a change to ASSIGN
+    is caught by something other than the one file it currently reads.
+    """
+    cases = [
+        ("finds a four-.parent chain",
+         "REPO_ROOT = Path(__file__).parent.parent.parent.parent\n", 4),
+        ("finds a single .parent",
+         "REPO_ROOT = Path(__file__).parent\n", 1),
+        ("indented still matches",
+         "    REPO_ROOT = Path(__file__).parent.parent\n", 2),
+        ("a resolve() call is a different shape",
+         "REPO_ROOT = Path(__file__).resolve().parent.parent\n", None),
+        ("a different name is not this assignment",
+         "OTHER_ROOT = Path(__file__).parent.parent\n", None),
+        ("trailing content is not this assignment",
+         "REPO_ROOT = Path(__file__).parent.parent / 'x'\n", None),
+    ]
+    ok = True
+    for label, src, want in cases:
+        m = ASSIGN.search(src)
+        got = m.group(1).count(".parent") if m else None
+        good = got == want
+        ok = ok and good
+        print(f"  self-check  {label:42} {'ok' if good else f'BROKEN got {got} want {want}'}")
+    return 0 if ok else 2
+
+
 def main() -> int:
+    if "--self-check" in sys.argv:
+        return self_check()
+
     if not TARGET.is_file():
         print(f"check_sync_repo_root: {TARGET.relative_to(ROOT)} is missing.", file=sys.stderr)
         print("  Exit 2 = could not run, not a correct root.", file=sys.stderr)
