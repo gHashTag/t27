@@ -122,6 +122,37 @@ def main():
             f"got {unlisted.returncode}; stderr={unlisted.stderr!r}",
         )
 
+        # `tri which` answers where a name routes. Its third state is the one
+        # worth a test: a binary that is not built cannot be asked, and saying
+        # "no such subcommand" there would be a claim the run did not earn.
+        w_local = tri_in(root, "which", "wave")
+        check(
+            "which: a bash arm is answered with no binary at all",
+            w_local.returncode == 0 and "bash arm" in w_local.stdout,
+            f"got {w_local.returncode}; out={w_local.stdout!r}",
+        )
+        w_served = tri_in(root, "which", "now")
+        check(
+            "which: a name the tri binary lists exits 0 and names it",
+            w_served.returncode == 0 and "tri binary" in w_served.stdout,
+            f"got {w_served.returncode}; out={w_served.stdout!r}",
+        )
+        w_unknown = tri_in(root, "which", "parse")
+        check(
+            "which: unanswerable is 2, not 1 -- t27c is not built to be asked",
+            w_unknown.returncode == 2 and "not built (not checked)" in w_unknown.stdout,
+            f"got {w_unknown.returncode}; out={w_unknown.stdout!r} err={w_unknown.stderr!r}",
+        )
+
+        # THE CONTROL: with every binary askable, an absent name is 1, not 2.
+        false_bin = shutil.which("false") or "/usr/bin/false"
+        w_absent = tri_in(root, "which", "zzz-no-such", env={"TRI_T27C": false_bin})
+        check(
+            "control: with a binary present, an unknown name is 1, not 2",
+            w_absent.returncode == 1,
+            f"got {w_absent.returncode}; out={w_absent.stdout!r} err={w_absent.stderr!r}",
+        )
+
         tri_bin.unlink()
         (root / "cli" / "tri").mkdir(parents=True)
         both_gone = tri_in(root, "now", "add", "x")
