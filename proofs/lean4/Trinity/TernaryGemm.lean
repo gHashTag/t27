@@ -1,7 +1,10 @@
 /- SPDX-License-Identifier: Apache-2.0
    t27/proofs/lean4/Trinity/TernaryGemm.lean
-   Auto-generated from specs/igla/race/ternary_gemm.t27 via tri-lean backend.
-   Do NOT hand-edit — regenerate via ./scripts/tri-lean.
+   Corresponds to specs/igla/race/ternary_gemm.t27. Written and maintained BY HAND:
+   no `tri-lean` generator has ever existed in this repository's history
+   (`git rev-list --all --objects | grep scripts/tri-lean` -> 0). The header
+   said otherwise, and told a reader not to edit the file and to run a tool
+   that was never there. See #3137.
    phi^2 + 1/phi^2 = 3 | TRINITY -/
 
 import Trinity.TernaryMac

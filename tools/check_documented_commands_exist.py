@@ -106,6 +106,99 @@ DECLARED = re.compile(
     r"would be|was to |do not assume it exists"
 )
 
+# A SIBLING SCRIPT, not a subcommand. Under the git convention a `tri-<name>`
+# alongside `tri` is a command in its own right, and this repository documents
+# five of them -- `./scripts/tri-sync.py`, `tri-search.py` and so on. They are
+# invisible to the matchers above, which require `tri` followed by a SPACE, so a
+# hyphen steps straight over them. `scripts/tri-lean` was documented for months
+# in three files, two of them Lean SOURCE carrying "Do NOT hand-edit --
+# regenerate via ./scripts/tri-lean", and it has never existed as a git object
+# anywhere in the history.
+#
+# The prefix alone is not the population, and three narrower matchers were
+# measured before this one. A bare `tri-<word>` finds 462 lines, most of them
+# English -- `tri-valued logic` is an adjective. Adding any path prefix still
+# finds 102, because `tri-net` is a SIBLING REPOSITORY and `../tri-net/src/x.rs`
+# is a path, not an invocation. Requiring the name to be the final segment gives
+# 50, still 100% "dead" -- and a matcher whose every hit is a defect is
+# describing its own population, not the tree.
+#
+# Anchoring to THIS repository's own `scripts/` directory is what makes it a
+# claim about this repository: 13 mentions, 6 names, and five of the six resolve.
+# One does not.
+SIBLING_HIT = re.compile(
+    r"(?<![\w-])\.?/?scripts/(tri-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
+    r"(\.py|\.sh)?(?![\w/-])"
+)
+
+
+def sibling_scripts() -> set[str]:
+    """Every `tri-<name>` that really is a file in scripts/, extension or not."""
+    found = set()
+    d = ROOT / "scripts"
+    if not d.is_dir():
+        refuse("scripts/ is not a directory, so no sibling can be resolved.")
+    for p in d.iterdir():
+        if p.is_file() and p.name.startswith("tri-"):
+            found.add(p.name)
+            found.add(p.stem)
+    return found
+
+
+def sibling_population() -> list[Path]:
+    """Any tracked text file may carry a runnable instruction, not only a doc.
+
+    The two that matter here are Lean sources. The same records the subcommand
+    half leaves alone are left alone here, for the same reason: a historical
+    report describes what was true then.
+    """
+    out = []
+    for p in sorted(ROOT.rglob("*")):
+        if not p.is_file() or ".git/" in p.as_posix():
+            continue
+        rel = p.relative_to(ROOT).as_posix()
+        if rel.startswith(EXCLUDED_PREFIXES) or rel in EXCLUDED_FILES:
+            continue
+        if rel.startswith(("target/", "node_modules/", "scripts/")):
+            continue
+        # This file necessarily CONTAINS the pattern it looks for -- the
+        # self-check needs a fixture naming an absent sibling, and on the first
+        # run the gate reported its own line 558. A detector is not a claim.
+        # Three earlier sections of the skill record the same shape: prose
+        # written in a matcher's own vocabulary turning that matcher red.
+        if rel == Path(__file__).resolve().relative_to(ROOT).as_posix():
+            continue
+        try:
+            if b"\0" in p.open("rb").read(2048):
+                continue
+        except OSError:
+            continue
+        out.append(p)
+    return out
+
+
+def scan_siblings(paths: list[Path], live_names: set[str]) -> tuple[list[tuple], int, int]:
+    findings, excused, seen = [], 0, 0
+    for p in paths:
+        try:
+            lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for i, line in enumerate(lines):
+            for m in SIBLING_HIT.finditer(line):
+                name, ext = m.group(1), m.group(2) or ""
+                seen += 1
+                if name in live_names or (name + ext) in live_names:
+                    continue
+                if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
+                    excused += 1
+                    continue
+                findings.append(
+                    (p.relative_to(ROOT).as_posix(), i + 1, name, line.strip())
+                )
+    return findings, excused, seen
+
+
 # English corrects AFTER it names the thing: "`t27c gen-zig` ... There is no
 # such subcommand." A window of the line alone reads the name and misses the
 # sentence that retracts it two lines down. This gate went red on master for
@@ -464,6 +557,15 @@ def main() -> int:
                                    "`t27c gen-zig` and friends."], 1)
         ok_back = (not stops_back) and near_back
         ok_fwd = "parse" in tri_real  # the forward-anything fallthrough
+        # A sibling matcher with no negative control is the `gft*` mistake: the
+        # prefix is shared with an adjective (`tri-valued`) and with a sibling
+        # REPOSITORY (`tri-net`), and neither is a command here.
+        sib_now = sibling_scripts()
+        ok_sib_live = "tri-sync" in sib_now
+        ok_sib_finds = bool(SIBLING_HIT.search("regenerate via ./scripts/tri-lean."))
+        ok_sib_ext = (SIBLING_HIT.search("./scripts/tri-sync.py").group(1) == "tri-sync")
+        ok_sib_not_word = not SIBLING_HIT.search("tri-valued logic is not a command")
+        ok_sib_not_repo = not SIBLING_HIT.search("see ../tri-net/src/lib.rs for the mesh")
         # A group has a Commands: block; a leaf does not. That is what keeps
         # `t27c gen specs/x.t27` from reading `specs` as a subcommand.
         exes_sc = {"t27c": exe}
@@ -485,12 +587,19 @@ def main() -> int:
             ("reads the paragraph, not the line", ok_para),
             ("stops at the blank line", not stops),
             ("`tri` inherits t27c's names", ok_fwd),
+            ("a real sibling resolves", ok_sib_live),
+            ("finds a sibling that is absent", ok_sib_finds),
+            ("reads the name past a .py suffix", ok_sib_ext),
+            ("an adjective is not a sibling", ok_sib_not_word),
+            ("a sibling REPOSITORY is not one", ok_sib_not_repo),
         ):
             print(f"  self-check  {label:36} {'ok' if ok else 'BROKEN'}")
         print(f"  self-check  and stops going backwards too:       "
               f"{'ok' if ok_back else 'BROKEN'}")
         every = (ok_finds and ok_fenced and ok_excuse and ok_para
-                 and not stops and ok_back and ok_fwd and ok_group and ok_leaf)
+                 and not stops and ok_back and ok_fwd and ok_group and ok_leaf
+                 and ok_sib_live and ok_sib_finds and ok_sib_ext
+                 and ok_sib_not_word and ok_sib_not_repo)
         return 0 if every else 2
 
     live, excluded = population()
@@ -500,6 +609,13 @@ def main() -> int:
         exes["tri"] = tri_exe
     dropped, _, _ = scan(excluded, real, exes)
     findings, excused, seen = scan(live, real, exes)
+    sib_live = sibling_scripts()
+    sib_bad, sib_excused, sib_seen = scan_siblings(sibling_population(), sib_live)
+    if sib_seen == 0:
+        refuse(
+            "not one `scripts/tri-<name>` reference was found in the whole tree. "
+            "Five of them are documented, so that is the matcher failing."
+        )
 
     if not live:
         refuse("no live documents were found to scan.")
@@ -516,9 +632,28 @@ def main() -> int:
         f"{len(dropped)} dead-command mention(s) inside them, left alone"
     )
     print(f"invocations read:        {seen}   excused as declared: {excused}")
+    print(
+        f"sibling scripts:         {len(sib_live) // 2} in scripts/, "
+        f"{sib_seen} reference(s) read, excused as declared: {sib_excused}"
+    )
+    if sib_bad:
+        print(
+            f"\n`scripts/tri-<name>` referenced but not present: "
+            f"{len(sib_bad)} mention(s), {len({f[2] for f in sib_bad})} distinct"
+        )
+        for rel, ln, name, text in sib_bad:
+            print(f"  {rel}:{ln}  scripts/{name}")
+            print(f"    {text[:150]}")
+        print(
+            "  A hyphenated sibling is a command under the git convention, and the\n"
+            "  subcommand matchers step over it: they need `tri` and a SPACE.\n"
+            "  Either the script lands, or the reference stops telling a reader to run it."
+        )
 
     if not findings:
         print("\nok: every t27c and tri subcommand a live document names exists.")
+        if sib_bad:
+            return 1
         return 0 if MAX_DEAD_TRI == 0 else 1
 
     t27c_bad = [f for f in findings if f[2] == "t27c"]
@@ -555,7 +690,7 @@ def main() -> int:
             f"\nok: every t27c subcommand a live document names exists, and the "
             f"{len(tri_bad)} dead `tri` mentions are the recorded ceiling."
         )
-        return 0
+        return 1 if sib_bad else 0
 
     findings = t27c_bad
     inline = sum(1 for f in findings if f[4] == "inline")
