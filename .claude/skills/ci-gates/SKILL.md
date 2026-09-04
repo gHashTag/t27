@@ -15362,3 +15362,59 @@ an exactly-full page read as complete, and the marker suppressed.
 
 Pinning `800` in a test would defend a constant with no argument behind it. **Ask whether the mutation
 changes the VERDICT, not whether it changes the number.**
+
+## 545. The rule was disclosed in one command and hidden in its sibling, in the same file
+
+Third confirmed finding from the &sect;542 fan-out.
+
+`tri issues dated` printed:
+
+```
+open issues read              509
+no figure in the title        205
+POPULATION (carries a figure) 304
+```
+
+The bucket comes from `carries`, whose digit scan accepts a run only at `if i - start >= 2` -- **two
+or more digits, boundary-clean**. So `#2627 "Census the optimizer: 4 of 7 passes have no
+precondition"` carries no figure, because `4` and `7` are one digit each.
+
+**Measured on `gHashTag/t27`, 2026-09-05, over the same 509-issue read: 21 of the 205 carry a
+single-digit figure.** The label promised the reader 184.
+
+**The disclosure already existed, forty lines away.** `tri issues numbers` prints, from the identical
+rule in the identical file:
+
+```
+single-digit only, excluded   21   (--single prints them)
+```
+
+One command names the exclusion its rule makes; its sibling, over the same rule, never mentioned it.
+This is the &sect;-shape "a fix does not travel", seen from the other side: the DISCLOSURE did not
+travel either, and a caveat that exists in one command is not a caveat the reader of another one ever
+sees.
+
+**Shipped.** The count stays -- it is the complement of the population, so the three lines still add
+up -- and the label names the rule that produced it:
+
+```
+no figure the TWO-digit rule reads  205
+  of which carry a SINGLE digit   21   (`tri issues numbers --single` prints them)
+```
+
+The second line is absent, not printed as a zero, when nothing was excluded: a caveat that prints
+when there is nothing to caveat teaches the reader to skip the line.
+
+### Three passes, three surviving mutants, all of them the wiring
+
+| pass | function fixed | tests on it | the mutant that lived |
+|---|---|---|---|
+| 541 | `last_pass` in `red.rs` | 4 | asking it only on truncated reads |
+| 542 | `claims_by_scope` in `gates.rs` | 3 | `claims_seen +=` adding both halves at the call site |
+| 545 | `render_no_figure` in `issues.rs` | 3 | `single_digit_only` never called, so the tally is always 0 |
+
+**A fix's wiring is not covered by its function's tests.** In all three the function was correct and
+thoroughly tested, and one line elsewhere put its result to no use or the wrong use. Nothing but
+mutation found any of them, and each needed a structural test reading the call site -- with the
+needle split across two literals, because the first such test written in this series searched the
+file for a string it also contained and passed against its own mutant.
