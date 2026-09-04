@@ -2681,6 +2681,26 @@ fn has_dispatch(root: &std::path::Path, rel: &str) -> bool {
     }
 }
 
+/// The active-workflow listing, in one place because it was in two.
+///
+/// Both `unmeasured` and `dead` asked for `?per_page=100` and read whatever came
+/// back. There are 63 active workflows here, so the page does not bind today and
+/// would start binding silently at 101 -- a page stated as a census, which is
+/// what `tri gates fetches` flags and this was two of its sites.
+///
+/// `--paginate` follows the Link headers, which puts this in that command's own
+/// "complete by construction" category rather than its bounded one. Two literals
+/// of one fetch are how the two commands would have drifted apart.
+fn workflow_listing(repo: &str, jq: &str) -> Result<String> {
+    gh(&[
+        "api",
+        "--paginate",
+        &format!("repos/{repo}/actions/workflows"),
+        "--jq",
+        jq,
+    ])
+}
+
 fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     let root = repo_root()?;
     let mut no_auto: Vec<(String, String, bool, bool, String)> = Vec::new();
@@ -2698,12 +2718,10 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             .to_string();
 
         default_branch_seen = default_branch.clone();
-        let listing = gh(&[
-            "api",
-            &format!("repos/{repo}/actions/workflows?per_page=100"),
-            "--jq",
+        let listing = workflow_listing(
+            repo,
             r#".workflows[]|select(.state=="active")|"\(.id)\t\(.name)\t\(.path)""#,
-        ])?;
+        )?;
 
         for line in listing.lines() {
             let mut it = line.splitn(3, '\t');
@@ -3187,12 +3205,10 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
     let mut suppressed: Vec<(String, String, u64)> = Vec::new();
     let single_repo = repos.len() == 1;
     for repo in repos {
-        let listing = gh(&[
-            "api",
-            &format!("repos/{repo}/actions/workflows?per_page=100"),
-            "--jq",
+        let listing = workflow_listing(
+            repo,
             r#".workflows[]|select(.state=="active")|"\(.id)\t\(.path)\t\(.name)""#,
-        ])?;
+        )?;
         for line in listing.lines() {
             let mut it = line.splitn(3, '\t');
             let (id, path, name) = match (it.next(), it.next(), it.next()) {

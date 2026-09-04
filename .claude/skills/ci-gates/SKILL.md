@@ -13924,3 +13924,58 @@ Resolved here by moving the LATER of the two, since the earlier one already had
 references in flight and the later had none -- checked, not assumed: `grep` for
 `&sect;504` across the file returns zero either way, so the tie was broken by merge time
 rather than by cost.
+
+## 509. `git merge` does not answer with one bit, and the obvious guard cannot tell
+
+A merge left over from an earlier iteration sat in the worktree. What it cost:
+
+- `git commit` concluded **that** merge, not the change its message described. The
+  message said "Merge origin/master, split the duplicate 504" and the commit it made had
+  **one parent**.
+- Every content check agreed the branch was current -- and they were right. The two
+  files' section-title sets differed by exactly the two sections added, and diffing the
+  branch's file with those removed against master's left **three lines**. GitHub still
+  said `DIRTY`, because **a pull request merges histories, and contents are not history**.
+- The repair script then read
+
+  ```sh
+  if git merge -q origin/master; then push; else resolve_conflicts; fi
+  ```
+
+  and ran the conflict resolver against a merge that had never started. It died inside
+  its own assertion, and the death read as "the file is bad".
+
+**Measured on a scratch repository built for the question:**
+
+| event                            | rc  | `.git/MERGE_HEAD` | unmerged paths |
+|----------------------------------|-----|-------------------|----------------|
+| genuine conflict                 | 1   | appears           | 1              |
+| refused, a merge already live    | 128 | was already there | **1**          |
+
+**The unmerged-path count is identical**, because the paths left unmerged belong to the
+earlier merge. The guard anyone would reach for first -- "are there unmerged paths?" --
+**cannot separate the two**. Only the exit code can, and `if`/`else` discards it. Same
+shape as a command with three answers read as one bit, one level up: here the third
+answer means *there is nothing of yours to repair*.
+
+**Two checks, one command each:**
+
+```sh
+[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ] && exit 1   # BEFORE starting a merge
+git log -1 --format=%p | wc -w                              # 1 means it is not a merge
+```
+
+`tri merging` runs both plus the ancestry question, and exits 1 on any of them.
+
+**Measured and declined as a gate over history.** Of 3003 commits on the default branch,
+266 have a subject beginning "Merge" and exactly **one** has a single parent. Squash
+merging erases the shape before it reaches master, so a history gate would watch an
+almost-empty population. The place to catch this is the worktree, before the commit.
+
+**And the tool already existed.** The poll-and-merge loop hand-written for this was a
+worse copy of `tri pr ready --wait --merge`, which refuses to merge while any check is
+unclassified. The hand-written version counted non-green checks as
+`(.conclusion // .state)`; the live `fpga-bitstream` check had **both fields null** with
+`status: IN_PROGRESS`, so it counted as the empty string and "nothing is failing" would
+have been true with a check still running. Before writing a helper loop, grep
+`tri --help` for the verb.
