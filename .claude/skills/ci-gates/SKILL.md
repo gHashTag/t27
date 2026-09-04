@@ -14214,3 +14214,56 @@ directions is not. Only re-merge when the fetched content actually differs from 
 
 Same shape as 268: a signal that is inside the failure domain it reports on. A staleness notice
 that can be stale is a broken ruler for staleness.
+
+## 517. A truncated read censors the DATE as well as the count, in the opposite direction
+
+`tri red now` printed `30+ in a row since 2026-09-04T06:01` for `OpenSSF Scorecard`. The truth is
+**105 in a row from 2026-09-03T07:19:43Z**. The printed instant is exactly the **30th newest run**
+-- the edge of the page -- **75 runs and 23 hours later than the start**.
+
+`streak()` reads one page and sets two values inside one loop:
+
+```rust
+"failure" | "timed_out" | "cancelled" => { n += 1; since = at.to_string(); }
+```
+
+`n` was marked as a lower bound (`30+`). `since`, assigned on the next line from the same bounded
+read, was printed as a plain fact. The file's own comment names the trap and covers one of the two
+values it applies to:
+
+> *"n is bounded by the page size above, so a full page is a LOWER BOUND and must not be printed as
+> if it were exact. That is the same silent truncation this command exists to surface, and it
+> appeared here first."*
+
+**The two bounds point in opposite directions, which is why one marker cannot serve both.** Reading
+newest-first, the count is a **floor** (at least this many) and the instant is a **ceiling** (at or
+before this). `06:01+` would say *after*, the wrong half of the number line. The direction matters
+here: a date drifting newer makes an old outage read as a fresh one, and this command's own closing
+line is that a streak is "the number of times nobody looked".
+
+**The fix is not a better page size -- it is a boundary that does not depend on page size.** The
+start of an outage is the **last PASS**, one request away:
+`?status=success&per_page=1`. That turns an open-ended hedge into a bracket with two measured ends:
+
+    30+ in a row  after 2026-08-31T13:50, by 2026-09-04T06:01   OpenSSF Scorecard
+
+and the true start, 2026-09-03T07:19, lies inside it. Three renderings, three states: exact when
+the streak ended inside the read, a bracket when a pass exists, a bare ceiling plus *no pass on
+record* when the whole history is failures.
+
+**Prior art, and it converges.** Prometheus latches `ActiveAt` at the transition and never
+re-derives it from a query; `ALERTS_FOR_STATE` carries the start **as the sample value** so one
+sample anywhere in the window yields it exactly, and the naive `min_over_time(...[1h])` is censored
+at the window edge -- this defect precisely. When the value cannot be recovered Prometheus
+**resets and says so** rather than substituting the window edge. Elasticsearch marks a truncated
+count `relation: "gte"` -- and marks no timestamp it returns, so the asymmetry survives even there.
+GitHub sets `incomplete_results` on the **whole response**, because bound-ness is a property of the
+READ, not of one field. Chromium's Sheriff-o-Matic carries `LatestPassing` beside the failure so
+the start is a bracket by construction.
+
+The failure mode has **no name in monitoring** -- a real negative result from the survey. It has one
+in survival analysis: the spell is **LEFT-CENSORED**. The observation window is not its beginning.
+
+**Generalised:** whenever a read can be truncated, ask what ELSE was derived inside that loop. A
+guard written for the count does not travel to the timestamp sitting next to it -- 437 again, one
+variable over.
