@@ -15667,6 +15667,33 @@ Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge
 and the file it wrote contained:
 
 ```
+## 546. A mutation that also edits the test is not a mutation test
+## 547. A mutation that also edits the test is not a mutation test     <-- twice
+## 548. The tool that finds unchecked constants was counting its own tests
+```
+
+**The byte-prefix tail is everything appended since the merge base, and that is wrong the moment a
+SIBLING branch of yours lands part of it on the base.** #3199 had squash-merged &sect;546 onto master
+while this branch was open, so the same content sat on both sides and the rebuild emitted it twice.
+The squash is what hides it: the section arrives on `base` under a commit this branch has never seen,
+so no ancestry relates them and only the TITLE does.
+
+**The instrument was already in the file, again.** `tail_by_title` sits forty lines above, written for
+the neighbouring case where the merge base is not a prefix. The fix is to accept the byte-prefix tail
+only when it shares no title with the base, and fall through to the function that was already there.
+After: `appended here 1`, 511 sections, no duplicate title, no duplicate number, nothing of master's
+lost.
+
+### Sixth pass, sixth surviving mutant, still the wiring
+
+`tail_is_new` is covered four ways and dropping `.filter(|t| tail_is_new(t, &at_base))` from the call
+site leaves every one of them green. Killed by a structural test reading the call site, needle split
+across two literals.
+
+The list is now `last_pass` &middot; `claims_seen` &middot; `single_digit_only` &middot; both
+`competitors` print sites &middot; `drop_test_module_sites` &middot; and this. **Six for six.** The
+lesson has stopped being about any individual fix: after extracting a helper, the very next act
+should be mutating the line that calls it, before writing a single test for the helper itself.
 
 ## 551. It deleted a section while its count guard passed
 
@@ -15730,7 +15757,65 @@ separate finding and is recorded here rather than half-fixed.
 Second one predicted before running it. The rule is now explicit: **after extracting a helper, mutate
 the line that calls it before writing a single test for the helper.**
 
-## 552 · The filter that strips the progress strips the report
+## 552. The section that quoted a heading lost its evidence, and the fence it left open ate the next one
+
+&sect;551 shipped a `titles_lost` guard so `tri skill renumber` refuses rather than deleting a section.
+It refuses on TITLES. The damage that had already reached master was one level finer.
+
+**Measured on master `4d63859`.** &sect;550 quotes three `## N.` heading lines inside a fenced block, as
+the evidence for the duplicate it describes. On master those three lines were **gone**, and so was the
+closing fence -- leaving:
+
+    and the file it wrote contained:
+
+    ```
+    ## 551. It deleted a section while its count guard passed
+
+An unclosed fence, and &sect;551 inside it. (Shown indented rather than fenced: a
+fence quoting a fence is what caused this in the first place, and writing the
+example as a fenced block would have added a fourth quoted heading to the file
+while explaining why quoted headings are a problem.) The guard did not fire because &sect;550's TITLE was still
+there; only its body had been cut, and cutting a body is invisible to a set of titles.
+
+Repaired from `093367b7`: &sect;550 is byte-identical to what was written, 515 sections, ascending, no
+duplicates, and the fence state at end of file is closed.
+
+### The parser now knows what a fence is
+
+`skillnum::sections` matched every line beginning `## N. `. On master that is **518** lines, of which
+**3** are quotations. Teaching it CommonMark's rule brings it to **515**:
+
+> An OPENING fence may carry an info string. A CLOSING fence may not.
+
+That rule is not decoration here. A naive toggle on every ``` mispairs **19** fences in this file,
+because blocks that quote command output containing a ```` ``` numbers ```` line were read as closing
+early -- which flips the parity for everything after and puts three quarters of the file "inside" a
+block. That is why the earlier attempt to use fence parity as a health check gave nonsense, and why
+"the file has an odd number of ``` markers" was never the right question.
+
+### And writing this section did it again
+
+The first draft of the paragraph above quoted the damage as a fenced block containing a bare ```
+line. That inner marker CLOSES the outer block -- exactly the rule this section is about -- so
+`## 551.` became a real heading, the file went to 517 sections and `tri skill check` said `PROBLEMS`.
+Caught in one command, on the same commit, by the gate that exists for it.
+
+The example is now indented rather than fenced. **A fence quoting a fence has no safe spelling here**,
+and writing it as a fenced block would have added a fourth quoted heading to the file in the act of
+explaining why quoted headings are a problem.
+
+**The population is self-inflicted and will grow.** This file's whole method is quoting the artefact
+that proves the finding, and the more sections that quote a heading, the more a heading-counting
+parser miscounts. &sect;550 is the first section whose evidence was destroyed by the tool the section
+is about; it will not be the last unless the parser knows a quotation when it sees one.
+
+### What the guard covers and what it does not
+
+`titles_lost` compares the set of section TITLES. It catches a dropped section. It does not catch a
+truncated one, a reordered one, or a body edited in place -- and the loss here was exactly a truncated
+body. **A guard is only as fine as the unit it compares**, and the unit is worth saying out loud
+whenever a guard is written: this one is the section, not the line.
+## 553. The filter that strips the progress strips the report
 
 `t27c corpus` prints progress as `  ... 51/650` and prints its own continuation
 rows as `  ... and Zig accepts it`. A filter written to drop the first —
@@ -15745,7 +15830,7 @@ Anchor an exclusion on the shape that is unique to what you are excluding
 data. And when a report's row count is load-bearing, count the rows before and
 after the filter; a silent drop of nine looks exactly like a report with five.
 
-## 553 · Debt a fix cannot retire is a different kind of debt
+## 554. Debt a fix cannot retire is a different kind of debt
 
 A ledger of known failures dates each entry as though the tool under test will
 grow to accept it. Some entries are not waiting on the tool at all: the input

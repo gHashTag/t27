@@ -72,7 +72,31 @@ fn repo_root() -> Result<PathBuf> {
 /// `## 179. Title` -> (179, "Title"). Anything else is not a numbered section.
 pub fn sections(text: &str) -> Vec<(usize, String)> {
     let mut out = Vec::new();
+    // A heading inside a fenced block is a QUOTATION, not a section. This file
+    // quotes section headings as evidence -- a section about a duplicated
+    // heading shows the duplicate -- and counting those cost a real section:
+    // `tri skill renumber` cut its tail at a quoted title, dropped the section
+    // that contained it, and left the opening fence unclosed so the next
+    // section was swallowed too. Measured on master 4d63859: 518 lines match
+    // `## N. `, and 3 of them are inside a fenced block.
+    //
+    // CommonMark's rule, and it is what makes this reliable here: an OPENING
+    // fence may carry an info string, a CLOSING fence may not. A naive toggle
+    // on every ``` gets 19 pairings wrong in this file, because ``` lines that
+    // carry a language tag were treated as closers.
+    let mut in_fence = false;
     for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
         let Some(rest) = line.strip_prefix("## ") else {
             continue;
         };
@@ -243,6 +267,56 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A heading inside a fenced block is a QUOTATION, and counting it cost a
+    /// real section: `tri skill renumber` cut its tail at a quoted title,
+    /// dropped the section containing it, and left the opening fence unclosed
+    /// so the next section was swallowed too. Measured on master 4d63859: 518
+    /// lines match `## N. ` and 3 of them are quoted.
+    #[test]
+    fn a_heading_inside_a_fence_is_a_quotation() {
+        let src = "## 1. Real\n\n```\n## 2. Quoted\n## 3. Quoted\n```\n\n## 4. Also real\n";
+        let secs = super::sections(src);
+        assert_eq!(
+            secs.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+            vec![1, 4],
+            "the two inside the block are evidence, not sections: {secs:?}"
+        );
+    }
+
+    /// CommonMark: an OPENING fence may carry an info string, a CLOSING fence
+    /// may not. A naive toggle on every ``` mispairs 19 fences in the real
+    /// file, because ``` lines carrying a language tag were read as closers.
+    #[test]
+    fn an_info_string_marks_an_opener_not_a_closer() {
+        // The shape that actually occurs: a fenced block QUOTING output that
+        // itself contains a ``` line with an info string. This file has 19 of
+        // them. Treating that inner line as a closer flips the parity for
+        // everything after it.
+        let src = "## 1. Real\n\n```\nsome output\n``` numbers\nmore output\n```\n\n## 2. Real\n";
+        let secs = super::sections(src);
+        assert_eq!(
+            secs.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+            vec![1, 2],
+            "the inner ``` carries an info string, so it is not a closer; if it \
+             is taken for one the block re-opens and swallows the next heading: {secs:?}"
+        );
+    }
+
+    /// An unclosed fence must swallow what follows rather than silently
+    /// re-admitting it: that is the state the real file was left in, and the
+    /// count is what made it visible.
+    #[test]
+    fn an_unclosed_fence_swallows_the_rest() {
+        let src = "## 1. Real\n\n```\n## 2. Swallowed\n\n## 3. Swallowed too\n";
+        let secs = super::sections(src);
+        assert_eq!(
+            secs.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+            vec![1],
+            "nothing after an unclosed fence is a section, and a shrinking count \
+             is exactly how the damage was found: {secs:?}"
+        );
+    }
     use super::*;
 
     fn parse(s: &str) -> Vec<(usize, String)> {
