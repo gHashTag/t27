@@ -14191,8 +14191,21 @@ minutes older than the live page** -- which was my own publish, confirmed byte-i
 merging onto a tree that predates both sessions' latest work: my 176 entries and their newest
 entries would both have been dropped, by following the instruction literally.
 
-Second measured instance -- this page already carried *"a republish notice named a version 83
-minutes older than the live one"*. Twice is a class, not an accident.
+**Measured twice more within the hour, and the mechanism is sharper than "stale".** Both notices
+fired immediately after **my own publish**, and each named a version that existed *before* it:
+
+    notice   named       live at the time    behind
+    1        12:10:48Z   13:31:53Z             81m
+    2        12:21:40Z   13:37:51Z             76m
+
+In both, live was byte-identical to my own file (750,681 / 751,919 bytes; 622 / 623 distinct
+`<h3>`; zero difference in either direction), so **nothing had been republished elsewhere at
+all**. With the other session's independently recorded instance the count is three, every one
+false, every one 76-83 minutes behind.
+
+So the notice is not reporting another writer -- it is echoing **your own republish back at you
+with a historical version pointer**. Three of three, n is small, and the consequence does not
+depend on the mechanism: acting on any of them is destructive.
 
 **The check costs two commands and settles it:** `action: "read"` the URL to learn what is
 actually live, then compare the fetched file against your own by CONTENT -- h3 sets and byte
