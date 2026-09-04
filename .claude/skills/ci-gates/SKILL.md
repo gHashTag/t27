@@ -12913,3 +12913,43 @@ Both numbers cost one command each. The argument they replaced cost nothing and
 was worth nothing: one of the two turned out right and the other turned out to be
 a detector nobody should build, and no amount of reasoning would have separated
 them.
+
+
+## 483. Calibrate the ruler against the published number before trusting it
+
+A living document published *"1,135 characters still dropped"*. The canonical
+instrument that takes that figure needs a build, and a build was off the table.
+The tempting move is a quick model of the drop arm and a new number. That number
+would have been an estimate wearing a measurement's clothes.
+
+What was done instead, and it is the whole entry: the model was run **on the tree
+of the commit that published the figure**, and it returned **1,135 exactly**.
+Only then was it run at HEAD, where it returned **1,953** -- and the real
+compiler, built afterwards, printed `1953 TOTAL across 30 spec(s)`, agreeing to
+the digit.
+
+**A ruler that reproduces the published number on the published tree is an
+instrument. A ruler that only produces a new number is an opinion.** The
+calibration costs one extra run and converts "I think it moved" into "it moved,
+and here is the arithmetic".
+
+The figure had drifted for two reasons pulling opposite ways, which is why a
+single new number would have been unreadable without the calibration: the corpus
+went **608 -> 650** walked specs, and **five days after** the figure was
+published `#` became a line comment (W661), which *removes* drops. Growth and
+shrinkage in the same interval, and the published number predates both.
+
+The same pass, the other two propositions in that section: `cc-gate` published
+**101 of 397** and reads **290 of 650** -- both halves of the ratio moved, the
+denominator by 253. And `impl-status` published a table summing to **608** specs
+and reads **650**; that one is *not a subtraction*, because W689 split a
+`specs with NO functions` row out of `fully implemented` and the command says so
+in its own output. **Two numbers under the same label are not a delta unless the
+label meant the same thing both times.**
+
+And a guard for the fix itself. Each re-take is written beside its original with
+a commit anchor, and a check now refuses any `RE-TAKEN` block that does not name
+one, plus asserts the corpus size those blocks quote still matches the tree. The
+word that needed the anchor was the document's own **`Now.`** -- a bolded
+present tense is a claim about today, and today is exactly what a document cannot
+observe.
