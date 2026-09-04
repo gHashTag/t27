@@ -16,7 +16,7 @@ if [[ "$cmd" == "loop-help" ]]; then
   for f in "$LOOP_DIR"/*.py; do
     [[ -e "$f" ]] || continue
     name="$(basename "$f" .py)"
-    printf '  %-12s %s\n' "$name" "$(sed -n '2s/^"""tri [a-z-]* -- //p' "$f")"
+    printf '  %-12s %s\n' "$name" "$(sed -n '2s/^r\{0,1\}"""tri [a-z-]* -- //p' "$f")"
   done
   echo
   echo "Every helper prints what it does NOT establish alongside what it does."
@@ -541,7 +541,7 @@ if [[ "$cmd" == "loop-help" ]]; then
   for f in "$LOOP_DIR"/*.py; do
     [[ -e "$f" ]] || continue
     name="$(basename "$f" .py)"
-    printf '  %-12s %s\n' "$name" "$(sed -n '2s/^"""tri [a-z-]* -- //p' "$f")"
+    printf '  %-12s %s\n' "$name" "$(sed -n '2s/^r\{0,1\}"""tri [a-z-]* -- //p' "$f")"
   done
   exit 0
 fi
