@@ -13798,7 +13798,43 @@ With it, the honest count of tracked subjects missing today is **0** -- the same
 the previous pass gave for a different reason, and this time the reason is measured
 rather than lucky.
 
-## 506. Twenty steps run under a shell nobody named
+## 506. An extension is not a language, and two spellings of the same thing are not two
+
+Counting the Coq files nothing compiles took four corrections, and three of them were about the
+population rather than the arithmetic. The finished number is small and the discarded ones were not.
+
+**`git ls-files '*.v' | wc -l` returns 225, and 166 of them are Verilog.** `.v` is the extension
+for both Coq and Verilog, and this repository is full of both. A first pass was about to report
+"184 uncompiled Coq files"; classifying by content — `Require`/`Theorem`/`Qed` against
+`module`/`endmodule`/`always` — gives **58 Coq, 166 Verilog, 1 ambiguous**. Four fifths of the
+headline would have been Verilog that no `_CoqProject` was ever going to name.
+
+**`Admitted` and `admit` are not two occurrences.** `admit` is a tactic used inside a proof;
+`Admitted` is the command that closes one, and a proof using the tactic ends with the command.
+A matcher of `(?:Admitted|admit)` returned 64 where the answer is **32** — exactly double, because
+they pair. Two spellings of one event are one event.
+
+**`while read` silently drops the last entry of a file with no trailing newline.** The bash loop
+counted 17 where python counted 18 over the same list. Neither number is wrong about what it read;
+one of the readers was reading less than the file held. When two counts of one list differ by
+exactly one, suspect the terminator before the logic.
+
+**And `-R .` in a `_CoqProject` maps a logical path, it does not add files.** `coq_makefile`
+compiles the files listed, so the file list *is* the population. Reading `-R .` as "everything
+below here" would have made the whole question vanish.
+
+**What the surviving number says is worth the four corrections.** The compiled set — 41 files,
+234 `Qed` — carries **zero** `Admitted`. All 32 are in the 18 files no `_CoqProject` names, five
+files holding them, one of which (`Bounds_LeptonMasses.v`) has 8 theorems, 8 `Admitted` and 0 `Qed`:
+nothing in it is proven. The `Admitted` gate reads two files and both are clean.
+
+That is the third instance of one shape in two passes. `lake build` is red on two unsolved goals and
+its workflow has run once in sixty (§3142). Three Coq proofs lost two thirds of their content to a
+merge and are among these 18. **Work that nothing compiles cannot report its own state**, and a gate
+whose population is the compiled set will stay green however bad the rest becomes. The population is
+the finding; the count is the footnote.
+
+## 507. Twenty steps run under a shell nobody named
 
 `coq-kernel.yml` cost hours because its container's shell is dash and a repair added
 `set -uo pipefail`. `tri gates shell` asks the question that would have caught it, of
@@ -13814,11 +13850,20 @@ every step:
     NOBODY                      20   a container and no `shell:` key
 ```
 
-**Zero.** The repository has exactly one `shell:` key and no `defaults: run: shell:`, so
-for every step inside a container the interpreter is whatever the image happens to
-carry. GitHub uses bash when the image HAS bash and `sh -e` otherwise, **and the image's
-contents are not visible from the workflow** -- so an Unknown step is not wrong, it is
-unnamed, and the only direct evidence is a run log.
+**Zero.** The repository has exactly one `shell:` key and no `defaults: run: shell:`.
+
+*The first draft of this section said the image decides -- bash if the image has it,
+`sh -e` otherwise. That is wrong, and the log says so.* In run 33840876340, inside
+`coqorg/coq`, **both shells appear in one job**: this repository's own `run:` steps get
+`sh -e {0}`, while a composite action's steps, which declare `shell: bash`, get
+`bash --noprofile --norc -e -o pipefail {0}` and succeed. **Bash is present in that
+image.** What selects `sh` is the CONTAINER, not the absence of bash -- on the runner
+host the default is bash, inside a container it is `sh`, and only a `shell:` key changes
+it.
+
+An Unknown step is therefore not wrong but unnamed, and the practical consequence is the
+opposite of what the first draft implied: `shell: bash` is not a gamble on the image, it
+is measured to work in the one image tested here.
 
 **The payload is the syntax scan, and only inside those twenty.** Bash-only constructs
 elsewhere are fine; the same text in a container is a coin flip. Split by consequence,
@@ -13842,3 +13887,40 @@ explaining this very defect, one `<<<` in a job that has no container and theref
 under bash, and the one real hit. Every one of the four is a case the narrower
 population is right to exclude -- the disagreement was the tool being correct and the
 grep being loose, which is worth writing down because it usually runs the other way.
+
+## 508. Two sections numbered 504, and nothing was going to say so
+
+This file's first law about itself is that no number is used twice. On master today two
+sections were both **504** -- "The subject of a step is the step, not the line" and "An
+extension is not a language" -- landed 26 minutes apart by two sessions, each appending
+above the same highest number it had read.
+
+`tri skill check` **finds it**, and prints:
+
+```
+  ci-gates   470 section(s)  PROBLEMS
+      section 504 appears 2 times: "The subject of a step…", "An extension is not…"
+      section 504 comes after 505 -- the file reads out of order
+```
+
+**And then exits 0.** Nothing fails. Worse, `grep -rn "skill check"` across
+`.github/workflows/`, `scripts/` and `tools/` returns **nothing**: no gate calls it, no
+hook calls it, no script calls it. The law is enforced by a command that detects the
+violation, reports it as text, exits successfully, and is never run.
+
+That is three independent failures stacked, and any one of them alone would have been
+enough to catch this: a checker that exited non-zero would fail a PR; a checker wired
+into CI would print the line where someone might read it; a checker that did neither but
+was run by hand would still have shown it.
+
+**The collision itself is not carelessness.** Both sessions did the correct thing --
+read the highest number, append above it -- and the numbers were assigned from readings
+taken minutes apart against a file that moved between them. It is the same shape as a
+figure over a sliding population, in the one place this file legislates about: **"the
+highest number" is a query, not a fact**, and two readers get the same answer and
+different truth.
+
+Resolved here by moving the LATER of the two, since the earlier one already had
+references in flight and the later had none -- checked, not assumed: `grep` for
+`&sect;504` across the file returns zero either way, so the tie was broken by merge time
+rather than by cost.
