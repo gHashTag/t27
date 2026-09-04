@@ -15815,3 +15815,61 @@ is about; it will not be the last unless the parser knows a quotation when it se
 truncated one, a reordered one, or a body edited in place -- and the loss here was exactly a truncated
 body. **A guard is only as fine as the unit it compares**, and the unit is worth saying out loud
 whenever a guard is written: this one is the section, not the line.
+
+## 553. The audit that found nothing, and why that is the result
+
+&sect;552 repaired one section whose body the tooling had destroyed. The obvious next question is
+whether it was the only one. `tri skill lost` asks it: walk every commit that touched this file,
+record each section's body the first time it appeared, and report any whose body on the base is a
+strict PREFIX of that first version. An edit in place is not a prefix. A truncation is.
+
+**Measured over 281 commits and 518 titles ever written.**
+
+| | |
+|---|---|
+| titles ever written | **518** |
+| present on master | **516** |
+| bodies that are a strict prefix of an earlier version | 40 |
+| &nbsp;&nbsp;of those, differing by trailing blank lines only | **38** |
+| &nbsp;&nbsp;real cut tails | **2** |
+
+**Both real cut tails are reorganisations, not losses**, and both were checked rather than assumed:
+
+* `Renaming a CI job silently breaks branch protection`, -21 lines. What left was an unnumbered
+  `## Writing a gate here` block and its list. A body runs to the next NUMBERED heading, so an
+  unnumbered block that later moved elsewhere in the document reads exactly like a truncation.
+  `grep` finds it on master.
+* `Emitter-class repair`, -5 lines: one paragraph, `Hold the win with a per-module ratchet`. Still
+  on master, one occurrence.
+
+**Both absent titles are deliberate, and both were read before being judged:**
+
+* `What to do when the fix is behind a seal` was **rewritten under a longer title** -- 43 of its 43
+  substantial lines are present on master under `... -- and how to check it is`.
+* `A gate that never runs on master has no baseline` was **withdrawn on purpose**, by commit
+  `7071b071` whose subject is *"withdraw a claim of mine"* and whose body gives the two master runs
+  that refuted it.
+
+**So: zero unexplained losses. &sect;550 was the only one, it was caused by the tool in this session,
+and it is repaired.** A clean audit is a result -- it is what makes the &sect;552 repair a closed
+incident rather than a sample of an unknown population.
+
+### Three ways this audit could have lied, and what each cost
+
+* **Counting titles.** 518 ever, 516 now, so "2 lost" -- and both are fine. A missing title is not a
+  loss; the command says so in its own output, because the next reader will hit the same two.
+* **Counting prefix hits.** 40, of which 38 are trailing blanks. Reporting all 40 would have buried
+  the two that were real under noise that is an artefact of where a section ends.
+* **Believing the two.** Both looked like damage and neither was. `grep` for a distinctive line
+  settled each in one command. **The audit's value was entirely in the four checks that turned
+  findings back into non-findings.**
+
+### Eighth pass, eighth wiring mutant -- and the first found before the helper was tested
+
+`if truncated(then, n)` replaced with `if false` makes the command walk 281 commits, find nothing by
+construction, and print a clean bill of health for any file forever. Three tests on `truncated`
+itself stay green.
+
+This one was found by mutating the call site **first**, before writing a single test for the helper --
+which is the rule the previous seven produced. **The rule works, and it took seven repetitions to
+write down.**

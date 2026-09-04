@@ -338,6 +338,15 @@ enum SkillAction {
         #[arg(long)]
         gaps: bool,
     },
+    /// Sections whose body was cut short at some point in the file's history.
+    Lost {
+        /// Compare against this ref instead of `origin/master`.
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+        /// Exit 1 if anything is found, for use as a gate.
+        #[arg(long)]
+        gate: bool,
+    },
     /// Every cross-reference in the skills, and whether it resolves.
     Refs {
         /// Print every reference counted, not only the ones that dangle.
@@ -938,6 +947,10 @@ fn main() -> Result<()> {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
                 }
+                SkillAction::Lost { base, gate } => skillnum::run(&skillnum::SkillCmd::Lost {
+                    base: base.clone(),
+                    gate: *gate,
+                })?,
                 SkillAction::Refs { list } => {
                     skillnum::run(&skillnum::SkillCmd::Refs { list: *list })?
                 }

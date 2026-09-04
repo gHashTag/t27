@@ -33,6 +33,29 @@ pub enum SkillCmd {
         #[arg(long)]
         gaps: bool,
     },
+    /// Sections whose body was truncated at some point in the file's history.
+    ///
+    /// A section here is a claim with evidence attached, and the evidence is
+    /// usually a quoted artefact. `tri skill renumber` destroyed one on
+    /// 2026-09-05 -- it cut a tail at a QUOTED heading, dropped the section
+    /// holding it, and left the opening fence unclosed so the next section was
+    /// swallowed. The `titles_lost` guard added afterwards refuses on titles and
+    /// cannot see a body that was merely cut short, so this asks the question
+    /// the guard cannot.
+    ///
+    /// The signature is exact: the body on `--base` is a strict PREFIX of the
+    /// body when the section first appeared. An edit in place is not a prefix; a
+    /// truncation is. Differences that are only trailing blank lines are not
+    /// reported -- measured across 281 commits, 38 of the 40 prefix hits were
+    /// exactly that.
+    Lost {
+        /// Compare against this ref instead of `origin/master`.
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+        /// Exit 1 if anything is found, for use as a gate.
+        #[arg(long)]
+        gate: bool,
+    },
     /// Every cross-reference in the skills, and whether it resolves.
     Refs {
         /// Print every reference counted, not only the ones that dangle.
@@ -174,6 +197,152 @@ fn skill_files(root: &std::path::Path) -> Vec<PathBuf> {
     out
 }
 
+/// `git show <rev>:<path>`, or empty when the path did not exist there.
+fn at(rev: &str, path: &str, root: &std::path::Path) -> String {
+    let out = std::process::Command::new("git")
+        .args(["show", &format!("{rev}:{path}")])
+        .current_dir(root)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Whether `now` is `then` cut short, ignoring a difference that is only
+/// trailing blank lines.
+///
+/// Measured across 281 commits of this file: 40 sections had a strict-prefix
+/// body, and 38 of them differed by trailing blanks alone -- an artefact of
+/// where a section ends, not a loss. Reporting those would bury the two that
+/// were real, and both of THOSE turned out to be blocks that moved elsewhere in
+/// the document and are still present.
+pub fn truncated(then: &[String], now: &[String]) -> bool {
+    if now.len() >= then.len() {
+        return false;
+    }
+    if then[..now.len()] != *now {
+        return false;
+    }
+    then[now.len()..].iter().any(|l| !l.trim().is_empty())
+}
+
+/// Section bodies, keyed by title, fence-aware.
+pub fn bodies(text: &str) -> std::collections::BTreeMap<String, Vec<String>> {
+    let mut out = std::collections::BTreeMap::new();
+    let mut cur: Option<String> = None;
+    let mut body: Vec<String> = Vec::new();
+    let mut in_fence = false;
+    for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            if cur.is_some() {
+                body.push(line.to_string());
+            }
+            continue;
+        }
+        let head = if in_fence {
+            None
+        } else {
+            line.strip_prefix("## ")
+                .and_then(|r| r.split_once(". "))
+                .filter(|(n, _)| n.parse::<usize>().is_ok())
+        };
+        if let Some((_, title)) = head {
+            if let Some(c) = cur.take() {
+                out.insert(c, std::mem::take(&mut body));
+            }
+            cur = Some(title.trim().to_string());
+            continue;
+        }
+        if cur.is_some() {
+            body.push(line.to_string());
+        }
+    }
+    if let Some(c) = cur {
+        out.insert(c, body);
+    }
+    out
+}
+
+fn lost(base: &str, gate: bool) -> Result<()> {
+    let root = repo_root()?;
+    let path = ".claude/skills/ci-gates/SKILL.md";
+    let log = std::process::Command::new("git")
+        .args(["log", base, "--format=%H", "--reverse", "--", path])
+        .current_dir(&root)
+        .output()?;
+    let commits: Vec<String> = String::from_utf8_lossy(&log.stdout)
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
+    println!();
+    println!("  {path}");
+    println!("  walking {} commit(s) on {base}", commits.len());
+
+    let mut first: std::collections::BTreeMap<String, (String, Vec<String>)> =
+        std::collections::BTreeMap::new();
+    for c in &commits {
+        let text = at(c, path, &root);
+        if text.is_empty() {
+            continue;
+        }
+        for (title, body) in bodies(&text) {
+            first.entry(title).or_insert((c.clone(), body));
+        }
+    }
+    let now = bodies(&at(base, path, &root));
+    println!("  titles ever written    {}", first.len());
+    println!("  present on {base:<12} {}", now.len());
+
+    let mut cut = Vec::new();
+    let mut gone = Vec::new();
+    for (title, (sha, then)) in &first {
+        match now.get(title) {
+            None => gone.push((title.clone(), sha.clone())),
+            Some(n) => {
+                if truncated(then, n) {
+                    cut.push((title.clone(), sha.clone(), then.len(), n.len()));
+                }
+            }
+        }
+    }
+    println!();
+    if cut.is_empty() {
+        println!("  No section's body is a truncation of an earlier version.");
+    } else {
+        println!("  {} section(s) whose body was CUT SHORT:", cut.len());
+        for (t, sha, a, b) in &cut {
+            println!("    -{:>3} lines ({a} -> {b})  first in {}  {}", a - b, &sha[..9], t);
+        }
+        println!();
+        println!("  A cut tail is not by itself a loss either. A section's body runs to the");
+        println!("  next NUMBERED heading, so an unnumbered block that later moved elsewhere");
+        println!("  in the document reads exactly like a truncation. Both hits on this file");
+        println!("  were that: `## Writing a gate here` and one paragraph, both still present.");
+        println!("  Grep for a distinctive line before calling it damage.");
+    }
+    if !gone.is_empty() {
+        println!();
+        println!("  {} title(s) no longer present:", gone.len());
+        for (t, sha) in &gone {
+            println!("    first in {}  {t}", &sha[..9]);
+        }
+        println!();
+        println!("  A missing TITLE is not by itself a loss: a section can be rewritten");
+        println!("  under a longer heading, or withdrawn on purpose. Both happened here.");
+        println!("  Read the commit that dropped it before calling it damage.");
+    }
+    if gate && !cut.is_empty() {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let show_gaps = match cmd {
         SkillCmd::Refs { list } => return refs(*list),
@@ -182,6 +351,7 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
             numbers,
             windowed,
         } => return claims(*list, *numbers, *windowed),
+        SkillCmd::Lost { base, gate } => return lost(base, *gate),
         SkillCmd::Check { gaps } => gaps,
     };
     if *show_gaps {
@@ -267,6 +437,82 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    /// `truncated` can be right while `lost` never asks it, and the command
+    /// then reports a clean file forever.
+    ///
+    /// EIGHTH change in eight passes whose surviving mutant was the wiring --
+    /// and the first found by mutating the call site BEFORE writing a single
+    /// test for the helper, which is the rule the previous seven produced.
+    #[test]
+    fn lost_actually_consults_truncated() {
+        let src = include_str!("skillnum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("if trunc", "ated(then, n) {");
+        assert!(
+            code.contains(call),
+            "without this the walk runs, finds nothing by construction, and \
+             prints a clean bill of health for any file"
+        );
+    }
+
+    /// The signature of the loss that actually happened: a body cut short.
+    /// An edit in place is not a prefix; a truncation is.
+    #[test]
+    fn a_truncation_is_a_prefix_and_an_edit_is_not() {
+        let then: Vec<String> = ["a", "b", "c", "d"].iter().map(|s| s.to_string()).collect();
+        let cut: Vec<String> = ["a", "b"].iter().map(|s| s.to_string()).collect();
+        assert!(super::truncated(&then, &cut), "the tail was dropped");
+        let edited: Vec<String> = ["a", "X", "c", "d"].iter().map(|s| s.to_string()).collect();
+        assert!(!super::truncated(&then, &edited), "same length, changed in place");
+        let shorter_but_different: Vec<String> =
+            ["a", "X"].iter().map(|s| s.to_string()).collect();
+        assert!(
+            !super::truncated(&then, &shorter_but_different),
+            "shorter AND different is a rewrite, not a cut"
+        );
+        assert!(!super::truncated(&then, &then), "unchanged is not a cut");
+    }
+
+    /// 38 of the 40 prefix hits across 281 commits differed by trailing blank
+    /// lines alone -- an artefact of where a section ends. Reporting those would
+    /// bury the two that were real.
+    #[test]
+    fn trailing_blanks_alone_are_not_a_truncation() {
+        let then: Vec<String> = ["a", "b", "", ""].iter().map(|s| s.to_string()).collect();
+        let now: Vec<String> = ["a", "b"].iter().map(|s| s.to_string()).collect();
+        assert!(!super::truncated(&then, &now), "only blanks went");
+        let then2: Vec<String> = ["a", "b", "", "real"].iter().map(|s| s.to_string()).collect();
+        assert!(
+            super::truncated(&then2, &now),
+            "a blank AND a real line went, so it is a cut"
+        );
+    }
+
+    /// A body runs to the next NUMBERED heading, and a heading inside a fenced
+    /// block is a quotation -- the same rule `sections` uses, because a body
+    /// that stops at a quoted heading is how the loss happened in the first
+    /// place.
+    #[test]
+    fn a_body_runs_to_the_next_numbered_heading_and_ignores_quotations() {
+        let src = "## 1. One\nalpha\n\n```\n## 9. Quoted\n```\nbeta\n\n## 2. Two\ngamma\n";
+        let b = super::bodies(src);
+        assert_eq!(b.len(), 2, "the quoted heading starts nothing: {b:?}");
+        let one = &b["One"];
+        assert!(
+            one.iter().any(|l| l == "beta"),
+            "the body continues PAST the quoted heading: {one:?}"
+        );
+        assert!(
+            one.iter().any(|l| l.contains("## 9. Quoted")),
+            "and the quotation stays inside it as evidence"
+        );
+        assert_eq!(b["Two"].iter().filter(|l| *l == "gamma").count(), 1);
+    }
 
     /// A heading inside a fenced block is a QUOTATION, and counting it cost a
     /// real section: `tri skill renumber` cut its tail at a quoted title,
