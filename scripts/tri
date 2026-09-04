@@ -387,6 +387,49 @@ if [[ -z "$T27C" ]]; then
     [[ -x "$p" ]] && T27C="$p" && break
   done
 fi
+# Before demanding a compiler, ask whether this subcommand needs one. Thirty-
+# seven of the Rust `tri` binary's forty-seven subcommands are not t27c
+# subcommands at all -- `now`, `skill`, `topic`, `gates`, `issues`, `doctor`
+# among them -- and none of them compiles anything.
+#
+# Measured, four arms, one variable each, on a tree where both binaries were
+# built and each was hidden in turn:
+#
+#   t27c present, tri present   `tri now --help` prints its help, exit 0
+#   t27c present, tri absent    "the Rust `tri` binary is not built", build -p tri
+#   t27c absent,  tri present   "cannot run 'now' -- t27c is not built"   <-- wrong
+#   t27c absent,  tri absent    "cannot run 'now' -- t27c is not built"   <-- wrong
+#
+# The third arm is the sharp one: the binary that serves the command is sitting
+# in target/release, and the front door sends the reader to build a different
+# one for two and a half minutes, after which they are told to build the right
+# one. The fourth is the fresh clone, which is where a failing NOW Sync Gate
+# puts everybody -- its remediation is `./scripts/tri now add ...`.
+#
+# The comment further down claiming this case was "verified by moving BOTH
+# binaries aside" was wrong: with both aside the guard below answers first, and
+# that block is never reached.
+if [[ ! -x "$T27C" ]]; then
+  _tri_cmd="${1:-}"
+  if [[ "$_tri_cmd" =~ ^[a-z][a-z0-9-]*$ ]]; then
+    _tri_bin="${TRI_BIN:-}"
+    if [[ -z "$_tri_bin" ]]; then
+      # Newest wins, as below: a debug build of an edit must not lose to a stale
+      # release binary.
+      for p in "$REPO_ROOT/target/release/tri" "$REPO_ROOT/target/debug/tri"; do
+        [[ -x "$p" ]] || continue
+        if [[ -z "$_tri_bin" || "$p" -nt "$_tri_bin" ]]; then _tri_bin="$p"; fi
+      done
+    fi
+    # t27c's claim on the name cannot be checked when t27c is not there, so this
+    # does not check it. Routing anyway cannot take a working route away: the
+    # only other outcome available here is exit 2 from a binary that is absent.
+    if [[ -n "$_tri_bin" ]] && "$_tri_bin" --help 2>&1 | grep -qE "^[[:space:]]+${_tri_cmd}([[:space:]]|$)"; then
+      exec "$_tri_bin" "$@"
+    fi
+  fi
+fi
+
 if [[ ! -x "$T27C" ]]; then
   # Exit 2, not 1, and the two are different claims (#3045).
   #
@@ -404,6 +447,14 @@ if [[ ! -x "$T27C" ]]; then
   echo "tri: cannot run '${cmd:-<no subcommand>}' -- t27c is not built." >&2
   echo "tri: nothing was checked. Build it (cd bootstrap && cargo build --release)" >&2
   echo "tri: or point TRI_T27C at a binary. Exit 2 = could not run, not failed." >&2
+  # Name the other binary too. On a fresh clone neither is built, and a reader
+  # sent to build t27c for a `tri` subcommand spends the build and arrives at a
+  # second message telling them to build the one they actually needed.
+  if [[ -d "$REPO_ROOT/cli/tri" && ! -x "$REPO_ROOT/target/release/tri" && ! -x "$REPO_ROOT/target/debug/tri" ]]; then
+    echo "tri: the Rust \`tri\` binary (cli/tri) is not built either, and 37 of its" >&2
+    echo "tri: subcommands are not t27c subcommands at all. If '${cmd:-}' is one:" >&2
+    echo "tri:     cargo build --release -p tri" >&2
+  fi
   exit 2
 fi
 # Loop helpers live in scripts/tri_loop/ as Python, and are dispatched before
@@ -471,9 +522,13 @@ if [[ "$cmd" =~ ^[a-z][a-z0-9-]*$ ]]; then
   fi
   # Routing alone still leaves the case that matters most: a fresh clone, where
   # nothing under target/ is built. There the gate's remediation lands on the
-  # same `unrecognized subcommand 'now'` it always did -- verified by moving
-  # BOTH binaries aside, since hiding only target/debug/tri proves nothing while
-  # target/release/tri answers.
+  # same `unrecognized subcommand 'now'` it always did.
+  #
+  # This block is not what handles that case, though its first version said it
+  # was: with both binaries aside the guard above answers first and exits 2, so
+  # nothing here runs at all. "Verified by moving BOTH binaries aside" described
+  # a run in which t27c was present. The fresh clone is handled at the guard,
+  # and the four arms are written out there.
   #
   # Nothing here can say WHICH commands the unbuilt binary has, so this does not
   # claim to. It says the binary exists, is not built, and how to build it, then
