@@ -3749,6 +3749,22 @@ or a timing report contradicting the 150.63 MHz figure.
 **Falsified by.** A count of `@panic("assertion failed")` in generated Zig that
 does not match.
 
+> **FALSIFIED AT `f500387d6` BY ITS OWN TEST: 6,476, not 9,267.** Generating the whole
+> corpus (`t27c gen <spec>` over the 650 walked specs; 581 produce output) and
+> counting both arms the emitter writes -- `@panic("assertion failed")` **5,941**
+> plus `@compileError("assertion failed")` **535**, `compiler.rs:7692` and
+> `:7695` -- gives **6,476**. The `@panic` arm alone is 5,941.
+>
+> The population grew and the count fell: **397 parsing specs -> 581 generating**,
+> **9,267 assertions -> 6,476**. That is not drift in one direction, so no single
+> cause is proposed here; what the falsification condition establishes is that
+> the figure no longer holds, which is exactly what it was written to do.
+>
+> Note for anyone re-taking it: `gen/` is gitignored and empty in a fresh
+> checkout, so the count is **0** until the corpus is generated. The method line
+> above does not say that, and a reader who greps the tree will read 0 as a
+> collapse rather than as an absent artefact.
+
 ### P3 — Silent truncation: 32 specs were being read at a fraction of their length
 
 **Method.** `parse_ast_strict` — parse, then require the token stream reached
@@ -3757,6 +3773,15 @@ does not match.
 struct method or a second `module` header (W577, 2,438 lines).
 **Now.** Zero. The parser reports the error instead.
 **Falsified by.** `t27c parse-complete` reporting a non-zero `TRUNCATE` count.
+
+> **RE-TAKEN AT `f500387d6`: TRUNCATE is still 0 -- P3 HOLDS.** `t27c parse-complete
+> --specs-dir specs` today: `scanned 650 / parse and consume all 505 / parse but
+> TRUNCATE 0 / parse but DISCARD 76 (23,831 tokens) / do not parse 69`.
+>
+> The proposition is about truncation and truncation is gone. The same command
+> reports a category this proposition does not mention: **76 specs discard 23,831
+> tokens**. Recorded here rather than folded into P3, because "the parser reports
+> the error instead" is true of TRUNCATE and says nothing about DISCARD.
 
 ### P4 — The lexer silently discarded `?`, changing meaning rather than losing code
 
@@ -3887,6 +3912,7 @@ unimplemented.
 | | |
 |---|---:|
 | `.tri` files in the repository | 26 |
+| `.tri` files in the repository, at `f500387d6` | **27** |
 | Empty-body specs with a same-named `.tri` | **1** — a basename collision with an architecture diagram |
 | Function declarations across all 26 `.tri` files | 94 |
 | …with a body | **5** |
