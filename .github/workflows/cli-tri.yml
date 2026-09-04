@@ -17,14 +17,28 @@ on:
       - '.claude/skills/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - '.github/workflows/cli-tri.yml'
+      # `tri census pin --gate` pins `gates quiet` and `gates shell`, whose
+      # subject is this directory. A trigger narrower than the subject cannot
+      # fire on the change it exists for -- and worse, the ledger would go
+      # stale on a workflow-only commit and the NEXT cli/** commit would fail,
+      # blaming an author who changed nothing. Priced over the last 200 commits
+      # on master: 24 touch .github/workflows/, 2 of those already touch cli/,
+      # so this adds this job on 22 of 200 commits (11%).
+      - '.github/workflows/**'
   pull_request:
     paths:
       - 'cli/**'
       - '.claude/skills/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - '.github/workflows/cli-tri.yml'
+      # `tri census pin --gate` pins `gates quiet` and `gates shell`, whose
+      # subject is this directory. A trigger narrower than the subject cannot
+      # fire on the change it exists for -- and worse, the ledger would go
+      # stale on a workflow-only commit and the NEXT cli/** commit would fail,
+      # blaming an author who changed nothing. Priced over the last 200 commits
+      # on master: 24 touch .github/workflows/, 2 of those already touch cli/,
+      # so this adds this job on 22 of 200 commits (11%).
+      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
@@ -127,6 +141,24 @@ jobs:
       # it exists for.
       - name: No two skill sections share a number
         run: ./target/debug/tri skill check
+
+      # A census that moves silently is a number nobody re-read. Measured over
+      # the 39 most recent transitions on master with one fixed instrument:
+      # 8 commits moved a census and only 4 said so -- and one of the silent
+      # four had made 45 of 50 red workflows in a sibling repository invisible
+      # (#3176). The A/B that finds it is two commands, and nothing ran them.
+      #
+      # This is cheap for a reason that is structural rather than hopeful: each
+      # pinned census's POPULATION IS A DIRECTORY, so it cannot move unless a
+      # file in that directory changes. All 8 of the 8 observed moves had edited
+      # that census's own subject; not one was a side effect. So the re-bless
+      # falls only on commits already working in that area.
+      #
+      # Deliberately excluded: `dead` and `unmeasured` read the GitHub API, so
+      # their answer moves when the world moves and pinning them would redden
+      # this gate on somebody else's push. A test refuses their addition.
+      - name: No census moved without saying so
+        run: ./target/debug/tri census pin --gate
 
       - name: the CLI actually produces a report
         run: |
