@@ -277,6 +277,45 @@ mod tests {
 /// away from it. This one shells out to `tools/check_now_entry_shape.py
 /// --check-files`, so the local answer IS the gate's answer and disagreement
 /// is not something to test for.
+/// What an empty added-file set MEANS, as a value rather than a side effect.
+///
+/// The test named for this behaviour used to assert only that `check` returned
+/// `Ok`, so deleting the message left it green: a test whose NAME is the claim
+/// and whose body does not check the claim. A verdict that is returned can be
+/// asserted; one that is printed cannot.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Checked {
+    /// No entry was added, so no shape was read. Not a pass.
+    Nothing,
+    /// This many entries were read.
+    Files(usize),
+}
+
+pub(crate) const NOTHING_CHECKED: &str =
+    "tri now check: this change adds no docs/now/ entry, so no SHAPE was checked.\n       Whether one is REQUIRED is a different question and `tri hooks now-gate` asks it.";
+
+/// Decide, and WRITE the sentence, through a handle the test can hold.
+///
+/// Asserting on the verdict alone still let the message be deleted: the branch
+/// stayed, the value stayed, and the reader got silence. A verdict that is
+/// returned can be asserted; a sentence that is printed can only be asserted
+/// through the writer that printed it.
+pub(crate) fn report_empty<W: std::io::Write>(w: &mut W, files: &[String]) -> Result<Checked> {
+    let verdict = what_was_checked(files);
+    if verdict == Checked::Nothing {
+        writeln!(w, "{NOTHING_CHECKED}")?;
+    }
+    Ok(verdict)
+}
+
+pub(crate) fn what_was_checked(files: &[String]) -> Checked {
+    if files.is_empty() {
+        Checked::Nothing
+    } else {
+        Checked::Files(files.len())
+    }
+}
+
 fn check(paths: &[PathBuf], staged: bool, base: &str) -> Result<()> {
     let root = repo_root()?;
     let script = gate_script(&root)?;
@@ -310,13 +349,9 @@ fn check(paths: &[PathBuf], staged: bool, base: &str) -> Result<()> {
         )?
     };
 
-    if files.is_empty() {
-        println!(
-            "tri now check: this change adds no docs/now/ entry, so no SHAPE was \
-             checked.\n  Whether one is REQUIRED is a different question and \
-             `tri hooks now-gate` asks it."
-        );
-        return Ok(());
+    match report_empty(&mut std::io::stdout(), &files)? {
+        Checked::Nothing => return Ok(()),
+        Checked::Files(_) => {}
     }
 
     let status = std::process::Command::new("python3")
@@ -524,7 +559,46 @@ mod check_tests {
 
     #[test]
     fn an_empty_set_says_nothing_was_checked_rather_than_passing_quietly() {
-        // Reached through the git path with a range that adds nothing.
+        // The claim is in the name, so the assertion has to be about the
+        // VERDICT and not about check() returning Ok. Asserting is_ok() left
+        // this green with the message deleted -- the exact shape this file
+        // exists to refuse, one level up.
+        assert_eq!(what_was_checked(&[]), Checked::Nothing);
+        assert!(
+            NOTHING_CHECKED.contains("no SHAPE was checked"),
+            "the sentence a reader gets must say nothing was checked"
+        );
+
+        // And the other half: a non-empty set is NOT Nothing, or the verdict
+        // would be constant and could not fail.
+        assert_eq!(
+            what_was_checked(&["docs/now/2026-01-01-x.md".to_string()]),
+            Checked::Files(1)
+        );
+
+        // And the sentence must actually REACH the reader. Asserting the
+        // verdict alone left the message deletable: branch kept, value kept,
+        // reader given silence.
+        let mut out: Vec<u8> = Vec::new();
+        let v = report_empty(&mut out, &[]).expect("writing to a Vec cannot fail");
+        assert_eq!(v, Checked::Nothing);
+        let said = String::from_utf8(out).expect("utf8");
+        assert!(
+            said.contains("no SHAPE was checked"),
+            "the empty path must SAY nothing was checked, printed: {said:?}"
+        );
+
+        // The control: a non-empty set must not print that sentence.
+        let mut out2: Vec<u8> = Vec::new();
+        let v2 = report_empty(&mut out2, &["docs/now/2026-01-01-x.md".to_string()])
+            .expect("writing to a Vec cannot fail");
+        assert_eq!(v2, Checked::Files(1));
+        assert!(
+            out2.is_empty(),
+            "a set with entries must not claim nothing was checked"
+        );
+
+        // Still reached through the real path, so the wiring is exercised too.
         let root = repo_root().expect("tests run inside the repository");
         assert!(gate_script(&root).is_ok());
         assert!(check(&[], false, "HEAD").is_ok());
