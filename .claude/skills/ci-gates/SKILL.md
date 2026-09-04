@@ -12826,3 +12826,49 @@ in this file about a gate reporting the wrong subject is about a machine doing
 it. This one is about me: the instrument was correct, its message was correct,
 and the failure was entirely in the reading. **Instruments that only print are
 sized for a reader who is not tired.**
+
+
+## 481. A control that does not run the code under test
+
+Three attempts to kill one mutant, and the third is the lesson.
+
+A new checker reports every status-table row that marks a path COMPLETE while
+the path is not on disk. Mutant: replace the missing-computation with `[]`.
+
+**First run: survived.** Nothing in the file asserted the detector could fire at
+all, so a checker that finds nothing is indistinguishable from a tree with
+nothing wrong. This is the shape &sect;-after-&sect; in this file keeps naming, and
+the fix is the one this repository already ships as `--self-check`: plant a row
+that must be seen.
+
+**Second run, with the self-check in place: survived again.** The self-check
+computed its own `miss` list -- the same predicate, written a second time, ten
+lines away. Neutering `main`'s copy left the planted row perfectly detected by
+the copy that was not under test. **A control that does not run the code under
+test is a second implementation agreeing with itself**, and it agrees most
+loudly exactly when the real one is broken.
+
+**Third run, with one `missing_of()` and two callers: killed.** The checker now
+refuses to report at all when its planted row is not seen.
+
+The general form, and it is not about tests: **a duplicated rule has a duplicated
+verdict, and the copy you did not break will vouch for the copy you did.** Before
+trusting a control, ask which function it calls. If the answer is "the same
+logic, written again", it is not a control -- it is a witness with the same
+alibi.
+
+Two smaller things from the same hour, both about the population and both
+measured before anything was proposed. The loose form of this matcher -- any
+backticked token on any line mentioning COMPLETE -- gives **232 tokens, 153 of
+them "missing", 66%**, and it was catching bare extensions (`.bit`, `.rs`),
+signal names (`BSCAN_X0Y0/BSCAN`), URLs and markdown links. The narrow form -- a
+table ROW, a token with a slash, a top-level directory that exists -- gives
+**12 rows, 8 missing, one file, zero false positives**. And the exclusions are
+stated rather than silent: `docs/reports/**` and `docs/session-*` are dated
+records, where a path that existed then and not now is not a defect.
+
+What the check found is worth the file it took: four deliverables marked
+&#10004; COMPLETE against paths a **1214-file recovery commit** deleted on
+2026-04-19, unnoticed for four and a half months. The rows now say *DELIVERED,
+then removed in `91653d2b9`* rather than disappearing -- a dashboard that quietly
+drops a deliverable is worse than one that says where it went.
