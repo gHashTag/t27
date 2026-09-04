@@ -14801,3 +14801,91 @@ SAME QUESTION":
 
 **A sweep that finds one defect in three candidates has still earned itself**, because the two
 non-defects are now recorded as non-defects with the reason. The next pass will not re-open them.
+
+## 534. Fifty red workflows were eleven events, and three of them were this week
+
+Six of my own passes carried the line "50 red workflows in `gHashTag/trinity-fpga`" into the report as
+outstanding work. &sect;532 gave `tri red` a date on every row. Re-running it against that repository
+answered the item in one command, and the answer was not 50.
+
+**Measured, `gHashTag/trinity-fpga`, 2026-09-05.** 405 active workflows; 50 red on the default branch.
+Grouped by the instant of their latest run:
+
+| last run | red workflows | what they are |
+|---|---|---|
+| 2026-09-03T03:32 | **3** | `S³AI Brain CI`, `Orphaned artefacts`, `Withdrawn numbers` |
+| 2026-08-03 .. 2026-07-13 | 5 | five singletons, five different days |
+| 2026-07-10T03:15 | 16 | `AX7203 Corona Compute *` |
+| 2026-07-10T02:57 | 8 | `AX7203 Corona Compute *` |
+| 2026-07-09T23:24 | 8 | `AX7203 Corona Compute *` |
+| 2026-07-09T22:54 | 7 | `AX7203 Corona Compute *` |
+| 2026-04-19T08:59 | 3 | the three `FPGA * Bitstream/Docker` files |
+
+**50 rows, 11 distinct instants, 3 of them inside a week.** Thirty-nine of the fifty are four batches
+from a single afternoon: workflow files generated together, run once on the commit that added them,
+failed, and never triggered since. `FPGA HSLM Bitstream` has **one run in its entire history**, 139
+days old, and no success -- that is not an outage, it is a file that was tried once.
+
+The count was not wrong. **Its unit was.** `50` counts FILES; the reader of "50 red" takes away 50
+PROBLEMS, and the problems number 11 -- or 3, if the question is what is failing now. A number lands
+in the reader's unit, not the counter's, and when those differ the number lies while every digit of it
+is correct.
+
+The tell was available before any grouping: **the streak column read `1 in a row` on 47 of the 50
+rows.** A one-long streak is not an outage; it is a single event. I had been reading the count and not
+the shape.
+
+**Shipped.** `tri red now` sorts by the latest-run instant instead of the streak (the old order put a
+July fossil with 30+ failures ABOVE a live 3), states the split in the headline, and draws a divider
+that names the fossils' batch structure rather than their file count:
+
+```
+50 workflow(s) red on the default branch -- 3 of them in the last 7 days.
+  ...
+  --- the 47 below last ran over 7 days ago: 10 instant(s) between 2026-04-19T08:59
+      and 2026-08-03T08:13, largest batch 16 ---
+```
+
+Grouping to the printed minute can split one push across a minute boundary and so **over**-count
+batches. That direction is deliberate: it never merges two events into one, so the incident count is
+never understated.
+
+**Prior art, and the vocabulary it supplies.** Nagios forces a passive check result older than its
+`freshness_threshold` into UNKNOWN rather than carrying the last value forward; Prometheus marks a
+series stale after its staleness delta and drops it from queries; Grafana separates `No Data` from
+`Alerting`; Datadog monitors take an explicit no-data timeframe. Every one of them treats "the last
+value I saw" and "the value now" as different questions, and every one makes the threshold a stated
+number rather than a hidden one. `STALE_AFTER_DAYS = 7` is therefore printed in the output: **the
+threshold is a policy, not a discovery, and policy that is not stated is policy that is not reviewable.**
+
+## 535. The fix lived in the tool; the probe walked around it
+
+Pass 86 found that `tri red` read the workflow LISTING with `per_page=100` and no `--paginate`, so in a
+405-workflow repository it examined 100 and reported on the rest by not reporting them. Commit
+`a61db02e`, 2026-09-04, added `--paginate` and a test that asserts the listing fetch carries it.
+
+**On 2026-09-05 I wrote this in a shell**, to ask a question about that same repository:
+
+```sh
+gh api "repos/$R/actions/workflows?per_page=100" --jq '.workflows[]|[.id,.state,.name]|@tsv'
+```
+
+and concluded from it that `AX7203 Corona Compute TF32-MUL` was **NOT REGISTERED**. It is registered.
+It was on page 2. The defect I had fixed the previous day reappeared inside twenty-four hours, in a
+false claim, because I asked the question **beside** the tool instead of **with** it.
+
+A guard that lives in a tool protects calls to that tool. It does not protect the ad-hoc probe, and the
+ad-hoc probe is where the claims get made. **The tool is not where the risk is; the shell is.** Two
+existing sections are the same shape seen from other angles -- a fix that does not travel to its
+sibling call-site, and a class that is not closed until every call-site is grepped. This is the third
+face: the call-site that did not exist yet when the fix landed, because I was about to type it.
+
+What actually caught it was **the probe's own printing**. It emitted the distinguishable string
+`NOT REGISTERED` on a lookup miss rather than a `0` or an empty line, and `NOT REGISTERED` for one
+member of a 63-file family is implausible on its face. Had it printed `0`, the false claim would have
+gone into the report.
+
+**Rule.** When a `tri` subcommand already answers the question, ask it -- and when a shell probe is
+genuinely faster, give every miss a LOUD, distinguishable value. A probe that reports absence and
+truncation with the same symbol cannot tell you which one it found. See also &sect;528: the population
+of that day's trap was zero because the trap was the shell's, not the tree's.
