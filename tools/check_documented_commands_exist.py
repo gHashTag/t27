@@ -56,9 +56,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# A backticked invocation: `t27c sub`, `./tri sub`, `scripts/tri sub`.
+# A backticked invocation, under ANY path. The first version accepted only
+# `./` and `scripts/`, so
+#
+#     ./bootstrap/target/release/t27c validate-graph --check-cycles
+#
+# at docs/TECHNOLOGY-TREE.md:342 was invisible to it -- a line a reader COPIES,
+# naming a subcommand that exits 2, in the same file whose line 319 this gate's
+# own pull request corrected. The gate printed "every t27c subcommand a live
+# document names exists" over it.
 HIT = re.compile(
-    r"`(?:\./)?(?:scripts/)?(t27c|tri) ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
+    r"`(?:[\w./-]*/)?(t27c|tri) ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
     r"(?:\s+([a-z][a-z0-9]*(?:-[a-z0-9]+)*))?"
 )
 
@@ -73,7 +81,7 @@ HIT = re.compile(
 # `t27c is` and `tri binary` on its first run: 110 findings of which the
 # majority were English. What a reader COPIES starts the line.
 FENCED_HIT = re.compile(
-    r"^\s*(?:[$>] )?(?:\./)?(?:scripts/)?(t27c|tri) ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
+    r"^\s*(?:[$>] )?(?:[\w./-]*/)?(t27c|tri) ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
     r"(?:\s+([a-z][a-z0-9]*(?:-[a-z0-9]+)*))?"
 )
 # NO fence state machine, for two measured reasons. Tracking ``` toggles needs
@@ -126,7 +134,7 @@ MUST_NOT_EXIST = ("gen-zig",)
 # is how a gate gets muted, and excluding those families by path would be an
 # exclusion made by argument. So: the list prints every run, and the number can
 # only fall. A new dead `tri` name still fails.
-MAX_DEAD_TRI = 136
+MAX_DEAD_TRI = 141
 
 TRI_MUST_EXIST = ("now", "wave", "gen", "skill", "seal")
 TRI_MUST_NOT_EXIST = ("gen-zig", "gen-dir", "spec", "git")
@@ -345,12 +353,23 @@ def heading_above(lines: list[str], idx: int) -> str:
 def declared_near(lines: list[str], idx: int) -> bool:
     """The document declares this one unbuilt, within its own paragraph.
 
-    Stops at a blank line: a retraction belongs to the sentence that names the
-    command, and a window that runs past the paragraph would excuse a live
-    instruction sitting above an unrelated one.
+    The window is the PARAGRAPH, both directions, stopping at a blank line.
+    English puts the retraction after the name -- "`t27c gen-zig` ... There is
+    no such subcommand" -- and equally often before the list it introduces:
+    "Not built, and named here so nobody copies a line that cannot run: X, Y".
+    A forward-only window missed the second and reported this file's own
+    replacement text as a defect.
+
+    The blank line is the stop in both directions, so a window cannot reach
+    past the paragraph and excuse a live instruction sitting beside it.
     """
     for j in range(idx, min(idx + DECLARE_LOOKAHEAD + 1, len(lines))):
         if j > idx and not lines[j].strip():
+            break
+        if DECLARED.search(lines[j]):
+            return True
+    for j in range(idx - 1, max(idx - DECLARE_LOOKAHEAD - 1, -1), -1):
+        if not lines[j].strip():
             break
         if DECLARED.search(lines[j]):
             return True
@@ -435,6 +454,15 @@ def main() -> int:
         ok_para = declared_near(para, 0)
         stops = declared_near(["`t27c gen-zig` is named here.", "",
                                "There is no such subcommand."], 0)
+        # The backward half needs its own stop, and the corpus does not
+        # distinguish it: removing the stop moved nothing. Constructed instead,
+        # because a clause no input separates is a clause nobody has tested.
+        # A declaration in the PREVIOUS paragraph must not excuse this one.
+        stops_back = declared_near(["That command is not built.", "",
+                                    "`t27c gen-zig` is how you generate Zig."], 2)
+        near_back = declared_near(["Not built, and named here:",
+                                   "`t27c gen-zig` and friends."], 1)
+        ok_back = (not stops_back) and near_back
         ok_fwd = "parse" in tri_real  # the forward-anything fallthrough
         # A group has a Commands: block; a leaf does not. That is what keeps
         # `t27c gen specs/x.t27` from reading `specs` as a subcommand.
@@ -459,8 +487,10 @@ def main() -> int:
             ("`tri` inherits t27c's names", ok_fwd),
         ):
             print(f"  self-check  {label:36} {'ok' if ok else 'BROKEN'}")
+        print(f"  self-check  and stops going backwards too:       "
+              f"{'ok' if ok_back else 'BROKEN'}")
         every = (ok_finds and ok_fenced and ok_excuse and ok_para
-                 and not stops and ok_fwd and ok_group and ok_leaf)
+                 and not stops and ok_back and ok_fwd and ok_group and ok_leaf)
         return 0 if every else 2
 
     live, excluded = population()
@@ -504,13 +534,20 @@ def main() -> int:
             print(f"  {rel}:{ln}  `tri {sub}`  [{where}]")
         print("  names: " + ", ".join(names))
 
-    if len(tri_bad) != MAX_DEAD_TRI:
+    # The ceiling used to RETURN here, so a tri-ceiling move hid every t27c
+    # finding behind it -- and that is how `./bootstrap/target/release/t27c
+    # validate-graph` stayed unreported for a run after the prefix was widened
+    # to see it. Both halves are decided, then reported, then the exit is taken.
+    ceiling_moved = len(tri_bad) != MAX_DEAD_TRI
+    if ceiling_moved:
         verb = "rose" if len(tri_bad) > MAX_DEAD_TRI else "fell"
         print(
             f"\nFAIL: dead `tri` mentions {verb} {MAX_DEAD_TRI} -> {len(tri_bad)}.\n"
             "  Up: a document names a `tri` command that resolves on none of the\n"
             "  four surfaces. Down: good -- lower MAX_DEAD_TRI in the same commit."
         )
+
+    if ceiling_moved and not t27c_bad:
         return 1
 
     if not t27c_bad:
