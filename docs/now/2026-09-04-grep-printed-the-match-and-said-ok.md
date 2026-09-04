@@ -6,9 +6,12 @@
   echo OK`. grep answers 0 matched, 1 no match, **2 cannot open**, and `if`
   merges the last two. With `Phi.v` absent and one `Admitted.` in `PhiFloat.v`
   the step **prints the match** and then prints `OK: no Admitted`, exit 0.
-- One ordinary rename away: `grep -rn "Kernel/Phi.v"` finds three hits in the
-  tree -- this line and two Coq `Require`s resolved by module name -- so moving
-  the file and updating `_CoqProject` leaves everything green and this gate dead.
+- One ordinary rename away: the path is pinned in more files than a rename
+  would think to touch -- `git grep -n 'Kernel/Phi\.v'` lists them, and two of
+  them are machine-readable conformance files, not prose. Update them all and
+  the build stays green with this gate dead. None of the hits is a Coq
+  `Require`: those name the module `T27.Kernel.Phi`, which this string cannot
+  match, so grep cannot warn you about the two that do exist.
 - Now three-way: 0 fails, 1 passes, anything else exits **2 = could not run**.
   `2>/dev/null` is gone so grep names the file it could not open.
 - An `[ -f ]` existence loop was written first and **removed**: mutation showed
