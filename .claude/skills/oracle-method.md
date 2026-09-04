@@ -86,5 +86,5 @@ rebuild cannot be corrected at source.
 `t27c known` (prior art), `t27c provenance` (three weighted signals, UNDECIDED
 on divergence, per-column mode for multi-record tables), `t27c battery` (run
 every oracle and gate with per-script exit codes — never read `rc=$?` after a
-pipeline), `t27c editcheck`, `t27c recompute-diff --label` (whole-file mode is a
+pipeline), `t27c edit-check`, `t27c recompute-diff --label` (whole-file mode is a
 false-pass generator).
