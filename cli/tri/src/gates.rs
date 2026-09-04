@@ -174,6 +174,12 @@ pub enum GatesCmd {
         #[arg(long, default_value = "origin/master")]
         base: String,
     },
+    /// Which interpreter each gate step is handed to, and who says so.
+    Shell {
+        /// Print every step, not only the ones whose shell nobody named.
+        #[arg(long)]
+        list: bool,
+    },
     /// Gate steps whose PASS is reachable with the thing they check absent.
     Quiet {
         /// Print every step counted, with its shape and what is known about its
@@ -2390,6 +2396,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             };
             unmeasured(&list, *stale_days)
         }
+        GatesCmd::Shell { list } => shells(*list),
         GatesCmd::Quiet { list, excluded } => quiet(*list, *excluded),
         GatesCmd::Fetches { excluded } => fetches(*excluded),
         GatesCmd::Empty { verbose } => empty(*verbose),
@@ -6607,5 +6614,295 @@ jobs:
             None,
             "a Rust call is not a workflow path"
         );
+    }
+}
+
+/// Who chose the interpreter a `run:` step is handed to.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Interp {
+    /// The job runs on a GitHub-hosted runner, which has bash. GitHub uses
+    /// `bash --noprofile --norc -eo pipefail {0}`.
+    Runner,
+    /// A `shell:` key names it, on the step or as a job default.
+    Declared,
+    /// The job declares a `container:` and nothing declares a shell. GitHub uses bash
+    /// if the IMAGE has bash and `sh -e` otherwise, and the image's contents are not
+    /// visible from here. This is the class -- not "wrong", but "nobody said".
+    Unknown,
+}
+
+/// Syntax that bash has and dash does not.
+///
+/// Split by consequence, because the two are not the same defect. A FATAL construct
+/// ends the step -- `set -o pipefail` printed `Illegal option` on line 1 of
+/// `coq-kernel.yml` and nothing after it ran. A QUIET one keeps going and means
+/// something else: dash's `echo -e` prints the `-e`.
+pub fn bash_only(line: &str) -> Option<(&'static str, bool)> {
+    let t = line.trim();
+    if t.starts_with('#') {
+        return None;
+    }
+    for (needle, fatal) in [
+        // `pipefail`, not `-o pipefail`: the line that actually broke a gate was
+        // `set -uo pipefail`, where the flags are joined and `-o pipefail` is NOT a
+        // substring. A needle written for the textbook spelling would have missed the
+        // only instance this repository has ever had. The word itself is bash-only
+        // however it is reached.
+        ("pipefail", true),
+        ("[[ ", true),
+        ("<<<", true),
+        ("${!", true),
+        ("=( ", true),
+        ("function ", true),
+        ("echo -e", false),
+        ("source ", false),
+    ] {
+        if t.contains(needle) {
+            return Some((needle, fatal));
+        }
+    }
+    // `${var,,}` and `${var^^}` -- lowercase/uppercase expansion, bash 4 only.
+    if t.contains("${") && (t.contains(",,}") || t.contains("^^}")) {
+        return Some(("${var,,}", true));
+    }
+    None
+}
+
+/// `(job name, first line, last line)` for every job in a workflow file.
+///
+/// A job key sits at two spaces under `jobs:` and runs to the next one. Stated rather
+/// than parsed with a YAML library because the question -- which lines belong to which
+/// job -- needs only the indentation, and a parser would have to be right about
+/// everything else too.
+pub fn job_spans(text: &str) -> Vec<(String, usize, usize)> {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut out: Vec<(String, usize, usize)> = Vec::new();
+    let mut in_jobs = false;
+    let mut cur: Option<(String, usize)> = None;
+    for (i, l) in lines.iter().enumerate() {
+        if l.trim_start() == "jobs:" && !l.starts_with(' ') {
+            in_jobs = true;
+            continue;
+        }
+        if !in_jobs {
+            continue;
+        }
+        let is_job = l.starts_with("  ")
+            && !l.starts_with("   ")
+            && l.trim_end().ends_with(':')
+            && !l.trim_start().starts_with('#');
+        if is_job {
+            if let Some((n, s)) = cur.take() {
+                out.push((n, s, i));
+            }
+            cur = Some((l.trim().trim_end_matches(':').to_string(), i + 1));
+        }
+    }
+    if let Some((n, s)) = cur {
+        out.push((n, s, lines.len()));
+    }
+    out
+}
+
+fn shells(list: bool) -> Result<()> {
+    let root = repo_root()?;
+    let dir = root.join(".github/workflows");
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+        .with_context(|| format!("cannot read {}", dir.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|e| e == "yml" || e == "yaml"))
+        .collect();
+    files.sort();
+
+    let mut steps: Vec<(Interp, String, String, usize)> = Vec::new();
+    let mut hazards: Vec<(String, usize, &'static str, bool)> = Vec::new();
+    let mut jobs = 0usize;
+    for f in &files {
+        let Ok(text) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let name = f
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let lines: Vec<&str> = text.lines().collect();
+        for (job, a, b) in job_spans(&text) {
+            jobs += 1;
+            let body: Vec<&str> = lines[a - 1..b.min(lines.len())].to_vec();
+            let containerised = body
+                .iter()
+                .any(|l| l.trim_start().starts_with("container:"));
+            let job_shell = body.iter().any(|l| l.trim_start().starts_with("shell:"));
+            for (k, l) in body.iter().enumerate() {
+                if !l.trim_start().starts_with("run:") {
+                    continue;
+                }
+                let interp = if !containerised {
+                    Interp::Runner
+                } else if job_shell {
+                    Interp::Declared
+                } else {
+                    Interp::Unknown
+                };
+                steps.push((interp, name.clone(), job.clone(), a + k));
+                if interp != Interp::Unknown {
+                    continue;
+                }
+                // Only an Unknown step's syntax is a hazard: under bash it is fine,
+                // and under sh it is a syntax error or a silent difference.
+                let (s, e) = run_block(&lines, a + k - 1);
+                for (n, bl) in lines[s - 1..e.min(lines.len())].iter().enumerate() {
+                    if let Some((what, fatal)) = bash_only(bl) {
+                        hazards.push((name.clone(), s + n, what, fatal));
+                    }
+                }
+            }
+        }
+    }
+
+    let n = |k: Interp| steps.iter().filter(|s| s.0 == k).count();
+    println!("WHICH INTERPRETER EACH GATE STEP IS HANDED TO, AND WHO SAYS SO\n");
+    println!("  workflow files read           {}", files.len());
+    println!("  jobs                          {jobs}");
+    println!("  run: steps                    {}", steps.len());
+    println!("\n  who names the shell:");
+    println!(
+        "    the runner does             {}   no container, so bash -eo pipefail",
+        n(Interp::Runner)
+    );
+    println!("    a `shell:` key does         {}", n(Interp::Declared));
+    println!(
+        "    NOBODY                      {}   a container and no `shell:` key",
+        n(Interp::Unknown)
+    );
+
+    let fatal = hazards.iter().filter(|h| h.3).count();
+    println!(
+        "\n  bash-only syntax inside those unnamed steps:  {}   ({fatal} fatal under sh)",
+        hazards.len()
+    );
+    for (file, line, what, fatal) in &hazards {
+        let mark = if *fatal { "FATAL " } else { "quiet " };
+        println!("    {mark} {file}:{line}  {what}");
+    }
+
+    if list {
+        println!("\n  EVERY run: STEP:\n");
+        for (i, file, job, line) in &steps {
+            println!("    {:<10} {file}:{line}  job {job}", format!("{i:?}"));
+        }
+    }
+
+    println!(
+        "\n  GitHub hands a `run:` step to bash when the image HAS bash and to `sh -e`\n  \
+         otherwise, and the image's contents are not visible from the workflow. So an\n  \
+         Unknown step is not WRONG -- it is unnamed, and the only direct evidence is a\n  \
+         run log, which prints `shell: …` for every step it executes.\n\n  \
+         That distinction cost this repository hours: `coq-kernel.yml` runs in\n  \
+         `coqorg/coq`, its shell is dash, and a repair added `set -uo pipefail`. Dash\n  \
+         answered `Illegal option` on line 1 and NOTHING IN THE STEP RAN -- while the\n  \
+         same text is correct bash and passes every local check.\n\n  \
+         The fatal column is the one to read first: those end the step. The quiet ones\n  \
+         keep going and mean something else, which is worse to find later."
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod shell_tests {
+    use super::{bash_only, job_spans};
+
+    const WF: &str = "\
+name: x
+on: push
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi <<< \"$X\"
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: coqorg/coq
+    steps:
+      - run: |
+          set -uo pipefail
+";
+
+    /// A job key sits at two spaces under `jobs:` and runs to the next one. Getting
+    /// this wrong attributes a container to a job that does not have one, which is
+    /// the whole verdict.
+    #[test]
+    fn a_job_runs_to_the_next_job_key() {
+        assert_eq!(
+            job_spans(WF),
+            vec![("discover".to_string(), 4, 7), ("build".to_string(), 8, 14)]
+        );
+    }
+
+    /// `on: push` is not a job, and neither is anything before `jobs:`.
+    #[test]
+    fn nothing_before_jobs_is_a_job() {
+        assert!(job_spans("name: x\non: push\n").is_empty());
+        // The discriminating fixture: `  push:` sits at two spaces and ends in a
+        // colon, exactly like a job key, but comes BEFORE `jobs:`. Without the guard
+        // it becomes a job whose body swallows the real ones.
+        assert_eq!(
+            job_spans("on:\n  push:\n    branches: [master]\njobs:\n  a:\n    x: 1\n"),
+            vec![("a".to_string(), 5, 6)]
+        );
+        assert_eq!(job_spans("jobs:\n  a:\n    x: 1\n").len(), 1);
+    }
+
+    /// FATAL ends the step. `set -o pipefail` printed `Illegal option` on line 1 of a
+    /// real gate and nothing after it ran.
+    #[test]
+    fn the_fatal_constructs_are_marked_fatal() {
+        // `set -uo pipefail` -- the real line -- carries `-o pipefail` but not the
+        // literal `set -o pipefail`, which is why the rule lists both.
+        // The line that actually broke a gate joins the flags, so `-o pipefail` is
+        // not a substring of it. Both spellings must be caught by one needle.
+        assert_eq!(
+            bash_only("          set -uo pipefail"),
+            Some(("pipefail", true))
+        );
+        assert_eq!(bash_only("  set -o pipefail"), Some(("pipefail", true)));
+        assert_eq!(bash_only("  if [[ -n $x ]]; then"), Some(("[[ ", true)));
+        assert_eq!(bash_only("  read a <<< \"$s\""), Some(("<<<", true)));
+        assert_eq!(bash_only("  echo ${name,,}"), Some(("${var,,}", true)));
+        assert_eq!(
+            bash_only("  echo ${name^^}"),
+            Some(("${var,,}", true)),
+            "upper-case expansion is the same bash-4 feature and must not be missed"
+        );
+    }
+
+    /// QUIET keeps going and means something else -- dash's `echo -e` prints the flag.
+    /// Worse to find later, which is why it is reported rather than dropped.
+    #[test]
+    fn the_quiet_constructs_are_marked_quiet() {
+        assert_eq!(bash_only("  echo -e \"a\\nb\""), Some(("echo -e", false)));
+        assert_eq!(bash_only("  source ./env.sh"), Some(("source ", false)));
+    }
+
+    /// A comment is not code. Three of the five hits a hand grep found in this
+    /// repository were in the prose explaining the very defect, and counting them
+    /// would have reported the explanation as the disease.
+    #[test]
+    fn a_comment_is_not_a_hazard() {
+        assert_eq!(
+            bash_only("          # rejects `-o pipefail` with \"Illegal option\""),
+            None
+        );
+        assert_eq!(bash_only("  # if [[ -n $x ]]"), None);
+    }
+
+    /// POSIX stays silent, or the rule fires on every step and says nothing.
+    #[test]
+    fn posix_is_not_flagged() {
+        assert_eq!(bash_only("  set -eu"), None);
+        assert_eq!(bash_only("  if [ -f x ]; then"), None);
+        assert_eq!(bash_only("  . ./env.sh"), None);
+        assert_eq!(bash_only("  COUNT=$(wc -l < f)"), None);
     }
 }
