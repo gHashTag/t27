@@ -15577,6 +15577,7 @@ checks each. So the rule holds and the window RECURS: the tax is one reset per n
 landing, not one per pull request. That is an argument for a merge queue rather than for a
 cleverer catch-up.
 
+
 ## 549. The tool that finds unchecked constants was counting its own tests
 
 &sect;546 found that my ad-hoc mutation harness edited test code along with production code and
