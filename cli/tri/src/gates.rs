@@ -5631,7 +5631,7 @@ fn fetches(show_excluded: bool) -> Result<()> {
     // the loop helpers under `scripts/tri_loop/` make bounded `--limit` reads of
     // the same API in Python. They are NOT classified here -- the matcher is
     // Rust-shaped -- so they are counted loosely and named as outside.
-    let outside = bounded_reads_outside_the_crate();
+    let (outside, outside_guarded) = bounded_reads_outside_the_crate();
 
     println!(
         "\n  A full page is a LOWER BOUND and only a short one is a total, so a\n  \
@@ -5651,28 +5651,34 @@ fn fetches(show_excluded: bool) -> Result<()> {
     );
     println!(
         "\n  SURFACE: this reads `cli/tri/src/*.rs` and nothing else. {} bounded\n  \
-         read(s) of the same API live in `scripts/tri_loop/*.py` and are NOT\n  \
-         classified above -- named here rather than left silent, because a census\n  \
-         that excludes part of its subject without saying so is this command's\n  \
-         own subject.",
-        outside
+         read(s) of the same API live in `scripts/tri_loop/*.py`; {} sit in a file\n  \
+         that says a filled page is a LOWER BOUND and {} do not. Counted by FILE,\n  \
+         not per read, and by the Rust side's own wording so the two surfaces\n  \
+         cannot drift into two vocabularies. Named here rather than left silent,\n  \
+         because a census that excludes part of its subject without saying so is\n  \
+         this command's own subject.",
+        outside,
+        outside_guarded,
+        outside - outside_guarded
     );
     Ok(())
 }
 
 /// Bounded reads of the GitHub API that live OUTSIDE the crate this census
-/// walks. Deliberately loose: this is an exclusion notice, not a classification,
-/// and the honest thing to publish about a surface you do not read is its size.
-fn bounded_reads_outside_the_crate() -> usize {
+/// walks. The count of reads is deliberately loose -- an upper bound by shape --
+/// but the guarded/unguarded split beside it is a real reading, taken per FILE
+/// and by the Rust side's own wording so the two surfaces cannot drift into
+/// describing one fact two ways.
+fn bounded_reads_outside_the_crate() -> (usize, usize) {
     let dir = match repo_root() {
         Ok(r) => r.join("scripts/tri_loop"),
-        Err(_) => return 0,
+        Err(_) => return (0, 0),
     };
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
-        Err(_) => return 0,
+        Err(_) => return (0, 0),
     };
-    let mut n = 0usize;
+    let (mut n, mut guarded) = (0usize, 0usize);
     for e in entries.flatten() {
         let path = e.path();
         if path.extension().and_then(|s| s.to_str()) != Some("py") {
@@ -5681,9 +5687,27 @@ fn bounded_reads_outside_the_crate() -> usize {
         let Ok(text) = std::fs::read_to_string(&path) else {
             continue;
         };
-        n += bounded_reads_in_python(&text);
+        let reads = bounded_reads_in_python(&text);
+        n += reads;
+        // Granularity, stated: this is per FILE, not per read. A helper with two
+        // bounded reads and one guard counts as guarded, which overstates. It is
+        // published that way rather than silently, because the alternative is a
+        // per-read dataflow rule this does not have.
+        if reads > 0 && says_lower_bound(&text) {
+            guarded += reads;
+        }
     }
-    n
+    (n, guarded)
+}
+
+/// Does this helper say, in the repository's one vocabulary, that a filled page
+/// is a floor rather than a total?
+///
+/// The wording is the Rust side's, verbatim, so the two surfaces cannot drift
+/// into describing the same fact two ways -- which is how a reader ends up
+/// believing there are two rules.
+fn says_lower_bound(text: &str) -> bool {
+    text.contains("LOWER BOUND")
 }
 
 /// The matcher, separated from the walk so it can be tested on a fixture rather
@@ -5694,9 +5718,33 @@ fn bounded_reads_outside_the_crate() -> usize {
 /// quotes are required -- and the count is still an UPPER bound, which is why
 /// it is published as an exclusion notice and not as a classification.
 fn bounded_reads_in_python(text: &str) -> usize {
-    text.lines()
-        .filter(|line| !line.trim_start().starts_with('#'))
-        .filter(|line| line.contains("\"--limit\""))
+    let lines: Vec<&str> = text.lines().collect();
+    lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| !line.trim_start().starts_with('#'))
+        .filter(|(_, line)| line.contains("\"--limit\""))
+        // A helper PARSING its own flag is never a read: `if a == "--limit"`
+        // walks argv. Rejected first, because it can sit a line or two under a
+        // real `gh` call and would otherwise be swept in by the window below.
+        .filter(|(_, line)| !line.contains("== \"--limit\""))
+        // And the flag alone is not a GitHub read either. `tri cost` and
+        // `tri diffbin` take `--limit N` over a LOCAL corpus directory;
+        // counting them reported 7 where the API reads are 4 -- a matcher
+        // describing its input, inside the command whose subject is matchers
+        // describing their input.
+        //
+        // A read reaches GitHub when `gh` opens the same argument list. Three
+        // spellings are in use here and all three are needed: the literal
+        // `"gh"` element, and the wrappers `gh(` and `gh_json(`. Keying on the
+        // literal alone missed `rule_observance.py`, whose call is `gh_json` --
+        // found by predicting 5, measuring 3, and reading the difference.
+        .filter(|(i, _)| {
+            let lo = i.saturating_sub(6);
+            lines[lo..=*i]
+                .iter()
+                .any(|l| l.contains("\"gh\"") || l.contains("gh_json(") || l.contains(" gh("))
+        })
         .count()
 }
 
@@ -5713,19 +5761,36 @@ mod fetch_census_tests {
         let src = concat!(
             "raw = sh([\"gh\", \"pr\", \"list\", \"--limit\", str(last)])\n",
             "# usage: tri cost <bin> [--limit N]   <- prose, not a read\n",
-            "    \"issue\", \"list\", \"--limit\", \"1000\",\n",
+            "out = subprocess.run(\n",
+            "    [\"gh\", \"issue\", \"list\", \"--repo\", repo,\n",
+            "     \"--limit\", \"1000\",\n",
             "if a == \"--limit\" and i + 1 < len(argv):\n",
+            "prs = gh_json([\"pr\", \"list\",\n",
+            "               \"--limit\", limit])\n",
         );
-        // Three quoted-flag lines; the `#` comment is not one of them.
+        // Three GitHub reads: a literal `"gh"` list, a `subprocess.run` list,
+        // and a `gh_json` wrapper. The `#` comment is prose and the argv scan
+        // parses the helper's OWN flag -- neither reaches the API, and the
+        // argv line sits two lines under a real `gh` call on purpose, because
+        // that is where a window alone gets it wrong.
         assert_eq!(
             super::bounded_reads_in_python(src),
             3,
-            "a commented usage line names the flag and is not a read"
+            "only a `--limit` in a `gh` argument list is a bounded API read"
         );
         assert_eq!(
             super::bounded_reads_in_python("# --limit 5\nnothing here\n"),
             0,
             "naming the flag in prose is not a bounded read"
+        );
+        // The defect this rule fixes: `tri cost` bounds a LOCAL corpus walk.
+        assert_eq!(
+            super::bounded_reads_in_python(
+                "files = pick(corpus, [\"--limit\", str(n)])\n"
+            ),
+            0,
+            "a `--limit` with no `gh` beside it bounds something local, and \
+             counting it makes the census describe its own matcher"
         );
     }
 

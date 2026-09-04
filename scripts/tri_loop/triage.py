@@ -125,14 +125,25 @@ def main(argv):
     fields = "number,title,labels,createdAt,comments"
     if use_bodies:
         fields += ",body"
+    # A full page is a LOWER BOUND and only a short one is a total. `gh` returns
+    # at most --limit rows and says nothing about what it left behind, so a read
+    # that FILLS its limit is a floor, not a census. Measured 2026-09-04: 506
+    # open issues here against the 1000 asked for, and the backlog grew 140 ->
+    # 506 between 2026-08-01 and today (7-11 a day), which reaches 1000 in
+    # roughly 45-68 days. Latent, dated, and one line to say out loud.
+    LIMIT = "1000"
     out = subprocess.run(
-        ["gh", "issue", "list", "--repo", repo, "--state", "open", "--limit", "1000",
+        ["gh", "issue", "list", "--repo", repo, "--state", "open", "--limit", LIMIT,
          "--json", fields],
         capture_output=True, text=True)
     if out.returncode != 0:
         print(out.stderr.strip(), file=sys.stderr)
         return 2
     rows = json.loads(out.stdout)
+    if len(rows) >= int(LIMIT):
+        print(f"  issues read from gh  {len(rows)}   *** EQUALS the --limit of "
+              f"{LIMIT}: a LOWER BOUND, not a total. Raise --limit and read "
+              f"again. ***", file=sys.stderr)
 
     for r in rows:
         r["class"], r["reason"] = klass(r, use_bodies)

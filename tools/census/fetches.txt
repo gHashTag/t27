@@ -1,9 +1,9 @@
 BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
 
   files read                    41
-  lines naming either spelling  62
+  lines naming either spelling  65
   of those, FETCH SITES         25
-  refused as not a fetch        37   (--excluded prints them)
+  refused as not a fetch        40   (--excluded prints them)
 
   complete by construction:
     --paginate                  7
@@ -38,12 +38,14 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
   exactly that. 2 of the 2 in that bucket are that shape.
 
   The exclusions are the other half of the reading. Taking every line that
-  merely NAMES `--limit` or `per_page=` reports 62 sites in a crate that has
+  merely NAMES `--limit` or `per_page=` reports 65 sites in a crate that has
   25: prose, doc comments, a marker table and test assertions. A matcher that
   swallowed them would be describing its input.
 
-  SURFACE: this reads `cli/tri/src/*.rs` and nothing else. 7 bounded
-  read(s) of the same API live in `scripts/tri_loop/*.py` and are NOT
-  classified above -- named here rather than left silent, because a census
-  that excludes part of its subject without saying so is this command's
-  own subject.
+  SURFACE: this reads `cli/tri/src/*.rs` and nothing else. 4 bounded
+  read(s) of the same API live in `scripts/tri_loop/*.py`; 4 sit in a file
+  that says a filled page is a LOWER BOUND and 0 do not. Counted by FILE,
+  not per read, and by the Rust side's own wording so the two surfaces
+  cannot drift into two vocabularies. Named here rather than left silent,
+  because a census that excludes part of its subject without saying so is
+  this command's own subject.
