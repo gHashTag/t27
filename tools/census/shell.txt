@@ -1,0 +1,26 @@
+WHICH INTERPRETER EACH GATE STEP IS HANDED TO, AND WHO SAYS SO
+
+  workflow files read           50
+  jobs                          71
+  run: steps                    230
+
+  who names the shell:
+    the runner does             209   no container, so bash -eo pipefail
+    a `shell:` key does         0
+    NOBODY                      21   a container and no `shell:` key
+
+  bash-only syntax inside those unnamed steps:  1   (0 fatal under sh)
+    quiet  vivado-synth.yml:105  source 
+
+  GitHub hands a `run:` step to bash when the image HAS bash and to `sh -e`
+  otherwise, and the image's contents are not visible from the workflow. So an
+  Unknown step is not WRONG -- it is unnamed, and the only direct evidence is a
+  run log, which prints `shell: …` for every step it executes.
+
+  That distinction cost this repository hours: `coq-kernel.yml` runs in
+  `coqorg/coq`, its shell is dash, and a repair added `set -uo pipefail`. Dash
+  answered `Illegal option` on line 1 and NOTHING IN THE STEP RAN -- while the
+  same text is correct bash and passes every local check.
+
+  The fatal column is the one to read first: those end the step. The quiet ones
+  keep going and mean something else, which is worse to find later.

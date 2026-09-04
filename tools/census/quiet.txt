@@ -1,0 +1,36 @@
+GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING
+
+  workflow files read           50
+  steps in a quiet shape        32
+  named a path but not quiet    123   (--excluded prints them)
+
+  by shape:
+    failure branch passes       16   `… 2>/dev/null … || echo PASSED`
+    a count that reads zero     9   `$(… 2>/dev/null | wc -l)`
+    gated on the file existing  7   often legitimate, reported apart
+    an if that falls through    0   an if whose then-branch exits and whose fi is followed by a pass
+
+  and what can be said about the subject WITHOUT running the workflow:
+    a tracked path, ABSENT      0   <- guarding nothing right now
+    a tracked path, present     11
+    the run builds it           7   absence from a checkout says nothing
+    a variable in the path      5   depends on the run
+    no path ANYWHERE in the step 9   cannot be checked -- NOT the same as absent
+
+  No quiet gate names a tracked path that is missing today. That is a
+  result, not an absence of one: the shapes are there and the subjects
+  are still on disk.
+
+  `grep` exits 2 for "no such file" and 1 for "no match", and those are
+  different answers. `2>/dev/null` deletes the message and an `||` arm deletes
+  the exit code; together they make a MISSING subject and a CLEAN subject print
+  the same characters. A counter reads the same way: no files and no matches are
+  both zero, and zero is what a clean tree prints.
+
+  This does not say the gates are wrong. It says a reader cannot tell, from the
+  output, which of the two happened -- and the column above says which subjects
+  are absent RIGHT NOW, where the question is no longer hypothetical.
+
+  `[ -f X ]` is listed apart because it is often exactly right: a step that
+  legitimately has nothing to do should not fail. What separates it from the
+  defect is whether the output NAMES what it read.
