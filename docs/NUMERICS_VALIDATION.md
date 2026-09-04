@@ -52,7 +52,23 @@ Until filled, treat numeric behavior as **implementation-defined** outside confo
 
 ## 5. Differential oracle — skeleton results table
 
-*Measured runs (host, sealed against the frozen codec revision `49e55df6` in `bootstrap/stage0/FROZEN_HASH`). Reference oracle = f64 round-trip `real -> format -> real`. Seed 2718281, 2,000,000 samples/distribution. Reproduce: `python repro/numerics/nmse_gf16.py --seal`.*
+*Measured runs (host, sealed against codec revision `49e55df6`).*
+
+> **`bootstrap/stage0/FROZEN_HASH` NO LONGER HOLDS `49e55df6`.** It holds
+> `9b8875f1…` today, last changed 2026-09-03 by #3026. The seal above is the
+> record of what was measured and stays as one; what was wrong is the present
+> tense — the sentence asserted a current fact about that file. Re-running
+> `python repro/numerics/nmse_gf16.py --seal` today seals against `9b8875f1…`,
+> so a re-run is a NEW reading and not a reproduction of the table below.
+> `repro/numerics/nmse_manifest.json` carries its own seal, `87e5cbd3…`, stamped
+> 2026-07-16; three identifiers, and none of them is the one in FROZEN_HASH now.
+
+*Reference oracle = f64 round-trip `real -> format -> real`. Seed 2718281,
+2,000,000 samples/distribution. Reproduce:
+`python repro/numerics/nmse_gf16.py --seal` — and see the note above about what
+that reproduces.*
+
+*Reference oracle = f64 round-trip `real -> format -> real`. Seed 2718281, 2,000,000 samples/distribution. Reproduce: `python repro/numerics/nmse_gf16.py --seal`.*
 
 | Run ID | Format | Operation | Corpus | Reference oracle | Max abs err | ULP-like metric | Pass? | Artifact |
 |--------|--------|-----------|--------|------------------|-------------|-----------------|-------|----------|
