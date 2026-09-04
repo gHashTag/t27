@@ -15316,3 +15316,49 @@ thoroughly as a page boundary does, and the printed word "corpus" does not care 
 the exclusion silently drops cases, and nobody revisits them, because the file is on a list headed
 "checked". That is a worse state than never having looked -- an unexamined file invites examination;
 an examined one repels it.
+
+## 544. It disclosed one bound of three, which reads as disclosing all of them
+
+Second confirmed finding from the &sect;542 fan-out, measured rather than argued.
+
+`tri topic` searches four sources for prior art and prints:
+
+```
+rows searched   759   (open PRs, open issues, last 40 commits, every SKILL.md section)
+```
+
+The parenthetical **names the commit window and named no other bound**, while two of the four reads
+carried caps in their `gh` invocation: `pr list --limit 100` and `issue list --limit 200`.
+
+**Measured on `gHashTag/t27`, 2026-09-05, by raising each limit until the count stopped growing:**
+
+| source | cap | actual | binding? |
+|---|---|---|---|
+| open PRs | 100 | **12** | no |
+| open issues | 200 | **509** | **yes -- 309 never read** |
+
+So the command reported searching "open issues" while looking at 200 of 509. Raising both caps to
+800 took the same invocation from **759 rows to 1068**, and matches from **535 to 569**: thirty-four
+pieces of prior art that the tool existed to surface and could not reach.
+
+**Disclosing one bound of three is worse than disclosing none.** A reader who sees "last 40 commits"
+learns that this command tells you where it stops -- and then reasonably concludes that the halves
+without a stated bound do not have one. The single disclosure is what makes the two silences read as
+absence.
+
+**Shipped.** Both caps come from named constants, the request is built FROM the constant, and
+`capped_read` compares the returned row count against the same constant rather than a second literal
+beside it. A cap that BOUND is named where the population is named, with a `LOWER BOUND` marker; a
+cap that did not bind is not mentioned at all, because an unbound cap is not information and printing
+it trains the reader to skip the line.
+
+### The mutant that survived, and why it is not a gap
+
+Lowering `ISSUE_CAP` back to 200 leaves every test green. That is correct. With the cap at 200 the
+command now prints *"the first 200 open issues ... A CAP WAS REACHED: this is a LOWER BOUND"* -- less
+complete, and still honest. The guarantee under test is **"a cap that binds is named"**, and the
+three mutants that break *that* are all killed: a reached cap never reported, an off-by-one letting
+an exactly-full page read as complete, and the marker suppressed.
+
+Pinning `800` in a test would defend a constant with no argument behind it. **Ask whether the mutation
+changes the VERDICT, not whether it changes the number.**
