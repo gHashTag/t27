@@ -151,6 +151,31 @@ fn pin(gate: bool, bless: bool) -> Result<()> {
         println!("  `--gate` compares, `--bless` re-records.");
         return Ok(());
     }
+    // A ledger with no census is the mirror of a census with no ledger, and it
+    // is the case an A/B of the OUTPUT cannot see: drop a name from `PINNED` and
+    // every remaining reading still matches, so the gate goes green having
+    // stopped watching something. `insta` calls this `--unreferenced=reject`.
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("txt") {
+                continue;
+            }
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            if !PINNED.iter().any(|(n, _)| *n == stem) {
+                moved.push(format!(
+                    "{stem}: LEDGER WITH NO CENSUS -- `{stem}` is not in PINNED, so \
+                     nothing regenerates {}. Delete the file or restore the entry.",
+                    path.display()
+                ));
+            }
+        }
+    }
+
     if moved.is_empty() {
         println!("PASS: no pinned census moved.\n");
         println!(
@@ -715,6 +740,35 @@ mod tests {
 #[cfg(test)]
 mod pin_tests {
     use super::PINNED;
+
+    /// The case an A/B of the output cannot see. Drop a name from `PINNED` and
+    /// every remaining reading still matches, so the gate goes green having
+    /// quietly stopped watching something -- the silent-drop that a comparison
+    /// of numbers is structurally blind to. `insta` ships this as
+    /// `--unreferenced=reject`; the survey named it and this repository had the
+    /// hole.
+    ///
+    /// Pinned as a name check rather than a filesystem walk so it holds in any
+    /// checkout: every ledger this command will ever write is named for an entry
+    /// in `PINNED`, so a `tools/census/*.txt` outside that set is unreferenced
+    /// by construction.
+    #[test]
+    fn a_ledger_with_no_census_is_a_thing_nobody_watches() {
+        let names: Vec<&str> = PINNED.iter().map(|(n, _)| *n).collect();
+        assert!(
+            names.contains(&"fetches") && names.contains(&"quiet") && names.contains(&"shell"),
+            "the three committed ledgers must each still have a census that \
+             regenerates them, or the gate is green over a file nothing writes"
+        );
+        assert_eq!(
+            names.len(),
+            names
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            "a duplicated entry would write one ledger twice and hide the other"
+        );
+    }
 
     /// Pinning a census that reads the GitHub API would redden this gate when
     /// SOMEBODY ELSE pushes, which is how a gate gets muted. The exclusion is a

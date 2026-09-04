@@ -14359,3 +14359,51 @@ already touch `cli/`, so it adds the job on **22 of 200** (11%).
 **And the rule bit its author on arrival:** adding the gate's own step moved `run: steps` **229 ->
 230**, so this commit re-blesses its own ledger. The byte length did not change -- only the diff
 showed it, which is the third time this session that a size match was weak evidence.
+
+## 520. Import the mechanism, not the folklore -- and the silent drop a diff cannot see
+
+&sect;519 shipped the census pin on my own measurement. A survey of nine systems then corrected the
+framing and named two things the measurement could not.
+
+**"Always-on gates get muted" is not a law -- it is a mechanism, and the mechanism is NOISE.**
+Every gate the survey found removed, muted or demoted (dask, google/wire, jaeger, Mozilla
+Perfherder, rustc-perf, and the whole `codecov: informational: true` population) measured something
+with a real noise floor: wall-clock time, coverage that shifts with test selection and upload
+ordering, byte sizes that move with the compiler. dask's own config carries a comment about a red X
+caused purely by upload ordering. **A census here is a grep over a directory producing small
+integers. It is deterministic, so the mechanism that muted all of them does not apply.** The rule
+generalises past gates: before importing a piece of received wisdom, name the mechanism behind it
+and check whether you have that mechanism.
+
+**Nobody gates on the bare fact that a number moved.** Of nine systems, every one does exactly one
+of four things, chosen by whether the metric is noisy: build a noise model and require the move to
+beat it (Chromium perf: >=10% relative AND >=2.5x the series' own standard deviation, step-shaped,
+>=6 samples a side, plus a reference-build control); shrink the population so most moves are out of
+scope (SonarQube New Code, Codecov `patch`); set a ceiling well above ordinary movement so the check
+is silent by default (size-limit, bundlesize); or **compare the computed value against a DECLARATION
+the author committed, and fail only on disagreement** -- Metalava's `api/current.txt`,
+`cargo-semver-checks`. A deterministic count belongs in the fourth family, and that is what
+`tri census pin` is.
+
+**No snapshot tool tells intent from accident. Not partially -- not at all.** Jest states the fork
+and hands it to the reader. What these systems supply is exactly two things: they force the moved
+value into a committed diff, and they require a deliberate keystroke. **Intent is human, every
+time** -- which is why the gate's failure text asks for the reason in the commit message rather than
+pretending the ledger records it.
+
+Worth knowing about the accept keystroke: it is blanket by default nearly everywhere -- Jest `-u`,
+`go test -update`, rustc `--bless`, ApprovalTests' `AutoApproveReporter` ("overwrite every existing
+'.approved' file, with no confirmation"). **Only `cargo insta review` is per-item by default**,
+showing each diff and taking accept/reject/skip. With three ledgers, blanket is honest; the axis is
+recorded for the day there are thirty.
+
+**And the hole the survey found in what I had just shipped.** `insta` ships `--unreferenced=reject`.
+Drop a name from the pinned list and every remaining reading still matches, so **the gate goes green
+having quietly stopped watching something** -- a silent drop that a comparison of OUTPUTS is
+structurally blind to, because the dropped output is no longer compared. A ledger with no census is
+now a failure in its own right. The control is one `cp`: plant `orphan.txt` and the gate must exit 1.
+
+**That control immediately caught a second defect, mine.** The orphan scan was written *after* the
+`PASS` early return, so on an otherwise-clean tree it never ran and the planted orphan passed. A
+guard placed after the return it is meant to prevent is a comment (&sect;426), and only running it
+says so.
