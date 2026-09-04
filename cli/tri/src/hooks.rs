@@ -75,21 +75,49 @@ fn pre_commit() -> Result<()> {
 /// pull request, naming `tools/census/fetches.txt` lines 19 and 35 -- one full CI round
 /// after a one-second local check would have refused the commit.
 ///
-/// A missing script or interpreter exits **2**, this repository's word for *could not
-/// run*, rather than passing: a guard that cannot run is not a guard that agreed.
+/// A missing script exits **2**, this repository's word for *could not run*, rather than
+/// passing: a guard that cannot run is not a guard that agreed. The path is resolved from
+/// the repository ROOT rather than the current directory -- a hook is invoked at the root
+/// but a person is often not, and from `cli/tri` the relative path refused with a safe and
+/// useless 2 while the checker itself, run from `cli/`, still read all 7870 tracked files.
+///
+/// Controls, all four run: clean tree from the root **0**, clean tree from `cli/tri`
+/// **0**, planted marker from `cli/` **1** naming the file and its lines, and the
+/// moved-aside checker **2**. The fifth case -- outside a work tree -- is NOT claimed:
+/// `now_gate` refuses first with 1, so that arm is unreachable here and is written as
+/// ordinary defence rather than as a control.
 fn conflict_markers() -> Result<()> {
-    let script = std::path::Path::new("tools/check_conflict_markers.py");
+    // From the repository ROOT, not the current directory. A git hook is invoked at the
+    // root, but a person typing this command is often not there -- and measured from
+    // `cli/tri` the relative path refused with exit 2, which is safe and useless. The
+    // checker itself resolves the root on its own (run from `cli/` it still reads all
+    // 7870 tracked files), so the only thing that needed fixing was finding it.
+    let top = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .context("failed to invoke `git rev-parse --show-toplevel`")?;
+    // Not a claimed control: outside a work tree this is UNREACHABLE through
+    // `pre_commit`, because `now_gate` runs `git rev-parse` first and errors with 1 --
+    // measured by running the command from /tmp, where the expected 2 came back as 1.
+    // So this is ordinary defence for a future caller, and it says so rather than
+    // advertising a guard nothing has executed.
+    if !top.status.success() {
+        bail!("git rev-parse --show-toplevel exited with {:?}", top.status);
+    }
+    let root = String::from_utf8_lossy(&top.stdout).trim().to_string();
+    let script = std::path::Path::new(&root).join("tools/check_conflict_markers.py");
     if !script.exists() {
-        // Not the repository root, or the file is gone. Say which, and do not vote.
+        // The file is gone from the tree. Say so, and do not vote.
         eprintln!(
-            "tri hooks pre-commit: COULD NOT RUN -- {} is not here. \
+            "tri hooks pre-commit: COULD NOT RUN -- {} does not exist. \
              Nothing was checked for conflict markers.",
             script.display()
         );
         std::process::exit(2);
     }
     let out = Command::new("python3")
-        .arg(script)
+        .arg(&script)
+        .current_dir(&root)
         .output()
         .context("failed to invoke python3 tools/check_conflict_markers.py")?;
     if !out.status.success() {

@@ -15096,7 +15096,21 @@ and said it "has stopped two commits since"; it had not been wired anywhere, and
 not one of the two.
 
 `tri hooks pre-commit` now calls the repository's own checker rather than growing a sixth
-reader with a sixth vocabulary. Three controls, all run: a planted marker gives **exit 1**
-naming the file and its lines, a missing checker gives **exit 2** and says *nothing was
-checked* -- this repository's word for could-not-run, because a guard that cannot run is
-not a guard that agreed -- and a clean tree gives **0**.
+reader with a sixth vocabulary. Four controls, all run: a clean tree from the root **0**,
+a clean tree from `cli/tri` **0**, a planted marker **exit 1** naming the file and its
+lines, and a moved-aside checker **exit 2** saying *nothing was checked* -- this
+repository's word for could-not-run, because a guard that cannot run is not a guard that
+agreed.
+
+**The path is resolved from the repository ROOT, and running the controls is what said
+so.** The first version used a relative path: a git hook is invoked at the root, but a
+person typing the command is often not, and from `cli/tri` it refused with a safe and
+useless 2. The checker itself needs no help -- run from `cli/` it still reads all 7870
+tracked files -- so the only thing that needed fixing was finding it.
+
+**And a fifth control was written and then withdrawn rather than claimed.** An arm
+returning exit 2 *outside a work tree* looked like a good refusal; running it from `/tmp`
+returned **1**, because `now_gate` runs `git rev-parse` first and errors there. The arm is
+unreachable through this command, so it is written as ordinary defence and the comment
+says it is not a control. **A guard clause you have not executed is a comment, and a
+comment claiming to be a control is worse than no comment.**
