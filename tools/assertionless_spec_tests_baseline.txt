@@ -1,41 +1,44 @@
-# Spec `test` declarations whose body is only comments, per file.
-# They parse, they are counted as tests, and they cannot fail.
+# Spec `test` declarations that CANNOT FAIL, per file: a body holding
+# nothing but comments, or nothing but comments and `assert true`.
+# They parse, they are counted as tests, and no change to the code they
+# name can turn any of them red.
 #
 # Pinned so a NEW one fails and the existing debt stays visible. A file
 # that GROWS fails. A file that SHRINKS also fails -- re-bless in the same
 # commit, so the slack cannot be banked against the next one.
 #
 # Regenerate: python3 tools/check_assertionless_spec_tests.py --bless
-# 32 file(s), 1813 declaration(s).
+# 33 file(s), 4054 declaration(s).
+specs/ar/ternary_logic.t27	1
 specs/fpga/testbench/power_analysis_tb.t27	11
 specs/fpga/testbench/vcd_conformance_compare_tb.t27	5
-specs/igla/coder/_tmp_pipeline_import.t27	64
-specs/igla/coder/arch.t27	64
-specs/igla/coder/bench_proxy.t27	64
-specs/igla/coder/benchmark.t27	64
-specs/igla/coder/dataset.t27	64
-specs/igla/coder/eval.t27	64
-specs/igla/coder/pipeline.t27	64
-specs/igla/coder/prm.t27	64
-specs/igla/coder/tokenizer.t27	64
-specs/igla/coder/training.t27	64
-specs/igla/coder/weights.t27	64
-specs/igla/race/adder_tree.t27	64
-specs/igla/race/backend.t27	64
-specs/igla/race/bram_weights.t27	64
-specs/igla/race/cordic.t27	64
-specs/igla/race/cordic_fixed.t27	64
-specs/igla/race/cordic_top.t27	64
-specs/igla/race/eda.t27	64
-specs/igla/race/formal.t27	64
-specs/igla/race/gemm.t27	64
-specs/igla/race/opcodes.t27	64
-specs/igla/race/rtl.t27	64
-specs/igla/race/systolic_array.t27	64
-specs/igla/race/systolic_ternary.t27	64
-specs/igla/race/ternary_gemm.t27	64
-specs/igla/race/ternary_inference.t27	64
-specs/igla/race/ternary_mac.t27	64
-specs/igla/race/yosys.t27	64
+specs/igla/coder/_tmp_pipeline_import.t27	144
+specs/igla/coder/arch.t27	144
+specs/igla/coder/bench_proxy.t27	144
+specs/igla/coder/benchmark.t27	144
+specs/igla/coder/dataset.t27	144
+specs/igla/coder/eval.t27	144
+specs/igla/coder/pipeline.t27	144
+specs/igla/coder/prm.t27	144
+specs/igla/coder/tokenizer.t27	144
+specs/igla/coder/training.t27	144
+specs/igla/coder/weights.t27	144
+specs/igla/race/adder_tree.t27	144
+specs/igla/race/backend.t27	144
+specs/igla/race/bram_weights.t27	144
+specs/igla/race/cordic.t27	144
+specs/igla/race/cordic_fixed.t27	144
+specs/igla/race/cordic_top.t27	144
+specs/igla/race/eda.t27	144
+specs/igla/race/formal.t27	144
+specs/igla/race/gemm.t27	144
+specs/igla/race/opcodes.t27	144
+specs/igla/race/rtl.t27	144
+specs/igla/race/systolic_array.t27	144
+specs/igla/race/systolic_ternary.t27	144
+specs/igla/race/ternary_gemm.t27	144
+specs/igla/race/ternary_inference.t27	144
+specs/igla/race/ternary_mac.t27	144
+specs/igla/race/yosys.t27	144
 specs/isa/ternary_graph.t27	3
 specs/isa/ternary_tree.t27	2

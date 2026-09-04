@@ -1,14 +1,30 @@
 #!/usr/bin/env python3
-"""A `test` whose body is only a comment cannot fail, and there are 1792 of them.
+r"""A `test` whose body is only a comment cannot fail, and there are 1792 of them.
 
 WHAT THIS COUNTS
 ----------------
-A spec test declaration whose entire body is comments:
+A spec test declaration that cannot fail: one whose body holds nothing but
+comments, or nothing but comments and `assert true`.
 
     test igla_race_gemm_w347_batch_depth_invariant_1 { /* verify baseline */ }
 
-Measured 2026-09-04 on master: **1813 of 9752** `.t27` test declarations (18.6%),
-in 32 files. `.tri` specs carry 90 declarations and none of this shape.
+    test k3_no_tautology_all_values_tested {
+        // Verify all values tested above
+        assert true
+    }
+
+Measured 2026-09-04 on master: **4054** declarations in 33 files -- 1813 whose
+body is only comments, and **2241** whose only statement is `assert true`.
+
+The second number was nearly missed: `git grep -cE '^\s*assert true\s*$'`
+returns **0**, because `-E` is POSIX ERE and does not know `\s`. The same
+population is 2247 lines under `-E '^[[:space:]]*assert true$'` and under
+`-P '^\s*assert true\s*$'`, and two independent body-walkers then agree on 2241
+tests. An instrument that answers zero is not evidence of an empty population.
+
+Counting the two shapes apart would suggest they are different problems. They are
+the same problem spelled differently, and a file that swaps one for the other has
+not improved -- so they share one ceiling. `.tri` specs carry 90 declarations and none of this shape.
 
 The bulk is one pattern: **1792** carrying the identical body
 `{ /* verify baseline */ }`, exactly 64 in each of 28 files under
@@ -67,6 +83,17 @@ SPEC_SUFFIXES = (".t27", ".tri")
 
 OPEN = re.compile(r"^\s*test\s+[A-Za-z0-9_]+\s*\{(?P<rest>.*)$")
 COMMENT_ONLY = re.compile(r"^\s*(?://.*|/\*[^*]*\*/)?\s*$")
+# `assert true` is a statement, so a body holding it is not comment-only -- and it
+# cannot fail either. 2241 spec tests have a body of nothing but comments and
+# this one line. Counting them apart from the comment-only ones would suggest they
+# are a different problem; they are the same problem spelled differently, and a
+# file that swaps one shape for the other has not improved.
+#
+# Measured three ways because the first two disagreed: `git grep -cE '^\s*assert
+# true\s*$'` returns **0** -- `-E` is POSIX ERE and does not know `\s` --
+# while `-E '^[[:space:]]*assert true$'` and `-P '^\s*assert true\s*$'` both
+# return 2247 lines. Two independent walkers then agree on 2241 tests.
+CANNOT_FAIL = re.compile(r"^\s*(?://.*|/\*[^*]*\*/|assert\s+true\s*;?)?\s*$")
 
 
 def refuse(msg: str) -> None:
@@ -102,7 +129,7 @@ def assertionless_in(text: str) -> int:
                 i += 1
                 continue
             i = j + 1
-        if all(COMMENT_ONLY.match(b) for b in body):
+        if all(CANNOT_FAIL.match(b) for b in body):
             found += 1
     return found
 
@@ -146,8 +173,10 @@ def load_baseline() -> dict[str, int]:
 def write_baseline(rows: dict[str, int]) -> None:
     total = sum(rows.values())
     head = (
-        "# Spec `test` declarations whose body is only comments, per file.\n"
-        "# They parse, they are counted as tests, and they cannot fail.\n"
+        "# Spec `test` declarations that CANNOT FAIL, per file: a body holding\n"
+        "# nothing but comments, or nothing but comments and `assert true`.\n"
+        "# They parse, they are counted as tests, and no change to the code they\n"
+        "# name can turn any of them red.\n"
         "#\n"
         "# Pinned so a NEW one fails and the existing debt stays visible. A file\n"
         "# that GROWS fails. A file that SHRINKS also fails -- re-bless in the same\n"
@@ -178,6 +207,19 @@ def self_check() -> int:
          "test a_b {\n  // and then the file ends\n", 0),
         ("two on one file are two",
          "test a { /* x */ }\ntest b { /* y */ }\n", 2),
+        ("a body of only `assert true` cannot fail",
+         "test a_b {\n  assert true\n}\n", 1),
+        ("comments plus `assert true` still cannot fail",
+         "test a_b {\n  // why\n  assert true\n}\n", 1),
+        ("`assert true` beside a real one is NOT",
+         "test a_b {\n  assert true\n  assert x == 1\n}\n", 0),
+        ("`assert truely_named` is a real assertion",
+         "test a_b {\n  assert truely_named\n}\n", 0),
+        # 65 lines in the corpus end this one with a semicolon, and mutation
+        # showed the `;?` clause was carried by no fixture at all: deleting it
+        # left every case passing.
+        ("the semicolon form counts too",
+         "test a_b {\n  assert true;\n}\n", 1),
     ]
     ok = True
     for label, src, want in cases:
