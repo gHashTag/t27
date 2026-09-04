@@ -14703,7 +14703,55 @@ planted file, seen and then not seen.
 It reports what would run and refuses to say what SHOULD -- the three installers disagree about
 that, and choosing between them is not a measurement.
 
-## 530. Two sites, one read: the census abstained where the answer was on the page
+## 530. A merge is a shape, not a sentence -- and the tool priced the rule at zero
+
+`tri pr-cost` counted update-branch merges by SUBJECT PREFIX: `Merge branch 'master'`,
+`Merge remote-tracking`, `Merge branch "master"`. Then the loop began passing its own
+`-m "Merge origin/master into <branch>"`, which matches none of them. The command printed:
+
+    update-branch merges     0
+    cost of the rule         0 minutes (0 reruns x 29.3)
+
+**It priced the up-to-date rule as FREE while the rule was charging.** Measured on four pull
+requests -- by prefix **0 / 0 / 4 / 0**, by parent count **1 / 1 / 4 / 3**. It agreed only on the
+one PR that happened to use git's default message, and missed another session's #3178 entirely.
+
+**A merge commit has two parents.** Structural, immune to wording, and unbreakable by anyone
+choosing a nicer `-m`. The prefix list is gone rather than widened -- a longer list of spellings is
+the same defect with more rope. Same window, recounted: content **18 -> 12**, merges **0 -> 6**,
+cost **0 -> 176 minutes**.
+
+**The author of the tool broke it, by changing his own commit message.** Nothing else moved. When a
+matcher reads a HUMAN-CHOSEN string, its population is a habit, and habits change without a commit
+to blame.
+
+## 531. The remedy this loop shipped made the proposed remedy unprofitable
+
+#3134 has stood open asking whether to enable a merge queue. Priced, in the unit the queue is made
+of. Every `pull_request` commit here fires **23 workflow runs** (median over 200 recent runs grouped
+by `head_sha` and event; min 20, max 23), so:
+
+    today   43 commits x 23                    =  989 runs
+    queued  28 content x 23 + 20 builds x 23   = 1104 runs   (+115, +12%)
+
+A merge queue charges **one build per pull request whether or not that PR ever had to catch up**,
+and **10 of 20 (50%) merged with zero catch-ups**. Average catch-ups per PR **0.75**; break-even
+batch size **1.33 PRs per build**; and only one `loop/` PR is open at a time, so batching is ~1.
+
+**The cause is a fix already merged here.** #3166's narrow rule -- catch up only when the checks are
+green AND `mergeStateStatus` is `BEHIND` -- drove the average below the queue's break-even. The
+remedy this issue proposes was made unprofitable by a remedy already shipped, and nothing noticed
+because the two were never priced in the same unit.
+
+**Price a proposal in the unit the proposal is made of.** Minutes said the rule cost 307 and implied
+a queue would help. Runs said the queue costs more. Both are true readings of the same window; only
+the second answers the question actually asked.
+
+And state what it does NOT establish: a queue wins at batch >= 1.33, which is a question about
+arrival rate rather than about the rule -- and it does nothing for the other half of the tax, the
+waiting on checks that cannot block, which `--required-only` already removes.
+
+## 532. Two sites, one read: the census abstained where the answer was on the page
 
 `tri gates fetches` reported **4** sites as *a guard, but two fetches -- which one does it
 cover?* All four sit in two functions, `issues.rs`'s `numbers` and `dated`, and reading
