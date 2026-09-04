@@ -5392,6 +5392,85 @@ pub fn fetch_sites_in(body: &str) -> usize {
     body.lines().filter(|l| is_fetch_site(l)).count()
 }
 
+/// Fetch sites that can RUN in one invocation of this body.
+///
+/// Two sites in the arms of one `let x = if … { … } else { … };` are two sites in the
+/// source and **one read at run time**, so a single guard on `x` covers whichever ran.
+/// The census total stays a count of SITES -- that is a different question and keeping
+/// it separate is the point: conflating them would move a published 25.
+///
+/// The shape this was written for is `issues.rs`'s `numbers` and `dated`, where the two
+/// arms are one query with different filters -- with `--as-of` the state filter has to
+/// come off, so splitting the function would duplicate the guard and the parse rather
+/// than fix anything. Both were read before the rule was written, and both are guarded.
+///
+/// Deliberately narrow, and every surviving clause has a counterexample in the tests:
+/// the `if` must be the right-hand side of a BINDING (`let x = if …` or `x = if …`), the
+/// `} else {` must sit at that binding's own indent so a nested if/else is not mistaken
+/// for it, and the block must close. Two fetches in one arm, or in two different `if`s,
+/// are still two reads and still ambiguous.
+///
+/// Two clauses were removed rather than documented: `then > 0 && else > 0` because
+/// `min` already answers it, and `starts_with("let ")` because an assignment binds one
+/// value too. Both survived their own mutation, which is what said they were decoration.
+pub fn exclusive_fetch_sites_in(body: &str) -> usize {
+    let sites = fetch_sites_in(body);
+    let mut collapsed = 0usize;
+    let lines: Vec<&str> = body.lines().collect();
+    let mut i = 0usize;
+    while i < lines.len() {
+        let t = lines[i].trim_start();
+        // A binding whose right-hand side is an `if`, opening a braced arm on the same
+        // line. `let` is NOT required: `x = if … {` and `self.f = if … {` bind one value
+        // from two arms just as much, and requiring `let` survived its own mutation --
+        // a clause that moves nothing is narrower than the rule it claims to state.
+        let opens = t.contains(" = if ") && t.trim_end().ends_with('{');
+        if !opens {
+            i += 1;
+            continue;
+        }
+        let indent = lines[i].len() - t.len();
+        // Walk to the matching `} else {` at the same indent, then to its `};`.
+        let mut j = i + 1;
+        let mut then_hits = 0usize;
+        let mut else_hits = 0usize;
+        let mut in_else = false;
+        let mut closed = false;
+        while j < lines.len() {
+            let l = lines[j];
+            let lt = l.trim_start();
+            let li = l.len() - lt.len();
+            if li == indent && lt.starts_with("} else {") {
+                in_else = true;
+                j += 1;
+                continue;
+            }
+            if li == indent && (lt == "};" || lt.starts_with("};")) {
+                closed = true;
+                break;
+            }
+            if is_fetch_site(l) {
+                if in_else {
+                    else_hits += 1;
+                } else {
+                    then_hits += 1;
+                }
+            }
+            j += 1;
+        }
+        if closed {
+            // At run time only one arm executes, so a pair is one read. `min` IS the
+            // rule: with fetches in only one arm it is zero, and the `then > 0 &&
+            // else > 0` conjunction that stood here survived its own mutation because
+            // `min` already answered -- two clauses with one consequence are one clause
+            // and a decoration.
+            collapsed += then_hits.min(else_hits);
+        }
+        i = if closed { j + 1 } else { i + 1 };
+    }
+    sites.saturating_sub(collapsed)
+}
+
 /// Classify one site by the body of the function containing it.
 ///
 /// The subject is the ENCLOSING FUNCTION, and that choice has a known cost: a function
@@ -5440,7 +5519,7 @@ pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
             // One guard and two fetches in one function is not one guarded fetch; it
             // is a question this cannot answer, and answering it anyway is how
             // `red.rs:140` read as guarded by a check applied to a different fetch.
-            return if fetch_sites_in(body) > 1 {
+            return if exclusive_fetch_sites_in(body) > 1 {
                 Fetch::GuardAmbiguous
             } else {
                 Fetch::Guarded
@@ -5947,6 +6026,187 @@ mod fetch_census_tests {
     fn an_indented_fn_is_not_a_top_level_one() {
         let src = "fn a() {\n    fn inner() {}\n    x\n}\n";
         assert_eq!(fn_spans(src), vec![("a".to_string(), 1, 4)]);
+    }
+}
+
+#[cfg(test)]
+mod exclusive_arm_tests {
+    use super::*;
+
+    // Shaped after issues.rs::numbers: one argument per line, so the site is the
+    // line whose whole content is `"--limit",` -- read out of `is_fetch_site`
+    // rather than remembered. A fixture written from memory failed five of seven
+    // tests before this was checked.
+    const REAL: &str = concat!(
+        "    let raw = if instant.is_some() {\n",
+        "        gh(&[\n",
+        "            \"issue\",\n",
+        "            \"--limit\",\n",
+        "            &lim,\n",
+        "        ])?\n",
+        "    } else {\n",
+        "        gh(&[\n",
+        "            \"issue\",\n",
+        "            \"--limit\",\n",
+        "            &lim,\n",
+        "        ])?\n",
+        "    };\n",
+        "    let complete = read_is_complete(arr.len(), limit);\n",
+    );
+
+    #[test]
+    fn two_arms_of_one_let_are_one_read() {
+        assert_eq!(fetch_sites_in(REAL), 2, "both arms are sites in the SOURCE");
+        assert_eq!(exclusive_fetch_sites_in(REAL), 1, "only one RUNS");
+    }
+
+    #[test]
+    fn the_guard_question_now_answers_guarded() {
+        assert_eq!(
+            classify_fetch("            \"--limit\",", "", REAL),
+            Fetch::Guarded
+        );
+    }
+
+    #[test]
+    fn two_fetches_not_in_arms_stay_ambiguous() {
+        // The control this rule must not swallow: two independent reads, one guard.
+        let body = concat!(
+            "    let a = gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    let b = gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    let complete = read_is_complete(a.len(), limit);\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+        assert_eq!(
+            classify_fetch("        \"--limit\",", "", body),
+            Fetch::GuardAmbiguous
+        );
+    }
+
+    #[test]
+    fn an_if_that_is_not_a_let_does_not_collapse() {
+        // A bare `if` may run BOTH over two calls; only a `let` makes it one value.
+        let body = concat!(
+            "    if cond {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?;\n",
+            "    } else {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?;\n",
+            "    };\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn one_arm_fetching_collapses_nothing() {
+        let body = concat!(
+            "    let raw = if cond {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    } else {\n",
+            "        String::new()\n",
+            "    };\n",
+            "    let other = gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn an_unclosed_block_collapses_nothing() {
+        // Refuse rather than guess: no closing `};` at the binding's indent means the
+        // shape was not recognised, and an unrecognised shape must not lose a site.
+        let body = concat!(
+            "    let raw = if cond {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    } else {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn the_binding_must_be_to_an_if_and_not_merely_contain_one() {
+        // Constructed, because no real line in this crate discriminates: a `let` line
+        // that ends in `{` and carries the letters `if ` somewhere OTHER than as its
+        // right-hand side. Loosening `" = if "` to `"if "` collapses this pair and
+        // that is wrong -- nothing says the two arms are alternatives of one value.
+        let body = concat!(
+            "    let x = pick(a if b) {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    } else {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    };\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn a_nested_else_at_a_deeper_indent_is_not_this_binding_s_else() {
+        // The `} else {` that ends the THEN arm must sit at the binding's own indent.
+        // Without that check an inner if/else switches the walk into else-mode early,
+        // and a pair that is really two reads inside one arm collapses to one.
+        let body = concat!(
+            "    let raw = if cond {\n",
+            "        if inner {\n",
+            "            gh(&[\n",
+            "                \"--limit\",\n",
+            "            ])?\n",
+            "        } else {\n",
+            "            gh(&[\n",
+            "                \"--limit\",\n",
+            "            ])?\n",
+            "        }\n",
+            "    } else {\n",
+            "        String::new()\n",
+            "    };\n",
+        );
+        // Two sites, both inside the THEN arm: the outer else fetches nothing, so
+        // nothing collapses at THIS level.
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn a_one_line_if_is_not_an_opening_arm() {
+        // `let x = if a { 1 } else { 2 };` binds one value and opens nothing. Dropping
+        // the `ends_with('{')` test makes the walk start here and run past it, so the
+        // `} else {` belonging to the pair BELOW is read as this line's -- and two
+        // independent reads collapse into one.
+        let body = concat!(
+            "    let n = if a { 1 } else { 2 };\n",
+            "    gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    } else {\n",
+            "    gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    };\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn a_body_with_no_fetches_is_zero_either_way() {
+        assert_eq!(fetch_sites_in("let x = 1;\n"), 0);
+        assert_eq!(exclusive_fetch_sites_in("let x = 1;\n"), 0);
     }
 }
 
