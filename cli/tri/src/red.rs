@@ -14,6 +14,22 @@
 //! rather than a window average. "Is it broken now" and "how often does it
 //! break" are different questions, and only the first one stops a deploy.
 //!
+//! AND "NOW" NEEDED A DATE
+//! ----------------------
+//! The latest run is the newest one that EXISTS, which is not the same as a
+//! recent one. `Auto Merge Ready PRs` sat in this list reading `260+ in a row`
+//! while its newest run was eight days old, on a branch that no longer exists.
+//! Measured: 1541 runs, every one a failure, never a success -- because the
+//! file had not parsed since 2026-07-07, so GitHub could not read its triggers
+//! and created a failed run on every push. #2256 repaired the parse on
+//! 2026-08-20; the 96 runs after that date all came from two stale branches
+//! carrying the old file, and ZERO came from master. It has been dormant since.
+//!
+//! Reporting that as a live outage is the "repaired defect reported as live"
+//! shape this repository already records -- committed here by me, one pass
+//! earlier, from this command's own output. So every row now carries the
+//! instant of its latest run.
+//!
 //! THE DATE IS A BOUND TOO, AND IT WAS NOT MARKED AS ONE
 //! -----------------------------------------------------
 //! `streak()` reads ONE page and sets two values from it: the count, and the
@@ -122,6 +138,9 @@ struct Red {
     /// The most recent success, when one exists. It closes the other end of the
     /// bracket and is read with one request, independent of the streak length.
     last_pass: Option<String>,
+    /// When the latest run happened. A streak says how many; this says whether
+    /// the thing is still being exercised at all.
+    last_at: String,
 }
 
 /// How many of the most recent runs, newest first, share the failing verdict.
@@ -293,15 +312,21 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
                 (Some(a), Some(b)) => (a, b),
                 _ => continue,
             };
+            // The same one request now also returns WHEN. It cost nothing to
+            // ask, and without it this command cannot tell "failing now" from
+            // "last seen failing on a branch that no longer exists".
             let latest = gh(&[
                 "api",
                 &format!("repos/{repo}/actions/workflows/{id}/runs?branch={branch}&per_page=1"),
                 "--jq",
-                r#".workflow_runs[0].conclusion // "none""#,
+                r#".workflow_runs[0]|"\(.conclusion // "none")\t\(.created_at // "")""#,
             ])?;
-            let bad = latest == "failure"
-                || latest == "timed_out"
-                || (include_cancelled && latest == "cancelled");
+            let mut it = latest.splitn(2, '\t');
+            let verdict = it.next().unwrap_or("none").to_string();
+            let last_at: String = it.next().unwrap_or("").chars().take(16).collect();
+            let bad = verdict == "failure"
+                || verdict == "timed_out"
+                || (include_cancelled && verdict == "cancelled");
             if !bad {
                 continue;
             }
@@ -320,6 +345,7 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
                 consecutive: n,
                 at_least: bounded,
                 last_pass: pass,
+                last_at: last_at.clone(),
             });
         }
     }
@@ -343,13 +369,20 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
         // began at or before this instant.
         let since = render_since(&r.since, r.at_least, r.last_pass.as_deref());
         println!(
-            "  {:>5} in a row  {:<48}  {:<26} {}",
-            count, since, r.repo, short
+            "  {:>5} in a row  last run {}  {:<48}  {:<26} {}",
+            count, r.last_at, since, r.repo, short
         );
     }
     println!();
     println!("A long streak is not more of the same failure — it is the number of");
     println!("times nobody looked. Read this before merging, not after a page 404s.");
+    println!();
+    println!("`last run` is here because a streak cannot tell FAILING NOW from LAST SEEN");
+    println!("FAILING. `Auto Merge Ready PRs` stood in this list at 260+ in a row while");
+    println!("its newest run was eight days old on a branch that no longer exists: the");
+    println!("file had not parsed since 2026-07-07, so GitHub made a failed run on every");
+    println!("push -- 1541 of them, never one success -- and #2256 repaired it. A date");
+    println!("beside the count separates a live outage from a settled one.");
     if reds.iter().any(|r| r.at_least) {
         println!();
         if deep {
@@ -506,6 +539,35 @@ mod page_tests {
     /// the listing fetch must carry `--paginate`. The identical fetch in
     /// `cibase.rs` has carried it all along -- this is the sibling it did not
     /// travel to, so the test names both.
+    /// A streak counts; it does not date. `Auto Merge Ready PRs` read
+    /// `260+ in a row` while its newest run was eight days old on a branch that
+    /// no longer exists -- 1541 failures, never a success, because the file had
+    /// not parsed since 2026-07-07 and #2256 repaired it on 2026-08-20. Every
+    /// run after that date came from a stale branch; zero came from master.
+    ///
+    /// Structural, because the defect is in what the request asks for: the one
+    /// latest-run call must return the INSTANT beside the verdict, or the
+    /// report cannot separate a live outage from a settled one.
+    #[test]
+    fn the_latest_run_is_read_with_its_instant() {
+        let src = include_str!("red.rs");
+        let at = src
+            .find("runs?branch={branch}&per_page=1")
+            .expect("the latest-run request is still here");
+        let tail = &src[at..];
+        let end = tail.find("])?").unwrap_or(tail.len());
+        let call = &tail[..end];
+        assert!(
+            call.contains("created_at"),
+            "the latest-run request must return WHEN as well as WHAT: a streak \
+             cannot tell failing-now from last-seen-failing"
+        );
+        assert!(
+            call.contains("conclusion"),
+            "and it still has to return the verdict it is selected on"
+        );
+    }
+
     #[test]
     fn the_workflow_listing_walks_every_page() {
         let src = include_str!("red.rs");
