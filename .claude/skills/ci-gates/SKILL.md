@@ -12936,8 +12936,8 @@ the `-ctrl` suffix its own `--help` spells out), `parse-accounted` in this file,
 of that table.
 
 The wide matcher is the usual trap and the usual fix. `\bt27c [a-z-]+` returned
-2,736 hits including `t27c and`, `t27c does`, `t27c cannot`, `t27c silently` --
-prose, matched because the sentence continues. Requiring the opening backtick
+2,736 hits, including `t27c` followed by `and`, `does`, `cannot` and
+`silently` -- prose, matched because the sentence continues past the name. Requiring the opening backtick
 dropped it to 2,229 and to a population that is invocations.
 
 Two exclusions, both printed rather than argued:
@@ -13026,3 +13026,61 @@ Two rules out of it:
   unreachable.** The guard was added later; it silently retired the run the
   comment describes. Rerunning the four arms took one command each. Reading the
   comment would have cost the evening.
+
+## 486. The census that finds quiet gates was quiet about one
+
+`tri gates quiet` cleared `coq-kernel.yml:121` -- it printed the line under *NAMED A
+PATH AND WAS NOT QUIET*. A read-only fan-out probed it instead of reading it, and the
+clear was wrong:
+
+```
+if grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v 2>/dev/null; then
+  echo "ERROR: Admitted remains" >&2
+  exit 1
+fi
+echo "OK: no Admitted in Phi.v or PhiFloat.v"
+```
+
+Re-probed here with a positive control: with both files present and with both deleted,
+stdout is **byte-identical**, stderr is **empty**, and both exit **0** -- while a real
+`Admitted.` still exits 1, so the gate works exactly when its subject is there.
+
+**The shape is multi-line and the rule was line-scoped.** `grep` exits 2, the `if`
+merges that with "no match", and the `echo` after `fi` is unconditional. Nothing on the
+`if` line says so; the evidence is three lines below it. A rule that reads one line
+cannot see a fall-through, and every clause of it was individually correct.
+
+The new clause takes the following lines: the condition silences stderr, the THEN branch
+exits non-zero, and the block ends without an `else` -- so the only way past `fi` is the
+branch a missing file takes. An `else` takes it out of scope, because then the
+missing-file path has its own branch and whether THAT passes is a different question.
+
+**It fires zero times today, and the reason is the point.** Three lines of that
+syntactic shape remain and all three have an `else`. The one it was written for was
+repaired on master while this was being built -- by another session, quoting this
+file's own rule, with a comment that opens *"GREP HAS THREE ANSWERS AND THIS USED TO
+KEEP ONE"* and records that an `[ -f ]` loop was written first and **removed** because
+mutation showed it redundant. A guard whose population is zero is not idle: it is what
+stops the shape coming back, and &sect;450 already says the two questions -- *does this
+change a number* and *does this prevent a failure* -- are different.
+
+## 487. A census with a third, invisible bucket cannot be argued with
+
+The same command counted 32 quiet steps and refused 18, and its refusal rule was
+"names a path AND (silences stderr OR has an `||`)". So a line like `[ ! -f
+build/x.json ] && echo skip` -- which names a path and does neither -- appeared in
+**neither list**.
+
+Measured: `grep -nE '\[ *! *-[fd] ' .github/workflows/*.yml` returns **11** lines, and
+exactly **one** of them was anywhere in `--list --excluded`. Ten were invisible.
+
+**An omission a reader cannot see is an omission a reader cannot argue with**, and
+&sect;464's rule -- *print the list, the list is the check* -- does not hold if the list
+is drawn from a narrower population than the subject. Two lists that do not sum to a
+stated whole are two lists and a silence.
+
+The population is now named once, in one function, and both lists draw from it: a shell
+existence test (negated or not), a silenced stderr, an `||` fallback, a `wc -l` counter,
+or an `if … ; then`. Every candidate lands in counted or refused. The totals moved from
+`32 + 18` to **`32 + 122 = 154`**, and the 90 lines that appeared are not new defects --
+they are what the first version was silently declining to mention.
