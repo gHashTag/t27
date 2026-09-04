@@ -15962,3 +15962,46 @@ separating them is a different measurement than this one.
 
 The command prints the figure and does not characterise it, which is the honest state: **a population
 I have not classified is a number, not a finding.**
+
+## 559. A by-title rebuild cannot tell my section from one the base withdrew
+
+Every conflict in this file for eight passes has been resolved the same way: rebuild on the base,
+keep every section present here and absent there. Today master **withdrew** a section for the first
+time, and the rule quietly resurrected it.
+
+`6d333d37` (#3205) added &sect;554 *"Debt a fix cannot retire is a different kind of debt"*.
+`6a49402c` (#3207) replaced it with *"The anti-rediscovery tool's scope is not the repository"*,
+because the original claim was wrong. My branch had merged the first and not the second, so the
+withdrawn title read as **present here, absent on master** -- exactly like a section I had written --
+and the rebuild put it back under a fresh number.
+
+**And the guard shipped two passes ago SAW it.** `tri skill renumber` refused, naming the section it
+would drop. I then resolved the conflict with `git checkout --ours`, which takes my side wholesale
+and discards whatever master added. **The guard lives in the tool; my hand procedure walks around it**
+-- &sect;536 again, with the probe now being a git command rather than a shell pipeline.
+
+### Two discriminators failed before one worked
+
+| rule | why it fails |
+|---|---|
+| **merge base** | useless once you have already merged: the base becomes master's head, and my sections and the withdrawn one look equally new |
+| **ancestry** (`merge-base --is-ancestor`) | useless because master squashes: the commit that introduced the withdrawn section is not an ancestor of master, and neither are mine -- &sect;550's squash problem, one level up |
+
+What works is master's own history OF THE TEXT:
+
+```sh
+git log origin/master -S'<title>' -- .claude/skills/ci-gates/SKILL.md
+```
+
+`Debt a fix cannot retire` &rarr; **2** commits, one adding and one removing. My two sections &rarr;
+**0** each. **A title master's history has ever held, but its head does not, was taken out on
+purpose.** Absence from the head is not evidence of authorship; absence from the whole history is.
+
+520 sections, nothing of master's lost, nothing withdrawn resurrected.
+
+### What this cost and what it bought
+
+Three rebuilds of the same file in one pass, two of them wrong: one dropped a master section, the next
+resurrected a withdrawn one. **Both were caught by re-deriving the answer rather than by trusting the
+previous step** -- `master lost N` and `withdrawn resurrected N` printed after every attempt. A repair
+that does not verify itself is another edit.
