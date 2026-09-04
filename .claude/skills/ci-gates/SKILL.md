@@ -16005,3 +16005,45 @@ Three rebuilds of the same file in one pass, two of them wrong: one dropped a ma
 resurrected a withdrawn one. **Both were caught by re-deriving the answer rather than by trusting the
 previous step** -- `master lost N` and `withdrawn resurrected N` printed after every attempt. A repair
 that does not verify itself is another edit.
+
+## 562. The discriminator went into the tool, and only a real repository could test it
+
+&sect;559 found that a by-title rebuild cannot tell a section I wrote from one the base withdrew, and
+named the test that can: the base's own history of the text. That rule lived in the report. It now
+lives in `tri skill renumber`, which refuses and names what it would carry:
+
+```text
+Error: 1 section(s) in the tail were REMOVED from main on purpose:
+    Bravo
+  Nothing was written.
+```
+
+### The half that no unit test reaches
+
+`withdrawn_titles` takes an injected predicate, so what it does with a yes and a no is covered three
+ways without any git. The predicate itself -- `git log <base> -S '<title>'` -- is the part that meets
+reality, and **inverting its emptiness test survived every one of those tests.** A control that
+cannot fail is indistinguishable from one that passed.
+
+So the control is a real repository, built by the test: `main` adds a section, the branch takes it and
+appends its own, `main` withdraws it. Both git-touching mutants die there -- the inverted emptiness
+check refuses **Charlie**, the branch's own section, which the test catches by ordering rather than by
+presence, and removing the guard entirely lets the retraction through. The same test carries its
+negative control: with nothing withdrawn, nothing may be refused.
+
+### The fixture was wrong first, and the tool was right
+
+The first fixture put the withdrawn section in the base region rather than the tail, so the rebuild
+dropped it correctly and there was nothing to refuse. **The test failed because the tool was right.**
+
+The real shape needs the branch to have taken the section FROM the base by merging, so it sits in the
+appended tail: diverge when the file holds one section, let the base add a second, let the branch take
+that second and append a third, then let the base withdraw the second. **Reproducing a defect means
+reproducing its POSITION, not only its ingredients** -- the same three sections in a different
+arrangement exercise nothing.
+
+### Ninth pass, and the rule paid again
+
+Mutating the call site first is now the first act after extracting a helper. It found nothing here,
+because the call site was written with the rule in mind -- which is what a rule that works looks like
+once it stops being a discovery.
