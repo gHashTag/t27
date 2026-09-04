@@ -14891,9 +14891,7 @@ the shape.
 **I first wrote `47` there, and 47 is a different population.** 47 is how many rows are DORMANT (last
 run over seven days ago); 43 is how many read `1 in a row`. The two sets are nested, not equal: all 43
 one-streak rows are dormant, and the other four dormant rows carry real streaks of 2, 3, 5 and 13 --
-`Decode RTL exhaustive verification` among them, which is the one genuine regression in the whole
-list (66 runs, 49 successes, then 13 consecutive failures ending 2026-08-01). Checks: 43 + 4 = 47
-dormant, plus 3 live = 50.
+`Decode RTL exhaustive verification` among them. Checks: 43 + 4 = 47 dormant, plus 3 live = 50.
 
 I reached for a number that was already on the page instead of counting the thing I had just named,
 **in the section whose entire subject is a count answering a question other than the one it is put
@@ -14902,6 +14900,27 @@ audit of my own claims caught it, and the commit message cannot be corrected wit
 which is forbidden -- so the correction lives in the commit that follows it. Two populations quoted
 with one number is the same defect as the unit error above, one level down: there the number counted
 files and was heard as incidents; here it counted dormancy and was published as streak length.
+
+**Then I checked the history of all fifty, and it refuted a second claim of mine.** I had written
+that `Decode RTL exhaustive verification` was "the one genuine regression in the list", on the
+strength of having looked up exactly one workflow. Looking up all fifty:
+
+| history | count | what it means |
+|---|---|---|
+| **1 run ever, never a success** | **42** | the 39 July files, plus `FPGA HSLM Bitstream`, `FPGA Bitstream Generation`, `FPGA Docker Build` |
+| 2--5 runs, never a success | 2 | `Build AX7203 MUL Bitstream` (2/0), `AX7203 Format Cost Ablation` (5/0) |
+| has succeeded, then regressed, now dormant | 3 | `Decode RTL` (66/49), `TRI-NET Baud Ladder` (3/2), `TRI-NET Node v2` (8/4) |
+| has succeeded, then regressed, **live** | 3 | `S³AI Brain CI` (2654/1570), `Orphaned artefacts` (1241/264), `Withdrawn numbers` (1256/682) |
+
+**44 of the 50 have never had one successful run in their entire recorded history.** A check that
+never once passed is not a broken check; it is an unfinished file. The regressions -- the only rows
+where something that worked stopped working -- number **six**, three of them live. So "the one genuine
+regression" was wrong by a factor of six, and it was wrong because I generalised from a single lookup
+in the same breath as correcting a number I had generalised from a single glance.
+
+**The discipline that caught both:** after finding one published figure wrong, check its neighbours.
+The first audit found `47` should be `43`. The second, run only because the first had found something,
+found that a one-sample generalisation had become a stated count. Neither was caught by a test.
 
 **Shipped.** `tri red now` sorts by the latest-run instant instead of the streak (the old order put a
 July fossil with 30+ failures ABOVE a live 3), states the split in the headline, and draws a divider
