@@ -15666,3 +15666,65 @@ Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge
 and the file it wrote contained:
 
 ```
+
+## 551. It deleted a section while its count guard passed
+
+The fix in &sect;550 was run on the branch that carried it, and it destroyed one of that branch's own
+sections. The command said:
+
+```text
+Written. 513 section(s); no number is used twice.
+```
+
+and &sect;550 -- *"I hand-wrote the resolver six times"* -- was gone, replaced by a second copy of the
+section before it.
+
+**Cause.** &sect;550 quotes three `## N.` heading lines inside a fenced block, as the evidence for the
+duplicate it is about. `skillnum::sections` counts every line beginning `## N. `, fenced or not, so
+those three were parsed as real sections. `tail_by_title` cut the tail at the last "shared" title --
+one of the quoted ones -- and the rebuild dropped the real section while the quoted headings filled
+its seats.
+
+**The section that documents a duplication was the one whose evidence caused a duplication.**
+
+### A total cannot see a substitution
+
+The command already had a guard, and it passed:
+
+```rust
+let expected = sections(&at_base).len() + sections(tail).len();
+if secs.len() != expected { bail!(...) }
+```
+
+Three quoted headings went in, one real section came out, and the arithmetic was satisfied. This is
+&sect;540 -- a dead test and a phantom test cancelling in every total -- one level up, in the tool
+rather than in a report. **Two errors that cancel are invisible to every instrument that sums, and
+that is as true of a guard as of a count.**
+
+Guarding on the SET of titles instead:
+
+```text
+Error: the rebuild would DROP 1 section(s) that are on disk now:
+    I hand-wrote the resolver six times, and the tool for it already existed
+  Nothing was written.
+```
+
+Renumbering is invisible to it by construction: every number changes and no title does. **This is the
+guard every hand-written resolver in this loop already had, and the shipped command did not** -- which
+is the second half of &sect;550's lesson. The tool I should have been using was both better than my
+script (it exists, it is tested, it has a `--check`) and worse (it lacked the one guard I wrote every
+single time), and I could only learn that by reading it.
+
+### Stated, not fixed
+
+`skillnum::sections` still counts headings inside fenced blocks. Fence parity is not currently a
+reliable way to skip them: the file carries an **odd** number of ``` markers on master (301) and on
+every recent commit, so a parity walk puts three quarters of the file "inside" a block. The guard
+makes the parser's blindness non-destructive, which is what matters today; the parser itself is a
+separate finding and is recorded here rather than half-fixed.
+
+### Seven passes, seven surviving mutants, all wiring
+
+`titles_lost` is covered two ways and replacing its call with an empty `Vec` leaves both green.
+Second one predicted before running it. The rule is now explicit: **after extracting a helper, mutate
+the line that calls it before writing a single test for the helper.**
