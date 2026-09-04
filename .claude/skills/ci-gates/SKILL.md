@@ -15160,8 +15160,13 @@ Every one of these was caught by a test or by an existing comment, not by review
   the source at `#[cfg(test)]` and searching only the half above. See &sect;'s census-counted-itself.
 * **The instrument was already in the file.** `orphaned_tests` first took "everything after the
   first `#[cfg(test)]`" as the test module. Forty lines above it sat `test_module_lines`, whose own
-  doc comment says that approach was *checked rather than assumed* and is wrong: five files in this
-  crate keep real top-level functions after their test module, and `gates.rs` has fifteen.
+  doc comment says that approach was *checked rather than assumed* and is wrong.
+  **That comment records "five files, `gates.rs` fifteen"; measuring it today gives nine files and
+  `gates.rs` sixty-eight.** The two rules are not the same -- mine counts every top-level function
+  after the FIRST test module closes, and a file with several test modules has many -- and the crate
+  has also grown since the comment was written. Both numbers say the same load-bearing thing, and I
+  am recording the disagreement rather than repeating a figure I had not measured. **A borrowed
+  number is still a number you published.**
 * **Two blind spots that cancelled.** The check recognised only `#[test]`, and matched only `fn `.
   So the thirteen `#[tokio::test]` functions in `cli/trios-bridge` were invisible in BOTH directions
   -- the attribute unrecognised and the `async fn` under it unrecognised -- and read as clean. The
