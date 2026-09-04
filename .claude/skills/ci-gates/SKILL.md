@@ -6693,7 +6693,13 @@ for is in **six times more files**:
     guarded spelling      5 files   (all five deliberately allowlisted)
     unguarded spelling   33 files   51 occurrences, 28 of them executable
 
-One of the 28 is the compiler.
+One of the 28 was the compiler, `bootstrap/src/service.rs` — cleaned by 776765ae3 the
+same day, ten minutes before the section that named it was written. The figures above
+are as of **2026-08-29** and are kept because the six-fold ratio is the point; the
+current count lives in `tools/devhome_baseline.txt`, which the gate regenerates and
+which reads 30 files / 38 occurrences / 25 executable today. A worked example that
+names a specific file is exactly the kind of figure that goes stale first, and this
+one shipped stale.
 
 The step's own comment records that it once found 233 files and had been red for
 months. It was fixed by fixing the files — and the pattern was never widened to
@@ -13056,7 +13062,10 @@ branch a missing file takes. An `else` takes it out of scope, because then the
 missing-file path has its own branch and whether THAT passes is a different question.
 
 **It fires zero times today, and the reason is the point.** Three lines of that
-syntactic shape remain and all three have an `else`. The one it was written for was
+syntactic shape remain: two are excluded by the `else` clause and one,
+`sign-release.yml:58`, by the other clause -- its THEN branch never exits non-zero,
+and it has no `else` at all. That is what a two-clause rule looks like when only one
+clause is checked. The one it was written for was
 repaired on master while this was being built -- by another session, quoting this
 file's own rule, with a comment that opens *"GREP HAS THREE ANSWERS AND THIS USED TO
 KEEP ONE"* and records that an `[ -f ]` loop was written first and **removed** because
@@ -13082,8 +13091,10 @@ stated whole are two lists and a silence.
 The population is now named once, in one function, and both lists draw from it: a shell
 existence test (negated or not), a silenced stderr, an `||` fallback, a `wc -l` counter,
 or an `if … ; then`. Every candidate lands in counted or refused. The totals moved from
-`32 + 18` to **`32 + 122 = 154`**, and the 90 lines that appeared are not new defects --
-they are what the first version was silently declining to mention.
+`32 + 18` to **`32 + 122 = 154`**, and the **104** lines that appeared are not new defects --
+they are what the first version was silently declining to mention. (`122 - 18`; an earlier
+sentence here said 90, which is `122 - 32` -- the *counted* bucket subtracted where the
+*refused* one belonged.)
 
 ## 488. The tool existed, it was right, and I merged around it — the fifth time
 
@@ -13496,3 +13507,44 @@ staleness. The durable fix is procedural: the loop invokes binaries from its own
 never from the shared main checkout, which belongs to another session and must not be switched
 or stashed (see §5 on stashes crossing worktrees). Nothing was shipped for this section. It is
 a rule about where to stand, not a check to add.
+
+## 499. "Corrected in place" is a claim about an action, and it was not checked either
+
+A fan-out re-verified **158 prose counts** across `docs/`, `.github/` and `.claude/` — every
+sentence asserting a number an instrument had produced — by rebuilding each command and running it
+at the commit that shipped the sentence. 27 mismatches were proposed and **9 survived** two
+adversarial lenses, one attacking the method and one asking whether anything rested on the number.
+All nine were wrong *at their own commit*, not merely stale.
+
+Two of the nine had already been found. `docs/now/2026-09-04-the-repair-broke-the-gate-the-other-way.md`
+names both — *"all three have an `else`"* is false because `sign-release.yml:58` has none, and
+*"the 90 lines that appeared"* is `122 - 32` where `122 - 18 = 104` belonged — and closes with
+**"both corrected in place."**
+
+They were not. The commit that shipped that note, `c3cbc25d6`, touched `SKILL.md` with **45
+insertions and zero deletions**: it appended a new section and left both wrong sentences standing,
+one of them in this file. The third site, the now-entry the corrections were about, was not in the
+commit at all. Three sites, all still wrong, under a sentence saying they were fixed — and the
+sweep found them again a few hours later, which is the only reason anyone noticed.
+
+**The defect is one level up from the one being corrected.** The note is a careful piece of work:
+it re-derived the arithmetic, named the file, gave the right replacement. Then it asserted that the
+edit had happened. That assertion is a claim about an *action*, and it was published with exactly
+the discipline the note itself was written to condemn — stated rather than measured. `git show
+--stat` on your own commit answers it in one line, and a deletion count of zero on a file you
+claim to have corrected in place is the whole tell.
+
+The rule generalises past this file: **a correction is not landed until the wrong text is gone.**
+Grep for the wrong sentence after committing, not before. Where a correction is announced in one
+file and applied in another, the announcement is the cheaper half and the one more likely to ship
+alone. Cheapest guard available, and it needs no tooling:
+
+```
+git show --stat HEAD          # deletions on the file you say you corrected
+git grep -nF '<the wrong sentence>'   # must be empty, or quoted only by the correction itself
+```
+
+Corollary for the fan-out that found this: the population is worth re-running, because it is
+defined by a matcher and not by memory. The nine survivors are recorded in the sweep, and the
+lesson that produced the highest yield was not any single wrong figure — it was that *counts written
+in the present tense drift, and counts stated as fixed may never have been*.

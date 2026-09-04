@@ -14,7 +14,8 @@ It blocks ONE spelling of the developer home. Measured on 2026-08-29 there are
     the guarded spelling      5 files   (all five deliberately allowlisted)
     the unguarded spelling   33 files   28 of them executable -- .rs, .py, .sh
 
-Among the 28 is `bootstrap/src/service.rs`, which is the compiler.
+Among the 28 was `bootstrap/src/service.rs`, the compiler — cleaned the same day.
+The live count is BASELINE below, never this docstring.
 
 A guard against a class that names only one member of the class is the shape this
 repository keeps finding, here in the guard written against it.
