@@ -73,7 +73,8 @@ use std::process::Command;
 pub enum RedCmd {
     /// Show workflows whose most recent run on the default branch failed.
     Now {
-        /// owner/repo, repeatable. Defaults to the three this fleet uses.
+        /// owner/repo, repeatable. Defaults to `fleet_repos()` -- one list, because
+        /// there were two and they disagreed by one repository.
         #[arg(long = "repo")]
         repos: Vec<String>,
         /// Include workflows whose latest run was cancelled or timed out.
@@ -94,15 +95,7 @@ pub fn run(cmd: &RedCmd) -> Result<()> {
             deep,
         } => {
             let list: Vec<String> = if repos.is_empty() {
-                [
-                    "gHashTag/trinity",
-                    "gHashTag/ghashtag.github.io",
-                    "gHashTag/trinity-fpga",
-                    "gHashTag/t27",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect()
+                crate::gates::fleet_repos()
             } else {
                 repos.clone()
             };

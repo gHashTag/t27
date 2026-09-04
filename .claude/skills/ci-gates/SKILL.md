@@ -14854,3 +14854,45 @@ nothing and whose acceptance would let the walk run past it onto an unrelated pa
 **A fixture written from memory failed five of seven tests.** A fetch site here is a line
 whose whole trimmed content is `"--limit",` -- one argument per line -- and I had written
 the flag and its value inline. Read the matcher, then write the fixture.
+
+## 535. A budget half the cost, on the half of the page nobody runs
+
+`tri whats-open` prints every gate instrument's reading, and skips two of them by default
+because they are slow -- saying so out loud, because *"a report that quietly drops its
+slow half is the shape this repository keeps finding."* Run with `--all`, one of the two
+came back **`TIMEOUT after 420s`**.
+
+Measured rather than guessed: `tri gates dead` over its default fleet takes **899 s**.
+The budget was **420**. Less than half the cost, so `--all` has never printed this
+instrument's answer -- and the answer is not small: **15 workflows have never succeeded,
+across 8875 runs**, the top three at 1983, 1980 and 1541 runs apiece.
+
+**A budget under the measured cost does not make a slow instrument fast. It makes a
+working instrument unreadable**, and it does it in the honest-looking way: the word
+TIMEOUT sits where a number belongs, so the page looks complete and the reading is
+missing. Nobody had seen it because nobody passes `--all`, and `--all` could not deliver
+it.
+
+The tool's own prose carried the same gap: it said `dead` *"takes over four minutes"*
+where the measurement is **fifteen**. Both are now the measured number, with the date.
+
+**And the fleet was two lists.** `gates dead` defaulted to **three** repositories,
+`red now` to **four**, and both doc comments called it *"the three/four this fleet uses"*
+-- one word, two sets, nothing saying which was right. The difference is
+`gHashTag/ghashtag.github.io`.
+
+The cost of the divergence was measured before it was closed: that repository has **no**
+workflow with a file and >= 50 runs at a zero success count, and reading it adds
+**7 seconds**. So the gap hid nothing today. It is still a defect: the next dead workflow
+there would have been invisible to the command whose entire subject is dead workflows,
+and no reader could have known which of the two lists to believe.
+
+One `fleet_repos()`, both callers on it, for the reason `required_contexts` gives one
+screen above in the same file: **a second caller must not become a second literal of the
+same query.** Three tests: the list holds the repository the two disagreed about, every
+entry is `owner/repo` (a bare name reads as a different repository to `gh`), and no slug
+appears twice (a duplicate would double that repository's runs in every count).
+
+Census re-blessed here, and the move is a line number: removing seven lines of literal
+took `red.rs`'s `runs_url` from 159 to 152. The buckets are identical -- 25 sites,
+8 / 0 / 3 / 2 -- which is the check that says the move is address and not substance.

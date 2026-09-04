@@ -212,7 +212,8 @@ pub enum GatesCmd {
 
     /// List active workflows whose lifetime success count is zero.
     Dead {
-        /// owner/repo, repeatable. Defaults to the three this fleet uses.
+        /// owner/repo, repeatable. Defaults to `fleet_repos()` -- one list, because
+        /// there were two and they disagreed by one repository.
         #[arg(long = "repo")]
         repos: Vec<String>,
         /// Ignore workflows with fewer lifetime runs than this, so a new or
@@ -2404,10 +2405,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
         GatesCmd::Required { repo } => required(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
-                ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect()
+                fleet_repos()
             } else {
                 repos.clone()
             };
@@ -5503,6 +5501,32 @@ pub fn required_contexts(slug: &str) -> Result<Vec<String>> {
         .collect())
 }
 
+/// The repositories this fleet watches.
+///
+/// One list, because there were two. `gates dead` defaulted to three and `red now` to
+/// four, both doc comments calling it "the three/four this fleet uses" -- so the same
+/// word named two different sets and nothing said which was right. The omitted one was
+/// `gHashTag/ghashtag.github.io`, and the cost of the divergence was measured before it
+/// was closed rather than asserted: that repository has **no** workflow with a file and
+/// >= 50 runs at a zero success count, so the gap hid nothing today, and reading it adds
+/// **7 seconds**. A silent divergence that costs nothing today is still a divergence:
+/// the next dead workflow there would have been invisible to the command whose entire
+/// subject is dead workflows.
+///
+/// Extracted for the reason `required_contexts` states one screen above: a second caller
+/// must not become a second literal of the same query.
+pub fn fleet_repos() -> Vec<String> {
+    [
+        "gHashTag/trinity",
+        "gHashTag/ghashtag.github.io",
+        "gHashTag/trinity-fpga",
+        "gHashTag/t27",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
+}
+
 pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
     if call.contains("--paginate") {
         return Fetch::Paginated;
@@ -6026,6 +6050,41 @@ mod fetch_census_tests {
     fn an_indented_fn_is_not_a_top_level_one() {
         let src = "fn a() {\n    fn inner() {}\n    x\n}\n";
         assert_eq!(fn_spans(src), vec![("a".to_string(), 1, 4)]);
+    }
+}
+
+#[cfg(test)]
+mod fleet_tests {
+    use super::*;
+
+    #[test]
+    fn the_fleet_is_one_list_and_holds_the_repository_that_was_missing() {
+        let f = fleet_repos();
+        assert_eq!(f.len(), 4, "three was the old `gates dead` reading");
+        assert!(
+            f.iter().any(|r| r == "gHashTag/ghashtag.github.io"),
+            "the repository the two lists disagreed about"
+        );
+        assert!(f.iter().any(|r| r == "gHashTag/t27"));
+    }
+
+    #[test]
+    fn every_entry_is_owner_slash_repo() {
+        // A bare name would silently read as a different repository to `gh`.
+        for r in fleet_repos() {
+            assert_eq!(r.matches('/').count(), 1, "{r} is not owner/repo");
+            assert!(!r.starts_with('/') && !r.ends_with('/'), "{r}");
+        }
+    }
+
+    #[test]
+    fn the_list_holds_no_duplicate() {
+        // A repeated slug would double that repository's runs in every count.
+        let f = fleet_repos();
+        let mut seen = f.clone();
+        seen.sort();
+        seen.dedup();
+        assert_eq!(seen.len(), f.len(), "a slug appears twice");
     }
 }
 
