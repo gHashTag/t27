@@ -13164,9 +13164,16 @@ Three things worth keeping apart:
 
 Extending the documented-command gate to fenced blocks — the surface a reader
 **copies** — the first version matched the invocation anywhere in the line and
-reported **110 findings**. The majority were English: `` `t27c was` `` from *"a
-run in which t27c was present"*, `` `t27c is` `` from a table row, `` `tri
-binary` `` from *"37 of the tri binary's 47 subcommands"*.
+reported **110 findings**. The majority were English: `t27c` followed by `was`,
+scraped out of *"a run in which t27c was present"*; the same with `is`, from a
+table row; and `tri` followed by `binary`, from *"37 of the tri binary's 47
+subcommands"*.
+
+Writing that sentence is how I hit it a third time. The first draft of this
+section quoted the two false positives **as backticked invocations**, which is
+exactly the shape the gate reads, and the gate went red on the pull request
+carrying it. A section about a matcher is written in the matcher's own
+vocabulary, and that is the one place a quotation has consequences.
 
 Anchoring the match to the start of the line, after an optional `$ ` prompt,
 took it to 101 and every survivor was an invocation. **A fenced block holds
@@ -13181,9 +13188,9 @@ first:
 | backticked (already gated) | 486 | 81 | 15 — **18.5%** |
 | fenced (ungated) | 276 | 52 | 19 — **36.5%** |
 
-The README's own Quick Start was in the fenced half, still naming
-`./scripts/tri gen-zig` — the command the commit that built the first half of
-this gate calls *the one that cost a run*. **The gate was written by someone
+The README's own Quick Start was in the fenced half, still naming `tri` with
+`gen-zig` after it — the command the commit that built the first half of this
+gate calls *the one that cost a run*. **The gate was written by someone
 looking at the exact defect it did not cover.**
 
 And a counting error of my own, caught by disagreement rather than by care: I
@@ -13196,7 +13203,7 @@ its prose.**
 ## 491. Report under a ceiling when the honest verdict is 97
 
 The same extension found **97 live mentions of 24 `tri` names that resolve on
-none of four surfaces** — `tri git` 23, `tri spec` 14, `tri queen` 9. Three
+none of four surfaces** — `git` 23 mentions, `spec` 14, `queen` 9. Three
 tempting moves, all wrong:
 
 * **Fail on them.** A gate landing red by 97 is muted within a day; this file
