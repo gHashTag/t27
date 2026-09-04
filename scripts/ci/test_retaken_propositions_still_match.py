@@ -59,6 +59,13 @@ def main():
     bare = re.findall(r"\*\*RE-TAKEN(?! AT `)", doc)
     check("no re-take block is unanchored", not bare, f"{len(bare)} unanchored")
 
+    # A FALSIFIED block is a re-take too, and needs the same anchor: it is the
+    # loudest kind of claim in the document, and the one most worth checking out.
+    fals = re.findall(r"\*\*FALSIFIED AT `([0-9a-f]{7,40})`", doc)
+    bare_f = re.findall(r"\*\*FALSIFIED(?! AT `)", doc)
+    print(f"      anchored FALSIFIED blocks: {len(fals)}")
+    check("no falsification is unanchored", not bare_f, f"{len(bare_f)} unanchored")
+
     print()
     if FAILURES:
         print("FAILED:")
