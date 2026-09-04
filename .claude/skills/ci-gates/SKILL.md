@@ -15474,98 +15474,65 @@ In every one the function was correct and covered, and a line elsewhere put its 
 the wrong use. Each needed a structural test reading the call site, with the needle split across two
 literals. **Four for four is not a coincidence: it is where my attention goes when I write a fix.**
 
-## 547. The tool that finds unchecked constants was counting its own tests
+## 547. The fix did not travel between two tables of one function
 
-&sect;546 found that my ad-hoc mutation harness edited test code along with production code and
-reported a false `killed`. The obvious next question was how far that reached. It reaches the shipped
-tool.
+`tri gates unmeasured` prints two tables. The first, for workflows with no automatic
+default-branch run, carries a `pr-only` column and says plainly what it means:
 
-`tri mutate run` perturbs every integer literal in a file and asks whether the checker notices. Its
-`find_mutants` masks comments and string bodies **and nothing else** -- there is no test-module
-filter. So a literal inside `#[cfg(test)]` is perturbed like any other, the test holding it fails,
-and that red is reported as the checker NOTICING.
+> `pr-only: YES` means it CANNOT. Those workflows read pull-request context, so
+> dispatching one starts it and measures nothing.
 
-**Measured by the tool itself, with `--cmd true` so every mutant survives and it simply lists its
-sites:**
+That column exists because the section once told a reader the opposite, and this file
+records the cost. **The second table never got it.** Its header is `LAST / paths: /
+dispatch / WORKFLOW`, and its prose closes *"`dispatch: NO` means the reading cannot be
+taken on purpose -- add `workflow_dispatch:` first"* -- which reads, unavoidably, as
+*`dispatch: yes` means it can*.
 
-| file | sites the tool finds | inside `#[cfg(test)]` | |
-|---|---|---|---|
-| `red.rs` | 59 | **45** | 76% |
-| whole crate (simulated) | 3198 | **1545** | 48% |
+The single row in that table today is **Issue Gate**: `dispatch: yes`, last
+default-branch run **2026-04-08**, and it emits `check-linked-issue`, one of the four
+contexts the ruleset REQUIRES. It reads `github.event.pull_request.title`, `.body` and
+`.number`. A dispatch starts it and measures nothing -- the exact case the other table
+was repaired for.
 
-**Reproduced end to end rather than inferred.** `red.rs:826` is `let h = render_headline(50, 3, 44, 7);`
-inside a test. Perturbing that `50` to `51` fails the suite. `tri mutate run` would call that a killed
-mutant -- over a number that exists only in a test, in a tool whose entire subject is *constants
-nothing actually checks*.
+**Both tables are built in one function, forty lines apart**, and `reads_pr_context` was
+already sitting there, called by one of them. Not a missing rule: a rule that did not
+travel to its sibling, which is &sect;437 at the shortest range it has been seen.
 
-**Shipped.** Sites inside a Rust `#[cfg(test)]` module are dropped, by the same
-`gates::test_module_lines` rule used elsewhere, and **the number dropped is printed**:
+Verified by behaviour rather than by reading, because the wiring is not reachable from a
+unit test: with `reads_pr_context` replaced by `false` the row prints `-`, and with it
+back the row prints `YES`. Two unit tests hold the predicate itself -- the real
+`issue-gate.yml` shape must be `pr-only`, and a push-only workflow must NOT be, which is
+the control that stops a predicate that always answers YES from passing the first.
 
-```
-  45 literal(s) skipped: they sit inside a `#[cfg(test)]` module.
-  Perturbing a test's own arithmetic fails that test, and reporting it as
-  `the checker noticed` says nothing about the code under test.
+**And the mutation harness refused two anchors, correctly.** `reads_pr_context(&root,
+path),` now occurs twice, so a replacement keyed on it is not unique and was rejected
+rather than applied to the wrong caller. A harness that edits the first match would have
+mutated the OTHER table and reported a clean result about the one under test.
 
-  14 literal(s) in cli/tri/src/red.rs, one mutation each.
-```
+**Then a gate caught the insertion itself, and it is the third time for this shape.** The
+two tests went in anchored on `fn pull_request_only_cannot_produce_a_baseline() {` -- a
+`fn` line -- which put my doc comment **between that test's `#[test]` and its body**.
+`tri gates tests --gate` failed the build and named both halves:
 
-A population that shrinks without saying so is the defect one level up from the one this fixes.
-`.rs` only: the tool deliberately runs on Python, Verilog and YAML, none of which have
-`#[cfg(test)]`, and `diffbin.py` still reports all 61 of its literals with no skip line.
-
-### The harness refused four mutants, and was right to
-
-Running the four mutants against this change, `mutate-production` refused all four:
-`ANCHOR ABSENT FROM PRODUCTION CODE (1 occurrence in tests)`. The production sites were plainly
-there. **The harness cut the file at the first textual occurrence of `#[cfg(test)]`, and the new doc
-comment MENTIONS `#[cfg(test)]` in prose forty lines above the real module** -- so everything below
-that sentence read as test code.
-
-A matcher matching prose, in the tool written to stop a matcher matching the wrong half. Fixed: the
-boundary is a line that IS the attribute, at column zero -- the rule `test_module_lines` already uses.
-
-**It cost nothing because the refusal was loud.** It printed
-`Nothing mutated -- do not read this as a surviving mutant` rather than a silent zero, so four
-"survivors" were never believed. That is &sect;536's rule paying for itself: give every miss a loud,
-distinguishable value.
-
-### Five passes, five surviving mutants, every one the wiring
-
-`last_pass` (red.rs) &middot; `claims_seen` (gates.rs) &middot; `single_digit_only` (issues.rs)
-&middot; both print sites (competitors.rs) &middot; and here, `drop_test_module_sites` never called.
-**This is the first one I went looking for before running it, and it was there.** The pattern is not
-about any of these functions. It is about where attention goes when a fix is written: into the thing
-being fixed, never into the line that reaches it.
-
-## 548. I hand-wrote the resolver six times, and the tool for it already existed
-
-Six consecutive passes have ended with the same conflict in this file and a fresh throwaway Python
-script to resolve it. **Measured on `gHashTag/t27`: 172 of the 281 commits on master since
-2026-08-29 touch `SKILL.md` -- 61%** -- and it grew from 257 sections to 510 in seven days. A branch
-that lives minutes conflicts.
-
-`tri skill renumber` has existed the whole time. "Move sections you appended to the numbers the base
-branch left free", `--base`, `--check`, `--first`. That is the operation, and I wrote it by hand six
-times without looking. This is the fourth entry in this file about rewriting a tool the repository
-already had.
-
-### And it was wrong on exactly the case I kept hitting
-
-Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge base `013b829`:
-
-```
-  appended here           2
-  tail identified by      byte prefix of the merge base
-      546  ->  547
-      547  ->  548
+```text
+RUNS TWICE     gates.rs:4862  a second `#[test]` follows this one
+DOES NOT RUN   gates.rs       fn pull_request_only_cannot_produce_a_baseline asserts,
+                              has no `#[test]`, and nobody calls it
 ```
 
-and the file it wrote contained:
+**The two cancel in every total**, which is the whole reason that gate exists and why the
+earlier occurrences went unnoticed: the suite count was identical either way. Previously
+this was caught by the compiler's `dead code` and clippy's `duplicated attribute`; this
+time by a gate that pairs attributes to functions rather than counting them.
 
-```
-## 546. A mutation that also edits the test is not a mutation test
-## 547. A mutation that also edits the test is not a mutation test     <-- twice
-## 548. The tool that finds unchecked constants was counting its own tests
+**The rule, now with three instances behind it: anchor an insertion on the attribute or
+on a closing brace, never on `fn`.** A `fn` line is not the top of the item -- the
+attributes and the doc comment above it are -- and an anchor that is not the top of the
+item splits it.
+
+
+## 548. A mutation that also edits the test is not a mutation test     <-- twice
+## 549. The tool that finds unchecked constants was counting its own tests
 ```
 
 **The byte-prefix tail is everything appended since the merge base, and that is wrong the moment a
