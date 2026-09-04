@@ -14526,3 +14526,52 @@ changed nothing. Widening costs **25 of 200 commits** (12.5%) on top of the 22 a
 
 **A measured decline is a result.** The number that decides it is not the move rate; it is the
 distance between the census's subject and the gate's trigger.
+
+## 525. The zero was my shell, and the positive control is what said so
+
+Pricing "how much did the unrun previews cost", I counted failures in the four required contexts
+over 30 merged pull requests and got **0**. Clean, and false.
+
+    for s in $shas; do ...   # zsh does NOT word-split an unquoted variable
+
+Four commits, **one iteration**. Every per-PR count came from a mangled sha, so the API returned
+nothing and every row read zero. **This trap is in my own notes and this is at least the fourth
+time it has been hit** -- it is not a knowledge problem, it is that nothing in a `for` loop's output
+says how many times it went round.
+
+What caught it was refusing the zero: **feed the matcher a case you know exists.** #3182 had failed
+`check` and `check-now-freshness` an hour earlier, so a measurement reporting zero failures across a
+window containing it is refuted before it is explained. Rewritten as
+`while IFS= read -r s; do ... done < file`, the control reproduces exactly
+`check,check-now-freshness`.
+
+**A zero deserves a positive control in proportion to how much you would like it to be true.** This
+one would have closed a question cheaply, which is precisely when to distrust it.
+
+## 526. The tool that would have caught it existed, was runnable, and nothing called it
+
+Corrected measurement: **1 of 30 merged pull requests (3%)** had a failure in a required context --
+two check-runs, both on my own #3182. That is the entire measured cost of the unrun previews.
+
+So `tri preflight`, the fourth tool that would call the other three, is **declined on the
+measurement**. `tri hooks pre-commit` already runs the migrated gates AND the shape check, needs
+only the `tri` binary, and takes about a tenth of a second. Planting the exact bad entry it exits
+**1** with the gate's own words: *"no `- ` bullets: the entry states nothing"*.
+
+Three structural facts sit behind the 3%, and only the third is a defect:
+
+  * **No hooks are installed in this clone.** `core.hooksPath` is empty, `.git/hooks/pre-commit` is
+    absent, and `.githooks/pre-commit` sits executable and uninvoked. Eighty passes of commits with
+    no local gate at all.
+  * **The installed-hook file could not reach the reader that works.** It calls
+    `scripts/tri check-now`, which reaches `t27c`; in a checkout whose work is in `cli/tri` the
+    compiler is not built, so it exits 2 and correctly refuses -- which means the hook cannot be
+    installed there at all. It now PREFERS `tri hooks pre-commit` when a `tri` binary exists and
+    falls back unchanged when none does, so the exit-2 refusal still stands. Three controls: bad
+    entry with `tri` -> 1, no `tri` -> 2, good entry -> 0.
+  * **Not established:** that the unusable hook is WHY nobody installed it. That is a story; the
+    unusability is the fact, and the comment in the hook says which is which.
+
+**The rule this keeps producing:** when a preview does not fire, ask in order -- is it installed, can
+it run here, does it cover this context -- before writing another one. All three answers were
+already in the repository.
