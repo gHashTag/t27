@@ -1136,6 +1136,30 @@ fn contradicted_claims(
     out
 }
 
+/// Split claimed lines into the ones a mutant was actually built at and the
+/// ones it was not.
+///
+/// Both are returned SORTED, because `equivalence_claims` hands back a HashMap
+/// and an unsorted report changes order between runs of the same command --
+/// which reads as movement where there is none.
+fn claims_by_scope(
+    equiv: &std::collections::HashMap<usize, String>,
+    sites: &std::collections::HashSet<usize>,
+) -> (Vec<usize>, Vec<usize>) {
+    let mut inside: Vec<usize> = Vec::new();
+    let mut outside: Vec<usize> = Vec::new();
+    for line in equiv.keys() {
+        if sites.contains(line) {
+            inside.push(*line);
+        } else {
+            outside.push(*line);
+        }
+    }
+    inside.sort_unstable();
+    outside.sort_unstable();
+    (inside, outside)
+}
+
 fn equivalence_claims(src: &str) -> std::collections::HashMap<usize, String> {
     const MARK: &str = "mutant-equivalent:";
     let lines: Vec<&str> = src.lines().collect();
@@ -1901,6 +1925,9 @@ fn mutate(
     // built the mutant and already knows the verdict. An unfalsifiable claim
     // is prose wearing the costume of an analysis.
     let mut claims_broken: Vec<String> = Vec::new();
+    // Claims whose line is not a mutable site under ANY operator this run used.
+    // No mutant was built there, so the run neither confirmed nor refuted them.
+    let mut claims_out_of_scope: Vec<String> = Vec::new();
     let mut claims_seen = 0usize;
     let mut cache = if fresh {
         std::collections::HashMap::new()
@@ -2143,7 +2170,30 @@ fn mutate(
         // `invert`, and this names the direction rather than pretending to
         // judge. That ambiguity is in the marker's design, not in the check;
         // reporting it is what makes it visible enough to fix.
-        claims_seen += equiv_lines.len();
+        // IN SCOPE means a mutant was actually built at the claimed line. The
+        // comment just above already holds the fact that makes a plain count
+        // wrong -- "every one in the tree today argues about a comparison" --
+        // and the default operator is `silent`, whose sites are `return <1..4>`
+        // lines only. Measured 2026-09-05: all EIGHT markers in `tools/` bind to
+        // a comparison or an assignment and none to a `return`, so on a default
+        // run the old counter called every one of them in scope and printed
+        // "each mutant survived" while ZERO mutants had been built at any of
+        // them. A claim about the future of the code is worth only the run that
+        // could have refuted it, and that run could not.
+        let sites_any: std::collections::HashSet<usize> = scores
+            .iter()
+            .flat_map(|(dir, _, _, _)| {
+                sites_in_direction(&pristine, *dir)
+                    .into_iter()
+                    .map(|(at, _, _)| line_of(&pristine, at))
+            })
+            .collect();
+        let (in_scope, out_of_scope) = claims_by_scope(&equiv_lines, &sites_any);
+        claims_seen += in_scope.len();
+        for line in out_of_scope {
+            let text = equiv_lines.get(&line).cloned().unwrap_or_default();
+            claims_out_of_scope.push(format!("{name}:{line}  {text}"));
+        }
         for (dir, _, _, survivors) in &scores {
             let site_lines: Vec<usize> = sites_in_direction(&pristine, *dir)
                 .into_iter()
@@ -2287,6 +2337,24 @@ fn mutate(
     }
 
     println!();
+    if !claims_out_of_scope.is_empty() {
+        println!(
+            "{} `# mutant-equivalent:` claim(s) NOT TESTED by this run:",
+            claims_out_of_scope.len()
+        );
+        for c in &claims_out_of_scope {
+            println!("  {c}");
+        }
+        println!();
+        println!("Each names a line that is not a mutable site under the operator(s) this");
+        println!("run used, so no mutant was built there and nothing was refuted OR");
+        println!("confirmed. They were previously counted among the claims that");
+        println!("`survived`, which reported a result the run had not produced: the");
+        println!("default operator is `silent` and its sites are `return <1..4>` lines,");
+        println!("while every marker in the tree argues about a comparison. Reach them");
+        println!("with `--boundary`, `--invert` or `--all`.");
+        println!();
+    }
     if claims_seen == 0 {
         println!("No `# mutant-equivalent:` claim was in scope for this run.");
     } else if claims_broken.is_empty() {
@@ -2561,6 +2629,99 @@ fn tests_gate(gate: bool) -> Result<()> {
         std::process::exit(1);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod claim_scope_tests {
+    use super::*;
+    use std::collections::{HashMap, HashSet};
+
+    /// A claim the run never built a mutant for is not a claim that survived.
+    ///
+    /// Measured 2026-09-05: all eight `# mutant-equivalent:` markers in `tools/`
+    /// bind to a comparison or an assignment, and the default operator `silent`
+    /// has only `return <1..4>` lines as sites. So on a default run every one of
+    /// them was counted "in scope" and the command printed "each mutant
+    /// survived" while zero mutants had been built at any of them.
+    #[test]
+    fn a_claim_with_no_site_is_not_in_scope() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        equiv.insert(469, "both guards force infinity, so >= is >".into());
+        equiv.insert(613, "the early return cannot change the verdict".into());
+        // `silent` sites: the `return` line only.
+        let silent: HashSet<usize> = [613usize].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &silent);
+        assert_eq!(inside, vec![613], "only the line a mutant was built at");
+        assert_eq!(outside, vec![469], "the comparison was never touched");
+        // Under an operator that DOES reach comparisons, it comes into scope.
+        let boundary: HashSet<usize> = [469usize, 613].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &boundary);
+        assert_eq!(inside, vec![469, 613], "both are now testable");
+        assert!(outside.is_empty(), "and nothing is left untested");
+    }
+
+    /// The helper can be right while the call site undoes it. Reverting
+    /// `claims_seen += in_scope.len()` to add both halves restores the original
+    /// defect exactly, and every value-level test above still passes -- the
+    /// helper is unchanged, only its result is misused.
+    ///
+    /// The needle is split across two literals so that this test's own body
+    /// does not contain the string it searches for. A structural test in
+    /// `red.rs` passed against its own mutant for precisely that reason: the
+    /// mutation changed the real call site, and `find` fell through to the
+    /// test's copy.
+    #[test]
+    fn the_call_site_counts_only_the_in_scope_half() {
+        let src = include_str!("gates.rs");
+        let both = concat!("in_scope.len() + ", "out_of_scope.len()");
+        assert!(
+            !src.contains(both),
+            "counting both halves is the defect this removed: a claim with no \
+             site had no mutant built, so it neither survived nor died"
+        );
+        let only = concat!("claims_seen += ", "in_scope.len();");
+        assert!(
+            src.contains(only),
+            "the in-scope half is what the survivor sentence is allowed to speak for"
+        );
+    }
+
+    /// The report is read by a human across runs, and `equivalence_claims`
+    /// returns a HashMap -- unsorted output reads as movement where there is
+    /// none.
+    #[test]
+    fn both_halves_come_back_sorted() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        for l in [900usize, 12, 451, 77, 3] {
+            equiv.insert(l, format!("claim at {l}"));
+        }
+        let sites: HashSet<usize> = [451usize, 3].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &sites);
+        assert_eq!(inside, vec![3, 451]);
+        assert_eq!(outside, vec![12, 77, 900]);
+    }
+
+    /// Every claim lands in exactly one half. A claim that fell out of both
+    /// would vanish from the report entirely, which is the failure this whole
+    /// change exists to stop.
+    #[test]
+    fn the_two_halves_partition_the_claims() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        for l in [1usize, 2, 3, 4, 5] {
+            equiv.insert(l, String::new());
+        }
+        let sites: HashSet<usize> = [2usize, 4].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &sites);
+        assert_eq!(
+            inside.len() + outside.len(),
+            equiv.len(),
+            "nothing may be dropped between the two counts"
+        );
+        assert!(
+            inside.iter().all(|l| !outside.contains(l)),
+            "and nothing may be counted twice"
+        );
+    }
 }
 
 #[cfg(test)]

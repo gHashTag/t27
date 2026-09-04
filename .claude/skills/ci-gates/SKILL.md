@@ -15057,3 +15057,64 @@ name its branch asserts something wider than it measured.
 The mutation that reverts `last_pass` to the old guard is invisible to every value-level test,
 because the difference is a request that is or is not made. It survived until a structural test read
 the call site.
+
+## 539. The gate said every mutant survived, and no mutant had been built
+
+A fan-out over the whole `tri` CLI, hunting &sect;535's class -- **a printed count whose label names a
+different population than the code counts** -- returned 10 candidates and 8 survived adversarial
+refutation. The strongest was in `gates.rs`, in the command whose entire subject is whether a claim
+was actually tested.
+
+`tri gates mutate` reports on `# mutant-equivalent:` markers, comments asserting that the mutant at
+some line cannot die. It printed:
+
+```
+N equivalence claim(s) in scope, none contradicted.
+Each says its mutant cannot die, and each mutant survived. That is
+the whole check -- a claim about the FUTURE of the code is worth
+only the run that could have refuted it and did not.
+```
+
+**`claims_seen` counted every marker in the file, textually, outside the per-direction loop.**
+`claims_broken`, its numerator, came from `contradicted_claims`, which drops any claimed line that is
+not a mutable site in the direction being run. Two populations, one sentence.
+
+**Measured, all eight markers in `tools/`:**
+
+| marker | binds to | a `silent` site? |
+|---|---|---|
+| `gft_backprop_microcode.py:210` | `if d >= 26: la = 0; sticky = 1` | no |
+| `gft_backprop_microcode.py:732` | an `assert` | no |
+| `verify_emit_bitexact.py:238` | a `def` | no |
+| `verify_exhaustive.py:177` | an assignment | no |
+| `verify_igla_race.py:37` | an assignment | no |
+| `verify_multitarget.py:40` | an assignment | no |
+| `verify_trainer_c.py:36` | an assignment | no |
+| `wp18_conformance_gate.py:453` | `roundtrip_ok = (math.isinf(dec) and ...)` | no |
+
+The default operator is `silent`, whose sites are `return <1..4>` lines only. **Not one of the eight
+is reachable by it.** So on every default run the command counted all of them "in scope" and printed
+*each mutant survived* -- while zero mutants had been built at any of them. The sentence directly
+below the number says a claim is worth only the run that could have refuted it. **That run could
+not, and the count was what hid it.**
+
+**The refutation was already in the file, one comment above the defect.** The block explaining
+`claims_seen` says the markers are *not* operator-scoped and that "every one in the tree today argues
+about a comparison". That is exactly the fact that makes the number wrong. It was written down, and
+the next line was written anyway -- an observation recorded and not carried one step further.
+
+**Shipped.** Claims are partitioned against the union of sites across the operators actually run.
+In-scope claims keep the survivor sentence; out-of-scope claims get their own paragraph naming each
+one and saying no mutant was built there. Verified live on `wp18_conformance_gate.py`: default run
+now prints `1 claim(s) NOT TESTED by this run` and `No claim was in scope`, and the same gate under
+`--boundary` prints `1 equivalence claim(s) in scope, none contradicted` -- truthfully, because that
+operator does build a mutant at line 469.
+
+**The mutant that survived was the CALL SITE, not the helper.** `claims_by_scope` is covered three
+ways, and reverting `claims_seen += in_scope.len()` to add both halves restores the original defect
+with every one of those tests still green. It took a structural test reading the call site -- the
+same gap, in the same pass, as the `last_pass` guard in &sect;538. **A fix's wiring is not covered by
+its function's tests, and mutation is the only thing that says so.**
+
+The needle in that structural test is split across two literals, because the first such test written
+this pass searched the file for a string it also contained, and passed against its own mutant.
