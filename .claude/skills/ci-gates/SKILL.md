@@ -13451,3 +13451,48 @@ bash is a wrong answer about a step that dash executes.
 The original repair remains right about its own subject: `grep` has three answers and the
 old `if … 2>/dev/null` kept one. It moved the defect from *passes when it should fail* to
 *dies before it can check* -- louder, and caught in a day.
+
+## 498. The error names the tool that answered, not the tool you meant
+
+`./scripts/tri pr ready 3127 --wait --merge` printed:
+
+```
+error: unrecognized subcommand 'pr'
+  tip: some similar subcommands exist: 'tt-profile', 'parse'
+Usage: t27c <COMMAND>
+```
+
+Two of three merge waiters died on that line; the third kept running. My first hypothesis
+was a build race -- three concurrent invocations colliding while the binary relinked. It was
+wrong, and it was wrong in the expensive direction: it explained the *difference* between the
+three and so felt confirmed by the very evidence that should have killed it. The surviving
+waiter was not a third invocation that won a race. It was **an older process from before the
+context break**, still polling, whose buffered writes into a freshly truncated log produced
+NUL padding I read as corruption.
+
+The actual cause: I ran `scripts/tri` from the repository's main checkout, which sits on
+`feat/rename-tef-to-tnf` at 2026-08-09 -- **1160 commits behind master**, with 10 uncommitted
+paths and 19 stashes belonging to another session. That copy of the script predates the
+Rust-binary routing entirely. Master's copy searches for a built `cli/tri`, picks the newest,
+warns when it is older than `cli/tri/src`, and execs it for any name `t27c` does not list. The
+month-old copy knows only `t27c`, so it forwarded `pr` there, and `t27c` answered the way any
+CLI answers an unknown name: with a tip drawn from **its own** vocabulary. `tt-profile` and
+`parse` are not near-misses for `pr ready`. They are near-misses for `pr` *in the wrong
+dictionary*, and reading them as a suggestion is what sent me looking for a race.
+
+**Two front doors share the name `tri`.** When a name is missing, the door that answers is
+whichever one the path reached, and its error is a true statement about a vocabulary you were
+not asking about. Before diagnosing "the command does not exist", establish **which binary
+answered** -- `git rev-parse --abbrev-ref HEAD` and `git rev-list --count HEAD..origin/master`
+in the directory you invoked from, then `find … -name tri -perm -111` to see what is actually
+built. The working waiters were running `wG/target/release/tri`; `ps -o command` said so, and
+that one line would have ended the investigation twenty minutes earlier.
+
+**The part worth keeping is what the fix cannot do.** The obvious repair -- teach `scripts/tri`
+to warn when its checkout is far behind master -- would not have prevented this and will not
+prevent its recurrence, because the guard would ship to master and the offending copy is the
+one that never sees master. A guard placed downstream of the staleness cannot detect the
+staleness. The durable fix is procedural: the loop invokes binaries from its own worktrees,
+never from the shared main checkout, which belongs to another session and must not be switched
+or stashed (see §5 on stashes crossing worktrees). Nothing was shipped for this section. It is
+a rule about where to stand, not a check to add.
