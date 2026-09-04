@@ -15114,3 +15114,38 @@ returned **1**, because `now_gate` runs `git rev-parse` first and errors there. 
 unreachable through this command, so it is written as ordinary defence and the comment
 says it is not a control. **A guard clause you have not executed is a comment, and a
 comment claiming to be a control is worse than no comment.**
+
+## 540. The fix did not travel between two tables of one function
+
+`tri gates unmeasured` prints two tables. The first, for workflows with no automatic
+default-branch run, carries a `pr-only` column and says plainly what it means:
+
+> `pr-only: YES` means it CANNOT. Those workflows read pull-request context, so
+> dispatching one starts it and measures nothing.
+
+That column exists because the section once told a reader the opposite, and this file
+records the cost. **The second table never got it.** Its header is `LAST / paths: /
+dispatch / WORKFLOW`, and its prose closes *"`dispatch: NO` means the reading cannot be
+taken on purpose -- add `workflow_dispatch:` first"* -- which reads, unavoidably, as
+*`dispatch: yes` means it can*.
+
+The single row in that table today is **Issue Gate**: `dispatch: yes`, last
+default-branch run **2026-04-08**, and it emits `check-linked-issue`, one of the four
+contexts the ruleset REQUIRES. It reads `github.event.pull_request.title`, `.body` and
+`.number`. A dispatch starts it and measures nothing -- the exact case the other table
+was repaired for.
+
+**Both tables are built in one function, forty lines apart**, and `reads_pr_context` was
+already sitting there, called by one of them. Not a missing rule: a rule that did not
+travel to its sibling, which is &sect;437 at the shortest range it has been seen.
+
+Verified by behaviour rather than by reading, because the wiring is not reachable from a
+unit test: with `reads_pr_context` replaced by `false` the row prints `-`, and with it
+back the row prints `YES`. Two unit tests hold the predicate itself -- the real
+`issue-gate.yml` shape must be `pr-only`, and a push-only workflow must NOT be, which is
+the control that stops a predicate that always answers YES from passing the first.
+
+**And the mutation harness refused two anchors, correctly.** `reads_pr_context(&root,
+path),` now occurs twice, so a replacement keyed on it is not unique and was rejected
+rather than applied to the wrong caller. A harness that edits the first match would have
+mutated the OTHER table and reported a clean result about the one under test.

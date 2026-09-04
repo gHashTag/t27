@@ -2772,7 +2772,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     // Named once, so the printed sentence quotes the branch actually queried
     // rather than the word "master" hardcoded into a message.
     let mut default_branch_seen = String::new();
-    let mut rows: Vec<(String, String, String, bool, bool)> = Vec::new();
+    let mut rows: Vec<(String, String, String, bool, bool, bool)> = Vec::new();
     let mut checked = 0usize;
     let mut unreadable = 0usize;
     let mut ghosts: Vec<(String, String, String)> = Vec::new();
@@ -2877,6 +2877,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                     },
                     has_path_filter(&root, path),
                     has_dispatch(&root, path),
+                    reads_pr_context(&root, path),
                 ));
             }
         }
@@ -2966,15 +2967,16 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
         stale_days
     );
     println!(
-        "  {:<10}  {:<7}  {:<9}  {}",
-        "LAST", "paths:", "dispatch", "WORKFLOW"
+        "  {:<10}  {:<7}  {:<9}  {:<8}  {}",
+        "LAST", "paths:", "dispatch", "pr-only", "WORKFLOW"
     );
-    for (repo, name, last, filtered, dispatch) in &rows {
+    for (repo, name, last, filtered, dispatch, pr_only) in &rows {
         println!(
-            "  {:<10}  {:<7}  {:<9}  {}  ({})",
+            "  {:<10}  {:<7}  {:<9}  {:<8}  {}  ({})",
             last,
             if *filtered { "yes" } else { "-" },
             if *dispatch { "yes" } else { "NO" },
+            if *pr_only { "YES" } else { "-" },
             name,
             repo
         );
@@ -2982,7 +2984,13 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     println!(
         "\n  A gate that has not run on the default branch is not passing there; it is\n\
            unmeasured. `paths: yes` is usually the reason. `dispatch: NO` means the\n\
-           reading cannot be taken on purpose -- add `workflow_dispatch:` first."
+           reading cannot be taken on purpose -- add `workflow_dispatch:` first.\n\
+         \n  `pr-only: YES` means a dispatch STARTS it and measures nothing, so\n\
+           `dispatch: yes` beside it is not an invitation. That column was added to the\n\
+           table above this one after telling a reader to take a reading that cannot be\n\
+           taken, and the repair did not travel to this table until Issue Gate -- one of\n\
+           the four REQUIRED contexts, last default-branch run 2026-04-08 -- was printed\n\
+           here as `dispatch: yes` with no pr-only column at all."
     );
     Ok(())
 }
@@ -4343,6 +4351,26 @@ mod auto_default_run_tests {
     /// filter, no `push:` at all. Two default-branch runs exist for this file,
     /// both dispatched by hand, so a STALENESS check reports it healthy.
     #[test]
+    /// The real file, character for character, as the reason this column exists.
+    ///
+    /// `issue-gate.yml` emits `check-linked-issue` -- one of the four contexts the
+    /// ruleset REQUIRES -- and its last default-branch run is 2026-04-08. It was printed
+    /// in the stale table as `dispatch: yes` with no pr-only column at all, which reads
+    /// as an invitation to take a reading that a dispatch cannot take.
+    #[test]
+    fn a_workflow_reading_pr_title_and_body_is_pr_only() {
+        let y = "name: Issue Gate\non:\n  pull_request_target:\njobs:\n  check:\n    steps:\n                 \x20     - env:\n          PR_TITLE: ${{ github.event.pull_request.title }}\n                 \x20         PR_NUMBER: ${{ github.event.pull_request.number }}\n";
+        assert!(super::text_reads_pr_context(y));
+    }
+
+    #[test]
+    fn a_workflow_that_never_mentions_the_pr_object_is_not() {
+        // The control: without it, a predicate that always says YES would pass the test
+        // above and turn every row into "cannot be dispatched".
+        let y = "name: x\non:\n  push:\n    branches: [master]\njobs:\n  build:\n    steps:\n                 \x20     - run: cargo test\n";
+        assert!(!super::text_reads_pr_context(y));
+    }
+
     fn pull_request_only_cannot_produce_a_baseline() {
         let y = "name: x\non:\n  pull_request:\n    paths:\n      - 'bootstrap/**'\n  workflow_dispatch:\njobs: {}\n";
         assert!(!has_auto_default_run(y, "master"));
