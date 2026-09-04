@@ -178,10 +178,30 @@ pub struct Counts {
     /// Records whose every stated score is zero.
     pub cites_nothing: usize,
     /// Records stating zero at pass@1 -- the metric `compare_with_competitor`
-    /// subtracts when it is not told which one. Larger than `cites_nothing` by
-    /// the records that cite pass@10 only, and it is this number, not that one,
-    /// that governs the default comparison.
+    /// subtracts when it is not told which one. It is this number, not
+    /// `cites_nothing`, that governs the default comparison.
     pub zero_at_1: usize,
+}
+
+/// Records stating zero at pass@1 that DO cite a nonzero score somewhere.
+///
+/// Counted directly, and NOT put on `Counts`: the ratchet file carries five
+/// keys and this is not one of them, so widening the struct would either add a
+/// key nothing ratchets on or leave a field that reads back as zero from a
+/// parsed ceiling. It is a figure for the report, so it is computed where the
+/// report is written.
+///
+/// It used to be `zero_at_1 - cites_nothing`, which is wrong twice.
+/// `cites_nothing` is not a subset of `zero_at_1` -- scores are `Option<f32>`,
+/// so a record that omits `pass@1` and states `pass@10: 0.0` cites nothing and
+/// is not zero-at-1. It decremented a difference it does not belong to, and
+/// with enough such records the usize subtraction underflows and panics. The
+/// difference was also LABELLED "cite pass@10 only" while the arithmetic admits
+/// a record citing pass@5 alone, whose pass@10 is a stated zero.
+pub fn zero_at_1_citing_something(recs: &[Record]) -> usize {
+    recs.iter()
+        .filter(|r| r.scores[0] == Some(0.0) && !r.cites_nothing())
+        .count()
 }
 
 pub fn counts(recs: &[Record]) -> Counts {
@@ -443,9 +463,9 @@ pub fn run(cmd: &CompetitorsCmd) -> Result<()> {
         c.cites_nothing, c.records
     );
     println!(
-        "  stating zero at pass@1      {}   ({} of them cite pass@10 only)",
+        "  stating zero at pass@1      {}   ({} of them cite a nonzero score elsewhere)",
         c.zero_at_1,
-        c.zero_at_1 - c.cites_nothing
+        zero_at_1_citing_something(&recs)
     );
 
     let mut by_paper: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
@@ -483,12 +503,12 @@ pub fn run(cmd: &CompetitorsCmd) -> Result<()> {
          score to cite -- the struct has no other way to say it. It is in range and\n  \
          it is what `compare_with_competitor` subtracts, so every one of those {}\n  \
          records yields our own score as the margin over it at pass@1. Read the\n  \
-         two counts apart: {} records cite nothing at any metric, and {} more cite\n  \
-         pass@10 alone -- true citations that still read as zero to the default\n  \
-         comparison.",
+         two counts apart: {} records cite nothing at any metric, and {} state zero\n  \
+         at pass@1 while citing a nonzero score at some OTHER k -- true citations\n  \
+         that still read as zero to the default comparison.",
         c.zero_at_1,
         c.cites_nothing,
-        c.zero_at_1 - c.cites_nothing
+        zero_at_1_citing_something(&recs)
     );
 
     if *bless {
@@ -547,6 +567,100 @@ pub fn run(cmd: &CompetitorsCmd) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The function can be right while neither print site calls it.
+    ///
+    /// Reverting both production call sites to `zero_at_1 - cites_nothing`
+    /// leaves every value-level test above green. The FIRST attempt to catch
+    /// that reported a kill -- falsely, because the mutation replaced all four
+    /// occurrences of the call including the two in this module, so the test
+    /// panicked on its own mutated body rather than on the production defect.
+    /// **A mutation that also edits the test is not a mutation test.**
+    ///
+    /// Fourth change in four passes whose surviving mutant was the wiring:
+    /// `last_pass` in red.rs, `claims_seen` in gates.rs, `single_digit_only` in
+    /// issues.rs, and this.
+    ///
+    /// The needle is split so this test's own body does not contain it.
+    #[test]
+    fn both_print_sites_call_the_function_rather_than_subtracting() {
+        let src = include_str!("competitors.rs");
+        let code = &src[..src.find("#[cfg(test)]").expect("the test module bounds the search")];
+        let bad = concat!("zero_at_1 - ", "c.cites_nothing");
+        assert!(
+            !code.contains(bad),
+            "the subtraction is the defect: cites_nothing is not a subset of \
+             zero_at_1, so it underflows, and its result is not `cites pass@10`"
+        );
+        let good = concat!("zero_at_1_citing_", "something(&recs)");
+        assert_eq!(
+            code.matches(good).count(),
+            2,
+            "both print sites -- the summary line and the prose below it -- must \
+             read the same directly-counted figure"
+        );
+    }
+
+    /// The parenthetical said "of them cite pass@10 only" over `zero_at_1 -
+    /// cites_nothing`. That subtraction is wrong in two independent ways, and
+    /// both are reachable with records this table already accepts.
+    ///
+    /// (a) `cites_nothing` is NOT a subset of `zero_at_1`. Scores are
+    ///     `Option<f32>`, so a record that omits pass@1 and states pass@10: 0.0
+    ///     cites nothing and is not zero-at-1. It decrements a difference it
+    ///     does not belong to, and on usize a large enough population of them
+    ///     underflows and panics.
+    /// (b) Even where the subset holds, the difference is "cites SOMETHING
+    ///     nonzero", not "cites pass@10". A record citing pass@5 alone, whose
+    ///     pass@10 is a stated zero, was reported as citing pass@10 only.
+    #[test]
+    fn the_difference_was_neither_a_subset_nor_pass_at_10() {
+        // (b): zero at pass@1, cites pass@5, states zero at pass@10.
+        let five_only = TWO.replace(
+            "        pass_at_1: 0.5,\n        pass_at_5: 0.6,\n        pass_at_10: 0.0,",
+            "        pass_at_1: 0.0,\n        pass_at_5: 0.6,\n        pass_at_10: 0.0,",
+        );
+        let recs = records(&five_only);
+        let c = counts(&recs);
+        assert_eq!(c.zero_at_1, 2, "Alpha now states zero at pass@1, Beta already did");
+        assert_eq!(c.cites_nothing, 1, "only Beta cites nothing at all");
+        assert_eq!(
+            zero_at_1_citing_something(&recs),
+            1,
+            "one record states zero at pass@1 and still cites something"
+        );
+        // The old arithmetic returns the same 1 here -- and calls it pass@10,
+        // which is a stated ZERO on this record. Same number, false sentence.
+        assert_eq!(
+            recs.iter()
+                .filter(|r| r.scores[0] == Some(0.0) && r.scores[2].unwrap_or(0.0) > 0.0)
+                .count(),
+            0,
+            "nothing here cites pass@10, so `cite pass@10 only` was never true of it"
+        );
+
+        // (a): the subtraction's operands can cross, which usize cannot survive.
+        let no_pass_at_1 = TWO
+            .replace("        pass_at_1: 0.5,", "        pass_at_5: 0.6,")
+            .replace(
+                "        pass_at_1: 0.0,\n        pass_at_5: 0.0,\n        pass_at_10: 0.0,\n        benchmark: \"an accelerator",
+                "        pass_at_5: 0.0,\n        pass_at_10: 0.0,\n        benchmark: \"an accelerator",
+            );
+        let recs = records(&no_pass_at_1);
+        let c = counts(&recs);
+        assert!(
+            c.cites_nothing > c.zero_at_1,
+            "cites_nothing {} exceeds zero_at_1 {} -- `zero_at_1 - cites_nothing` \
+             would underflow here, and it is a plain usize subtraction",
+            c.cites_nothing,
+            c.zero_at_1
+        );
+        assert_eq!(
+            zero_at_1_citing_something(&recs),
+            0,
+            "counted directly, the answer is a defensible zero rather than a panic"
+        );
+    }
 
     const TWO: &str = r#"
 /// alpha_competitor() -> CompetitorScore
