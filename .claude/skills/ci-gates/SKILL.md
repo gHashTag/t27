@@ -15115,7 +15115,255 @@ unreachable through this command, so it is written as ordinary defence and the c
 says it is not a control. **A guard clause you have not executed is a comment, and a
 comment claiming to be a control is worse than no comment.**
 
-## 540. The fix did not travel between two tables of one function
+## 540. A dead test and a phantom test cancel in every total
+
+&sect;535 was shipped as `f7c1ff5`. It carried two defects into master, and the pass that wrote it
+verified their absence and read a clean answer.
+
+The insert anchored on `fn the_query_and_the_marker_read_one_constant() {`. That line's `#[test]`
+sits ABOVE it, so the new text landed **between the attribute and the function it belonged to**:
+the newcomer inherited the attribute and got a second of its own, and the neighbour was left with
+none. Measured on `f7c1ff5`:
+
+* `the_query_and_the_marker_read_one_constant` -- **does not run.** `cargo test <name>` returns
+  `0 passed; 685 filtered out`.
+* `the_freshness_boundary_is_pinned_on_both_sides` -- **runs twice.** `cargo test -- --list` prints
+  it on two consecutive lines.
+
+**The check that missed it counted totals.** The pass printed `#[test] attrs: 11   fn defs: 11`, saw
+a match, and moved on. But one function holding two attributes and one holding none leaves BOTH
+totals unchanged. So does the suite size: the phantom fills the seat the dead test left, which is
+why `675` looked exactly right. **Two errors that cancel are invisible to every instrument that
+sums.** Only per-function pairing sees them, and that is the whole design of the new gate.
+
+**Shipped: `tri gates tests`** (`--gate` for exit 1), wired into `cli-tri.yml`. Two rules:
+
+1. a test attribute followed by another test attribute, stepping over doc comments -- the accident
+   routinely leaves one above the newcomer's prose and one below;
+2. a function inside a `#[cfg(test)]` module with no test attribute, containing an assertion, and
+   named nowhere else in the file.
+
+**Rule 2's discriminator is the reference count, not the assertion.** A helper exists to be called,
+so its name appears at least twice; a test that lost its attribute is called by nobody and appears
+exactly once. An earlier attempt at this class by assertion alone returned 18 candidates of which 16
+were helpers. Measured across all 57 files of `cli/`: rule 1 finds exactly 1, rule 2 exactly 1, both
+real, and the three assert-bearing fixtures in test modules are correctly silent. Positive control:
+exit 1 against `f7c1ff5`'s tree, exit 0 against the repaired one.
+
+### The gate reproduced its own subject four times while being written
+
+Every one of these was caught by a test or by an existing comment, not by review.
+
+* **It matched itself.** The first structural test searched `include_str!("red.rs")` for the very
+  string it contained as a literal. The mutation it existed to catch changes the real call site --
+  at which point `find` falls through to the test's own body and the test passes. Fixed by slicing
+  the source at `#[cfg(test)]` and searching only the half above. See &sect;'s census-counted-itself.
+* **The instrument was already in the file.** `orphaned_tests` first took "everything after the
+  first `#[cfg(test)]`" as the test module. Forty lines above it sat `test_module_lines`, whose own
+  doc comment says that approach was *checked rather than assumed* and is wrong.
+  **That comment records "five files, `gates.rs` fifteen"; measuring it today gives nine files and
+  `gates.rs` sixty-eight.** The two rules are not the same -- mine counts every top-level function
+  after the FIRST test module closes, and a file with several test modules has many -- and the crate
+  has also grown since the comment was written. Both numbers say the same load-bearing thing, and I
+  am recording the disagreement rather than repeating a figure I had not measured. **A borrowed
+  number is still a number you published.**
+* **Two blind spots that cancelled.** The check recognised only `#[test]`, and matched only `fn `.
+  So the thirteen `#[tokio::test]` functions in `cli/trios-bridge` were invisible in BOTH directions
+  -- the attribute unrecognised and the `async fn` under it unrecognised -- and read as clean. The
+  gate had, in miniature, exactly the cancelling-pair defect it was written to find.
+* **Substring, not token.** The reference count used `str::matches`, so a function named `a` is
+  "referenced" by every `assert`, `match` and `pat` in the file. Its own test caught it: an orphaned
+  `async fn a()` was reported as a called helper. Now counts whole identifiers.
+
+## 541. `never green` is a different finding from `red`, and it was the majority
+
+&sect;535 counted the fifty red workflows in `gHashTag/trinity-fpga` by history and found that **44 of
+them had never once succeeded**. `tri red` could not say so: it asked for the last success only when
+the streak read was truncated, which is a question about **whether the page was full**, not about
+whether the thing ever worked. 43 of the 50 rows read `1 in a row`, so the majority were never asked.
+
+`last_pass` is now requested for every red row. It costs one extra request per red workflow -- 50 on
+top of a 405-workflow listing and its per-workflow streak reads, about 11% -- and it buys the
+distinction between a regression and a file that never worked:
+
+```
+50 workflow(s) red on the default branch -- 3 of them in the last 7 days, and 44 have never once been green.
+    1 in a row  last run 2026-07-10T03:15  since 2026-07-10T03:15, never green on main   AX7203 Corona Compute ...
+```
+
+**The row names the branch, because the population depends on it.** Runs are read with `branch=`, so
+"no success" is a claim scoped to that branch and not the same set as "no success anywhere". On
+`trinity-fpga` the two coincided -- all six regressions have successes on `main` as well as
+elsewhere -- and that is a fact about that repository, not about the question. A row that does not
+name its branch asserts something wider than it measured.
+
+The mutation that reverts `last_pass` to the old guard is invisible to every value-level test,
+because the difference is a request that is or is not made. It survived until a structural test read
+the call site.
+
+## 542. The gate said every mutant survived, and no mutant had been built
+
+A fan-out over the whole `tri` CLI, hunting &sect;535's class -- **a printed count whose label names a
+different population than the code counts** -- returned 10 candidates and 8 survived adversarial
+refutation. The strongest was in `gates.rs`, in the command whose entire subject is whether a claim
+was actually tested.
+
+`tri gates mutate` reports on `# mutant-equivalent:` markers, comments asserting that the mutant at
+some line cannot die. It printed:
+
+```
+N equivalence claim(s) in scope, none contradicted.
+Each says its mutant cannot die, and each mutant survived. That is
+the whole check -- a claim about the FUTURE of the code is worth
+only the run that could have refuted it and did not.
+```
+
+**`claims_seen` counted every marker in the file, textually, outside the per-direction loop.**
+`claims_broken`, its numerator, came from `contradicted_claims`, which drops any claimed line that is
+not a mutable site in the direction being run. Two populations, one sentence.
+
+**Measured, all eight markers in `tools/`:**
+
+| marker | binds to | a `silent` site? |
+|---|---|---|
+| `gft_backprop_microcode.py:210` | `if d >= 26: la = 0; sticky = 1` | no |
+| `gft_backprop_microcode.py:732` | an `assert` | no |
+| `verify_emit_bitexact.py:238` | a `def` | no |
+| `verify_exhaustive.py:177` | an assignment | no |
+| `verify_igla_race.py:37` | an assignment | no |
+| `verify_multitarget.py:40` | an assignment | no |
+| `verify_trainer_c.py:36` | an assignment | no |
+| `wp18_conformance_gate.py:453` | `roundtrip_ok = (math.isinf(dec) and ...)` | no |
+
+The default operator is `silent`, whose sites are `return <1..4>` lines only. **Not one of the eight
+is reachable by it.** So on every default run the command counted all of them "in scope" and printed
+*each mutant survived* -- while zero mutants had been built at any of them. The sentence directly
+below the number says a claim is worth only the run that could have refuted it. **That run could
+not, and the count was what hid it.**
+
+**The refutation was already in the file, one comment above the defect.** The block explaining
+`claims_seen` says the markers are *not* operator-scoped and that "every one in the tree today argues
+about a comparison". That is exactly the fact that makes the number wrong. It was written down, and
+the next line was written anyway -- an observation recorded and not carried one step further.
+
+**Shipped.** Claims are partitioned against the union of sites across the operators actually run.
+In-scope claims keep the survivor sentence; out-of-scope claims get their own paragraph naming each
+one and saying no mutant was built there. Verified live on `wp18_conformance_gate.py`: default run
+now prints `1 claim(s) NOT TESTED by this run` and `No claim was in scope`, and the same gate under
+`--boundary` prints `1 equivalence claim(s) in scope, none contradicted` -- truthfully, because that
+operator does build a mutant at line 469.
+
+**The mutant that survived was the CALL SITE, not the helper.** `claims_by_scope` is covered three
+ways, and reverting `claims_seen += in_scope.len()` to add both halves restores the original defect
+with every one of those tests still green. It took a structural test reading the call site -- the
+same gap, in the same pass, as the `last_pass` guard in &sect;541. **A fix's wiring is not covered by
+its function's tests, and mutation is the only thing that says so.**
+
+The needle in that structural test is split across two literals, because the first such test written
+this pass searched the file for a string it also contained, and passed against its own mutant.
+
+## 543. The denominator was the cap, under a paragraph about denominators
+
+&sect;542's fan-out returned eight surviving findings. This one was found by two lenses
+independently, which is the closest thing a sweep gives to a second opinion.
+
+`scripts/tri_loop/diffbin.py` walks a spec corpus, compares two compiler binaries over it, and
+closes with a coverage figure. It truncated its file list:
+
+```python
+files.sort()
+if limit:
+    files = files[:limit]
+...
+total = len(files)          # <- AFTER the truncation
+print(f"corpus: {len(files)} specs under {corpus}")
+print(f"\nMEASURED COVERAGE: {measured}/{total} = {pct:.1f}% of the corpus")
+```
+
+**Measured on the real tree, 2026-09-05:** `--limit 10` over `specs` printed
+`corpus: 10 specs under specs`. There are **650** `.t27` files there. A 2% sample would report
+`100.0% of the corpus` on a clean run.
+
+**And the paragraph immediately below the number is about exactly this:**
+
+> Any sentence of the form 'no regressions' is admissible only with this coverage figure attached
+> ... Coverage below 100% bounds what the run can claim.
+
+So the one figure whose job is to bound the claim was the figure the truncation had already
+destroyed. The safety rail was wired to the wrong number.
+
+**Shipped.** The corpus size is captured BEFORE truncation. A sampled run prints
+`sample: 10 of 650 specs under specs [--limit 10]`, names the coverage denominator
+`of the 10 compared`, and adds a block that says so where the number is read rather than only in a
+header eight lines up. An untruncated run is byte-identical to before.
+
+`scripts/ci/test_a_sample_is_not_the_corpus.py` builds its own 25-file fixture with a fake binary
+that never produces a verdict -- irrelevant to the question, which is about the denominator -- so it
+needs no compiler and runs in `loop-tools-gate.yml`. Exit 1 against the pre-fix file, exit 0 after,
+and moving the capture below the truncation kills it.
+
+### The exclusion that cleared it was true and too narrow
+
+An earlier audit of BOUNDED READS in this repository named these files and let them pass:
+
+> `cost.py` and `diffbin.py` take `--limit N` over a LOCAL corpus directory and never touch the API
+
+Every word of that is correct. It is also **an argument about where the data comes from, used to
+settle a question about what the label says.** A local `--limit` truncates the population exactly as
+thoroughly as a page boundary does, and the printed word "corpus" does not care which one did it.
+
+**An exclusion is only as wide as the reason given for it.** A reason that is true but narrower than
+the exclusion silently drops cases, and nobody revisits them, because the file is on a list headed
+"checked". That is a worse state than never having looked -- an unexamined file invites examination;
+an examined one repels it.
+
+## 544. It disclosed one bound of three, which reads as disclosing all of them
+
+Second confirmed finding from the &sect;542 fan-out, measured rather than argued.
+
+`tri topic` searches four sources for prior art and prints:
+
+```
+rows searched   759   (open PRs, open issues, last 40 commits, every SKILL.md section)
+```
+
+The parenthetical **names the commit window and named no other bound**, while two of the four reads
+carried caps in their `gh` invocation: `pr list --limit 100` and `issue list --limit 200`.
+
+**Measured on `gHashTag/t27`, 2026-09-05, by raising each limit until the count stopped growing:**
+
+| source | cap | actual | binding? |
+|---|---|---|---|
+| open PRs | 100 | **12** | no |
+| open issues | 200 | **509** | **yes -- 309 never read** |
+
+So the command reported searching "open issues" while looking at 200 of 509. Raising both caps to
+800 took the same invocation from **759 rows to 1068**, and matches from **535 to 569**: thirty-four
+pieces of prior art that the tool existed to surface and could not reach.
+
+**Disclosing one bound of three is worse than disclosing none.** A reader who sees "last 40 commits"
+learns that this command tells you where it stops -- and then reasonably concludes that the halves
+without a stated bound do not have one. The single disclosure is what makes the two silences read as
+absence.
+
+**Shipped.** Both caps come from named constants, the request is built FROM the constant, and
+`capped_read` compares the returned row count against the same constant rather than a second literal
+beside it. A cap that BOUND is named where the population is named, with a `LOWER BOUND` marker; a
+cap that did not bind is not mentioned at all, because an unbound cap is not information and printing
+it trains the reader to skip the line.
+
+### The mutant that survived, and why it is not a gap
+
+Lowering `ISSUE_CAP` back to 200 leaves every test green. That is correct. With the cap at 200 the
+command now prints *"the first 200 open issues ... A CAP WAS REACHED: this is a LOWER BOUND"* -- less
+complete, and still honest. The guarantee under test is **"a cap that binds is named"**, and the
+three mutants that break *that* are all killed: a reached cap never reported, an off-by-one letting
+an exactly-full page read as complete, and the marker suppressed.
+
+Pinning `800` in a test would defend a constant with no argument behind it. **Ask whether the mutation
+changes the VERDICT, not whether it changes the number.**
+
+## 545. The fix did not travel between two tables of one function
 
 `tri gates unmeasured` prints two tables. The first, for workflows with no automatic
 default-branch run, carries a `pr-only` column and says plainly what it means:

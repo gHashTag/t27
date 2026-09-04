@@ -232,6 +232,30 @@ pub enum GatesCmd {
     /// had never compiled, 233 files carried a developer's home directory, and
     /// `tri rtl check` had been dying on a submodule that was declared but not
     /// registered. Every one of them had been reading as passing.
+    /// Tests that do not run, and tests that run twice.
+    ///
+    /// An edit that inserts a test by anchoring on `fn name() {` lands BETWEEN
+    /// the `#[test]` above it and the function, which leaves the neighbour
+    /// without an attribute and the newcomer with two. Both were shipped to
+    /// master by this repository's own loop on 2026-09-05, in commit f7c1ff5:
+    /// `the_query_and_the_marker_read_one_constant` stopped running and
+    /// `the_freshness_boundary_is_pinned_on_both_sides` was registered twice.
+    ///
+    /// They CANCEL in every total. Attributes: unchanged. Functions: unchanged.
+    /// Tests reported by `cargo test`: unchanged, because the phantom fills the
+    /// seat the dead one left. The pass that shipped them checked "11 attributes
+    /// against 11 functions", read a match, and moved on. Only per-function
+    /// pairing can see it, which is what this asks.
+    ///
+    /// Measured across all 42 modules of this crate at f7c1ff5: exactly one of
+    /// each, both real, and the three assert-bearing helper functions in test
+    /// modules were correctly not flagged -- a helper is CALLED, an orphaned
+    /// test is not, and that reference count is the whole discriminator.
+    Tests {
+        /// Exit 1 when anything is found, for use as a gate.
+        #[arg(long)]
+        gate: bool,
+    },
     Unmeasured {
         /// owner/repo, repeatable. Defaults to the repository you are in.
         #[arg(long = "repo")]
@@ -1113,6 +1137,30 @@ fn contradicted_claims(
     out
 }
 
+/// Split claimed lines into the ones a mutant was actually built at and the
+/// ones it was not.
+///
+/// Both are returned SORTED, because `equivalence_claims` hands back a HashMap
+/// and an unsorted report changes order between runs of the same command --
+/// which reads as movement where there is none.
+fn claims_by_scope(
+    equiv: &std::collections::HashMap<usize, String>,
+    sites: &std::collections::HashSet<usize>,
+) -> (Vec<usize>, Vec<usize>) {
+    let mut inside: Vec<usize> = Vec::new();
+    let mut outside: Vec<usize> = Vec::new();
+    for line in equiv.keys() {
+        if sites.contains(line) {
+            inside.push(*line);
+        } else {
+            outside.push(*line);
+        }
+    }
+    inside.sort_unstable();
+    outside.sort_unstable();
+    (inside, outside)
+}
+
 fn equivalence_claims(src: &str) -> std::collections::HashMap<usize, String> {
     const MARK: &str = "mutant-equivalent:";
     let lines: Vec<&str> = src.lines().collect();
@@ -1878,6 +1926,9 @@ fn mutate(
     // built the mutant and already knows the verdict. An unfalsifiable claim
     // is prose wearing the costume of an analysis.
     let mut claims_broken: Vec<String> = Vec::new();
+    // Claims whose line is not a mutable site under ANY operator this run used.
+    // No mutant was built there, so the run neither confirmed nor refuted them.
+    let mut claims_out_of_scope: Vec<String> = Vec::new();
     let mut claims_seen = 0usize;
     let mut cache = if fresh {
         std::collections::HashMap::new()
@@ -2120,7 +2171,30 @@ fn mutate(
         // `invert`, and this names the direction rather than pretending to
         // judge. That ambiguity is in the marker's design, not in the check;
         // reporting it is what makes it visible enough to fix.
-        claims_seen += equiv_lines.len();
+        // IN SCOPE means a mutant was actually built at the claimed line. The
+        // comment just above already holds the fact that makes a plain count
+        // wrong -- "every one in the tree today argues about a comparison" --
+        // and the default operator is `silent`, whose sites are `return <1..4>`
+        // lines only. Measured 2026-09-05: all EIGHT markers in `tools/` bind to
+        // a comparison or an assignment and none to a `return`, so on a default
+        // run the old counter called every one of them in scope and printed
+        // "each mutant survived" while ZERO mutants had been built at any of
+        // them. A claim about the future of the code is worth only the run that
+        // could have refuted it, and that run could not.
+        let sites_any: std::collections::HashSet<usize> = scores
+            .iter()
+            .flat_map(|(dir, _, _, _)| {
+                sites_in_direction(&pristine, *dir)
+                    .into_iter()
+                    .map(|(at, _, _)| line_of(&pristine, at))
+            })
+            .collect();
+        let (in_scope, out_of_scope) = claims_by_scope(&equiv_lines, &sites_any);
+        claims_seen += in_scope.len();
+        for line in out_of_scope {
+            let text = equiv_lines.get(&line).cloned().unwrap_or_default();
+            claims_out_of_scope.push(format!("{name}:{line}  {text}"));
+        }
         for (dir, _, _, survivors) in &scores {
             let site_lines: Vec<usize> = sites_in_direction(&pristine, *dir)
                 .into_iter()
@@ -2264,6 +2338,24 @@ fn mutate(
     }
 
     println!();
+    if !claims_out_of_scope.is_empty() {
+        println!(
+            "{} `# mutant-equivalent:` claim(s) NOT TESTED by this run:",
+            claims_out_of_scope.len()
+        );
+        for c in &claims_out_of_scope {
+            println!("  {c}");
+        }
+        println!();
+        println!("Each names a line that is not a mutable site under the operator(s) this");
+        println!("run used, so no mutant was built there and nothing was refuted OR");
+        println!("confirmed. They were previously counted among the claims that");
+        println!("`survived`, which reported a result the run had not produced: the");
+        println!("default operator is `silent` and its sites are `return <1..4>` lines,");
+        println!("while every marker in the tree argues about a comparison. Reach them");
+        println!("with `--boundary`, `--invert` or `--all`.");
+        println!();
+    }
     if claims_seen == 0 {
         println!("No `# mutant-equivalent:` claim was in scope for this run.");
     } else if claims_broken.is_empty() {
@@ -2356,6 +2448,422 @@ fn code(root: &std::path::Path, tools: &std::path::Path, script: &str, args: &[&
     }
 }
 
+/// The 1-indexed line of each `#[test]` that is followed by another `#[test]`
+/// with only doc comments and blank lines between them. Doc comments are
+/// stepped over because the accident routinely leaves one attribute above the
+/// newcomer's docs and one below.
+/// Any attribute that makes a function a test: `#[test]`, `#[tokio::test]`,
+/// and the same shape from any other harness.
+///
+/// Recognising only `#[test]` left this check with two blind spots that
+/// CANCELLED -- it saw neither `#[tokio::test]` nor the `async fn` beneath it,
+/// so thirteen async tests in `cli/trios-bridge` were invisible in both
+/// directions and read as clean. That is the very pattern this gate exists to
+/// catch, one level up, in the gate itself.
+fn is_test_attr(line: &str) -> bool {
+    let t = line.trim();
+    t.starts_with("#[") && t.ends_with("test]")
+}
+
+fn duplicated_test_attributes(src: &str) -> Vec<usize> {
+    let lines: Vec<&str> = src.lines().collect();
+    let mut out = Vec::new();
+    for (i, l) in lines.iter().enumerate() {
+        if !is_test_attr(l) {
+            continue;
+        }
+        let mut j = i + 1;
+        while j < lines.len() && (lines[j].trim().starts_with("///") || lines[j].trim().is_empty())
+        {
+            j += 1;
+        }
+        if j < lines.len() && is_test_attr(lines[j]) {
+            out.push(i + 1);
+        }
+    }
+    out
+}
+
+/// Functions inside a `#[cfg(test)]` module that carry no `#[test]`, contain an
+/// assertion, and are named nowhere else in the file.
+///
+/// The reference count is what separates a helper from an orphan: a helper
+/// exists to be called, so its name appears at least twice; a test that lost
+/// its attribute is called by nobody and appears exactly once, at its own
+/// definition. Asserting alone is far too loose -- an earlier attempt at this
+/// with "a function containing an assert" returned 18 candidates of which 16
+/// were helpers.
+///
+/// Membership comes from `test_module_lines`, not from "everything after the
+/// first `#[cfg(test)]`". The first draft of this function used the latter, and
+/// the helper immediately above already carried the measurement refuting it:
+/// five files in this crate have real top-level functions AFTER their test
+/// module, and `gates.rs` has fifteen. The correct instrument was already in
+/// the file being edited.
+fn orphaned_tests(src: &str) -> Vec<String> {
+    let inside = test_module_lines(src);
+    let lines: Vec<&str> = src.lines().collect();
+    let mut out = Vec::new();
+    for (i, l) in lines.iter().enumerate() {
+        if !inside.get(i).copied().unwrap_or(false) {
+            continue;
+        }
+        // `pub` and `async` both sit between the indent and the `fn`, and an
+        // async test is still a test.
+        let t = l.trim_start();
+        let t = t.strip_prefix("pub ").unwrap_or(t);
+        let t = t.strip_prefix("async ").unwrap_or(t);
+        let Some(rest) = t.strip_prefix("fn ") else {
+            continue;
+        };
+        let name: String = rest
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        if name.is_empty() || !rest[name.len()..].starts_with('(') {
+            continue;
+        }
+        // Step back over docs and blanks the way the attribute would sit.
+        let mut j = i as isize - 1;
+        while j >= 0 {
+            let p = lines[j as usize].trim();
+            if p.starts_with("///") || p.is_empty() {
+                j -= 1;
+            } else {
+                break;
+            }
+        }
+        if j >= 0 && is_test_attr(lines[j as usize]) {
+            continue;
+        }
+        // Its body, by brace depth from the signature line.
+        let mut depth = 0i32;
+        let mut started = false;
+        let mut has_assert = false;
+        for line in lines.iter().skip(i) {
+            depth += line.matches('{').count() as i32;
+            depth -= line.matches('}').count() as i32;
+            if line.contains("assert") {
+                has_assert = true;
+            }
+            if line.contains('{') {
+                started = true;
+            }
+            if started && depth <= 0 {
+                break;
+            }
+        }
+        if !has_assert {
+            continue;
+        }
+        if token_occurrences(src, &name) <= 1 {
+            out.push(name);
+        }
+    }
+    out
+}
+
+/// How many times `name` appears as a WHOLE identifier in `text`.
+///
+/// A plain substring count answers a different question and answers it wrongly
+/// for short names: a function called `a` is "referenced" by every `assert`,
+/// every `match`, every `pat`. The first version of this counted substrings and
+/// declared an orphaned `async fn a()` to be a called helper -- its own test
+/// caught it, which is the only reason this reads `token` and not `matches`.
+fn token_occurrences(text: &str, name: &str) -> usize {
+    let bytes = text.as_bytes();
+    let mut n = 0;
+    let mut from = 0;
+    while let Some(rel) = text[from..].find(name) {
+        let at = from + rel;
+        let before_ok = at == 0 || !is_ident_byte(bytes[at - 1]);
+        let end = at + name.len();
+        let after_ok = end >= bytes.len() || !is_ident_byte(bytes[end]);
+        if before_ok && after_ok {
+            n += 1;
+        }
+        from = at + name.len().max(1);
+    }
+    n
+}
+
+fn is_ident_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+fn tests_gate(gate: bool) -> Result<()> {
+    let root = repo_root()?;
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
+    collect_rs(&root.join("cli"), &mut files);
+    files.sort();
+    let mut dup = 0usize;
+    let mut orphan = 0usize;
+    for f in &files {
+        let Ok(src) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let rel = f.strip_prefix(&root).unwrap_or(f).display().to_string();
+        for line in duplicated_test_attributes(&src) {
+            dup += 1;
+            println!("  RUNS TWICE  {rel}:{line}  a second `#[test]` follows this one");
+        }
+        for name in orphaned_tests(&src) {
+            orphan += 1;
+            println!(
+                "  DOES NOT RUN  {rel}  fn {name} asserts, has no `#[test]`, and nobody calls it"
+            );
+        }
+    }
+    println!();
+    println!(
+        "{} file(s) read; {dup} test(s) registered twice, {orphan} that do not run at all.",
+        files.len()
+    );
+    if dup > 0 || orphan > 0 {
+        println!();
+        println!("These two cancel in every total. Counting attributes against functions");
+        println!("gives a match while one function holds both of them, which is how commit");
+        println!("f7c1ff5 shipped one of each and the pass that wrote it reported a clean");
+        println!("11 against 11. Pair them per function, or do not check them at all.");
+    }
+    if gate && (dup > 0 || orphan > 0) {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod claim_scope_tests {
+    use super::*;
+    use std::collections::{HashMap, HashSet};
+
+    /// A claim the run never built a mutant for is not a claim that survived.
+    ///
+    /// Measured 2026-09-05: all eight `# mutant-equivalent:` markers in `tools/`
+    /// bind to a comparison or an assignment, and the default operator `silent`
+    /// has only `return <1..4>` lines as sites. So on a default run every one of
+    /// them was counted "in scope" and the command printed "each mutant
+    /// survived" while zero mutants had been built at any of them.
+    #[test]
+    fn a_claim_with_no_site_is_not_in_scope() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        equiv.insert(469, "both guards force infinity, so >= is >".into());
+        equiv.insert(613, "the early return cannot change the verdict".into());
+        // `silent` sites: the `return` line only.
+        let silent: HashSet<usize> = [613usize].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &silent);
+        assert_eq!(inside, vec![613], "only the line a mutant was built at");
+        assert_eq!(outside, vec![469], "the comparison was never touched");
+        // Under an operator that DOES reach comparisons, it comes into scope.
+        let boundary: HashSet<usize> = [469usize, 613].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &boundary);
+        assert_eq!(inside, vec![469, 613], "both are now testable");
+        assert!(outside.is_empty(), "and nothing is left untested");
+    }
+
+    /// The helper can be right while the call site undoes it. Reverting
+    /// `claims_seen += in_scope.len()` to add both halves restores the original
+    /// defect exactly, and every value-level test above still passes -- the
+    /// helper is unchanged, only its result is misused.
+    ///
+    /// The needle is split across two literals so that this test's own body
+    /// does not contain the string it searches for. A structural test in
+    /// `red.rs` passed against its own mutant for precisely that reason: the
+    /// mutation changed the real call site, and `find` fell through to the
+    /// test's copy.
+    #[test]
+    fn the_call_site_counts_only_the_in_scope_half() {
+        let src = include_str!("gates.rs");
+        let both = concat!("in_scope.len() + ", "out_of_scope.len()");
+        assert!(
+            !src.contains(both),
+            "counting both halves is the defect this removed: a claim with no \
+             site had no mutant built, so it neither survived nor died"
+        );
+        let only = concat!("claims_seen += ", "in_scope.len();");
+        assert!(
+            src.contains(only),
+            "the in-scope half is what the survivor sentence is allowed to speak for"
+        );
+    }
+
+    /// The report is read by a human across runs, and `equivalence_claims`
+    /// returns a HashMap -- unsorted output reads as movement where there is
+    /// none.
+    #[test]
+    fn both_halves_come_back_sorted() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        for l in [900usize, 12, 451, 77, 3] {
+            equiv.insert(l, format!("claim at {l}"));
+        }
+        let sites: HashSet<usize> = [451usize, 3].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &sites);
+        assert_eq!(inside, vec![3, 451]);
+        assert_eq!(outside, vec![12, 77, 900]);
+    }
+
+    /// Every claim lands in exactly one half. A claim that fell out of both
+    /// would vanish from the report entirely, which is the failure this whole
+    /// change exists to stop.
+    #[test]
+    fn the_two_halves_partition_the_claims() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        for l in [1usize, 2, 3, 4, 5] {
+            equiv.insert(l, String::new());
+        }
+        let sites: HashSet<usize> = [2usize, 4].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &sites);
+        assert_eq!(
+            inside.len() + outside.len(),
+            equiv.len(),
+            "nothing may be dropped between the two counts"
+        );
+        assert!(
+            inside.iter().all(|l| !outside.contains(l)),
+            "and nothing may be counted twice"
+        );
+    }
+}
+
+#[cfg(test)]
+mod orphan_test_tests {
+    use super::*;
+
+    /// The exact accident, in miniature: an insert anchored on `fn name() {`
+    /// lands between the attribute and the function it belonged to.
+    #[test]
+    fn an_attribute_split_from_its_function_is_two_findings_not_one() {
+        let src = "#[cfg(test)]\nmod t {\n    #[test]\n    #[test]\n    fn newcomer() {\n        assert!(true);\n    }\n    fn neighbour() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            duplicated_test_attributes(src),
+            vec![3],
+            "the newcomer carries two attributes and runs twice"
+        );
+        assert_eq!(
+            orphaned_tests(src),
+            vec!["neighbour".to_string()],
+            "and the neighbour it stole one from does not run at all"
+        );
+    }
+
+    /// The two cancel in every total, which is why totals were the wrong check.
+    #[test]
+    fn the_two_defects_cancel_in_every_total() {
+        let broken = "#[cfg(test)]\nmod t {\n    #[test]\n    #[test]\n    fn a() {\n        assert!(true);\n    }\n    fn b() {\n        assert!(true);\n    }\n}\n";
+        let whole = "#[cfg(test)]\nmod t {\n    #[test]\n    fn a() {\n        assert!(true);\n    }\n    #[test]\n    fn b() {\n        assert!(true);\n    }\n}\n";
+        let attrs = |s: &str| s.lines().filter(|l| l.trim() == "#[test]").count();
+        let fns = |s: &str| {
+            s.lines()
+                .filter(|l| l.trim_start().starts_with("fn "))
+                .count()
+        };
+        assert_eq!(
+            attrs(broken),
+            attrs(whole),
+            "the attribute TOTAL is identical"
+        );
+        assert_eq!(fns(broken), fns(whole), "and so is the function total");
+        assert!(
+            !duplicated_test_attributes(broken).is_empty() && !orphaned_tests(broken).is_empty(),
+            "yet one file is broken in two places -- only per-function pairing sees it"
+        );
+        assert!(
+            duplicated_test_attributes(whole).is_empty() && orphaned_tests(whole).is_empty(),
+            "and the repaired file is clean by the same instrument"
+        );
+    }
+
+    /// A helper is CALLED. That reference, not the assert, is the discriminator.
+    #[test]
+    fn a_called_helper_is_not_an_orphan() {
+        let src = "#[cfg(test)]\nmod t {\n    fn fixture() {\n        assert!(true);\n    }\n    #[test]\n    fn real() {\n        fixture();\n    }\n}\n";
+        assert!(
+            orphaned_tests(src).is_empty(),
+            "`fixture` asserts and has no attribute, but something calls it"
+        );
+    }
+
+    /// Membership is `test_module_lines`, not "after the first `#[cfg(test)]`".
+    /// Five files in this crate keep top-level functions past their test module.
+    #[test]
+    fn a_function_after_the_test_module_is_not_inside_it() {
+        let src = "#[cfg(test)]\nmod t {\n    #[test]\n    fn real() {\n        assert!(true);\n    }\n}\n\nfn afterwards() {\n    assert!(true);\n}\n";
+        assert!(
+            orphaned_tests(src).is_empty(),
+            "`afterwards` is top-level code that happens to assert, not a lost test"
+        );
+    }
+
+    /// `#[test]` is not the only attribute that makes a function a test, and an
+    /// async test is still a test. Recognising neither left two blind spots that
+    /// CANCELLED: the attribute was invisible AND so was the `async fn` under
+    /// it, so thirteen tokio tests read as clean in both directions.
+    #[test]
+    fn an_async_test_under_a_harness_attribute_is_still_a_test() {
+        let ok = "#[cfg(test)]\nmod t {\n    #[tokio::test]\n    async fn a() {\n        assert!(true);\n    }\n}\n";
+        assert!(
+            orphaned_tests(ok).is_empty(),
+            "a tokio test is attributed and must not be called an orphan"
+        );
+        let lost = "#[cfg(test)]\nmod t {\n    async fn a() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            orphaned_tests(lost),
+            vec!["a".to_string()],
+            "and an async fn that lost its attribute must still be found"
+        );
+        let dup = "#[cfg(test)]\nmod t {\n    #[test]\n    #[tokio::test]\n    async fn a() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            duplicated_test_attributes(dup),
+            vec![3],
+            "two test attributes are two, whichever harness wrote them"
+        );
+    }
+
+    /// The assert requirement is load-bearing, not decoration: without it the
+    /// gate reports `cli/trios-bridge/src/main.rs::no_auth_header`, a genuine
+    /// fixture returning a HeaderMap that nothing currently calls. Dead code is
+    /// a different finding from a test that does not run, and this gate claims
+    /// only the second.
+    #[test]
+    fn an_uncalled_function_that_asserts_nothing_is_not_a_lost_test() {
+        let src = "#[cfg(test)]\nmod t {\n    fn no_auth_header() -> HeaderMap {\n        HeaderMap::new()\n    }\n    #[test]\n    fn real() {\n        assert!(true);\n    }\n}\n";
+        assert!(
+            orphaned_tests(src).is_empty(),
+            "uncalled and attribute-less, but it asserts nothing -- dead code, not a lost test"
+        );
+    }
+
+    /// Doc comments sit between the two attributes in the real accident.
+    #[test]
+    fn docs_between_the_attributes_do_not_hide_the_duplicate() {
+        let src = "#[cfg(test)]\nmod t {\n    #[test]\n    /// what this pins\n    /// and why\n    #[test]\n    fn a() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            duplicated_test_attributes(src),
+            vec![3],
+            "the pair is still a pair with prose between them"
+        );
+    }
+}
+
+fn collect_rs(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in rd.flatten() {
+        let p = e.path();
+        let name = e.file_name();
+        let name = name.to_string_lossy();
+        if p.is_dir() {
+            if name == ".git" || name == "target" || name == "node_modules" {
+                continue;
+            }
+            collect_rs(&p, out);
+        } else if name.ends_with(".rs") {
+            out.push(p);
+        }
+    }
+}
+
 fn repo_root() -> Result<std::path::PathBuf> {
     let out = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
@@ -2389,6 +2897,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             dir.as_deref(),
         ),
         GatesCmd::Prs { repo } => prs(repo.as_deref()),
+        GatesCmd::Tests { gate } => tests_gate(*gate),
         GatesCmd::Unmeasured { repos, stale_days } => {
             let list: Vec<String> = if repos.is_empty() {
                 vec![current_repo()?]
@@ -6003,9 +6512,7 @@ mod fetch_census_tests {
         );
         // The defect this rule fixes: `tri cost` bounds a LOCAL corpus walk.
         assert_eq!(
-            super::bounded_reads_in_python(
-                "files = pick(corpus, [\"--limit\", str(n)])\n"
-            ),
+            super::bounded_reads_in_python("files = pick(corpus, [\"--limit\", str(n)])\n"),
             0,
             "a `--limit` with no `gh` beside it bounds something local, and \
              counting it makes the census describe its own matcher"
