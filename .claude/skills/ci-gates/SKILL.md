@@ -13698,3 +13698,44 @@ random 24 were judged and every accusation attacked by two independent refuters.
 survived.** The other five are the honest shape of the residue: three built-then-renamed, one that
 was never a claim about this repository, one refuted. Four in five, and I am not extrapolating it
 to the 105 — the sample was drawn to measure a rate, not to enumerate a population.
+
+## 503. Every agent succeeded and the aggregate was twenty times wrong
+
+A fan-out judging 81 identifiers returned:
+
+```
+{"judged": 4, "first_pass": {"NOT_A_DELIVERABLE": 2, "PRESENT_UNDER_ANOTHER_NAME": 2},
+ "confirmed": 0, "confirmed_detail": []}
+```
+
+Read alone, that is a clean result with a small population: four things looked at, none of them a
+finding. The journal said otherwise — **81 judged**, 56 of them `ABSENT_AND_CLAIMED`. The aggregate
+under-reported by **20.2x**, and reported the wrong *shape* too: the recovered tally is 69% accusatory,
+the printed one 0%.
+
+**The defect was in the glue, not in any agent.** The second pipeline stage was written
+`(res) => { … label: \`hunt:batch-${b}\` … }`. Stage callbacks receive
+`(prevResult, originalItem, index)`; `b` was never bound, so the stage threw `b is not defined` for
+20 of 21 items, and a stage that throws drops its item to `null` and skips the rest of its chain.
+Only batch 0 survived to the aggregation, which then summed almost nothing.
+
+**Every health signal was green, and correctly so.** `agent_count: 21`, `agents_done: 21`,
+`agents_error: 0`, `agents_empty_result: 0`. Not one of those is wrong: all 21 agents ran, returned,
+and returned non-empty. The agents were fine. **The script was not, and no agent-level counter
+covers the script.** The only surface that showed it was the `failures` block listing
+`pipeline[1..20] failed`, which sits beside the result rather than inside it.
+
+Three things follow, and the third is the cheap one:
+
+- **A pipeline's returned number is not a measurement until the failures block is empty.** Read that
+  block before the result, not after the result surprises you.
+- **`agents_error: 0` is a statement about agents.** A workflow is agents *plus* a script, and the
+  script's exceptions are counted nowhere in the agent tallies.
+- **Nothing was lost.** `journal.jsonl` holds one record per completed agent with its full return
+  value, so the 81 verdicts were recovered without re-running anything. Fixing the callback and
+  resuming with `resumeFromRunId` replayed all 21 judges from cache and ran only the repaired stage.
+  The tool's own guidance says to read the journal before diagnosing an unexpected result; it is
+  worth saying more strongly — **read it before believing an expected one.**
+
+A small returned number from a fan-out and a small real population are indistinguishable in the
+result object. They are trivially distinguishable one file over.
