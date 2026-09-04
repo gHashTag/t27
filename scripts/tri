@@ -60,7 +60,27 @@ Local commands (no compiler needed):
 Environment:
   TRI_T27C            explicit path to the t27c binary
   TRI_DISK_FLOOR_GIB  free-space floor for `tri disk` and `tri wave` (default 2)
+    TRI_BIN             explicit path to the Rust `tri` binary
 EOF
+  # The Rust binary's subcommands, ASKED rather than listed. A hand-written list
+  # here would be a second source of truth -- this file already says so about
+  # NAMES twenty lines down, and then froze the COUNT in four places. Measured
+  # when this was written: the binary implements 47 and this help named 3.
+  local rust=""
+  for p in "${TRI_BIN:-}" "$REPO_ROOT/target/release/tri" "$REPO_ROOT/target/debug/tri"; do
+    [[ -n "$p" && -x "$p" ]] || continue
+    rust="$("$p" --help 2>&1 | awk '/^Commands:/{f=1;next} /^Options:/{f=0} f && /^  [a-z]/ {print $1}' | tr '\n' ' ')"
+    break
+  done
+  echo
+  if [[ -n "$rust" ]]; then
+    echo "Rust \`tri\` binary (cli/tri) -- asked, not listed:"
+    printf '%s\n' "$rust" | fold -s -w 74 | sed 's/^/  /'
+    echo "  run \`tri <name> --help\` for any of them"
+  else
+    echo "Rust \`tri\` binary (cli/tri): NOT BUILT, so its subcommands cannot be"
+    echo "  listed here.  cargo build --release -p tri"
+  fi
 }
 
 # Free GiB on the volume holding the repo. POSIX df, so macOS and Linux agree.
@@ -477,9 +497,9 @@ if [[ -n "$cmd" && -f "$LOOP_DIR/${cmd//-/_}.py" ]]; then
   exec python3 "$LOOP_DIR/${cmd//-/_}.py" "${@:2}"
 fi
 
-# Seventeen subcommands are implemented in the Rust `tri` binary (cli/tri),
+# Most subcommands are implemented in the Rust `tri` binary (cli/tri),
 # which is a DIFFERENT binary from t27c. Everything not handled above was
-# forwarded to t27c, so all seventeen existed and were unreachable through the
+# forwarded to t27c, so every one of them existed and was unreachable through the
 # documented front door. `now` was one of them -- and
 # scripts/ci/now-sync-gate-diff.sh prints
 #
@@ -514,7 +534,7 @@ if [[ "$cmd" =~ ^[a-z][a-z0-9-]*$ ]]; then
     fi
   fi
   # Ask each binary what it implements rather than hard-coding the split: a
-  # baked-in list of seventeen names is a second source of truth that goes
+  # baked-in list of names is a second source of truth that goes
   # stale the next time a subcommand is added on either side.
   lists_cmd() { "$1" --help 2>&1 | grep -qE "^[[:space:]]+${cmd}([[:space:]]|\$)"; }
   if [[ -n "$TRI_BIN" ]] && ! lists_cmd "$T27C" && lists_cmd "$TRI_BIN"; then
@@ -535,7 +555,11 @@ if [[ "$cmd" =~ ^[a-z][a-z0-9-]*$ ]]; then
   # falls through so t27c's own error still prints.
   if [[ -z "$TRI_BIN" ]] && ! lists_cmd "$T27C" && [[ -d "$REPO_ROOT/cli/tri" ]]; then
     echo "tri: '$cmd' is not a t27c subcommand, and the Rust \`tri\` binary (cli/tri) is not built." >&2
-    echo "tri: seventeen subcommands live there, 'now' among them. If '$cmd' is one:" >&2
+    # The count was frozen at seventeen in four places, one of them this line,
+    # while the binary grew to 47 -- so the number a user READ was 2.7x wrong.
+    # It is computed when the binary can be asked and simply omitted when it
+    # cannot, which is the case this branch is for.
+    echo "tri: many subcommands live there, 'now' among them. If '$cmd' is one:" >&2
     echo "tri:     cargo build --release -p tri" >&2
     echo "tri: t27c's own error follows." >&2
   fi

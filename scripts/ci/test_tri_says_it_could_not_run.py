@@ -132,6 +132,26 @@ def main():
             f"got {both_gone.returncode}; stderr={both_gone.stderr!r}",
         )
 
+        # #3120: `tri help` must not state a COUNT of the Rust binary's
+        # subcommands. The old text said "seventeen" in four places, one of
+        # them on stderr to the user, while the binary had grown to 47 -- a
+        # number a reader was told and that was 2.7x wrong. The help asks the
+        # binary now; a frozen count is the thing to refuse.
+        helptext = tri_in(root, "help").stdout + tri_in(root, "help").stderr
+        frozen = [w for w in ("seventeen", "sixteen", "eighteen", "nineteen")
+                  if w in helptext.lower()]
+        check(
+            "the help states no frozen count of subcommands",
+            not frozen,
+            f"found {frozen}",
+        )
+        # And with no binary it must SAY it cannot list them, not print nothing.
+        check(
+            "with no binary the help says so rather than listing nothing",
+            "NOT BUILT" in helptext,
+            f"help={helptext[-300:]!r}",
+        )
+
         # The claim the deleted line made, verified rather than asserted.
         for local in ("help", "loop-help", "disk"):
             r = tri_in(root, local)
