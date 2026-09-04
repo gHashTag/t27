@@ -14268,7 +14268,51 @@ in survival analysis: the spell is **LEFT-CENSORED**. The observation window is 
 guard written for the count does not travel to the timestamp sitting next to it -- 437 again, one
 variable over.
 
-## 518. `error:` is what a failed test says too, and it scored eight kills as zero
+## 518. The population fetch is a bounded read too, and it hides the whole subject
+
+&sect;517 fixed the streak inside `tri red`. **The listing that decides which workflows get examined
+at all was also one page**, and that is the larger half:
+
+    gHashTag/trinity-fpga   active workflows 405   one page 100
+    RED overall  50    RED tri red could see  5    RED INVISIBLE  45
+
+**Ninety percent of the red workflows in that repository were never reported**, by the command
+whose entire subject is *what is failing right now*. Not a wrong number -- an unexamined
+population, which prints identically to a healthy one.
+
+**The identical fetch in `cibase.rs` has paginated all along.** One fix that did not travel to its
+sibling (&sect;437), and the two lines sit in the same crate:
+
+```rust
+// cibase.rs   repos/{repo}/actions/workflows?per_page=100   +  "--paginate"
+// red.rs      repos/{repo}/actions/workflows?per_page=100      <- and nothing
+```
+
+**Why the census could not say so.** `tri gates fetches` takes the ENCLOSING FUNCTION as the
+subject of its guard question. `fn now` held more than one fetch, so the site sat in
+`a guard, but two fetches` -- an honest *cannot tell* -- for as long as that function had that
+shape. It resolved to `prints what it got` only when &sect;517 changed the function, and **that
+reclassification is what exposed a defect nobody had reported.** A census that abstains is not
+silent about the abstention, and the abstention is where this lived.
+
+**Two rules, and the second is the one that generalises.**
+
+1. **A `per_page=` on the fetch that defines the POPULATION is worse than one on a value.** A
+   truncated value is a wrong number; a truncated population is a wrong *subject*, and every
+   downstream number is then exactly right about the wrong set.
+2. **When a change moves a census, re-read the census.** This one moved
+   `prints what it got` from **1 to 3** and `fetch sites` from **23 to 25** in the same commit
+   that fixed &sect;517, and the pull request did not mention it. The A/B is two commands --
+   run the census at `HEAD` and at `HEAD^` and diff -- and it is how the 405 was found.
+
+**And the census had this shape itself.** Its walk is `cli/tri/src` and nothing else, while four
+loop helpers under `scripts/tri_loop/` bound the same API with `--limit` and three carry no guard.
+It now names that surface and sizes it (**7** bounded reads, counted loosely and published as an
+exclusion notice rather than a classification), because a count that quietly excludes part of its
+subject is this command's own subject. Its closing prose also carried two literals -- *"one of the
+nine"*, *"a crate that has 24"* -- beside numbers it computes; both are computed now.
+
+## 519. `error:` is what a failed test says too, and it scored eight kills as zero
 
 Two findings, and the second one is about the instrument that measured the first.
 
