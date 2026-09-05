@@ -13,6 +13,14 @@ name: Check Now Freshness
 
 on:
   pull_request:
+    # `edited` is NOT in the default set (opened, synchronize, reopened), and the gate
+    # below judges the pull request TITLE. Without it the rule fails in both directions:
+    # a benign title can be renamed to `fix(rust)` after the last green run and never be
+    # re-read, and an author who follows the failure message's own advice -- "name that
+    # scope instead" -- edits the title and the required context stays red with no way to
+    # re-run it but pushing a commit. The cost is that a body edit also re-runs this job;
+    # it is python only.
+    types: [opened, synchronize, reopened, edited]
     # No `branches:` filter on pull_request, deliberately. A branch filter makes
     # this gate silent on any PR whose base is not listed -- a stacked PR then
     # shows a green check list that a master-based PR would not get. Enforced by
@@ -55,3 +63,28 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python3 tools/check_now_entry_shape.py
+
+      # Same shape as the two above -- a control, then the thing itself.
+      #
+      # #3264 merged titled `fix(rust): ... (+3)` and carried only its docs/now note;
+      # the edit lived in the working tree and a `git reset --hard` destroyed it before
+      # the commit. Every control that pass asked about the built binary, which was
+      # correct. None asked about the commit.
+      #
+      # The guard was first added to `tri hooks pre-commit` (#3279) and was, that same
+      # day, reachable from nothing: `core.hooksPath` unset, 0 of 148 worktrees with an
+      # installed hook. It runs here so that it does not depend on what anyone installed.
+      # The scope list and the extension list are READ OUT of cli/tri/src/hooks.rs, so
+      # the two readers cannot drift into two rules; if they cannot be read the step
+      # exits 2, which is could-not-run and not a pass.
+      - name: Negative control for the fix( guard
+        run: python3 tools/check_fix_carries_source.py --self-check
+
+      # PR_TITLE is attacker-controlled text and reaches the script through the
+      # environment, never through `${{ }}` interpolation into a shell line.
+      - name: A fix( in a compiler scope must carry a source file
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 tools/check_fix_carries_source.py

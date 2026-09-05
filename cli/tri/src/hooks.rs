@@ -16,6 +16,28 @@ use regex::Regex;
 pub enum HooksCmd {
     /// Run every migrated commit-time gate in sequence (l1-check + now-gate).
     PreCommit,
+    /// A pull request whose title claims a compiler fix must carry a source file.
+    ///
+    /// The pre-commit form of this reads HEAD, which a contributor can skip and a
+    /// worktree without an installed hook never runs at all. This form reads the
+    /// PULL REQUEST: its title, and the union of its diff. That is the right unit
+    /// because merges here are squashed -- the commit that lands on master is the
+    /// pull request, so an intermediate commit that claims a fix before its source
+    /// arrives is not a defect and must not be flagged.
+    FixCarriesSource {
+        /// The pull request title. Defaults to HEAD's subject.
+        #[arg(long)]
+        subject: Option<String>,
+        /// Base sha; the diff read is `<base>...<head>`.
+        #[arg(long)]
+        base: Option<String>,
+        /// Head sha. Defaults to HEAD.
+        #[arg(long)]
+        head: Option<String>,
+        /// Run the controls and report, changing nothing.
+        #[arg(long)]
+        self_check: bool,
+    },
     /// L1 TRACEABILITY: last commit message must reference an issue
     /// (`Closes #N` / `Fixes #N` / `Resolves #N` / `Reference #N`).
     L1Check,
@@ -39,6 +61,9 @@ pub enum HooksCmd {
 pub fn run(cmd: &HooksCmd) -> Result<()> {
     match cmd {
         HooksCmd::PreCommit => pre_commit(),
+        HooksCmd::FixCarriesSource { subject, base, head, self_check } => {
+            fix_carries_source_cmd(subject.as_deref(), base.as_deref(), head.as_deref(), *self_check)
+        }
         HooksCmd::L1Check => l1_check(),
         HooksCmd::NowGate { path, today } => now_gate(path.as_deref(), today.as_deref()),
         HooksCmd::SessionGate => session_gate(),
@@ -692,12 +717,35 @@ fn subject_claims_source(subject: &str) -> bool {
         .any(|s| SOURCE_SCOPES.contains(&s.trim()))
 }
 
-/// Is this path a file the compiler is built from?
-fn is_source_path(path: &str) -> bool {
-    matches!(
-        path.rsplit_once('.').map(|(_, e)| e),
-        Some("rs") | Some("py") | Some("t27") | Some("zig")
-    )
+/// Is this path prose or a record, rather than substance?
+///
+/// THE FIRST FORM OF THIS WAS A WHITELIST OF CODE EXTENSIONS, AND THAT IS THE WRONG SHAPE.
+/// It began as {rs, py, t27, zig}, was widened to {c, h, v, sv, svh} once the 164
+/// hand-written `.v` files were noticed, and an adversarial pass then named four more
+/// categories that exist here and would each have been a false accusation in a REQUIRED
+/// context: 14 `.xdc` constraint files and 4 `.tcl`, which are the actual deliverable of
+/// timing work under `fix(verilog)`; 43 `.toml`, where a build-breakage fix genuinely
+/// lives; 72 `.lean` formalising the compiler's own lowering; and every extensionless
+/// path -- `Makefile`, `Dockerfile`, `scripts/tri` -- for which `rsplit_once('.')` yields
+/// None and no whitelist entry can ever match.
+///
+/// A whitelist of code cannot be completed, and each omission accuses someone. So the
+/// question is inverted. The defect this guard exists for, #3264, had a diff of EXACTLY
+/// one file: `docs/now/2026-09-05-an-untyped-local-bound-to-a-comparison-is-not-a-bool.md`.
+/// What it lacked was not any particular extension; it was anything at all besides prose.
+/// Prose and records are a small, stable, closed set. Substance is everything else.
+fn is_prose_or_record(path: &str) -> bool {
+    // Not `docs/`. A directory prefix is not a claim about content: `docs/` holds 11 `.py`
+    // and 4 `.sh` -- 132 of its 2489 files are not `.md` at all -- and calling an
+    // executable script prose because of where it lives is the same mistake in the other
+    // direction. The document FORMATS are the closed set; the directory is not.
+    const PROSE_EXT: [&str; 4] = ["md", "tex", "rst", "adoc"];
+    path.starts_with(".trinity/seals/")
+        || path
+            .rsplit_once('/')
+            .map_or(path, |(_, b)| b)
+            .rsplit_once('.')
+            .is_some_and(|(_, e)| PROSE_EXT.contains(&e))
 }
 
 /// Refuse a commit whose subject claims a compiler fix but whose diff has no source file.
@@ -732,7 +780,8 @@ fn fix_carries_source() -> Result<()> {
             .stdout,
     )
     .context("file list is not UTF-8")?;
-    if files.lines().any(|l| is_source_path(l.trim())) {
+    let paths: Vec<&str> = files.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    if paths.is_empty() || paths.iter().any(|p| !is_prose_or_record(p)) {
         return Ok(());
     }
     anyhow::bail!(
@@ -745,7 +794,7 @@ fn fix_carries_source() -> Result<()> {
 
 #[cfg(test)]
 mod fix_carries_source_tests {
-    use super::{is_source_path, subject_claims_source};
+    use super::{is_prose_or_record, subject_claims_source};
 
     /// The subject that shipped empty. This is the whole reason the check exists.
     #[test]
@@ -798,11 +847,185 @@ mod fix_carries_source_tests {
 
     #[test]
     fn source_paths_are_the_four_the_compiler_is_built_from() {
-        for p in ["bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig"] {
-            assert!(is_source_path(p), "{p}");
+        // Substance: everything the earlier extension whitelist would have refused,
+        // including the four categories an adversarial pass named and the extensionless
+        // paths no whitelist entry can ever match.
+        for p in [
+            "bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig",
+            "rtl/mac.v", "runtime/shim.c", "runtime/shim.h", "rtl/top.sv",
+            "fpga/verilog/gft_sadd_jtag.xdc", "synth/run.tcl", "Cargo.toml",
+            "proofs/lean4/Trinity/Emitter.lean", "Makefile", "Dockerfile", "scripts/tri",
+            "tools/conflict_markers_baseline.txt", "README",
+            // A directory prefix is not a claim about content.
+            "docs/tools/gen.py", "docs/scripts/build.sh", "docs/assets/diagram.svg",
+        ] {
+            assert!(!is_prose_or_record(p), "should be substance: {p}");
         }
-        for p in ["docs/now/note.md", ".trinity/seals/a.json", "README", "x.rs.orig"] {
-            assert!(!is_source_path(p), "{p}");
+        // Prose and records: the closed set.
+        for p in [
+            "docs/now/note.md", "docs/FROZEN.md", "docs/theory/x.tex", "paper/a.rst",
+            ".trinity/seals/Backend.json", "NOW.md", "a/b/c.md",
+        ] {
+            assert!(is_prose_or_record(p), "should be prose: {p}");
         }
+    }
+}
+
+/// The pull-request form of the guard: a title that claims a compiler fix, against the
+/// union of the diff.
+///
+/// WHY THIS EXISTS BESIDE THE PRE-COMMIT FORM. The hook version was merged in #3279 and
+/// was, that same day, reachable from nothing: `core.hooksPath` was unset and 0 of 148
+/// worktrees had an installed `pre-commit`, so five checks -- this one included -- were
+/// invoked by nothing. A guard that a single unset config disables is not a guard.
+///
+/// WHY THE PULL REQUEST AND NOT EACH COMMIT. Merges here are squashed, so the commit that
+/// lands on master IS the pull request. A branch may well carry `fix(rust): X` in one
+/// commit and the source in the next; squashed, that is correct, and flagging the
+/// intermediate would be a false accusation of a defect that never reaches master.
+fn fix_carries_source_cmd(
+    subject: Option<&str>,
+    base: Option<&str>,
+    head: Option<&str>,
+    self_check: bool,
+) -> Result<()> {
+    if self_check {
+        return fix_carries_source_self_check();
+    }
+    let head = head.unwrap_or("HEAD");
+    let subject = match subject {
+        Some(s) => s.to_string(),
+        None => git_out(&["log", "-1", "--pretty=%s", head])?,
+    };
+    if !subject_claims_source(subject.trim()) {
+        println!("fix-carries-source: PASSED (the title claims no compiler scope)");
+        return Ok(());
+    }
+    let files = match base {
+        Some(b) => git_out(&["diff", "--name-only", &format!("{b}...{head}")])?,
+        None => git_out(&["show", "--name-only", "--format=", head])?,
+    };
+    let paths: Vec<&str> = files
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    if paths.is_empty() {
+        println!("fix-carries-source: PASSED (the diff is empty; nothing can land)");
+        return Ok(());
+    }
+    let substance: Vec<&&str> = paths.iter().filter(|p| !is_prose_or_record(p)).collect();
+    if !substance.is_empty() {
+        println!(
+            "fix-carries-source: PASSED ({} of {} path(s) are substance, e.g. {})",
+            substance.len(),
+            paths.len(),
+            substance[0]
+        );
+        return Ok(());
+    }
+    anyhow::bail!(
+        "fix-carries-source: the title claims a compiler fix and the diff is prose only\n  \
+         title: {}\n  \
+         all {} path(s) in the diff are under docs/, under .trinity/seals/, or .md:\n{}\n  \
+         A scope of {} says the change is in the compiler. If the change really is\n  \
+         elsewhere, name that scope instead -- fix(seals), fix(docs), fix(ops) and\n  \
+         fix(paper) all land as prose and are not touched by this check. If the change IS\n  \
+         in the compiler and is not here, it was never committed: see #3264, whose entire\n  \
+         diff was one docs/now note.",
+        subject.trim(),
+        paths.len(),
+        paths.iter().map(|p| format!("      {p}")).collect::<Vec<_>>().join("\n"),
+        SOURCE_SCOPES.join(", ")
+    );
+}
+
+fn git_out(args: &[&str]) -> Result<String> {
+    let out = Command::new("git")
+        .args(args)
+        .output()
+        .with_context(|| format!("git {} failed to start", args.join(" ")))?;
+    if !out.status.success() {
+        anyhow::bail!(
+            "git {} exited {}: {}",
+            args.join(" "),
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    String::from_utf8(out.stdout).context("git output is not UTF-8")
+}
+
+/// Controls, in the shape the repository's other gates use: each states what it asserts,
+/// and a control that cannot fail is reported as a failure of the control.
+fn fix_carries_source_self_check() -> Result<()> {
+    let mut bad = Vec::new();
+    let mut say = |name: &str, ok: bool| {
+        println!("  {:<8}{name}", if ok { "ok" } else { "FAILED" });
+        if !ok {
+            bad.push(name.to_string());
+        }
+    };
+
+    // The defect, verbatim.
+    say(
+        "the subject that merged empty is recognised",
+        subject_claims_source(
+            "fix(rust): an untyped local bound to a comparison is not a bool (+3) (#3264)",
+        ),
+    );
+    // The eleven the loose rule would have accused. Measured on master: any `fix(` with
+    // no source file names 12 commits and 11 of them are correct to land that way.
+    let innocent = [
+        "fix(seals): reseal 149 gen-drifted specs after the C emitter changes (#2934)",
+        "fix(freeze): reseal FROZEN_HASH -- master does not build (Closes #2316)",
+        "fix(corpus): the ratchet was right -- 3 paid, 2 re-labelled, CLEAN (#2492)",
+        "fix(paper)+docs: W851 -- the recomputers find a stale table row",
+        "fix(article): W801 -- T478, the article has no unsourced statements",
+        "fix(ops): W793 -- T464, the ENOSPC was swap and I blamed the wrong thing",
+        "fix(build): stop discarding the bindings/javascript release profile (#2296)",
+        "fix(hooks): let the pre-commit hook reach the reader that works (#3184)",
+    ];
+    say(
+        "the scopes whose subject is elsewhere are not accused",
+        innocent.iter().all(|s| !subject_claims_source(s)),
+    );
+    say(
+        "every source scope is reachable",
+        SOURCE_SCOPES
+            .iter()
+            .all(|sc| subject_claims_source(&format!("fix({sc}): x"))),
+    );
+    say(
+        "a compound scope counts if any half does",
+        subject_claims_source("fix(docs, rust): the note and the fix")
+            && !subject_claims_source("fix(docs,seals): neither"),
+    );
+    say(
+        "a non-fix subject and a malformed one are ignored",
+        !subject_claims_source("feat(rust): a new emitter arm")
+            && !subject_claims_source("fix(rust: never closed")
+            && !subject_claims_source("fix: no scope at all"),
+    );
+    say(
+        "prose and records are a closed set and everything else is substance",
+        [
+            "bootstrap/src/compiler.rs", "rtl/mac.v", "fpga/verilog/a.xdc", "Cargo.toml",
+            "proofs/lean4/Emitter.lean", "Makefile", "scripts/tri", "README",
+            "docs/tools/gen.py", "docs/scripts/build.sh",
+        ]
+            .iter()
+            .all(|p| !is_prose_or_record(p))
+            && ["docs/now/n.md", "docs/FROZEN.md", ".trinity/seals/a.json", "NOW.md"]
+                .iter()
+                .all(|p| is_prose_or_record(p)),
+    );
+
+    println!();
+    if bad.is_empty() {
+        println!("ok: the guard accuses the one subject it was built for, and none of the eleven it was not.");
+        Ok(())
+    } else {
+        anyhow::bail!("{} control(s) did not behave as stated: {}", bad.len(), bad.join(", "))
     }
 }
