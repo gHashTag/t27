@@ -16156,7 +16156,47 @@ through `else if drop_withdrawn`, that the no-flag path still refuses by name, a
 guard consults the authorised set. Four mutants, all killed by both the unit tests and the
 scratch-repo control.
 
-## 583. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
+## 566. A census of what cannot be read is not a census of what is read wrongly
+
+`tri unparsed` ranks the constructs that stop the parser, each row backed by a live
+probe. It is a good instrument and it answers one question: which specs the compiler
+**cannot read**. Nothing in this tree answers the other one — which specs it reads
+**wrongly** — and that class is invisible for the reason that makes it dangerous:
+every gate is green on it.
+
+Fourteen corpus specs pass `parse`, pass `typecheck`, and emit a struct field with
+no type at all. Three of them appear in the debt ledger, for other reasons; **eleven
+are tracked by nothing**. A four-line reproducer shows the whole mechanism:
+
+```t27
+module probe {
+    pub const Thing = struct {
+        ok : u8,
+        bad : 0,
+    };
+}
+```
+
+An integer literal sits in **type position**. `parse` accepts it, `typecheck`
+accepts it, the Rust backend writes `pub bad: 0,`, the C backend writes `0 bad;`,
+and the Zig backend **drops the field entirely**. Two backends emit something their
+language cannot parse; the third silently produces a type that is missing a member,
+which is worse because nothing downstream can notice.
+
+The source of it is a declaration form the parser does not implement — a list-valued
+key whose items follow on later lines. Because recovery turns those items into fields,
+the specs come out the other side looking well-formed. **A parser that recovers
+produces output; a census built on failure cannot see it.**
+
+Two practical consequences. First, when a census exists, ask what its population is
+defined by — `unparsed` is defined by *the compiler refused*, so anything the
+compiler accepted is outside it by construction, however wrong the result. Second, the
+cheapest detector for the second class is not a parser change but a **shape check on
+the generated output**: `pub f: ,` and `0 bad;` are trivially greppable, and the
+population they find is exactly the one no phase covers.
+
+
+## 567. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
 
 The earlier units fan-out flagged `prcheck.rs` and I had not checked it. Checking it found a guard that
 is wrong on every real input.
