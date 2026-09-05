@@ -16868,3 +16868,74 @@ not apply to myself: a green control is a statement about the population it samp
 what population your claim is about, and check that some control samples *that* one. A
 claim about the repository is not tested by a question about the binary, however many
 times the binary answers correctly.
+
+## 583. A path-filtered diff is not a rebuildable commit
+
+A pull request had gone DIRTY in the squash cascade a third time. Its history could not be
+rewritten, so the change had to be lifted onto a fresh branch. Lifting it looked like one
+command:
+
+    git diff origin/master...FETCH_HEAD -- bootstrap/src/compiler.rs > /tmp/len.patch
+
+The patch applied **cleanly** and the tree **did not build**. The path filter — added to
+make the diff readable — dropped `bootstrap/stage0/FROZEN_HASH`, which the M5 ceremony
+requires to carry sha256 of `compiler.rs` **in the same commit**. Two files are one edit,
+and the filter knew about only one of them.
+
+`git diff --name-only origin/master...FETCH_HEAD` answered in full: thirty seal files, the
+compiler, and the hash. A filter that narrows a diff for reading must not then be the thing
+that produces the commit. Ask the unfiltered question first, and let the filter serve only
+the eye.
+
+The second half of this is how it presented. The build printed roughly forty lines of
+
+    warning: t27c LANGUAGE POLICY VIOLATION: Cyrillic character U+0438 in file docs/...
+
+about **pre-existing** documents, and the actual cause sat three lines below them:
+
+    thread 'main' panicked at bootstrap/build.rs:254
+
+The first diagnosis written down was "accumulated garbage in the worktree", and it was
+wrong; `git status --porcelain --untracked=all` answered 0. The control that settled it was
+a clean checkout of `origin/master` in a second worktree, which built with zero errors — so
+the difference was mine, and the panic already named it. **Read the last error, not the
+loudest one**, and get a baseline before naming a cause.
+
+## 584. A worktree's fetch refspec decides whether a branch exists
+
+`git diff --stat origin/master...origin/len-is-usize` answered:
+
+    fatal: bad revision 'origin/master...origin/len-is-usize'
+
+which reads exactly like a deleted branch. `git ls-remote --heads origin len-is-usize`
+answered `1`. The branch was there; the local ref was not, because this worktree carries a
+narrowed refspec:
+
+    $ git config --get remote.origin.fetch
+    +refs/heads/master:refs/remotes/origin/master
+
+`git fetch origin` in such a tree updates **master and nothing else**, forever, silently.
+Every `origin/<branch>` question asked here returns "bad revision" whatever the truth is —
+a broken ruler in the measuring environment rather than in the thing measured.
+
+The repair is one explicit fetch, `git fetch origin <branch>`, then read `FETCH_HEAD`.
+The guard is to answer "does this branch exist" with `ls-remote`, which asks the server,
+before believing a local ref's silence.
+
+## 585. Price a rule by the false accusations it makes, not by the catch
+
+A commit had merged whose subject claimed a compiler fix and whose diff carried only a
+prose note. The obvious gate is "a `fix(` with no source file is a lie". Measured over
+master's whole history that rule names **12 commits, and 11 of them are correct to land
+that way**: `fix(seals)` rewrites JSON, `fix(freeze)` rewrites one hash, `fix(paper)` edits
+a manuscript, `fix(corpus)` moves a ledger. Shipped as written it would have been a
+false-alarm generator with one true positive buried in it.
+
+The scope in the parentheses is what distinguishes them. Narrowed to the eight scopes that
+name the compiler — rust, c, zig, verilog, parser, compiler, lexer, typecheck — the rule
+names **1 of 100**, and that one is the defect.
+
+Both numbers had to be measured; neither was guessable. The eleven false accusations then
+became the test suite's negative case, verbatim, so the width of the rule is now pinned by
+the commits it must **not** flag. A rule whose false-positive set is unmeasured is not
+priced, and the catch alone never prices it.
