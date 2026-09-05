@@ -16649,3 +16649,51 @@ number survives.
 **Name the population in the sentence.** Four of the six failures are a population
 mismatch, not an arithmetic error: string literals counted as code, a matcher left
 unstated, a minimum reported as a central value, `coq/` where `coq/**/*.v` was meant.
+### The same guard is a decoration in one function and load-bearing in the next
+
+A mutation tool that edits source text has to know which bytes are code. `tri mutate`
+has a skip mask for exactly that, and it did not know Rust raw strings: `#` opens a
+comment two rules down, so `r#"` read as `r` plus a comment to end of line and the
+string's **contents** came back as code. A probe holding
+`pub const FIXTURE: &str = r#"\n threshold = 12345\n"#;` was reported as
+*4 literal(s)*, offering the fixture's numbers as constants to perturb.
+
+Its sibling: `test_module_lines` ends a `#[cfg(test)]` module at a line that is exactly
+`}`, and a fixture string can contain one. In `competitors.rs` the module ended at line
+692 — inside a raw string opening at 681 — so **36 offered sites sat below that file's
+own `#[cfg(test)]`**. Perturbing a test's own arithmetic fails that test, and the red is
+then read as "the checker noticed": the tautology the skip exists to prevent, through
+another door.
+
+Three things came out of fixing it that generalise past this tool.
+
+**A guard's necessity is a property of its position, not its logic.** A
+`!prev_is_word` check (so `"cannot occur"` cannot open a raw string at its trailing
+`r"`) was written into both functions. In `masked()` mutation removed it and every test
+stayed green — because the ordinary-string rule reaches those bytes **first** and masks
+the same span; run on `let _ = xr"junk 55 junk";` the tool reports identical mutants
+either way. It was deleted as a decoration. In `raw_string_opens`, which is a per-line
+scanner with no string rule ahead of it, the identical check is load-bearing: without it
+one line swallows every line after it, `#[cfg(test)]` included. **The same code, one
+function apart, is dead in one place and structural in the other**, and only measurement
+separates them.
+
+**Measure a plausible fix before believing it.** The ordinary multi-line string
+(`const X: &str = "\`) has the same brace problem. A parity rule — an odd number of
+unescaped quotes opens a string — is the obvious answer and is wrong: one unbalanced
+quote puts the scanner in string mode permanently, so `#[cfg(test)]` is never seen again
+and nothing is skipped at all. Across eleven files it took `fpga.rs` from 376 offered /
+637 skipped to **993 offered / 0 skipped**, and made the file it was meant to help worse.
+Reverted, and the case reported rather than guessed at.
+
+**Build the baseline from the other binary, not from memory.** Midway through I recorded
+`gates.rs` at 213 sites and then read 221 and spent effort chasing a regression that did
+not exist: the 213 came from a partially-modified build. Checking out master's own
+`mutate.rs` and `gates.rs`, building, and re-running the same eleven files gave the real
+before column — and `gates.rs` is 221 on master too.
+
+Prior art agrees on the shape of the fix. `cargo-mutants` parses with `syn` and applies
+its edits textually; the documented failure mode of naive textual mutators is a literal
+`"1 + 2"` mutated to `"1 - 2"`, failing a test for the wrong reason, and the stated
+minimum is a **tokenizer-based skip mask**. The mask existed here — it simply was not
+Rust-aware.

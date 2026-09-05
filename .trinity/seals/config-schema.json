@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:351be5835363be24216250c0143f5d1b2c244077fa1edc4a627c864915cf48a5",
-  "gen_hash_rust": "sha256:7eef6a918008885f552ae4dd3b767a9091cf000513a32174f4f4f62b1eeedc29",
+  "gen_hash_rust": "sha256:7825d95b41cfbb88d2853dc8d3e13e0a6c856027f1ba47fe492eeff08e03017f",
   "gen_hash_verilog": "sha256:efca8929a18fbb352ddd1406838101747dc9867fe2f2d62a5d7f17721af1e5ea",
   "gen_hash_zig": "sha256:2252857d709383b22d6968117fb5d48506f7f552b8e7b363147672bdeb12db2e",
   "module": "config-schema",
