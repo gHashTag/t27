@@ -17232,13 +17232,29 @@ an **all-zero local sha**.
     --amend              yes          yes
     --allow-empty        yes          yes
     merge --no-ff        NO           yes
-    cherry-pick          NO           NO
+    cherry-pick          NO           NO      (but prepare-commit-msg fires -- see below)
 
 So every gate in the barrier — the conflict-marker refusal above all — was silent on **the
 one commit type conflict markers come from**. `git merge` runs `pre-merge-commit`, whose
 non-zero exit stops the merge; the index at that moment holds the merge RESULT, which is
-exactly the operand the barrier reads once it is corrected to `--staged`. `cherry-pick` runs
-neither hook and git offers none that could stop it: that gap is stated, not papered over.
+exactly the operand the barrier reads once it is corrected to `--staged`.
+
+`cherry-pick` runs `prepare-commit-msg` and `post-commit`.
+
+**A first version of this section said cherry-pick could not be stopped by any hook, and
+that was wrong** -- because the probe carried markers for only SIX hook names. "Nothing
+fired" can mean "I did not look". Re-measured over the full set of thirteen:
+
+    cherry-pick      prepare-commit-msg, post-commit
+    git am           applypatch-msg, pre-applypatch, post-applypatch
+    rebase           NOTHING
+
+A non-zero exit from `prepare-commit-msg` aborts a cherry-pick (exit 128, no commit) and
+from `applypatch-msg` aborts a `git am` (exit 1, no commit). Both are covered now;
+`rebase` genuinely is not, and that one is the gap.
+
+The correction is the lesson: **the population of a probe is as narrow as its instrument
+list**, and an empty result from a narrow instrument is indistinguishable from an absence.
 
 **The method is enumeration, not cleverness.** Write marker hooks that only `touch` a file,
 run each event through them, and read which files exist. It takes minutes and answers a
