@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:c3aa125cd5baaab03a6e7462d6e5aee7b4beec6df29bf312b8bd1a19ca4135d4",
-  "gen_hash_rust": "sha256:7f978efd23c6b7e9e23e04effe89a148abfa167bee82c444d4dd2bcc28ce27c1",
+  "gen_hash_rust": "sha256:67f8a6a2b05d6bc2382502011543873acdea9ab7ed4cb7b2b02c5afebde4557e",
   "gen_hash_verilog": "sha256:2ddbbc75ee7e06cf0457a186d5132aa9595dbdb54bf4daed24a8e1a82e7cca2a",
   "gen_hash_zig": "sha256:05f711f99c0a8950aec2118ca3bb391c6c2dfbf22bfa1c95f7a4bca207144b36",
   "module": "ApbBridge",

@@ -21937,6 +21937,11 @@ fn rust_ident(name: &str) -> String {
     }
 }
 
+/// The lowering for a bracketed type whose brackets do not hold a size.
+fn return_unsized(elem: String) -> String {
+    format!("Vec<{}>", elem)
+}
+
 /// Does `hay` use `name` as a whole identifier?
 ///
 /// Substring matching is wrong here and cheaply so: `T` occurs inside `Trit`,
@@ -24522,8 +24527,50 @@ impl RustCodegen {
                     // same field comes out as `ProofStep* proof_steps;` -- so the
                     // target is set by a sibling backend, not inferred here.
                     let after = &t[end + 1..];
-                    let elem = if after.trim().is_empty() { inside } else { after };
-                    format!("Vec<{}>", Self::t27_type_to_rust(elem))
+                    if after.trim().is_empty() {
+                        // t27's own `[T]`: the element is inside and there is no
+                        // size, so a growable Vec is the honest lowering.
+                        format!("Vec<{}>", Self::t27_type_to_rust(inside))
+                    } else if inside.trim().is_empty() {
+                        // `[]T` -- a slice. Also unsized.
+                        format!("Vec<{}>", Self::t27_type_to_rust(after))
+                    } else {
+                        // Zig-style `[N]T`: the SIZE is in the brackets. It was
+                        // discarded here and the type came out `Vec<T>`, which
+                        // loses the length and cannot stand in a `const` at all.
+                        // The right answer was already in this same mapper: the
+                        // `[T; N]` branch forty lines above writes a real array,
+                        // and its comment records that only the Zig spelling used
+                        // to be handled. The two swapped places and one was left
+                        // behind.
+                        //
+                        // Array lengths are `usize` and spec size consts are u32,
+                        // so a named size is cast in the const-expr position,
+                        // exactly as the sibling branch does.
+                        // Not everything inside the brackets is a size. `[*]T` is
+                        // the source language's many-item POINTER, and reading its
+                        // `*` as a length produced `[T; * as usize]`, which does
+                        // not parse -- a regression this change caused and the
+                        // measurement caught. Anything that is not a digit string
+                        // or a plain identifier keeps the previous unsized
+                        // lowering.
+                        let size = inside.trim();
+                        let sized = !size.is_empty()
+                            && (size.chars().all(|c| c.is_ascii_digit())
+                                || size
+                                    .chars()
+                                    .all(|c| c.is_ascii_alphanumeric() || c == '_'));
+                        if !sized {
+                            return_unsized(Self::t27_type_to_rust(after))
+                        } else {
+                        let elem = Self::t27_type_to_rust(after);
+                        if size.chars().all(|c| c.is_ascii_digit()) {
+                            format!("[{}; {}]", elem, size)
+                        } else {
+                            format!("[{}; {} as usize]", elem, size)
+                        }
+                        }
+                    }
                 }
             }
             t if t.starts_with('*') => {

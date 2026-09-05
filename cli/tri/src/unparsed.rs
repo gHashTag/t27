@@ -816,20 +816,34 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
         // printed as "nothing claimed": this command said 2 typecheck where
         // its sibling, in the same binary, said 5.
         let sc = parse_failures(&root, &t27c);
-        let (mut found, mut refused, mut silent) = (Vec::new(), Vec::new(), 0usize);
+        // `Located::None` carries the reason -- its doc says "Nothing claimed,
+        // and why" -- and the sole reader bound it to a wildcard and counted.
+        // Six reasons became one number, and "unreadable" among them means the
+        // TOOL failed, not that the spec had nothing to say.
+        let (mut found, mut refused) = (Vec::new(), Vec::new());
+        let mut silent: std::collections::BTreeMap<&'static str, usize> = Default::default();
         let (tc, lex, sem) = (sc.typecheck, sc.lex, sc.semantic);
         for (spec, text) in &sc.failures {
             match locate_one(&t27c, &root, &root.join(spec), text) {
                 Located::Item(a, b, alone) => found.push((spec.clone(), a, b, alone)),
                 Located::Refuted(a, b) => refused.push((spec.clone(), a, b)),
-                Located::None(_) => silent += 1,
+                Located::None(why) => *silent.entry(why).or_default() += 1,
             }
         }
         let alone = found.iter().filter(|(_, _, _, a)| *a).count();
         println!("  located AND causally confirmed   {}", found.len());
         println!("  ... the item ALONE reproduces    {alone}  <- a minimal case, not a coordinate");
         println!("  candidate REFUTED by causality   {}", refused.len());
-        println!("  nothing claimed                  {silent}");
+        let silent_total: usize = silent.values().sum();
+        println!("  nothing claimed                  {silent_total}");
+        for (why, n) in &silent {
+            let tag = if *why == "unreadable" {
+                "  <-- the tool failed, not the spec"
+            } else {
+                ""
+            };
+            println!("      {n:>4}  {why}{tag}");
+        }
         if tc + lex + sem > 0 {
             println!();
             println!("  not a PARSE failure, so not this command's question:");
@@ -1060,6 +1074,30 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_reason_reaches_the_tally() {
+        // `Located::None` documents itself as "Nothing claimed, and why", and
+        // the sole reader bound the why to a wildcard and counted. Six distinct
+        // reasons became one number, and "unreadable" among them says the TOOL
+        // failed rather than that the spec had nothing to say. The defect is a
+        // discarding pattern at the call site, so that is what this reads.
+        let src = include_str!("unparsed.rs");
+        let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
+        // The slice stops at the FIRST test module, and this file has one at
+        // line 1075 with SIX production items after it. So the slice really is
+        // truncated here; the subject just happens to sit above the cut. If it
+        // ever moves below, `contains` goes false and the negative assertion
+        // passes because it is looking at nothing.
+        assert!(
+            prod.contains("Located::None("),
+            "the production slice no longer reaches the subject -- this test would pass vacuously"
+        );
+        assert!(
+            !prod.contains(concat!("Located::None(", "_)")),
+            "the reason is discarded at the match arm again"
+        );
+    }
     use super::*;
 
     // Each negative here is a MEASUREMENT: the construct compiles in isolation,

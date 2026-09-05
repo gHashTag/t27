@@ -1,7 +1,7 @@
 {
   "conformance_hash": null,
   "gen_hash_c": "sha256:55d2b44f985fbd1be8ec09860670dac3cdd063a1820f051bfbc3bb06f22c0e74",
-  "gen_hash_rust": "sha256:cb355ff32682bd0746fa77a124bfdfa4ee482dab32e5d3d96c18d97367e5533a",
+  "gen_hash_rust": "sha256:1cf53ef31359cc59054b4d9901fb855b6803d61129e35f021f6411d320817f92",
   "gen_hash_verilog": "sha256:a31a9f51b800f001359f265729430b4483435d9f877904e1683ac4cece39332b",
   "gen_hash_zig": "sha256:28f692d09607637c8506eaad4c63d92533fbc96db1de0b7682dada7aca853eb5",
   "module": "GF16",
