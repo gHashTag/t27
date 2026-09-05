@@ -16178,10 +16178,19 @@ module probe {
 ```
 
 An integer literal sits in **type position**. `parse` accepts it, `typecheck`
-accepts it, the Rust backend writes `pub bad: 0,`, the C backend writes `0 bad;`,
-and the Zig backend **drops the field entirely**. Two backends emit something their
-language cannot parse; the third silently produces a type that is missing a member,
-which is worse because nothing downstream can notice.
+accepts it, the Rust backend writes `pub bad: 0,` and the C backend writes `0 bad;`,
+both unparseable in their languages.
+
+The Zig backend is where it disappears. It writes `bad: 0,` and, for the empty type
+slot, `empty: void` -- and **`zig build-obj` accepts both, and so does the deeper
+`zig test --test-no-exec`**. Nothing in the Zig column can see either shape, so the
+corpus counts these specs as generating and accepting.
+
+(An earlier version of this section said Zig *dropped* the field. That was wrong and
+came from running `t27c gen-zig`, which is not a subcommand -- the Zig backend is
+`gen`. The empty output of a misspelled command was read as a dropped field. The
+corpus itself always used `gen`, so its numbers were never affected; only this
+paragraph was. See the note below.)
 
 The source of it is a declaration form the parser does not implement — a list-valued
 key whose items follow on later lines. Because recovery turns those items into fields,
