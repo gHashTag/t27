@@ -1,8 +1,8 @@
 BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
 
   files read                    43
-  lines naming either spelling  66
-  of those, FETCH SITES         26
+  lines naming either spelling  68
+  of those, FETCH SITES         28
   refused as not a fetch        40   (--excluded prints them)
 
   complete by construction:
@@ -10,30 +10,31 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     per_page=1 + total_count    5
 
   bounded, and:
-    asks whether the page filled  9
+    asks whether the page filled  10
     a guard, but two fetches       0   <- which one does it cover?
     per_page=1, NO total read     3
-    prints what it got            2
+    prints what it got            3
 
   PRINTS WHAT IT GOT:
-    red.rs:156  fn runs_url
-    red.rs:167  fn deep_runs_url
+    red.rs:141  fn failing_steps
+    red.rs:321  fn runs_url
+    red.rs:332  fn deep_runs_url
 
   ONE ROW, NO TOTAL:
     gates.rs:3596  fn unmeasured
-    red.rs:194  fn last_pass
-    red.rs:395  fn now
+    red.rs:359  fn last_pass
+    red.rs:560  fn now
 
   A full page is a LOWER BOUND and only a short one is a total, so a
   bounded fetch that prints what it got is stating a page as a census. The
   subject of the guard question is the ENCLOSING FUNCTION, which has a cost
   this states rather than hides: a function that only BUILDS a url and hands
   it to a guarded caller reads as unguarded, and `red.rs`'s `runs_url` is
-  exactly that. 2 of the 2 in that bucket are that shape.
+  exactly that. 2 of the 3 in that bucket are that shape.
 
   The exclusions are the other half of the reading. Taking every line that
-  merely NAMES `--limit` or `per_page=` reports 66 sites in a crate that has
-  26: prose, doc comments, a marker table and test assertions. A matcher that
+  merely NAMES `--limit` or `per_page=` reports 68 sites in a crate that has
+  28: prose, doc comments, a marker table and test assertions. A matcher that
   swallowed them would be describing its input.
 
   SURFACE: this reads `cli/tri/src/*.rs` and nothing else. 4 bounded
