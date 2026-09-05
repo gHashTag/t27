@@ -8,6 +8,10 @@ on:
   pull_request:
     paths:
       - 'proofs/trinity/**.v'
+      # This file. Without it a PR that repairs this workflow cannot run it, so
+      # the repair ships unverified -- which is how it stayed broken. The `push:`
+      # block above already lists it; the two triggers disagreed.
+      - '.github/workflows/coq-proofs.yml'
   workflow_dispatch:
 
 jobs:
@@ -16,6 +20,19 @@ jobs:
     container:
       image: coqorg/coq:8.19-ocaml-4.14-flambda
       options: --user root
+    # `--user root` is why every run of this job has failed. The image
+    # initialises opam for the `coq` user under /home/coq/.opam; as root, OPAMROOT
+    # defaults to /root/.opam, which does not exist. The log says so exactly:
+    #
+    #     [WARNING] Running as root is not recommended
+    #     [ERROR] Opam has not been initialised, please run `opam init'
+    #     ##[error]Process completed with exit code 50.
+    #
+    # Pointing OPAMROOT at the root the image actually built is the whole fix.
+    # `--user root` stays: checkout writes into a workspace root owns.
+    env:
+      OPAMROOT: /home/coq/.opam
+      OPAMYES: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -24,9 +41,15 @@ jobs:
         run: |
           opam update
           opam install -y coq-interval.4.9.0
+          # Prove the switch is really there before anything depends on it.
+          eval $(opam env)
+          coqc --version
 
       - name: Compile Proofs
         run: |
+          # A new step is a new shell, so the switch has to be re-entered; without
+          # this, coqc is either absent or the wrong one.
+          eval $(opam env)
           cd proofs/trinity
           echo "Compiling Coq proof files..."
           # Compile in dependency order
