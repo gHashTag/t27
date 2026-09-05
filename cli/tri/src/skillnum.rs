@@ -273,9 +273,26 @@ fn skill_files(root: &std::path::Path) -> Vec<PathBuf> {
         return out;
     };
     for e in rd.flatten() {
-        let p = e.path().join("SKILL.md");
-        if p.is_file() {
-            out.push(p);
+        // Read the entry that is THERE rather than joining a name and asking
+        // whether it exists. 5 skill files are tracked here and 2 are spelled
+        // `skill.md`, so joining the uppercase name reads 3 of 5 -- and on a
+        // case-insensitive filesystem `join("SKILL.md").is_file()` is true for a
+        // file actually called `skill.md`, handing back a path git has never
+        // heard of. `git show origin/master:<that>` then fails and a tracked
+        // file reads as NEW, which is the quiet direction to be wrong in.
+        //
+        // Neither lowercase file carries a numbered heading today, so the
+        // population that was missing is empty and no past check gave a wrong
+        // answer. That is luck: the next numbered heading added to one of them
+        // would have been unguarded.
+        let Ok(inner) = std::fs::read_dir(e.path()) else {
+            continue;
+        };
+        for f in inner.flatten() {
+            if f.file_name().eq_ignore_ascii_case("SKILL.md") && f.path().is_file() {
+                out.push(f.path());
+                break;
+            }
         }
     }
     out.sort();
