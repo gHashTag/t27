@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:ecb4180353077decf9d986bbd04aa5ba1d7fdd2297cde21ee5151b48abf4d3b0",
-  "gen_hash_rust": "sha256:59c1e46009f891a5e4d70fa4ffd050068f60666a19dd7ee7591575528591ffbc",
+  "gen_hash_rust": "sha256:b2c922763b7025165631e23bdaac41c60e048d42700dc594fb26f1365ca5d1c7",
   "gen_hash_verilog": "sha256:d78a8cf66594934278057aa96d438c038d93cce08a39c7c0ff73af15e3c09430",
   "gen_hash_zig": "sha256:3d69fc425336db0bc1ab54fd33b7c7717c16421129e51379d6c0e84a2a9936fe",
   "module": "UART_Testbench",
