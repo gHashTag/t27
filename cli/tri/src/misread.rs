@@ -16,10 +16,15 @@
 //! ```
 //!
 //! An integer literal sits in TYPE position. `parse` accepts it, `typecheck`
-//! accepts it, the Rust backend writes `pub bad: 0,`, the C backend writes
-//! `0 bad;`, and the Zig backend drops the field entirely. Two emit something
-//! their language cannot parse; the third silently produces a type missing a
-//! member, which is worse, because nothing downstream can notice.
+//! accepts it, the Rust backend writes `pub bad: 0,` and the C backend writes
+//! `0 bad;`, both unparseable in their languages.
+//!
+//! The Zig backend is where it disappears, and not by dropping anything: it
+//! writes `bad: 0,` and `empty: void`, and BOTH readings accept them --
+//! `zig build-obj` and the deeper `zig test --test-no-exec` alike. So the Zig
+//! column of the corpus counts these specs as generating AND accepting, and no
+//! shape read from Zig output would flag the `void` one, since `void` is a
+//! legitimate Zig type. That is why the shapes below are read from Rust and C.
 //!
 //! ERROR RECOVERY IS WHAT HIDES IT. A list-valued declaration the parser does not
 //! implement has its items recovered as fields, so the spec comes out the other
