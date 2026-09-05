@@ -16115,9 +16115,51 @@ Measure the second one after the change and diff by spec name, so a gain and a
 regression cannot cancel in a total.
 
 
-## 565. The prototype gave the right number because one of its alternatives was dead
+## 565. One of four refusals had an unambiguous repair, and a second guard blocked it
 
-&sect;565 found one entry carrying another's body, by accident, while repairing something else. The
+`tri skill renumber` refuses in four places and repairs in none. Three of them are right to: when the
+rebuild would DROP a section, the safe action is unknown -- the section might be mine or the base's,
+and guessing loses work.
+
+**The fourth is settled.** When the tail carries a section the base REMOVED on purpose, the command
+already knows exactly which ones, and carrying them forward resurrects a retraction. `--drop-withdrawn`
+removes exactly those and names each one. It is **opt-in**: deleting text nobody asked to delete is
+how a tool earns distrust, and the refusal already prints the list.
+
+### The second guard blocked the first guard's sanctioned repair
+
+The first version did precisely what it promised -- dropped the section, printed its name -- and then
+died two hundred lines later on:
+
+```text
+Error: the rebuild would DROP 1 section(s) that are on disk now:
+    Bravo
+```
+
+That is `titles_lost`, added three passes ago to stop a silent deletion. It is correct in general and
+wrong here: **Bravo is on disk, Bravo is gone from the rebuild, and the operator asked for that.**
+
+**A guard has to know what the operator authorised, or the authorisation is not real.** The lost-title
+check is now filtered by the set `--drop-withdrawn` was given, and the structural test asserts that
+filter exists -- because without it the flag looks like it works, prints a correct account of what it
+did, and refuses anyway.
+
+### Two structural tests failed, and both were right to
+
+They pin the SHAPE of the code around each guard. Changing `if !withdrawn.is_empty() { bail }` into a
+three-armed `if / else if drop_withdrawn / else` broke the string they search for, and so did wrapping
+`titles_lost(...)` in a filter. **A structural test that survives a restructuring of the thing it
+pins is not pinning it.**
+
+Both were rewritten to assert the NEW invariant rather than to pass: that removal is reachable only
+through `else if drop_withdrawn`, that the no-flag path still refuses by name, and that the lost-title
+guard consults the authorised set. Four mutants, all killed by both the unit tests and the
+scratch-repo control.
+
+
+## 566. The prototype gave the right number because one of its alternatives was dead
+
+&sect;567 found one entry carrying another's body, by accident, while repairing something else. The
 question it left was whether that was a case or a class. `tri skill lost` now asks it, and the answer
 is **one, and it is fixed** -- but the road to that number is the finding.
 
@@ -16162,7 +16204,7 @@ test that fails on correct code has told you about your fixture.
 Measured: **1** flagged on the damaged base, **0** on the repaired tree, **0** in `SKILL.md` across
 524 sections.
 
-## 566. I audited my own detector in the wrong unit
+## 567. I audited my own detector in the wrong unit
 
 &sect;568 shipped a check that found **0** misattributed entries, using a matcher anchored on word
 boundaries. The obvious worry, written into that pass's own next-steps: `W434` inside
@@ -16201,7 +16243,7 @@ What would change the verdict is an entry whose body names a foreign id ONLY in 
 names none of its own at all. That entry does not exist today. **If one is ever written, this section
 is the note that says which line to change.**
 
-## 577. Three hundred and twelve headings, three hundred and ten seats
+## 568. Three hundred and twelve headings, three hundred and ten seats
 
 &sect;571 asked in which unit a check DECIDES against the unit a reader AUDITS it in, and declined to
 widen a matcher because the two agreed. A fan-out over the whole CLI asked the same question
