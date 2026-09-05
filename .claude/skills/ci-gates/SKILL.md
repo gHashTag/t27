@@ -17269,3 +17269,50 @@ Two hazards met while measuring, both worth their own line:
 * **A failed `cd` does not stop a subshell.** `( cd "$P" ; git commit ; git merge )` with a
   missing `$P` ran its commits in the current tree. Write `cd "$P" || exit 1`, print `pwd`,
   and make any probe that WRITES confirm its location first.
+
+## 595. The gate's blindness was its bypass, and giving it sight removed the exemption
+
+A required context called `check` had, for months, one step whose entire body was
+
+    echo "Checking repository freshness..."
+
+Two facts followed from that, and only the first was ever noticed. It asserted nothing --
+which is why it was eventually given real work. And it exempted every bot pull request from
+a requirement it could not enforce, which nobody noticed at all, because **an exemption
+produced by blindness looks exactly like no exemption being needed**.
+
+The repository already knew bots need an exemption here. Two sibling required contexts were
+given a trusted-bot no-op in June, with the reason recorded: a SKIPPED required check never
+satisfies branch protection, so the bypass has to be a step that PASSES, not a job that is
+skipped. That fix was never carried to the third gate, because the third gate did not appear
+to need it.
+
+Measured the day after the gate got teeth:
+
+    IS_BOT occurrences / conditional steps
+      now-sync-gate.yml        6 / 5
+      issue-gate.yml           3 / 2
+      check-now-freshness.yml  0 / 0        <- the required context `check`
+
+    eight open Dependabot pull requests
+      opened after the change  3   check = FAILURE, other three contexts green
+      opened before            5   check = SUCCESS, only because the run predates it
+
+The five green ones were not safe; any synchronize or title edit re-runs the job and flips
+them. With the ruleset not editable and no bypass_actors, a red required context means the
+pull request **can never merge** -- and the gate's own failure text asserted the thing that
+is false on exactly this population: "NOW Sync Gate should have caught that first", when on
+a bot pull request NOW Sync Gate deliberately does not look.
+
+**When you give an empty gate real work, ask what its emptiness was covering.** A gate that
+asserted nothing also refused nothing, and every population that quietly depended on that is
+about to meet a rule for the first time. Look for the exemptions its siblings carry: if two
+of three have one and the third does not, the third is not simpler -- it is younger.
+
+Proven end to end rather than argued: after the port, all eight bot pull requests report
+`check = SUCCESS`, and the three that were red are mergeable.
+
+One more line, because it cost a rewrite. This section was first written into an UNQUOTED
+heredoc, so every backtick in it ran as a command substitution and the section landed with
+its code spans eaten -- `check` became nothing, and one of them printed
+`command not found: check`. Quote the delimiter: `<<'MD'`, never `<<MD`.
