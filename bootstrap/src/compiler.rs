@@ -21915,6 +21915,33 @@ fn collect_fn_ret_types(node: &Node, out: &mut std::collections::HashMap<String,
 ///
 /// Declarations sit at file level or inside a module node, so the scan is
 /// recursive, exactly like its neighbours above.
+/// A spec field may be named `type`, `ref` or `match`; those are Rust keywords and
+/// the emitter wrote them bare, so the struct did not parse. Rust's raw-identifier
+/// syntax `r#type` is the exact spelling for this and needs no judgement.
+///
+/// `crate`, `self`, `Self` and `super` are deliberately NOT escaped: `r#` is invalid
+/// for them, so escaping would replace one parse error with another. They do not
+/// occur as field names in this corpus; if one appears, it stays bare and fails
+/// visibly rather than failing in a way that looks like this fix worked.
+fn rust_ident(name: &str) -> String {
+    const KEYWORDS: &[&str] = &[
+        "as", "async", "await", "box", "break", "const", "continue", "dyn", "else",
+        "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop",
+        "match", "mod", "move", "mut", "pub", "ref", "return", "static", "struct",
+        "trait", "true", "type", "union", "unsafe", "use", "where", "while", "yield",
+    ];
+    if KEYWORDS.contains(&name) {
+        format!("r#{}", name)
+    } else {
+        name.to_string()
+    }
+}
+
+/// The lowering for a bracketed type whose brackets do not hold a size.
+fn return_unsized(elem: String) -> String {
+    format!("Vec<{}>", elem)
+}
+
 /// Does `hay` use `name` as a whole identifier?
 ///
 /// Substring matching is wrong here and cheaply so: `T` occurs inside `Trit`,
@@ -23816,7 +23843,11 @@ impl RustCodegen {
                 if field_type.trim() == "bool" {
                     self.bool_fields.insert(field_name.clone());
                 }
-                self.write_line(&format!("pub {}: {},", field_name, field_type));
+                self.write_line(&format!(
+                    "pub {}: {},",
+                    rust_ident(field_name),
+                    field_type
+                ));
             }
         }
         self.indent -= 1;
@@ -23906,7 +23937,7 @@ impl RustCodegen {
         let params: Vec<(String, String)> = node.params.clone();
         let params_str = params
             .iter()
-            .map(|(n, t)| format!("{}: {}", n, Self::t27_type_to_rust(t)))
+            .map(|(n, t)| format!("{}: {}", rust_ident(n), Self::t27_type_to_rust(t)))
             .collect::<Vec<_>>()
             .join(", ");
         let ret_type = if node.extra_return_type.is_empty() {
@@ -24496,8 +24527,50 @@ impl RustCodegen {
                     // same field comes out as `ProofStep* proof_steps;` -- so the
                     // target is set by a sibling backend, not inferred here.
                     let after = &t[end + 1..];
-                    let elem = if after.trim().is_empty() { inside } else { after };
-                    format!("Vec<{}>", Self::t27_type_to_rust(elem))
+                    if after.trim().is_empty() {
+                        // t27's own `[T]`: the element is inside and there is no
+                        // size, so a growable Vec is the honest lowering.
+                        format!("Vec<{}>", Self::t27_type_to_rust(inside))
+                    } else if inside.trim().is_empty() {
+                        // `[]T` -- a slice. Also unsized.
+                        format!("Vec<{}>", Self::t27_type_to_rust(after))
+                    } else {
+                        // Zig-style `[N]T`: the SIZE is in the brackets. It was
+                        // discarded here and the type came out `Vec<T>`, which
+                        // loses the length and cannot stand in a `const` at all.
+                        // The right answer was already in this same mapper: the
+                        // `[T; N]` branch forty lines above writes a real array,
+                        // and its comment records that only the Zig spelling used
+                        // to be handled. The two swapped places and one was left
+                        // behind.
+                        //
+                        // Array lengths are `usize` and spec size consts are u32,
+                        // so a named size is cast in the const-expr position,
+                        // exactly as the sibling branch does.
+                        // Not everything inside the brackets is a size. `[*]T` is
+                        // the source language's many-item POINTER, and reading its
+                        // `*` as a length produced `[T; * as usize]`, which does
+                        // not parse -- a regression this change caused and the
+                        // measurement caught. Anything that is not a digit string
+                        // or a plain identifier keeps the previous unsized
+                        // lowering.
+                        let size = inside.trim();
+                        let sized = !size.is_empty()
+                            && (size.chars().all(|c| c.is_ascii_digit())
+                                || size
+                                    .chars()
+                                    .all(|c| c.is_ascii_alphanumeric() || c == '_'));
+                        if !sized {
+                            return_unsized(Self::t27_type_to_rust(after))
+                        } else {
+                        let elem = Self::t27_type_to_rust(after);
+                        if size.chars().all(|c| c.is_ascii_digit()) {
+                            format!("[{}; {}]", elem, size)
+                        } else {
+                            format!("[{}; {} as usize]", elem, size)
+                        }
+                        }
+                    }
                 }
             }
             t if t.starts_with('*') => {
@@ -24834,7 +24907,7 @@ impl RustCodegen {
                         } else {
                             self.expr_to_rust(&c.children[0])
                         };
-                        format!("{}: {}", c.name, val)
+                        format!("{}: {}", rust_ident(&c.name), val)
                     })
                     .collect();
                 format!("{} {{ {} }}", node.name, fields.join(", "))
@@ -24884,7 +24957,7 @@ impl RustCodegen {
                     if self.enum_names.contains(&base) {
                         format!("{}::{}", base, node.name)
                     } else {
-                        format!("{}.{}", base, node.name)
+                        format!("{}.{}", base, rust_ident(&node.name))
                     }
                 } else {
                     node.name.clone()
