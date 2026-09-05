@@ -16239,7 +16239,7 @@ they *cannot* say.
 first means work was performed and dropped, which usually means a result that was meant
 to reach somewhere and does not. `tri gates warnings` splits them into
 `DISCARDED` / `dead` / `cosmetic` / `other`, and `--gate` holds only the first class at
-zero. The 17 dead and 5 cosmetic warnings stay visible and ungated.
+zero. The 16 dead and 6 cosmetic warnings stay visible and ungated.
 
 **A warning report must force the work.** A cached compilation unit emits *no warnings
 at all*, so a report run against a warm `target/` reads clean no matter what the code
