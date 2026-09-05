@@ -1,0 +1,31 @@
+# WebAssembly bridge exposing the REAL t27 compiler to the browser.
+#
+# This crate deliberately contains no compiler logic of its own: it `#[path]`-
+# includes `bootstrap/src/compiler.rs` verbatim, so the tokens, AST, HIR and
+# generated code a browser shows are produced by the same code the CLI runs.
+# A second, hand-written parser in TypeScript would have been easier to ship
+# and would have started drifting from the compiler the day it was written.
+#
+# Standalone `[workspace]` on purpose: this must not alter the root workspace
+# manifest, which other work in this repository edits concurrently.
+[package]
+name = "t27-wasm-explorer"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "WebAssembly bridge for the t27 compiler pipeline explorer"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde_json = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[workspace]

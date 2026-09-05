@@ -1,6 +1,36 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-09-04
+Last updated: 2026-09-05
+
+## The compiler now runs in a browser, and 49 specs turned out to be losing declarations silently
+
+- Branch: `fix/struct-field-brace-nesting`
+- Added: `bindings/wasm-explorer/` (Closes #3272)
+
+`bootstrap/src/compiler.rs` crosses to `wasm32-unknown-unknown` untouched. It
+carries exactly one external `use`, and its only `std::fs`/`std::env` calls sit
+inside `#[cfg(test)]`, so nothing had to change to make this work. The bridge
+adds no compiler logic of its own -- it `#[path]`-includes the file verbatim
+and exposes three `extern "C"` entry points, so a browser and the CLI cannot
+disagree about what a spec parses to.
+
+    release build      477 KB raw / 173 KB gzipped, all five backends linked
+    corpus scan        497/497 parse, 5 ms average
+    worst case         compiler/parser.t27 -- 68 ms, 10,927 tokens, 3,738 nodes, depth 22
+
+Plain `extern "C"` rather than wasm-bindgen on purpose: `cargo build --target
+wasm32-unknown-unknown --release` is then the whole toolchain, with no JS glue
+generator in the build. Standalone `[workspace]` table, so the root manifest is
+untouched.
+
+**The incidental finding is the more interesting one.** The bridge calls
+`parse_ast_full` rather than `parse_ast`, and scanning the corpus through it
+shows **49 of 497 specs (9.9%) lose declarations to error recovery while still
+reporting a successful parse**. Worst is `api/c_api_contract.t27`: 25 discarded
+declarations and 50 characters dropped by the lexer, and its generated Verilog
+reads `module unknown (` because the `module` declaration was itself among the
+discards. This is pre-existing behaviour that this crate only made visible --
+whether recovery should be that quiet is a separate question, recorded in #3272.
 
 ## Corpus 74.2% -> 76.7% clean, a silent infinite loop found and closed, six sibling passes swept
 
