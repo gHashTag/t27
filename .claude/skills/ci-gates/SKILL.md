@@ -17066,3 +17066,49 @@ Two separate repairs, and only the first is about correctness:
 The general form: whenever a tool is selected from candidates, the selection rule is part of
 the instrument. A preference order written for one purpose — "debug first, it is what a
 developer has" — becomes a staleness bug the moment the other candidate is the fresh one.
+
+## 590. Every gate in the barrier read a different operand than the thing it gates
+
+Five gates run at commit time here. Four had never been attacked. An adversarial pass put
+one lens on each and then tried to refute what came back: **8 candidates, 8 survived
+refutation, 0 refuted.** Every single one is the same structural error.
+
+    now_gate           reads the DIRECTORY listing        the commit is not an input
+    now_gate           freshness of the directory         not of the entry the commit adds
+    check_staged       lists the INDEX                    judges the WORKING TREE
+    check_staged       loses C-quoted non-ASCII paths     from the population, silently
+    conflict_markers   reads the WORKING TREE             the commit takes the INDEX
+    conflict_markers   SKIP_SUFFIX drops 55 tracked files 6 of them lock files
+    l1_check           reads HEAD                         not the message being written
+    l1_check           the same off-by-one                refuses a compliant commit
+
+The conflict one, reproduced before any of it was acted on:
+
+    $ printf 'a\n<<<<<<< HEAD\nb\n=======\nc\n>>>>>>> other\n' > probe.txt && git add probe.txt
+    $ printf 'a\nb\n' > probe.txt          # working tree clean, INDEX conflicted
+    $ tri hooks pre-commit ; echo $?
+    tri hooks pre-commit: PASSED
+    0
+    $ git commit --no-verify -m '...' && git show HEAD:probe.txt | grep -c '^<<<<<<<'
+    1
+
+Exit 0, no line mentioning a conflict, and the commit carries the marker. **A gate that
+reads a different operand than the one being committed is not a barrier**, however correct
+its matcher is — and every one of these matchers is correct. Their unit tests pass. The
+defect is never in the predicate; it is in what the predicate is applied to.
+
+Three corollaries worth carrying:
+
+* An exclusion is only as wide as its reason. `SKIP_SUFFIX` was named for binaries and
+  contained `.lock`, which is text. `markers_in()` already returns None for undecodable
+  content and the scan counts that honestly, so the set had no authority to begin with.
+* Print the population on success, not only on failure. It was discarded here, so the one
+  number that says whether the answer means anything was invisible to the only person who
+  could act on it.
+* Exit 2 is not exit 1. Could-not-run was being reported as "a tracked file carries a
+  conflict marker" — a false accusation that also hides a broken gate.
+
+**How to ask this of any gate you own, in one question:** name the operand the gate reads,
+name the operand the action takes, and check they are the same object. Not the same *kind*
+of object — the same one. Working tree and index are both "the files". Directory and diff
+are both "docs/now". HEAD and the message being written are both "the commit message".
