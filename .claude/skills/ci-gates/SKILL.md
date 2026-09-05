@@ -16736,7 +16736,7 @@ readings, and the intervening commit was **my own**, which added sixty lines to 
 file being measured. A baseline regenerated from a moving reference is not a baseline.
 Pin the blob, or measure a file the change does not touch.
 
-## 573. Pin the instrument before any parallel measurement
+## 578. Pin the instrument before any parallel measurement
 
 I launched twelve agents over one corpus and wrote into every brief: *the binary is
 already built, use it as is, do not rebuild -- rebuilding would silently change the
@@ -16770,7 +16770,7 @@ for its mechanisms. And an agent that rebuilds the baseline it was handed before
 trusting it is the check that catches this from the other side: on the re-run one did
 exactly that, reproducing 329/252/69 itself, and said so.
 
-## 574. A defect you merged to master reads as pre-existing on every later branch
+## 579. A defect you merged to master reads as pre-existing on every later branch
 
 A required gate went red on master. I looked at three consecutive red runs and wrote
 *"this is a pre-existing red gate, not something my PR caused"*. The repository's own
@@ -16802,7 +16802,7 @@ Ask that before believing any "pre-existing", especially when the answer is conv
 Both of that day's breakages were mine, both were three seconds after my own merge, and
 neither would have been found by re-reading the failure text.
 
-## 575. A declined probe measures where its rule ends
+## 580. A declined probe measures where its rule ends
 
 I probed a type mapping, measured **+1 accepted and -1 regressed**, and declined it:
 net zero, recorded as priced-and-declined. Hours later a fan-out proposed the same
