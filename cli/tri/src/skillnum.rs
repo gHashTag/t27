@@ -272,11 +272,9 @@ pub fn identifiers(text: &str) -> std::collections::BTreeSet<String> {
 /// The naive form of this question is useless here: 58 of the 63 NOW.md entries
 /// with a wave number name SOME other wave, because an entry routinely points at
 /// the next one. What discriminates is naming none of its OWN.
-pub fn misattributed(
-    entries: &std::collections::BTreeMap<String, Vec<String>>,
-) -> Vec<(String, Vec<String>)> {
+pub fn misattributed(entries: &[(String, Vec<String>)]) -> Vec<(String, Vec<String>)> {
     let mut owned = std::collections::BTreeSet::new();
-    for h in entries.keys() {
+    for (h, _) in entries {
         owned.extend(identifiers(h));
     }
     let mut out = Vec::new();
@@ -301,15 +299,61 @@ pub fn misattributed(
     out
 }
 
+/// Every heading and its body, IN ORDER, with nothing collapsed.
+///
+/// `bodies()` keys by title, which is right for the history walk -- a title is
+/// the identity that survives renumbering -- and wrong for any question about
+/// the file AS IT STANDS. A repeated heading text is one key there, and the
+/// later `insert` OVERWRITES, so only the last copy's body is ever examined.
+///
+/// Measured 2026-09-05 on `docs/NOW.md`: **312 headings, 310 distinct titles**.
+/// `Honesty limits (BINDING)` appears at lines 1479 and 1708, and a
+/// `Wave Loop 777` subject at 4504 and 4601. The hollow check ran over 310 seats
+/// while four comments in this same file said 312, and it was right only because
+/// all four of those occurrences happen to have bodies. **Two questions, two
+/// populations -- and the file had said so two passes before the code did.**
+pub fn occurrences(text: &str) -> Vec<(String, Vec<String>)> {
+    let mut out = Vec::new();
+    let mut cur: Option<String> = None;
+    let mut body: Vec<String> = Vec::new();
+    let mut in_fence = false;
+    for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            if cur.is_some() {
+                body.push(line.to_string());
+            }
+            continue;
+        }
+        let head = if in_fence { None } else { line.strip_prefix("## ") };
+        if let Some(h) = head {
+            if let Some(c) = cur.take() {
+                out.push((c, std::mem::take(&mut body)));
+            }
+            cur = Some(section_key(h));
+            continue;
+        }
+        if cur.is_some() {
+            body.push(line.to_string());
+        }
+    }
+    if let Some(c) = cur {
+        out.push((c, body));
+    }
+    out
+}
+
 /// Headings with nothing under them.
 ///
 /// The same damage as a truncation and visible with no history at all, so it is
 /// the cheaper question. Measured 2026-09-05: `docs/NOW.md` has 2 of 312, at
 /// two CONSECUTIVE lines, and `SKILL.md` has 0 of 523.
-pub fn hollow_headings(
-    bodies: &std::collections::BTreeMap<String, Vec<String>>,
-) -> Vec<&String> {
-    bodies
+pub fn hollow_headings(occurrences: &[(String, Vec<String>)]) -> Vec<&String> {
+    occurrences
         .iter()
         .filter(|(_, b)| !b.iter().any(|l| !l.trim().is_empty()))
         .map(|(t, _)| t)
@@ -396,8 +440,14 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
         }
     }
     let now = bodies(&at(base, path, &root));
+    // Two questions, two populations, both printed with their unit. Hollow and
+    // misattribution are about the file AS IT STANDS, so they run over
+    // occurrences; the history walk is about identity across renumbering, so it
+    // runs over titles.
+    let here = occurrences(&at(base, path, &root));
     println!("  titles ever written    {}", first.len());
-    println!("  present on {base:<12} {}", now.len());
+    println!("  headings on {base:<11} {}   (## lines)", here.len());
+    println!("  distinct titles        {}   (what the history walk compares)", now.len());
 
     // A heading with nothing under it is the same damage, visible WITHOUT any
     // history: whatever was there is gone and the heading is left standing.
@@ -406,8 +456,8 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
     //
     // Measured 2026-09-05: `docs/NOW.md` has 2 of 312, at lines 6359 and 6361 --
     // two CONSECUTIVE bare headings -- and `SKILL.md` has 0 of 523.
-    let hollow = hollow_headings(&now);
-    let wrong = misattributed(&now);
+    let hollow = hollow_headings(&here);
+    let wrong = misattributed(&here);
     if hollow.is_empty() {
         println!("  Every heading has a body.");
     } else {
@@ -589,8 +639,16 @@ mod tests {
             .position(|l| l == "#[cfg(test)]")
             .expect("the test module is a line of its own");
         let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
-        let call = concat!("let hollow = hollow_", "headings(&now);");
-        assert!(code.contains(call), "the cheap check has to actually be asked");
+        // Pinned to the POPULATION, not merely to the call. Asking this over
+        // the title map answers it for the last copy of a repeated heading, and
+        // that is the defect this argument fixes.
+        let call = concat!("let hollow = hollow_", "headings(&here);");
+        assert!(
+            code.contains(call),
+            "the hollow question runs over OCCURRENCES, not the collapsed title map"
+        );
+        let src_of_here = concat!("let here = occur", "rences(&at(base, path, &root));");
+        assert!(code.contains(src_of_here), "and `here` is the uncollapsed list");
     }
 
     #[test]
@@ -613,23 +671,23 @@ mod tests {
     /// An empty-body check cannot see it -- the entry HAS a body.
     #[test]
     fn a_body_that_names_none_of_its_own_ids_is_flagged() {
-        let mut e = std::collections::BTreeMap::new();
+        let mut e: Vec<(String, Vec<String>)> = Vec::new();
         // The real body: `XADC_LIVE_W434_...` alone does NOT match, because the
         // `_` before `W434` is a word character and the pattern is anchored on a
         // word boundary. The first fixture used only that form and the test
         // failed -- correctly. What made the live case detectable is the plain
         // `wave-loop-434` on its branch line.
-        e.insert(
+        e.push((
             "SW-conformance — gf48 promoted".to_string(),
             vec![
                 "- Branch: `wave-loop-434`".to_string(),
                 "- Added XADC_LIVE_W434_OPERATING_POINT".to_string(),
             ],
-        );
-        e.insert(
+        ));
+        e.push((
             "Wave Loop 434 — boot evidence".to_string(),
             vec!["- Branch: wave-loop-434".to_string()],
-        );
+        ));
         let out = super::misattributed(&e);
         assert_eq!(out.len(), 1, "only the entry carrying another's id: {out:?}");
         assert!(out[0].0.starts_with("SW-conformance — gf48"));
@@ -643,13 +701,13 @@ mod tests {
     /// repaired file and 1 on the damaged one.
     #[test]
     fn naming_a_neighbour_is_not_misattribution() {
-        let mut e = std::collections::BTreeMap::new();
-        e.insert(
+        let mut e: Vec<(String, Vec<String>)> = Vec::new();
+        e.push((
             "Wave Loop 889 close-out".to_string(),
             vec!["- Branch: `wave-loop-889`, follows Wave Loop 888, next Wave Loop 890".to_string()],
-        );
-        e.insert("Wave Loop 888 close-out".to_string(), vec!["- body".to_string()]);
-        e.insert("Wave Loop 890 close-out".to_string(), vec!["- body".to_string()]);
+        ));
+        e.push(("Wave Loop 888 close-out".to_string(), vec!["- body".to_string()]));
+        e.push(("Wave Loop 890 close-out".to_string(), vec!["- body".to_string()]));
         assert!(
             super::misattributed(&e).is_empty(),
             "889 names its own number, so pointing at 888 and 890 is a cross-reference"
@@ -661,12 +719,12 @@ mod tests {
     /// it would accuse an entry of carrying a body that does not exist here.
     #[test]
     fn an_id_no_heading_owns_is_not_evidence() {
-        let mut e = std::collections::BTreeMap::new();
-        e.insert(
+        let mut e: Vec<(String, Vec<String>)> = Vec::new();
+        e.push((
             "SW-conformance — gf48 promoted".to_string(),
             vec!["- see wave-loop-999 in trinity-fpga".to_string()],
-        );
-        e.insert("Wave Loop 434 — boot".to_string(), vec!["- wave-loop-434".to_string()]);
+        ));
+        e.push(("Wave Loop 434 — boot".to_string(), vec!["- wave-loop-434".to_string()]));
         assert!(
             super::misattributed(&e).is_empty(),
             "999 belongs to no entry here, so nothing was taken from anything"
@@ -682,8 +740,12 @@ mod tests {
             .position(|l| l == "#[cfg(test)]")
             .expect("the test module is a line of its own");
         let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
-        let call = concat!("let wrong = misattrib", "uted(&now);");
-        assert!(code.contains(call), "the check has to be asked");
+        let call = concat!("let wrong = misattrib", "uted(&here);");
+        assert!(
+            code.contains(call),
+            "misattribution is a fact about an entry as it stands, so it runs \
+             over occurrences too"
+        );
     }
 
     /// Issue numbers are excluded on purpose. With `#NNNN` counted, 49 of 312
@@ -735,6 +797,40 @@ mod tests {
         );
     }
 
+    /// A repeated heading text is ONE key in `bodies()` and the later insert
+    /// OVERWRITES, so only the last copy's body is ever examined. Asking the
+    /// hollow question over that map answers it for a heading that is not the
+    /// one being reported.
+    ///
+    /// Measured on `docs/NOW.md`: 312 headings, 310 distinct titles. The check
+    /// ran over 310 seats while four comments in this file said 312, and it was
+    /// right only because all four colliding occurrences happen to have bodies.
+    #[test]
+    fn a_repeated_heading_is_two_seats_not_one() {
+        let src = "## A\n\n## A\nbody\n";
+        assert_eq!(super::bodies(src).len(), 1, "the title map collapses them");
+        assert_eq!(super::occurrences(src).len(), 2, "the file has two headings");
+
+        // The first copy is bare and the second is not. Over TITLES the map
+        // keeps only the last body, so the answer is "every heading has a body"
+        // -- false of the file.
+        let by_title: Vec<(String, Vec<String>)> = super::bodies(src).into_iter().collect();
+        assert!(
+            super::hollow_headings(&by_title).is_empty(),
+            "the collapsed map sees no bare heading, which is the defect"
+        );
+
+        let occ = super::occurrences(src);
+        let hollow = super::hollow_headings(&occ);
+        assert_eq!(hollow.len(), 1, "over occurrences the bare copy is found: {hollow:?}");
+
+        // Mirrored: the LAST copy is the bare one. The title map now happens to
+        // be right, for a reason that has nothing to do with the file.
+        let mirrored = super::occurrences("## A\nbody\n\n## A\n");
+        assert_eq!(mirrored.len(), 2);
+        assert_eq!(super::hollow_headings(&mirrored).len(), 1);
+    }
+
     /// A heading with nothing under it is the same damage as a truncation, and
     /// visible without any history. Measured: docs/NOW.md has 2 of 312, at two
     /// CONSECUTIVE lines; SKILL.md has 0 of 523.
@@ -742,6 +838,7 @@ mod tests {
     fn a_heading_with_no_body_is_found_without_history() {
         let src = "## 1. Has one\nbody\n\n## 2. Has none\n\n## 3. Also has one\ntext\n";
         let b = super::bodies(src);
+        let b: Vec<(String, Vec<String>)> = b.into_iter().collect();
         assert_eq!(
             super::hollow_headings(&b),
             vec!["Has none"],

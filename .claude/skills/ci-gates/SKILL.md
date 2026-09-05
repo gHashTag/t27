@@ -16200,3 +16200,50 @@ my own.*
 What would change the verdict is an entry whose body names a foreign id ONLY in underscore form and
 names none of its own at all. That entry does not exist today. **If one is ever written, this section
 is the note that says which line to change.**
+
+## 577. Three hundred and twelve headings, three hundred and ten seats
+
+&sect;571 asked in which unit a check DECIDES against the unit a reader AUDITS it in, and declined to
+widen a matcher because the two agreed. A fan-out over the whole CLI asked the same question
+everywhere. The strongest survivor is in the code that pass wrote.
+
+`bodies()` returns a map keyed by section title -- correct for the history walk, because a title is
+the identity that survives renumbering. **Every other question was asked over that map too.** A
+repeated heading text is ONE key, and the later insert OVERWRITES, so only the last copy's body is
+ever examined.
+
+**Measured on `docs/NOW.md`:** `grep -c '^## '` gives **312**; distinct heading texts give **310**.
+`Honesty limits (BINDING)` appears at lines 1479 and 1708, and a `Wave Loop 777` subject at 4504 and
+4601. The command printed `present on origin/master 310` for a 312-heading file, and asked "does every
+heading have a body?" over 310 seats -- **while four comments in that same source file said 312.**
+
+**I measured 312-vs-310 in &sect;556, wrote it into the prose, and then built the tool on the map that
+collapses them.** The number was on the page before the code was written.
+
+### The verdict was right, by luck
+
+All four colliding occurrences have bodies (30/18 and 34/34 non-blank lines), so per-occurrence hollow
+= 0 and per-title hollow = 0. **The check is correct today over a population two seats short**, and
+would flip the first time a repeated subject's EARLIER copy is bare -- routine for an append-only log
+of commit subjects that already repeats two of them.
+
+Fixed by separating the two questions rather than picking one:
+
+```text
+titles ever written    792
+headings on origin/master 312   (## lines)
+distinct titles        310   (what the history walk compares)
+```
+
+Hollow and misattribution now run over `occurrences()`, which collapses nothing. The history walk
+keeps the title map, because that is what makes renumbering invisible to it. **Two questions, two
+populations, both printed with their unit** -- which is the whole of &sect;571 applied to the thing
+&sect;571 shipped.
+
+### Both structural tests failed again, and are now pinned to the population
+
+They asserted `hollow_headings(&now)`. Changing the argument to `&here` broke them -- the second time
+in two passes that restructuring a guard broke the test that pins it, and the second time that was the
+test doing its job. They now assert the ARGUMENT, not merely the call: the hollow question must be
+asked over `occurrences`, and `here` must be bound from it. Two of the three mutants no longer compile,
+which is the strongest form of a killed mutant.
