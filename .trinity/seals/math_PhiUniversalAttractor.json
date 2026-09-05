@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f87af83c0ff6c847d32612b230569d4c0035683bb05e56f51a180d2f11570eed",
-  "gen_hash_rust": "sha256:32bcf8920d2631f422033c86efb014246dbd2ae3258c312f8a2fb2e2e796468a",
+  "gen_hash_rust": "sha256:d55eae7abffa0e33e591d7eb875be8a273ffe5a6dcc0f7f01a6be7df4c916a9e",
   "gen_hash_verilog": "sha256:57cc672e29d6b8b23a4b66343155520fe6d890ffb46c38ec621e66ca6d857a5b",
   "gen_hash_zig": "sha256:dbba7f928af7d8a9672028e095e782314e7bccd0a5cee09290c602384d3ee036",
   "module": "PhiUniversalAttractor",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:19:02Z",
+  "sealed_at": "2026-09-05T03:11:57Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:3a5a1d0bf24c0a354559c859ce379e3fa65b8aad313da8627e341daa273d4adf",
   "spec_path": "specs/math/phi_universal_attractor.t27"

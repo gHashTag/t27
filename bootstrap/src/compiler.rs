@@ -24423,7 +24423,17 @@ impl RustCodegen {
             // (compiler.rs:8322) and the C emitter writes `const char**` for
             // `[string]`; only this mapper knew the short spelling, so 34 specs
             // using the long one received the bare word `string` as a Rust type.
-            "str" | "string" => "String".to_string(),
+            // Both siblings map this to a BORROWED form -- the Zig mapper writes
+            // `[]const u8` at compiler.rs:8322 and the C emitter writes
+            // `const char*` -- and only this one made it owned. `String` is not
+            // constructible in a `const` item, which is where the corpus mostly
+            // uses it, so 48 of the 75 specs whose first error was E0308 carried
+            //     pub const X: String = "literal";
+            //     expected `String`, found `&str`
+            // `&'static str` narrows what a field may hold, and that narrowing is
+            // what both siblings already chose: neither `[]const u8` nor
+            // `const char*` owns its bytes.
+            "str" | "string" => "&'static str".to_string(),
             "void" => "()".to_string(),
             t if t.starts_with("[]") => {
                 // `[]const u8` is the Zig spelling of a slice of const u8, and

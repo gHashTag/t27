@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:3808f5c31ac431ced246c33465ca89ecc7d09585a59af3918c5441eece906882",
-  "gen_hash_rust": "sha256:95a422c5c751e38c17674502c99184bf4279b727b42c6eca32e8e2875a567196",
+  "gen_hash_rust": "sha256:bea8b2a2cd0bf5727bea7b4ec245a323198a54e2805f6e5e0f5e440a5ed19435",
   "gen_hash_verilog": "sha256:39953fd339dea630328d1be822404ada011ad2a5455ee008931f05129300dd5f",
   "gen_hash_zig": "sha256:b8d42ad43f1d14356f51fb42cd0df8fe881496be027e9ab2e75b120ba464e8f1",
   "module": "Assembler",

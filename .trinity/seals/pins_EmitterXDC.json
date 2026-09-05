@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:abc296b807658edc06618aa910b2497d202c4e57f803c7671c8dfd4343264ec9",
-  "gen_hash_rust": "sha256:00fa07786c60d62c2413b0583241bf857d5061a6d90b385ff8567530e9eca9f2",
+  "gen_hash_rust": "sha256:27a7faefc2af85d3a614041261708d65f76fd276eff920b8cfb7d229b946ce5f",
   "gen_hash_verilog": "sha256:bfe2ff478056fe9cc4120103330557f7516fe8c825fc7c1ce2f7769c8546a163",
   "gen_hash_zig": "sha256:96626a210203243192606f51dcd9e0985597ff57ff21ba86055e99d94cc7f66e",
   "module": "EmitterXDC",
   "ring": 12,
-  "sealed_at": "2026-09-03T12:12:07Z",
+  "sealed_at": "2026-09-05T03:11:57Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d9954ca190ee3e748ef8df7ce32bd183096f7f97003651aede1ccabe5c1b0e19",
   "spec_path": "specs/pins/emitter_xdc.t27"

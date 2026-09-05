@@ -27,4 +27,33 @@ jobs:
 
       - name: FPGA-Safety lint
         run: |
-          grep -rn 'as f64' ffi/src/ --include='*.rs' 2>/dev/null | grep -v 'to_bits\|from_bits\|FPGA-ALLOWED' | grep -v '//.*f32\|//.*f64' && echo "L8 FAILED" && exit 1 || echo "L8 PASSED"
+          # The pipeline used to end `&& echo L8 FAILED && exit 1 || echo L8 PASSED`
+          # with `2>/dev/null` on the first grep. Two failures were therefore
+          # indistinguishable from a clean tree: `ffi/src/` renamed or removed
+          # sends grep to exit 2 with its message discarded, and the LAST grep in
+          # the pipe then sees empty input and exits 1, which the `||` reads as
+          # "no violations". Verified: pointing the same pipeline at a directory
+          # that does not exist prints `L8 PASSED` and exits 0.
+          if [ ! -d ffi/src ]; then
+            echo "::error::ffi/src/ is missing -- nothing was checked." >&2
+            exit 2
+          fi
+          if RAW=$(grep -rn 'as f64' ffi/src/ --include='*.rs'); then rc=0; else rc=$?; fi
+          case "$rc" in
+            0)
+              HITS=$(printf '%s\n' "$RAW" | grep -v 'to_bits\|from_bits\|FPGA-ALLOWED' | grep -v '//.*f32\|//.*f64') || true
+              if [ -n "$HITS" ]; then
+                printf '%s\n' "$HITS"
+                echo "L8 FAILED" >&2
+                exit 1
+              fi
+              echo "L8 PASSED (every 'as f64' under ffi/src/ is an allowed form)"
+              ;;
+            1)
+              echo "L8 PASSED (no 'as f64' under ffi/src/)"
+              ;;
+            *)
+              echo "::error::grep exited $rc. Nothing was checked." >&2
+              exit 2
+              ;;
+          esac

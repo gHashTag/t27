@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:10b4499eb3d45edc2fe179707e22ff209c8bfb138b43de294c28bda36cd820bb",
-  "gen_hash_rust": "sha256:3e77722745d1ab63f94ed4bc7f765fd8b627830a0efdebe4d8aa2cfc006edb0a",
+  "gen_hash_rust": "sha256:7b25cd1c89e3bed7421ee61b0f452f28fb4c7f9091a5e94b4fd4a42f73f9e518",
   "gen_hash_verilog": "sha256:243b870fc4e2a21b86fef56b47af362c491f62ff956ed3566afdeafed547ab43",
   "gen_hash_zig": "sha256:ebb94fcf953beff16266f3334e32d959ea33b20873bb3da4649833e98e6517e5",
   "module": "Api",
