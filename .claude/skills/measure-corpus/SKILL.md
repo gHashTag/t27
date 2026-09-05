@@ -21,6 +21,7 @@ question, and the traps each one has actually sprung.
 | "The parser actually read the spec" | `formal/spec_parse_gate.py` | "parses OK" |
 | "This Python script will run in CI" | import it under the OLDEST python3 | `py_compile` — see below |
 | "Every layer of this spec is fine" | `bindings/wasm-explorer` — `node scan.mjs` | any single-layer check. It runs the real compiler over the corpus and reports tokens, AST, typecheck, HIR and all five backends per spec |
+| "The generated Verilog is real hardware" | `bindings/wasm-explorer` — `node synth_sweep.mjs` (yosys `synth_xilinx`) | "the verilog backend returned ok". Emitting text and synthesising are different claims — see below |
 | "What did the parser silently drop?" | `parse_ast_full` (the wasm bridge uses it) | `parse_ast` / `t27c ast-dump`, which report a clean parse for a file they gutted |
 
 **The rungs are parse < import < run, and each passes what the next rejects.**
@@ -65,6 +66,15 @@ import on `str | None` (valid syntax in 3.9, fails when the `def` executes).
   invites the reader to subtract and get a wrong "clean" figure. Count each
   spec ONCE at its worst stage — 453 ok + 209 warn + 6 fail = 668 — and make
   the total visible so the arithmetic can be checked.
+- **`yosys -q` silences `stat`, and a silenced tool reads as zero.** A sweep
+  reported "361 designs synthesised, 0 cells, 0 LUTs, 0 FFs" — which looks like
+  a finding ("the backend emits no logic") and is actually a gagged instrument.
+  The counts are also printed COUNT-first (`8   LUT2`), so a `name\s+count`
+  regex matches nothing even when the report is present. Two independent ways
+  to read zero, neither of them about the corpus. `synth_sweep.mjs` now runs a
+  known-good adder first and refuses to measure anything if it does not come
+  back non-zero (24 LUTs / 27 FFs). **A zero is only evidence once something
+  known-nonzero has proved the instrument can see.**
 - **A pattern defines its own scope.** A grep used to count a defect always
   reports itself complete. Counting the text `union:` gave 6 blocks and 27
   payloads; 4 blocks were a FUNCTION named `union` (indent 2, with `params:`)
