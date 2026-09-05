@@ -34,20 +34,85 @@ CLOSE = ">" * 7 + " "
 
 BASELINE = Path("tools/conflict_markers_baseline.txt")
 
-SKIP_SUFFIX = {".lock", ".png", ".jpg", ".gif", ".pdf", ".bin", ".bit", ".fasm"}
+# Binary formats only. `markers_in()` already answers honestly for content it cannot
+# decode -- it returns None and `scan()` counts that into "NOT READ, nothing claimed" --
+# so this set is a convenience for keeping that number meaningful, not a filter with
+# authority. `.lock` was in it and is TEXT: 6 tracked lock files (4 Cargo.lock, a
+# yarn.lock, and one more) left the population silently, and a lock file is among the
+# most conflict-prone files in any repository. An exclusion is only as wide as its reason,
+# and the reason here is "cannot be read as text".
+SKIP_SUFFIX = {".png", ".jpg", ".gif", ".pdf", ".bin", ".bit", ".fasm"}
+
+
+def _git(root: Path, args, binary=False):
+    """Run git, and refuse rather than answer if it failed.
+
+    An exit code nobody reads is how a population becomes empty and an empty population
+    prints as a pass.
+    """
+    out = subprocess.run(
+        ["git"] + args, cwd=root, capture_output=True, text=not binary
+    )
+    if out.returncode != 0:
+        err = out.stderr if not binary else out.stderr.decode("utf-8", "replace")
+        raise CouldNotRun(f"git {' '.join(args)} exited {out.returncode}: {err.strip()}")
+    return out.stdout
+
+
+class CouldNotRun(Exception):
+    """The gate could not reach its subject. Exit 2, never 0."""
 
 
 def tracked_files(root: Path):
-    out = subprocess.run(
-        ["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True
-    )
-    for name in out.stdout.split("\0"):
+    for name in _git(root, ["ls-files", "-z"]).split("\0"):
         if not name:
             continue
         p = root / name
-        if p.suffix in SKIP_SUFFIX or not p.is_file():
+        if Path(name).suffix in SKIP_SUFFIX or not p.is_file():
             continue
         yield name, p
+
+
+def staged_files(root: Path):
+    """The paths this commit will carry, and their INDEX bytes.
+
+    THE DEFECT THIS EXISTS FOR. The commit-time caller read the WORKING TREE while `git
+    commit` takes the INDEX, so the two answered about different bytes. Staging a file
+    with a marker and then cleaning the working copy produced, verbatim:
+
+        tri hooks pre-commit: PASSED          exit 0, no line mentioning a conflict
+        git show HEAD:probe_conflicted.txt | grep -c '^<<<<<<<'   ->   1
+
+    A gate that reads a different operand than the one being committed is not a barrier.
+    `-z` because `--name-only` C-quotes any path with a non-ASCII character, and a quoted
+    path leaves the population silently.
+    """
+    names = _git(root, ["diff", "--cached", "-z", "--name-only",
+                        "--diff-filter=ACMR"]).split("\0")
+    for name in names:
+        if not name or Path(name).suffix in SKIP_SUFFIX:
+            continue
+        yield name, None
+
+
+def markers_in_text(text):
+    hits = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if line.startswith(OPEN) or line.startswith(CLOSE):
+            hits.append(n)
+    return hits
+
+
+def markers_in_index(root: Path, name: str):
+    """Line numbers in the INDEX copy, or None if it cannot be read as text."""
+    try:
+        raw = _git(root, ["show", f":{name}"], binary=True)
+    except CouldNotRun:
+        return None
+    try:
+        return markers_in_text(raw.decode("utf-8"))
+    except UnicodeDecodeError:
+        return None
 
 
 def markers_in(path: Path):
@@ -75,19 +140,24 @@ def load_baseline(root: Path):
     return known
 
 
-def scan(root: Path):
+def scan(root: Path, staged=False):
     known = load_baseline(root)
     found, unread, stale = {}, 0, []
-    for name, p in tracked_files(root):
-        hits = markers_in(p)
+    source = staged_files(root) if staged else tracked_files(root)
+    for name, p in source:
+        hits = markers_in_index(root, name) if staged else markers_in(p)
         if hits is None:
             unread += 1
             continue
         if hits:
             found[name] = hits
-    for name in sorted(known):
-        if name not in found:
-            stale.append(name)
+    # A baseline entry is only stale when the whole tree was read. The staged population
+    # is a handful of paths, and calling every unmentioned one "stale" would be a claim
+    # about files this run never looked at.
+    if not staged:
+        for name in sorted(known):
+            if name not in found:
+                stale.append(name)
     return found, known, unread, stale
 
 
@@ -96,10 +166,14 @@ def main(argv):
     if "--self-check" in argv:
         return self_check(root)
 
-    found, known, unread, stale = scan(root)
+    staged = "--staged" in argv
+    found, known, unread, stale = scan(root, staged=staged)
     new = {k: v for k, v in found.items() if k not in known}
 
-    print(f"  tracked files read            {sum(1 for _ in tracked_files(root)) - unread}")
+    if staged:
+        print(f"  staged paths read             {sum(1 for _ in staged_files(root)) - unread}")
+    else:
+        print(f"  tracked files read            {sum(1 for _ in tracked_files(root)) - unread}")
     print(f"  carrying a conflict marker    {len(found)}")
     if known:
         print(f"  ... of those, known debt      {len(found) - len(new)}")
@@ -193,5 +267,14 @@ def self_check(root: Path):
     return 0 if ok else 1
 
 
+def _run(argv):
+    try:
+        return main(argv)
+    except CouldNotRun as e:
+        print(f"::error::this gate could not run: {e}", file=sys.stderr)
+        print("::error::Nothing was checked.", file=sys.stderr)
+        return 2
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(_run(sys.argv[1:]))
