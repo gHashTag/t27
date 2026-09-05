@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:453960c6bdab52b67586b1fa9dcbb3ed8adedc5fda7948b3f8f920e68b1e6fd8",
-  "gen_hash_rust": "sha256:660302d21945098410ab5707bf6adb23f93d56680428a15932a9f43621fda77f",
+  "gen_hash_rust": "sha256:6192f0a19b547bfc7fe496458593b4e5a513071b3134ba2ab91d47d22014abb8",
   "gen_hash_verilog": "sha256:2481c6f3a2671b40a98f537e8d9d70398837671b790e74ef70c903754184b986",
   "gen_hash_zig": "sha256:779c6a31a29487df342647b298367749d2c2a7453adf1348b54462f7e6a3f32f",
   "module": "ShellEnvironment",

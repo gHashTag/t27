@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b92ccd2f541925122daaed81d4b240c1fa808da7f5772a542873209a97995fcb",
-  "gen_hash_rust": "sha256:fa7298ef22eb9ec220611e4d4d09dedf23b7a6c2e3aaf6406fec9133ef43b4cd",
+  "gen_hash_rust": "sha256:8892cd45ce22d555b24a793b07c7fd265c3b4befbc1db796e95078c92b8e6e13",
   "gen_hash_verilog": "sha256:ed8d3af2735e81efd9bcd16b1c855b3241d961fc70a7b7476fde7d57bc07ce79",
   "gen_hash_zig": "sha256:c56746c59698981521b8be80cf50173b48e5d4bb2c8b925c529f3ac915ea44ae",
   "module": "Simulator",
