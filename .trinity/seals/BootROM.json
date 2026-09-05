@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:175a0427f8d843f52b63514e7d1577314e60822bb820678923fa93fc4a5be3e0",
-  "gen_hash_rust": "sha256:9b2c411128e0386ac60117615f455954c0a343a849ceef31aeff3f009dede9d9",
+  "gen_hash_rust": "sha256:4b161c2d7fa86f774e4a4b1ca760546b7ced06e8a5b218ad250dc817743ee701",
   "gen_hash_verilog": "sha256:b413ec51ecf50867f39438bc29b170c413933861ca1f40bb3f05328106bd6147",
   "gen_hash_zig": "sha256:5ec7e301e9620a99d5c697b7e3fabba53c5a9c0f4256ee5bbe768dab84fac008",
   "module": "BootROM",
