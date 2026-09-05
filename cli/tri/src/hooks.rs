@@ -16,6 +16,28 @@ use regex::Regex;
 pub enum HooksCmd {
     /// Run every migrated commit-time gate in sequence (l1-check + now-gate).
     PreCommit,
+    /// A pull request whose title claims a compiler fix must carry a source file.
+    ///
+    /// The pre-commit form of this reads HEAD, which a contributor can skip and a
+    /// worktree without an installed hook never runs at all. This form reads the
+    /// PULL REQUEST: its title, and the union of its diff. That is the right unit
+    /// because merges here are squashed -- the commit that lands on master is the
+    /// pull request, so an intermediate commit that claims a fix before its source
+    /// arrives is not a defect and must not be flagged.
+    FixCarriesSource {
+        /// The pull request title. Defaults to HEAD's subject.
+        #[arg(long)]
+        subject: Option<String>,
+        /// Base sha; the diff read is `<base>...<head>`.
+        #[arg(long)]
+        base: Option<String>,
+        /// Head sha. Defaults to HEAD.
+        #[arg(long)]
+        head: Option<String>,
+        /// Run the controls and report, changing nothing.
+        #[arg(long)]
+        self_check: bool,
+    },
     /// L1 TRACEABILITY: last commit message must reference an issue
     /// (`Closes #N` / `Fixes #N` / `Resolves #N` / `Reference #N`).
     L1Check,
@@ -39,6 +61,9 @@ pub enum HooksCmd {
 pub fn run(cmd: &HooksCmd) -> Result<()> {
     match cmd {
         HooksCmd::PreCommit => pre_commit(),
+        HooksCmd::FixCarriesSource { subject, base, head, self_check } => {
+            fix_carries_source_cmd(subject.as_deref(), base.as_deref(), head.as_deref(), *self_check)
+        }
         HooksCmd::L1Check => l1_check(),
         HooksCmd::NowGate { path, today } => now_gate(path.as_deref(), today.as_deref()),
         HooksCmd::SessionGate => session_gate(),
@@ -692,11 +717,21 @@ fn subject_claims_source(subject: &str) -> bool {
         .any(|s| SOURCE_SCOPES.contains(&s.trim()))
 }
 
-/// Is this path a file the compiler is built from?
+/// Is this path code?
+///
+/// The four the compiler is BUILT from -- rs, py, t27, zig -- were the first list, and
+/// they are not the whole answer. The repository also carries 164 hand-written `.v` files
+/// and 34 `.c`/`.h` outside `specs/`, so a genuine `fix(verilog)` or `fix(c)` repairing one
+/// of those would have been refused by a guard that had never seen one. Zero such commits
+/// exist in 498 of history, because every emitter is written in Rust -- which is exactly
+/// why the omission could not show up as a false positive and had to be reasoned about
+/// instead. Widening costs nothing here: the defect this guard exists for, #3264, carried
+/// no source file of ANY kind.
 fn is_source_path(path: &str) -> bool {
     matches!(
         path.rsplit_once('.').map(|(_, e)| e),
         Some("rs") | Some("py") | Some("t27") | Some("zig")
+            | Some("c") | Some("h") | Some("v") | Some("sv") | Some("svh")
     )
 }
 
@@ -798,11 +833,166 @@ mod fix_carries_source_tests {
 
     #[test]
     fn source_paths_are_the_four_the_compiler_is_built_from() {
-        for p in ["bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig"] {
+        for p in [
+            "bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig",
+            "rtl/mac.v", "runtime/shim.c", "runtime/shim.h", "rtl/top.sv", "rtl/i.svh",
+        ] {
             assert!(is_source_path(p), "{p}");
         }
         for p in ["docs/now/note.md", ".trinity/seals/a.json", "README", "x.rs.orig"] {
             assert!(!is_source_path(p), "{p}");
         }
+    }
+}
+
+/// The pull-request form of the guard: a title that claims a compiler fix, against the
+/// union of the diff.
+///
+/// WHY THIS EXISTS BESIDE THE PRE-COMMIT FORM. The hook version was merged in #3279 and
+/// was, that same day, reachable from nothing: `core.hooksPath` was unset and 0 of 148
+/// worktrees had an installed `pre-commit`, so five checks -- this one included -- were
+/// invoked by nothing. A guard that a single unset config disables is not a guard.
+///
+/// WHY THE PULL REQUEST AND NOT EACH COMMIT. Merges here are squashed, so the commit that
+/// lands on master IS the pull request. A branch may well carry `fix(rust): X` in one
+/// commit and the source in the next; squashed, that is correct, and flagging the
+/// intermediate would be a false accusation of a defect that never reaches master.
+fn fix_carries_source_cmd(
+    subject: Option<&str>,
+    base: Option<&str>,
+    head: Option<&str>,
+    self_check: bool,
+) -> Result<()> {
+    if self_check {
+        return fix_carries_source_self_check();
+    }
+    let head = head.unwrap_or("HEAD");
+    let subject = match subject {
+        Some(s) => s.to_string(),
+        None => git_out(&["log", "-1", "--pretty=%s", head])?,
+    };
+    if !subject_claims_source(subject.trim()) {
+        println!("fix-carries-source: PASSED (the title claims no compiler scope)");
+        return Ok(());
+    }
+    let files = match base {
+        Some(b) => git_out(&["diff", "--name-only", &format!("{b}...{head}")])?,
+        None => git_out(&["show", "--name-only", "--format=", head])?,
+    };
+    let sources: Vec<&str> = files
+        .lines()
+        .map(str::trim)
+        .filter(|l| is_source_path(l))
+        .collect();
+    if !sources.is_empty() {
+        println!(
+            "fix-carries-source: PASSED ({} source file(s), e.g. {})",
+            sources.len(),
+            sources[0]
+        );
+        return Ok(());
+    }
+    // A diff that is empty is a different fact from a diff with no source in it, and
+    // saying so is the difference between a finding and "the check could not run".
+    let total = files.lines().filter(|l| !l.trim().is_empty()).count();
+    anyhow::bail!(
+        "fix-carries-source: the title claims a compiler fix and the diff has no source file\n  \
+         title: {}\n  \
+         files in the diff: {total}, of which .rs/.py/.t27/.zig: 0\n\n  \
+         A scope of rust, c, zig, verilog, parser, compiler, lexer or typecheck says the\n  \
+         change is in the compiler. If the change really is elsewhere, name that scope\n  \
+         instead -- fix(seals), fix(docs), fix(ops) and fix(paper) all land without source\n  \
+         and are not touched by this check. If the change IS in the compiler and is not\n  \
+         here, it was never committed: see #3264, which merged carrying only its note.",
+        subject.trim()
+    );
+}
+
+fn git_out(args: &[&str]) -> Result<String> {
+    let out = Command::new("git")
+        .args(args)
+        .output()
+        .with_context(|| format!("git {} failed to start", args.join(" ")))?;
+    if !out.status.success() {
+        anyhow::bail!(
+            "git {} exited {}: {}",
+            args.join(" "),
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    String::from_utf8(out.stdout).context("git output is not UTF-8")
+}
+
+/// Controls, in the shape the repository's other gates use: each states what it asserts,
+/// and a control that cannot fail is reported as a failure of the control.
+fn fix_carries_source_self_check() -> Result<()> {
+    let mut bad = Vec::new();
+    let mut say = |name: &str, ok: bool| {
+        println!("  {:<8}{name}", if ok { "ok" } else { "FAILED" });
+        if !ok {
+            bad.push(name.to_string());
+        }
+    };
+
+    // The defect, verbatim.
+    say(
+        "the subject that merged empty is recognised",
+        subject_claims_source(
+            "fix(rust): an untyped local bound to a comparison is not a bool (+3) (#3264)",
+        ),
+    );
+    // The eleven the loose rule would have accused. Measured on master: any `fix(` with
+    // no source file names 12 commits and 11 of them are correct to land that way.
+    let innocent = [
+        "fix(seals): reseal 149 gen-drifted specs after the C emitter changes (#2934)",
+        "fix(freeze): reseal FROZEN_HASH -- master does not build (Closes #2316)",
+        "fix(corpus): the ratchet was right -- 3 paid, 2 re-labelled, CLEAN (#2492)",
+        "fix(paper)+docs: W851 -- the recomputers find a stale table row",
+        "fix(article): W801 -- T478, the article has no unsourced statements",
+        "fix(ops): W793 -- T464, the ENOSPC was swap and I blamed the wrong thing",
+        "fix(build): stop discarding the bindings/javascript release profile (#2296)",
+        "fix(hooks): let the pre-commit hook reach the reader that works (#3184)",
+    ];
+    say(
+        "the scopes whose subject is elsewhere are not accused",
+        innocent.iter().all(|s| !subject_claims_source(s)),
+    );
+    say(
+        "every source scope is reachable",
+        SOURCE_SCOPES
+            .iter()
+            .all(|sc| subject_claims_source(&format!("fix({sc}): x"))),
+    );
+    say(
+        "a compound scope counts if any half does",
+        subject_claims_source("fix(docs, rust): the note and the fix")
+            && !subject_claims_source("fix(docs,seals): neither"),
+    );
+    say(
+        "a non-fix subject and a malformed one are ignored",
+        !subject_claims_source("feat(rust): a new emitter arm")
+            && !subject_claims_source("fix(rust: never closed")
+            && !subject_claims_source("fix: no scope at all"),
+    );
+    say(
+        "the four source extensions are the ones the compiler is built from",
+        [
+            "bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig",
+            "rtl/mac.v", "runtime/shim.c", "runtime/shim.h", "rtl/top.sv",
+        ]
+            .iter()
+            .all(|p| is_source_path(p))
+            && ["docs/now/n.md", ".trinity/seals/a.json", "README", "x.rs.orig"]
+                .iter()
+                .all(|p| !is_source_path(p)),
+    );
+
+    println!();
+    if bad.is_empty() {
+        println!("ok: the guard accuses the one subject it was built for, and none of the eleven it was not.");
+        Ok(())
+    } else {
+        anyhow::bail!("{} control(s) did not behave as stated: {}", bad.len(), bad.join(", "))
     }
 }
