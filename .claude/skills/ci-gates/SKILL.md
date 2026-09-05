@@ -16048,7 +16048,8 @@ Mutating the call site first is now the first act after extracting a helper. It 
 because the call site was written with the rule in mind -- which is what a rule that works looks like
 once it stops being a discovery.
 
-## 565. Two bare headings were three damaged entries, and the third was the one still claiming a body
+
+## 563. Two bare headings were three damaged entries, and the third was the one still claiming a body
 
 &sect;556 found two headings in `docs/NOW.md` with nothing under them, at lines 6359 and 6361. Repairing
 them turned up a third entry that the empty-body check could not see, because **it had a body -- just
