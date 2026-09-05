@@ -142,6 +142,27 @@ jobs:
       - name: No two skill sections share a number
         run: ./target/debug/tri skill check
 
+      # The check above finds a duplicate number. It cannot find the PRACTICE
+      # that makes one, because the collision exists in neither branch: two
+      # branches each append `## N.` numbered from their own base, `tri skill
+      # check` passes on both sides, and the duplicate appears only in the merge
+      # result. It happened twice in two passes, and the two repairs then raced
+      # each other as well.
+      #
+      # `tri skill add` / `tri skill fold` remove it by giving each lesson a
+      # unique path and assigning the number after the merge. That is a habit,
+      # and a habit is exactly what failed here the first time -- so this asks
+      # the question a diff CAN answer: did every section this branch adds come
+      # from a spool file that was on the base?
+      #
+      # The fetch is not decoration. This checkout is shallow, so `origin/master`
+      # does not resolve, every file would read as absent-on-base, the population
+      # would empty, and a gate that never ran would print a pass.
+      - name: Every new skill section came through the spool
+        run: |
+          git fetch --depth=1 origin master
+          ./target/debug/tri skill spooled --base origin/master --gate
+
       # A census that moves silently is a number nobody re-read. Measured over
       # the 39 most recent transitions on master with one fixed instrument:
       # 8 commits moved a census and only 4 said so -- and one of the silent

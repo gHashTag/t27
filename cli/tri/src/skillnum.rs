@@ -862,6 +862,20 @@ fn spooled(base: &str, gate: bool) -> Result<()> {
         }
     }
     println!("checked {checked} file(s) that exist on {base}; {offenders} unspooled");
+    // A shallow checkout has no `origin/master`, so every file reads NEW, the
+    // population empties, and a gate that never ran prints a pass. That is the
+    // failure this whole skill is about, so it is spelled COULD NOT RUN and
+    // given its own exit code rather than folded into the clean one.
+    if checked == 0 && !files.is_empty() {
+        println!();
+        println!("COULD NOT RUN: no skill file could be read on `{base}`.");
+        println!("  The ref is probably missing -- a shallow clone has no remote-tracking");
+        println!("  branches. Fetch it first:  git fetch --depth=1 origin master");
+        if gate {
+            std::process::exit(2);
+        }
+        return Ok(());
+    }
     if offenders > 0 {
         println!();
         println!("A section was appended to SKILL.md directly. Two branches doing that");
@@ -997,7 +1011,10 @@ mod tests {
         let head = secs(&[(1, "one"), (2, "folded")]);
         let (new, ok) = unspooled(&base, &head, 1);
         assert_eq!(new.len(), 1);
-        assert!(ok, "one new section against one deleted spool file is a fold");
+        assert!(
+            ok,
+            "one new section against one deleted spool file is a fold"
+        );
     }
 
     #[test]
@@ -1029,7 +1046,10 @@ mod tests {
         use super::unspooled;
         let base = secs(&[(1, "one")]);
         let head = secs(&[(1, "one"), (2, "a"), (3, "b")]);
-        assert!(!unspooled(&base, &head, 1).1, "two sections, one spool file");
+        assert!(
+            !unspooled(&base, &head, 1).1,
+            "two sections, one spool file"
+        );
         assert!(unspooled(&base, &head, 2).1);
     }
 
