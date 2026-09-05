@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:f87af83c0ff6c847d32612b230569d4c0035683bb05e56f51a180d2f11570eed",
-  "gen_hash_rust": "sha256:d55eae7abffa0e33e591d7eb875be8a273ffe5a6dcc0f7f01a6be7df4c916a9e",
+  "gen_hash_rust": "sha256:0e6bdd83e2f7ae0f37f1c0e9d990ab5a469a8dfbddac057118beb198c0b1e38f",
   "gen_hash_verilog": "sha256:57cc672e29d6b8b23a4b66343155520fe6d890ffb46c38ec621e66ca6d857a5b",
   "gen_hash_zig": "sha256:dbba7f928af7d8a9672028e095e782314e7bccd0a5cee09290c602384d3ee036",
   "module": "PhiUniversalAttractor",

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:e26d5e7d7b252343f37f1beae4d344af390bf3cdd8fc2c3778d6359990aac6db",
-  "gen_hash_rust": "sha256:baaa608eb58c94fbb2f20acb07f150be16f52689b2523ba17c567ce48b8b1d09",
+  "gen_hash_rust": "sha256:749173c5782062e7ee2eb11e573ca1275f885779df6b6bdb12f93a9768377295",
   "gen_hash_verilog": "sha256:7baa41f693b25fd218b7fb41ca5acee278ec413bb0449dbef759e6d6880a852f",
   "gen_hash_zig": "sha256:52c3832bd59a6d948b03bd92108aa5adc3ca6cafa412afff71acf7f5d271f569",
   "module": "FPGA_Bridge",
