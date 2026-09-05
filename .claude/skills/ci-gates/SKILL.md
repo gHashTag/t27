@@ -16156,10 +16156,49 @@ through `else if drop_withdrawn`, that the no-flag path still refuses by name, a
 guard consults the authorised set. Four mutants, all killed by both the unit tests and the
 scratch-repo control.
 
+## 566. A census of what cannot be read is not a census of what is read wrongly
 
-## 566. The prototype gave the right number because one of its alternatives was dead
+`tri unparsed` ranks the constructs that stop the parser, each row backed by a live
+probe. It is a good instrument and it answers one question: which specs the compiler
+**cannot read**. Nothing in this tree answers the other one — which specs it reads
+**wrongly** — and that class is invisible for the reason that makes it dangerous:
+every gate is green on it.
 
-&sect;567 found one entry carrying another's body, by accident, while repairing something else. The
+Fourteen corpus specs pass `parse`, pass `typecheck`, and emit a struct field with
+no type at all. Three of them appear in the debt ledger, for other reasons; **eleven
+are tracked by nothing**. A four-line reproducer shows the whole mechanism:
+
+```t27
+module probe {
+    pub const Thing = struct {
+        ok : u8,
+        bad : 0,
+    };
+}
+```
+
+An integer literal sits in **type position**. `parse` accepts it, `typecheck`
+accepts it, the Rust backend writes `pub bad: 0,`, the C backend writes `0 bad;`,
+and the Zig backend **drops the field entirely**. Two backends emit something their
+language cannot parse; the third silently produces a type that is missing a member,
+which is worse because nothing downstream can notice.
+
+The source of it is a declaration form the parser does not implement — a list-valued
+key whose items follow on later lines. Because recovery turns those items into fields,
+the specs come out the other side looking well-formed. **A parser that recovers
+produces output; a census built on failure cannot see it.**
+
+Two practical consequences. First, when a census exists, ask what its population is
+defined by — `unparsed` is defined by *the compiler refused*, so anything the
+compiler accepted is outside it by construction, however wrong the result. Second, the
+cheapest detector for the second class is not a parser change but a **shape check on
+the generated output**: `pub f: ,` and `0 bad;` are trivially greppable, and the
+population they find is exactly the one no phase covers.
+
+
+## 567. The prototype gave the right number because one of its alternatives was dead
+
+&sect;569 found one entry carrying another's body, by accident, while repairing something else. The
 question it left was whether that was a case or a class. `tri skill lost` now asks it, and the answer
 is **one, and it is fixed** -- but the road to that number is the finding.
 
@@ -16204,9 +16243,9 @@ test that fails on correct code has told you about your fixture.
 Measured: **1** flagged on the damaged base, **0** on the repaired tree, **0** in `SKILL.md` across
 524 sections.
 
-## 567. I audited my own detector in the wrong unit
+## 568. I audited my own detector in the wrong unit
 
-&sect;568 shipped a check that found **0** misattributed entries, using a matcher anchored on word
+&sect;569 shipped a check that found **0** misattributed entries, using a matcher anchored on word
 boundaries. The obvious worry, written into that pass's own next-steps: `W434` inside
 `XADC_LIVE_W434_OPERATING_POINT` is invisible to `\bW`, so how much of the population is the detector
 blind to?
@@ -16243,7 +16282,7 @@ What would change the verdict is an entry whose body names a foreign id ONLY in 
 names none of its own at all. That entry does not exist today. **If one is ever written, this section
 is the note that says which line to change.**
 
-## 568. Three hundred and twelve headings, three hundred and ten seats
+## 569. Three hundred and twelve headings, three hundred and ten seats
 
 &sect;571 asked in which unit a check DECIDES against the unit a reader AUDITS it in, and declined to
 widen a matcher because the two agreed. A fan-out over the whole CLI asked the same question
