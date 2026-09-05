@@ -42,10 +42,24 @@ def step_body():
     return "\n".join(l[10:] if l.startswith(" " * 10) else l for l in m.group(1).split("\n"))
 
 
+# The gate's operand list. Named here rather than taken from `files`, because the
+# defect this test exists for is an operand the gate NAMES and cannot READ: the
+# one-file cases below write a single file while the list still names two.
+OPERANDS = ("Phi.v", "PhiFloat.v")
+
+
 def arm(body, files):
     d = tempfile.mkdtemp(prefix=f"admitted-gate-{os.getpid()}-")
     try:
         os.makedirs(os.path.join(d, "coq/Kernel"))
+        # #3238 widened the gate from two hardcoded paths to the files
+        # `coq/_CoqProject` names, and this fixture had no such file -- so every
+        # case died at `grep: coq/_CoqProject: No such file or directory`, rc=2,
+        # and the two cases that ASSERT rc=2 passed for the wrong reason while
+        # the three that assert anything else failed. The tree the gate reads
+        # must carry the file the gate reads it from.
+        with open(os.path.join(d, "coq/_CoqProject"), "w") as fh:
+            fh.write("-Q . Kernel\n" + "".join(f"Kernel/{f}\n" for f in OPERANDS))
         for f, c in files.items():
             with open(os.path.join(d, "coq/Kernel", f), "w") as fh:
                 fh.write(c)
