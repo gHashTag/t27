@@ -17157,3 +17157,51 @@ was also the larger one — reading 7951 tracked files to judge the 3 that are s
 cost you introduce and never state is a claim you are making silently; price it in the unit
 the user feels, and expect the pricing itself to be the instrument that finds what the
 controls missed.
+
+## 592. A spooled lesson carries no number
+
+Two branches each appended `## N.` to SKILL.md, numbered from their own base. Both merged.
+The number appeared twice. It happened twice in two passes, and then the two *repairs*
+raced each other — one of them, merged, would have duplicated five whole sections.
+
+No branch-side check can catch it. `tri skill check` passes on both sides and fails only
+on the result: **the merge creates the defect, so there is nothing for a hook to look at.**
+A local `renumber` before pushing does not help either, because another PR can merge
+between the renumber and the merge — which is exactly what happened, both PRs being
+individually correct against their own bases.
+
+The fix is to stop choosing the number at author time. `tri skill add "<title>"` writes
+`.claude/skills/<skill>/incoming/<date>-<slug>.md` carrying a title and **no number**. Two
+branches spooling two lessons write two paths, and two paths do not conflict.
+`tri skill fold` appends them to SKILL.md and assigns numbers *then*, against the file in
+front of it — one branch, one moment, nothing else in flight.
+
+This is the shape `docs/now/` already uses. Its own gate script records why: entries used
+to be prepended to a single `docs/NOW.md`, every PR edited the same first line, and "the
+races were resolved by hand". 548 entry files later they do not conflict. The same defect
+was solved once in this repository and not carried across to the file next door.
+
+Two refusals are deliberate. `fold` rejects a spooled file that is **already numbered** —
+a pre-assigned number is precisely what collides — and rejects one whose first line is not
+`## <title>`, rather than guessing a title from the filename.
+
+## 593. The merge creates the defect, so the branch cannot check it
+
+Worth separating from the repair, because it decides where a guard can live at all.
+
+A defect a branch *brings* can be caught on the branch. A defect the **merge** creates
+cannot: it exists in neither side. `tri skill check` passed on both branches and failed on
+the result, and no pre-commit hook, no `--check` flag and no local dry run could have seen
+it, because at the time they run there is nothing wrong.
+
+For that class, a branch-side gate is meaningless by construction — so do not write one.
+The options are to remove the collision (make the identifier unique by construction, as a
+spooled path is), or to assign the identifier after the merge, which means a single writer.
+
+The recognising question is: **can I reproduce this defect in one branch?** If the answer
+is no and both sides are individually correct, stop looking for a check to add to the
+branch, and change what the merge is being asked to combine.
+
+The same shape appears wherever two branches edit one shared position: a first line, a
+counter, a next free number, a hand-maintained index. `docs/NOW.md` had it and was split.
+`SKILL.md` had it and was not, until now.
