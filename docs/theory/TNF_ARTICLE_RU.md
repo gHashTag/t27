@@ -2409,7 +2409,7 @@ $50/50$, и ни одна бинада их не разделяет.
 2. L. Hunhold. Tekum: balanced-ternary tapered-precision arithmetic. arXiv:2512.10964.
 3. L. Hunhold. Design and implementation of a takum arithmetic hardware codec in VHDL. arXiv:2408.10594. Исходники: https://github.com/takum-arithmetic/Takum-Codec-RTL
 4. D. Vasilev. GoldenFloat: a $\varphi$-derived static-split floating-point family from GF4 to GF1024 with a Lucas-exact integer identity. arXiv:2606.05017v3, 2026.
-5. D. Vasilev. An 83-format numeric catalog with bit-exact conformance vectors: a vendor-neutral reference for FP8, BF16, MXFP4, and microscaling formats. arXiv:2606.09686v2, 2026.
+5. D. Vasilev. Golden Ruler: a numeric format catalog with bit-exact conformance vectors for FP8, BF16, MXFP4, and microscaling formats. arXiv:2606.09686v3, 2026.
 6. J. L. Gustafson, I. Yonemoto. Beating floating point at its own game: posit arithmetic. *Supercomputing Frontiers and Innovations*, 4(2), 2017. Стандарт Posit (2022) фиксирует $es=2$ на всех разрядностях.
 7. C. Wolf. Yosys open synthesis suite. https://yosyshq.net/yosys/
 8. D. Shah et al. nextpnr: a portable FPGA place-and-route tool. https://github.com/YosysHQ/nextpnr; цель Xilinx через Project X-Ray.

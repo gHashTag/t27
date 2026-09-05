@@ -8,7 +8,7 @@ Status tag: **[verified SW]**. This is a software chain (an analytic
 separation-bound + two structurally independent exact decode paths). It is NOT an
 on-silicon Tier-E claim. gf256 is a software interchange format (storage class
 `u256_software`): it has NO RTL, so there is no decode-HW / compute-HW cell to close
-and the Tier-E ceiling (71 of the 83 formats catalogued when this witness was
+and the Tier-E ceiling (71 of the formats catalogued when this witness was
 written; the catalog is 109 at v3, Sep 2026) is unaffected.
 
 ## Why NO FP-target (contrast with gf48)

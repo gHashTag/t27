@@ -121,7 +121,7 @@ eleven bases, re-tested paired on the saved per-seed data, n = 5:
 reachable rows, zero waste. The same neuron in a binary LUT6 has 64 rows of which
 27 are reachable — **42% used, 58% lost to the substrate.**
 
-**THE CATALOGUE THROUGH THE SIEVE (T405, run at W778 over the 83 formats then
+**THE CATALOGUE THROUGH THE SIEVE (T405, run at W778 over the catalogue as then
 registered; the catalogue is 109 at v3, Sep 2026, and the 26 rows added since are
 not covered by this run): 1 admissible.** 12 unsievable
 (no width, or decimal), 71 sieved, **70 killed by S1 alone** — every one is a
@@ -266,7 +266,7 @@ be built. They belong in the *history*, with their refutations attached, never i
 the *catalogue*.
 
 Runnable: `experiments/gfternary-line/golden_sieve.py`,
-`sieve_catalog.py` (run at W778 over the then-83-format catalogue; re-run against
+`sieve_catalog.py` (run at W778 over the catalogue as it stood then; re-run against
 the current 109), `gen_mix.py` (effective fan-in + area),
 `fanin_accuracy.py` (accuracy, with the `scale` control).
 Spec: `specs/numeric/golden_sieve.t27` — 3 tests, 7 invariants proved comptime.
@@ -511,7 +511,7 @@ on each layer — and multiplying by `α_ℓ` **puts the multiplier back**. Stor
 2 bits either way; symbol count is 3 either way. The φ alphabet simply *carries*
 the scale that the unit alphabet has to *learn and then pay for*.
 
-### Verified on the Artix-7 FPGA (XC7A200T) prototype
+### Verified against the synthesized node (exact integer reference in Z[φ])
 
 16,000 vectors at fan-in 8/16/32, 8-bit activations, weights drawn uniformly from
 the alphabet: **zero mismatches**. Depth checked to `k=30`, where the gain is
@@ -671,7 +671,7 @@ Inverted, the same law becomes a *diagnostic instrument*:
 > tapering format `M_eff` decreases with `|e|`, and `dM_eff/d|e|` **is** the taper
 > rate in significand bits per binade.
 
-This resolves the format catalogue (83 formats when measured; 109 at v3, Sep
+This resolves the format catalogue (as it stood when measured; 109 at v3, Sep
 2026) into exactly **four** taper shapes — and
 there is no fifth. It reads posit's taper (`k = ⌊|e|/2^es⌋ + 1`) and takum's
 (`r = ⌊log₂(|e|+1)⌋`) exactly, from the encoder, not from a fit.

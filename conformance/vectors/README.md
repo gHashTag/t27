@@ -71,7 +71,7 @@ Coverage policy (deterministic, reproducible):
 | `gf128_conformance_v0.json` | GF128 | 15 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf128/`) |
 | `gf12_conformance_v0.json` | GF12 | 8 | ✔ |
 | `gf14_conformance_v0.json` | GF14 | 14 | ✔ (GoldenFloat wide rung S1E5M8, bias 15; independent 2nd witness = iverilog exhaustive 16384/16384 (trinity-fpga #239)) |
-| `gf16_conformance_v0.json` | GF16 | 21 | ✔ (pre-existing silicon-oracle anchor) |
+| `gf16_conformance_v0.json` | GF16 | 21 | ✔ (pre-existing FPGA-oracle anchor, XC7A200T) |
 | `gf20_conformance_v0.json` | GF20 | 8 | ✔ |
 | `gf24_conformance_v0.json` | GF24 | 8 | ✔ |
 | `gf256_conformance_v0.json` | GF256 | 2021 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf256/`) |
@@ -334,7 +334,7 @@ e9be37c939c7108081bd2190e949f4d01be7ad12511d82bb8849f337c94e7e0c  x87_fp80_confo
 
 The hand-curated reference packs (byte-stable) come from dedicated generators
 (`gen_fp8_e4m3.py`, `gen_fp8_e5m2.py`, `gen_mxfp4_e2m1.py`, `gen_bf16_golden.py`);
-`gf16_conformance_v0.json` is the original SSOT silicon-oracle anchor pack; and
+`gf16_conformance_v0.json` is the original SSOT FPGA-oracle anchor pack (XC7A200T); and
 `takum8/16/32/64`, `bcd`, `gf14` ship curated / externally-generated vector
 sets. The remaining packs (and `INDEX_all_formats.json`) are produced by the
 catalog-wide master generator:
