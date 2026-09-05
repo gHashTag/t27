@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:0bedc286e426f126d811665fd97147dc6ebfba4f96958a522fb9d779d982cfa0",
-  "gen_hash_rust": "sha256:597a8469770bf31b826a7641f8326ac7d0a67f67d6e1a0335efe13984be9c3de",
+  "gen_hash_rust": "sha256:f5b4b63099b0584f2c4edb7e7c5bd82934cbc62e50e6e489b89cbabef71a05a8",
   "gen_hash_verilog": "sha256:bfdd79ebab78682b40028db81ce198b51da58b7c5cb959580165fc9fa01f276d",
   "gen_hash_zig": "sha256:01938d9fbbfc4d9f5e19ad941071b5a303b8c7b87e336157ce928c26c34d18eb",
   "module": "TriOctree",

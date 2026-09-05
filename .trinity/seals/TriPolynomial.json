@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:f4be61d6d8250b58128564746b7308bb4c3b332d2b9f739acb47657093e0df4b",
-  "gen_hash_rust": "sha256:afc5333932eb39efad76b60211680fdd40d1179fe188046ed238fd7219ed53f1",
+  "gen_hash_rust": "sha256:fbd84560062e0758eb568d30b534e1b8ca2b6109a1124994eec198c87fd926aa",
   "gen_hash_verilog": "sha256:7d9f44c2943526512e5b10e036d3b1269706ef8e52a7fdd06421a0302dfdf593",
   "gen_hash_zig": "sha256:5027bc8f0b50a55a898d9237507a8f1260fc3dcfacc5954e9f35b3199c2d01c9",
   "module": "TriPolynomial",

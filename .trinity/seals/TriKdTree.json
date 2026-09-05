@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:7658bd16d1d66d14de50176a27cc78f130863a13853fedc2dacc839a2fe4a68f",
-  "gen_hash_rust": "sha256:ef3b4d4725e2aa711a38eef402f00717c9de1b45a1f47ae0cdf43568052eac4e",
+  "gen_hash_rust": "sha256:ec452f608b4f52459b4c87a32fcc38622f3b833ff8f0591af58949c5a8530bb9",
   "gen_hash_verilog": "sha256:c1f0afec0673c3db6f521e9b37b4add257f355a964bb55b153707616595c93e3",
   "gen_hash_zig": "sha256:369f3d5632ef02f40c2edea5a3ab0670cce287040188cf7d66ae11fed6ed3dda",
   "module": "TriKdTree",
