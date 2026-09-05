@@ -16337,7 +16337,7 @@ in two passes that restructuring a guard broke the test that pins it, and the se
 test doing its job. They now assert the ARGUMENT, not merely the call: the hollow question must be
 asked over `occurrences`, and `here` must be bound from it. Two of the three mutants no longer compile,
 which is the strongest form of a killed mutant.
-## 567. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
+## 570. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
 
 The earlier units fan-out flagged `prcheck.rs` and I had not checked it. Checking it found a guard that
 is wrong on every real input.
@@ -16385,7 +16385,7 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
-## 567. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
+## 571. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
 
 &sect;542 fixed the DENOMINATOR of `tri gates mutate`'s equivalence report: `claims_seen` counted every
 `# mutant-equivalent:` marker textually, including claims for which no mutant was ever built. The
@@ -16541,7 +16541,7 @@ And the counting instrument itself is subject to the rule. The 10-and-79 above w
 measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
 message before being checked against `test_module_lines` — the correct instrument, already
 in the repository, already trusted by `mutate`. Two files the wrong count named have zero.
-## 568. A guard that cannot run, on the path that merges
+## 572. A guard that cannot run, on the path that merges
 
 The ratio sweep's strongest survivor is not a malformed number. It is a merge.
 
@@ -16697,3 +16697,41 @@ its edits textually; the documented failure mode of naive textual mutators is a 
 `"1 + 2"` mutated to `"1 - 2"`, failing a test for the wrong reason, and the stated
 minimum is a **tokenizer-based skip mask**. The mask existed here — it simply was not
 Rust-aware.
+
+### A control that cannot fail is not a control, and I wrote two of them
+
+Replacing a line-based source scanner with a character pass, I wrote eight controls for
+the new `code_mask` and mutation killed only some of the branches. Two controls were
+the problem, not the code.
+
+`/* /* 888 */ */` was meant to prove nested block comments are handled — but **888 is
+inside the comment whether or not nesting is honoured**. The mutant that stopped
+counting depth passed. The fixture had to become `/* /* x */ 999 */`, with the digit
+*after* the inner close, where a non-nesting scanner reads 999 as code.
+
+The escape control was worse. It was `const T: &str = "\` + a multi-line fixture, meant
+to prove that `\` escapes are honoured — but that fixture contains **no escaped quote**,
+so the string closes at the same byte either way. It had to become
+`"he said \" 999"`, where a scanner ignoring escapes ends the string early and reads
+999 as code.
+
+Both had passed. Both looked like they exercised the branch they named. Only mutation
+showed they could not fail, and the fix was to the CONTROL, not the code.
+
+The rule that comes out: **name the mutant your control is meant to kill, then check
+the control fails under exactly that mutant.** A control written from the feature's
+description rather than from its failure mode tends to land just beside the branch.
+
+The same pass closed a question from the one before it. A `!prev_is_word` guard had been
+recorded as *a decoration in `masked()` and load-bearing in `raw_string_opens`*. This
+change deletes `raw_string_opens` entirely — a character scanner supersedes it — and the
+guard becomes a decoration again, measured across eleven files plus a probe: zero differ.
+**Necessity was never a property of the check; it was a property of the scanner's shape**,
+and changing the shape changed the answer. A guard that is structural today can be dead
+tomorrow without its own line ever being edited.
+
+One more, on baselines. Midway I read a file at 213 sites and later at 221 and started
+diagnosing a regression. Neither number was wrong: `origin/master` had moved between the
+readings, and the intervening commit was **my own**, which added sixty lines to the very
+file being measured. A baseline regenerated from a moving reference is not a baseline.
+Pin the blob, or measure a file the change does not touch.
