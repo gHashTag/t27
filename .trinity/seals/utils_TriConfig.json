@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:297dd1d50724f7ccc1daf480bccced9a725cabcb35a6af90714aa20d5ac4319d",
-  "gen_hash_rust": "sha256:06bcdc2b43053b9336b9cf4e1f83e77a93966ce402b36034995539052f500d23",
+  "gen_hash_rust": "sha256:3e477ed0be25c82ec582100a091d087a88e8d691c45e2e5006e07360272a7296",
   "gen_hash_verilog": "sha256:948b449721033a4ea975b7ef558418eed16d23e31ada247dd229b459411756ec",
   "gen_hash_zig": "sha256:060fe0b453c07002ca4b856016c8f778195a1f9dda7f2e6600a048e0a6a60591",
   "module": "TriConfig",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:27Z",
+  "sealed_at": "2026-09-05T01:08:39Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:f1e5eefbb3fdd68c2f4f539e8a221d176d21851a20f6abf159266108b547ac2f",
   "spec_path": "specs/tri/utils/config.t27"

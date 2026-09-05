@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:def0c464e85a699aeb18f0c90ea64a7b2ff891a7cacb36167a5d537ac736c4d4",
-  "gen_hash_rust": "sha256:bda354b93df1ddd522174cffb1689d4658e10f15bfe2751371721f14f68d18cf",
+  "gen_hash_rust": "sha256:719d81dceeec06595bdb0c484ce3bc6c8b7ca4f7d4a6f5ace87bb79cd52c6dee",
   "gen_hash_verilog": "sha256:6c15fe1a6e40bb733767cbfd974c5d0ffe515ac0eb3636efcd74d221e289df3d",
   "gen_hash_zig": "sha256:662956c9446f507d62005440b28a3250db5a69151022e0a56ca614d054b252cf",
   "module": "TriRadixSort",
