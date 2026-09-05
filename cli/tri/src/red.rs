@@ -215,10 +215,15 @@ fn why(workflow: &str, repo: Option<&str>, branch: &str, limit: usize) -> Result
 
     println!("  {workflow} on {branch}, in {repo}");
     println!(
-        "  read {} run(s) of {} available -- this is a WINDOW, not the history\n",
+        "  read {} run(s) of {} available -- this is a WINDOW, not the history",
         runs.len(),
         total
     );
+    // Say which end is which. The rows are oldest first so a cause SHIFT reads
+    // forwards, but every other `gh` listing is newest first -- and I misread my
+    // own output twice on the day after writing it, taking the top row for the
+    // latest run and nearly re-fixing a census that had already been blessed.
+    println!("  OLDEST first; the last row is the most recent run\n");
 
     // Oldest first: a cause SHIFT reads forwards, not backwards.
     let mut rows: Vec<(String, String, Vec<String>)> = Vec::new();
