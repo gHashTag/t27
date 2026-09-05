@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:4a7aea5ea8ecf04b1b977ad3e912903fb9aff98cae6e0f7e539560c41e77e908",
-  "gen_hash_rust": "sha256:b9c846f85030964c93c3f3b4020cbd26928205e4752726e821f49f1926d86b4e",
+  "gen_hash_rust": "sha256:f9fd67d9e1ddf7e7efa62b24445a2d4b032e885ab075b546df7522e05b3f4600",
   "gen_hash_verilog": "sha256:a7ca70e5b44760e4432a7fe9ab22c3b62dbb22735296358625b889e395bfdfc7",
   "gen_hash_zig": "sha256:8da93ead894c705a05ae364992a7df439087b2675b081b4d13a69b5b2299d6b1",
   "module": "PhiSplitOptimality",
