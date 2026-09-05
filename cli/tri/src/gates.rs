@@ -2719,9 +2719,25 @@ fn warnings_gate(gate: bool) -> Result<()> {
         println!("  {tag}  {at:<34}  {msg}");
     }
     println!();
+    // `cargo check -p tri` also checks the workspace crates tri depends on, and
+    // replays their cached warnings, so this population is not one crate. Say
+    // whose it is: an unlabelled total is read as belonging to the crate named
+    // in the command, which is the same defect this command exists to catch.
+    let mut by_crate: std::collections::BTreeMap<String, usize> = Default::default();
+    for (_, at, _) in &rows {
+        let krate = at.split('/').take(2).collect::<Vec<_>>().join("/");
+        *by_crate.entry(krate).or_default() += 1;
+    }
+    let spread = by_crate
+        .iter()
+        .map(|(k, n)| format!("{k} {n}"))
+        .collect::<Vec<_>>()
+        .join(", ");
     println!(
-        "{} warning(s); {} in the discarded-computation class.",
+        "{} warning(s) across {} crate(s) [{}]; {} in the discarded-computation class.",
         rows.len(),
+        by_crate.len(),
+        spread,
         discarded
     );
     if rows.is_empty() {
