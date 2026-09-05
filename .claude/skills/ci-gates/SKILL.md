@@ -17205,3 +17205,51 @@ branch, and change what the merge is being asked to combine.
 The same shape appears wherever two branches edit one shared position: a first line, a
 counter, a next free number, a hand-maintained index. `docs/NOW.md` had it and was split.
 `SKILL.md` had it and was not, until now.
+
+## 594. The population of EVENTS, after the predicate and the operand
+
+Three defect classes in two days, in strict order of subtlety.
+
+    the PREDICATE   is the rule right?          -- unit tests answer this
+    the OPERAND     is it applied to the right  -- eight gates read the working tree,
+                    thing?                         the directory, or HEAD (§590)
+    the EVENTS      what else comes through     -- nothing answers this but enumeration
+                    this place?
+
+The third one produced two defects that every control missed, because a control tests the
+event you thought of.
+
+**A push can be a deletion.** `.githooks/pre-push` did not read stdin, so
+`git push origin --delete <branch>` was refused with `SYNC REQUIRED: this PR/push adds no
+docs/now entry` and the branch survived on the remote. git feeds a push hook
+`<local ref> <local sha> <remote ref> <remote sha>`, one line per ref, and a deletion has
+an **all-zero local sha**.
+
+**A commit can be a merge.** Measured on git 2.50.1 with marker hooks:
+
+    event            pre-commit   commit-msg
+    normal commit        yes          yes
+    --amend              yes          yes
+    --allow-empty        yes          yes
+    merge --no-ff        NO           yes
+    cherry-pick          NO           NO
+
+So every gate in the barrier — the conflict-marker refusal above all — was silent on **the
+one commit type conflict markers come from**. `git merge` runs `pre-merge-commit`, whose
+non-zero exit stops the merge; the index at that moment holds the merge RESULT, which is
+exactly the operand the barrier reads once it is corrected to `--staged`. `cherry-pick` runs
+neither hook and git offers none that could stop it: that gap is stated, not papered over.
+
+**The method is enumeration, not cleverness.** Write marker hooks that only `touch` a file,
+run each event through them, and read which files exist. It takes minutes and answers a
+question no amount of reasoning about the gate will.
+
+Two hazards met while measuring, both worth their own line:
+
+* **`git config` inside a worktree writes to the SHARED config.** Setting `core.hooksPath`
+  for a probe disabled the real hooks in all 148 worktrees, including other sessions
+  committing at that moment. Use `git -c core.hooksPath=... <command>`, which lives only in
+  that process.
+* **A failed `cd` does not stop a subshell.** `( cd "$P" ; git commit ; git merge )` with a
+  missing `$P` ran its commits in the current tree. Write `cd "$P" || exit 1`, print `pwd`,
+  and make any probe that WRITES confirm its location first.
