@@ -38,6 +38,26 @@ pub enum HooksCmd {
         #[arg(long)]
         self_check: bool,
     },
+    /// Ask the required NOW gate's own script whether this push adds an entry.
+    ///
+    /// `now_gate` reads the docs/now DIRECTORY, so the commit is not one of its inputs:
+    /// with 165 in-window entries sitting on master, a change that adds nothing of its
+    /// own passes the whole local barrier and is then refused by the required
+    /// `check-now-freshness` context. The cost is a full CI round on a question that
+    /// could have been asked here.
+    ///
+    /// PUSH AND NOT COMMIT, deliberately. The required gate asks about a RANGE, and a
+    /// branch may legitimately add its entry in a later commit than the code -- `tri now
+    /// add` is naturally run after the work. Refusing at commit time would block that.
+    /// At push the range is the same object the gate reads in CI.
+    ///
+    /// It calls `scripts/ci/now-sync-gate-diff.sh`, the gate's own reader, rather than
+    /// re-implementing the question. A sixth vocabulary is how the last five drifted.
+    PrePush {
+        /// Base of the range. Defaults to `origin/master`.
+        #[arg(long)]
+        base: Option<String>,
+    },
     /// L1 TRACEABILITY: last commit message must reference an issue
     /// (`Closes #N` / `Fixes #N` / `Resolves #N` / `Reference #N`).
     L1Check,
@@ -61,6 +81,7 @@ pub enum HooksCmd {
 pub fn run(cmd: &HooksCmd) -> Result<()> {
     match cmd {
         HooksCmd::PreCommit => pre_commit(),
+        HooksCmd::PrePush { base } => pre_push(base.as_deref()),
         HooksCmd::FixCarriesSource { subject, base, head, self_check } => {
             fix_carries_source_cmd(subject.as_deref(), base.as_deref(), head.as_deref(), *self_check)
         }
@@ -1054,4 +1075,75 @@ fn fix_carries_source_self_check() -> Result<()> {
     } else {
         anyhow::bail!("{} control(s) did not behave as stated: {}", bad.len(), bad.join(", "))
     }
+}
+
+
+/// The push-time half of the NOW gate: does this range ADD an entry?
+fn pre_push(base: Option<&str>) -> Result<()> {
+    let root = repo_root()?;
+    let script = root.join("scripts/ci/now-sync-gate-diff.sh");
+    if !script.is_file() {
+        anyhow::bail!(
+            "tri hooks pre-push: {} is missing. Nothing was checked.",
+            script.display()
+        );
+    }
+    let base = base.unwrap_or("origin/master");
+    // A base that cannot be resolved is could-not-run, not a pass. This worktree has been
+    // seen carrying `remote.origin.fetch = +refs/heads/master:refs/remotes/origin/master`,
+    // under which every OTHER `origin/<branch>` answers "bad revision" whatever the truth
+    // is -- so the failure to resolve says nothing about the branch and must not be read
+    // as one.
+    let b = match rev(&root, base) {
+        Some(v) => v,
+        None => anyhow::bail!(
+            "tri hooks pre-push: cannot resolve `{base}`, so the range is unknown and \
+             nothing was checked. Fetch it, or pass --base."
+        ),
+    };
+    let head = rev(&root, "HEAD")
+        .ok_or_else(|| anyhow::anyhow!("tri hooks pre-push: cannot resolve HEAD"))?;
+    let out = Command::new("bash")
+        .arg(&script)
+        .current_dir(&root)
+        .env("PR_BASE_SHA", &b)
+        .env("PR_HEAD_SHA", &head)
+        .env("GITHUB_EVENT_NAME", "pull_request")
+        .output()
+        .context("failed to invoke bash scripts/ci/now-sync-gate-diff.sh")?;
+    print!("{}", String::from_utf8_lossy(&out.stdout));
+    match out.status.code() {
+        Some(0) => {
+            println!("tri hooks pre-push: PASSED");
+            Ok(())
+        }
+        Some(1) => {
+            eprint!("{}", String::from_utf8_lossy(&out.stderr));
+            anyhow::bail!(
+                "this range adds no docs/now entry, and `check-now-freshness` is required. \
+                 `tri now add` and amend or add a commit -- the CI round costs minutes."
+            )
+        }
+        other => {
+            eprint!("{}", String::from_utf8_lossy(&out.stderr));
+            anyhow::bail!(
+                "the NOW gate could not run (exit {}). Nothing was checked.",
+                other.map(|c| c.to_string()).unwrap_or_else(|| "signal".into())
+            )
+        }
+    }
+}
+
+/// Resolve a revision to a sha, or None. None means "could not resolve", never "absent".
+fn rev(root: &std::path::Path, r: &str) -> Option<String> {
+    let out = Command::new("git")
+        .args(["rev-parse", "--verify", "--quiet", r])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if s.is_empty() { None } else { Some(s) }
 }
