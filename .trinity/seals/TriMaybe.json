@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:644a9b8d9d229ac7794023462131513e464d20a882aeba2910f9917bb6352a86",
-  "gen_hash_rust": "sha256:8fe4cb66cb5d9180343121f3bdbdb644b23214602b585d4db272bd777c76140a",
+  "gen_hash_rust": "sha256:0b640d4af926d726368fbd87898ec150cacd4cda6a8206d1d108889960cbac96",
   "gen_hash_verilog": "sha256:62f3cca22d5ceb3ac71c8cc4b9ff8e0222662ef8d0cc68d0f6e2fd050c6611a5",
   "gen_hash_zig": "sha256:1a5c44e8111e1ce4f96654715ecdaf5fec1d12fef8e8eb4711c94eb548f4e6f1",
   "module": "TriMaybe",
