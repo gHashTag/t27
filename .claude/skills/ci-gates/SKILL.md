@@ -16385,6 +16385,7 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
+<<<<<<< HEAD
 
 ## 568. A guard that cannot run, on the path that merges
 
@@ -16438,3 +16439,5 @@ difference between a report and a rumour.
 The loop is I/O-bound, so the four unit tests on `required_posted` and `required_pending` all stay
 green when either half is reverted. **Eleventh pass in a row that the wiring outlived the function**
 -- and the first where the wiring in question ends in `gh pr merge`.
+=======
+>>>>>>> origin/master
