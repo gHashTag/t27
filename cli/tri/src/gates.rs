@@ -4438,6 +4438,90 @@ mod sweep_tests {
     use super::*;
 
     #[test]
+    fn code_mask_knows_what_is_not_code() {
+        use super::code_mask;
+        let at = |src: &str, needle: &str, last: bool| -> bool {
+            let i = if last {
+                src.rfind(needle)
+            } else {
+                src.find(needle)
+            };
+            code_mask(src)[i.expect("needle present")]
+        };
+        // A normal string that ENDS in `r` must not open a raw string; the code
+        // after it is still code. This is the case that made a per-line scanner
+        // swallow `#[cfg(test)]` and skip nothing at all.
+        assert!(at("let a = \"abcr\"; let n = 5;", "5", true));
+        // Raw string content is not code; code after it is.
+        assert!(!at("let a = r#\"x 12345 y\"#; let n = 5;", "12345", false));
+        assert!(at("let a = r#\"x 12345 y\"#; let n = 5;", "5", true));
+        // The close is `\"` plus the SAME number of `#`.
+        assert!(at(
+            "let a = r##\"has \"# inside 999\"##; let n = 5;",
+            "5",
+            true
+        ));
+        assert!(!at(
+            "let a = r##\"has \"# inside 999\"##; let n = 5;",
+            "999",
+            false
+        ));
+        // An ESCAPED quote does not end the string: without escape handling the
+        // string closes early and the digits after it read as code.
+        assert!(!at(
+            "let a = \"he said \\\" 999\"; let n = 5;",
+            "999",
+            false
+        ));
+        // Comments. The nested case needs the digit AFTER the inner close --
+        // `/* /* 888 */ */` has 888 inside whether or not nesting is honoured.
+        assert!(!at("// 777\nlet n = 5;", "777", false));
+        assert!(!at("/* /* x */ 999 */ let n = 5;", "999", false));
+        assert!(at("/* /* x */ 999 */ let n = 5;", "5", true));
+        // A lifetime is not a char literal, so what follows it stays code.
+        assert!(at("fn f<'a>(x: &'a str) -> u32 { 7 }", "7", false));
+        assert!(!at("let c = '9'; let n = 5;", "9", false));
+        // The case this whole function exists for: an ordinary string continued
+        // with a trailing backslash, whose content holds a column-0 `}`.
+        let cont = "const T: &str = \"\\\nenum E {\n}\n\";\nfn after() -> u32 { 7 }\n";
+        assert!(
+            !at(cont, "enum E", false),
+            "the fixture body is string content"
+        );
+        assert!(at(cont, "7", false), "and the function after it is code");
+    }
+
+    #[test]
+    fn a_brace_in_a_fixture_does_not_end_the_test_module() {
+        use super::test_module_lines;
+        // types_dup.rs holds `const THREE_SPELLINGS: &str = "\` whose fixture
+        // has a column-0 `}` at line 1115. That closed the module and handed 29
+        // test-only literals to the mutator as production constants.
+        let src = "fn prod() -> u32 { 7 }\n\
+                   #[cfg(test)]\n\
+                   mod tests {\n\
+                   const F: &str = \"\\\n\
+                   enum E {\n\
+                   }\n\
+                   \";\n\
+                       fn t() { let secret = 99; }\n\
+                   }\n";
+        let m = test_module_lines(src);
+        let line = |n: usize| m[n - 1];
+        assert!(!line(1), "production stays production");
+        assert!(line(3), "the module opens at the `mod tests` line");
+        assert!(line(6), "the brace inside the fixture is text, not a close");
+        assert!(
+            line(8),
+            "so the test body after it is still inside the module"
+        );
+        assert!(
+            line(9),
+            "line 9 is the real close, and is reported as inside"
+        );
+    }
+
+    #[test]
     fn the_t106_warning_shape_is_its_own_class() {
         // Both of these are what rustc printed for `signature` in types_dup.rs
         // while the summary undercounted 346 rows as 345.
@@ -6486,52 +6570,141 @@ pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
 /// their test module, `gates.rs` fifteen of them. So the module is closed properly, by
 /// a `}` in the first column -- which holds for rustfmt-formatted code and is the
 /// assumption this states rather than hides.
+/// Bytes that are CODE: not inside a comment, a string, or a char literal.
+///
+/// A single character pass, because the per-line rules this replaced could not
+/// express an ordinary string continued with a trailing backslash. Measured
+/// before it: `types_dup.rs` holds `const THREE_SPELLINGS: &str = "\` whose
+/// fixture has a column-0 `}` at line 1115, which ended that file's test module
+/// and handed 29 test-only literals to the mutator as production constants.
+///
+/// The obvious line rule -- an odd number of unescaped quotes opens a string --
+/// was written and REVERTED: one unbalanced quote puts the scanner in string
+/// mode permanently, so `#[cfg(test)]` is never seen again and NOTHING is
+/// skipped. It took `fpga.rs` from 376 offered / 637 skipped to 993 / 0.
+pub fn code_mask(text: &str) -> Vec<bool> {
+    let b = text.as_bytes();
+    let mut m = vec![true; b.len()];
+    let mut i = 0usize;
+    while i < b.len() {
+        let blank_to = |m: &mut Vec<bool>, from: usize, to: usize| {
+            for x in m.iter_mut().take(to.min(b.len())).skip(from) {
+                *x = false;
+            }
+        };
+        if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
+            let e = text[i..].find('\n').map(|p| i + p).unwrap_or(b.len());
+            blank_to(&mut m, i, e);
+            i = e;
+            continue;
+        }
+        if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+            let mut depth = 1usize;
+            let mut j = i + 2;
+            while j < b.len() && depth > 0 {
+                if b[j] == b'/' && j + 1 < b.len() && b[j + 1] == b'*' {
+                    depth += 1;
+                    j += 2;
+                } else if b[j] == b'*' && j + 1 < b.len() && b[j + 1] == b'/' {
+                    depth -= 1;
+                    j += 2;
+                } else {
+                    j += 1;
+                }
+            }
+            blank_to(&mut m, i, j);
+            i = j;
+            continue;
+        }
+        // A raw string.
+        //
+        // A `!prev_is_word` guard stood here, so that `"cannot occur"` could not
+        // open one at its trailing `r"`. It was LOAD-BEARING in the per-line
+        // scanner this replaced, which had no string rule ahead of it and so
+        // reached that `r` directly. Here the ordinary-string rule below
+        // consumes `"cannot occur"` whole and the scan never lands on the `r`,
+        // which makes the guard a decoration again: removed, and measured
+        // across eleven files plus the probe, ZERO differ.
+        //
+        // Worth writing down because the same code was structural one revision
+        // ago. Necessity is a property of the scanner's shape, not the check.
+        if b[i] == b'r' {
+            let mut k = i + 1;
+            let mut hashes = 0usize;
+            while k < b.len() && b[k] == b'#' {
+                hashes += 1;
+                k += 1;
+            }
+            if k < b.len() && b[k] == b'"' {
+                let mut close = String::from("\"");
+                close.push_str(&"#".repeat(hashes));
+                let e = text[k + 1..]
+                    .find(&close)
+                    .map(|p| k + 1 + p + close.len())
+                    .unwrap_or(b.len());
+                blank_to(&mut m, i, e);
+                i = e;
+                continue;
+            }
+        }
+        // An ordinary string, honouring escapes -- and therefore spanning lines
+        // when the escape is a newline. That is the whole point.
+        if b[i] == b'"' {
+            let mut j = i + 1;
+            while j < b.len() {
+                if b[j] == b'\\' {
+                    j += 2;
+                    continue;
+                }
+                if b[j] == b'"' {
+                    j += 1;
+                    break;
+                }
+                j += 1;
+            }
+            blank_to(&mut m, i, j);
+            i = j;
+            continue;
+        }
+        // A char literal, but NOT a lifetime: `'a` is followed by something
+        // other than a closing quote.
+        if b[i] == b'\'' {
+            let j = if i + 1 < b.len() && b[i + 1] == b'\\' {
+                let mut k = i + 2;
+                while k < b.len() && b[k] != b'\'' {
+                    k += 1;
+                }
+                k + 1
+            } else if i + 2 < b.len() && b[i + 2] == b'\'' {
+                i + 3
+            } else {
+                i += 1;
+                continue;
+            };
+            blank_to(&mut m, i, j);
+            i = j;
+            continue;
+        }
+        i += 1;
+    }
+    m
+}
+
 pub fn test_module_lines(text: &str) -> Vec<bool> {
+    let code = code_mask(text);
     let mut out = Vec::new();
     let mut inside = false;
     let mut armed = false;
-    // Hash count of the raw string we are inside, if any. Without this a line
-    // that is exactly `}` INSIDE an r#"..."# fixture closed the test module,
-    // and every line after it was reported as production.
-    //
-    // Measured before the fix: `tri mutate run` offered 36 sites in
-    // competitors.rs and 29 in types_dup.rs that sit below those files' own
-    // `#[cfg(test)]`, because the module ended early at a brace inside a
-    // fixture string. Perturbing a test's own arithmetic fails that test and
-    // is then reported as "the checker noticed" -- the tautology the caller,
-    // `drop_test_module_sites`, exists to prevent.
-    let mut in_raw: Option<usize> = None;
+    let mut at = 0usize;
     for line in text.lines() {
-        if let Some(hashes) = in_raw {
-            let mut close = String::from("\"");
-            close.push_str(&"#".repeat(hashes));
-            if line.contains(&close) {
-                in_raw = None;
-            }
-            // A brace inside string content is not a closing brace.
+        // A brace, an attribute or a `mod` inside string content or a comment is
+        // text, not structure. `at` is this line's first byte.
+        let is_code = code.get(at).copied().unwrap_or(true);
+        at += line.len() + 1;
+        if !is_code {
             out.push(inside);
             continue;
         }
-        if let Some(hashes) = raw_string_opens(line) {
-            in_raw = Some(hashes);
-            out.push(inside);
-            continue;
-        }
-        // An ORDINARY string can span lines too, via a trailing `\` --
-        // types_dup.rs holds `const THREE_SPELLINGS: &str = "\` whose fixture
-        // has a column-0 `}` at line 1115, and that still closes the module
-        // early, handing 29 test-only literals to the mutator.
-        //
-        // A parity rule ("an odd number of unescaped quotes opens a string")
-        // was written here and REVERTED after measurement: one line with an
-        // unbalanced quote puts the scanner in string mode permanently, so
-        // `#[cfg(test)]` is never seen again and NOTHING is skipped. Measured
-        // across eleven files: fpga.rs went from 376 offered / 0 in a test
-        // module to 993 offered / 0 skipped, prcheck.rs 43 -> 122, gates.rs
-        // 213 -> 265, and competitors.rs got worse rather than better
-        // (36 -> 43 sites inside its own test module). The raw-string rule
-        // above is kept because it measured clean; this case is reported in
-        // its issue instead of being guessed at.
         if inside && line == "}" {
             inside = false;
             out.push(true);
@@ -6546,47 +6719,6 @@ pub fn test_module_lines(text: &str) -> Vec<bool> {
         out.push(inside);
     }
     out
-}
-
-/// The hash count of a raw string this line OPENS and does not close.
-///
-/// `None` when the line opens none, or opens and closes one -- a fixture
-/// written on a single line changes nothing about which lines follow it.
-fn raw_string_opens(line: &str) -> Option<usize> {
-    let b = line.as_bytes();
-    let mut i = 0usize;
-    while i < b.len() {
-        if b[i] == b'r' {
-            let mut k = i + 1;
-            let mut hashes = 0usize;
-            while k < b.len() && b[k] == b'#' {
-                hashes += 1;
-                k += 1;
-            }
-            // The `r` must not be the tail of a word. `"cannot occur"` puts an
-            // `r"` in the line, and without this the last quote on the line
-            // reads as an unclosed raw-string opener and every line after it is
-            // swallowed -- `#[cfg(test)]` included, so the module never opens
-            // and nothing is skipped. Measured: gates.rs reported 218 sites
-            // instead of 213 until this was added.
-            //
-            // The same guard is a DECORATION in `mutate::masked`, where the
-            // ordinary-string rule reaches those bytes first. Here there is no
-            // such rule, so it carries the whole case. Only measurement tells
-            // the two apart.
-            let prev_is_word = i > 0 && (b[i - 1].is_ascii_alphanumeric() || b[i - 1] == b'_');
-            if k < b.len() && b[k] == b'"' && !prev_is_word {
-                let mut close = String::from("\"");
-                close.push_str(&"#".repeat(hashes));
-                return match line[k + 1..].find(&close) {
-                    Some(_) => None,
-                    None => Some(hashes),
-                };
-            }
-        }
-        i += 1;
-    }
-    None
 }
 
 /// `(name, first line, last line)` for every top-level `fn` in a Rust source file.
