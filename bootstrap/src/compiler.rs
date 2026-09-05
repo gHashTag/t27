@@ -23766,7 +23766,16 @@ impl RustCodegen {
         // Recorded before the body is written, so a member referenced inside
         // the same module resolves however the declarations are ordered.
         self.enum_names.insert(node.name.clone());
-        self.write_line("#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]");
+        // W-: the gate `gen_struct` puts on serde 43 lines above never reached
+        // this path. `--crate-type lib` with no `--extern serde` cannot resolve
+        // the crate, so every spec declaring an enum failed at
+        //     error[E0433]: failed to resolve: use of undeclared crate `serde`
+        // before any of its own code was read. Same remedy, same words: behind
+        // the feature the default output compiles against std alone.
+        self.write_line("#[derive(Debug, Clone, Copy, PartialEq, Eq)]");
+        self.write_line(
+            "#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]",
+        );
         self.write_line(&format!("pub enum {} {{", node.name));
         self.indent += 1;
         for child in &node.children {
