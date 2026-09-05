@@ -735,9 +735,17 @@ fn subject_claims_source(subject: &str) -> bool {
 /// What it lacked was not any particular extension; it was anything at all besides prose.
 /// Prose and records are a small, stable, closed set. Substance is everything else.
 fn is_prose_or_record(path: &str) -> bool {
-    path.starts_with("docs/")
-        || path.starts_with(".trinity/seals/")
-        || path.rsplit_once('.').map(|(_, e)| e) == Some("md")
+    // Not `docs/`. A directory prefix is not a claim about content: `docs/` holds 11 `.py`
+    // and 4 `.sh` -- 132 of its 2489 files are not `.md` at all -- and calling an
+    // executable script prose because of where it lives is the same mistake in the other
+    // direction. The document FORMATS are the closed set; the directory is not.
+    const PROSE_EXT: [&str; 4] = ["md", "tex", "rst", "adoc"];
+    path.starts_with(".trinity/seals/")
+        || path
+            .rsplit_once('/')
+            .map_or(path, |(_, b)| b)
+            .rsplit_once('.')
+            .is_some_and(|(_, e)| PROSE_EXT.contains(&e))
 }
 
 /// Refuse a commit whose subject claims a compiler fix but whose diff has no source file.
@@ -848,12 +856,14 @@ mod fix_carries_source_tests {
             "fpga/verilog/gft_sadd_jtag.xdc", "synth/run.tcl", "Cargo.toml",
             "proofs/lean4/Trinity/Emitter.lean", "Makefile", "Dockerfile", "scripts/tri",
             "tools/conflict_markers_baseline.txt", "README",
+            // A directory prefix is not a claim about content.
+            "docs/tools/gen.py", "docs/scripts/build.sh", "docs/assets/diagram.svg",
         ] {
             assert!(!is_prose_or_record(p), "should be substance: {p}");
         }
         // Prose and records: the closed set.
         for p in [
-            "docs/now/note.md", "docs/FROZEN.md", "docs/theory/x.tex",
+            "docs/now/note.md", "docs/FROZEN.md", "docs/theory/x.tex", "paper/a.rst",
             ".trinity/seals/Backend.json", "NOW.md", "a/b/c.md",
         ] {
             assert!(is_prose_or_record(p), "should be prose: {p}");
@@ -1002,6 +1012,7 @@ fn fix_carries_source_self_check() -> Result<()> {
         [
             "bootstrap/src/compiler.rs", "rtl/mac.v", "fpga/verilog/a.xdc", "Cargo.toml",
             "proofs/lean4/Emitter.lean", "Makefile", "scripts/tri", "README",
+            "docs/tools/gen.py", "docs/scripts/build.sh",
         ]
             .iter()
             .all(|p| !is_prose_or_record(p))

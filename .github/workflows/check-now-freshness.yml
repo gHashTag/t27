@@ -13,6 +13,14 @@ name: Check Now Freshness
 
 on:
   pull_request:
+    # `edited` is NOT in the default set (opened, synchronize, reopened), and the gate
+    # below judges the pull request TITLE. Without it the rule fails in both directions:
+    # a benign title can be renamed to `fix(rust)` after the last green run and never be
+    # re-read, and an author who follows the failure message's own advice -- "name that
+    # scope instead" -- edits the title and the required context stays red with no way to
+    # re-run it but pushing a commit. The cost is that a body edit also re-runs this job;
+    # it is python only.
+    types: [opened, synchronize, reopened, edited]
     # No `branches:` filter on pull_request, deliberately. A branch filter makes
     # this gate silent on any PR whose base is not listed -- a stacked PR then
     # shows a green check list that a master-based PR would not get. Enforced by

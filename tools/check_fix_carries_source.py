@@ -37,8 +37,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 RUST = REPO / "cli/tri/src/hooks.rs"
 
+COMMENT_RE = re.compile(r"//.*")
 SCOPES_RE = re.compile(r"const SOURCE_SCOPES: \[&str; \d+\] = \[(.*?)\];", re.S)
 PROSE_FN_RE = re.compile(r"fn is_prose_or_record\(path: &str\) -> bool \{(.*?)\n\}", re.S)
+PROSE_EXT_RE = re.compile(r"const PROSE_EXT: \[&str; \d+\] = \[(.*?)\];", re.S)
 STR_RE = re.compile(r'"([A-Za-z0-9_./]+)"')
 
 
@@ -61,7 +63,10 @@ def definitions():
     """
     if not RUST.exists():
         raise CouldNotRun(f"{RUST} is missing; the rule has no definition to read")
-    src = RUST.read_text()
+    # Strip line comments first. Without this a prose comment inside the brackets --
+    # `// e.g. "docs" is not one` -- silently widens the rule, because the extractor
+    # cannot tell a definition from a sentence about it.
+    src = COMMENT_RE.sub("", RUST.read_text())
     m = SCOPES_RE.search(src)
     if not m:
         raise CouldNotRun("SOURCE_SCOPES not found in cli/tri/src/hooks.rs")
@@ -69,9 +74,12 @@ def definitions():
     m = PROSE_FN_RE.search(src)
     if not m:
         raise CouldNotRun("fn is_prose_or_record not found in cli/tri/src/hooks.rs")
-    lits = STR_RE.findall(m.group(1))
-    prefixes = [l for l in lits if l.endswith("/")]
-    exts = [l for l in lits if not l.endswith("/")]
+    body = m.group(1)
+    prefixes = [l for l in STR_RE.findall(body) if l.endswith("/")]
+    me = PROSE_EXT_RE.search(body)
+    if not me:
+        raise CouldNotRun("const PROSE_EXT not found inside fn is_prose_or_record")
+    exts = STR_RE.findall(me.group(1))
     if not scopes or not prefixes or not exts:
         raise CouldNotRun(
             f"the definitions parsed empty (scopes={len(scopes)}, prefixes={len(prefixes)}, "
@@ -107,16 +115,40 @@ def is_prose(path, prefixes, exts):
     return "." in base and base.rsplit(".", 1)[-1] in exts
 
 
-def changed_files(base, head):
+def commit_subjects(base, head):
+    """Every non-merge commit subject in the pull request.
+
+    The title alone is not the claim that lands. GitHub's squash defaults the commit
+    message to the PULL REQUEST TITLE only when the branch has more than one commit; with
+    exactly one, it defaults to THAT COMMIT's message. So a benign title over a single
+    `fix(rust)` commit puts the claim on master while the title-only reading passes.
+
+    Checking the union of claims costs nothing in false accusations, because the
+    requirement is on the union of the DIFF: a branch may claim a compiler fix in one
+    commit and carry its source in the next, and that is still substance.
+    """
     r = subprocess.run(
-        ["git", "diff", "--name-only", f"{base}...{head}"],
+        ["git", "log", "--no-merges", "--format=%s", f"{base}..{head}"],
+        capture_output=True, text=True, cwd=REPO,
+    )
+    if r.returncode != 0:
+        raise CouldNotRun(f"git log {base}..{head} exited {r.returncode}: {r.stderr.strip()}")
+    return [l.strip() for l in r.stdout.splitlines() if l.strip()]
+
+
+def changed_files(base, head):
+    # `-z` because `--name-only` alone C-quotes any path with a non-ASCII or special
+    # character (`"docs/r\303\251sum\303\251.md"`), and the extension test would then
+    # read a trailing quote as part of the extension.
+    r = subprocess.run(
+        ["git", "diff", "-z", "--name-only", f"{base}...{head}"],
         capture_output=True, text=True, cwd=REPO,
     )
     if r.returncode != 0:
         raise CouldNotRun(
             f"git diff {base}...{head} exited {r.returncode}: {r.stderr.strip()}"
         )
-    return [l.strip() for l in r.stdout.splitlines() if l.strip()]
+    return [f for f in r.stdout.split("\0") if f]
 
 
 def self_check():
@@ -131,7 +163,7 @@ def self_check():
     check(
         "the definitions were read, not defaulted",
         set(scopes) >= {"rust", "c", "zig", "verilog"}
-        and "docs/" in prefixes
+        and ".trinity/seals/" in prefixes
         and "md" in exts,
     )
     check(
@@ -165,9 +197,15 @@ def self_check():
               "bootstrap/src/compiler.rs", "rtl/mac.v", "fpga/verilog/a.xdc", "synth/run.tcl",
               "Cargo.toml", "proofs/lean4/Emitter.lean", "Makefile", "Dockerfile",
               "scripts/tri", "tools/baseline.txt", "README")))
+    # A directory prefix is not a claim about content: docs/ holds 11 .py and 4 .sh.
+    check("executable code under docs/ is substance, not prose",
+          not any(is_prose(p, prefixes, exts) for p in (
+              "docs/tools/gen.py", "docs/scripts/build.sh", "docs/assets/diagram.svg")))
+    check("a claim in a commit subject counts, not only in the title",
+          claims_source("fix(rust): the single commit whose message GitHub would use", scopes))
     check("prose and records are the closed set",
           all(is_prose(p, prefixes, exts) for p in (
-              "docs/now/n.md", "docs/FROZEN.md", "docs/theory/x.tex",
+              "docs/now/n.md", "docs/FROZEN.md", "docs/theory/x.tex", "paper/a.rst",
               ".trinity/seals/Backend.json", "NOW.md", "a/b/c.md")))
 
     print()
@@ -202,8 +240,11 @@ def main():
         )
         return 2
 
-    if not claims_source(title, scopes):
-        print(f"OK: the title claims no compiler scope.\n  {title}")
+    claims = [("title", title)] + [("commit", c) for c in commit_subjects(base, head)]
+    claiming = [(k, c) for k, c in claims if claims_source(c, scopes)]
+    if not claiming:
+        print(f"OK: neither the title nor any of its {len(claims) - 1} commit subject(s) "
+              f"claims a compiler scope.\n  {title}")
         return 0
 
     files = changed_files(base, head)
@@ -215,8 +256,9 @@ def main():
         print(f"OK: {len(substance)} of {len(files)} path(s) are substance, e.g. {substance[0]}")
         return 0
 
-    print("FAIL: the title claims a compiler fix and the diff is prose only", file=sys.stderr)
-    print(f"  title: {title}", file=sys.stderr)
+    print("FAIL: a compiler fix is claimed and the diff is prose only", file=sys.stderr)
+    for kind, c in claiming:
+        print(f"  claimed by the {kind}: {c}", file=sys.stderr)
     print(f"  all {len(files)} path(s) are under "
           f"{', '.join(prefixes)} or end in {'/'.join('.' + e for e in exts)}:",
           file=sys.stderr)
