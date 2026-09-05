@@ -24319,7 +24319,11 @@ impl RustCodegen {
             "f32" | "f64" => base_type.to_string(),
             "GF16" | "gf16" => "u16".to_string(),
             "bool" => "bool".to_string(),
-            "str" => "String".to_string(),
+            // The Zig mapper spells this `"str" | "string" => "[]const u8"`
+            // (compiler.rs:8322) and the C emitter writes `const char**` for
+            // `[string]`; only this mapper knew the short spelling, so 34 specs
+            // using the long one received the bare word `string` as a Rust type.
+            "str" | "string" => "String".to_string(),
             "void" => "()".to_string(),
             t if t.starts_with("[]") => {
                 // `[]const u8` is the Zig spelling of a slice of const u8, and
@@ -24367,9 +24371,23 @@ impl RustCodegen {
                     let size = inside[semi + 1..].trim();
                     format!("[{}; {} as usize]", Self::t27_type_to_rust(elem), size)
                 } else {
-                    // Zig-style `[N]T`: size in brackets, element after `]`.
+                    // Two spellings share this shape and the element type sits on
+                    // opposite sides of the bracket.
+                    //
+                    // Zig-style `[N]T` puts the SIZE in the brackets and the element
+                    // after them. t27's own `[T]` -- the spelling the corpus actually
+                    // uses, as in `proof_steps: [ProofStep]` -- puts the ELEMENT in
+                    // the brackets and leaves nothing after. Reading only the tail
+                    // gave the empty string, so 52 specs received `Vec<>`, which
+                    // rustc cannot parse; everything behind it in the file was
+                    // invisible to any first-error histogram.
+                    //
+                    // The C emitter already reads the second form correctly -- the
+                    // same field comes out as `ProofStep* proof_steps;` -- so the
+                    // target is set by a sibling backend, not inferred here.
                     let after = &t[end + 1..];
-                    format!("Vec<{}>", Self::t27_type_to_rust(after))
+                    let elem = if after.trim().is_empty() { inside } else { after };
+                    format!("Vec<{}>", Self::t27_type_to_rust(elem))
                 }
             }
             t => t.to_string(), // Custom type name
