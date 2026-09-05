@@ -234,6 +234,73 @@ pub fn truncated(then: &[String], now: &[String]) -> bool {
     then[now.len()..].iter().any(|l| !l.trim().is_empty())
 }
 
+/// Identifiers that say which entry a line BELONGS to: a wave number and a
+/// `gfNN` format name.
+///
+/// Issue numbers are deliberately excluded. An entry cites other issues as a
+/// matter of course -- with `#NNNN` counted, 49 of 312 NOW.md entries flag and
+/// the one real case is buried. The prototype for this check appeared to give
+/// the right answer with issue numbers in its pattern, and did so only because
+/// `\b#` requires a word character immediately before the `#`, so that
+/// alternative never matched anything. **A dead alternative produced the right
+/// number for the wrong reason**, and the reason is what had to be written down.
+pub fn identifiers(text: &str) -> std::collections::BTreeSet<String> {
+    let re = regex::Regex::new(
+        r"(?i)\bwave[ -]loop[ -](\d+)\b|\bW(\d{3})\b|\bwave-loop-(\d+)\b|\b(gf\d+)\b",
+    )
+    .expect("static pattern");
+    let mut out = std::collections::BTreeSet::new();
+    for c in re.captures_iter(text) {
+        for i in 1..=4 {
+            if let Some(m) = c.get(i) {
+                out.insert(m.as_str().to_lowercase());
+            }
+        }
+    }
+    out
+}
+
+/// Entries whose body names NONE of its own identifiers and DOES name one that
+/// another entry's heading owns.
+///
+/// The shape found on 2026-09-05: `SW-conformance — gf48` carried 39 lines of
+/// `Wave Loop 434` boot evidence, fifty lines below its own heading, and never
+/// mentioned gf48. An empty-body check cannot see this -- the entry HAS a body,
+/// it is simply not its own -- and it is worse than a loss, because the entry
+/// claims another's evidence as its own.
+///
+/// The naive form of this question is useless here: 58 of the 63 NOW.md entries
+/// with a wave number name SOME other wave, because an entry routinely points at
+/// the next one. What discriminates is naming none of its OWN.
+pub fn misattributed(
+    entries: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Vec<(String, Vec<String>)> {
+    let mut owned = std::collections::BTreeSet::new();
+    for h in entries.keys() {
+        owned.extend(identifiers(h));
+    }
+    let mut out = Vec::new();
+    for (h, body) in entries {
+        let mine = identifiers(h);
+        if mine.is_empty() {
+            continue;
+        }
+        let text = body.join("\n");
+        if text.trim().is_empty() {
+            continue;
+        }
+        let theirs = identifiers(&text);
+        if mine.intersection(&theirs).next().is_some() {
+            continue;
+        }
+        let foreign: Vec<String> = theirs.intersection(&owned).cloned().collect();
+        if !foreign.is_empty() {
+            out.push((h.clone(), foreign));
+        }
+    }
+    out
+}
+
 /// Headings with nothing under them.
 ///
 /// The same damage as a truncation and visible with no history at all, so it is
@@ -340,6 +407,7 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
     // Measured 2026-09-05: `docs/NOW.md` has 2 of 312, at lines 6359 and 6361 --
     // two CONSECUTIVE bare headings -- and `SKILL.md` has 0 of 523.
     let hollow = hollow_headings(&now);
+    let wrong = misattributed(&now);
     if hollow.is_empty() {
         println!("  Every heading has a body.");
     } else {
@@ -351,6 +419,20 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
             println!("    {t}");
         }
         println!("  Nothing was written under these. No history was needed to see it.");
+    }
+    if wrong.is_empty() {
+        println!("  Every entry that names an identifier names its own.");
+    } else {
+        println!();
+        println!("  {} entry(s) whose body names NO identifier of its own, and does", wrong.len());
+        println!("  name one another entry owns:");
+        for (h, foreign) in &wrong {
+            println!("    {h}");
+            println!("      body names: {}", foreign.join(", "));
+        }
+        println!("  A body that is not its own is worse than a missing one: the entry");
+        println!("  claims another's evidence. Measured on this repository before the");
+        println!("  2026-09-05 repair: exactly 1, and 0 after.");
     }
     println!();
 
@@ -524,6 +606,100 @@ mod tests {
             code.contains(call),
             "without this the walk runs, finds nothing by construction, and \
              prints a clean bill of health for any file"
+        );
+    }
+
+    /// The shape found on 2026-09-05: an entry whose body is another entry's.
+    /// An empty-body check cannot see it -- the entry HAS a body.
+    #[test]
+    fn a_body_that_names_none_of_its_own_ids_is_flagged() {
+        let mut e = std::collections::BTreeMap::new();
+        // The real body: `XADC_LIVE_W434_...` alone does NOT match, because the
+        // `_` before `W434` is a word character and the pattern is anchored on a
+        // word boundary. The first fixture used only that form and the test
+        // failed -- correctly. What made the live case detectable is the plain
+        // `wave-loop-434` on its branch line.
+        e.insert(
+            "SW-conformance — gf48 promoted".to_string(),
+            vec![
+                "- Branch: `wave-loop-434`".to_string(),
+                "- Added XADC_LIVE_W434_OPERATING_POINT".to_string(),
+            ],
+        );
+        e.insert(
+            "Wave Loop 434 — boot evidence".to_string(),
+            vec!["- Branch: wave-loop-434".to_string()],
+        );
+        let out = super::misattributed(&e);
+        assert_eq!(out.len(), 1, "only the entry carrying another's id: {out:?}");
+        assert!(out[0].0.starts_with("SW-conformance — gf48"));
+        assert_eq!(out[0].1, vec!["434".to_string()]);
+    }
+
+    /// The naive form of this question is useless here: 58 of the 63 NOW.md
+    /// entries with a wave number name SOME other wave, because an entry
+    /// routinely points at the next one. Naming its OWN is what clears it --
+    /// and all 58 of them do, which is why the refined check returns 0 on the
+    /// repaired file and 1 on the damaged one.
+    #[test]
+    fn naming_a_neighbour_is_not_misattribution() {
+        let mut e = std::collections::BTreeMap::new();
+        e.insert(
+            "Wave Loop 889 close-out".to_string(),
+            vec!["- Branch: `wave-loop-889`, follows Wave Loop 888, next Wave Loop 890".to_string()],
+        );
+        e.insert("Wave Loop 888 close-out".to_string(), vec!["- body".to_string()]);
+        e.insert("Wave Loop 890 close-out".to_string(), vec!["- body".to_string()]);
+        assert!(
+            super::misattributed(&e).is_empty(),
+            "889 names its own number, so pointing at 888 and 890 is a cross-reference"
+        );
+    }
+
+    /// An id no entry OWNS is a reference to something outside the document --
+    /// a sibling repository's wave, a format the file never wrote up. Flagging
+    /// it would accuse an entry of carrying a body that does not exist here.
+    #[test]
+    fn an_id_no_heading_owns_is_not_evidence() {
+        let mut e = std::collections::BTreeMap::new();
+        e.insert(
+            "SW-conformance — gf48 promoted".to_string(),
+            vec!["- see wave-loop-999 in trinity-fpga".to_string()],
+        );
+        e.insert("Wave Loop 434 — boot".to_string(), vec!["- wave-loop-434".to_string()]);
+        assert!(
+            super::misattributed(&e).is_empty(),
+            "999 belongs to no entry here, so nothing was taken from anything"
+        );
+    }
+
+    /// `misattributed` can be right while `lost` never calls it.
+    #[test]
+    fn lost_actually_reports_misattribution() {
+        let src = include_str!("skillnum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let wrong = misattrib", "uted(&now);");
+        assert!(code.contains(call), "the check has to be asked");
+    }
+
+    /// Issue numbers are excluded on purpose. With `#NNNN` counted, 49 of 312
+    /// NOW.md entries flag and the one real case is buried. The prototype
+    /// appeared to give the right answer WITH them in its pattern, and only
+    /// because `\b#` requires a word character before the `#` -- a dead
+    /// alternative that produced the right number for the wrong reason.
+    #[test]
+    fn an_issue_number_is_not_an_ownership_identifier() {
+        let ids = super::identifiers("Closes #1358 and refers to #1702");
+        assert!(ids.is_empty(), "issue numbers are not ownership: {ids:?}");
+        let ids = super::identifiers("Wave Loop 434 and gf48 and W431");
+        assert_eq!(
+            ids.iter().cloned().collect::<Vec<_>>(),
+            vec!["431".to_string(), "434".to_string(), "gf48".to_string()],
+            "waves and formats are"
         );
     }
 

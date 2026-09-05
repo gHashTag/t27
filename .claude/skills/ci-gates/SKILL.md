@@ -16088,3 +16088,50 @@ emptiness -- the last version whose first lines actually mention `gf48 (GoldenFl
 
 Verified after: 310 headings before and after, 0 titles lost, 0 empty bodies, exactly 3 bodies
 changed.
+
+## 568. The prototype gave the right number because one of its alternatives was dead
+
+&sect;565 found one entry carrying another's body, by accident, while repairing something else. The
+question it left was whether that was a case or a class. `tri skill lost` now asks it, and the answer
+is **one, and it is fixed** -- but the road to that number is the finding.
+
+**The naive question is useless here.** 58 of the 63 `docs/NOW.md` entries with a wave number in the
+heading mention *some other* wave in the body, because an entry routinely points at the next one.
+What discriminates is naming **none of its own**: `SW-conformance — gf48` carried 39 lines of Wave
+Loop 434 and never said `gf48`.
+
+### The prototype was right for the wrong reason
+
+The python sketch of this check reported **1** on the damaged file. Ported to Rust it reported **49**.
+The difference is one alternative in the pattern:
+
+```text
+python:  \b(?:...|#(\d{3,5}))\b
+```
+
+**`\b#` requires a word character immediately before the `#`.** There is never one. That alternative
+**matched nothing, ever** -- so the sketch silently compared wave and format identifiers only, which
+happens to be the correct population, and reported the correct number while carrying a rule it never
+applied.
+
+The Rust port made `#NNNN` live, and 49 entries flagged: an entry cites other issues as a matter of
+course, so issue numbers are not ownership. **The right answer and the right reason arrived by
+different routes, days apart, and only the port showed that they had.** Had I shipped the sketch, the
+rule in the code would have said "issue numbers count" and the behaviour would have said otherwise,
+until someone fixed the regex and the tool changed its mind for no visible reason.
+
+Issue numbers are now excluded **deliberately, with that measurement written beside the pattern**.
+
+### Both fixtures were wrong, and the tests were right to fail
+
+The first fixture put `XADC_LIVE_W434_OPERATING_POINT` in the body and expected a flag. It does not
+match: the `_` before `W434` is a word character, so `\bW` fails. What made the live case detectable
+was the plain `` `wave-loop-434` `` on its branch line. The second fixture had entry 889's body name
+888 and 890 but not 889, and asserted no flag -- which is exactly the shape that SHOULD flag.
+
+**Two fixtures, two failures, both because the fixture was unrepresentative and the code was right.**
+Same lesson as &sect;562, one pass later: reproducing a defect means reproducing its exact form, and a
+test that fails on correct code has told you about your fixture.
+
+Measured: **1** flagged on the damaged base, **0** on the repaired tree, **0** in `SKILL.md` across
+524 sections.
