@@ -22,6 +22,28 @@ for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
   [ -x "$cand" ] || continue
   if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
 done
+# git feeds this hook `<local ref> <local sha> <remote ref> <remote sha>` on stdin, one
+# line per ref. A DELETION has an all-zero local sha, and it will never add a docs/now
+# entry -- refusing it is a false accusation. Measured the day this gate was added:
+# `git push origin --delete <branch>` was refused with "SYNC REQUIRED", and the branch
+# survived on the remote.
+#
+# stdin is consumed here, so anything downstream that wanted it must be given it back.
+# Nothing downstream reads it today; if that changes, tee it.
+ONLY_DELETES=1
+SAW_A_REF=0
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  [ -z "${local_sha:-}" ] && continue
+  SAW_A_REF=1
+  case "$local_sha" in
+    *[!0]*) ONLY_DELETES=0 ;;
+  esac
+done
+if [ "$SAW_A_REF" = "1" ] && [ "$ONLY_DELETES" = "1" ]; then
+  echo "note: every ref in this push is a deletion; the NOW gate has nothing to judge."
+  exit 0
+fi
+
 if [ -n "$TRI_BIN" ]; then
   if ! "$TRI_BIN" hooks pre-push; then
     echo ""

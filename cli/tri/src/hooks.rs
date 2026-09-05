@@ -1124,6 +1124,19 @@ fn pre_push(base: Option<&str>) -> Result<()> {
     };
     let head = rev(&root, "HEAD")
         .ok_or_else(|| anyhow::anyhow!("tri hooks pre-push: cannot resolve HEAD"))?;
+    // An EMPTY range lands nothing, so there is nothing for the required gate to refuse
+    // and nothing here to accuse. The CI script itself answers `SYNC REQUIRED` on
+    // base == head -- faithful, but that case cannot arise in CI, where a pull request
+    // with no commits cannot be opened. Locally it arises constantly.
+    let count = Command::new("git")
+        .args(["rev-list", "--count", &format!("{b}..{head}")])
+        .current_dir(&root)
+        .output()
+        .context("failed to invoke git rev-list")?;
+    if String::from_utf8_lossy(&count.stdout).trim() == "0" {
+        println!("tri hooks pre-push: the range is empty; nothing lands, nothing to judge.");
+        return Ok(());
+    }
     let out = Command::new("bash")
         .arg(&script)
         .current_dir(&root)
