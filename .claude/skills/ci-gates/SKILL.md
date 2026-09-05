@@ -16736,7 +16736,7 @@ readings, and the intervening commit was **my own**, which added sixty lines to 
 file being measured. A baseline regenerated from a moving reference is not a baseline.
 Pin the blob, or measure a file the change does not touch.
 
-## 573. Pin the instrument before any parallel measurement
+## 579. Pin the instrument before any parallel measurement
 
 I launched twelve agents over one corpus and wrote into every brief: *the binary is
 already built, use it as is, do not rebuild -- rebuilding would silently change the
@@ -16770,7 +16770,7 @@ for its mechanisms. And an agent that rebuilds the baseline it was handed before
 trusting it is the check that catches this from the other side: on the re-run one did
 exactly that, reproducing 329/252/69 itself, and said so.
 
-## 574. A defect you merged to master reads as pre-existing on every later branch
+## 580. A defect you merged to master reads as pre-existing on every later branch
 
 A required gate went red on master. I looked at three consecutive red runs and wrote
 *"this is a pre-existing red gate, not something my PR caused"*. The repository's own
@@ -16802,7 +16802,7 @@ Ask that before believing any "pre-existing", especially when the answer is conv
 Both of that day's breakages were mine, both were three seconds after my own merge, and
 neither would have been found by re-reading the failure text.
 
-## 575. A declined probe measures where its rule ends
+## 581. A declined probe measures where its rule ends
 
 I probed a type mapping, measured **+1 accepted and -1 regressed**, and declined it:
 net zero, recorded as priced-and-declined. Hours later a fan-out proposed the same
@@ -16822,3 +16822,49 @@ broke from the files it fixed. If the answer is a single word -- a qualifier, a 
 a scope, a position -- that is not a decline, it is a **narrowing**. And write the
 distinguishing word into the refusal itself: a refusal recorded as a bare net-zero
 reads later as a closed class, and the next reader is you.
+
+## 582. A control tells you about the population it samples, and mine sampled the binary
+
+A pull request of mine merged carrying its `docs/now` note and **not the compiler
+change the note describes**. One file, twenty-four insertions. The change is in no
+commit anywhere:
+
+```
+git log --all --oneline -S <the new symbol> -- bootstrap/src/compiler.rs
+(nothing)
+```
+
+Master carried a claim of +3 whose subject did not exist -- the defect this whole file
+is about, committed by the person maintaining the file.
+
+The sequence is worth reading because **every step passed**:
+
+1. edit, build, control prints the corrected output -- correct
+2. measure the corpus: +3, real number, change present only in the **working tree**
+3. to re-measure the baseline honestly, `git checkout master && git reset --hard` --
+   **which discards the edit**
+4. return to the branch, write the note, `git add -A && git commit` -- and what is
+   there to commit is the note
+5. push, gate, merge
+
+Earlier the same day I had built a helper that **refuses to push** unless the change is
+verified present in the rebuilt binary. It would not have caught this: the binary was
+correct at every moment anyone asked it. **Every control I had asked about the binary,
+and the claim was about the repository.**
+
+Two guards, and they are one line each.
+
+```
+git diff --cached --stat        # must list the source file, before you commit
+git show --stat HEAD            # must list it, before you push
+```
+
+And an ordering rule that removes the hazard rather than detecting it: **commit before
+you measure the baseline.** An honest baseline needs a `checkout` or a `reset`, and
+both destroy a working tree. Edit → **commit** → measure → re-seal → push.
+
+The general form is the one this file states in a dozen other places and which I did
+not apply to myself: a green control is a statement about the population it sampled. Ask
+what population your claim is about, and check that some control samples *that* one. A
+claim about the repository is not tested by a question about the binary, however many
+times the binary answers correctly.
