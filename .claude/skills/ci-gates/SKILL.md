@@ -16114,7 +16114,50 @@ specs still failing on that cause proves the cause is gone rather than merely ra
 Measure the second one after the change and diff by spec name, so a gain and a
 regression cannot cancel in a total.
 
-## 580. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
+
+## 565. One of four refusals had an unambiguous repair, and a second guard blocked it
+
+`tri skill renumber` refuses in four places and repairs in none. Three of them are right to: when the
+rebuild would DROP a section, the safe action is unknown -- the section might be mine or the base's,
+and guessing loses work.
+
+**The fourth is settled.** When the tail carries a section the base REMOVED on purpose, the command
+already knows exactly which ones, and carrying them forward resurrects a retraction. `--drop-withdrawn`
+removes exactly those and names each one. It is **opt-in**: deleting text nobody asked to delete is
+how a tool earns distrust, and the refusal already prints the list.
+
+### The second guard blocked the first guard's sanctioned repair
+
+The first version did precisely what it promised -- dropped the section, printed its name -- and then
+died two hundred lines later on:
+
+```text
+Error: the rebuild would DROP 1 section(s) that are on disk now:
+    Bravo
+```
+
+That is `titles_lost`, added three passes ago to stop a silent deletion. It is correct in general and
+wrong here: **Bravo is on disk, Bravo is gone from the rebuild, and the operator asked for that.**
+
+**A guard has to know what the operator authorised, or the authorisation is not real.** The lost-title
+check is now filtered by the set `--drop-withdrawn` was given, and the structural test asserts that
+filter exists -- because without it the flag looks like it works, prints a correct account of what it
+did, and refuses anyway.
+
+### Two structural tests failed, and both were right to
+
+They pin the SHAPE of the code around each guard. Changing `if !withdrawn.is_empty() { bail }` into a
+three-armed `if / else if drop_withdrawn / else` broke the string they search for, and so did wrapping
+`titles_lost(...)` in a filter. **A structural test that survives a restructuring of the thing it
+pins is not pinning it.**
+
+Both were rewritten to assert the NEW invariant rather than to pass: that removal is reachable only
+through `else if drop_withdrawn`, that the no-flag path still refuses by name, and that the lost-title
+guard consults the authorised set. Four mutants, all killed by both the unit tests and the
+scratch-repo control.
+
+
+## 566. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
 
 &sect;542 fixed the DENOMINATOR of `tri gates mutate`'s equivalence report: `claims_seen` counted every
 `# mutant-equivalent:` marker textually, including claims for which no mutant was ever built. The
