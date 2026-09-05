@@ -21885,10 +21885,43 @@ fn collect_bool_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
 }
 
 /// Collect names of locals declared with an explicit `bool` type.
+/// Is this expression bool-valued from its SHAPE alone?
+///
+/// The syntactic half of `expr_is_bool`, split out because `collect_bool_locals`
+/// runs before `bool_vars` and `bool_fns` exist, so the half that consults them
+/// cannot be asked yet. A local whose initialiser is a comparison is bool no
+/// matter what those sets end up holding.
+fn expr_is_bool_syntactically(n: &Node) -> bool {
+    match n.kind {
+        NodeKind::ExprBinary => matches!(
+            n.extra_op.as_str(),
+            "==" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "&&" | "||"
+        ),
+        NodeKind::ExprUnary => n.extra_op == "!" || n.extra_op == "not",
+        NodeKind::ExprLiteral => n.value == "true" || n.value == "false",
+        _ => false,
+    }
+}
+
 fn collect_bool_locals(nodes: &[Node], out: &mut std::collections::HashSet<String>) {
     for n in nodes {
-        if n.kind == NodeKind::StmtLocal && n.extra_type.trim() == "bool" {
-            out.insert(n.name.clone());
+        if n.kind == NodeKind::StmtLocal {
+            // An ANNOTATED bool, which is all this used to admit...
+            let annotated = n.extra_type.trim() == "bool";
+            // ...and a local with no annotation at all whose initialiser is a
+            // comparison. Without this, `const ok = (x > 1);` was not a bool to
+            // the emitter and `if ok` came out as `if (ok) != 0`, while the
+            // annotated form one line above came out correctly. Only the
+            // annotation differed.
+            //
+            // Requires the type to be EMPTY, not merely non-bool: a local
+            // annotated `u32` and initialised from a comparison is a spec defect
+            // and must keep failing visibly rather than being silently reclassified.
+            let inferred = n.extra_type.trim().is_empty()
+                && n.children.first().is_some_and(expr_is_bool_syntactically);
+            if annotated || inferred {
+                out.insert(n.name.clone());
+            }
         }
         collect_bool_locals(&n.children, out);
     }
