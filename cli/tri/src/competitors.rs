@@ -585,7 +585,20 @@ mod tests {
     #[test]
     fn both_print_sites_call_the_function_rather_than_subtracting() {
         let src = include_str!("competitors.rs");
-        let code = &src[..src.find("#[cfg(test)]").expect("the test module bounds the search")];
+        let code = &src[..src
+            .find("#[cfg(test)]")
+            .expect("the test module bounds the search")];
+        // That bound is the FIRST test module, at line 567, and `beta_competitor`
+        // sits at 680 -- outside it. The count assertion below is safe either
+        // way, because a call site moving out of the slice makes it read 1 and
+        // fail loudly. The `bad` assertion is not: a reintroduced subtraction
+        // below the cut would simply not be found. So prove the subject is in
+        // the slice before asserting its absence.
+        assert!(
+            code.contains("zero_at_1_citing_something"),
+            "the slice no longer reaches the function under test -- the absence \
+             assertion below would pass vacuously"
+        );
         let bad = concat!("zero_at_1 - ", "c.cites_nothing");
         assert!(
             !code.contains(bad),
@@ -622,7 +635,10 @@ mod tests {
         );
         let recs = records(&five_only);
         let c = counts(&recs);
-        assert_eq!(c.zero_at_1, 2, "Alpha now states zero at pass@1, Beta already did");
+        assert_eq!(
+            c.zero_at_1, 2,
+            "Alpha now states zero at pass@1, Beta already did"
+        );
         assert_eq!(c.cites_nothing, 1, "only Beta cites nothing at all");
         assert_eq!(
             zero_at_1_citing_something(&recs),
