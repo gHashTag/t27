@@ -16979,3 +16979,90 @@ The repair is one command the repository already ships:
 Config lives in the common `.git/config`, so this fixes all 148 trees at once. Proven on
 both sides afterwards: a `fix(rust)` commit with no source file does not go through, and the
 same subject with `bootstrap/src/compiler.rs` in the diff does.
+
+## 587. A whitelist of code cannot be completed, so ask the other question
+
+A guard about to enter a REQUIRED context asked "does this diff contain code?" and answered
+it with a list of extensions. The list grew twice before it was even proposed — `{rs, py,
+t27, zig}`, then `{c, h, v, sv, svh}` once 164 hand-written `.v` files were noticed — and an
+adversarial pass then named four more categories **that exist in this repository**, each of
+which would have been a false accusation blocking someone's pull request:
+
+    14 .xdc and 4 .tcl   the actual deliverable of timing work under fix(verilog)
+    43 .toml             where a build breakage genuinely lives
+    72 .lean             the formalisation of the compiler's own lowering
+    every extensionless  Makefile, Dockerfile, scripts/tri -- rsplit_once('.') is None,
+      path                so no whitelist entry can ever match
+
+The list was never going to close, and each omission accuses somebody. The inversion is the
+repair: the defect the guard exists for, #3264, had a diff of **exactly one file**, a
+`docs/now` note. What it lacked was not any particular extension; it was anything at all
+besides prose. **Prose and records are a small closed set. Code is not.**
+
+The inversion then made the same error in its own direction: it called anything under
+`docs/` prose, and `docs/` holds 11 `.py` and 4 `.sh` — 132 of its 2489 files are not `.md`.
+A directory prefix is not a claim about content. The test is document FORMATS.
+
+The measurement is what makes this a rule and not a preference. Over all 498 commits on
+master carrying `fix(`, every form of the guard — original whitelist, widened whitelist,
+inversion, corrected inversion — refuses **the same single commit**. The repair costs
+nothing on history precisely because the false-positive class has never occurred yet, which
+is also why measurement alone could not have found it.
+
+**What the controls did not catch.** Before the adversarial pass the guard had unit tests,
+three killed mutations, a 498-commit historical sweep, and a two-reader agreement check with
+zero disagreements. It still had five defects. Every one of those controls asked whether the
+rule computed what it said; none asked whether what it said was the right thing to say.
+
+## 588. `on: pull_request` omits `edited`, and a gate that reads the title needs it
+
+The default activity types are `[opened, synchronize, reopened]`. A gate whose subject is
+the pull request TITLE therefore fails in both directions at once:
+
+* a benign title can be renamed to `fix(rust)` after the last green run and is never
+  re-read — the defect walks in;
+* and an author who follows the failure message's own advice, *"name that scope instead"*,
+  edits the title and watches the required context stay red, with no way to re-run it but
+  pushing an unrelated commit.
+
+The second is the worse one, because the gate prescribes the very action that cannot clear
+it. A required check whose remedy does not re-trigger it is a trap, not a gate.
+
+    types: [opened, synchronize, reopened, edited]
+
+The cost is that a body edit also re-runs the job. Price that against what it buys.
+
+There is a second title trap in the same family. GitHub's squash defaults the commit message
+to the pull request title **only when the branch has more than one commit**; with exactly
+one it uses that commit's message. So a title-only reading misses a single-commit
+`fix(rust)` under a benign title. Take the union of claims — the title and every commit
+subject — against the union of the diff. That costs nothing in false accusations, because a
+branch may claim a fix in one commit and carry its source in the next, and squashed that is
+correct.
+
+## 589. The hook picked the stale ruler, and picked it silently
+
+    for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+      [ -x "$cand" ] && TRI_BIN="$cand" && break
+    done
+
+First executable wins, and `debug` is first. Measured in one worktree:
+
+    target/debug/tri     03:49   30265384 bytes   <- chosen
+    target/release/tri   19:40    8771904 bytes
+
+Sixteen hours old, and it is the binary every commit that day was checked by — it knew
+nothing of the two gates added in between, and printed `PASSED` for each one. **A hook that
+picks a stale ruler silently is worse than one that is absent, because its PASSED reads as a
+verdict.**
+
+Two separate repairs, and only the first is about correctness:
+
+* pick the **newest**, not the first — `[ "$cand" -nt "$TRI_BIN" ]`;
+* and print a note when even the newest is older than `cli/tri/src`. Not a refusal:
+  editing the source without rebuilding is ordinary work, and blocking every such commit
+  would tax the normal case. Silence was the defect, not permissiveness.
+
+The general form: whenever a tool is selected from candidates, the selection rule is part of
+the instrument. A preference order written for one purpose — "debug first, it is what a
+developer has" — becomes a staleness bug the moment the other candidate is the fresh one.
