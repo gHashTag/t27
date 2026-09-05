@@ -1121,6 +1121,19 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
 /// mutant, or a subprocess -- the check exists because nothing had ever
 /// falsified one of these claims, and a checker nobody can test is the same
 /// failure one level up.
+/// How many distinct CLAIMS a set of contradiction rows speaks for.
+///
+/// A row is `{gate}:{line} -- ...`, one per (claim, direction) pair, so a claim
+/// that is a mutable site under two operators and dies under both produces two
+/// rows. The numerator of "X of Y equivalence claims" has to count claims, or
+/// X can exceed Y -- and Y is a count of distinct claim lines.
+pub fn distinct_claims(rows: &[String]) -> usize {
+    rows.iter()
+        .map(|r| r.split(" -- ").next().unwrap_or(r.as_str()))
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+}
+
 fn contradicted_claims(
     gate: &str,
     dir: &str,
@@ -2384,10 +2397,28 @@ fn mutate(
         println!("the whole check -- a claim about the FUTURE of the code is worth");
         println!("only the run that could have refuted it and did not.");
     } else {
+        // "X of Y" is an inclusion statement, so both halves must count the
+        // same thing. They did not: `claims_seen` counts distinct claim LINES
+        // (from `sites_any`, a union over every direction), while
+        // `claims_broken` is extended once PER DIRECTION, so a claimed line
+        // that is a site under two operators and dies under both contributes
+        // two rows. Under `--all` that prints "2 of 1".
+        //
+        // Measured 2026-09-05: of the eight `# mutant-equivalent:` markers in
+        // `tools/`, ONE is a site in two directions --
+        // `gft_backprop_microcode.py:742`, an `assert ... == 9984`, which is
+        // both an assert site and a boundary site. Reachable on real data, not
+        // a hypothetical.
+        //
+        // The rows are worth keeping per direction: which operator killed it is
+        // the useful part. So the RATIO counts claims and the rows are counted
+        // separately, each with its unit.
+        let contradicted = distinct_claims(&claims_broken);
         println!(
-            "{} of {} equivalence claim(s) CONTRADICTED:",
-            claims_broken.len(),
-            claims_seen
+            "{} of {} equivalence claim(s) CONTRADICTED, in {} (claim x operator) row(s):",
+            contradicted,
+            claims_seen,
+            claims_broken.len()
         );
         for c in &claims_broken {
             println!("  {}", c);
@@ -2800,6 +2831,73 @@ fn tests_gate(gate: bool) -> Result<()> {
 #[cfg(test)]
 mod claim_scope_tests {
     use super::*;
+
+    /// `distinct_claims` can be right while the ratio still prints rows.
+    /// Reverting the numerator to `claims_broken.len()` restores "2 of 1"
+    /// exactly, with every test above green.
+    #[test]
+    fn the_ratio_numerator_counts_claims_not_rows() {
+        let src = include_str!("gates.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let contradicted = distinct_", "claims(&claims_broken);");
+        assert!(
+            code.contains(call),
+            "the numerator has to be counted in the denominator's unit"
+        );
+        let printed = concat!("(claim x oper", "ator) row(s):");
+        assert!(
+            code.contains(printed),
+            "and the row count is still printed, with ITS unit named -- which \
+             operator killed a claim is the useful half"
+        );
+    }
+
+    /// "X of Y" is an inclusion statement and both halves must count the same
+    /// thing. The numerator was rows -- one per (claim, direction) pair -- and
+    /// the denominator distinct claim lines, so X could exceed Y.
+    ///
+    /// Measured 2026-09-05: one of the eight markers in `tools/` is a site in
+    /// two directions -- `gft_backprop_microcode.py:742`, an `assert ... ==
+    /// 9984`, both an assert site and a boundary site.
+    #[test]
+    fn two_rows_for_one_claim_are_one_claim() {
+        let rows = vec![
+            "gft_backprop_microcode.py:742 -- 1 of 1 assert mutant(s) DIED, but the line claims: x"
+                .to_string(),
+            "gft_backprop_microcode.py:742 -- 1 of 2 boundary mutant(s) DIED, but the line claims: x"
+                .to_string(),
+        ];
+        assert_eq!(rows.len(), 2, "two rows, because two operators reached it");
+        assert_eq!(
+            distinct_claims(&rows),
+            1,
+            "and one claim, which is what the ratio's numerator must be"
+        );
+    }
+
+    /// Two different claims stay two, or the fix would understate the numerator.
+    #[test]
+    fn two_claims_are_not_collapsed() {
+        let rows = vec![
+            "a.py:10 -- 1 of 1 silent mutant(s) DIED, but the line claims: p".to_string(),
+            "b.py:20 -- 1 of 1 silent mutant(s) DIED, but the line claims: q".to_string(),
+        ];
+        assert_eq!(distinct_claims(&rows), 2);
+        assert_eq!(distinct_claims(&[]), 0, "no rows, no claims");
+    }
+
+    /// A row without the separator must still count as one claim rather than
+    /// vanishing: the format is ours, and a silent zero is the failure mode
+    /// this whole series is about.
+    #[test]
+    fn a_row_without_the_separator_still_counts() {
+        let rows = vec!["malformed row with no separator".to_string()];
+        assert_eq!(distinct_claims(&rows), 1);
+    }
     use std::collections::{HashMap, HashSet};
 
     /// A claim the run never built a mutant for is not a claim that survived.
