@@ -14,6 +14,7 @@ mod orphaned;
 mod census;
 mod competitors;
 mod inflight;
+mod misread;
 mod issues;
 mod cibase;
 mod fleet;
@@ -165,6 +166,8 @@ enum Commands {
     },
     /// Is a merge in flight here, and does this branch carry the base?
     Merging(inflight::Merging),
+    /// The specs the compiler reads WRONGLY. Every gate is green on them.
+    Misread(misread::Misread),
     /// What the checkouts on this disk are holding. Deletes nothing.
     Worktrees(trees::Worktrees),
     /// Synthesise across a parameter and check the area actually moves.
@@ -1016,6 +1019,7 @@ fn main() -> Result<()> {
         Commands::Fleet { action } => fleet::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
         Commands::Merging(a) => inflight::run(a)?,
+        Commands::Misread(a) => misread::run(a)?,
         Commands::Worktrees(a) => trees::run(a)?,
         Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
