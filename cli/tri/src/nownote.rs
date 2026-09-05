@@ -341,13 +341,16 @@ fn check(paths: &[PathBuf], staged: bool, base: &str) -> Result<()> {
     } else if staged {
         git_paths(
             &root,
-            &["diff", "--cached", "--name-only", "--diff-filter=A"],
+            // `-z`: `--name-only` C-quotes any non-ASCII path, and a quoted path does
+            // not end in `.md`, so the entry left the population silently and the gate
+            // reported that the change adds none.
+            &["diff", "--cached", "-z", "--name-only", "--diff-filter=A"],
             None,
         )?
     } else {
         git_paths(
             &root,
-            &["diff", "--name-only", "--diff-filter=A"],
+            &["diff", "-z", "--name-only", "--diff-filter=A"],
             Some(&format!("{base}...HEAD")),
         )?
     };
@@ -357,10 +360,16 @@ fn check(paths: &[PathBuf], staged: bool, base: &str) -> Result<()> {
         Checked::Files(_) => {}
     }
 
-    let status = std::process::Command::new("python3")
-        .arg(&script)
-        .arg("--check-files")
-        .args(&files)
+    let mut cmd = std::process::Command::new("python3");
+    cmd.arg(&script).arg("--check-files").args(&files);
+    // Read the content from the INDEX when the population came from the index. Listing
+    // one operand and judging another is how a malformed entry passed: staged broken,
+    // fixed in the working copy, `ok <path>` and exit 0 -- and `git commit` takes the
+    // broken one.
+    if staged {
+        cmd.arg("--from-index");
+    }
+    let status = cmd
         .current_dir(&root)
         .status()
         .context("failed to run tools/check_now_entry_shape.py")?;
@@ -454,8 +463,12 @@ fn git_paths(root: &Path, args: &[&str], range: Option<&str>) -> Result<Vec<Stri
 /// own `added_now_entries` -- `README.md` is documentation about the
 /// directory, not an entry in it, and a non-`.md` file is not one either.
 fn entry_paths(stdout: &str) -> Vec<String> {
+    // NUL-separated: both callers pass `-z`, because `--name-only` C-quotes any path with
+    // a non-ASCII character and the quoted form does not end in `.md`. `lines()` is kept
+    // as the fallback so a caller that forgets `-z` still gets an answer rather than one
+    // enormous path.
     stdout
-        .lines()
+        .split(|c| c == '\0' || c == '\n')
         .map(str::trim)
         .filter(|l| l.ends_with(".md") && !l.ends_with("README.md"))
         .map(str::to_string)

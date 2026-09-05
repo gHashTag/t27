@@ -60,8 +60,13 @@ PLACEHOLDER = re.compile(r"^(tbd|todo|wip|n/?a|\.\.\.|-+)$", re.I)
 
 def added_now_entries(base, head):
     """Files under docs/now/ that this PR adds. README.md is not an entry."""
+    # `-z`, because `--name-only` C-quotes any path with a non-ASCII character:
+    # `"docs/now/2026-09-05-\320\277\321\200..."`. The quoted form does not end in
+    # `.md`, so the entry left the population SILENTLY and the gate reported that the
+    # change adds none. Measured on a real Cyrillic filename.
     r = subprocess.run(
-        ["git", "diff", "--name-only", "--diff-filter=A", f"{base}...{head}", "--", "docs/now/"],
+        ["git", "diff", "-z", "--name-only", "--diff-filter=A", f"{base}...{head}",
+         "--", "docs/now/"],
         capture_output=True,
         text=True,
         cwd=ROOT,
@@ -69,7 +74,7 @@ def added_now_entries(base, head):
     if r.returncode != 0:
         return None
     return [
-        p for p in r.stdout.split("\n") if p.endswith(".md") and not p.endswith("README.md")
+        p for p in r.stdout.split("\0") if p.endswith(".md") and not p.endswith("README.md")
     ]
 
 
@@ -168,12 +173,13 @@ def main():
     # An empty list is refused rather than passed -- a caller that computed no
     # files and got a green back would read it as "the entries are fine".
     if "--check-files" in sys.argv:
-        paths = sys.argv[sys.argv.index("--check-files") + 1:]
+        paths = [a for a in sys.argv[sys.argv.index("--check-files") + 1:]
+                 if not a.startswith("--")]
         if not paths:
             print("FAIL: --check-files was given no paths. Nothing was checked,")
             print("  and a pass over an empty set is the shape this file replaces.")
             return 1
-        return report(paths)
+        return report(paths, from_index="--from-index" in sys.argv)
 
     base = os.environ.get("PR_BASE_SHA", "")
     head = os.environ.get("PR_HEAD_SHA", "HEAD")
@@ -213,7 +219,7 @@ def main():
     return report(entries)
 
 
-def report(entries):
+def report(entries, from_index=False):
     """Read and judge each entry. The ONE body both callers share.
 
     `--check-files` exists so a contributor can ask this gate its own question
@@ -225,13 +231,31 @@ def report(entries):
     """
     bad = 0
     for path in entries:
-        full = ROOT / path
-        try:
-            text = full.read_text()
-        except OSError as e:
-            print(f"FAIL {path}: cannot read it ({e})")
-            bad += 1
-            continue
+        if from_index:
+            # THE DEFECT THIS EXISTS FOR. The caller LISTS the index (`git diff --cached`)
+            # and this JUDGED the working tree. Staging a malformed entry and then fixing
+            # the working copy produced `ok <path>`, exit 0, and the malformed one is what
+            # `git commit` would take.
+            r = subprocess.run(["git", "show", f":{path}"],
+                               capture_output=True, cwd=ROOT)
+            if r.returncode != 0:
+                print(f"FAIL {path}: not in the index ({r.stderr.decode('utf-8','replace').strip()})")
+                bad += 1
+                continue
+            try:
+                text = r.stdout.decode("utf-8")
+            except UnicodeDecodeError:
+                print(f"FAIL {path}: the staged copy is not UTF-8")
+                bad += 1
+                continue
+        else:
+            full = ROOT / path
+            try:
+                text = full.read_text()
+            except OSError as e:
+                print(f"FAIL {path}: cannot read it ({e})")
+                bad += 1
+                continue
         problems = check_entry(path, text)
         if problems:
             bad += 1
