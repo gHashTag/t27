@@ -292,7 +292,10 @@ pub(crate) enum Checked {
 }
 
 pub(crate) const NOTHING_CHECKED: &str =
-    "tri now check: this change adds no docs/now/ entry, so no SHAPE was checked.\n       Whether one is REQUIRED is a different question and `tri hooks now-gate` asks it.";
+    "tri now check: this change adds no docs/now/ entry, so no SHAPE was checked.\n       Whether one is REQUIRED is a different question, and `tri hooks now-gate` does\n\
+       NOT ask it -- it reads the docs/now DIRECTORY, which 165 in-window entries\n\
+       make fresh whatever this change does. `tri hooks pre-push` asks it, by\n\
+       running the required gate's own script over the range.";
 
 /// Decide, and WRITE the sentence, through a handle the test can hold.
 ///
