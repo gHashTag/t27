@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a676f537667ebfd111be35f0266c0259b01597a0be999fbdd003846c62ced7fc",
-  "gen_hash_rust": "sha256:8b847a2a3a5608a1fdaee77c0deabfa16030d32bb0ef11b09f363ab4de293924",
+  "gen_hash_rust": "sha256:f93816611183da17f16c96de34f288e5f4d26060111d681756f7c5a329e124d7",
   "gen_hash_verilog": "sha256:8e8e8e25e5aac2c3f19eac5a54ef42befdf6c8be6b4a69c7f81899e99efebd2b",
   "gen_hash_zig": "sha256:06a64b3ca64b5d78eb75d6742ad3ed72f49168122727a968dd2996dc4d83537a",
   "module": "TriEither",
