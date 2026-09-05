@@ -86,6 +86,29 @@ pub enum RedCmd {
         #[arg(long)]
         deep: bool,
     },
+    /// Which STEP each recent failure of one workflow died at, oldest first.
+    ///
+    /// `red now` answers WHETHER a workflow is red. This answers WHY, and
+    /// specifically whether the why has CHANGED -- a run of failures that looks
+    /// like one incident can be two.
+    ///
+    /// Written after reading a workflow's first failing step, fixing that, and
+    /// not noticing for three passes that the failure had moved to a different
+    /// step which had been telling the truth the whole time.
+    Why {
+        /// Workflow file name, e.g. `cli-tri.yml`.
+        workflow: String,
+        /// owner/repo. Defaults to the current repository.
+        #[arg(long)]
+        repo: Option<String>,
+        /// Branch to read. Defaults to `master`.
+        #[arg(long, default_value = "master")]
+        branch: String,
+        /// How many runs to read. This is ONE page: the count read and the
+        /// count available are both printed, because a window is not a history.
+        #[arg(long, default_value_t = 12)]
+        limit: usize,
+    },
 }
 
 pub fn run(cmd: &RedCmd) -> Result<()> {
@@ -102,7 +125,149 @@ pub fn run(cmd: &RedCmd) -> Result<()> {
             };
             now(&list, *include_cancelled, *deep)
         }
+        RedCmd::Why {
+            workflow,
+            repo,
+            branch,
+            limit,
+        } => why(workflow, repo.as_deref(), branch, *limit),
     }
+}
+
+/// The failing step names of one run, in the order GitHub reports them.
+fn failing_steps(repo: &str, run_id: u64) -> Vec<String> {
+    let raw = match gh(&[
+        "api",
+        &format!("repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"),
+    ]) {
+        Ok(r) => r,
+        Err(_) => return vec!["(jobs unreadable)".to_string()],
+    };
+    let v: serde_json::Value = match serde_json::from_str(&raw) {
+        Ok(v) => v,
+        Err(_) => return vec!["(jobs unparseable)".to_string()],
+    };
+    let mut out = Vec::new();
+    for job in v["jobs"].as_array().into_iter().flatten() {
+        for step in job["steps"].as_array().into_iter().flatten() {
+            if step["conclusion"].as_str() == Some("failure") {
+                if let Some(n) = step["name"].as_str() {
+                    out.push(n.to_string());
+                }
+            }
+        }
+    }
+    if out.is_empty() {
+        // A run can fail without any step failing -- a cancelled job, a
+        // start-up failure, a matrix leg that never ran. Saying so beats
+        // printing nothing and letting the row read as "no failures".
+        out.push("(no step reported failure)".to_string());
+    }
+    out
+}
+
+/// For each row, whether it is a failure whose failing steps DIFFER from the
+/// previous failure's.
+///
+/// A green run in between resets the comparison: two failures separated by a
+/// success are two incidents whatever their steps say, and calling the second
+/// one "unchanged" would merge them.
+///
+/// Rows are oldest first, because a shift reads forwards.
+fn cause_shifts(rows: &[(String, String, Vec<String>)]) -> Vec<bool> {
+    let mut out = Vec::with_capacity(rows.len());
+    let mut prev: Option<&Vec<String>> = None;
+    for (_, concl, steps) in rows {
+        if concl != "failure" {
+            out.push(false);
+            prev = None;
+            continue;
+        }
+        out.push(matches!(prev, Some(p) if p != steps));
+        prev = Some(steps);
+    }
+    out
+}
+
+fn why(workflow: &str, repo: Option<&str>, branch: &str, limit: usize) -> Result<()> {
+    let repo = match repo {
+        Some(r) => r.to_string(),
+        None => gh(&[
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "-q",
+            ".nameWithOwner",
+        ])?,
+    };
+    let raw = gh(&[
+        "api",
+        &format!("repos/{repo}/actions/workflows/{workflow}/runs?branch={branch}&per_page={limit}"),
+    ])?;
+    let v: serde_json::Value = serde_json::from_str(&raw).context("parsing the runs page")?;
+    let total = v["total_count"].as_u64().unwrap_or(0);
+    let runs: Vec<&serde_json::Value> = v["workflow_runs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .collect();
+
+    println!("  {workflow} on {branch}, in {repo}");
+    println!(
+        "  read {} run(s) of {} available -- this is a WINDOW, not the history\n",
+        runs.len(),
+        total
+    );
+
+    // Oldest first: a cause SHIFT reads forwards, not backwards.
+    let mut rows: Vec<(String, String, Vec<String>)> = Vec::new();
+    for r in runs.iter().rev() {
+        let sha = r["head_sha"].as_str().unwrap_or("?");
+        let concl = r["conclusion"].as_str().unwrap_or("running").to_string();
+        let id = r["id"].as_u64().unwrap_or(0);
+        let steps = if concl == "failure" {
+            failing_steps(&repo, id)
+        } else {
+            Vec::new()
+        };
+        rows.push((sha.chars().take(8).collect(), concl, steps));
+    }
+
+    let shifted_at = cause_shifts(&rows);
+    let shifts = shifted_at.iter().filter(|b| **b).count();
+    for ((sha, concl, steps), shifted) in rows.iter().zip(shifted_at.iter()) {
+        if concl != "failure" {
+            println!("    {sha}  {concl}");
+            continue;
+        }
+        println!(
+            "    {sha}  failure  {}{}",
+            steps.join(" + "),
+            if *shifted {
+                "   <-- THE CAUSE CHANGED HERE"
+            } else {
+                ""
+            }
+        );
+    }
+
+    println!();
+    let failures = rows.iter().filter(|(_, c, _)| c == "failure").count();
+    if shifts == 0 {
+        println!(
+            "  {failures} failure(s) in this window, and the failing step never changed.\n\
+             A streak with one cause is one incident."
+        );
+    } else {
+        println!(
+            "  {failures} failure(s) in this window and the cause changed {shifts} time(s).\n\
+             A streak is not an incident: fixing the step the OLDEST run names\n\
+             leaves the newest one red, and reading only the newest hides that\n\
+             the older cause was ever repaired."
+        );
+    }
+    Ok(())
 }
 
 fn gh(args: &[&str]) -> Result<String> {
@@ -520,6 +685,81 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_streak_with_two_causes_is_two_incidents() {
+        use super::cause_shifts;
+        let row = |sha: &str, c: &str, steps: &[&str]| {
+            (
+                sha.to_string(),
+                c.to_string(),
+                steps.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            )
+        };
+        // The shape this command was written for, measured on the real
+        // repository: eight runs failing at one step, then the fix lands and a
+        // DIFFERENT step -- which had been telling the truth all along -- takes
+        // over. Reading only the newest run hides that the first was repaired;
+        // reading only the oldest hides that it no longer applies.
+        let rows = vec![
+            row("aaa", "failure", &["numbering"]),
+            row("bbb", "failure", &["numbering"]),
+            row("ccc", "failure", &["census"]),
+            row("ddd", "failure", &["census"]),
+        ];
+        assert_eq!(cause_shifts(&rows), vec![false, false, true, false]);
+
+        // A green run between two failures resets the comparison. The steps
+        // must DIFFER across the gap for this to test anything: with the same
+        // steps either side, resetting and not resetting give the same answer,
+        // and the control cannot fail.
+        let rows = vec![
+            row("aaa", "failure", &["x"]),
+            row("bbb", "success", &[]),
+            row("ccc", "failure", &["y"]),
+        ];
+        assert_eq!(
+            cause_shifts(&rows),
+            vec![false, false, false],
+            "a success resets, so the later failure is a NEW incident rather than a shift"
+        );
+
+        // Two steps failing at once is one cause; losing one of them is a shift.
+        let rows = vec![
+            row("aaa", "failure", &["x", "y"]),
+            row("bbb", "failure", &["x", "y"]),
+            row("ccc", "failure", &["x"]),
+        ];
+        assert_eq!(cause_shifts(&rows), vec![false, false, true]);
+
+        // The first failure in a window is never a shift: there is nothing
+        // before it to differ from.
+        assert_eq!(cause_shifts(&[row("aaa", "failure", &["x"])]), vec![false]);
+        assert!(cause_shifts(&[]).is_empty());
+    }
+
+    #[test]
+    fn why_asks_the_helper_rather_than_assuming_no_shift() {
+        // `cause_shifts` only feeds a printed marker, so no test of it reaches
+        // the call site: replacing the call with `vec![false; rows.len()]`
+        // keeps every count correct, silently drops every
+        // "THE CAUSE CHANGED HERE", and left all 781 tests green.
+        let src = include_str!("red.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == concat!("#[cfg(te", "st)]"))
+            .expect("the test module attribute is a line of its own");
+        let prod: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        assert!(
+            prod.contains("fn why("),
+            "the production slice no longer reaches `why` -- this would pass vacuously"
+        );
+        assert!(
+            prod.contains(concat!("cause_shifts(&ro", "ws)")),
+            "`why` must ask the helper; building the marker inline is how it gets \
+             pinned to false without any test noticing"
+        );
+    }
     /// `skipped` is not a verdict about the code: it means the workflow's own
     /// condition was not met. Counting it as a success would end a real streak
     /// early; counting it as a failure would invent one. Both were live
