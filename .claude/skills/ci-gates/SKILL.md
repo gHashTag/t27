@@ -16426,6 +16426,64 @@ does not travel" -- has a shorter form here: it did not travel four lines.**
 The mutant that reverts the numerator to `claims_broken.len()` survived three fresh unit tests on
 `distinct_claims`. Killed only by a structural test reading the call site: **tenth pass in a row that
 the wiring outlived the function.**
+### The detector I wrote could not find what the compiler was already saying
+
+`tri types redef` ends with a sentence that reads as a partition of the rows it just
+printed: *N state different NUMBERS; N differ in which fields they state, N in the text
+of a field, N only in prose, N identical.* It summed to **345**. The command had printed
+**346** rows.
+
+The dropped row was the only `SIGNATURE` one — two definitions of `delete` in one spec,
+one taking a line range and one taking a path. The second-most-severe class the command
+has, and the tally is the sentence a reader carries away.
+
+`signature` was incremented in the `match` and left out of the `println!` argument list.
+
+The part worth keeping is not the bug. That pass opened by building a detector for a
+neighbouring shape — *a guard checked for reachability rather than correctness* — which
+narrowed 69 candidates to 16 by requiring that the variable be **read by a control-flow
+test**. That detector could not have found this defect, because the defect **is the
+absence of any read**. Its shape requirement excluded the thing it was hunting.
+
+The instrument that answers "nothing reads this" ships with the compiler and had been
+printing it on every build for as long as the line existed:
+
+```
+warning: variable `signature` is assigned to, but never used
+warning: value assigned to `signature` is never read
+```
+
+Every build in that session was run as `cargo build 2>&1 | grep -E '^error'`, or with
+its output piped to `/dev/null` outright. The output was discarded because 23 warnings
+of mostly-cosmetic noise is not worth reading — which is exactly how the one warning
+that mattered stayed invisible for as long as it did.
+
+Three consequences.
+
+**Before writing a detector, ask what the toolchain already reports.** A bespoke matcher
+competes with `rustc`, `clippy`, the type checker, and the linter — all of which run on
+every build and none of which need a population argument. Write the detector for what
+they *cannot* say.
+
+**Classify the noise rather than silencing it.** Not all warnings are equal.
+*A value computed and never read* is a different claim from *an item nothing calls*: the
+first means work was performed and dropped, which usually means a result that was meant
+to reach somewhere and does not. `tri gates warnings` splits them into
+`DISCARDED` / `dead` / `cosmetic` / `other`, and `--gate` holds only the first class at
+zero. The 16 dead and 6 cosmetic warnings stay visible and ungated.
+
+**A warning report must force the work.** A cached compilation unit emits *no warnings
+at all*, so a report run against a warm `target/` reads clean no matter what the code
+says — the same broken-ruler shape as a gate whose subject has been deleted.
+`tri gates warnings` touches the crate root before checking, and says so in its output
+when it finds zero.
+
+And the test for a defect of this shape goes at the **call site**. The omission was from
+an argument list, so a test of any counting helper would have passed. Removing
+`signature` from the arguments alone does not compile — killed by `rustc`, not by the
+test, and reporting that as a kill would have been false. The mutation that *compiles* —
+dropping it from both the format string and the arguments — is the one the test must
+fail on, and it does, by name.
 
 ## 568. A guard that cannot run, on the path that merges
 
