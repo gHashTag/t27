@@ -145,17 +145,39 @@ fn conflict_markers() -> Result<()> {
         );
         std::process::exit(2);
     }
+    // `--staged`, because `git commit` takes the INDEX and this read the WORKING TREE.
+    // Staging a file with a marker and then cleaning the working copy produced, verbatim:
+    //
+    //     tri hooks pre-commit: PASSED                       exit 0, no conflict line
+    //     git show HEAD:probe.txt | grep -c '^<<<<<<<'  ->   1
+    //
+    // A gate that reads a different operand than the one being committed is not a barrier.
     let out = Command::new("python3")
         .arg(&script)
+        .arg("--staged")
         .current_dir(&root)
         .output()
         .context("failed to invoke python3 tools/check_conflict_markers.py")?;
-    if !out.status.success() {
-        print!("{}", String::from_utf8_lossy(&out.stdout));
-        eprint!("{}", String::from_utf8_lossy(&out.stderr));
-        bail!("a tracked file carries a conflict marker");
+    // Print the population on success too. It was discarded, so the one number that says
+    // how much was actually read -- and therefore whether the answer means anything --
+    // was invisible to the only person who could act on it.
+    print!("{}", String::from_utf8_lossy(&out.stdout));
+    match out.status.code() {
+        Some(0) => Ok(()),
+        Some(1) => {
+            eprint!("{}", String::from_utf8_lossy(&out.stderr));
+            bail!("a staged file carries a conflict marker")
+        }
+        // Exit 2 is could-not-run, and reporting it as a finding is a false accusation
+        // that also hides a broken gate. They are different facts.
+        other => {
+            eprint!("{}", String::from_utf8_lossy(&out.stderr));
+            bail!(
+                "the conflict-marker gate could not run (exit {}). Nothing was checked.",
+                other.map(|c| c.to_string()).unwrap_or_else(|| "signal".into())
+            )
+        }
     }
-    Ok(())
 }
 
 pub fn l1_check() -> Result<()> {
