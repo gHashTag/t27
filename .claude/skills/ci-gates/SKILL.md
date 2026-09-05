@@ -16337,3 +16337,51 @@ in two passes that restructuring a guard broke the test that pins it, and the se
 test doing its job. They now assert the ARGUMENT, not merely the call: the hollow question must be
 asked over `occurrences`, and `here` must be bound from it. Two of the three mutants no longer compile,
 which is the strongest form of a killed mutant.
+## 567. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
+
+The earlier units fan-out flagged `prcheck.rs` and I had not checked it. Checking it found a guard that
+is wrong on every real input.
+
+`merged_recently` asks the API for **closed** pull requests and keeps the **merged** ones:
+
+```rust
+&format!("repos/{repo}/pulls?state=closed&per_page={page}"),
+"--jq", ".[]|select(.merged_at!=null)|.number",
+...
+let complete = read_is_complete(rows.len(), page);   // rows = MERGED, page = CLOSED page size
+```
+
+`read_is_complete(returned, limit)` is `returned < limit` -- "the page was not full, so the read saw
+everything". **It was handed the merged count and the closed page size.** Closed is a superset of
+merged, so the comparison is between a filtered number and an unfiltered cap.
+
+**Measured on `gHashTag/t27`, 2026-09-05:**
+
+| `per_page` | closed returned | merged of those | guard said | page actually full |
+|---|---|---|---|---|
+| 30 | 30 | 29 | COMPLETE | **YES** |
+| 60 | 60 | 59 | COMPLETE | **YES** |
+| 90 | 90 | 88 | COMPLETE | **YES** |
+
+**The page was full every time and the guard said complete every time.** It can only say otherwise
+when EVERY closed pull request on the page is merged -- one unmerged row anywhere on the page is
+enough to make it silent forever.
+
+Fixed by asking the completeness question of the read the PAGE bounded: the request returns
+`number<TAB>merged?` for every closed row, `read_is_complete` sees the closed count, and the merged
+filter is applied afterwards. **The guard is now structurally unable to see the filtered number --
+reverting it does not compile, because `rows` no longer exists at that point.**
+
+### The test rebuilt the filter instead of calling it
+
+The first test for the merged filter reconstructed it inline from the same four lines of TSV, and a
+mutant that removed the filter from production passed. Extracted to `merged_numbers` and the test now
+calls it. **A test that reimplements the thing it tests is a second copy agreeing with itself** --
+which is the same shape as &sect;546's mutation that also edited the test, one level down.
+
+### And the measurement of this class was itself undercounted
+
+Before building anything I counted the ratio prints: **16**. A wider pattern found **49**. The first
+regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
+args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
+units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
