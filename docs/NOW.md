@@ -6358,57 +6358,38 @@ Last updated: 2026-07-10
 
 ## SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
 
+- gf96 (GoldenFloat96: S1 E36 M59, BIAS=34359738367=2^35-1) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 70 -> 71, selfconsistent 5 -> 4, structural 8 (sum=83).
+- Status tag: [verified SW]. Unlike gf48, gf96 has M=59 > 52, so binary64 CANNOT
+  hold the mantissa exactly and there is NO FP lowering and NO rounding: every
+  finite gf96 value is an exact dyadic rational. The proof is therefore an
+  analytic zero-rounding separation-bound plus two structurally independent EXACT
+  decode paths (no RTL bit-model / iverilog needed, because there is nothing to
+  round). Witnesses pass in-sandbox:
+  (1) dyadic independent decoder 15/15 (abs_error=0);
+  (2) golden Fraction oracle 15/15 exact vs pack;
+  (3) two-path cross-check over 201512 representative codes (5-class + exponent
+      boundaries + full-mantissa edges + deep-underflow/overflow + 200k random
+      seed=96), both paths agree bit-exactly.
+- Witness chain + separation-bound lemma: `conformance/witness/gf96/README.md`
+  and `conformance/witness/gf96/SEPARATION_BOUND.md`. Memory note: the +-2^35
+  exponent means `2^(exp-BIAS)` is NEVER materialized as an integer (would OOM);
+  both paths keep the huge power symbolic (peak RSS ~14 MB).
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf96 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
+- Remaining selfconsistent (4): gf128, gf256, gf512, gf1024.
+  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+
 ## Wave Loop 434 — FPGA boot-evidence live XADC validation + synthetic CCLK proof-of-pipeline (Closes #1395)
 
-## Wave Loop 422 — Live XC7A200T SRAM boot + gen-verilog keyword escape + PVT worst-case bound (Closes #1365)
-
-- Branch: `wave-loop-422`
-- Issue: #1365
-- PR: to open after work
-- Report: `docs/reports/WAVE_LOOP_422_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W422_2026-07-06.md`
-- Cooperation W423: `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06.md`
-
-### What landed (Variant A-lite + Variant C fallback)
-- `bootstrap/src/compiler.rs`
-  - Added Verilog-2001 keyword escape (`\\name `) for colliding user identifiers.
-  - Applied escaping to function/task names, parameters, local/module vars/consts,
-    loop variables, identifiers, calls, enum values, and field-access bases.
-  - Added regression tests `test_verilog_keyword_parameter_escaped` and
-    `test_verilog_keyword_local_and_module_escaped`.
-  - The gen-verilog yosys smoke failure count dropped from **16 to 7**;
-    remaining failures are pre-existing weak point #1245 defects unrelated to
-    keyword collision.
-- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
-  - Added `pvt_low_ns_monotone_combined` and `pvt_high_ns_monotone_combined`.
-  - Added `ProcessCorner.any_worse_than_ss` helper.
-  - Added `pvt_half_ns_worst_case_bound` — the half-period bound is maximized at
-    (max temp, min VCCINT, ss corner).
-- `cli/tri/src/fpga.rs`
-  - Added `test_pvt_half_ns_worst_case_bound`, mirroring the Lean lemma with a
-    numeric grid-search regression.
-- `fpga/HARDWARE_SSOT.md`
-  - Added §3.6.19 documenting the first live XC7A200T board response since W404:
-    SRAM load succeeded, STAT `0x401079FC`, XADC context captured.
-
-### Not done (blocked on hardware)
-- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
-- Cold-POR SPI flash boot for OSCFSEL 6/7 — deferred to W423.
-- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
-
-### Verification
-- `cargo test -p tri fpga::tests`: **PASS** (52 tests).
-- `cargo test -p t27c --bin t27c`: **PASS** (1493 tests).
-- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
-- `./scripts/tri test` / `t27c suite --repo-root .`: **576 passed**, 0 seal
-  mismatches, 7 pre-existing gen-verilog yosys smoke failures, 0 FPGA smoke
-  failures.
-
----
-
-# NOW — Wave Loop 421 close-out / Wave Loop 422 setup (2026-07-06)
-
-## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
+- Branch: `wave-loop-434`
+- Issue: #1395
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_434_REPORT.md`
+- Evidence W434: `docs/reports/FPGA_LOOP_EVIDENCE_W434_2026-07-01.md`
+- Cooperation W435: `docs/reports/FPGA_LOOP_COOPERATION_W435_2026-07-01.md`
 
 ### What landed (Variant B — board reachable, P12/relay still blocked)
 
@@ -6460,6 +6441,74 @@ Last updated: 2026-07-10
 - `./scripts/tri test` gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
 
 ---
+
+## Wave Loop 422 — Live XC7A200T SRAM boot + gen-verilog keyword escape + PVT worst-case bound (Closes #1365)
+
+- Branch: `wave-loop-422`
+- Issue: #1365
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_422_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W422_2026-07-06.md`
+- Cooperation W423: `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06.md`
+
+### What landed (Variant A-lite + Variant C fallback)
+- `bootstrap/src/compiler.rs`
+  - Added Verilog-2001 keyword escape (`\\name `) for colliding user identifiers.
+  - Applied escaping to function/task names, parameters, local/module vars/consts,
+    loop variables, identifiers, calls, enum values, and field-access bases.
+  - Added regression tests `test_verilog_keyword_parameter_escaped` and
+    `test_verilog_keyword_local_and_module_escaped`.
+  - The gen-verilog yosys smoke failure count dropped from **16 to 7**;
+    remaining failures are pre-existing weak point #1245 defects unrelated to
+    keyword collision.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_low_ns_monotone_combined` and `pvt_high_ns_monotone_combined`.
+  - Added `ProcessCorner.any_worse_than_ss` helper.
+  - Added `pvt_half_ns_worst_case_bound` — the half-period bound is maximized at
+    (max temp, min VCCINT, ss corner).
+- `cli/tri/src/fpga.rs`
+  - Added `test_pvt_half_ns_worst_case_bound`, mirroring the Lean lemma with a
+    numeric grid-search regression.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.19 documenting the first live XC7A200T board response since W404:
+    SRAM load succeeded, STAT `0x401079FC`, XADC context captured.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL 6/7 — deferred to W423.
+- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
+
+### Verification
+- `cargo test -p tri fpga::tests`: **PASS** (52 tests).
+- `cargo test -p t27c --bin t27c`: **PASS** (1493 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` / `t27c suite --repo-root .`: **576 passed**, 0 seal
+  mismatches, 7 pre-existing gen-verilog yosys smoke failures, 0 FPGA smoke
+  failures.
+
+---
+
+# NOW — Wave Loop 421 close-out / Wave Loop 422 setup (2026-07-06)
+
+## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
+
+- gf48 (GoldenFloat48: S1 E18 M29, BIAS=131071) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 69 -> 70, selfconsistent 6 -> 5, structural 8 (sum=83).
+- Status tag: [verified SW]. Three independent SW witnesses pass in-sandbox:
+  (1) dyadic independent decoder 15/15 (abs_error=0);
+  (2) golden Fraction oracle 15/15 exact vs pack;
+  (3) FP64 fixed-width RTL bit-model 224255/224255 bit-exact (fails=0).
+- Witness chain + local-agent iverilog run instructions:
+  `conformance/witness/gf48_fp64/README.md`. The iverilog independent second
+  decoder (`gf_decode_param_fp64.v` + `tb_gf_decode_fp64.v`) is PREPARED for the
+  local agent (no iverilog in sandbox) = stronger witness, not yet run.
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf48 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
+- Remaining selfconsistent (5 at the time of #1358): gf96, gf128, gf256, gf512,
+  gf1024. gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+  (gf96 later promoted, see the gf96 section above -> 4 remaining.)
 
 ## Wave Loop 420 — Variant C fallback: VCD exact-terminator + auto-threshold, PVT corner monotonicity (Closes #1361)
 
