@@ -16178,10 +16178,19 @@ module probe {
 ```
 
 An integer literal sits in **type position**. `parse` accepts it, `typecheck`
-accepts it, the Rust backend writes `pub bad: 0,`, the C backend writes `0 bad;`,
-and the Zig backend **drops the field entirely**. Two backends emit something their
-language cannot parse; the third silently produces a type that is missing a member,
-which is worse because nothing downstream can notice.
+accepts it, the Rust backend writes `pub bad: 0,` and the C backend writes `0 bad;`,
+both unparseable in their languages.
+
+The Zig backend is where it disappears. It writes `bad: 0,` and, for the empty type
+slot, `empty: void` -- and **`zig build-obj` accepts both, and so does the deeper
+`zig test --test-no-exec`**. Nothing in the Zig column can see either shape, so the
+corpus counts these specs as generating and accepting.
+
+(An earlier version of this section said Zig *dropped* the field. That was wrong and
+came from running `t27c gen-zig`, which is not a subcommand -- the Zig backend is
+`gen`. The empty output of a misspelled command was read as a dropped field. The
+corpus itself always used `gen`, so its numbers were never affected; only this
+paragraph was. See the note below.)
 
 The source of it is a declaration form the parser does not implement — a list-valued
 key whose items follow on later lines. Because recovery turns those items into fields,
@@ -16196,6 +16205,138 @@ the generated output**: `pub f: ,` and `0 bad;` are trivially greppable, and the
 population they find is exactly the one no phase covers.
 
 
+## 567. The prototype gave the right number because one of its alternatives was dead
+
+&sect;569 found one entry carrying another's body, by accident, while repairing something else. The
+question it left was whether that was a case or a class. `tri skill lost` now asks it, and the answer
+is **one, and it is fixed** -- but the road to that number is the finding.
+
+**The naive question is useless here.** 58 of the 63 `docs/NOW.md` entries with a wave number in the
+heading mention *some other* wave in the body, because an entry routinely points at the next one.
+What discriminates is naming **none of its own**: `SW-conformance — gf48` carried 39 lines of Wave
+Loop 434 and never said `gf48`.
+
+### The prototype was right for the wrong reason
+
+The python sketch of this check reported **1** on the damaged file. Ported to Rust it reported **49**.
+The difference is one alternative in the pattern:
+
+```text
+python:  \b(?:...|#(\d{3,5}))\b
+```
+
+**`\b#` requires a word character immediately before the `#`.** There is never one. That alternative
+**matched nothing, ever** -- so the sketch silently compared wave and format identifiers only, which
+happens to be the correct population, and reported the correct number while carrying a rule it never
+applied.
+
+The Rust port made `#NNNN` live, and 49 entries flagged: an entry cites other issues as a matter of
+course, so issue numbers are not ownership. **The right answer and the right reason arrived by
+different routes, days apart, and only the port showed that they had.** Had I shipped the sketch, the
+rule in the code would have said "issue numbers count" and the behaviour would have said otherwise,
+until someone fixed the regex and the tool changed its mind for no visible reason.
+
+Issue numbers are now excluded **deliberately, with that measurement written beside the pattern**.
+
+### Both fixtures were wrong, and the tests were right to fail
+
+The first fixture put `XADC_LIVE_W434_OPERATING_POINT` in the body and expected a flag. It does not
+match: the `_` before `W434` is a word character, so `\bW` fails. What made the live case detectable
+was the plain `` `wave-loop-434` `` on its branch line. The second fixture had entry 889's body name
+888 and 890 but not 889, and asserted no flag -- which is exactly the shape that SHOULD flag.
+
+**Two fixtures, two failures, both because the fixture was unrepresentative and the code was right.**
+Same lesson as &sect;562, one pass later: reproducing a defect means reproducing its exact form, and a
+test that fails on correct code has told you about your fixture.
+
+Measured: **1** flagged on the damaged base, **0** on the repaired tree, **0** in `SKILL.md` across
+524 sections.
+
+## 568. I audited my own detector in the wrong unit
+
+&sect;569 shipped a check that found **0** misattributed entries, using a matcher anchored on word
+boundaries. The obvious worry, written into that pass's own next-steps: `W434` inside
+`XADC_LIVE_W434_OPERATING_POINT` is invisible to `\bW`, so how much of the population is the detector
+blind to?
+
+**Measured on `docs/NOW.md`.** The shipped matcher sees **644** identifier occurrences. A matcher that
+also allows an underscore before `W<nnn>` sees **988** -- so **35% of occurrences are invisible**, and
+**79** of them are that exact underscore form.
+
+That number is real and it is the wrong number.
+
+| | shipped | wider |
+|---|---|---|
+| identifier OCCURRENCES | 644 | 988 |
+| **distinct identifiers** | **91** | **95** |
+| entries whose body id-set differs | -- | **10 of 310** |
+| verdict on the repaired file | 0 | **0** |
+| verdict on the damaged file | 1 | **1** |
+
+**The check operates on SETS.** An identifier repeated eleven times in one body is one member either
+way, so 344 extra occurrences buy four extra distinct identifiers -- `339`, `470`, `825`, `883` --
+and not one of them changes a verdict on any input this repository can produce.
+
+I also tried to construct the blind spot by hand: strip the single plain `` `wave-loop-434` `` line
+from the damaged entry, leaving only the underscore forms. **Both matchers still find it**, because
+the body names `W431` and `W432` in prose as well. The blind spot I predicted has no instance here.
+
+**Declined, and the reason is the unit.** Widening costs a false-positive surface and buys nothing
+measurable. **The audit's value was not the answer -- it was learning that my worry was counted in
+occurrences while the thing it threatened was set membership.** &sect;535's lesson, turned on the
+instrument instead of the report: *a number lands in the reader's unit, and here I was the reader of
+my own.*
+
+What would change the verdict is an entry whose body names a foreign id ONLY in underscore form and
+names none of its own at all. That entry does not exist today. **If one is ever written, this section
+is the note that says which line to change.**
+
+## 569. Three hundred and twelve headings, three hundred and ten seats
+
+&sect;571 asked in which unit a check DECIDES against the unit a reader AUDITS it in, and declined to
+widen a matcher because the two agreed. A fan-out over the whole CLI asked the same question
+everywhere. The strongest survivor is in the code that pass wrote.
+
+`bodies()` returns a map keyed by section title -- correct for the history walk, because a title is
+the identity that survives renumbering. **Every other question was asked over that map too.** A
+repeated heading text is ONE key, and the later insert OVERWRITES, so only the last copy's body is
+ever examined.
+
+**Measured on `docs/NOW.md`:** `grep -c '^## '` gives **312**; distinct heading texts give **310**.
+`Honesty limits (BINDING)` appears at lines 1479 and 1708, and a `Wave Loop 777` subject at 4504 and
+4601. The command printed `present on origin/master 310` for a 312-heading file, and asked "does every
+heading have a body?" over 310 seats -- **while four comments in that same source file said 312.**
+
+**I measured 312-vs-310 in &sect;556, wrote it into the prose, and then built the tool on the map that
+collapses them.** The number was on the page before the code was written.
+
+### The verdict was right, by luck
+
+All four colliding occurrences have bodies (30/18 and 34/34 non-blank lines), so per-occurrence hollow
+= 0 and per-title hollow = 0. **The check is correct today over a population two seats short**, and
+would flip the first time a repeated subject's EARLIER copy is bare -- routine for an append-only log
+of commit subjects that already repeats two of them.
+
+Fixed by separating the two questions rather than picking one:
+
+```text
+titles ever written    792
+headings on origin/master 312   (## lines)
+distinct titles        310   (what the history walk compares)
+```
+
+Hollow and misattribution now run over `occurrences()`, which collapses nothing. The history walk
+keeps the title map, because that is what makes renumbering invisible to it. **Two questions, two
+populations, both printed with their unit** -- which is the whole of &sect;571 applied to the thing
+&sect;571 shipped.
+
+### Both structural tests failed again, and are now pinned to the population
+
+They asserted `hollow_headings(&now)`. Changing the argument to `&here` broke them -- the second time
+in two passes that restructuring a guard broke the test that pins it, and the second time that was the
+test doing its job. They now assert the ARGUMENT, not merely the call: the hollow question must be
+asked over `occurrences`, and `here` must be bound from it. Two of the three mutants no longer compile,
+which is the strongest form of a killed mutant.
 ## 567. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
 
 The earlier units fan-out flagged `prcheck.rs` and I had not checked it. Checking it found a guard that
