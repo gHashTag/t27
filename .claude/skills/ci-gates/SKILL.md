@@ -16088,3 +16088,28 @@ emptiness -- the last version whose first lines actually mention `gf48 (GoldenFl
 
 Verified after: 310 headings before and after, 0 titles lost, 0 empty bodies, exactly 3 bodies
 changed.
+
+
+## 564. A first-error count is not an unblocking count
+
+A fan-out audit found a real class in the Rust emitter: the serde derive was gated
+behind a cargo feature in `gen_struct` and written bare in `gen_enum`, 43 lines below
+in the same file. The discriminator was perfect -- the ungated form occurs in 0 of the
+224 files that pass and 84 of the 357 that fail -- and two independent verifiers,
+one on cause and one on population, failed to refute it.
+
+The tempting sentence was "this fix unblocks 84 specs." Measured after the change,
+by name: rustc acceptance went 224 -> 237. **+13, zero regressions**, and zero specs
+still failing on serde where 84 did.
+
+Both numbers are right and they answer different questions. Errors queue: 84 is how
+many specs this cause stops FIRST, and 13 is how many the fix carries all the way to
+acceptance. The other 71 simply report whatever stood behind it. A class can be the
+largest single cause in a column and still unblock a small fraction of it, and that is
+not a failure of the fix -- it is what a backlog with depth looks like.
+
+Report all three, because they are three separate claims: the first-error count proves
+the cause is large, the by-name before/after proves what the fix yields, and a count of
+specs still failing on that cause proves the cause is gone rather than merely rarer.
+Measure the second one after the change and diff by spec name, so a gain and a
+regression cannot cancel in a total.
