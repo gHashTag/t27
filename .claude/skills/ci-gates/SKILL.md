@@ -16385,3 +16385,44 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
+## 567. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
+
+&sect;542 fixed the DENOMINATOR of `tri gates mutate`'s equivalence report: `claims_seen` counted every
+`# mutant-equivalent:` marker textually, including claims for which no mutant was ever built. The
+numerator went untouched. The units fan-out found it.
+
+```rust
+claims_seen += in_scope.len();          // distinct claim LINES, from a union over all directions
+for (dir, _, _, survivors) in &scores { // ... once PER DIRECTION
+    claims_broken.extend(contradicted_claims(..));
+}
+println!("{} of {} equivalence claim(s) CONTRADICTED:", claims_broken.len(), claims_seen);
+```
+
+**"X of Y" is an inclusion statement, so both halves have to count the same thing.** They do not. A
+claimed line that is a mutable site under two operators and dies under both contributes **two rows**
+to a numerator whose denominator counted it **once**. Under `--all` the command can print `2 of 1`.
+
+**Measured, not hypothesised.** Of the eight markers in `tools/`, exactly **one** is a site in two
+directions: `gft_backprop_microcode.py:742`, `assert _magsub(10240, 9217) == 9984, ...` -- an assert
+site AND a boundary site. One in eight, on real data, reachable by a flag the command documents.
+
+**Fixed by counting each half in its own unit rather than deleting a number:**
+
+```text
+1 of 8 equivalence claim(s) CONTRADICTED, in 2 (claim x operator) row(s):
+```
+
+The rows stay per direction, because **which operator killed a claim is the useful half** -- an
+`assert` mutant dying says something different from a `boundary` mutant dying. What changes is that
+the ratio now speaks about claims and the rows are counted as rows.
+
+### The half of a fix is not the fix
+
+Two passes ago I corrected this function's denominator and wrote a section about it. The numerator sat
+four lines below, in the same `println!`, and I did not look at it. **&sect;574's lesson -- "the fix
+does not travel" -- has a shorter form here: it did not travel four lines.**
+
+The mutant that reverts the numerator to `claims_broken.len()` survived three fresh unit tests on
+`distinct_claims`. Killed only by a structural test reading the call site: **tenth pass in a row that
+the wiring outlived the function.**
