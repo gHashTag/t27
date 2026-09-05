@@ -383,6 +383,19 @@ enum SkillAction {
         #[arg(long)]
         gate: bool,
     },
+    /// Whether every section this branch adds came through the spool.
+    ///
+    /// The practice check for `tri skill add`. The collision it prevents is
+    /// invisible on a branch, but a direct append is not: `fold` deletes one
+    /// spool file per section it writes, and `cat >>` deletes nothing.
+    Spooled {
+        /// The branch this one is measured against.
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+        /// Exit 1 when a section arrived without a spool file.
+        #[arg(long)]
+        gate: bool,
+    },
     /// Every cross-reference in the skills, and whether it resolves.
     Refs {
         /// Print every reference counted, not only the ones that dangle.
@@ -997,6 +1010,12 @@ fn main() -> Result<()> {
                 SkillAction::Lost { file, base, gate } => {
                     skillnum::run(&skillnum::SkillCmd::Lost {
                         file: file.clone(),
+                        base: base.clone(),
+                        gate: *gate,
+                    })?
+                }
+                SkillAction::Spooled { base, gate } => {
+                    skillnum::run(&skillnum::SkillCmd::Spooled {
                         base: base.clone(),
                         gate: *gate,
                     })?

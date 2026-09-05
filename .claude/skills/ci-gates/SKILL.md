@@ -14,6 +14,34 @@ the innermost one was right.
 
 ---
 
+## Adding a lesson to this file
+
+**Do not append to this file directly.** Use the spool:
+
+```
+tri skill add "<the section title>"     # writes incoming/<date>-<slug>.md, unnumbered
+```
+
+then write the lesson into that file. `tri skill fold` appends every spooled lesson to
+SKILL.md and assigns the numbers **at that moment**, against the file as it then stands.
+
+The reason is measured, not stylistic. Appending `## N.` from a branch chooses the number
+against **that branch's base**. Two branches doing it merge into a duplicate number, and
+that has happened twice in two passes here — after which the two *repairs* collided with
+each other as well. No check on the branch can catch it: `tri skill check` passes on both
+sides and fails only on the merged result, so there is nothing for a hook to look at, and
+a local `renumber` before pushing still races anything that merges in between.
+
+A spooled lesson has a unique path and no number, so two branches write two paths and
+there is nothing to conflict on. This is exactly what `docs/now/` does, and for the same
+reason — its gate script records that entries used to be prepended to one file and "the
+races were resolved by hand". 548 entry files later they do not conflict.
+
+`cat >> SKILL.md` is the habit this replaces. It is easy, it works on one branch, and it
+is how every collision so far was made.
+
+---
+
 ## 1. A gate that cannot fail reads as coverage, and is worse than none
 
 `docs/BRANCH-PROTECTION.md` named five required checks. Two had a body of exactly one

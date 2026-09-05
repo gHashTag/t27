@@ -94,6 +94,21 @@ pub enum SkillCmd {
         #[arg(long)]
         gate: bool,
     },
+    /// Whether every section this branch adds came through the spool.
+    ///
+    /// The guard `tri skill add` needs in order to survive a change of context.
+    /// The rule it enforces is written at the top of SKILL.md, and a rule that
+    /// lives only in prose is the same class of thing that already failed here:
+    /// the next pass reads what is convenient and reaches for `cat >>`.
+    Spooled {
+        /// The branch this one is measured against.
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+        /// Exit 1 when a section arrived without a spool file. Off by default so
+        /// the command can be read before it is enforced.
+        #[arg(long)]
+        gate: bool,
+    },
     /// Every cross-reference in the skills, and whether it resolves.
     Refs {
         /// Print every reference counted, not only the ones that dangle.
@@ -169,6 +184,38 @@ pub fn sections(text: &str) -> Vec<(usize, String)> {
         }
     }
     out
+}
+
+/// The sections a branch adds to SKILL.md that did NOT come through the spool.
+///
+/// `tri skill add` removes a collision that no branch-side check can see: two
+/// branches each append `## N.` numbered from their OWN base, both merge, and
+/// the number appears twice. The COLLISION is invisible here -- but the practice
+/// that causes it is not. `tri skill fold` deletes one spool file for every
+/// section it appends; `cat >> SKILL.md` deletes nothing.
+///
+/// Compared by TITLE, and not by number and not by diff line:
+///   - `tri skill renumber` rewrites every number and keeps every title, so a
+///     number-set comparison would report the whole file as new.
+///   - a `+## N. ` diff line cannot be told from a heading QUOTED inside a fence.
+///     3 of the 518 `## N. ` lines on master are quotations, and miscounting one
+///     of those has already cost a real section here.
+///
+/// Returns the new titles and whether the branch is clean. A fold of K lessons
+/// deletes K spool files, so K new titles are allowed; a direct append allows 0.
+pub fn unspooled(
+    base: &[(usize, String)],
+    head: &[(usize, String)],
+    folded: usize,
+) -> (Vec<String>, bool) {
+    let was: std::collections::BTreeSet<&str> = base.iter().map(|(_, t)| t.as_str()).collect();
+    let new: Vec<String> = head
+        .iter()
+        .filter(|(_, t)| !was.contains(t.as_str()))
+        .map(|(_, t)| t.clone())
+        .collect();
+    let ok = new.len() <= folded;
+    (new, ok)
 }
 
 /// Every complaint about one file. Empty means the numbering holds.
@@ -736,8 +783,104 @@ fn fold(check: bool, skill: &str) -> Result<()> {
     Ok(())
 }
 
+/// Read a file at a rev, distinguishing "absent there" from "git could not run".
+fn at_opt(rev: &str, path: &str, root: &std::path::Path) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .args(["show", &format!("{rev}:{path}")])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// Spool files this branch deleted -- which is what folding one looks like.
+fn folded_here(base: &str, dir: &str, root: &std::path::Path) -> usize {
+    let out = std::process::Command::new("git")
+        .args([
+            "diff",
+            "--name-status",
+            "--diff-filter=D",
+            base,
+            "--",
+            &format!("{dir}/incoming/"),
+        ])
+        .current_dir(root)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).lines().count(),
+        _ => 0,
+    }
+}
+
+fn spooled(base: &str, gate: bool) -> Result<()> {
+    let root = repo_root()?;
+    let files = skill_files(&root);
+    println!("base: {base}   files: {}", files.len());
+    let mut offenders = 0usize;
+    let mut checked = 0usize;
+    for f in &files {
+        let path = rel(&root, f);
+        let Some(before) = at_opt(base, &path, &root) else {
+            // A SKILL.md this branch CREATES cannot collide with a base that has
+            // no such file, so this is not an offence -- but say so, because a
+            // population that quietly shrinks is how a clean bill of health gets
+            // printed over nothing.
+            println!("  NEW      {path} -- absent on {base}, nothing to collide with");
+            continue;
+        };
+        let head = std::fs::read_to_string(f).unwrap_or_default();
+        let dir = std::path::Path::new(&path)
+            .parent()
+            .map(|d| d.display().to_string())
+            .unwrap_or_default();
+        let folded = folded_here(base, &dir, &root);
+        let (new, ok) = unspooled(&sections(&before), &sections(&head), folded);
+        checked += 1;
+        if new.is_empty() {
+            println!("  ok       {path} -- adds no section");
+            continue;
+        }
+        if ok {
+            println!(
+                "  ok       {path} -- {} new section(s), {folded} spool file(s) folded",
+                new.len()
+            );
+            continue;
+        }
+        offenders += 1;
+        println!(
+            "  UNSPOOLED {path} -- {} new section(s) but {folded} spool file(s) folded",
+            new.len()
+        );
+        for t in new.iter().take(10) {
+            println!("             {t}");
+        }
+        if new.len() > 10 {
+            println!("             ... and {} more", new.len() - 10);
+        }
+    }
+    println!("checked {checked} file(s) that exist on {base}; {offenders} unspooled");
+    if offenders > 0 {
+        println!();
+        println!("A section was appended to SKILL.md directly. Two branches doing that");
+        println!("choose the same number and the duplicate appears only after the merge,");
+        println!("where no branch-side check can see it. Use the spool instead:");
+        println!();
+        println!("    tri skill add \"<title>\"      # writes incoming/<date>-<slug>.md");
+        println!("    tri skill fold               # appends and numbers, on one branch");
+        println!();
+        if gate {
+            std::process::exit(1);
+        }
+    }
+    Ok(())
+}
+
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let show_gaps = match cmd {
+        SkillCmd::Spooled { base, gate } => return spooled(base, *gate),
         SkillCmd::Refs { list } => return refs(*list),
         SkillCmd::Claims {
             list,
@@ -832,6 +975,82 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    fn secs(v: &[(usize, &str)]) -> Vec<(usize, String)> {
+        v.iter().map(|(n, t)| (*n, t.to_string())).collect()
+    }
+
+    #[test]
+    fn a_direct_append_is_unspooled() {
+        use super::unspooled;
+        let base = secs(&[(1, "one"), (2, "two")]);
+        let head = secs(&[(1, "one"), (2, "two"), (3, "appended by hand")]);
+        let (new, ok) = unspooled(&base, &head, 0);
+        assert_eq!(new, vec!["appended by hand".to_string()]);
+        assert!(!ok, "a section with no spool file behind it must not pass");
+    }
+
+    #[test]
+    fn a_fold_of_one_spooled_lesson_passes() {
+        use super::unspooled;
+        let base = secs(&[(1, "one")]);
+        let head = secs(&[(1, "one"), (2, "folded")]);
+        let (new, ok) = unspooled(&base, &head, 1);
+        assert_eq!(new.len(), 1);
+        assert!(ok, "one new section against one deleted spool file is a fold");
+    }
+
+    #[test]
+    fn a_renumber_moves_every_number_and_adds_no_work() {
+        use super::unspooled;
+        // Why the comparison is by TITLE. `tri skill renumber` rewrites every
+        // heading, so comparing NUMBERS would call the whole file new -- and the
+        // guard would fire hardest on the one command whose job is to avoid
+        // collisions.
+        let base = secs(&[(1, "one"), (2, "two"), (3, "three")]);
+        let head = secs(&[(7, "one"), (8, "two"), (9, "three")]);
+        let (new, ok) = unspooled(&base, &head, 0);
+        assert!(new.is_empty(), "renumber adds no title, got {new:?}");
+        assert!(ok);
+    }
+
+    #[test]
+    fn a_withdrawal_removes_and_never_fires() {
+        use super::unspooled;
+        let base = secs(&[(1, "one"), (2, "two")]);
+        let head = secs(&[(1, "one")]);
+        let (new, ok) = unspooled(&base, &head, 0);
+        assert!(new.is_empty());
+        assert!(ok);
+    }
+
+    #[test]
+    fn folding_two_lessons_needs_two_spool_files() {
+        use super::unspooled;
+        let base = secs(&[(1, "one")]);
+        let head = secs(&[(1, "one"), (2, "a"), (3, "b")]);
+        assert!(!unspooled(&base, &head, 1).1, "two sections, one spool file");
+        assert!(unspooled(&base, &head, 2).1);
+    }
+
+    #[test]
+    fn a_heading_quoted_in_a_fence_is_not_a_new_section() {
+        use super::{sections, unspooled};
+        // A diff-line matcher counts this as an appended section and demands a
+        // spool file for it. 3 of the 518 `## N. ` lines on master have exactly
+        // this shape, and miscounting one has already destroyed a real section.
+        let base_text = "## 1. one\n\nbody\n";
+        let quoted = "## 1. one\n\nbody\n\n```text\n## 2. quoted, not a section\n```\n";
+        let (new, ok) = unspooled(&sections(base_text), &sections(quoted), 0);
+        assert!(new.is_empty(), "a quotation is not a section, got {new:?}");
+        assert!(ok);
+        // The control, without which the assertion above passes for the wrong
+        // reason: the SAME line OUTSIDE a fence must be counted.
+        let real = format!("{base_text}\n## 2. quoted, not a section\n");
+        let (new, ok) = unspooled(&sections(base_text), &sections(&real), 0);
+        assert_eq!(new.len(), 1, "outside a fence this IS a section");
+        assert!(!ok);
+    }
 
     #[test]
     fn a_spool_path_is_unique_per_lesson() {
