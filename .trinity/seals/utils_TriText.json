@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1f4fedab8710453775a5e08f717634109376de31ce45c195042c1eb73c1d97e1",
-  "gen_hash_rust": "sha256:2a08d3422fbdf3f2959f944c4c42738413780d92663424f3aabc19e3693f9340",
+  "gen_hash_rust": "sha256:d8a0e9bbfa0f03025db0107af08f34beab3cacb62ee56f63d6007c877f98365a",
   "gen_hash_verilog": "sha256:3f4e90b1c3763eaa8f49091d17cd660c4f063c14fcc821c4a3c711241120c6d0",
   "gen_hash_zig": "sha256:4f877a23f145428691d07e588f7cfc8a4b4103d5f3358b1b70b3b64ef07f49be",
   "module": "TriText",
   "ring": 12,
-  "sealed_at": "2026-09-05T01:08:39Z",
+  "sealed_at": "2026-09-05T09:02:10Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:c84ebb22ae462190ddcd757725c3f409ebda3fab38bcbedad2845649cdc0345c",
   "spec_path": "specs/tri/utils/text.t27"

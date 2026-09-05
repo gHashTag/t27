@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:be1cb9a8eb5bb8c80f63aa8db98b7ed69273a0c4e3e09a62d0fc7efec4bd11b5",
-  "gen_hash_rust": "sha256:ef3366935ff4d6292d05d5b3195ebb56b30621d2e2f547a012f19ff15fbd778c",
+  "gen_hash_rust": "sha256:3c1d5c91299ca6e9ef2691e461812289d03ae47f9a4d5dfa71154cf68bab9498",
   "gen_hash_verilog": "sha256:281e5bf4b4bf860712ca54c2b0d173ba6ee0fc6f96043e8c243e9f3e1291a8f1",
   "gen_hash_zig": "sha256:e0de552c5b497d45d640bb9ac9664b1ba515a9d44a2bb280921ffdab5b9fd0f6",
   "module": "zig_codegen",
   "ring": 12,
-  "sealed_at": "2026-09-05T03:45:59Z",
+  "sealed_at": "2026-09-05T09:02:10Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:face91b2c4dda278c97006286cdbd18e00e2a2d01e9288eeb0d6520aa47f7fce",
   "spec_path": "compiler/codegen/zig/codegen.t27"
