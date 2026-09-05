@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:adb2dcbb21e97f23558d539456cf0c0f6e1ba513c480dd6c7e4314426185b78e",
-  "gen_hash_rust": "sha256:3e931faa9dc7a62e4b7c8906a25cd19d0adeff75cf9d52c2fb48b00d72adaaba",
+  "gen_hash_rust": "sha256:004257927f86083acbafbbfc0f70f378ee7caa5441d67d6fcd60497c4acf2c18",
   "gen_hash_verilog": "sha256:74a9fdaf8f47eab8397d987f9168ce3b7473136bd6a8393dba22d3f51586ad72",
   "gen_hash_zig": "sha256:36baab69ae7e95fe41a4cb1adc0fe37664fc7614d1d937def3d337602188528e",
   "module": "TriFenwick",
