@@ -17206,7 +17206,7 @@ The same shape appears wherever two branches edit one shared position: a first l
 counter, a next free number, a hand-maintained index. `docs/NOW.md` had it and was split.
 `SKILL.md` had it and was not, until now.
 
-## 592. The population of EVENTS, after the predicate and the operand
+## 594. The population of EVENTS, after the predicate and the operand
 
 Three defect classes in two days, in strict order of subtlety.
 
