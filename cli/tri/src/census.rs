@@ -96,6 +96,17 @@ fn run_census(args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
+/// The gate, callable from the commit hook.
+///
+/// `tri census pin --gate` was a CI-only reading, and the cost of that showed up twice in
+/// one day: the `fetches` census went red on master at 10:46Z and stayed red for an hour,
+/// and then the very session that repaired it moved the `shell` census two steps and
+/// pushed without blessing -- having written the "re-bless in the SAME commit" rule that
+/// morning. The reading takes 133 ms. There is no reason for it to be a CI-only question.
+pub fn gate() -> Result<()> {
+    pin(true, false)
+}
+
 fn pin(gate: bool, bless: bool) -> Result<()> {
     if gate && bless {
         anyhow::bail!("--gate and --bless ask opposite questions; pick one");

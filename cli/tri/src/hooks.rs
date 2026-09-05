@@ -82,6 +82,10 @@ fn pre_commit() -> Result<()> {
     conflict_markers()?;
     l1_check()?;
     fix_carries_source()?;
+    // 133 ms, and it is the difference between finding out here and finding out from a
+    // red master an hour later. If the move is not yours it is still red for everyone;
+    // `tri census pin --bless` and say in the message which number moved and why.
+    crate::census::gate()?;
     println!("tri hooks pre-commit: PASSED");
     Ok(())
 }
