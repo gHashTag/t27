@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:27c33c2d5981093e94ce732bb2caaf226f96f28e98efa2e1da59bd1cd863f374",
-  "gen_hash_rust": "sha256:d6a2edcc46e04d8fec6ee6153002cd62b3a79ce6477953f1ae7c6b56ea888a83",
+  "gen_hash_rust": "sha256:1d7cad950b4cf05a31e35e7638cdba29b6f42246b6b7269e2f664fe557be7fa2",
   "gen_hash_verilog": "sha256:dbc342150039bf6fb179c10f4312936049174d1dc0d435b267090245dc4c5326",
   "gen_hash_zig": "sha256:b80c361db83ac8d421b1c0be7c2d329ea615f34478ea0fda59208e7391b3239a",
   "module": "Dropout",

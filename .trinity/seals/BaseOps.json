@@ -1,7 +1,7 @@
 {
   "conformance_hash": "sha256:17080caa082ebe4e3ef135cb73b47ac65882654eb29e702ede681241f035066a",
   "gen_hash_c": "sha256:960f4fb3c20111f3b3dfd733e8949a0f7336f7043071c53b1868561a0e033580",
-  "gen_hash_rust": "sha256:39a21041510a42e9d5ff9d9326e1b460645e7d902dde9f5746e824d007101d41",
+  "gen_hash_rust": "sha256:2a53fc661c6e37aa08bc637c40c92f952bf729a9d66d8086ebe1ad584a7c4b6b",
   "gen_hash_verilog": "sha256:706210e28a501aec4cf6c30c1bc631384a7401cb070cb84d8531c4966e11d645",
   "gen_hash_zig": "sha256:3bd0dd7ebd18064599d2edadbee5e69202b3509a41bf25fe76ebf6de8c1c5892",
   "module": "BaseOps",

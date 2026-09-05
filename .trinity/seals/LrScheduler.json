@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:59593303d2c11eac7174d74fdee5b62bff4dcfadfff68831c95006d0292701c6",
-  "gen_hash_rust": "sha256:d76d12a6af0895158fc43a62d4f096a91de85fa8370ffa80521910c752c3bba1",
+  "gen_hash_rust": "sha256:a3b59b5f4b86a96e53c97866696ccc4fcc5d439e066c905c9401a087467f24b2",
   "gen_hash_verilog": "sha256:a89297d86d27c87d7983ac808fd7cc45977a0da55a801d067d880ea5aa5b9992",
   "gen_hash_zig": "sha256:31ea8ff91be52247e9fcb6791e755b42c2a5dca01ff73509414579266a859928",
   "module": "LrScheduler",

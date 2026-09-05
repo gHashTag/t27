@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:70f28ee85e6af89b8af0716d348c20978b5824892fadecb3c157985b9427331d",
-  "gen_hash_rust": "sha256:5f220133e1580ac5cbcb812b8d52b37b4b1cc04f1dbd4a0570fb30905a845dbe",
+  "gen_hash_rust": "sha256:5ec0dc8830ec84ce97e44b4fe2ddd7734661f6f4c62baf45447adebbbc10b8e4",
   "gen_hash_verilog": "sha256:98a7310690ee35a91ba0fdf0129b99d57e77c683f46f46d657814b5717e0cf94",
   "gen_hash_zig": "sha256:40199c433de987a0df517e17991f7978d90af886d3988dd8c1ec3adae1c8d1db",
   "module": "TriRabinKarp",

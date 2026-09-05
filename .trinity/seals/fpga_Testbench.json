@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:cddda8a762e21607757a5f440a7024cc53577ba1633f9c8860763a4afc1ff00f",
-  "gen_hash_rust": "sha256:805656609bda4638ce0c031f4e93e634fa55540019bb96b26ddddc662c4398c5",
+  "gen_hash_rust": "sha256:a0582ac816322f9c9d6539e9cd062519467872272d9934405289c9f4ad5bb343",
   "gen_hash_verilog": "sha256:33a54f814ed0136070898aab032590cc0c6ece1404ffb1abce35e8732795b524",
   "gen_hash_zig": "sha256:9a6bafae6973f622679a89871cc8021bb687e2104fd4a1438cb36d3b85652c2b",
   "module": "Testbench",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:19:00Z",
+  "sealed_at": "2026-09-05T01:39:44Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:f066b8924661eee6b40b59b5c310ce94fbbc0a97a243fa1359ff68cfb10ef7be",
   "spec_path": "specs/fpga/testbench.t27"

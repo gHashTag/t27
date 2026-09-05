@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:0a33e239729469b7602efd4c0eb2c11ec13a6d76c5c9e6cb10bff56a0c3cb598",
-  "gen_hash_rust": "sha256:e64d50179ea251e461a6ba887ebc650925d330c539b55b8e37e82578b47a0886",
+  "gen_hash_rust": "sha256:aa903cea61b2bbe3067a99372b54eb0948f18aa4a1d4b3d343ce40c42aefd025",
   "gen_hash_verilog": "sha256:8ff6627db3e7ff9ea65615c1e18fe2f95556644c7478fd28a2eb1a5f049014e5",
   "gen_hash_zig": "sha256:f075d82c4d790c301e13d2e7912db99f253e11af16a301e5e7bd00af8849b31d",
   "module": "Conv2d",

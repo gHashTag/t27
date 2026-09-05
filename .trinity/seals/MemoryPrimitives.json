@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:27806870ffd32d79be35bdda68db33212cdf9953e9be58608767ce32aba2fabe",
-  "gen_hash_rust": "sha256:09e4e76d295cd7bdcba5a7c65ba60ac571b2fa93e81c7d1410c53fa24d2295e2",
+  "gen_hash_rust": "sha256:4f4ca6eeafda4b8a47ae19fa9d0797f3d6bb93ea400b83e73ccf70584077bea0",
   "gen_hash_verilog": "sha256:e26850e35e0fe3fb17357166fcc0a8354578ff76ed53e8ec3ffe7046e1826d7d",
   "gen_hash_zig": "sha256:30ce6e9be12cf0cd78c5756e32ca975c1042ab5ab45711a12d3ebd71e85dd2f1",
   "module": "MemoryPrimitives",

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:01ddfbdab0d5555e4c84a2a38d45873457fec20b55e7191f471e0895d9da43cc",
-  "gen_hash_rust": "sha256:1e6895deca1ce3989b15b119244f53302e58ae06cdf07d223b4438747f6c8326",
+  "gen_hash_rust": "sha256:46f3e6c68097fd99e7947745c50508958bb5b6f7d96cb8256e992b15f3e1b32e",
   "gen_hash_verilog": "sha256:3779b9abbaae320245b547ba078d864827ef5e1d988836bae8a2fd706244573e",
   "gen_hash_zig": "sha256:1acf32980c399473ea650abd665eaabdd3b01264188bf5d4a4f5075c3e0a4260",
   "module": "Rmsprop",

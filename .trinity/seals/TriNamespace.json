@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:de4a758b13e2b471b9ed2db62467026560ec6fcd7aec8cfcfcc87c0bd9cde3ae",
-  "gen_hash_rust": "sha256:eed29a527d39af25743d406fa6efa50af9d297f15cd87adb89ab8298e4a924f8",
+  "gen_hash_rust": "sha256:44bf1824cba9b396808b1ba91a0e10da01767e7cd3a26fe60b15380ce6616723",
   "gen_hash_verilog": "sha256:97ff7a6f75ffa6c69eba326ac15cc542198853c2f2059fe53e7706aeb7ddf18a",
   "gen_hash_zig": "sha256:f0029b24c38e57e2085f9a9bbc71a9f169904f2c4d0c445e62bdee6d37759e53",
   "module": "TriNamespace",

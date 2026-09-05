@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a3b52853abc104b6e60de0b89a99ffb0bd89b47c81a310a281378845007be0f1",
-  "gen_hash_rust": "sha256:966446d79ddc98c9f8da081de4f1eca9c894bd4e4464371b285cc8a59be4aee6",
+  "gen_hash_rust": "sha256:5327735808c263c0db6e23a2abbbafc86f8c7631e0a537a17156c326c52d3cd9",
   "gen_hash_verilog": "sha256:7b8e20ef4acfd674a35a886a88fae6ed7628af0963359a82ca67ca88a9aa41c8",
   "gen_hash_zig": "sha256:0e75197fac24f39c5000b70cb14a9fb0ac1f7f725764d8a51f3c5ef700d19072",
   "module": "TriState",

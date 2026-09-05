@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:dd48946e9cdb08f305eb156eeacc9c5491c448b64fe1cb0a5a73a768d5330964",
-  "gen_hash_rust": "sha256:01022f338bc22b6d087f318d3a1d4f72c70fcf813d54708baaf7ac3bc334483d",
+  "gen_hash_rust": "sha256:01f5014e836b636980491585658fed82f22173294e4ebcbc0537136f36d4d8e3",
   "gen_hash_verilog": "sha256:80c8105f99e14ba09bf2c49f8b1985f5b22101f9decbdbecfe41a7cba712660e",
   "gen_hash_zig": "sha256:d8756697db2cc949cbfa6e7dde6092aa29ac5e906a31903fe4070c4dcd865436",
   "module": "server-mdns",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:40:42Z",
+  "sealed_at": "2026-09-05T01:39:47Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:0c558f36ccaa222e6da0edd224b43599dc41bccc897a1d5fa61fde68d509e90b",
   "spec_path": "specs/server/mdns.t27"

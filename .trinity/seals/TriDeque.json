@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:c1bce9126c27224b6ae84f8e68f0a6c331c4dcfeac2bd9f6516657c13d26c1cd",
-  "gen_hash_rust": "sha256:467454d2c24bbdc0168303824a69583862c515b5afb95b3bce149f6298767353",
+  "gen_hash_rust": "sha256:76da7de147cd819c37a9554bc19eadc735e65f810a993c7089521073d430e72b",
   "gen_hash_verilog": "sha256:b8e3b8d2f5e5faacef71002092ea5cb0bf88dd55b40219c6ce82159cb74826f8",
   "gen_hash_zig": "sha256:7b314c75649a1d0ca9c4c3a911f24ae5f4cb3cfd4de615d6cb511205aa19df9f",
   "module": "TriDeque",

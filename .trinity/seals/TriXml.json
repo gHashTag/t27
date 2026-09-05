@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:142e37ecf66890f883372a247abe624ecfb94f949c0d112b4855d2f995989ab5",
-  "gen_hash_rust": "sha256:5c682a5f4f042a690e897aa1054b6a0bf13e346117a81686ae67af1f46315e16",
+  "gen_hash_rust": "sha256:b93ca31855e9230bd6a3f97e3edffffbf458c43eecb389eec9c02e7483acbfe8",
   "gen_hash_verilog": "sha256:ef20a47e3fc1296bda60734bbe0b8255375a7c35752327385c1b586c354f863b",
   "gen_hash_zig": "sha256:e5b2fdcf26b915e6402ecd16285a1715615c8e528d6dc0d0ade94413a69dd8be",
   "module": "TriXml",

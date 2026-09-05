@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:ff459d539e511ff379aba4d4b7a81f152c55d9d5a3b9da325f4deee22e2b64ac",
-  "gen_hash_rust": "sha256:c0227d96da453fb3d714df9535ef82e6b611a96ecd1b4840fba5dea6b907a155",
+  "gen_hash_rust": "sha256:8d3b45196a4ff3f2cda3450abb623ae24aefb3472bb85910c696309879f7a5cf",
   "gen_hash_verilog": "sha256:5d732ed539dadc5aa551eab3185a7619d1bc6133ed1847374fcfcd93ab4d97db",
   "gen_hash_zig": "sha256:24e8256d8f0a25ba7a18315c9c58f81e87be1a4034d7fc1f7d3a8e8a5d6f1e88",
   "module": "TriEcc",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:40:42Z",
+  "sealed_at": "2026-09-05T01:39:48Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:e111bef882601ff39e589072facac4a3d4501cf3f8f3c0edbb089981db7379c4",
   "spec_path": "specs/tri/crypto/ecc.t27"

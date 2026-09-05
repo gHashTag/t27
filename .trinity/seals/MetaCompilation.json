@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:cb5c74d819b71160e0b5f54cc9458f3146adfef382ce9120824d7a28d4ead8ca",
-  "gen_hash_rust": "sha256:d58d664fb4f12b29027a1202562236ab8ff32f13d1e4ea2c685725b9e7f65b92",
+  "gen_hash_rust": "sha256:728b653ca52dfe9ca823e63ae28d5a762ac89f7bcbb8f6e238888037a49b10ff",
   "gen_hash_verilog": "sha256:ee3721001780f751870ab837a55aa17893cd64e838e1cbd6d9b566c7f8f34a3f",
   "gen_hash_zig": "sha256:827f1856bc566ed2c72567ecee9d15f89bc986cf5640632a8bab25e6a9c5f3ee",
   "module": "MetaCompilation",

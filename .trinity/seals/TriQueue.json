@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b3558c7e6c1fc97b9bd3b256152cc5b44ee4fd40d338787287c2b17c7cde43b0",
-  "gen_hash_rust": "sha256:3d19a8bdcebe414bc683598451f3fcaf337b79324160eeb6f070f109d87b8d82",
+  "gen_hash_rust": "sha256:2efccf5b858435a34a3fd0a59a54e2a50d87b7c2c53e2fa7a4a0de1901106cf1",
   "gen_hash_verilog": "sha256:ce38acd2c95ac492606ea1cfe28d318a7a20c079852ffd6670f096c90cb9bc3a",
   "gen_hash_zig": "sha256:0542327cf6b6371a638c7a6fb1b6b780f43a978b56a7df4d3a433fe1a2d48ec2",
   "module": "TriQueue",

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:05385a9de9099e0a596ac23cb2231fdca952db8e92df3681479a44aa12026d09",
-  "gen_hash_rust": "sha256:e5ce689fd467beb5a135936fa304d5c9b5145028e9e8d19f8289e84787140fab",
+  "gen_hash_rust": "sha256:77142a013643605189aac8cae213a4f76460662746fe5e25c8b3907be8771500",
   "gen_hash_verilog": "sha256:277e8f3d888b436b3386fa512f275d3994fcc40b711df9bb60d10815457e9a1d",
   "gen_hash_zig": "sha256:85ca85b32a903b330cd0fd1b543c3ba5eefb4f91d83528baaece0cd33d8d331c",
   "module": "proof_trace",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:19:00Z",
+  "sealed_at": "2026-09-05T01:39:43Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:2591d4523eed910a4add8ecd6d7f8a33c9883ad3449955ac3c347d9744ab2a04",
   "spec_path": "specs/ar/proof_trace.t27"

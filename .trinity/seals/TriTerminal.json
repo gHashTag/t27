@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:2eeec120d14b39dedf777fe3e54cf93c9684290334660d4b7c9e2fced50d8378",
-  "gen_hash_rust": "sha256:f9a07a9bbe6a405b28da0bc3c7e083fbc951ffa762482079daa0fcb9b5dc36e1",
+  "gen_hash_rust": "sha256:c443fcfd38eb744d72f128785ab9fcca739ca3fc107675f12d9d6755f837cd61",
   "gen_hash_verilog": "sha256:d936037aa5cba8fdd065d3181121a8ef3bf36e323c4a873df1fead6b229f37fd",
   "gen_hash_zig": "sha256:8a0e4b7c379414a2357c56d5c2f1bb2f8d12dac35677c3a1db2c5773c7f5f5d0",
   "module": "TriTerminal",

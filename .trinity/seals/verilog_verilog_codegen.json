@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:bf1aa7bf56c4135885e1c34df0496f040b85354d3203c0c6fa037092530851e2",
-  "gen_hash_rust": "sha256:06ff306cd9cd1eb22d34bcc1bda702923bb7407532d9d24263379f2c540db91c",
+  "gen_hash_rust": "sha256:bb6dcf922388219ccb0962162c345fdf4967507d98cb6dc4783e6d3aa088d672",
   "gen_hash_verilog": "sha256:6f8f90892c3ec1ff69ee038babea3258d40eb05f102c10ef280a70e37aa29199",
   "gen_hash_zig": "sha256:3ca02254ff52c1f2af6b72737baa0668ac3b0b9ba09e423b3ede762d77006153",
   "module": "verilog_codegen",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:40:42Z",
+  "sealed_at": "2026-09-05T01:39:43Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7454245beb5d71c1fff9e450cc1f8a5883c47243aaaac38bac1c7a894287e8db",
   "spec_path": "compiler/codegen/verilog/codegen.t27"

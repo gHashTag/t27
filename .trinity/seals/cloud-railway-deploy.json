@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:c28a47ff5967112db4c145d16ce29a293e051f88f7c3056f698dd01631a38336",
-  "gen_hash_rust": "sha256:d77a83d9342cb2cf6cb09d895461bdec4c1544e177560420841415fab6e7739a",
+  "gen_hash_rust": "sha256:074895e54d29edcd835757cb2d3ca5c5990c09169c0df3a9b1809baf413c7919",
   "gen_hash_verilog": "sha256:fe9bfbdfe7aadce3f908023b6cc0a0430eefbfdcb74c75e78299db56d22e25d8",
   "gen_hash_zig": "sha256:cf5a9d481565a4ea277bf8c9a7777d9f5e192d66dd950d68df6638f6feee8dae",
   "module": "cloud-railway-deploy",

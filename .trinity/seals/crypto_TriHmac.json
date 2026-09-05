@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:dd0802dcda2f6c02b5c28751214dc5bb5f8c47fd7cd4fe38ef278d0eaac24f27",
-  "gen_hash_rust": "sha256:c1a1a03aa8616fc803bce9b28f8b4a66a6b38227b1c17af57050a084b87152d7",
+  "gen_hash_rust": "sha256:afa1c7e876c5ac1dc4a9ae11241114dfd0237e4dd1c8bb631353bdd7fdeab056",
   "gen_hash_verilog": "sha256:a56a85f72bcf0ea5d2281014919a9ac23b8961a4e05241d5ccfa1ca3ffe62f28",
   "gen_hash_zig": "sha256:feeddfe4666e0e5c0c98614e8ed0ba9cff7ee779f4ef7ff00dec38d325367e83",
   "module": "TriHmac",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:40:42Z",
+  "sealed_at": "2026-09-05T01:39:48Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:c9c294acdc2a491ad74598e51c3b2137b1b51b970d326765ce489445e76df2a8",
   "spec_path": "specs/tri/crypto/hmac.t27"

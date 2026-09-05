@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:dc463696086a58e698a15a4238ae63a499cbac094429a2387e14cd739910dc1e",
-  "gen_hash_rust": "sha256:bde48574a8dff5b90f573da4acddcb2ff64a402e958abe3aa70a7116e2aea53d",
+  "gen_hash_rust": "sha256:2bda21888fb84d3284d8a8e09e9372615ce9e8b52af33ea84b84df6a49fc3ad1",
   "gen_hash_verilog": "sha256:5bb02a292bd10fb53411ca2380e67a3fab3d0800c51962606ce9283d614e28b4",
   "gen_hash_zig": "sha256:a783e2441cda2f795ad00cc859546633da713b006284dc95d7d1f61818c89332",
   "module": "TriRegexAdvanced",

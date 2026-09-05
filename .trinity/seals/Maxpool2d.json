@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:67d9fc55f7b64ff091147cdf3c509ed0390f17f482684de457bd63c196078417",
-  "gen_hash_rust": "sha256:4ecb5bfdb05269871b48c807e2f7d428c9dba3e407c8f1f10017ea0e69c7e0d9",
+  "gen_hash_rust": "sha256:1f104beded7230a8f43dca82537ffd53c683f1a01f5e21851c5573352be3a520",
   "gen_hash_verilog": "sha256:053cf26ff6bdd9a0dfabb1683314edd9e62a8ecd2afab726147b1339a9c575cb",
   "gen_hash_zig": "sha256:d1fe5b3f7282b7ffb8de6dfc620c01240e031cb3401519ef13bbb4b731b0a60f",
   "module": "Maxpool2d",

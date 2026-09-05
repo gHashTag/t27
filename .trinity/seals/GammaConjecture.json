@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:9f8ed0c85dc4c119d1fdaf4713f640d9fc1f3ab546af86ef4f7fb02c2ad20056",
-  "gen_hash_rust": "sha256:5202e8470c8873c77750fb8fa7b6b106e91a96fe79cf8d56bbd391a126813252",
+  "gen_hash_rust": "sha256:31b9199a3afe910da93b985fd0e9344c7168e746efc99bc66d2c51077385b72a",
   "gen_hash_verilog": "sha256:008cae266f9eeb3b5636167740f915c5b74576ff91fca5bb8ed11883c750bf73",
   "gen_hash_zig": "sha256:caea78bf059d6ca7c6a626749c218107b598bc7b13e4a0a09ffe2d28f287db3c",
   "module": "GammaConjecture",

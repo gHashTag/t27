@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:72d133ef7e3ffeeb8f1bdb4daae819a52b6f8e663630bd52c037e0e4c860e7bc",
-  "gen_hash_rust": "sha256:68fd24ace76485694379c0fff731291839909c85da05a6ce6dc4110964b86bf9",
+  "gen_hash_rust": "sha256:8bb07aac377bf55c44a4fe427cc622de947f3d3ed4d6eb5a652e6c9123e9ddfd",
   "gen_hash_verilog": "sha256:bdce53191fb6ada86d4daaa71bf4a44b57feb9f8c7a0c777ca0b84ef83079b9a",
   "gen_hash_zig": "sha256:460b3314052679a56192541a1d20fd14d5e86d52974d71990646372d533e8703",
   "module": "SU2ChernSimons",

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:0b7e16403fc62c798570465ba5435d138c1be4d92a8359a998364f82f89d5eea",
-  "gen_hash_rust": "sha256:58039a7f7771c32b739330bcca6bb1d04552e3d65e63160144ea37ae4f889ea6",
+  "gen_hash_rust": "sha256:21ba9ae7bc4d8af8d426c4b760f6be053483a1ad02c8c6f48f7737bcd5611781",
   "gen_hash_verilog": "sha256:c4e975b8d5291153132ce92bf34c086fc2156ce45eeb53bdcd87215e449b4041",
   "gen_hash_zig": "sha256:980aadb9b6fd6f075573e965222c93653215b5f77b0b5bd82779c504e352b850",
   "module": "TriBitvector",

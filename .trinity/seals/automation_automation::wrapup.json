@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:ad19b41389d4cc78f9fa87ee603d94ffc10bebb4be071c4258501f270cc313e8",
-  "gen_hash_rust": "sha256:3af9733ca729c742eae4cf235d5521894751e2bf905dd5c0538d7c30a679d005",
+  "gen_hash_rust": "sha256:cf315c02ad1f58d8fd2a3fe12631691da160c3960567a383c2205bf1b305edfa",
   "gen_hash_verilog": "sha256:84c34ae050c5d6e0b5eec9a7fcdd4b7d8a8ca61c56753fe6e7abb6c7007a0dda",
   "gen_hash_zig": "sha256:16bfcba159fb18db8e4ecc3fbb0f1e3ed89f26824a78c740124d7c7ef377c53d",
   "module": "automation::wrapup",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:19:00Z",
+  "sealed_at": "2026-09-05T01:39:43Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:ac2a7dd606abd2a289cfcf53e1362ad9e1d930066a8feaa18748f131db5971ca",
   "spec_path": "specs/automation/wrapup-auto.t27"

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:8e3cf8f897b60092c5fd43ea1448de45f7e278c2badd722f7886f2da3183794b",
-  "gen_hash_rust": "sha256:d58d122a44826c00b68786124a28624073967f88f766acc712869971dfb9c946",
+  "gen_hash_rust": "sha256:c76995cb9ac128c7a3f6c06a141b0bf61027a967adb36926621853e266b01604",
   "gen_hash_verilog": "sha256:88c31bb8eadac951b3acb174b8ae7eb5734c9651ad59f419f97636f9fb416e6b",
   "gen_hash_zig": "sha256:c71ade83b0f2019f02954db4350abb4b2ed178bc2e322935cdf843545b233339",
   "module": "TriLockfreeStack",

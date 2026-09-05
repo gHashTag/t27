@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b114194c6dc27ecbe60ea84d22c20331e24b22776ed3920030c325b3c5fa1f67",
-  "gen_hash_rust": "sha256:239a12409cbf23abef0250a1df9816acecc5283c8d6415a8df89cd4405374b7e",
+  "gen_hash_rust": "sha256:07d812a480d64ff9e86105bd3cf1b64f14df5f3f719355f33a711dc680cd4f90",
   "gen_hash_verilog": "sha256:c8dbc89dc6c94614bdd2531b4bde12a78a745a572417266734acd8f6b49b0e77",
   "gen_hash_zig": "sha256:e565b183c1f871e3985d2c0db077aa159d86cb1dea83ea326db4dd4270a68383",
   "module": "StorageLock",

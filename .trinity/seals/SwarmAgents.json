@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:f1487de6cb675a19db3cdafbfe2d64c6989a5515da5129b828968cb55b9051e5",
-  "gen_hash_rust": "sha256:004303301293653a6d78756c520000c491f33aafbef819cc92041a2112e059e8",
+  "gen_hash_rust": "sha256:31d3a58e41072f8caabfdaeb506b260e5fbcaef7e13f900e7130e782d697aac1",
   "gen_hash_verilog": "sha256:f17a0bb145e55b58c9e852c55836b47a7271df3384909f7996b80f8d8ea92f10",
   "gen_hash_zig": "sha256:2639cf61946771b051fc0ddc9dc1a1058e63594dd9506bfb7336ca142f49fc99",
   "module": "SwarmAgents",

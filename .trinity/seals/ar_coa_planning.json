@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:51034bfe26f2a680c1db02232415a90a4e84420a86c9d4f19602686b9acd5afb",
-  "gen_hash_rust": "sha256:41dad0f85757587d9117e8839d7231993fcf710423a9d20ca45daeb040ce39ff",
+  "gen_hash_rust": "sha256:4e6134118aaf6075352607c26b1d82550b9e2ae5dbf4808c8bdea3af86cf1d4d",
   "gen_hash_verilog": "sha256:29e4a69b72122f9715a543d92d7ee68c8d554ec5b8aefe2f797e9b86406cb8ce",
   "gen_hash_zig": "sha256:f631078ead3dd650ee408409b06bdedaa66f64de0be918128b0caac668b81a33",
   "module": "coa_planning",
   "ring": 12,
-  "sealed_at": "2026-09-05T00:19:00Z",
+  "sealed_at": "2026-09-05T01:39:43Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d6b1c23a9296e687435aa23bb3dff4adac3b81e5ff938ac41294d8936a62a7c8",
   "spec_path": "specs/ar/coa_planning.t27"

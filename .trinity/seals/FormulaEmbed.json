@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:9bfaacf34822362fafb26b570a455ce23f20585bec6d6e26e5667d08bea25f77",
-  "gen_hash_rust": "sha256:c4510c29ba71ec5febe3d1f5e85768609e296a068d2168ed566aa604ba75f9d6",
+  "gen_hash_rust": "sha256:20159eada9220e2abbef1698f6407ed584c25928be42f99134ecc947bf0d30d8",
   "gen_hash_verilog": "sha256:d566d7e55f20adf13e5abcfd439ca4f6f5beecda2846d59d1a3baf3d03d863e6",
   "gen_hash_zig": "sha256:a37ca47480e538a91fcf9d5140c939ba8792fa381fbc84511cee6deffd513d58",
   "module": "FormulaEmbed",

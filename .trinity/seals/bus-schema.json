@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:044a156a8abbf213d297a32b86ac9c075b244165a97a5a885152639e352da2fc",
-  "gen_hash_rust": "sha256:b0d07308a9c967b8f695263654859723295aa2218dbc8160c0b43212326d0749",
+  "gen_hash_rust": "sha256:8944b29f26158b9385ddda0b9a34b2edfa760f18eb86886c6e158acc0e06897b",
   "gen_hash_verilog": "sha256:8081e025392af4fc3cbb0200c03e853ce2a52120f3aa2413beba38b75c09aef1",
   "gen_hash_zig": "sha256:4a820c77fe4a106a7475962645adbd8d34f5f8d49282a2704a8fbe3be73731e4",
   "module": "bus-schema",

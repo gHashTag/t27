@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b43135c803616bc4f2dbac6cdf91e0c563b3e4ca9e4fef57db596a003b05e99d",
-  "gen_hash_rust": "sha256:c7911c9451ad7788699058db5321983882dd301baf5d9be39308304969312400",
+  "gen_hash_rust": "sha256:4a8ccd5b255d91a558d892a36721cfd10da3a3003c8ffe200d98ea160c086661",
   "gen_hash_verilog": "sha256:b4c3e7600e893eaefb7a64efd3eb09e4f0cc5fd93aa6c45568996fe11f30307e",
   "gen_hash_zig": "sha256:35c42a702829bc5c6d36f95f0654cd9e9b9ef3e41372b4d1dc027bf5b91d827a",
   "module": "Sigmoid",

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:7e508ac42f7ab22ae6e3af7b8abc9dd87c9ebacce29271d9ea7cfdcc9fb0d45b",
-  "gen_hash_rust": "sha256:28d7bb2e2d088f9feca3b8c483d7e48de359020bf6d125f5df7fcf40f21db52a",
+  "gen_hash_rust": "sha256:25283ce9f3e777414d2efef0d9ecf6d492cf208a9502091b075bf42b09fe8922",
   "gen_hash_verilog": "sha256:1be5691e2b0ce6e59cf310ef6d6f663989d19eb1c1a18806800306409d4911bc",
   "gen_hash_zig": "sha256:6ba3b40e4c95a49e4376f659868c8d9fa455c51190add3c6edc426e78a43403b",
   "module": "Avgpool2d",

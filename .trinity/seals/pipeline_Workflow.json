@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:26f8ff2d122fed02de7b33ea98430d2a43c2b1f6729d831bb593113d4edd158a",
-  "gen_hash_rust": "sha256:be702f033b713da11e297999ad42a6ee3b671413946f8f57d51667ac6db03f1a",
+  "gen_hash_rust": "sha256:659e32e6756c1944b8fe7098781973659f0ac66a204676c20b3d7a2f5d546a7b",
   "gen_hash_verilog": "sha256:1d4ffd20adb13b94f3763aac44a715f1c6f73647438f44f1e1fbe96a7c6b3d4b",
   "gen_hash_zig": "sha256:83f329b432bc766cfaa1a65840fc8661bfb4996adfe37d48d907dac1bd8cf22c",
   "module": "Workflow",

@@ -23721,7 +23721,9 @@ impl RustCodegen {
         // single cause in the Rust column. Behind a cfg the default output
         // compiles against std alone, and anyone who wants serialisation turns
         // the feature on and gets exactly what was emitted before.
-        self.write_line("#[derive(Debug, Clone)]");
+        // `Default` joins the list because `undefined` now lowers to
+        // `Default::default()`; without it the trait bound is unsatisfied.
+        self.write_line("#[derive(Debug, Clone, Default)]");
         self.write_line(
             "#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]",
         );
@@ -23772,15 +23774,33 @@ impl RustCodegen {
         //     error[E0433]: failed to resolve: use of undeclared crate `serde`
         // before any of its own code was read. Same remedy, same words: behind
         // the feature the default output compiles against std alone.
-        self.write_line("#[derive(Debug, Clone, Copy, PartialEq, Eq)]");
+        // `Default` follows the struct list because a struct deriving it needs
+        // every field type to derive it too, and an enum field is where that
+        // chain broke -- measured: 7 specs regressed on `ErrorCode: Default`
+        // before this line existed.
+        //
+        // Which variant is the default IS a judgement, and it is stated here
+        // rather than dressed up. Rust requires a designated one; the spec gives
+        // only declaration order, so the first declared variant is used. This is
+        // NOT the C emitter's `{0}`: `{0}` selects the enumerator whose value is
+        // zero, and 123 of the 146 enums in this corpus give their first variant
+        // an explicit non-zero discriminant. Where the two disagree, the Rust
+        // backend's default is the first DECLARED variant and C's is value zero,
+        // which may name no variant at all.
+        self.write_line("#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]");
         self.write_line(
             "#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]",
         );
         self.write_line(&format!("pub enum {} {{", node.name));
         self.indent += 1;
+        let mut first_variant = true;
         for child in &node.children {
             if child.kind == NodeKind::EnumVariant {
                 let variant_name = &child.name;
+                if first_variant {
+                    self.write_line("#[default]");
+                    first_variant = false;
+                }
                 if child.value.is_empty() {
                     self.write_line(&format!("{},", variant_name));
                 } else {
@@ -24625,6 +24645,17 @@ impl RustCodegen {
                 format!("\"{}\"", Codegen::zig_escape(&node.value))
             }
             NodeKind::ExprLiteral => node.value.clone(),
+            // Zig's `undefined` is not an identifier Rust can resolve. The C
+            // emitter maps it to `{0}` under the heading "Map Zig-specific
+            // identifiers to C equivalents"; Rust's zero-value spelling is
+            // `Default::default()`, and every position it appears in is
+            // type-annotated (`let mut info: EncodingInfo = undefined;`), so
+            // inference has what it needs. Anchored inside `expr_to_rust`:
+            // `expr_to_string` at line ~30272 carries the identical arm and
+            // is not a backend, so it must keep returning the name.
+            NodeKind::ExprIdentifier if node.name == "undefined" => {
+                "Default::default()".to_string()
+            }
             NodeKind::ExprIdentifier => node.name.clone(),
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {

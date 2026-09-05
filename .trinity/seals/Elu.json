@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:44b875924aa3ac6e732a9e8cacfeb12819ea1f1216e8518992b9d1a6debfb3c3",
-  "gen_hash_rust": "sha256:bd3f20122d5bda49c4830737494156ecd27154f34476ddb0f3f4291cec11d9a0",
+  "gen_hash_rust": "sha256:053f05de118406c29390fc5d73058b48cb86c6ff18caecdf6ca3ffa69907f226",
   "gen_hash_verilog": "sha256:6b6a16d75f6e0255d7ae0462510f4befd3538fd5400746b0f0f95df598caaaa1",
   "gen_hash_zig": "sha256:354fe048fe68c43c1745e2203f80d6a8908016c500250227e9d37681578956e6",
   "module": "Elu",
