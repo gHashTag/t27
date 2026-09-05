@@ -24864,6 +24864,15 @@ impl RustCodegen {
                 format!("\"{}\"", Codegen::zig_escape(&node.value))
             }
             NodeKind::ExprLiteral => node.value.clone(),
+            // The source language spells the empty optional `null`; Rust spells
+            // it `None`. It arrived as a bare identifier and rustc answered
+            // `cannot find value `null` in this scope`. A comparison against it
+            // is the common shape -- `if (base != null)` -- and `Option<T>`
+            // compares fine, so the direct translation needs no idiom choice.
+            //
+            // Anchored inside `expr_to_rust`: `expr_to_string` carries the same
+            // arm and is not a backend, so it must keep returning the name.
+            NodeKind::ExprIdentifier if node.name == "null" => "None".to_string(),
             NodeKind::ExprIdentifier => node.name.clone(),
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
@@ -24994,7 +25003,17 @@ impl RustCodegen {
                     if self.enum_names.contains(&base) {
                         format!("{}::{}", base, node.name)
                     } else {
-                        format!("{}.{}", base, rust_ident(&node.name))
+                        // `.?` is the source language's optional unwrap and reached
+                        // Rust verbatim, where `?` is postfix try and only legal in a
+                        // function returning Result or Option. `.unwrap()` is the
+                        // direct equivalent of what the spec wrote, and the spec has
+                        // already guarded it: every occurrence measured sits behind
+                        // an `if x != null`.
+                        if node.name == "?" {
+                            format!("{}.unwrap()", base)
+                        } else {
+                            format!("{}.{}", base, rust_ident(&node.name))
+                        }
                     }
                 } else {
                     node.name.clone()
