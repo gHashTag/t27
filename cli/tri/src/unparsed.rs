@@ -1085,9 +1085,10 @@ mod tests {
         let src = include_str!("unparsed.rs");
         let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
         // The slice stops at the FIRST test module, and this file has one at
-        // line 1075 with production code running to 1704. The subject sits
-        // before it today; if it ever moves after, `contains` goes false and
-        // the assertion below passes because it is looking at nothing.
+        // line 1075 with SIX production items after it. So the slice really is
+        // truncated here; the subject just happens to sit above the cut. If it
+        // ever moves below, `contains` goes false and the negative assertion
+        // passes because it is looking at nothing.
         assert!(
             prod.contains("Located::None("),
             "the production slice no longer reaches the subject -- this test would pass vacuously"

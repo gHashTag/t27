@@ -357,11 +357,14 @@ mod tests {
         // call site, so that is what this reads.
         let src = include_str!("prose.rs");
         let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
-        // This slice stops at the FIRST test module, and 13 of the crate's 46
-        // files carry production items after theirs -- gates.rs has 83. If the
-        // subject ever moves past it, `contains` goes false and the assertion
-        // below passes because it is looking at nothing. Prove the subject is
-        // in the slice before asserting anything about it.
+        // This slice stops at the FIRST test module. Measured with
+        // `gates::test_module_lines` (a state machine, not a split): of the 46
+        // files here carrying a test module, 10 have production items after
+        // their first, 130 items in total, 79 of them in gates.rs alone.
+        // THIS file has none, so the slice is whole today -- the anchor below
+        // is defence, not a live repair. If a test module ever lands above the
+        // subject, `contains` goes false and the negative assertion passes
+        // because it is looking at nothing.
         assert!(
             prod.contains("Outcome::Other("),
             "the production slice no longer reaches the subject -- this test would pass vacuously"
