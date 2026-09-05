@@ -16426,7 +16426,7 @@ does not travel" -- has a shorter form here: it did not travel four lines.**
 The mutant that reverts the numerator to `claims_broken.len()` survived three fresh unit tests on
 `distinct_claims`. Killed only by a structural test reading the call site: **tenth pass in a row that
 the wiring outlived the function.**
-### The detector I wrote could not find what the compiler was already saying
+## 572. The detector I wrote could not find what the compiler was already saying
 
 `tri types redef` ends with a sentence that reads as a partition of the rows it just
 printed: *N state different NUMBERS; N differ in which fields they state, N in the text
@@ -16485,7 +16485,7 @@ test, and reporting that as a kill would have been false. The mutation that *com
 dropping it from both the format string and the arguments — is the one the test must
 fail on, and it does, by name.
 
-### An assertion of absence is only as good as the region it is asked of
+## 573. An assertion of absence is only as good as the region it is asked of
 
 Three instances in one pass, in three different languages, all the same shape: **a check
 whose verdict is "the needle was not found", evaluated over a region that need not contain
@@ -16541,7 +16541,7 @@ And the counting instrument itself is subject to the rule. The 10-and-79 above w
 measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
 message before being checked against `test_module_lines` — the correct instrument, already
 in the repository, already trusted by `mutate`. Two files the wrong count named have zero.
-## 572. A guard that cannot run, on the path that merges
+## 574. A guard that cannot run, on the path that merges
 
 The ratio sweep's strongest survivor is not a malformed number. It is a merge.
 
@@ -16594,7 +16594,7 @@ The loop is I/O-bound, so the four unit tests on `required_posted` and `required
 green when either half is reverted. **Eleventh pass in a row that the wiring outlived the function**
 -- and the first where the wiring in question ends in `gh pr merge`.
 
-### I had nineteen of my own numbers re-measured, and six were wrong
+## 575. I had nineteen of my own numbers re-measured, and six were wrong
 
 After a pass whose whole subject was measurement, I put every figure I had published
 through an audit: five agents on disjoint claim sets, told to derive their own commands
@@ -16649,7 +16649,7 @@ number survives.
 **Name the population in the sentence.** Four of the six failures are a population
 mismatch, not an arithmetic error: string literals counted as code, a matcher left
 unstated, a minimum reported as a central value, `coq/` where `coq/**/*.v` was meant.
-### The same guard is a decoration in one function and load-bearing in the next
+## 576. The same guard is a decoration in one function and load-bearing in the next
 
 A mutation tool that edits source text has to know which bytes are code. `tri mutate`
 has a skip mask for exactly that, and it did not know Rust raw strings: `#` opens a
@@ -16698,7 +16698,7 @@ its edits textually; the documented failure mode of naive textual mutators is a 
 minimum is a **tokenizer-based skip mask**. The mask existed here — it simply was not
 Rust-aware.
 
-### A control that cannot fail is not a control, and I wrote two of them
+## 577. A control that cannot fail is not a control, and I wrote two of them
 
 Replacing a line-based source scanner with a character pass, I wrote eight controls for
 the new `code_mask` and mutation killed only some of the branches. Two controls were
@@ -16735,3 +16735,90 @@ diagnosing a regression. Neither number was wrong: `origin/master` had moved bet
 readings, and the intervening commit was **my own**, which added sixty lines to the very
 file being measured. A baseline regenerated from a moving reference is not a baseline.
 Pin the blob, or measure a file the change does not touch.
+
+## 573. Pin the instrument before any parallel measurement
+
+I launched twelve agents over one corpus and wrote into every brief: *the binary is
+already built, use it as is, do not rebuild -- rebuilding would silently change the
+very thing you are measuring.* Then, working on something unrelated in the same
+worktree, I switched branches and rebuilt it twice while they ran.
+
+One of them reported it in as many words -- **"THE RULER MOVED UNDER ME"** -- naming
+the byte size it had started against and the size it later saw. A second reported that
+the control figure it had been given did not reproduce. I stopped the run and threw
+away its counts.
+
+The rule I wrote was correct and I broke it by **habit**, not by decision: my own work
+in the same tree did not feel like part of their experiment. A rule you state for
+others and hold only in your head for yourself is not a rule.
+
+The repair is one command, and it makes the rule structural instead of remembered:
+
+```
+cp target/release/t27c /tmp/t27c-pinned
+```
+
+Give agents ONLY the pinned path, and print its `shasum` in the brief so each one can
+verify before starting and again at the end. Then nothing you do in the worktree can
+reach them. On the re-run, every control came back **0 occurrences among the passing
+population** -- total discrimination, which is what a fixed ruler buys and what a
+moving one destroys.
+
+Two smaller consequences worth keeping. A structural observation survives a
+contaminated run and a **count does not**, so a discarded run is still worth reading
+for its mechanisms. And an agent that rebuilds the baseline it was handed before
+trusting it is the check that catches this from the other side: on the re-run one did
+exactly that, reproducing 329/252/69 itself, and said so.
+
+## 574. A defect you merged to master reads as pre-existing on every later branch
+
+A required gate went red on master. I looked at three consecutive red runs and wrote
+*"this is a pre-existing red gate, not something my PR caused"*. The repository's own
+verdict tool agreed in its own words: **"also failing in 4 other place(s) --
+pre-existing"**.
+
+Both readings were accurate. Neither meant what I took it to mean.
+
+```
+my pull request merged:      02:21:25Z
+first master failure:        02:21:28Z    <- the run its own merge triggered
+before it: seven passes      after it: five failures, all mine
+```
+
+**A defect merged to master fails on every subsequent pull request, and that is
+exactly what "pre-existing" looks like to a tool comparing a branch against master.**
+The phrase answers *is this unique to this branch* and never *did you cause it*. I
+substituted the second answer for the first question because it exonerated me.
+
+The separating question is one command, and it found a second breakage of mine the
+same day:
+
+```
+gh run list --workflow=X --branch=master --limit 12 --json conclusion,createdAt
+```
+
+**When did this gate last pass, and what landed between then and the first failure?**
+Ask that before believing any "pre-existing", especially when the answer is convenient.
+Both of that day's breakages were mine, both were three seconds after my own merge, and
+neither would have been found by re-reading the failure text.
+
+## 575. A declined probe measures where its rule ends
+
+I probed a type mapping, measured **+1 accepted and -1 regressed**, and declined it:
+net zero, recorded as priced-and-declined. Hours later a fan-out proposed the same
+mapping and it was worth +1 with no regression.
+
+The difference was one word. My version keyed on the element type and caught both
+`[]const u8` and `[]u8`; the regression was a spec whose `[]u8` is indexed as
+`chain[(idx) as usize]` and cannot be a string. Keying on the **`const` qualifier**
+leaves the mutable buffer alone.
+
+So the decline was right for the broad rule and wrong as a verdict on the class. The
+regression was never a refutation -- it was a **measurement of where the rule ends**,
+naming the exact case the rule must not cover.
+
+Before recording a refusal, read the regression and ask what separates the file it
+broke from the files it fixed. If the answer is a single word -- a qualifier, a sign,
+a scope, a position -- that is not a decline, it is a **narrowing**. And write the
+distinguishing word into the refusal itself: a refusal recorded as a bare net-zero
+reads later as a closed class, and the next reader is you.

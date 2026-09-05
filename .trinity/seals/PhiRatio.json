@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:7da9a917a3db4e7ef03cdb848907517ce13bcd0cf19b140eda686f72017ad20f",
-  "gen_hash_rust": "sha256:01fdb0de53a6a080022666e20c750058c7c879ac38f6ff62336122b53bd83cd3",
+  "gen_hash_rust": "sha256:07cc3f2fe965bab7bf777374ef3fc8a6c892c305e4ce19d5ef48a979121ff2e7",
   "gen_hash_verilog": "sha256:8401f1990fc80723e2010b2cdb3a29d2664b4ed4215ca201523433925ca2d0cc",
   "gen_hash_zig": "sha256:c85b063f3da01ed830e40108ee4816ad17333d7289626af80c8bfacf83c4f4e5",
   "module": "PhiRatio",
