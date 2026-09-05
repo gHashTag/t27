@@ -16114,7 +16114,8 @@ specs still failing on that cause proves the cause is gone rather than merely ra
 Measure the second one after the change and diff by spec name, so a gain and a
 regression cannot cancel in a total.
 
-## 574. One of four refusals had an unambiguous repair, and a second guard blocked it
+
+## 565. One of four refusals had an unambiguous repair, and a second guard blocked it
 
 `tri skill renumber` refuses in four places and repairs in none. Three of them are right to: when the
 rebuild would DROP a section, the safe action is unknown -- the section might be mine or the base's,
