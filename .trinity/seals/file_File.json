@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3a7dc233b53603c07f1fca8a16d6fc7f87a1410a59088ea75a679c0c88c3c6eb",
-  "gen_hash_rust": "sha256:f1629a60cc0e4a2dfb544e5b19db3c8eca59a75c9568793f06a2a332dcc112e9",
+  "gen_hash_rust": "sha256:407a06abb42873bcf837d561e57cc36a743ca2fae772482ac45386a012e70d6d",
   "gen_hash_verilog": "sha256:0babdbe3cc3ecc8e207e1050d75feb08dfe12474ecadae7fd1977f05363ffdd3",
   "gen_hash_zig": "sha256:43f63862cb275701dfd13e29ba461c2896f92cd7d513b00299ad0e0e4746135f",
   "module": "File",
   "ring": 12,
-  "sealed_at": "2026-09-05T03:11:55Z",
+  "sealed_at": "2026-09-05T03:21:30Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:468c0d05fb6430308005b43d183c3070421c754cdf83fef8e76f36c8ed0ed2f9",
   "spec_path": "specs/file/schema.t27"
