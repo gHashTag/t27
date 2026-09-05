@@ -18,8 +18,13 @@ function analyze(source) {
   return JSON.parse(j)
 }
 
-const files = execFileSync('find', ['/Users/playom/t27/specs', '-name', '*.t27'], { encoding: 'utf8' })
-  .split('\n').filter(Boolean).sort()
+// Whole repo, not just specs/ -- excluding .git and .claude (worktrees hold
+// duplicate checkouts of files already counted).
+const files = execFileSync('find', [
+  '/Users/playom/t27', '-name', '*.t27', '-type', 'f',
+  '-not', '-path', '/Users/playom/t27/.git/*',
+  '-not', '-path', '/Users/playom/t27/.claude/*',
+], { encoding: 'utf8' }).split('\n').filter(Boolean).sort()
 
 let lossy = 0, astFail = 0, tcFail = 0
 const targetFail = {}
