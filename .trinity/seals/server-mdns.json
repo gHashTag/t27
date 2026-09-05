@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:dd48946e9cdb08f305eb156eeacc9c5491c448b64fe1cb0a5a73a768d5330964",
-  "gen_hash_rust": "sha256:01022f338bc22b6d087f318d3a1d4f72c70fcf813d54708baaf7ac3bc334483d",
+  "gen_hash_rust": "sha256:300966e3f4c395030c11a5b2eb803f567c9653956c23ea090038ede9b6feb8c2",
   "gen_hash_verilog": "sha256:80c8105f99e14ba09bf2c49f8b1985f5b22101f9decbdbecfe41a7cba712660e",
   "gen_hash_zig": "sha256:d8756697db2cc949cbfa6e7dde6092aa29ac5e906a31903fe4070c4dcd865436",
   "module": "server-mdns",

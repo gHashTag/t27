@@ -21915,6 +21915,28 @@ fn collect_fn_ret_types(node: &Node, out: &mut std::collections::HashMap<String,
 ///
 /// Declarations sit at file level or inside a module node, so the scan is
 /// recursive, exactly like its neighbours above.
+/// A spec field may be named `type`, `ref` or `match`; those are Rust keywords and
+/// the emitter wrote them bare, so the struct did not parse. Rust's raw-identifier
+/// syntax `r#type` is the exact spelling for this and needs no judgement.
+///
+/// `crate`, `self`, `Self` and `super` are deliberately NOT escaped: `r#` is invalid
+/// for them, so escaping would replace one parse error with another. They do not
+/// occur as field names in this corpus; if one appears, it stays bare and fails
+/// visibly rather than failing in a way that looks like this fix worked.
+fn rust_ident(name: &str) -> String {
+    const KEYWORDS: &[&str] = &[
+        "as", "async", "await", "box", "break", "const", "continue", "dyn", "else",
+        "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop",
+        "match", "mod", "move", "mut", "pub", "ref", "return", "static", "struct",
+        "trait", "true", "type", "union", "unsafe", "use", "where", "while", "yield",
+    ];
+    if KEYWORDS.contains(&name) {
+        format!("r#{}", name)
+    } else {
+        name.to_string()
+    }
+}
+
 /// Does `hay` use `name` as a whole identifier?
 ///
 /// Substring matching is wrong here and cheaply so: `T` occurs inside `Trit`,
@@ -23816,7 +23838,11 @@ impl RustCodegen {
                 if field_type.trim() == "bool" {
                     self.bool_fields.insert(field_name.clone());
                 }
-                self.write_line(&format!("pub {}: {},", field_name, field_type));
+                self.write_line(&format!(
+                    "pub {}: {},",
+                    rust_ident(field_name),
+                    field_type
+                ));
             }
         }
         self.indent -= 1;
@@ -23906,7 +23932,7 @@ impl RustCodegen {
         let params: Vec<(String, String)> = node.params.clone();
         let params_str = params
             .iter()
-            .map(|(n, t)| format!("{}: {}", n, Self::t27_type_to_rust(t)))
+            .map(|(n, t)| format!("{}: {}", rust_ident(n), Self::t27_type_to_rust(t)))
             .collect::<Vec<_>>()
             .join(", ");
         let ret_type = if node.extra_return_type.is_empty() {
@@ -24834,7 +24860,7 @@ impl RustCodegen {
                         } else {
                             self.expr_to_rust(&c.children[0])
                         };
-                        format!("{}: {}", c.name, val)
+                        format!("{}: {}", rust_ident(&c.name), val)
                     })
                     .collect();
                 format!("{} {{ {} }}", node.name, fields.join(", "))
@@ -24884,7 +24910,7 @@ impl RustCodegen {
                     if self.enum_names.contains(&base) {
                         format!("{}::{}", base, node.name)
                     } else {
-                        format!("{}.{}", base, node.name)
+                        format!("{}.{}", base, rust_ident(&node.name))
                     }
                 } else {
                     node.name.clone()
