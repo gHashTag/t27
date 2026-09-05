@@ -16187,7 +16187,7 @@ slot, `empty: void` -- and **`zig build-obj` accepts both, and so does the deepe
 corpus counts these specs as generating and accepting.
 
 (An earlier version of this section said Zig *dropped* the field. That was wrong and
-came from running `t27c gen-zig`, which is not a subcommand -- the Zig backend is
+came from running `t27c gen-zig`, which does not exist as a subcommand -- the Zig backend is
 `gen`. The empty output of a misspelled command was read as a dropped field. The
 corpus itself always used `gen`, so its numbers were never affected; only this
 paragraph was. See the note below.)
@@ -16385,3 +16385,155 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
+## 567. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
+
+&sect;542 fixed the DENOMINATOR of `tri gates mutate`'s equivalence report: `claims_seen` counted every
+`# mutant-equivalent:` marker textually, including claims for which no mutant was ever built. The
+numerator went untouched. The units fan-out found it.
+
+```rust
+claims_seen += in_scope.len();          // distinct claim LINES, from a union over all directions
+for (dir, _, _, survivors) in &scores { // ... once PER DIRECTION
+    claims_broken.extend(contradicted_claims(..));
+}
+println!("{} of {} equivalence claim(s) CONTRADICTED:", claims_broken.len(), claims_seen);
+```
+
+**"X of Y" is an inclusion statement, so both halves have to count the same thing.** They do not. A
+claimed line that is a mutable site under two operators and dies under both contributes **two rows**
+to a numerator whose denominator counted it **once**. Under `--all` the command can print `2 of 1`.
+
+**Measured, not hypothesised.** Of the eight markers in `tools/`, exactly **one** is a site in two
+directions: `gft_backprop_microcode.py:742`, `assert _magsub(10240, 9217) == 9984, ...` -- an assert
+site AND a boundary site. One in eight, on real data, reachable by a flag the command documents.
+
+**Fixed by counting each half in its own unit rather than deleting a number:**
+
+```text
+1 of 8 equivalence claim(s) CONTRADICTED, in 2 (claim x operator) row(s):
+```
+
+The rows stay per direction, because **which operator killed a claim is the useful half** -- an
+`assert` mutant dying says something different from a `boundary` mutant dying. What changes is that
+the ratio now speaks about claims and the rows are counted as rows.
+
+### The half of a fix is not the fix
+
+Two passes ago I corrected this function's denominator and wrote a section about it. The numerator sat
+four lines below, in the same `println!`, and I did not look at it. **&sect;574's lesson -- "the fix
+does not travel" -- has a shorter form here: it did not travel four lines.**
+
+The mutant that reverts the numerator to `claims_broken.len()` survived three fresh unit tests on
+`distinct_claims`. Killed only by a structural test reading the call site: **tenth pass in a row that
+the wiring outlived the function.**
+### The detector I wrote could not find what the compiler was already saying
+
+`tri types redef` ends with a sentence that reads as a partition of the rows it just
+printed: *N state different NUMBERS; N differ in which fields they state, N in the text
+of a field, N only in prose, N identical.* It summed to **345**. The command had printed
+**346** rows.
+
+The dropped row was the only `SIGNATURE` one — two definitions of `delete` in one spec,
+one taking a line range and one taking a path. The second-most-severe class the command
+has, and the tally is the sentence a reader carries away.
+
+`signature` was incremented in the `match` and left out of the `println!` argument list.
+
+The part worth keeping is not the bug. That pass opened by building a detector for a
+neighbouring shape — *a guard checked for reachability rather than correctness* — which
+narrowed 69 candidates to 16 by requiring that the variable be **read by a control-flow
+test**. That detector could not have found this defect, because the defect **is the
+absence of any read**. Its shape requirement excluded the thing it was hunting.
+
+The instrument that answers "nothing reads this" ships with the compiler and had been
+printing it on every build for as long as the line existed:
+
+```
+warning: variable `signature` is assigned to, but never used
+warning: value assigned to `signature` is never read
+```
+
+Every build in that session was run as `cargo build 2>&1 | grep -E '^error'`, or with
+its output piped to `/dev/null` outright. The output was discarded because 23 warnings
+of mostly-cosmetic noise is not worth reading — which is exactly how the one warning
+that mattered stayed invisible for as long as it did.
+
+Three consequences.
+
+**Before writing a detector, ask what the toolchain already reports.** A bespoke matcher
+competes with `rustc`, `clippy`, the type checker, and the linter — all of which run on
+every build and none of which need a population argument. Write the detector for what
+they *cannot* say.
+
+**Classify the noise rather than silencing it.** Not all warnings are equal.
+*A value computed and never read* is a different claim from *an item nothing calls*: the
+first means work was performed and dropped, which usually means a result that was meant
+to reach somewhere and does not. `tri gates warnings` splits them into
+`DISCARDED` / `dead` / `cosmetic` / `other`, and `--gate` holds only the first class at
+zero. The 16 dead and 6 cosmetic warnings stay visible and ungated.
+
+**A warning report must force the work.** A cached compilation unit emits *no warnings
+at all*, so a report run against a warm `target/` reads clean no matter what the code
+says — the same broken-ruler shape as a gate whose subject has been deleted.
+`tri gates warnings` touches the crate root before checking, and says so in its output
+when it finds zero.
+
+And the test for a defect of this shape goes at the **call site**. The omission was from
+an argument list, so a test of any counting helper would have passed. Removing
+`signature` from the arguments alone does not compile — killed by `rustc`, not by the
+test, and reporting that as a kill would have been false. The mutation that *compiles* —
+dropping it from both the format string and the arguments — is the one the test must
+fail on, and it does, by name.
+
+### An assertion of absence is only as good as the region it is asked of
+
+Three instances in one pass, in three different languages, all the same shape: **a check
+whose verdict is "the needle was not found", evaluated over a region that need not contain
+the needle's subject.**
+
+A positive assertion fails loudly when its region is wrong — the thing it demands is not
+there. A negative assertion **passes**. That asymmetry is the whole defect: truncate the
+region and the check goes green while proving nothing.
+
+**A hardcoded operand list.** `coq-kernel.yml` guarded against `Admitted` — a lemma
+assumed rather than proved, which Coq accepts as an axiom — with
+`grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v`. `coq/_CoqProject` names
+**nine** files. Seven compiled proof files, including all three `Theorems/`, sat outside
+it. Nothing else covered them: `coqc` compiles a file containing `Admitted` without
+complaint, and `coqchk` ran for `PhiFloat` alone. Planting one in `Kernel/Trit.v` makes
+the gate print `OK: no Admitted in Phi.v or PhiFloat.v (both files read)` — a true
+sentence about the wrong question. The population belongs to the build, so it is now read
+from the file the build reads.
+
+**A region that can disappear.** `phi-loop-ci.yml` ended
+`grep -rn 'as f64' ffi/src/ ... 2>/dev/null | grep -v … | grep -v … && echo "L8 FAILED" && exit 1 || echo "L8 PASSED"`.
+Remove `ffi/src/` and the first grep exits 2 with its message discarded; the **last** grep
+in the pipe then reads empty input and exits 1, which `||` reports as "no violations".
+Byte-identical output to a clean tree. **In a pipeline the exit code is the last command's,
+so an upstream "could not run" is laundered into a downstream "found nothing".**
+
+**A source slice.** `src.split("#[cfg(test)]").next()` as "the production code" stops at
+the FIRST test module. Measured with `gates::test_module_lines` — a state machine, not a
+split: of 46 files carrying a test module, **10** have production items after their first,
+**130** items in all, **79** in `gates.rs` across 38 test modules.
+
+Two rules come out of this.
+
+**Give every negative assertion a positive anchor.** Before asserting the needle is absent,
+assert the *subject* is present in the region. Both structural tests written that pass
+worked only by position — the needle happened to sit above the cut. Each now proves its
+slice reaches the subject first, and planting a test module above the subject fails them
+with "this test would pass vacuously" where before they passed.
+
+**Make the population's size visible, and refuse a zero.** The repaired gates print
+`reading 9 file(s) named by coq/_CoqProject`, and an empty `_CoqProject` exits **2**, not
+0. A count in the output is what lets a reader notice the day it drops. Two candidates from
+the same sweep were **refuted** by exactly this: the `actions/github-script` injection gate
+already prints `2 actions/github-script step(s)` and finds 2 of 2, and the status-table
+path check drops 15 candidates that are all correctly dropped — GitHub org/repo names, a
+branch name, `/tmp` paths, and formulas containing a slash. A clean audit is a result.
+
+And the counting instrument itself is subject to the rule. The 10-and-79 above were first
+measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
+message before being checked against `test_module_lines` — the correct instrument, already
+in the repository, already trusted by `mutate`. Two files the wrong count named have zero.

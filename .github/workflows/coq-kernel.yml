@@ -192,7 +192,29 @@ jobs:
           # A command in an `if` CONDITION is exempt from `set -e`, so its exit code
           # survives to be read. That is the whole fix; the three-way handling below is
           # unchanged and is what this gate was repaired to have.
-          if HITS=$(grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v); then
+          # The operands were `coq/Kernel/Phi.v coq/Kernel/PhiFloat.v`, two files.
+          # `coq/_CoqProject` names NINE, and `coqc` compiles a file containing
+          # `Admitted` without complaint -- it becomes an axiom -- so the build
+          # cannot catch one either, and `coqchk` above runs on PhiFloat alone.
+          # Seven compiled proof files, Kernel/Trit.v and all three Theorems/
+          # among them, could carry an assumed lemma and this gate would print
+          # OK. The population belongs to the build, not to a literal, so read
+          # it from the same file the build reads.
+          # Not `mapfile`: it is bash 4+, so this step could not be reproduced on
+          # a macOS bash 3.2 before pushing. The `|| [ -n "$f" ]` is not
+          # decoration -- a plain `while read` DROPS the final line when the
+          # file has no trailing newline, which would silently shrink the very
+          # population this change exists to widen.
+          VFILES=()
+          while IFS= read -r f || [ -n "$f" ]; do
+            [ -n "$f" ] && VFILES+=("coq/$f")
+          done < <(grep -E '\.v$' coq/_CoqProject)
+          if [ "${#VFILES[@]}" -eq 0 ]; then
+            echo "::error::coq/_CoqProject named no .v file. Nothing was checked." >&2
+            exit 2
+          fi
+          echo "reading ${#VFILES[@]} file(s) named by coq/_CoqProject"
+          if HITS=$(grep -n 'Admitted' "${VFILES[@]}"); then
             rc=0
           else
             rc=$?
@@ -200,11 +222,11 @@ jobs:
           case "$rc" in
             0)
               echo "$HITS"
-              echo "ERROR: Admitted remains in Phi / PhiFloat" >&2
+              echo "ERROR: Admitted remains in a file the build compiles" >&2
               exit 1
               ;;
             1)
-              echo "OK: no Admitted in Phi.v or PhiFloat.v (both files read)"
+              echo "OK: no Admitted in any of the ${#VFILES[@]} files coq/_CoqProject names"
               ;;
             *)
               echo "::error::this gate could not run: grep exited $rc." >&2
