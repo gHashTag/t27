@@ -16047,3 +16047,43 @@ arrangement exercise nothing.
 Mutating the call site first is now the first act after extracting a helper. It found nothing here,
 because the call site was written with the rule in mind -- which is what a rule that works looks like
 once it stops being a discovery.
+
+## 565. Two bare headings were three damaged entries, and the third was the one still claiming a body
+
+&sect;556 found two headings in `docs/NOW.md` with nothing under them, at lines 6359 and 6361. Repairing
+them turned up a third entry that the empty-body check could not see, because **it had a body -- just
+not its own.**
+
+| entry | before | after |
+|---|---|---|
+| `SW-conformance — gf96` | **0 lines** | its own 23 |
+| `Wave Loop 434 — FPGA boot-evidence` | **0 lines** | its own 45 |
+| `SW-conformance — gf48` | 39 lines, **all of them W434's** | its own 17 |
+
+Fifty lines below its heading, `gf48` carried `### What landed (Variant B — board reachable, P12/relay
+still blocked)` and `XADC_LIVE_W434_OPERATING_POINT` -- FPGA boot evidence, under a software-
+conformance promotion. **All 39 of its lines came from W434's 45.** Six of W434's were gone outright.
+
+### The measurement that misled me, and the one that did not
+
+&sect;556 reported *"31 of Wave Loop 434's 34 substantial lines are still elsewhere in the file, so most
+of that content survives"*. Both halves are true and the conclusion is wrong. The lines survive **under
+the wrong heading**, which is not survival -- it is **misattribution**, and it is worse than loss: an
+entry about a `gf48` promotion silently claimed another wave's silicon evidence as its own.
+
+The check that would have caught it: for a line said to survive, ask **under which heading**, not
+whether the file contains it. Nineteen of the thirty-four appear exactly once and are W434-specific
+(`XADC_LIVE_W434_OPERATING_POINT`), and every one of those nineteen sat under `gf48`. The other
+fifteen appear up to twenty-five times each -- boilerplate (`- Branch:`, `- CI:`) that says nothing
+about survival either way. **"Still in the file" is the same unit error as "50 red workflows": the
+container is not the claim.**
+
+### Picking the version to restore
+
+Restoring `gf48` from *"the last commit where its body was non-empty"* would have restored the
+damage: at `505785011` its body was non-empty and was W434's. The selector has to be **content**, not
+emptiness -- the last version whose first lines actually mention `gf48 (GoldenFloat48`. Same shape as
+&sect;559: **absence is not the discriminator, identity is.**
+
+Verified after: 310 headings before and after, 0 titles lost, 0 empty bodies, exactly 3 bodies
+changed.
