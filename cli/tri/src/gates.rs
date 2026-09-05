@@ -20,6 +20,23 @@ use std::process::Command;
 
 #[derive(Subcommand, Debug)]
 pub enum GatesCmd {
+    /// Classify the compiler's own warnings. `rustc` already answers "is this
+    /// value ever read" and "does anything call this" for the whole crate; the
+    /// answer only helps if somebody reads it.
+    ///
+    /// T106: `signature` in `types_dup.rs` was incremented for every name whose
+    /// copies disagreed in signature and then left out of the summary's
+    /// argument list. The tally printed 345 for 346 rows. rustc had said
+    /// `value assigned to `signature` is never read` on every build for as long
+    /// as the line existed, and every build in that session was run with its
+    /// output piped to /dev/null.
+    Warnings {
+        /// Exit 1 if any warning falls in the discarded-computation class --
+        /// a value computed and never read. That is the T106 shape.
+        #[arg(long)]
+        gate: bool,
+    },
+
     /// Run every gate script and its negative control; name the ones with none.
     Sweep {
         /// Skip the gates themselves and only report which have no control.
@@ -1104,6 +1121,19 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
 /// mutant, or a subprocess -- the check exists because nothing had ever
 /// falsified one of these claims, and a checker nobody can test is the same
 /// failure one level up.
+/// How many distinct CLAIMS a set of contradiction rows speaks for.
+///
+/// A row is `{gate}:{line} -- ...`, one per (claim, direction) pair, so a claim
+/// that is a mutable site under two operators and dies under both produces two
+/// rows. The numerator of "X of Y equivalence claims" has to count claims, or
+/// X can exceed Y -- and Y is a count of distinct claim lines.
+pub fn distinct_claims(rows: &[String]) -> usize {
+    rows.iter()
+        .map(|r| r.split(" -- ").next().unwrap_or(r.as_str()))
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+}
+
 fn contradicted_claims(
     gate: &str,
     dir: &str,
@@ -2367,10 +2397,28 @@ fn mutate(
         println!("the whole check -- a claim about the FUTURE of the code is worth");
         println!("only the run that could have refuted it and did not.");
     } else {
+        // "X of Y" is an inclusion statement, so both halves must count the
+        // same thing. They did not: `claims_seen` counts distinct claim LINES
+        // (from `sites_any`, a union over every direction), while
+        // `claims_broken` is extended once PER DIRECTION, so a claimed line
+        // that is a site under two operators and dies under both contributes
+        // two rows. Under `--all` that prints "2 of 1".
+        //
+        // Measured 2026-09-05: of the eight `# mutant-equivalent:` markers in
+        // `tools/`, ONE is a site in two directions --
+        // `gft_backprop_microcode.py:742`, an `assert ... == 9984`, which is
+        // both an assert site and a boundary site. Reachable on real data, not
+        // a hypothetical.
+        //
+        // The rows are worth keeping per direction: which operator killed it is
+        // the useful part. So the RATIO counts claims and the rows are counted
+        // separately, each with its unit.
+        let contradicted = distinct_claims(&claims_broken);
         println!(
-            "{} of {} equivalence claim(s) CONTRADICTED:",
-            claims_broken.len(),
-            claims_seen
+            "{} of {} equivalence claim(s) CONTRADICTED, in {} (claim x operator) row(s):",
+            contradicted,
+            claims_seen,
+            claims_broken.len()
         );
         for c in &claims_broken {
             println!("  {}", c);
@@ -2591,6 +2639,154 @@ fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
+/// What a compiler warning says about the code, coarser than rustc's lint name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum WarnClass {
+    /// A value was computed and stored, and nothing ever reads it. This is the
+    /// T106 shape: work performed and dropped, which usually means a result
+    /// that was meant to reach somewhere and does not.
+    Discarded,
+    /// An item exists and nothing calls it.
+    Dead,
+    /// Cosmetic: an unused binding, an unnecessary `mut`.
+    Cosmetic,
+    /// Anything else rustc chose to say.
+    Other,
+}
+
+pub fn classify_warning(msg: &str) -> WarnClass {
+    if msg.starts_with("value assigned to") || msg.contains("is assigned to, but never used") {
+        return WarnClass::Discarded;
+    }
+    if msg.contains("is never used") || msg.contains("is never read") {
+        return WarnClass::Dead;
+    }
+    if msg.starts_with("unused ") || msg.starts_with("variable does not need to be mutable") {
+        return WarnClass::Cosmetic;
+    }
+    WarnClass::Other
+}
+
+fn warnings_gate(gate: bool) -> Result<()> {
+    let root = repo_root()?;
+    // A cached unit prints no warnings at all, so a report run against a warm
+    // target directory reads clean no matter what the code says. Touch the
+    // crate root to force this one crate to be re-checked; deps stay cached.
+    let main_rs = root.join("cli/tri/src/main.rs");
+    if !main_rs.is_file() {
+        anyhow::bail!("{} is missing -- nothing to re-check", main_rs.display());
+    }
+    let touched = Command::new("touch")
+        .arg(&main_rs)
+        .current_dir(&root)
+        .status();
+    match touched {
+        Ok(st) if st.success() => {}
+        _ => anyhow::bail!(
+            "could not touch {} -- without it a cached build reports zero warnings",
+            main_rs.display()
+        ),
+    }
+
+    let out = Command::new("cargo")
+        .args([
+            "check",
+            "-p",
+            "tri",
+            "--bin",
+            "tri",
+            "--message-format=json",
+        ])
+        .current_dir(&root)
+        .output()
+        .context("running cargo check")?;
+    let text = String::from_utf8_lossy(&out.stdout);
+
+    let mut rows: Vec<(WarnClass, String, String)> = Vec::new();
+    for line in text.lines() {
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        if v.get("reason").and_then(|r| r.as_str()) != Some("compiler-message") {
+            continue;
+        }
+        let m = match v.get("message") {
+            Some(m) => m,
+            None => continue,
+        };
+        if m.get("level").and_then(|l| l.as_str()) != Some("warning") {
+            continue;
+        }
+        let msg = m.get("message").and_then(|x| x.as_str()).unwrap_or("");
+        // The per-crate summary ("`tri` generated 23 warnings") is not a finding.
+        if msg.contains("generated") && msg.contains("warning") {
+            continue;
+        }
+        let at = m
+            .get("spans")
+            .and_then(|s| s.as_array())
+            .and_then(|a| a.first())
+            .map(|sp| {
+                format!(
+                    "{}:{}",
+                    sp.get("file_name").and_then(|f| f.as_str()).unwrap_or("?"),
+                    sp.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0)
+                )
+            })
+            .unwrap_or_else(|| "?".into());
+        rows.push((classify_warning(msg), at, msg.to_string()));
+    }
+
+    rows.sort();
+    let discarded = rows.iter().filter(|r| r.0 == WarnClass::Discarded).count();
+    for (class, at, msg) in &rows {
+        let tag = match class {
+            WarnClass::Discarded => "DISCARDED",
+            WarnClass::Dead => "dead     ",
+            WarnClass::Cosmetic => "cosmetic ",
+            WarnClass::Other => "other    ",
+        };
+        println!("  {tag}  {at:<34}  {msg}");
+    }
+    println!();
+    // `cargo check -p tri` also checks the workspace crates tri depends on, and
+    // replays their cached warnings, so this population is not one crate. Say
+    // whose it is: an unlabelled total is read as belonging to the crate named
+    // in the command, which is the same defect this command exists to catch.
+    let mut by_crate: std::collections::BTreeMap<String, usize> = Default::default();
+    for (_, at, _) in &rows {
+        let krate = at.split('/').take(2).collect::<Vec<_>>().join("/");
+        *by_crate.entry(krate).or_default() += 1;
+    }
+    let spread = by_crate
+        .iter()
+        .map(|(k, n)| format!("{k} {n}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    println!(
+        "{} warning(s) across {} crate(s) [{}]; {} in the discarded-computation class.",
+        rows.len(),
+        by_crate.len(),
+        spread,
+        discarded
+    );
+    if rows.is_empty() {
+        println!();
+        println!(
+            "Zero warnings from a crate this size is more likely a cached unit\n\
+             than a clean one. This command touches {} before checking for\n\
+             exactly that reason -- if that stopped working, this reads clean\n\
+             while saying nothing.",
+            main_rs.display()
+        );
+    }
+    if gate && discarded > 0 {
+        anyhow::bail!("{discarded} value(s) computed and never read -- see DISCARDED above");
+    }
+    Ok(())
+}
+
 fn tests_gate(gate: bool) -> Result<()> {
     let root = repo_root()?;
     let mut files: Vec<std::path::PathBuf> = Vec::new();
@@ -2635,6 +2831,73 @@ fn tests_gate(gate: bool) -> Result<()> {
 #[cfg(test)]
 mod claim_scope_tests {
     use super::*;
+
+    /// `distinct_claims` can be right while the ratio still prints rows.
+    /// Reverting the numerator to `claims_broken.len()` restores "2 of 1"
+    /// exactly, with every test above green.
+    #[test]
+    fn the_ratio_numerator_counts_claims_not_rows() {
+        let src = include_str!("gates.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let contradicted = distinct_", "claims(&claims_broken);");
+        assert!(
+            code.contains(call),
+            "the numerator has to be counted in the denominator's unit"
+        );
+        let printed = concat!("(claim x oper", "ator) row(s):");
+        assert!(
+            code.contains(printed),
+            "and the row count is still printed, with ITS unit named -- which \
+             operator killed a claim is the useful half"
+        );
+    }
+
+    /// "X of Y" is an inclusion statement and both halves must count the same
+    /// thing. The numerator was rows -- one per (claim, direction) pair -- and
+    /// the denominator distinct claim lines, so X could exceed Y.
+    ///
+    /// Measured 2026-09-05: one of the eight markers in `tools/` is a site in
+    /// two directions -- `gft_backprop_microcode.py:742`, an `assert ... ==
+    /// 9984`, both an assert site and a boundary site.
+    #[test]
+    fn two_rows_for_one_claim_are_one_claim() {
+        let rows = vec![
+            "gft_backprop_microcode.py:742 -- 1 of 1 assert mutant(s) DIED, but the line claims: x"
+                .to_string(),
+            "gft_backprop_microcode.py:742 -- 1 of 2 boundary mutant(s) DIED, but the line claims: x"
+                .to_string(),
+        ];
+        assert_eq!(rows.len(), 2, "two rows, because two operators reached it");
+        assert_eq!(
+            distinct_claims(&rows),
+            1,
+            "and one claim, which is what the ratio's numerator must be"
+        );
+    }
+
+    /// Two different claims stay two, or the fix would understate the numerator.
+    #[test]
+    fn two_claims_are_not_collapsed() {
+        let rows = vec![
+            "a.py:10 -- 1 of 1 silent mutant(s) DIED, but the line claims: p".to_string(),
+            "b.py:20 -- 1 of 1 silent mutant(s) DIED, but the line claims: q".to_string(),
+        ];
+        assert_eq!(distinct_claims(&rows), 2);
+        assert_eq!(distinct_claims(&[]), 0, "no rows, no claims");
+    }
+
+    /// A row without the separator must still count as one claim rather than
+    /// vanishing: the format is ours, and a silent zero is the failure mode
+    /// this whole series is about.
+    #[test]
+    fn a_row_without_the_separator_still_counts() {
+        let rows = vec!["malformed row with no separator".to_string()];
+        assert_eq!(distinct_claims(&rows), 1);
+    }
     use std::collections::{HashMap, HashSet};
 
     /// A claim the run never built a mutant for is not a claim that survived.
@@ -2898,6 +3161,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
         ),
         GatesCmd::Prs { repo } => prs(repo.as_deref()),
         GatesCmd::Tests { gate } => tests_gate(*gate),
+        GatesCmd::Warnings { gate } => warnings_gate(*gate),
         GatesCmd::Unmeasured { repos, stale_days } => {
             let list: Vec<String> = if repos.is_empty() {
                 vec![current_repo()?]
@@ -4172,6 +4436,35 @@ mod tests {
 #[cfg(test)]
 mod sweep_tests {
     use super::*;
+
+    #[test]
+    fn the_t106_warning_shape_is_its_own_class() {
+        // Both of these are what rustc printed for `signature` in types_dup.rs
+        // while the summary undercounted 346 rows as 345.
+        use super::{classify_warning, WarnClass};
+        assert_eq!(
+            classify_warning("value assigned to `signature` is never read"),
+            WarnClass::Discarded
+        );
+        assert_eq!(
+            classify_warning("variable `signature` is assigned to, but never used"),
+            WarnClass::Discarded
+        );
+        // "never read" also appears in dead-field warnings, which are a
+        // different problem: nothing computed them in the first place.
+        assert_eq!(
+            classify_warning("field `start_ts` is never read"),
+            WarnClass::Dead
+        );
+        assert_eq!(
+            classify_warning("function `plan` is never used"),
+            WarnClass::Dead
+        );
+        assert_eq!(
+            classify_warning("unused variable: `t0`"),
+            WarnClass::Cosmetic
+        );
+    }
 
     #[test]
     fn mutation_never_touches_the_control_itself() {
