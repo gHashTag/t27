@@ -24412,6 +24412,20 @@ impl RustCodegen {
                     format!("*mut {}", Self::t27_type_to_rust(rest))
                 }
             }
+            // A dotted foreign type has no Rust spelling either.
+            // `param_type_to_c` has answered this since it found
+            // `std.mem.Allocator x;` reaching a C header: "`void*` is the
+            // honest lowering and what a hand-written binding uses". Rust's
+            // `void*` is `*mut ()`, and it needs no import.
+            //
+            // Without the arm the path arrived verbatim and rustc stopped at
+            // the first dot -- `pub allocator: std.mem.Allocator,` -- so the
+            // rest of the file was never read. One field accounted for 15 of
+            // the 24 specs in this class.
+            //
+            // Bracket forms are matched by the arms above, exactly as the C
+            // rule excludes a leading `[` from its own dotted check.
+            t if t.contains('.') => "*mut ()".to_string(),
             t => t.to_string(), // Custom type name
         };
 

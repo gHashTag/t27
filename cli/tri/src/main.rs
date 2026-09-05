@@ -381,6 +381,9 @@ enum SkillAction {
         /// Report the moves and write nothing.
         #[arg(long)]
         check: bool,
+        /// Remove the sections the base withdrew, instead of refusing.
+        #[arg(long)]
+        drop_withdrawn: bool,
         /// Start at this number instead of one past the base's highest. For a
         /// second open branch numbering against the same base -- pass a number,
         /// not a different --base.
@@ -974,7 +977,8 @@ fn main() -> Result<()> {
                     file,
                     check,
                     first,
-                } => renum::run(base, file, *check, *first)?,
+                    drop_withdrawn,
+                } => renum::run(base, file, *check, *first, *drop_withdrawn)?,
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
             }
