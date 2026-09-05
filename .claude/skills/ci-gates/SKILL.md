@@ -16515,7 +16515,11 @@ so an upstream "could not run" is laundered into a downstream "found nothing".**
 **A source slice.** `src.split("#[cfg(test)]").next()` as "the production code" stops at
 the FIRST test module. Measured with `gates::test_module_lines` — a state machine, not a
 split: of 46 files carrying a test module, **10** have production items after their first,
-**130** items in all, **79** in `gates.rs` across 38 test modules.
+**79** of them in `gates.rs` alone. The FILE count is matcher-dependent and is
+deliberately not quoted as a single number: splitting on the string `#[cfg(test)]`
+gives 13, splitting on the bare attribute line gives 11, and additionally rejecting
+matches inside string literals gives 9. An audit of this pass found the "10 files /
+130 items" first written here reproduces under none of those definitions.
 
 Two rules come out of this.
 
@@ -16590,6 +16594,61 @@ The loop is I/O-bound, so the four unit tests on `required_posted` and `required
 green when either half is reverted. **Eleventh pass in a row that the wiring outlived the function**
 -- and the first where the wiring in question ends in `gh pr merge`.
 
+### I had nineteen of my own numbers re-measured, and six were wrong
+
+After a pass whose whole subject was measurement, I put every figure I had published
+through an audit: five agents on disjoint claim sets, told to derive their own commands
+rather than reuse mine, with a third reading on every disagreement.
+
+**10 CONFIRMED, 3 stale-but-true, 6 WRONG.**
+
+The six are worth naming individually, because they fail in four distinct ways and only
+one of them is a typo.
+
+**A regex counted matches inside string literals.** I wrote that `competitors.rs` has a
+production `pub fn beta_competitor` below its first test module, and used that as the
+justification for adding an anchor. That identifier is at line 696, inside the raw string
+`const TWO` which opens at 681 and closes at 705 — **fixture text inside `mod tests`**.
+The file has no production item below the cut at all. My scanner matched `^pub fn ` at
+column 0 and had no idea it was inside a string. A count of "production items" needs a
+lexer, not a regex, and the same false positives inflated the file and item totals below.
+
+**A count that depends on an unstated matcher.** I published "10 of 46 files have
+production items after their first `#[cfg(test)]`, 130 items in all". The 46 is right by
+three independent instruments. The rest reproduces under **no** definition the auditor
+could construct: 13 files / 160 items splitting on the string, 11 / 140 splitting on the
+bare attribute line, 9 / 133 additionally rejecting string literals. Not 10, not 130. The
+one robust figure — `gates.rs` holds 79 — survived, and is the only one worth quoting.
+**When a number moves with the matcher, the matcher is part of the number.**
+
+**A sample of one, generalised.** I wrote "each push triggers 28 check-runs" and built a
+cost argument on it, in an issue, to an owner. Across 24 consecutive PR heads the range is
+**28 to 43, median 41** — and exactly one head gave 28, the smallest change in the sample.
+I had measured the minimum and called it the value. The correction makes the argument
+*stronger*, which is precisely why it was tempting not to check.
+
+**A population wider than the one that matters.** I wrote "zero occurrences of `Admitted`
+anywhere under `coq/`". There is one, in `coq/README.md`. Zero in `.v` files — which is the
+population the gate reads and the one I meant. The claim as written was false and the claim
+I meant was true, and only writing the population down distinguishes them.
+
+**And a plain miscount**: "six occurrences before the attribute" was five (216, 355, 358,
+371, 375). History shows it was never six.
+
+Three lessons, in order of how much they cost.
+
+**Audit the numbers you are most confident in.** Every one of these six was published —
+in issue bodies, commit messages, code comments, this file — and each had already been
+"checked", by me, with the instrument that produced it. Re-measuring with the same tool is
+not a second reading.
+
+**A correction that strengthens your argument still has to be published.** The check-run
+figure made the merge-queue case better, not worse. That asymmetry is exactly when a wrong
+number survives.
+
+**Name the population in the sentence.** Four of the six failures are a population
+mismatch, not an arithmetic error: string literals counted as code, a matcher left
+unstated, a minimum reported as a central value, `coq/` where `coq/**/*.v` was meant.
 ### The same guard is a decoration in one function and load-bearing in the next
 
 A mutation tool that edits source text has to know which bytes are code. `tri mutate`

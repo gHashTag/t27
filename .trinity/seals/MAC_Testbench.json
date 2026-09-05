@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:33cf769212351db3c992bd82921dd80b938755b6da543061eaa4e7c39b552add",
-  "gen_hash_rust": "sha256:2d485e90c3beb4c27b504ec6f54a1349d271f5452ea1728853a891ca0b0d4fa1",
+  "gen_hash_rust": "sha256:80167949bd4cfe0a422b4a8fe273eb262d7fa1f98d8862a2f2b10ec64d86acf9",
   "gen_hash_verilog": "sha256:9cab81dcdc6b62afe3b481d26ee1ea47ab2c776af8358624acdb6a0433f29e09",
   "gen_hash_zig": "sha256:8928e5f9b62c3721e845fdc7acef8d518e8ea0c343572ca3e5a38303b5e1cffb",
   "module": "MAC_Testbench",
