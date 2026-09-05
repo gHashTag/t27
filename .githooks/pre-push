@@ -7,6 +7,32 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
+# ===== NOW sync gate, asked here rather than paid for in CI =====
+#
+# `check-now-freshness` is one of four required contexts, and the commit-time barrier
+# cannot answer it: `now_gate` reads the docs/now DIRECTORY, which 165 in-window entries
+# make fresh whatever the change does. A branch adding no entry of its own therefore
+# passed every local gate and was refused by CI -- a full round spent on a question that
+# could have been asked here. `tri hooks pre-push` runs the gate's OWN script over the
+# range, so there is no sixth vocabulary to drift.
+#
+# Newest binary, not first: a stale one prints PASSED for gates it does not carry.
+TRI_BIN=""
+for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+  [ -x "$cand" ] || continue
+  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
+done
+if [ -n "$TRI_BIN" ]; then
+  if ! "$TRI_BIN" hooks pre-push; then
+    echo ""
+    echo "Push refused: the required NOW gate would refuse this range in CI."
+    exit 1
+  fi
+else
+  echo "note: no tri binary; the NOW range gate did not run and nothing was checked."
+fi
+
+
 # Emergency bypass: SKIP_NOTEBOOK_GATE=1 git push
 if [ "${SKIP_NOTEBOOK_GATE:-}" = "1" ]; then
     BYPASS_LOG="$ROOT/.trinity/gate_bypasses.log"
