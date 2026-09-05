@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:65e069539399c564dd1849134ffb61f6ebd88b49a954489c28de8cea81b21f28",
-  "gen_hash_rust": "sha256:935398b417f062be81ed04de24e1d8556d93a014d7d6588a572beef6fc42f08c",
+  "gen_hash_rust": "sha256:b24df62f42865a126e38e68457e66ca3e03b94acd103eea10d205ef644a03b5d",
   "gen_hash_verilog": "sha256:cb895d465f57afb4e1d3f3d2fc096e0665388c1c9cf0bf07b091a92090951603",
   "gen_hash_zig": "sha256:5047cfee2567f3c202f9fc36e7fc1d3128cc0b4e7ed46c13dc440e2ce7880d16",
   "module": "TriMap",

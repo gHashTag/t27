@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c4d04a64e76604fdb653b579fceacc3ed85b272da0e8ec9ac35d62bf5e40a9d0",
-  "gen_hash_rust": "sha256:023c4b6ccf1e3f3ace8040c5107baf434b5f37870f7cce0932907cec5764f916",
+  "gen_hash_rust": "sha256:2f6493bfb8bce8ab18d584a8b76866bbd99c5a1cd3404ea6f26fbb6fa4289d1d",
   "gen_hash_verilog": "sha256:51c71e2a5bfb8881892a7371b4f74eb7c731732159c1c1d91c225cc42f8980ab",
   "gen_hash_zig": "sha256:bc8e99cac7500c2d444701f6792ce44e8237fb7b37b464cfff271619f751b413",
   "module": "TriIo",
   "ring": 12,
-  "sealed_at": "2026-09-05T02:40:54Z",
+  "sealed_at": "2026-09-05T03:28:13Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:9aa3f120d7149de57f33abba748180cf7cfa0876bbee28cb4a4fb6459b1cad31",
   "spec_path": "specs/tri/io/io.t27"

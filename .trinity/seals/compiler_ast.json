@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fbc813ecf388fc2f9e49d10409608df2cc50cf36339be1b0caf580759b70bc54",
-  "gen_hash_rust": "sha256:001b2ca1f550840a84852084669047086c003406debc96ee557822c9c6f73b32",
+  "gen_hash_rust": "sha256:ca487e845b8892276e2b22cda88cab3ad3b6ab018ca13a81f748342d9b52b2ab",
   "gen_hash_verilog": "sha256:13ea818e724f76ac3ef3b457c21d71c31b7b264c3d6c2eee30dc61229eb1eb41",
   "gen_hash_zig": "sha256:bdd1ec462b75bcb51ac79de0aefbf275aa1e9d13c755d5049dc418561c642d49",
   "module": "ast",
   "ring": 12,
-  "sealed_at": "2026-09-05T02:40:53Z",
+  "sealed_at": "2026-09-05T03:28:13Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:28bfcdf211a0360991fe8d89dc376440d2144b936e030f81e0b5794a1c0eeb00",
   "spec_path": "compiler/ast.t27"
