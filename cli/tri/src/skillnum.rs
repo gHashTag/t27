@@ -27,6 +27,37 @@ use std::path::{Path, PathBuf};
 
 #[derive(Subcommand)]
 pub enum SkillCmd {
+    /// Write a new lesson to the spool, unnumbered.
+    ///
+    /// The collision this removes: two branches each append `## N.` to SKILL.md
+    /// numbered from their OWN base, both merge, and the number appears twice.
+    /// It happened twice in two passes (#3236), the repairs raced each other
+    /// once more, and no branch-side check can see it -- `tri skill check`
+    /// passes on both sides and fails only on the merge result.
+    ///
+    /// A spool file has a unique path, so two branches writing two lessons
+    /// write two paths and there is nothing to conflict on. This is the shape
+    /// `docs/now/` already uses, for the same reason and after the same defect.
+    Add {
+        /// The section title, as it will read in SKILL.md.
+        title: String,
+        /// Which skill to file it under. Defaults to `ci-gates`.
+        #[arg(long, default_value = "ci-gates")]
+        skill: String,
+    },
+    /// Fold every spooled lesson into SKILL.md, numbering them on the way in.
+    ///
+    /// The number is assigned HERE, against the SKILL.md that exists now, which
+    /// is why this is the step that cannot collide: it runs once, on one
+    /// branch, with the file in front of it.
+    Fold {
+        /// Report what would move and write nothing.
+        #[arg(long)]
+        check: bool,
+        /// Which skill's spool to fold. Defaults to `ci-gates`.
+        #[arg(long, default_value = "ci-gates")]
+        skill: String,
+    },
     /// Check every SKILL.md's section numbering.
     Check {
         /// Also print the gaps, which are reported but never fail.
@@ -544,6 +575,167 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
     Ok(())
 }
 
+/// `incoming/` for one skill: the spool a pass appends to.
+fn spool_dir(root: &std::path::Path, skill: &str) -> PathBuf {
+    root.join(".claude/skills").join(skill).join("incoming")
+}
+
+/// A file name from a title: date, then the title lowercased to hyphens.
+///
+/// The DATE leads so the fold order is the order they were written, and the
+/// slug follows so two lessons on one day still take two paths. Truncated at 60
+/// characters of slug because a path is not a place to keep a sentence.
+fn spool_name(date: &str, title: &str) -> String {
+    let mut slug = String::new();
+    let mut dash = false;
+    for c in title.chars() {
+        if c.is_ascii_alphanumeric() {
+            slug.push(c.to_ascii_lowercase());
+            dash = false;
+        } else if !dash && !slug.is_empty() {
+            slug.push('-');
+            dash = true;
+        }
+    }
+    let slug = slug.trim_end_matches('-');
+    let slug: String = slug.chars().take(60).collect();
+    format!("{date}-{}.md", slug.trim_end_matches('-'))
+}
+
+fn add(title: &str, skill: &str) -> Result<()> {
+    let root = repo_root()?;
+    let dir = spool_dir(&root, skill);
+    if !root.join(".claude/skills").join(skill).is_file()
+        && !root
+            .join(".claude/skills")
+            .join(skill)
+            .join("SKILL.md")
+            .is_file()
+    {
+        anyhow::bail!(
+            "no .claude/skills/{skill}/SKILL.md -- refusing to spool a lesson for a skill that does not exist"
+        );
+    }
+    std::fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
+    let date = today_utc();
+    let path = dir.join(spool_name(&date, title));
+    if path.exists() {
+        anyhow::bail!(
+            "{} already exists -- pick a different title rather than overwriting a lesson",
+            path.display()
+        );
+    }
+    // No number. That is the point: the number is what collides, and it is
+    // assigned by `fold` against the SKILL.md that exists at that moment.
+    let body =
+        format!("## {title}\n\n<!-- write the lesson here; `tri skill fold` numbers it -->\n");
+    std::fs::write(&path, body).with_context(|| format!("writing {}", path.display()))?;
+    println!("  spooled: {}", path.display());
+    println!();
+    println!("  Write the lesson into that file. It carries NO number, so another");
+    println!("  branch spooling its own lesson writes a different path and the two");
+    println!("  cannot collide. `tri skill fold` appends it to SKILL.md and assigns");
+    println!("  the number then, against the file as it stands at that moment.");
+    Ok(())
+}
+
+/// Today, UTC, as `YYYY-MM-DD`.
+fn today_utc() -> String {
+    let out = std::process::Command::new("date")
+        .args(["-u", "+%Y-%m-%d"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+    out.unwrap_or_else(|| "0000-00-00".to_string())
+}
+
+fn fold(check: bool, skill: &str) -> Result<()> {
+    let root = repo_root()?;
+    let dir = spool_dir(&root, skill);
+    let target = root.join(".claude/skills").join(skill).join("SKILL.md");
+    if !target.is_file() {
+        anyhow::bail!(
+            "{} does not exist -- nothing to fold into",
+            target.display()
+        );
+    }
+    let mut spooled: Vec<PathBuf> = match std::fs::read_dir(&dir) {
+        Ok(rd) => rd
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
+            .collect(),
+        Err(_) => Vec::new(),
+    };
+    spooled.sort();
+    if spooled.is_empty() {
+        println!("  {} holds no spooled lesson.", dir.display());
+        println!("  Nothing to fold. This is not a failure: an empty spool is the");
+        println!("  normal state between passes.");
+        return Ok(());
+    }
+
+    let text = std::fs::read_to_string(&target)?;
+    let highest = sections(&text).iter().map(|(n, _)| *n).max().unwrap_or(0);
+
+    println!(
+        "  {} spooled lesson(s), folding after section {highest}:",
+        spooled.len()
+    );
+    let mut next = highest;
+    let mut appended = String::new();
+    for p in &spooled {
+        let body = std::fs::read_to_string(p)?;
+        let Some(first) = body.lines().next() else {
+            anyhow::bail!("{} is empty", p.display());
+        };
+        let Some(title) = first.strip_prefix("## ") else {
+            anyhow::bail!(
+                "{} does not open with `## <title>` -- got {first:?}. A spooled lesson \
+                 carries its title on the first line and no number.",
+                p.display()
+            );
+        };
+        if first.strip_prefix("## ").is_some_and(|r| {
+            r.split_once(". ")
+                .is_some_and(|(n, _)| n.parse::<usize>().is_ok())
+        }) {
+            anyhow::bail!(
+                "{} is already numbered -- the number is assigned here, not when the \
+                 lesson is written, and a pre-assigned one is exactly what collides",
+                p.display()
+            );
+        }
+        next += 1;
+        println!("    {next}. {title}");
+        appended.push('\n');
+        appended.push_str(&format!("## {next}. {title}\n"));
+        for l in body.lines().skip(1) {
+            appended.push_str(l);
+            appended.push('\n');
+        }
+    }
+
+    if check {
+        println!();
+        println!("  --check: nothing written.");
+        return Ok(());
+    }
+
+    let mut out = text;
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str(&appended);
+    std::fs::write(&target, out)?;
+    for p in &spooled {
+        std::fs::remove_file(p)?;
+    }
+    println!();
+    println!("  folded into {} and the spool is empty.", target.display());
+    Ok(())
+}
+
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let show_gaps = match cmd {
         SkillCmd::Refs { list } => return refs(*list),
@@ -553,6 +745,8 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
             windowed,
         } => return claims(*list, *numbers, *windowed),
         SkillCmd::Lost { file, base, gate } => return lost(file, base, *gate),
+        SkillCmd::Add { title, skill } => return add(title, skill),
+        SkillCmd::Fold { check, skill } => return fold(*check, skill),
         SkillCmd::Check { gaps } => gaps,
     };
     if *show_gaps {
@@ -638,6 +832,35 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_spool_path_is_unique_per_lesson() {
+        use super::spool_name;
+        // The whole point: two lessons on one day take two paths, so two
+        // branches spooling them cannot conflict. The date leads so the fold
+        // order is the order they were written.
+        let a = spool_name("2026-09-05", "A spooled lesson carries no number");
+        let b = spool_name("2026-09-05", "The merge creates the defect");
+        assert_ne!(a, b);
+        assert_eq!(a, "2026-09-05-a-spooled-lesson-carries-no-number.md");
+        // Punctuation collapses to single hyphens and never trails.
+        assert_eq!(
+            spool_name("2026-01-02", "`X of Y` -- where X can exceed Y!"),
+            "2026-01-02-x-of-y-where-x-can-exceed-y.md"
+        );
+        // A long title is cut, and the cut must not leave a trailing hyphen.
+        let long = spool_name("2026-01-02", &"word ".repeat(40));
+        assert!(long.len() < 80, "{long}");
+        assert!(
+            !long.contains("-.md"),
+            "a truncation must not leave a dangling hyphen: {long}"
+        );
+        // Two DIFFERENT dates keep two paths even for one title.
+        assert_ne!(
+            spool_name("2026-01-02", "same"),
+            spool_name("2026-01-03", "same")
+        );
+    }
 
     /// `truncated` can be right while `lost` never asks it, and the command
     /// then reports a clean file forever.

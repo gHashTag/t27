@@ -7,49 +7,49 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod abandoned;
+mod census;
+mod cibase;
+mod competitors;
 mod depin;
 mod discard;
-mod abandoned;
-mod orphaned;
-mod census;
-mod competitors;
-mod inflight;
-mod misread;
-mod issues;
-mod cibase;
+mod elab;
 mod fleet;
 mod fmtmine;
 mod fpga;
-mod elab;
-mod modreach;
 mod gates;
-mod ledgers;
-mod prose;
-mod unparsed;
+mod gendet;
 mod hooks;
-mod mutate;
-mod nownote;
-mod renum;
-mod reseal;
-mod prcheck;
-mod quant;
-mod red;
-mod rtl;
+mod inflight;
+mod issues;
+mod jumps;
 mod kinddrift;
 mod leanreach;
 mod leanvac;
-mod skillnum;
+mod ledgers;
+mod misread;
+mod modreach;
+mod mutate;
+mod nownote;
+mod orphaned;
+mod prcheck;
+mod prose;
+mod quant;
+mod red;
+mod renum;
+mod reseal;
+mod rtl;
 mod scratch;
 mod seals;
+mod skillnum;
 mod sweep;
+mod synth;
 mod topic;
 mod trees;
 mod types_dup;
+mod unparsed;
 mod vectors;
-mod gendet;
-mod jumps;
 mod vsim;
-mod synth;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
@@ -335,6 +335,36 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum SkillAction {
+    /// Write a new lesson to the spool, unnumbered.
+    ///
+    /// The collision this removes: two branches each append `## N.` to SKILL.md
+    /// numbered from their OWN base, both merge, and the number appears twice.
+    /// It happened twice in two passes, and the two repairs then raced each
+    /// other. No branch-side check can see it: `tri skill check` passes on both
+    /// sides and fails only on the merge result.
+    ///
+    /// A spooled lesson has a unique path and no number, so two branches write
+    /// two paths and there is nothing to conflict on -- the shape `docs/now/`
+    /// already uses, adopted there after the same defect.
+    Add {
+        /// The section title, as it will read in SKILL.md.
+        title: String,
+        /// Which skill to file it under.
+        #[arg(long, default_value = "ci-gates")]
+        skill: String,
+    },
+    /// Fold every spooled lesson into SKILL.md, numbering them on the way in.
+    ///
+    /// The number is assigned HERE, against the SKILL.md in front of it, which
+    /// is what makes this the step that cannot collide.
+    Fold {
+        /// Report what would move and write nothing.
+        #[arg(long)]
+        check: bool,
+        /// Which skill's spool to fold.
+        #[arg(long, default_value = "ci-gates")]
+        skill: String,
+    },
     /// Check every SKILL.md's section numbering for collisions.
     Check {
         /// Also print the gaps, which are reported but never fail.
@@ -953,6 +983,14 @@ fn main() -> Result<()> {
         Commands::Skill { action } => {
             let root = find_trinity_root()?;
             match action {
+                SkillAction::Add { title, skill } => skillnum::run(&skillnum::SkillCmd::Add {
+                    title: title.clone(),
+                    skill: skill.clone(),
+                })?,
+                SkillAction::Fold { check, skill } => skillnum::run(&skillnum::SkillCmd::Fold {
+                    check: *check,
+                    skill: skill.clone(),
+                })?,
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
                 }
