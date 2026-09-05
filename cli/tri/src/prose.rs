@@ -357,6 +357,15 @@ mod tests {
         // call site, so that is what this reads.
         let src = include_str!("prose.rs");
         let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
+        // This slice stops at the FIRST test module, and 13 of the crate's 46
+        // files carry production items after theirs -- gates.rs has 83. If the
+        // subject ever moves past it, `contains` goes false and the assertion
+        // below passes because it is looking at nothing. Prove the subject is
+        // in the slice before asserting anything about it.
+        assert!(
+            prod.contains("Outcome::Other("),
+            "the production slice no longer reaches the subject -- this test would pass vacuously"
+        );
         assert!(
             !prod.contains(concat!("Outcome::Other(", "_)")),
             "the reason is discarded at the match arm again"

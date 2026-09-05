@@ -1084,6 +1084,14 @@ mod tests {
         // discarding pattern at the call site, so that is what this reads.
         let src = include_str!("unparsed.rs");
         let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
+        // The slice stops at the FIRST test module, and this file has one at
+        // line 1075 with production code running to 1704. The subject sits
+        // before it today; if it ever moves after, `contains` goes false and
+        // the assertion below passes because it is looking at nothing.
+        assert!(
+            prod.contains("Located::None("),
+            "the production slice no longer reaches the subject -- this test would pass vacuously"
+        );
         assert!(
             !prod.contains(concat!("Located::None(", "_)")),
             "the reason is discarded at the match arm again"
