@@ -24138,7 +24138,11 @@ impl RustCodegen {
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
                         let typ = Self::t27_type_to_rust(&child.extra_type);
-                        if child.children.is_empty() {
+                        // The same question `gen_rust_stmt` asks. This function carries its
+                        // own copy of the local-emission logic, and a fix applied to only
+                        // one of the two is not applied: the first attempt at this patched
+                        // `gen_rust_stmt` alone and changed no output at all.
+                        if child.children.is_empty() || Self::is_undefined_init(&child.children) {
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {};", kw, var_name));
                             } else {
@@ -24295,6 +24299,27 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// Is this local's initialiser the single word `undefined`?
+    ///
+    /// Zig's word for "not initialised yet". It reached rustc as an identifier --
+    /// `let mut info: EncodingInfo = undefined;` -- and `cannot find value` was the
+    /// largest single name in the corpus's first-error census, 14 of 21 in its class.
+    ///
+    /// The answer is a DECLARATION, not a value. An earlier attempt mapped it to
+    /// `Default::default()` and was withdrawn (#3223) because `[usize; 256]` has no
+    /// `Default`; the blocker was the mapping, not the defect. Deferred initialisation
+    /// needs no bound and is the exact semantics -- and rustc refuses a read before the
+    /// assignment, which surfaces a real defect instead of defaulting it away.
+    ///
+    /// Distinct from `CCodegen::mentions_undefined`, which asks whether the word appears
+    /// ANYWHERE in an expression (`result != undefined`). This asks whether it IS the
+    /// whole initialiser, the only shape a declaration can absorb.
+    fn is_undefined_init(children: &[Node]) -> bool {
+        children.len() == 1
+            && children[0].kind == NodeKind::ExprIdentifier
+            && children[0].name == "undefined"
+    }
+
     fn gen_rust_stmt(&mut self, stmt: &Node) {
         match stmt.kind {
             NodeKind::ExprReturn => {
@@ -24324,7 +24349,7 @@ impl RustCodegen {
                 }
                 let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
                 let typ = Self::t27_type_to_rust(&stmt.extra_type);
-                if stmt.children.is_empty() {
+                if stmt.children.is_empty() || Self::is_undefined_init(&stmt.children) {
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {};", kw, stmt.name));
                     } else {

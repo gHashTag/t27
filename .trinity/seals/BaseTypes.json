@@ -1,7 +1,7 @@
 {
   "conformance_hash": "sha256:3b60977a2e6ef7a89d9c0e7ae9c8a64cd928a2bdc65d0fd46b57baebd0e9ad39",
   "gen_hash_c": "sha256:cd2ad734d4c56c11d76f00941351fbb1b7afbe3c31672171d1831d8b6edc92aa",
-  "gen_hash_rust": "sha256:2ebd5d5e2652f4ab38f3c2a582300e247843da7d2f6e0cf890f7cc2cefd2f62d",
+  "gen_hash_rust": "sha256:88724866cff54d63bb323fcf93c82d1db536881fccd5a27edb09f9f24f972c10",
   "gen_hash_verilog": "sha256:981616c323b0ecd7cf0058a125a22ae79e0a43e5fde58a4655215edc0371c3a6",
   "gen_hash_zig": "sha256:0286c2d52b3521ae781dab3c27e977bdef20c218bca8ff4d81af17cb525a5b71",
   "module": "BaseTypes",

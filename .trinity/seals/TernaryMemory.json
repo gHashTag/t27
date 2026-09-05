@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:656599617930f341fa85bed0034163994c714ea5edb132d372de548161e08264",
-  "gen_hash_rust": "sha256:701fa9b78760c07825d6386dcbae38f0ef127804a7c5d1399b874abf11eeab96",
+  "gen_hash_rust": "sha256:44f0c0ffe6237cc4492228db412dbbd52ec18e4d4eb522634ad9707fce3ca15d",
   "gen_hash_verilog": "sha256:1efd07e76df1ef8cf318fb8bcba5e02fa3ce32177798fa109110a0e2a1ed550e",
   "gen_hash_zig": "sha256:3055a586a783d55f0c842b10c1319a0219bbdc7fc2c878123168435b89052774",
   "module": "TernaryMemory",
