@@ -16939,3 +16939,43 @@ Both numbers had to be measured; neither was guessable. The eleven false accusat
 became the test suite's negative case, verbatim, so the width of the rule is now pinned by
 the commits it must **not** flag. A rule whose false-positive set is unmeasured is not
 priced, and the catch alone never prices it.
+
+## 586. The guard shipped that day was reachable from nothing
+
+A guard was added to `tri hooks pre-commit` and merged. The unit tests passed, three
+mutations were killed, and the command was verified against the two historical commits it
+was built to separate. Every one of those controls exercised the **function**. None asked
+whether anything **calls** it.
+
+    $ git config --get core.hooksPath
+    <unset>
+    $ for d in $(git worktree list --porcelain | grep '^worktree ' | cut -d' ' -f2); do
+        gd=$(git -C "$d" rev-parse --git-dir); test -x "$gd/hooks/pre-commit" && echo "$d"
+      done | wc -l
+    0
+
+**148 worktrees, zero with an installed pre-commit hook**, the main checkout included. So
+five checks — the NOW gate, the entry-shape reader, the conflict-marker refusal, L1, and
+the new one — were invoked by nothing at all. Every commit made that day, including the one
+that added the guard, bypassed it.
+
+Two matcher errors sat on top of this and pointed in opposite directions. `grep -c 'tri
+hooks pre-commit' .githooks/pre-commit` answered **1**, which was read as "it calls it";
+the single hit was a comment on line 28. Then, correcting that, the executable call was
+declared absent — but line 52 is `"$TRI_BIN" hooks pre-commit || rc=$?`, which the matcher
+missed because the binary arrives through a variable, not the literal `tri`. **A mention is
+not a call, and the absence of a literal is not the absence of an invocation.**
+
+Two further traps in proving the repair. In a worktree, hooks live in
+`git rev-parse --git-common-dir`, not `--git-dir`; installing into the latter silently
+creates nothing. And the first end-to-end probe refused the commit **for the wrong reason**:
+the probe tree had no built `tri`, so the hook took its fallback path and reported that the
+gate could not run. A refusal is not evidence until you read which sentence produced it.
+
+The repair is one command the repository already ships:
+
+    bash scripts/setup-git-hooks.sh      # sets core.hooksPath=.githooks
+
+Config lives in the common `.git/config`, so this fixes all 148 trees at once. Proven on
+both sides afterwards: a `fix(rust)` commit with no source file does not go through, and the
+same subject with `bootstrap/src/compiler.rs` in the diff does.
