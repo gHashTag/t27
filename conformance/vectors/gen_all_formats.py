@@ -33,7 +33,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = HERE  # write packs next to the existing ones
 # The catalog SSOT: specs/numeric/formats_catalog.t27, whose trailing
 # `// CATALOG: id=... ` comments are the canonical machine-readable rows (the same
-# lines catalog-count-gate.yml counts to enforce the 83-format invariant).
+# lines catalog-count-gate.yml counts to enforce the catalog-count invariant;
+# the count is live, not fixed).
 #
 # This used to read /tmp/catalog_lines.txt, which was never in the repository, so
 # on a clean checkout the generator raised FileNotFoundError before producing
@@ -100,7 +101,8 @@ WITNESSES = {
 
 # Externally-generated, dyadic-exact packs that re-derive under ONE decode law
 # and carry honest abs_error, but have NO independent second witness (so they are
-# NOT promoted to the stronger "bitexact" label -- only gf16 has a silicon oracle).
+# NOT promoted to the stronger "bitexact" label -- only gf16 has an FPGA oracle,
+# the Artix-7 XC7A200T prototype).
 # These files are produced by the wide-rung GoldenFloat oracle (WP-29/WP-30), kept
 # verbatim here, and listed in the index with kind="bitexact_selfconsistent". This
 # registry exists so a re-run of this generator PRESERVES the self-consistent tier
@@ -1329,7 +1331,7 @@ def main():
     # The witness count is in the index because honesty rule #10 -- a pack is not
     # promoted to bit-precise without an independent second witness -- is the
     # corpus's central claim, and until now a consumer could not see which packs
-    # carry a witness record without opening all 83 pack files. The data was
+    # carry a witness record without opening every pack file. The data was
     # already in the packs; this only makes it reachable from the summary a tool
     # actually reads.
     for entry in index:

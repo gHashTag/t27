@@ -33,7 +33,9 @@ inspectable artefacts at every step.
 - **Sibling chip repos (separate):** `tt-trinity-phi` (1×1 φ-anchor),
   `tt-trinity-euler` (8×2 e-engine, safety/control), `tt-trinity-gamma`
   (8×4 γ-surface 32-PE ternary mesh). Tape-out target:
-  [Tiny Tapeout](https://tinytapeout.com/chips/). See [`LINEUP.md`](LINEUP.md).
+  [Tiny Tapeout](https://tinytapeout.com/chips/) -- the TTSKY26a and TTSKY26b
+  submissions were withdrawn and refunded (no die fabricated). See
+  [`LINEUP.md`](LINEUP.md).
 - **Positioning:** [`COMPETITORS.md`](COMPETITORS.md) — we do not race
   commercial NPUs on TOPS or SDK breadth; we own the inspectable open silicon
   and formal / assurance corner. Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
@@ -76,9 +78,9 @@ byte-identical) and for a live-operand `DSP48E1`. Both pass the wrong-part → o
 
 Discoverability mirror of the numeric corpus. GitHub remains the primary source of truth (one-way flow GitHub -> Zenodo -> Hugging Face).
 
-- **Catalog dataset:** [playra/numeric-format-catalog](https://huggingface.co/datasets/playra/numeric-format-catalog) -- the 83-format SSOT
+- **Catalog dataset:** [playra/numeric-format-catalog](https://huggingface.co/datasets/playra/numeric-format-catalog) -- dataset v3.0, a snapshot of 2026-06-13 that lags the live SSOT (`specs/numeric/formats_catalog.t27`, whose count is a CI invariant, not a fixed number) and is due for re-publishing from it
 - **Conformance packs:** [playra/numeric-conformance-packs](https://huggingface.co/datasets/playra/numeric-conformance-packs) -- bit-exact JSON vectors (10 configs across GF4..GF32 + phi-identity)
-- **Paper page:** [arXiv:2606.09686 on HF](https://huggingface.co/papers/2606.09686)
+- **Paper page:** [Golden Ruler: A Numeric Format Catalog with Bit-Exact Conformance Vectors for FP8, BF16, MXFP4, and Microscaling Formats -- arXiv:2606.09686 on HF](https://huggingface.co/papers/2606.09686) (v3, announced 7 Sep 2026)
 
 
 
@@ -158,9 +160,11 @@ and ternary weight packer.
 
 ### R-TT track -- Tiny Tapeout reproducibility (2 / 4)
 
-The three Tiny Tapeout silicon variants -- `tt-trinity-phi`,
+The three Tiny Tapeout chip designs -- `tt-trinity-phi`,
 `tt-trinity-euler`, `tt-trinity-gamma` -- live as git submodules under
-`chips/` pinned to known commits.  Two CLIs make every tape-out machine-checkable:
+`chips/` pinned to known commits. No die of any of them has been fabricated
+(TTSKY26a / TTSKY26b withdrawn and refunded). Two CLIs make every tape-out
+machine-checkable:
 
 ```
 t27c tt-manifest --chip <phi|euler|gamma> [--output <path>|-]

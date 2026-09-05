@@ -20,6 +20,17 @@
 > authoritative one for this revision; earlier revisions carried smaller counts
 > because they were taken before later measurements landed»*. Расхождение в счёте
 > ретракций — **не дефект, а след ревизии**.
+>
+> **Число форматов в каталоге [примечание 2026-09-05].** Текст ниже говорит о
+> каталоге из 83 форматов («каталог из 83 форматов», «Из 83 записей 11 … из
+> оставшихся 72») — это значение на момент переведённой ревизии, и арифметика
+> измерения (83 = 11 + 72) оставлена как есть. Счётчик каталога — CI-инвариант,
+> который растёт: на v3 (сентябрь 2026) он равен 109 форматам (Golden Ruler,
+> arXiv:2606.09686v3). Актуальное значение читается из
+> `specs/numeric/formats_catalog.t27`, а не из этого перевода. Ссылка 11 в
+> списке литературы 2026-09-05 переведена на действующий адрес проекта
+> (hackaday.io/project/164907; прежний 183153 отвечает 404) — так же, как в
+> исправленной английской библиографии.
 
 *Перевод статьи на русский. Автор: Дмитрий Васильев (gHashTag). Все числа сохранены точно.*
 
@@ -2409,13 +2420,13 @@ $50/50$, и ни одна бинада их не разделяет.
 2. L. Hunhold. Tekum: balanced-ternary tapered-precision arithmetic. arXiv:2512.10964.
 3. L. Hunhold. Design and implementation of a takum arithmetic hardware codec in VHDL. arXiv:2408.10594. Исходники: https://github.com/takum-arithmetic/Takum-Codec-RTL
 4. D. Vasilev. GoldenFloat: a $\varphi$-derived static-split floating-point family from GF4 to GF1024 with a Lucas-exact integer identity. arXiv:2606.05017v3, 2026.
-5. D. Vasilev. An 83-format numeric catalog with bit-exact conformance vectors: a vendor-neutral reference for FP8, BF16, MXFP4, and microscaling formats. arXiv:2606.09686v2, 2026.
+5. D. Vasilev. Golden Ruler: a numeric format catalog with bit-exact conformance vectors for FP8, BF16, MXFP4, and microscaling formats. arXiv:2606.09686v3, 2026.
 6. J. L. Gustafson, I. Yonemoto. Beating floating point at its own game: posit arithmetic. *Supercomputing Frontiers and Innovations*, 4(2), 2017. Стандарт Posit (2022) фиксирует $es=2$ на всех разрядностях.
 7. C. Wolf. Yosys open synthesis suite. https://yosyshq.net/yosys/
 8. D. Shah et al. nextpnr: a portable FPGA place-and-route tool. https://github.com/YosysHQ/nextpnr; цель Xilinx через Project X-Ray.
 9. B. Hayes, «Third Base», *American Scientist*, т. 89, № 6, с. 490–494, 2001.
 10. Radix economy, optimal radix choice. https://en.wikipedia.org/wiki/Radix_economy
-11. Ternary27: A Balanced Ternary Floating Point Format, Version 3.1. https://hackaday.io/project/183153
+11. Ternary27: A Balanced Ternary Floating Point Format, Version 3.1; опубликован в составе проекта «Ternary Computing Menagerie». https://hackaday.io/project/164907
 12. D. Goldberg, «What Every Computer Scientist Should Know About Floating-Point Arithmetic», *ACM Computing Surveys*, т. 23, № 1, с. 5–48, 1991.
 13. IBM hexadecimal floating-point. https://en.wikipedia.org/wiki/IBM_hexadecimal_floating-point
 14. P. Elias, «Universal codeword sets and representations of the integers», *IEEE Trans. Inform. Theory*, т. 21, № 2, с. 194–203, 1975.
