@@ -16089,7 +16089,8 @@ emptiness -- the last version whose first lines actually mention `gf48 (GoldenFl
 Verified after: 310 headings before and after, 0 titles lost, 0 empty bodies, exactly 3 bodies
 changed.
 
-## 568. The prototype gave the right number because one of its alternatives was dead
+
+## 564. The prototype gave the right number because one of its alternatives was dead
 
 &sect;565 found one entry carrying another's body, by accident, while repairing something else. The
 question it left was whether that was a case or a class. `tri skill lost` now asks it, and the answer
