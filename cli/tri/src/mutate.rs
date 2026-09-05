@@ -313,6 +313,21 @@ fn passes(cmd: &str) -> Result<bool> {
     Ok(out.status.success())
 }
 
+/// The mutants to run, and whether `max` cut the walk short.
+///
+/// Truncation is detected by asking `find_mutants` for one MORE than the cap
+/// and seeing whether it comes back. `probe.len() > max` and not `>=`: a file
+/// holding exactly `max` literals was walked to the end and is not truncated.
+/// That distinction is the whole point -- it decides whether the report may
+/// speak about the file or only about a prefix of it -- and it lived inline in
+/// `mutate`, where no test could reach it: flipping `>` to `>=` left all 760
+/// tests green.
+fn mutants_and_truncation(text: &str, max: usize) -> (Vec<Mutant>, bool) {
+    let probe = find_mutants(text, max.saturating_add(1));
+    let truncated = probe.len() > max;
+    (probe.into_iter().take(max).collect(), truncated)
+}
+
 fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
     let original =
         std::fs::read_to_string(file).with_context(|| format!("cannot read {}", file.display()))?;
@@ -328,7 +343,18 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
         );
     }
 
-    let all = find_mutants(&original, max);
+    // Ask for one more than the cap allows. If we get it, the walk was
+    // TRUNCATED and every count below describes a prefix of the file rather
+    // than the file. Without this the tool prints "N literal(s) in <file>"
+    // where N is the cap, and -- when nothing survives -- "Nothing in this
+    // file is decorative", which is an assertion of ABSENCE over a region the
+    // reader is never told was bounded.
+    //
+    // Measured on cli/tri/src/fpga.rs: the default cap of 40 stops at line
+    // 1764 of 10819 and reports 40, where the file holds 376 production
+    // literals (plus 637 inside `#[cfg(test)]`, skipped separately). 10.6% of
+    // the population, presented as all of it.
+    let (all, truncated) = mutants_and_truncation(&original, max);
     // A literal inside `#[cfg(test)]` is not a constant the checker fails to
     // check -- it is the checker's own arithmetic. Perturbing it breaks the test
     // that holds it, and that red is reported as the checker NOTICING, which is
@@ -356,11 +382,24 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
         return Ok(());
     }
 
-    println!(
-        "{} literal(s) in {}, one mutation each.\n",
-        mutants.len(),
-        file.display()
-    );
+    if truncated {
+        println!(
+            "{} literal(s) in {}, one mutation each.\n\
+             THIS IS A PREFIX, NOT THE FILE: the walk stopped at the --max of \
+             {} and there are more beyond it. Every count below, and any claim \
+             that nothing survived, describes only what was reached. Raise \
+             --max to cover the file.\n",
+            mutants.len(),
+            file.display(),
+            max
+        );
+    } else {
+        println!(
+            "{} literal(s) in {}, one mutation each.\n",
+            mutants.len(),
+            file.display()
+        );
+    }
 
     let mut survivors = Vec::new();
     for (n, m) in mutants.iter().enumerate() {
@@ -404,11 +443,22 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
     clear_derived_caches(file);
     let _ = std::fs::remove_file(&backup);
     if survivors.is_empty() {
-        println!(
-            "Every one of the {} literals changed the outcome. Nothing in this \
-             file is decorative.",
-            mutants.len()
-        );
+        if truncated {
+            println!(
+                "Every one of the {} literals REACHED changed the outcome. That \
+                 is a statement about the first {} literals, not about this \
+                 file: the walk stopped at --max. Nothing here says the rest \
+                 are not decorative, because the rest were never mutated.",
+                mutants.len(),
+                max
+            );
+        } else {
+            println!(
+                "Every one of the {} literals changed the outcome. Nothing in \
+                 this file is decorative.",
+                mutants.len()
+            );
+        }
         return Ok(());
     }
 
@@ -478,11 +528,7 @@ mod tests {
             .lines()
             .position(|l| l == "#[cfg(test)]")
             .expect("the test module is a line of its own, not a mention in prose");
-        let code: String = src
-            .lines()
-            .take(boundary)
-            .collect::<Vec<_>>()
-            .join("\n");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
         let call = concat!("drop_test_module_", "sites(file, &original, all)");
         assert!(
             code.contains(call),
@@ -509,6 +555,79 @@ mod tests {
 
     /// A population that shrinks without saying so is the defect one level up
     /// from the one this fixes, so the count comes back to be printed.
+    #[test]
+    fn mutate_asks_the_helper_rather_than_assuming_a_full_walk() {
+        // Extracting `mutants_and_truncation` made the PREDICATE testable and
+        // left the WIRING open: replacing the call with
+        // `(find_mutants(&original, max), false)` keeps every count correct,
+        // silently drops the prefix warning, and left all 760 tests green.
+        // Twelfth time this pass shape has recurred, so the call site gets its
+        // own reader.
+        let src = include_str!("mutate.rs");
+        // NOT `split("#[cfg(test)]")`: that literal appears in SIX doc comments
+        // and string literals in this file before the real attribute, the
+        // earliest at line 216, so the split cuts 115 lines above `mutate` and
+        // the slice never reaches the subject. The attribute is a line of its
+        // own; match it as one.
+        let boundary = src
+            .lines()
+            .position(|l| l == concat!("#[cfg(te", "st)]"))
+            .expect("the test module attribute is a line of its own");
+        let prod: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        assert!(
+            prod.contains("fn mutate(file: &Path"),
+            "the production slice no longer reaches `mutate` -- the assertion \
+             below would pass vacuously"
+        );
+        let call = concat!("mutants_and_truncation(&ori", "ginal, max)");
+        assert!(
+            prod.contains(call),
+            "`mutate` must ask the helper. Building the pair inline is how the \
+             truncation flag gets hardcoded to false without any test noticing."
+        );
+    }
+
+    #[test]
+    fn a_capped_walk_says_so() {
+        // The tool printed "N literal(s) in <file>" where N was the --max, and
+        // on an all-killed run "Nothing in this file is decorative" -- a claim
+        // about the FILE from a prefix of it. Measured on cli/tri/src/fpga.rs:
+        // the default cap of 40 stops at line 1764 of 10819 and the file holds
+        // 376 production literals.
+        let src = "fn a() { let x = 1; let y = 2; let z = 3; }";
+        assert_eq!(find_mutants(src, 40).len(), 3, "uncapped sees all three");
+        assert_eq!(find_mutants(src, 2).len(), 2, "capped sees two");
+        // The detection is `ask for one more than the cap and see if you get
+        // it`, so it must be exact at the boundary: a file with exactly `max`
+        // literals is NOT truncated.
+        assert_eq!(find_mutants(src, 3).len(), 3);
+        assert_eq!(
+            find_mutants(src, 4).len(),
+            3,
+            "asking for more than exist returns what exists -- this is what \
+             distinguishes a full walk from a truncated one"
+        );
+
+        // The flag itself, at the boundary. `>=` here would call a complete
+        // walk truncated and print the prefix warning on every clean run.
+        let (got, trunc) = mutants_and_truncation(src, 2);
+        assert_eq!(got.len(), 2, "the cap still limits what is returned");
+        assert!(trunc, "two of three literals is a truncated walk");
+        assert!(
+            !mutants_and_truncation(src, 3).1,
+            "exactly max is NOT truncated"
+        );
+        assert!(
+            !mutants_and_truncation(src, 4).1,
+            "fewer than max is NOT truncated"
+        );
+        assert_eq!(
+            mutants_and_truncation(src, 3).0.len(),
+            3,
+            "and it returns all of them"
+        );
+    }
+
     #[test]
     fn the_number_dropped_is_returned_to_be_printed() {
         let src = "let a = 1;\n#[cfg(test)]\nmod t {\n    fn z() { let b = 2; let c = 3; }\n}\n";
