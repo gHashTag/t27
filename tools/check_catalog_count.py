@@ -65,6 +65,15 @@ from pathlib import Path
 # "an erratum is required" on every run for work ERRATA_2026-06-14.md and the v2
 # replacement had already done. A gate that cries wolf every run is one nobody
 # reads on the day the divergence is real.
+#
+# PENDING 83 -> 109, NOT yet applied. v3 (arXiv submit/8037924, submitted
+# 4 Sep 2026, announces Mon 7 Sep 2026 00:00 GMT) retitles the paper
+#   "Golden Ruler: A Numeric Format Catalog with Bit-Exact Conformance Vectors
+#    for FP8, BF16, MXFP4, and Microscaling Formats"
+# and declares 109 formats. On 2026-09-05 the curl above still returns v2 / 83,
+# so the constant stays: this comment's rule is that the number moves only when
+# the fetched entry shows it. On or after 7 Sep, re-run the curl, and if it
+# shows v3, set 109 here and paste the fetched TITLE / ID / UPDATED lines in.
 PAPER_DECLARED_COUNT = 83
 PAPER_ID = "arXiv:2606.09686"
 
@@ -106,8 +115,9 @@ MIN_ROWS = 109
 
 # ------------------------------------------------------------- negative control
 # Separately, and NOT fixed here: this gate's paper-divergence WARN fires on
-# every single run (MIN_ROWS 109 vs PAPER_DECLARED_COUNT 83) and will until an
-# erratum lands, so it carries no information. See #2466.
+# every single run (MIN_ROWS 109 vs PAPER_DECLARED_COUNT 83) and will until the
+# v3 erratum (submitted 4 Sep 2026, announces 7 Sep 2026) is live on arXiv and
+# the constant above is bumped; until then it carries no information. See #2466.
 #
 # T86: `tri gates sweep` found this gate had no negative control at all -- it
 # had never once been shown to go RED, which is the same evidence as a gate

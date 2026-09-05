@@ -133,8 +133,10 @@ holds identically over the whole domain), this closes strict SW-bitexact for gf2
 - This is **SW-bitexact only** ([verified SW]). No categorical claims.
 - gf256 is a software interchange format (`u256_software`): there is no RTL, so there
   is no decode-HW or compute-HW Tier-E cell to close for it. The Tier-E ceiling
-  (71/83 on XC7A200T-2FBG484I, IDCODE 0x13636093) is unaffected by this promotion.
-- Catalog remains **83 formats** (NOT 84). This promotion moves gf256 from
-  `bitexact_selfconsistent` to `bitexact`, i.e. INDEX 74/1/8 -> 75/0/8.
+  (71 of the 83 formats then catalogued, on XC7A200T-2FBG484I, IDCODE 0x13636093)
+  is unaffected by this promotion.
+- The catalog count is a CI invariant (83 when this witness was written; 109 at
+  v3, Sep 2026). This promotion moves gf256 from `bitexact_selfconsistent` to
+  `bitexact` (INDEX 74/1/8 -> 75/0/8 at the time).
 - Strict SW-bitexact (independent 2nd witness, abs_error=0) is a stronger tier than
   `bitexact_selfconsistent` (one decode law, no 2nd witness) and than `structural`.
