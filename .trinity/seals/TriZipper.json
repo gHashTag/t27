@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:2a5cb09a5124c1f0f59347631e3074c472bccbb2c31fb41e50439b3f8c54c477",
-  "gen_hash_rust": "sha256:7c2dbce6f8cda736bd61d1bc053f76cc2985098608bfa78990586197ad2d37e9",
+  "gen_hash_rust": "sha256:4f25cfe72a326778f40cdb9cb926e131e0fd6cb2618f2b16ac270845de593769",
   "gen_hash_verilog": "sha256:5ea44faf2862d31951d166390806332fd63175ad888ef7613c3acb6a42928cf8",
   "gen_hash_zig": "sha256:67b2af3bd99a95003d19fcd8f0c03da4c8ff6ada8278b9c770946d3a6a19dc4f",
   "module": "TriZipper",
