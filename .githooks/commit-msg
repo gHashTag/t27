@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Gate: L1 TRACEABILITY, over the message BEING WRITTEN.
+#
+# `tri hooks pre-commit` used to ask this of HEAD -- the PREVIOUS commit -- and the
+# off-by-one bit in both directions: a commit with no reference passed because HEAD had
+# one, and the next commit was refused for that omission even when compliant. This hook
+# is the only moment the text exists.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Newest, not first: a stale binary prints PASSED for gates it does not carry.
+TRI_BIN=""
+for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+  [ -x "$cand" ] || continue
+  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
+done
+if [ -z "$TRI_BIN" ]; then
+  echo "note: no tri binary; L1 was not checked and nothing about this message is claimed."
+  exit 0
+fi
+exec "$TRI_BIN" hooks commit-msg "$1"
