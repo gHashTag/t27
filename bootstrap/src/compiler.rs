@@ -24729,7 +24729,26 @@ impl RustCodegen {
                 .get(&node.name)
                 .or_else(|| self.const_types.get(&node.name))
                 .and_then(known),
-            NodeKind::ExprCall => self.fn_ret_types.get(&node.name).and_then(known),
+            NodeKind::ExprCall => self
+                .fn_ret_types
+                .get(&node.name)
+                .and_then(known)
+                // `.len()` is emitted verbatim and Rust's is always `usize`, but
+                // nothing declared it, so the inference returned None and
+                // `coerce_binary_operands` bailed before it could bridge the
+                // widths. The bridge itself already exists and is already applied
+                // -- one file carries seventeen `as usize` casts in INDEX position
+                // while the comparison three lines away has none.
+                //
+                // A module function genuinely named `len` arrives as `len`, not
+                // `x.len`, so requiring the receiver keeps this off user code.
+                .or_else(|| {
+                    if node.name.ends_with(".len") && node.name.len() > 4 {
+                        Some("usize".to_string())
+                    } else {
+                        None
+                    }
+                }),
             NodeKind::ExprCast => {
                 let target = node.extra_type.split('[').next().unwrap_or("").trim();
                 if Self::is_int_type(target) {
