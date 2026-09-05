@@ -56,6 +56,7 @@ fn pre_commit() -> Result<()> {
     crate::nownote::check_staged()?;
     conflict_markers()?;
     l1_check()?;
+    fix_carries_source()?;
     println!("tri hooks pre-commit: PASSED");
     Ok(())
 }
@@ -667,5 +668,141 @@ mod status_tests {
     fn both_inputs_change_the_verdict() {
         assert_ne!(installer_effect(true, false), installer_effect(false, false));
         assert_ne!(installer_effect(true, true), installer_effect(false, true));
+    }
+}
+
+/// Scopes whose subject is compiler source. A `fix(` in one of these claims a code
+/// change, so the commit must carry one.
+const SOURCE_SCOPES: [&str; 8] = [
+    "rust", "c", "zig", "verilog", "parser", "compiler", "lexer", "typecheck",
+];
+
+/// Does this subject claim a compiler-source fix?
+///
+/// Deliberately narrow. `fix(seals)`, `fix(paper)`, `fix(ops)`, `fix(freeze)` and
+/// `fix(corpus)` all legitimately land without touching a source file -- their subject
+/// lives in a seal, a manuscript or a ledger. Measured over master's whole history:
+/// the loose rule ("any `fix(` with no source file") reports 12 commits and 11 of them
+/// are correct; this rule reports 1 of 100, and that one is the defect.
+fn subject_claims_source(subject: &str) -> bool {
+    let Some(rest) = subject.strip_prefix("fix(") else { return false };
+    let Some(end) = rest.find(')') else { return false };
+    rest[..end]
+        .split(',')
+        .any(|s| SOURCE_SCOPES.contains(&s.trim()))
+}
+
+/// Is this path a file the compiler is built from?
+fn is_source_path(path: &str) -> bool {
+    matches!(
+        path.rsplit_once('.').map(|(_, e)| e),
+        Some("rs") | Some("py") | Some("t27") | Some("zig")
+    )
+}
+
+/// Refuse a commit whose subject claims a compiler fix but whose diff has no source file.
+///
+/// The finding this exists for: PR #3264 was titled `fix(rust): an untyped local bound to
+/// a comparison is not a bool (+3)` and merged carrying **only its docs/now note**. The
+/// edit lived in the working tree and a `git reset --hard` -- taken to get an honest
+/// baseline -- destroyed it before the commit. Every control that pass asked about the
+/// **binary**, and the binary was correct, because it had been built from the working
+/// tree. None asked about the **commit**. `git log --all -S expr_is_bool_syntactically`
+/// answered nothing, which is how it was found, four merges later.
+///
+/// Reads HEAD rather than the index, the same shape `l1_check` uses: the barrier is
+/// raised before the next commit is built on top of a false one.
+fn fix_carries_source() -> Result<()> {
+    let subject = String::from_utf8(
+        Command::new("git")
+            .args(["log", "-1", "--pretty=%s", "HEAD"])
+            .output()
+            .context("git log failed")?
+            .stdout,
+    )
+    .context("subject is not UTF-8")?;
+    if !subject_claims_source(subject.trim()) {
+        return Ok(());
+    }
+    let files = String::from_utf8(
+        Command::new("git")
+            .args(["show", "--name-only", "--format=", "HEAD"])
+            .output()
+            .context("git show failed")?
+            .stdout,
+    )
+    .context("file list is not UTF-8")?;
+    if files.lines().any(|l| is_source_path(l.trim())) {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "tri hooks pre-commit: HEAD claims a compiler fix but touches no source file\n  \
+         {}\n  A `fix(` in a source scope must carry a .rs/.py/.t27/.zig file. If the fix is\n  \
+         really in the working tree, it was never committed -- see docs/now for #3264.",
+        subject.trim()
+    );
+}
+
+#[cfg(test)]
+mod fix_carries_source_tests {
+    use super::{is_source_path, subject_claims_source};
+
+    /// The subject that shipped empty. This is the whole reason the check exists.
+    #[test]
+    fn the_defect_is_recognised() {
+        assert!(subject_claims_source(
+            "fix(rust): an untyped local bound to a comparison is not a bool (+3) (#3264)"
+        ));
+    }
+
+    /// Verbatim subjects from master that carry no source file and are CORRECT to.
+    /// Without these the rule would be a 12-way false alarm rather than a 1-way catch.
+    #[test]
+    fn scopes_whose_subject_is_elsewhere_are_left_alone() {
+        for s in [
+            "fix(seals): reseal 149 gen-drifted specs after the C emitter changes (#2934)",
+            "fix(freeze): reseal FROZEN_HASH -- master does not build (Closes #2316)",
+            "fix(corpus): the ratchet was right -- 3 paid, 2 re-labelled, CLEAN (#2492)",
+            "fix(paper)+docs: W851 -- the recomputers find a stale table row",
+            "fix(article): W801 -- T478, the article has no unsourced statements",
+            "fix(ops): W793 -- T464, the ENOSPC was swap and I blamed the wrong thing",
+            "fix(build): stop discarding the bindings/javascript release profile (#2296)",
+            "fix(hooks): let the pre-commit hook reach the reader that works (#3184)",
+        ] {
+            assert!(!subject_claims_source(s), "false alarm on: {s}");
+        }
+    }
+
+    #[test]
+    fn every_source_scope_is_reachable() {
+        for scope in super::SOURCE_SCOPES {
+            assert!(subject_claims_source(&format!("fix({scope}): x")), "{scope}");
+        }
+    }
+
+    /// A multi-scope subject claims source if ANY of its scopes does.
+    #[test]
+    fn a_compound_scope_counts() {
+        assert!(subject_claims_source("fix(rust,zig): both mappers"));
+        assert!(subject_claims_source("fix(docs, rust): the note and the fix"));
+        assert!(!subject_claims_source("fix(docs,seals): neither"));
+    }
+
+    #[test]
+    fn non_fix_and_malformed_subjects_are_ignored() {
+        assert!(!subject_claims_source("feat(rust): a new emitter arm"));
+        assert!(!subject_claims_source("fix(rust: never closed"));
+        assert!(!subject_claims_source("fix: no scope at all"));
+        assert!(!subject_claims_source(""));
+    }
+
+    #[test]
+    fn source_paths_are_the_four_the_compiler_is_built_from() {
+        for p in ["bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig"] {
+            assert!(is_source_path(p), "{p}");
+        }
+        for p in ["docs/now/note.md", ".trinity/seals/a.json", "README", "x.rs.orig"] {
+            assert!(!is_source_path(p), "{p}");
+        }
     }
 }
