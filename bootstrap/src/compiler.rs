@@ -24503,6 +24503,27 @@ impl RustCodegen {
             // `const char*` owns its bytes.
             "str" | "string" => "&'static str".to_string(),
             "void" => "()".to_string(),
+            // `[]const u8` is the source language's own spelling of a BORROWED
+            // string, and the argument for treating it that way is already
+            // written thirty lines above, on the `str` arm: "neither `[]const u8`
+            // nor `const char*` owns its bytes". That arm was given the borrowed
+            // form and this spelling was left going down the owned path, so a
+            // const declared with it came out as
+            //
+            //     pub const SPDX_HEADER: Vec<u8> = "// SPDX-...";
+            //
+            // which is `expected Vec<u8>, found &str` -- and a `Vec` cannot be
+            // built in a const at all.
+            //
+            // Keyed on the `const` QUALIFIER, not on the element type. A plain
+            // `[]u8` is a mutable byte buffer and stays a `Vec<u8>`: measured,
+            // mapping both spellings regressed `specs/igla/race/opcodes.t27`,
+            // whose `chain: []u8` is indexed as `chain[(idx) as usize]` and
+            // cannot be a `str`. The regression is what located the boundary.
+            //
+            // The Zig backend already writes `const SPDX_HEADER: []const u8` and
+            // `zig build-obj` accepts it.
+            "[]const u8" => "&'static str".to_string(),
             t if t.starts_with("[]") => {
                 // `[]const u8` is the Zig spelling of a slice of const u8, and
                 // the `const` qualifies the POINTEE. Rust's `Vec<T>` has no
