@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:03fd110e155b98a0da691cb7cc304d463cff8bbf717edae3fd7e0ac1bf88966d",
-  "gen_hash_rust": "sha256:a7437a6a36f402cdda46b1d36e842ba72c1e033ddb89f5feddd3a7034078de26",
+  "gen_hash_rust": "sha256:2e20dfbd30d677a14b262415ca84b6143365771951551d6e61c751dc35211d19",
   "gen_hash_verilog": "sha256:01633aa4dd0c8c1519ac90f771ecf59c2c61cb5e7a91d6824c616d02a32610ff",
   "gen_hash_zig": "sha256:8dd8f1d638d714bf811c55349ae8f3e6c75465acf5baa16e7e06711bc03acdc6",
   "module": "TriBitmap",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:26Z",
+  "sealed_at": "2026-09-05T00:40:42Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:d6cfadd5f9822b72f668e6bc15734c3939b9350e60c68212e5666ae882e443c0",
   "spec_path": "specs/tri/collections/bitmap.t27"

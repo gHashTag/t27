@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c1bce9126c27224b6ae84f8e68f0a6c331c4dcfeac2bd9f6516657c13d26c1cd",
-  "gen_hash_rust": "sha256:29987926be03d794256f2ad7ee96682d84f25d7650fe031b6b4b5a8c51f80c86",
+  "gen_hash_rust": "sha256:0cf99531c494398f3908fc8ebe7e673989e015013a8ac11864bce5402517a711",
   "gen_hash_verilog": "sha256:b8e3b8d2f5e5faacef71002092ea5cb0bf88dd55b40219c6ce82159cb74826f8",
   "gen_hash_zig": "sha256:7b314c75649a1d0ca9c4c3a911f24ae5f4cb3cfd4de615d6cb511205aa19df9f",
   "module": "TriDeque",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:26Z",
+  "sealed_at": "2026-09-05T00:40:42Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:90ea646b1c7dd08e161b4da050eef9fc3f35e864726f9e4ada54c09cfa29153f",
   "spec_path": "specs/tri/collections/deque.t27"

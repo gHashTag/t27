@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:584c6e4f4181debac18d00a16314d3622310b15e55e0a27a7408dd1fae7599e5",
-  "gen_hash_rust": "sha256:3b7436563dfb6b8cb2acb49adb254512358ed3d05d41ffba709ac5f98d360135",
+  "gen_hash_rust": "sha256:8723ca33493755bcdc68cf02eaa792c3d24f03b7802679e490fb6dfe7a93827c",
   "gen_hash_verilog": "sha256:c6bda5cf3ce9d2add35ee4bfb30406f7c4d780ee58ad4c6ecd1264193390b150",
   "gen_hash_zig": "sha256:f5801f9662b23a5ad251da875f513dcc0b59eeb322a246c904da6c38682d9fd8",
   "module": "TriMatrix",

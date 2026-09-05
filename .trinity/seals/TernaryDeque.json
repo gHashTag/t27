@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b2a73ec6f924ba63457d240c81bc567951b96adbe7390b8622bb200a3bf93974",
-  "gen_hash_rust": "sha256:b0164b2ad11b741c7829de42990939dbd2c7cbc1bb090fce10640e6d70ae6e03",
+  "gen_hash_rust": "sha256:ffca47d751f0e89aaa524d2d8b494b4368a63c8b515fd47fae5e1d8772eb016b",
   "gen_hash_verilog": "sha256:0c822e0a359b41b6737bed8d1deb75c2e7b22a095ba1626a08f0a1b8f162a043",
   "gen_hash_zig": "sha256:226653378e111a9eb4f69a1c43f2a37a2b4088f619d086677cb170edf0b47f6f",
   "module": "TernaryDeque",
