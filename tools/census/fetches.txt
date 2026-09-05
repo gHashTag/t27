@@ -1,6 +1,6 @@
 BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
 
-  files read                    42
+  files read                    43
   lines naming either spelling  66
   of those, FETCH SITES         26
   refused as not a fetch        40   (--excluded prints them)
@@ -20,7 +20,7 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     red.rs:167  fn deep_runs_url
 
   ONE ROW, NO TOTAL:
-    gates.rs:3430  fn unmeasured
+    gates.rs:3596  fn unmeasured
     red.rs:194  fn last_pass
     red.rs:395  fn now
 
