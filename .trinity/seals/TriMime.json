@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:8994bf25fba1a8f526f025480ae9cce46f2e99249ddade6424e0a94340d04ed8",
-  "gen_hash_rust": "sha256:135590c064462e99efb671da8ce73cda072b3744132779a5e422c9b0061e9151",
+  "gen_hash_rust": "sha256:c5b65df60a8dbaf8b62086823044e6e1e6999b8fd468f46bfb985a6fa532ae28",
   "gen_hash_verilog": "sha256:9cbcd319d16c12426bc6a1fba523b6556bea6aa3fdee6cbfb63afa2fe6c652d1",
   "gen_hash_zig": "sha256:efbffe3fe9b43ced0393d9772404a49e8bc7ad29a4eebe6f66d500e759a4f2e6",
   "module": "TriMime",

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a909b5c47f02ae19f93f2eed75b09f6dec48cbe9ee0665945368dc411dee0819",
-  "gen_hash_rust": "sha256:6868114f6a5394e9959b1d88d86d6f52bf92eee42320f9407cd2c1af7e2771bc",
+  "gen_hash_rust": "sha256:4b1a6ce974dc8da2b7a83f9a50b1d84aa5b096b12734304417d27806ed26f217",
   "gen_hash_verilog": "sha256:b61c003f24955daa6eda2f075c52c3f38a1ae9febcd0aec01a197ee30c6582a0",
   "gen_hash_zig": "sha256:3ecedbf4e0cd2a1f0e1475fe00cf420f3bd6af6ada69ea53e60c0e4bc50bb463",
   "module": "SemanticSearch",
