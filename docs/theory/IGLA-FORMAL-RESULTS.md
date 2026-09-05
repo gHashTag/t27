@@ -3,6 +3,16 @@
 **Status:** living document · **Established:** Wave Loop 585, 2026-08-09 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
+> **Two words that drift — reading note added 2026-09-05.** *Silicon* in this
+> ledger means the die of the FPGA on the board an entry names, never a
+> fabricated chip: no die of any TRI-NET design exists — TTSKY26a and TTSKY26b
+> were withdrawn before fabrication and refunded, and every hardware result
+> here is an FPGA measurement. *The catalogue's count* is quoted in each entry
+> as it stood when that entry was measured; the count is a CI invariant that
+> grows and stands at 109 formats at v3 (Sep 2026) — read it from
+> `specs/numeric/formats_catalog.t27` (`tools/check_catalog_count.py`), not
+> from any entry below.
+
 This document separates three things that are easy to conflate:
 
 1. **Theorems** — machine-checked, with the proof script in the repository.
@@ -5433,9 +5443,10 @@ about *this* spec's intent.
 
 ### Numeric format design, and where GoldenFloat actually sits (W602)
 
-The catalog enumerates 83 formats across 13 clusters, so it is worth being
-precise about which established line each belongs to and — more importantly —
-what the GF family is **not**.
+The catalog enumerated 83 formats across 13 clusters when this was written
+(W602; the count is a CI invariant and stands at 109 at v3, Sep 2026), so it is
+worth being precise about which established line each belongs to and — more
+importantly — what the GF family is **not**.
 
 **Fixed-layout floating point.** IEEE 754 fixes `s + e + m = N` with *e* chosen
 by committee per width (5/10 for binary16, 8/23 for binary32, 11/52 for

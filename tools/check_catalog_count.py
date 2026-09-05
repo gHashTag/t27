@@ -43,29 +43,35 @@ from _prereq import broken  # noqa: E402
 import tempfile
 from pathlib import Path
 
-# The count currently declared by the published paper.
+# The count declared by the arXiv version of the paper that is LIVE, keyed by
+# version so the v2 -> v3 switch is a one-token change and the history stays
+# readable: 84 (v1, withdrawn) -> 83 (v2, 2026-06-22) -> 109 (v3, arXiv
+# submit/8037924, submitted 4 Sep 2026, announces Mon 7 Sep 2026 00:00 GMT,
+# which also retitles the paper "Golden Ruler: A Numeric Format Catalog with
+# Bit-Exact Conformance Vectors for FP8, BF16, MXFP4, and Microscaling Formats").
 #
-# Do NOT silently edit this to match the SSOT -- the whole point is to surface a
-# divergence. Change it ONLY when the PAPER itself changes, and record the
-# evidence here so the next reader can re-check it in one command.
+# Do NOT silently move PAPER_LIVE_VERSION to match the SSOT -- the whole point
+# is to surface a divergence. Move it ONLY when the fetched entry changes, and
+# record the evidence here so the next reader can re-check it in one command:
 #
-# 84 -> 83 on 2026-08-01. The v2 replacement corrected BOTH the title and the
-# abstract; v1's 84 is withdrawn. Verified by fetching the arXiv entry directly:
+#   curl -sS "https://export.arxiv.org/api/query?id_list=2606.09686" \
+#     | grep -E '<id>|<updated>|<title>'
 #
-#   curl -sS "https://export.arxiv.org/api/query?id_list=2606.09686"
+# Last fetched 2026-09-05: ID http://arxiv.org/abs/2606.09686v2, UPDATED
+# 2026-06-22T12:28:45Z, and the v2 title still leads with its count. The
+# 84 -> 83 step was verified the same way on 2026-08-01 (the v2 replacement
+# corrected both the title and the abstract; v1's 84 is withdrawn).
 #
-#   TITLE    : An 83-Format Numeric Catalog with Bit-Exact Conformance Vectors:
-#              A Vendor-Neutral Reference for FP8, BF16, MXFP4, and Microscaling
-#              Formats
-#   ID       : http://arxiv.org/abs/2606.09686v2
-#   UPDATED  : 2026-06-22T12:28:45Z
-#   abstract : "a catalog of 83 numeric formats spanning 13 families"
+# Before this constant tracked the live entry it tracked the withdrawn v1, and
+# the gate printed "an erratum is required" on every run for work
+# ERRATA_2026-06-14.md and the v2 replacement had already done. A gate that
+# cries wolf every run is one nobody reads on the day the divergence is real.
 #
-# Before this, the constant tracked the withdrawn v1 and the gate printed
-# "an erratum is required" on every run for work ERRATA_2026-06-14.md and the v2
-# replacement had already done. A gate that cries wolf every run is one nobody
-# reads on the day the divergence is real.
-PAPER_DECLARED_COUNT = 83
+# On or after 7 Sep 2026: re-run the curl; when the ID reads .../2606.09686v3,
+# set PAPER_LIVE_VERSION = "v3" and paste the fetched ID / UPDATED lines here.
+PAPER_DECLARED_BY_VERSION = {"v1": 84, "v2": 83, "v3": 109}
+PAPER_LIVE_VERSION = "v2"
+PAPER_DECLARED_COUNT = PAPER_DECLARED_BY_VERSION[PAPER_LIVE_VERSION]
 PAPER_ID = "arXiv:2606.09686"
 
 CATALOG_LINE = re.compile(r"//\s*CATALOG:")
@@ -98,7 +104,7 @@ def regen_count(ssot: Path, tool: Path) -> int:
         return int(gen["count"])
 
 
-# The catalog has only ever grown: 83 at the paper, then 92, then 109. This is
+# The catalog has only ever grown: 83 at the v2 paper, then 92, then 109. This is
 # a ratchet floor, not a target -- see the check in main() for why equality
 # alone is not enough.
 MIN_ROWS = 109
@@ -106,8 +112,9 @@ MIN_ROWS = 109
 
 # ------------------------------------------------------------- negative control
 # Separately, and NOT fixed here: this gate's paper-divergence WARN fires on
-# every single run (MIN_ROWS 109 vs PAPER_DECLARED_COUNT 83) and will until an
-# erratum lands, so it carries no information. See #2466.
+# every single run (MIN_ROWS 109 vs the v2 paper count) and will until the
+# v3 erratum (submitted 4 Sep 2026, announces 7 Sep 2026) is live on arXiv and
+# the constant above is bumped; until then it carries no information. See #2466.
 #
 # T86: `tri gates sweep` found this gate had no negative control at all -- it
 # had never once been shown to go RED, which is the same evidence as a gate
@@ -302,7 +309,7 @@ def main(argv: list[str]) -> int:
 
     print(f"SSOT   (// CATALOG: lines)      = {n_ssot}")
     print(f"regen  (codegen fresh)          = {n_regen}")
-    print(f"paper  ({PAPER_ID} declared)    = {PAPER_DECLARED_COUNT}")
+    print(f"paper  ({PAPER_ID}{PAPER_LIVE_VERSION} declared)  = {PAPER_DECLARED_COUNT}")
 
     # T68: a FLOOR, because equality alone is satisfied at zero. Stripping
     # every `// CATALOG:` line from the SSOT made both counters read 0 and this

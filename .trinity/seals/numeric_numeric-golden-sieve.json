@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:55076c026c496ac3ff5c8bb54fe765c62c43d74a865c2d17fc4ab0cdb0599b62",
   "module": "numeric-golden-sieve",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
+  "sealed_at": "2026-09-05T06:39:52Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:4052f16a0493c81a3e230749081d031542e68e35966dd2e204fc1bc85f9bd55b",
+  "spec_hash": "sha256:583b5c7479c239140733752a9ee2df7b82afca6af96e9861af1acd34eac13265",
   "spec_path": "specs/numeric/golden_sieve.t27"
 }

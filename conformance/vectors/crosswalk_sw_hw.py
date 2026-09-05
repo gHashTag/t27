@@ -10,8 +10,15 @@ be SW-packable yet HW-structural (encoding != compute != FPGA):
   * compute-HW     -> Tier-E 4/4 GF-arithmetic (ADD/MUL) on AX7203
 
 HW state is a POINT-IN-TIME snapshot copied from #199 (2026-07-02..03). Not live.
-Terminal HW ceiling on XC7A200T = 71/83 (decode-HW 41 + compute-HW 30);
-takum32/64 = routing-failure (unroutable on this part).
+Terminal HW ceiling on XC7A200T at that snapshot = 71 of the 83 formats then
+catalogued (decode-HW 41 + compute-HW 30); takum32/64 = routing-failure
+(unroutable on this part).
+
+The SW total is READ from INDEX_all_formats.json at run time and never
+hard-coded: the catalog count is a CI invariant that grows (109 at v3, Sep 2026;
+tools/check_catalog_count.py). The HW columns stay the July snapshot, so a
+re-run against a larger index marks every newer format as HW "-", which means
+"not measured", not "failed".
 """
 import json, os, sys
 
@@ -46,6 +53,7 @@ for p in IDX["packs"]:
     rows.append((fid, sw, p.get("n_vectors", 0), dhw, chw))
 
 rows.sort()
+n_total = len(rows)  # the count the index carries today; never a literal
 sw_be = sum(1 for r in rows if r[1] == "bitexact")
 sw_sc = sum(1 for r in rows if r[1] == "bitexact_selfconsistent")
 sw_st = sum(1 for r in rows if r[1] == "structural")
@@ -53,20 +61,21 @@ dhw_n = sum(1 for r in rows if r[3] == "Tier-E")
 chw_n = sum(1 for r in rows if r[4] == "Tier-E")
 tier_e_union = sum(1 for r in rows if r[3] == "Tier-E" or r[4] == "Tier-E")
 
-# formats HW-proven but NOT in the t27 SSOT 83 (FPGA-side element ids)
+# formats HW-proven but NOT in the t27 SSOT as indexed (FPGA-side element ids)
 extra_hw = sorted({REMAP.get(x, x) for x in DECODE_HW_199} - {r[0] for r in rows})
 
 out = {
-    "schema": "t27-conformance-crosswalk/v0.1",
+    "schema": "t27-conformance-crosswalk/v0.2",
     "generated_from": "INDEX_all_formats.json (SW) x trinity-fpga #199 (HW, 2026-07-02..03 snapshot)",
     "axes_note": "encoding != compute != FPGA. SW-pack, decode-HW, compute-HW are "
                  "INDEPENDENT. A format may be SW-packable yet HW-structural.",
-    "hw_ceiling": "71/83 on XC7A200T (decode-HW 41 + compute-HW 30); takum32/64 unroutable",
+    "hw_ceiling": "71 of the 83 formats catalogued at the 2026-07-02..03 snapshot, on XC7A200T (decode-HW 41 + compute-HW 30); takum32/64 unroutable",
     "totals": {
+        "ssot_total": n_total,
         "sw_bitexact": sw_be, "sw_selfconsistent": sw_sc, "sw_structural": sw_st,
         "decode_hw_tier_e_in_ssot": dhw_n, "compute_hw_tier_e_in_ssot": chw_n,
         "tier_e_union_in_ssot": tier_e_union,
-        "hw_ids_outside_ssot83": extra_hw,
+        "hw_ids_outside_ssot": extra_hw,
     },
     "rows": [
         {"format": r[0], "sw_pack": r[1], "n_vectors": r[2],
@@ -77,16 +86,16 @@ with open(os.path.join(OUT, "CROSSWALK_sw_hw.json"), "w") as f:
     json.dump(out, f, indent=2)
 
 # markdown table
-lines = ["# Cross-walk: 83 форматов x {SW-пак | decode-HW | compute-HW}", "",
-         f"SSOT SW = `INDEX_all_formats.json`; HW = trinity-fpga #199 (снимок 02-03.07.2026, НЕ live).",
+lines = [f"# Cross-walk: {n_total} форматов x {{SW-пак | decode-HW | compute-HW}}", "",
+         f"SSOT SW = `INDEX_all_formats.json` ({n_total} форматов на момент запуска; число читается из индекса, не константа); HW = trinity-fpga #199 (снимок 02-03.07.2026, НЕ live).",
          "",
          "> **Три независимые оси** (encoding != compute != FPGA). Формат может иметь "
          "SW-пак и одновременно быть HW-structural — это НЕ противоречие.",
          "",
-         f"- SW: bitexact **{sw_be}** / selfconsistent **{sw_sc}** / structural **{sw_st}** = 83",
-         f"- decode-HW Tier-E (в SSOT-83): **{dhw_n}**  |  compute-HW Tier-E (в SSOT-83): **{chw_n}**",
-         f"- HW-потолок AX7203 = **71/83** (decode 41 + compute 30); takum32/64 = routing-failure",
-         f"- HW-ячейки ВНЕ SSOT-83 (FPGA element-id): {', '.join(extra_hw) or '—'}",
+         f"- SW: bitexact **{sw_be}** / selfconsistent **{sw_sc}** / structural **{sw_st}** = {n_total}",
+         f"- decode-HW Tier-E (в SSOT-{n_total}): **{dhw_n}**  |  compute-HW Tier-E (в SSOT-{n_total}): **{chw_n}**",
+         f"- HW-потолок AX7203 (снимок 02-03.07.2026; в каталоге тогда 83) = **71/83** (decode 41 + compute 30); takum32/64 = routing-failure",
+         f"- HW-ячейки ВНЕ SSOT-{n_total} (FPGA element-id): {', '.join(extra_hw) or '—'}",
          "",
          "| Формат | SW-пак | n | decode-HW | compute-HW |",
          "|---|---|---:|:---:|:---:|"]
@@ -96,7 +105,7 @@ for r in rows:
 with open(os.path.join(OUT, "CROSSWALK_sw_hw.md"), "w") as f:
     f.write("\n".join(lines) + "\n")
 
-print(f"SW: bitexact={sw_be} selfconsistent={sw_sc} structural={sw_st} (=83)")
+print(f"SW: bitexact={sw_be} selfconsistent={sw_sc} structural={sw_st} (={n_total})")
 print(f"decode-HW in SSOT={dhw_n}  compute-HW in SSOT={chw_n}  Tier-E union in SSOT={tier_e_union}")
-print(f"HW ids outside SSOT-83: {extra_hw}")
+print(f"HW ids outside SSOT-{n_total}: {extra_hw}")
 print("wrote CROSSWALK_sw_hw.json + CROSSWALK_sw_hw.md")
