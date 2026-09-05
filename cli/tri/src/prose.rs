@@ -359,8 +359,12 @@ mod tests {
         let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
         // This slice stops at the FIRST test module. Measured with
         // `gates::test_module_lines` (a state machine, not a split): of the 46
-        // files here carrying a test module, 10 have production items after
-        // their first, 130 items in total, 79 of them in gates.rs alone.
+        // files here carrying a test module, gates.rs alone holds 79 items
+        // after its first. The FILE count varies with the matcher -- 13, 11 or
+        // 9 depending on whether you split on the string, on the bare
+        // attribute line, or additionally reject matches inside string
+        // literals -- so it is not quoted here. An audit found the 10 and 130
+        // I first wrote reproduce under none of those definitions.
         // THIS file has none, so the slice is whole today -- the anchor below
         // is defence, not a live repair. If a test module ever lands above the
         // subject, `contains` goes false and the negative assertion passes

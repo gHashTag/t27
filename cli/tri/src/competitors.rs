@@ -588,12 +588,22 @@ mod tests {
         let code = &src[..src
             .find("#[cfg(test)]")
             .expect("the test module bounds the search")];
-        // That bound is the FIRST test module, at line 567, and `beta_competitor`
-        // sits at 680 -- outside it. The count assertion below is safe either
-        // way, because a call site moving out of the slice makes it read 1 and
-        // fail loudly. The `bad` assertion is not: a reintroduced subtraction
-        // below the cut would simply not be found. So prove the subject is in
-        // the slice before asserting its absence.
+        // That bound is the FIRST test module, at line 567. The justification
+        // written here first was WRONG and an audit caught it: it said
+        // `beta_competitor` is production code sitting below the cut. That
+        // identifier is at line 696, inside the raw string `const TWO` which
+        // opens at 681 and closes at 705 -- test fixture text, inside
+        // `mod tests`. THIS FILE HAS NO PRODUCTION ITEM BELOW THE CUT, so the
+        // slice is whole today and the anchor below is defence, not repair.
+        //
+        // The error is worth keeping in view: a column-0 `pub fn` regex counts
+        // matches inside string literals, which is how a fixture became a
+        // finding. A count of "production items" needs a lexer, not a regex.
+        //
+        // The anchor stays because the count assertion and the absence
+        // assertion differ in kind: a call site leaving the slice makes the
+        // count read 1 and fail loudly, while a reintroduced subtraction below
+        // the cut would simply not be found.
         assert!(
             code.contains("zero_at_1_citing_something"),
             "the slice no longer reaches the function under test -- the absence \

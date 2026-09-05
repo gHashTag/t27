@@ -564,11 +564,14 @@ mod tests {
         // Twelfth time this pass shape has recurred, so the call site gets its
         // own reader.
         let src = include_str!("mutate.rs");
-        // NOT `split("#[cfg(test)]")`: that literal appears in SIX doc comments
-        // and string literals in this file before the real attribute, the
-        // earliest at line 216, so the split cuts 115 lines above `mutate` and
-        // the slice never reaches the subject. The attribute is a line of its
-        // own; match it as one.
+        // NOT `split("#[cfg(test)]")`: that literal appears FIVE times in doc
+        // comments and string literals in this file before the real attribute
+        // (lines 216, 355, 358, 371, 375), the earliest at 216, so the split
+        // cuts well above `mutate` and the slice never reaches the subject.
+        // The attribute is a line of its own; match it as one.
+        //
+        // "SIX" stood here until an audit recounted: twelve occurrences in the
+        // file, the attribute at 487, five above it. The count was never six.
         let boundary = src
             .lines()
             .position(|l| l == concat!("#[cfg(te", "st)]"))
