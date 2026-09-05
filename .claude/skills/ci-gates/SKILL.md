@@ -16187,7 +16187,7 @@ slot, `empty: void` -- and **`zig build-obj` accepts both, and so does the deepe
 corpus counts these specs as generating and accepting.
 
 (An earlier version of this section said Zig *dropped* the field. That was wrong and
-came from running `t27c gen-zig`, which is not a subcommand -- the Zig backend is
+came from running `t27c gen-zig`, which does not exist as a subcommand -- the Zig backend is
 `gen`. The empty output of a misspelled command was read as a dropped field. The
 corpus itself always used `gen`, so its numbers were never affected; only this
 paragraph was. See the note below.)

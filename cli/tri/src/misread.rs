@@ -65,6 +65,11 @@ pub enum Shape {
     RustEmptyGeneric,
     /// `0 field;` — the C half of the literal-in-type-position defect.
     CLiteralType,
+    /// `pub a: Floatb:String,` — a field whose TYPE carries a bare colon.
+    ///
+    /// Named for what the output SHOWS, not for a cause: measured on this corpus
+    /// the colon arrives two ways, and the shape cannot tell them apart.
+    RustColonInType,
 }
 
 impl Shape {
@@ -74,6 +79,7 @@ impl Shape {
             Shape::RustLiteralType => "rust: `pub f: 0,`     literal in type position",
             Shape::RustEmptyGeneric => "rust: `Vec<>`         generic lost its parameter",
             Shape::CLiteralType => "c:    `0 f;`          literal in type position",
+            Shape::RustColonInType => "rust: `pub a: Xb:Y,`  bare colon inside a type",
         }
     }
 
@@ -85,12 +91,13 @@ impl Shape {
         }
     }
 
-    pub fn all() -> [Shape; 4] {
+    pub fn all() -> [Shape; 5] {
         [
             Shape::RustEmptyType,
             Shape::RustLiteralType,
             Shape::RustEmptyGeneric,
             Shape::CLiteralType,
+            Shape::RustColonInType,
         ]
     }
 }
@@ -135,6 +142,42 @@ pub fn rust_empty_generic(line: &str) -> bool {
     line.contains("Vec<>")
 }
 
+/// Does this line declare a field whose TYPE contains a bare colon?
+///
+/// A Rust type never does: a path spells its separator `::` and no other type
+/// syntax admits a lone `:`. So the line is wreckage either way -- but the shape
+/// does NOT say which wreck, and naming it for one cause was wrong. Measured on
+/// this corpus it arrives two ways:
+///
+///   * a field swallowed by the one before it. An inline `#` comment on a field
+///     consumes the rest of the line AND the next declaration, so
+///     `id : U8  # note,` followed by three fields yields the single field
+///     `pub id: U8command:Stringargs:Stringgroup_id:U8status:JobStatus`. Four
+///     declarations gone, and `parse` and `typecheck` both accept the spec.
+///   * a map type the emitter cannot spell. `[str: str]` comes out as
+///     `Vec<str:str>`, which is a different defect with the same footprint.
+///
+/// The detector reports the shape and leaves the cause to whoever reads the spec,
+/// which is the rule this module states at the top and which I broke by calling
+/// this `RustSwallowedField` first.
+pub fn rust_colon_in_type(line: &str) -> bool {
+    let t = line.trim();
+    let Some(rest) = t.strip_prefix("pub ") else {
+        return false;
+    };
+    let Some((name, ty)) = rest.split_once(':') else {
+        return false;
+    };
+    if !is_ident(name.trim()) {
+        return false;
+    }
+    let ty = ty.trim().trim_end_matches(',');
+    // Strip every `::` before looking for a lone `:`, so a legitimate path type
+    // cannot be reported.
+    let without_paths = ty.replace("::", "");
+    without_paths.contains(':')
+}
+
 /// The C half: `0 field;` — a literal where a type specifier must stand.
 pub fn c_literal_type(line: &str) -> bool {
     let t = line.trim().trim_end_matches(';');
@@ -168,6 +211,7 @@ pub fn shapes_in(text: &str, backend: &str) -> Vec<Shape> {
             Shape::RustLiteralType => rust_literal_type(l),
             Shape::RustEmptyGeneric => rust_empty_generic(l),
             Shape::CLiteralType => c_literal_type(l),
+            Shape::RustColonInType => rust_colon_in_type(l),
         });
         if hit {
             found.push(shape);
@@ -186,6 +230,8 @@ const CONTROL_SPEC: &str = concat!(
     "        bad : 0,\n",      // -> RustLiteralType, CLiteralType
     "        empty : ,\n",     // -> RustEmptyType
     "        nogen : [],\n",   // -> RustEmptyGeneric
+    "        eaten : u8  # a note,\n",  // swallows the NEXT line ->
+    "        victim : u8,\n",           //    RustSwallowedField
     "    };\n",
     "}\n",
 );
@@ -400,6 +446,23 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_colon_in_a_type_is_found_whatever_wrecked_it() {
+        // A swallowed field...
+        assert!(rust_colon_in_type("    pub a: Floatb:String,"));
+        // ...and a map type the emitter could not spell. Same shape, other cause.
+        assert!(rust_colon_in_type("    pub env: Vec<str:str>,"));
+    }
+
+    #[test]
+    fn a_path_type_is_not_a_bare_colon() {
+        // `::` is how a Rust path spells its separator and must not be read as
+        // the wreckage of two declarations.
+        assert!(!rust_colon_in_type("    pub a: std::mem::Allocator,"));
+        assert!(!rust_colon_in_type("    pub v: Vec<HashMap<K, V>>,"));
+        assert!(!rust_colon_in_type("    pub p: *mut (),"));
+    }
+
+    #[test]
     fn an_empty_generic_is_found_anywhere_in_the_line() {
         assert!(rust_empty_generic("    pub adj: Vec<>,"));
         assert!(!rust_empty_generic("    pub adj: Vec<u8>,"));
@@ -422,7 +485,7 @@ mod tests {
         // One marker per shape. A shape whose case is missing makes the
         // control refuse at run time; this catches it at test time and
         // says which one.
-        for needle in ["bad : 0", "empty : ,", "nogen : []"] {
+        for needle in ["bad : 0", "empty : ,", "nogen : []", "eaten : u8  # a note", "victim : u8"] {
             assert!(CONTROL_SPEC.contains(needle), "control lost `{needle}`");
         }
     }
