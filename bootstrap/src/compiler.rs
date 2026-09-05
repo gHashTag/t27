@@ -21981,6 +21981,19 @@ fn collect_type_params(node: &Node, out: &mut std::collections::HashSet<String>)
     }
 }
 
+/// Every module-level `var x : bool`, which the parser delivers as a ConstDecl.
+///
+/// Recursive, like its neighbours: declarations sit at file level or inside a
+/// module node.
+fn collect_bool_module_vars(node: &Node, out: &mut std::collections::HashSet<String>) {
+    if node.kind == NodeKind::ConstDecl && node.extra_type.trim() == "bool" {
+        out.insert(node.name.clone());
+    }
+    for child in &node.children {
+        collect_bool_module_vars(child, out);
+    }
+}
+
 fn collect_const_types(node: &Node, out: &mut std::collections::HashMap<String, String>) {
     if node.kind == NodeKind::ConstDecl
         && !node.name.is_empty()
@@ -23555,6 +23568,10 @@ pub struct RustCodegen {
     bool_fns: std::collections::HashSet<String>,
     /// Parameters and locals of the current function declared `bool`.
     bool_vars: std::collections::HashSet<String>,
+    /// Module-level `var x : bool`. `bool_vars` is cleared per function and
+    /// refilled from parameters and locals, so a bool declared beside the
+    /// functions rather than inside one was never in it.
+    bool_module_vars: std::collections::HashSet<String>,
     /// Field names this FILE declares as `bool`.
     ///
     /// `expr_is_bool` had no arm for `ExprFieldAccess`, so a condition on a
@@ -23607,6 +23624,7 @@ impl RustCodegen {
             fn_ret_type: String::new(),
             bool_fns: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
+            bool_module_vars: std::collections::HashSet::new(),
             bool_fields: std::collections::HashSet::new(),
             var_types: std::collections::HashMap::new(),
             const_types: std::collections::HashMap::new(),
@@ -23727,6 +23745,20 @@ impl RustCodegen {
         collect_fn_ret_types(ast, &mut self.fn_ret_types);
         self.const_types.clear();
         collect_const_types(ast, &mut self.const_types);
+
+        // And once more for module-level bools. A spec may write
+        //
+        //     var full : bool = false;
+        //
+        // beside its functions rather than inside one; it arrives as a ConstDecl
+        // whose type is `bool`. `bool_vars` is cleared at the top of every
+        // function and refilled from that function's parameters and locals, so a
+        // module-level bool was never in it, and `if full` came out as
+        // `if (full) != 0` with `full = !full` as `full = ((full) == 0)`.
+        // Isolated on a six-line pair: the same declaration inside a function
+        // lowers correctly, and only the scope differs.
+        self.bool_module_vars.clear();
+        collect_bool_module_vars(ast, &mut self.bool_module_vars);
 
         // Same shape again, for type parameters. `ArrayView(T)` declares `T` at
         // MODULE level in a spec, and the free functions below it use `T` in
@@ -23986,6 +24018,11 @@ impl RustCodegen {
             }
         }
         collect_bool_locals(&node.children, &mut self.bool_vars);
+        // The per-function clear above drops the module-level ones every time,
+        // so put them back rather than teaching every lookup about two sets.
+        for name in &self.bool_module_vars {
+            self.bool_vars.insert(name.clone());
+        }
 
         // Declared widths of this function's parameters and locals, so a
         // `return` of a narrower/wider value can be cast to the return type.
