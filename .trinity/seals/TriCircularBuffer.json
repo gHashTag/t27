@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:4793994f6748c997a123394038b26765dcfbf4342450bf9d2b75bbdf8d862463",
-  "gen_hash_rust": "sha256:3b3c8e3e5490901f8f074a524848cd6c43dd7fb1d819d7d12307580829c698f6",
+  "gen_hash_rust": "sha256:c5fe4c858e2cc3340cd07669024c9ff805d106a5417b1b3b5cc67b4a2e0d0f9f",
   "gen_hash_verilog": "sha256:14ea79c0867b3077ca828290ff0656bc30b192d348c5b66f17b45777924be16e",
   "gen_hash_zig": "sha256:8cc81856d5da9ddb5a088976731ebeae7be6b2aaf8201eee731200b09768362b",
   "module": "TriCircularBuffer",

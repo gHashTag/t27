@@ -41,6 +41,42 @@ pub struct Row {
 /// Distinct keywords, not occurrences: a title repeating one word five times is
 /// not a better match than one carrying two different words, and ranking by
 /// occurrences would say otherwise.
+/// What `gh` is asked for. Named so the request and the guard cannot drift: the
+/// marker below compares against the same constant the URL was built from.
+const PR_CAP: usize = 800;
+const ISSUE_CAP: usize = 800;
+
+/// Read, and say whether the read filled its cap.
+///
+/// A response of exactly `cap` rows is a LOWER BOUND, not a count -- there is no
+/// way to tell a corpus of exactly `cap` from one of ten times that. Returning
+/// the bit beside the rows is what lets the label say which of the two it has.
+fn capped_read(args: &[&str], root: &std::path::Path, cap: usize) -> Result<(Vec<String>, bool)> {
+    let out = gh(args, root)?;
+    let lines: Vec<String> = out.lines().map(|l| l.to_string()).collect();
+    let capped = lines.len() >= cap;
+    Ok((lines, capped))
+}
+
+/// The parenthetical after `rows searched`.
+///
+/// It always named the commit window and never named the two API caps, so a
+/// reader who saw one bound disclosed reasonably concluded the rest were not
+/// bounded. Now every bound that BOUND is named, and one that did not bind is
+/// not mentioned -- an unbound cap is not information, and printing it would
+/// train the reader to skip the line.
+fn render_scope(commits: usize, pr_capped: bool, issue_capped: bool) -> String {
+    let pr = if pr_capped { "the first {PR_CAP} open PRs" } else { "open PRs" };
+    let pr = pr.replace("{PR_CAP}", &PR_CAP.to_string());
+    let iss = if issue_capped { "the first {ISSUE_CAP} open issues" } else { "open issues" };
+    let iss = iss.replace("{ISSUE_CAP}", &ISSUE_CAP.to_string());
+    let mut s = format!("({pr}, {iss}, last {commits} commits, every SKILL.md section)");
+    if pr_capped || issue_capped {
+        s.push_str("  <- A CAP WAS REACHED: this is a LOWER BOUND, raise it to see the rest");
+    }
+    s
+}
+
 pub fn hits(text: &str, keywords: &[String]) -> usize {
     let hay = text.to_lowercase();
     keywords
@@ -130,23 +166,29 @@ pub fn run(keywords: &[String], commits: usize) -> Result<()> {
     let root = crate::find_trinity_root()?;
     let mut rows: Vec<Row> = Vec::new();
 
-    for line in gh(
-        &["pr", "list", "--state", "open", "--limit", "100", "--json",
+    // The label below names the commit window ("last N commits") and used to
+    // name no other bound, while the two `gh` reads carried caps of 100 and 200.
+    // Measured 2026-09-05 on gHashTag/t27: 12 open PRs, so that cap was slack --
+    // and 509 open issues, so the command searched 200 of them and reported
+    // "rows searched 759 (open PRs, open issues, ...)" having never looked at
+    // 309. Disclosing one of three bounds reads as disclosing all of them.
+    let (pr_lines, pr_capped) = capped_read(
+        &["pr", "list", "--state", "open", "--limit", &PR_CAP.to_string(), "--json",
           "number,title", "--jq", r##".[]|"#\(.number) \(.title)""##],
         &root,
-    )?
-    .lines()
-    {
-        rows.push(Row { origin: "open PR", label: line.to_string(), hits: hits(line, keywords) });
+        PR_CAP,
+    )?;
+    for line in pr_lines {
+        rows.push(Row { origin: "open PR", label: line.clone(), hits: hits(&line, keywords) });
     }
-    for line in gh(
-        &["issue", "list", "--state", "open", "--limit", "200", "--json",
+    let (issue_lines, issue_capped) = capped_read(
+        &["issue", "list", "--state", "open", "--limit", &ISSUE_CAP.to_string(), "--json",
           "number,title", "--jq", r##".[]|"#\(.number) \(.title)""##],
         &root,
-    )?
-    .lines()
-    {
-        rows.push(Row { origin: "open issue", label: line.to_string(), hits: hits(line, keywords) });
+        ISSUE_CAP,
+    )?;
+    for line in issue_lines {
+        rows.push(Row { origin: "open issue", label: line.clone(), hits: hits(&line, keywords) });
     }
 
     let log = Command::new("git")
@@ -169,7 +211,7 @@ pub fn run(keywords: &[String], commits: usize) -> Result<()> {
     println!();
     println!("  WHO ELSE HAS TOUCHED THIS: {}", keywords.join(", "));
     println!();
-    println!("  rows searched   {searched}   (open PRs, open issues, last {commits} commits, every SKILL.md section)");
+    println!("  rows searched   {searched}   {}", render_scope(commits, pr_capped, issue_capped));
     println!("  rows matching   {}", found.len());
     // The distribution, because "468 matching" out of 694 is not a result and
     // the ranking is what makes the list readable. A row carrying one of three
@@ -289,6 +331,64 @@ mod tests {
         assert!(
             hits(refs, &kw(&["cross-reference", "section"])) >= 1,
             "the merged commit for the refs tool must surface"
+        );
+    }
+
+    /// The parenthetical disclosed the commit window and hid two API caps.
+    ///
+    /// Measured 2026-09-05 on gHashTag/t27: 12 open PRs against a cap of 100, so
+    /// that bound was slack -- and 509 open issues against a cap of 200, so the
+    /// command searched 200 and printed "rows searched 759 (open PRs, open
+    /// issues, ...)" having never looked at 309 of them. Raising both caps to
+    /// 800 took the same command from 759 rows to 1068, and matches from 535 to
+    /// 569.
+    #[test]
+    fn a_cap_that_bound_is_named_and_one_that_did_not_is_not() {
+        let clean = render_scope(40, false, false);
+        assert_eq!(
+            clean,
+            "(open PRs, open issues, last 40 commits, every SKILL.md section)",
+            "with nothing truncated the line reads exactly as it always did"
+        );
+        assert!(
+            !clean.contains("LOWER BOUND"),
+            "an unbound cap is not information, and printing it teaches the reader to skip the line"
+        );
+
+        let hit = render_scope(40, false, true);
+        assert!(
+            hit.contains(&format!("the first {ISSUE_CAP} open issues")),
+            "a cap that BOUND has to appear where the population is named: {hit}"
+        );
+        assert!(
+            hit.contains("LOWER BOUND"),
+            "and the count beside it is a floor, which the reader must be told: {hit}"
+        );
+        assert!(
+            hit.contains("open PRs") && !hit.contains(&format!("the first {PR_CAP} open PRs")),
+            "while the half that was NOT truncated is still named plainly: {hit}"
+        );
+
+        assert!(
+            render_scope(40, true, false).contains(&format!("the first {PR_CAP} open PRs")),
+            "and the same holds with the halves the other way round"
+        );
+    }
+
+    /// `capped_read` compares against the constant the request was built from.
+    /// Two literals for one number is how a raised cap and an unraised guard
+    /// come to disagree silently.
+    #[test]
+    fn the_request_and_the_marker_read_one_constant() {
+        let src = include_str!("topic.rs");
+        let code = &src[..src.find("#[cfg(test)]").expect("the test module bounds the search")];
+        assert!(
+            code.contains("&PR_CAP.to_string()") && code.contains("&ISSUE_CAP.to_string()"),
+            "the URL is built FROM the constant, not from a literal beside it"
+        );
+        assert!(
+            code.contains("lines.len() >= cap"),
+            "and the marker compares against the cap that was passed, not a second literal"
         );
     }
 }

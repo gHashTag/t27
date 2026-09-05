@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0ad8883848804d8f0be28f89bda0589f8ace86b8eccdaebd3f54dd968f88d4d8",
   "module": "TriHtml",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:26Z",
+  "sealed_at": "2026-09-05T02:40:54Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:08a954114402f92acc09a6bf586855d6edbb8a308a4264f4944de666a94a1e28",
   "spec_path": "specs/tri/encoding/html.t27"

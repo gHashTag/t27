@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e42c4dea80d5741f4c4c37029b6e0c395e6a8339d5c44a4036550935e06881fa",
-  "gen_hash_rust": "sha256:6179fd71d3f7ae2a7b3f24a103e6500c493400f4081ec6a04d8480061a4a0aa5",
+  "gen_hash_rust": "sha256:835f9bfb148864d667a35c5418f58c13ead1f4af25999f7132f92770ce57f7ec",
   "gen_hash_verilog": "sha256:1fd376a234f0d7fdb9240c0d45a534fe76d75394f5095932bcdcfadfb7027d4e",
   "gen_hash_zig": "sha256:11ef5602fbe74a8e2d70c3b290b5aafc2d87e1a34ef34c2eddcc4e680f7b0dec",
   "module": "igla-race-yosys",
   "ring": 12,
-  "sealed_at": "2026-08-30T21:18:16Z",
+  "sealed_at": "2026-09-05T03:11:57Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:8ef502455dfce17efe7680a65468b290bdacd95f1f445c2fee561e9482eebb10",
   "spec_path": "specs/igla/race/yosys.t27"

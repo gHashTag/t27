@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:4a5e5b371b4f5417eb83dc2da47c03d770e34f7bdea799cade4d7d13aea40cd2",
-  "gen_hash_rust": "sha256:ce9c08f46e5fbd81f8088200d45a717eeb29fe50ea1e351dc67340349a92dea7",
+  "gen_hash_rust": "sha256:efd0f7f8d0039307d484722c696d8daa67b65ca27cab4b2dba69d8bd7e664a8a",
   "gen_hash_verilog": "sha256:2253b69752730fdc6eecd09cbe86c2fcc730fc2e8b9d6a57b45e6d7d581903ab",
   "gen_hash_zig": "sha256:7ce9d477ac3d1008552185427695a4b2f03cc763a3cb2476a1ffa97f8cbb146f",
   "module": "Git",

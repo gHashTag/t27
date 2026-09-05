@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:656599617930f341fa85bed0034163994c714ea5edb132d372de548161e08264",
-  "gen_hash_rust": "sha256:8be01795109ebcbb4505b65e43921a8edaf8bf3056250c99265583fc5d50275c",
+  "gen_hash_rust": "sha256:4dd9039e8268a8fa57e96ca6579353b5149b545d5fcc4136e0b6007b9ed4dabd",
   "gen_hash_verilog": "sha256:1efd07e76df1ef8cf318fb8bcba5e02fa3ce32177798fa109110a0e2a1ed550e",
   "gen_hash_zig": "sha256:3055a586a783d55f0c842b10c1319a0219bbdc7fc2c878123168435b89052774",
   "module": "TernaryMemory",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:22Z",
+  "sealed_at": "2026-09-05T00:40:42Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:9a7a252b0234051663b7a9a6f9712ceb2b15501140378ef156612ab574aec6ae",
   "spec_path": "specs/base/ternary_memory.t27"

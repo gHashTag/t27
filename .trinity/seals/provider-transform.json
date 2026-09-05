@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:7a091ec7866e896b1fbb0cc62266f810f393e8ab99fbb5bd85c97ad328d3895a",
-  "gen_hash_rust": "sha256:2c2d9fce91f47aad21eb5aec38b357ae93be72b6bed2be9e18aa3673a40eb472",
+  "gen_hash_rust": "sha256:8c8400983d56d79a9df225f77ecc174c6082cf4dea15a52a68105c9b9cafac48",
   "gen_hash_verilog": "sha256:5fb9643a95ee7a99f10d42026f37ff2ad29b65588d9325eac2e70b257ecd4dda",
   "gen_hash_zig": "sha256:e0901bfc1cc1a53dd914bc76727a0f50b30e30f87cf1bfd2608008279ed16603",
   "module": "provider-transform",

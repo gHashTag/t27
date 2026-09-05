@@ -126,6 +126,48 @@ fn replace_ref(text: &str, marker: &str, old: usize, new: usize) -> String {
 /// however its body was reworded; everything after the LAST such section is what
 /// this branch added. Returns `None` when no section is shared, which would mean
 /// the two files have nothing to do with each other.
+/// Whether every section in `tail` is genuinely absent from `at_base`.
+///
+/// A byte-prefix tail is everything appended since the merge base, and that is
+/// wrong the moment a SIBLING branch of yours lands part of it on the base: a
+/// squash merge puts the section on `base` under a new commit, the same content
+/// sits on both sides, and rebuilding as `at_base + tail` emits it twice.
+///
+/// Reproduced on this repository, 2026-09-05: branch tip 2ded340a against master
+/// 747e4a1, merge base 013b829. `appended here 2`, moves 546 -> 547 and
+/// 547 -> 548, and the output carried two sections with the same title, because
+/// #3199 had squash-merged the first of them onto master while the branch was
+/// open.
+/// Titles present in `before` and absent from `after`, sorted.
+///
+/// By TITLE and not by count: a count guard passed while this command deleted a
+/// section, because three heading lines quoted inside a fenced code block were
+/// parsed as sections and made the arithmetic come out right.
+pub fn titles_lost(before: &str, after: &str) -> Vec<String> {
+    let have: std::collections::BTreeSet<String> = crate::skillnum::sections(after)
+        .into_iter()
+        .map(|(_, t)| t)
+        .collect();
+    let mut lost: Vec<String> = crate::skillnum::sections(before)
+        .into_iter()
+        .map(|(_, t)| t)
+        .filter(|t| !have.contains(t))
+        .collect();
+    lost.sort();
+    lost.dedup();
+    lost
+}
+
+pub fn tail_is_new(tail: &str, at_base: &str) -> bool {
+    let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
+        .into_iter()
+        .map(|(_, t)| t)
+        .collect();
+    !crate::skillnum::sections(tail)
+        .into_iter()
+        .any(|(_, t)| base_titles.contains(&t))
+}
+
 pub fn tail_by_title<'a>(at_base: &str, mine: &'a str) -> Option<&'a str> {
     let base_titles: std::collections::BTreeSet<String> = crate::skillnum::sections(at_base)
         .into_iter()
@@ -201,6 +243,39 @@ fn show(rev: &str, path: &str, root: &Path) -> Result<String> {
     Ok(String::from_utf8(out.stdout)?)
 }
 
+/// Titles in the tail that the base once held, in the order they appear.
+///
+/// The predicate is injected so the decision can be tested without a git
+/// history: what it does with a yes and a no is the part that has to be right,
+/// and `git log -S` is the part that has to be measured.
+pub fn withdrawn_titles<F>(carried: &[(usize, String)], once_held: F) -> Vec<String>
+where
+    F: Fn(&str) -> bool,
+{
+    carried
+        .iter()
+        .filter(|(_, t)| once_held(t))
+        .map(|(_, t)| t.clone())
+        .collect()
+}
+
+/// Whether `base`'s history has ever contained this section title.
+///
+/// A title the base once held and no longer does was taken out on purpose, and
+/// carrying it forward resurrects a retraction. `git log -S` is the test that
+/// survives squash-merging, which is what defeats both the merge base and
+/// ancestry here.
+fn base_once_held(base: &str, file: &str, title: &str, root: &Path) -> bool {
+    let out = Command::new("git")
+        .args(["log", base, "--format=%H", "-S", title, "--", file])
+        .current_dir(root)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => !String::from_utf8_lossy(&o.stdout).trim().is_empty(),
+        _ => false,
+    }
+}
+
 fn merge_base(rev: &str, root: &Path) -> Result<String> {
     let out = Command::new("git")
         .args(["merge-base", "HEAD", rev])
@@ -212,20 +287,92 @@ fn merge_base(rev: &str, root: &Path) -> Result<String> {
     Ok(String::from_utf8(out.stdout)?.trim().to_string())
 }
 
-pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Result<()> {
+/// `text` with every section whose title is in `drop` removed.
+///
+/// A section runs from its `## N. ` heading to the next one, and a heading
+/// inside a fenced block is a quotation rather than a section -- the same rule
+/// `skillnum::sections` uses, because this file quotes headings as evidence and
+/// cutting at one of those would take the wrong span.
+pub fn without_sections(text: &str, drop: &[String]) -> String {
+    let drop: std::collections::BTreeSet<&str> = drop.iter().map(|s| s.as_str()).collect();
+    let mut out: Vec<&str> = Vec::new();
+    let mut skipping = false;
+    let mut in_fence = false;
+    for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            if !skipping {
+                out.push(line);
+            }
+            continue;
+        }
+        let heading = if in_fence {
+            None
+        } else {
+            line.strip_prefix("## ")
+                .and_then(|r| r.split_once(". "))
+                .filter(|(n, _)| n.parse::<usize>().is_ok())
+                .map(|(_, t)| t.trim())
+        };
+        if let Some(t) = heading {
+            skipping = drop.contains(t);
+        }
+        if !skipping {
+            out.push(line);
+        }
+    }
+    let mut s = out.join("\n");
+    if text.ends_with('\n') && !s.ends_with('\n') {
+        s.push('\n');
+    }
+    s
+}
+
+pub fn run(
+    base: &str,
+    file: &str,
+    check: bool,
+    first_req: Option<usize>,
+    drop_withdrawn: bool,
+) -> Result<()> {
     let root = crate::find_trinity_root()?;
     let mb = merge_base(base, &root)?;
     let at_mb = show(&mb, file, &root)?;
     let at_base = show(base, file, &root)?;
     let mine = std::fs::read_to_string(root.join(file))?;
 
-    let (tail, how) = match appended_tail(&at_mb, &mine) {
+    // The byte-prefix tail is everything appended since the merge base -- which
+    // is wrong the moment a SIBLING branch of yours lands part of that tail on
+    // the base. A squash merge puts the section on `base` under a new commit, so
+    // the same content sits on both sides, and rebuilding as `at_base + tail`
+    // emits it twice.
+    //
+    // Reproduced on this repository, 2026-09-05: branch tip 2ded340a against
+    // master 747e4a1, merge base 013b829. The tool reported `appended here 2`
+    // and moved 546 -> 547, 547 -> 548, producing
+    //
+    //     ## 546. A mutation that also edits the test is not a mutation test
+    //     ## 547. A mutation that also edits the test is not a mutation test
+    //     ## 548. The tool that finds unchecked constants was counting its own tests
+    //
+    // because #3199 had squash-merged that first section onto master while this
+    // branch was open. `tail_by_title` -- already here for the case where the
+    // merge base is not a prefix -- answers exactly this, so the byte-prefix
+    // tail is accepted only when it shares no title with the base.
+    let prefix_tail = appended_tail(&at_mb, &mine).filter(|t| tail_is_new(t, &at_base));
+    let (tail, how) = match prefix_tail {
         Some(t) => (Some(t), "byte prefix of the merge base"),
         None => (
             tail_by_title(&at_base, &mine),
-            "TITLES shared with the base -- the merge base is not a prefix, which\n  \
-             happens when the base edited an existing section while this branch\n  \
-             was open",
+            "TITLES shared with the base -- either the merge base is not a prefix\n  \
+             (the base edited an existing section while this branch was open), or\n  \
+             the appended tail carries a section the base ALREADY HAS, which is\n  \
+             what a sibling branch of yours squash-merging does. Renumbering that\n  \
+             tail by position would emit it twice.",
         ),
     };
     let Some(tail) = tail else {
@@ -236,6 +383,59 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
              hand, or reset the file to {} and re-append.",
             &mb[..9.min(mb.len())],
             &mb[..9.min(mb.len())]
+        );
+    };
+
+    // A section in the tail that the BASE ONCE HELD AND REMOVED is not mine to
+    // carry. Absence from the base's head looks identical whether I wrote the
+    // section or the base withdrew it, and on 2026-09-05 that cost a
+    // resurrection: master rewrote 554 "Debt a fix cannot retire" in 6a49402c
+    // because the claim was wrong, my branch had merged the version before the
+    // correction, and a by-title rebuild put the withdrawn text back under a
+    // fresh number.
+    //
+    // Two cheaper discriminators do not work here. The MERGE BASE is useless
+    // once the branch has already merged the base -- it becomes the base's head
+    // and everything looks equally new. ANCESTRY is useless because this
+    // repository squash-merges, so the commit that introduced the withdrawn
+    // section is not an ancestor of the base, and neither are mine.
+    //
+    // What works is the base's own history OF THE TEXT. Measured: the withdrawn
+    // title returns 2 commits (one adding, one removing) and each of the two
+    // sections I had actually written returns 0.
+    let carried = crate::skillnum::sections(tail);
+    let withdrawn = withdrawn_titles(&carried, |t| base_once_held(base, file, t, &root));
+    // Of this command's refusals, this is the only one whose repair is
+    // unambiguous. The others end in "resolve by hand" because the safe action
+    // is unknown -- a section that would be DROPPED might be yours or the
+    // base's, and guessing loses work. Here the answer is settled: the base
+    // removed these on purpose, and carrying them forward resurrects a
+    // retraction. So `--drop-withdrawn` does exactly that and names each one.
+    //
+    // It is opt-in, not the default. Deleting text nobody asked to delete is
+    // how a tool earns distrust, and the refusal already prints the list.
+    let owned_tail;
+    let tail = if withdrawn.is_empty() {
+        tail
+    } else if drop_withdrawn {
+        owned_tail = without_sections(tail, &withdrawn);
+        println!();
+        println!("  {} section(s) dropped: {base} removed them on purpose.", withdrawn.len());
+        for t in &withdrawn {
+            println!("    {t}");
+        }
+        println!("  --drop-withdrawn asked for this. Without it the run refuses and");
+        println!("  prints the same list, which is the default.");
+        owned_tail.as_str()
+    } else {
+        bail!(
+            "{} section(s) in the tail were REMOVED from {base} on purpose:\n    {}\n  \
+             Nothing was written. Absence from {base} today looks the same whether \
+             you wrote a section or the base withdrew it; its history does not. \
+             Re-run with --drop-withdrawn to remove exactly these, or keep them \
+             deliberately and say why.",
+            withdrawn.len(),
+            withdrawn.join("\n    ")
         );
     };
 
@@ -301,6 +501,39 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
             crate::skillnum::sections(tail).len()
         );
     }
+    // The count guard above is a TOTAL, and a total cannot see a substitution.
+    // It passed on 2026-09-05 while this command deleted a section: SKILL 548
+    // quotes three `## N.` heading lines inside a fenced block as evidence, the
+    // section parser counts every line that starts `## N. ` whether fenced or
+    // not, and those three made the arithmetic come out right while the real
+    // section they were quoting was dropped. Numbers matched; content did not.
+    //
+    // So the guard that matters is the SET of titles, which is the guard every
+    // hand-written resolver in this loop had and this command did not.
+    // Minus what --drop-withdrawn was asked to remove. Those ARE on disk and
+    // ARE gone from the rebuild, so this guard sees them and refuses -- which
+    // is correct in general and wrong here, because the caller named them.
+    //
+    // Two guards, one blocking the other's sanctioned repair. The first version
+    // of --drop-withdrawn did exactly what it promised, printed what it dropped,
+    // and then died on this line. **A guard has to know what the operator
+    // authorised, or the authorisation is not real.**
+    let sanctioned: std::collections::BTreeSet<&str> =
+        withdrawn.iter().map(|s| s.as_str()).collect();
+    let lost: Vec<String> = titles_lost(&mine, &out)
+        .into_iter()
+        .filter(|t| !sanctioned.contains(t.as_str()))
+        .collect();
+    if !lost.is_empty() {
+        bail!(
+            "the rebuild would DROP {} section(s) that are on disk now:\n    {}\n  \
+             Nothing was written. The section count came out right, which is why \
+             the count guard above did not stop it -- a total cannot see a \
+             substitution. Resolve this file by hand.",
+            lost.len(),
+            lost.join("\n    ")
+        );
+    }
     let problems = crate::skillnum::problems(&secs);
     std::fs::write(root.join(file), &out)?;
     println!("  Written. {} section(s); {}", secs.len(), if problems.is_empty() {
@@ -317,6 +550,289 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `without_sections` cuts from a `## N. ` heading to the next one, and a
+    /// heading inside a fenced block is a QUOTATION -- this file quotes headings
+    /// as evidence, and cutting at one would take the wrong span.
+    #[test]
+    fn dropping_a_section_stops_at_the_next_real_heading() {
+        let src = "## 1. Keep\nalpha\n\n## 2. Drop\nbeta\n\n```\n## 9. Quoted\n```\ngamma\n\n## 3. Keep too\ndelta\n";
+        let out = without_sections(src, &["Drop".to_string()]);
+        assert!(out.contains("alpha") && out.contains("delta"), "neighbours survive: {out}");
+        assert!(!out.contains("beta"), "the body goes");
+        assert!(!out.contains("gamma"), "and so does everything to the next REAL heading");
+        assert!(!out.contains("## 2. Drop"), "heading included");
+        assert_eq!(
+            crate::skillnum::sections(&out).len(),
+            2,
+            "two sections left, and the quoted heading is not one of them"
+        );
+    }
+
+    /// Dropping nothing must return the text unchanged, byte for byte: the
+    /// ordinary run passes through this function and must not be reshaped by it.
+    #[test]
+    fn dropping_nothing_changes_nothing() {
+        let src = "## 1. A\nalpha\n\n## 2. B\nbeta\n";
+        assert_eq!(without_sections(src, &[]), src);
+    }
+
+    /// The guard that refuses a lost title must know what the operator
+    /// AUTHORISED. The first version of `--drop-withdrawn` did exactly what it
+    /// promised, printed what it dropped, and then died on `titles_lost` --
+    /// which saw a section leave the file and refused.
+    #[test]
+    fn a_sanctioned_removal_is_not_a_lost_title() {
+        let before = "## 1. A\n\n## 2. Withdrawn\n\n## 3. C\n";
+        let after = without_sections(before, &["Withdrawn".to_string()]);
+        assert!(
+            titles_lost(before, &after).contains(&"Withdrawn".to_string()),
+            "the guard DOES see it -- that is why it has to be told"
+        );
+        let sanctioned = ["Withdrawn".to_string()];
+        let remaining: Vec<String> = titles_lost(before, &after)
+            .into_iter()
+            .filter(|t| !sanctioned.contains(t))
+            .collect();
+        assert!(
+            remaining.is_empty(),
+            "and with the authorisation applied, nothing is refused: {remaining:?}"
+        );
+    }
+
+    /// A section the base once held and dropped is not mine to carry forward.
+    ///
+    /// Measured 2026-09-05: master rewrote 554 "Debt a fix cannot retire" in
+    /// 6a49402c because the claim was wrong. My branch had merged the version
+    /// before the correction, so the withdrawn title read as present-here-
+    /// absent-there -- exactly like a section I had written -- and a by-title
+    /// rebuild put it back under a fresh number. `git log origin/master -S` on
+    /// that title returns 3 commits; on each section I had actually written, 0.
+    #[test]
+    fn a_title_the_base_once_held_is_not_carried() {
+        let carried = vec![
+            (554usize, "Debt a fix cannot retire".to_string()),
+            (555, "The audit that found nothing".to_string()),
+            (556, "Two bare headings in NOW.md".to_string()),
+        ];
+        let held = |t: &str| t == "Debt a fix cannot retire";
+        assert_eq!(
+            withdrawn_titles(&carried, held),
+            vec!["Debt a fix cannot retire".to_string()],
+            "only the one the base's history holds is refused"
+        );
+        assert!(
+            withdrawn_titles(&carried, |_| false).is_empty(),
+            "a base that never held any of them refuses none -- the ordinary case \
+             must not start failing"
+        );
+        assert_eq!(
+            withdrawn_titles(&carried, |_| true).len(),
+            3,
+            "and if the base held every one of them, every one is named"
+        );
+    }
+
+    /// An empty tail cannot contain a withdrawal, and must not be reported as
+    /// one: `renumber` runs on every merge and a false refusal blocks the work.
+    #[test]
+    fn an_empty_tail_refuses_nothing() {
+        assert!(withdrawn_titles(&[], |_| true).is_empty());
+    }
+
+    /// The predicate is right and the call site can still never ask it.
+    /// NINTH change in nine passes; mutating the call site first is now the rule.
+    #[test]
+    fn the_guard_is_consulted_before_the_renumber() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let withdrawn = withdrawn_", "titles(&carried,");
+        assert!(code.contains(call), "the guard has to be asked");
+        // A non-empty answer either bails, or is dropped BECAUSE the operator
+        // asked for it. Nothing else may happen to it.
+        let opt_in = concat!("} else if drop_with", "drawn {");
+        assert!(code.contains(opt_in), "removal must be opt-in, never the default");
+        assert!(
+            code.contains("REMOVED from {base} on purpose"),
+            "and without the flag it still refuses, naming them"
+        );
+        assert!(
+            code.find(call).unwrap() < code.find("let (moved, moves) = renumber(").unwrap(),
+            "before the renumber, not after it"
+        );
+    }
+
+    /// A sibling branch of yours squash-merging is the case the byte-prefix tail
+    /// cannot see. Reproduced on this repository, 2026-09-05: branch tip
+    /// 2ded340a against master 747e4a1, merge base 013b829. The tool reported
+    /// `appended here 2` and produced two sections with the SAME title, because
+    /// #3199 had landed the first of them on master while the branch was open.
+    #[test]
+    fn a_tail_the_base_already_carries_is_not_an_append() {
+        let at_mb = "## 1. A\n\nbody a\n";
+        // The base gained B -- which is also sitting in this branch's tail,
+        // because it came from a sibling PR of the same author.
+        let at_base = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        let mine = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n\n## 3. C\n\nbody c\n";
+
+        // The byte-prefix tail sees both B and C as appended here.
+        let raw = appended_tail(at_mb, mine).expect("mb is a prefix of mine");
+        assert_eq!(
+            crate::skillnum::sections(raw).len(),
+            2,
+            "B and C both look appended, and rebuilding on the base would emit B twice"
+        );
+
+        // By title, only C is genuinely new.
+        let by_title = tail_by_title(at_base, mine).expect("a shared title exists");
+        let secs = crate::skillnum::sections(by_title);
+        assert_eq!(secs.len(), 1, "only C is new: {secs:?}");
+        assert_eq!(secs[0].1, "C");
+    }
+
+    /// `titles_lost` can be right while `run` never consults it, and the write
+    /// goes ahead. SEVENTH change in seven passes whose surviving mutant was
+    /// the wiring rather than the function -- and the second one predicted
+    /// before it was run.
+    #[test]
+    fn run_refuses_the_write_when_a_title_would_be_lost() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("titles_", "lost(&mine, &out)");
+        assert!(code.contains(call), "the guard has to be consulted before the write");
+        // It is now filtered by what --drop-withdrawn authorised. Without that
+        // filter the flag does its job, prints what it dropped, and dies here.
+        let exempt = concat!("!sanctioned.contains(", "t.as_str())");
+        assert!(
+            code.contains(exempt),
+            "and it has to know what the operator authorised, or the \
+             authorisation is not real"
+        );
+        let refuses = concat!("if !lost.is_", "empty() {");
+        assert!(
+            code.contains(refuses),
+            "and a non-empty answer has to stop the write, not merely be printed"
+        );
+        let write = code.find("std::fs::write(root.join(file)").expect("the write is here");
+        assert!(
+            code.find(call).unwrap() < write,
+            "the guard must run BEFORE the write, or it reports a loss already on disk"
+        );
+    }
+
+    /// A count is a total, and a total cannot see a substitution.
+    ///
+    /// On 2026-09-05 this command deleted a section while its count guard
+    /// passed. SKILL 548 quotes three `## N.` heading lines inside a fenced
+    /// block as evidence; the parser counts every line starting `## N. `
+    /// whether fenced or not, so those three filled the seats of the real
+    /// section that was dropped. The arithmetic was right and the content was
+    /// gone.
+    #[test]
+    fn a_lost_title_is_named_even_when_the_count_matches() {
+        let before = "## 1. A\n\n## 2. B\n\n## 3. C\n";
+        // Same number of sections; B has been replaced by a second copy of A.
+        let after = "## 1. A\n\n## 2. A\n\n## 3. C\n";
+        assert_eq!(
+            crate::skillnum::sections(before).len(),
+            crate::skillnum::sections(after).len(),
+            "the totals agree, which is exactly why a count guard let this through"
+        );
+        assert_eq!(
+            titles_lost(before, after),
+            vec!["B".to_string()],
+            "and the set says what the count could not"
+        );
+    }
+
+    #[test]
+    fn nothing_lost_is_an_empty_list_not_a_zero() {
+        let before = "## 1. A\n\n## 2. B\n";
+        let after = "## 1. A\n\n## 2. B\n\n## 3. C\n";
+        assert!(
+            titles_lost(before, after).is_empty(),
+            "adding C loses nothing, and a renumber that only appends must be allowed"
+        );
+        // Renumbering alone must never register as a loss: the guard is on
+        // TITLES precisely so that moving 547 -> 548 is invisible to it.
+        let moved = "## 41. A\n\n## 42. B\n";
+        assert!(
+            titles_lost(before, moved).is_empty(),
+            "the numbers all changed and not one title did"
+        );
+    }
+
+    /// The predicate that decides whether the byte-prefix tail may be trusted.
+    #[test]
+    fn a_tail_is_new_only_when_the_base_has_none_of_it() {
+        let base = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        assert!(
+            tail_is_new("## 3. C\n\nbody c\n", base),
+            "C is nowhere on the base, so the byte-prefix tail is the precise answer"
+        );
+        assert!(
+            !tail_is_new("## 2. B\n\nbody b\n\n## 3. C\n\nbody c\n", base),
+            "B is ALREADY on the base -- renumbering this tail by position emits it twice"
+        );
+        assert!(
+            !tail_is_new("## 9. B\n\nbody b\n", base),
+            "the match is by TITLE, not by number: a renumbered duplicate is still a duplicate"
+        );
+        assert!(
+            tail_is_new("", base),
+            "an empty tail carries nothing the base could already have"
+        );
+    }
+
+    /// `tail_is_new` can be right while `run` never consults it. Dropping the
+    /// `.filter(...)` restores the defect with every test above still green.
+    ///
+    /// SIXTH change in six passes whose surviving mutant was the wiring rather
+    /// than the function. The needle is split across two literals so this test's
+    /// own body does not contain the string it searches for.
+    #[test]
+    fn run_actually_filters_the_byte_prefix_tail() {
+        let src = include_str!("renum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let guarded = concat!(".filter(|t| ", "tail_is_new(t, &at_base))");
+        assert!(
+            code.contains(guarded),
+            "without this the byte-prefix tail is trusted even when the base \
+             already carries part of it, and the rebuild emits a section twice"
+        );
+    }
+
+    /// The ordinary case must not change: with no overlap the byte-prefix tail
+    /// is still the precise answer, and it is the one that keeps a base-side
+    /// rewording of an EXISTING section from being silently discarded.
+    #[test]
+    fn a_clean_append_still_uses_the_byte_prefix() {
+        let at_mb = "## 1. A\n\nbody a\n";
+        let at_base = "## 1. A\n\nbody a\n";
+        let mine = "## 1. A\n\nbody a\n\n## 2. B\n\nbody b\n";
+        let raw = appended_tail(at_mb, mine).expect("mb is a prefix");
+        let base_titles: std::collections::BTreeSet<String> =
+            crate::skillnum::sections(at_base)
+                .into_iter()
+                .map(|(_, t)| t)
+                .collect();
+        let overlaps = crate::skillnum::sections(raw)
+            .into_iter()
+            .any(|(_, t)| base_titles.contains(&t));
+        assert!(!overlaps, "nothing in the tail is on the base, so the prefix stands");
+    }
 
     const BASE: &str = "intro\n\n## 10. Ten\n\nbody ten\n";
 

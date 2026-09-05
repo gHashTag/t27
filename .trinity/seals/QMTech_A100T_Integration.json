@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:176f6c200ee4ab9b3b9449e3b5636d9890b3b55045fd4e0563467dcb7e36d227",
-  "gen_hash_rust": "sha256:94961e501ae9f1b9b75ffa5fa7162e5a7f819a9338c2c737b33908a25b7cdb52",
+  "gen_hash_rust": "sha256:eadc668cf274d10169c8bc583edfd6dd0530d96fd06ff8ad6f321d4e63d1e436",
   "gen_hash_verilog": "sha256:edcfc895d6574126e40322b3f25c0227fc09531bc0e6639134876a9c41182ffe",
   "gen_hash_zig": "sha256:6a3f1f0d59b9c97d44289cf9b9b9be51b24f93d7665319a307407d11062e9262",
   "module": "QMTech_A100T_Integration",

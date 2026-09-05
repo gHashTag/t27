@@ -413,8 +413,12 @@ struct Classification {
 /// document making a claim the tree does not support.
 fn classified(root: &std::path::Path, observed: &[String]) -> Result<()> {
     let path = root.join(CLASSIFICATION);
-    let raw = std::fs::read_to_string(&path)
-        .with_context(|| format!("{} is missing -- see docs/TYPE_CONFLICTS.md", path.display()))?;
+    let raw = std::fs::read_to_string(&path).with_context(|| {
+        format!(
+            "{} is missing -- see docs/TYPE_CONFLICTS.md",
+            path.display()
+        )
+    })?;
     let c: Classification = serde_json::from_str(&raw)
         .with_context(|| format!("{} is not readable as a classification", path.display()))?;
 
@@ -426,7 +430,10 @@ fn classified(root: &std::path::Path, observed: &[String]) -> Result<()> {
 
     let d = c.names.iter().filter(|n| n.verdict == "DRIFT").count();
     let x = c.names.iter().filter(|n| n.verdict == "DISTINCT").count();
-    println!("  classification: {} name(s) -- {d} DRIFT, {x} DISTINCT", names.len());
+    println!(
+        "  classification: {} name(s) -- {d} DRIFT, {x} DISTINCT",
+        names.len()
+    );
     println!("  tree today:     {} conflicted name(s)", observed.len());
 
     for n in &stale {
@@ -749,7 +756,10 @@ pub fn divergence(copies: &[Redef]) -> Divergence {
 fn redef(root: &std::path::Path) -> Result<()> {
     let specs = read_specs(root);
     if specs.is_empty() {
-        anyhow::bail!("no specs under {}/specs -- nothing was read", root.display());
+        anyhow::bail!(
+            "no specs under {}/specs -- nothing was read",
+            root.display()
+        );
     }
     println!("REDEFINED IN ONE FILE -- read {} specs", specs.len());
     println!();
@@ -794,10 +804,19 @@ fn redef(root: &std::path::Path) -> Result<()> {
                 }
             };
             let at: Vec<String> = copies.iter().map(|c| c.line.to_string()).collect();
-            println!("  {} x{}  {:<28} lines {}", tag, copies.len(), name, at.join(","));
+            println!(
+                "  {} x{}  {:<28} lines {}",
+                tag,
+                copies.len(),
+                name,
+                at.join(",")
+            );
             if d == Divergence::Signature {
                 for c in copies.iter() {
-                    println!("             {}", c.body.lines().next().unwrap_or("").trim());
+                    println!(
+                        "             {}",
+                        c.body.lines().next().unwrap_or("").trim()
+                    );
                 }
             }
             if d == Divergence::Numbers || d == Divergence::Fields {
@@ -818,9 +837,15 @@ fn redef(root: &std::path::Path) -> Result<()> {
         }
         println!();
     }
+    // T106: `signature` was incremented here and left out of this argument
+    // list. The sentence read 345 for 346 rows, and the single row it dropped
+    // was the only SIGNATURE one -- two `delete` definitions whose parameter
+    // lists disagree, the second-most-severe class there is. rustc had printed
+    // `value assigned to `signature` is never read` on every build since the
+    // line was written; the build output was piped to /dev/null every time.
     println!(
-        "{} name(s) whose copies state different NUMBERS; {} differ in which fields\n         they state, {} in the text of a field, {} only in prose, {} identical.",
-        numbers, fields, text, prose, identical
+        "{} name(s) whose copies state different NUMBERS; {} differ in SIGNATURE;\n         {} differ in which fields they state, {} in the text of a field,\n         {} only in prose, {} identical.",
+        numbers, signature, fields, text, prose, identical
     );
     if numbers > 0 {
         println!();
@@ -934,12 +959,10 @@ fn def_lines(defs: &[(String, String, usize)]) -> Vec<String> {
 
 pub fn run(cmd: &TypesCmd) -> Result<()> {
     let root = repo_root()?;
-    let mut defs_only = false;
-    let all = match cmd {
-        TypesCmd::Dup { all, defs } => {
-            defs_only = *defs;
-            *all
-        }
+    // Every other arm returns, so only `Dup` produces a value: destructuring
+    // here removes a `mut` whose initial `false` was never read.
+    let (all, defs_only) = match cmd {
+        TypesCmd::Dup { all, defs } => (*all, *defs),
         TypesCmd::Ratchet { bless } => {
             let specs = read_specs(&root);
             if specs.is_empty() {
@@ -971,7 +994,10 @@ pub fn run(cmd: &TypesCmd) -> Result<()> {
         TypesCmd::Classified => {
             let specs = read_specs(&root);
             if specs.is_empty() {
-                anyhow::bail!("no specs under {}/specs -- nothing was read", root.display());
+                anyhow::bail!(
+                    "no specs under {}/specs -- nothing was read",
+                    root.display()
+                );
             }
             let mut by_name: BTreeMap<String, Vec<Def>> = BTreeMap::new();
             for (f, src) in &specs {
@@ -1165,7 +1191,10 @@ enum E {
         let b = defs_in("b.t27", "pub struct S {\n    cell_count : u32,\n}\n");
         assert_eq!(a.len(), 1);
         assert_eq!(b.len(), 1);
-        assert_eq!(a[0].1.fields, b[0].1.fields, "the comment must not be in the type");
+        assert_eq!(
+            a[0].1.fields, b[0].1.fields,
+            "the comment must not be in the type"
+        );
         let both = vec![a[0].1.clone(), b[0].1.clone()];
         assert_eq!(verdict(&both), "DUPLICATED", "same fields, one commented");
     }
@@ -1337,11 +1366,45 @@ mod redef_tests {
         assert_eq!(f.get("pass_at_5").map(String::as_str), Some("0.525"));
     }
 
+    #[test]
+    fn every_counted_class_reaches_the_summary() {
+        // T106: the defect was an omission from an ARGUMENT LIST, so a test of
+        // any counting helper would have passed. This reads the call site.
+        let src = include_str!("types_dup.rs");
+        let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
+        let body = prod.split("fn redef(").nth(1).expect("fn redef");
+        let lines: Vec<&str> = body.lines().collect();
+        let args = lines
+            .iter()
+            .position(|l| l.trim().starts_with("numbers,"))
+            .expect("summary argument list");
+        let counters: Vec<&str> = lines[..args]
+            .iter()
+            .filter_map(|l| l.trim().strip_prefix("let mut "))
+            .filter_map(|l| l.strip_suffix(" = 0usize;"))
+            .collect();
+        assert!(
+            counters.len() >= 6,
+            "only {} counters found",
+            counters.len()
+        );
+        for c in &counters {
+            assert!(
+                lines[args].contains(c),
+                "`{c}` is counted and never printed: {}",
+                lines[args].trim()
+            );
+        }
+    }
+
     fn copies(bodies: &[&str]) -> Vec<Redef> {
         bodies
             .iter()
             .enumerate()
-            .map(|(i, b)| Redef { line: i + 1, body: (*b).to_string() })
+            .map(|(i, b)| Redef {
+                line: i + 1,
+                body: (*b).to_string(),
+            })
             .collect()
     }
 

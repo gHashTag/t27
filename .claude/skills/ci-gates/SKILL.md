@@ -14575,3 +14575,1965 @@ Three structural facts sit behind the 3%, and only the third is a defect:
 **The rule this keeps producing:** when a preview does not fire, ask in order -- is it installed, can
 it run here, does it cover this context -- before writing another one. All three answers were
 already in the repository.
+
+## 527. The channel was already in the tree, with a comment counting the times it was closed
+
+Third time in one pass that a hand-written helper was a worse copy of something shipped,
+and this is the sharpest of the three, because the existing code **names the class**.
+
+The mutation harness written this pass classified a mutant as *did not compile* by grepping
+its output for `^error:` -- and `cargo test` prints `error: test failed, to rerun pass …`
+when a **test** fails, so eight kills were scored as eight refusals. The repair was to read
+the line that only exists after compilation.
+
+**That repair is already in `scripts/ci/test_ratchet.py`, and has been:**
+
+```python
+RESULT = re.compile(r"^test result: (?:ok|FAILED)\.")
+…
+if not targets or results == 0:
+    error("test set NOT evaluated: the log has "
+          f"{len(targets)} target(s) and {results} 'test result:' line(s). "
+          "A run that did not happen is not a run that passed.")
+    return 2
+```
+
+Its comment above that block reads *"Refuse rather than certify. An empty or truncated log
+has no failures in it, and reading that as a clean set is the fail-open this repo has
+closed **ten times**."* It carries a second guard for the same family -- one target means
+`--no-fail-fast` was missing, *"the exact condition that hid 72 targets"*.
+
+**The three instances of this pass, and what each dropped:**
+
+| hand-written | already shipped | the part dropped |
+|---|---|---|
+| poll-and-merge loop | `tri pr ready --wait --merge` | its refusal to score a check with `conclusion: null` AND `state: null` |
+| `tri <verb>` census | `check_documented_commands_exist.py` | three of the four surfaces `tri` resolves through |
+| mutation harness | `test_ratchet.py`'s `RESULT` rule | the channel that exists only after compilation |
+
+Every one dropped **the enumeration of what can be true** -- one field of two, one surface
+of four, one exit channel of two. And the third was reachable by the same command as the
+other two: `git grep -n "test result"` returns the rule, in a file whose whole subject is
+reading a cargo log.
+
+**And the gate nearly took a reading from a stale ruler while this was being written.**
+`tri census pin --gate` went red on a change of **56 inserted lines across two documents**,
+reporting the fetch census `SURFACE … 4 bounded` -> `7 bounded`. The gate's own message
+says to re-bless in the same commit -- and following it would have written **7** into the
+ledger for everyone, over a reading no source change could have produced.
+
+The control said so first: the gate is red on **clean master too**, which no docs-only diff
+can cause. What it was is one command:
+
+```sh
+find target/debug/tri -newer cli/tri/src/gates.rs   # empty = the binary predates the code
+```
+
+The binary predated a neighbouring session's tightening of that very census -- their pass
+took it from 7 to 4 by rejecting a local corpus walk that never touches the API, and blessed
+4. My ruler still computed 7. `cargo build` and the same command prints
+`PASS: no pinned census moved`.
+
+**A re-bless is a statement that the new output is the one you want**, so it is exactly the
+wrong response to a number your instrument produced and the tree did not. The order is:
+control first (is it red on master?), then age the ruler, and only then consider the ledger.
+
+**Measured and clean:** no classifier in `tools/`, `scripts/` or `.github/` decides
+compilation by `^error:`. The defect existed only in ephemeral shell, which is exactly why
+it can recur every pass and why it belongs here rather than in a gate. The population of a
+defect that lives in throwaway scripts is **zero on disk and once per pass in practice**,
+and a gate over the first number would watch an empty set.
+
+## 528. My trap was the shell's, not the tree's -- and the population here is zero
+
+&sect;526 left "sweep the tree for `for x in $VAR`" as the next step. Ran it, and the first
+measurement dissolved the question:
+
+    /bin/bash  iterations over "a b c": 3
+    /bin/sh    iterations over "a b c": 3
+    /bin/zsh   iterations over "a b c": 1
+
+**The defect that has cost me four readings is zsh-only**, and every script in this tree runs under
+bash or `sh` in CI. A repository gate for it would watch an empty set. The trap lives in my own
+ad-hoc Bash-tool commands, which are zsh -- so its fix is a habit and a memory entry, not code, and
+saying that plainly is the result.
+
+The adjacent bash-shaped hazard IS real and was measured rather than assumed: of **122**
+`for X in ...` lines in tracked shell and workflow code, 93 are literal lists or globs, 20 are
+quoted, 3 iterate `$(seq ...)` (numbers, safe by construction), and **3 are a bare `$VAR`**. Two of
+those hold PR numbers and family names. **One holds filenames** --
+`scripts/install-git-hooks.sh:58`, `for file in $NON_ASCII` -- and the population is not empty:
+**11 tracked paths contain a space**, including `.trinity/seals/[]const u8.json`. It skips a
+WARNING, so it is recorded and not fixed: severity is part of the reading.
+
+**Check whether your own defect exists in the subject before sweeping the subject for it.**
+
+## 529. Three installers, two destinations, and only one of them can run
+
+The sweep surfaced something larger. This tree ships **three** hook installers:
+
+    scripts/setup-git-hooks.sh            -> git config core.hooksPath .githooks
+    scripts/install-git-hooks.sh          -> writes .git/hooks/{pre-commit,pre-push,commit-msg}
+    scripts/install-constitutional-hook.sh -> writes .git/hooks/pre-commit
+
+**Proven in a scratch repository rather than asserted:** with `core.hooksPath` unset, a hook in
+`.git/hooks/` runs; with it set, that hook is **ignored** and the configured directory runs instead.
+The destinations are mutually exclusive.
+
+So **running the first installer makes the other two dead letters** -- they copy files, report
+success, and install nothing git will execute. A tool that reports success having done nothing is
+the class this file keeps recording; here it is in the installers themselves, three of them, and
+nothing in the tree said the destinations conflict.
+
+Beside it: `.githooks/pre-commit` is 157 lines and `scripts/githooks/pre-commit` is **3**, and they
+are not the same gate. Four hook directories exist (`.githooks`, `scripts/githooks`,
+`.claude/hooks`, `.codex/hooks`).
+
+`tri hooks status` reports what WOULD run: the configured path, the live directory and its hooks,
+the shadowed directory and its hooks, and per installer whether its output would be live or dead.
+On this clone it reads **"nothing runs at commit time"**, which is the honest state &sect;526 measured
+and could not name.
+
+**A worktree nearly made it lie.** `.git` there is a FILE and `$GIT_DIR` is `.git/worktrees/<name>`,
+while git resolves hooks from the COMMON directory -- so `root.join(".git/hooks")` reports "none" in
+every worktree however many hooks are installed. A false clean, in the command whose whole subject
+is whether anything runs. It asks `git rev-parse --git-common-dir` instead; the control is one
+planted file, seen and then not seen.
+
+It reports what would run and refuses to say what SHOULD -- the three installers disagree about
+that, and choosing between them is not a measurement.
+
+## 530. A merge is a shape, not a sentence -- and the tool priced the rule at zero
+
+`tri pr-cost` counted update-branch merges by SUBJECT PREFIX: `Merge branch 'master'`,
+`Merge remote-tracking`, `Merge branch "master"`. Then the loop began passing its own
+`-m "Merge origin/master into <branch>"`, which matches none of them. The command printed:
+
+    update-branch merges     0
+    cost of the rule         0 minutes (0 reruns x 29.3)
+
+**It priced the up-to-date rule as FREE while the rule was charging.** Measured on four pull
+requests -- by prefix **0 / 0 / 4 / 0**, by parent count **1 / 1 / 4 / 3**. It agreed only on the
+one PR that happened to use git's default message, and missed another session's #3178 entirely.
+
+**A merge commit has two parents.** Structural, immune to wording, and unbreakable by anyone
+choosing a nicer `-m`. The prefix list is gone rather than widened -- a longer list of spellings is
+the same defect with more rope. Same window, recounted: content **18 -> 12**, merges **0 -> 6**,
+cost **0 -> 176 minutes**.
+
+**The author of the tool broke it, by changing his own commit message.** Nothing else moved. When a
+matcher reads a HUMAN-CHOSEN string, its population is a habit, and habits change without a commit
+to blame.
+
+## 531. The remedy this loop shipped made the proposed remedy unprofitable
+
+#3134 has stood open asking whether to enable a merge queue. Priced, in the unit the queue is made
+of. Every `pull_request` commit here fires **23 workflow runs** (median over 200 recent runs grouped
+by `head_sha` and event; min 20, max 23), so:
+
+    today   43 commits x 23                    =  989 runs
+    queued  28 content x 23 + 20 builds x 23   = 1104 runs   (+115, +12%)
+
+A merge queue charges **one build per pull request whether or not that PR ever had to catch up**,
+and **10 of 20 (50%) merged with zero catch-ups**. Average catch-ups per PR **0.75**; break-even
+batch size **1.33 PRs per build**; and only one `loop/` PR is open at a time, so batching is ~1.
+
+**The cause is a fix already merged here.** #3166's narrow rule -- catch up only when the checks are
+green AND `mergeStateStatus` is `BEHIND` -- drove the average below the queue's break-even. The
+remedy this issue proposes was made unprofitable by a remedy already shipped, and nothing noticed
+because the two were never priced in the same unit.
+
+**Price a proposal in the unit the proposal is made of.** Minutes said the rule cost 307 and implied
+a queue would help. Runs said the queue costs more. Both are true readings of the same window; only
+the second answers the question actually asked.
+
+And state what it does NOT establish: a queue wins at batch >= 1.33, which is a question about
+arrival rate rather than about the rule -- and it does nothing for the other half of the tax, the
+waiting on checks that cannot block, which `--required-only` already removes.
+
+## 532. A streak counts; it does not date -- and I reported a repaired outage as live
+
+`tri red now` listed `Auto Merge Ready PRs` at **260+ in a row, no pass on record**, and I put that
+on the dashboard as the largest live finding of the pass. It was **settled**.
+
+Measured over its whole history: **1541 runs, every one a failure, never a success.** The cause was
+not the gate's logic -- `.github/workflows/auto-merge-ready-prs.yml` **had not parsed since
+2026-07-07** (`yaml.safe_load` fails at line 62), so GitHub could not read its `on:` block and
+created a failed run on every push. #2256 repaired the parse on **2026-08-20**. Of the 96 runs after
+that date, **95 came from one stale branch and 1 from another; ZERO came from master.** It has been
+dormant since 2026-08-28.
+
+**The tell was in the data the whole time:** 1541 runs recorded as `event: push`, from a file whose
+`on:` block has never in five commits contained `push`. A workflow triggering on an event it does
+not declare is not a mystery to reason about -- it is a file the parser could not read.
+
+**The command could not have known**, and that is the defect: it reports the LATEST run, which is
+the newest that EXISTS, not a recent one. So every row now carries the instant of its latest run,
+from the same single request that already asked for the verdict. It cost nothing and it reclassifies
+the list on sight:
+
+    30+ in a row  last run 2026-09-04T17:23   OpenSSF Scorecard        <- live
+    30+ in a row  last run 2026-08-19T22:21   Auto Merge Ready PRs     <- settled, 16 days
+     8 in a row   last run 2026-04-08T08:07   Issue Gate               <- five months
+
+**Only one of eleven rows was failing *now*.** The other ten are history that reads like news, in a
+command whose closing line asks you to read it before merging.
+
+This is the "repaired defect reported as live" shape already in this file, committed by me, one pass
+later, from this command's own output -- because the output had a count and no date, and I did not
+ask for one. **When a number says HOW MANY, ask what it says about WHEN.**
+
+## 533. The prose-matcher sweep: 3 candidates, 1 defect, and the honest arithmetic
+
+&sect;530 left "sweep for other matchers reading human-written strings". Run: **45 lines** read a
+commit message, branch name or PR title; **3** compare one against a literal. Judged one at a time,
+because the class is not "reads prose" -- it is "reads prose WHERE A STRUCTURAL PROPERTY DECIDES THE
+SAME QUESTION":
+
+  * `gates.rs:4630` reads commit messages against a pattern **extracted from `issue-gate.yml`
+    itself**, and labels the row `PROXY` saying the gate does not read them. It reads prose because
+    the GATE reads prose; the convention IS the subject. **Not a defect** -- and it already says so.
+  * `rule_observance.py:125` matches `headRefName.startswith("w699-")`. **0 of 40** merged pull
+    requests comply; the live prefixes are `w` (24) and `loop` (19). But the command already prints
+    that zero and names the clause as enforced by nothing. **The rule is dead, not the practice**,
+    and which way to resolve it belongs to whoever owns `LOOP-RULES.md`.
+  * `auto-merge-ready-prs.yml` reads a PR title -- and turned out to be &sect;532 above.
+
+**A sweep that finds one defect in three candidates has still earned itself**, because the two
+non-defects are now recorded as non-defects with the reason. The next pass will not re-open them.
+
+## 534. Two sites, one read: the census abstained where the answer was on the page
+
+`tri gates fetches` reported **4** sites as *a guard, but two fetches -- which one does it
+cover?* All four sit in two functions, `issues.rs`'s `numbers` and `dated`, and reading
+them answers the question the census declined:
+
+```rust
+let raw = if instant.is_some() {
+    gh(&[ ... "--limit", &lim ... ])?      // --as-of: --state all, timestamps kept
+} else {
+    gh(&[ ... "--limit", &lim ... ])?      // no flag: --state open
+};
+let complete = read_is_complete(arr.len(), limit);
+```
+
+**Two sites in the source, one read at run time.** Exactly one arm executes, both bind the
+same `raw`, and the single guard covers whichever ran. The guard was right the whole time.
+
+**The repair is not the one the precedent suggests.** When `fn ready` held three fetches
+and one guard, the fix was to SPLIT the function so each guard had one subject. Splitting
+here would be wrong: the two arms are one query with different filters -- with `--as-of`
+the state filter has to come off -- so a split duplicates the guard and the parse and
+fixes nothing. **The same symptom, and the opposite repair.**
+
+**Two questions were being answered by one number.** `fetch_sites_in` counts sites in the
+SOURCE and feeds the published total of 25; the guard question needs the reads that can
+RUN. Collapsing them in one function would have moved a figure this file has printed for
+passes. So `exclusive_fetch_sites_in` is a second function, used only by `classify_fetch`,
+and the total is untouched.
+
+**Predicted before the change, and held to the digit:** `a guard, but two fetches`
+**4 -> 0**, `asks whether the page filled` **4 -> 8**, `FETCH SITES` **25 -> 25**, the
+other three buckets unmoved. 7+5+8+0+3+2 = 25.
+
+**Mutation took two clauses out of the rule.** Seven mutants, three surviving on the first
+run, and two of the three were decoration:
+
+* `then_hits > 0 && else_hits > 0` -- `min` already answers it, so no input can tell the
+  two apart. Removed; the comment now says `min` IS the rule.
+* `starts_with("let ")` -- an assignment binds one value from two arms just as much, so
+  requiring `let` is narrower than the rule it claims to state. Removed, and the corpus
+  numbers did not move.
+
+The third survivor was a real gap and got a constructed counterexample instead: a nested
+`} else {` at a deeper indent must not be read as the binding's own. Two more arrived the
+same way -- a `let` line merely CONTAINING `if `, and a one-line if/else, which opens
+nothing and whose acceptance would let the walk run past it onto an unrelated pair.
+**7 of 7 after that, 10 tests.**
+
+**A fixture written from memory failed five of seven tests.** A fetch site here is a line
+whose whole trimmed content is `"--limit",` -- one argument per line -- and I had written
+the flag and its value inline. Read the matcher, then write the fixture.
+
+## 535. Fifty red workflows were eleven events, and three of them were this week
+
+Six of my own passes carried the line "50 red workflows in `gHashTag/trinity-fpga`" into the report as
+outstanding work. &sect;532 gave `tri red` a date on every row. Re-running it against that repository
+answered the item in one command, and the answer was not 50.
+
+**Measured, `gHashTag/trinity-fpga`, 2026-09-05.** 405 active workflows; 50 red on the default branch.
+Grouped by the instant of their latest run:
+
+| last run | red workflows | what they are |
+|---|---|---|
+| 2026-09-03T03:32 | **3** | `S³AI Brain CI`, `Orphaned artefacts`, `Withdrawn numbers` |
+| 2026-08-03 .. 2026-07-13 | 5 | five singletons, five different days |
+| 2026-07-10T03:15 | 16 | `AX7203 Corona Compute *` |
+| 2026-07-10T02:57 | 8 | `AX7203 Corona Compute *` |
+| 2026-07-09T23:24 | 8 | `AX7203 Corona Compute *` |
+| 2026-07-09T22:54 | 7 | `AX7203 Corona Compute *` |
+| 2026-04-19T08:59 | 3 | the three `FPGA * Bitstream/Docker` files |
+
+**50 rows, 11 distinct instants, 3 of them inside a week.** Thirty-nine of the fifty are four batches
+from a single afternoon: workflow files generated together, run once on the commit that added them,
+failed, and never triggered since. `FPGA HSLM Bitstream` has **one run in its entire history**, 139
+days old, and no success -- that is not an outage, it is a file that was tried once.
+
+The count was not wrong. **Its unit was.** `50` counts FILES; the reader of "50 red" takes away 50
+PROBLEMS, and the problems number 11 -- or 3, if the question is what is failing now. A number lands
+in the reader's unit, not the counter's, and when those differ the number lies while every digit of it
+is correct.
+
+The tell was available before any grouping: **the streak column read `1 in a row` on 43 of the 50
+rows.** A one-long streak is not an outage; it is a single event. I had been reading the count and not
+the shape.
+
+**I first wrote `47` there, and 47 is a different population.** 47 is how many rows are DORMANT (last
+run over seven days ago); 43 is how many read `1 in a row`. The two sets are nested, not equal: all 43
+one-streak rows are dormant, and the other four dormant rows carry real streaks of 2, 3, 5 and 13 --
+`Decode RTL exhaustive verification` among them. Checks: 43 + 4 = 47 dormant, plus 3 live = 50.
+
+I reached for a number that was already on the page instead of counting the thing I had just named,
+**in the section whose entire subject is a count answering a question other than the one it is put
+to.** It reached a commit message, a pull-request body, an issue body and the dashboard before an
+audit of my own claims caught it, and the commit message cannot be corrected without a force-push,
+which is forbidden -- so the correction lives in the commit that follows it. Two populations quoted
+with one number is the same defect as the unit error above, one level down: there the number counted
+files and was heard as incidents; here it counted dormancy and was published as streak length.
+
+**Then I checked the history of all fifty, and it refuted a second claim of mine.** I had written
+that `Decode RTL exhaustive verification` was "the one genuine regression in the list", on the
+strength of having looked up exactly one workflow. Looking up all fifty:
+
+| history | count | what it means |
+|---|---|---|
+| **1 run ever, never a success** | **42** | the 39 July files, plus `FPGA HSLM Bitstream`, `FPGA Bitstream Generation`, `FPGA Docker Build` |
+| 2--5 runs, never a success | 2 | `Build AX7203 MUL Bitstream` (2/0), `AX7203 Format Cost Ablation` (5/0) |
+| has succeeded, then regressed, now dormant | 3 | `Decode RTL` (66/49), `TRI-NET Baud Ladder` (3/2), `TRI-NET Node v2` (8/4) |
+| has succeeded, then regressed, **live** | 3 | `S³AI Brain CI` (2654/1570), `Orphaned artefacts` (1241/264), `Withdrawn numbers` (1256/682) |
+
+**44 of the 50 have never had one successful run in their entire recorded history.** A check that
+never once passed is not a broken check; it is an unfinished file. The regressions -- the only rows
+where something that worked stopped working -- number **six**, three of them live. So "the one genuine
+regression" was wrong by a factor of six, and it was wrong because I generalised from a single lookup
+in the same breath as correcting a number I had generalised from a single glance.
+
+**The discipline that caught both:** after finding one published figure wrong, check its neighbours.
+The first audit found `47` should be `43`. The second, run only because the first had found something,
+found that a one-sample generalisation had become a stated count. Neither was caught by a test.
+
+**Shipped.** `tri red now` sorts by the latest-run instant instead of the streak (the old order put a
+July fossil with 30+ failures ABOVE a live 3), states the split in the headline, and draws a divider
+that names the fossils' batch structure rather than their file count:
+
+```
+50 workflow(s) red on the default branch -- 3 of them in the last 7 days.
+  ...
+  --- the 47 below last ran over 7 days ago: 10 instant(s) between 2026-04-19T08:59
+      and 2026-08-03T08:13, largest batch 16 ---
+```
+
+Grouping to the printed minute can split one push across a minute boundary and so **over**-count
+batches. That direction is deliberate: it never merges two events into one, so the incident count is
+never understated.
+
+**Prior art, and the vocabulary it supplies.** Nagios forces a passive check result older than its
+`freshness_threshold` into UNKNOWN rather than carrying the last value forward; Prometheus marks a
+series stale after its staleness delta and drops it from queries; Grafana separates `No Data` from
+`Alerting`; Datadog monitors take an explicit no-data timeframe. Every one of them treats "the last
+value I saw" and "the value now" as different questions, and every one makes the threshold a stated
+number rather than a hidden one. `STALE_AFTER_DAYS = 7` is therefore printed in the output: **the
+threshold is a policy, not a discovery, and policy that is not stated is policy that is not reviewable.**
+
+## 536. The fix lived in the tool; the probe walked around it
+
+Pass 86 found that `tri red` read the workflow LISTING with `per_page=100` and no `--paginate`, so in a
+405-workflow repository it examined 100 and reported on the rest by not reporting them. Commit
+`a61db02e`, 2026-09-04, added `--paginate` and a test that asserts the listing fetch carries it.
+
+**On 2026-09-05 I wrote this in a shell**, to ask a question about that same repository:
+
+```sh
+gh api "repos/$R/actions/workflows?per_page=100" --jq '.workflows[]|[.id,.state,.name]|@tsv'
+```
+
+and concluded from it that `AX7203 Corona Compute TF32-MUL` was **NOT REGISTERED**. It is registered.
+It was on page 2. The defect I had fixed the previous day reappeared inside twenty-four hours, in a
+false claim, because I asked the question **beside** the tool instead of **with** it.
+
+A guard that lives in a tool protects calls to that tool. It does not protect the ad-hoc probe, and the
+ad-hoc probe is where the claims get made. **The tool is not where the risk is; the shell is.** Two
+existing sections are the same shape seen from other angles -- a fix that does not travel to its
+sibling call-site, and a class that is not closed until every call-site is grepped. This is the third
+face: the call-site that did not exist yet when the fix landed, because I was about to type it.
+
+What actually caught it was **the probe's own printing**. It emitted the distinguishable string
+`NOT REGISTERED` on a lookup miss rather than a `0` or an empty line, and `NOT REGISTERED` for one
+member of a 63-file family is implausible on its face. Had it printed `0`, the false claim would have
+gone into the report.
+
+**Rule.** When a `tri` subcommand already answers the question, ask it -- and when a shell probe is
+genuinely faster, give every miss a LOUD, distinguishable value. A probe that reports absence and
+truncation with the same symbol cannot tell you which one it found. See also &sect;528: the population
+of that day's trap was zero because the trap was the shell's, not the tree's.
+
+## 537. A budget half the cost, on the half of the page nobody runs
+
+`tri whats-open` prints every gate instrument's reading, and skips two of them by default
+because they are slow -- saying so out loud, because *"a report that quietly drops its
+slow half is the shape this repository keeps finding."* Run with `--all`, one of the two
+came back **`TIMEOUT after 420s`**.
+
+Measured rather than guessed: `tri gates dead` over its default fleet takes **899 s**.
+The budget was **420**. Less than half the cost, so `--all` has never printed this
+instrument's answer -- and the answer is not small: **15 workflows have never succeeded,
+across 8875 runs**, the top three at 1983, 1980 and 1541 runs apiece.
+
+**A budget under the measured cost does not make a slow instrument fast. It makes a
+working instrument unreadable**, and it does it in the honest-looking way: the word
+TIMEOUT sits where a number belongs, so the page looks complete and the reading is
+missing. Nobody had seen it because nobody passes `--all`, and `--all` could not deliver
+it.
+
+The tool's own prose carried the same gap: it said `dead` *"takes over four minutes"*
+where the measurement is **fifteen**. Both are now the measured number, with the date.
+
+**And the fleet was two lists.** `gates dead` defaulted to **three** repositories,
+`red now` to **four**, and both doc comments called it *"the three/four this fleet uses"*
+-- one word, two sets, nothing saying which was right. The difference is
+`gHashTag/ghashtag.github.io`.
+
+The cost of the divergence was measured before it was closed: that repository has **no**
+workflow with a file and >= 50 runs at a zero success count, and reading it adds
+**7 seconds**. So the gap hid nothing today. It is still a defect: the next dead workflow
+there would have been invisible to the command whose entire subject is dead workflows,
+and no reader could have known which of the two lists to believe.
+
+One `fleet_repos()`, both callers on it, for the reason `required_contexts` gives one
+screen above in the same file: **a second caller must not become a second literal of the
+same query.** Three tests: the list holds the repository the two disagreed about, every
+entry is `owner/repo` (a bare name reads as a different repository to `gh`), and no slug
+appears twice (a duplicate would double that repository's runs in every count).
+
+Census re-blessed here, and the move is a line number: removing seven lines of literal
+took `red.rs`'s `runs_url` from 159 to 152. The buckets are identical -- 25 sites,
+8 / 0 / 3 / 2 -- which is the check that says the move is address and not substance.
+
+## 538. Never succeeded, and never executed, are different facts
+
+`tri gates dead` says which workflows have a zero lifetime success count. It said three
+here, and reading them found two populations under one row:
+
+```text
+auto-merge-ready-prs.yml   1541 runs   0 jobs in 8 of 8 sampled   NEVER EXECUTED
+format-check.yml             31 runs   0 jobs in 8 of 8 sampled   NEVER EXECUTED
+coq-proofs.yml               62 runs   1 job  in 8 of 8 sampled   ran and failed
+```
+
+**A run that allocates zero jobs is a startup failure** -- invalid YAML, a trigger the
+file does not declare, a registration for a file that is gone. It is recorded as a failed
+run and it never executed a line. `auto-merge-ready-prs.yml` declares `workflow_dispatch`
+only and every sampled run has `event=push`: 1541 registrations, none of which ran.
+
+**The two want opposite repairs.** One is a broken workflow FILE, the other a broken
+CHECK, and "never succeeded" prints them identically. `coq-proofs.yml` is the control in
+the same output that says the probe distinguishes anything.
+
+Cost, measured: **109 s -> 114 s** on this repository, because the probe runs only for the
+rows the report prints -- bounded by the finding rather than by the fleet. `None` when
+nothing was sampled, because a probe that saw no run must not vote either way.
+
+**The new site reads as guarded and is not.** `tri gates fetches` files it under *asks
+whether the page filled*, because `classify_fetch` looks for `total_count` anywhere in the
+body and here that string is a **jq path to a job count**, not a check on this read's own
+page. What it really is has no bucket: a DECLARED SAMPLE, where the page size is the
+caller's own parameter. Named rather than special-cased -- a matcher with an exception
+list has stopped describing its subject.
+
+## 539. My resolver committed conflict markers, in a file it never looked at
+
+The same pass, the required `Conflict markers` check went red on the pull request:
+
+```text
+tools/census/fetches.txt
+    conflict marker on line 19, 35
+```
+
+The commit is `Merge origin/master: re-append above master's highest` -- **my own landing
+loop's conflict resolver**. It takes master's copy of the skill file, re-appends the
+carried section, and then runs `git add -A` and commits. The merge had conflicted on a
+SECOND file, a generated ledger, and `git add -A` staged it **verbatim, markers and all**.
+
+**This page already carries the mirror image**: an automated resolution that handled the
+workflow file, ran `git add -A`, and committed the conflict that was in the skill file.
+Same defect, other file. A resolver that fixes ONE path and then stages everything is a
+resolver that commits every path it did not think about.
+
+**Control first, and it was decisive.** `verify_all_152.py` carries 16 markers on master
+and the gate is green there -- five consecutive successes the same day -- so the failure
+could not be that known debt. Reading the gate's own output named the file in one line.
+
+Two rules, and the second is the durable one:
+
+* **A generated ledger is never hand-merged.** Regenerate it from the merged tree
+  (`--bless`) and let the gate confirm. Its content is an output, so a three-way merge of
+  it is meaningless even when it succeeds.
+* **After resolving, ask the repository's own checker before committing.**
+  `python3 tools/check_conflict_markers.py` exits 0 here and prints *"Every marker found
+  is recorded as debt. Nothing new."* -- one command, and it is the third time this pass
+  that the tool for the job was already in the tree.
+
+**And then the harder half: no local surface was asking.** Three claim to gate a commit --
+`.githooks/pre-commit`, `scripts/pre-commit`, and `tri hooks pre-commit` -- and
+`grep -c conflict` answers **0 on all three**. In this worktree `core.hooksPath` is unset
+and `.git/hooks/pre-commit` does not exist, so nothing local ran at all. The only barrier
+was CI, which is exactly why a resolver's `git add -A` cost a full round instead of a
+one-second refusal.
+
+A guard that lives in a *procedure* stops only the person who remembers it. This page had
+recorded the very command -- `git diff --cached --name-only | xargs grep -l '^<<<<<<<'` --
+and said it "has stopped two commits since"; it had not been wired anywhere, and mine was
+not one of the two.
+
+`tri hooks pre-commit` now calls the repository's own checker rather than growing a sixth
+reader with a sixth vocabulary. Four controls, all run: a clean tree from the root **0**,
+a clean tree from `cli/tri` **0**, a planted marker **exit 1** naming the file and its
+lines, and a moved-aside checker **exit 2** saying *nothing was checked* -- this
+repository's word for could-not-run, because a guard that cannot run is not a guard that
+agreed.
+
+**The path is resolved from the repository ROOT, and running the controls is what said
+so.** The first version used a relative path: a git hook is invoked at the root, but a
+person typing the command is often not, and from `cli/tri` it refused with a safe and
+useless 2. The checker itself needs no help -- run from `cli/` it still reads all 7870
+tracked files -- so the only thing that needed fixing was finding it.
+
+**And a fifth control was written and then withdrawn rather than claimed.** An arm
+returning exit 2 *outside a work tree* looked like a good refusal; running it from `/tmp`
+returned **1**, because `now_gate` runs `git rev-parse` first and errors there. The arm is
+unreachable through this command, so it is written as ordinary defence and the comment
+says it is not a control. **A guard clause you have not executed is a comment, and a
+comment claiming to be a control is worse than no comment.**
+
+## 540. A dead test and a phantom test cancel in every total
+
+&sect;535 was shipped as `f7c1ff5`. It carried two defects into master, and the pass that wrote it
+verified their absence and read a clean answer.
+
+The insert anchored on `fn the_query_and_the_marker_read_one_constant() {`. That line's `#[test]`
+sits ABOVE it, so the new text landed **between the attribute and the function it belonged to**:
+the newcomer inherited the attribute and got a second of its own, and the neighbour was left with
+none. Measured on `f7c1ff5`:
+
+* `the_query_and_the_marker_read_one_constant` -- **does not run.** `cargo test <name>` returns
+  `0 passed; 685 filtered out`.
+* `the_freshness_boundary_is_pinned_on_both_sides` -- **runs twice.** `cargo test -- --list` prints
+  it on two consecutive lines.
+
+**The check that missed it counted totals.** The pass printed `#[test] attrs: 11   fn defs: 11`, saw
+a match, and moved on. But one function holding two attributes and one holding none leaves BOTH
+totals unchanged. So does the suite size: the phantom fills the seat the dead test left, which is
+why `675` looked exactly right. **Two errors that cancel are invisible to every instrument that
+sums.** Only per-function pairing sees them, and that is the whole design of the new gate.
+
+**Shipped: `tri gates tests`** (`--gate` for exit 1), wired into `cli-tri.yml`. Two rules:
+
+1. a test attribute followed by another test attribute, stepping over doc comments -- the accident
+   routinely leaves one above the newcomer's prose and one below;
+2. a function inside a `#[cfg(test)]` module with no test attribute, containing an assertion, and
+   named nowhere else in the file.
+
+**Rule 2's discriminator is the reference count, not the assertion.** A helper exists to be called,
+so its name appears at least twice; a test that lost its attribute is called by nobody and appears
+exactly once. An earlier attempt at this class by assertion alone returned 18 candidates of which 16
+were helpers. Measured across all 57 files of `cli/`: rule 1 finds exactly 1, rule 2 exactly 1, both
+real, and the three assert-bearing fixtures in test modules are correctly silent. Positive control:
+exit 1 against `f7c1ff5`'s tree, exit 0 against the repaired one.
+
+### The gate reproduced its own subject four times while being written
+
+Every one of these was caught by a test or by an existing comment, not by review.
+
+* **It matched itself.** The first structural test searched `include_str!("red.rs")` for the very
+  string it contained as a literal. The mutation it existed to catch changes the real call site --
+  at which point `find` falls through to the test's own body and the test passes. Fixed by slicing
+  the source at `#[cfg(test)]` and searching only the half above. See &sect;'s census-counted-itself.
+* **The instrument was already in the file.** `orphaned_tests` first took "everything after the
+  first `#[cfg(test)]`" as the test module. Forty lines above it sat `test_module_lines`, whose own
+  doc comment says that approach was *checked rather than assumed* and is wrong.
+  **That comment records "five files, `gates.rs` fifteen"; measuring it today gives nine files and
+  `gates.rs` sixty-eight.** The two rules are not the same -- mine counts every top-level function
+  after the FIRST test module closes, and a file with several test modules has many -- and the crate
+  has also grown since the comment was written. Both numbers say the same load-bearing thing, and I
+  am recording the disagreement rather than repeating a figure I had not measured. **A borrowed
+  number is still a number you published.**
+* **Two blind spots that cancelled.** The check recognised only `#[test]`, and matched only `fn `.
+  So the thirteen `#[tokio::test]` functions in `cli/trios-bridge` were invisible in BOTH directions
+  -- the attribute unrecognised and the `async fn` under it unrecognised -- and read as clean. The
+  gate had, in miniature, exactly the cancelling-pair defect it was written to find.
+* **Substring, not token.** The reference count used `str::matches`, so a function named `a` is
+  "referenced" by every `assert`, `match` and `pat` in the file. Its own test caught it: an orphaned
+  `async fn a()` was reported as a called helper. Now counts whole identifiers.
+
+## 541. `never green` is a different finding from `red`, and it was the majority
+
+&sect;535 counted the fifty red workflows in `gHashTag/trinity-fpga` by history and found that **44 of
+them had never once succeeded**. `tri red` could not say so: it asked for the last success only when
+the streak read was truncated, which is a question about **whether the page was full**, not about
+whether the thing ever worked. 43 of the 50 rows read `1 in a row`, so the majority were never asked.
+
+`last_pass` is now requested for every red row. It costs one extra request per red workflow -- 50 on
+top of a 405-workflow listing and its per-workflow streak reads, about 11% -- and it buys the
+distinction between a regression and a file that never worked:
+
+```
+50 workflow(s) red on the default branch -- 3 of them in the last 7 days, and 44 have never once been green.
+    1 in a row  last run 2026-07-10T03:15  since 2026-07-10T03:15, never green on main   AX7203 Corona Compute ...
+```
+
+**The row names the branch, because the population depends on it.** Runs are read with `branch=`, so
+"no success" is a claim scoped to that branch and not the same set as "no success anywhere". On
+`trinity-fpga` the two coincided -- all six regressions have successes on `main` as well as
+elsewhere -- and that is a fact about that repository, not about the question. A row that does not
+name its branch asserts something wider than it measured.
+
+The mutation that reverts `last_pass` to the old guard is invisible to every value-level test,
+because the difference is a request that is or is not made. It survived until a structural test read
+the call site.
+
+## 542. The gate said every mutant survived, and no mutant had been built
+
+A fan-out over the whole `tri` CLI, hunting &sect;535's class -- **a printed count whose label names a
+different population than the code counts** -- returned 10 candidates and 8 survived adversarial
+refutation. The strongest was in `gates.rs`, in the command whose entire subject is whether a claim
+was actually tested.
+
+`tri gates mutate` reports on `# mutant-equivalent:` markers, comments asserting that the mutant at
+some line cannot die. It printed:
+
+```
+N equivalence claim(s) in scope, none contradicted.
+Each says its mutant cannot die, and each mutant survived. That is
+the whole check -- a claim about the FUTURE of the code is worth
+only the run that could have refuted it and did not.
+```
+
+**`claims_seen` counted every marker in the file, textually, outside the per-direction loop.**
+`claims_broken`, its numerator, came from `contradicted_claims`, which drops any claimed line that is
+not a mutable site in the direction being run. Two populations, one sentence.
+
+**Measured, all eight markers in `tools/`:**
+
+| marker | binds to | a `silent` site? |
+|---|---|---|
+| `gft_backprop_microcode.py:210` | `if d >= 26: la = 0; sticky = 1` | no |
+| `gft_backprop_microcode.py:732` | an `assert` | no |
+| `verify_emit_bitexact.py:238` | a `def` | no |
+| `verify_exhaustive.py:177` | an assignment | no |
+| `verify_igla_race.py:37` | an assignment | no |
+| `verify_multitarget.py:40` | an assignment | no |
+| `verify_trainer_c.py:36` | an assignment | no |
+| `wp18_conformance_gate.py:453` | `roundtrip_ok = (math.isinf(dec) and ...)` | no |
+
+The default operator is `silent`, whose sites are `return <1..4>` lines only. **Not one of the eight
+is reachable by it.** So on every default run the command counted all of them "in scope" and printed
+*each mutant survived* -- while zero mutants had been built at any of them. The sentence directly
+below the number says a claim is worth only the run that could have refuted it. **That run could
+not, and the count was what hid it.**
+
+**The refutation was already in the file, one comment above the defect.** The block explaining
+`claims_seen` says the markers are *not* operator-scoped and that "every one in the tree today argues
+about a comparison". That is exactly the fact that makes the number wrong. It was written down, and
+the next line was written anyway -- an observation recorded and not carried one step further.
+
+**Shipped.** Claims are partitioned against the union of sites across the operators actually run.
+In-scope claims keep the survivor sentence; out-of-scope claims get their own paragraph naming each
+one and saying no mutant was built there. Verified live on `wp18_conformance_gate.py`: default run
+now prints `1 claim(s) NOT TESTED by this run` and `No claim was in scope`, and the same gate under
+`--boundary` prints `1 equivalence claim(s) in scope, none contradicted` -- truthfully, because that
+operator does build a mutant at line 469.
+
+**The mutant that survived was the CALL SITE, not the helper.** `claims_by_scope` is covered three
+ways, and reverting `claims_seen += in_scope.len()` to add both halves restores the original defect
+with every one of those tests still green. It took a structural test reading the call site -- the
+same gap, in the same pass, as the `last_pass` guard in &sect;541. **A fix's wiring is not covered by
+its function's tests, and mutation is the only thing that says so.**
+
+The needle in that structural test is split across two literals, because the first such test written
+this pass searched the file for a string it also contained, and passed against its own mutant.
+
+## 543. The denominator was the cap, under a paragraph about denominators
+
+&sect;542's fan-out returned eight surviving findings. This one was found by two lenses
+independently, which is the closest thing a sweep gives to a second opinion.
+
+`scripts/tri_loop/diffbin.py` walks a spec corpus, compares two compiler binaries over it, and
+closes with a coverage figure. It truncated its file list:
+
+```python
+files.sort()
+if limit:
+    files = files[:limit]
+...
+total = len(files)          # <- AFTER the truncation
+print(f"corpus: {len(files)} specs under {corpus}")
+print(f"\nMEASURED COVERAGE: {measured}/{total} = {pct:.1f}% of the corpus")
+```
+
+**Measured on the real tree, 2026-09-05:** `--limit 10` over `specs` printed
+`corpus: 10 specs under specs`. There are **650** `.t27` files there. A 2% sample would report
+`100.0% of the corpus` on a clean run.
+
+**And the paragraph immediately below the number is about exactly this:**
+
+> Any sentence of the form 'no regressions' is admissible only with this coverage figure attached
+> ... Coverage below 100% bounds what the run can claim.
+
+So the one figure whose job is to bound the claim was the figure the truncation had already
+destroyed. The safety rail was wired to the wrong number.
+
+**Shipped.** The corpus size is captured BEFORE truncation. A sampled run prints
+`sample: 10 of 650 specs under specs [--limit 10]`, names the coverage denominator
+`of the 10 compared`, and adds a block that says so where the number is read rather than only in a
+header eight lines up. An untruncated run is byte-identical to before.
+
+`scripts/ci/test_a_sample_is_not_the_corpus.py` builds its own 25-file fixture with a fake binary
+that never produces a verdict -- irrelevant to the question, which is about the denominator -- so it
+needs no compiler and runs in `loop-tools-gate.yml`. Exit 1 against the pre-fix file, exit 0 after,
+and moving the capture below the truncation kills it.
+
+### The exclusion that cleared it was true and too narrow
+
+An earlier audit of BOUNDED READS in this repository named these files and let them pass:
+
+> `cost.py` and `diffbin.py` take `--limit N` over a LOCAL corpus directory and never touch the API
+
+Every word of that is correct. It is also **an argument about where the data comes from, used to
+settle a question about what the label says.** A local `--limit` truncates the population exactly as
+thoroughly as a page boundary does, and the printed word "corpus" does not care which one did it.
+
+**An exclusion is only as wide as the reason given for it.** A reason that is true but narrower than
+the exclusion silently drops cases, and nobody revisits them, because the file is on a list headed
+"checked". That is a worse state than never having looked -- an unexamined file invites examination;
+an examined one repels it.
+
+## 544. It disclosed one bound of three, which reads as disclosing all of them
+
+Second confirmed finding from the &sect;542 fan-out, measured rather than argued.
+
+`tri topic` searches four sources for prior art and prints:
+
+```
+rows searched   759   (open PRs, open issues, last 40 commits, every SKILL.md section)
+```
+
+The parenthetical **names the commit window and named no other bound**, while two of the four reads
+carried caps in their `gh` invocation: `pr list --limit 100` and `issue list --limit 200`.
+
+**Measured on `gHashTag/t27`, 2026-09-05, by raising each limit until the count stopped growing:**
+
+| source | cap | actual | binding? |
+|---|---|---|---|
+| open PRs | 100 | **12** | no |
+| open issues | 200 | **509** | **yes -- 309 never read** |
+
+So the command reported searching "open issues" while looking at 200 of 509. Raising both caps to
+800 took the same invocation from **759 rows to 1068**, and matches from **535 to 569**: thirty-four
+pieces of prior art that the tool existed to surface and could not reach.
+
+**Disclosing one bound of three is worse than disclosing none.** A reader who sees "last 40 commits"
+learns that this command tells you where it stops -- and then reasonably concludes that the halves
+without a stated bound do not have one. The single disclosure is what makes the two silences read as
+absence.
+
+**Shipped.** Both caps come from named constants, the request is built FROM the constant, and
+`capped_read` compares the returned row count against the same constant rather than a second literal
+beside it. A cap that BOUND is named where the population is named, with a `LOWER BOUND` marker; a
+cap that did not bind is not mentioned at all, because an unbound cap is not information and printing
+it trains the reader to skip the line.
+
+### The mutant that survived, and why it is not a gap
+
+Lowering `ISSUE_CAP` back to 200 leaves every test green. That is correct. With the cap at 200 the
+command now prints *"the first 200 open issues ... A CAP WAS REACHED: this is a LOWER BOUND"* -- less
+complete, and still honest. The guarantee under test is **"a cap that binds is named"**, and the
+three mutants that break *that* are all killed: a reached cap never reported, an off-by-one letting
+an exactly-full page read as complete, and the marker suppressed.
+
+Pinning `800` in a test would defend a constant with no argument behind it. **Ask whether the mutation
+changes the VERDICT, not whether it changes the number.**
+
+## 545. The rule was disclosed in one command and hidden in its sibling, in the same file
+
+Third confirmed finding from the &sect;542 fan-out.
+
+`tri issues dated` printed:
+
+```
+open issues read              509
+no figure in the title        205
+POPULATION (carries a figure) 304
+```
+
+The bucket comes from `carries`, whose digit scan accepts a run only at `if i - start >= 2` -- **two
+or more digits, boundary-clean**. So `#2627 "Census the optimizer: 4 of 7 passes have no
+precondition"` carries no figure, because `4` and `7` are one digit each.
+
+**Measured on `gHashTag/t27`, 2026-09-05, over the same 509-issue read: 21 of the 205 carry a
+single-digit figure.** The label promised the reader 184.
+
+**The disclosure already existed, forty lines away.** `tri issues numbers` prints, from the identical
+rule in the identical file:
+
+```
+single-digit only, excluded   21   (--single prints them)
+```
+
+One command names the exclusion its rule makes; its sibling, over the same rule, never mentioned it.
+This is the &sect;-shape "a fix does not travel", seen from the other side: the DISCLOSURE did not
+travel either, and a caveat that exists in one command is not a caveat the reader of another one ever
+sees.
+
+**Shipped.** The count stays -- it is the complement of the population, so the three lines still add
+up -- and the label names the rule that produced it:
+
+```
+no figure the TWO-digit rule reads  205
+  of which carry a SINGLE digit   21   (`tri issues numbers --single` prints them)
+```
+
+The second line is absent, not printed as a zero, when nothing was excluded: a caveat that prints
+when there is nothing to caveat teaches the reader to skip the line.
+
+### Three passes, three surviving mutants, all of them the wiring
+
+| pass | function fixed | tests on it | the mutant that lived |
+|---|---|---|---|
+| 541 | `last_pass` in `red.rs` | 4 | asking it only on truncated reads |
+| 542 | `claims_by_scope` in `gates.rs` | 3 | `claims_seen +=` adding both halves at the call site |
+| 545 | `render_no_figure` in `issues.rs` | 3 | `single_digit_only` never called, so the tally is always 0 |
+
+**A fix's wiring is not covered by its function's tests.** In all three the function was correct and
+thoroughly tested, and one line elsewhere put its result to no use or the wrong use. Nothing but
+mutation found any of them, and each needed a structural test reading the call site -- with the
+needle split across two literals, because the first such test written in this series searched the
+file for a string it also contained and passed against its own mutant.
+
+## 546. A mutation that also edits the test is not a mutation test
+
+Fourth confirmed finding from the &sect;542 fan-out, and the method defect it exposed in my own
+harness -- which is the more valuable half.
+
+`tri competitors audit` printed:
+
+```
+stating zero at pass@1      144   (3 of them cite pass@10 only)
+```
+
+The parenthetical was `c.zero_at_1 - c.cites_nothing`. **Wrong in two independent ways, both
+reachable with records this table already accepts:**
+
+* **`cites_nothing` is not a subset of `zero_at_1`.** Scores are `Option<f32>`, and the struct's own
+  doc says a `None` "is a different thing from a stated zero". A record that OMITS `pass@1` and
+  states `pass@10: 0.0` cites nothing and is not zero-at-one -- it decrements a difference it does
+  not belong to. It is a plain `usize` subtraction, so a large enough population of them **underflows
+  and panics**.
+* **Even where the subset holds, the difference is "cites SOMETHING nonzero", not "cites pass@10".**
+  A record citing pass@5 alone, whose `pass@10` is a stated zero, was reported as citing pass@10 only.
+
+Counted directly instead, as a free function rather than a field on `Counts`: the ratchet file
+carries five keys and this is not one of them, so widening the struct would either add a key nothing
+ratchets on or leave a field that reads back as zero from a parsed ceiling. Today's answer is the
+same `3` -- and now it is the answer to the question the label asks.
+
+### The harness lied to me, and said `killed`
+
+The mutant that matters here is reverting both print sites to the subtraction. Run once, it reported
+**killed**. It was not. The harness replaced **all four** occurrences of the call -- and two of them
+are in the test module. The test panicked on its own mutated body, and the red result was read as
+proof that production was covered.
+
+Restricted to the source ABOVE `#[cfg(test)]`: **two production sites, two test sites, and the mutant
+SURVIVES.**
+
+**A mutant must be applied to production code only.** Editing the test alongside the code turns a
+mutation run into a tautology: something goes red, and nothing has been learned about whether the
+suite would have noticed. This harness has been doing a whole-file `str::replace` for several passes;
+where the mutated token appears nowhere in the tests the result was sound, and here it was not.
+
+### Four passes, four surviving mutants, every one of them the wiring
+
+| pass | function | tests on it | mutant that lived |
+|---|---|---|---|
+| &sect;541 | `last_pass` (red.rs) | 4 | asked only on truncated reads |
+| &sect;542 | `claims_by_scope` (gates.rs) | 3 | call site added both halves |
+| &sect;545 | `render_no_figure` (issues.rs) | 3 | tally never taken |
+| &sect;546 | `zero_at_1_citing_something` (competitors.rs) | 1 + 2 | **both** print sites still subtracting |
+
+In every one the function was correct and covered, and a line elsewhere put its result to no use or
+the wrong use. Each needed a structural test reading the call site, with the needle split across two
+literals. **Four for four is not a coincidence: it is where my attention goes when I write a fix.**
+
+## 547. The fix did not travel between two tables of one function
+
+`tri gates unmeasured` prints two tables. The first, for workflows with no automatic
+default-branch run, carries a `pr-only` column and says plainly what it means:
+
+> `pr-only: YES` means it CANNOT. Those workflows read pull-request context, so
+> dispatching one starts it and measures nothing.
+
+That column exists because the section once told a reader the opposite, and this file
+records the cost. **The second table never got it.** Its header is `LAST / paths: /
+dispatch / WORKFLOW`, and its prose closes *"`dispatch: NO` means the reading cannot be
+taken on purpose -- add `workflow_dispatch:` first"* -- which reads, unavoidably, as
+*`dispatch: yes` means it can*.
+
+The single row in that table today is **Issue Gate**: `dispatch: yes`, last
+default-branch run **2026-04-08**, and it emits `check-linked-issue`, one of the four
+contexts the ruleset REQUIRES. It reads `github.event.pull_request.title`, `.body` and
+`.number`. A dispatch starts it and measures nothing -- the exact case the other table
+was repaired for.
+
+**Both tables are built in one function, forty lines apart**, and `reads_pr_context` was
+already sitting there, called by one of them. Not a missing rule: a rule that did not
+travel to its sibling, which is &sect;437 at the shortest range it has been seen.
+
+Verified by behaviour rather than by reading, because the wiring is not reachable from a
+unit test: with `reads_pr_context` replaced by `false` the row prints `-`, and with it
+back the row prints `YES`. Two unit tests hold the predicate itself -- the real
+`issue-gate.yml` shape must be `pr-only`, and a push-only workflow must NOT be, which is
+the control that stops a predicate that always answers YES from passing the first.
+
+**And the mutation harness refused two anchors, correctly.** `reads_pr_context(&root,
+path),` now occurs twice, so a replacement keyed on it is not unique and was rejected
+rather than applied to the wrong caller. A harness that edits the first match would have
+mutated the OTHER table and reported a clean result about the one under test.
+
+**Then a gate caught the insertion itself, and it is the third time for this shape.** The
+two tests went in anchored on `fn pull_request_only_cannot_produce_a_baseline() {` -- a
+`fn` line -- which put my doc comment **between that test's `#[test]` and its body**.
+`tri gates tests --gate` failed the build and named both halves:
+
+```text
+RUNS TWICE     gates.rs:4862  a second `#[test]` follows this one
+DOES NOT RUN   gates.rs       fn pull_request_only_cannot_produce_a_baseline asserts,
+                              has no `#[test]`, and nobody calls it
+```
+
+**The two cancel in every total**, which is the whole reason that gate exists and why the
+earlier occurrences went unnoticed: the suite count was identical either way. Previously
+this was caught by the compiler's `dead code` and clippy's `duplicated attribute`; this
+time by a gate that pairs attributes to functions rather than counting them.
+
+**The rule, now with three instances behind it: anchor an insertion on the attribute or
+on a closing brace, never on `fn`.** A `fn` line is not the top of the item -- the
+attributes and the doc comment above it are -- and an anchor that is not the top of the
+item splits it.
+
+## 548. Four questions asked, four zeros, and the zeros cost less than the sweeps
+
+A pass that ships six repairs also has to say what it looked at and did NOT find, or the
+next pass pays for the same look. Four questions, each priced before any tool was written.
+
+**1. Are there other budgets under their measured cost?** After `whats-open` gave
+`gates dead` **420 s** for a **899 s** job, the rest of the subprocess budgets in the gate
+tooling were measured. **No second instance**: `required`/`quiet`/`fetches` have 45×
+headroom, `unmeasured` 3.6×, and the tightest one -- `git log --all` with a glob pathspec,
+budget 30 s -- costs **1165 ms** over 6687 commits, with the exact-path form at 169 ms.
+Its `except` is annotated *"cannot tell: assume the milder classification"*, which is the
+honest failure the `dead` budget lacked. One hit in six; nothing to build.
+
+**2. Are the census's refusals right?** `tri gates quiet --list --excluded` refuses **123**
+steps. A systematic sample of ten, read one at a time: **ten of ten correct**. Three are
+`coqc … || exit 1` (the failure branch EXITS), one captures `rc=$?` rather than swallowing
+it, two are thresholds on numbers, and the one real candidate --
+`total_files=$(ls …/*.v | wc -l)` with no `2>/dev/null` -- is correct on a second reading,
+because that value is written **only** into `$GITHUB_STEP_SUMMARY` and nothing branches on
+it.
+
+That candidate carries the sharper rule: **a count reads zero when its subject is missing
+in both cases, and what makes it QUIET is not the shape but whether it has a consumer.**
+`targets=$(grep -c … || true)` is the same shape and is guarded downstream, where
+`test_ratchet.py` refuses on `targets == 0`. One `| wc -l` is a defect and the other is
+not, and the difference is entirely below them.
+
+**3. Is there a green mirror of "never executed"?** A failed run with zero jobs is a
+startup failure. The mirror -- a run recorded as SUCCESS that executed nothing -- was
+measured two ways on master: **0 of 30** successful runs allocate zero jobs, and **0 of 20**
+have every job `skipped`. All twenty carry at least one `success`, and one honestly shows
+`2 skipped, 2 success`.
+
+**And the instrument nearly lied by silence.** The first summary used a `jq` expression
+with a misplaced `as` binding and returned **nothing**, which reads exactly like *there are
+none*. The control was one command -- print the raw `.conclusion` values for one known run
+-- and it showed the expression simply did not work. **An empty result is not a finding
+until the same expression is shown to print something on a known case**, or the zero is a
+report about the instrument rather than about the world.
+
+**4. What does chasing the base actually cost?** &sect;510 said the narrow rule pays *at most
+one reset per green window*. Measured on one pull request: **2 commits landed on master
+while it was open, and the poller caught up exactly twice** -- one full round of **35**
+checks each. So the rule holds and the window RECURS: the tax is one reset per neighbouring
+landing, not one per pull request. That is an argument for a merge queue rather than for a
+cleverer catch-up.
+
+
+## 549. The tool that finds unchecked constants was counting its own tests
+
+&sect;546 found that my ad-hoc mutation harness edited test code along with production code and
+reported a false `killed`. The obvious next question was how far that reached. It reaches the shipped
+tool.
+
+`tri mutate run` perturbs every integer literal in a file and asks whether the checker notices. Its
+`find_mutants` masks comments and string bodies **and nothing else** -- there is no test-module
+filter. So a literal inside `#[cfg(test)]` is perturbed like any other, the test holding it fails,
+and that red is reported as the checker NOTICING.
+
+**Measured by the tool itself, with `--cmd true` so every mutant survives and it simply lists its
+sites:**
+
+| file | sites the tool finds | inside `#[cfg(test)]` | |
+|---|---|---|---|
+| `red.rs` | 59 | **45** | 76% |
+| whole crate (simulated) | 3198 | **1545** | 48% |
+
+**Reproduced end to end rather than inferred.** `red.rs:826` is `let h = render_headline(50, 3, 44, 7);`
+inside a test. Perturbing that `50` to `51` fails the suite. `tri mutate run` would call that a killed
+mutant -- over a number that exists only in a test, in a tool whose entire subject is *constants
+nothing actually checks*.
+
+**Shipped.** Sites inside a Rust `#[cfg(test)]` module are dropped, by the same
+`gates::test_module_lines` rule used elsewhere, and **the number dropped is printed**:
+
+```
+  45 literal(s) skipped: they sit inside a `#[cfg(test)]` module.
+  Perturbing a test's own arithmetic fails that test, and reporting it as
+  `the checker noticed` says nothing about the code under test.
+
+  14 literal(s) in cli/tri/src/red.rs, one mutation each.
+```
+
+A population that shrinks without saying so is the defect one level up from the one this fixes.
+`.rs` only: the tool deliberately runs on Python, Verilog and YAML, none of which have
+`#[cfg(test)]`, and `diffbin.py` still reports all 61 of its literals with no skip line.
+
+### The harness refused four mutants, and was right to
+
+Running the four mutants against this change, `mutate-production` refused all four:
+`ANCHOR ABSENT FROM PRODUCTION CODE (1 occurrence in tests)`. The production sites were plainly
+there. **The harness cut the file at the first textual occurrence of `#[cfg(test)]`, and the new doc
+comment MENTIONS `#[cfg(test)]` in prose forty lines above the real module** -- so everything below
+that sentence read as test code.
+
+A matcher matching prose, in the tool written to stop a matcher matching the wrong half. Fixed: the
+boundary is a line that IS the attribute, at column zero -- the rule `test_module_lines` already uses.
+
+**It cost nothing because the refusal was loud.** It printed
+`Nothing mutated -- do not read this as a surviving mutant` rather than a silent zero, so four
+"survivors" were never believed. That is &sect;536's rule paying for itself: give every miss a loud,
+distinguishable value.
+
+### Five passes, five surviving mutants, every one the wiring
+
+`last_pass` (red.rs) &middot; `claims_seen` (gates.rs) &middot; `single_digit_only` (issues.rs)
+&middot; both print sites (competitors.rs) &middot; and here, `drop_test_module_sites` never called.
+**This is the first one I went looking for before running it, and it was there.** The pattern is not
+about any of these functions. It is about where attention goes when a fix is written: into the thing
+being fixed, never into the line that reaches it.
+
+## 550. I hand-wrote the resolver six times, and the tool for it already existed
+
+Six consecutive passes have ended with the same conflict in this file and a fresh throwaway Python
+script to resolve it. **Measured on `gHashTag/t27`: 172 of the 281 commits on master since
+2026-08-29 touch `SKILL.md` -- 61%** -- and it grew from 257 sections to 510 in seven days. A branch
+that lives minutes conflicts.
+
+`tri skill renumber` has existed the whole time. "Move sections you appended to the numbers the base
+branch left free", `--base`, `--check`, `--first`. That is the operation, and I wrote it by hand six
+times without looking. This is the fourth entry in this file about rewriting a tool the repository
+already had.
+
+### And it was wrong on exactly the case I kept hitting
+
+Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge base `013b829`:
+
+```
+  appended here           2
+  tail identified by      byte prefix of the merge base
+      546  ->  547
+      547  ->  548
+```
+
+and the file it wrote contained:
+
+```
+## 546. A mutation that also edits the test is not a mutation test
+## 547. A mutation that also edits the test is not a mutation test     <-- twice
+## 548. The tool that finds unchecked constants was counting its own tests
+```
+
+**The byte-prefix tail is everything appended since the merge base, and that is wrong the moment a
+SIBLING branch of yours lands part of it on the base.** #3199 had squash-merged &sect;546 onto master
+while this branch was open, so the same content sat on both sides and the rebuild emitted it twice.
+The squash is what hides it: the section arrives on `base` under a commit this branch has never seen,
+so no ancestry relates them and only the TITLE does.
+
+**The instrument was already in the file, again.** `tail_by_title` sits forty lines above, written for
+the neighbouring case where the merge base is not a prefix. The fix is to accept the byte-prefix tail
+only when it shares no title with the base, and fall through to the function that was already there.
+After: `appended here 1`, 511 sections, no duplicate title, no duplicate number, nothing of master's
+lost.
+
+### Sixth pass, sixth surviving mutant, still the wiring
+
+`tail_is_new` is covered four ways and dropping `.filter(|t| tail_is_new(t, &at_base))` from the call
+site leaves every one of them green. Killed by a structural test reading the call site, needle split
+across two literals.
+
+The list is now `last_pass` &middot; `claims_seen` &middot; `single_digit_only` &middot; both
+`competitors` print sites &middot; `drop_test_module_sites` &middot; and this. **Six for six.** The
+lesson has stopped being about any individual fix: after extracting a helper, the very next act
+should be mutating the line that calls it, before writing a single test for the helper itself.
+
+## 551. It deleted a section while its count guard passed
+
+The fix in &sect;550 was run on the branch that carried it, and it destroyed one of that branch's own
+sections. The command said:
+
+```text
+Written. 513 section(s); no number is used twice.
+```
+
+and &sect;550 -- *"I hand-wrote the resolver six times"* -- was gone, replaced by a second copy of the
+section before it.
+
+**Cause.** &sect;550 quotes three `## N.` heading lines inside a fenced block, as the evidence for the
+duplicate it is about. `skillnum::sections` counts every line beginning `## N. `, fenced or not, so
+those three were parsed as real sections. `tail_by_title` cut the tail at the last "shared" title --
+one of the quoted ones -- and the rebuild dropped the real section while the quoted headings filled
+its seats.
+
+**The section that documents a duplication was the one whose evidence caused a duplication.**
+
+### A total cannot see a substitution
+
+The command already had a guard, and it passed:
+
+```rust
+let expected = sections(&at_base).len() + sections(tail).len();
+if secs.len() != expected { bail!(...) }
+```
+
+Three quoted headings went in, one real section came out, and the arithmetic was satisfied. This is
+&sect;540 -- a dead test and a phantom test cancelling in every total -- one level up, in the tool
+rather than in a report. **Two errors that cancel are invisible to every instrument that sums, and
+that is as true of a guard as of a count.**
+
+Guarding on the SET of titles instead:
+
+```text
+Error: the rebuild would DROP 1 section(s) that are on disk now:
+    I hand-wrote the resolver six times, and the tool for it already existed
+  Nothing was written.
+```
+
+Renumbering is invisible to it by construction: every number changes and no title does. **This is the
+guard every hand-written resolver in this loop already had, and the shipped command did not** -- which
+is the second half of &sect;550's lesson. The tool I should have been using was both better than my
+script (it exists, it is tested, it has a `--check`) and worse (it lacked the one guard I wrote every
+single time), and I could only learn that by reading it.
+
+### Stated, not fixed
+
+`skillnum::sections` still counts headings inside fenced blocks. Fence parity is not currently a
+reliable way to skip them: the file carries an **odd** number of ``` markers on master (301) and on
+every recent commit, so a parity walk puts three quarters of the file "inside" a block. The guard
+makes the parser's blindness non-destructive, which is what matters today; the parser itself is a
+separate finding and is recorded here rather than half-fixed.
+
+### Seven passes, seven surviving mutants, all wiring
+
+`titles_lost` is covered two ways and replacing its call with an empty `Vec` leaves both green.
+Second one predicted before running it. The rule is now explicit: **after extracting a helper, mutate
+the line that calls it before writing a single test for the helper.**
+
+## 552. The section that quoted a heading lost its evidence, and the fence it left open ate the next one
+
+&sect;551 shipped a `titles_lost` guard so `tri skill renumber` refuses rather than deleting a section.
+It refuses on TITLES. The damage that had already reached master was one level finer.
+
+**Measured on master `4d63859`.** &sect;550 quotes three `## N.` heading lines inside a fenced block, as
+the evidence for the duplicate it describes. On master those three lines were **gone**, and so was the
+closing fence -- leaving:
+
+    and the file it wrote contained:
+
+    ```
+    ## 551. It deleted a section while its count guard passed
+
+An unclosed fence, and &sect;551 inside it. (Shown indented rather than fenced: a
+fence quoting a fence is what caused this in the first place, and writing the
+example as a fenced block would have added a fourth quoted heading to the file
+while explaining why quoted headings are a problem.) The guard did not fire because &sect;550's TITLE was still
+there; only its body had been cut, and cutting a body is invisible to a set of titles.
+
+Repaired from `093367b7`: &sect;550 is byte-identical to what was written, 515 sections, ascending, no
+duplicates, and the fence state at end of file is closed.
+
+### The parser now knows what a fence is
+
+`skillnum::sections` matched every line beginning `## N. `. On master that is **518** lines, of which
+**3** are quotations. Teaching it CommonMark's rule brings it to **515**:
+
+> An OPENING fence may carry an info string. A CLOSING fence may not.
+
+That rule is not decoration here. A naive toggle on every ``` mispairs **19** fences in this file,
+because blocks that quote command output containing a ```` ``` numbers ```` line were read as closing
+early -- which flips the parity for everything after and puts three quarters of the file "inside" a
+block. That is why the earlier attempt to use fence parity as a health check gave nonsense, and why
+"the file has an odd number of ``` markers" was never the right question.
+
+### And writing this section did it again
+
+The first draft of the paragraph above quoted the damage as a fenced block containing a bare ```
+line. That inner marker CLOSES the outer block -- exactly the rule this section is about -- so
+`## 551.` became a real heading, the file went to 517 sections and `tri skill check` said `PROBLEMS`.
+Caught in one command, on the same commit, by the gate that exists for it.
+
+The example is now indented rather than fenced. **A fence quoting a fence has no safe spelling here**,
+and writing it as a fenced block would have added a fourth quoted heading to the file in the act of
+explaining why quoted headings are a problem.
+
+**The population is self-inflicted and will grow.** This file's whole method is quoting the artefact
+that proves the finding, and the more sections that quote a heading, the more a heading-counting
+parser miscounts. &sect;550 is the first section whose evidence was destroyed by the tool the section
+is about; it will not be the last unless the parser knows a quotation when it sees one.
+
+### What the guard covers and what it does not
+
+`titles_lost` compares the set of section TITLES. It catches a dropped section. It does not catch a
+truncated one, a reordered one, or a body edited in place -- and the loss here was exactly a truncated
+body. **A guard is only as fine as the unit it compares**, and the unit is worth saying out loud
+whenever a guard is written: this one is the section, not the line.
+## 553. The filter that strips the progress strips the report
+
+`t27c corpus` prints progress as `  ... 51/650` and prints its own continuation
+rows as `  ... and Zig accepts it`. A filter written to drop the first —
+`grep -vE '^\s*\.\.\.'` — drops the second, and the report loses nine of its
+fourteen rows without a word. I read the five survivors as the whole table and
+was one step from publishing `iverilog accepts 380` without the row directly
+under it, `AND has a data port 74`, which is the row that says 306 of those
+modules cannot carry a value across their boundary.
+
+Anchor an exclusion on the shape that is unique to what you are excluding
+(`^\s*\.\.\. [0-9]+/[0-9]+$`), never on the prefix it happens to share with the
+data. And when a report's row count is load-bearing, count the rows before and
+after the filter; a silent drop of nine looks exactly like a report with five.
+
+## 554. The anti-rediscovery tool's scope is not the repository
+
+This tree ships `t27c known --about "<claim>"`, whose entire purpose is to answer
+"has this project already found what I am about to measure?" I ran it before
+shipping a census of eight specs. It replied *"Nothing speaks to this. Measure --
+and record the negative, it is a result."* I measured, wrote it up, and shipped it.
+
+The answer already existed in `cli/tri/src/unparsed.rs`: the same eight specs, ranked
+by construct, each backed by a live probe, and confirmed by a stronger test than mine
+-- causality by REMOVAL, "a confirmed item is one whose removal MOVES the reported
+error", with 14 candidates refuted that way. Its module header even stated the lesson
+I thought I had found, naming the same four examples.
+
+`known` was not wrong. It reads gates under `tools/`, baselines, and a paper; it does
+not read `cli/tri/src/`. Its verdict was true of its population and I read it as true
+of the repository. That is the narrow-population/broad-conclusion failure, committed
+while using the tool built to prevent it -- and the tool prints its own scope on its
+first line (`gates read from .../tools`), which I did not treat as the caveat it is.
+
+An all-clear is scoped to what was searched. Before believing one, name the population
+it covered and check that the answer could have lived there. Here it could not: the
+census was a Rust module in a CLI crate, and no directory the tool reads contains
+`cli/`. A cheap independent probe closes the gap -- `git grep` for the most specific
+noun in the claim, across the WHOLE tree, costs one command and would have printed
+`unparsed.rs` immediately.
+
+Corollary for what the finding then said. The census that already existed prints its
+rows under `work queue -- every row proved unsupported by its own probe`, and keeps a
+separate one-row list headed `refused ON PURPOSE -- a position, not a gap`. I had
+concluded the opposite about the same rows -- that no compiler change could ever
+retire them. Whether an unsupported construct is a gap to implement or a position to
+defend is a question the project answers, and it had answered it; a reader arriving
+from the outside cannot derive that from the keyword list alone.
+## 555. The audit that found nothing, and why that is the result
+
+&sect;552 repaired one section whose body the tooling had destroyed. The obvious next question is
+whether it was the only one. `tri skill lost` asks it: walk every commit that touched this file,
+record each section's body the first time it appeared, and report any whose body on the base is a
+strict PREFIX of that first version. An edit in place is not a prefix. A truncation is.
+
+**Measured over 281 commits and 518 titles ever written.**
+
+| | |
+|---|---|
+| titles ever written | **518** |
+| present on master | **516** |
+| bodies that are a strict prefix of an earlier version | 40 |
+| &nbsp;&nbsp;of those, differing by trailing blank lines only | **38** |
+| &nbsp;&nbsp;real cut tails | **2** |
+
+**Both real cut tails are reorganisations, not losses**, and both were checked rather than assumed:
+
+* `Renaming a CI job silently breaks branch protection`, -21 lines. What left was an unnumbered
+  `## Writing a gate here` block and its list. A body runs to the next NUMBERED heading, so an
+  unnumbered block that later moved elsewhere in the document reads exactly like a truncation.
+  `grep` finds it on master.
+* `Emitter-class repair`, -5 lines: one paragraph, `Hold the win with a per-module ratchet`. Still
+  on master, one occurrence.
+
+**Both absent titles are deliberate, and both were read before being judged:**
+
+* `What to do when the fix is behind a seal` was **rewritten under a longer title** -- 43 of its 43
+  substantial lines are present on master under `... -- and how to check it is`.
+* `A gate that never runs on master has no baseline` was **withdrawn on purpose**, by commit
+  `7071b071` whose subject is *"withdraw a claim of mine"* and whose body gives the two master runs
+  that refuted it.
+
+**So: zero unexplained losses. &sect;550 was the only one, it was caused by the tool in this session,
+and it is repaired.** A clean audit is a result -- it is what makes the &sect;552 repair a closed
+incident rather than a sample of an unknown population.
+
+### Three ways this audit could have lied, and what each cost
+
+* **Counting titles.** 518 ever, 516 now, so "2 lost" -- and both are fine. A missing title is not a
+  loss; the command says so in its own output, because the next reader will hit the same two.
+* **Counting prefix hits.** 40, of which 38 are trailing blanks. Reporting all 40 would have buried
+  the two that were real under noise that is an artefact of where a section ends.
+* **Believing the two.** Both looked like damage and neither was. `grep` for a distinctive line
+  settled each in one command. **The audit's value was entirely in the four checks that turned
+  findings back into non-findings.**
+
+### Eighth pass, eighth wiring mutant -- and the first found before the helper was tested
+
+`if truncated(then, n)` replaced with `if false` makes the command walk 281 commits, find nothing by
+construction, and print a clean bill of health for any file forever. Three tests on `truncated`
+itself stay green.
+
+This one was found by mutating the call site **first**, before writing a single test for the helper --
+which is the rule the previous seven produced. **The rule works, and it took seven repetitions to
+write down.**
+## 556. Two bare headings in NOW.md, and the extension that would have audited nothing
+
+The plan carried out of &sect;555 was "run the same audit over `docs/NOW.md`". Checked before built:
+**that file has ZERO numbered headings.** 312 of them, every one of the shape `## fix(...)` or
+`## Wave Loop 434 — ...`. A `--file` flag on a command that insists on `## N. ` would have walked 810
+commits, found an empty population, and printed a clean bill of health.
+
+**The check that stopped it cost one `grep -c`, and it is the same question as "does this gate have a
+subject".** The habit that made it happen is newer than the habit of writing the flag.
+
+So the key generalised instead: strip a leading `N. ` when there is one, otherwise the heading IS the
+key. Renumbering stays invisible -- which matters, because half of what happens to `SKILL.md` is
+renumbering -- and `NOW.md` becomes a population for the first time.
+
+### What it found, present tense, with no history at all
+
+```text
+2 heading(s) with an EMPTY body on origin/master:
+  SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
+  Wave Loop 434 — FPGA boot-evidence live XADC validation + synthetic CCLK proof-of-pipeline
+```
+
+`docs/NOW.md` lines 6359 and 6361 -- **two consecutive bare headings**, nothing written under either.
+`SKILL.md`: 0 of 523.
+
+Their history says how much: 25 lines and 59 lines. For `Wave Loop 434`, 31 of its 34 substantial
+lines are still elsewhere in the file, so most of that content survives under another entry. For
+`SW-conformance`, **2 of 21 survive, and the rest is in no tracked file at all.**
+
+**This question is strictly cheaper than the history walk and answers most of it.** One read against
+810 `git show` invocations, and it is asked first.
+
+### The number I did not publish
+
+The same run says `titles ever written 792, present 310` -- 482 absent. **That is not 482 losses, and
+saying so would have been the &sect;535 unit error again.** `NOW.md` mixes two kinds of heading: rotating
+status sections (`Active Work`, `Next check-in`, `Anchor`, `Previous Active Work`) that are *meant* to
+be replaced, and per-change log entries that are not. Only the second kind is append-only, and
+separating them is a different measurement than this one.
+
+The command prints the figure and does not characterise it, which is the honest state: **a population
+I have not classified is a number, not a finding.**
+
+## 559. A by-title rebuild cannot tell my section from one the base withdrew
+
+Every conflict in this file for eight passes has been resolved the same way: rebuild on the base,
+keep every section present here and absent there. Today master **withdrew** a section for the first
+time, and the rule quietly resurrected it.
+
+`6d333d37` (#3205) added &sect;554 *"Debt a fix cannot retire is a different kind of debt"*.
+`6a49402c` (#3207) replaced it with *"The anti-rediscovery tool's scope is not the repository"*,
+because the original claim was wrong. My branch had merged the first and not the second, so the
+withdrawn title read as **present here, absent on master** -- exactly like a section I had written --
+and the rebuild put it back under a fresh number.
+
+**And the guard shipped two passes ago SAW it.** `tri skill renumber` refused, naming the section it
+would drop. I then resolved the conflict with `git checkout --ours`, which takes my side wholesale
+and discards whatever master added. **The guard lives in the tool; my hand procedure walks around it**
+-- &sect;536 again, with the probe now being a git command rather than a shell pipeline.
+
+### Two discriminators failed before one worked
+
+| rule | why it fails |
+|---|---|
+| **merge base** | useless once you have already merged: the base becomes master's head, and my sections and the withdrawn one look equally new |
+| **ancestry** (`merge-base --is-ancestor`) | useless because master squashes: the commit that introduced the withdrawn section is not an ancestor of master, and neither are mine -- &sect;550's squash problem, one level up |
+
+What works is master's own history OF THE TEXT:
+
+```sh
+git log origin/master -S'<title>' -- .claude/skills/ci-gates/SKILL.md
+```
+
+`Debt a fix cannot retire` &rarr; **2** commits, one adding and one removing. My two sections &rarr;
+**0** each. **A title master's history has ever held, but its head does not, was taken out on
+purpose.** Absence from the head is not evidence of authorship; absence from the whole history is.
+
+520 sections, nothing of master's lost, nothing withdrawn resurrected.
+
+### What this cost and what it bought
+
+Three rebuilds of the same file in one pass, two of them wrong: one dropped a master section, the next
+resurrected a withdrawn one. **Both were caught by re-deriving the answer rather than by trusting the
+previous step** -- `master lost N` and `withdrawn resurrected N` printed after every attempt. A repair
+that does not verify itself is another edit.
+
+## 562. The discriminator went into the tool, and only a real repository could test it
+
+&sect;559 found that a by-title rebuild cannot tell a section I wrote from one the base withdrew, and
+named the test that can: the base's own history of the text. That rule lived in the report. It now
+lives in `tri skill renumber`, which refuses and names what it would carry:
+
+```text
+Error: 1 section(s) in the tail were REMOVED from main on purpose:
+    Bravo
+  Nothing was written.
+```
+
+### The half that no unit test reaches
+
+`withdrawn_titles` takes an injected predicate, so what it does with a yes and a no is covered three
+ways without any git. The predicate itself -- `git log <base> -S '<title>'` -- is the part that meets
+reality, and **inverting its emptiness test survived every one of those tests.** A control that
+cannot fail is indistinguishable from one that passed.
+
+So the control is a real repository, built by the test: `main` adds a section, the branch takes it and
+appends its own, `main` withdraws it. Both git-touching mutants die there -- the inverted emptiness
+check refuses **Charlie**, the branch's own section, which the test catches by ordering rather than by
+presence, and removing the guard entirely lets the retraction through. The same test carries its
+negative control: with nothing withdrawn, nothing may be refused.
+
+### The fixture was wrong first, and the tool was right
+
+The first fixture put the withdrawn section in the base region rather than the tail, so the rebuild
+dropped it correctly and there was nothing to refuse. **The test failed because the tool was right.**
+
+The real shape needs the branch to have taken the section FROM the base by merging, so it sits in the
+appended tail: diverge when the file holds one section, let the base add a second, let the branch take
+that second and append a third, then let the base withdraw the second. **Reproducing a defect means
+reproducing its POSITION, not only its ingredients** -- the same three sections in a different
+arrangement exercise nothing.
+
+### Ninth pass, and the rule paid again
+
+Mutating the call site first is now the first act after extracting a helper. It found nothing here,
+because the call site was written with the rule in mind -- which is what a rule that works looks like
+once it stops being a discovery.
+
+
+## 563. Two bare headings were three damaged entries, and the third was the one still claiming a body
+
+&sect;556 found two headings in `docs/NOW.md` with nothing under them, at lines 6359 and 6361. Repairing
+them turned up a third entry that the empty-body check could not see, because **it had a body -- just
+not its own.**
+
+| entry | before | after |
+|---|---|---|
+| `SW-conformance — gf96` | **0 lines** | its own 23 |
+| `Wave Loop 434 — FPGA boot-evidence` | **0 lines** | its own 45 |
+| `SW-conformance — gf48` | 39 lines, **all of them W434's** | its own 17 |
+
+Fifty lines below its heading, `gf48` carried `### What landed (Variant B — board reachable, P12/relay
+still blocked)` and `XADC_LIVE_W434_OPERATING_POINT` -- FPGA boot evidence, under a software-
+conformance promotion. **All 39 of its lines came from W434's 45.** Six of W434's were gone outright.
+
+### The measurement that misled me, and the one that did not
+
+&sect;556 reported *"31 of Wave Loop 434's 34 substantial lines are still elsewhere in the file, so most
+of that content survives"*. Both halves are true and the conclusion is wrong. The lines survive **under
+the wrong heading**, which is not survival -- it is **misattribution**, and it is worse than loss: an
+entry about a `gf48` promotion silently claimed another wave's silicon evidence as its own.
+
+The check that would have caught it: for a line said to survive, ask **under which heading**, not
+whether the file contains it. Nineteen of the thirty-four appear exactly once and are W434-specific
+(`XADC_LIVE_W434_OPERATING_POINT`), and every one of those nineteen sat under `gf48`. The other
+fifteen appear up to twenty-five times each -- boilerplate (`- Branch:`, `- CI:`) that says nothing
+about survival either way. **"Still in the file" is the same unit error as "50 red workflows": the
+container is not the claim.**
+
+### Picking the version to restore
+
+Restoring `gf48` from *"the last commit where its body was non-empty"* would have restored the
+damage: at `505785011` its body was non-empty and was W434's. The selector has to be **content**, not
+emptiness -- the last version whose first lines actually mention `gf48 (GoldenFloat48`. Same shape as
+&sect;559: **absence is not the discriminator, identity is.**
+
+Verified after: 310 headings before and after, 0 titles lost, 0 empty bodies, exactly 3 bodies
+changed.
+
+
+## 564. A first-error count is not an unblocking count
+
+A fan-out audit found a real class in the Rust emitter: the serde derive was gated
+behind a cargo feature in `gen_struct` and written bare in `gen_enum`, 43 lines below
+in the same file. The discriminator was perfect -- the ungated form occurs in 0 of the
+224 files that pass and 84 of the 357 that fail -- and two independent verifiers,
+one on cause and one on population, failed to refute it.
+
+The tempting sentence was "this fix unblocks 84 specs." Measured after the change,
+by name: rustc acceptance went 224 -> 237. **+13, zero regressions**, and zero specs
+still failing on serde where 84 did.
+
+Both numbers are right and they answer different questions. Errors queue: 84 is how
+many specs this cause stops FIRST, and 13 is how many the fix carries all the way to
+acceptance. The other 71 simply report whatever stood behind it. A class can be the
+largest single cause in a column and still unblock a small fraction of it, and that is
+not a failure of the fix -- it is what a backlog with depth looks like.
+
+Report all three, because they are three separate claims: the first-error count proves
+the cause is large, the by-name before/after proves what the fix yields, and a count of
+specs still failing on that cause proves the cause is gone rather than merely rarer.
+Measure the second one after the change and diff by spec name, so a gain and a
+regression cannot cancel in a total.
+
+
+## 565. One of four refusals had an unambiguous repair, and a second guard blocked it
+
+`tri skill renumber` refuses in four places and repairs in none. Three of them are right to: when the
+rebuild would DROP a section, the safe action is unknown -- the section might be mine or the base's,
+and guessing loses work.
+
+**The fourth is settled.** When the tail carries a section the base REMOVED on purpose, the command
+already knows exactly which ones, and carrying them forward resurrects a retraction. `--drop-withdrawn`
+removes exactly those and names each one. It is **opt-in**: deleting text nobody asked to delete is
+how a tool earns distrust, and the refusal already prints the list.
+
+### The second guard blocked the first guard's sanctioned repair
+
+The first version did precisely what it promised -- dropped the section, printed its name -- and then
+died two hundred lines later on:
+
+```text
+Error: the rebuild would DROP 1 section(s) that are on disk now:
+    Bravo
+```
+
+That is `titles_lost`, added three passes ago to stop a silent deletion. It is correct in general and
+wrong here: **Bravo is on disk, Bravo is gone from the rebuild, and the operator asked for that.**
+
+**A guard has to know what the operator authorised, or the authorisation is not real.** The lost-title
+check is now filtered by the set `--drop-withdrawn` was given, and the structural test asserts that
+filter exists -- because without it the flag looks like it works, prints a correct account of what it
+did, and refuses anyway.
+
+### Two structural tests failed, and both were right to
+
+They pin the SHAPE of the code around each guard. Changing `if !withdrawn.is_empty() { bail }` into a
+three-armed `if / else if drop_withdrawn / else` broke the string they search for, and so did wrapping
+`titles_lost(...)` in a filter. **A structural test that survives a restructuring of the thing it
+pins is not pinning it.**
+
+Both were rewritten to assert the NEW invariant rather than to pass: that removal is reachable only
+through `else if drop_withdrawn`, that the no-flag path still refuses by name, and that the lost-title
+guard consults the authorised set. Four mutants, all killed by both the unit tests and the
+scratch-repo control.
+
+## 566. A census of what cannot be read is not a census of what is read wrongly
+
+`tri unparsed` ranks the constructs that stop the parser, each row backed by a live
+probe. It is a good instrument and it answers one question: which specs the compiler
+**cannot read**. Nothing in this tree answers the other one — which specs it reads
+**wrongly** — and that class is invisible for the reason that makes it dangerous:
+every gate is green on it.
+
+Fourteen corpus specs pass `parse`, pass `typecheck`, and emit a struct field with
+no type at all. Three of them appear in the debt ledger, for other reasons; **eleven
+are tracked by nothing**. A four-line reproducer shows the whole mechanism:
+
+```t27
+module probe {
+    pub const Thing = struct {
+        ok : u8,
+        bad : 0,
+    };
+}
+```
+
+An integer literal sits in **type position**. `parse` accepts it, `typecheck`
+accepts it, the Rust backend writes `pub bad: 0,` and the C backend writes `0 bad;`,
+both unparseable in their languages.
+
+The Zig backend is where it disappears. It writes `bad: 0,` and, for the empty type
+slot, `empty: void` -- and **`zig build-obj` accepts both, and so does the deeper
+`zig test --test-no-exec`**. Nothing in the Zig column can see either shape, so the
+corpus counts these specs as generating and accepting.
+
+(An earlier version of this section said Zig *dropped* the field. That was wrong and
+came from running `t27c gen-zig`, which does not exist as a subcommand -- the Zig backend is
+`gen`. The empty output of a misspelled command was read as a dropped field. The
+corpus itself always used `gen`, so its numbers were never affected; only this
+paragraph was. See the note below.)
+
+The source of it is a declaration form the parser does not implement — a list-valued
+key whose items follow on later lines. Because recovery turns those items into fields,
+the specs come out the other side looking well-formed. **A parser that recovers
+produces output; a census built on failure cannot see it.**
+
+Two practical consequences. First, when a census exists, ask what its population is
+defined by — `unparsed` is defined by *the compiler refused*, so anything the
+compiler accepted is outside it by construction, however wrong the result. Second, the
+cheapest detector for the second class is not a parser change but a **shape check on
+the generated output**: `pub f: ,` and `0 bad;` are trivially greppable, and the
+population they find is exactly the one no phase covers.
+
+
+## 567. The prototype gave the right number because one of its alternatives was dead
+
+&sect;569 found one entry carrying another's body, by accident, while repairing something else. The
+question it left was whether that was a case or a class. `tri skill lost` now asks it, and the answer
+is **one, and it is fixed** -- but the road to that number is the finding.
+
+**The naive question is useless here.** 58 of the 63 `docs/NOW.md` entries with a wave number in the
+heading mention *some other* wave in the body, because an entry routinely points at the next one.
+What discriminates is naming **none of its own**: `SW-conformance — gf48` carried 39 lines of Wave
+Loop 434 and never said `gf48`.
+
+### The prototype was right for the wrong reason
+
+The python sketch of this check reported **1** on the damaged file. Ported to Rust it reported **49**.
+The difference is one alternative in the pattern:
+
+```text
+python:  \b(?:...|#(\d{3,5}))\b
+```
+
+**`\b#` requires a word character immediately before the `#`.** There is never one. That alternative
+**matched nothing, ever** -- so the sketch silently compared wave and format identifiers only, which
+happens to be the correct population, and reported the correct number while carrying a rule it never
+applied.
+
+The Rust port made `#NNNN` live, and 49 entries flagged: an entry cites other issues as a matter of
+course, so issue numbers are not ownership. **The right answer and the right reason arrived by
+different routes, days apart, and only the port showed that they had.** Had I shipped the sketch, the
+rule in the code would have said "issue numbers count" and the behaviour would have said otherwise,
+until someone fixed the regex and the tool changed its mind for no visible reason.
+
+Issue numbers are now excluded **deliberately, with that measurement written beside the pattern**.
+
+### Both fixtures were wrong, and the tests were right to fail
+
+The first fixture put `XADC_LIVE_W434_OPERATING_POINT` in the body and expected a flag. It does not
+match: the `_` before `W434` is a word character, so `\bW` fails. What made the live case detectable
+was the plain `` `wave-loop-434` `` on its branch line. The second fixture had entry 889's body name
+888 and 890 but not 889, and asserted no flag -- which is exactly the shape that SHOULD flag.
+
+**Two fixtures, two failures, both because the fixture was unrepresentative and the code was right.**
+Same lesson as &sect;562, one pass later: reproducing a defect means reproducing its exact form, and a
+test that fails on correct code has told you about your fixture.
+
+Measured: **1** flagged on the damaged base, **0** on the repaired tree, **0** in `SKILL.md` across
+524 sections.
+
+## 568. I audited my own detector in the wrong unit
+
+&sect;569 shipped a check that found **0** misattributed entries, using a matcher anchored on word
+boundaries. The obvious worry, written into that pass's own next-steps: `W434` inside
+`XADC_LIVE_W434_OPERATING_POINT` is invisible to `\bW`, so how much of the population is the detector
+blind to?
+
+**Measured on `docs/NOW.md`.** The shipped matcher sees **644** identifier occurrences. A matcher that
+also allows an underscore before `W<nnn>` sees **988** -- so **35% of occurrences are invisible**, and
+**79** of them are that exact underscore form.
+
+That number is real and it is the wrong number.
+
+| | shipped | wider |
+|---|---|---|
+| identifier OCCURRENCES | 644 | 988 |
+| **distinct identifiers** | **91** | **95** |
+| entries whose body id-set differs | -- | **10 of 310** |
+| verdict on the repaired file | 0 | **0** |
+| verdict on the damaged file | 1 | **1** |
+
+**The check operates on SETS.** An identifier repeated eleven times in one body is one member either
+way, so 344 extra occurrences buy four extra distinct identifiers -- `339`, `470`, `825`, `883` --
+and not one of them changes a verdict on any input this repository can produce.
+
+I also tried to construct the blind spot by hand: strip the single plain `` `wave-loop-434` `` line
+from the damaged entry, leaving only the underscore forms. **Both matchers still find it**, because
+the body names `W431` and `W432` in prose as well. The blind spot I predicted has no instance here.
+
+**Declined, and the reason is the unit.** Widening costs a false-positive surface and buys nothing
+measurable. **The audit's value was not the answer -- it was learning that my worry was counted in
+occurrences while the thing it threatened was set membership.** &sect;535's lesson, turned on the
+instrument instead of the report: *a number lands in the reader's unit, and here I was the reader of
+my own.*
+
+What would change the verdict is an entry whose body names a foreign id ONLY in underscore form and
+names none of its own at all. That entry does not exist today. **If one is ever written, this section
+is the note that says which line to change.**
+
+## 569. Three hundred and twelve headings, three hundred and ten seats
+
+&sect;571 asked in which unit a check DECIDES against the unit a reader AUDITS it in, and declined to
+widen a matcher because the two agreed. A fan-out over the whole CLI asked the same question
+everywhere. The strongest survivor is in the code that pass wrote.
+
+`bodies()` returns a map keyed by section title -- correct for the history walk, because a title is
+the identity that survives renumbering. **Every other question was asked over that map too.** A
+repeated heading text is ONE key, and the later insert OVERWRITES, so only the last copy's body is
+ever examined.
+
+**Measured on `docs/NOW.md`:** `grep -c '^## '` gives **312**; distinct heading texts give **310**.
+`Honesty limits (BINDING)` appears at lines 1479 and 1708, and a `Wave Loop 777` subject at 4504 and
+4601. The command printed `present on origin/master 310` for a 312-heading file, and asked "does every
+heading have a body?" over 310 seats -- **while four comments in that same source file said 312.**
+
+**I measured 312-vs-310 in &sect;556, wrote it into the prose, and then built the tool on the map that
+collapses them.** The number was on the page before the code was written.
+
+### The verdict was right, by luck
+
+All four colliding occurrences have bodies (30/18 and 34/34 non-blank lines), so per-occurrence hollow
+= 0 and per-title hollow = 0. **The check is correct today over a population two seats short**, and
+would flip the first time a repeated subject's EARLIER copy is bare -- routine for an append-only log
+of commit subjects that already repeats two of them.
+
+Fixed by separating the two questions rather than picking one:
+
+```text
+titles ever written    792
+headings on origin/master 312   (## lines)
+distinct titles        310   (what the history walk compares)
+```
+
+Hollow and misattribution now run over `occurrences()`, which collapses nothing. The history walk
+keeps the title map, because that is what makes renumbering invisible to it. **Two questions, two
+populations, both printed with their unit** -- which is the whole of &sect;571 applied to the thing
+&sect;571 shipped.
+
+### Both structural tests failed again, and are now pinned to the population
+
+They asserted `hollow_headings(&now)`. Changing the argument to `&here` broke them -- the second time
+in two passes that restructuring a guard broke the test that pins it, and the second time that was the
+test doing its job. They now assert the ARGUMENT, not merely the call: the hollow question must be
+asked over `occurrences`, and `here` must be bound from it. Two of the three mutants no longer compile,
+which is the strongest form of a killed mutant.
+## 567. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
+
+The earlier units fan-out flagged `prcheck.rs` and I had not checked it. Checking it found a guard that
+is wrong on every real input.
+
+`merged_recently` asks the API for **closed** pull requests and keeps the **merged** ones:
+
+```rust
+&format!("repos/{repo}/pulls?state=closed&per_page={page}"),
+"--jq", ".[]|select(.merged_at!=null)|.number",
+...
+let complete = read_is_complete(rows.len(), page);   // rows = MERGED, page = CLOSED page size
+```
+
+`read_is_complete(returned, limit)` is `returned < limit` -- "the page was not full, so the read saw
+everything". **It was handed the merged count and the closed page size.** Closed is a superset of
+merged, so the comparison is between a filtered number and an unfiltered cap.
+
+**Measured on `gHashTag/t27`, 2026-09-05:**
+
+| `per_page` | closed returned | merged of those | guard said | page actually full |
+|---|---|---|---|---|
+| 30 | 30 | 29 | COMPLETE | **YES** |
+| 60 | 60 | 59 | COMPLETE | **YES** |
+| 90 | 90 | 88 | COMPLETE | **YES** |
+
+**The page was full every time and the guard said complete every time.** It can only say otherwise
+when EVERY closed pull request on the page is merged -- one unmerged row anywhere on the page is
+enough to make it silent forever.
+
+Fixed by asking the completeness question of the read the PAGE bounded: the request returns
+`number<TAB>merged?` for every closed row, `read_is_complete` sees the closed count, and the merged
+filter is applied afterwards. **The guard is now structurally unable to see the filtered number --
+reverting it does not compile, because `rows` no longer exists at that point.**
+
+### The test rebuilt the filter instead of calling it
+
+The first test for the merged filter reconstructed it inline from the same four lines of TSV, and a
+mutant that removed the filter from production passed. Extracted to `merged_numbers` and the test now
+calls it. **A test that reimplements the thing it tests is a second copy agreeing with itself** --
+which is the same shape as &sect;546's mutation that also edited the test, one level down.
+
+### And the measurement of this class was itself undercounted
+
+Before building anything I counted the ratio prints: **16**. A wider pattern found **49**. The first
+regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
+args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
+units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
+## 567. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
+
+&sect;542 fixed the DENOMINATOR of `tri gates mutate`'s equivalence report: `claims_seen` counted every
+`# mutant-equivalent:` marker textually, including claims for which no mutant was ever built. The
+numerator went untouched. The units fan-out found it.
+
+```rust
+claims_seen += in_scope.len();          // distinct claim LINES, from a union over all directions
+for (dir, _, _, survivors) in &scores { // ... once PER DIRECTION
+    claims_broken.extend(contradicted_claims(..));
+}
+println!("{} of {} equivalence claim(s) CONTRADICTED:", claims_broken.len(), claims_seen);
+```
+
+**"X of Y" is an inclusion statement, so both halves have to count the same thing.** They do not. A
+claimed line that is a mutable site under two operators and dies under both contributes **two rows**
+to a numerator whose denominator counted it **once**. Under `--all` the command can print `2 of 1`.
+
+**Measured, not hypothesised.** Of the eight markers in `tools/`, exactly **one** is a site in two
+directions: `gft_backprop_microcode.py:742`, `assert _magsub(10240, 9217) == 9984, ...` -- an assert
+site AND a boundary site. One in eight, on real data, reachable by a flag the command documents.
+
+**Fixed by counting each half in its own unit rather than deleting a number:**
+
+```text
+1 of 8 equivalence claim(s) CONTRADICTED, in 2 (claim x operator) row(s):
+```
+
+The rows stay per direction, because **which operator killed a claim is the useful half** -- an
+`assert` mutant dying says something different from a `boundary` mutant dying. What changes is that
+the ratio now speaks about claims and the rows are counted as rows.
+
+### The half of a fix is not the fix
+
+Two passes ago I corrected this function's denominator and wrote a section about it. The numerator sat
+four lines below, in the same `println!`, and I did not look at it. **&sect;574's lesson -- "the fix
+does not travel" -- has a shorter form here: it did not travel four lines.**
+
+The mutant that reverts the numerator to `claims_broken.len()` survived three fresh unit tests on
+`distinct_claims`. Killed only by a structural test reading the call site: **tenth pass in a row that
+the wiring outlived the function.**
+### The detector I wrote could not find what the compiler was already saying
+
+`tri types redef` ends with a sentence that reads as a partition of the rows it just
+printed: *N state different NUMBERS; N differ in which fields they state, N in the text
+of a field, N only in prose, N identical.* It summed to **345**. The command had printed
+**346** rows.
+
+The dropped row was the only `SIGNATURE` one — two definitions of `delete` in one spec,
+one taking a line range and one taking a path. The second-most-severe class the command
+has, and the tally is the sentence a reader carries away.
+
+`signature` was incremented in the `match` and left out of the `println!` argument list.
+
+The part worth keeping is not the bug. That pass opened by building a detector for a
+neighbouring shape — *a guard checked for reachability rather than correctness* — which
+narrowed 69 candidates to 16 by requiring that the variable be **read by a control-flow
+test**. That detector could not have found this defect, because the defect **is the
+absence of any read**. Its shape requirement excluded the thing it was hunting.
+
+The instrument that answers "nothing reads this" ships with the compiler and had been
+printing it on every build for as long as the line existed:
+
+```
+warning: variable `signature` is assigned to, but never used
+warning: value assigned to `signature` is never read
+```
+
+Every build in that session was run as `cargo build 2>&1 | grep -E '^error'`, or with
+its output piped to `/dev/null` outright. The output was discarded because 23 warnings
+of mostly-cosmetic noise is not worth reading — which is exactly how the one warning
+that mattered stayed invisible for as long as it did.
+
+Three consequences.
+
+**Before writing a detector, ask what the toolchain already reports.** A bespoke matcher
+competes with `rustc`, `clippy`, the type checker, and the linter — all of which run on
+every build and none of which need a population argument. Write the detector for what
+they *cannot* say.
+
+**Classify the noise rather than silencing it.** Not all warnings are equal.
+*A value computed and never read* is a different claim from *an item nothing calls*: the
+first means work was performed and dropped, which usually means a result that was meant
+to reach somewhere and does not. `tri gates warnings` splits them into
+`DISCARDED` / `dead` / `cosmetic` / `other`, and `--gate` holds only the first class at
+zero. The 16 dead and 6 cosmetic warnings stay visible and ungated.
+
+**A warning report must force the work.** A cached compilation unit emits *no warnings
+at all*, so a report run against a warm `target/` reads clean no matter what the code
+says — the same broken-ruler shape as a gate whose subject has been deleted.
+`tri gates warnings` touches the crate root before checking, and says so in its output
+when it finds zero.
+
+And the test for a defect of this shape goes at the **call site**. The omission was from
+an argument list, so a test of any counting helper would have passed. Removing
+`signature` from the arguments alone does not compile — killed by `rustc`, not by the
+test, and reporting that as a kill would have been false. The mutation that *compiles* —
+dropping it from both the format string and the arguments — is the one the test must
+fail on, and it does, by name.
+
+### An assertion of absence is only as good as the region it is asked of
+
+Three instances in one pass, in three different languages, all the same shape: **a check
+whose verdict is "the needle was not found", evaluated over a region that need not contain
+the needle's subject.**
+
+A positive assertion fails loudly when its region is wrong — the thing it demands is not
+there. A negative assertion **passes**. That asymmetry is the whole defect: truncate the
+region and the check goes green while proving nothing.
+
+**A hardcoded operand list.** `coq-kernel.yml` guarded against `Admitted` — a lemma
+assumed rather than proved, which Coq accepts as an axiom — with
+`grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v`. `coq/_CoqProject` names
+**nine** files. Seven compiled proof files, including all three `Theorems/`, sat outside
+it. Nothing else covered them: `coqc` compiles a file containing `Admitted` without
+complaint, and `coqchk` ran for `PhiFloat` alone. Planting one in `Kernel/Trit.v` makes
+the gate print `OK: no Admitted in Phi.v or PhiFloat.v (both files read)` — a true
+sentence about the wrong question. The population belongs to the build, so it is now read
+from the file the build reads.
+
+**A region that can disappear.** `phi-loop-ci.yml` ended
+`grep -rn 'as f64' ffi/src/ ... 2>/dev/null | grep -v … | grep -v … && echo "L8 FAILED" && exit 1 || echo "L8 PASSED"`.
+Remove `ffi/src/` and the first grep exits 2 with its message discarded; the **last** grep
+in the pipe then reads empty input and exits 1, which `||` reports as "no violations".
+Byte-identical output to a clean tree. **In a pipeline the exit code is the last command's,
+so an upstream "could not run" is laundered into a downstream "found nothing".**
+
+**A source slice.** `src.split("#[cfg(test)]").next()` as "the production code" stops at
+the FIRST test module. Measured with `gates::test_module_lines` — a state machine, not a
+split: of 46 files carrying a test module, **10** have production items after their first,
+**130** items in all, **79** in `gates.rs` across 38 test modules.
+
+Two rules come out of this.
+
+**Give every negative assertion a positive anchor.** Before asserting the needle is absent,
+assert the *subject* is present in the region. Both structural tests written that pass
+worked only by position — the needle happened to sit above the cut. Each now proves its
+slice reaches the subject first, and planting a test module above the subject fails them
+with "this test would pass vacuously" where before they passed.
+
+**Make the population's size visible, and refuse a zero.** The repaired gates print
+`reading 9 file(s) named by coq/_CoqProject`, and an empty `_CoqProject` exits **2**, not
+0. A count in the output is what lets a reader notice the day it drops. Two candidates from
+the same sweep were **refuted** by exactly this: the `actions/github-script` injection gate
+already prints `2 actions/github-script step(s)` and finds 2 of 2, and the status-table
+path check drops 15 candidates that are all correctly dropped — GitHub org/repo names, a
+branch name, `/tmp` paths, and formulas containing a slash. A clean audit is a result.
+
+And the counting instrument itself is subject to the rule. The 10-and-79 above were first
+measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
+message before being checked against `test_module_lines` — the correct instrument, already
+in the repository, already trusted by `mutate`. Two files the wrong count named have zero.

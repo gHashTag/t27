@@ -1,8 +1,8 @@
 BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
 
   files read                    42
-  lines naming either spelling  65
-  of those, FETCH SITES         25
+  lines naming either spelling  66
+  of those, FETCH SITES         26
   refused as not a fetch        40   (--excluded prints them)
 
   complete by construction:
@@ -10,25 +10,19 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     per_page=1 + total_count    5
 
   bounded, and:
-    asks whether the page filled  4
-    a guard, but two fetches       4   <- which one does it cover?
+    asks whether the page filled  9
+    a guard, but two fetches       0   <- which one does it cover?
     per_page=1, NO total read     3
     prints what it got            2
 
   PRINTS WHAT IT GOT:
-    red.rs:140  fn runs_url
-    red.rs:151  fn deep_runs_url
+    red.rs:156  fn runs_url
+    red.rs:167  fn deep_runs_url
 
   ONE ROW, NO TOTAL:
-    gates.rs:2758  fn unmeasured
-    red.rs:178  fn last_pass
-    red.rs:298  fn now
-
-  A GUARD IN THE FUNCTION, BUT MORE THAN ONE FETCH:
-    issues.rs:622  fn numbers
-    issues.rs:633  fn numbers
-    issues.rs:1279  fn dated
-    issues.rs:1290  fn dated
+    gates.rs:3430  fn unmeasured
+    red.rs:194  fn last_pass
+    red.rs:395  fn now
 
   A full page is a LOWER BOUND and only a short one is a total, so a
   bounded fetch that prints what it got is stating a page as a census. The
@@ -38,8 +32,8 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
   exactly that. 2 of the 2 in that bucket are that shape.
 
   The exclusions are the other half of the reading. Taking every line that
-  merely NAMES `--limit` or `per_page=` reports 65 sites in a crate that has
-  25: prose, doc comments, a marker table and test assertions. A matcher that
+  merely NAMES `--limit` or `per_page=` reports 66 sites in a crate that has
+  26: prose, doc comments, a marker table and test assertions. A matcher that
   swallowed them would be describing its input.
 
   SURFACE: this reads `cli/tri/src/*.rs` and nothing else. 4 bounded

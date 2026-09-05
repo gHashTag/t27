@@ -125,6 +125,7 @@ pub(crate) fn clear_derived_caches(file: &Path) {
     }
 }
 
+#[derive(Debug, Clone)]
 struct Mutant {
     line: usize,
     /// 1-based column. Without it, two identical literals on one line produce
@@ -212,6 +213,25 @@ fn masked(text: &str) -> Vec<bool> {
     mask
 }
 
+/// Drop the sites that sit inside a Rust `#[cfg(test)]` module.
+///
+/// Returns the survivors and how many were dropped, so the count can be
+/// PRINTED rather than silently applied -- a population that shrinks without
+/// saying so is the defect one level up from the one this fixes.
+fn drop_test_module_sites(file: &Path, text: &str, all: Vec<Mutant>) -> (Vec<Mutant>, usize) {
+    if file.extension().and_then(|e| e.to_str()) != Some("rs") {
+        return (all, 0);
+    }
+    let mask = crate::gates::test_module_lines(text);
+    let before = all.len();
+    let kept: Vec<Mutant> = all
+        .into_iter()
+        .filter(|m| !mask.get(m.line.saturating_sub(1)).copied().unwrap_or(false))
+        .collect();
+    let dropped = before - kept.len();
+    (kept, dropped)
+}
+
 /// Every integer literal in the file, with a perturbed value.
 ///
 /// Deliberately numeric-only and deliberately dumb. A parser per language would
@@ -293,6 +313,21 @@ fn passes(cmd: &str) -> Result<bool> {
     Ok(out.status.success())
 }
 
+/// The mutants to run, and whether `max` cut the walk short.
+///
+/// Truncation is detected by asking `find_mutants` for one MORE than the cap
+/// and seeing whether it comes back. `probe.len() > max` and not `>=`: a file
+/// holding exactly `max` literals was walked to the end and is not truncated.
+/// That distinction is the whole point -- it decides whether the report may
+/// speak about the file or only about a prefix of it -- and it lived inline in
+/// `mutate`, where no test could reach it: flipping `>` to `>=` left all 760
+/// tests green.
+fn mutants_and_truncation(text: &str, max: usize) -> (Vec<Mutant>, bool) {
+    let probe = find_mutants(text, max.saturating_add(1));
+    let truncated = probe.len() > max;
+    (probe.into_iter().take(max).collect(), truncated)
+}
+
 fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
     let original =
         std::fs::read_to_string(file).with_context(|| format!("cannot read {}", file.display()))?;
@@ -308,17 +343,63 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
         );
     }
 
-    let mutants = find_mutants(&original, max);
+    // Ask for one more than the cap allows. If we get it, the walk was
+    // TRUNCATED and every count below describes a prefix of the file rather
+    // than the file. Without this the tool prints "N literal(s) in <file>"
+    // where N is the cap, and -- when nothing survives -- "Nothing in this
+    // file is decorative", which is an assertion of ABSENCE over a region the
+    // reader is never told was bounded.
+    //
+    // Measured on cli/tri/src/fpga.rs: the default cap of 40 stops at line
+    // 1764 of 10819 and reports 40, where the file holds 376 production
+    // literals (plus 637 inside `#[cfg(test)]`, skipped separately). 10.6% of
+    // the population, presented as all of it.
+    let (all, truncated) = mutants_and_truncation(&original, max);
+    // A literal inside `#[cfg(test)]` is not a constant the checker fails to
+    // check -- it is the checker's own arithmetic. Perturbing it breaks the test
+    // that holds it, and that red is reported as the checker NOTICING, which is
+    // a tautology: something went red and nothing was learned about production.
+    //
+    // Measured 2026-09-05 on this crate: 45 of the 59 sites this tool finds in
+    // `red.rs` are inside its test module -- 76% -- and 1545 of 3198 across the
+    // whole crate. Reproduced end to end: perturbing `render_headline(50, ...)`
+    // in a test call fails the suite, and `50` is a number that appears only in
+    // that test.
+    //
+    // Rust only, by the same rule `gates` uses. The tool is deliberately
+    // language-agnostic and runs on Python, Verilog and YAML, none of which have
+    // `#[cfg(test)]`; there the population is unchanged.
+    let (mutants, skipped) = drop_test_module_sites(file, &original, all);
+    if skipped > 0 {
+        println!(
+            "  {skipped} literal(s) skipped: they sit inside a `#[cfg(test)]` module.\n  \
+             Perturbing a test's own arithmetic fails that test, and reporting it as\n  \
+             `the checker noticed` says nothing about the code under test.\n"
+        );
+    }
     if mutants.is_empty() {
         println!("No numeric literals found in {}.", file.display());
         return Ok(());
     }
 
-    println!(
-        "{} literal(s) in {}, one mutation each.\n",
-        mutants.len(),
-        file.display()
-    );
+    if truncated {
+        println!(
+            "{} literal(s) in {}, one mutation each.\n\
+             THIS IS A PREFIX, NOT THE FILE: the walk stopped at the --max of \
+             {} and there are more beyond it. Every count below, and any claim \
+             that nothing survived, describes only what was reached. Raise \
+             --max to cover the file.\n",
+            mutants.len(),
+            file.display(),
+            max
+        );
+    } else {
+        println!(
+            "{} literal(s) in {}, one mutation each.\n",
+            mutants.len(),
+            file.display()
+        );
+    }
 
     let mut survivors = Vec::new();
     for (n, m) in mutants.iter().enumerate() {
@@ -362,11 +443,22 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
     clear_derived_caches(file);
     let _ = std::fs::remove_file(&backup);
     if survivors.is_empty() {
-        println!(
-            "Every one of the {} literals changed the outcome. Nothing in this \
-             file is decorative.",
-            mutants.len()
-        );
+        if truncated {
+            println!(
+                "Every one of the {} literals REACHED changed the outcome. That \
+                 is a statement about the first {} literals, not about this \
+                 file: the walk stopped at --max. Nothing here says the rest \
+                 are not decorative, because the rest were never mutated.",
+                mutants.len(),
+                max
+            );
+        } else {
+            println!(
+                "Every one of the {} literals changed the outcome. Nothing in \
+                 this file is decorative.",
+                mutants.len()
+            );
+        }
         return Ok(());
     }
 
@@ -395,6 +487,160 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A literal inside `#[cfg(test)]` is the checker's own arithmetic, not a
+    /// constant the checker fails to check. Perturbing it fails the test that
+    /// holds it, and that red was reported as the checker NOTICING.
+    ///
+    /// Measured 2026-09-05: 45 of the 59 sites this tool finds in `red.rs` are
+    /// inside its test module, and 1545 of 3198 across the crate. Reproduced end
+    /// to end: perturbing `render_headline(50, ...)` in a test call fails the
+    /// suite, and that `50` appears only in that test.
+    #[test]
+    fn a_literal_inside_a_test_module_is_not_a_site() {
+        let src = "const CAP: usize = 30;\n#[cfg(test)]\nmod t {\n    #[test]\n    fn a() {\n        assert_eq!(f(7), 8);\n    }\n}\n";
+        let all = find_mutants(src, 40);
+        assert_eq!(
+            all.len(),
+            3,
+            "the raw finder sees all three: 30, 7 and 8 -- {all:?}"
+        );
+        let (kept, dropped) = drop_test_module_sites(Path::new("x.rs"), src, all);
+        assert_eq!(dropped, 2, "the two inside the test module are dropped");
+        assert_eq!(kept.len(), 1, "the production constant remains");
+        assert_eq!(kept[0].from, "30", "and it is the right one: {kept:?}");
+    }
+
+    /// The filter can be right while `mutate` never calls it.
+    ///
+    /// Replacing the call with `(all, 0)` leaves the three value-level tests
+    /// here green and restores the defect exactly. This is the FIFTH change in
+    /// five passes whose surviving mutant was the wiring rather than the
+    /// function, and the first one I went looking for before running it.
+    ///
+    /// The needle is split across two literals so this test's own body does not
+    /// contain the string it searches for -- a structural test that finds itself
+    /// passes against its own mutant, which happened once already.
+    #[test]
+    fn mutate_actually_calls_the_filter() {
+        let src = include_str!("mutate.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own, not a mention in prose");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("drop_test_module_", "sites(file, &original, all)");
+        assert!(
+            code.contains(call),
+            "the filter has to be reached from `mutate`, or a test-module literal \
+             is perturbed and its red is reported as the checker noticing"
+        );
+    }
+
+    /// The tool runs on a Python oracle, a Verilog header and a YAML workflow.
+    /// None of them has `#[cfg(test)]`, and none may lose a site to a rule
+    /// written for Rust.
+    #[test]
+    fn a_non_rust_file_keeps_every_site() {
+        let src = "CAP = 30\n# cfg(test) is not a thing here\nassert f(7) == 8\n";
+        let all = find_mutants(src, 40);
+        let n = all.len();
+        assert!(n >= 3, "the finder sees the literals: {all:?}");
+        for name in ["x.py", "x.v", "x.yml", "x"] {
+            let (kept, dropped) = drop_test_module_sites(Path::new(name), src, all.clone());
+            assert_eq!(dropped, 0, "{name}: no Rust rule may apply");
+            assert_eq!(kept.len(), n, "{name}: every site survives");
+        }
+    }
+
+    /// A population that shrinks without saying so is the defect one level up
+    /// from the one this fixes, so the count comes back to be printed.
+    #[test]
+    fn mutate_asks_the_helper_rather_than_assuming_a_full_walk() {
+        // Extracting `mutants_and_truncation` made the PREDICATE testable and
+        // left the WIRING open: replacing the call with
+        // `(find_mutants(&original, max), false)` keeps every count correct,
+        // silently drops the prefix warning, and left all 760 tests green.
+        // Twelfth time this pass shape has recurred, so the call site gets its
+        // own reader.
+        let src = include_str!("mutate.rs");
+        // NOT `split("#[cfg(test)]")`: that literal appears in SIX doc comments
+        // and string literals in this file before the real attribute, the
+        // earliest at line 216, so the split cuts 115 lines above `mutate` and
+        // the slice never reaches the subject. The attribute is a line of its
+        // own; match it as one.
+        let boundary = src
+            .lines()
+            .position(|l| l == concat!("#[cfg(te", "st)]"))
+            .expect("the test module attribute is a line of its own");
+        let prod: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        assert!(
+            prod.contains("fn mutate(file: &Path"),
+            "the production slice no longer reaches `mutate` -- the assertion \
+             below would pass vacuously"
+        );
+        let call = concat!("mutants_and_truncation(&ori", "ginal, max)");
+        assert!(
+            prod.contains(call),
+            "`mutate` must ask the helper. Building the pair inline is how the \
+             truncation flag gets hardcoded to false without any test noticing."
+        );
+    }
+
+    #[test]
+    fn a_capped_walk_says_so() {
+        // The tool printed "N literal(s) in <file>" where N was the --max, and
+        // on an all-killed run "Nothing in this file is decorative" -- a claim
+        // about the FILE from a prefix of it. Measured on cli/tri/src/fpga.rs:
+        // the default cap of 40 stops at line 1764 of 10819 and the file holds
+        // 376 production literals.
+        let src = "fn a() { let x = 1; let y = 2; let z = 3; }";
+        assert_eq!(find_mutants(src, 40).len(), 3, "uncapped sees all three");
+        assert_eq!(find_mutants(src, 2).len(), 2, "capped sees two");
+        // The detection is `ask for one more than the cap and see if you get
+        // it`, so it must be exact at the boundary: a file with exactly `max`
+        // literals is NOT truncated.
+        assert_eq!(find_mutants(src, 3).len(), 3);
+        assert_eq!(
+            find_mutants(src, 4).len(),
+            3,
+            "asking for more than exist returns what exists -- this is what \
+             distinguishes a full walk from a truncated one"
+        );
+
+        // The flag itself, at the boundary. `>=` here would call a complete
+        // walk truncated and print the prefix warning on every clean run.
+        let (got, trunc) = mutants_and_truncation(src, 2);
+        assert_eq!(got.len(), 2, "the cap still limits what is returned");
+        assert!(trunc, "two of three literals is a truncated walk");
+        assert!(
+            !mutants_and_truncation(src, 3).1,
+            "exactly max is NOT truncated"
+        );
+        assert!(
+            !mutants_and_truncation(src, 4).1,
+            "fewer than max is NOT truncated"
+        );
+        assert_eq!(
+            mutants_and_truncation(src, 3).0.len(),
+            3,
+            "and it returns all of them"
+        );
+    }
+
+    #[test]
+    fn the_number_dropped_is_returned_to_be_printed() {
+        let src = "let a = 1;\n#[cfg(test)]\nmod t {\n    fn z() { let b = 2; let c = 3; }\n}\n";
+        let all = find_mutants(src, 40);
+        let before = all.len();
+        let (kept, dropped) = drop_test_module_sites(Path::new("x.rs"), src, all);
+        assert_eq!(
+            kept.len() + dropped,
+            before,
+            "every site is either kept or counted as dropped -- none may vanish"
+        );
+        assert!(dropped > 0, "this fixture has test-module literals to drop");
+    }
 
     /// `gf16` and `sha1` are names, not constants. An early version of this
     /// scanner mutated the `16` in `gf16` and produced a mutant that failed for

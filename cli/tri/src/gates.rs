@@ -20,6 +20,23 @@ use std::process::Command;
 
 #[derive(Subcommand, Debug)]
 pub enum GatesCmd {
+    /// Classify the compiler's own warnings. `rustc` already answers "is this
+    /// value ever read" and "does anything call this" for the whole crate; the
+    /// answer only helps if somebody reads it.
+    ///
+    /// T106: `signature` in `types_dup.rs` was incremented for every name whose
+    /// copies disagreed in signature and then left out of the summary's
+    /// argument list. The tally printed 345 for 346 rows. rustc had said
+    /// `value assigned to `signature` is never read` on every build for as long
+    /// as the line existed, and every build in that session was run with its
+    /// output piped to /dev/null.
+    Warnings {
+        /// Exit 1 if any warning falls in the discarded-computation class --
+        /// a value computed and never read. That is the T106 shape.
+        #[arg(long)]
+        gate: bool,
+    },
+
     /// Run every gate script and its negative control; name the ones with none.
     Sweep {
         /// Skip the gates themselves and only report which have no control.
@@ -212,7 +229,8 @@ pub enum GatesCmd {
 
     /// List active workflows whose lifetime success count is zero.
     Dead {
-        /// owner/repo, repeatable. Defaults to the three this fleet uses.
+        /// owner/repo, repeatable. Defaults to `fleet_repos()` -- one list, because
+        /// there were two and they disagreed by one repository.
         #[arg(long = "repo")]
         repos: Vec<String>,
         /// Ignore workflows with fewer lifetime runs than this, so a new or
@@ -231,6 +249,30 @@ pub enum GatesCmd {
     /// had never compiled, 233 files carried a developer's home directory, and
     /// `tri rtl check` had been dying on a submodule that was declared but not
     /// registered. Every one of them had been reading as passing.
+    /// Tests that do not run, and tests that run twice.
+    ///
+    /// An edit that inserts a test by anchoring on `fn name() {` lands BETWEEN
+    /// the `#[test]` above it and the function, which leaves the neighbour
+    /// without an attribute and the newcomer with two. Both were shipped to
+    /// master by this repository's own loop on 2026-09-05, in commit f7c1ff5:
+    /// `the_query_and_the_marker_read_one_constant` stopped running and
+    /// `the_freshness_boundary_is_pinned_on_both_sides` was registered twice.
+    ///
+    /// They CANCEL in every total. Attributes: unchanged. Functions: unchanged.
+    /// Tests reported by `cargo test`: unchanged, because the phantom fills the
+    /// seat the dead one left. The pass that shipped them checked "11 attributes
+    /// against 11 functions", read a match, and moved on. Only per-function
+    /// pairing can see it, which is what this asks.
+    ///
+    /// Measured across all 42 modules of this crate at f7c1ff5: exactly one of
+    /// each, both real, and the three assert-bearing helper functions in test
+    /// modules were correctly not flagged -- a helper is CALLED, an orphaned
+    /// test is not, and that reference count is the whole discriminator.
+    Tests {
+        /// Exit 1 when anything is found, for use as a gate.
+        #[arg(long)]
+        gate: bool,
+    },
     Unmeasured {
         /// owner/repo, repeatable. Defaults to the repository you are in.
         #[arg(long = "repo")]
@@ -1079,6 +1121,19 @@ fn invert_sites(src: &str) -> Vec<(usize, usize, String)> {
 /// mutant, or a subprocess -- the check exists because nothing had ever
 /// falsified one of these claims, and a checker nobody can test is the same
 /// failure one level up.
+/// How many distinct CLAIMS a set of contradiction rows speaks for.
+///
+/// A row is `{gate}:{line} -- ...`, one per (claim, direction) pair, so a claim
+/// that is a mutable site under two operators and dies under both produces two
+/// rows. The numerator of "X of Y equivalence claims" has to count claims, or
+/// X can exceed Y -- and Y is a count of distinct claim lines.
+pub fn distinct_claims(rows: &[String]) -> usize {
+    rows.iter()
+        .map(|r| r.split(" -- ").next().unwrap_or(r.as_str()))
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+}
+
 fn contradicted_claims(
     gate: &str,
     dir: &str,
@@ -1110,6 +1165,30 @@ fn contradicted_claims(
         }
     }
     out
+}
+
+/// Split claimed lines into the ones a mutant was actually built at and the
+/// ones it was not.
+///
+/// Both are returned SORTED, because `equivalence_claims` hands back a HashMap
+/// and an unsorted report changes order between runs of the same command --
+/// which reads as movement where there is none.
+fn claims_by_scope(
+    equiv: &std::collections::HashMap<usize, String>,
+    sites: &std::collections::HashSet<usize>,
+) -> (Vec<usize>, Vec<usize>) {
+    let mut inside: Vec<usize> = Vec::new();
+    let mut outside: Vec<usize> = Vec::new();
+    for line in equiv.keys() {
+        if sites.contains(line) {
+            inside.push(*line);
+        } else {
+            outside.push(*line);
+        }
+    }
+    inside.sort_unstable();
+    outside.sort_unstable();
+    (inside, outside)
 }
 
 fn equivalence_claims(src: &str) -> std::collections::HashMap<usize, String> {
@@ -1877,6 +1956,9 @@ fn mutate(
     // built the mutant and already knows the verdict. An unfalsifiable claim
     // is prose wearing the costume of an analysis.
     let mut claims_broken: Vec<String> = Vec::new();
+    // Claims whose line is not a mutable site under ANY operator this run used.
+    // No mutant was built there, so the run neither confirmed nor refuted them.
+    let mut claims_out_of_scope: Vec<String> = Vec::new();
     let mut claims_seen = 0usize;
     let mut cache = if fresh {
         std::collections::HashMap::new()
@@ -2119,7 +2201,30 @@ fn mutate(
         // `invert`, and this names the direction rather than pretending to
         // judge. That ambiguity is in the marker's design, not in the check;
         // reporting it is what makes it visible enough to fix.
-        claims_seen += equiv_lines.len();
+        // IN SCOPE means a mutant was actually built at the claimed line. The
+        // comment just above already holds the fact that makes a plain count
+        // wrong -- "every one in the tree today argues about a comparison" --
+        // and the default operator is `silent`, whose sites are `return <1..4>`
+        // lines only. Measured 2026-09-05: all EIGHT markers in `tools/` bind to
+        // a comparison or an assignment and none to a `return`, so on a default
+        // run the old counter called every one of them in scope and printed
+        // "each mutant survived" while ZERO mutants had been built at any of
+        // them. A claim about the future of the code is worth only the run that
+        // could have refuted it, and that run could not.
+        let sites_any: std::collections::HashSet<usize> = scores
+            .iter()
+            .flat_map(|(dir, _, _, _)| {
+                sites_in_direction(&pristine, *dir)
+                    .into_iter()
+                    .map(|(at, _, _)| line_of(&pristine, at))
+            })
+            .collect();
+        let (in_scope, out_of_scope) = claims_by_scope(&equiv_lines, &sites_any);
+        claims_seen += in_scope.len();
+        for line in out_of_scope {
+            let text = equiv_lines.get(&line).cloned().unwrap_or_default();
+            claims_out_of_scope.push(format!("{name}:{line}  {text}"));
+        }
         for (dir, _, _, survivors) in &scores {
             let site_lines: Vec<usize> = sites_in_direction(&pristine, *dir)
                 .into_iter()
@@ -2263,6 +2368,24 @@ fn mutate(
     }
 
     println!();
+    if !claims_out_of_scope.is_empty() {
+        println!(
+            "{} `# mutant-equivalent:` claim(s) NOT TESTED by this run:",
+            claims_out_of_scope.len()
+        );
+        for c in &claims_out_of_scope {
+            println!("  {c}");
+        }
+        println!();
+        println!("Each names a line that is not a mutable site under the operator(s) this");
+        println!("run used, so no mutant was built there and nothing was refuted OR");
+        println!("confirmed. They were previously counted among the claims that");
+        println!("`survived`, which reported a result the run had not produced: the");
+        println!("default operator is `silent` and its sites are `return <1..4>` lines,");
+        println!("while every marker in the tree argues about a comparison. Reach them");
+        println!("with `--boundary`, `--invert` or `--all`.");
+        println!();
+    }
     if claims_seen == 0 {
         println!("No `# mutant-equivalent:` claim was in scope for this run.");
     } else if claims_broken.is_empty() {
@@ -2274,10 +2397,28 @@ fn mutate(
         println!("the whole check -- a claim about the FUTURE of the code is worth");
         println!("only the run that could have refuted it and did not.");
     } else {
+        // "X of Y" is an inclusion statement, so both halves must count the
+        // same thing. They did not: `claims_seen` counts distinct claim LINES
+        // (from `sites_any`, a union over every direction), while
+        // `claims_broken` is extended once PER DIRECTION, so a claimed line
+        // that is a site under two operators and dies under both contributes
+        // two rows. Under `--all` that prints "2 of 1".
+        //
+        // Measured 2026-09-05: of the eight `# mutant-equivalent:` markers in
+        // `tools/`, ONE is a site in two directions --
+        // `gft_backprop_microcode.py:742`, an `assert ... == 9984`, which is
+        // both an assert site and a boundary site. Reachable on real data, not
+        // a hypothetical.
+        //
+        // The rows are worth keeping per direction: which operator killed it is
+        // the useful part. So the RATIO counts claims and the rows are counted
+        // separately, each with its unit.
+        let contradicted = distinct_claims(&claims_broken);
         println!(
-            "{} of {} equivalence claim(s) CONTRADICTED:",
-            claims_broken.len(),
-            claims_seen
+            "{} of {} equivalence claim(s) CONTRADICTED, in {} (claim x operator) row(s):",
+            contradicted,
+            claims_seen,
+            claims_broken.len()
         );
         for c in &claims_broken {
             println!("  {}", c);
@@ -2355,6 +2496,637 @@ fn code(root: &std::path::Path, tools: &std::path::Path, script: &str, args: &[&
     }
 }
 
+/// The 1-indexed line of each `#[test]` that is followed by another `#[test]`
+/// with only doc comments and blank lines between them. Doc comments are
+/// stepped over because the accident routinely leaves one attribute above the
+/// newcomer's docs and one below.
+/// Any attribute that makes a function a test: `#[test]`, `#[tokio::test]`,
+/// and the same shape from any other harness.
+///
+/// Recognising only `#[test]` left this check with two blind spots that
+/// CANCELLED -- it saw neither `#[tokio::test]` nor the `async fn` beneath it,
+/// so thirteen async tests in `cli/trios-bridge` were invisible in both
+/// directions and read as clean. That is the very pattern this gate exists to
+/// catch, one level up, in the gate itself.
+fn is_test_attr(line: &str) -> bool {
+    let t = line.trim();
+    t.starts_with("#[") && t.ends_with("test]")
+}
+
+fn duplicated_test_attributes(src: &str) -> Vec<usize> {
+    let lines: Vec<&str> = src.lines().collect();
+    let mut out = Vec::new();
+    for (i, l) in lines.iter().enumerate() {
+        if !is_test_attr(l) {
+            continue;
+        }
+        let mut j = i + 1;
+        while j < lines.len() && (lines[j].trim().starts_with("///") || lines[j].trim().is_empty())
+        {
+            j += 1;
+        }
+        if j < lines.len() && is_test_attr(lines[j]) {
+            out.push(i + 1);
+        }
+    }
+    out
+}
+
+/// Functions inside a `#[cfg(test)]` module that carry no `#[test]`, contain an
+/// assertion, and are named nowhere else in the file.
+///
+/// The reference count is what separates a helper from an orphan: a helper
+/// exists to be called, so its name appears at least twice; a test that lost
+/// its attribute is called by nobody and appears exactly once, at its own
+/// definition. Asserting alone is far too loose -- an earlier attempt at this
+/// with "a function containing an assert" returned 18 candidates of which 16
+/// were helpers.
+///
+/// Membership comes from `test_module_lines`, not from "everything after the
+/// first `#[cfg(test)]`". The first draft of this function used the latter, and
+/// the helper immediately above already carried the measurement refuting it:
+/// five files in this crate have real top-level functions AFTER their test
+/// module, and `gates.rs` has fifteen. The correct instrument was already in
+/// the file being edited.
+fn orphaned_tests(src: &str) -> Vec<String> {
+    let inside = test_module_lines(src);
+    let lines: Vec<&str> = src.lines().collect();
+    let mut out = Vec::new();
+    for (i, l) in lines.iter().enumerate() {
+        if !inside.get(i).copied().unwrap_or(false) {
+            continue;
+        }
+        // `pub` and `async` both sit between the indent and the `fn`, and an
+        // async test is still a test.
+        let t = l.trim_start();
+        let t = t.strip_prefix("pub ").unwrap_or(t);
+        let t = t.strip_prefix("async ").unwrap_or(t);
+        let Some(rest) = t.strip_prefix("fn ") else {
+            continue;
+        };
+        let name: String = rest
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        if name.is_empty() || !rest[name.len()..].starts_with('(') {
+            continue;
+        }
+        // Step back over docs and blanks the way the attribute would sit.
+        let mut j = i as isize - 1;
+        while j >= 0 {
+            let p = lines[j as usize].trim();
+            if p.starts_with("///") || p.is_empty() {
+                j -= 1;
+            } else {
+                break;
+            }
+        }
+        if j >= 0 && is_test_attr(lines[j as usize]) {
+            continue;
+        }
+        // Its body, by brace depth from the signature line.
+        let mut depth = 0i32;
+        let mut started = false;
+        let mut has_assert = false;
+        for line in lines.iter().skip(i) {
+            depth += line.matches('{').count() as i32;
+            depth -= line.matches('}').count() as i32;
+            if line.contains("assert") {
+                has_assert = true;
+            }
+            if line.contains('{') {
+                started = true;
+            }
+            if started && depth <= 0 {
+                break;
+            }
+        }
+        if !has_assert {
+            continue;
+        }
+        if token_occurrences(src, &name) <= 1 {
+            out.push(name);
+        }
+    }
+    out
+}
+
+/// How many times `name` appears as a WHOLE identifier in `text`.
+///
+/// A plain substring count answers a different question and answers it wrongly
+/// for short names: a function called `a` is "referenced" by every `assert`,
+/// every `match`, every `pat`. The first version of this counted substrings and
+/// declared an orphaned `async fn a()` to be a called helper -- its own test
+/// caught it, which is the only reason this reads `token` and not `matches`.
+fn token_occurrences(text: &str, name: &str) -> usize {
+    let bytes = text.as_bytes();
+    let mut n = 0;
+    let mut from = 0;
+    while let Some(rel) = text[from..].find(name) {
+        let at = from + rel;
+        let before_ok = at == 0 || !is_ident_byte(bytes[at - 1]);
+        let end = at + name.len();
+        let after_ok = end >= bytes.len() || !is_ident_byte(bytes[end]);
+        if before_ok && after_ok {
+            n += 1;
+        }
+        from = at + name.len().max(1);
+    }
+    n
+}
+
+fn is_ident_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// What a compiler warning says about the code, coarser than rustc's lint name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum WarnClass {
+    /// A value was computed and stored, and nothing ever reads it. This is the
+    /// T106 shape: work performed and dropped, which usually means a result
+    /// that was meant to reach somewhere and does not.
+    Discarded,
+    /// An item exists and nothing calls it.
+    Dead,
+    /// Cosmetic: an unused binding, an unnecessary `mut`.
+    Cosmetic,
+    /// Anything else rustc chose to say.
+    Other,
+}
+
+pub fn classify_warning(msg: &str) -> WarnClass {
+    if msg.starts_with("value assigned to") || msg.contains("is assigned to, but never used") {
+        return WarnClass::Discarded;
+    }
+    if msg.contains("is never used") || msg.contains("is never read") {
+        return WarnClass::Dead;
+    }
+    if msg.starts_with("unused ") || msg.starts_with("variable does not need to be mutable") {
+        return WarnClass::Cosmetic;
+    }
+    WarnClass::Other
+}
+
+fn warnings_gate(gate: bool) -> Result<()> {
+    let root = repo_root()?;
+    // A cached unit prints no warnings at all, so a report run against a warm
+    // target directory reads clean no matter what the code says. Touch the
+    // crate root to force this one crate to be re-checked; deps stay cached.
+    let main_rs = root.join("cli/tri/src/main.rs");
+    if !main_rs.is_file() {
+        anyhow::bail!("{} is missing -- nothing to re-check", main_rs.display());
+    }
+    let touched = Command::new("touch")
+        .arg(&main_rs)
+        .current_dir(&root)
+        .status();
+    match touched {
+        Ok(st) if st.success() => {}
+        _ => anyhow::bail!(
+            "could not touch {} -- without it a cached build reports zero warnings",
+            main_rs.display()
+        ),
+    }
+
+    let out = Command::new("cargo")
+        .args([
+            "check",
+            "-p",
+            "tri",
+            "--bin",
+            "tri",
+            "--message-format=json",
+        ])
+        .current_dir(&root)
+        .output()
+        .context("running cargo check")?;
+    let text = String::from_utf8_lossy(&out.stdout);
+
+    let mut rows: Vec<(WarnClass, String, String)> = Vec::new();
+    for line in text.lines() {
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        if v.get("reason").and_then(|r| r.as_str()) != Some("compiler-message") {
+            continue;
+        }
+        let m = match v.get("message") {
+            Some(m) => m,
+            None => continue,
+        };
+        if m.get("level").and_then(|l| l.as_str()) != Some("warning") {
+            continue;
+        }
+        let msg = m.get("message").and_then(|x| x.as_str()).unwrap_or("");
+        // The per-crate summary ("`tri` generated 23 warnings") is not a finding.
+        if msg.contains("generated") && msg.contains("warning") {
+            continue;
+        }
+        let at = m
+            .get("spans")
+            .and_then(|s| s.as_array())
+            .and_then(|a| a.first())
+            .map(|sp| {
+                format!(
+                    "{}:{}",
+                    sp.get("file_name").and_then(|f| f.as_str()).unwrap_or("?"),
+                    sp.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0)
+                )
+            })
+            .unwrap_or_else(|| "?".into());
+        rows.push((classify_warning(msg), at, msg.to_string()));
+    }
+
+    rows.sort();
+    let discarded = rows.iter().filter(|r| r.0 == WarnClass::Discarded).count();
+    for (class, at, msg) in &rows {
+        let tag = match class {
+            WarnClass::Discarded => "DISCARDED",
+            WarnClass::Dead => "dead     ",
+            WarnClass::Cosmetic => "cosmetic ",
+            WarnClass::Other => "other    ",
+        };
+        println!("  {tag}  {at:<34}  {msg}");
+    }
+    println!();
+    // `cargo check -p tri` also checks the workspace crates tri depends on, and
+    // replays their cached warnings, so this population is not one crate. Say
+    // whose it is: an unlabelled total is read as belonging to the crate named
+    // in the command, which is the same defect this command exists to catch.
+    let mut by_crate: std::collections::BTreeMap<String, usize> = Default::default();
+    for (_, at, _) in &rows {
+        let krate = at.split('/').take(2).collect::<Vec<_>>().join("/");
+        *by_crate.entry(krate).or_default() += 1;
+    }
+    let spread = by_crate
+        .iter()
+        .map(|(k, n)| format!("{k} {n}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    println!(
+        "{} warning(s) across {} crate(s) [{}]; {} in the discarded-computation class.",
+        rows.len(),
+        by_crate.len(),
+        spread,
+        discarded
+    );
+    if rows.is_empty() {
+        println!();
+        println!(
+            "Zero warnings from a crate this size is more likely a cached unit\n\
+             than a clean one. This command touches {} before checking for\n\
+             exactly that reason -- if that stopped working, this reads clean\n\
+             while saying nothing.",
+            main_rs.display()
+        );
+    }
+    if gate && discarded > 0 {
+        anyhow::bail!("{discarded} value(s) computed and never read -- see DISCARDED above");
+    }
+    Ok(())
+}
+
+fn tests_gate(gate: bool) -> Result<()> {
+    let root = repo_root()?;
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
+    collect_rs(&root.join("cli"), &mut files);
+    files.sort();
+    let mut dup = 0usize;
+    let mut orphan = 0usize;
+    for f in &files {
+        let Ok(src) = std::fs::read_to_string(f) else {
+            continue;
+        };
+        let rel = f.strip_prefix(&root).unwrap_or(f).display().to_string();
+        for line in duplicated_test_attributes(&src) {
+            dup += 1;
+            println!("  RUNS TWICE  {rel}:{line}  a second `#[test]` follows this one");
+        }
+        for name in orphaned_tests(&src) {
+            orphan += 1;
+            println!(
+                "  DOES NOT RUN  {rel}  fn {name} asserts, has no `#[test]`, and nobody calls it"
+            );
+        }
+    }
+    println!();
+    println!(
+        "{} file(s) read; {dup} test(s) registered twice, {orphan} that do not run at all.",
+        files.len()
+    );
+    if dup > 0 || orphan > 0 {
+        println!();
+        println!("These two cancel in every total. Counting attributes against functions");
+        println!("gives a match while one function holds both of them, which is how commit");
+        println!("f7c1ff5 shipped one of each and the pass that wrote it reported a clean");
+        println!("11 against 11. Pair them per function, or do not check them at all.");
+    }
+    if gate && (dup > 0 || orphan > 0) {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod claim_scope_tests {
+    use super::*;
+
+    /// `distinct_claims` can be right while the ratio still prints rows.
+    /// Reverting the numerator to `claims_broken.len()` restores "2 of 1"
+    /// exactly, with every test above green.
+    #[test]
+    fn the_ratio_numerator_counts_claims_not_rows() {
+        let src = include_str!("gates.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let contradicted = distinct_", "claims(&claims_broken);");
+        assert!(
+            code.contains(call),
+            "the numerator has to be counted in the denominator's unit"
+        );
+        let printed = concat!("(claim x oper", "ator) row(s):");
+        assert!(
+            code.contains(printed),
+            "and the row count is still printed, with ITS unit named -- which \
+             operator killed a claim is the useful half"
+        );
+    }
+
+    /// "X of Y" is an inclusion statement and both halves must count the same
+    /// thing. The numerator was rows -- one per (claim, direction) pair -- and
+    /// the denominator distinct claim lines, so X could exceed Y.
+    ///
+    /// Measured 2026-09-05: one of the eight markers in `tools/` is a site in
+    /// two directions -- `gft_backprop_microcode.py:742`, an `assert ... ==
+    /// 9984`, both an assert site and a boundary site.
+    #[test]
+    fn two_rows_for_one_claim_are_one_claim() {
+        let rows = vec![
+            "gft_backprop_microcode.py:742 -- 1 of 1 assert mutant(s) DIED, but the line claims: x"
+                .to_string(),
+            "gft_backprop_microcode.py:742 -- 1 of 2 boundary mutant(s) DIED, but the line claims: x"
+                .to_string(),
+        ];
+        assert_eq!(rows.len(), 2, "two rows, because two operators reached it");
+        assert_eq!(
+            distinct_claims(&rows),
+            1,
+            "and one claim, which is what the ratio's numerator must be"
+        );
+    }
+
+    /// Two different claims stay two, or the fix would understate the numerator.
+    #[test]
+    fn two_claims_are_not_collapsed() {
+        let rows = vec![
+            "a.py:10 -- 1 of 1 silent mutant(s) DIED, but the line claims: p".to_string(),
+            "b.py:20 -- 1 of 1 silent mutant(s) DIED, but the line claims: q".to_string(),
+        ];
+        assert_eq!(distinct_claims(&rows), 2);
+        assert_eq!(distinct_claims(&[]), 0, "no rows, no claims");
+    }
+
+    /// A row without the separator must still count as one claim rather than
+    /// vanishing: the format is ours, and a silent zero is the failure mode
+    /// this whole series is about.
+    #[test]
+    fn a_row_without_the_separator_still_counts() {
+        let rows = vec!["malformed row with no separator".to_string()];
+        assert_eq!(distinct_claims(&rows), 1);
+    }
+    use std::collections::{HashMap, HashSet};
+
+    /// A claim the run never built a mutant for is not a claim that survived.
+    ///
+    /// Measured 2026-09-05: all eight `# mutant-equivalent:` markers in `tools/`
+    /// bind to a comparison or an assignment, and the default operator `silent`
+    /// has only `return <1..4>` lines as sites. So on a default run every one of
+    /// them was counted "in scope" and the command printed "each mutant
+    /// survived" while zero mutants had been built at any of them.
+    #[test]
+    fn a_claim_with_no_site_is_not_in_scope() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        equiv.insert(469, "both guards force infinity, so >= is >".into());
+        equiv.insert(613, "the early return cannot change the verdict".into());
+        // `silent` sites: the `return` line only.
+        let silent: HashSet<usize> = [613usize].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &silent);
+        assert_eq!(inside, vec![613], "only the line a mutant was built at");
+        assert_eq!(outside, vec![469], "the comparison was never touched");
+        // Under an operator that DOES reach comparisons, it comes into scope.
+        let boundary: HashSet<usize> = [469usize, 613].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &boundary);
+        assert_eq!(inside, vec![469, 613], "both are now testable");
+        assert!(outside.is_empty(), "and nothing is left untested");
+    }
+
+    /// The helper can be right while the call site undoes it. Reverting
+    /// `claims_seen += in_scope.len()` to add both halves restores the original
+    /// defect exactly, and every value-level test above still passes -- the
+    /// helper is unchanged, only its result is misused.
+    ///
+    /// The needle is split across two literals so that this test's own body
+    /// does not contain the string it searches for. A structural test in
+    /// `red.rs` passed against its own mutant for precisely that reason: the
+    /// mutation changed the real call site, and `find` fell through to the
+    /// test's copy.
+    #[test]
+    fn the_call_site_counts_only_the_in_scope_half() {
+        let src = include_str!("gates.rs");
+        let both = concat!("in_scope.len() + ", "out_of_scope.len()");
+        assert!(
+            !src.contains(both),
+            "counting both halves is the defect this removed: a claim with no \
+             site had no mutant built, so it neither survived nor died"
+        );
+        let only = concat!("claims_seen += ", "in_scope.len();");
+        assert!(
+            src.contains(only),
+            "the in-scope half is what the survivor sentence is allowed to speak for"
+        );
+    }
+
+    /// The report is read by a human across runs, and `equivalence_claims`
+    /// returns a HashMap -- unsorted output reads as movement where there is
+    /// none.
+    #[test]
+    fn both_halves_come_back_sorted() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        for l in [900usize, 12, 451, 77, 3] {
+            equiv.insert(l, format!("claim at {l}"));
+        }
+        let sites: HashSet<usize> = [451usize, 3].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &sites);
+        assert_eq!(inside, vec![3, 451]);
+        assert_eq!(outside, vec![12, 77, 900]);
+    }
+
+    /// Every claim lands in exactly one half. A claim that fell out of both
+    /// would vanish from the report entirely, which is the failure this whole
+    /// change exists to stop.
+    #[test]
+    fn the_two_halves_partition_the_claims() {
+        let mut equiv: HashMap<usize, String> = HashMap::new();
+        for l in [1usize, 2, 3, 4, 5] {
+            equiv.insert(l, String::new());
+        }
+        let sites: HashSet<usize> = [2usize, 4].into_iter().collect();
+        let (inside, outside) = claims_by_scope(&equiv, &sites);
+        assert_eq!(
+            inside.len() + outside.len(),
+            equiv.len(),
+            "nothing may be dropped between the two counts"
+        );
+        assert!(
+            inside.iter().all(|l| !outside.contains(l)),
+            "and nothing may be counted twice"
+        );
+    }
+}
+
+#[cfg(test)]
+mod orphan_test_tests {
+    use super::*;
+
+    /// The exact accident, in miniature: an insert anchored on `fn name() {`
+    /// lands between the attribute and the function it belonged to.
+    #[test]
+    fn an_attribute_split_from_its_function_is_two_findings_not_one() {
+        let src = "#[cfg(test)]\nmod t {\n    #[test]\n    #[test]\n    fn newcomer() {\n        assert!(true);\n    }\n    fn neighbour() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            duplicated_test_attributes(src),
+            vec![3],
+            "the newcomer carries two attributes and runs twice"
+        );
+        assert_eq!(
+            orphaned_tests(src),
+            vec!["neighbour".to_string()],
+            "and the neighbour it stole one from does not run at all"
+        );
+    }
+
+    /// The two cancel in every total, which is why totals were the wrong check.
+    #[test]
+    fn the_two_defects_cancel_in_every_total() {
+        let broken = "#[cfg(test)]\nmod t {\n    #[test]\n    #[test]\n    fn a() {\n        assert!(true);\n    }\n    fn b() {\n        assert!(true);\n    }\n}\n";
+        let whole = "#[cfg(test)]\nmod t {\n    #[test]\n    fn a() {\n        assert!(true);\n    }\n    #[test]\n    fn b() {\n        assert!(true);\n    }\n}\n";
+        let attrs = |s: &str| s.lines().filter(|l| l.trim() == "#[test]").count();
+        let fns = |s: &str| {
+            s.lines()
+                .filter(|l| l.trim_start().starts_with("fn "))
+                .count()
+        };
+        assert_eq!(
+            attrs(broken),
+            attrs(whole),
+            "the attribute TOTAL is identical"
+        );
+        assert_eq!(fns(broken), fns(whole), "and so is the function total");
+        assert!(
+            !duplicated_test_attributes(broken).is_empty() && !orphaned_tests(broken).is_empty(),
+            "yet one file is broken in two places -- only per-function pairing sees it"
+        );
+        assert!(
+            duplicated_test_attributes(whole).is_empty() && orphaned_tests(whole).is_empty(),
+            "and the repaired file is clean by the same instrument"
+        );
+    }
+
+    /// A helper is CALLED. That reference, not the assert, is the discriminator.
+    #[test]
+    fn a_called_helper_is_not_an_orphan() {
+        let src = "#[cfg(test)]\nmod t {\n    fn fixture() {\n        assert!(true);\n    }\n    #[test]\n    fn real() {\n        fixture();\n    }\n}\n";
+        assert!(
+            orphaned_tests(src).is_empty(),
+            "`fixture` asserts and has no attribute, but something calls it"
+        );
+    }
+
+    /// Membership is `test_module_lines`, not "after the first `#[cfg(test)]`".
+    /// Five files in this crate keep top-level functions past their test module.
+    #[test]
+    fn a_function_after_the_test_module_is_not_inside_it() {
+        let src = "#[cfg(test)]\nmod t {\n    #[test]\n    fn real() {\n        assert!(true);\n    }\n}\n\nfn afterwards() {\n    assert!(true);\n}\n";
+        assert!(
+            orphaned_tests(src).is_empty(),
+            "`afterwards` is top-level code that happens to assert, not a lost test"
+        );
+    }
+
+    /// `#[test]` is not the only attribute that makes a function a test, and an
+    /// async test is still a test. Recognising neither left two blind spots that
+    /// CANCELLED: the attribute was invisible AND so was the `async fn` under
+    /// it, so thirteen tokio tests read as clean in both directions.
+    #[test]
+    fn an_async_test_under_a_harness_attribute_is_still_a_test() {
+        let ok = "#[cfg(test)]\nmod t {\n    #[tokio::test]\n    async fn a() {\n        assert!(true);\n    }\n}\n";
+        assert!(
+            orphaned_tests(ok).is_empty(),
+            "a tokio test is attributed and must not be called an orphan"
+        );
+        let lost = "#[cfg(test)]\nmod t {\n    async fn a() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            orphaned_tests(lost),
+            vec!["a".to_string()],
+            "and an async fn that lost its attribute must still be found"
+        );
+        let dup = "#[cfg(test)]\nmod t {\n    #[test]\n    #[tokio::test]\n    async fn a() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            duplicated_test_attributes(dup),
+            vec![3],
+            "two test attributes are two, whichever harness wrote them"
+        );
+    }
+
+    /// The assert requirement is load-bearing, not decoration: without it the
+    /// gate reports `cli/trios-bridge/src/main.rs::no_auth_header`, a genuine
+    /// fixture returning a HeaderMap that nothing currently calls. Dead code is
+    /// a different finding from a test that does not run, and this gate claims
+    /// only the second.
+    #[test]
+    fn an_uncalled_function_that_asserts_nothing_is_not_a_lost_test() {
+        let src = "#[cfg(test)]\nmod t {\n    fn no_auth_header() -> HeaderMap {\n        HeaderMap::new()\n    }\n    #[test]\n    fn real() {\n        assert!(true);\n    }\n}\n";
+        assert!(
+            orphaned_tests(src).is_empty(),
+            "uncalled and attribute-less, but it asserts nothing -- dead code, not a lost test"
+        );
+    }
+
+    /// Doc comments sit between the two attributes in the real accident.
+    #[test]
+    fn docs_between_the_attributes_do_not_hide_the_duplicate() {
+        let src = "#[cfg(test)]\nmod t {\n    #[test]\n    /// what this pins\n    /// and why\n    #[test]\n    fn a() {\n        assert!(true);\n    }\n}\n";
+        assert_eq!(
+            duplicated_test_attributes(src),
+            vec![3],
+            "the pair is still a pair with prose between them"
+        );
+    }
+}
+
+fn collect_rs(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in rd.flatten() {
+        let p = e.path();
+        let name = e.file_name();
+        let name = name.to_string_lossy();
+        if p.is_dir() {
+            if name == ".git" || name == "target" || name == "node_modules" {
+                continue;
+            }
+            collect_rs(&p, out);
+        } else if name.ends_with(".rs") {
+            out.push(p);
+        }
+    }
+}
+
 fn repo_root() -> Result<std::path::PathBuf> {
     let out = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
@@ -2388,6 +3160,8 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
             dir.as_deref(),
         ),
         GatesCmd::Prs { repo } => prs(repo.as_deref()),
+        GatesCmd::Tests { gate } => tests_gate(*gate),
+        GatesCmd::Warnings { gate } => warnings_gate(*gate),
         GatesCmd::Unmeasured { repos, stale_days } => {
             let list: Vec<String> = if repos.is_empty() {
                 vec![current_repo()?]
@@ -2404,10 +3178,7 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
         GatesCmd::Required { repo } => required(repo.as_deref()),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
-                ["gHashTag/trinity", "gHashTag/trinity-fpga", "gHashTag/t27"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect()
+                fleet_repos()
             } else {
                 repos.clone()
             };
@@ -2439,6 +3210,73 @@ fn count(repo: &str, id: &str, success_only: bool) -> Result<u64> {
     };
     let s = gh(&["api", &path, "--jq", ".total_count"])?;
     Ok(s.parse().unwrap_or(0))
+}
+
+/// Job counts of this workflow's newest runs, newest first.
+///
+/// One extra request per sampled run, and only for the rows the report actually prints
+/// -- the fifteen, not every workflow -- so the cost is bounded by the finding rather
+/// than by the fleet. Measured on t27 alone: 109 s before, 114 s after.
+///
+/// `tri gates fetches` files this site under *asks whether the page filled*, and that is
+/// a FALSE POSITIVE of the same family as `red.rs`'s `runs_url`: the classifier looks for
+/// `total_count` anywhere in the body, and here that string is a **jq path** to a job
+/// count, not a check on this read's own page. What this really is has no bucket yet --
+/// a DECLARED SAMPLE, where the page size is the caller's own parameter (`sample`), so a
+/// full page is not a truncated census but exactly what was asked for. Named here rather
+/// than special-cased, because a matcher with an exception list stops describing its
+/// subject.
+fn newest_run_job_counts(repo: &str, id: &str, sample: usize) -> Vec<u64> {
+    let listing = match gh(&[
+        "api",
+        &format!("repos/{repo}/actions/workflows/{id}/runs?per_page={sample}"),
+        "--jq",
+        ".workflow_runs[].id",
+    ]) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    listing
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|run| {
+            gh(&[
+                "api",
+                &format!("repos/{repo}/actions/runs/{}/jobs", run.trim()),
+                "--jq",
+                ".total_count",
+            ])
+            .ok()
+            .and_then(|s| s.trim().parse::<u64>().ok())
+        })
+        .collect()
+}
+
+/// Did this workflow ever get as far as ALLOCATING a job?
+///
+/// A run that allocates zero jobs is a **startup failure** -- invalid YAML, a trigger the
+/// file does not declare, a registration for a file that is gone. It is recorded as a
+/// failed run and it never executed a line, which is a different fact from "ran and
+/// failed" and wants the opposite repair: one is a broken workflow FILE, the other a
+/// broken CHECK.
+///
+/// Measured 2026-09-04 on this repository's own three dead workflows, and the third is
+/// the control that says the probe distinguishes anything:
+///
+/// ```text
+/// auto-merge-ready-prs.yml   1541 runs   0 jobs in 8 of 8 sampled   never executed
+/// format-check.yml             31 runs   0 jobs in 8 of 8 sampled   never executed
+/// coq-proofs.yml               62 runs   1 job  in 8 of 8 sampled   ran and failed
+/// ```
+///
+/// `None` when nothing was sampled: no run to look at is not evidence of either, and a
+/// probe that cannot see must not vote. Same rule as everywhere else here -- "cannot
+/// check" is not "absent".
+pub fn never_executed(jobs_seen: &[u64]) -> Option<bool> {
+    if jobs_seen.is_empty() {
+        return None;
+    }
+    Some(jobs_seen.iter().all(|n| *n == 0))
 }
 
 /// Is a zero success count over `total` lifetime runs too thin to mean
@@ -2707,7 +3545,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     // Named once, so the printed sentence quotes the branch actually queried
     // rather than the word "master" hardcoded into a message.
     let mut default_branch_seen = String::new();
-    let mut rows: Vec<(String, String, String, bool, bool)> = Vec::new();
+    let mut rows: Vec<(String, String, String, bool, bool, bool)> = Vec::new();
     let mut checked = 0usize;
     let mut unreadable = 0usize;
     let mut ghosts: Vec<(String, String, String)> = Vec::new();
@@ -2812,6 +3650,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                     },
                     has_path_filter(&root, path),
                     has_dispatch(&root, path),
+                    reads_pr_context(&root, path),
                 ));
             }
         }
@@ -2901,15 +3740,16 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
         stale_days
     );
     println!(
-        "  {:<10}  {:<7}  {:<9}  {}",
-        "LAST", "paths:", "dispatch", "WORKFLOW"
+        "  {:<10}  {:<7}  {:<9}  {:<8}  {}",
+        "LAST", "paths:", "dispatch", "pr-only", "WORKFLOW"
     );
-    for (repo, name, last, filtered, dispatch) in &rows {
+    for (repo, name, last, filtered, dispatch, pr_only) in &rows {
         println!(
-            "  {:<10}  {:<7}  {:<9}  {}  ({})",
+            "  {:<10}  {:<7}  {:<9}  {:<8}  {}  ({})",
             last,
             if *filtered { "yes" } else { "-" },
             if *dispatch { "yes" } else { "NO" },
+            if *pr_only { "YES" } else { "-" },
             name,
             repo
         );
@@ -2917,7 +3757,13 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     println!(
         "\n  A gate that has not run on the default branch is not passing there; it is\n\
            unmeasured. `paths: yes` is usually the reason. `dispatch: NO` means the\n\
-           reading cannot be taken on purpose -- add `workflow_dispatch:` first."
+           reading cannot be taken on purpose -- add `workflow_dispatch:` first.\n\
+         \n  `pr-only: YES` means a dispatch STARTS it and measures nothing, so\n\
+           `dispatch: yes` beside it is not an invitation. That column was added to the\n\
+           table above this one after telling a reader to take a reading that cannot be\n\
+           taken, and the repair did not travel to this table until Issue Gate -- one of\n\
+           the four REQUIRED contexts, last default-branch run 2026-04-08 -- was printed\n\
+           here as `dispatch: yes` with no pr-only column at all."
     );
     Ok(())
 }
@@ -3186,13 +4032,13 @@ pub fn classify(on_disk: bool, total: u64, min_runs: u64) -> Bucket {
 }
 
 fn dead(repos: &[String], min_runs: u64) -> Result<()> {
-    let mut rows: Vec<(String, String, u64)> = Vec::new();
-    let mut deleted: Vec<(String, String, u64)> = Vec::new();
+    let mut rows: Vec<(String, String, u64, String)> = Vec::new();
+    let mut deleted: Vec<(String, String, u64, String)> = Vec::new();
     // Every workflow the threshold hid, so a bounded report never reads as a
     // complete one. `brain-seal-refresh.yml` fails structurally -- its last step
     // is a `git push` this repository's own ruleset rejects -- and has 8 lifetime
     // runs, so the shipped floor of 50 suppresses it entirely.
-    let mut suppressed: Vec<(String, String, u64)> = Vec::new();
+    let mut suppressed: Vec<(String, String, u64, String)> = Vec::new();
     let single_repo = repos.len() == 1;
     for repo in repos {
         let listing = workflow_listing(
@@ -3213,7 +4059,7 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
             // The path check only means anything for the repository we are standing
             // in; for any other repo in the list, take the API at its word.
             let on_disk = !single_repo || workflow_file_present(path);
-            let row = (repo.clone(), name.to_string(), total);
+            let row = (repo.clone(), name.to_string(), total, id.to_string());
             match classify(on_disk, total, min_runs) {
                 Bucket::Deleted => deleted.push(row),
                 Bucket::Suppressed => suppressed.push(row),
@@ -3237,15 +4083,35 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
         rows.len(),
         total
     );
-    for (repo, name, runs) in &rows {
-        let short: String = name.chars().take(44).collect();
-        println!("  {runs:>6}  {repo:<22} {short}");
+    let mut never_ran = 0usize;
+    for (repo, name, runs, id) in &rows {
+        let short: String = name.chars().take(38).collect();
+        // Ask the newest runs whether a job was ever allocated. A run with zero jobs
+        // is a startup failure: recorded as failed, never executed a line.
+        let mark = match never_executed(&newest_run_job_counts(repo, id, 3)) {
+            Some(true) => {
+                never_ran += 1;
+                "  NEVER EXECUTED"
+            }
+            Some(false) => "  ran and failed",
+            None => "  no run sampled",
+        };
+        println!("  {runs:>6}  {repo:<22} {short:<38}{mark}");
     }
     println!();
     println!("A gate that has never been green carries no information: red before");
     println!("your change and red after it. Decide per workflow — fix it, make it");
     println!("workflow_dispatch only, or delete it. Leaving it red is the one");
     println!("option that costs every other gate in the repository.");
+    if never_ran > 0 {
+        println!();
+        println!("{never_ran} of them NEVER EXECUTED: every sampled run allocated zero");
+        println!("jobs, which is a startup failure -- invalid YAML, a trigger the file");
+        println!("does not declare, or a registration for a file that is gone. Recorded");
+        println!("as a failed run, and it never executed a line. That is a broken");
+        println!("workflow FILE and wants a different repair from a broken CHECK, so the");
+        println!("two are no longer printed as one row.");
+    }
     report_suppressed_and_deleted(&suppressed, &deleted, min_runs);
     Ok(())
 }
@@ -3254,8 +4120,8 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
 /// a complete one, and the four workflows below the shipped floor include the two
 /// whose failure is structural rather than situational.
 fn report_suppressed_and_deleted(
-    suppressed: &[(String, String, u64)],
-    deleted: &[(String, String, u64)],
+    suppressed: &[(String, String, u64, String)],
+    deleted: &[(String, String, u64, String)],
     min_runs: u64,
 ) {
     if !suppressed.is_empty() {
@@ -3264,7 +4130,7 @@ fn report_suppressed_and_deleted(
             "{} more have never succeeded but fall under --min-runs {min_runs}:",
             suppressed.len()
         );
-        for (repo, name, runs) in suppressed {
+        for (repo, name, runs, _) in suppressed {
             let short: String = name.chars().take(44).collect();
             println!("  {runs:>6}  {repo:<22} {short}");
         }
@@ -3279,7 +4145,7 @@ fn report_suppressed_and_deleted(
             deleted.len()
         );
         println!("history, not a gate, and nothing to fix:");
-        for (repo, name, runs) in deleted {
+        for (repo, name, runs, _) in deleted {
             let short: String = name.chars().take(44).collect();
             println!("  {runs:>6}  {repo:<22} {short}");
         }
@@ -3570,6 +4436,35 @@ mod tests {
 #[cfg(test)]
 mod sweep_tests {
     use super::*;
+
+    #[test]
+    fn the_t106_warning_shape_is_its_own_class() {
+        // Both of these are what rustc printed for `signature` in types_dup.rs
+        // while the summary undercounted 346 rows as 345.
+        use super::{classify_warning, WarnClass};
+        assert_eq!(
+            classify_warning("value assigned to `signature` is never read"),
+            WarnClass::Discarded
+        );
+        assert_eq!(
+            classify_warning("variable `signature` is assigned to, but never used"),
+            WarnClass::Discarded
+        );
+        // "never read" also appears in dead-field warnings, which are a
+        // different problem: nothing computed them in the first place.
+        assert_eq!(
+            classify_warning("field `start_ts` is never read"),
+            WarnClass::Dead
+        );
+        assert_eq!(
+            classify_warning("function `plan` is never used"),
+            WarnClass::Dead
+        );
+        assert_eq!(
+            classify_warning("unused variable: `t0`"),
+            WarnClass::Cosmetic
+        );
+    }
 
     #[test]
     fn mutation_never_touches_the_control_itself() {
@@ -4261,6 +5156,31 @@ mod auto_default_run_tests {
     fn pull_request_only_cannot_produce_a_baseline() {
         let y = "name: x\non:\n  pull_request:\n    paths:\n      - 'bootstrap/**'\n  workflow_dispatch:\njobs: {}\n";
         assert!(!has_auto_default_run(y, "master"));
+    }
+
+    /// The real file, character for character, as the reason this column exists.
+    ///
+    /// `issue-gate.yml` emits `check-linked-issue` -- one of the four contexts the
+    /// ruleset REQUIRES -- and its last default-branch run is 2026-04-08. It was printed
+    /// in the stale table as `dispatch: yes` with no pr-only column at all, which reads
+    /// as an invitation to take a reading that a dispatch cannot take.
+    ///
+    /// This block was first inserted ABOVE that function, anchored on its `fn` line --
+    /// which put my doc comment between its `#[test]` and its body. `tri gates tests
+    /// --gate` caught it: one test RUNS TWICE and one DOES NOT RUN, and the two cancel
+    /// in every total. Anchor on the attribute or on a closing brace, never on `fn`.
+    #[test]
+    fn a_workflow_reading_pr_title_and_body_is_pr_only() {
+        let y = "name: Issue Gate\non:\n  pull_request_target:\njobs:\n  check:\n    steps:\n      - env:\n          PR_TITLE: ${{ github.event.pull_request.title }}\n          PR_NUMBER: ${{ github.event.pull_request.number }}\n";
+        assert!(super::text_reads_pr_context(y));
+    }
+
+    #[test]
+    fn a_workflow_that_never_mentions_the_pr_object_is_not() {
+        // The control: without it, a predicate that always says YES would pass the test
+        // above and turn every row into "cannot be dispatched".
+        let y = "name: x\non:\n  push:\n    branches: [master]\njobs:\n  build:\n    steps:\n      - run: cargo test\n";
+        assert!(!super::text_reads_pr_context(y));
     }
 
     #[test]
@@ -5392,6 +6312,85 @@ pub fn fetch_sites_in(body: &str) -> usize {
     body.lines().filter(|l| is_fetch_site(l)).count()
 }
 
+/// Fetch sites that can RUN in one invocation of this body.
+///
+/// Two sites in the arms of one `let x = if … { … } else { … };` are two sites in the
+/// source and **one read at run time**, so a single guard on `x` covers whichever ran.
+/// The census total stays a count of SITES -- that is a different question and keeping
+/// it separate is the point: conflating them would move a published 25.
+///
+/// The shape this was written for is `issues.rs`'s `numbers` and `dated`, where the two
+/// arms are one query with different filters -- with `--as-of` the state filter has to
+/// come off, so splitting the function would duplicate the guard and the parse rather
+/// than fix anything. Both were read before the rule was written, and both are guarded.
+///
+/// Deliberately narrow, and every surviving clause has a counterexample in the tests:
+/// the `if` must be the right-hand side of a BINDING (`let x = if …` or `x = if …`), the
+/// `} else {` must sit at that binding's own indent so a nested if/else is not mistaken
+/// for it, and the block must close. Two fetches in one arm, or in two different `if`s,
+/// are still two reads and still ambiguous.
+///
+/// Two clauses were removed rather than documented: `then > 0 && else > 0` because
+/// `min` already answers it, and `starts_with("let ")` because an assignment binds one
+/// value too. Both survived their own mutation, which is what said they were decoration.
+pub fn exclusive_fetch_sites_in(body: &str) -> usize {
+    let sites = fetch_sites_in(body);
+    let mut collapsed = 0usize;
+    let lines: Vec<&str> = body.lines().collect();
+    let mut i = 0usize;
+    while i < lines.len() {
+        let t = lines[i].trim_start();
+        // A binding whose right-hand side is an `if`, opening a braced arm on the same
+        // line. `let` is NOT required: `x = if … {` and `self.f = if … {` bind one value
+        // from two arms just as much, and requiring `let` survived its own mutation --
+        // a clause that moves nothing is narrower than the rule it claims to state.
+        let opens = t.contains(" = if ") && t.trim_end().ends_with('{');
+        if !opens {
+            i += 1;
+            continue;
+        }
+        let indent = lines[i].len() - t.len();
+        // Walk to the matching `} else {` at the same indent, then to its `};`.
+        let mut j = i + 1;
+        let mut then_hits = 0usize;
+        let mut else_hits = 0usize;
+        let mut in_else = false;
+        let mut closed = false;
+        while j < lines.len() {
+            let l = lines[j];
+            let lt = l.trim_start();
+            let li = l.len() - lt.len();
+            if li == indent && lt.starts_with("} else {") {
+                in_else = true;
+                j += 1;
+                continue;
+            }
+            if li == indent && (lt == "};" || lt.starts_with("};")) {
+                closed = true;
+                break;
+            }
+            if is_fetch_site(l) {
+                if in_else {
+                    else_hits += 1;
+                } else {
+                    then_hits += 1;
+                }
+            }
+            j += 1;
+        }
+        if closed {
+            // At run time only one arm executes, so a pair is one read. `min` IS the
+            // rule: with fetches in only one arm it is zero, and the `then > 0 &&
+            // else > 0` conjunction that stood here survived its own mutation because
+            // `min` already answered -- two clauses with one consequence are one clause
+            // and a decoration.
+            collapsed += then_hits.min(else_hits);
+        }
+        i = if closed { j + 1 } else { i + 1 };
+    }
+    sites.saturating_sub(collapsed)
+}
+
 /// Classify one site by the body of the function containing it.
 ///
 /// The subject is the ENCLOSING FUNCTION, and that choice has a known cost: a function
@@ -5424,6 +6423,32 @@ pub fn required_contexts(slug: &str) -> Result<Vec<String>> {
         .collect())
 }
 
+/// The repositories this fleet watches.
+///
+/// One list, because there were two. `gates dead` defaulted to three and `red now` to
+/// four, both doc comments calling it "the three/four this fleet uses" -- so the same
+/// word named two different sets and nothing said which was right. The omitted one was
+/// `gHashTag/ghashtag.github.io`, and the cost of the divergence was measured before it
+/// was closed rather than asserted: that repository has **no** workflow with a file and
+/// >= 50 runs at a zero success count, so the gap hid nothing today, and reading it adds
+/// **7 seconds**. A silent divergence that costs nothing today is still a divergence:
+/// the next dead workflow there would have been invisible to the command whose entire
+/// subject is dead workflows.
+///
+/// Extracted for the reason `required_contexts` states one screen above: a second caller
+/// must not become a second literal of the same query.
+pub fn fleet_repos() -> Vec<String> {
+    [
+        "gHashTag/trinity",
+        "gHashTag/ghashtag.github.io",
+        "gHashTag/trinity-fpga",
+        "gHashTag/t27",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
+}
+
 pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
     if call.contains("--paginate") {
         return Fetch::Paginated;
@@ -5440,7 +6465,7 @@ pub fn classify_fetch(site: &str, call: &str, body: &str) -> Fetch {
             // One guard and two fetches in one function is not one guarded fetch; it
             // is a question this cannot answer, and answering it anyway is how
             // `red.rs:140` read as guarded by a check applied to a different fetch.
-            return if fetch_sites_in(body) > 1 {
+            return if exclusive_fetch_sites_in(body) > 1 {
                 Fetch::GuardAmbiguous
             } else {
                 Fetch::Guarded
@@ -5785,9 +6810,7 @@ mod fetch_census_tests {
         );
         // The defect this rule fixes: `tri cost` bounds a LOCAL corpus walk.
         assert_eq!(
-            super::bounded_reads_in_python(
-                "files = pick(corpus, [\"--limit\", str(n)])\n"
-            ),
+            super::bounded_reads_in_python("files = pick(corpus, [\"--limit\", str(n)])\n"),
             0,
             "a `--limit` with no `gh` beside it bounds something local, and \
              counting it makes the census describe its own matcher"
@@ -5947,6 +6970,249 @@ mod fetch_census_tests {
     fn an_indented_fn_is_not_a_top_level_one() {
         let src = "fn a() {\n    fn inner() {}\n    x\n}\n";
         assert_eq!(fn_spans(src), vec![("a".to_string(), 1, 4)]);
+    }
+}
+
+#[cfg(test)]
+mod never_executed_tests {
+    use super::*;
+
+    #[test]
+    fn all_zero_is_never_executed() {
+        // auto-merge-ready-prs.yml: 1541 runs, 0 jobs in every sample.
+        assert_eq!(never_executed(&[0, 0, 0, 0, 0, 0, 0, 0]), Some(true));
+    }
+
+    #[test]
+    fn one_job_anywhere_means_it_ran() {
+        // coq-proofs.yml is the control: same command, non-zero jobs.
+        assert_eq!(never_executed(&[1, 1, 1]), Some(false));
+        // And one execution among startup failures still means it ran.
+        assert_eq!(never_executed(&[0, 0, 1]), Some(false));
+    }
+
+    #[test]
+    fn no_sample_votes_for_neither() {
+        // A probe that saw nothing must not read as "never executed": that is the
+        // "cannot check is not absent" rule, and here it would accuse a workflow of a
+        // defect on the strength of an empty listing.
+        assert_eq!(never_executed(&[]), None);
+    }
+}
+
+#[cfg(test)]
+mod fleet_tests {
+    use super::*;
+
+    #[test]
+    fn the_fleet_is_one_list_and_holds_the_repository_that_was_missing() {
+        let f = fleet_repos();
+        assert_eq!(f.len(), 4, "three was the old `gates dead` reading");
+        assert!(
+            f.iter().any(|r| r == "gHashTag/ghashtag.github.io"),
+            "the repository the two lists disagreed about"
+        );
+        assert!(f.iter().any(|r| r == "gHashTag/t27"));
+    }
+
+    #[test]
+    fn every_entry_is_owner_slash_repo() {
+        // A bare name would silently read as a different repository to `gh`.
+        for r in fleet_repos() {
+            assert_eq!(r.matches('/').count(), 1, "{r} is not owner/repo");
+            assert!(!r.starts_with('/') && !r.ends_with('/'), "{r}");
+        }
+    }
+
+    #[test]
+    fn the_list_holds_no_duplicate() {
+        // A repeated slug would double that repository's runs in every count.
+        let f = fleet_repos();
+        let mut seen = f.clone();
+        seen.sort();
+        seen.dedup();
+        assert_eq!(seen.len(), f.len(), "a slug appears twice");
+    }
+}
+
+#[cfg(test)]
+mod exclusive_arm_tests {
+    use super::*;
+
+    // Shaped after issues.rs::numbers: one argument per line, so the site is the
+    // line whose whole content is `"--limit",` -- read out of `is_fetch_site`
+    // rather than remembered. A fixture written from memory failed five of seven
+    // tests before this was checked.
+    const REAL: &str = concat!(
+        "    let raw = if instant.is_some() {\n",
+        "        gh(&[\n",
+        "            \"issue\",\n",
+        "            \"--limit\",\n",
+        "            &lim,\n",
+        "        ])?\n",
+        "    } else {\n",
+        "        gh(&[\n",
+        "            \"issue\",\n",
+        "            \"--limit\",\n",
+        "            &lim,\n",
+        "        ])?\n",
+        "    };\n",
+        "    let complete = read_is_complete(arr.len(), limit);\n",
+    );
+
+    #[test]
+    fn two_arms_of_one_let_are_one_read() {
+        assert_eq!(fetch_sites_in(REAL), 2, "both arms are sites in the SOURCE");
+        assert_eq!(exclusive_fetch_sites_in(REAL), 1, "only one RUNS");
+    }
+
+    #[test]
+    fn the_guard_question_now_answers_guarded() {
+        assert_eq!(
+            classify_fetch("            \"--limit\",", "", REAL),
+            Fetch::Guarded
+        );
+    }
+
+    #[test]
+    fn two_fetches_not_in_arms_stay_ambiguous() {
+        // The control this rule must not swallow: two independent reads, one guard.
+        let body = concat!(
+            "    let a = gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    let b = gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    let complete = read_is_complete(a.len(), limit);\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+        assert_eq!(
+            classify_fetch("        \"--limit\",", "", body),
+            Fetch::GuardAmbiguous
+        );
+    }
+
+    #[test]
+    fn an_if_that_is_not_a_let_does_not_collapse() {
+        // A bare `if` may run BOTH over two calls; only a `let` makes it one value.
+        let body = concat!(
+            "    if cond {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?;\n",
+            "    } else {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?;\n",
+            "    };\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn one_arm_fetching_collapses_nothing() {
+        let body = concat!(
+            "    let raw = if cond {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    } else {\n",
+            "        String::new()\n",
+            "    };\n",
+            "    let other = gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn an_unclosed_block_collapses_nothing() {
+        // Refuse rather than guess: no closing `};` at the binding's indent means the
+        // shape was not recognised, and an unrecognised shape must not lose a site.
+        let body = concat!(
+            "    let raw = if cond {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    } else {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn the_binding_must_be_to_an_if_and_not_merely_contain_one() {
+        // Constructed, because no real line in this crate discriminates: a `let` line
+        // that ends in `{` and carries the letters `if ` somewhere OTHER than as its
+        // right-hand side. Loosening `" = if "` to `"if "` collapses this pair and
+        // that is wrong -- nothing says the two arms are alternatives of one value.
+        let body = concat!(
+            "    let x = pick(a if b) {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    } else {\n",
+            "        gh(&[\n",
+            "            \"--limit\",\n",
+            "        ])?\n",
+            "    };\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn a_nested_else_at_a_deeper_indent_is_not_this_binding_s_else() {
+        // The `} else {` that ends the THEN arm must sit at the binding's own indent.
+        // Without that check an inner if/else switches the walk into else-mode early,
+        // and a pair that is really two reads inside one arm collapses to one.
+        let body = concat!(
+            "    let raw = if cond {\n",
+            "        if inner {\n",
+            "            gh(&[\n",
+            "                \"--limit\",\n",
+            "            ])?\n",
+            "        } else {\n",
+            "            gh(&[\n",
+            "                \"--limit\",\n",
+            "            ])?\n",
+            "        }\n",
+            "    } else {\n",
+            "        String::new()\n",
+            "    };\n",
+        );
+        // Two sites, both inside the THEN arm: the outer else fetches nothing, so
+        // nothing collapses at THIS level.
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn a_one_line_if_is_not_an_opening_arm() {
+        // `let x = if a { 1 } else { 2 };` binds one value and opens nothing. Dropping
+        // the `ends_with('{')` test makes the walk start here and run past it, so the
+        // `} else {` belonging to the pair BELOW is read as this line's -- and two
+        // independent reads collapse into one.
+        let body = concat!(
+            "    let n = if a { 1 } else { 2 };\n",
+            "    gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    } else {\n",
+            "    gh(&[\n",
+            "        \"--limit\",\n",
+            "    ])?;\n",
+            "    };\n",
+        );
+        assert_eq!(exclusive_fetch_sites_in(body), 2);
+    }
+
+    #[test]
+    fn a_body_with_no_fetches_is_zero_either_way() {
+        assert_eq!(fetch_sites_in("let x = 1;\n"), 0);
+        assert_eq!(exclusive_fetch_sites_in("let x = 1;\n"), 0);
     }
 }
 

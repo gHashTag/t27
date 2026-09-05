@@ -33,6 +33,36 @@ pub enum SkillCmd {
         #[arg(long)]
         gaps: bool,
     },
+    /// Sections whose body was truncated at some point in the file's history.
+    ///
+    /// A section here is a claim with evidence attached, and the evidence is
+    /// usually a quoted artefact. `tri skill renumber` destroyed one on
+    /// 2026-09-05 -- it cut a tail at a QUOTED heading, dropped the section
+    /// holding it, and left the opening fence unclosed so the next section was
+    /// swallowed. The `titles_lost` guard added afterwards refuses on titles and
+    /// cannot see a body that was merely cut short, so this asks the question
+    /// the guard cannot.
+    ///
+    /// The signature is exact: the body on `--base` is a strict PREFIX of the
+    /// body when the section first appeared. An edit in place is not a prefix; a
+    /// truncation is. Differences that are only trailing blank lines are not
+    /// reported -- measured across 281 commits, 38 of the 40 prefix hits were
+    /// exactly that.
+    Lost {
+        /// Which document. `docs/NOW.md` is the other append-only file here and
+        /// has NO numbered headings at all -- 312 of them, every one of the
+        /// shape `## fix(...)`. A version of this command that insisted on
+        /// `## N. ` would have walked its whole history, found nothing, and
+        /// printed a clean bill of health over an empty population.
+        #[arg(long, default_value = ".claude/skills/ci-gates/SKILL.md")]
+        file: String,
+        /// Compare against this ref instead of `origin/master`.
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+        /// Exit 1 if anything is found, for use as a gate.
+        #[arg(long)]
+        gate: bool,
+    },
     /// Every cross-reference in the skills, and whether it resolves.
     Refs {
         /// Print every reference counted, not only the ones that dangle.
@@ -72,7 +102,31 @@ fn repo_root() -> Result<PathBuf> {
 /// `## 179. Title` -> (179, "Title"). Anything else is not a numbered section.
 pub fn sections(text: &str) -> Vec<(usize, String)> {
     let mut out = Vec::new();
+    // A heading inside a fenced block is a QUOTATION, not a section. This file
+    // quotes section headings as evidence -- a section about a duplicated
+    // heading shows the duplicate -- and counting those cost a real section:
+    // `tri skill renumber` cut its tail at a quoted title, dropped the section
+    // that contained it, and left the opening fence unclosed so the next
+    // section was swallowed too. Measured on master 4d63859: 518 lines match
+    // `## N. `, and 3 of them are inside a fenced block.
+    //
+    // CommonMark's rule, and it is what makes this reliable here: an OPENING
+    // fence may carry an info string, a CLOSING fence may not. A naive toggle
+    // on every ``` gets 19 pairings wrong in this file, because ``` lines that
+    // carry a language tag were treated as closers.
+    let mut in_fence = false;
     for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
         let Some(rest) = line.strip_prefix("## ") else {
             continue;
         };
@@ -150,6 +204,331 @@ fn skill_files(root: &std::path::Path) -> Vec<PathBuf> {
     out
 }
 
+/// `git show <rev>:<path>`, or empty when the path did not exist there.
+fn at(rev: &str, path: &str, root: &std::path::Path) -> String {
+    let out = std::process::Command::new("git")
+        .args(["show", &format!("{rev}:{path}")])
+        .current_dir(root)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Whether `now` is `then` cut short, ignoring a difference that is only
+/// trailing blank lines.
+///
+/// Measured across 281 commits of this file: 40 sections had a strict-prefix
+/// body, and 38 of them differed by trailing blanks alone -- an artefact of
+/// where a section ends, not a loss. Reporting those would bury the two that
+/// were real, and both of THOSE turned out to be blocks that moved elsewhere in
+/// the document and are still present.
+pub fn truncated(then: &[String], now: &[String]) -> bool {
+    if now.len() >= then.len() {
+        return false;
+    }
+    if then[..now.len()] != *now {
+        return false;
+    }
+    then[now.len()..].iter().any(|l| !l.trim().is_empty())
+}
+
+/// Identifiers that say which entry a line BELONGS to: a wave number and a
+/// `gfNN` format name.
+///
+/// Issue numbers are deliberately excluded. An entry cites other issues as a
+/// matter of course -- with `#NNNN` counted, 49 of 312 NOW.md entries flag and
+/// the one real case is buried. The prototype for this check appeared to give
+/// the right answer with issue numbers in its pattern, and did so only because
+/// `\b#` requires a word character immediately before the `#`, so that
+/// alternative never matched anything. **A dead alternative produced the right
+/// number for the wrong reason**, and the reason is what had to be written down.
+pub fn identifiers(text: &str) -> std::collections::BTreeSet<String> {
+    let re = regex::Regex::new(
+        r"(?i)\bwave[ -]loop[ -](\d+)\b|\bW(\d{3})\b|\bwave-loop-(\d+)\b|\b(gf\d+)\b",
+    )
+    .expect("static pattern");
+    let mut out = std::collections::BTreeSet::new();
+    for c in re.captures_iter(text) {
+        for i in 1..=4 {
+            if let Some(m) = c.get(i) {
+                out.insert(m.as_str().to_lowercase());
+            }
+        }
+    }
+    out
+}
+
+/// Entries whose body names NONE of its own identifiers and DOES name one that
+/// another entry's heading owns.
+///
+/// The shape found on 2026-09-05: `SW-conformance — gf48` carried 39 lines of
+/// `Wave Loop 434` boot evidence, fifty lines below its own heading, and never
+/// mentioned gf48. An empty-body check cannot see this -- the entry HAS a body,
+/// it is simply not its own -- and it is worse than a loss, because the entry
+/// claims another's evidence as its own.
+///
+/// The naive form of this question is useless here: 58 of the 63 NOW.md entries
+/// with a wave number name SOME other wave, because an entry routinely points at
+/// the next one. What discriminates is naming none of its OWN.
+pub fn misattributed(entries: &[(String, Vec<String>)]) -> Vec<(String, Vec<String>)> {
+    let mut owned = std::collections::BTreeSet::new();
+    for (h, _) in entries {
+        owned.extend(identifiers(h));
+    }
+    let mut out = Vec::new();
+    for (h, body) in entries {
+        let mine = identifiers(h);
+        if mine.is_empty() {
+            continue;
+        }
+        let text = body.join("\n");
+        if text.trim().is_empty() {
+            continue;
+        }
+        let theirs = identifiers(&text);
+        if mine.intersection(&theirs).next().is_some() {
+            continue;
+        }
+        let foreign: Vec<String> = theirs.intersection(&owned).cloned().collect();
+        if !foreign.is_empty() {
+            out.push((h.clone(), foreign));
+        }
+    }
+    out
+}
+
+/// Every heading and its body, IN ORDER, with nothing collapsed.
+///
+/// `bodies()` keys by title, which is right for the history walk -- a title is
+/// the identity that survives renumbering -- and wrong for any question about
+/// the file AS IT STANDS. A repeated heading text is one key there, and the
+/// later `insert` OVERWRITES, so only the last copy's body is ever examined.
+///
+/// Measured 2026-09-05 on `docs/NOW.md`: **312 headings, 310 distinct titles**.
+/// `Honesty limits (BINDING)` appears at lines 1479 and 1708, and a
+/// `Wave Loop 777` subject at 4504 and 4601. The hollow check ran over 310 seats
+/// while four comments in this same file said 312, and it was right only because
+/// all four of those occurrences happen to have bodies. **Two questions, two
+/// populations -- and the file had said so two passes before the code did.**
+pub fn occurrences(text: &str) -> Vec<(String, Vec<String>)> {
+    let mut out = Vec::new();
+    let mut cur: Option<String> = None;
+    let mut body: Vec<String> = Vec::new();
+    let mut in_fence = false;
+    for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            if cur.is_some() {
+                body.push(line.to_string());
+            }
+            continue;
+        }
+        let head = if in_fence { None } else { line.strip_prefix("## ") };
+        if let Some(h) = head {
+            if let Some(c) = cur.take() {
+                out.push((c, std::mem::take(&mut body)));
+            }
+            cur = Some(section_key(h));
+            continue;
+        }
+        if cur.is_some() {
+            body.push(line.to_string());
+        }
+    }
+    if let Some(c) = cur {
+        out.push((c, body));
+    }
+    out
+}
+
+/// Headings with nothing under them.
+///
+/// The same damage as a truncation and visible with no history at all, so it is
+/// the cheaper question. Measured 2026-09-05: `docs/NOW.md` has 2 of 312, at
+/// two CONSECUTIVE lines, and `SKILL.md` has 0 of 523.
+pub fn hollow_headings(occurrences: &[(String, Vec<String>)]) -> Vec<&String> {
+    occurrences
+        .iter()
+        .filter(|(_, b)| !b.iter().any(|l| !l.trim().is_empty()))
+        .map(|(t, _)| t)
+        .collect()
+}
+
+/// The key a section is tracked by, from its heading text.
+///
+/// A leading `N. ` is stripped, so renumbering is invisible to any comparison
+/// built on this -- that is the whole point, since half of what happens to
+/// `SKILL.md` is renumbering. A heading with no number is its own key, which is
+/// what makes `docs/NOW.md` -- 312 headings, not one of them numbered -- a
+/// population this can see at all.
+pub fn section_key(heading: &str) -> String {
+    match heading.split_once(". ") {
+        Some((n, rest)) if n.parse::<usize>().is_ok() => rest.trim().to_string(),
+        _ => heading.trim().to_string(),
+    }
+}
+
+/// Section bodies, keyed by title, fence-aware.
+pub fn bodies(text: &str) -> std::collections::BTreeMap<String, Vec<String>> {
+    let mut out = std::collections::BTreeMap::new();
+    let mut cur: Option<String> = None;
+    let mut body: Vec<String> = Vec::new();
+    let mut in_fence = false;
+    for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            if cur.is_some() {
+                body.push(line.to_string());
+            }
+            continue;
+        }
+        let head = if in_fence {
+            None
+        } else {
+            line.strip_prefix("## ")
+        };
+        if let Some(h) = head {
+            if let Some(c) = cur.take() {
+                out.insert(c, std::mem::take(&mut body));
+            }
+            cur = Some(section_key(h));
+            continue;
+        }
+        if cur.is_some() {
+            body.push(line.to_string());
+        }
+    }
+    if let Some(c) = cur {
+        out.insert(c, body);
+    }
+    out
+}
+
+fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
+    let root = repo_root()?;
+    let log = std::process::Command::new("git")
+        .args(["log", base, "--format=%H", "--reverse", "--", path])
+        .current_dir(&root)
+        .output()?;
+    let commits: Vec<String> = String::from_utf8_lossy(&log.stdout)
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
+    println!();
+    println!("  {path}");
+    println!("  walking {} commit(s) on {base}", commits.len());
+
+    let mut first: std::collections::BTreeMap<String, (String, Vec<String>)> =
+        std::collections::BTreeMap::new();
+    for c in &commits {
+        let text = at(c, path, &root);
+        if text.is_empty() {
+            continue;
+        }
+        for (title, body) in bodies(&text) {
+            first.entry(title).or_insert((c.clone(), body));
+        }
+    }
+    let now = bodies(&at(base, path, &root));
+    // Two questions, two populations, both printed with their unit. Hollow and
+    // misattribution are about the file AS IT STANDS, so they run over
+    // occurrences; the history walk is about identity across renumbering, so it
+    // runs over titles.
+    let here = occurrences(&at(base, path, &root));
+    println!("  titles ever written    {}", first.len());
+    println!("  headings on {base:<11} {}   (## lines)", here.len());
+    println!("  distinct titles        {}   (what the history walk compares)", now.len());
+
+    // A heading with nothing under it is the same damage, visible WITHOUT any
+    // history: whatever was there is gone and the heading is left standing.
+    // It is the cheaper question and it is asked first, because the history
+    // walk above costs one `git show` per commit and this costs one read.
+    //
+    // Measured 2026-09-05: `docs/NOW.md` has 2 of 312, at lines 6359 and 6361 --
+    // two CONSECUTIVE bare headings -- and `SKILL.md` has 0 of 523.
+    let hollow = hollow_headings(&here);
+    let wrong = misattributed(&here);
+    if hollow.is_empty() {
+        println!("  Every heading has a body.");
+    } else {
+        println!(
+            "  {} heading(s) with an EMPTY body on {base}:",
+            hollow.len()
+        );
+        for t in &hollow {
+            println!("    {t}");
+        }
+        println!("  Nothing was written under these. No history was needed to see it.");
+    }
+    if wrong.is_empty() {
+        println!("  Every entry that names an identifier names its own.");
+    } else {
+        println!();
+        println!("  {} entry(s) whose body names NO identifier of its own, and does", wrong.len());
+        println!("  name one another entry owns:");
+        for (h, foreign) in &wrong {
+            println!("    {h}");
+            println!("      body names: {}", foreign.join(", "));
+        }
+        println!("  A body that is not its own is worse than a missing one: the entry");
+        println!("  claims another's evidence. Measured on this repository before the");
+        println!("  2026-09-05 repair: exactly 1, and 0 after.");
+    }
+    println!();
+
+    let mut cut = Vec::new();
+    let mut gone = Vec::new();
+    for (title, (sha, then)) in &first {
+        match now.get(title) {
+            None => gone.push((title.clone(), sha.clone())),
+            Some(n) => {
+                if truncated(then, n) {
+                    cut.push((title.clone(), sha.clone(), then.len(), n.len()));
+                }
+            }
+        }
+    }
+    println!();
+    if cut.is_empty() {
+        println!("  No section's body is a truncation of an earlier version.");
+    } else {
+        println!("  {} section(s) whose body was CUT SHORT:", cut.len());
+        for (t, sha, a, b) in &cut {
+            println!("    -{:>3} lines ({a} -> {b})  first in {}  {}", a - b, &sha[..9], t);
+        }
+        println!();
+        println!("  A cut tail is not by itself a loss. A section's body runs to the next");
+        println!("  heading, so a block that later MOVED elsewhere in the document reads");
+        println!("  exactly like a truncation -- both hits on SKILL.md were that, and both");
+        println!("  are still present. Grep for a distinctive line before calling it damage.");
+    }
+    if !gone.is_empty() {
+        println!();
+        println!("  {} title(s) no longer present:", gone.len());
+        for (t, sha) in &gone {
+            println!("    first in {}  {t}", &sha[..9]);
+        }
+        println!();
+        println!("  A missing TITLE is not by itself a loss: a section can be rewritten");
+        println!("  under a longer heading, or withdrawn on purpose. Both happened here.");
+        println!("  Read the commit that dropped it before calling it damage.");
+    }
+    if gate && !cut.is_empty() {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 pub fn run(cmd: &SkillCmd) -> Result<()> {
     let show_gaps = match cmd {
         SkillCmd::Refs { list } => return refs(*list),
@@ -158,6 +537,7 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
             numbers,
             windowed,
         } => return claims(*list, *numbers, *windowed),
+        SkillCmd::Lost { file, base, gate } => return lost(file, base, *gate),
         SkillCmd::Check { gaps } => gaps,
     };
     if *show_gaps {
@@ -243,6 +623,332 @@ pub fn run(cmd: &SkillCmd) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    /// `truncated` can be right while `lost` never asks it, and the command
+    /// then reports a clean file forever.
+    ///
+    /// EIGHTH change in eight passes whose surviving mutant was the wiring --
+    /// and the first found by mutating the call site BEFORE writing a single
+    /// test for the helper, which is the rule the previous seven produced.
+    /// `hollow_headings` can be right while `lost` never calls it.
+    #[test]
+    fn lost_actually_reports_hollow_headings() {
+        let src = include_str!("skillnum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        // Pinned to the POPULATION, not merely to the call. Asking this over
+        // the title map answers it for the last copy of a repeated heading, and
+        // that is the defect this argument fixes.
+        let call = concat!("let hollow = hollow_", "headings(&here);");
+        assert!(
+            code.contains(call),
+            "the hollow question runs over OCCURRENCES, not the collapsed title map"
+        );
+        let src_of_here = concat!("let here = occur", "rences(&at(base, path, &root));");
+        assert!(code.contains(src_of_here), "and `here` is the uncollapsed list");
+    }
+
+    #[test]
+    fn lost_actually_consults_truncated() {
+        let src = include_str!("skillnum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("if trunc", "ated(then, n) {");
+        assert!(
+            code.contains(call),
+            "without this the walk runs, finds nothing by construction, and \
+             prints a clean bill of health for any file"
+        );
+    }
+
+    /// The shape found on 2026-09-05: an entry whose body is another entry's.
+    /// An empty-body check cannot see it -- the entry HAS a body.
+    #[test]
+    fn a_body_that_names_none_of_its_own_ids_is_flagged() {
+        let mut e: Vec<(String, Vec<String>)> = Vec::new();
+        // The real body: `XADC_LIVE_W434_...` alone does NOT match, because the
+        // `_` before `W434` is a word character and the pattern is anchored on a
+        // word boundary. The first fixture used only that form and the test
+        // failed -- correctly. What made the live case detectable is the plain
+        // `wave-loop-434` on its branch line.
+        e.push((
+            "SW-conformance — gf48 promoted".to_string(),
+            vec![
+                "- Branch: `wave-loop-434`".to_string(),
+                "- Added XADC_LIVE_W434_OPERATING_POINT".to_string(),
+            ],
+        ));
+        e.push((
+            "Wave Loop 434 — boot evidence".to_string(),
+            vec!["- Branch: wave-loop-434".to_string()],
+        ));
+        let out = super::misattributed(&e);
+        assert_eq!(out.len(), 1, "only the entry carrying another's id: {out:?}");
+        assert!(out[0].0.starts_with("SW-conformance — gf48"));
+        assert_eq!(out[0].1, vec!["434".to_string()]);
+    }
+
+    /// The naive form of this question is useless here: 58 of the 63 NOW.md
+    /// entries with a wave number name SOME other wave, because an entry
+    /// routinely points at the next one. Naming its OWN is what clears it --
+    /// and all 58 of them do, which is why the refined check returns 0 on the
+    /// repaired file and 1 on the damaged one.
+    #[test]
+    fn naming_a_neighbour_is_not_misattribution() {
+        let mut e: Vec<(String, Vec<String>)> = Vec::new();
+        e.push((
+            "Wave Loop 889 close-out".to_string(),
+            vec!["- Branch: `wave-loop-889`, follows Wave Loop 888, next Wave Loop 890".to_string()],
+        ));
+        e.push(("Wave Loop 888 close-out".to_string(), vec!["- body".to_string()]));
+        e.push(("Wave Loop 890 close-out".to_string(), vec!["- body".to_string()]));
+        assert!(
+            super::misattributed(&e).is_empty(),
+            "889 names its own number, so pointing at 888 and 890 is a cross-reference"
+        );
+    }
+
+    /// An id no entry OWNS is a reference to something outside the document --
+    /// a sibling repository's wave, a format the file never wrote up. Flagging
+    /// it would accuse an entry of carrying a body that does not exist here.
+    #[test]
+    fn an_id_no_heading_owns_is_not_evidence() {
+        let mut e: Vec<(String, Vec<String>)> = Vec::new();
+        e.push((
+            "SW-conformance — gf48 promoted".to_string(),
+            vec!["- see wave-loop-999 in trinity-fpga".to_string()],
+        ));
+        e.push(("Wave Loop 434 — boot".to_string(), vec!["- wave-loop-434".to_string()]));
+        assert!(
+            super::misattributed(&e).is_empty(),
+            "999 belongs to no entry here, so nothing was taken from anything"
+        );
+    }
+
+    /// `misattributed` can be right while `lost` never calls it.
+    #[test]
+    fn lost_actually_reports_misattribution() {
+        let src = include_str!("skillnum.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let call = concat!("let wrong = misattrib", "uted(&here);");
+        assert!(
+            code.contains(call),
+            "misattribution is a fact about an entry as it stands, so it runs \
+             over occurrences too"
+        );
+    }
+
+    /// Issue numbers are excluded on purpose. With `#NNNN` counted, 49 of 312
+    /// NOW.md entries flag and the one real case is buried. The prototype
+    /// appeared to give the right answer WITH them in its pattern, and only
+    /// because `\b#` requires a word character before the `#` -- a dead
+    /// alternative that produced the right number for the wrong reason.
+    #[test]
+    fn an_issue_number_is_not_an_ownership_identifier() {
+        let ids = super::identifiers("Closes #1358 and refers to #1702");
+        assert!(ids.is_empty(), "issue numbers are not ownership: {ids:?}");
+        let ids = super::identifiers("Wave Loop 434 and gf48 and W431");
+        assert_eq!(
+            ids.iter().cloned().collect::<Vec<_>>(),
+            vec!["431".to_string(), "434".to_string(), "gf48".to_string()],
+            "waves and formats are"
+        );
+    }
+
+    /// The key strips a leading number so RENUMBERING is invisible -- half of
+    /// what happens to SKILL.md is renumbering, and a rename it is not. A
+    /// heading with no number is its own key, which is what makes docs/NOW.md
+    /// visible at all: 312 headings there and not one of them numbered.
+    #[test]
+    fn the_key_ignores_a_number_and_keeps_everything_else() {
+        assert_eq!(super::section_key("553. The audit"), "The audit");
+        assert_eq!(super::section_key("1. A"), "A");
+        assert_eq!(
+            super::section_key("fix(freeze): reseal FROZEN_HASH (Closes #2316)"),
+            "fix(freeze): reseal FROZEN_HASH (Closes #2316)",
+            "an unnumbered heading is its own key, or NOW.md has no population"
+        );
+        assert_eq!(
+            super::section_key("2026-04-08 — CI stabilization"),
+            "2026-04-08 — CI stabilization",
+            "a leading token that is not `N. ` is not a number to strip"
+        );
+        assert_eq!(
+            super::section_key("v1. Something"),
+            "v1. Something",
+            "`v1` is not a number, so nothing is stripped -- otherwise any \
+             heading with a dotted prefix silently loses it and two different \
+             sections can collide on one key"
+        );
+        assert_eq!(
+            super::section_key("fix(x): a. b"),
+            "fix(x): a. b",
+            "and the split must be anchored at the START, not at any `. `"
+        );
+    }
+
+    /// A repeated heading text is ONE key in `bodies()` and the later insert
+    /// OVERWRITES, so only the last copy's body is ever examined. Asking the
+    /// hollow question over that map answers it for a heading that is not the
+    /// one being reported.
+    ///
+    /// Measured on `docs/NOW.md`: 312 headings, 310 distinct titles. The check
+    /// ran over 310 seats while four comments in this file said 312, and it was
+    /// right only because all four colliding occurrences happen to have bodies.
+    #[test]
+    fn a_repeated_heading_is_two_seats_not_one() {
+        let src = "## A\n\n## A\nbody\n";
+        assert_eq!(super::bodies(src).len(), 1, "the title map collapses them");
+        assert_eq!(super::occurrences(src).len(), 2, "the file has two headings");
+
+        // The first copy is bare and the second is not. Over TITLES the map
+        // keeps only the last body, so the answer is "every heading has a body"
+        // -- false of the file.
+        let by_title: Vec<(String, Vec<String>)> = super::bodies(src).into_iter().collect();
+        assert!(
+            super::hollow_headings(&by_title).is_empty(),
+            "the collapsed map sees no bare heading, which is the defect"
+        );
+
+        let occ = super::occurrences(src);
+        let hollow = super::hollow_headings(&occ);
+        assert_eq!(hollow.len(), 1, "over occurrences the bare copy is found: {hollow:?}");
+
+        // Mirrored: the LAST copy is the bare one. The title map now happens to
+        // be right, for a reason that has nothing to do with the file.
+        let mirrored = super::occurrences("## A\nbody\n\n## A\n");
+        assert_eq!(mirrored.len(), 2);
+        assert_eq!(super::hollow_headings(&mirrored).len(), 1);
+    }
+
+    /// A heading with nothing under it is the same damage as a truncation, and
+    /// visible without any history. Measured: docs/NOW.md has 2 of 312, at two
+    /// CONSECUTIVE lines; SKILL.md has 0 of 523.
+    #[test]
+    fn a_heading_with_no_body_is_found_without_history() {
+        let src = "## 1. Has one\nbody\n\n## 2. Has none\n\n## 3. Also has one\ntext\n";
+        let b = super::bodies(src);
+        let b: Vec<(String, Vec<String>)> = b.into_iter().collect();
+        assert_eq!(
+            super::hollow_headings(&b),
+            vec!["Has none"],
+            "blank lines are not a body: {b:?}"
+        );
+    }
+
+    /// The signature of the loss that actually happened: a body cut short.
+    /// An edit in place is not a prefix; a truncation is.
+    #[test]
+    fn a_truncation_is_a_prefix_and_an_edit_is_not() {
+        let then: Vec<String> = ["a", "b", "c", "d"].iter().map(|s| s.to_string()).collect();
+        let cut: Vec<String> = ["a", "b"].iter().map(|s| s.to_string()).collect();
+        assert!(super::truncated(&then, &cut), "the tail was dropped");
+        let edited: Vec<String> = ["a", "X", "c", "d"].iter().map(|s| s.to_string()).collect();
+        assert!(!super::truncated(&then, &edited), "same length, changed in place");
+        let shorter_but_different: Vec<String> =
+            ["a", "X"].iter().map(|s| s.to_string()).collect();
+        assert!(
+            !super::truncated(&then, &shorter_but_different),
+            "shorter AND different is a rewrite, not a cut"
+        );
+        assert!(!super::truncated(&then, &then), "unchanged is not a cut");
+    }
+
+    /// 38 of the 40 prefix hits across 281 commits differed by trailing blank
+    /// lines alone -- an artefact of where a section ends. Reporting those would
+    /// bury the two that were real.
+    #[test]
+    fn trailing_blanks_alone_are_not_a_truncation() {
+        let then: Vec<String> = ["a", "b", "", ""].iter().map(|s| s.to_string()).collect();
+        let now: Vec<String> = ["a", "b"].iter().map(|s| s.to_string()).collect();
+        assert!(!super::truncated(&then, &now), "only blanks went");
+        let then2: Vec<String> = ["a", "b", "", "real"].iter().map(|s| s.to_string()).collect();
+        assert!(
+            super::truncated(&then2, &now),
+            "a blank AND a real line went, so it is a cut"
+        );
+    }
+
+    /// A body runs to the next NUMBERED heading, and a heading inside a fenced
+    /// block is a quotation -- the same rule `sections` uses, because a body
+    /// that stops at a quoted heading is how the loss happened in the first
+    /// place.
+    #[test]
+    fn a_body_runs_to_the_next_numbered_heading_and_ignores_quotations() {
+        let src = "## 1. One\nalpha\n\n```\n## 9. Quoted\n```\nbeta\n\n## 2. Two\ngamma\n";
+        let b = super::bodies(src);
+        assert_eq!(b.len(), 2, "the quoted heading starts nothing: {b:?}");
+        let one = &b["One"];
+        assert!(
+            one.iter().any(|l| l == "beta"),
+            "the body continues PAST the quoted heading: {one:?}"
+        );
+        assert!(
+            one.iter().any(|l| l.contains("## 9. Quoted")),
+            "and the quotation stays inside it as evidence"
+        );
+        assert_eq!(b["Two"].iter().filter(|l| *l == "gamma").count(), 1);
+    }
+
+    /// A heading inside a fenced block is a QUOTATION, and counting it cost a
+    /// real section: `tri skill renumber` cut its tail at a quoted title,
+    /// dropped the section containing it, and left the opening fence unclosed
+    /// so the next section was swallowed too. Measured on master 4d63859: 518
+    /// lines match `## N. ` and 3 of them are quoted.
+    #[test]
+    fn a_heading_inside_a_fence_is_a_quotation() {
+        let src = "## 1. Real\n\n```\n## 2. Quoted\n## 3. Quoted\n```\n\n## 4. Also real\n";
+        let secs = super::sections(src);
+        assert_eq!(
+            secs.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+            vec![1, 4],
+            "the two inside the block are evidence, not sections: {secs:?}"
+        );
+    }
+
+    /// CommonMark: an OPENING fence may carry an info string, a CLOSING fence
+    /// may not. A naive toggle on every ``` mispairs 19 fences in the real
+    /// file, because ``` lines carrying a language tag were read as closers.
+    #[test]
+    fn an_info_string_marks_an_opener_not_a_closer() {
+        // The shape that actually occurs: a fenced block QUOTING output that
+        // itself contains a ``` line with an info string. This file has 19 of
+        // them. Treating that inner line as a closer flips the parity for
+        // everything after it.
+        let src = "## 1. Real\n\n```\nsome output\n``` numbers\nmore output\n```\n\n## 2. Real\n";
+        let secs = super::sections(src);
+        assert_eq!(
+            secs.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+            vec![1, 2],
+            "the inner ``` carries an info string, so it is not a closer; if it \
+             is taken for one the block re-opens and swallows the next heading: {secs:?}"
+        );
+    }
+
+    /// An unclosed fence must swallow what follows rather than silently
+    /// re-admitting it: that is the state the real file was left in, and the
+    /// count is what made it visible.
+    #[test]
+    fn an_unclosed_fence_swallows_the_rest() {
+        let src = "## 1. Real\n\n```\n## 2. Swallowed\n\n## 3. Swallowed too\n";
+        let secs = super::sections(src);
+        assert_eq!(
+            secs.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+            vec![1],
+            "nothing after an unclosed fence is a section, and a shrinking count \
+             is exactly how the damage was found: {secs:?}"
+        );
+    }
     use super::*;
 
     fn parse(s: &str) -> Vec<(usize, String)> {

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3bf33b7592f1578efa0f60e5a3a1b984204d03064fcfe459c198bc0dc64434dd",
-  "gen_hash_rust": "sha256:d9d23f70c9190e34183dc4ef8f3c992c87c827dc01a7a7edec0c38ce314393f9",
+  "gen_hash_rust": "sha256:b2bc961bc5a183ede4f5d2e11bc1d94aa3e64e0585b4b48ddafd2a418ca8af96",
   "gen_hash_verilog": "sha256:1804a549f639c3746973e5b0a339e16b2899886f179aafcdb15c3a8b75e873b8",
   "gen_hash_zig": "sha256:d1daa1070072fee70f293cf16a18ed4204c4558428873c3959b3765383668e0e",
   "module": "Routes",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:26Z",
+  "sealed_at": "2026-09-05T03:11:57Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:f0763950504737a827af7c1fa561a495c1a963bdce809ed36f94b5dc35160cf6",
   "spec_path": "specs/server/routes.t27"

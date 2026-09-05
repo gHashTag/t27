@@ -14,6 +14,7 @@ mod orphaned;
 mod census;
 mod competitors;
 mod inflight;
+mod misread;
 mod issues;
 mod cibase;
 mod fleet;
@@ -165,6 +166,8 @@ enum Commands {
     },
     /// Is a merge in flight here, and does this branch carry the base?
     Merging(inflight::Merging),
+    /// The specs the compiler reads WRONGLY. Every gate is green on them.
+    Misread(misread::Misread),
     /// What the checkouts on this disk are holding. Deletes nothing.
     Worktrees(trees::Worktrees),
     /// Synthesise across a parameter and check the area actually moves.
@@ -338,6 +341,18 @@ enum SkillAction {
         #[arg(long)]
         gaps: bool,
     },
+    /// Sections whose body was cut short at some point in the file's history.
+    Lost {
+        /// Which document.
+        #[arg(long, default_value = ".claude/skills/ci-gates/SKILL.md")]
+        file: String,
+        /// Compare against this ref instead of `origin/master`.
+        #[arg(long, default_value = "origin/master")]
+        base: String,
+        /// Exit 1 if anything is found, for use as a gate.
+        #[arg(long)]
+        gate: bool,
+    },
     /// Every cross-reference in the skills, and whether it resolves.
     Refs {
         /// Print every reference counted, not only the ones that dangle.
@@ -369,6 +384,9 @@ enum SkillAction {
         /// Report the moves and write nothing.
         #[arg(long)]
         check: bool,
+        /// Remove the sections the base withdrew, instead of refusing.
+        #[arg(long)]
+        drop_withdrawn: bool,
         /// Start at this number instead of one past the base's highest. For a
         /// second open branch numbering against the same base -- pass a number,
         /// not a different --base.
@@ -938,6 +956,13 @@ fn main() -> Result<()> {
                 SkillAction::Check { gaps } => {
                     skillnum::run(&skillnum::SkillCmd::Check { gaps: *gaps })?
                 }
+                SkillAction::Lost { file, base, gate } => {
+                    skillnum::run(&skillnum::SkillCmd::Lost {
+                        file: file.clone(),
+                        base: base.clone(),
+                        gate: *gate,
+                    })?
+                }
                 SkillAction::Refs { list } => {
                     skillnum::run(&skillnum::SkillCmd::Refs { list: *list })?
                 }
@@ -955,7 +980,8 @@ fn main() -> Result<()> {
                     file,
                     check,
                     first,
-                } => renum::run(base, file, *check, *first)?,
+                    drop_withdrawn,
+                } => renum::run(base, file, *check, *first, *drop_withdrawn)?,
                 SkillAction::Begin { issue, desc } => cmd_skill_begin(&root, *issue, desc)?,
                 SkillAction::End => cmd_skill_end(&root)?,
             }
@@ -993,6 +1019,7 @@ fn main() -> Result<()> {
         Commands::Fleet { action } => fleet::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
         Commands::Merging(a) => inflight::run(a)?,
+        Commands::Misread(a) => misread::run(a)?,
         Commands::Worktrees(a) => trees::run(a)?,
         Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
