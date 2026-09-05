@@ -16426,7 +16426,7 @@ does not travel" -- has a shorter form here: it did not travel four lines.**
 The mutant that reverts the numerator to `claims_broken.len()` survived three fresh unit tests on
 `distinct_claims`. Killed only by a structural test reading the call site: **tenth pass in a row that
 the wiring outlived the function.**
-### The detector I wrote could not find what the compiler was already saying
+## 572. The detector I wrote could not find what the compiler was already saying
 
 `tri types redef` ends with a sentence that reads as a partition of the rows it just
 printed: *N state different NUMBERS; N differ in which fields they state, N in the text
@@ -16485,7 +16485,7 @@ test, and reporting that as a kill would have been false. The mutation that *com
 dropping it from both the format string and the arguments — is the one the test must
 fail on, and it does, by name.
 
-### An assertion of absence is only as good as the region it is asked of
+## 573. An assertion of absence is only as good as the region it is asked of
 
 Three instances in one pass, in three different languages, all the same shape: **a check
 whose verdict is "the needle was not found", evaluated over a region that need not contain
@@ -16541,7 +16541,7 @@ And the counting instrument itself is subject to the rule. The 10-and-79 above w
 measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
 message before being checked against `test_module_lines` — the correct instrument, already
 in the repository, already trusted by `mutate`. Two files the wrong count named have zero.
-## 572. A guard that cannot run, on the path that merges
+## 574. A guard that cannot run, on the path that merges
 
 The ratio sweep's strongest survivor is not a malformed number. It is a merge.
 
@@ -16594,7 +16594,7 @@ The loop is I/O-bound, so the four unit tests on `required_posted` and `required
 green when either half is reverted. **Eleventh pass in a row that the wiring outlived the function**
 -- and the first where the wiring in question ends in `gh pr merge`.
 
-### I had nineteen of my own numbers re-measured, and six were wrong
+## 575. I had nineteen of my own numbers re-measured, and six were wrong
 
 After a pass whose whole subject was measurement, I put every figure I had published
 through an audit: five agents on disjoint claim sets, told to derive their own commands
@@ -16649,7 +16649,7 @@ number survives.
 **Name the population in the sentence.** Four of the six failures are a population
 mismatch, not an arithmetic error: string literals counted as code, a matcher left
 unstated, a minimum reported as a central value, `coq/` where `coq/**/*.v` was meant.
-### The same guard is a decoration in one function and load-bearing in the next
+## 576. The same guard is a decoration in one function and load-bearing in the next
 
 A mutation tool that edits source text has to know which bytes are code. `tri mutate`
 has a skip mask for exactly that, and it did not know Rust raw strings: `#` opens a
@@ -16698,7 +16698,7 @@ its edits textually; the documented failure mode of naive textual mutators is a 
 minimum is a **tokenizer-based skip mask**. The mask existed here — it simply was not
 Rust-aware.
 
-### A control that cannot fail is not a control, and I wrote two of them
+## 577. A control that cannot fail is not a control, and I wrote two of them
 
 Replacing a line-based source scanner with a character pass, I wrote eight controls for
 the new `code_mask` and mutation killed only some of the branches. Two controls were
