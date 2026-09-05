@@ -17112,3 +17112,48 @@ Three corollaries worth carrying:
 name the operand the action takes, and check they are the same object. Not the same *kind*
 of object — the same one. Working tree and index are both "the files". Directory and diff
 are both "docs/now". HEAD and the message being written are both "the commit message".
+
+## 591. Price what you added, and the price will find a defect
+
+Three gates went into the commit-time barrier in one pass and none of them was priced. The
+measurement was taken only because "I introduced a cost and asserted nothing about it" was
+the most honest thing left on the list. It found a defect that no control had.
+
+    .githooks/pre-push does not read stdin
+      -> it cannot tell a push from a DELETION
+      -> `git push origin --delete <branch>` was refused with SYNC REQUIRED
+      -> the branch survived on the remote
+
+git feeds a push hook `<local ref> <local sha> <remote ref> <remote sha>`, one line per ref,
+and a deletion has an **all-zero local sha**. A deletion adds no `docs/now` entry and never
+will; refusing it is a false accusation with no remedy.
+
+The same measurement surfaced a second one. An EMPTY range was refused, and the local gate
+was *faithful* in doing so — the CI script itself answers `SYNC REQUIRED` on `base == head`.
+But that case **cannot arise in CI**, where a pull request with no commits cannot be opened,
+and it arises constantly on a laptop. **Fidelity to a gate is not the same as correctness
+in a place the gate never runs.**
+
+Then the number itself, best of three:
+
+    whole barrier now                       329 ms
+      census pin --gate       (added)       144 ms
+      hooks fix-carries-source (added)       58 ms
+      hooks now-gate                         45 ms
+    hooks pre-push            (added)       153 ms
+    hooks commit-msg          (added)        26 ms
+
+    conflict checker, OLD form (whole tree)  876 ms
+    conflict checker, NEW form (--staged)     93 ms
+
+**The barrier did not get more expensive. It got about three times cheaper.** Correcting the
+conflict gate to read the index — done for correctness, since it was reading the wrong
+operand — happened to take 876 ms down to 93, which pays for everything added several times
+over. Nothing in the reasoning predicted that, in either direction: the expectation going in
+was that the answer would be a tax to justify.
+
+Two things generalise. **A correctness fix can be a performance fix**, when the wrong operand
+was also the larger one — reading 7951 tracked files to judge the 3 that are staged. And a
+cost you introduce and never state is a claim you are making silently; price it in the unit
+the user feels, and expect the pricing itself to be the instrument that finds what the
+controls missed.
