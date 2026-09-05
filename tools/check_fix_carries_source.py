@@ -38,8 +38,8 @@ REPO = Path(__file__).resolve().parents[1]
 RUST = REPO / "cli/tri/src/hooks.rs"
 
 SCOPES_RE = re.compile(r"const SOURCE_SCOPES: \[&str; \d+\] = \[(.*?)\];", re.S)
-EXT_FN_RE = re.compile(r"fn is_source_path\(path: &str\) -> bool \{(.*?)\n\}", re.S)
-STR_RE = re.compile(r'"([a-z0-9_]+)"')
+PROSE_FN_RE = re.compile(r"fn is_prose_or_record\(path: &str\) -> bool \{(.*?)\n\}", re.S)
+STR_RE = re.compile(r'"([A-Za-z0-9_./]+)"')
 
 
 class CouldNotRun(Exception):
@@ -66,16 +66,18 @@ def definitions():
     if not m:
         raise CouldNotRun("SOURCE_SCOPES not found in cli/tri/src/hooks.rs")
     scopes = STR_RE.findall(m.group(1))
-    m = EXT_FN_RE.search(src)
+    m = PROSE_FN_RE.search(src)
     if not m:
-        raise CouldNotRun("fn is_source_path not found in cli/tri/src/hooks.rs")
-    exts = STR_RE.findall(m.group(1))
-    if not scopes or not exts:
+        raise CouldNotRun("fn is_prose_or_record not found in cli/tri/src/hooks.rs")
+    lits = STR_RE.findall(m.group(1))
+    prefixes = [l for l in lits if l.endswith("/")]
+    exts = [l for l in lits if not l.endswith("/")]
+    if not scopes or not prefixes or not exts:
         raise CouldNotRun(
-            f"the definitions parsed empty (scopes={len(scopes)}, exts={len(exts)}); "
-            "an empty list would pass every pull request"
+            f"the definitions parsed empty (scopes={len(scopes)}, prefixes={len(prefixes)}, "
+            f"exts={len(exts)}); an empty rule would judge every pull request wrongly"
         )
-    return scopes, exts
+    return scopes, prefixes, exts
 
 
 def claims_source(subject, scopes):
@@ -88,8 +90,21 @@ def claims_source(subject, scopes):
     return any(s.strip() in scopes for s in rest[:end].split(","))
 
 
-def is_source(path, exts):
-    return "." in path.rsplit("/", 1)[-1] and path.rsplit(".", 1)[-1] in exts
+def is_prose(path, prefixes, exts):
+    """Prose or a record. Everything else is substance.
+
+    Inverted from an extension whitelist after an adversarial pass named four categories
+    that exist here and would each have been a false accusation: .xdc/.tcl constraint and
+    synthesis files (the deliverable of timing work under `fix(verilog)`), .toml manifests,
+    .lean formalisations of the compiler's own lowering, and every extensionless path --
+    Makefile, Dockerfile, scripts/tri -- which no extension entry can ever match. A
+    whitelist of code cannot be completed and each omission accuses someone; prose and
+    records are a small closed set.
+    """
+    if any(path.startswith(pre) for pre in prefixes):
+        return True
+    base = path.rsplit("/", 1)[-1]
+    return "." in base and base.rsplit(".", 1)[-1] in exts
 
 
 def changed_files(base, head):
@@ -105,7 +120,7 @@ def changed_files(base, head):
 
 
 def self_check():
-    scopes, exts = definitions()
+    scopes, prefixes, exts = definitions()
     failures = []
 
     def check(name, ok):
@@ -115,7 +130,9 @@ def self_check():
 
     check(
         "the definitions were read, not defaulted",
-        set(scopes) >= {"rust", "c", "zig", "verilog"} and {"rs", "py", "t27"} <= set(exts),
+        set(scopes) >= {"rust", "c", "zig", "verilog"}
+        and "docs/" in prefixes
+        and "md" in exts,
     )
     check(
         "the subject that merged empty is recognised",
@@ -143,11 +160,15 @@ def self_check():
           not claims_source("feat(rust): a new emitter arm", scopes)
           and not claims_source("fix(rust: never closed", scopes)
           and not claims_source("fix: no scope at all", scopes))
-    check("hand-written Verilog and C count as source",
-          all(is_source(p, exts) for p in ("rtl/mac.v", "runtime/shim.c", "runtime/shim.h")))
-    check("a note, a seal and an extensionless file do not",
-          not any(is_source(p, exts) for p in
-                  ("docs/now/n.md", ".trinity/seals/a.json", "README", "Makefile")))
+    check("everything an extension whitelist would have missed is substance",
+          not any(is_prose(p, prefixes, exts) for p in (
+              "bootstrap/src/compiler.rs", "rtl/mac.v", "fpga/verilog/a.xdc", "synth/run.tcl",
+              "Cargo.toml", "proofs/lean4/Emitter.lean", "Makefile", "Dockerfile",
+              "scripts/tri", "tools/baseline.txt", "README")))
+    check("prose and records are the closed set",
+          all(is_prose(p, prefixes, exts) for p in (
+              "docs/now/n.md", "docs/FROZEN.md", "docs/theory/x.tex",
+              ".trinity/seals/Backend.json", "NOW.md", "a/b/c.md")))
 
     print()
     if failures:
@@ -163,7 +184,7 @@ def main():
     if "--self-check" in sys.argv:
         return self_check()
 
-    scopes, exts = definitions()
+    scopes, prefixes, exts = definitions()
     title = os.environ.get("PR_TITLE", "").strip()
     base = os.environ.get("PR_BASE_SHA", "").strip()
     head = os.environ.get("PR_HEAD_SHA", "").strip()
@@ -186,20 +207,27 @@ def main():
         return 0
 
     files = changed_files(base, head)
-    sources = [f for f in files if is_source(f, exts)]
-    if sources:
-        print(f"OK: {len(sources)} source file(s) in the diff, e.g. {sources[0]}")
+    if not files:
+        print("OK: the diff is empty; nothing can land.")
+        return 0
+    substance = [f for f in files if not is_prose(f, prefixes, exts)]
+    if substance:
+        print(f"OK: {len(substance)} of {len(files)} path(s) are substance, e.g. {substance[0]}")
         return 0
 
-    print(f"FAIL: the title claims a compiler fix and the diff has no source file", file=sys.stderr)
+    print("FAIL: the title claims a compiler fix and the diff is prose only", file=sys.stderr)
     print(f"  title: {title}", file=sys.stderr)
-    print(f"  files in the diff: {len(files)}, of which {'/'.join(exts)}: 0", file=sys.stderr)
+    print(f"  all {len(files)} path(s) are under "
+          f"{', '.join(prefixes)} or end in {'/'.join('.' + e for e in exts)}:",
+          file=sys.stderr)
+    for f in files:
+        print(f"      {f}", file=sys.stderr)
     print(
         "\n  A scope of " + ", ".join(scopes) + " says the change is in the compiler.\n"
         "  If the change really is elsewhere, name that scope instead -- fix(seals),\n"
-        "  fix(docs), fix(ops) and fix(paper) all land without source and are not\n"
-        "  touched by this check. If the change IS in the compiler and is not here,\n"
-        "  it was never committed: see #3264, which merged carrying only its note.",
+        "  fix(docs), fix(ops) and fix(paper) all land as prose and are not touched by\n"
+        "  this check. If the change IS in the compiler and is not here, it was never\n"
+        "  committed: see #3264, whose entire diff was one docs/now note.",
         file=sys.stderr,
     )
     return 1

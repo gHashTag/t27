@@ -717,22 +717,27 @@ fn subject_claims_source(subject: &str) -> bool {
         .any(|s| SOURCE_SCOPES.contains(&s.trim()))
 }
 
-/// Is this path code?
+/// Is this path prose or a record, rather than substance?
 ///
-/// The four the compiler is BUILT from -- rs, py, t27, zig -- were the first list, and
-/// they are not the whole answer. The repository also carries 164 hand-written `.v` files
-/// and 34 `.c`/`.h` outside `specs/`, so a genuine `fix(verilog)` or `fix(c)` repairing one
-/// of those would have been refused by a guard that had never seen one. Zero such commits
-/// exist in 498 of history, because every emitter is written in Rust -- which is exactly
-/// why the omission could not show up as a false positive and had to be reasoned about
-/// instead. Widening costs nothing here: the defect this guard exists for, #3264, carried
-/// no source file of ANY kind.
-fn is_source_path(path: &str) -> bool {
-    matches!(
-        path.rsplit_once('.').map(|(_, e)| e),
-        Some("rs") | Some("py") | Some("t27") | Some("zig")
-            | Some("c") | Some("h") | Some("v") | Some("sv") | Some("svh")
-    )
+/// THE FIRST FORM OF THIS WAS A WHITELIST OF CODE EXTENSIONS, AND THAT IS THE WRONG SHAPE.
+/// It began as {rs, py, t27, zig}, was widened to {c, h, v, sv, svh} once the 164
+/// hand-written `.v` files were noticed, and an adversarial pass then named four more
+/// categories that exist here and would each have been a false accusation in a REQUIRED
+/// context: 14 `.xdc` constraint files and 4 `.tcl`, which are the actual deliverable of
+/// timing work under `fix(verilog)`; 43 `.toml`, where a build-breakage fix genuinely
+/// lives; 72 `.lean` formalising the compiler's own lowering; and every extensionless
+/// path -- `Makefile`, `Dockerfile`, `scripts/tri` -- for which `rsplit_once('.')` yields
+/// None and no whitelist entry can ever match.
+///
+/// A whitelist of code cannot be completed, and each omission accuses someone. So the
+/// question is inverted. The defect this guard exists for, #3264, had a diff of EXACTLY
+/// one file: `docs/now/2026-09-05-an-untyped-local-bound-to-a-comparison-is-not-a-bool.md`.
+/// What it lacked was not any particular extension; it was anything at all besides prose.
+/// Prose and records are a small, stable, closed set. Substance is everything else.
+fn is_prose_or_record(path: &str) -> bool {
+    path.starts_with("docs/")
+        || path.starts_with(".trinity/seals/")
+        || path.rsplit_once('.').map(|(_, e)| e) == Some("md")
 }
 
 /// Refuse a commit whose subject claims a compiler fix but whose diff has no source file.
@@ -767,7 +772,8 @@ fn fix_carries_source() -> Result<()> {
             .stdout,
     )
     .context("file list is not UTF-8")?;
-    if files.lines().any(|l| is_source_path(l.trim())) {
+    let paths: Vec<&str> = files.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    if paths.is_empty() || paths.iter().any(|p| !is_prose_or_record(p)) {
         return Ok(());
     }
     anyhow::bail!(
@@ -780,7 +786,7 @@ fn fix_carries_source() -> Result<()> {
 
 #[cfg(test)]
 mod fix_carries_source_tests {
-    use super::{is_source_path, subject_claims_source};
+    use super::{is_prose_or_record, subject_claims_source};
 
     /// The subject that shipped empty. This is the whole reason the check exists.
     #[test]
@@ -833,14 +839,24 @@ mod fix_carries_source_tests {
 
     #[test]
     fn source_paths_are_the_four_the_compiler_is_built_from() {
+        // Substance: everything the earlier extension whitelist would have refused,
+        // including the four categories an adversarial pass named and the extensionless
+        // paths no whitelist entry can ever match.
         for p in [
             "bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig",
-            "rtl/mac.v", "runtime/shim.c", "runtime/shim.h", "rtl/top.sv", "rtl/i.svh",
+            "rtl/mac.v", "runtime/shim.c", "runtime/shim.h", "rtl/top.sv",
+            "fpga/verilog/gft_sadd_jtag.xdc", "synth/run.tcl", "Cargo.toml",
+            "proofs/lean4/Trinity/Emitter.lean", "Makefile", "Dockerfile", "scripts/tri",
+            "tools/conflict_markers_baseline.txt", "README",
         ] {
-            assert!(is_source_path(p), "{p}");
+            assert!(!is_prose_or_record(p), "should be substance: {p}");
         }
-        for p in ["docs/now/note.md", ".trinity/seals/a.json", "README", "x.rs.orig"] {
-            assert!(!is_source_path(p), "{p}");
+        // Prose and records: the closed set.
+        for p in [
+            "docs/now/note.md", "docs/FROZEN.md", "docs/theory/x.tex",
+            ".trinity/seals/Backend.json", "NOW.md", "a/b/c.md",
+        ] {
+            assert!(is_prose_or_record(p), "should be prose: {p}");
         }
     }
 }
@@ -879,32 +895,38 @@ fn fix_carries_source_cmd(
         Some(b) => git_out(&["diff", "--name-only", &format!("{b}...{head}")])?,
         None => git_out(&["show", "--name-only", "--format=", head])?,
     };
-    let sources: Vec<&str> = files
+    let paths: Vec<&str> = files
         .lines()
         .map(str::trim)
-        .filter(|l| is_source_path(l))
+        .filter(|l| !l.is_empty())
         .collect();
-    if !sources.is_empty() {
+    if paths.is_empty() {
+        println!("fix-carries-source: PASSED (the diff is empty; nothing can land)");
+        return Ok(());
+    }
+    let substance: Vec<&&str> = paths.iter().filter(|p| !is_prose_or_record(p)).collect();
+    if !substance.is_empty() {
         println!(
-            "fix-carries-source: PASSED ({} source file(s), e.g. {})",
-            sources.len(),
-            sources[0]
+            "fix-carries-source: PASSED ({} of {} path(s) are substance, e.g. {})",
+            substance.len(),
+            paths.len(),
+            substance[0]
         );
         return Ok(());
     }
-    // A diff that is empty is a different fact from a diff with no source in it, and
-    // saying so is the difference between a finding and "the check could not run".
-    let total = files.lines().filter(|l| !l.trim().is_empty()).count();
     anyhow::bail!(
-        "fix-carries-source: the title claims a compiler fix and the diff has no source file\n  \
+        "fix-carries-source: the title claims a compiler fix and the diff is prose only\n  \
          title: {}\n  \
-         files in the diff: {total}, of which .rs/.py/.t27/.zig: 0\n\n  \
-         A scope of rust, c, zig, verilog, parser, compiler, lexer or typecheck says the\n  \
-         change is in the compiler. If the change really is elsewhere, name that scope\n  \
-         instead -- fix(seals), fix(docs), fix(ops) and fix(paper) all land without source\n  \
-         and are not touched by this check. If the change IS in the compiler and is not\n  \
-         here, it was never committed: see #3264, which merged carrying only its note.",
-        subject.trim()
+         all {} path(s) in the diff are under docs/, under .trinity/seals/, or .md:\n{}\n  \
+         A scope of {} says the change is in the compiler. If the change really is\n  \
+         elsewhere, name that scope instead -- fix(seals), fix(docs), fix(ops) and\n  \
+         fix(paper) all land as prose and are not touched by this check. If the change IS\n  \
+         in the compiler and is not here, it was never committed: see #3264, whose entire\n  \
+         diff was one docs/now note.",
+        subject.trim(),
+        paths.len(),
+        paths.iter().map(|p| format!("      {p}")).collect::<Vec<_>>().join("\n"),
+        SOURCE_SCOPES.join(", ")
     );
 }
 
@@ -976,16 +998,16 @@ fn fix_carries_source_self_check() -> Result<()> {
             && !subject_claims_source("fix: no scope at all"),
     );
     say(
-        "the four source extensions are the ones the compiler is built from",
+        "prose and records are a closed set and everything else is substance",
         [
-            "bootstrap/src/compiler.rs", "tools/x.py", "corpus/a.t27", "src/m.zig",
-            "rtl/mac.v", "runtime/shim.c", "runtime/shim.h", "rtl/top.sv",
+            "bootstrap/src/compiler.rs", "rtl/mac.v", "fpga/verilog/a.xdc", "Cargo.toml",
+            "proofs/lean4/Emitter.lean", "Makefile", "scripts/tri", "README",
         ]
             .iter()
-            .all(|p| is_source_path(p))
-            && ["docs/now/n.md", ".trinity/seals/a.json", "README", "x.rs.orig"]
+            .all(|p| !is_prose_or_record(p))
+            && ["docs/now/n.md", "docs/FROZEN.md", ".trinity/seals/a.json", "NOW.md"]
                 .iter()
-                .all(|p| !is_source_path(p)),
+                .all(|p| is_prose_or_record(p)),
     );
 
     println!();
