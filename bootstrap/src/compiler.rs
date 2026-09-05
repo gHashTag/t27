@@ -24390,6 +24390,28 @@ impl RustCodegen {
                     format!("Vec<{}>", Self::t27_type_to_rust(elem))
                 }
             }
+            t if t.starts_with('*') => {
+                // Three spellings arrive here and only one needs a keyword
+                // supplied. `param_type_to_c` has carried the C half of this
+                // since it found the same text passing through verbatim in 52
+                // generated files; the Rust half was never written, and Rust
+                // is stricter -- a raw pointer without `const` or `mut` does
+                // not parse at all, so everything behind it was invisible.
+                //
+                // `*const T` and `*mut T` are already Rust and must pass
+                // through untouched: blindly prefixing `*mut` produced
+                // `*mut const BezierCurve`, which regressed a spec that had
+                // been accepted. Only the bare `*T` needs a qualifier, and
+                // bare means MUTABLE in the source language.
+                let rest = t[1..].trim_start();
+                if let Some(inner) = rest.strip_prefix("const ") {
+                    format!("*const {}", Self::t27_type_to_rust(inner))
+                } else if let Some(inner) = rest.strip_prefix("mut ") {
+                    format!("*mut {}", Self::t27_type_to_rust(inner))
+                } else {
+                    format!("*mut {}", Self::t27_type_to_rust(rest))
+                }
+            }
             t => t.to_string(), // Custom type name
         };
 
