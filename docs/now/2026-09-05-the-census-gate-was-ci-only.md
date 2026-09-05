@@ -17,3 +17,10 @@
   bless it, this hook now blocks MY commits too. That is correct -- the ledger disagrees
   with the tree for everyone -- and the message names what moved so the blessing is
   informed rather than reflexive.
+- Found while proving the wiring: the hook picked `target/debug/tri` before
+  `target/release/tri` and broke on the first executable. In this worktree that was a
+  binary from **03:49**, sixteen hours older than the source, and it is the one every
+  commit that day was checked by -- it knew nothing of the two gates added in between.
+  A hook that picks a stale ruler silently is worse than one that is absent, because its
+  PASSED reads as a verdict. It now picks the NEWEST, and says out loud when even that one
+  is older than `cli/tri/src`.

@@ -39,10 +39,31 @@ cd "$ROOT"
 # NOT established: that this is why `core.hooksPath` is unset in this clone.
 # The hook being unusable without a compiler is a fact; that it is the CAUSE of
 # nobody installing it is a story, and this comment does not claim it.
+# NEWEST, not first. The list used to be tried in order, `debug` before `release`, and
+# `break` on the first executable. Measured in one worktree on 2026-09-05:
+#
+#     target/debug/tri     03:49   30265384 bytes   <- chosen
+#     target/release/tri   19:40    8771904 bytes
+#
+# Sixteen hours old, and it was the one every commit that day was checked by: it knew
+# nothing of the two gates added in between. A hook that picks a stale ruler silently is
+# worse than one that is absent, because its PASSED reads as a verdict.
 TRI_BIN=""
 for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
-  [ -x "$cand" ] && TRI_BIN="$cand" && break
+  [ -x "$cand" ] || continue
+  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
 done
+# And say so out loud when even the newest is older than what it is meant to read. Not a
+# refusal: editing cli/tri/src without rebuilding is ordinary, and blocking every such
+# commit would be a tax on the normal case. Silence was the defect, not permissiveness.
+if [ -n "$TRI_BIN" ] && [ -d "$ROOT/cli/tri/src" ]; then
+  NEWEST_SRC="$(find "$ROOT/cli/tri/src" -name '*.rs' -newer "$TRI_BIN" -print -quit 2>/dev/null)"
+  if [ -n "$NEWEST_SRC" ]; then
+    echo "note: ${TRI_BIN#$ROOT/} is older than cli/tri/src (e.g. ${NEWEST_SRC#$ROOT/})."
+    echo "      The gates below are the ones that binary carries, not the ones you just wrote."
+    echo "      cargo build --release -p tri"
+  fi
+fi
 if [ -z "$TRI_BIN" ] && command -v tri >/dev/null 2>&1; then
   TRI_BIN="$(command -v tri)"
 fi
