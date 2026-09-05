@@ -16187,7 +16187,7 @@ slot, `empty: void` -- and **`zig build-obj` accepts both, and so does the deepe
 corpus counts these specs as generating and accepting.
 
 (An earlier version of this section said Zig *dropped* the field. That was wrong and
-came from running `t27c gen-zig`, which is not a subcommand -- the Zig backend is
+came from running `t27c gen-zig`, which does not exist as a subcommand -- the Zig backend is
 `gen`. The empty output of a misspelled command was read as a dropped field. The
 corpus itself always used `gen`, so its numbers were never affected; only this
 paragraph was. See the note below.)
@@ -16385,3 +16385,267 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
+## 567. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
+
+&sect;542 fixed the DENOMINATOR of `tri gates mutate`'s equivalence report: `claims_seen` counted every
+`# mutant-equivalent:` marker textually, including claims for which no mutant was ever built. The
+numerator went untouched. The units fan-out found it.
+
+```rust
+claims_seen += in_scope.len();          // distinct claim LINES, from a union over all directions
+for (dir, _, _, survivors) in &scores { // ... once PER DIRECTION
+    claims_broken.extend(contradicted_claims(..));
+}
+println!("{} of {} equivalence claim(s) CONTRADICTED:", claims_broken.len(), claims_seen);
+```
+
+**"X of Y" is an inclusion statement, so both halves have to count the same thing.** They do not. A
+claimed line that is a mutable site under two operators and dies under both contributes **two rows**
+to a numerator whose denominator counted it **once**. Under `--all` the command can print `2 of 1`.
+
+**Measured, not hypothesised.** Of the eight markers in `tools/`, exactly **one** is a site in two
+directions: `gft_backprop_microcode.py:742`, `assert _magsub(10240, 9217) == 9984, ...` -- an assert
+site AND a boundary site. One in eight, on real data, reachable by a flag the command documents.
+
+**Fixed by counting each half in its own unit rather than deleting a number:**
+
+```text
+1 of 8 equivalence claim(s) CONTRADICTED, in 2 (claim x operator) row(s):
+```
+
+The rows stay per direction, because **which operator killed a claim is the useful half** -- an
+`assert` mutant dying says something different from a `boundary` mutant dying. What changes is that
+the ratio now speaks about claims and the rows are counted as rows.
+
+### The half of a fix is not the fix
+
+Two passes ago I corrected this function's denominator and wrote a section about it. The numerator sat
+four lines below, in the same `println!`, and I did not look at it. **&sect;574's lesson -- "the fix
+does not travel" -- has a shorter form here: it did not travel four lines.**
+
+The mutant that reverts the numerator to `claims_broken.len()` survived three fresh unit tests on
+`distinct_claims`. Killed only by a structural test reading the call site: **tenth pass in a row that
+the wiring outlived the function.**
+### The detector I wrote could not find what the compiler was already saying
+
+`tri types redef` ends with a sentence that reads as a partition of the rows it just
+printed: *N state different NUMBERS; N differ in which fields they state, N in the text
+of a field, N only in prose, N identical.* It summed to **345**. The command had printed
+**346** rows.
+
+The dropped row was the only `SIGNATURE` one — two definitions of `delete` in one spec,
+one taking a line range and one taking a path. The second-most-severe class the command
+has, and the tally is the sentence a reader carries away.
+
+`signature` was incremented in the `match` and left out of the `println!` argument list.
+
+The part worth keeping is not the bug. That pass opened by building a detector for a
+neighbouring shape — *a guard checked for reachability rather than correctness* — which
+narrowed 69 candidates to 16 by requiring that the variable be **read by a control-flow
+test**. That detector could not have found this defect, because the defect **is the
+absence of any read**. Its shape requirement excluded the thing it was hunting.
+
+The instrument that answers "nothing reads this" ships with the compiler and had been
+printing it on every build for as long as the line existed:
+
+```
+warning: variable `signature` is assigned to, but never used
+warning: value assigned to `signature` is never read
+```
+
+Every build in that session was run as `cargo build 2>&1 | grep -E '^error'`, or with
+its output piped to `/dev/null` outright. The output was discarded because 23 warnings
+of mostly-cosmetic noise is not worth reading — which is exactly how the one warning
+that mattered stayed invisible for as long as it did.
+
+Three consequences.
+
+**Before writing a detector, ask what the toolchain already reports.** A bespoke matcher
+competes with `rustc`, `clippy`, the type checker, and the linter — all of which run on
+every build and none of which need a population argument. Write the detector for what
+they *cannot* say.
+
+**Classify the noise rather than silencing it.** Not all warnings are equal.
+*A value computed and never read* is a different claim from *an item nothing calls*: the
+first means work was performed and dropped, which usually means a result that was meant
+to reach somewhere and does not. `tri gates warnings` splits them into
+`DISCARDED` / `dead` / `cosmetic` / `other`, and `--gate` holds only the first class at
+zero. The 16 dead and 6 cosmetic warnings stay visible and ungated.
+
+**A warning report must force the work.** A cached compilation unit emits *no warnings
+at all*, so a report run against a warm `target/` reads clean no matter what the code
+says — the same broken-ruler shape as a gate whose subject has been deleted.
+`tri gates warnings` touches the crate root before checking, and says so in its output
+when it finds zero.
+
+And the test for a defect of this shape goes at the **call site**. The omission was from
+an argument list, so a test of any counting helper would have passed. Removing
+`signature` from the arguments alone does not compile — killed by `rustc`, not by the
+test, and reporting that as a kill would have been false. The mutation that *compiles* —
+dropping it from both the format string and the arguments — is the one the test must
+fail on, and it does, by name.
+
+### An assertion of absence is only as good as the region it is asked of
+
+Three instances in one pass, in three different languages, all the same shape: **a check
+whose verdict is "the needle was not found", evaluated over a region that need not contain
+the needle's subject.**
+
+A positive assertion fails loudly when its region is wrong — the thing it demands is not
+there. A negative assertion **passes**. That asymmetry is the whole defect: truncate the
+region and the check goes green while proving nothing.
+
+**A hardcoded operand list.** `coq-kernel.yml` guarded against `Admitted` — a lemma
+assumed rather than proved, which Coq accepts as an axiom — with
+`grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v`. `coq/_CoqProject` names
+**nine** files. Seven compiled proof files, including all three `Theorems/`, sat outside
+it. Nothing else covered them: `coqc` compiles a file containing `Admitted` without
+complaint, and `coqchk` ran for `PhiFloat` alone. Planting one in `Kernel/Trit.v` makes
+the gate print `OK: no Admitted in Phi.v or PhiFloat.v (both files read)` — a true
+sentence about the wrong question. The population belongs to the build, so it is now read
+from the file the build reads.
+
+**A region that can disappear.** `phi-loop-ci.yml` ended
+`grep -rn 'as f64' ffi/src/ ... 2>/dev/null | grep -v … | grep -v … && echo "L8 FAILED" && exit 1 || echo "L8 PASSED"`.
+Remove `ffi/src/` and the first grep exits 2 with its message discarded; the **last** grep
+in the pipe then reads empty input and exits 1, which `||` reports as "no violations".
+Byte-identical output to a clean tree. **In a pipeline the exit code is the last command's,
+so an upstream "could not run" is laundered into a downstream "found nothing".**
+
+**A source slice.** `src.split("#[cfg(test)]").next()` as "the production code" stops at
+the FIRST test module. Measured with `gates::test_module_lines` — a state machine, not a
+split: of 46 files carrying a test module, **10** have production items after their first,
+**79** of them in `gates.rs` alone. The FILE count is matcher-dependent and is
+deliberately not quoted as a single number: splitting on the string `#[cfg(test)]`
+gives 13, splitting on the bare attribute line gives 11, and additionally rejecting
+matches inside string literals gives 9. An audit of this pass found the "10 files /
+130 items" first written here reproduces under none of those definitions.
+
+Two rules come out of this.
+
+**Give every negative assertion a positive anchor.** Before asserting the needle is absent,
+assert the *subject* is present in the region. Both structural tests written that pass
+worked only by position — the needle happened to sit above the cut. Each now proves its
+slice reaches the subject first, and planting a test module above the subject fails them
+with "this test would pass vacuously" where before they passed.
+
+**Make the population's size visible, and refuse a zero.** The repaired gates print
+`reading 9 file(s) named by coq/_CoqProject`, and an empty `_CoqProject` exits **2**, not
+0. A count in the output is what lets a reader notice the day it drops. Two candidates from
+the same sweep were **refuted** by exactly this: the `actions/github-script` injection gate
+already prints `2 actions/github-script step(s)` and finds 2 of 2, and the status-table
+path check drops 15 candidates that are all correctly dropped — GitHub org/repo names, a
+branch name, `/tmp` paths, and formulas containing a slash. A clean audit is a result.
+
+And the counting instrument itself is subject to the rule. The 10-and-79 above were first
+measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
+message before being checked against `test_module_lines` — the correct instrument, already
+in the repository, already trusted by `mutate`. Two files the wrong count named have zero.
+## 568. A guard that cannot run, on the path that merges
+
+The ratio sweep's strongest survivor is not a malformed number. It is a merge.
+
+`tri pr ready --required-only --wait` printed `{p} of {total}` where `p` counts required check RUNS
+still going on the head commit and `total` was `req.len()` -- the count of required context NAMES read
+from repository SETTINGS, which never look at the commit.
+
+The consequence is not the arithmetic. `required_pending` returns `None` for an empty ruleset and the
+caller bails, so **`total >= 1` on every path that reaches the print** -- which makes this arm
+unreachable in that mode:
+
+```rust
+} else if total == 0 {
+    // An empty list is not "finished" -- it is "not started".
+    quiet += 1;
+    if quiet >= 4 { break; }
+}
+```
+
+That guard exists because a pull request was once merged while ten checks were still running. Its
+rationale is in the source, four hundred lines up. **Under `--required-only` it could not execute at
+all**, and `quiet` -- incremented only inside it -- was never incremented in that mode.
+
+**So:** run the flag seconds after a push, before any required context has posted a run. `p = 0`,
+honestly, because nothing required is running. `total = 4`, from settings. Control falls to
+`else { break }` on the **first** poll, the final read repeats the zero, and the verdict reads
+`safe to merge` into `gh pr merge --squash`. **The wait exits before the checks it exists to wait for
+exist.**
+
+### The fix takes the denominator from the same read as the numerator
+
+`required_posted` counts how many required NAMES have posted a run on this commit. It is drawn from
+the same query as `p`, so it can be zero -- which is what brings the not-started arm back to life --
+and the arm now also covers the partial case, because **zero pending out of three posted says nothing
+about the fourth**. `req.len()` is still printed, as its own clause: *"3 of 3 posted are still
+running; the ruleset requires 4"* is the state a reader has to be able to see.
+
+### What the verifier corrected in its own finding
+
+The claim came with two supporting details that were wrong, and the adversarial pass dropped both:
+`rings-rust.yml` does set a `name:`, so three workflows emit a `build` check run rather than four --
+and `build` is not required, so those duplicates can never reach the numerator. **`p > total` is a
+latent property of a row-counting function, not a state this repository is in today.** The finding
+survived on the dead guard, not on the arithmetic, and saying which of the two carried it is the
+difference between a report and a rumour.
+
+### Both halves needed a structural test
+
+The loop is I/O-bound, so the four unit tests on `required_posted` and `required_pending` all stay
+green when either half is reverted. **Eleventh pass in a row that the wiring outlived the function**
+-- and the first where the wiring in question ends in `gh pr merge`.
+
+### I had nineteen of my own numbers re-measured, and six were wrong
+
+After a pass whose whole subject was measurement, I put every figure I had published
+through an audit: five agents on disjoint claim sets, told to derive their own commands
+rather than reuse mine, with a third reading on every disagreement.
+
+**10 CONFIRMED, 3 stale-but-true, 6 WRONG.**
+
+The six are worth naming individually, because they fail in four distinct ways and only
+one of them is a typo.
+
+**A regex counted matches inside string literals.** I wrote that `competitors.rs` has a
+production `pub fn beta_competitor` below its first test module, and used that as the
+justification for adding an anchor. That identifier is at line 696, inside the raw string
+`const TWO` which opens at 681 and closes at 705 — **fixture text inside `mod tests`**.
+The file has no production item below the cut at all. My scanner matched `^pub fn ` at
+column 0 and had no idea it was inside a string. A count of "production items" needs a
+lexer, not a regex, and the same false positives inflated the file and item totals below.
+
+**A count that depends on an unstated matcher.** I published "10 of 46 files have
+production items after their first `#[cfg(test)]`, 130 items in all". The 46 is right by
+three independent instruments. The rest reproduces under **no** definition the auditor
+could construct: 13 files / 160 items splitting on the string, 11 / 140 splitting on the
+bare attribute line, 9 / 133 additionally rejecting string literals. Not 10, not 130. The
+one robust figure — `gates.rs` holds 79 — survived, and is the only one worth quoting.
+**When a number moves with the matcher, the matcher is part of the number.**
+
+**A sample of one, generalised.** I wrote "each push triggers 28 check-runs" and built a
+cost argument on it, in an issue, to an owner. Across 24 consecutive PR heads the range is
+**28 to 43, median 41** — and exactly one head gave 28, the smallest change in the sample.
+I had measured the minimum and called it the value. The correction makes the argument
+*stronger*, which is precisely why it was tempting not to check.
+
+**A population wider than the one that matters.** I wrote "zero occurrences of `Admitted`
+anywhere under `coq/`". There is one, in `coq/README.md`. Zero in `.v` files — which is the
+population the gate reads and the one I meant. The claim as written was false and the claim
+I meant was true, and only writing the population down distinguishes them.
+
+**And a plain miscount**: "six occurrences before the attribute" was five (216, 355, 358,
+371, 375). History shows it was never six.
+
+Three lessons, in order of how much they cost.
+
+**Audit the numbers you are most confident in.** Every one of these six was published —
+in issue bodies, commit messages, code comments, this file — and each had already been
+"checked", by me, with the instrument that produced it. Re-measuring with the same tool is
+not a second reading.
+
+**A correction that strengthens your argument still has to be published.** The check-run
+figure made the merge-queue case better, not worse. That asymmetry is exactly when a wrong
+number survives.
+
+**Name the population in the sentence.** Four of the six failures are a population
+mismatch, not an arithmetic error: string literals counted as code, a matcher left
+unstated, a minimum reported as a central value, `coq/` where `coq/**/*.v` was meant.

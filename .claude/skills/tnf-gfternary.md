@@ -121,7 +121,9 @@ eleven bases, re-tested paired on the saved per-seed data, n = 5:
 reachable rows, zero waste. The same neuron in a binary LUT6 has 64 rows of which
 27 are reachable — **42% used, 58% lost to the substrate.**
 
-**THE 83-FORMAT CATALOGUE THROUGH THE SIEVE (T405): 1 admissible.** 12 unsievable
+**THE CATALOGUE THROUGH THE SIEVE (T405, run at W778 over the catalogue as then
+registered; the catalogue is 109 at v3, Sep 2026, and the 26 rows added since are
+not covered by this run): 1 admissible.** 12 unsievable
 (no width, or decimal), 71 sieved, **70 killed by S1 alone** — every one is a
 power-of-two code space and `2^n` is a power of three for no `n ≥ 1`. The
 survivor is `gfternary`. **This is a category result before a quality one**: the
@@ -264,7 +266,8 @@ be built. They belong in the *history*, with their refutations attached, never i
 the *catalogue*.
 
 Runnable: `experiments/gfternary-line/golden_sieve.py`,
-`sieve_catalog.py` (the 83), `gen_mix.py` (effective fan-in + area),
+`sieve_catalog.py` (run at W778 over the catalogue as it stood then; re-run against
+the current 109), `gen_mix.py` (effective fan-in + area),
 `fanin_accuracy.py` (accuracy, with the `scale` control).
 Spec: `specs/numeric/golden_sieve.t27` — 3 tests, 7 invariants proved comptime.
 
@@ -406,7 +409,11 @@ answer. `t27c yostat` exits 2 on either. See t27#2173.
 
 
 **Source of truth:** [`docs/theory/TNF_ARTICLE_RU.md`](../../docs/theory/TNF_ARTICLE_RU.md)
-(2353 lines, Russian). This skill is the distillation. When they disagree, the
+(Russian; 3,011 lines at 2026-09-05 by `wc -l`). The English TNF manuscript,
+"Ternary Network Floats", was submitted 3 Sep 2026 to Microprocessors and
+Microsystems (Elsevier), manuscript MICPRO-D-26-00839, status under review; no
+arXiv preprint exists. Revision R1 is prepared in gHashTag/trinity-fpga#742
+(open). This skill is the distillation. When they disagree, the
 article wins — but re-read the article's own **Ограничения** section first,
 because most apparent disagreements are claims the article already retracted.
 
@@ -504,7 +511,7 @@ on each layer — and multiplying by `α_ℓ` **puts the multiplier back**. Stor
 2 bits either way; symbol count is 3 either way. The φ alphabet simply *carries*
 the scale that the unit alphabet has to *learn and then pay for*.
 
-### Verified against silicon
+### Verified against the synthesized node (exact integer reference in Z[φ])
 
 16,000 vectors at fan-in 8/16/32, 8-bit activations, weights drawn uniformly from
 the alphabet: **zero mismatches**. Depth checked to `k=30`, where the gain is
@@ -664,7 +671,8 @@ Inverted, the same law becomes a *diagnostic instrument*:
 > tapering format `M_eff` decreases with `|e|`, and `dM_eff/d|e|` **is** the taper
 > rate in significand bits per binade.
 
-This resolves an 83-format catalogue into exactly **four** taper shapes — and
+This resolves the format catalogue (as it stood when measured; 109 at v3, Sep
+2026) into exactly **four** taper shapes — and
 there is no fifth. It reads posit's taper (`k = ⌊|e|/2^es⌋ + 1`) and takum's
 (`r = ⌊log₂(|e|+1)⌋`) exactly, from the encoder, not from a fit.
 
@@ -940,9 +948,9 @@ pinout, so the prjxray-db `fbg676` entry is pinout-correct for our board.
 
 **Also on disk already:** `fpga/verilog/ternary_mac_demo_top_200t.bit` (9.7 MB — a
 200T-sized bitstream, vs ~3.8 MB for 100T), with `.fasm` and `.frames` beside
-other designs. The flow *has* run on this machine. `README.md:61` claims
+other designs. The flow *has* run on this machine. `README.md:97` claims
 `FPGA | E2E bitstream | GREEN`; that claim is **not currently reproducible from a
-clean PATH**, and the README's board row still says XC7A100T.
+clean PATH**, and the README's board row (`README.md:98`) still says XC7A100T.
 
 ---
 

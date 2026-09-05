@@ -490,6 +490,30 @@ pub fn required_pending(checks: &[(String, bool)], required: &[String]) -> Optio
     )
 }
 
+/// How many of the required contexts have POSTED a check run on this commit.
+///
+/// The wait printed `{p} of {total}` with `total = required.len()` -- a count of
+/// context names read from repository SETTINGS, which never look at the commit.
+/// That is not the population `p` is drawn from, and the consequence is worse
+/// than a malformed ratio: since an empty required set bails, `total >= 1`
+/// always, so the `total == 0` arm -- the documented guard for "an empty list is
+/// not finished, it is NOT STARTED" -- is unreachable under `--required-only`.
+///
+/// Run the flag before any required context has posted its run and the numerator
+/// is 0 for the honest reason that nothing exists yet, while the denominator is
+/// 4 from the ruleset. The loop breaks on the first poll and the verdict reads
+/// safe to merge.
+///
+/// So the wait asks THIS instead: how many of the required names are present on
+/// the commit at all. Distinct names, because the ratio's other half counts
+/// names.
+pub fn required_posted(checks: &[(String, bool)], required: &[String]) -> usize {
+    required
+        .iter()
+        .filter(|r| checks.iter().any(|(name, _)| name == *r))
+        .count()
+}
+
 /// What `--merge` should leave in the exit code.
 ///
 /// Three outcomes, two of which are not a merge: `gh pr merge` refused, or it
@@ -705,6 +729,7 @@ fn ready(
             // not every check on the commit. An empty required set is refused
             // rather than read as "nothing to wait for" -- that is the failure
             // this whole family of gates exists to prevent.
+            let mut required_total = 0usize;
             let (p, total) = if required_only {
                 let req = crate::gates::required_contexts(&repo)?;
                 let states = check_states(&repo, n)?;
@@ -714,7 +739,16 @@ fn ready(
                          --required-only has nothing to wait on. Refusing rather \
                          than treating an empty requirement as a finished one."
                     ),
-                    Some(pending) => (pending, req.len()),
+                    // The denominator is what has POSTED on this commit, so it
+                    // is drawn from the same read as the numerator and can be
+                    // zero -- which is what keeps the "not started" arm alive.
+                    // `req.len()` is still printed, as its own clause, because
+                    // "3 of 3 posted, and the ruleset requires 4" is the state a
+                    // reader has to be able to see.
+                    Some(pending) => {
+                        required_total = req.len();
+                        (pending, required_posted(&states, &req))
+                    }
                 }
             } else {
                 match in_flight(&repo, n) {
@@ -738,12 +772,29 @@ fn ready(
             };
             if p > 0 {
                 quiet = 0;
-                println!("  [{repo}#{n}] waiting: {p} of {total} check(s) still running");
-            } else if total == 0 {
+                if required_only {
+                    println!(
+                        "  [{repo}#{n}] waiting: {p} of {total} required check(s) posted are \
+                         still running; the ruleset requires {required_total}"
+                    );
+                } else {
+                    println!("  [{repo}#{n}] waiting: {p} of {total} check(s) still running");
+                }
+            } else if total == 0 || (required_only && total < required_total) {
                 // An empty list is not "finished" -- it is "not started". Give
-                // it a few rounds before believing it.
+                // it a few rounds before believing it. Under --required-only the
+                // same applies while any required context is still missing from
+                // the commit: zero pending out of three posted says nothing
+                // about the fourth, which has not started.
                 quiet += 1;
-                println!("  waiting: no checks have appeared yet ({quiet}/4)");
+                if required_only && total > 0 {
+                    println!(
+                        "  waiting: only {total} of {required_total} required context(s) \
+                         have posted a run yet ({quiet}/4)"
+                    );
+                } else {
+                    println!("  waiting: no checks have appeared yet ({quiet}/4)");
+                }
                 if quiet >= 4 {
                     break;
                 }
@@ -1140,6 +1191,127 @@ mod paginated_count_tests {
 mod page_was_full_tests {
     use super::baseline_phrase_bounded;
     use crate::issues::read_is_complete;
+
+    /// The wait loop is I/O-bound, so no unit test reaches it. Both halves of
+    /// this fix are therefore pinned structurally: the denominator must be drawn
+    /// from the commit, and the not-started arm must cover required-only.
+    ///
+    /// Reverting either leaves all four tests below green, and the second
+    /// revert restores a path that ends in `gh pr merge --squash` before the
+    /// required checks exist.
+    #[test]
+    fn the_wait_denominator_and_the_not_started_arm_are_both_wired() {
+        let src = include_str!("prcheck.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+
+        let denom = concat!("(pending, required_", "posted(&states, &req))");
+        assert!(
+            code.contains(denom),
+            "the denominator must come from the SAME read as the numerator, or it \
+             is a settings value that can never be zero"
+        );
+        assert!(
+            !code.contains(concat!("Some(pending) => (pending, req.", "len())")),
+            "and never from the ruleset size"
+        );
+
+        let arm = concat!("total == 0 || (required_only && total < required_", "total)");
+        assert!(
+            code.contains(arm),
+            "the not-started arm has to cover required-only, where `total == 0` \
+             alone is unreachable because an empty ruleset bails earlier"
+        );
+        let merge = code.find("--squash").unwrap_or(code.len());
+        assert!(
+            code.find(arm).unwrap() < merge,
+            "and it has to be reached before anything that merges"
+        );
+    }
+
+    /// The wait's denominator came from repository SETTINGS, so it was never
+    /// zero, so the "not started" arm could not run under --required-only.
+    ///
+    /// That arm exists because a pull request was once merged while ten checks
+    /// were still running: an empty list is not "finished", it is "not
+    /// started". With `total = required.len()` the numerator can be an honest 0
+    /// -- nothing has posted yet -- while the denominator is 4 from the ruleset,
+    /// so the loop takes the `else` and breaks on the FIRST poll.
+    #[test]
+    fn nothing_posted_yet_is_not_nothing_pending() {
+        let req = vec![
+            "check".to_string(),
+            "validate".to_string(),
+            "check-linked-issue".to_string(),
+            "check-now-freshness".to_string(),
+        ];
+        // Seconds after the push: the commit has runs, but none of the required
+        // contexts has posted one.
+        let states = vec![("fpga-synthesis".to_string(), false)];
+        assert_eq!(
+            super::required_pending(&states, &req),
+            Some(0),
+            "nothing REQUIRED is running, which is true and not the question"
+        );
+        assert_eq!(
+            super::required_posted(&states, &req),
+            0,
+            "and nothing required has POSTED -- the denominator that keeps the \
+             not-started arm alive"
+        );
+        assert_eq!(req.len(), 4, "while the ruleset's count is never zero");
+    }
+
+    /// Partially posted is still not started. Three green out of three posted
+    /// says nothing about the fourth.
+    #[test]
+    fn three_posted_of_four_required_is_still_waiting() {
+        let req = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()];
+        let states = vec![
+            ("a".to_string(), true),
+            ("b".to_string(), true),
+            ("c".to_string(), true),
+        ];
+        assert_eq!(super::required_pending(&states, &req), Some(0), "none running");
+        assert_eq!(super::required_posted(&states, &req), 3, "three have posted");
+        assert!(
+            super::required_posted(&states, &req) < req.len(),
+            "and that inequality is the whole guard: 0 pending of 3 posted is not \
+             a finished set of 4"
+        );
+    }
+
+    /// Every required context posted: the ratio is well-formed and the wait may
+    /// end. The guard must not become a wait that never finishes.
+    #[test]
+    fn all_posted_and_none_pending_is_finished() {
+        let req = vec!["a".to_string(), "b".to_string()];
+        let states = vec![("a".to_string(), true), ("b".to_string(), true)];
+        assert_eq!(super::required_pending(&states, &req), Some(0));
+        assert_eq!(super::required_posted(&states, &req), req.len());
+    }
+
+    /// The denominator counts NAMES, like the ruleset it is compared against --
+    /// two runs of one required name are one posted context, not two.
+    #[test]
+    fn a_name_with_two_runs_is_one_posted_context() {
+        let req = vec!["check".to_string()];
+        let states = vec![("check".to_string(), false), ("check".to_string(), false)];
+        assert_eq!(
+            super::required_posted(&states, &req),
+            1,
+            "one required name, however many runs carry it"
+        );
+        assert_eq!(
+            super::required_pending(&states, &req),
+            Some(2),
+            "the numerator still counts RUNS, which is why it may exceed the \
+             ruleset size and must not be printed against it"
+        );
+    }
 
     /// The completeness question belongs to the read the PAGE bounded, not to
     /// what survived a filter applied after it.

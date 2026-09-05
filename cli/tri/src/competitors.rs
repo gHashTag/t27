@@ -585,7 +585,30 @@ mod tests {
     #[test]
     fn both_print_sites_call_the_function_rather_than_subtracting() {
         let src = include_str!("competitors.rs");
-        let code = &src[..src.find("#[cfg(test)]").expect("the test module bounds the search")];
+        let code = &src[..src
+            .find("#[cfg(test)]")
+            .expect("the test module bounds the search")];
+        // That bound is the FIRST test module, at line 567. The justification
+        // written here first was WRONG and an audit caught it: it said
+        // `beta_competitor` is production code sitting below the cut. That
+        // identifier is at line 696, inside the raw string `const TWO` which
+        // opens at 681 and closes at 705 -- test fixture text, inside
+        // `mod tests`. THIS FILE HAS NO PRODUCTION ITEM BELOW THE CUT, so the
+        // slice is whole today and the anchor below is defence, not repair.
+        //
+        // The error is worth keeping in view: a column-0 `pub fn` regex counts
+        // matches inside string literals, which is how a fixture became a
+        // finding. A count of "production items" needs a lexer, not a regex.
+        //
+        // The anchor stays because the count assertion and the absence
+        // assertion differ in kind: a call site leaving the slice makes the
+        // count read 1 and fail loudly, while a reintroduced subtraction below
+        // the cut would simply not be found.
+        assert!(
+            code.contains("zero_at_1_citing_something"),
+            "the slice no longer reaches the function under test -- the absence \
+             assertion below would pass vacuously"
+        );
         let bad = concat!("zero_at_1 - ", "c.cites_nothing");
         assert!(
             !code.contains(bad),
@@ -622,7 +645,10 @@ mod tests {
         );
         let recs = records(&five_only);
         let c = counts(&recs);
-        assert_eq!(c.zero_at_1, 2, "Alpha now states zero at pass@1, Beta already did");
+        assert_eq!(
+            c.zero_at_1, 2,
+            "Alpha now states zero at pass@1, Beta already did"
+        );
         assert_eq!(c.cites_nothing, 1, "only Beta cites nothing at all");
         assert_eq!(
             zero_at_1_citing_something(&recs),
