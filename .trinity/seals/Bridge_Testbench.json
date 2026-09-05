@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:97b77842dbd989b7ef5e9f21beecbad100b9ea62bc1f2320f25118fd40c4f7d5",
-  "gen_hash_rust": "sha256:c83c96a01128200dd8b1bd5893235daef1754cd99865e98c90f42fc4de4a7121",
+  "gen_hash_rust": "sha256:bda5195d9faf89a90f29e4d81ca90f5801252cc926d7f0f5b4c4cc6e41a98d19",
   "gen_hash_verilog": "sha256:84cf8e756ad12eebf24e430e85f682c438a635ce58c8cb99d4b929a599156446",
   "gen_hash_zig": "sha256:04cf9d4620ce7d7cb030dd02da0f707b50ec111527bf094e7c98b1a066a2c244",
   "module": "Bridge_Testbench",
