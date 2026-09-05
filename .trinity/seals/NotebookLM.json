@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:1363497601bffd09dd3ee2c619f834af65869e1e4f2ed21dcc9a03ebbec9b21c",
-  "gen_hash_rust": "sha256:e0b25160d814abae5824ee8ba4fd68a9a520325550811abc36f7409a978611e1",
+  "gen_hash_rust": "sha256:5b889393c6663ff46a45fb5f706d02544cecece392c2811e725f0cd672ff0127",
   "gen_hash_verilog": "sha256:7716f39dc3d0baf658917208a7c294da3ed66d8d849778e3a0d170e7083115b4",
   "gen_hash_zig": "sha256:534abb99380c2bc0decab8ee239edaac260e956b20891b17728a337b40ba104c",
   "module": "NotebookLM",

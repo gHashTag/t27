@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:2747831674dd06e25e0f2c491db8888633d5ae4d0d18be3683bb7cefb71e6b16",
-  "gen_hash_rust": "sha256:2e56d97f39229c3ab0e5d932478c7563b95292edee5288b5bf1858f09210b892",
+  "gen_hash_rust": "sha256:663891c01a2869bf3193082c1b47461b303319a942e7fdd1d5c9a453e338df73",
   "gen_hash_verilog": "sha256:7e0fde52a4497ab30050954ee68bc8c635682738301cbc7ee1f2dd4a299d4d44",
   "gen_hash_zig": "sha256:429d12c0654390cbbb260136060ee78dbffe59c7ffc486f23841f77ad8bdbf58",
   "module": "PinsIR",

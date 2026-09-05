@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:206df44d0ec2596f758e7a69787d91098b2876260764fcb15c04761027ee0a38",
-  "gen_hash_rust": "sha256:65052d672c2c5800d28f28fca680cc14ae87ff2c10bd74507dc1a208d4339926",
+  "gen_hash_rust": "sha256:599daf75b1b3e049ca6e0f6e17ad9626266a73a62c18eb78a195a02a60ed1452",
   "gen_hash_verilog": "sha256:a2e7e00795ff068d8e811fbf1797823fbec303250ad1ec6b956749cc55c3a933",
   "gen_hash_zig": "sha256:fe55742c00a812da273af4fc42d601c475ec456341e2979102e271f3063f8082",
   "module": "Hir",
   "ring": 12,
-  "sealed_at": "2026-09-05T03:21:30Z",
+  "sealed_at": "2026-09-05T03:45:59Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:0a8c8fb8b35a2791fbab26a8a95f310c75edeff390902cda5972dabee26abcaa",
   "spec_path": "specs/fpga/hir.t27"
