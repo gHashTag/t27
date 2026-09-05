@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5472e7b8bd26496d76c299474cb8e210ccfa0b7145c28bdbcc4baa6ada0dc833",
-  "gen_hash_rust": "sha256:4372ba03ad36e2b35511b5c095e837421a468ce217284b7df6eedbb0dade3420",
+  "gen_hash_rust": "sha256:1cc86c6292c72e7fa3bac598c9f82a3f531ad4343599b2233cdd3a0b19dc4615",
   "gen_hash_verilog": "sha256:b0b054b3c2e8b4a095568ec5242edbee786fabf0ac499cb6ee920228ee01f533",
   "gen_hash_zig": "sha256:f91702e478f778da300a8acfd22d5c5b3996a40e28e727e23024c221980d4e35",
   "module": "GF20",
   "ring": 12,
-  "sealed_at": "2026-08-30T21:18:16Z",
+  "sealed_at": "2026-09-05T09:08:54Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:9ec4b6bdfdd71d5d9e4e95513ab3bbc6ac8691ab2086dd1b4e0a2b681cf1b5f9",
   "spec_path": "specs/numeric/gf20.t27"
