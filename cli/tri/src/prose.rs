@@ -109,15 +109,20 @@ fn decls(lines: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// The reasons a walk decides nothing. They are literals rather than `String`
+/// because the set is fixed and a reader needs to be able to enumerate it --
+/// see `BROKEN_INSTRUMENT`, which names the two that mean the tool failed.
+const BROKEN_INSTRUMENT: &[&str] = &["unreadable", "compiler did not run", "cannot write probe"];
+
 enum Outcome {
     Prose(usize),
     BlockedByCode(usize, String),
-    Other(String),
+    Other(&'static str),
 }
 
 fn walk(t27c: &Path, root: &Path, spec: &Path, cap: usize) -> (Vec<String>, Outcome) {
     let Ok(text) = std::fs::read_to_string(spec) else {
-        return (Vec::new(), Outcome::Other("unreadable".into()));
+        return (Vec::new(), Outcome::Other("unreadable"));
     };
     let orig: Vec<String> = text.lines().map(|s| s.to_string()).collect();
     let mut cur = orig.clone();
@@ -128,7 +133,7 @@ fn walk(t27c: &Path, root: &Path, spec: &Path, cap: usize) -> (Vec<String>, Outc
     ));
     for _ in 0..cap {
         if std::fs::write(&tmp, format!("{}\n", cur.join("\n"))).is_err() {
-            return (cur, Outcome::Other("cannot write probe".into()));
+            return (cur, Outcome::Other("cannot write probe"));
         }
         let out = std::process::Command::new(t27c)
             .arg("check")
@@ -136,31 +141,28 @@ fn walk(t27c: &Path, root: &Path, spec: &Path, cap: usize) -> (Vec<String>, Outc
             .current_dir(root)
             .output();
         let Ok(out) = out else {
-            return (cur, Outcome::Other("compiler did not run".into()));
+            return (cur, Outcome::Other("compiler did not run"));
         };
         if out.status.success() {
             let _ = std::fs::remove_file(&tmp);
             if decls(&orig) != decls(&cur) {
-                return (
-                    cur,
-                    Outcome::Other("declarations changed -- refused".into()),
-                );
+                return (cur, Outcome::Other("declarations changed -- refused"));
             }
             return (cur, Outcome::Prose(touched));
         }
         let text = String::from_utf8_lossy(&out.stderr) + String::from_utf8_lossy(&out.stdout);
         let Some(n) = line_of(&text) else {
             let _ = std::fs::remove_file(&tmp);
-            return (cur, Outcome::Other("no line in the error".into()));
+            return (cur, Outcome::Other("no line in the error"));
         };
         if n == 0 || n > cur.len() {
             let _ = std::fs::remove_file(&tmp);
-            return (cur, Outcome::Other("line out of range".into()));
+            return (cur, Outcome::Other("line out of range"));
         }
         let line = cur[n - 1].clone();
         if line.trim_start().starts_with("//") {
             let _ = std::fs::remove_file(&tmp);
-            return (cur, Outcome::Other("stops on a comment".into()));
+            return (cur, Outcome::Other("stops on a comment"));
         }
         if is_decl(&line) || is_structural(&line) {
             let _ = std::fs::remove_file(&tmp);
@@ -173,7 +175,7 @@ fn walk(t27c: &Path, root: &Path, spec: &Path, cap: usize) -> (Vec<String>, Outc
         touched += 1;
     }
     let _ = std::fs::remove_file(&tmp);
-    (cur, Outcome::Other("cap reached".into()))
+    (cur, Outcome::Other("cap reached"))
 }
 
 fn line_of(text: &str) -> Option<usize> {
@@ -208,7 +210,12 @@ pub fn run(cmd: &ProseCmd, root: PathBuf) -> Result<()> {
 
     let mut prose: Vec<(PathBuf, usize, Vec<String>)> = Vec::new();
     let mut code: Vec<(PathBuf, usize, String)> = Vec::new();
-    let mut other = 0usize;
+    // Every `Outcome::Other` carries a hand-written reason, and the sole reader
+    // bound it to a wildcard and counted. Eight distinct reasons collapsed into
+    // one number, and two of them -- "unreadable" and "compiler did not run" --
+    // say the INSTRUMENT failed, which a reader of "NOT DECIDED" cannot tell
+    // apart from "cap reached".
+    let mut other: std::collections::BTreeMap<&'static str, usize> = Default::default();
     let mut scanned = 0usize;
 
     for (rel, _) in &scope.failures {
@@ -216,10 +223,10 @@ pub fn run(cmd: &ProseCmd, root: PathBuf) -> Result<()> {
         scanned += 1;
         let (fixed, outcome) = walk(&t27c, &root, spec, 200);
         match outcome {
-            Outcome::Prose(0) => other += 1,
+            Outcome::Prose(0) => *other.entry("no prose line to comment").or_default() += 1,
             Outcome::Prose(n) => prose.push((spec.clone(), n, fixed)),
             Outcome::BlockedByCode(n, l) => code.push((spec.clone(), n, l)),
-            Outcome::Other(_) => other += 1,
+            Outcome::Other(why) => *other.entry(why).or_default() += 1,
         }
     }
 
@@ -234,8 +241,17 @@ pub fn run(cmd: &ProseCmd, root: PathBuf) -> Result<()> {
     }
     println!("  ... blocked ONLY by prose          {}", prose.len());
     println!("  ... blocked by code                {}", code.len());
-    if other > 0 {
-        println!("  ... NOT DECIDED, nothing claimed   {other}");
+    let other_total: usize = other.values().sum();
+    if other_total > 0 {
+        println!("  ... NOT DECIDED, nothing claimed   {other_total}");
+        for (why, n) in &other {
+            let tag = if BROKEN_INSTRUMENT.contains(why) {
+                "  <-- the tool failed, not the spec"
+            } else {
+                ""
+            };
+            println!("        {n:>4}  {why}{tag}");
+        }
     }
 
     if !prose.is_empty() {
@@ -329,6 +345,42 @@ mod tests {
         assert!(is_decl("pub const X = 1;"));
         assert!(!is_decl("fnord is not a keyword"));
         assert!(!is_decl("constant folding is described here"));
+    }
+
+    #[test]
+    fn the_reason_reaches_the_tally() {
+        // Eight `Outcome::Other` sites each write a distinct hand-written
+        // reason, and the sole reader bound it to a wildcard and counted.
+        // Two of those reasons -- "unreadable" and "compiler did not run" --
+        // say the TOOL failed, which a reader of "NOT DECIDED" could not tell
+        // apart from "cap reached". The defect is a discarding pattern at the
+        // call site, so that is what this reads.
+        let src = include_str!("prose.rs");
+        let prod = src.split(concat!("#[cfg(te", "st)]")).next().unwrap();
+        // This slice stops at the FIRST test module. Measured with
+        // `gates::test_module_lines` (a state machine, not a split): of the 46
+        // files here carrying a test module, 10 have production items after
+        // their first, 130 items in total, 79 of them in gates.rs alone.
+        // THIS file has none, so the slice is whole today -- the anchor below
+        // is defence, not a live repair. If a test module ever lands above the
+        // subject, `contains` goes false and the negative assertion passes
+        // because it is looking at nothing.
+        assert!(
+            prod.contains("Outcome::Other("),
+            "the production slice no longer reaches the subject -- this test would pass vacuously"
+        );
+        assert!(
+            !prod.contains(concat!("Outcome::Other(", "_)")),
+            "the reason is discarded at the match arm again"
+        );
+        // Every reason named in BROKEN_INSTRUMENT must be a reason that is
+        // actually constructed, or the annotation silently marks nothing.
+        for why in super::BROKEN_INSTRUMENT {
+            assert!(
+                prod.contains(&format!("Outcome::Other(\"{why}\")")),
+                "BROKEN_INSTRUMENT names `{why}`, which no site constructs"
+            );
+        }
     }
 
     #[test]
