@@ -16204,3 +16204,56 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
+
+## 586. A guard that cannot run, on the path that merges
+
+The ratio sweep's strongest survivor is not a malformed number. It is a merge.
+
+`tri pr ready --required-only --wait` printed `{p} of {total}` where `p` counts required check RUNS
+still going on the head commit and `total` was `req.len()` -- the count of required context NAMES read
+from repository SETTINGS, which never look at the commit.
+
+The consequence is not the arithmetic. `required_pending` returns `None` for an empty ruleset and the
+caller bails, so **`total >= 1` on every path that reaches the print** -- which makes this arm
+unreachable in that mode:
+
+```rust
+} else if total == 0 {
+    // An empty list is not "finished" -- it is "not started".
+    quiet += 1;
+    if quiet >= 4 { break; }
+}
+```
+
+That guard exists because a pull request was once merged while ten checks were still running. Its
+rationale is in the source, four hundred lines up. **Under `--required-only` it could not execute at
+all**, and `quiet` -- incremented only inside it -- was never incremented in that mode.
+
+**So:** run the flag seconds after a push, before any required context has posted a run. `p = 0`,
+honestly, because nothing required is running. `total = 4`, from settings. Control falls to
+`else { break }` on the **first** poll, the final read repeats the zero, and the verdict reads
+`safe to merge` into `gh pr merge --squash`. **The wait exits before the checks it exists to wait for
+exist.**
+
+### The fix takes the denominator from the same read as the numerator
+
+`required_posted` counts how many required NAMES have posted a run on this commit. It is drawn from
+the same query as `p`, so it can be zero -- which is what brings the not-started arm back to life --
+and the arm now also covers the partial case, because **zero pending out of three posted says nothing
+about the fourth**. `req.len()` is still printed, as its own clause: *"3 of 3 posted are still
+running; the ruleset requires 4"* is the state a reader has to be able to see.
+
+### What the verifier corrected in its own finding
+
+The claim came with two supporting details that were wrong, and the adversarial pass dropped both:
+`rings-rust.yml` does set a `name:`, so three workflows emit a `build` check run rather than four --
+and `build` is not required, so those duplicates can never reach the numerator. **`p > total` is a
+latent property of a row-counting function, not a state this repository is in today.** The finding
+survived on the dead guard, not on the arithmetic, and saying which of the two carried it is the
+difference between a report and a rumour.
+
+### Both halves needed a structural test
+
+The loop is I/O-bound, so the four unit tests on `required_posted` and `required_pending` all stay
+green when either half is reverted. **Eleventh pass in a row that the wiring outlived the function**
+-- and the first where the wiring in question ends in `gh pr merge`.
