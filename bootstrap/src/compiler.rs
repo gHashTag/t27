@@ -3060,14 +3060,36 @@ impl Parser {
         // Parse parameter list
         self.expect(TokenKind::LParen)?;
         while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
-            // Parse param name
-            if self.current.kind != TokenKind::Ident {
-                // Skip unexpected token
+            // Parse param name.
+            //
+            // A KEYWORD HERE IS A NAME. The skip below was written as error recovery and
+            // behaved as a silent miscompiler: `module`, `use` and `fn` lex as KwModule /
+            // KwUse / KwFn, not Ident, so `fn f(a: str, module: str, b: bool)` dropped
+            // `module`, then dropped the colon on the next turn of the loop, then took the
+            // TYPE `str` as the next parameter's name and found no colon after it, leaving
+            // that parameter with an empty type. The emitted signature was
+            //
+            //     pub fn f(a: &'static str, str: , b: bool)      // Rust
+            //     bool f(const char* a,  str, bool b)            // C
+            //
+            // in every backend, at exit 0. The corpus uses keywords as parameter names in
+            // 22 places (`fn` 9, `module` 7, `type` 5, `impl` 1).
+            //
+            // A keyword followed by a colon is being used as an identifier and nothing
+            // else. When it is NOT followed by a colon the old recovery path is taken
+            // unchanged: one token consumed, loop continues.
+            let param_name = if self.current.kind == TokenKind::Ident {
+                let n = self.current.lexeme.clone();
                 self.advance();
-                continue;
-            }
-            let param_name = self.current.lexeme.clone();
-            self.advance();
+                n
+            } else {
+                let n = self.current.lexeme.clone();
+                self.advance();
+                if self.current.kind != TokenKind::Colon {
+                    continue;
+                }
+                n
+            };
 
             // Expect colon
             if self.current.kind == TokenKind::Colon {
