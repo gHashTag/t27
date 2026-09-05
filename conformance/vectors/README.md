@@ -13,15 +13,17 @@ schema so one differ runs across all packs.
 
 ## Coverage at a glance
 
-The catalog defines **83 numeric formats** across 13 families. This directory
-ships **83 conformance packs — one per format**, with no gaps:
+The catalog count is a CI invariant, not a fixed number (see
+`tools/check_catalog_count.py`; the live SSOT held **109 formats** on
+2026-09-05, the count declared by v3 of the catalog paper, arXiv:2606.09686). This directory ships **one conformance pack
+per catalog format** -- `INDEX_all_formats.json` is authoritative -- with no gaps:
 
 | Class | Packs | Meaning |
 |---|---|---|
-| **Bit-precise** | **69** | Native bits decode to f64 with an independent reference codec (a second witness distinct from the encoder that produced the vectors); `abs_error = 0` by construction for every representable value. Values not exactly representable in a format report a nonzero `abs_error` **honestly** (e.g. 0.1 in bf16) — nothing is hidden. |
-| **Self-consistent** | **6** | Wide GoldenFloat rungs (`gf48/96/128/512/1024`) plus the open-bias `gf256` that re-derive under a single dyadic-exact decode law but have **no independent second witness**, so they are deliberately **not** promoted to the stronger bit-precise label (honesty rule #10). |
-| **Structural** | **8** | The format has no single fixed radix-2 S:E:M round-trip (parametric / technique / variable-width). These packs carry full catalog metadata plus an explicit `structural_reason` and are marked `bitexact: false`. They are honest placeholders, **not** bit-exact claims. |
-| **Total** | **83** | One pack per catalog format. |
+| **Bit-precise** | **89** | Native bits decode to f64 (or, for the wide GoldenFloat rungs, to an exact dyadic rational) with an independent reference codec (a second witness distinct from the encoder that produced the vectors); `abs_error = 0` by construction for every representable value. Values not exactly representable in a format report a nonzero `abs_error` **honestly** (e.g. 0.1 in bf16) — nothing is hidden. 10 of these packs carry an explicit `witnesses[]` record (`witnessed_packs` in the index). |
+| **Self-consistent** | **0** | Formerly the wide GoldenFloat rungs (`gf48/96/128/256/512/1024`) that re-derived under a single decode law with no second witness. Each has since been promoted to bit-precise through its own witness chain under `conformance/witness/<rung>/` (see the changelog). |
+| **Structural** | **20** | The format has no single fixed radix-2 S:E:M round-trip (parametric / technique / variable-width), or, for the 128..1024-bit TNF / BNF / GF-T rungs, no bit-precise round-trip is defined for the entry yet. These packs carry full catalog metadata plus an explicit `structural_reason` and are marked `bitexact: false`. They are honest placeholders, **not** bit-exact claims. |
+| **Total** | **109** | One pack per catalog format. |
 
 > **encoding != compute != FPGA.** This bit-precise label is a **software**
 > round-trip claim (decode/encode). A "second witness" here means an independent
@@ -38,7 +40,7 @@ Coverage policy (deterministic, reproducible):
   no brute force, no multi-megabyte files;
 - non-S:E:M formats -> **structural** pack with a documented reason.
 
-## Index — bit-precise packs (69)
+## Index — bit-precise packs (89)
 
 | Pack | Format | Vectors | Round-trip |
 |---|---|---|---|
@@ -50,6 +52,10 @@ Coverage policy (deterministic, reproducible):
 | `binary256_conformance_v0.json` | BINARY256 | 8 | ✔ |
 | `binary32_conformance_v0.json` | BINARY32 | 8 | ✔ |
 | `binary64_conformance_v0.json` | BINARY64 | 8 | ✔ |
+| `bnf16_conformance_v0.json` | BNF16 | 8 | ✔ (GoldenFloat phi-aligned radix-2 float S1E7M8, bias 63; curated_named) |
+| `bnf32_conformance_v0.json` | BNF32 | 8 | ✔ (GoldenFloat phi-aligned radix-2 float S1E10M21, bias 511; curated_named) |
+| `bnf64_conformance_v0.json` | BNF64 | 8 | ✔ (GoldenFloat phi-aligned radix-2 float S1E12M51, bias 2047; curated_named) |
+| `bnf8_conformance_v0.json` | BNF8 | 256 | ✔ (GoldenFloat phi-aligned radix-2 float S1E5M2, bias 15; exhaustive) |
 | `cray_float_conformance_v0.json` | CRAY_FLOAT | 8 | ✔ |
 | `decimal128_conformance_v0.json` | DECIMAL128 | 8 | ✔ (IEEE 754-2008 BID decode (coeff*10^exp); 3.0 exact) |
 | `decimal32_conformance_v0.json` | DECIMAL32 | 7 | ✔ (IEEE 754-2008 BID decode (coeff*10^exp); 3.0 exact) |
@@ -60,19 +66,30 @@ Coverage policy (deterministic, reproducible):
 | `fp6_e3m2_conformance_v0.json` | FP6_E3M2 | 64 | ✔ |
 | `fp8_e4m3fn_conformance_v0.json` | FP8_E4M3 | 14 | ✔ (pre-existing curated) |
 | `fp8_e5m2_conformance_v0.json` | FP8_E5M2 | 16 | ✔ (pre-existing curated) |
+| `gf1024_conformance_v0.json` | GF1024 | 15 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf1024/`) |
 | `gf10_conformance_v0.json` | GF10 | 8 | ✔ (GoldenFloat phi-aligned S1E3M6, bias 3 (rule e=round(9/phi^2)=3)) |
+| `gf128_conformance_v0.json` | GF128 | 15 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf128/`) |
 | `gf12_conformance_v0.json` | GF12 | 8 | ✔ |
 | `gf14_conformance_v0.json` | GF14 | 14 | ✔ (GoldenFloat wide rung S1E5M8, bias 15; independent 2nd witness = iverilog exhaustive 16384/16384 (trinity-fpga #239)) |
-| `gf16_conformance_v0.json` | GF16 | 21 | ✔ (pre-existing silicon-oracle anchor) |
+| `gf16_conformance_v0.json` | GF16 | 21 | ✔ (pre-existing FPGA-oracle anchor, XC7A200T) |
 | `gf20_conformance_v0.json` | GF20 | 8 | ✔ |
 | `gf24_conformance_v0.json` | GF24 | 8 | ✔ |
+| `gf256_conformance_v0.json` | GF256 | 2021 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf256/`) |
 | `gf32_conformance_v0.json` | GF32 | 8 | ✔ |
+| `gf48_conformance_v0.json` | GF48 | 15 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf48_fp64/`) |
 | `gf4_conformance_v0.json` | GF4 | 16 | ✔ |
-| `gf6_conformance_v0.json` | GF6 | 64 | ✔ |
+| `gf512_conformance_v0.json` | GF512 | 15 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf512/`) |
 | `gf64_conformance_v0.json` | GF64 | 8 | ✔ |
-| `gf8_conformance_v0.json` | GF8 | 256 | ✔ |
+| `gf6_conformance_v0.json` | GF6 | 64 | ✔ |
 | `gf8_bfp_conformance_v0.json` | GF8_BFP | 256 | ✔ |
+| `gf8_conformance_v0.json` | GF8 | 256 | ✔ |
+| `gf96_conformance_v0.json` | GF96 | 15 | ✔ (strict SW-bitexact, 3 witnesses recorded in `witnesses[]`; chain in `conformance/witness/gf96/`) |
 | `gf_lns_hybrid_conformance_v0.json` | GF_LNS_HYBRID | 8 | ✔ |
+| `gft16_conformance_v0.json` | GFT16 | 1 | ✔ (GoldenFloat phi-aligned radix-2 float S1E6M9, bias 364; curated_named) |
+| `gft32_conformance_v0.json` | GFT32 | 1 | ✔ (GoldenFloat phi-aligned radix-2 float S1E12M19, bias 265720; curated_named) |
+| `gft4_conformance_v0.json` | GFT4 | 16 | ✔ (GoldenFloat phi-aligned radix-2 float S1E1M2, bias 1; exhaustive) |
+| `gft64_conformance_v0.json` | GFT64 | 1 | ✔ (GoldenFloat phi-aligned radix-2 float S1E24M39, bias 141214768240; curated_named) |
+| `gft8_conformance_v0.json` | GFT8 | 256 | ✔ (GoldenFloat phi-aligned radix-2 float S1E3M4, bias 13; exhaustive) |
 | `gfternary_conformance_v0.json` | GFTERNARY | 4 | ✔ (2-bit {-phi,0,+phi}, exhaustive) |
 | `ibm_hfp128_conformance_v0.json` | IBM_HFP128 | 8 | ✔ (base-16, named small values) |
 | `ibm_hfp32_conformance_v0.json` | IBM_HFP32 | 8 | ✔ (base-16 exponent) |
@@ -106,6 +123,11 @@ Coverage policy (deterministic, reproducible):
 | `takum64_conformance_v0.json` | TAKUM64 | 15 | ✔ (Takum tapered-log, curated 15 vec) |
 | `takum8_conformance_v0.json` | TAKUM8 | 256 | ✔ (Takum (Hunhold 2024) tapered-log, exhaustive 8-bit) |
 | `tf32_conformance_v0.json` | TF32 | 8 | ✔ |
+| `tnf16_conformance_v0.json` | TNF16 | 1 | ✔ (GoldenFloat phi-aligned radix-2 float S1E4M11, bias 40; curated_named) |
+| `tnf32_conformance_v0.json` | TNF32 | 1 | ✔ (GoldenFloat phi-aligned radix-2 float S1E6M25, bias 364; curated_named) |
+| `tnf4_conformance_v0.json` | TNF4 | 16 | ✔ (GoldenFloat phi-aligned radix-2 float S1E2M1, bias 4; exhaustive) |
+| `tnf64_conformance_v0.json` | TNF64 | 1 | ✔ (GoldenFloat phi-aligned radix-2 float S1E7M56, bias 1093; curated_named) |
+| `tnf8_conformance_v0.json` | TNF8 | 256 | ✔ (GoldenFloat phi-aligned radix-2 float S1E3M4, bias 13; exhaustive) |
 | `vax_d_conformance_v0.json` | VAX_D | 8 | ✔ |
 | `vax_f_conformance_v0.json` | VAX_F | 8 | ✔ |
 | `vax_g_conformance_v0.json` | VAX_G | 8 | ✔ |
@@ -116,41 +138,48 @@ Coverage policy (deterministic, reproducible):
 reference for tt-mlir #6252). `gf14` carries an explicit `witnesses[]` array
 recording its independent second witness (trinity-fpga #239).
 
-## Index — self-consistent packs (6)
+## Self-consistent packs (0)
 
-Single dyadic-exact decode law, no independent second witness
-(kind=`bitexact_selfconsistent` in the index). Five are wide GoldenFloat rungs;
-`gf256` is a wide rung whose bias is an open R&D parameter, so it is recorded
-self-consistently rather than promoted. (`gf14`, the sixth Phase-A rung, WAS
-promoted to bit-precise once its exhaustive iverilog witness landed — see the
-changelog.)
+There are none left. The six wide GoldenFloat rungs that this section used to
+list (`gf48/96/128/256/512/1024`, kind `bitexact_selfconsistent`) were each
+promoted to strict SW-bitexact once an independent second witness landed; the
+chains are in `conformance/witness/gf48_fp64/`, `gf96/`, `gf128/`, `gf256/`,
+`gf512/`, `gf1024/` and the packs now carry `witnesses[]` (3 each). `gf256`'s
+descriptive `PHI_BIAS` metadata is not part of its decode path (see
+`conformance/witness/gf256/README.md`). `selfconsistent_packs` in the index is 0.
 
-| Pack | Format | n_vec | Note |
-|---|---|---|---|
-| `gf1024_conformance_v0.json` | GF1024 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
-| `gf128_conformance_v0.json` | GF128 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
-| `gf256_conformance_v0.json` | GF256 | 8 | wide GoldenFloat rung, bias = open R&D parameter (dyadic-exact, single decode law) |
-| `gf48_conformance_v0.json` | GF48 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
-| `gf512_conformance_v0.json` | GF512 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
-| `gf96_conformance_v0.json` | GF96 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
-
-## Index — structural packs (8)
+## Index — structural packs (20)
 
 | Pack | Format | Why structural (not bit-exact) |
 |---|---|---|
 | `block_fp_conformance_v0.json` | BLOCK_FP | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
+| `bnf1024_conformance_v0.json` | BNF1024 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `bnf128_conformance_v0.json` | BNF128 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `bnf256_conformance_v0.json` | BNF256 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `bnf512_conformance_v0.json` | BNF512 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `gft1024_conformance_v0.json` | GFT1024 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `gft128_conformance_v0.json` | GFT128 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `gft256_conformance_v0.json` | GFT256 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `gft512_conformance_v0.json` | GFT512 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
 | `minifloat_conformance_v0.json` | MINIFLOAT | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
 | `q_format_conformance_v0.json` | Q_FORMAT | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
 | `shared_exp_conformance_v0.json` | SHARED_EXP | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
 | `stochastic_rounding_conformance_v0.json` | STOCHASTIC_ROUNDING | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
 | `tapered_fp_conformance_v0.json` | TAPERED_FP | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
+| `tnf1024_conformance_v0.json` | TNF1024 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `tnf128_conformance_v0.json` | TNF128 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `tnf256_conformance_v0.json` | TNF256 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
+| `tnf512_conformance_v0.json` | TNF512 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
 | `unum_i_conformance_v0.json` | UNUM_I | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
 | `unum_ii_conformance_v0.json` | UNUM_II | This format has no single fixed bit layout (parametric / technique / variable-width). A bit-precise round-trip vector table is not well-defined; the catalog metadata and anchor note are recorded instead. |
 
-These eight entries are genuinely parametric / technique-level (no single fixed
-bit layout), so they cannot be promoted without pinning free parameters. They
-are recorded structurally rather than forced into a round-trip they do not
-satisfy.
+The eight parametric / technique-level entries (`block_fp`, `minifloat`,
+`q_format`, `shared_exp`, `stochastic_rounding`, `tapered_fp`, `unum_i`,
+`unum_ii`) have no single fixed bit layout, so they cannot be promoted without
+pinning free parameters. The twelve 128..1024-bit rungs of the TNF, BNF and
+GF-T ladders (`tnf128..1024`, `bnf128..1024`, `gft128..1024`) are catalogued
+but have no bit-precise round-trip defined for the entry yet. All twenty are
+recorded structurally rather than forced into a round-trip they do not satisfy.
 
 ## Shared row schema
 
@@ -181,9 +210,11 @@ round-trips.
 
 ## Machine-readable index
 
-`INDEX_all_formats.json` lists all 83 packs with totals
-(`total_formats: 83`, `total_packs: 83`, `bitexact_packs: 69`,
-`selfconsistent_packs: 6`, `structural_packs: 8`), the anchor identity, the SSOT path, and the preprint.
+`INDEX_all_formats.json` lists every pack with totals, the anchor identity, the
+SSOT path and the preprint. The count is a CI invariant -- read the index, do
+not hard-code it here. On master at 2026-09-05: `total_formats: 109`,
+`total_packs: 109`, `bitexact_packs: 89`, `selfconsistent_packs: 0`,
+`structural_packs: 20`, `witnessed_packs: 10`.
 
 ## SHA-256
 
@@ -197,6 +228,14 @@ round-trips.
 9dc16a1c3b65b7f7a5d59c546886ed12e99fb37cbfc9f3d5d45813921e6a70ff  binary32_conformance_v0.json
 1d3e3d6daee576ae3b2b4dca6f26560390535fb7441a54b389f98a4238e58bec  binary64_conformance_v0.json
 3129fa92145096e55527c2fc22d9e6bed23db1a6d88148e8b711a3b6641a43c1  block_fp_conformance_v0.json
+1c2414e169933cdd2631c0749f8996a9e4d4c96ff6ff9762555ef297a3f12623  bnf1024_conformance_v0.json
+191354c40583ffdeeb9a4b196ae866ae99b5f5575d4ee26705fe649d8bd2a2df  bnf128_conformance_v0.json
+f51f066a4017b4b5a404b3f89d48bfd0ba73d16a0818759c85d9d19b41c7a01b  bnf16_conformance_v0.json
+5fd1b687eb5d995e08553ed0399b1e96e289f51f018228ce4a65df41e4696e82  bnf256_conformance_v0.json
+b37a06633abcbb440e45f60320e067770e58fd35b235a648560138e42fbd96b9  bnf32_conformance_v0.json
+5ed69aeb6a00cdd4eb84a991801947067698262950c313ec87b81f9f20b13fc1  bnf512_conformance_v0.json
+319abf8c626687549424a0887caff4f8dee6b93bb44ad763b7a2cacdec8f6549  bnf64_conformance_v0.json
+fa9aafc601fa4ea3c20ce3b688ad8fd910ee90dd36ed9d135404d57c58c303f2  bnf8_conformance_v0.json
 b1a8f6652112be3f49949bafe9f6cd7f46f0271e8f4e19cadb55c2a0e972f503  cray_float_conformance_v0.json
 84dbc594340717415385b3bd86eb20432f5430aba047557579f2e2a96de0dc2d  decimal128_conformance_v0.json
 e13bc9cd6bc33545ab55f575e23d2343418ded5eddf1395b61f31321dc7d272e  decimal32_conformance_v0.json
@@ -207,25 +246,34 @@ de70d6aacf0ac2d47decae0866d14f126058176428315d4c767e460c0a9ae5e5  fp6_e2m3_confo
 17a80f0a3b5b2495dbcd6de6062d8c1f8ce19b9746d1e370e6d16897ef5f9c02  fp6_e3m2_conformance_v0.json
 7193ccd0d330d3e05154432abcec5da4a4c170e11004d4ffa44ff5cbbff9cba9  fp8_e4m3fn_conformance_v0.json
 9c31fbd03923bd6555304848a092504dfbc02f72d2be82d2b80f49243e925a18  fp8_e5m2_conformance_v0.json
-bb70cbc510d9ac07cb4228e918592734b8b7f658015c80537c8ab597c84d3e72  gf1024_conformance_v0.json
+1e1613e3e1d1a11deae5c99408a2581244c2cb98c203d429b24247905d188df4  gf1024_conformance_v0.json
 af62499491faf340d7940b0b10ab0208745e57faa97bbe19588fe1d879db485b  gf10_conformance_v0.json
-1ff5d68adba8634f644ad49ddecb97f587dd2ed6fc39997118f1e2cc390f6b27  gf128_conformance_v0.json
+cda05a8e608038f3ebb53757ecbe0f78a650f959cf34a54b0cf26d80730e54d3  gf128_conformance_v0.json
 ea00efde4825931a421ec9feb5910f3ad9ab7ab5d38a77d2c364ea9fa49a7f96  gf12_conformance_v0.json
 e2364f36a4cb5812b81d2f8f4253688b4d269201463c8481e18568438114a718  gf14_conformance_v0.json
 d1c0eb5bd66247b3c5db9a00a95e29cf4359653aec56f2f9e6827f96898d1509  gf16_conformance_v0.json
 76c7814558901d5633cb16ffead7468583de5577c4ccf0378c296c73ae08acc5  gf20_conformance_v0.json
 983642c7aea54b7e6c5b6e41edcf20828bfc3a1f2707307eaa713ca5a45e612c  gf24_conformance_v0.json
-ff57cf6a48ec3fe1e0bc64ebed758c9af2fb0767286844088d3a61fd6f4dee7d  gf256_conformance_v0.json
+f504258daa4c537ff11a9863814470dd0731ab8cca988093d72e83c221c425f1  gf256_conformance_v0.json
 f7222e2442f2c106e7f3590e5dbe8ed177603fc2324560987af138ae9abeceb4  gf32_conformance_v0.json
-313dcab7d4eb5728895b5a0cd224b6368cbe39dde5583db76a5138f608928550  gf48_conformance_v0.json
+d9928025d21fa0e0f0c02904d9a3e20f5f12a7811b57fa474e8a325ded43e91a  gf48_conformance_v0.json
 25471b7a0e3dc3633118191e722ced2f450a3ed8a6228ad2492f92084f556f96  gf4_conformance_v0.json
-7a9be0ebca1e129fbefeb23a5a9bc900beb8215eb856f70c1cc46717ba0189f2  gf512_conformance_v0.json
+08d32005ba118c4d0d4a61cb47e074ffd7131a41ca84d4debcac4ebfdfcef9cd  gf512_conformance_v0.json
 887223d0bc8b00d76b70238ddbc8933e3a773ed6a9fbc10264d9fdbebca76cd3  gf64_conformance_v0.json
 9c9fc955db5f6c9b185bdd5d88bd92f3f21a71ad4d784b944330d5cba85fb724  gf6_conformance_v0.json
 fe600234cab0e589b69d84e673d74729cff153f9e4e63e871e285fa82ad2cc70  gf8_bfp_conformance_v0.json
 6dccbc6628cbc051e06a006a0731499970c1d99e65fc0d42d9007d8f0ed1402d  gf8_conformance_v0.json
-5b2ddc76f1c7a8c0ce50b1e4a8bf8bfcc7d3419916fa3b36780fdd5da02eb0bf  gf96_conformance_v0.json
+43127e758d653d26640d38801d42d4daf36fdc70df66a63aadac6a8ce06159fa  gf96_conformance_v0.json
 eb7c946281fb6ed6fadd9c63c7e7fa186412480910c9fedcb25fbc056c1bd34a  gf_lns_hybrid_conformance_v0.json
+24d27778a4bc071a206123a0646526da073f99d7b8682d71f3ed57dbe68ee0a2  gft1024_conformance_v0.json
+9f73814a1b07b66f9dc786f587a707c28f681d81e92bdf9dc5aa89c58319d046  gft128_conformance_v0.json
+ead0599558969fe3883732e3f7fff144000fa3e6ebcb2c3bdba0301ecf7d7d51  gft16_conformance_v0.json
+eff73e7b933b048bb1dd35268561386bc41d3f3fb0b10ba24046c63ab8b2aac6  gft256_conformance_v0.json
+70f6a626f8e699678740b2a7b7c89d3d5b841ca60f52a7fd456ca31878cfbb65  gft32_conformance_v0.json
+033b3e06928c54024072514ccb92c29846692075107e7495cfaf6453b3a9ddf9  gft4_conformance_v0.json
+03f9063b4d8d39f40d2c55af45945a8b3bf7adecd188e77593b6dc4eabfadf6e  gft512_conformance_v0.json
+994b4c48c482dca79e712b41873c4caa2710b9849f9b575e9a90546b650dafec  gft64_conformance_v0.json
+588f995eef23c3050506764f686a95f615bbd794950c41a2c422479be474ad8f  gft8_conformance_v0.json
 9f246d24511fbff6fb9e83e60e1bedfce401052537f7c8929fe205d0f6e57b81  gfternary_conformance_v0.json
 2f02899d621a8a7aebfdf2a69a2484d7616c61ac7cebdc483f643e8109c4e31f  ibm_hfp128_conformance_v0.json
 8e35040e30d3a0091ecca5fdb08d1dd1ce98031e5d655239c7196bc667fc3876  ibm_hfp32_conformance_v0.json
@@ -264,6 +312,15 @@ c5b034ff12169e921ce3a9411a0317ccd85003dde6c71c8461ced3fd73b3c80f  takum32_confor
 e81b280fbd1a30381c169760b24b5686db82eff8debcc5412cb43d1a0be9a05f  takum8_conformance_v0.json
 e20d828fda7d3d6b86d047b390fae2964622b83fb8200220f5a4283bc5ae2b4b  tapered_fp_conformance_v0.json
 b35c334092b49dad9a944d37a91697f08f442b633142e81c69296c12bac0055d  tf32_conformance_v0.json
+5ada7cf0a863b92f2f7767b55673e1209b15ccb249173301295f018c05a69068  tnf1024_conformance_v0.json
+3ea5401071d8595b3bed5f2a6c1595ad9ac9d53a19ae0d8528c071b656051414  tnf128_conformance_v0.json
+3569b75d902d421268ae34f44638d50b6c34d3265bebe26f40b48c2cc69b1d5d  tnf16_conformance_v0.json
+0a34094b5e0661f0d6a069064146d9455fef568056f6c45ffef06438f6ea4800  tnf256_conformance_v0.json
+f2eb79954c6f53ebc9c5d962b2913dda4586639ab73f3d58049e2d18fdaa7987  tnf32_conformance_v0.json
+b8ac947a242e708fe9aa85f5537b5ae368b844f32651709a8744de19a7db5087  tnf4_conformance_v0.json
+66bfa1fc07ea2d9a5c78a941e53988a62210d9b5bcdbc681fadcc50547be33ee  tnf512_conformance_v0.json
+a122229e99b43e910b29924ad4e9989b4aa23e92700c5db0a19ae03174eef313  tnf64_conformance_v0.json
+cff4e3ae985a78f52203a09ca1fa9ffbf3a3c524757026dde0c93b6ca430cc5e  tnf8_conformance_v0.json
 2b28ce1eca1f39623122fbdd853945d05c73adc47e132c250e6ccb56217d689b  unum_i_conformance_v0.json
 a79c4cdca84fc702a4ce25fd36040912f841dc9d75f35476e78dbbdfc6fb12f8  unum_ii_conformance_v0.json
 b87494ddee38fe68f77dd8082e8a9811530cc346526b80e59c81b17665677792  vax_d_conformance_v0.json
@@ -277,7 +334,7 @@ e9be37c939c7108081bd2190e949f4d01be7ad12511d82bb8849f337c94e7e0c  x87_fp80_confo
 
 The hand-curated reference packs (byte-stable) come from dedicated generators
 (`gen_fp8_e4m3.py`, `gen_fp8_e5m2.py`, `gen_mxfp4_e2m1.py`, `gen_bf16_golden.py`);
-`gf16_conformance_v0.json` is the original SSOT silicon-oracle anchor pack; and
+`gf16_conformance_v0.json` is the original SSOT FPGA-oracle anchor pack (XC7A200T); and
 `takum8/16/32/64`, `bcd`, `gf14` ship curated / externally-generated vector
 sets. The remaining packs (and `INDEX_all_formats.json`) are produced by the
 catalog-wide master generator:
@@ -298,6 +355,13 @@ python3 gen_all_formats.py
 All packs are ASCII-only. Apache-2.0, consistent with the t27 repository.
 
 ## Changelog
+
+- **2026-09-05** — README re-derived from `INDEX_all_formats.json` and the live
+  pack files (this README had still described the 83-pack set of 2026-06-14).
+  Net: bit-precise 69 -> 89, self-consistent 6 -> 0, structural 8 -> 20, total
+  83 -> 109. The 26 TNF / BNF / GF-T packs landed on 2026-08-11 (t27 commit
+  `b9287250`); the six wide GoldenFloat rungs were promoted through the witness
+  chains under `conformance/witness/`. SHA-256 list regenerated for all 109 packs.
 
 - **2026-07-04b** — corrected `gf14` from self-consistent back to **bit-precise**.
   gf14 (Phase-A FP32-width GoldenFloat rung, S1E5M8 bias 15) HAS an independent

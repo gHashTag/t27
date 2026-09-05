@@ -513,9 +513,13 @@ bench sieve_admissibility {
 }
 
 // ============================================================================
-// W778 -- the sieve run over the repository's own 83-format catalogue.
+// W778 -- the sieve run over the repository's own catalogue, as it stood on
+// 2026-08-15 (83 formats).
 //
-// gen/numeric/formats_catalog.json holds 83 numeric formats. 12 carry no width
+// gen/numeric/formats_catalog.json held 83 numeric formats when this run was
+// taken. The catalogue count is a CI invariant that grows (109 at v3, Sep 2026;
+// tools/check_catalog_count.py reads it from the SSOT), so the 83 / 12 / 71 / 70
+// below are this run's numbers, not the current count. 12 carry no width
 // (techniques and parametric families) or a decimal encoding and cannot be
 // sieved. Of the remaining 71, ONE is admissible as a ternary weight code:
 // `gfternary`. The other 70 die on S1 alone -- every one of them is a

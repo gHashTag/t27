@@ -34,9 +34,9 @@ LAYER 2  FORMAL PROOF       FLoPS (Rutgers/UCR,        machine-checked Lean mode
                                   v  we defer-to on semantics
 LAYER 3  CONFORMANCE        >>> t27 numeric catalog <<<  bit-exact encode/decode
          (measures + lists) (THIS WORK)                 vectors per format, with
-                            83-format SSOT,             HONEST abs_error; a
+                            live-count SSOT,            HONEST abs_error; a
                             6 JSON packs,               vendor-neutral REGISTRY of
-                            Corona silicon oracle       what each format's bits mean
+                            Corona FPGA oracle          what each format's bits mean
                                   |
                                   v  consumed-by
 LAYER 4  IMPLEMENTORS       tt-metal, ml_dtypes,       use our vectors as a
@@ -44,6 +44,11 @@ LAYER 4  IMPLEMENTORS       tt-metal, ml_dtypes,       use our vectors as a
                             llama.cpp, ONNX Runtime    ruler when two stacks
                                                        disagree on the same format
 ```
+
+Two Layer-3 cells, spelled out: the SSOT count is a CI invariant, not a fixed
+number (109 formats at v3, Sep 2026; `tools/check_catalog_count.py`), and the
+Corona oracle is the Artix-7 (XC7A200T) FPGA prototype -- no Corona (TTGF26a)
+die has been fabricated.
 
 Reading the stack:
 - **Layer 1 decides what a format IS.** We never argue with the WG; we map to
@@ -81,9 +86,10 @@ Three concrete reasons, stated plainly so no drop ever drifts into a turf claim:
 ## Breadth, not per-rung superiority (the takum rule)
 
 Our catalog earns its place through **breadth and toolchain coherence** across
-~83 formats in 13 clusters -- **not** by claiming any single format beats a
-competitor on accuracy. This is a hard rule, mirrored from the Corona ROM
-governing sentence.
+the live SSOT count of formats (109 at v3, Sep 2026 -- run
+`python3 tools/check_catalog_count.py`, never quote from memory) -- **not** by
+claiming any single format beats a competitor on accuracy. This is a hard rule,
+mirrored from the Corona ROM governing sentence.
 
 - **takum** (Hunhold,
   [arXiv:2404.18603](https://arxiv.org/abs/2404.18603),
@@ -112,7 +118,7 @@ credibility we trade on.
   own measure, without taking a side.
 - **The catalog count** is whatever the live SSOT says (run the count, never
   quote from memory -- see `ERRATA_2026-06-14.md` and the CI gate
-  `tools/check_catalog_count.py`). Today: 83.
+  `tools/check_catalog_count.py`). Today (2026-09-05): 109.
 
 ## What we explicitly do NOT claim (honesty wall)
 
@@ -129,4 +135,5 @@ credibility we trade on.
 - Imandra P3109: https://github.com/imandra-ai/ieee-p3109
 - takum: [arXiv:2404.18603](https://arxiv.org/abs/2404.18603)
 - GoldenFloat preprint: arXiv:2606.05017
-- Catalog paper #3: arXiv:2606.09686 (count reconciled in `ERRATA_2026-06-14.md`)
+- Catalog paper #3: "Golden Ruler: A Numeric Format Catalog with Bit-Exact Conformance Vectors for FP8, BF16, MXFP4, and Microscaling Formats",
+  arXiv:2606.09686 (v3, announced 7 Sep 2026; count history in `ERRATA_2026-06-14.md`)
