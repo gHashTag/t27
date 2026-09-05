@@ -113,7 +113,40 @@ def main():
             print(r2.stdout + r2.stderr)
             return 1
 
-    print("ok       a withdrawn section is refused by name; the branch's own is not")
+        # --drop-withdrawn removes exactly those and proceeds. It is opt-in:
+        # deleting text nobody asked to delete is how a tool earns distrust.
+        git(d, "checkout", "-q", "main")
+        write(d, A + "\n## 2. Delta\n\ndelta body\n")
+        git(d, "add", "-A")
+        git(d, "commit", "-qm", "withdraw Bravo again")
+        git(d, "checkout", "-q", "mine")
+        r3 = subprocess.run(
+            [TRI, "skill", "renumber", "--base", "main", "--file", SKILL, "--drop-withdrawn"],
+            cwd=d, capture_output=True, text=True,
+        )
+        out3 = r3.stdout + r3.stderr
+        if r3.returncode != 0:
+            print("FAIL: --drop-withdrawn must proceed, not refuse.")
+            print(out3)
+            return 1
+        if "Bravo" not in out3:
+            print("FAIL: it must NAME what it dropped. A silent deletion is the")
+            print("      thing this whole guard exists to prevent.")
+            print(out3)
+            return 1
+        after = open(os.path.join(d, SKILL)).read()
+        if "## 2. Bravo" in after or "bravo body" in after:
+            print("FAIL: Bravo is still in the file after --drop-withdrawn.")
+            return 1
+        if "Charlie" not in after:
+            print("FAIL: Charlie is the branch's OWN section and must survive.")
+            return 1
+        if "Delta" not in after:
+            print("FAIL: Delta is the base's and must survive.")
+            return 1
+
+    print("ok       a withdrawn section is refused by name; --drop-withdrawn removes")
+    print("         exactly it, names it, and leaves both the branch's and the base's")
     return 0
 
 

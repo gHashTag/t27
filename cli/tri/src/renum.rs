@@ -287,7 +287,58 @@ fn merge_base(rev: &str, root: &Path) -> Result<String> {
     Ok(String::from_utf8(out.stdout)?.trim().to_string())
 }
 
-pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Result<()> {
+/// `text` with every section whose title is in `drop` removed.
+///
+/// A section runs from its `## N. ` heading to the next one, and a heading
+/// inside a fenced block is a quotation rather than a section -- the same rule
+/// `skillnum::sections` uses, because this file quotes headings as evidence and
+/// cutting at one of those would take the wrong span.
+pub fn without_sections(text: &str, drop: &[String]) -> String {
+    let drop: std::collections::BTreeSet<&str> = drop.iter().map(|s| s.as_str()).collect();
+    let mut out: Vec<&str> = Vec::new();
+    let mut skipping = false;
+    let mut in_fence = false;
+    for line in text.lines() {
+        if let Some(info) = line.strip_prefix("```") {
+            if !in_fence {
+                in_fence = true;
+            } else if info.trim().is_empty() {
+                in_fence = false;
+            }
+            if !skipping {
+                out.push(line);
+            }
+            continue;
+        }
+        let heading = if in_fence {
+            None
+        } else {
+            line.strip_prefix("## ")
+                .and_then(|r| r.split_once(". "))
+                .filter(|(n, _)| n.parse::<usize>().is_ok())
+                .map(|(_, t)| t.trim())
+        };
+        if let Some(t) = heading {
+            skipping = drop.contains(t);
+        }
+        if !skipping {
+            out.push(line);
+        }
+    }
+    let mut s = out.join("\n");
+    if text.ends_with('\n') && !s.ends_with('\n') {
+        s.push('\n');
+    }
+    s
+}
+
+pub fn run(
+    base: &str,
+    file: &str,
+    check: bool,
+    first_req: Option<usize>,
+    drop_withdrawn: bool,
+) -> Result<()> {
     let root = crate::find_trinity_root()?;
     let mb = merge_base(base, &root)?;
     let at_mb = show(&mb, file, &root)?;
@@ -354,16 +405,39 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
     // sections I had actually written returns 0.
     let carried = crate::skillnum::sections(tail);
     let withdrawn = withdrawn_titles(&carried, |t| base_once_held(base, file, t, &root));
-    if !withdrawn.is_empty() {
+    // Of this command's refusals, this is the only one whose repair is
+    // unambiguous. The others end in "resolve by hand" because the safe action
+    // is unknown -- a section that would be DROPPED might be yours or the
+    // base's, and guessing loses work. Here the answer is settled: the base
+    // removed these on purpose, and carrying them forward resurrects a
+    // retraction. So `--drop-withdrawn` does exactly that and names each one.
+    //
+    // It is opt-in, not the default. Deleting text nobody asked to delete is
+    // how a tool earns distrust, and the refusal already prints the list.
+    let owned_tail;
+    let tail = if withdrawn.is_empty() {
+        tail
+    } else if drop_withdrawn {
+        owned_tail = without_sections(tail, &withdrawn);
+        println!();
+        println!("  {} section(s) dropped: {base} removed them on purpose.", withdrawn.len());
+        for t in &withdrawn {
+            println!("    {t}");
+        }
+        println!("  --drop-withdrawn asked for this. Without it the run refuses and");
+        println!("  prints the same list, which is the default.");
+        owned_tail.as_str()
+    } else {
         bail!(
             "{} section(s) in the tail were REMOVED from {base} on purpose:\n    {}\n  \
              Nothing was written. Absence from {base} today looks the same whether \
              you wrote a section or the base withdrew it; its history does not. \
-             Drop them by hand, or keep them deliberately and say why.",
+             Re-run with --drop-withdrawn to remove exactly these, or keep them \
+             deliberately and say why.",
             withdrawn.len(),
             withdrawn.join("\n    ")
         );
-    }
+    };
 
     let first = first_number(&at_base, first_req)?;
     let (moved, moves) = renumber(tail, first);
@@ -436,7 +510,20 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
     //
     // So the guard that matters is the SET of titles, which is the guard every
     // hand-written resolver in this loop had and this command did not.
-    let lost = titles_lost(&mine, &out);
+    // Minus what --drop-withdrawn was asked to remove. Those ARE on disk and
+    // ARE gone from the rebuild, so this guard sees them and refuses -- which
+    // is correct in general and wrong here, because the caller named them.
+    //
+    // Two guards, one blocking the other's sanctioned repair. The first version
+    // of --drop-withdrawn did exactly what it promised, printed what it dropped,
+    // and then died on this line. **A guard has to know what the operator
+    // authorised, or the authorisation is not real.**
+    let sanctioned: std::collections::BTreeSet<&str> =
+        withdrawn.iter().map(|s| s.as_str()).collect();
+    let lost: Vec<String> = titles_lost(&mine, &out)
+        .into_iter()
+        .filter(|t| !sanctioned.contains(t.as_str()))
+        .collect();
     if !lost.is_empty() {
         bail!(
             "the rebuild would DROP {} section(s) that are on disk now:\n    {}\n  \
@@ -463,6 +550,55 @@ pub fn run(base: &str, file: &str, check: bool, first_req: Option<usize>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `without_sections` cuts from a `## N. ` heading to the next one, and a
+    /// heading inside a fenced block is a QUOTATION -- this file quotes headings
+    /// as evidence, and cutting at one would take the wrong span.
+    #[test]
+    fn dropping_a_section_stops_at_the_next_real_heading() {
+        let src = "## 1. Keep\nalpha\n\n## 2. Drop\nbeta\n\n```\n## 9. Quoted\n```\ngamma\n\n## 3. Keep too\ndelta\n";
+        let out = without_sections(src, &["Drop".to_string()]);
+        assert!(out.contains("alpha") && out.contains("delta"), "neighbours survive: {out}");
+        assert!(!out.contains("beta"), "the body goes");
+        assert!(!out.contains("gamma"), "and so does everything to the next REAL heading");
+        assert!(!out.contains("## 2. Drop"), "heading included");
+        assert_eq!(
+            crate::skillnum::sections(&out).len(),
+            2,
+            "two sections left, and the quoted heading is not one of them"
+        );
+    }
+
+    /// Dropping nothing must return the text unchanged, byte for byte: the
+    /// ordinary run passes through this function and must not be reshaped by it.
+    #[test]
+    fn dropping_nothing_changes_nothing() {
+        let src = "## 1. A\nalpha\n\n## 2. B\nbeta\n";
+        assert_eq!(without_sections(src, &[]), src);
+    }
+
+    /// The guard that refuses a lost title must know what the operator
+    /// AUTHORISED. The first version of `--drop-withdrawn` did exactly what it
+    /// promised, printed what it dropped, and then died on `titles_lost` --
+    /// which saw a section leave the file and refused.
+    #[test]
+    fn a_sanctioned_removal_is_not_a_lost_title() {
+        let before = "## 1. A\n\n## 2. Withdrawn\n\n## 3. C\n";
+        let after = without_sections(before, &["Withdrawn".to_string()]);
+        assert!(
+            titles_lost(before, &after).contains(&"Withdrawn".to_string()),
+            "the guard DOES see it -- that is why it has to be told"
+        );
+        let sanctioned = ["Withdrawn".to_string()];
+        let remaining: Vec<String> = titles_lost(before, &after)
+            .into_iter()
+            .filter(|t| !sanctioned.contains(t))
+            .collect();
+        assert!(
+            remaining.is_empty(),
+            "and with the authorisation applied, nothing is refused: {remaining:?}"
+        );
+    }
 
     /// A section the base once held and dropped is not mine to carry forward.
     ///
@@ -516,8 +652,14 @@ mod tests {
         let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
         let call = concat!("let withdrawn = withdrawn_", "titles(&carried,");
         assert!(code.contains(call), "the guard has to be asked");
-        let refuses = concat!("if !withdrawn.is_", "empty() {");
-        assert!(code.contains(refuses), "and a non-empty answer must stop the write");
+        // A non-empty answer either bails, or is dropped BECAUSE the operator
+        // asked for it. Nothing else may happen to it.
+        let opt_in = concat!("} else if drop_with", "drawn {");
+        assert!(code.contains(opt_in), "removal must be opt-in, never the default");
+        assert!(
+            code.contains("REMOVED from {base} on purpose"),
+            "and without the flag it still refuses, naming them"
+        );
         assert!(
             code.find(call).unwrap() < code.find("let (moved, moves) = renumber(").unwrap(),
             "before the renumber, not after it"
@@ -564,8 +706,16 @@ mod tests {
             .position(|l| l == "#[cfg(test)]")
             .expect("the test module is a line of its own");
         let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
-        let call = concat!("let lost = titles_", "lost(&mine, &out);");
+        let call = concat!("titles_", "lost(&mine, &out)");
         assert!(code.contains(call), "the guard has to be consulted before the write");
+        // It is now filtered by what --drop-withdrawn authorised. Without that
+        // filter the flag does its job, prints what it dropped, and dies here.
+        let exempt = concat!("!sanctioned.contains(", "t.as_str())");
+        assert!(
+            code.contains(exempt),
+            "and it has to know what the operator authorised, or the \
+             authorisation is not real"
+        );
         let refuses = concat!("if !lost.is_", "empty() {");
         assert!(
             code.contains(refuses),
