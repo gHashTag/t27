@@ -38,6 +38,23 @@ pub enum HooksCmd {
         #[arg(long)]
         self_check: bool,
     },
+    /// L1 TRACEABILITY over the message BEING WRITTEN, from the commit-msg hook.
+    ///
+    /// `l1_check` reads HEAD, which is the PREVIOUS commit, and the off-by-one bites in
+    /// both directions. Reproduced on a clean worktree:
+    ///
+    ///   * a commit carrying no reference at all passes, because HEAD had one; it lands
+    ///     reference-free and the law is not enforced;
+    ///   * the NEXT commit is refused for the omission, and that one may be perfectly
+    ///     compliant. The gate punishes commit N+1 for commit N.
+    ///
+    /// `commit-msg` is the only moment the text exists. Comment lines are stripped first,
+    /// exactly as git strips them: a commented-out `# Closes #12` is not in the message
+    /// that lands, and counting it would be a false pass.
+    CommitMsg {
+        /// Path git passes to the hook (`.git/COMMIT_EDITMSG`).
+        path: PathBuf,
+    },
     /// L1 TRACEABILITY: last commit message must reference an issue
     /// (`Closes #N` / `Fixes #N` / `Resolves #N` / `Reference #N`).
     L1Check,
@@ -61,6 +78,7 @@ pub enum HooksCmd {
 pub fn run(cmd: &HooksCmd) -> Result<()> {
     match cmd {
         HooksCmd::PreCommit => pre_commit(),
+        HooksCmd::CommitMsg { path } => commit_msg(path),
         HooksCmd::FixCarriesSource { subject, base, head, self_check } => {
             fix_carries_source_cmd(subject.as_deref(), base.as_deref(), head.as_deref(), *self_check)
         }
@@ -80,7 +98,10 @@ fn pre_commit() -> Result<()> {
     // BECAUSE of that file, since its freshness loop found it and stopped.
     crate::nownote::check_staged()?;
     conflict_markers()?;
-    l1_check()?;
+    // L1 is NOT asked here. It reads HEAD, i.e. the previous commit, and the off-by-one
+    // both lets a reference-free commit land and refuses the compliant one after it.
+    // `tri hooks commit-msg` asks it of the message being written, which is the only
+    // moment that text exists.
     fix_carries_source()?;
     // 133 ms, and it is the difference between finding out here and finding out from a
     // red master an hour later. If the move is not yours it is still red for everyone;
@@ -1054,4 +1075,26 @@ fn fix_carries_source_self_check() -> Result<()> {
     } else {
         anyhow::bail!("{} control(s) did not behave as stated: {}", bad.len(), bad.join(", "))
     }
+}
+
+
+/// L1 over the message being written.
+fn commit_msg(path: &std::path::Path) -> Result<()> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("cannot read the commit message at {}", path.display()))?;
+    // git strips comment lines before the message lands. Counting a commented-out
+    // `# Closes #12` would be a false pass on text nobody will ever read in the log.
+    let msg: String = raw
+        .lines()
+        .filter(|l| !l.trim_start().starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if msg.trim().is_empty() {
+        // An empty message aborts the commit anyway; refusing here would report a
+        // traceability failure for something that is not one.
+        return Ok(());
+    }
+    check_commit_message(&msg)?;
+    println!("L1 PASSED: the message being written references an issue");
+    Ok(())
 }
