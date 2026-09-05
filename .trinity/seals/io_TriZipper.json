@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:2a5cb09a5124c1f0f59347631e3074c472bccbb2c31fb41e50439b3f8c54c477",
-  "gen_hash_rust": "sha256:c25b2e1658a4d9c5eee57f044fab363546f0e9e6a8d4233706f6b6107ac3c34e",
+  "gen_hash_rust": "sha256:4f25cfe72a326778f40cdb9cb926e131e0fd6cb2618f2b16ac270845de593769",
   "gen_hash_verilog": "sha256:5ea44faf2862d31951d166390806332fd63175ad888ef7613c3acb6a42928cf8",
   "gen_hash_zig": "sha256:67b2af3bd99a95003d19fcd8f0c03da4c8ff6ada8278b9c770946d3a6a19dc4f",
   "module": "TriZipper",
   "ring": 12,
-  "sealed_at": "2026-09-05T01:39:48Z",
+  "sealed_at": "2026-09-05T02:40:54Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:767f91d7c7ff22bcf8464595a5e3a9d32d24af8157cb882dfa4958e61aec6e0f",
   "spec_path": "specs/tri/io/zip.t27"

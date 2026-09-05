@@ -570,19 +570,43 @@ fn recent_commits(repo: &str, branch: &str) -> Result<(Vec<String>, bool)> {
 /// The recently merged pull requests, and whether that read was complete.
 fn merged_recently(repo: &str, baseline: usize) -> Result<(Vec<String>, bool)> {
     let page = baseline * 3;
+    // The request asks for CLOSED pull requests; the filter keeps only the
+    // MERGED ones. Comparing the merged count against the closed page size
+    // answers "was the page full?" with a number that was never the page --
+    // and since closed is a superset of merged, it answers COMPLETE almost
+    // always.
+    //
+    // Measured on gHashTag/t27, 2026-09-05: at per_page 30, 60 and 90 the page
+    // came back FULL every time (30, 60, 90 closed) while the merged count was
+    // 29, 59 and 88. `read_is_complete(merged, page)` said COMPLETE in all
+    // three. It can only say otherwise if EVERY closed pull request on the page
+    // is merged.
+    //
+    // So the completeness question is asked of the unfiltered read, which is
+    // the thing the page bounded, and the filter is applied afterwards.
     let out = gh(&[
         "api",
         &format!("repos/{repo}/pulls?state=closed&per_page={page}"),
         "--jq",
-        ".[]|select(.merged_at!=null)|.number",
+        r#".[]|[(.number|tostring),(if .merged_at==null then "0" else "1" end)]|@tsv"#,
     ])?;
-    let rows: Vec<String> = out
-        .lines()
-        .filter(|l| !l.trim().is_empty())
+    let closed: Vec<&str> = out.lines().filter(|l| !l.trim().is_empty()).collect();
+    let complete = crate::issues::read_is_complete(closed.len(), page);
+    Ok((merged_numbers(&closed), complete))
+}
+
+/// The merged pull-request numbers from the `number<TAB>merged?` rows.
+///
+/// Extracted so a test exercises THIS code rather than a copy of it: the first
+/// version of that test rebuilt the filter inline, and a mutant that dropped
+/// the filter from production passed it.
+pub fn merged_numbers(closed: &[&str]) -> Vec<String> {
+    closed
+        .iter()
+        .filter(|l| l.ends_with("\t1"))
+        .filter_map(|l| l.split('\t').next())
         .map(String::from)
-        .collect();
-    let complete = crate::issues::read_is_complete(rows.len(), page);
-    Ok((rows, complete))
+        .collect()
 }
 
 /// The same sentence, with the truncation the page can hide.
@@ -1116,6 +1140,45 @@ mod paginated_count_tests {
 mod page_was_full_tests {
     use super::baseline_phrase_bounded;
     use crate::issues::read_is_complete;
+
+    /// The completeness question belongs to the read the PAGE bounded, not to
+    /// what survived a filter applied after it.
+    ///
+    /// `merged_recently` asks the API for CLOSED pull requests and keeps the
+    /// MERGED ones. Closed is a superset of merged, so comparing the merged
+    /// count against the closed page size answers COMPLETE almost always.
+    ///
+    /// Measured on gHashTag/t27, 2026-09-05:
+    ///
+    /// | per_page | closed returned | merged of those | old verdict | page full |
+    /// |---|---|---|---|---|
+    /// | 30 | 30 | 29 | COMPLETE | YES |
+    /// | 60 | 60 | 59 | COMPLETE | YES |
+    /// | 90 | 90 | 88 | COMPLETE | YES |
+    #[test]
+    fn completeness_is_asked_of_the_unfiltered_read() {
+        // The live shape: a full page whose rows are almost all merged.
+        assert!(
+            !read_is_complete(30, 30),
+            "a full page is never complete -- asked of the CLOSED count it says so"
+        );
+        assert!(
+            read_is_complete(29, 30),
+            "asked of the MERGED count the same page reads as complete, which is \
+             the defect: 29 merged of 30 closed, and 30 is the page"
+        );
+    }
+
+    /// The filter still has to select the merged ones, and only those.
+    #[test]
+    fn the_tsv_filter_keeps_merged_and_drops_the_rest() {
+        let out = "3221\t1\n3218\t1\n3200\t0\n3199\t1\n";
+        let closed: Vec<&str> = out.lines().filter(|l| !l.trim().is_empty()).collect();
+        assert_eq!(closed.len(), 4, "the page is four closed pull requests");
+        let rows = super::merged_numbers(&closed);
+        assert_eq!(rows, vec!["3221", "3218", "3199"], "three merged: {rows:?}");
+        assert!(!rows.contains(&"3200".to_string()), "the closed-unmerged one is dropped");
+    }
 
     /// This crate already had the predicate, inverted, in `issues.rs`, and
     /// `classify_fetch` recognises it by name. Writing a second one under a new

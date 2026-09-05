@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:c8236e2d9e99b4d1744874af611592fb7298d1d04074d6e8fde609cef135d492",
-  "gen_hash_rust": "sha256:e02383e134f9bda86ca03cff0f74cc0080bbee7597ca70cd74bdf52c61c4690b",
+  "gen_hash_rust": "sha256:04fc7a5eb93add1b77ea327d48111442a92133e9864a4bb644a304cb1623dd17",
   "gen_hash_verilog": "sha256:e62e7dc3d37fd5c5a590ac0662c99701b71c46b7ecb78bc816c76f30727f8735",
   "gen_hash_zig": "sha256:1dd076e35b9b36b2855bffdadb19125fe8f91057244d0b5d297a956bd6c98d10",
   "module": "BatchRunner",

@@ -16113,3 +16113,275 @@ the cause is large, the by-name before/after proves what the fix yields, and a c
 specs still failing on that cause proves the cause is gone rather than merely rarer.
 Measure the second one after the change and diff by spec name, so a gain and a
 regression cannot cancel in a total.
+
+
+## 565. One of four refusals had an unambiguous repair, and a second guard blocked it
+
+`tri skill renumber` refuses in four places and repairs in none. Three of them are right to: when the
+rebuild would DROP a section, the safe action is unknown -- the section might be mine or the base's,
+and guessing loses work.
+
+**The fourth is settled.** When the tail carries a section the base REMOVED on purpose, the command
+already knows exactly which ones, and carrying them forward resurrects a retraction. `--drop-withdrawn`
+removes exactly those and names each one. It is **opt-in**: deleting text nobody asked to delete is
+how a tool earns distrust, and the refusal already prints the list.
+
+### The second guard blocked the first guard's sanctioned repair
+
+The first version did precisely what it promised -- dropped the section, printed its name -- and then
+died two hundred lines later on:
+
+```text
+Error: the rebuild would DROP 1 section(s) that are on disk now:
+    Bravo
+```
+
+That is `titles_lost`, added three passes ago to stop a silent deletion. It is correct in general and
+wrong here: **Bravo is on disk, Bravo is gone from the rebuild, and the operator asked for that.**
+
+**A guard has to know what the operator authorised, or the authorisation is not real.** The lost-title
+check is now filtered by the set `--drop-withdrawn` was given, and the structural test asserts that
+filter exists -- because without it the flag looks like it works, prints a correct account of what it
+did, and refuses anyway.
+
+### Two structural tests failed, and both were right to
+
+They pin the SHAPE of the code around each guard. Changing `if !withdrawn.is_empty() { bail }` into a
+three-armed `if / else if drop_withdrawn / else` broke the string they search for, and so did wrapping
+`titles_lost(...)` in a filter. **A structural test that survives a restructuring of the thing it
+pins is not pinning it.**
+
+Both were rewritten to assert the NEW invariant rather than to pass: that removal is reachable only
+through `else if drop_withdrawn`, that the no-flag path still refuses by name, and that the lost-title
+guard consults the authorised set. Four mutants, all killed by both the unit tests and the
+scratch-repo control.
+
+## 566. A census of what cannot be read is not a census of what is read wrongly
+
+`tri unparsed` ranks the constructs that stop the parser, each row backed by a live
+probe. It is a good instrument and it answers one question: which specs the compiler
+**cannot read**. Nothing in this tree answers the other one — which specs it reads
+**wrongly** — and that class is invisible for the reason that makes it dangerous:
+every gate is green on it.
+
+Fourteen corpus specs pass `parse`, pass `typecheck`, and emit a struct field with
+no type at all. Three of them appear in the debt ledger, for other reasons; **eleven
+are tracked by nothing**. A four-line reproducer shows the whole mechanism:
+
+```t27
+module probe {
+    pub const Thing = struct {
+        ok : u8,
+        bad : 0,
+    };
+}
+```
+
+An integer literal sits in **type position**. `parse` accepts it, `typecheck`
+accepts it, the Rust backend writes `pub bad: 0,` and the C backend writes `0 bad;`,
+both unparseable in their languages.
+
+The Zig backend is where it disappears. It writes `bad: 0,` and, for the empty type
+slot, `empty: void` -- and **`zig build-obj` accepts both, and so does the deeper
+`zig test --test-no-exec`**. Nothing in the Zig column can see either shape, so the
+corpus counts these specs as generating and accepting.
+
+(An earlier version of this section said Zig *dropped* the field. That was wrong and
+came from running `t27c gen-zig`, which is not a subcommand -- the Zig backend is
+`gen`. The empty output of a misspelled command was read as a dropped field. The
+corpus itself always used `gen`, so its numbers were never affected; only this
+paragraph was. See the note below.)
+
+The source of it is a declaration form the parser does not implement — a list-valued
+key whose items follow on later lines. Because recovery turns those items into fields,
+the specs come out the other side looking well-formed. **A parser that recovers
+produces output; a census built on failure cannot see it.**
+
+Two practical consequences. First, when a census exists, ask what its population is
+defined by — `unparsed` is defined by *the compiler refused*, so anything the
+compiler accepted is outside it by construction, however wrong the result. Second, the
+cheapest detector for the second class is not a parser change but a **shape check on
+the generated output**: `pub f: ,` and `0 bad;` are trivially greppable, and the
+population they find is exactly the one no phase covers.
+
+
+## 567. The prototype gave the right number because one of its alternatives was dead
+
+&sect;569 found one entry carrying another's body, by accident, while repairing something else. The
+question it left was whether that was a case or a class. `tri skill lost` now asks it, and the answer
+is **one, and it is fixed** -- but the road to that number is the finding.
+
+**The naive question is useless here.** 58 of the 63 `docs/NOW.md` entries with a wave number in the
+heading mention *some other* wave in the body, because an entry routinely points at the next one.
+What discriminates is naming **none of its own**: `SW-conformance — gf48` carried 39 lines of Wave
+Loop 434 and never said `gf48`.
+
+### The prototype was right for the wrong reason
+
+The python sketch of this check reported **1** on the damaged file. Ported to Rust it reported **49**.
+The difference is one alternative in the pattern:
+
+```text
+python:  \b(?:...|#(\d{3,5}))\b
+```
+
+**`\b#` requires a word character immediately before the `#`.** There is never one. That alternative
+**matched nothing, ever** -- so the sketch silently compared wave and format identifiers only, which
+happens to be the correct population, and reported the correct number while carrying a rule it never
+applied.
+
+The Rust port made `#NNNN` live, and 49 entries flagged: an entry cites other issues as a matter of
+course, so issue numbers are not ownership. **The right answer and the right reason arrived by
+different routes, days apart, and only the port showed that they had.** Had I shipped the sketch, the
+rule in the code would have said "issue numbers count" and the behaviour would have said otherwise,
+until someone fixed the regex and the tool changed its mind for no visible reason.
+
+Issue numbers are now excluded **deliberately, with that measurement written beside the pattern**.
+
+### Both fixtures were wrong, and the tests were right to fail
+
+The first fixture put `XADC_LIVE_W434_OPERATING_POINT` in the body and expected a flag. It does not
+match: the `_` before `W434` is a word character, so `\bW` fails. What made the live case detectable
+was the plain `` `wave-loop-434` `` on its branch line. The second fixture had entry 889's body name
+888 and 890 but not 889, and asserted no flag -- which is exactly the shape that SHOULD flag.
+
+**Two fixtures, two failures, both because the fixture was unrepresentative and the code was right.**
+Same lesson as &sect;562, one pass later: reproducing a defect means reproducing its exact form, and a
+test that fails on correct code has told you about your fixture.
+
+Measured: **1** flagged on the damaged base, **0** on the repaired tree, **0** in `SKILL.md` across
+524 sections.
+
+## 568. I audited my own detector in the wrong unit
+
+&sect;569 shipped a check that found **0** misattributed entries, using a matcher anchored on word
+boundaries. The obvious worry, written into that pass's own next-steps: `W434` inside
+`XADC_LIVE_W434_OPERATING_POINT` is invisible to `\bW`, so how much of the population is the detector
+blind to?
+
+**Measured on `docs/NOW.md`.** The shipped matcher sees **644** identifier occurrences. A matcher that
+also allows an underscore before `W<nnn>` sees **988** -- so **35% of occurrences are invisible**, and
+**79** of them are that exact underscore form.
+
+That number is real and it is the wrong number.
+
+| | shipped | wider |
+|---|---|---|
+| identifier OCCURRENCES | 644 | 988 |
+| **distinct identifiers** | **91** | **95** |
+| entries whose body id-set differs | -- | **10 of 310** |
+| verdict on the repaired file | 0 | **0** |
+| verdict on the damaged file | 1 | **1** |
+
+**The check operates on SETS.** An identifier repeated eleven times in one body is one member either
+way, so 344 extra occurrences buy four extra distinct identifiers -- `339`, `470`, `825`, `883` --
+and not one of them changes a verdict on any input this repository can produce.
+
+I also tried to construct the blind spot by hand: strip the single plain `` `wave-loop-434` `` line
+from the damaged entry, leaving only the underscore forms. **Both matchers still find it**, because
+the body names `W431` and `W432` in prose as well. The blind spot I predicted has no instance here.
+
+**Declined, and the reason is the unit.** Widening costs a false-positive surface and buys nothing
+measurable. **The audit's value was not the answer -- it was learning that my worry was counted in
+occurrences while the thing it threatened was set membership.** &sect;535's lesson, turned on the
+instrument instead of the report: *a number lands in the reader's unit, and here I was the reader of
+my own.*
+
+What would change the verdict is an entry whose body names a foreign id ONLY in underscore form and
+names none of its own at all. That entry does not exist today. **If one is ever written, this section
+is the note that says which line to change.**
+
+## 569. Three hundred and twelve headings, three hundred and ten seats
+
+&sect;571 asked in which unit a check DECIDES against the unit a reader AUDITS it in, and declined to
+widen a matcher because the two agreed. A fan-out over the whole CLI asked the same question
+everywhere. The strongest survivor is in the code that pass wrote.
+
+`bodies()` returns a map keyed by section title -- correct for the history walk, because a title is
+the identity that survives renumbering. **Every other question was asked over that map too.** A
+repeated heading text is ONE key, and the later insert OVERWRITES, so only the last copy's body is
+ever examined.
+
+**Measured on `docs/NOW.md`:** `grep -c '^## '` gives **312**; distinct heading texts give **310**.
+`Honesty limits (BINDING)` appears at lines 1479 and 1708, and a `Wave Loop 777` subject at 4504 and
+4601. The command printed `present on origin/master 310` for a 312-heading file, and asked "does every
+heading have a body?" over 310 seats -- **while four comments in that same source file said 312.**
+
+**I measured 312-vs-310 in &sect;556, wrote it into the prose, and then built the tool on the map that
+collapses them.** The number was on the page before the code was written.
+
+### The verdict was right, by luck
+
+All four colliding occurrences have bodies (30/18 and 34/34 non-blank lines), so per-occurrence hollow
+= 0 and per-title hollow = 0. **The check is correct today over a population two seats short**, and
+would flip the first time a repeated subject's EARLIER copy is bare -- routine for an append-only log
+of commit subjects that already repeats two of them.
+
+Fixed by separating the two questions rather than picking one:
+
+```text
+titles ever written    792
+headings on origin/master 312   (## lines)
+distinct titles        310   (what the history walk compares)
+```
+
+Hollow and misattribution now run over `occurrences()`, which collapses nothing. The history walk
+keeps the title map, because that is what makes renumbering invisible to it. **Two questions, two
+populations, both printed with their unit** -- which is the whole of &sect;571 applied to the thing
+&sect;571 shipped.
+
+### Both structural tests failed again, and are now pinned to the population
+
+They asserted `hollow_headings(&now)`. Changing the argument to `&here` broke them -- the second time
+in two passes that restructuring a guard broke the test that pins it, and the second time that was the
+test doing its job. They now assert the ARGUMENT, not merely the call: the hollow question must be
+asked over `occurrences`, and `here` must be bound from it. Two of the three mutants no longer compile,
+which is the strongest form of a killed mutant.
+## 567. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
+
+The earlier units fan-out flagged `prcheck.rs` and I had not checked it. Checking it found a guard that
+is wrong on every real input.
+
+`merged_recently` asks the API for **closed** pull requests and keeps the **merged** ones:
+
+```rust
+&format!("repos/{repo}/pulls?state=closed&per_page={page}"),
+"--jq", ".[]|select(.merged_at!=null)|.number",
+...
+let complete = read_is_complete(rows.len(), page);   // rows = MERGED, page = CLOSED page size
+```
+
+`read_is_complete(returned, limit)` is `returned < limit` -- "the page was not full, so the read saw
+everything". **It was handed the merged count and the closed page size.** Closed is a superset of
+merged, so the comparison is between a filtered number and an unfiltered cap.
+
+**Measured on `gHashTag/t27`, 2026-09-05:**
+
+| `per_page` | closed returned | merged of those | guard said | page actually full |
+|---|---|---|---|---|
+| 30 | 30 | 29 | COMPLETE | **YES** |
+| 60 | 60 | 59 | COMPLETE | **YES** |
+| 90 | 90 | 88 | COMPLETE | **YES** |
+
+**The page was full every time and the guard said complete every time.** It can only say otherwise
+when EVERY closed pull request on the page is merged -- one unmerged row anywhere on the page is
+enough to make it silent forever.
+
+Fixed by asking the completeness question of the read the PAGE bounded: the request returns
+`number<TAB>merged?` for every closed row, `read_is_complete` sees the closed count, and the merged
+filter is applied afterwards. **The guard is now structurally unable to see the filtered number --
+reverting it does not compile, because `rows` no longer exists at that point.**
+
+### The test rebuilt the filter instead of calling it
+
+The first test for the merged filter reconstructed it inline from the same four lines of TSV, and a
+mutant that removed the filter from production passed. Extracted to `merged_numbers` and the test now
+calls it. **A test that reimplements the thing it tests is a second copy agreeing with itself** --
+which is the same shape as &sect;546's mutation that also edited the test, one level down.
+
+### And the measurement of this class was itself undercounted
+
+Before building anything I counted the ratio prints: **16**. A wider pattern found **49**. The first
+regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
+args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
+units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
