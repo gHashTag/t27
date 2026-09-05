@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b1c09360d0314af8f9640ab18bc2e1c89a72d84d02ee053adc87c25e448d2bef",
-  "gen_hash_rust": "sha256:d3ce8ad58caab6810b5f28d05d85595c7691528717e2358693f2524660a6bd0b",
+  "gen_hash_rust": "sha256:ebd32322fbef5fe453605295d648cf5ca6f8983a2fb146961fe933ec8da9cc1f",
   "gen_hash_verilog": "sha256:51b14fbc7f28564ffc1072fe30ebe850ddd1f512ab8e563360abf7acf5039a12",
   "gen_hash_zig": "sha256:b721c20deb52a4bc5721c9f651d1f4d92bf3ecedcf2318b9f5f74d606ea1d9b3",
   "module": "TriExitCodes",
