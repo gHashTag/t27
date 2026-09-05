@@ -16136,3 +16136,42 @@ test that fails on correct code has told you about your fixture.
 
 Measured: **1** flagged on the damaged base, **0** on the repaired tree, **0** in `SKILL.md` across
 524 sections.
+
+## 571. I audited my own detector in the wrong unit
+
+&sect;568 shipped a check that found **0** misattributed entries, using a matcher anchored on word
+boundaries. The obvious worry, written into that pass's own next-steps: `W434` inside
+`XADC_LIVE_W434_OPERATING_POINT` is invisible to `\bW`, so how much of the population is the detector
+blind to?
+
+**Measured on `docs/NOW.md`.** The shipped matcher sees **644** identifier occurrences. A matcher that
+also allows an underscore before `W<nnn>` sees **988** -- so **35% of occurrences are invisible**, and
+**79** of them are that exact underscore form.
+
+That number is real and it is the wrong number.
+
+| | shipped | wider |
+|---|---|---|
+| identifier OCCURRENCES | 644 | 988 |
+| **distinct identifiers** | **91** | **95** |
+| entries whose body id-set differs | -- | **10 of 310** |
+| verdict on the repaired file | 0 | **0** |
+| verdict on the damaged file | 1 | **1** |
+
+**The check operates on SETS.** An identifier repeated eleven times in one body is one member either
+way, so 344 extra occurrences buy four extra distinct identifiers -- `339`, `470`, `825`, `883` --
+and not one of them changes a verdict on any input this repository can produce.
+
+I also tried to construct the blind spot by hand: strip the single plain `` `wave-loop-434` `` line
+from the damaged entry, leaving only the underscore forms. **Both matchers still find it**, because
+the body names `W431` and `W432` in prose as well. The blind spot I predicted has no instance here.
+
+**Declined, and the reason is the unit.** Widening costs a false-positive surface and buys nothing
+measurable. **The audit's value was not the answer -- it was learning that my worry was counted in
+occurrences while the thing it threatened was set membership.** &sect;535's lesson, turned on the
+instrument instead of the report: *a number lands in the reader's unit, and here I was the reader of
+my own.*
+
+What would change the verdict is an entry whose body names a foreign id ONLY in underscore form and
+names none of its own at all. That entry does not exist today. **If one is ever written, this section
+is the note that says which line to change.**
