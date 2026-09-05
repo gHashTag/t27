@@ -177,6 +177,56 @@ fn masked(text: &str) -> Vec<bool> {
             i = end;
             continue;
         }
+        // Raw strings: `r"..."`, `r#"..."#`, `r##"..."##`, and the byte forms
+        // `br#"..."#`. This is not decoration for a language-agnostic masker.
+        // `#` opens a comment two rules down, so `r#"` was read as `r` followed
+        // by a comment to end of line -- and the string's CONTENTS came back
+        // marked as code. Measured with the tool itself: a file holding
+        // `pub const FIXTURE: &str = r#"\n threshold = 12345\n other = 6789\n"#;`
+        // was reported as "4 literal(s)", offering 12345 and 6789 as constants
+        // to perturb. Mutating fixture text and reading the resulting red as
+        // "the checker noticed" is the same tautology `drop_test_module_sites`
+        // exists to prevent, reached through a different door.
+        //
+        // Safe in the other languages this runs on: none of them spells a raw
+        // string this way, and Python's `r"..."` is a string, so masking it is
+        // right there too.
+        //
+        // A `br#"..."#` branch stood here too, skipping the byte-string prefix.
+        // Mutation removed it and nothing failed: `br#"` is `b` followed by
+        // `r#"`, so the rule fires one byte later and masks the same content.
+        // Only the `b` itself stays unmasked, and `b` is not a digit. Measured
+        // on `br#"bytes 4242 here"#`: the same two mutants either way.
+        {
+            if b[i] == b'r' {
+                let mut k = i + 1;
+                let mut hashes = 0usize;
+                while k < b.len() && b[k] == b'#' {
+                    hashes += 1;
+                    k += 1;
+                }
+                // A `!prev_is_word` guard stood here, to stop `str"` or `xr"`
+                // from opening a raw string. Mutation removed it and every test
+                // stayed green, so I checked why rather than writing a test to
+                // cover it: the ordinary-string rule below reaches those bytes
+                // FIRST and masks the same span. Run on
+                // `let _ = xr"junk 55 junk";` the tool reports the identical two
+                // mutants either way -- the guard cannot change what this
+                // function returns. Two rules with one testable consequence is
+                // one rule and a decoration.
+                if k < b.len() && b[k] == b'"' {
+                    let mut close = String::from("\"");
+                    close.push_str(&"#".repeat(hashes));
+                    let end = text[k + 1..]
+                        .find(&close)
+                        .map(|p| k + 1 + p + close.len())
+                        .unwrap_or(b.len());
+                    mark(&mut mask, i, end);
+                    i = end;
+                    continue;
+                }
+            }
+        }
         if b[i] == b'#' || rest.starts_with("//") {
             let end = rest.find('\n').map(|p| i + p).unwrap_or(b.len());
             mark(&mut mask, i, end);
@@ -587,6 +637,74 @@ mod tests {
             prod.contains(call),
             "`mutate` must ask the helper. Building the pair inline is how the \
              truncation flag gets hardcoded to false without any test noticing."
+        );
+    }
+
+    #[test]
+    fn a_raw_string_is_not_code() {
+        // `#` opens a comment in this masker, so `r#"` was read as `r` plus a
+        // comment to end of line and the string's CONTENTS came back as code.
+        // Measured with the tool: the fixture below was reported as
+        // "4 literal(s)" and offered 12345 and 6789 to perturb.
+        let src = "pub fn a() -> u32 { 7 }\n\
+                   pub const F: &str = r#\"\n  threshold = 12345\n\"#;\n\
+                   pub fn b() -> u32 { 42 }\n";
+        let got: Vec<String> = find_mutants(src, 40)
+            .iter()
+            .map(|m| m.from.clone())
+            .collect();
+        assert_eq!(
+            got,
+            vec!["7", "42"],
+            "12345 is string content, not a constant"
+        );
+
+        // Hash counting: the close is `"` plus the SAME number of `#`, so a
+        // `"#` inside an r##"..."## does not end it.
+        let two = "let a = r##\"has \"# inside 999\"##; let n = 5;";
+        let got: Vec<String> = find_mutants(two, 40)
+            .iter()
+            .map(|m| m.from.clone())
+            .collect();
+        assert_eq!(got, vec!["5"], "999 sits inside the r## string: {got:?}");
+
+        // A normal string ENDING in `r` must not open one -- `"abcr"` puts an
+        // `r"` in the text, and reading that as a raw-string opener would mask
+        // the rest of the file.
+        let ends_r = "let a = \"abcr\"; let n = 5; let m = 6;";
+        let got: Vec<String> = find_mutants(ends_r, 40)
+            .iter()
+            .map(|m| m.from.clone())
+            .collect();
+        assert_eq!(
+            got,
+            vec!["5", "6"],
+            "the code after `\"abcr\"` is still code"
+        );
+
+        // Byte raw strings too.
+        let byte = "let a = br#\"77\"#; let n = 5;";
+        let got: Vec<String> = find_mutants(byte, 40)
+            .iter()
+            .map(|m| m.from.clone())
+            .collect();
+        assert_eq!(got, vec!["5"], "br#\"..\"# is a string: {got:?}");
+
+        // An UNTERMINATED raw string masks to end of file rather than stopping
+        // at the quote. Perturbing a constant that is really fixture text is
+        // the failure this whole rule exists to prevent, and a truncated file
+        // is exactly when the closer is missing. Every other rule here ends the
+        // same way; the ordinary-string rule is the one deliberate exception,
+        // because an apostrophe in prose would otherwise swallow the file.
+        let cut = "let n = 5;\nlet a = r#\"unterminated 4242";
+        let got: Vec<String> = find_mutants(cut, 40)
+            .iter()
+            .map(|m| m.from.clone())
+            .collect();
+        assert_eq!(
+            got,
+            vec!["5"],
+            "4242 is inside the unterminated string: {got:?}"
         );
     }
 

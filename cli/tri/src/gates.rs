@@ -6490,7 +6490,48 @@ pub fn test_module_lines(text: &str) -> Vec<bool> {
     let mut out = Vec::new();
     let mut inside = false;
     let mut armed = false;
+    // Hash count of the raw string we are inside, if any. Without this a line
+    // that is exactly `}` INSIDE an r#"..."# fixture closed the test module,
+    // and every line after it was reported as production.
+    //
+    // Measured before the fix: `tri mutate run` offered 36 sites in
+    // competitors.rs and 29 in types_dup.rs that sit below those files' own
+    // `#[cfg(test)]`, because the module ended early at a brace inside a
+    // fixture string. Perturbing a test's own arithmetic fails that test and
+    // is then reported as "the checker noticed" -- the tautology the caller,
+    // `drop_test_module_sites`, exists to prevent.
+    let mut in_raw: Option<usize> = None;
     for line in text.lines() {
+        if let Some(hashes) = in_raw {
+            let mut close = String::from("\"");
+            close.push_str(&"#".repeat(hashes));
+            if line.contains(&close) {
+                in_raw = None;
+            }
+            // A brace inside string content is not a closing brace.
+            out.push(inside);
+            continue;
+        }
+        if let Some(hashes) = raw_string_opens(line) {
+            in_raw = Some(hashes);
+            out.push(inside);
+            continue;
+        }
+        // An ORDINARY string can span lines too, via a trailing `\` --
+        // types_dup.rs holds `const THREE_SPELLINGS: &str = "\` whose fixture
+        // has a column-0 `}` at line 1115, and that still closes the module
+        // early, handing 29 test-only literals to the mutator.
+        //
+        // A parity rule ("an odd number of unescaped quotes opens a string")
+        // was written here and REVERTED after measurement: one line with an
+        // unbalanced quote puts the scanner in string mode permanently, so
+        // `#[cfg(test)]` is never seen again and NOTHING is skipped. Measured
+        // across eleven files: fpga.rs went from 376 offered / 0 in a test
+        // module to 993 offered / 0 skipped, prcheck.rs 43 -> 122, gates.rs
+        // 213 -> 265, and competitors.rs got worse rather than better
+        // (36 -> 43 sites inside its own test module). The raw-string rule
+        // above is kept because it measured clean; this case is reported in
+        // its issue instead of being guessed at.
         if inside && line == "}" {
             inside = false;
             out.push(true);
@@ -6505,6 +6546,47 @@ pub fn test_module_lines(text: &str) -> Vec<bool> {
         out.push(inside);
     }
     out
+}
+
+/// The hash count of a raw string this line OPENS and does not close.
+///
+/// `None` when the line opens none, or opens and closes one -- a fixture
+/// written on a single line changes nothing about which lines follow it.
+fn raw_string_opens(line: &str) -> Option<usize> {
+    let b = line.as_bytes();
+    let mut i = 0usize;
+    while i < b.len() {
+        if b[i] == b'r' {
+            let mut k = i + 1;
+            let mut hashes = 0usize;
+            while k < b.len() && b[k] == b'#' {
+                hashes += 1;
+                k += 1;
+            }
+            // The `r` must not be the tail of a word. `"cannot occur"` puts an
+            // `r"` in the line, and without this the last quote on the line
+            // reads as an unclosed raw-string opener and every line after it is
+            // swallowed -- `#[cfg(test)]` included, so the module never opens
+            // and nothing is skipped. Measured: gates.rs reported 218 sites
+            // instead of 213 until this was added.
+            //
+            // The same guard is a DECORATION in `mutate::masked`, where the
+            // ordinary-string rule reaches those bytes first. Here there is no
+            // such rule, so it carries the whole case. Only measurement tells
+            // the two apart.
+            let prev_is_word = i > 0 && (b[i - 1].is_ascii_alphanumeric() || b[i - 1] == b'_');
+            if k < b.len() && b[k] == b'"' && !prev_is_word {
+                let mut close = String::from("\"");
+                close.push_str(&"#".repeat(hashes));
+                return match line[k + 1..].find(&close) {
+                    Some(_) => None,
+                    None => Some(hashes),
+                };
+            }
+        }
+        i += 1;
+    }
+    None
 }
 
 /// `(name, first line, last line)` for every top-level `fn` in a Rust source file.
