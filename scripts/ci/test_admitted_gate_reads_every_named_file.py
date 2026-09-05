@@ -48,7 +48,13 @@ def step_body():
 OPERANDS = ("Phi.v", "PhiFloat.v")
 
 
-def arm(body, files):
+def arm(body, files, named=OPERANDS):
+    """`named` is what `_CoqProject` LISTS; `files` is what exists on disk.
+
+    They are separate so a case can name a file that is not there -- the shape a
+    deleted or renamed source produces -- and so a case can widen the list past
+    the two the gate used to hardcode.
+    """
     d = tempfile.mkdtemp(prefix=f"admitted-gate-{os.getpid()}-")
     try:
         os.makedirs(os.path.join(d, "coq/Kernel"))
@@ -59,7 +65,7 @@ def arm(body, files):
         # the three that assert anything else failed. The tree the gate reads
         # must carry the file the gate reads it from.
         with open(os.path.join(d, "coq/_CoqProject"), "w") as fh:
-            fh.write("-Q . Kernel\n" + "".join(f"Kernel/{f}\n" for f in OPERANDS))
+            fh.write("-Q . Kernel\n" + "".join(f"Kernel/{f}\n" for f in named))
         for f, c in files.items():
             with open(os.path.join(d, "coq/Kernel", f), "w") as fh:
                 fh.write(c)
@@ -96,13 +102,30 @@ def main():
         check(f"and never says OK ({label})", "OK: no Admitted" not in out, f"out={out!r}")
         check(f"and names the file it could not read ({label})", "Phi.v" in out, f"out={out!r}")
 
+    # The contract the gate was WIDENED to in #3238: it reads every file the
+    # build compiles, not the two it used to name. A third file carrying an
+    # `Admitted` is precisely the case the old two-operand gate printed OK for,
+    # and nothing here asserted it until now.
+    rc, out = arm(
+        body,
+        {"Phi.v": CLEAN, "PhiFloat.v": CLEAN, "Trit.v": DIRTY},
+        named=("Phi.v", "PhiFloat.v", "Trit.v"),
+    )
+    check("an Admitted in a THIRD file is caught", rc == 1, f"rc={rc} out={out!r}")
+    check("and the failure names it", "Trit.v" in out, f"out={out!r}")
+
+    # And an empty list is refused rather than read as clean: a gate whose
+    # denominator can reach zero has to say so.
+    rc, out = arm(body, {"Phi.v": CLEAN}, named=())
+    check("an empty _CoqProject is could-not-run", rc == 2, f"rc={rc} out={out!r}")
+
     print()
     if FAILURES:
         print("FAILED:")
         for f in FAILURES:
             print(f"  - {f}")
         return 1
-    print("ok: the gate reads both files, or says it could not.")
+    print("ok: the gate reads every file _CoqProject names, or says it could not.")
     return 0
 
 

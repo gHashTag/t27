@@ -37,11 +37,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: The Admitted gate reads both files, or says it could not
+      - name: The Admitted gate reads every file _CoqProject names, or says it could not
         # #3063. grep answers 0 matched / 1 no match / 2 cannot open, and an
         # `if` merges the last two. Runs here rather than in coq-kernel.yml so
         # it needs no Coq toolchain: the test builds its own two-file tree.
-        run: python3 scripts/ci/test_admitted_gate_reads_both_files.py
+        run: python3 scripts/ci/test_admitted_gate_reads_every_named_file.py
 
       - name: An empty rings matrix refuses instead of skipping the build
         # #3069. The build job is guarded by `count != '0'`, a skipped job is
