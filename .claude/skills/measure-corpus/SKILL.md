@@ -20,6 +20,8 @@ question, and the traps each one has actually sprung.
 | "The harness itself still works" | `formal/harness_selfcheck.py` | any green number the harness produced |
 | "The parser actually read the spec" | `formal/spec_parse_gate.py` | "parses OK" |
 | "This Python script will run in CI" | import it under the OLDEST python3 | `py_compile` — see below |
+| "Every layer of this spec is fine" | `bindings/wasm-explorer` — `node scan.mjs` | any single-layer check. It runs the real compiler over the corpus and reports tokens, AST, typecheck, HIR and all five backends per spec |
+| "What did the parser silently drop?" | `parse_ast_full` (the wasm bridge uses it) | `parse_ast` / `t27c ast-dump`, which report a clean parse for a file they gutted |
 
 **The rungs are parse < import < run, and each passes what the next rejects.**
 `py_compile` declared 47 of 47 `formal/` scripts fine while one crashed at
@@ -43,6 +45,26 @@ import on `str | None` (valid syntax in 3.9, fails when the `def` executes).
 
 ## Traps that have actually fired
 
+- **`specs/` is not the corpus.** Globbing `specs/` gives 497 files; the repo
+  holds 668 once `chips/` (147) and `compiler/` (16) are counted, excluding
+  `.git/` and `.claude/` (git worktrees — duplicate checkouts of files already
+  counted, ~1600 of them, and counting those instead inflates to 2293). The
+  gap is not cosmetic: widening the scan moved typecheck failures 60 → 149 and
+  content-losing specs 49 → 78, and took backend rejections from **0 to 6**.
+  All six live in `chips/`, so a `specs/`-only scan reported a corpus with no
+  backend failures at all. State the glob next to any corpus number.
+- **A successful parse can be a gutted file.** `parse_ast` (and therefore
+  `t27c ast-dump`) reports success while error recovery discards declarations.
+  78 of 668 specs lose content this way. `api/c_api_contract.t27` drops 25
+  declarations and 50 characters, and its generated Verilog says
+  `module unknown (` because the `module` line was among them. Use
+  `parse_ast_full`, which returns `(ast, discarded, swallowed, lexer_discarded)`,
+  and quote the drop counts beside any "parses OK".
+- **Health classes that do not sum are not classes.** Loss, typecheck errors
+  and backend rejection overlap; adding them gives 233 against a 668 corpus and
+  invites the reader to subtract and get a wrong "clean" figure. Count each
+  spec ONCE at its worst stage — 453 ok + 209 warn + 6 fail = 668 — and make
+  the total visible so the arithmetic can be checked.
 - **A pattern defines its own scope.** A grep used to count a defect always
   reports itself complete. Counting the text `union:` gave 6 blocks and 27
   payloads; 4 blocks were a FUNCTION named `union` (indent 2, with `params:`)
