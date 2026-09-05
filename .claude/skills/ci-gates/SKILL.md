@@ -16337,7 +16337,7 @@ in two passes that restructuring a guard broke the test that pins it, and the se
 test doing its job. They now assert the ARGUMENT, not merely the call: the hollow question must be
 asked over `occurrences`, and `here` must be bound from it. Two of the three mutants no longer compile,
 which is the strongest form of a killed mutant.
-## 567. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
+## 570. A completeness guard asked of the filtered half, and it could only ever say COMPLETE
 
 The earlier units fan-out flagged `prcheck.rs` and I had not checked it. Checking it found a guard that
 is wrong on every real input.
@@ -16385,7 +16385,7 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
-## 567. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
+## 571. `X of Y` where X can exceed Y, in the other half of a function I had already fixed
 
 &sect;542 fixed the DENOMINATOR of `tri gates mutate`'s equivalence report: `claims_seen` counted every
 `# mutant-equivalent:` marker textually, including claims for which no mutant was ever built. The
@@ -16541,7 +16541,7 @@ And the counting instrument itself is subject to the rule. The 10-and-79 above w
 measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
 message before being checked against `test_module_lines` — the correct instrument, already
 in the repository, already trusted by `mutate`. Two files the wrong count named have zero.
-## 568. A guard that cannot run, on the path that merges
+## 572. A guard that cannot run, on the path that merges
 
 The ratio sweep's strongest survivor is not a malformed number. It is a merge.
 

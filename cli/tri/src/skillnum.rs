@@ -329,7 +329,11 @@ pub fn occurrences(text: &str) -> Vec<(String, Vec<String>)> {
             }
             continue;
         }
-        let head = if in_fence { None } else { line.strip_prefix("## ") };
+        let head = if in_fence {
+            None
+        } else {
+            line.strip_prefix("## ")
+        };
         if let Some(h) = head {
             if let Some(c) = cur.take() {
                 out.push((c, std::mem::take(&mut body)));
@@ -447,7 +451,10 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
     let here = occurrences(&at(base, path, &root));
     println!("  titles ever written    {}", first.len());
     println!("  headings on {base:<11} {}   (## lines)", here.len());
-    println!("  distinct titles        {}   (what the history walk compares)", now.len());
+    println!(
+        "  distinct titles        {}   (what the history walk compares)",
+        now.len()
+    );
 
     // A heading with nothing under it is the same damage, visible WITHOUT any
     // history: whatever was there is gone and the heading is left standing.
@@ -474,7 +481,10 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
         println!("  Every entry that names an identifier names its own.");
     } else {
         println!();
-        println!("  {} entry(s) whose body names NO identifier of its own, and does", wrong.len());
+        println!(
+            "  {} entry(s) whose body names NO identifier of its own, and does",
+            wrong.len()
+        );
         println!("  name one another entry owns:");
         for (h, foreign) in &wrong {
             println!("    {h}");
@@ -504,7 +514,12 @@ fn lost(path: &str, base: &str, gate: bool) -> Result<()> {
     } else {
         println!("  {} section(s) whose body was CUT SHORT:", cut.len());
         for (t, sha, a, b) in &cut {
-            println!("    -{:>3} lines ({a} -> {b})  first in {}  {}", a - b, &sha[..9], t);
+            println!(
+                "    -{:>3} lines ({a} -> {b})  first in {}  {}",
+                a - b,
+                &sha[..9],
+                t
+            );
         }
         println!();
         println!("  A cut tail is not by itself a loss. A section's body runs to the next");
@@ -632,6 +647,57 @@ mod tests {
     /// test for the helper, which is the rule the previous seven produced.
     /// `hollow_headings` can be right while `lost` never calls it.
     #[test]
+    fn a_quoted_heading_inside_a_fence_is_not_a_section() {
+        // `section_bodies` and `section_ranges` had NO fence rule while three
+        // other readers in this file did. Measured on the repository's own
+        // SKILL.md: `tri skill check` read 532 numbered sections and
+        // `tri skill claims` read 535 -- the same file, three apart, because
+        // three section headings are QUOTED inside code fences as evidence.
+        let doc = "## 1. First\n\
+                   body\n\
+                   ```\n\
+                   ## 2. Quoted as evidence, not a section\n\
+                   ```\n\
+                   more body\n\
+                   ## 3. Second\n\
+                   tail\n";
+        let got: Vec<usize> = super::section_bodies(doc)
+            .iter()
+            .map(|(n, _, _)| *n)
+            .collect();
+        assert_eq!(got, vec![1, 3], "the fenced `## 2.` is a quotation");
+        let ranges: Vec<usize> = super::section_ranges(doc)
+            .iter()
+            .map(|(n, _, _)| *n)
+            .collect();
+        assert_eq!(
+            ranges, got,
+            "the two readers must walk the headings by one rule"
+        );
+
+        // CommonMark: an OPENING fence may carry an info string, a CLOSING one
+        // may not. A naive toggle mispairs, and it mispairs enough of this
+        // repository's own SKILL.md to read 441 sections where there are 532.
+        use super::fence_toggle;
+        assert_eq!(
+            fence_toggle("```rust", false),
+            Some(true),
+            "info string opens"
+        );
+        assert_eq!(
+            fence_toggle("```", true),
+            Some(false),
+            "bare backticks close"
+        );
+        assert_eq!(
+            fence_toggle("```text", true),
+            Some(true),
+            "an info string cannot CLOSE a fence -- this is where a naive toggle goes wrong"
+        );
+        assert_eq!(fence_toggle("ordinary line", false), None);
+    }
+
+    #[test]
     fn lost_actually_reports_hollow_headings() {
         let src = include_str!("skillnum.rs");
         let boundary = src
@@ -648,7 +714,10 @@ mod tests {
             "the hollow question runs over OCCURRENCES, not the collapsed title map"
         );
         let src_of_here = concat!("let here = occur", "rences(&at(base, path, &root));");
-        assert!(code.contains(src_of_here), "and `here` is the uncollapsed list");
+        assert!(
+            code.contains(src_of_here),
+            "and `here` is the uncollapsed list"
+        );
     }
 
     #[test]
@@ -689,7 +758,11 @@ mod tests {
             vec!["- Branch: wave-loop-434".to_string()],
         ));
         let out = super::misattributed(&e);
-        assert_eq!(out.len(), 1, "only the entry carrying another's id: {out:?}");
+        assert_eq!(
+            out.len(),
+            1,
+            "only the entry carrying another's id: {out:?}"
+        );
         assert!(out[0].0.starts_with("SW-conformance — gf48"));
         assert_eq!(out[0].1, vec!["434".to_string()]);
     }
@@ -704,10 +777,18 @@ mod tests {
         let mut e: Vec<(String, Vec<String>)> = Vec::new();
         e.push((
             "Wave Loop 889 close-out".to_string(),
-            vec!["- Branch: `wave-loop-889`, follows Wave Loop 888, next Wave Loop 890".to_string()],
+            vec![
+                "- Branch: `wave-loop-889`, follows Wave Loop 888, next Wave Loop 890".to_string(),
+            ],
         ));
-        e.push(("Wave Loop 888 close-out".to_string(), vec!["- body".to_string()]));
-        e.push(("Wave Loop 890 close-out".to_string(), vec!["- body".to_string()]));
+        e.push((
+            "Wave Loop 888 close-out".to_string(),
+            vec!["- body".to_string()],
+        ));
+        e.push((
+            "Wave Loop 890 close-out".to_string(),
+            vec!["- body".to_string()],
+        ));
         assert!(
             super::misattributed(&e).is_empty(),
             "889 names its own number, so pointing at 888 and 890 is a cross-reference"
@@ -724,7 +805,10 @@ mod tests {
             "SW-conformance — gf48 promoted".to_string(),
             vec!["- see wave-loop-999 in trinity-fpga".to_string()],
         ));
-        e.push(("Wave Loop 434 — boot".to_string(), vec!["- wave-loop-434".to_string()]));
+        e.push((
+            "Wave Loop 434 — boot".to_string(),
+            vec!["- wave-loop-434".to_string()],
+        ));
         assert!(
             super::misattributed(&e).is_empty(),
             "999 belongs to no entry here, so nothing was taken from anything"
@@ -809,7 +893,11 @@ mod tests {
     fn a_repeated_heading_is_two_seats_not_one() {
         let src = "## A\n\n## A\nbody\n";
         assert_eq!(super::bodies(src).len(), 1, "the title map collapses them");
-        assert_eq!(super::occurrences(src).len(), 2, "the file has two headings");
+        assert_eq!(
+            super::occurrences(src).len(),
+            2,
+            "the file has two headings"
+        );
 
         // The first copy is bare and the second is not. Over TITLES the map
         // keeps only the last body, so the answer is "every heading has a body"
@@ -822,7 +910,11 @@ mod tests {
 
         let occ = super::occurrences(src);
         let hollow = super::hollow_headings(&occ);
-        assert_eq!(hollow.len(), 1, "over occurrences the bare copy is found: {hollow:?}");
+        assert_eq!(
+            hollow.len(),
+            1,
+            "over occurrences the bare copy is found: {hollow:?}"
+        );
 
         // Mirrored: the LAST copy is the bare one. The title map now happens to
         // be right, for a reason that has nothing to do with the file.
@@ -854,9 +946,11 @@ mod tests {
         let cut: Vec<String> = ["a", "b"].iter().map(|s| s.to_string()).collect();
         assert!(super::truncated(&then, &cut), "the tail was dropped");
         let edited: Vec<String> = ["a", "X", "c", "d"].iter().map(|s| s.to_string()).collect();
-        assert!(!super::truncated(&then, &edited), "same length, changed in place");
-        let shorter_but_different: Vec<String> =
-            ["a", "X"].iter().map(|s| s.to_string()).collect();
+        assert!(
+            !super::truncated(&then, &edited),
+            "same length, changed in place"
+        );
+        let shorter_but_different: Vec<String> = ["a", "X"].iter().map(|s| s.to_string()).collect();
         assert!(
             !super::truncated(&then, &shorter_but_different),
             "shorter AND different is a rewrite, not a cut"
@@ -872,7 +966,10 @@ mod tests {
         let then: Vec<String> = ["a", "b", "", ""].iter().map(|s| s.to_string()).collect();
         let now: Vec<String> = ["a", "b"].iter().map(|s| s.to_string()).collect();
         assert!(!super::truncated(&then, &now), "only blanks went");
-        let then2: Vec<String> = ["a", "b", "", "real"].iter().map(|s| s.to_string()).collect();
+        let then2: Vec<String> = ["a", "b", "", "real"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert!(
             super::truncated(&then2, &now),
             "a blank AND a real line went, so it is a cut"
@@ -1013,11 +1110,49 @@ mod tests {
 /// A section runs from its own `## N.` heading to the next one; the preamble
 /// before the first heading belongs to no section and is dropped, which is why
 /// this returns the same count `sections()` does rather than one more.
+/// CommonMark's fence rule, in one place.
+///
+/// An OPENING fence may carry an info string (` ```rust `); a CLOSING fence may
+/// not. A naive toggle on every ``` line therefore mispairs, and it mispairs 19
+/// of them in this repository's own SKILL.md.
+///
+/// Returns the new `in_fence` when this line IS a fence marker, `None` when it
+/// is an ordinary line.
+///
+/// It lived open-coded in three readers and was MISSING from two -- and those
+/// two, `section_bodies` and `section_ranges`, counted 535 numbered sections in
+/// SKILL.md where the fence-aware readers see 441. Ninety-four of them are
+/// section headings QUOTED inside code fences, five of them counted twice. One
+/// definition, five callers, so the next repair cannot reach only some of them.
+pub fn fence_toggle(line: &str, in_fence: bool) -> Option<bool> {
+    let info = line.strip_prefix("```")?;
+    Some(if !in_fence {
+        true
+    } else if info.trim().is_empty() {
+        false
+    } else {
+        in_fence
+    })
+}
+
 pub fn section_bodies(text: &str) -> Vec<(usize, String, String)> {
     let mut out: Vec<(usize, String, String)> = Vec::new();
     let mut cur: Option<(usize, String, Vec<&str>)> = None;
+    let mut in_fence = false;
     for line in text.lines() {
-        let head = line.strip_prefix("## ").and_then(|rest| {
+        if let Some(next) = fence_toggle(line, in_fence) {
+            in_fence = next;
+            if let Some((_, _, body)) = cur.as_mut() {
+                body.push(line);
+            }
+            continue;
+        }
+        let head = if in_fence {
+            None
+        } else {
+            line.strip_prefix("## ")
+        }
+        .and_then(|rest| {
             rest.split_once(". ")
                 .and_then(|(n, t)| n.parse::<usize>().ok().map(|n| (n, t.trim().to_string())))
         });
@@ -1046,9 +1181,19 @@ pub fn section_ranges(text: &str) -> Vec<(usize, usize, usize)> {
     let mut out: Vec<(usize, usize, usize)> = Vec::new();
     let mut cur: Option<(usize, usize)> = None;
     let mut last = 0usize;
+    let mut in_fence = false;
     for (i, line) in text.lines().enumerate() {
         last = i + 1;
-        let head = line.strip_prefix("## ").and_then(|rest| {
+        if let Some(next) = fence_toggle(line, in_fence) {
+            in_fence = next;
+            continue;
+        }
+        let head = if in_fence {
+            None
+        } else {
+            line.strip_prefix("## ")
+        }
+        .and_then(|rest| {
             rest.split_once(". ")
                 .and_then(|(n, _)| n.parse::<usize>().ok())
         });
