@@ -16385,3 +16385,56 @@ Before building anything I counted the ratio prints: **16**. A wider pattern fou
 regex required a bare `{}` and silently skipped every `{named}` interpolation -- Rust's inline format
 args, which this crate uses everywhere. **Counting the population of a units defect, in the pass about
 units, with a matcher that had a dead half.** &sect;568 again, four passes later, by my hand.
+
+### An assertion of absence is only as good as the region it is asked of
+
+Three instances in one pass, in three different languages, all the same shape: **a check
+whose verdict is "the needle was not found", evaluated over a region that need not contain
+the needle's subject.**
+
+A positive assertion fails loudly when its region is wrong — the thing it demands is not
+there. A negative assertion **passes**. That asymmetry is the whole defect: truncate the
+region and the check goes green while proving nothing.
+
+**A hardcoded operand list.** `coq-kernel.yml` guarded against `Admitted` — a lemma
+assumed rather than proved, which Coq accepts as an axiom — with
+`grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v`. `coq/_CoqProject` names
+**nine** files. Seven compiled proof files, including all three `Theorems/`, sat outside
+it. Nothing else covered them: `coqc` compiles a file containing `Admitted` without
+complaint, and `coqchk` ran for `PhiFloat` alone. Planting one in `Kernel/Trit.v` makes
+the gate print `OK: no Admitted in Phi.v or PhiFloat.v (both files read)` — a true
+sentence about the wrong question. The population belongs to the build, so it is now read
+from the file the build reads.
+
+**A region that can disappear.** `phi-loop-ci.yml` ended
+`grep -rn 'as f64' ffi/src/ ... 2>/dev/null | grep -v … | grep -v … && echo "L8 FAILED" && exit 1 || echo "L8 PASSED"`.
+Remove `ffi/src/` and the first grep exits 2 with its message discarded; the **last** grep
+in the pipe then reads empty input and exits 1, which `||` reports as "no violations".
+Byte-identical output to a clean tree. **In a pipeline the exit code is the last command's,
+so an upstream "could not run" is laundered into a downstream "found nothing".**
+
+**A source slice.** `src.split("#[cfg(test)]").next()` as "the production code" stops at
+the FIRST test module. Measured with `gates::test_module_lines` — a state machine, not a
+split: of 46 files carrying a test module, **10** have production items after their first,
+**130** items in all, **79** in `gates.rs` across 38 test modules.
+
+Two rules come out of this.
+
+**Give every negative assertion a positive anchor.** Before asserting the needle is absent,
+assert the *subject* is present in the region. Both structural tests written that pass
+worked only by position — the needle happened to sit above the cut. Each now proves its
+slice reaches the subject first, and planting a test module above the subject fails them
+with "this test would pass vacuously" where before they passed.
+
+**Make the population's size visible, and refuse a zero.** The repaired gates print
+`reading 9 file(s) named by coq/_CoqProject`, and an empty `_CoqProject` exits **2**, not
+0. A count in the output is what lets a reader notice the day it drops. Two candidates from
+the same sweep were **refuted** by exactly this: the `actions/github-script` injection gate
+already prints `2 actions/github-script step(s)` and finds 2 of 2, and the status-table
+path check drops 15 candidates that are all correctly dropped — GitHub org/repo names, a
+branch name, `/tmp` paths, and formulas containing a slash. A clean audit is a result.
+
+And the counting instrument itself is subject to the rule. The 10-and-79 above were first
+measured as 13 and 83 by a fresh regex, which shipped into two code comments and a commit
+message before being checked against `test_module_lines` — the correct instrument, already
+in the repository, already trusted by `mutate`. Two files the wrong count named have zero.
