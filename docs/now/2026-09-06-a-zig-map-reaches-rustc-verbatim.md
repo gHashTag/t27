@@ -14,3 +14,12 @@
 - A third finding was checked against the previous binary and is pre-existing:
   `std.HashMap(K, V) extra` becomes `*mut ()` on the old binary too.
 - The price was quoted to the owner before the work and matched it exactly: five specs.
+- The adversarial pass found two MORE defects after the first repair, and both were mine:
+  an empty argument list passed the arity guard and emitted `HashMap<&'static str, >`, and
+  `split_type_list` drove depth negative on `->` inside an argument, so `fn(A) -> B` split
+  wrongly rather than being declined.
+- Both fixed by making the split PARTIAL: it returns None on an unbalanced list and on any
+  empty argument, and every caller then leaves the type exactly as written so rustc
+  complains loudly. Re-measured a third time: still 357, zero regressions.
+- Four of ten claims from that pass were mine to fix; one was refuted; one was confirmed
+  pre-existing by running the OLD binary on the same input.

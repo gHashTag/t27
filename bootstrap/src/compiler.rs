@@ -24617,13 +24617,22 @@ impl RustCodegen {
     /// A naive `split(',')` cuts `Map<K, V>, T` into `Map<K`, ` V>` and ` T`, which is
     /// worse than the input. Shared by the tuple arm and the map arm so the two cannot
     /// disagree about what a comma means.
-    fn split_type_list(inner: &str) -> Vec<String> {
+    fn split_type_list(inner: &str) -> Option<Vec<String>> {
         let mut parts: Vec<String> = Vec::new();
         let (mut depth, mut start) = (0i32, 0usize);
         for (i, c) in inner.char_indices() {
             match c {
                 '<' | '[' | '(' => depth += 1,
-                '>' | ']' | ')' => depth -= 1,
+                // `->` is a `-` then a `>`, and counting that `>` as a close drove depth
+                // NEGATIVE on `fn(A) -> B`, making the split silently wrong rather than
+                // absent. A list that does not balance is not one this function can answer
+                // about, and None is the honest reply.
+                '>' | ']' | ')' => {
+                    depth -= 1;
+                    if depth < 0 {
+                        return None;
+                    }
+                }
                 ',' if depth == 0 => {
                     parts.push(inner[start..i].to_string());
                     start = i + c.len_utf8();
@@ -24631,8 +24640,17 @@ impl RustCodegen {
                 _ => {}
             }
         }
+        if depth != 0 {
+            return None;
+        }
         parts.push(inner[start..].to_string());
-        parts
+        // An EMPTY argument is not an argument. `std.StringHashMap()` split to one empty
+        // string, passed a `len() == 1` guard and emitted `HashMap<&'static str, >`,
+        // which is not Rust: the guard counted commas where it meant to count types.
+        if parts.iter().any(|q| q.trim().is_empty()) {
+            return None;
+        }
+        Some(parts)
     }
 
     /// Is this emitted Rust type `Copy`?
@@ -24693,7 +24711,7 @@ impl RustCodegen {
                 // `std.StringHashMap(K, V)` emitted `HashMap<String, K, V>` -- three type
                 // arguments, which is not Rust. A wrong arity now falls through to the
                 // default and rustc says so loudly, which is the honest outcome.
-                let args = Self::split_type_list(v);
+                let args = Self::split_type_list(v).unwrap_or_default();
                 if args.len() == 1 {
                     // The KEY type is whatever this emitter maps `[]const u8` to, not a
                     // hardcoded `String`. Zig's `StringHashMap` keys by `[]const u8`, and
@@ -24712,7 +24730,7 @@ impl RustCodegen {
         }
         if let Some(rest) = base_type.strip_prefix("std.HashMap(") {
             if let Some(kv) = rest.strip_suffix(')') {
-                let parts = Self::split_type_list(kv);
+                let parts = Self::split_type_list(kv).unwrap_or_default();
                 if parts.len() == 2 {
                     let out = format!(
                         "std::collections::HashMap<{}, {}>",
@@ -24733,7 +24751,18 @@ impl RustCodegen {
         // `Map<K` and ` V>` and produce something worse than the input.
         if base_type.starts_with('(') && base_type.ends_with(')') && base_type.len() > 2 {
             let inner = &base_type[1..base_type.len() - 1];
-            let parts = Self::split_type_list(inner);
+            let parts = match Self::split_type_list(inner) {
+                Some(p) => p,
+                // Malformed inside a tuple: leave it exactly as written, which is what
+                // this position did before the arm existed. rustc then says so loudly.
+                None => {
+                    return if is_optional {
+                        format!("Option<{base_type}>")
+                    } else {
+                        base_type.to_string()
+                    }
+                }
+            };
             // A one-element "tuple" is a parenthesised type, not a tuple, and Rust writes
             // it without the comma. Emitting `(T,)` there would change the type.
             let mapped: Vec<String> = parts
