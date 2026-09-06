@@ -51,8 +51,9 @@ enum Outcome {
     NoGen,
     /// rustc accepted it.
     Ok,
-    /// rustc refused it, with this many real errors and this first class.
-    Errors(usize, String),
+    /// rustc refused it, with this many real errors, this first class, and whether that
+    /// first error was one rustc stops at.
+    Errors(usize, String, bool),
 }
 
 /// The class of one rustc error line, with the identifiers folded out.
@@ -79,6 +80,22 @@ pub fn class_of(line: &str) -> String {
         }
     }
     out.trim().to_string()
+}
+
+/// Did rustc stop early on this one?
+///
+/// A diagnostic with an `[E####]` code came from a pass that ran to completion; one
+/// without a code is a parse or lex error, and rustc abandons the file at the first of
+/// those. So for a spec whose sole error has no code, "one error" is a LOWER BOUND, not a
+/// count -- repair it and the next one appears.
+///
+/// Measured the day this was added: of 56 specs reported as carrying exactly one error,
+/// **27** were of this kind. `server/http.t27` was one of them: its sole error was
+/// `expected expression, found keyword `fn``, and repairing that revealed
+/// `expected expression, found `@`` underneath. The bucket is honest about frequency and
+/// dishonest about termination unless it says which half is which.
+pub fn is_parse_error(line: &str) -> bool {
+    !line.starts_with("error[")
 }
 
 /// Real errors: every `error` line rustc printed EXCEPT its own summary.
@@ -130,7 +147,8 @@ fn judge(root: &Path, spec: &Path, tmp: &Path) -> Result<Outcome> {
     let err = String::from_utf8_lossy(&rc.stderr);
     let lines = real_error_lines(&err);
     let first = lines.first().map(|l| class_of(l)).unwrap_or_default();
-    Ok(Outcome::Errors(lines.len(), first))
+    let stopped = lines.first().map(|l| is_parse_error(l)).unwrap_or(false);
+    Ok(Outcome::Errors(lines.len(), first, stopped))
 }
 
 fn specs(root: &Path) -> Result<Vec<PathBuf>> {
@@ -171,16 +189,16 @@ pub fn run(a: &OneAway) -> Result<()> {
 
     let (mut ok, mut nogen) = (0usize, 0usize);
     let mut buckets: BTreeMap<usize, usize> = BTreeMap::new();
-    let mut hits: Vec<(String, String)> = Vec::new();
+    let mut hits: Vec<(String, String, bool)> = Vec::new();
     for spec in all.iter().take(taken) {
         match judge(&root, spec, &tmp)? {
             Outcome::NoGen => nogen += 1,
             Outcome::Ok => ok += 1,
-            Outcome::Errors(n, class) => {
+            Outcome::Errors(n, class, stopped) => {
                 *buckets.entry(n).or_default() += 1;
                 if n == a.errors {
                     let rel = spec.strip_prefix(&root).unwrap_or(spec).display().to_string();
-                    hits.push((rel, class));
+                    hits.push((rel, class, stopped));
                 }
             }
         }
@@ -201,14 +219,20 @@ pub fn run(a: &OneAway) -> Result<()> {
         println!("    {n:>3}: {c}");
     }
     let one = buckets.get(&a.errors).copied().unwrap_or(0);
+    let stopped_n = hits.iter().filter(|h| h.2).count();
+    let exact_n = one - stopped_n;
     println!();
-    println!("  {one} spec(s) carry exactly {} error, and only those can be moved by one repair.", a.errors);
+    println!("  {one} spec(s) are REPORTED as carrying exactly {} error.", a.errors);
+    println!("    {exact_n:>3}  the count is exact -- every diagnostic carries an [E####] code,");
+    println!("         so rustc ran its passes to completion.");
+    println!("    {stopped_n:>3}  the count is a LOWER BOUND -- the first error has no code, which");
+    println!("         means rustc stopped parsing there. Repair it and the next appears.");
     if one == 0 {
         println!("  Nothing to target at this width. `--errors {}` is the next wave.", a.errors + 1);
         return Ok(());
     }
     let mut by_class: BTreeMap<&str, usize> = BTreeMap::new();
-    for (_, c) in &hits {
+    for (_, c, _) in &hits {
         *by_class.entry(c.as_str()).or_default() += 1;
     }
     let mut ranked: Vec<_> = by_class.into_iter().collect();
@@ -219,8 +243,9 @@ pub fn run(a: &OneAway) -> Result<()> {
     }
     if a.names {
         println!();
-        for (spec, class) in &hits {
-            println!("    {spec}\n         {class}");
+        for (spec, class, stopped) in &hits {
+            let mark = if *stopped { "  (lower bound)" } else { "" };
+            println!("    {spec}\n         {class}{mark}");
         }
     }
     Ok(())
@@ -270,6 +295,14 @@ error: aborting due to 2 previous errors
         "an empty stderr is no errors, not one",
         real_error_lines("").is_empty(),
     );
+    say(
+        "a coded diagnostic means rustc ran to completion",
+        !is_parse_error("error[E0308]: mismatched types"),
+    );
+    say(
+        "an uncoded one means it stopped, so the count is a lower bound",
+        is_parse_error("error: expected type, found keyword `enum`"),
+    );
 
     println!();
     if bad.is_empty() {
@@ -309,6 +342,12 @@ mod tests {
             class_of("error[E0308]: mismatched types"),
             "mismatched types"
         );
+    }
+
+    #[test]
+    fn a_coded_error_is_not_a_parse_error() {
+        assert!(!is_parse_error("error[E0425]: cannot find value `x` in this scope"));
+        assert!(is_parse_error("error: expected expression, found keyword `fn`"));
     }
 
     #[test]
