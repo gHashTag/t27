@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:23f612a0f0137901bc0bbf8992d3e6c12ee2001b6a1943d0a98f1d892e41ffd4",
-  "gen_hash_rust": "sha256:2d777a8ac6eaceeac6b26879dabdd77ae9f00a806b2502ed2a3af1d0c6bae4a5",
+  "gen_hash_rust": "sha256:7d1f40246aec6b456a8b1fd0f4b36902296f458c7708019c088f456d00433e4b",
   "gen_hash_verilog": "sha256:9dbbbb42bf8f29550ecfa83e0519ddf277e2ec805786dff87bf61e4fe8316627",
   "gen_hash_zig": "sha256:f2c89dc29ca982ec4ef5ac1153b07c39269c7ecd5dba2d1db14e1b4c43cd294f",
   "module": "GF8",

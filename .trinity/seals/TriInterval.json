@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:832375af6ae8c806cbb186d079978a927cd648bbac7f53e6f56acd41b804907c",
-  "gen_hash_rust": "sha256:a2d890221ec7197e77cee7844fc2d6a35b08a19f3675e223eba046f1c76d3b57",
+  "gen_hash_rust": "sha256:4e9e0e82d7e7db87c5a392c20457f1dee1efd6e9f3257b4084ed8c40850b780e",
   "gen_hash_verilog": "sha256:36e325102e58ed8a7253539faa4a22611caa5b109b1521b3e4e58ca7f73cd761",
   "gen_hash_zig": "sha256:608c5fe2e0fc198ec53c6a684421341c2f174acd68aefecd71f7aa6de48c3908",
   "module": "TriInterval",

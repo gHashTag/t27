@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:7dc7e4bdb04ae4bb06fda2f90eca3b4905ae2d02f8c80452b67594a0da600e17",
-  "gen_hash_rust": "sha256:3a5a157fc8178da002d7738b676abc994c6d9b2f9d09e1f313fe3e83e23ed78a",
+  "gen_hash_rust": "sha256:14e1c5cb3348b9e90558bce97218b8c5564af998d487148f0bebbc7366a86727",
   "gen_hash_verilog": "sha256:7247ec4c47b23b1e60b82ed743d2c03150a6ffc13d341b3c81fd25bc187cbc3e",
   "gen_hash_zig": "sha256:37b548cd1674b1938348d414f1858c5ff0615c8dc5d1c2ab751781293e2838be",
   "module": "RTL",

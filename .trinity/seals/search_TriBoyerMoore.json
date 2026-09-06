@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:924eae0109a7b5467c2fb06b2ebe18e43c561da06b417b14598bdda36e4ec2e2",
-  "gen_hash_rust": "sha256:6b67d5d724f472145df4a35f53a8224ec3adf091271a0a8976146a61c50a3e4e",
+  "gen_hash_rust": "sha256:e8e291d0ad9c573f5ba2223935700f0d7bb8d0d3390a02cdbbceeff986860ac7",
   "gen_hash_verilog": "sha256:106c31f6afd886aed6f497a2ba1c8bb16c4d07521086dd07e0614e9022b8806d",
   "gen_hash_zig": "sha256:0ebaed2c4f6fba66525631fb9b277c8251662c856ff1c314ad0207f1e5b3772e",
   "module": "TriBoyerMoore",
   "ring": 12,
-  "sealed_at": "2026-09-05T09:02:10Z",
+  "sealed_at": "2026-09-06T04:36:45Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:949befe08d74fbddd4b1f79be2e36be09900c171edf1361e97ebf4973c682edb",
   "spec_path": "specs/tri/search/boyer_moore.t27"

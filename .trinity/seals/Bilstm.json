@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:591d929d8a8026b175294ea073b8a7a8b4fe4e0041951a6fc9a05dc6645603f6",
-  "gen_hash_rust": "sha256:ee43c69e0e7758eafd2d8bd0e1236cdb5eac27eba19d068ef3832e2ddb176e3f",
+  "gen_hash_rust": "sha256:3dce481fc03d44a289817fbe8ec686aa4f33be8929ac3ef8d541485e89f04dcd",
   "gen_hash_verilog": "sha256:ce84bf0099fe527f71d3245d5d875e15fca0737f10d30c3f0a3a89deac059b00",
   "gen_hash_zig": "sha256:c1ba2b2b9a3434fd9a3be1df7c5932217dc336c498f4b7e76ada6f8e83f94915",
   "module": "Bilstm",
