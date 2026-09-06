@@ -24561,6 +24561,39 @@ impl RustCodegen {
             (t, false)
         };
 
+        // A TUPLE maps element by element. Without this arm `(A, B)` fell through to
+        // the default and was emitted verbatim, so an inner `[]f32` -- which every other
+        // position maps to `Vec<f32>` -- reached rustc as `[]f32`. The rule existed and
+        // did not travel into this position. Measured on the corpus: 6 specs.
+        //
+        // The split is DEPTH-AWARE. A naive `split(',')` would cut `(Map<K, V>, T)` into
+        // `Map<K` and ` V>` and produce something worse than the input.
+        if base_type.starts_with('(') && base_type.ends_with(')') && base_type.len() > 2 {
+            let inner = &base_type[1..base_type.len() - 1];
+            let mut parts: Vec<String> = Vec::new();
+            let (mut depth, mut start) = (0i32, 0usize);
+            for (i, c) in inner.char_indices() {
+                match c {
+                    '<' | '[' | '(' => depth += 1,
+                    '>' | ']' | ')' => depth -= 1,
+                    ',' if depth == 0 => {
+                        parts.push(inner[start..i].to_string());
+                        start = i + c.len_utf8();
+                    }
+                    _ => {}
+                }
+            }
+            parts.push(inner[start..].to_string());
+            // A one-element "tuple" is a parenthesised type, not a tuple, and Rust writes
+            // it without the comma. Emitting `(T,)` there would change the type.
+            let mapped: Vec<String> = parts
+                .iter()
+                .map(|q| Self::t27_type_to_rust(q.trim()))
+                .collect();
+            let joined = format!("({})", mapped.join(", "));
+            return if is_optional { format!("Option<{joined}>") } else { joined };
+        }
+
         let rust_type = match base_type {
             "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
             "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
