@@ -24021,12 +24021,59 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// A `const X = fn(A) R;` is a TYPE ALIAS, and Rust spells it `type X = fn(A) -> R;`.
+    ///
+    /// The parser has no production for a function type: it swallows the whole text into
+    /// one `ExprIdentifier` whose name is `"fn ( MiddlewareContext ) bool"`, and this
+    /// emitter printed it as the VALUE of an `i32` constant --
+    ///
+    ///     pub const Middleware: i32 = fn ( MiddlewareContext ) bool;
+    ///
+    /// which rustc reads as `expected expression, found keyword `fn``. C emits the same
+    /// shape (`static const int Middleware = fn ( MiddlewareContext ) bool;`) and Zig does
+    /// not generate at all, so no neighbour answers this one -- but there is nothing to
+    /// decide either: a function type has exactly one Rust spelling, and the current
+    /// output is not a defensible alternative to it.
+    ///
+    /// Returns None unless the text really is `fn` followed by a parenthesised list.
+    fn fn_type_alias(text: &str) -> Option<String> {
+        let t = text.trim();
+        let rest = t.strip_prefix("fn")?.trim_start();
+        let rest = rest.strip_prefix('(')?;
+        let (args, ret) = rest.split_once(')')?;
+        let args: Vec<String> = args
+            .split(',')
+            .map(str::trim)
+            .filter(|a| !a.is_empty())
+            // A named parameter (`e: SSEEvent`) keeps only its type; a bare type stays.
+            .map(|a| Self::t27_type_to_rust(a.rsplit(':').next().unwrap_or(a).trim()))
+            .collect();
+        let ret = ret.trim();
+        // `void` and an absent return are the same thing, and Rust writes neither.
+        let tail = if ret.is_empty() || ret == "void" {
+            String::new()
+        } else {
+            format!(" -> {}", Self::t27_type_to_rust(ret))
+        };
+        Some(format!("fn({}){}", args.join(", "), tail))
+    }
+
     fn gen_const(&mut self, node: &Node) {
         let const_type = if node.extra_type.is_empty() {
             "i32".to_string()
         } else {
             Self::t27_type_to_rust(node.extra_type.as_str())
         };
+        // A function TYPE is not a value, so it cannot be the initialiser of a const.
+        if let Some(child) = node.children.first() {
+            if child.kind == NodeKind::ExprIdentifier {
+                if let Some(sig) = Self::fn_type_alias(&child.name) {
+                    self.write_line(&format!("pub type {} = {};", node.name, sig));
+                    self.blank_line();
+                    return;
+                }
+            }
+        }
         let value = if node.children.is_empty() {
             "()".to_string()
         } else {
