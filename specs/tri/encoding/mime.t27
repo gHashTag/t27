@@ -12,7 +12,7 @@ module TriMime;
 
     pub const Email = struct {
         from : []const u8,
-        to : "[]Const []Const u8",
+        to : "[]const []const u8",
         subject : []const u8,
         body : []const u8,
     };

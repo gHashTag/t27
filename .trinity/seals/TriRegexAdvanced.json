@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:dc463696086a58e698a15a4238ae63a499cbac094429a2387e14cd739910dc1e",
-  "gen_hash_rust": "sha256:303d82e6840a50b9dfa904d835fdbff1c6cdd17d3da02dd7a5aceee0fd6b4be4",
+  "gen_hash_c": "sha256:ed5e6537700a6c086552c644dab8eb45b578bcbfce6e92ba1a55aaf63ce42bbd",
+  "gen_hash_rust": "sha256:3f9559e1380d1094eb7dfa4c412823e38e8d50662240b0b8f8ba74064771da8d",
   "gen_hash_verilog": "sha256:5bb02a292bd10fb53411ca2380e67a3fab3d0800c51962606ce9283d614e28b4",
-  "gen_hash_zig": "sha256:a783e2441cda2f795ad00cc859546633da713b006284dc95d7d1f61818c89332",
+  "gen_hash_zig": "sha256:d3cf2299e239495867d8d3ac2466e75b73a8c674060ae471fec3cb8ad406f13a",
   "module": "TriRegexAdvanced",
   "ring": 12,
   "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:73078f0915d6e2de2d4bc5a75df1804dbabd9f0c6bc20f4a1ff5af929673c225",
+  "spec_hash": "sha256:a2c1f1c987153e3d5dfd1983d6d41b0dfe5e1647ff9163a9fd6335ae28bbd454",
   "spec_path": "specs/tri/search/regex_advanced.t27"
 }
