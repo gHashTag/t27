@@ -21,7 +21,7 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
     red.rs:337  fn deep_runs_url
 
   ONE ROW, NO TOTAL:
-    gates.rs:3596  fn unmeasured
+    gates.rs:3651  fn unmeasured
     red.rs:364  fn last_pass
     red.rs:565  fn now
 

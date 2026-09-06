@@ -3510,13 +3510,68 @@ fn parse_branch_list(rest: &str) -> Vec<String> {
 /// Can a human get the missing reading at all? Without `workflow_dispatch:`
 /// there is no way to fire it against the default branch on purpose, so the
 /// gap cannot be closed even by someone who wants to.
-fn has_dispatch(root: &std::path::Path, rel: &str) -> bool {
-    match std::fs::read_to_string(root.join(rel)) {
-        Ok(t) => t
-            .lines()
-            .any(|l| l.trim_start().starts_with("workflow_dispatch:")),
-        Err(_) => false,
+///
+/// Three states, because the domain has three. A workflow with no dispatch may
+/// be missing one, or may have REFUSED one on purpose -- and "add
+/// `workflow_dispatch:` first" is not merely useless for the second, it is an
+/// instruction to undo a deliberate decision.
+///
+/// #3325 removed the dispatch from `release.yml`, where it could only ever
+/// fail: every job keys off `github.event.release.tag_name`, which is empty on
+/// a dispatch, so preflight refuses and every publishing job is skipped. The
+/// reason was left in a YAML comment, which this tool does not read. It went on
+/// printing `dispatch: NO` beside the advice to add one -- that is, advising the
+/// next reader to put a dispatch back in front of `cargo publish` and `npm
+/// publish` against live registries. A refusal has to be recorded where the
+/// tool looks, not only where a human reads.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Dispatch {
+    /// `workflow_dispatch:` is present: the reading can be taken.
+    Yes,
+    /// Absent, with no reason given: the gap cannot be closed on purpose.
+    No,
+    /// Absent on purpose, and the workflow says so with `# tri:no-dispatch`.
+    Refused,
+}
+
+impl Dispatch {
+    fn label(self) -> &'static str {
+        match self {
+            Dispatch::Yes => "yes",
+            Dispatch::No => "NO",
+            Dispatch::Refused => "refused",
+        }
     }
+}
+
+/// The marker a workflow uses to say its missing dispatch is a decision.
+pub const NO_DISPATCH_MARKER: &str = "tri:no-dispatch";
+
+fn has_dispatch(root: &std::path::Path, rel: &str) -> Dispatch {
+    match std::fs::read_to_string(root.join(rel)) {
+        Ok(t) => dispatch_of(&t),
+        Err(_) => Dispatch::No,
+    }
+}
+
+/// Split out from the file read so it can be asked of a string in a test.
+fn dispatch_of(text: &str) -> Dispatch {
+    // A present dispatch wins over the marker. If a workflow carries both, the
+    // reading CAN be taken whatever the comment says, and reporting otherwise
+    // would hide a real one behind a stale note.
+    if text
+        .lines()
+        .any(|l| l.trim_start().starts_with("workflow_dispatch:"))
+    {
+        return Dispatch::Yes;
+    }
+    if text.lines().any(|l| {
+        let l = l.trim_start();
+        l.starts_with('#') && l.contains(NO_DISPATCH_MARKER)
+    }) {
+        return Dispatch::Refused;
+    }
+    Dispatch::No
 }
 
 /// The active-workflow listing, in one place because it was in two.
@@ -3541,11 +3596,11 @@ fn workflow_listing(repo: &str, jq: &str) -> Result<String> {
 
 fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     let root = repo_root()?;
-    let mut no_auto: Vec<(String, String, bool, bool, String)> = Vec::new();
+    let mut no_auto: Vec<(String, String, Dispatch, bool, String)> = Vec::new();
     // Named once, so the printed sentence quotes the branch actually queried
     // rather than the word "master" hardcoded into a message.
     let mut default_branch_seen = String::new();
-    let mut rows: Vec<(String, String, String, bool, bool, bool)> = Vec::new();
+    let mut rows: Vec<(String, String, String, bool, Dispatch, bool)> = Vec::new();
     let mut checked = 0usize;
     let mut unreadable = 0usize;
     let mut ghosts: Vec<(String, String, String)> = Vec::new();
@@ -3701,7 +3756,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             println!(
                 "  {:<10}  {:<9}  {:<8}  {}  ({})",
                 last,
-                if *dispatch { "yes" } else { "NO" },
+                dispatch.label(),
                 if *pr_only { "YES" } else { "-" },
                 name,
                 repo
@@ -3718,7 +3773,9 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                not a dispatch: either the check learns a default-branch mode, or the\n\
                context is recorded as PR-only by construction and stops being read as a\n\
                gap.\n\
-             \n  `LAST` is a lifetime per-workflow query, not a window over recent runs.\n\
+             \n  `dispatch: refused` means the workflow declined one on purpose, with\n\
+                   a `# tri:no-dispatch` comment saying why. It is not a gap to close.\n\
+                 \n  `LAST` is a lifetime per-workflow query, not a window over recent runs.\n\
                Reading a window and reporting a lifetime is how this section came to\n\
                exist.\n"
         );
@@ -3748,7 +3805,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             "  {:<10}  {:<7}  {:<9}  {:<8}  {}  ({})",
             last,
             if *filtered { "yes" } else { "-" },
-            if *dispatch { "yes" } else { "NO" },
+            dispatch.label(),
             if *pr_only { "YES" } else { "-" },
             name,
             repo
@@ -3758,6 +3815,12 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
         "\n  A gate that has not run on the default branch is not passing there; it is\n\
            unmeasured. `paths: yes` is usually the reason. `dispatch: NO` means the\n\
            reading cannot be taken on purpose -- add `workflow_dispatch:` first.\n\
+             \n  `dispatch: refused` means the workflow declined one ON PURPOSE and\n\
+               says so with a `# tri:no-dispatch` comment. Do not add one.\n\
+               `release.yml` is the case that put this column here: every job keys\n\
+               off the release tag, which is empty on a dispatch, so a dispatch there\n\
+               cannot publish and cannot measure -- it can only fail. Advising one is\n\
+               advising a dispatch in front of `cargo publish` on a live registry.\n\
          \n  `pr-only: YES` means a dispatch STARTS it and measures nothing, so\n\
            `dispatch: yes` beside it is not an invitation. That column was added to the\n\
            table above this one after telling a reader to take a reading that cannot be\n\
@@ -8568,5 +8631,71 @@ jobs:
         assert_eq!(bash_only("  if [ -f x ]; then"), None);
         assert_eq!(bash_only("  . ./env.sh"), None);
         assert_eq!(bash_only("  COUNT=$(wc -l < f)"), None);
+    }
+}
+
+#[cfg(test)]
+mod dispatch_refusal_tests {
+    use super::{dispatch_of, Dispatch};
+
+    #[test]
+    fn a_marker_without_a_dispatch_is_a_refusal_not_a_gap() {
+        let y = "name: x\non:\n  release:\n    types: [published]\n  # tri:no-dispatch every job keys off the tag\njobs: {}\n";
+        assert_eq!(dispatch_of(y), Dispatch::Refused);
+    }
+
+    #[test]
+    fn no_dispatch_and_no_marker_is_still_a_gap() {
+        let y = "name: x\non:\n  release:\n    types: [published]\njobs: {}\n";
+        assert_eq!(dispatch_of(y), Dispatch::No);
+    }
+
+    #[test]
+    fn a_present_dispatch_wins_over_a_stale_marker() {
+        // Both present is a contradiction, and the reading CAN be taken. Reporting
+        // `refused` here would hide a real dispatch behind an out-of-date comment.
+        let y = "name: x\non:\n  # tri:no-dispatch left behind\n  workflow_dispatch:\njobs: {}\n";
+        assert_eq!(dispatch_of(y), Dispatch::Yes);
+    }
+
+    #[test]
+    fn the_marker_must_be_a_comment_not_prose() {
+        // A workflow that merely mentions the string in a `run:` body has not
+        // refused anything.
+        let y = "name: x\non:\n  release:\njobs:\n  a:\n    steps:\n      - run: echo tri:no-dispatch\n";
+        assert_eq!(dispatch_of(y), Dispatch::No);
+    }
+
+    /// The function was right and the two columns still printed a bool. This asks
+    /// the wiring, not the reader -- the defect this whole change exists to fix
+    /// lived in a print site, not in a predicate.
+    #[test]
+    fn both_dispatch_columns_ask_the_three_state_reader() {
+        let src = include_str!("gates.rs");
+        let ternary = concat!("if *dispatch { \"yes\" }", " else { \"NO\" }");
+        assert_eq!(
+            src.matches(ternary).count(),
+            0,
+            "a dispatch column still prints a two-state bool"
+        );
+        let call = concat!("dispatch.", "label()");
+        assert_eq!(
+            src.matches(call).count(),
+            2,
+            "expected both dispatch columns to call label()"
+        );
+    }
+
+    /// The advice is the defect. A table that prints `refused` while its footnote
+    /// still says only "add `workflow_dispatch:` first" sends the next reader to
+    /// undo the refusal.
+    #[test]
+    fn the_advice_explains_a_refusal_wherever_a_column_prints_one() {
+        let src = include_str!("gates.rs");
+        let needle = concat!("`dispatch: ", "refused`");
+        assert!(
+            src.matches(needle).count() >= 2,
+            "each dispatch table needs a footnote explaining `refused`"
+        );
     }
 }
