@@ -24612,6 +24612,47 @@ impl RustCodegen {
         })
     }
 
+    /// Split a comma-separated type list, honouring nesting.
+    ///
+    /// A naive `split(',')` cuts `Map<K, V>, T` into `Map<K`, ` V>` and ` T`, which is
+    /// worse than the input. Shared by the tuple arm and the map arm so the two cannot
+    /// disagree about what a comma means.
+    fn split_type_list(inner: &str) -> Option<Vec<String>> {
+        let mut parts: Vec<String> = Vec::new();
+        let (mut depth, mut start) = (0i32, 0usize);
+        for (i, c) in inner.char_indices() {
+            match c {
+                '<' | '[' | '(' => depth += 1,
+                // `->` is a `-` then a `>`, and counting that `>` as a close drove depth
+                // NEGATIVE on `fn(A) -> B`, making the split silently wrong rather than
+                // absent. A list that does not balance is not one this function can answer
+                // about, and None is the honest reply.
+                '>' | ']' | ')' => {
+                    depth -= 1;
+                    if depth < 0 {
+                        return None;
+                    }
+                }
+                ',' if depth == 0 => {
+                    parts.push(inner[start..i].to_string());
+                    start = i + c.len_utf8();
+                }
+                _ => {}
+            }
+        }
+        if depth != 0 {
+            return None;
+        }
+        parts.push(inner[start..].to_string());
+        // An EMPTY argument is not an argument. `std.StringHashMap()` split to one empty
+        // string, passed a `len() == 1` guard and emitted `HashMap<&'static str, >`,
+        // which is not Rust: the guard counted commas where it meant to count types.
+        if parts.iter().any(|q| q.trim().is_empty()) {
+            return None;
+        }
+        Some(parts)
+    }
+
     /// Is this emitted Rust type `Copy`?
     ///
     /// Deliberately a CLOSED list of primitives plus `&'static str` and fixed-size arrays
@@ -24651,6 +24692,56 @@ impl RustCodegen {
             (t, false)
         };
 
+        // A Zig standard-library MAP, which eight corpus fields declare as their type:
+        //
+        //     "std.StringHashMap([]const u8)"      5 fields
+        //     "std.HashMap(K, V)"                  3 fields
+        //
+        // The type is written as a QUOTED STRING in the spec; the compiler strips the
+        // quotes and emits the content, so rustc received `std.StringHashMap(...)`, which
+        // is not Rust. `StringHashMap` keys by string, so its Rust equivalent names the
+        // key type the Zig form leaves implicit.
+        //
+        // Anchored on the WHOLE type string. `std.math.`, `std.mem.` and the rest appear
+        // only in expression position and never reach this function, but an unanchored
+        // match would be a rule about a prefix rather than about a type.
+        if let Some(rest) = base_type.strip_prefix("std.StringHashMap(") {
+            if let Some(v) = rest.strip_suffix(')') {
+                // ARITY. `StringHashMap` takes exactly one argument; without this guard
+                // `std.StringHashMap(K, V)` emitted `HashMap<String, K, V>` -- three type
+                // arguments, which is not Rust. A wrong arity now falls through to the
+                // default and rustc says so loudly, which is the honest outcome.
+                let args = Self::split_type_list(v).unwrap_or_default();
+                if args.len() == 1 {
+                    // The KEY type is whatever this emitter maps `[]const u8` to, not a
+                    // hardcoded `String`. Zig's `StringHashMap` keys by `[]const u8`, and
+                    // writing `String` here made two spellings of the same intent produce
+                    // incompatible Rust: `std.StringHashMap(u32)` gave
+                    // `HashMap<String, u32>` while `std.HashMap([]const u8, u32)` gave
+                    // `HashMap<&'static str, u32>`. One emitter, one answer.
+                    let key = Self::t27_type_to_rust("[]const u8");
+                    let out = format!(
+                        "std::collections::HashMap<{key}, {}>",
+                        Self::t27_type_to_rust(args[0].trim())
+                    );
+                    return if is_optional { format!("Option<{out}>") } else { out };
+                }
+            }
+        }
+        if let Some(rest) = base_type.strip_prefix("std.HashMap(") {
+            if let Some(kv) = rest.strip_suffix(')') {
+                let parts = Self::split_type_list(kv).unwrap_or_default();
+                if parts.len() == 2 {
+                    let out = format!(
+                        "std::collections::HashMap<{}, {}>",
+                        Self::t27_type_to_rust(parts[0].trim()),
+                        Self::t27_type_to_rust(parts[1].trim())
+                    );
+                    return if is_optional { format!("Option<{out}>") } else { out };
+                }
+            }
+        }
+
         // A TUPLE maps element by element. Without this arm `(A, B)` fell through to
         // the default and was emitted verbatim, so an inner `[]f32` -- which every other
         // position maps to `Vec<f32>` -- reached rustc as `[]f32`. The rule existed and
@@ -24660,20 +24751,18 @@ impl RustCodegen {
         // `Map<K` and ` V>` and produce something worse than the input.
         if base_type.starts_with('(') && base_type.ends_with(')') && base_type.len() > 2 {
             let inner = &base_type[1..base_type.len() - 1];
-            let mut parts: Vec<String> = Vec::new();
-            let (mut depth, mut start) = (0i32, 0usize);
-            for (i, c) in inner.char_indices() {
-                match c {
-                    '<' | '[' | '(' => depth += 1,
-                    '>' | ']' | ')' => depth -= 1,
-                    ',' if depth == 0 => {
-                        parts.push(inner[start..i].to_string());
-                        start = i + c.len_utf8();
+            let parts = match Self::split_type_list(inner) {
+                Some(p) => p,
+                // Malformed inside a tuple: leave it exactly as written, which is what
+                // this position did before the arm existed. rustc then says so loudly.
+                None => {
+                    return if is_optional {
+                        format!("Option<{base_type}>")
+                    } else {
+                        base_type.to_string()
                     }
-                    _ => {}
                 }
-            }
-            parts.push(inner[start..].to_string());
+            };
             // A one-element "tuple" is a parenthesised type, not a tuple, and Rust writes
             // it without the comma. Emitting `(T,)` there would change the type.
             let mapped: Vec<String> = parts
