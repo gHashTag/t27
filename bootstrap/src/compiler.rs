@@ -23881,6 +23881,47 @@ impl RustCodegen {
         }
     }
 
+    /// A field whose type names the struct being defined needs indirection in Rust.
+    ///
+    /// `pub const KDNode = struct { left : "?KDNode", ... }` maps to
+    /// `pub left: Option<KDNode>` inside `pub struct KDNode`, and rustc answers
+    /// `recursive type `KDNode` has infinite size ... insert some indirection (e.g. a
+    /// `Box`, `Rc`, or `&`)`. There is no version of this that compiles without one, so
+    /// this is not a choice about representation -- it is the difference between output
+    /// and no output. `Box` is the ownership-preserving one of the three rustc names.
+    ///
+    /// Nine structs in the corpus refer to themselves; three of them are specs whose ONLY
+    /// remaining error is this one.
+    ///
+    /// Deliberately narrow. `Vec<Name>` already carries its indirection and is left alone,
+    /// and so is anything more deeply nested than `Option<Name>` -- a type this does not
+    /// recognise keeps its current output rather than getting a guess.
+    fn box_if_self_referential(field_type: &str, struct_name: &str) -> String {
+        if struct_name.is_empty() {
+            return field_type.to_string();
+        }
+        if field_type == struct_name {
+            return format!("Box<{struct_name}>");
+        }
+        let opt = format!("Option<{struct_name}>");
+        if field_type == opt {
+            return format!("Option<Box<{struct_name}>>");
+        }
+        // `[Option<OctNode>; 8]`. An array is inline storage, so it is as recursive as a
+        // bare field; only the element needs the box. This was previously written off as
+        // "genuinely infinitely sized" -- it is not, `[Option<Box<OctNode>>; 8]` is finite
+        // and is what octree and quadtree need.
+        if let Some(rest) = field_type.strip_prefix('[') {
+            if let Some((elem, tail)) = rest.rsplit_once(';') {
+                let boxed = Self::box_if_self_referential(elem.trim(), struct_name);
+                if boxed != elem.trim() {
+                    return format!("[{boxed};{tail}");
+                }
+            }
+        }
+        field_type.to_string()
+    }
+
     fn gen_struct(&mut self, node: &Node) {
         // The serde derives were unconditional, and the corpus compiles this
         // output as a standalone `--crate-type lib` with no `--extern`. Every
@@ -23952,6 +23993,7 @@ impl RustCodegen {
             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
                 let field_name = &child.name;
                 let field_type = Self::t27_type_to_rust(&child.extra_type);
+                let field_type = Self::box_if_self_referential(&field_type, &node.name);
                 if field_type.trim() == "bool" {
                     self.bool_fields.insert(field_name.clone());
                 }
