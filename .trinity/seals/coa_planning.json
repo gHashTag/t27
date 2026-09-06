@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:51034bfe26f2a680c1db02232415a90a4e84420a86c9d4f19602686b9acd5afb",
-  "gen_hash_rust": "sha256:4424f92caae7ab6275bb031f0fa6521e4f3241925c2b1f608370a79d95cfdf3e",
+  "gen_hash_rust": "sha256:d68a3dfc5332bf206443b1befc475940231962e3f1a69f7944daae4006d81f96",
   "gen_hash_verilog": "sha256:29e4a69b72122f9715a543d92d7ee68c8d554ec5b8aefe2f797e9b86406cb8ce",
   "gen_hash_zig": "sha256:f631078ead3dd650ee408409b06bdedaa66f64de0be918128b0caac668b81a33",
   "module": "coa_planning",
