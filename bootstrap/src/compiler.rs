@@ -41646,6 +41646,16 @@ fn read_it() -> u16 {
             }
         }"#;
         let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // `unwrap_or("")` makes the region EMPTY when the key is absent, and an
+        // empty region satisfies the assertion below by construction. Nothing
+        // else here asserts the clocked block exists: `fn on_clock` appears as a
+        // fixture exactly once in this file, in this test, so a rename of the
+        // emitted `always @(posedge` would leave this passing on nothing.
+        assert!(
+            v.contains("always @(posedge"),
+            "the emitter no longer produces a clocked block, so the assertion \
+             below would pass over an empty region:\n{v}"
+        );
         let clocked = v.split("always @(posedge").nth(1).unwrap_or("");
         assert!(
             !clocked.contains("__t27_ret"),
@@ -41687,10 +41697,27 @@ fn read_it() -> u16 {
         // last one may name the flag.
         let v = Compiler::compile_verilog_for_simulation(src)
             .expect("compile should succeed");
+        // The `.expect` below cannot fire and does not check what it says:
+        // `__mul_noop` is injected unconditionally, so an `endfunction` is
+        // present whether or not the fixture declares a function. The real
+        // precondition is that the lowered test block is emitted AFTER the
+        // functions -- nothing in this test asserted that ordering, and the
+        // region is empty of the subject the moment it changes.
+        assert!(
+            v.contains("initial begin"),
+            "the test block is no longer lowered, so the region below holds \
+             nothing to find:\n{v}"
+        );
         let end_of_functions = v
             .rfind("endfunction")
             .or_else(|| v.rfind("endtask"))
             .expect("the fixture declares a function");
+        assert!(
+            v[end_of_functions..].contains("initial begin"),
+            "the lowered test block no longer sits after the last endfunction, \
+             so this region is not the one the assertion means:\n{}",
+            &v[end_of_functions..]
+        );
         assert!(
             !v[end_of_functions..].contains("__t27_ret"),
             "nothing outside a function body may test a flag that is declared \
