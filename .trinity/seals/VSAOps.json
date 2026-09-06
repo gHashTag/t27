@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:bd24a15fa13302e4291cd3009623c075bc795ca18cf88b868518432878fbc2a8",
-  "gen_hash_rust": "sha256:8ab1d7b95331e079dcfa5921c708dd596e68b5c9e707b1e1cb28df38f1dfe8e4",
+  "gen_hash_rust": "sha256:4bd6783f841c5233759b1f94c6c24b54869eb0a33035d86a35cbababd7d50efa",
   "gen_hash_verilog": "sha256:e4be62c8876102e115ae4bdc392a5964f5d625d0b54f99f85269d76a7669745f",
   "gen_hash_zig": "sha256:76a69b1eb4bafb6ef02fe67164eaa0ae06084f636c883a2d4d4d39a6590d74b8",
   "module": "VSAOps",
