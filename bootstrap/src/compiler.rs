@@ -2432,6 +2432,43 @@ impl Parser {
                 self.expect(TokenKind::LBrace)?;
                 self.parse_struct_body(&mut decl)?;
                 self.expect(TokenKind::RBrace)?;
+            } else if self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "packed"
+                && self.peek.kind == TokenKind::KwStruct
+            {
+                // `pub const Greeting = packed struct { ... };`
+                //
+                // The bare `struct` case below has been handled since the
+                // beginning; `packed struct` had not, and there is no KwPacked
+                // in this lexer -- `packed` arrives as an Ident, exactly like
+                // `union` above. So this declaration fell through to the
+                // generic expression path and became a ConstDecl whose
+                // initializer started at the token `packed`.
+                //
+                // The Verilog backend then rendered it as a scalar parameter:
+                //
+                //     parameter [31:0] Greeting = packed;
+                //
+                // `packed` is not a value. That line is what a reader of
+                // specs/demos/hello_world.t27 -- the spec the corpus opens on,
+                // and the one that claims to show "every part of the language"
+                // -- gets under the Verilog tab today.
+                //
+                // A packed struct is exactly the declaration that matters most
+                // to a hardware backend: it IS a bit layout. Losing it to a
+                // keyword token is the worst-placed gap in the emitter.
+                // Packedness itself is NOT recorded on the node. Nothing
+                // downstream reads it today, and inventing a field no emitter
+                // consumes would look like support that does not exist. The
+                // declaration now reaches the backends as a struct, which is
+                // the part that was missing.
+                decl.kind = NodeKind::StructDecl;
+                self.advance(); // consume 'packed'
+                self.advance(); // consume 'struct'
+                self.expect(TokenKind::LBrace)?;
+                self.parse_struct_body(&mut decl)?;
+                self.expect(TokenKind::RBrace)?;
+                fold_sole_enum_field(&mut decl);
             } else if self.current.kind == TokenKind::KwStruct {
                 // pub const Foo = struct { ... };
                 decl.kind = NodeKind::StructDecl;
@@ -22911,6 +22948,64 @@ mod tests_hir_module {
         assert!(m.assigns.is_empty());
         assert!(m.always_blocks.is_empty());
         assert!(m.instances.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod tests_packed_struct_decl {
+    use super::*;
+
+    /// `pub const X = packed struct { ... };` must reach the backends as a
+    /// StructDecl, exactly like the bare `struct` form.
+    ///
+    /// Before this was handled, `packed` (an Ident -- there is no KwPacked in
+    /// this lexer) fell through to the generic expression path, the whole
+    /// declaration became a ConstDecl, and the Verilog backend rendered its
+    /// initializer as a scalar parameter:
+    ///
+    ///     parameter [31:0] Greeting = packed;
+    ///
+    /// `packed` is not a value. No spec in this repository declares one today,
+    /// which is why nothing caught it -- but the corpus snapshot the website
+    /// vendors does, in `specs/demos/hello_world.t27`, the spec the Spec
+    /// Explorer opens on and describes as showing "every part of the language".
+    /// So this test is the only thing standing between the construct and a
+    /// silent regression.
+    #[test]
+    fn packed_struct_const_parses_as_a_struct_declaration() {
+        let src = "module m;\npub const Greeting = packed struct {\n    length: u8,\n    trit: i8,\n};\n";
+        let lex = Lexer::new(src);
+        let mut parser = Parser::new(lex);
+        let root = parser.parse().expect("packed struct should parse");
+
+        let greeting = root
+            .children
+            .iter()
+            .find(|d| d.name == "Greeting")
+            .expect("Greeting declaration should be present");
+
+        assert_eq!(
+            greeting.kind,
+            NodeKind::StructDecl,
+            "packed struct must be a StructDecl, not a ConstDecl whose value is the token `packed`"
+        );
+        assert_eq!(greeting.children.len(), 2, "both fields should be parsed");
+    }
+
+    /// The bare form must keep working — this test exists so a future edit to
+    /// the packed branch cannot quietly shadow the one beneath it.
+    #[test]
+    fn plain_struct_const_still_parses_as_a_struct_declaration() {
+        let src = "module m;\npub const Plain = struct {\n    a: u8,\n};\n";
+        let lex = Lexer::new(src);
+        let mut parser = Parser::new(lex);
+        let root = parser.parse().expect("plain struct should parse");
+        let plain = root
+            .children
+            .iter()
+            .find(|d| d.name == "Plain")
+            .expect("Plain declaration should be present");
+        assert_eq!(plain.kind, NodeKind::StructDecl);
     }
 }
 
