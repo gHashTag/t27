@@ -5633,16 +5633,39 @@ impl Reading {
 pub fn issue_pattern(yaml: &str) -> Option<String> {
     for line in yaml.lines() {
         let l = line.trim();
-        if !l.contains("grep") || !l.contains("#[0-9]+") {
+        // Anchored on the gate's VOCABULARY, not on how it spells a number.
+        //
+        // This read `#[0-9]+` twice -- once to find the line, once to pick the quoted
+        // span -- and #3388 changed the spelling to `#[1-9][0-9]*` to reject `#0`. The
+        // line then matched nothing and the extractor reported that the gate states no
+        // pattern at all. A number's spelling is the part of a pattern most likely to be
+        // tightened; the keyword list is the part that identifies it.
+        if !l.contains("grep") || !l.contains("Closes?") {
             continue;
         }
-        // The pattern is the single-quoted argument on that line.
-        let start = l.find('\'')?;
-        let rest = &l[start + 1..];
-        let end = rest.find('\'')?;
-        let pat = &rest[..end];
-        if pat.contains("#[0-9]+") {
-            return Some(pat.to_string());
+        // EVERY single-quoted span on the line, not the first one.
+        //
+        // The gate's line used to begin with its `grep`, so the first quote pair was the
+        // pattern. #3388 rewrote it to strip fenced blocks and quotes from the body first,
+        // and the line now opens with `printf '%s\n%s\n'` -- so the first pair is a
+        // printf format, the extractor read that, found no `#[0-9]+` in it, and gave up on
+        // the line instead of looking further along it. `tri gates preview` then had no
+        // pattern at all and `the_pattern_is_read_out_of_the_gate_that_enforces_it`
+        // panicked, reddening `cli-tri` on master.
+        //
+        // Taking the first span was never the rule; it was the first span happening to be
+        // the only one.
+        let mut rest = l;
+        while let Some(start) = rest.find('\'') {
+            let after = &rest[start + 1..];
+            let Some(end) = after.find('\'') else { break };
+            let pat = &after[..end];
+            // A `#` and the keyword: that is a reference pattern whatever the digits
+            // are spelled like.
+            if pat.contains('#') && pat.contains("Closes?") {
+                return Some(pat.to_string());
+            }
+            rest = &after[end + 1..];
         }
     }
     None
