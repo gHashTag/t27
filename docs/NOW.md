@@ -1,6 +1,14 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-09-05
+Last updated: 2026-09-06
+
+## `const X = packed struct {}` lost its name, and yosys never minded (Closes #3383)
+
+- There is no `KwPacked` in this lexer: `packed` arrives as an `Ident`, exactly like `union` does. `parse_const_decl` handled `= struct {` and `= union(enum) {` but not `= packed struct {`, so the declaration fell through to the generic expression path and became a `ConstDecl` whose initializer started at that token.
+- Measured on `specs/demos/hello_world.t27` -- the spec the Spec Explorer opens on -- same branch, same spec, only the parser differing. **Before:** `parameter [31:0] Greeting = packed;`, and the struct emitted ANONYMOUSLY (`// struct `, `reg [7:0] _length; // .length`). **After:** the parameter is gone and the struct carries its name (`// struct Greeting`, `reg [7:0] greeting_length;`).
+- **What it does NOT do, measured rather than assumed.** yosys 0.63 synthesises both versions to **0 cells, 4 wires, 4 ports**. It never rejected the old output: it printed `Lexer warning: The SystemVerilog keyword 'packed' is not recognized unless read_verilog is called with -sv!` and carried on. So this removes a warning and restores a lost name; it does not change synthesis, and it was never a cause of the corpus's yosys failures. The "module shells / 0 LUTs" condition has a different root cause -- no hardware boundary, which the `entry-points` service already measures.
+- Cherry-picked from master (#3384, `f5d8564ab`). Master's corpus contains no `packed struct` at all, so master could not test it; this branch is where `hello_world` lives, and is the first place the fix was verified end to end.
+- Suite green here: 889 plus the per-crate suites, 0 failed. FROZEN_HASH resealed with a `shasum`-computed digest, never transcribed.
 
 ## The compiler now runs in a browser, and 49 specs turned out to be losing declarations silently
 
