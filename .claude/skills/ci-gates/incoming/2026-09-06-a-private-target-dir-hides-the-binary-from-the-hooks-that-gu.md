@@ -20,5 +20,5 @@ The hooks probe the DEFAULT build directory. Isolation moves the binary out of t
 - **Check that the commit formed**, never that the command printed something:
   `[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/master)" ]`. This is the second distinct
   cause of "commit did not form while push said pushed"; the causes differ, the shape repeats.
-- The hooks also warn `target/debug/tri is older than cli/tri/src`. That means the gates being run
+- The hooks also warn that `target/debug/tri` is older than `cli/tri/src`. That means the gates run
   are the ones the OLD binary carries -- a stale ruler, reported as a pass.
