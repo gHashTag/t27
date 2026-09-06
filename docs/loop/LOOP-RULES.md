@@ -345,3 +345,42 @@ instead of substituting it, because the wrong number gets quoted downstream.
   after. A test that also passes beforehand is a regression guard, not evidence.
 - A gate that lands red and stays red for a reason nobody is permitted to fix
   teaches everyone to ignore red. Report those as warnings and name the reason.
+
+## R17 -- Two ticks may run at once, so a tick owns a worktree and takes a claim
+
+A scheduled loop is not guaranteed to be alone. Two sessions ran concurrently on
+2026-09-06 and shared one checkout and one `target/`. Neither had a way to find
+out.
+
+What that produced, and how each symptom was misread first:
+
+- `HEAD` sat on `w119a-fold`, a branch this session never created. The other
+  session's reflog showed five branch switches inside the same directory over
+  five minutes.
+- A commit "did not form" while `git push` printed success -- it pushed an
+  unchanged `HEAD`. Read as a git bug; it was the other session moving the tree
+  under an in-flight commit.
+- The built binary lost a subcommand it had a minute earlier. Read as a bad
+  build; both sessions were writing one `target/`.
+- Census readings flip-flopped between runs. Read as a flaky gate; the tree was
+  being changed between the two readings.
+
+Every one of those was attributed to the tool being measured. That is the
+broken-ruler error with a second session as the ruler.
+
+- **Own the tree.** A tick works in its own `git worktree` with its own
+  `CARGO_TARGET_DIR`. Never the repository's primary checkout, which any other
+  session may be standing in.
+- **Take the claim first.** `tri loop claim <name>` before any work; exit 0
+  taken, 1 refused and names the holder, 2 could not run. The claim is a git ref
+  (`refs/tags/loop-claim/<name>`), so the atomicity is the remote's
+  compare-and-swap, not a file two machines both believe they hold.
+- **A private target dir hides the binary from the hooks.** `.githooks/pre-commit`
+  and `.githooks/commit-msg` probe `$ROOT/target/{debug,release}/tri`. With
+  `CARGO_TARGET_DIR` pointed elsewhere they report "not built", refuse with exit
+  2, and the commit silently does not form. Symlink the binary where the hooks
+  look, and check `git rev-parse HEAD` moved rather than trusting the output of
+  `git commit`.
+- **Do not diagnose a shared tree through the tree.** Ownership is answered by
+  `git worktree list` and the reflog, not by re-running the tool that is giving
+  strange answers.
