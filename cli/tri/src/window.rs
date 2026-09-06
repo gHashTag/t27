@@ -23,7 +23,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 #[derive(Parser, Debug)]
 /// Record the base a measurement starts from, and check it is still the tip.
@@ -40,6 +40,17 @@ pub struct Window {
     /// Run the controls and report, changing nothing.
     #[arg(long)]
     pub self_check: bool,
+}
+
+/// The first twelve characters, or all of them. A record file holding three bytes made
+/// `--check` PANIC at `short(&recorded)` -- exit 101 with a byte-index message, which is
+/// the least useful thing a guard can say about a record it could not use.
+fn short(sha: &str) -> &str {
+    if sha.len() >= 12 {
+        &sha[..12]
+    } else {
+        sha
+    }
 }
 
 fn repo_root() -> Result<PathBuf> {
@@ -99,6 +110,30 @@ pub fn distance(root: &PathBuf, base: &str, tip: &str) -> Option<usize> {
     String::from_utf8_lossy(&out.stdout).trim().parse().ok()
 }
 
+/// The remote `base` lives on, or None when there is nothing to fetch (a sha, a tag, a
+/// local branch). Derived from the base, because fetching a remote the base is not on
+/// refreshes nothing and says so on no stream.
+fn remote_of(root: &PathBuf, base: &str) -> Option<String> {
+    let out = Command::new("git")
+        .args(["remote"])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    let full = Command::new("git")
+        .args(["rev-parse", "--symbolic-full-name", base])
+        .current_dir(root)
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    let short = full.strip_prefix("refs/remotes/").unwrap_or(base);
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|n| !n.is_empty() && short.starts_with(&format!("{n}/")))
+        .max_by_key(|n| n.len())
+}
+
 pub fn run(a: &Window) -> Result<()> {
     if a.self_check {
         return self_check();
@@ -109,11 +144,26 @@ pub fn run(a: &Window) -> Result<()> {
     if a.start {
         // Fetch first. A base recorded from a stale remote ref is the very error this
         // command exists to catch, committed at the moment of recording.
-        let f = Command::new("git")
-            .args(["fetch", "-q", "origin"])
-            .current_dir(&root)
-            .status();
-        if !matches!(f, Ok(s) if s.success()) {
+        let fetched = match remote_of(&root, &a.base) {
+            Some(r) => {
+                // stdin closed and prompting disabled. `.status()` inherits this
+                // process's stdin, and a `git fetch` that decides to ask for credentials
+                // then waits on it forever -- observed as a hang with no output, which is
+                // the worst shape a guard can fail in: it neither passes nor refuses.
+                // Refusing is handled below; hanging is not.
+                let f = Command::new("git")
+                    .args(["fetch", "-q", &r])
+                    .current_dir(&root)
+                    .env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_ASKPASS", "true")
+                    .stdin(Stdio::null())
+                    .status();
+                matches!(f, Ok(s) if s.success())
+            }
+            // A sha, a tag, or a local branch: nothing to fetch, nothing to be stale.
+            None => true,
+        };
+        if !fetched {
             anyhow::bail!(
                 "could not fetch, so `{}` may be stale and recording it would bake in the \
                  error this command exists to catch. Nothing was recorded.",
@@ -125,7 +175,7 @@ pub fn run(a: &Window) -> Result<()> {
         })?;
         std::fs::write(&path, format!("{} {}\n", sha, a.base))
             .with_context(|| format!("writing {}", path.display()))?;
-        println!("measurement base recorded: {} at {}", a.base, &sha[..12]);
+        println!("measurement base recorded: {} at {}", a.base, short(&sha));
         println!("  run `tri window --check` before you quote a delta or open a pull request.");
         return Ok(());
     }
@@ -139,20 +189,89 @@ pub fn run(a: &Window) -> Result<()> {
                 path.display()
             )
         })?;
-        let recorded = text.split_whitespace().next().unwrap_or("").to_string();
+        let mut parts = text.split_whitespace();
+        let recorded = parts.next().unwrap_or("").to_string();
+        let recorded_ref = parts.next().unwrap_or("").to_string();
         if recorded.is_empty() {
             anyhow::bail!("the recorded base is empty; re-record it with `tri window --start`");
         }
-        let _ = Command::new("git")
-            .args(["fetch", "-q", "origin"])
-            .current_dir(&root)
-            .status();
+        // A record that is not a sha is not a base that moved. Saying "the base moved"
+        // about `abc` names the wrong fact and points at the wrong repair; this is
+        // could-not-run, and the repository's code for that is 2.
+        let looks_like_a_sha =
+            recorded.len() == 40 && recorded.chars().all(|c| c.is_ascii_hexdigit());
+        if !looks_like_a_sha {
+            eprintln!(
+                "::error::the recorded base `{}` is not a sha, so nothing is known about \
+                 the window. Re-record it with `tri window --start`.",
+                short(&recorded)
+            );
+            std::process::exit(2);
+        }
+        // The record names the ref it was taken from, and until now nothing read it back:
+        // `--start --base A` followed by `--check --base B` compared B's tip against A's
+        // sha and called the difference a move. The name was written for this and was
+        // being ignored.
+        if !recorded_ref.is_empty() && recorded_ref != a.base {
+            anyhow::bail!(
+                "the record was taken against `{recorded_ref}`, and this asks about `{}`. \
+                 Comparing one ref's tip to another's recorded sha measures the distance \
+                 between two branches, not the movement of a base. Re-record, or ask about \
+                 `{recorded_ref}`.",
+                a.base
+            );
+        }
+        // Guarded exactly as in --start, and for the same reason. `resolve` reads the
+        // LOCAL `origin/master`, so a fetch that failed leaves it sitting at the sha
+        // --start recorded: `tip == recorded` becomes true because nothing was refreshed,
+        // and the command certifies as clean the one failure it exists to prevent.
+        let fetched = match remote_of(&root, &a.base) {
+            Some(r) => {
+                // stdin closed and prompting disabled. `.status()` inherits this
+                // process's stdin, and a `git fetch` that decides to ask for credentials
+                // then waits on it forever -- observed as a hang with no output, which is
+                // the worst shape a guard can fail in: it neither passes nor refuses.
+                // Refusing is handled below; hanging is not.
+                let f = Command::new("git")
+                    .args(["fetch", "-q", &r])
+                    .current_dir(&root)
+                    .env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_ASKPASS", "true")
+                    .stdin(Stdio::null())
+                    .status();
+                matches!(f, Ok(s) if s.success())
+            }
+            // A sha, a tag, or a local branch: nothing to fetch, nothing to be stale.
+            None => true,
+        };
+        if !fetched {
+            anyhow::bail!(
+                "could not fetch, so `{}` was not refreshed and the local ref still holds \
+                 whatever `--start` recorded. A window that cannot be read is not a window \
+                 that did not move. Nothing is known about the window; re-run when the fetch \
+                 succeeds.",
+                a.base
+            );
+        }
         let tip = resolve(&root, &a.base).ok_or_else(|| {
             anyhow::anyhow!("cannot resolve `{}` now, so the window cannot be closed", a.base)
         })?;
         if tip == recorded {
-            println!("window intact: {} is still {}", a.base, &tip[..12]);
+            println!("window intact: {} is still {}", a.base, short(&tip));
             return Ok(());
+        }
+        // A rewind is not a move forward. `A..B` counts nothing when B is an ancestor of
+        // A, so the refusal used to read "0 merge(s) landed in between" -- a sentence that
+        // says the opposite of what happened.
+        if distance(&root, &tip, &recorded).unwrap_or(0) > 0 {
+            anyhow::bail!(
+                "`{}` is now BEHIND the base recorded for it.\n  recorded {}\n  tip now  {}\n\n  \
+                 A rewind, not a move: the ref was reset or force-pushed. Nothing about the \
+                 window has been established either way.",
+                a.base,
+                short(&recorded),
+                short(&tip)
+            );
         }
         let n = distance(&root, &recorded, &tip);
         let moved = match n {
@@ -167,10 +286,10 @@ pub fn run(a: &Window) -> Result<()> {
              here even with a `tri loop claim` taken beforehand, because a claim separates\n  \
              two sessions only when both take one.\n\n  \
              Re-measure against the current tip, then `tri window --start` again.",
-            &recorded[..12],
-            &tip[..12],
+            short(&recorded),
+            short(&tip),
             moved,
-            &recorded[..12]
+            short(&recorded)
         );
     }
 
@@ -208,6 +327,17 @@ fn self_check() -> Result<()> {
         distance(&root, "refs/heads/no-such-branch-here", "HEAD").is_none(),
     );
     say(
+        "a record that is not a sha is could-not-run, not a move",
+        {
+            let r = "abc";
+            !(r.len() == 40 && r.chars().all(|c| c.is_ascii_hexdigit()))
+        },
+    );
+    say(
+        "a short record truncates instead of panicking",
+        short("abc") == "abc" && short("0123456789abcdef") == "0123456789ab",
+    );
+    say(
         "the record lives outside the worktree, so it cannot reach a commit",
         record_path(&root)
             .map(|p| !p.starts_with(root.join("specs")) && p.to_string_lossy().contains(".git"))
@@ -226,6 +356,13 @@ fn self_check() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn short_does_not_panic_on_a_short_string() {
+        assert_eq!(short("abc"), "abc");
+        assert_eq!(short(""), "");
+        assert_eq!(short("0123456789abcdef"), "0123456789ab");
+    }
 
     #[test]
     fn a_repo_resolves_head() {
