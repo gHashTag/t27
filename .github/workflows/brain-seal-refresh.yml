@@ -47,6 +47,8 @@ jobs:
           name: brain-seals
           path: .trinity/seals/brain_*.json
 
+# tri:cause-removed the `git push` step was removed in #3324; this workflow has
+#                   not run since, so its zero success count is history
 # The `Commit brain seals` step was removed here. It ran `git push` to master,
 # and the branch ruleset refuses that: every run since this workflow was added
 # ends `remote: error: GH013: Repository rule violations found` and
