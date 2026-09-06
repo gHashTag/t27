@@ -59,7 +59,7 @@ The stack on master (`specs/ternary/`): `activation_quantizer.t27` (#1738) → `
 ## Ship discipline (t27)
 
 - `t27c seal <spec> --save` after every spec change; `--verify` must MATCH. Trust CI `validate` (the seal oracle), not local `seal --verify` (local binary can differ).
-- Every PR: prepend a `docs/NOW.md` entry dated today-UTC + `Closes #N` in the PR body. **One clean commit** — the `Check L1 TRACEABILITY` gate fails *any* commit (incl. merge/docs) lacking an issue ref.
+- Every PR: add one `docs/now/<YYYY-MM-DD>-<slug>.md` entry file dated today-UTC (`docs/NOW.md` is a frozen archive -- do not add entries there) + `Refs #N` in the PR body. **One clean commit** — the `Check L1 TRACEABILITY` gate fails *any* commit (incl. merge/docs) lacking an issue ref.
 - master has a ruleset: merge with `gh pr merge --merge` (or `--auto`), **never** `--admin`, never force-push.
 
 ## What's next (roadmap)

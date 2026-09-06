@@ -225,10 +225,22 @@ Violating any of these fails the tick.
 
 ## R12 -- Before opening a PR
 
-Add a `## <topic> (Closes #N)` section to the top of `docs/NOW.md`, set
-`Last updated:` to the current UTC date (the gate accepts yesterday / today /
-tomorrow UTC), and put a literal `Closes #N` line in the PR body -- `Refs #N`
-does NOT satisfy `check-linked-issue`.
+Add one entry FILE, `docs/now/<YYYY-MM-DD>-<slug>.md`, dated inside the window
+the gate prints (yesterday / today / tomorrow UTC). `docs/NOW.md` is a FROZEN
+ARCHIVE and says so on its first line: do not add entries there. It was frozen
+in `f5be7dc1c` (#2298) precisely because one file per PR is what stops every
+concurrent PR colliding on its first line, and this rule went on naming it for
+sixteen days.
+
+Reference the issue in the PR body. `Refs #N` DOES satisfy `check-linked-issue`:
+the matcher is `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+` at
+`.github/workflows/issue-gate.yml:69`, and seven readers in this tree carry that
+same dictionary. Prefer `Refs #N` over `Closes #N` whenever the issue is one R11
+forbids closing -- which is most of them, since `Closes` autocloses on merge.
+
+Do not re-transcribe that dictionary anywhere: a hand-copied copy missing `Refs`
+once matched 4 references where the gate matched 33, and this sentence was the
+next copy to go wrong. Read it out of `issue-gate.yml`.
 
 Four required checks: `check`, `validate`, `check-now-freshness`,
 `check-linked-issue`.
