@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1f8b30b7f71c2bcdcdf216fe8dacbf6f68f3e22f9d8f075c289f3c3beb856c45",
-  "gen_hash_rust": "sha256:223e31bf32dcb00bfec3685414e5859a63256c1903d2abf8c47d79c3855d6d59",
+  "gen_hash_rust": "sha256:5120100890657113985b5476a8fc395a72b81a1277b7a1ae9b0ff6bf0f68adb1",
   "gen_hash_verilog": "sha256:1fa7df852949de5a53c7814c90ff93ae0c4849656379383f877f562d98f06fc2",
   "gen_hash_zig": "sha256:c7ed13bb6e091bcedf263a647fa5a434899da8246b96e6427fa04d4797268e7f",
   "module": "TriHtml",
   "ring": 12,
-  "sealed_at": "2026-09-06T05:46:33Z",
+  "sealed_at": "2026-09-06T07:17:01Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:025959391860663c194a10874f66af7dd8da26f8597f5bee89be66a283a66f60",
   "spec_path": "specs/tri/encoding/html.t27"

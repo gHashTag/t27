@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:e211780c0b7bbd8a861e059d0708e5bea52674ead30efcaa1eebcfdd16cf51dc",
-  "gen_hash_rust": "sha256:97397057eab14046c0a4327554771e1b2096e05c6ec590d54fef76268cf9f0b3",
+  "gen_hash_rust": "sha256:a21c1de6323c0a5301195c9b479469b20273ec5e8ffe093ea8863676aacbce1f",
   "gen_hash_verilog": "sha256:c0bd9cddefce72cfb629855f772f6a0d31cf7b538c6132d8a16859dc17becdf7",
   "gen_hash_zig": "sha256:444d15ecc025e0b172fc8594054a13177a0e5496a32390d4261857b5ef804f90",
   "module": "TriGraph",
