@@ -24,11 +24,32 @@ name: Release Pipeline
 on:
   release:
     types: [published]
-  # Without this the missing reading cannot be taken on purpose: a gate with
-  # a `paths:` filter that nothing has matched in months is unmeasured, not
-  # passing, and there was no way to fire it at the default branch and find
-  # out. `tri gates unmeasured` reports the gap; this is what closes it.
-  workflow_dispatch:
+  # NO `workflow_dispatch:`, deliberately, and it must not be added back.
+  #
+  # The comment that used to stand here justified one by the `paths:`-filter
+  # argument -- a gate nothing has matched in months is unmeasured rather than
+  # passing, so give it a way to be fired on purpose. That argument does not
+  # apply to this file: it has no `paths:` filter, and every job keys off
+  # `github.event.release.tag_name`.
+  #
+  # On a dispatch that value is EMPTY, so preflight's product gate takes its
+  # `*)` branch, prints "Tag '' names no product" and exits 1. Every publishing
+  # job `needs: preflight` and is skipped. The dispatch cannot publish, and it
+  # cannot measure anything either -- it can only fail. Run 33204015910 on
+  # 2026-08-28 is that, and is the only failure here not caused by a real tag.
+  #
+  # `tri gates unmeasured` will now list this workflow as `dispatch: -` and
+  # advise adding one. For a pipeline keyed on a tag there is no default-branch
+  # reading to take, so the advice does not apply; the tool's own footnote makes
+  # the same point about `pr-only`, that a dispatch which starts a workflow and
+  # measures nothing is not an invitation.
+  #
+  # Making a dispatch useful would mean giving preflight a tag input, which
+  # makes preflight SUCCEED on a dispatch -- and preflight refusing is currently
+  # the structural reason a dispatch cannot reach a registry. That would replace
+  # a structural guard with five `if:` conditions, in front of `cargo publish`
+  # and `npm publish` against live registries where a version is permanent, and
+  # this pipeline has already burned two of them. Not done.
 
 # Two runs for one tag could interleave four registry writes. They cannot
 # overlap now, and a queued one is never cancelled -- cancelling mid-publish is
