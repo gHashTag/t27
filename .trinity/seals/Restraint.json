@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:8dd1f27c321a6072413858db47ba10574761dbbb41855d13dcf0ff7ecf6f75df",
-  "gen_hash_rust": "sha256:6c964defceeae55ae9ce9091618913bae899c346dab9f075d427ef7dbdfb08a4",
+  "gen_hash_rust": "sha256:7d50c681cf221f5648104ac4d50e048c3558c8479fa79b40a04fb79d728c1e66",
   "gen_hash_verilog": "sha256:ead9632de495e2da67289f95d5e919e87e47a4c700fa960d4e2c6696482de346",
   "gen_hash_zig": "sha256:1b179c6809f705b3c19217c23255f31f205826d0788ff9469881f7a421dee766",
   "module": "Restraint",

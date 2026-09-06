@@ -24158,6 +24158,14 @@ impl RustCodegen {
                             }
                         } else {
                             let val = self.expr_to_rust(&child.children[0]);
+                            // Same question, second copy of the same logic. See
+                            // `is_undefined_init`: a fix applied to one of these two is
+                            // not applied.
+                            let val = if Self::is_vec_from_array_literal(&typ, &child.children) {
+                                format!("vec!{val}")
+                            } else {
+                                val
+                            };
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {} = {};", kw, var_name, val));
                             } else {
@@ -24307,6 +24315,25 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// Does this local declare a `Vec` and initialise it with an array literal?
+    ///
+    /// `var xs : []u32 = [];` maps its TYPE to `Vec<u32>` and emits its VALUE as `[]`,
+    /// so rustc reads `expected `Vec<u32>`, found `[_; 0]``. Nine of the twenty
+    /// `mismatched types` first-errors in the corpus are this pair, and `[]` where a
+    /// `Vec` is declared is the only one of them with a single unambiguous answer.
+    ///
+    /// `expr_to_rust` already renders the literal as `[a, b]`, so the whole repair is the
+    /// three characters in front of it. Only the LOCAL is touched here: `return []` in a
+    /// `Vec`-returning function and `pub const N: Vec<u32> = [...]` are the same pair in
+    /// two other positions, and the const one has no answer at all -- a `Vec` cannot be a
+    /// constant in Rust, which makes it a question about the type mapping rather than
+    /// about this line.
+    fn is_vec_from_array_literal(rust_type: &str, children: &[Node]) -> bool {
+        rust_type.starts_with("Vec<")
+            && children.len() == 1
+            && children[0].kind == NodeKind::ExprArrayLiteral
+    }
+
     /// Is this local's initialiser the single word `undefined`?
     ///
     /// Zig's word for "not initialised yet". It reached rustc as an identifier --
@@ -24365,6 +24392,11 @@ impl RustCodegen {
                     }
                 } else {
                     let val = self.expr_to_rust(&stmt.children[0]);
+                    let val = if Self::is_vec_from_array_literal(&typ, &stmt.children) {
+                        format!("vec!{val}")
+                    } else {
+                        val
+                    };
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {} = {};", kw, stmt.name, val));
                     } else {
