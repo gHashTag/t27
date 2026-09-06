@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:aaf5e51f77101b13905a58955ff83c540a8b12aecd1b22719c076eba9f50fb6a",
-  "gen_hash_rust": "sha256:2a1f5fb34c075689eb2b9327a0e6f29ade20a5e8239e2146de34e2b0f0a42ffe",
+  "gen_hash_rust": "sha256:d6b6da489d959cf2a0af3f949ba18bac541b98e4f991e631842ac6055d2c3aaa",
   "gen_hash_verilog": "sha256:13b27afae82b9ef1f8f91667439056444fefed262b7a5f8ffa6fd791bf4488d2",
   "gen_hash_zig": "sha256:3317dfd402dcff77354cee10b75f49adf8bc9a6460333955b00e4e80bf8a6bfd",
   "module": "ternary_vs_binary",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:22Z",
+  "sealed_at": "2026-09-06T04:36:42Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:5f79143e4cf0f389ef7a03a3834a044e243fd3ca3cb04e06529a73690ecb4ca3",
   "spec_path": "specs/benchmarks/ternary_vs_binary.t27"

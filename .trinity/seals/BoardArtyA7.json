@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:246b4c1513f957364e4924d8402567af3078376af2817d400426c4ea02bb8c95",
-  "gen_hash_rust": "sha256:bbc8b03a84807fdae558fabd2fcf02580f09b8e1ca5a137763ec445e8ec1f65f",
+  "gen_hash_rust": "sha256:9cce4254154b83e08b2cf81cfd4dd3cdad920c8da7de0a9d53f7a8c97ba3433a",
   "gen_hash_verilog": "sha256:2a0180761ad6e4925dc83a294fd10eb4b96abfe64872d6276effc36ef3920337",
   "gen_hash_zig": "sha256:8823061f1c8f6e57917b45cc1c7dc28a1f87d06a6bdad43f0734f0e8d96f3241",
   "module": "BoardArtyA7",

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:cb9c0d8597ce17e20e82ca2915b2e6836fe358ceb22c2dbddc5d5aa415a9cc5c",
-  "gen_hash_rust": "sha256:61682d0403059b794974fc2e0b7da57c775bb20fad9b57e62fd3898be1a88df6",
+  "gen_hash_rust": "sha256:e38f3f7276e92a7a0eb9ecfa9d9f9e87b4082384d33ce82fb2783566dde4cff3",
   "gen_hash_verilog": "sha256:665eb2d63070b12dbd2327f24423a3ea48a64457f58e1cab06a09191acfa44d8",
   "gen_hash_zig": "sha256:66585c9758b058104490715c5bbef9dd362eac6be47a15a7088df80c25e16fde",
   "module": "queen-task-analysis",

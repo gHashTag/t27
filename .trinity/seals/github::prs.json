@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:ad2e85731438b6c612eb5cfba59eab3ee279a884acb8c6cba9400284531d1296",
-  "gen_hash_rust": "sha256:3a321950fd915eaceddf6dd0b3ca40cd25137427308ab3725008cf17ee6fd5b3",
+  "gen_hash_rust": "sha256:31d2bf0ba60e143eaa79ef7ca95f3ed196bd33184d822173819701172fa61170",
   "gen_hash_verilog": "sha256:e98675e9c3f245707d48d1452980d65ad9ad9776e1823821a9d5e5df52965463",
   "gen_hash_zig": "sha256:f5649785a3c37dcf38aec27d501eed1aec77e4a6322a1498eaa2ef5910172b9a",
   "module": "github::prs",

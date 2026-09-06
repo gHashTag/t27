@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:3a7dc233b53603c07f1fca8a16d6fc7f87a1410a59088ea75a679c0c88c3c6eb",
-  "gen_hash_rust": "sha256:407a06abb42873bcf837d561e57cc36a743ca2fae772482ac45386a012e70d6d",
+  "gen_hash_rust": "sha256:c823285357eec761967f3bdd9e2dd6f798ba189f2f0c742a403c4e5fafba87d3",
   "gen_hash_verilog": "sha256:0babdbe3cc3ecc8e207e1050d75feb08dfe12474ecadae7fd1977f05363ffdd3",
   "gen_hash_zig": "sha256:43f63862cb275701dfd13e29ba461c2896f92cd7d513b00299ad0e0e4746135f",
   "module": "File",
