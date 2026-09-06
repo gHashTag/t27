@@ -1,7 +1,7 @@
 {
   "conformance_hash": "sha256:5d6e7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293",
   "gen_hash_c": "sha256:cfeacfe0cef5b4059f16d4b552b6247693cd2a621b0d41856573c4736b30cdcc",
-  "gen_hash_rust": "sha256:08e18cfa861c263c84e3844190fedea4da285406373908da139a3cf55a50c6e7",
+  "gen_hash_rust": "sha256:e0f5286cd95e624d3d3e62ae76c9beb414630ca01078a618bebd4d2fbbe7bc8e",
   "gen_hash_verilog": "sha256:23ce65bf68f1f2d4378f5489d78b11dd8293c4dde0d08482787ec7f569e6f5e9",
   "gen_hash_zig": "sha256:a8693999ddc313bb466c1e69f3cea55d13974dcfbed55e46d3a6266576223479",
   "module": "Trinity_FPGA_Top",

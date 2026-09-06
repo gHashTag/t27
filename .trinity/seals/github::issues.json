@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:6f85f2af4fd5d29d230975af0adce8a6505e68758c85580d30286387b3d9e654",
-  "gen_hash_rust": "sha256:e56c3b693125f5b1338e1a8f5507aebb9125559b24cfa920411304c5f6d1c83b",
+  "gen_hash_rust": "sha256:fa7690adeb301ca2e2254b44256d20064871d284f8dfe16de43a219ee2b84d21",
   "gen_hash_verilog": "sha256:fdce888391c35bccd7585512d9d3753d654af54a1e0118c3b94dff36a0b41094",
   "gen_hash_zig": "sha256:3e02d2a431654fa0a77ea451cd47a3b3b1e32d58ad59bb36ec54ab4cf28ec75c",
   "module": "github::issues",

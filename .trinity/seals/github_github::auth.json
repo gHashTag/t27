@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b100d6de751f44ce9796ac13016c4c3123228c6e61fe2f778a98371a1ad917aa",
-  "gen_hash_rust": "sha256:9d29d40db2d0f1fa37212ca25215e0077866ec1cd120fbaf018a6603b102940c",
+  "gen_hash_rust": "sha256:9e3fa30f35cc63d52621633c39dbd6307af5147834e83acd77b3c90ffcf753aa",
   "gen_hash_verilog": "sha256:9327e54360dc57ae9a86132842c6aa9a5de2cfbd31d1c22525593dcc7dbfcfc4",
   "gen_hash_zig": "sha256:560706df0aa9cd38a64d158d55fef25d92e46a6bd920a08fbe28755ed7a022b8",
   "module": "github::auth",
   "ring": 12,
-  "sealed_at": "2026-09-05T20:06:35Z",
+  "sealed_at": "2026-09-06T04:36:42Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:4a02c3cd0fb34f6e9576d52e96910bc2937ffa3f921f315dd8887ec66f3776e5",
   "spec_path": "specs/github/auth.t27"

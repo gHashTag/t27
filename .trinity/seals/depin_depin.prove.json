@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9a8f3d1c8d145418c7c418e01d7b06de48c001d94d44a7b976d09becfdc4dfd8",
-  "gen_hash_rust": "sha256:56025482fd1ac02cfe1b970d1284be06a34c454e6d15f6863fa80d54824f373a",
+  "gen_hash_rust": "sha256:f36ae947eefd9018ea6a06f8ee1b6677b842f8192751acad2861de292a2f94af",
   "gen_hash_verilog": "sha256:350fd746ad1edd96862dc7c7a3aca83760b1d50d941282908cb1ba401ca37d40",
   "gen_hash_zig": "sha256:96c32f8d59e6198df043c2beba4ed9a5bdf6ca983b8745a69d0b3ee21ed3e90c",
   "module": "depin.prove",
   "ring": 12,
-  "sealed_at": "2026-09-05T09:02:10Z",
+  "sealed_at": "2026-09-06T04:36:42Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:b705492899feafbf3edaeec380ca7c5f3fc252230d57b3450f792954d97eeff6",
   "spec_path": "specs/depin/prove.t27"

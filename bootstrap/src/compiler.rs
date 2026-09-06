@@ -23892,7 +23892,32 @@ impl RustCodegen {
         // single cause in the Rust column. Behind a cfg the default output
         // compiles against std alone, and anyone who wants serialisation turns
         // the feature on and gets exactly what was emitted before.
-        self.write_line("#[derive(Debug, Clone)]");
+        // `Copy` when every field is Copy, and not otherwise.
+        //
+        // WHY. A struct parameter is passed BY VALUE, so an expression that names the same
+        // parameter twice moves it twice. Six corpus specs fail exactly there, and they
+        // read like ordinary arithmetic:
+        //
+        //     return (region_width(r) * region_height(r));
+        //     return (est_dynamic_power_mw(u, t) + est_static_power_mw(u, t));
+        //
+        // `Clone` alone does not help -- rustc will not insert a clone. `Copy` does, and
+        // it is what the spec's own value semantics mean.
+        //
+        // The guard is the whole design. `Copy` on a struct holding a `Vec` or a `String`
+        // does not compile, so the derive is emitted only when EVERY field maps to a type
+        // that is Copy in Rust, with no transitivity: a field whose type is another struct
+        // is not assumed, because this emitter cannot see whether that one qualified.
+        let all_fields_copy = node
+            .children
+            .iter()
+            .filter(|c| c.kind == NodeKind::ExprIdentifier && !c.name.is_empty())
+            .all(|c| Self::is_copy_rust_type(&Self::t27_type_to_rust(&c.extra_type)));
+        if all_fields_copy {
+            self.write_line("#[derive(Debug, Clone, Copy)]");
+        } else {
+            self.write_line("#[derive(Debug, Clone)]");
+        }
         self.write_line(
             "#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]",
         );
@@ -24585,6 +24610,31 @@ impl RustCodegen {
             // than an untranslated one, because the first compiles.
             _ => return None,
         })
+    }
+
+    /// Is this emitted Rust type `Copy`?
+    ///
+    /// Deliberately a CLOSED list of primitives plus `&'static str` and fixed-size arrays
+    /// of them. No transitivity: another struct's name answers false even when that struct
+    /// did qualify, because getting it wrong in the other direction emits a `Copy` that
+    /// does not compile, and a missing `Copy` only leaves the status quo.
+    fn is_copy_rust_type(t: &str) -> bool {
+        let t = t.trim();
+        if matches!(
+            t,
+            "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+                | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+                | "f32" | "f64" | "bool" | "char" | "&'static str"
+        ) {
+            return true;
+        }
+        // `[T; N]` is Copy exactly when T is.
+        if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+            if let Some((elem, _len)) = inner.rsplit_once(';') {
+                return Self::is_copy_rust_type(elem);
+            }
+        }
+        false
     }
 
     fn t27_type_to_rust(t27_type: &str) -> String {

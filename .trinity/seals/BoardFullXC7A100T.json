@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:ffee6800a426752f3775590e1206ddd44096cff7bb854ad9b6eaa84c3ad18c1f",
-  "gen_hash_rust": "sha256:a58d0be837cc8db5af3b1f37be28e8a525de68cca4f0be63727dcad7bf68e8ed",
+  "gen_hash_rust": "sha256:f5f89da40192daaaf81f36ecbb3064611583404df398f668514a91edcf823d60",
   "gen_hash_verilog": "sha256:90fad87dbc511a7a643a71729a976da301d998f9dcd8c4bafb0dcc8de9ed9158",
   "gen_hash_zig": "sha256:cb2bbfff65be4270435afe3b9e427fea9df8c1cc9207ef4eeb6148b5ccf9d87e",
   "module": "BoardFullXC7A100T",
