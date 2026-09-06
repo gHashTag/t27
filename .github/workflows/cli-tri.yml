@@ -25,24 +25,27 @@ on:
       # on master: 24 touch .github/workflows/, 2 of those already touch cli/,
       # so this adds this job on 22 of 200 commits (11%).
       - '.github/workflows/**'
+  # NO `paths:` here, deliberately. A required context that does not POST is not
+  # "passed" -- it is pending forever, so a paths-filtered workflow cannot be
+  # required without hanging every PR that skips it. Measured over the last 40
+  # merged PRs: 15 of them (38%) touched none of the paths this filter listed.
+  # The `push:` filter above is kept: a master baseline only needs taking when
+  # the subject moves.
+  #
+  # Cost of running on every PR, measured rather than estimated: +38% of runs on
+  # a job whose median is 2.9 minutes, green 58 of its last 60 (43 of 45 on
+  # pull_request). A gate that reddens rarely is one that can be required.
   pull_request:
-    paths:
-      - 'cli/**'
-      - '.claude/skills/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      # `tri census pin --gate` pins `gates quiet` and `gates shell`, whose
-      # subject is this directory. A trigger narrower than the subject cannot
-      # fire on the change it exists for -- and worse, the ledger would go
-      # stale on a workflow-only commit and the NEXT cli/** commit would fail,
-      # blaming an author who changed nothing. Priced over the last 200 commits
-      # on master: 24 touch .github/workflows/, 2 of those already touch cli/,
-      # so this adds this job on 22 of 200 commits (11%).
-      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
   build:
+    # A UNIQUE context name. GitHub matches a required check by CONTEXT, and
+    # `build-vivado-image.yml` and `coq-kernel.yml` both emit `build` too -- so
+    # "require build" names three workflows and can be satisfied by the wrong
+    # one, or hang on a job that does not run. First of two things that had to
+    # be true before this gate could be required at all.
+    name: cli-tri
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
