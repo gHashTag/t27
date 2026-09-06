@@ -232,6 +232,16 @@ in `f5be7dc1c` (#2298) precisely because one file per PR is what stops every
 concurrent PR colliding on its first line, and this rule went on naming it for
 sixteen days.
 
+`docs/NOW.md` is now ENFORCED, not merely labelled: a range that edits it is
+refused unless a commit in it carries
+
+    Archive-Repair: <what was damaged, and how you know>
+
+Repairing the archive is legitimate -- one of the two post-freeze edits is a
+repair of destroyed bodies -- and no textual rule separates a repair from a new
+entry, since the repair adds headings too. So the exception is DECLARED rather
+than detected. The gate does not judge the reason; it requires one to exist.
+
 Reference the issue in the PR body. `Refs #N` DOES satisfy `check-linked-issue`:
 the matcher is `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+` at
 `.github/workflows/issue-gate.yml:69`, and seven readers in this tree carry that
