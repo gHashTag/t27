@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a85cf8ba3d1f9630a97cfd9d7c939702e03d275920718671be1db4b7d26faa51",
-  "gen_hash_rust": "sha256:7d4ba95661022d09db7330443564a9d3956d38e7099fb3dcd2dc2f7e80ad11f4",
+  "gen_hash_rust": "sha256:024d5f047667a8782b6f06c87cd090ebf6bb7346b6becf3436293b66cf757da9",
   "gen_hash_verilog": "sha256:5f0eeac7d2fc87ac99baac9abca6f06613a2fe91bd707a93d45f021c7ee5796b",
   "gen_hash_zig": "sha256:c0a97aa69f74c2ed33618d54002291bb2ec13d5685ff85abf50012cf1bea79bd",
   "module": "BrainSummaries",

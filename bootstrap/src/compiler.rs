@@ -23979,7 +23979,11 @@ impl RustCodegen {
         self.indent += 1;
         for child in &node.children {
             if child.kind == NodeKind::EnumVariant {
-                let variant_name = &child.name;
+                // The Zig emitter escapes variant names and says why, one comment above
+                // its own call to `zig_ident`. The rule did not travel here, so a variant
+                // named with a Rust keyword reached rustc bare: `enum = 12,` and
+                // `continue = 5,` are what two corpus specs produced.
+                let variant_name = rust_ident(&child.name);
                 if child.value.is_empty() {
                     self.write_line(&format!("{},", variant_name));
                 } else {
@@ -24020,7 +24024,11 @@ impl RustCodegen {
     }
 
     fn gen_fn(&mut self, node: &Node) {
-        let fn_name = &node.name;
+        // A function named with a Rust keyword reached rustc bare: `pub fn match<T>(` and
+        // `pub fn await<T>(` are what two corpus specs produced. `rust_ident` already
+        // escapes struct fields, parameters, struct-literal fields and field access; the
+        // name of the function itself was the position it had not reached.
+        let fn_name = rust_ident(&node.name);
         let params: Vec<(String, String)> = node.params.clone();
         let params_str = params
             .iter()
@@ -24138,7 +24146,11 @@ impl RustCodegen {
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
                         let typ = Self::t27_type_to_rust(&child.extra_type);
-                        if child.children.is_empty() {
+                        // The same question `gen_rust_stmt` asks. This function carries its
+                        // own copy of the local-emission logic, and a fix applied to only
+                        // one of the two is not applied: the first attempt at this patched
+                        // `gen_rust_stmt` alone and changed no output at all.
+                        if child.children.is_empty() || Self::is_undefined_init(&child.children) {
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {};", kw, var_name));
                             } else {
@@ -24146,6 +24158,14 @@ impl RustCodegen {
                             }
                         } else {
                             let val = self.expr_to_rust(&child.children[0]);
+                            // Same question, second copy of the same logic. See
+                            // `is_undefined_init`: a fix applied to one of these two is
+                            // not applied.
+                            let val = if Self::is_vec_from_array_literal(&typ, &child.children) {
+                                format!("vec!{val}")
+                            } else {
+                                val
+                            };
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {} = {};", kw, var_name, val));
                             } else {
@@ -24295,6 +24315,46 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// Does this local declare a `Vec` and initialise it with an array literal?
+    ///
+    /// `var xs : []u32 = [];` maps its TYPE to `Vec<u32>` and emits its VALUE as `[]`,
+    /// so rustc reads `expected `Vec<u32>`, found `[_; 0]``. Nine of the twenty
+    /// `mismatched types` first-errors in the corpus are this pair, and `[]` where a
+    /// `Vec` is declared is the only one of them with a single unambiguous answer.
+    ///
+    /// `expr_to_rust` already renders the literal as `[a, b]`, so the whole repair is the
+    /// three characters in front of it. Only the LOCAL is touched here: `return []` in a
+    /// `Vec`-returning function and `pub const N: Vec<u32> = [...]` are the same pair in
+    /// two other positions, and the const one has no answer at all -- a `Vec` cannot be a
+    /// constant in Rust, which makes it a question about the type mapping rather than
+    /// about this line.
+    fn is_vec_from_array_literal(rust_type: &str, children: &[Node]) -> bool {
+        rust_type.starts_with("Vec<")
+            && children.len() == 1
+            && children[0].kind == NodeKind::ExprArrayLiteral
+    }
+
+    /// Is this local's initialiser the single word `undefined`?
+    ///
+    /// Zig's word for "not initialised yet". It reached rustc as an identifier --
+    /// `let mut info: EncodingInfo = undefined;` -- and `cannot find value` was the
+    /// largest single name in the corpus's first-error census, 14 of 21 in its class.
+    ///
+    /// The answer is a DECLARATION, not a value. An earlier attempt mapped it to
+    /// `Default::default()` and was withdrawn (#3223) because `[usize; 256]` has no
+    /// `Default`; the blocker was the mapping, not the defect. Deferred initialisation
+    /// needs no bound and is the exact semantics -- and rustc refuses a read before the
+    /// assignment, which surfaces a real defect instead of defaulting it away.
+    ///
+    /// Distinct from `CCodegen::mentions_undefined`, which asks whether the word appears
+    /// ANYWHERE in an expression (`result != undefined`). This asks whether it IS the
+    /// whole initialiser, the only shape a declaration can absorb.
+    fn is_undefined_init(children: &[Node]) -> bool {
+        children.len() == 1
+            && children[0].kind == NodeKind::ExprIdentifier
+            && children[0].name == "undefined"
+    }
+
     fn gen_rust_stmt(&mut self, stmt: &Node) {
         match stmt.kind {
             NodeKind::ExprReturn => {
@@ -24324,7 +24384,7 @@ impl RustCodegen {
                 }
                 let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
                 let typ = Self::t27_type_to_rust(&stmt.extra_type);
-                if stmt.children.is_empty() {
+                if stmt.children.is_empty() || Self::is_undefined_init(&stmt.children) {
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {};", kw, stmt.name));
                     } else {
@@ -24332,6 +24392,11 @@ impl RustCodegen {
                     }
                 } else {
                     let val = self.expr_to_rust(&stmt.children[0]);
+                    let val = if Self::is_vec_from_array_literal(&typ, &stmt.children) {
+                        format!("vec!{val}")
+                    } else {
+                        val
+                    };
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {} = {};", kw, stmt.name, val));
                     } else {
@@ -24536,10 +24601,60 @@ impl RustCodegen {
             (t, false)
         };
 
+        // A TUPLE maps element by element. Without this arm `(A, B)` fell through to
+        // the default and was emitted verbatim, so an inner `[]f32` -- which every other
+        // position maps to `Vec<f32>` -- reached rustc as `[]f32`. The rule existed and
+        // did not travel into this position. Measured on the corpus: 6 specs.
+        //
+        // The split is DEPTH-AWARE. A naive `split(',')` would cut `(Map<K, V>, T)` into
+        // `Map<K` and ` V>` and produce something worse than the input.
+        if base_type.starts_with('(') && base_type.ends_with(')') && base_type.len() > 2 {
+            let inner = &base_type[1..base_type.len() - 1];
+            let mut parts: Vec<String> = Vec::new();
+            let (mut depth, mut start) = (0i32, 0usize);
+            for (i, c) in inner.char_indices() {
+                match c {
+                    '<' | '[' | '(' => depth += 1,
+                    '>' | ']' | ')' => depth -= 1,
+                    ',' if depth == 0 => {
+                        parts.push(inner[start..i].to_string());
+                        start = i + c.len_utf8();
+                    }
+                    _ => {}
+                }
+            }
+            parts.push(inner[start..].to_string());
+            // A one-element "tuple" is a parenthesised type, not a tuple, and Rust writes
+            // it without the comma. Emitting `(T,)` there would change the type.
+            let mapped: Vec<String> = parts
+                .iter()
+                .map(|q| Self::t27_type_to_rust(q.trim()))
+                .collect();
+            let joined = format!("({})", mapped.join(", "));
+            return if is_optional { format!("Option<{joined}>") } else { joined };
+        }
+
         let rust_type = match base_type {
             "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
             "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
             "f32" | "f64" => base_type.to_string(),
+            // The generic spellings, which every neighbour already answers and this
+            // mapper never learned. `t27_array_type_to_zig` (compiler.rs:8349) carries
+            // them with a comment naming the same defect one backend over:
+            //
+            //   "float" => "f64", "double" => "f64", "int" => "i32", "uint" => "u32",
+            //   // W591: `float` is not a Zig type. Same family as the f32/f64 gap
+            //   // W583 found on the C side -- a scalar the corpus spells and the
+            //   // mapper never learned, so it passed through the `other` arm and
+            //   // reached the backend verbatim.
+            //
+            // and the C emitter matches on `"f16" | "f32" | "f64" | "float" | "double"`
+            // in three places. Here they fell to the default and reached rustc as
+            // `int` and `float`, which are not Rust types -- `cannot find type` was
+            // the largest first-error class in the corpus.
+            "int" => "i32".to_string(),
+            "uint" => "u32".to_string(),
+            "float" | "double" => "f64".to_string(),
             "GF16" | "gf16" => "u16".to_string(),
             "bool" => "bool".to_string(),
             // The Zig mapper spells this `"str" | "string" => "[]const u8"`
@@ -41604,6 +41719,16 @@ fn read_it() -> u16 {
             }
         }"#;
         let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // `unwrap_or("")` makes the region EMPTY when the key is absent, and an
+        // empty region satisfies the assertion below by construction. Nothing
+        // else here asserts the clocked block exists: `fn on_clock` appears as a
+        // fixture exactly once in this file, in this test, so a rename of the
+        // emitted `always @(posedge` would leave this passing on nothing.
+        assert!(
+            v.contains("always @(posedge"),
+            "the emitter no longer produces a clocked block, so the assertion \
+             below would pass over an empty region:\n{v}"
+        );
         let clocked = v.split("always @(posedge").nth(1).unwrap_or("");
         assert!(
             !clocked.contains("__t27_ret"),
@@ -41645,10 +41770,27 @@ fn read_it() -> u16 {
         // last one may name the flag.
         let v = Compiler::compile_verilog_for_simulation(src)
             .expect("compile should succeed");
+        // The `.expect` below cannot fire and does not check what it says:
+        // `__mul_noop` is injected unconditionally, so an `endfunction` is
+        // present whether or not the fixture declares a function. The real
+        // precondition is that the lowered test block is emitted AFTER the
+        // functions -- nothing in this test asserted that ordering, and the
+        // region is empty of the subject the moment it changes.
+        assert!(
+            v.contains("initial begin"),
+            "the test block is no longer lowered, so the region below holds \
+             nothing to find:\n{v}"
+        );
         let end_of_functions = v
             .rfind("endfunction")
             .or_else(|| v.rfind("endtask"))
             .expect("the fixture declares a function");
+        assert!(
+            v[end_of_functions..].contains("initial begin"),
+            "the lowered test block no longer sits after the last endfunction, \
+             so this region is not the one the assertion means:\n{}",
+            &v[end_of_functions..]
+        );
         assert!(
             !v[end_of_functions..].contains("__t27_ret"),
             "nothing outside a function body may test a flag that is declared \

@@ -8,6 +8,10 @@ on:
   pull_request:
     paths:
       - 'proofs/trinity/**.v'
+      # This file. Without it a PR that repairs this workflow cannot run it, so
+      # the repair ships unverified -- which is how it stayed broken. The `push:`
+      # block above already lists it; the two triggers disagreed.
+      - '.github/workflows/coq-proofs.yml'
   workflow_dispatch:
 
 jobs:
@@ -16,6 +20,19 @@ jobs:
     container:
       image: coqorg/coq:8.19-ocaml-4.14-flambda
       options: --user root
+    # `--user root` is why every run of this job has failed. The image
+    # initialises opam for the `coq` user under /home/coq/.opam; as root, OPAMROOT
+    # defaults to /root/.opam, which does not exist. The log says so exactly:
+    #
+    #     [WARNING] Running as root is not recommended
+    #     [ERROR] Opam has not been initialised, please run `opam init'
+    #     ##[error]Process completed with exit code 50.
+    #
+    # Pointing OPAMROOT at the root the image actually built is the whole fix.
+    # `--user root` stays: checkout writes into a workspace root owns.
+    env:
+      OPAMROOT: /home/coq/.opam
+      OPAMYES: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -23,10 +40,32 @@ jobs:
       - name: Install Coq Interval
         run: |
           opam update
-          opam install -y coq-interval.4.9.0
+          # NOT `coq-interval.4.9.0`. That pin is incompatible with the image
+          # this job runs in, and said so as soon as OPAMROOT was fixed and opam
+          # could get far enough to compute a solution:
+          #
+          #     [ERROR] Package conflict!
+          #       * Missing dependency:
+          #         - coq-interval = 4.9.0 -> coq < 8.19~
+          #     No solution found, exiting
+          #
+          # The image is coqorg/coq:8.19. 7 of the 13 proof files `Require Import
+          # Interval.Tactic`, so the dependency is real and cannot be dropped --
+          # only the version can move. Unpinned here deliberately, because the
+          # version that resolves against Coq 8.19 has never been observed in
+          # this job: it has never run this far. The next line records what the
+          # solver chose, and that reading is what a pin should be restored from.
+          opam install -y coq-interval
+          opam list --installed coq-interval
+          # Prove the switch is really there before anything depends on it.
+          eval $(opam env)
+          coqc --version
 
       - name: Compile Proofs
         run: |
+          # A new step is a new shell, so the switch has to be re-entered; without
+          # this, coqc is either absent or the wrong one.
+          eval $(opam env)
           cd proofs/trinity
           echo "Compiling Coq proof files..."
           # Compile in dependency order

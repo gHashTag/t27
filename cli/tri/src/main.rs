@@ -27,6 +27,7 @@ mod kinddrift;
 mod leanreach;
 mod leanvac;
 mod ledgers;
+mod loopclaim;
 mod misread;
 mod modreach;
 mod mutate;
@@ -181,6 +182,11 @@ enum Commands {
         action: synth::SynthCmd,
     },
     /// What is failing on the default branch right now, and since when.
+    /// Take a named claim so two sessions of the loop cannot pick the same task.
+    Loop {
+        #[command(subcommand)]
+        action: loopclaim::LoopCmd,
+    },
     Red {
         #[command(subcommand)]
         action: red::RedCmd,
@@ -1061,6 +1067,7 @@ fn main() -> Result<()> {
         Commands::Worktrees(a) => trees::run(a)?,
         Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
+        Commands::Loop { action } => loopclaim::run(action)?,
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Vectors { action } => vectors::run(action)?,

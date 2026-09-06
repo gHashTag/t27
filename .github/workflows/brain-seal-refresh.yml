@@ -8,8 +8,10 @@ on:
       - 'scripts/aggregate-experience.sh'
   workflow_dispatch:
 
+# `contents: read` since the step that needed write was removed below. The
+# artifact upload does not need it, and checkout needs only read.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   refresh-brain-seals:
@@ -45,16 +47,18 @@ jobs:
           name: brain-seals
           path: .trinity/seals/brain_*.json
 
-      - name: Commit brain seals
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git config --local user.email "t27-bot@trinity.ai"
-          git config --local user.name "T27 Autonomous Agent"
-          git add .trinity/seals/brain_*.json
-          if git diff --staged --quiet; then
-            echo "No brain seal changes to commit"
-            exit 0
-          fi
-          git commit -m "chore: refresh brain seals from experience aggregation (Refs #1440)"
-          git push
+# The `Commit brain seals` step was removed here. It ran `git push` to master,
+# and the branch ruleset refuses that: every run since this workflow was added
+# ends `remote: error: GH013: Repository rule violations found` and
+# `! [remote rejected] master -> master`. Three runs, 2026-04-07, 2026-06-01 and
+# 2026-08-28, all red at that step and only that step -- the aggregation, the
+# schema validation and the artifact upload all passed every time.
+#
+# So the job never told anyone anything except that it could not push, and the
+# one signal it does carry -- do the seals still validate against
+# BRAIN_SEAL_SCHEMA -- was buried under a permanent red. The seals are kept as
+# an artifact, which is what the upload step above is for.
+#
+# Refreshing them ON master is a separate question with a separate answer: it
+# needs a PR, because pushing to master is exactly what the ruleset exists to
+# prevent. Not done here, and not worked around.
