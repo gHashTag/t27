@@ -68,20 +68,55 @@ jobs:
           eval $(opam env)
           cd proofs/trinity
           echo "Compiling Coq proof files..."
-          # Compile in dependency order
-          coqc -R . Trinity CorePhi.v || exit 1
-          coqc -R . Trinity AlphaPhi.v || exit 1
-          coqc -R . Trinity FormulaEval.v || exit 1
-          coqc -R . Trinity Bounds_Masses.v || exit 1
-          coqc -R . Trinity Bounds_Mixing.v || exit 1
-          coqc -R . Trinity Bounds_Gauge.v || exit 1
-          coqc -R . Trinity Bounds_LeptonMasses.v || exit 1
-          coqc -R . Trinity Bounds_QuarkMasses.v || exit 1
-          coqc -R . Trinity Unitarity.v || exit 1
-          coqc -R . Trinity ConsistencyChecks.v || exit 1
-          coqc -R . Trinity ExactIdentities.v || exit 1
-          coqc -R . Trinity DerivationLevels.v || exit 1
-          coqc -R . Trinity Catalog42.v || exit 1
+          # ATTEMPT EVERY FILE, then report. The previous form was
+          # `coqc ... || exit 1` thirteen times, which stops at the first
+          # failure -- so one CI run yields exactly one error, and finding
+          # out how many of the 13 files compile costs one run per file.
+          #
+          # That became the binding constraint the moment this job started
+          # working. It had never got past `opam install`, so coqc had never
+          # run on these proofs at all; the first thing it said was that file
+          # 1 of 13 does not compile, and the state of the other 12 was
+          # unknown. A stop-at-first-error loop cannot answer that, and at
+          # ~4 minutes a run it cannot answer it cheaply either.
+          #
+          # A failure here may be CAUSED by an earlier one -- these compile in
+          # dependency order and a missing .vo cascades -- so the report marks
+          # which failures follow a failed dependency instead of presenting
+          # all of them as independent defects.
+          set +e
+          ORDER="CorePhi AlphaPhi FormulaEval Bounds_Masses Bounds_Mixing
+                 Bounds_Gauge Bounds_LeptonMasses Bounds_QuarkMasses
+                 Unitarity ConsistencyChecks ExactIdentities DerivationLevels
+                 Catalog42"
+          PASS=0; FAIL=0; FAILED_ANY=0
+          : > /tmp/coq-report.txt
+          for m in $ORDER; do
+            OUT=$(coqc -R . Trinity "$m.v" 2>&1)
+            RC=$?
+            if [ $RC -eq 0 ]; then
+              PASS=$((PASS+1))
+              printf '  ok        %s\n' "$m.v" >> /tmp/coq-report.txt
+            else
+              FAIL=$((FAIL+1))
+              if [ $FAILED_ANY -eq 1 ]; then TAG='FAIL*   '; else TAG='FAIL    '; fi
+              FAILED_ANY=1
+              FIRST=$(printf '%s\n' "$OUT" | grep -m1 -E '^(Error|File)' || printf '%s' "$OUT" | head -1)
+              printf '  %s  %-26s %s\n' "$TAG" "$m.v" "$FIRST" >> /tmp/coq-report.txt
+              printf '::group::%s\n%s\n::endgroup::\n' "$m.v" "$OUT"
+            fi
+          done
+          set -e
+          echo
+          echo "=== Coq compile report: $PASS of 13 compiled ==="
+          cat /tmp/coq-report.txt
+          if [ "$FAIL" -gt 0 ]; then
+            echo
+            echo "  FAIL* = failed AFTER an earlier failure; may be a cascade, not"
+            echo "  an independent defect. Only the first FAIL is certainly its own."
+            echo "::error::$FAIL of 13 Coq files did not compile"
+            exit 1
+          fi
           echo "All files compiled successfully!"
 
       - name: Verify No Admitted Proofs
