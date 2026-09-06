@@ -46,6 +46,33 @@ fn repo_root() -> Result<PathBuf> {
     Ok(PathBuf::from(String::from_utf8(out.stdout)?.trim()))
 }
 
+/// The operational line of a seal file, the way `bootstrap/build.rs` reads it.
+///
+/// The seal is `<64-hex> <WS> <repo-relative-path>` (FROZEN.md §4), and
+/// `build.rs:242-246` takes the first non-empty non-`#` line and then
+/// `split_whitespace().next()`. This command compared the WHOLE trimmed line
+/// against a bare digest, so on the real two-token file the comparison could
+/// never hold: `reseal check` printed two identical hashes and exited 1 on
+/// every clean checkout, and `reseal write` then wrote the digest alone,
+/// deleting the path token that `3d3b5b858` (#3280) had just restored.
+///
+/// Nothing caught it because every fixture in this module was a bare hash.
+fn seal_line(raw: &str) -> Option<&str> {
+    raw.lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty() && !l.starts_with('#'))
+}
+
+/// The digest token of a seal file -- what `build.rs` actually compares.
+fn seal_digest(raw: &str) -> Option<&str> {
+    seal_line(raw).and_then(|l| l.split_whitespace().next())
+}
+
+/// The path token, so a rewrite preserves the half `build.rs` does not read.
+fn seal_path(raw: &str) -> Option<&str> {
+    seal_line(raw).and_then(|l| l.split_whitespace().nth(1))
+}
+
 fn sha_of(p: &Path) -> Result<String> {
     let bytes = std::fs::read(p).with_context(|| format!("reading {}", p.display()))?;
     let mut h = Sha256::new();
@@ -65,7 +92,7 @@ pub fn run(cmd: &ResealCmd) -> Result<()> {
     // hashes and some markers. Say so, rather than letting a trim() produce a
     // nonsense comparison against the first line.
     let conflicted = is_conflicted(&raw);
-    let have = raw.trim().to_string();
+    let have = seal_digest(&raw).unwrap_or("").to_string();
 
     match cmd {
         ResealCmd::Check => {
@@ -82,7 +109,8 @@ pub fn run(cmd: &ResealCmd) -> Result<()> {
             println!("seal:   {}", short(&have));
             println!("actual: {}", &want[..16]);
             println!();
-            println!("`cargo build` in bootstrap/ will refuse until these agree.");
+            println!("`cargo build` in bootstrap/ reads the first token and will refuse");
+            println!("until these agree.");
             println!("If the change to {SEALED} is deliberate: tri reseal write");
             std::process::exit(1);
         }
@@ -99,7 +127,13 @@ pub fn run(cmd: &ResealCmd) -> Result<()> {
             // file that agrees with nothing, and the next reader cannot tell it
             // from a seal that was simply never updated.
             let tmp = seal.with_extension("tmp");
-            std::fs::write(&tmp, format!("{want}\n"))
+            // Keep the path token. `build.rs` reads only the digest, so dropping
+            // it produces no error anywhere -- which is exactly why the previous
+            // digest-only rewrite silently reverted #3280. The old spelling is
+            // NOT quoted here: the structural test below greps this file for it,
+            // and a quotation would satisfy the grep it exists to fail.
+            let rel = seal_path(&raw).unwrap_or(SEALED);
+            std::fs::write(&tmp, format!("{want} {rel}\n"))
                 .with_context(|| format!("writing {}", tmp.display()))?;
             std::fs::rename(&tmp, &seal)
                 .with_context(|| format!("replacing {}", seal.display()))?;
@@ -166,5 +200,73 @@ mod tests {
         assert_eq!(short(""), "(empty)");
         assert_eq!(short("abc"), "abc");
         assert_eq!(short(&"a".repeat(64)), "a".repeat(16));
+    }
+}
+
+#[cfg(test)]
+mod seal_shape_tests {
+    use super::{seal_digest, seal_path, SEALED};
+
+    /// The shape actually on disk, which no fixture in this module carried.
+    const REAL: &str =
+        "23f03e8a97d5588d06cdb84d3e59baa03c5474d9a28ef361f9bc26bd9b72f6d1 bootstrap/src/compiler.rs\n";
+    const DIGEST: &str = "23f03e8a97d5588d06cdb84d3e59baa03c5474d9a28ef361f9bc26bd9b72f6d1";
+
+    #[test]
+    fn the_two_token_seal_reads_as_its_digest() {
+        assert_eq!(seal_digest(REAL), Some(DIGEST));
+        assert_eq!(seal_path(REAL), Some("bootstrap/src/compiler.rs"));
+    }
+
+    /// This is the control. The old code compared `raw.trim()` against a bare
+    /// digest; on the real shape that is never equal, so `check` reported a
+    /// mismatch between two identical hashes on every clean checkout. If this
+    /// assertion ever fails, the fixture has stopped reproducing the defect.
+    #[test]
+    fn the_whole_line_is_not_the_digest() {
+        assert_ne!(
+            REAL.trim(),
+            DIGEST,
+            "fixture no longer reproduces the defect: the seal must carry a path token"
+        );
+        assert_eq!(seal_digest(REAL), Some(REAL.trim().split(' ').next().unwrap()));
+    }
+
+    #[test]
+    fn a_bare_digest_still_reads_and_has_no_path() {
+        assert_eq!(seal_digest("abc\n"), Some("abc"));
+        assert_eq!(seal_path("abc\n"), None);
+    }
+
+    #[test]
+    fn comments_and_blank_lines_are_not_the_seal() {
+        // Mirrors bootstrap/build.rs:242-246 exactly.
+        let raw = "\n# regenerated by tri reseal write\n\nabc def\n";
+        assert_eq!(seal_digest(raw), Some("abc"));
+        assert_eq!(seal_path(raw), Some("def"));
+        assert_eq!(seal_digest("# only a comment\n"), None);
+        assert_eq!(seal_digest(""), None);
+    }
+
+    /// The defect was in a write site, not in a predicate, so the guard goes
+    /// there. A rewrite that drops the path produces no error anywhere --
+    /// `build.rs` reads the first token -- which is how the old one silently
+    /// reverted #3280.
+    #[test]
+    fn the_rewrite_preserves_the_path_token() {
+        let src = include_str!("reseal.rs");
+        let bare = concat!("format!(\"{want}", "\\n\")");
+        assert_eq!(
+            src.matches(bare).count(),
+            0,
+            "a seal is rewritten without its path token"
+        );
+        let kept = concat!("format!(\"{want} ", "{rel}\\n\")");
+        assert_eq!(src.matches(kept).count(), 1, "the write must carry the path");
+        assert!(
+            src.contains("seal_path(&raw).unwrap_or(SEALED)"),
+            "the path must come from the file, falling back to the sealed name"
+        );
+        assert_eq!(SEALED, "bootstrap/src/compiler.rs");
     }
 }
