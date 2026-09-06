@@ -1,9 +1,9 @@
 BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
 
-  files read                    44
-  lines naming either spelling  68
+  files read                    45
+  lines naming either spelling  69
   of those, FETCH SITES         28
-  refused as not a fetch        40   (--excluded prints them)
+  refused as not a fetch        41   (--excluded prints them)
 
   complete by construction:
     --paginate                  7
@@ -33,7 +33,7 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
   exactly that. 2 of the 3 in that bucket are that shape.
 
   The exclusions are the other half of the reading. Taking every line that
-  merely NAMES `--limit` or `per_page=` reports 68 sites in a crate that has
+  merely NAMES `--limit` or `per_page=` reports 69 sites in a crate that has
   28: prose, doc comments, a marker table and test assertions. A matcher that
   swallowed them would be describing its input.
 
