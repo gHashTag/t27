@@ -24,6 +24,8 @@ name: Release Pipeline
 on:
   release:
     types: [published]
+  # tri:no-dispatch  every job keys off `github.event.release.tag_name`, which is
+  #                  empty on a dispatch, so preflight refuses and nothing publishes.
   # NO `workflow_dispatch:`, deliberately, and it must not be added back.
   #
   # The comment that used to stand here justified one by the `paths:`-filter
