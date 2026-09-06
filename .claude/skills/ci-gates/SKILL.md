@@ -17362,3 +17362,41 @@ titled *"Every workflow red on master"* while looking for something else — a
 title that could not both be true and leave my sentence standing. Two claims that
 cannot both hold are the cheapest instrument there is, and the only reason this
 one fired is that I read a list I did not need.
+
+## 597. Cross-module types: priced, and the price was zero
+
+The Rust emitter drops every `use` line, so a type declared in a sibling spec is undefined
+in the generated file. Twelve corpus specs fail with `cannot find type` on a name that IS
+declared elsewhere, and `Trit` -- the ternary language's own three-valued type -- accounts
+for six of them. It looks like the obvious next feature.
+
+It is worth nothing, and three measurements say so in increasing order of finality.
+
+**One: only one spec is blocked by this alone.** Of the twelve, eleven carry between 9 and
+84 OTHER errors. `bigint.t27` is the only one whose entire failure is missing types.
+
+**Two: the resolution is ambiguous at every level.** Of 55 types imported by name across 46
+specs, 18 are declared exactly once, 8 are declared in two to four places, and **29 are not
+declared anywhere at all**. `Trit` itself has four declarations. A module index does not
+save it: `use tritype-base::Trit` names module `tritype`, and TWO files declare that module,
+both declaring `Trit`. They happen to agree -- `const Trit = enum(i8)` in each -- which is
+luck, not a rule to build on.
+
+**Three, and this is the one that settles it: the single unblocked spec is not unblocked.**
+Pasting the real definition into its generated Rust by hand leaves three `mismatched types`
+errors. Measured, not reasoned:
+
+    bigint.t27 without the definition   5 errors
+    bigint.t27 with it pasted in        4 errors
+
+So a cross-module resolver -- new file I/O in the compiler, a module index, recursion
+guards, roughly a hundred lines -- moves the corpus by **zero**.
+
+The hand-paste is the whole method here, and it costs one command. **Before building a
+resolver, satisfy the dependency by hand and see whether the thing compiles.** If it does
+not, the feature was never the blocker; and if it does, you have measured the payoff exactly
+rather than assumed it.
+
+The real blocker is upstream and belongs to the corpus, not the compiler: the same type is
+declared in several modules, and 29 imported names are declared nowhere. No emitter change
+can make that sound.
