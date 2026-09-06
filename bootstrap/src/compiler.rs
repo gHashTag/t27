@@ -23979,7 +23979,11 @@ impl RustCodegen {
         self.indent += 1;
         for child in &node.children {
             if child.kind == NodeKind::EnumVariant {
-                let variant_name = &child.name;
+                // The Zig emitter escapes variant names and says why, one comment above
+                // its own call to `zig_ident`. The rule did not travel here, so a variant
+                // named with a Rust keyword reached rustc bare: `enum = 12,` and
+                // `continue = 5,` are what two corpus specs produced.
+                let variant_name = rust_ident(&child.name);
                 if child.value.is_empty() {
                     self.write_line(&format!("{},", variant_name));
                 } else {
@@ -24020,7 +24024,11 @@ impl RustCodegen {
     }
 
     fn gen_fn(&mut self, node: &Node) {
-        let fn_name = &node.name;
+        // A function named with a Rust keyword reached rustc bare: `pub fn match<T>(` and
+        // `pub fn await<T>(` are what two corpus specs produced. `rust_ident` already
+        // escapes struct fields, parameters, struct-literal fields and field access; the
+        // name of the function itself was the position it had not reached.
+        let fn_name = rust_ident(&node.name);
         let params: Vec<(String, String)> = node.params.clone();
         let params_str = params
             .iter()
