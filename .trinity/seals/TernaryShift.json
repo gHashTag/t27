@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:95f49986d2276ca6bdc9d4fbe7a7da4b097ad661c2d8e3f5651637a682487115",
-  "gen_hash_rust": "sha256:3f8f4d4ff437eef1a6d93ef4874b946507f5e651344bd1d027c086bf82d7dce9",
+  "gen_hash_rust": "sha256:65e8979af8fa268530aa48769d5bd9141fe8270060b6ce0558466731c03614cf",
   "gen_hash_verilog": "sha256:466e2318f353e5553aab0076dfe42c6f28bd7493322728490ea26da640d10e01",
   "gen_hash_zig": "sha256:1ea5ef1effa704cd0af704cfe96b779f89faeee40642282c49eaa6c32da95d14",
   "module": "TernaryShift",

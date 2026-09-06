@@ -24138,7 +24138,11 @@ impl RustCodegen {
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
                         let typ = Self::t27_type_to_rust(&child.extra_type);
-                        if child.children.is_empty() {
+                        // The same question `gen_rust_stmt` asks. This function carries its
+                        // own copy of the local-emission logic, and a fix applied to only
+                        // one of the two is not applied: the first attempt at this patched
+                        // `gen_rust_stmt` alone and changed no output at all.
+                        if child.children.is_empty() || Self::is_undefined_init(&child.children) {
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {};", kw, var_name));
                             } else {
@@ -24295,6 +24299,27 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// Is this local's initialiser the single word `undefined`?
+    ///
+    /// Zig's word for "not initialised yet". It reached rustc as an identifier --
+    /// `let mut info: EncodingInfo = undefined;` -- and `cannot find value` was the
+    /// largest single name in the corpus's first-error census, 14 of 21 in its class.
+    ///
+    /// The answer is a DECLARATION, not a value. An earlier attempt mapped it to
+    /// `Default::default()` and was withdrawn (#3223) because `[usize; 256]` has no
+    /// `Default`; the blocker was the mapping, not the defect. Deferred initialisation
+    /// needs no bound and is the exact semantics -- and rustc refuses a read before the
+    /// assignment, which surfaces a real defect instead of defaulting it away.
+    ///
+    /// Distinct from `CCodegen::mentions_undefined`, which asks whether the word appears
+    /// ANYWHERE in an expression (`result != undefined`). This asks whether it IS the
+    /// whole initialiser, the only shape a declaration can absorb.
+    fn is_undefined_init(children: &[Node]) -> bool {
+        children.len() == 1
+            && children[0].kind == NodeKind::ExprIdentifier
+            && children[0].name == "undefined"
+    }
+
     fn gen_rust_stmt(&mut self, stmt: &Node) {
         match stmt.kind {
             NodeKind::ExprReturn => {
@@ -24324,7 +24349,7 @@ impl RustCodegen {
                 }
                 let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
                 let typ = Self::t27_type_to_rust(&stmt.extra_type);
-                if stmt.children.is_empty() {
+                if stmt.children.is_empty() || Self::is_undefined_init(&stmt.children) {
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {};", kw, stmt.name));
                     } else {
@@ -24540,6 +24565,23 @@ impl RustCodegen {
             "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
             "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
             "f32" | "f64" => base_type.to_string(),
+            // The generic spellings, which every neighbour already answers and this
+            // mapper never learned. `t27_array_type_to_zig` (compiler.rs:8349) carries
+            // them with a comment naming the same defect one backend over:
+            //
+            //   "float" => "f64", "double" => "f64", "int" => "i32", "uint" => "u32",
+            //   // W591: `float` is not a Zig type. Same family as the f32/f64 gap
+            //   // W583 found on the C side -- a scalar the corpus spells and the
+            //   // mapper never learned, so it passed through the `other` arm and
+            //   // reached the backend verbatim.
+            //
+            // and the C emitter matches on `"f16" | "f32" | "f64" | "float" | "double"`
+            // in three places. Here they fell to the default and reached rustc as
+            // `int` and `float`, which are not Rust types -- `cannot find type` was
+            // the largest first-error class in the corpus.
+            "int" => "i32".to_string(),
+            "uint" => "u32".to_string(),
+            "float" | "double" => "f64".to_string(),
             "GF16" | "gf16" => "u16".to_string(),
             "bool" => "bool".to_string(),
             // The Zig mapper spells this `"str" | "string" => "[]const u8"`
