@@ -23952,6 +23952,24 @@ impl RustCodegen {
             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
                 let field_name = &child.name;
                 let field_type = Self::t27_type_to_rust(&child.extra_type);
+                // A struct that holds an OPTIONAL of itself is infinitely sized in Rust:
+                //
+                //     pub left: Option<KDNode>            error[E0072]
+                //     pub children: [Option<OctNode>; 8]  the same, once per element
+                //
+                // Zig writes `?KDNode` and stores it inline because its optional of a
+                // struct is a tagged union of known size; Rust needs the indirection
+                // spelled out. rustc says exactly this and names the repair.
+                //
+                // Only `Option<ThisStruct>` is rewritten, and only on an exact name match.
+                // `Vec<ThisStruct>` is already indirect and is left alone; a bare
+                // `ThisStruct` would still be infinite but does not occur in the corpus,
+                // and guessing at a shape nothing exhibits is how a rule outgrows its
+                // evidence.
+                let field_type = field_type.replace(
+                    &format!("Option<{}>", node.name),
+                    &format!("Option<Box<{}>>", node.name),
+                );
                 if field_type.trim() == "bool" {
                     self.bool_fields.insert(field_name.clone());
                 }
