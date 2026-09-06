@@ -1,0 +1,4 @@
+formal-yosys.yml	Workflow reachable scan — a cited workflow must exist on the default branch (non-blocking, see Prop. 169)
+fpga-build.yml	Upload bitstream + flashing guide
+notebook-sync.yml	Update sync status as commit (best-effort)
+rings-rust.yml	Generate matrix

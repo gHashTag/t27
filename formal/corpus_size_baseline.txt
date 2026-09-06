@@ -1,0 +1,77 @@
+# Population sizes this repository is ratcheted against (Prop. 209/210).
+#
+# gate-scripts 37 -> 38 and gate-scripts-lines 5768 -> 6103 -> 6225 are GROWTH,
+# locked in here because the scan only prints growth and never fails on it, so an
+# unratcheted rise can be given back later with nothing going red. The rise is:
+# 69e8f5884 tracked formal/replacement_scan.py (37 -> 38, +335 lines, measured in
+# a clean clone at HEAD and never recorded); c55e5075a added the --init guard to
+# 12 baseline-owning gates (+122 lines, no new file).
+#
+# CORRECTION. c55e5075a wrote 39 / 6643 here. Those numbers describe a tree that
+# no commit produces: they include formal/index_drift_scan.py (1 file, 418 code
+# lines), and that file was never committed. Its own commit message says so --
+# "index_drift_scan is NOT landed" -- while the baseline in the same commit
+# counts it. `git log --all -- formal/index_drift_scan.py` returns nothing, and
+# `git diff --name-status 69e8f5884 c55e5075a -- 'formal/*.py'` is 13 M lines and
+# zero D lines, so no gate script was ever removed. Measured from the objects:
+#
+#     f66561f33  gate-scripts=37  gate-scripts-lines=5768
+#     69e8f5884  gate-scripts=38  gate-scripts-lines=6103
+#     c55e5075a  gate-scripts=38  gate-scripts-lines=6225   <- HEAD, what is here
+#
+# so 39 - 38 = 1 and 6643 - 6225 = 418 are exactly the phantom. Lowering these
+# is therefore NOT giving growth back and NOT acknowledging a deletion: the real
+# series never decreases. It removes a number that was measured on an intended
+# tree rather than an actual one. If index_drift_scan.py is ever landed, raise
+# these in the commit that lands it -- which is the rule that was broken, not a
+# new one.
+#
+# The warning that stood here was right and stays: a baseline may only assume the
+# files of the commit it ships in. Writing tomorrow's number today makes the
+# ratchet fire on everyone else's clean checkout, and the failure it prints
+# ("1 population(s) shrank") accuses the reader of a deletion that never happened.
+#
+# specs-lines 76092 is NOT reachable from HEAD either, and is left wrong on
+# purpose. That value was measured on a working tree carrying 55 edited .t27
+# files that were never committed; a clean clone measures 75936 and the scan
+# exits 1 with "specs-lines: 76092 -> 75936 (156 missing)". The 156 lines are
+# real (51 added smoke-test blocks plus parser fixes such as `module ;` ->
+# `module string;`) and four further gates -- spec_parse_gate,
+# runaway_string_scan, delimiter_balance_scan, capture_density_scan -- fail in
+# that same clone for the same reason. The number here is correct for the corpus;
+# it is the corpus that is behind, so the fix is to commit those 55 spec files,
+# NOT to lower this to 75936. Lowering it would canonicalise a tree in which 22
+# declarations are silently swallowed by the parser and would still leave the
+# other four gates red. This line is the one thing in this file that a clean
+# clone still fails on, and it is the only honest way to keep that visible.
+# RE-DERIVED FOR MASTER, in the commit that lands formal/ there.
+#
+# Everything above was measured on the branch this harness grew up on. This
+# lands formal/ on master, which is a DIFFERENT corpus -- and master is not
+# behind: it carries 650 specs to the branch's 497 and 47 workflows to 38.
+# Three populations are smaller there, and this change deletes nothing:
+#
+#     coq-sources-lines    3328 -> 3283    -45
+#     generated-rtl          13 -> 12       -1
+#     generated-rtl-lines  1247 -> 821    -426
+#
+# A baseline may only assume the files of the commit it ships in. This one now
+# does. It was caught by the scan itself, on the FIRST run of this workflow in
+# its existence -- which is the argument for merging it, not against.
+#
+# The `specs-lines 76092` note above is SUPERSEDED rather than answered. It
+# argued 76092 was right for the corpus and the corpus was behind, on the
+# evidence of 55 edited-but-uncommitted .t27 files in one working tree. That
+# argument is about that tree and does not transfer. 134602 is measured on
+# master.
+coq-sources	30
+coq-sources-lines	3283
+gate-invocations	48
+gate-scripts	47
+gate-scripts-lines	7051
+generated-rtl	12
+generated-rtl-lines	821
+specs	650
+specs-lines	134602
+workflows	47
+workflows-lines	4169
