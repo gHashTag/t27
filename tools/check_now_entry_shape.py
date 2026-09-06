@@ -65,7 +65,12 @@ def added_now_entries(base, head):
     # `.md`, so the entry left the population SILENTLY and the gate reported that the
     # change adds none. Measured on a real Cyrillic filename.
     r = subprocess.run(
-        ["git", "diff", "-z", "--name-only", "--diff-filter=A", f"{base}...{head}",
+        # `--no-renames`, because rename detection decides this gate's population.
+        # git reports a rename as a single R entry, so `--diff-filter=A` misses it
+        # and a docs/now/ path whose content newly lands by rename never reaches
+        # the shape reader. With the flag git reports D(old) + A(new) and the new
+        # path is judged like any other.
+        ["git", "diff", "-z", "--name-only", "--no-renames", "--diff-filter=A", f"{base}...{head}",
          "--", "docs/now/"],
         capture_output=True,
         text=True,
