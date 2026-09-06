@@ -17157,3 +17157,246 @@ was also the larger one — reading 7951 tracked files to judge the 3 that are s
 cost you introduce and never state is a claim you are making silently; price it in the unit
 the user feels, and expect the pricing itself to be the instrument that finds what the
 controls missed.
+
+## 592. A spooled lesson carries no number
+
+Two branches each appended `## N.` to SKILL.md, numbered from their own base. Both merged.
+The number appeared twice. It happened twice in two passes, and then the two *repairs*
+raced each other — one of them, merged, would have duplicated five whole sections.
+
+No branch-side check can catch it. `tri skill check` passes on both sides and fails only
+on the result: **the merge creates the defect, so there is nothing for a hook to look at.**
+A local `renumber` before pushing does not help either, because another PR can merge
+between the renumber and the merge — which is exactly what happened, both PRs being
+individually correct against their own bases.
+
+The fix is to stop choosing the number at author time. `tri skill add "<title>"` writes
+`.claude/skills/<skill>/incoming/<date>-<slug>.md` carrying a title and **no number**. Two
+branches spooling two lessons write two paths, and two paths do not conflict.
+`tri skill fold` appends them to SKILL.md and assigns numbers *then*, against the file in
+front of it — one branch, one moment, nothing else in flight.
+
+This is the shape `docs/now/` already uses. Its own gate script records why: entries used
+to be prepended to a single `docs/NOW.md`, every PR edited the same first line, and "the
+races were resolved by hand". 548 entry files later they do not conflict. The same defect
+was solved once in this repository and not carried across to the file next door.
+
+Two refusals are deliberate. `fold` rejects a spooled file that is **already numbered** —
+a pre-assigned number is precisely what collides — and rejects one whose first line is not
+`## <title>`, rather than guessing a title from the filename.
+
+## 593. The merge creates the defect, so the branch cannot check it
+
+Worth separating from the repair, because it decides where a guard can live at all.
+
+A defect a branch *brings* can be caught on the branch. A defect the **merge** creates
+cannot: it exists in neither side. `tri skill check` passed on both branches and failed on
+the result, and no pre-commit hook, no `--check` flag and no local dry run could have seen
+it, because at the time they run there is nothing wrong.
+
+For that class, a branch-side gate is meaningless by construction — so do not write one.
+The options are to remove the collision (make the identifier unique by construction, as a
+spooled path is), or to assign the identifier after the merge, which means a single writer.
+
+The recognising question is: **can I reproduce this defect in one branch?** If the answer
+is no and both sides are individually correct, stop looking for a check to add to the
+branch, and change what the merge is being asked to combine.
+
+The same shape appears wherever two branches edit one shared position: a first line, a
+counter, a next free number, a hand-maintained index. `docs/NOW.md` had it and was split.
+`SKILL.md` had it and was not, until now.
+
+## 594. The population of EVENTS, after the predicate and the operand
+
+Three defect classes in two days, in strict order of subtlety.
+
+    the PREDICATE   is the rule right?          -- unit tests answer this
+    the OPERAND     is it applied to the right  -- eight gates read the working tree,
+                    thing?                         the directory, or HEAD (§590)
+    the EVENTS      what else comes through     -- nothing answers this but enumeration
+                    this place?
+
+The third one produced two defects that every control missed, because a control tests the
+event you thought of.
+
+**A push can be a deletion.** `.githooks/pre-push` did not read stdin, so
+`git push origin --delete <branch>` was refused with `SYNC REQUIRED: this PR/push adds no
+docs/now entry` and the branch survived on the remote. git feeds a push hook
+`<local ref> <local sha> <remote ref> <remote sha>`, one line per ref, and a deletion has
+an **all-zero local sha**.
+
+**A commit can be a merge.** Measured on git 2.50.1 with marker hooks:
+
+    event            pre-commit   commit-msg
+    normal commit        yes          yes
+    --amend              yes          yes
+    --allow-empty        yes          yes
+    merge --no-ff        NO           yes
+    cherry-pick          NO           NO      (but prepare-commit-msg fires -- see below)
+
+So every gate in the barrier — the conflict-marker refusal above all — was silent on **the
+one commit type conflict markers come from**. `git merge` runs `pre-merge-commit`, whose
+non-zero exit stops the merge; the index at that moment holds the merge RESULT, which is
+exactly the operand the barrier reads once it is corrected to `--staged`.
+
+`cherry-pick` runs `prepare-commit-msg` and `post-commit`.
+
+**A first version of this section said cherry-pick could not be stopped by any hook, and
+that was wrong** -- because the probe carried markers for only SIX hook names. "Nothing
+fired" can mean "I did not look". Re-measured over the full set of thirteen:
+
+    cherry-pick      prepare-commit-msg, post-commit
+    git am           applypatch-msg, pre-applypatch, post-applypatch
+    rebase           NOTHING
+
+A non-zero exit from `prepare-commit-msg` aborts a cherry-pick (exit 128, no commit) and
+from `applypatch-msg` aborts a `git am` (exit 1, no commit). Both are covered now;
+`rebase` genuinely is not, and that one is the gap.
+
+The correction is the lesson: **the population of a probe is as narrow as its instrument
+list**, and an empty result from a narrow instrument is indistinguishable from an absence.
+
+**The method is enumeration, not cleverness.** Write marker hooks that only `touch` a file,
+run each event through them, and read which files exist. It takes minutes and answers a
+question no amount of reasoning about the gate will.
+
+Two hazards met while measuring, both worth their own line:
+
+* **`git config` inside a worktree writes to the SHARED config.** Setting `core.hooksPath`
+  for a probe disabled the real hooks in all 148 worktrees, including other sessions
+  committing at that moment. Use `git -c core.hooksPath=... <command>`, which lives only in
+  that process.
+* **A failed `cd` does not stop a subshell.** `( cd "$P" ; git commit ; git merge )` with a
+  missing `$P` ran its commits in the current tree. Write `cd "$P" || exit 1`, print `pwd`,
+  and make any probe that WRITES confirm its location first.
+
+## 595. The gate's blindness was its bypass, and giving it sight removed the exemption
+
+A required context called `check` had, for months, one step whose entire body was
+
+    echo "Checking repository freshness..."
+
+Two facts followed from that, and only the first was ever noticed. It asserted nothing --
+which is why it was eventually given real work. And it exempted every bot pull request from
+a requirement it could not enforce, which nobody noticed at all, because **an exemption
+produced by blindness looks exactly like no exemption being needed**.
+
+The repository already knew bots need an exemption here. Two sibling required contexts were
+given a trusted-bot no-op in June, with the reason recorded: a SKIPPED required check never
+satisfies branch protection, so the bypass has to be a step that PASSES, not a job that is
+skipped. That fix was never carried to the third gate, because the third gate did not appear
+to need it.
+
+Measured the day after the gate got teeth:
+
+    IS_BOT occurrences / conditional steps
+      now-sync-gate.yml        6 / 5
+      issue-gate.yml           3 / 2
+      check-now-freshness.yml  0 / 0        <- the required context `check`
+
+    eight open Dependabot pull requests
+      opened after the change  3   check = FAILURE, other three contexts green
+      opened before            5   check = SUCCESS, only because the run predates it
+
+The five green ones were not safe; any synchronize or title edit re-runs the job and flips
+them. With the ruleset not editable and no bypass_actors, a red required context means the
+pull request **can never merge** -- and the gate's own failure text asserted the thing that
+is false on exactly this population: "NOW Sync Gate should have caught that first", when on
+a bot pull request NOW Sync Gate deliberately does not look.
+
+**When you give an empty gate real work, ask what its emptiness was covering.** A gate that
+asserted nothing also refused nothing, and every population that quietly depended on that is
+about to meet a rule for the first time. Look for the exemptions its siblings carry: if two
+of three have one and the third does not, the third is not simpler -- it is younger.
+
+Proven end to end rather than argued: after the port, all eight bot pull requests report
+`check = SUCCESS`, and the three that were red are mergeable.
+
+One more line, because it cost a rewrite. This section was first written into an UNQUOTED
+heredoc, so every backtick in it ran as a command substitution and the section landed with
+its code spans eaten -- `check` became nothing, and one of them printed
+`command not found: check`. Quote the delimiter: `<<'MD'`, never `<<MD`.
+
+## 596. I said master was green after reading two workflows of sixty-three
+
+Twice in one night a report of mine ended with a line like
+
+    master зелёный: перепись PASS, cli-tri и Untrusted Input Gate — success
+
+Both readings were true. The sentence was not. The repository has **63 active
+workflows**, and I had named two — the two I had happened to break and repair
+that evening, which is exactly why they were the ones in front of me.
+
+Measured properly, latest run on master for every active workflow:
+
+    success        40
+    failure        11
+    never ran      12
+
+Among the eleven was `Issue Gate`, which supplies `check-linked-issue` — one of
+the four contexts required to merge.
+
+Two separate errors, and the second is the one worth keeping.
+
+**The sample was the ones I had touched.** A gate you just repaired is the most
+available evidence and the least representative: its greenness is a statement
+about your own afternoon, not about the branch.
+
+**The obvious wider read is still a window, not a population.**
+`gh run list --branch master --limit 100` returns the last hundred RUNS, and a
+hundred runs held only **22 distinct workflows** — a third of them. The other 41
+had not run recently enough to appear, and a workflow that has not run is not a
+workflow that passed. The population lives in
+`/actions/workflows`, and the per-workflow question has to be asked once each:
+
+    gh api 'repos/OWNER/REPO/actions/workflows?per_page=100' | jq '.workflows[] | select(.state=="active")'
+    # then, per id:
+    gh api "repos/OWNER/REPO/actions/workflows/$id/runs?branch=master&per_page=1"
+
+That read also separates a third answer the window cannot express: **12 workflows
+have never run on master at all.** They are neither green nor red, and rolling
+them into either number is the failure this file is full of.
+
+The correction was not self-generated. It came from noticing a neighbour's issue
+titled *"Every workflow red on master"* while looking for something else — a
+title that could not both be true and leave my sentence standing. Two claims that
+cannot both hold are the cheapest instrument there is, and the only reason this
+one fired is that I read a list I did not need.
+
+## 597. Cross-module types: priced, and the price was zero
+
+The Rust emitter drops every `use` line, so a type declared in a sibling spec is undefined
+in the generated file. Twelve corpus specs fail with `cannot find type` on a name that IS
+declared elsewhere, and `Trit` -- the ternary language's own three-valued type -- accounts
+for six of them. It looks like the obvious next feature.
+
+It is worth nothing, and three measurements say so in increasing order of finality.
+
+**One: only one spec is blocked by this alone.** Of the twelve, eleven carry between 9 and
+84 OTHER errors. `bigint.t27` is the only one whose entire failure is missing types.
+
+**Two: the resolution is ambiguous at every level.** Of 55 types imported by name across 46
+specs, 18 are declared exactly once, 8 are declared in two to four places, and **29 are not
+declared anywhere at all**. `Trit` itself has four declarations. A module index does not
+save it: `use tritype-base::Trit` names module `tritype`, and TWO files declare that module,
+both declaring `Trit`. They happen to agree -- `const Trit = enum(i8)` in each -- which is
+luck, not a rule to build on.
+
+**Three, and this is the one that settles it: the single unblocked spec is not unblocked.**
+Pasting the real definition into its generated Rust by hand leaves three `mismatched types`
+errors. Measured, not reasoned:
+
+    bigint.t27 without the definition   5 errors
+    bigint.t27 with it pasted in        4 errors
+
+So a cross-module resolver -- new file I/O in the compiler, a module index, recursion
+guards, roughly a hundred lines -- moves the corpus by **zero**.
+
+The hand-paste is the whole method here, and it costs one command. **Before building a
+resolver, satisfy the dependency by hand and see whether the thing compiles.** If it does
+not, the feature was never the blocker; and if it does, you have measured the payoff exactly
+rather than assumed it.
+
+The real blocker is upstream and belongs to the corpus, not the compiler: the same type is
+declared in several modules, and 29 imported names are declared nowhere. No emitter change
+can make that sound.

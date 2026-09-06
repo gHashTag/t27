@@ -35,8 +35,34 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # THE BYPASS THAT WAS NEVER CARRIED HERE. #1081 gave `check-now-freshness` and
+    # `check-linked-issue` a trusted-bot no-op on 2026-06-14, for a reason stated there:
+    # a SKIPPED required check never satisfies branch protection, so the bypass has to be
+    # a step that passes, not a job that is skipped. This job was exempt from the problem
+    # only because its entire body was `echo "Checking repository freshness..."` -- its
+    # blindness WAS the bypass. #2756 gave it real work on 2026-08-28 and the exemption
+    # went with the blindness.
+    #
+    # MEASURED, 2026-09-06: eight open Dependabot pull requests. The three opened
+    # 2026-09-01, after this job got teeth, are RED on `check` and green on the other
+    # three required contexts. The five opened 2026-08-24 are green only because their
+    # last run predates the change; any synchronize or title edit re-runs the job and
+    # flips them. The ruleset is not editable and there are no bypass_actors, so a red
+    # `check` means the pull request can never merge.
+    #
+    # The failure text even asserts what is false on this population: "NOW Sync Gate
+    # should have caught that first" -- on a bot pull request NOW Sync Gate deliberately
+    # does not look.
+    env:
+      IS_BOT: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'github-actions[bot]' || github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'github-actions[bot]') && 'true' || 'false' }}
     steps:
+      - name: Trusted-bot bypass (no-op pass)
+        if: env.IS_BOT == 'true'
+        run: |
+          echo "Trusted bot PR -- gate passes as no-op. Closes 1031."
+
       - uses: actions/checkout@v6
+        if: env.IS_BOT != 'true'
         with:
           fetch-depth: 0
 
@@ -56,9 +82,11 @@ jobs:
       #     NOW Sync Gate  ->  "you wrote one"
       #     this           ->  "what you wrote says something"
       - name: Negative control
+        if: env.IS_BOT != 'true'
         run: python3 tools/check_now_entry_shape.py --self-check
 
       - name: The docs/now/ entry this PR adds must say something
+        if: env.IS_BOT != 'true'
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -78,11 +106,13 @@ jobs:
       # the two readers cannot drift into two rules; if they cannot be read the step
       # exits 2, which is could-not-run and not a pass.
       - name: Negative control for the fix( guard
+        if: env.IS_BOT != 'true'
         run: python3 tools/check_fix_carries_source.py --self-check
 
       # PR_TITLE is attacker-controlled text and reaches the script through the
       # environment, never through `${{ }}` interpolation into a shell line.
       - name: A fix( in a compiler scope must carry a source file
+        if: env.IS_BOT != 'true'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}

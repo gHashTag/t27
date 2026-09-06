@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# The merge analogue of pre-commit, and the barrier had no such thing.
+#
+# MEASURED on git 2.50.1, marker hooks over five commit-creating events:
+#
+#     event            pre-commit   commit-msg
+#     normal commit        yes          yes
+#     --amend              yes          yes
+#     --allow-empty        yes          yes
+#     merge --no-ff        NO           yes
+#     cherry-pick          NO           NO
+#
+# So every gate in `tri hooks pre-commit` -- the conflict-marker refusal above all --
+# was silent on the one commit type conflict markers actually come from. `git merge`
+# runs `pre-merge-commit` instead, and a non-zero exit from it stops the merge: verified,
+# HEAD stayed on the pre-merge commit.
+#
+# The index at this moment holds the merge RESULT, which is exactly the operand
+# `tri hooks pre-commit` reads since it was corrected to `--staged`.
+#
+# cherry-pick runs neither hook and git offers no hook that could stop it. That gap is
+# stated in docs/now rather than papered over.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Newest, not first: a stale binary prints PASSED for gates it does not carry.
+TRI_BIN=""
+for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+  [ -x "$cand" ] || continue
+  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
+done
+if [ -z "$TRI_BIN" ]; then
+  echo "note: no tri binary; the merge was not checked and nothing about it is claimed."
+  exit 0
+fi
+exec "$TRI_BIN" hooks pre-commit
