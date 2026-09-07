@@ -1,0 +1,11 @@
+# NOW -- A length that resolved to nothing (2026-09-08)
+
+## A length that resolved to nothing (Closes #3406)
+
+- Zig exposes a slice length as the FIELD `.len`, so specs write it that way and both spellings reached rustc unlowered: `data.len` as **26** E0615 ("attempted to take value of method"), `len(data)` as **38** of the corpus's E0425. Both now lower to Rust's method call.
+- Two guards, each with a measured population. `declared_fns`: 3 specs declare their own `fn len`. `field_names`: 6 declare a struct field genuinely named `len`, and there the access is a field. The existing `bool_fields` could NOT serve as the second guard -- it is filled DURING emission from inside `gen_struct`, so a guard consulted from an expression would depend on emission order. `collect_field_names` is a pre-pass like its neighbours.
+- **First fix in this series with a positive acceptance delta.** rustc accepts **430 -> 433 of 651**, and the three are real: `isa/ternary_pattern_matching` (5 functions), `isa/ternary_search` (6), `isa/ternary_sorting` (6), each going from N errors to zero. Coded diagnostics **3096 -> 2962**. E0615 **26 -> 0**, E0425 **770 -> 732**.
+- The cost, stated: **9 new E0308**. `path.len() > MAX_PATH_LENGTH` is `usize` against a `u32` constant; `analysis.total_tasks = tasks.len()` assigns `usize` to a `u32` field. These are true statements about the specs, previously hidden behind a name that did not resolve at all.
+- **`pow` was declined, not missed.** It is the second-largest unresolved name at 48 diagnostics, but 10 of the 29 specs calling it declare their own `fn pow`, and Rust spells it three ways by type (`powf`, `powi`, `pow`). The corpus writes both `pow(3, k)` and `pow(E, (k as f64))`, so a choice here would be a wrong translation that COMPILES -- worse than the unresolved name. Filed in #3406.
+- Caught while measuring: I compared 3745 against 2994 and read a drop of 751. The first counts `^error` LINES (including "aborting due to N previous errors"), the second counts `error[E....]` CODES. Same directory, same binary, two different questions. The honest figure is 3096 -> 2962.
+- Mutation-checked twice, one test each: removing the field guard fails only `a_struct_field_named_len_stays_a_field`; disabling the free-call form fails only `both_spellings_of_length_become_a_method_call`.

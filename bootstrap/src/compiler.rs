@@ -21944,6 +21944,25 @@ fn parse_int_value(s: &str) -> Option<i64> {
 /// The argument must be a bare identifier naming a slice parameter of the
 /// caller. Anything else -- a literal, an index, a call -- is not a parameter
 /// being threaded through and is left alone rather than guessed at.
+/// Every struct field name this file declares, at any depth.
+///
+/// `bool_fields` is filled DURING emission, from inside `gen_struct`, so it is
+/// only complete once the structs have been written. A guard consulted from an
+/// expression must not depend on emission order, so this is a pre-pass like its
+/// neighbours.
+fn collect_field_names(node: &Node, out: &mut std::collections::HashSet<String>) {
+    if node.kind == NodeKind::StructDecl {
+        for f in &node.children {
+            if f.kind == NodeKind::ExprIdentifier && !f.name.is_empty() {
+                out.insert(f.name.clone());
+            }
+        }
+    }
+    for c in &node.children {
+        collect_field_names(c, out);
+    }
+}
+
 /// Each function's parameter names, in order. A call site knows argument
 /// POSITIONS; `written_slice_params` is keyed by parameter NAME, and this is
 /// the map between them.
@@ -23800,6 +23819,10 @@ pub struct RustCodegen {
     /// being threaded into a callee that writes them. Emitted as `&mut [T]`.
     written_slice_params:
         std::collections::HashMap<String, std::collections::HashSet<String>>,
+    /// Every struct field name this file declares. Guards the `.len` lowering:
+    /// 6 corpus specs give a struct a field actually named `len`, and rewriting
+    /// that field access into a method call would be wrong there.
+    field_names: std::collections::HashSet<String>,
     /// Parameter names by position, per function. Pairs with the map above so a
     /// call site can ask "is argument 2 a `&mut [T]` slot?".
     param_names: std::collections::HashMap<String, Vec<String>>,
@@ -23877,6 +23900,7 @@ impl RustCodegen {
             in_const_init: false,
             written_slice_params: std::collections::HashMap::new(),
             param_names: std::collections::HashMap::new(),
+            field_names: std::collections::HashSet::new(),
             current_mut_slice_params: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
             bool_module_vars: std::collections::HashSet::new(),
@@ -24001,6 +24025,8 @@ impl RustCodegen {
         self.written_slice_params = collect_written_slice_params(ast);
         self.param_names.clear();
         collect_param_names(ast, &mut self.param_names);
+        self.field_names.clear();
+        collect_field_names(ast, &mut self.field_names);
 
         // Same pre-pass, for the integer widths used by `infer_int_type`:
         // callee return types and module-level constants are both visible from
@@ -25567,6 +25593,24 @@ impl RustCodegen {
                 // reborrowing and must not get a second `&mut`; that is what
                 // `current_mut_slice_params` is for. It is also why this cannot
                 // be done by looking at the argument text alone.
+                // The FREE-call spelling of the same thing. Zig exposes a
+                // slice length as a field, so specs write both `x.len` and
+                // `len(x)`; the second reached rustc as a call to a function
+                // that does not exist -- 38 of the corpus's E0425 diagnostics.
+                // Two guards, and the code checks both: `declared_fns` because
+                // 3 specs declare their own `fn len`, and `field_names` because
+                // 6 declare a struct field named `len`. The second is stricter
+                // than this form strictly needs -- a free `len(x)` is a length
+                // call even in a file that also has a `len` field -- and it is
+                // kept deliberately so both spellings answer to one condition
+                // rather than drifting apart.
+                if node.name == "len"
+                    && args.len() == 1
+                    && !self.declared_fns.contains("len")
+                    && !self.field_names.contains("len")
+                {
+                    return format!("({}).len()", args[0]);
+                }
                 if let Some(callee_params) = self.param_names.get(&node.name) {
                     if let Some(callee_written) = self.written_slice_params.get(&node.name) {
                         for (i, a) in args.iter_mut().enumerate() {
@@ -25755,6 +25799,19 @@ impl RustCodegen {
                         // an `if x != null`.
                         if node.name == "?" {
                             format!("{}.unwrap()", base)
+                        } else if node.name == "len" && !self.field_names.contains("len") {
+                            // Zig exposes a slice length as the FIELD `.len` and
+                            // specs are written in that shape, so `data.len`
+                            // reached rustc verbatim: "attempted to take value
+                            // of method `len`" (E0615, 26 diagnostics). Rust
+                            // spells it as a method. The Zig backend documents
+                            // the mirror image of this at its own `.len` site.
+                            //
+                            // Guarded by the whole-file field census: 6 corpus
+                            // specs declare a struct field genuinely named
+                            // `len`, and in those files the access is a field
+                            // and must stay one.
+                            format!("{}.len()", base)
                         } else {
                             format!("{}.{}", base, rust_ident(&node.name))
                         }
