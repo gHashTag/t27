@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:e26d5e7d7b252343f37f1beae4d344af390bf3cdd8fc2c3778d6359990aac6db",
-  "gen_hash_rust": "sha256:fe3ec5eaf7f43ba18226e4939e4b5c9ace140192f1416921d65a06aecd82b528",
-  "gen_hash_verilog": "sha256:7baa41f693b25fd218b7fb41ca5acee278ec413bb0449dbef759e6d6880a852f",
-  "gen_hash_zig": "sha256:52c3832bd59a6d948b03bd92108aa5adc3ca6cafa412afff71acf7f5d271f569",
+  "gen_hash_c": "sha256:765d510a3bf0c74ee2cdbea7a9ad2cf5444bc4e88bb0ff3755b48983f642453b",
+  "gen_hash_rust": "sha256:d1c6ce678fb63db26f6636dc92f17710400cc3acb14cbe4fede86013e365941c",
+  "gen_hash_verilog": "sha256:1fcc41e8c75934e2aa15c4637c5628a80f15e54de03e719dfc2f39d10cb291f1",
+  "gen_hash_zig": "sha256:244c366f2c2ba438dae307442c8e426b09567cf4dbe0b0584c99e88e7f2fa8e2",
   "module": "FPGA_Bridge",
   "ring": 12,
-  "sealed_at": "2026-09-07T21:07:02Z",
+  "sealed_at": "2026-09-07T23:00:09Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:a6b3892f83131b5c6194a7da5bd5b7edc1de4b33d7bfd8c15cde235fce19a775",
+  "spec_hash": "sha256:549e7fa1e7b391e1adeb47ce9e3d4525c56831823e9a119105b8b6718172c8ef",
   "spec_path": "specs/fpga/bridge.t27"
 }

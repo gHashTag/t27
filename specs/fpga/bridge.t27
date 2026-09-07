@@ -86,6 +86,20 @@ module FPGA_Bridge;
     // buffer_write(buf: []u8, size: usize, head: usize, data: u8) → bool
     // Write byte to circular buffer
     fn buffer_write(buf_in: []u8, size: usize, head: usize, data: u8) -> bool {
+        // `head` was never checked against `size`, so a caller one past the end
+        // wrote out of bounds: in the generated Rust that panics, and in C the
+        // signature is `bool buffer_write(uint8_t* buf_in, size_t size, size_t
+        // head, uint8_t data)` -- a bare pointer, so the write simply happens.
+        // The sibling `buffer_read` in this same file guards its index; this
+        // one did not, and an asymmetry inside one file is an oversight rather
+        // than a convention.
+        //
+        // The bound uses `size`, not `buf_in.len`, deliberately: a `[]T` loses
+        // its length at the C ABI, so a `.len`-based guard would exist in the
+        // Rust and Zig outputs and be absent from C (#3428).
+        if (head >= size) {
+            return false;
+        }
         const new_head = (head + 1) % size;
         if (new_head == 0 && head == size - 1) {
             return false;  // Buffer full
@@ -97,7 +111,9 @@ module FPGA_Bridge;
     // buffer_read(buf: []u8, size: usize, tail: usize) → (u8, usize)
     // Read byte from circular buffer, return (data, new_tail)
     fn buffer_read(buf: []u8, size: usize, tail: usize) -> (u8, usize) {
-        if (tail == size) {
+        // `>=`, not `==`: the equality caught the one-past-the-end case and
+        // let every larger index through to `buf[tail]`.
+        if (tail >= size) {
             return (0u8, 0);
         }
         const data = buf[tail];
