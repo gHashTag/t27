@@ -155,3 +155,31 @@ fn a_type_that_arrives_through_an_import_is_not_unknown() {
         warned.join("\n")
     );
 }
+
+/// A spelling the emitter passes through unchanged is not an unknown type.
+///
+/// The first oracle was "does the Rust emitter REWRITE this name" -- true for
+/// `int` -> `i32`, and false for `usize`, `isize` and `char`, which are already
+/// valid Rust and come back unchanged. That read as undeclared: **565 of the
+/// 1045 remaining warnings, every one of them on `usize`**.
+///
+/// `int_value_bits` answers the right question -- does this spelling have a
+/// width -- regardless of which target it is spelled for.
+#[test]
+fn a_spelling_already_valid_in_the_target_is_not_unknown() {
+    let w = unknown_types(
+        "module m {\n    struct S { a: usize, b: isize, c: char, }\n}\n",
+    );
+    assert!(w.is_empty(), "primitive spellings must not warn: {w:?}");
+}
+
+#[test]
+fn a_genuinely_undeclared_name_still_warns_beside_them() {
+    // The control for the test above: widening the known set must not widen it
+    // to everything. `Nope` has no width, no rewrite and no declaration.
+    let w = unknown_types(
+        "module m {\n    struct S { a: usize, b: Nope, }\n}\n",
+    );
+    assert_eq!(w.len(), 1, "exactly the undeclared one, got {w:?}");
+    assert!(w[0].contains("Nope"), "{}", w[0]);
+}
