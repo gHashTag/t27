@@ -369,3 +369,78 @@ fn a_literal_receiver_is_left_bare() {
         "a typed receiver must become a method call, got:\n{text}"
     );
 }
+
+/// A `[]T` parameter written by the body is an OUT parameter. gen-rust rendered
+/// it `Vec<T>` -- by value, no `mut` -- and then emitted `buf[i] = x` into it.
+/// rustc rejects that, and had it compiled the caller would see nothing.
+const SPEC_OUT_PARAM: &str = r#"
+module outp {
+    fn fill(buf: []i32, n: usize) -> void {
+        var i : usize = 0;
+        while (i < n) {
+            buf[i] = 7;
+            i = i + 1;
+        }
+    }
+}
+"#;
+
+/// The inductive half: `outer` never assigns into its own `buf`, it hands it to
+/// `inner`, which does. Marking only direct writers gave the caller `Vec<i32>`
+/// and the callee `&mut [i32]`, and the call between them was E0308.
+const SPEC_OUT_PARAM_CHAIN: &str = r#"
+module chain {
+    fn inner(buf: []i32, n: usize) -> void {
+        var i : usize = 0;
+        while (i < n) {
+            buf[i] = 5;
+            i = i + 1;
+        }
+    }
+    fn outer(buf: []i32, n: usize) -> void {
+        inner(buf, n);
+    }
+}
+"#;
+
+#[test]
+fn an_out_parameter_gives_the_caller_its_writes() {
+    let Some(out) = rust_says(
+        SPEC_OUT_PARAM,
+        "fn main(){ let mut a = [0i32; 3]; fill(&mut a, 3); println!(\"{}\", a[0]+a[1]+a[2]); }\n",
+        "rust-out-param",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "21", "three sevens; 0 means the writes landed in a copy");
+}
+
+#[test]
+fn an_out_parameter_threaded_through_a_call_is_still_an_out_parameter() {
+    let Some(out) = rust_says(
+        SPEC_OUT_PARAM_CHAIN,
+        "fn main(){ let mut a = [0i32; 2]; outer(&mut a, 2); println!(\"{}\", a[0]+a[1]); }\n",
+        "rust-out-param-chain",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "10", "two fives, written two calls deep");
+}
+
+#[test]
+fn only_the_written_slice_parameter_changes() {
+    // The guard has THREE outcomes and the third one matters. An earlier draft
+    // made every slice parameter a reference; `[]T` then meant `&[T]` in
+    // parameter position and `Vec<T>` in return, field and local position, and
+    // `fn join(base: []u8) []u8 { var r : []u8 = base; }` emitted
+    // `base: &[u8]` beside `let mut r: Vec<u8> = base;` -- E0308. Zig renders
+    // `[]u8` in every position and C renders `uint8_t*` in every position; only
+    // Rust would have disagreed with itself. An unmarked parameter is a no-op.
+    let src = "module ro {\n    fn peek(a: []i32, b: []i32, c: [3]i32) -> i32 { a[0] = 1; return b[0] + c[0]; }\n}\n";
+    let Some(text) = rust_text(src, "rust-readonly-slice") else {
+        return;
+    };
+    assert!(text.contains("a: &mut [i32]"), "written slice, got:\n{text}");
+    assert!(text.contains("b: Vec<i32>"), "read-only slice must be untouched, got:\n{text}");
+    assert!(text.contains("c: [i32; 3]"), "fixed array untouched, got:\n{text}");
+}
