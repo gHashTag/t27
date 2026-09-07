@@ -22930,6 +22930,133 @@ struct FnEntry {
     params: Vec<(String, TypeInfo)>,
 }
 
+/// The identifier a type annotation ultimately names, with the wrappers the
+/// language spells around it stripped.
+///
+/// `resolve_type_str` only matches whole strings, so `[]Trit` and `[3]Trit`
+/// both fall through to `Custom("[]Trit")` -- the wrapper, not the type. A
+/// check that consulted `Custom(..)` directly would therefore compare a name
+/// nothing ever declares and report every array as unresolved.
+fn type_base_name(t: &str) -> Option<String> {
+    let mut t = t.trim();
+    loop {
+        let before = t;
+        t = t.trim_start_matches('*').trim_start_matches('&');
+        t = t.trim_end_matches('?');
+        t = t.trim();
+        if let Some(rest) = t.strip_prefix("const ") {
+            t = rest.trim();
+        }
+        if let Some(rest) = t.strip_prefix('[') {
+            // `[]T` and `[N]T` alike: everything up to the first `]`.
+            if let Some(i) = rest.find(']') {
+                t = rest[i + 1..].trim();
+            }
+        }
+        if t == before {
+            break;
+        }
+    }
+    let ok = !t.is_empty()
+        && t.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if ok {
+        Some(t.to_string())
+    } else {
+        None
+    }
+}
+
+/// Every type name this tree declares: structs, enums, and the Zig-shaped
+/// `pub const Trit = enum(i8) { .. }`, which the parser records as a ConstDecl.
+fn collect_declared_types(node: &Node, out: &mut std::collections::HashSet<String>) {
+    match node.kind {
+        NodeKind::StructDecl | NodeKind::EnumDecl => {
+            out.insert(node.name.clone());
+        }
+        // `pub const PackedTrit = u8;  // Type alias` and
+        // `pub const Trit = enum(i8) { .. }` are both type declarations spelled
+        // as constants, and neither carries a type ANNOTATION -- that is what
+        // separates them from `pub const ONE : i8 = 1`. Missing the alias form
+        // produced 33 false warnings on specs/base/types.t27 alone.
+        //
+        // The test is deliberately loose. A name wrongly added here only
+        // SUPPRESSES a warning; a name wrongly left out invents one. Of the two
+        // failure directions only the second is loud and wrong.
+        NodeKind::ConstDecl if node.extra_type.trim().is_empty() => {
+            out.insert(node.name.clone());
+        }
+        _ => {}
+    }
+    for c in &node.children {
+        collect_declared_types(c, out);
+    }
+}
+
+/// Type annotations naming something this tree never declares.
+///
+/// The typechecker resolved a type name to `TypeInfo::Custom(..)` and asked no
+/// further question, so `struct S { a: NoSuchType }` produced
+/// "Typecheck OK (0 errors, 0 warnings)" and the first reader to notice was
+/// rustc, downstream, in a different language. Measured over the corpus: **62
+/// distinct undefined type names across 61 of 651 specs**, headed by `List`,
+/// `Float`, `Trit`, `Int` and `Bool` -- and of those, `Float`, `Int` and `Bool`
+/// are declared by NO spec at all, while `Trit` is declared by four and simply
+/// not imported by the files that use it.
+///
+/// Reported as warnings, not errors. Making 61 specs fail is a decision about
+/// what `check` means and belongs to the owner; making the omission visible
+/// does not.
+fn collect_unresolved_types(
+    node: &Node,
+    declared: &std::collections::HashSet<String>,
+    type_params: &std::collections::HashSet<String>,
+    out: &mut Vec<(String, String)>,
+) {
+    let mut note = |ty: &str, where_: String, out: &mut Vec<(String, String)>| {
+        if let Some(base) = type_base_name(ty) {
+            // TWO resolvers, and they do not agree. `resolve_type_str` knows
+            // 15 spellings (`i32`, `f64`, `str`, ...); the emitter's
+            // `t27_type_to_rust` also knows the language's OWN keyword
+            // spellings -- `int` -> `i32`, `float` -> `f64`,
+            // `string` -> `&'static str`. Asking only the first reported
+            // `int`, `string` and `float` as unknown types in
+            // specs/ar/coa_planning.t27, which the emitter lowers correctly.
+            //
+            // A name the emitter rewrites is a name the language knows. A name
+            // it hands back unchanged, and that nothing declares, is the one
+            // rustc will later fail to find. That disagreement between the two
+            // resolvers is worth its own repair; this check works around it
+            // rather than pretending it is not there.
+            let emitter_knows = RustCodegen::t27_type_to_rust(&base) != base;
+            if !declared.contains(&base)
+                && !type_params.contains(&base)
+                && !emitter_knows
+                && matches!(resolve_type_str(&base), TypeInfo::Custom(_))
+            {
+                out.push((base, where_));
+            }
+        }
+    };
+    match node.kind {
+        NodeKind::FnDecl => {
+            note(&node.extra_return_type, format!("return type of `{}`", node.name), out);
+            for (pname, ptype) in &node.params {
+                note(ptype, format!("parameter `{}` of `{}`", pname, node.name), out);
+            }
+        }
+        NodeKind::StructDecl => {
+            for f in &node.children {
+                note(&f.extra_type, format!("field `{}` of `{}`", f.name, node.name), out);
+            }
+        }
+        _ => {}
+    }
+    for c in &node.children {
+        collect_unresolved_types(c, declared, type_params, out);
+    }
+}
+
 pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     let mut result = TypeCheckResult {
         ok: true,
@@ -22939,6 +23066,26 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     };
     let mut symbols: Vec<SymbolEntry> = Vec::new();
     let mut fns: Vec<FnEntry> = Vec::new();
+
+    // A type name that resolves to nothing was silently accepted, and rustc was
+    // the first reader to say so. See `collect_unresolved_types`.
+    {
+        let mut declared = std::collections::HashSet::new();
+        collect_declared_types(ast, &mut declared);
+        let mut tparams = std::collections::HashSet::new();
+        collect_type_params(ast, &mut tparams);
+        let mut unresolved: Vec<(String, String)> = Vec::new();
+        collect_unresolved_types(ast, &declared, &tparams, &mut unresolved);
+        let mut seen = std::collections::HashSet::new();
+        for (name, wher) in unresolved {
+            if seen.insert(format!("{name}|{wher}")) {
+                result
+                    .errors
+                    .push(format!("warning: unknown type `{name}` in {wher}"));
+                result.warnings += 1;
+            }
+        }
+    }
 
     for child in &ast.children {
         match child.kind {
