@@ -500,3 +500,54 @@ fn a_local_array_out_parameter_round_trips_at_runtime() {
     };
     assert_eq!(out, "3", "the local array must actually receive the write");
 }
+
+/// Zig exposes a slice length as the FIELD `.len`, so specs are written that
+/// way and both spellings reached rustc unlowered: `data.len` as E0615
+/// ("attempted to take value of method"), `len(data)` as E0425.
+const SPEC_LEN_BOTH_SPELLINGS: &str = r#"
+module lens {
+    fn field_form(a: []i32) -> usize {
+        return a.len;
+    }
+    fn call_form(a: []i32) -> usize {
+        return len(a);
+    }
+}
+"#;
+
+/// The guard. A struct may have a field genuinely named `len` -- 6 corpus specs
+/// do -- and there the access is a field and must stay one.
+const SPEC_LEN_IS_A_REAL_FIELD: &str = r#"
+module owns_len {
+    struct Buf {
+        len: u32,
+        cap: u32,
+    }
+    fn size_of(b: Buf) -> u32 {
+        return b.len;
+    }
+}
+"#;
+
+#[test]
+fn both_spellings_of_length_become_a_method_call() {
+    let Some(text) = rust_text(SPEC_LEN_BOTH_SPELLINGS, "rust-len-both") else {
+        return;
+    };
+    assert!(text.contains("a.len()"), "field form, got:\n{text}");
+    assert!(text.contains("(a).len()"), "free-call form, got:\n{text}");
+}
+
+#[test]
+fn a_struct_field_named_len_stays_a_field() {
+    // Rewriting this to `b.len()` is a wrong translation: `Buf` has no such
+    // method, and in a struct that did have one it would read the wrong thing.
+    let Some(out) = rust_says(
+        SPEC_LEN_IS_A_REAL_FIELD,
+        "fn main(){ println!(\"{}\", size_of(Buf{ len: 7, cap: 9 })); }\n",
+        "rust-len-real-field",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "7", "the declared field must win over the method");
+}
