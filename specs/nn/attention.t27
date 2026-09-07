@@ -220,6 +220,13 @@ module SacredAttention {
     // Apply φ-RoPE rotation to Q and K
     // Rotates pairs of dimensions using precomputed tables
     fn apply_rope_qk(buffers: *AttentionBuffers, position: usize) -> void {
+        // `rope_tables.cos` is [CONTEXT_LEN * ROPE_PAIRS] and this reads
+        // `position * ROPE_PAIRS + pair_idx`. Nothing bounded `position`, so a
+        // caller past the end read off the end of the table -- a panic in the
+        // generated Rust, and a silent read in C, where a []T is a bare pointer.
+        if (position >= CONTEXT_LEN) {
+            return;
+        }
         var h : usize = 0;
 
         while (h < NUM_HEADS) {
@@ -264,6 +271,13 @@ module SacredAttention {
         position: usize,
         cache_k: []f64, cache_v: []f64,
     ) -> void {
+        // The shape is stated in a comment on the declaration --
+        // `cache_k: []f64, cache_v: []f64,  // [CONTEXT_LEN][EMBED_DIM]` -- and
+        // was enforced nowhere. `position` indexes into that, so an unbounded
+        // one writes past the end.
+        if (position >= CONTEXT_LEN) {
+            return;
+        }
         const offset = position * EMBED_DIM;
         var i : usize = 0;
 
@@ -287,13 +301,20 @@ module SacredAttention {
         seq_len: usize,
         cache_k: []f64,
     ) -> void {
+        // `buffers.scores` is [NUM_HEADS * CONTEXT_LEN] and the write index is
+        // `h * CONTEXT_LEN + j` with `j < seq_len`. A `seq_len` above
+        // CONTEXT_LEN therefore runs off the end of every head's row.
+        var bounded_len : usize = seq_len;
+        if (bounded_len > CONTEXT_LEN) {
+            bounded_len = CONTEXT_LEN;
+        }
         var h : usize = 0;
 
         while (h < NUM_HEADS) {
             const head_offset = h * HEAD_DIM;
             var j : usize = 0;
 
-            while (j < seq_len) {
+            while (j < bounded_len) {
                 // Skip if j > position (causal mask)
                 if (j > position) {
                     buffers.scores[h * CONTEXT_LEN + j] = 0.0;
