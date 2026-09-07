@@ -5513,9 +5513,77 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             "ring": 12
         });
 
-        let seal_path = seal_file_path(&hashes.module, &hashes.spec_path);
+        // The derived name and the file on disk can differ ONLY IN CASE: the
+        // tool would write `ar_restraint.json` where `ar_Restraint.json` is
+        // tracked. macOS resolves those to one file and hides it; on the
+        // case-sensitive filesystem CI runs on, `--save` would create a SECOND
+        // seal for the same spec and neither would be wrong-looking. Measured
+        // over the store: 751 filenames match the derived name exactly, 4
+        // differ only by case, 558 use the older bare-`<module>` scheme.
+        //
+        // An existing file wins, so the store cannot grow a case-variant twin.
+        let derived = seal_file_path(&hashes.module, &hashes.spec_path);
+        let seal_path = fs::read_dir(&seals_dir)
+            .ok()
+            .and_then(|entries| {
+                let want = derived.file_name()?.to_string_lossy().to_lowercase();
+                entries.flatten().find_map(|e| {
+                    let p = e.path();
+                    (p.file_name()?.to_string_lossy().to_lowercase() == want).then_some(p)
+                })
+            })
+            .unwrap_or(derived);
         let pretty = serde_json::to_string_pretty(&seal_obj)?;
         fs::write(&seal_path, &pretty)?;
+
+        // A spec can own MORE THAN ONE seal file, and writing only the
+        // canonical name leaves the others describing output that no longer
+        // exists. Measured over the store: 1313 seals cover 728 specs, and
+        // **547 specs carry more than one** -- 501 of those are the same module
+        // under two names, `<Module>.json` beside `<dir>_<Module>.json`, left
+        // by a naming scheme that changed. Refreshing 116 stale seals through
+        // this command reached 58 and stopped for exactly this reason.
+        //
+        // The duplicates are NOT deletable: `math_compare.rs` opens
+        // `.trinity/seals/PellisFormulas.json` by its bare name, and that file
+        // is one of the pair. So the tool maintains them instead.
+        //
+        // Only the hashes and the timestamp are rewritten. `module` is left as
+        // each file has it, because the file is NAMED after that field and
+        // overwriting it would leave a seal whose name and contents disagree --
+        // which is the defect this is repairing, not a second copy of it.
+        let mut also_updated = 0usize;
+        if let Ok(entries) = fs::read_dir(&seals_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path == seal_path || path.extension().and_then(|e| e.to_str()) != Some("json") {
+                    continue;
+                }
+                let Ok(text) = fs::read_to_string(&path) else { continue };
+                let Ok(mut existing) = serde_json::from_str::<serde_json::Value>(&text) else {
+                    continue;
+                };
+                if existing.get("spec_path").and_then(|v| v.as_str()) != Some(hashes.spec_path.as_str())
+                {
+                    continue;
+                }
+                for (k, v) in [
+                    ("spec_hash", &hashes.spec_hash),
+                    ("gen_hash_zig", &hashes.gen_hash_zig),
+                    ("gen_hash_verilog", &hashes.gen_hash_verilog),
+                    ("gen_hash_c", &hashes.gen_hash_c),
+                    ("gen_hash_rust", &hashes.gen_hash_rust),
+                ] {
+                    existing[k] = serde_json::Value::String(v.clone());
+                }
+                existing["sealed_at"] = serde_json::Value::String(now.clone());
+                if let Ok(out) = serde_json::to_string_pretty(&existing) {
+                    if fs::write(&path, &out).is_ok() {
+                        also_updated += 1;
+                    }
+                }
+            }
+        }
 
         // Also print hashes to stdout
         println!("spec_hash={}", hashes.spec_hash);
@@ -5524,6 +5592,14 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
         println!("gen_hash_c={}", hashes.gen_hash_c);
         println!("gen_hash_rust={}", hashes.gen_hash_rust);
         println!("\nSeal saved to {}", seal_path.display());
+        if also_updated > 0 {
+            // Said out loud: a command that silently touched other files would
+            // be worse than one that touches too few.
+            println!(
+                "  and {} other seal file(s) naming the same spec",
+                also_updated
+            );
+        }
     } else {
         // Default: just print hashes (existing behavior, enhanced with all backends)
         println!("spec_hash={}", hashes.spec_hash);
