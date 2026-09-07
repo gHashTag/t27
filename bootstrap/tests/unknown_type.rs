@@ -110,3 +110,48 @@ fn an_array_of_a_declared_type_is_not_unknown() {
     );
     assert!(w.is_empty(), "array wrappers must be stripped: {w:?}");
 }
+
+/// The check must see what the BACKENDS compile, not what the file literally
+/// holds.
+///
+/// `typecheck` read the raw source while every `gen-*` path resolves `use`
+/// first, so a type arriving through an import read as undeclared. Measured
+/// over the corpus: **1283 unknown-type warnings before, 1045 after** -- 238 of
+/// them were about types the spec correctly imports. `specs/base/ternary_add.t27`
+/// alone went from 10 warnings to 0.
+///
+/// The resolve carries the same safety contract every backend does: it may only
+/// ADD declarations. When the spliced source does not parse the original is
+/// used and the fallback says so -- exactly 1 of 651 specs takes that path, and
+/// the exit code of `check` changes for none of them.
+#[test]
+fn a_type_that_arrives_through_an_import_is_not_unknown() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("bootstrap has a parent")
+        .to_path_buf();
+    let spec = root.join("specs/base/ternary_add.t27");
+    if !spec.exists() {
+        // Loudly: an absent input is not a passing test.
+        eprintln!("SKIP: specs/base/ternary_add.t27 not in this tree");
+        return;
+    }
+    let out = Command::new(env!("CARGO_BIN_EXE_t27c"))
+        .arg("typecheck")
+        .arg(&spec)
+        .output()
+        .expect("run t27c");
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let warned: Vec<&str> = text.lines().filter(|l| l.contains("unknown type")).collect();
+    assert!(
+        warned.is_empty(),
+        "this spec writes `use base::types;` and every type it names comes from \
+         there; it warned {} times:\n{}",
+        warned.len(),
+        warned.join("\n")
+    );
+}
