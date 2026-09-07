@@ -2,6 +2,8 @@
 // spec: CoaPlanning
 // Course of Action (COA) planning for neuro-symbolic reasoning
 
+use base::types;
+
 spec CoaPlanning {
     // COA action types
     enum ActionType {
