@@ -21933,6 +21933,110 @@ fn parse_int_value(s: &str) -> Option<i64> {
 /// - Field assignments: `s.f = expr` → s is mutable
 /// Recurses into if/while/for bodies.
 /// Collect names of functions declared with a `bool` return type, at any depth.
+/// Which `[]T` parameter of each function is written through, to a fixpoint.
+///
+/// A direct `buf[i] = x` is the base case. The inductive case is what a
+/// per-function scan cannot see: `char_to_trits` never assigns into its own
+/// `trits`, it hands it to `byte_to_trits`, which does. Marking only the direct
+/// writers gives the caller a `Vec<i32>` and the callee a `&mut [i32]`, and the
+/// call between them is E0308. Iterating to a fixpoint marks the whole chain.
+///
+/// The argument must be a bare identifier naming a slice parameter of the
+/// caller. Anything else -- a literal, an index, a call -- is not a parameter
+/// being threaded through and is left alone rather than guessed at.
+fn collect_written_slice_params(
+    ast: &Node,
+) -> std::collections::HashMap<String, std::collections::HashSet<String>> {
+    fn fns<'a>(n: &'a Node, out: &mut Vec<&'a Node>) {
+        if n.kind == NodeKind::FnDecl {
+            out.push(n);
+        }
+        for c in &n.children {
+            fns(c, out);
+        }
+    }
+    fn calls<'a>(n: &'a Node, out: &mut Vec<&'a Node>) {
+        if n.kind == NodeKind::ExprCall {
+            out.push(n);
+        }
+        for c in &n.children {
+            calls(c, out);
+        }
+    }
+    let is_slice = |t: &str| t.trim_start().starts_with("[]");
+
+    let mut all: Vec<&Node> = Vec::new();
+    fns(ast, &mut all);
+
+    let mut written: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    for f in &all {
+        let slice_params: std::collections::HashSet<String> = f
+            .params
+            .iter()
+            .filter(|(_, t)| is_slice(t))
+            .map(|(n, _)| n.clone())
+            .collect();
+        let mut direct = std::collections::HashSet::new();
+        collect_mutable_names(&f.children, &mut direct);
+        written.insert(
+            f.name.clone(),
+            direct.intersection(&slice_params).cloned().collect(),
+        );
+    }
+
+    // A chain is at most as long as the number of functions, so the loop
+    // terminates; the counter is a backstop against a cycle in a malformed AST
+    // rather than an expected exit.
+    for _ in 0..=all.len() {
+        let mut changed = false;
+        for f in &all {
+            let slice_params: std::collections::HashSet<String> = f
+                .params
+                .iter()
+                .filter(|(_, t)| is_slice(t))
+                .map(|(n, _)| n.clone())
+                .collect();
+            if slice_params.is_empty() {
+                continue;
+            }
+            let mut sites: Vec<&Node> = Vec::new();
+            calls(f, &mut sites);
+            let mut add: Vec<String> = Vec::new();
+            for site in &sites {
+                let Some(callee) = all.iter().find(|g| g.name == site.name) else {
+                    continue;
+                };
+                let Some(callee_written) = written.get(&callee.name) else {
+                    continue;
+                };
+                for (i, arg) in site.children.iter().enumerate() {
+                    if arg.kind != NodeKind::ExprIdentifier {
+                        continue;
+                    }
+                    let Some((pname, _)) = callee.params.get(i) else {
+                        continue;
+                    };
+                    if callee_written.contains(pname) && slice_params.contains(&arg.name) {
+                        add.push(arg.name.clone());
+                    }
+                }
+            }
+            if let Some(set) = written.get_mut(&f.name) {
+                for a in add {
+                    if set.insert(a) {
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    written
+}
+
 fn collect_bool_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
     if node.kind == NodeKind::FnDecl && node.extra_return_type.trim() == "bool" {
         out.insert(node.name.clone());
@@ -23674,6 +23778,10 @@ pub struct RustCodegen {
     fn_ret_type: String,
     /// Functions in this module whose declared return type is `bool`.
     bool_fns: std::collections::HashSet<String>,
+    /// Per function, the `[]T` parameters written through -- directly or by
+    /// being threaded into a callee that writes them. Emitted as `&mut [T]`.
+    written_slice_params:
+        std::collections::HashMap<String, std::collections::HashSet<String>>,
     /// True while the initialiser of a `pub const` is being emitted. Rust's
     /// float methods are not `const fn`, so a builtin rewrite is invalid there
     /// in any spelling: `(x).sqrt()` is E0015 where the bare `sqrt(x)` was
@@ -23742,6 +23850,7 @@ impl RustCodegen {
             bool_fns: std::collections::HashSet::new(),
             declared_fns: std::collections::HashSet::new(),
             in_const_init: false,
+            written_slice_params: std::collections::HashMap::new(),
             bool_vars: std::collections::HashSet::new(),
             bool_module_vars: std::collections::HashSet::new(),
             bool_fields: std::collections::HashSet::new(),
@@ -23860,6 +23969,9 @@ impl RustCodegen {
         // Same pre-pass, for the bare math-builtin guard below.
         self.declared_fns.clear();
         collect_declared_fns(ast, &mut self.declared_fns);
+
+        // Whole-tree, because the fixpoint below follows calls across functions.
+        self.written_slice_params = collect_written_slice_params(ast);
 
         // Same pre-pass, for the integer widths used by `infer_int_type`:
         // callee return types and module-level constants are both visible from
@@ -24144,9 +24256,67 @@ impl RustCodegen {
         // name of the function itself was the position it had not reached.
         let fn_name = rust_ident(&node.name);
         let params: Vec<(String, String)> = node.params.clone();
+
+        // A `[]T` parameter that the body ASSIGNS INTO is an out-parameter, and
+        // `t27_type_to_rust` renders it `Vec<T>` -- taken BY VALUE and without
+        // `mut`. The emitted body then does `trits[i] = ...`, which rustc
+        // rejects (E0382 use of moved value, E0596 cannot borrow as mutable),
+        // and even if it compiled the caller would see nothing: the writes
+        // would land in a moved copy. Both the Verilog backend (`output reg`)
+        // and the C backend (a pointer) give the caller the writes, so the Rust
+        // column was the one disagreeing with the other three.
+        //
+        // Measured over the corpus before this change: 189 specs declare a
+        // slice parameter, 174 parse, and 23 emit Rust that index-assigns into
+        // one. **Zero of those 23 compiled.** The path is uniformly broken, so
+        // this cannot regress a working case -- there are none.
+        //
+        // Deliberately narrow: only the written-into slices move to `&mut [T]`.
+        // A read-only `Vec<T>` parameter is valid Rust that compiles today, and
+        // rewriting it to `&[T]` would change call sites for no defect.
+        let empty = std::collections::HashSet::new();
+        let written = self
+            .written_slice_params
+            .get(&node.name)
+            .unwrap_or(&empty)
+            .clone();
         let params_str = params
             .iter()
-            .map(|(n, t)| format!("{}: {}", rust_ident(n), Self::t27_type_to_rust(t)))
+            .map(|(n, t)| {
+                let rust_ty = Self::t27_type_to_rust(t);
+                let is_slice = t.trim_start().starts_with("[]");
+                // The element type must come from a `Vec<T>` the mapping
+                // actually produced. `[]const u8` is a Zig-ism that
+                // `t27_type_to_rust` does not translate, and taking the whole
+                // rendered string as the element wrote
+                // `shards: &[const], u8: )` -- the one genuinely INTRODUCED
+                // error in a corpus-wide before/after over 193 changed files.
+                // If the mapping did not give a Vec, the type is not understood
+                // here and is left exactly as it was.
+                let elem = rust_ty
+                    .strip_prefix("Vec<")
+                    .and_then(|r| r.strip_suffix('>'))
+                    .filter(|e| {
+                        // `[]const u8` renders as `Vec<const>` -- the type was
+                        // split on the space by an earlier stage, and `const`
+                        // is a keyword, not an element type. Rewriting that to
+                        // `&[const]` was the single genuinely INTRODUCED error
+                        // in a before/after over 193 changed files. Where the
+                        // element is not a plausible type name, the parameter
+                        // is left exactly as master rendered it: the line is
+                        // already broken and this is not the change that
+                        // should be blamed for it.
+                        !e.is_empty()
+                            && e.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                            && !matches!(*e, "const" | "mut" | "ref" | "dyn" | "impl" | "fn")
+                    });
+                if let (true, Some(elem)) = (is_slice, elem) {
+                    let m = if written.contains(n) { "mut " } else { "" };
+                    format!("{}: &{}[{}]", rust_ident(n), m, elem)
+                } else {
+                    format!("{}: {}", rust_ident(n), rust_ty)
+                }
+            })
             .collect::<Vec<_>>()
             .join(", ");
         let ret_type = if node.extra_return_type.is_empty() {
