@@ -18194,6 +18194,73 @@ impl CCodegen {
         Some((name, elem, resolved))
     }
 
+    /// A `[N]T` PARAMETER, spelled so the C compiler can check the caller.
+    ///
+    /// `[4]u8` reached C as `uint8_t*`: the size was gone, and passing a
+    /// two-element array was silent. Rust keeps it (`[u8; 4]`) and Zig keeps
+    /// it (`[4]u8`), so C was the one column that dropped it -- 150 such
+    /// parameters across 120 functions.
+    ///
+    /// `T name[static N]` is the spelling that restores the check, and it had
+    /// to be MEASURED rather than assumed. A plain `T name[N]` decays to a
+    /// pointer and diagnoses nothing (Apple clang 21, `-Wall -Wextra`):
+    ///
+    ///     void f(uint64_t a[4]);         uint64_t small[2]; f(small);  /* silent */
+    ///     void f(uint64_t a[static 4]);  uint64_t small[2]; f(small);
+    ///         warning: array argument is too small; contains 2 elements,
+    ///         callee requires at least 4  [-Warray-bounds]
+    ///
+    /// Returns None for anything it cannot render safely, leaving the caller
+    /// on the existing pointer lowering:
+    ///   * a size that is neither a literal nor a const this file `#define`s
+    ///     (an unresolved name would expand to nothing);
+    ///   * a size of zero -- `[static 0]` is not valid C;
+    ///   * an array of arrays, whose element has no scalar C spelling here.
+    ///
+    /// PARAMETER POSITION ONLY. `param_type_to_c` also spells struct fields,
+    /// where `[static N]` is a syntax error -- the same narrowing the `&mut`
+    /// lowering needed.
+    fn c_static_array_param(&self, ty: &str, pname: &str) -> Option<String> {
+        let t = ty.trim();
+        if !t.starts_with('[') || t.contains(';') {
+            return None;
+        }
+        let close = t.find(']')?;
+        let size = t[1..close].trim();
+        let elem = t[close + 1..].trim();
+        if size.is_empty() || elem.is_empty() || elem.starts_with('[') {
+            return None;
+        }
+        let rendered = if size.chars().all(|c| c.is_ascii_digit()) {
+            size.to_string()
+        } else if let Some(v) = self.const_defs.get(size) {
+            // Keep the NAME, not its value: C sees `#define N 4` earlier in
+            // this same file, so `[static N]` expands, and the header stays
+            // readable. The lookup is only to prove the `#define` exists.
+            let _ = v;
+            size.to_string()
+        } else {
+            return None;
+        };
+        let zero = self
+            .const_defs
+            .get(&rendered)
+            .map(|v| v.trim())
+            .unwrap_or(rendered.as_str())
+            .parse::<u64>()
+            .map(|n| n == 0)
+            .unwrap_or(false);
+        if zero {
+            return None;
+        }
+        Some(format!(
+            "{} {}[static {}]",
+            Self::param_type_to_c(elem),
+            pname,
+            rendered
+        ))
+    }
+
     fn param_type_to_c_r(&self, ty: &str) -> String {
         if let Some((name, _, _)) = self.c_array_info_r(ty) {
             return name;
@@ -19192,8 +19259,12 @@ impl CCodegen {
             if i > 0 {
                 self.write(", ");
             }
-            let c_type = self.param_type_to_c_r(ptype);
-            self.write(&format!("{} {}", c_type, pname));
+            if let Some(decl) = self.c_static_array_param(ptype, pname) {
+                self.write(&decl);
+            } else {
+                let c_type = self.param_type_to_c_r(ptype);
+                self.write(&format!("{} {}", c_type, pname));
+            }
         }
         if node.params.is_empty() {
             self.write("void");
@@ -19229,8 +19300,12 @@ impl CCodegen {
             if i > 0 {
                 self.write(", ");
             }
-            let c_type = self.param_type_to_c_r(ptype);
-            self.write(&format!("{} {}", c_type, pname));
+            if let Some(decl) = self.c_static_array_param(ptype, pname) {
+                self.write(&decl);
+            } else {
+                let c_type = self.param_type_to_c_r(ptype);
+                self.write(&format!("{} {}", c_type, pname));
+            }
         }
         if node.params.is_empty() {
             self.write("void");
