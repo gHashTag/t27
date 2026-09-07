@@ -1,0 +1,11 @@
+# NOW -- CONVERGED was a hint until something ran it (2026-09-08)
+
+## CONVERGED was a hint until something ran it (Closes #3424, Refs #3420)
+
+- `check_ring_spec_drift.py` reports CONVERGED on identical signatures and warns that this is not behaviour: **ring-090 read 16 of 16 identical and still disagreed on 126 of 1190 cases**. That harness was written by hand for one pair. `tools/ring_spec_differential.py` now writes it: for a CONVERGED pair it emits a Rust program including both modules, calls every shared function on the same synthesised inputs, and compares.
+- Results: **ring-090 936 cases, all agree, 16 of 16 functions covered, 0 refused**; **ring-099 25 cases, all agree, 4 of 4 covered**.
+- **The control ran on the live pair, not only a fixture.** Re-introducing the exact defect #3421 repaired -- deleting the saturation guard from the spec -- makes the tool report `936 cases, agree 864, disagree 72`, name `sim_time_ms`, and exit 1. Restoring it returns 936/936 and exit 0.
+- Three design points, each because the naive version would have lied. **It refuses rather than skips**: a type it cannot synthesise is named and the run exits 2, because a harness covering eight of sixteen functions and printing "agree" is worse than none. **A panic is a disagreement**: both calls run under `catch_unwind` with `-C overflow-checks=on`, and without that the process dies with no output at all, which reads as "no cases run". **Structs are built by their producers** -- `SimConfig` comes from calling `sim_config`, so the generator needs no knowledge of fields.
+- Stated limitation rather than hidden: ring-099's 25 cases are thin. Its functions take `&mut [u8]`, `&mut [bool]`, `&mut usize` and the generator passes zero-initialised buffers -- values are compared after the call, the INPUTS are not varied. 25 is not the same strength of evidence as 936.
+- Reported, not done silently: 55 inner doc-comment and attribute lines are stripped from ring-090 (3 from ring-099) so the crate can be `include!`d as a module. Editing someone else's file to run a test has to be visible.
+- Fifth time this session I wrote `exit=$?` after a pipe and read grep's status. It said the tool exited 0 while reporting 72 disagreements; measured without the pipe, it exits 1 correctly.
