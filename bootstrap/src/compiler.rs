@@ -8386,6 +8386,12 @@ impl Codegen {
             "double" => "f64",
             "int" => "i32",
             "uint" => "u32",
+            // W591's family again, and the value is not a guess: the Rust
+            // backend maps `GF16` to `u16` and the C backend to `uint16_t`, so
+            // Zig was the one column disagreeing. Measured over the emitted
+            // corpus: a bare `GF16` reaches 9 Zig files at 95 sites, where it
+            // is not a type Zig knows.
+            "GF16" | "gf16" => "u16",
             other => other,
         };
         // W588: a SCOPED type name in a type position -- `const PHI: gf16::GF16`.

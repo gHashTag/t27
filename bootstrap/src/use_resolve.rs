@@ -471,6 +471,12 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     }
     while !frontier.is_empty() {
         let mut next: HashSet<String> = HashSet::new();
+        // The frontier is walked in HashSet order, which Rust randomises per
+        // process. Sorting it here was tried and REMOVED: with the `distinct`
+        // sort below in place and this one gone, 0 of the 492 importing specs
+        // are non-deterministic over four runs each. A guard whose removal
+        // changes nothing measurable is decoration, and the comment justifying
+        // it would outlive the reason for it.
         for name in frontier {
             if local.contains(&name) || pulled_names.contains(&name) {
                 continue;
@@ -484,7 +490,14 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
                 for d in candidates {
                     by_origin.entry(d.origin.as_str()).or_insert(d);
                 }
-                by_origin.into_values().collect()
+                // Same reason as the frontier above: `into_values()` on a
+                // HashMap is randomised, and `distinct[0]` below is the
+                // declaration that actually gets emitted whenever the
+                // candidates agree. Agreement is judged on NORMALISED text, so
+                // two agreeing declarations can still differ byte for byte.
+                let mut v: Vec<&Decl> = by_origin.into_values().collect();
+                v.sort_by(|a, b| (&a.origin, &a.name).cmp(&(&b.origin, &b.name)));
+                v
             };
             let chosen: Option<&Decl> = if distinct.len() == 1 || all_agree(&distinct) {
                 Some(distinct[0])
