@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:53d37c59635f8c703d3b22d938262800e28d376a376bd74ee24867b737296853",
-  "gen_hash_rust": "sha256:2dd82a7d8a02d9a3783a0d9cc1f4d46d43883c5ed2ca4dce49b1014384984a4a",
+  "gen_hash_rust": "sha256:09522521f74c001f85b463f439a3eeb7ccb79c3f937893360faa4cbe57d28a94",
   "gen_hash_verilog": "sha256:c4e7373882bf56f5fc546a7d03ee7de41e6fa7b4a91b87cbe8fc03be6ba5604e",
   "gen_hash_zig": "sha256:c8456f98bdbcc5e851dd6f135cf3af49bdb2cd287a741d4c09cfaa10d0869f7e",
   "module": "TernaryControlFlow",
