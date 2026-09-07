@@ -23034,7 +23034,20 @@ fn collect_unresolved_types(
             // rustc will later fail to find. That disagreement between the two
             // resolvers is worth its own repair; this check works around it
             // rather than pretending it is not there.
-            let emitter_knows = RustCodegen::t27_type_to_rust(&base) != base;
+            // The emitter answers for the spellings it REWRITES (`int` ->
+            // `i32`) and passes through the ones already valid in Rust -- so
+            // `usize`, `isize` and `char` came back unchanged and read as
+            // undeclared types. That was 565 of the 1045 remaining warnings,
+            // every one of them on `usize`, every one false.
+            //
+            // `int_value_bits(&base).is_some()` was tried here as a second
+            // oracle and REMOVED: it answers for `usize` and `isize` and not
+            // for `char`, so the explicit list below is needed anyway, and with
+            // the list present dropping `int_value_bits` changes nothing --
+            // measured, the test still passes and the corpus count is
+            // unchanged. Three names is the whole gap.
+            let emitter_knows = RustCodegen::t27_type_to_rust(&base) != base
+                || matches!(base.as_str(), "char" | "usize" | "isize");
             if !declared.contains(&base)
                 && !type_params.contains(&base)
                 && !emitter_knows
