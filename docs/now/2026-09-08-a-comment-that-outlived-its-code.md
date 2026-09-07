@@ -1,0 +1,9 @@
+# NOW -- A comment that outlived its code (2026-09-08)
+
+## A comment that outlived its code (Refs #3402)
+
+- Two adversarial reviewers, attacking from different angles, found the SAME hole and it was a contradiction inside my own diff: the comment said "only the written-into slices move to `&mut [T]` ... rewriting a read-only one would change call sites for no defect", and three lines below, the code rewrote every slice parameter. An experiment widening the rule had been measured and never reverted; the comment was the version I intended and the code was the version I shipped.
+- The consequence they named: `[]T` then meant `&[T]` in parameter position and `Vec<T>` in return, field and local position. `fn join(base: []u8, name: []u8) []u8 { var r : []u8 = base; }` emitted `base: &[u8]` beside `let mut r: Vec<u8> = base;` -- E0308. Zig renders `[]u8` in every position, C renders `uint8_t*` in every position; only Rust would have disagreed with itself.
+- **My own instrument could not have seen it.** The before/after compared the SET of error classes per file, so an E0308 added to a file that already had an E0308 was invisible. Recounting per class per FILE COUNT showed it at once. A set is the wrong shape for "did this get worse".
+- Narrowed to three outcomes, an unmarked parameter is now a byte-for-byte no-op. Re-measured over all 650 specs: move/borrow errors **33 files / 143 diagnostics -> 24 / 117**; total diagnostics **3773 -> 3747, DOWN 26** where the wide version was UP 171 -- the sign of that number is the evidence the wide version was harmful. 42 files changed (was 158), 7 strictly improved, 5 show a higher count of one class and all 5 are E0615 on `data.len`, verified **124 REVEALED, 0 INTRODUCED** against byte-identical lines.
+- rustc acceptance is unchanged at 430 of 650 either way. The class targeted is what moved.

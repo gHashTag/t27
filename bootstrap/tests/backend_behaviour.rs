@@ -428,14 +428,19 @@ fn an_out_parameter_threaded_through_a_call_is_still_an_out_parameter() {
 }
 
 #[test]
-fn a_read_only_slice_parameter_is_a_shared_reference() {
-    // Narrowness is the point: only the written slice becomes `&mut`. A fixed
-    // array `[3]T` is not a slice and must keep its by-value rendering.
+fn only_the_written_slice_parameter_changes() {
+    // The guard has THREE outcomes and the third one matters. An earlier draft
+    // made every slice parameter a reference; `[]T` then meant `&[T]` in
+    // parameter position and `Vec<T>` in return, field and local position, and
+    // `fn join(base: []u8) []u8 { var r : []u8 = base; }` emitted
+    // `base: &[u8]` beside `let mut r: Vec<u8> = base;` -- E0308. Zig renders
+    // `[]u8` in every position and C renders `uint8_t*` in every position; only
+    // Rust would have disagreed with itself. An unmarked parameter is a no-op.
     let src = "module ro {\n    fn peek(a: []i32, b: []i32, c: [3]i32) -> i32 { a[0] = 1; return b[0] + c[0]; }\n}\n";
     let Some(text) = rust_text(src, "rust-readonly-slice") else {
         return;
     };
     assert!(text.contains("a: &mut [i32]"), "written slice, got:\n{text}");
-    assert!(text.contains("b: &[i32]"), "read-only slice, got:\n{text}");
+    assert!(text.contains("b: Vec<i32>"), "read-only slice must be untouched, got:\n{text}");
     assert!(text.contains("c: [i32; 3]"), "fixed array untouched, got:\n{text}");
 }

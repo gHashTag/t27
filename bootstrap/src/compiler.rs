@@ -24310,9 +24310,18 @@ impl RustCodegen {
                             && e.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
                             && !matches!(*e, "const" | "mut" | "ref" | "dyn" | "impl" | "fn")
                     });
-                if let (true, Some(elem)) = (is_slice, elem) {
-                    let m = if written.contains(n) { "mut " } else { "" };
-                    format!("{}: &{}[{}]", rust_ident(n), m, elem)
+                // THREE outcomes, not two. An experiment that made every
+                // slice parameter a reference was measured and reverted: `[]T`
+                // then meant `&[T]` in parameter position and `Vec<T>` in
+                // return, field and local position, so
+                //   fn join(base: []u8, name: []u8) []u8 { var r : []u8 = base; }
+                // emitted `base: &[u8]` beside `let mut r: Vec<u8> = base;`
+                // and E0308. Zig renders `[]u8` in every position and C renders
+                // `uint8_t*` in every position; only Rust would have disagreed
+                // with itself. A parameter the fixpoint does not mark is left
+                // EXACTLY as it was, which is the no-op this comment promises.
+                if let (true, true, Some(elem)) = (is_slice, written.contains(n), elem) {
+                    format!("{}: &mut [{}]", rust_ident(n), elem)
                 } else {
                     format!("{}: {}", rust_ident(n), rust_ty)
                 }
