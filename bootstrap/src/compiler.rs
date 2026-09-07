@@ -24545,6 +24545,24 @@ impl RustCodegen {
                 if let (true, true, Some(elem)) = (is_slice, written.contains(n), elem) {
                     mut_slices.push(n.clone());
                     format!("{}: &mut [{}]", rust_ident(n), elem)
+                } else if rust_ty.starts_with("*mut ") && t.trim_start().starts_with('*')
+                    && !t.trim_start()[1..].trim_start().starts_with("const ")
+                    && !t.trim_start()[1..].trim_start().starts_with("mut ")
+                {
+                    // A bare `*T` parameter is an out-parameter: the corpus
+                    // writes through it as `p.* = v`, and the C backend renders
+                    // it `T*`. `*mut T` cannot work in the emitted Rust because
+                    // every dereference of a raw pointer needs an `unsafe`
+                    // block and this emitter writes none. `&mut T` is the
+                    // rendering under which the emitted `*p = v` compiles, and
+                    // it is what rings/ring-099-rust uses for the very same
+                    // parameter -- the one difference that made that pair read
+                    // DRIFTED.
+                    //
+                    // Parameter position ONLY. A struct field cannot take
+                    // `&mut T` without a lifetime, and doing it everywhere
+                    // introduced 9 errors across 3 specs against 1 revealed.
+                    format!("{}: &mut {}", rust_ident(n), &rust_ty[5..])
                 } else {
                     format!("{}: {}", rust_ident(n), rust_ty)
                 }
@@ -25451,6 +25469,13 @@ impl RustCodegen {
                 } else if let Some(inner) = rest.strip_prefix("mut ") {
                     format!("*mut {}", Self::t27_type_to_rust(inner))
                 } else {
+                    // Stays `*mut` HERE. A bare `*T` is an out-parameter and
+                    // `&mut T` is the only rendering under which the emitted
+                    // `*p = v` compiles -- but that rewrite belongs in
+                    // PARAMETER position only. Applied to every position it
+                    // reached struct fields, and `pub fail: &mut ACTrieNode`
+                    // needs a lifetime: 9 introduced E0106/E0308 across 3
+                    // specs, against 1 revealed. See `gen_fn`.
                     format!("*mut {}", Self::t27_type_to_rust(rest))
                 }
             }
@@ -25963,7 +25988,14 @@ impl RustCodegen {
                         // direct equivalent of what the spec wrote, and the spec has
                         // already guarded it: every occurrence measured sits behind
                         // an `if x != null`.
-                        if node.name == "?" {
+                        if node.name == "*" {
+                            // Zig spells a dereference postfix, `count.*`, and
+                            // the corpus is written that way -- 70 sites across
+                            // 6 specs. Rust spells it prefix. The postfix form
+                            // reached rustc verbatim and did not even tokenise:
+                            // "error: unexpected token: `*`".
+                            format!("(*{})", base)
+                        } else if node.name == "?" {
                             format!("{}.unwrap()", base)
                         } else if node.name == "len" && !self.field_names.contains("len") {
                             // Zig exposes a slice length as the FIELD `.len` and
