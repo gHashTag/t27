@@ -17400,3 +17400,81 @@ rather than assumed it.
 The real blocker is upstream and belongs to the corpus, not the compiler: the same type is
 declared in several modules, and 29 imported names are declared nowhere. No emitter change
 can make that sound.
+
+---
+
+## 598. A gate and its guard must run in the same shell, and `sh` is a role, not a program
+
+`coq-kernel.yml` held a step that greps the Coq kernel for `Admitted`. It declared no
+`shell:` key and neither did its job, so it inherited the container default of the
+`coqorg/coq` image: `sh -e`, which is dash. Its body used four bash-only constructs —
+`VFILES=()`, `VFILES+=(...)`, `${#VFILES[@]}` and `done < <(...)`. Dash rejects the first
+of them **before opening any file**.
+
+The step's own comment said the shell was dash. The code below it used a bash array anyway.
+
+    shell   tree                       exit   first line
+    dash    clean                        2    Syntax error: "(" unexpected
+    dash    one `Admitted.` planted      2    Syntax error: "(" unexpected
+    bash    clean                        0    reading 9 file(s) named by coq/_CoqProject
+    bash    one `Admitted.` planted      1    reading 9 file(s) named by coq/_CoqProject
+
+Read the dash rows together: **the same exit in both states**. The gate was not failing
+and it was not passing — it was returning a constant. A constant carries no information
+about its subject, and a job that treats non-zero as "red" cannot distinguish this from a
+real `Admitted`.
+
+### The guard ran a different shell from the thing it guarded
+
+There is a meta-gate written to protect exactly this step. It extracts the body from the
+YAML correctly, and then executes it with
+
+    subprocess.run(["bash", "-c", body])
+
+It passes 13 of 13 and exits 0 — on the body dash refuses. **A guard that does not use the
+shell its subject uses will certify bodies CI cannot run.** The extraction was the careful
+part and the invocation was the assumption, which is the usual split.
+
+If a check runs a body, it must run it the way the runner will: same shell, same flags.
+For Actions that means `bash --noprofile --norc -eo pipefail` for a `shell: bash` step, and
+the container's `/bin/sh` when no key is declared.
+
+### `sh` names a role; ask which program answers to it
+
+The obvious control — "run the body under `sh` and see it fail" — is a **false negative on
+macOS**, where `/bin/sh` is bash 3.2 in POSIX mode and accepts arrays. It runs the body
+happily and reports no defect.
+
+    $ /bin/sh -c 'echo $BASH_VERSION'      # non-empty => this sh is bash, not a dash control
+    3.2.57(1)-release
+
+Before using `sh` as evidence of POSIX-compatibility, ask it what it is. Use `/bin/dash`
+where the subject is a Debian-family container.
+
+### The positive row is not optional
+
+Without the bash rows, `exit 2` under dash reads as a broken probe rather than a finding.
+The bash rows show the probe separates the two states, which is what promotes the dash rows
+from noise to evidence. Every table like this needs at least one row where the instrument
+**does** move.
+
+The first attempt at this measurement had no such row and produced four cells of `exit 0`:
+the extractor had silently returned an **empty** body, and all four shells ran nothing
+successfully. It was caught by making the extractor refuse — `assert 'VFILES' in body` —
+rather than by reading the plausible-looking table. An extractor that can return nothing
+must fail loudly, or every downstream cell is a green that means "not attempted".
+
+### Enumerate the class before repairing the instance
+
+Of 50 workflow files, 4 use a container. Grepping all four for bash-only constructs found
+one further hit — a `<<<` in `rings-rust.yml` — which turned out to sit in the `discover`
+job, which has no container and already gets bash. So the class had exactly one member and
+the one-line repair closes it. That is a cheap check and it is the difference between
+fixing a defect and fixing a sighting.
+
+### The gate is not required, so this merged without it
+
+`Coq kernel` is not one of the four required contexts, so the pull request that repaired it
+auto-merged on the required four while the Coq run was still in progress. The repair is
+correct and was measured locally; but note what the merge gate can and cannot say about a
+change to a non-required workflow — nothing. See §550 and the merge-critical census.
