@@ -65,8 +65,36 @@ jobs:
             exit 0
           fi
 
-          FOUND=$(echo "$PR_TITLE
-          $PR_BODY" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+' || true)
+          # A REFERENCE INSIDE A FENCE OR A QUOTE IS NOT A REFERENCE.
+          #
+          # The body is markdown. A pull request that shows `Closes #12` inside a
+          # fenced code block -- quoting someone else's commit, pasting a template
+          # -- satisfied this gate without referencing anything, and so did a line
+          # beginning with `>`, which is the body quoting a different pull request.
+          # Verified before the change: both forms passed.
+          #
+          # This repository already carries the same lesson about its own skill
+          # file, where a parser counted headings quoted inside code blocks.
+          # A quotation is not a claim.
+          #
+          # The TITLE is not markdown and is matched as written.
+          BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '
+            /^[[:space:]]*```/ { fence = !fence; next }
+            fence { next }
+            /^[[:space:]]*>/ { next }
+            { print }
+          ')
+
+          # `#0` IS NOT AN ISSUE. `#[0-9]+` matched it, and `gh issue view 0`
+          # answers "Could not resolve to an issue or pull request". A number that
+          # cannot name an issue is not traceability. The cheapest honest guard is
+          # to refuse a leading zero rather than to ask the API: a network call
+          # inside a REQUIRED context turns a GitHub hiccup into a merge block for
+          # the whole repository.
+          #
+          # Whether a reference names an issue that EXISTS is a heavier question,
+          # recorded rather than answered here.
+          FOUND=$(printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[1-9][0-9]*' || true)
 
           if [ -n "$FOUND" ]; then
             echo "✅ Issue gate passed: $FOUND"

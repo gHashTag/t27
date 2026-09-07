@@ -128,3 +128,4 @@ specs/scratch/
 *.vos
 *.glob
 *.aux
+.trinity/notebook_commit_count

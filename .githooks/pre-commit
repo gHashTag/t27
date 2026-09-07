@@ -106,7 +106,22 @@ echo "✅ NOW entry gate passed"
 # ===== NotebookLM Continuous Sync =====
 # Track commits for periodic activity.md sync
 
-COMMITS_FILE="$ROOT/.trinity/notebook_commit_count"
+# Beside the git dir, NOT in the worktree. This counter is per-machine session state
+# with exactly one reader -- this hook -- and it was a TRACKED file that the hook
+# rewrote on every commit. In one day that cost three refused checkouts and a refused
+# merge:
+#
+#   error: Your local changes to the following files would be overwritten by checkout:
+#           .trinity/notebook_commit_count
+#
+# and once it carried an edit onto the wrong branch, because the checkout that was
+# supposed to move away from it failed and the work landed where it stood. It also
+# reached thirteen commits, every one of them a `git add -A` that swept it in.
+#
+# `--git-common-dir` rather than `--git-dir`: worktrees share one object store and one
+# repository, and "commits since the last sync" is a fact about the repository. It is
+# also where hooks themselves live, so nothing here can reach a commit.
+COMMITS_FILE="$(git rev-parse --git-common-dir)/notebook_commit_count"
 SYNC_INTERVAL=3  # Sync every 3 commits
 
 # Initialize commit counter
