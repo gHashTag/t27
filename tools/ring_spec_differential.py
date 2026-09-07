@@ -112,6 +112,7 @@ def emit(ring_lib: str, spec_rs: str, sigs: dict, prod: dict) -> tuple:
         covered.append(fn)
 
         loops, args_h, args_s, post, pre = [], [], [], [], []
+        need_buf_loop = False
         for i, (pname, t) in enumerate(params):
             v = f"v{i}"
             if t in GRID:
@@ -130,11 +131,25 @@ def emit(ring_lib: str, spec_rs: str, sigs: dict, prod: dict) -> tuple:
                 args_h.append(f"{v}h")
                 args_s.append(f"{v}s")
             elif t.startswith("&mut ["):
+                # A buffer parameter used to be one zero-filled `[T; 8]`, so the
+                # 25 cases for ring-099 compared what came BACK while never
+                # varying what went IN. Length and fill are now driven, and the
+                # zero length is in the grid because an empty buffer is where an
+                # off-by-one lives.
+                #
+                # All slice parameters of one call share the (len, fill) pair:
+                # in the corpus they are parallel arrays, and giving each its
+                # own loop would multiply the case count without adding a shape
+                # the callee can distinguish.
                 el = t[6:-1]
-                zero = "false" if el == "bool" else "0"
-                pre.append(f"let mut {v}h: [{el}; 8] = [{zero}; 8]; let mut {v}s: [{el}; 8] = [{zero}; 8];")
-                args_h.append(f"&mut {v}h")
-                args_s.append(f"&mut {v}s")
+                need_buf_loop = True
+                fill = "bfill != 0" if el == "bool" else f"bfill as {el}"
+                pre.append(
+                    f"let mut {v}h: Vec<{el}> = vec![{fill}; blen]; "
+                    f"let mut {v}s: Vec<{el}> = vec![{fill}; blen];"
+                )
+                args_h.append(f"&mut {v}h[..]")
+                args_s.append(f"&mut {v}s[..]")
                 post.append(f"&& {v}h == {v}s")
             else:  # &mut T
                 el = t[5:]
@@ -168,6 +183,11 @@ def emit(ring_lib: str, spec_rs: str, sigs: dict, prod: dict) -> tuple:
         for v, vals in reversed(loops):
             arr = ", ".join(vals)
             inner = f"    for {v} in [{arr}] {{\n{inner}\n    }}"
+        if need_buf_loop:
+            inner = (
+                "    for blen in [0usize, 1, 4, 8] {\n"
+                "    for bfill in [0u8, 1, 255] {\n" + inner + "\n    }\n    }"
+            )
         body.append("    {\n" + inner + "\n    }")
 
     src = f"""#[allow(dead_code, unused_mut, non_snake_case, unused_variables)] mod hand {{ include!("{ring_lib}"); }}
