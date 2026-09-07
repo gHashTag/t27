@@ -21942,6 +21942,23 @@ fn collect_bool_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
     }
 }
 
+/// Collect the name of EVERY function declared anywhere in the tree.
+///
+/// Deliberately not keyed on the return type. `collect_fn_ret_types` skips a
+/// declaration whose `extra_return_type` is empty, and 3 of the 30 corpus
+/// declarations that shadow a math builtin use the Zig-style return syntax
+/// (`pub fn min(a: usize, b: usize) usize`) rather than `->`. A guard built on
+/// that map would therefore be narrower than its subject exactly where it is
+/// needed, so this walks `FnDecl` unconditionally.
+fn collect_declared_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
+    if node.kind == NodeKind::FnDecl {
+        out.insert(node.name.clone());
+    }
+    for child in &node.children {
+        collect_declared_fns(child, out);
+    }
+}
+
 /// Collect names of locals declared with an explicit `bool` type.
 /// Is this expression bool-valued from its SHAPE alone?
 ///
@@ -23657,6 +23674,15 @@ pub struct RustCodegen {
     fn_ret_type: String,
     /// Functions in this module whose declared return type is `bool`.
     bool_fns: std::collections::HashSet<String>,
+    /// True while the initialiser of a `pub const` is being emitted. Rust's
+    /// float methods are not `const fn`, so a builtin rewrite is invalid there
+    /// in any spelling: `(x).sqrt()` is E0015 where the bare `sqrt(x)` was
+    /// E0425. Both fail, but only the first is a NEW failure introduced here.
+    in_const_init: bool,
+    /// Every function name this file declares, whatever its return type.
+    /// Guards the bare math-builtin lowering: a spec's own `fn abs` must keep
+    /// its call, not become `(x).abs()`.
+    declared_fns: std::collections::HashSet<String>,
     /// Parameters and locals of the current function declared `bool`.
     bool_vars: std::collections::HashSet<String>,
     /// Module-level `var x : bool`. `bool_vars` is cleared per function and
@@ -23714,6 +23740,8 @@ impl RustCodegen {
             mut_names: std::collections::HashSet::new(),
             fn_ret_type: String::new(),
             bool_fns: std::collections::HashSet::new(),
+            declared_fns: std::collections::HashSet::new(),
+            in_const_init: false,
             bool_vars: std::collections::HashSet::new(),
             bool_module_vars: std::collections::HashSet::new(),
             bool_fields: std::collections::HashSet::new(),
@@ -23828,6 +23856,10 @@ impl RustCodegen {
         // module node, so the scan is recursive.
         self.bool_fns.clear();
         collect_bool_fns(ast, &mut self.bool_fns);
+
+        // Same pre-pass, for the bare math-builtin guard below.
+        self.declared_fns.clear();
+        collect_declared_fns(ast, &mut self.declared_fns);
 
         // Same pre-pass, for the integer widths used by `infer_int_type`:
         // callee return types and module-level constants are both visible from
@@ -24084,7 +24116,10 @@ impl RustCodegen {
         let value = if node.children.is_empty() {
             "()".to_string()
         } else {
-            self.expr_to_rust(&node.children[0])
+            self.in_const_init = !node.extra_mutable;
+            let v = self.expr_to_rust(&node.children[0]);
+            self.in_const_init = false;
+            v
         };
         // A module-level `var` is MUTABLE. gen-verilog lowers it to a `reg`,
         // gen-c to a `static`, Zig to a `var` -- all three mean shared mutable
@@ -25313,6 +25348,74 @@ impl RustCodegen {
                     .collect();
                 if let Some(built) = Self::zig_builtin_to_rust(&node.name, &args) {
                     return built;
+                }
+                // Specs write the math builtins BARE -- `abs(x)`, `min(a, b)` --
+                // and the table above answers only to Zig's `@abs`, because its
+                // first line returns None for any name without the sigil. Rust
+                // has none of these as free functions, so the bare call was
+                // emitted verbatim and rustc replied "cannot find function `abs`
+                // in this scope". Measured: 118 of the 650 specs contain such a
+                // call and 99 of those parse.
+                //
+                // The repair routes the bare name through the SAME table rather
+                // than restating it, so the two spellings cannot drift apart.
+                // The Zig backend closed this identical class at `gen_expr`.
+                //
+                // Guarded by `declared_fns`: 30 declarations across the corpus
+                // give one of these names to a spec's own function (`fn floor` in
+                // 10 specs, `fn abs` in 9). Rewriting those into a Rust method
+                // would be a wrong translation that COMPILES, which is strictly
+                // worse than a bare name that does not.
+                // The receiver must carry a type. Rust cannot call a method on
+                // an unsuffixed float literal -- `(5.0).sqrt()` is E0689, "can't
+                // call method `sqrt` on ambiguous numeric type `{float}`" --
+                // whereas the bare `sqrt(5.0)` merely fails with E0425 as it
+                // always did. Measured over the corpus: without this guard the
+                // rewrite swapped one error for another in 4 files and added
+                // E0689 where none existed, which is a regression even though
+                // neither form compiled. `sqrt` is also not a `const fn`, so a
+                // literal receiver inside a `const` initialiser could not work
+                // in any spelling.
+                // The test is for an IDENTIFIER, not for a single literal token.
+                // `(5.0).sqrt()` and `((2.0 / 3.141592653589793)).sqrt()` are
+                // both `{float}` to rustc; only a typed name rules the ambiguity
+                // out. Measured: the single-token form of this test still
+                // admitted the compound one and left E0689 in 2 files.
+                let receiver_is_typed = args
+                    .first()
+                    .map(|a| a.chars().any(|c| c.is_ascii_alphabetic()))
+                    .unwrap_or(false);
+                if receiver_is_typed
+                    && !self.in_const_init
+                    && !self.declared_fns.contains(&node.name)
+                    && matches!(
+                        node.name.as_str(),
+                        "abs"
+                            | "sqrt"
+                            | "round"
+                            | "floor"
+                            | "ceil"
+                            | "trunc"
+                            | "exp"
+                            // `log` is deliberately absent. Rust's `f64::log`
+                            // takes a BASE argument, so `(x).log()` is E0061,
+                            // "this method takes 1 argument but 0 were
+                            // supplied"; the natural log is `ln`. The existing
+                            // `@log` arm in `zig_builtin_to_rust` carries the
+                            // same defect. It is filed rather than changed
+                            // under an unrelated title.
+                            | "sin"
+                            | "cos"
+                            | "tan"
+                            | "min"
+                            | "max"
+                    )
+                {
+                    if let Some(built) =
+                        Self::zig_builtin_to_rust(&format!("@{}", node.name), &args)
+                    {
+                        return built;
+                    }
                 }
                 format!("{}({})", node.name, args.join(", "))
             }

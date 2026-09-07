@@ -286,3 +286,86 @@ fn rust_keeps_the_arms_of_a_switch() {
         "an empty match reached the output:\n{src}"
     );
 }
+
+/// The emitted Rust as TEXT, for the one property that cannot be observed by
+/// running: what a file that deliberately does NOT compile was emitted as.
+fn rust_text(spec: &str, tag: &str) -> Option<String> {
+    let dir = tmp_dir(tag);
+    Some(generate("gen-rust", spec, &dir, tag))
+}
+
+/// Specs write the math builtins bare. `zig_builtin_to_rust` knew all of them
+/// and its first line returned `None` for any name without a `@`, so the bare
+/// call reached rustc verbatim: "cannot find function `abs` in this scope".
+const SPEC_BARE_MATH_BUILTINS: &str = r#"
+module builtins_probe {
+    fn mix(x: f64) -> f64 {
+        return abs(x) + sqrt(y4()) + floor(y27()) + ceil(y21()) + round(y25()) + min(x, y9()) + max(x, y9());
+    }
+    fn y4() -> f64 { return 4.0; }
+    fn y27() -> f64 { return 2.7; }
+    fn y21() -> f64 { return 2.1; }
+    fn y25() -> f64 { return 2.5; }
+    fn y9() -> f64 { return 9.0; }
+}
+"#;
+
+/// The guard. A spec may name its own function `abs`, and 30 declarations in
+/// the corpus do exactly that (`fn floor` in 10 specs, `fn abs` in 9). This
+/// one is deliberately NOT absolute value, so a wrong redirect to `f64::abs`
+/// changes the printed answer instead of merely changing the text.
+const SPEC_USER_DEFINED_ABS: &str = r#"
+module guard_probe {
+    fn abs(x: f64) -> f64 { return x + 100.0; }
+    fn call_it(y: f64) -> f64 { return abs(y); }
+}
+"#;
+
+#[test]
+fn rust_lowers_bare_math_builtins_to_methods() {
+    // -3 -> 3, sqrt 4 -> 2, floor 2.7 -> 2, ceil 2.1 -> 3, round 2.5 -> 3,
+    // min(-3, 9) -> -3, max(-3, 9) -> 9.  3 + 2 + 2 + 3 + 3 - 3 + 9 = 19.
+    let Some(out) = rust_says(
+        SPEC_BARE_MATH_BUILTINS,
+        "fn main(){ println!(\"{}\", mix(-3.0)); }\n",
+        "rust-bare-math-builtins",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "19", "a bare `abs(` does not compile in Rust at all");
+}
+
+#[test]
+fn a_spec_declaring_its_own_abs_keeps_its_own_abs() {
+    // The spec's `abs` adds 100. Redirecting the call to `f64::abs` would
+    // print 3 -- a wrong translation that COMPILES, which is strictly worse
+    // than the bare name that does not. This test fails on 3 and passes on 97.
+    let Some(out) = rust_says(
+        SPEC_USER_DEFINED_ABS,
+        "fn main(){ println!(\"{}\", call_it(-3.0)); }\n",
+        "rust-user-defined-abs",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "97", "the spec's own `fn abs` must win over the builtin");
+}
+
+#[test]
+fn a_literal_receiver_is_left_bare() {
+    // `(5.0).sqrt()` is E0689, "can't call method `sqrt` on ambiguous numeric
+    // type `{float}`", and `sqrt` is not a `const fn` either, so no spelling of
+    // a builtin works in a `const` initialiser. Leaving the bare call there
+    // keeps the pre-existing E0425 rather than trading it for a new failure.
+    let src = "module lit_probe {\n    const K : f64 = sqrt(5.0);\n    fn g(x: f64) -> f64 { return sqrt(x); }\n}\n";
+    let Some(text) = rust_text(src, "rust-literal-receiver") else {
+        return;
+    };
+    assert!(
+        text.contains("sqrt(5.0)"),
+        "a literal receiver must stay bare, got:\n{text}"
+    );
+    assert!(
+        text.contains("(x).sqrt()"),
+        "a typed receiver must become a method call, got:\n{text}"
+    );
+}
