@@ -551,3 +551,52 @@ fn a_struct_field_named_len_stays_a_field() {
     };
     assert_eq!(out, "7", "the declared field must win over the method");
 }
+
+/// A bare `*T` parameter is an out-parameter, and the corpus writes through it
+/// with Zig's POSTFIX dereference `p.* = v`. gen-rust emitted both verbatim:
+/// the type as `*mut T`, whose every dereference needs an `unsafe` block this
+/// emitter never writes, and the dereference as `count.*`, which does not even
+/// tokenise -- "error: unexpected token: `*`".
+const SPEC_OUT_POINTER: &str = r#"
+module outp2 {
+    fn bump(count: *usize, by: usize) -> void {
+        count.* = count.* + by;
+    }
+}
+"#;
+
+/// The narrowing. A struct field cannot take `&mut T` without a lifetime, so
+/// only the PARAMETER moves. Applying it everywhere introduced 9 errors across
+/// 3 specs -- `pub fail: &mut ACTrieNode` is E0106 -- against 1 revealed.
+const SPEC_POINTER_FIELD: &str = r#"
+module ptrfield {
+    struct Node {
+        next: *Node,
+        value: i32,
+    }
+    fn value_of(n: Node) -> i32 { return n.value; }
+}
+"#;
+
+#[test]
+fn an_out_pointer_parameter_is_written_through_at_runtime() {
+    let Some(out) = rust_says(
+        SPEC_OUT_POINTER,
+        "fn main(){ let mut c: usize = 5; bump(&mut c, 7); println!(\"{}\", c); }\n",
+        "rust-out-pointer",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "12", "5 + 7; the caller must observe the write");
+}
+
+#[test]
+fn a_pointer_struct_field_stays_a_raw_pointer() {
+    let Some(text) = rust_text(SPEC_POINTER_FIELD, "rust-pointer-field") else {
+        return;
+    };
+    assert!(
+        text.contains("pub next: *mut Node"),
+        "a field must not become &mut, which needs a lifetime; got:\n{text}"
+    );
+}
