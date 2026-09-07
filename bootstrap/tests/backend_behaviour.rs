@@ -444,3 +444,59 @@ fn only_the_written_slice_parameter_changes() {
     assert!(text.contains("b: Vec<i32>"), "read-only slice must be untouched, got:\n{text}");
     assert!(text.contains("c: [i32; 3]"), "fixed array untouched, got:\n{text}");
 }
+
+/// The argument half. Rewriting the PARAMETER to `&mut [T]` and leaving the
+/// argument alone gave `tritwise_and(a, b, temp, len)` reading
+/// "expected `&mut [i32]`, found `[i32; 27]`" -- the signature was right and
+/// the call was not. A caller passing on its OWN `&mut [T]` parameter is
+/// reborrowing and must NOT get a second `&mut`, so both shapes are here.
+const SPEC_OUT_PARAM_CALLERS: &str = r#"
+module callers {
+    fn fill(buf: []i32, n: usize) -> void {
+        var i : usize = 0;
+        while (i < n) {
+            buf[i] = 3;
+            i = i + 1;
+        }
+    }
+    fn via_local(n: usize) -> i32 {
+        // NOT `= undefined`: that lowers to `let mut tmp: [i32; 4];` with no
+        // initialiser and rustc answers E0381 before it ever type-checks the
+        // call, which is a different defect and would make this test measure it
+        // instead of the one it is here for.
+        var tmp : [4]i32 = [_]i32{0, 0, 0, 0};
+        fill(tmp, n);
+        return tmp[0];
+    }
+    fn via_param(buf: []i32, n: usize) -> void {
+        fill(buf, n);
+    }
+}
+"#;
+
+#[test]
+fn a_local_array_is_borrowed_at_the_call_and_a_parameter_is_not() {
+    let Some(text) = rust_text(SPEC_OUT_PARAM_CALLERS, "rust-callsite-borrow") else {
+        return;
+    };
+    assert!(
+        text.contains("fill(&mut tmp, n)"),
+        "a local array must be borrowed at the call, got:\n{text}"
+    );
+    assert!(
+        text.contains("fill(buf, n)") && !text.contains("fill(&mut buf, n)"),
+        "passing on a &mut [T] parameter is a reborrow, not a second borrow, got:\n{text}"
+    );
+}
+
+#[test]
+fn a_local_array_out_parameter_round_trips_at_runtime() {
+    let Some(out) = rust_says(
+        SPEC_OUT_PARAM_CALLERS,
+        "fn main(){ println!(\"{}\", via_local(4)); }\n",
+        "rust-callsite-run",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "3", "the local array must actually receive the write");
+}

@@ -21944,6 +21944,24 @@ fn parse_int_value(s: &str) -> Option<i64> {
 /// The argument must be a bare identifier naming a slice parameter of the
 /// caller. Anything else -- a literal, an index, a call -- is not a parameter
 /// being threaded through and is left alone rather than guessed at.
+/// Each function's parameter names, in order. A call site knows argument
+/// POSITIONS; `written_slice_params` is keyed by parameter NAME, and this is
+/// the map between them.
+fn collect_param_names(
+    node: &Node,
+    out: &mut std::collections::HashMap<String, Vec<String>>,
+) {
+    if node.kind == NodeKind::FnDecl {
+        out.insert(
+            node.name.clone(),
+            node.params.iter().map(|(n, _)| n.clone()).collect(),
+        );
+    }
+    for c in &node.children {
+        collect_param_names(c, out);
+    }
+}
+
 fn collect_written_slice_params(
     ast: &Node,
 ) -> std::collections::HashMap<String, std::collections::HashSet<String>> {
@@ -23782,6 +23800,13 @@ pub struct RustCodegen {
     /// being threaded into a callee that writes them. Emitted as `&mut [T]`.
     written_slice_params:
         std::collections::HashMap<String, std::collections::HashSet<String>>,
+    /// Parameter names by position, per function. Pairs with the map above so a
+    /// call site can ask "is argument 2 a `&mut [T]` slot?".
+    param_names: std::collections::HashMap<String, Vec<String>>,
+    /// The slice parameters of the function currently being emitted that are
+    /// themselves `&mut [T]`. Passing one of those on is a reborrow and must
+    /// NOT get another `&mut`.
+    current_mut_slice_params: std::collections::HashSet<String>,
     /// True while the initialiser of a `pub const` is being emitted. Rust's
     /// float methods are not `const fn`, so a builtin rewrite is invalid there
     /// in any spelling: `(x).sqrt()` is E0015 where the bare `sqrt(x)` was
@@ -23851,6 +23876,8 @@ impl RustCodegen {
             declared_fns: std::collections::HashSet::new(),
             in_const_init: false,
             written_slice_params: std::collections::HashMap::new(),
+            param_names: std::collections::HashMap::new(),
+            current_mut_slice_params: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
             bool_module_vars: std::collections::HashSet::new(),
             bool_fields: std::collections::HashSet::new(),
@@ -23972,6 +23999,8 @@ impl RustCodegen {
 
         // Whole-tree, because the fixpoint below follows calls across functions.
         self.written_slice_params = collect_written_slice_params(ast);
+        self.param_names.clear();
+        collect_param_names(ast, &mut self.param_names);
 
         // Same pre-pass, for the integer widths used by `infer_int_type`:
         // callee return types and module-level constants are both visible from
@@ -24274,6 +24303,7 @@ impl RustCodegen {
         // Deliberately narrow: only the written-into slices move to `&mut [T]`.
         // A read-only `Vec<T>` parameter is valid Rust that compiles today, and
         // rewriting it to `&[T]` would change call sites for no defect.
+        let mut mut_slices: Vec<String> = Vec::new();
         let empty = std::collections::HashSet::new();
         let written = self
             .written_slice_params
@@ -24321,6 +24351,7 @@ impl RustCodegen {
                 // with itself. A parameter the fixpoint does not mark is left
                 // EXACTLY as it was, which is the no-op this comment promises.
                 if let (true, true, Some(elem)) = (is_slice, written.contains(n), elem) {
+                    mut_slices.push(n.clone());
                     format!("{}: &mut [{}]", rust_ident(n), elem)
                 } else {
                     format!("{}: {}", rust_ident(n), rust_ty)
@@ -24354,6 +24385,7 @@ impl RustCodegen {
                 used.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
             )
         };
+        self.current_mut_slice_params = mut_slices.into_iter().collect();
         self.write(&format!(
             "pub fn {}{}({}) -> {} {{",
             fn_name, generics, params_str, ret_type
@@ -25520,11 +25552,38 @@ impl RustCodegen {
                 }
             }
             NodeKind::ExprCall => {
-                let args: Vec<String> = node
+                let mut args: Vec<String> = node
                     .children
                     .iter()
                     .map(|c| self.expr_to_rust(c))
                     .collect();
+                // A parameter that became `&mut [T]` needs its ARGUMENT
+                // borrowed. Rewriting the parameter and not the argument left
+                // `tritwise_and(a, b, temp, len)` reading
+                // "expected `&mut [i32]`, found `[i32; 27]`" -- the signature
+                // was right and the call was not.
+                //
+                // A caller passing on its OWN `&mut [T]` parameter is
+                // reborrowing and must not get a second `&mut`; that is what
+                // `current_mut_slice_params` is for. It is also why this cannot
+                // be done by looking at the argument text alone.
+                if let Some(callee_params) = self.param_names.get(&node.name) {
+                    if let Some(callee_written) = self.written_slice_params.get(&node.name) {
+                        for (i, a) in args.iter_mut().enumerate() {
+                            let Some(pname) = callee_params.get(i) else {
+                                continue;
+                            };
+                            if !callee_written.contains(pname) {
+                                continue;
+                            }
+                            if self.current_mut_slice_params.contains(a.as_str()) {
+                                continue;
+                            }
+                            *a = format!("&mut {}", a);
+                        }
+                    }
+                }
+                let args = args;
                 if let Some(built) = Self::zig_builtin_to_rust(&node.name, &args) {
                     return built;
                 }
