@@ -79,19 +79,77 @@ if [ "$event" = "pull_request" ]; then
   require_rev "$BASE" PR_BASE_SHA
   require_rev "$HEAD" PR_HEAD_SHA
   ADDED=$(git diff --diff-filter=A --name-only "$BASE" "$HEAD" | grep -E "$ENTRY_RE" || true)
+  RANGE_FROM="$BASE"; RANGE_TO="$HEAD"
 elif [ "$event" = "push" ]; then
   BEFORE="${PUSH_BEFORE:?}"
   AFTER="${PUSH_AFTER:?}"
   require_rev "$AFTER" PUSH_AFTER
   if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
     ADDED=$(git show --diff-filter=A --name-only --pretty=format: "$AFTER" | grep -E "$ENTRY_RE" || true)
+    RANGE_FROM=""; RANGE_TO="$AFTER"
   else
     require_rev "$BEFORE" PUSH_BEFORE
     ADDED=$(git diff --diff-filter=A --name-only "$BEFORE" "$AFTER" | grep -E "$ENTRY_RE" || true)
+    RANGE_FROM="$BEFORE"; RANGE_TO="$AFTER"
   fi
 else
   echo "::error::now-sync-gate-diff.sh: unsupported GITHUB_EVENT_NAME=$event"
   exit 1
+fi
+
+# --- THE FROZEN ARCHIVE ---------------------------------------------------
+# docs/NOW.md carries "FROZEN ARCHIVE -- do not add entries here." on its first
+# line, and until now NOTHING enforced it: every mention of that path under
+# .github/workflows/, scripts/ and .githooks/ is a comment -- measured, zero
+# lines reject an edit. An author following one of the stale instructions that
+# still pointed there could reopen the archive and pass all four required checks.
+#
+# A blanket "refuse any diff touching it" is WRONG, and that was measured too:
+# of the 600 commits since the freeze, 2 touched the file and one (458ec0bd6)
+# REPAIRS damaged entries. So is the narrower "refuse an ADDED `## ` heading" --
+# that same repair adds three of them, because it restored headings whose bodies
+# had been destroyed. No textual rule separates adding an entry from repairing
+# one: the only difference is POSITION, which is the coupling the one-file-per-
+# entry layout exists to remove.
+#
+# So the exception is DECLARED, where the tool looks, the way `# tri:no-dispatch`
+# and `# tri:cause-removed` are. A commit that edits the archive on purpose says
+# so in its own message:
+#
+#     Archive-Repair: <what was damaged, and how you know>
+#
+# The gate does not judge the reason. It requires one to exist, so that reopening
+# a frozen file is a decision somebody signed rather than an accident.
+if [ -n "$RANGE_TO" ]; then
+  if [ -n "$RANGE_FROM" ]; then
+    TOUCHED=$(git diff --name-only "$RANGE_FROM" "$RANGE_TO" -- docs/NOW.md || true)
+    MSGS=$(git log --format=%B "$RANGE_FROM".."$RANGE_TO" || true)
+  else
+    TOUCHED=$(git show --name-only --pretty=format: "$RANGE_TO" -- docs/NOW.md || true)
+    MSGS=$(git log -1 --format=%B "$RANGE_TO" || true)
+  fi
+  if [ -n "$TOUCHED" ]; then
+    if printf '%s\n' "$MSGS" | grep -qE '^Archive-Repair:[[:space:]]*[^[:space:]]'; then
+      echo "docs/NOW.md edited under an Archive-Repair trailer -- allowed."
+    else
+      echo "::error::docs/NOW.md is a FROZEN ARCHIVE and this range edits it."
+      echo ""
+      echo "Its first line says so. Entries go in one file each:"
+      echo "    docs/now/<YYYY-MM-DD>-<slug>.md"
+      echo ""
+      echo "If you are REPAIRING the archive rather than adding to it -- restoring a"
+      echo "body the tooling destroyed, say -- that is allowed, and it has to be said"
+      echo "out loud. Put a trailer in the commit message:"
+      echo ""
+      echo "    Archive-Repair: <what was damaged, and how you know>"
+      echo ""
+      echo "The gate does not judge the reason; it requires one to exist. A blanket"
+      echo "refusal was measured and rejected: 1 of the 2 post-freeze edits is a"
+      echo "legitimate repair, and it adds headings, so no textual rule tells the two"
+      echo "apart."
+      exit 1
+    fi
+  fi
 fi
 
 if [ -z "$ADDED" ]; then
