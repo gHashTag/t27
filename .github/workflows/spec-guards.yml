@@ -1,0 +1,116 @@
+# Three checks that existed and that nothing ran.
+#
+# Each was written after a defect it would have caught, and each has since
+# caught a live one -- but only because someone remembered to type it. That is
+# not a guard, it is a habit, and the next session does not inherit habits.
+#
+#   check_seal_currency.py    116 seals described output the compiler had
+#                             stopped producing, left by five merged backend
+#                             repairs. spec_hash was stale for ZERO of them, so
+#                             every existing coverage and staleness check was
+#                             green (#3415).
+#   check_ring_spec_drift.py  ten of seventeen rings/* crates name a spec that
+#                             exists; one had drifted and one was two designs
+#                             sharing a vocabulary (#3422).
+#   ring_spec_differential.py a matching signature is not matching behaviour:
+#                             ring-090 read 16 of 16 identical and disagreed on
+#                             126 of 1190 cases (#3420, #3424).
+#
+# NOT a required context, and it must not become one without the owner: a
+# `paths:`-filtered workflow that is required hangs every pull request it does
+# not match, forever, on a check that never posts. The `push:` trigger is here
+# so master HAS a baseline -- a paths-filtered workflow with no push trigger
+# runs zero times on the default branch and its history is empty (#2925 family).
+#
+# Cost, measured rather than estimated: 12s for the seal scan, 0s for the drift
+# scan, ~1s per differential pair, on top of the compiler build.
+name: Spec Guards
+
+on:
+  pull_request:
+    paths:
+      - 'bootstrap/src/**'
+      - 'specs/**'
+      - 'rings/**'
+      - '.trinity/seals/**'
+      - 'tools/check_seal_currency.py'
+      - 'tools/check_ring_spec_drift.py'
+      - 'tools/ring_spec_differential.py'
+      - '.github/workflows/spec-guards.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'bootstrap/src/**'
+      - 'specs/**'
+      - 'rings/**'
+      - '.trinity/seals/**'
+      - 'tools/check_seal_currency.py'
+      - 'tools/check_ring_spec_drift.py'
+      - 'tools/ring_spec_differential.py'
+      - '.github/workflows/spec-guards.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-guards-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spec-guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the compiler every check is measured against
+        run: cargo build --release -p t27c
+
+      # The self-checks run FIRST and separately. A checker whose own negative
+      # control fails cannot be believed when it then reports zero, and running
+      # them in the same step as the real scan would let a green scan hide a
+      # broken instrument.
+      - name: Self-check -- seal currency
+        run: python3 tools/check_seal_currency.py --self-check
+
+      - name: Self-check -- ring/spec drift
+        run: python3 tools/check_ring_spec_drift.py --self-check
+
+      - name: Self-check -- differential harness
+        run: python3 tools/ring_spec_differential.py --self-check
+
+      - name: Does every seal still describe what the compiler emits
+        run: python3 tools/check_seal_currency.py
+
+      - name: Does every ring still agree with the spec it names
+        run: python3 tools/check_ring_spec_drift.py
+
+      - name: Run each CONVERGED pair on the same inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The pair list comes from the drift tool, not from this file: a
+          # hard-coded list goes stale the first time a pair converges.
+          #
+          # `while read`, not `mapfile`: mapfile is bash 4+ and macOS ships bash
+          # 3.2, so this step could not be run locally before pushing it. A
+          # construct that only the runner can execute is a construct nobody
+          # tested. The `|| [ -n "$line" ]` is not decoration -- a plain
+          # `while read` DROPS a final line with no trailing newline.
+          python3 tools/check_ring_spec_drift.py --converged > /tmp/converged.txt
+          n=0
+          while IFS= read -r line || [ -n "$line" ]; do
+            [ -z "$line" ] && continue
+            n=$((n + 1))
+            # shellcheck disable=SC2086
+            python3 tools/ring_spec_differential.py $line
+          done < /tmp/converged.txt
+          if [ "$n" -eq 0 ]; then
+            echo "::error::no CONVERGED pair -- the differential step measured nothing"
+            exit 1
+          fi
+          echo "CONVERGED pairs run: $n"

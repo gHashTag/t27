@@ -150,9 +150,34 @@ def self_check() -> int:
     return 0 if ok else 1
 
 
+def converged_pairs(binary: str) -> int:
+    """Print `<ring-dir> <spec>` for every CONVERGED pair, one per line.
+
+    So a caller can run the differential harness over exactly the pairs where a
+    signature match makes one meaningful, without hard-coding the list -- which
+    would go stale the first time a pair converged or drifted.
+    """
+    n = 0
+    for ring, spec in pairs():
+        if not os.path.exists(spec):
+            continue
+        hand = signatures(open(f"{RINGS}/{ring}/src/lib.rs", errors="replace").read())
+        gen = subprocess.run([binary, "gen-rust", spec], capture_output=True, text=True).stdout
+        if classify(hand, signatures(gen)) == "CONVERGED":
+            print(f"{RINGS}/{ring} {spec}")
+            n += 1
+    if n == 0:
+        # Loudly. A caller looping over an empty list would run zero harnesses
+        # and report success.
+        print("check_ring_spec_drift: no CONVERGED pair.", file=sys.stderr)
+    return 0
+
+
 def main() -> int:
     if "--self-check" in sys.argv:
         return self_check()
+    if "--converged" in sys.argv:
+        return converged_pairs(t27c())
     return report(t27c())
 
 

@@ -1,0 +1,10 @@
+# NOW -- Three guards that only ran when I typed them (2026-09-08)
+
+## Three guards that only ran when I typed them (Closes #3426)
+
+- Three checkers were written over the last passes, each after a defect it would have caught, and each has since caught a live one -- `check_seal_currency.py` (116 stale seals, #3415), `check_ring_spec_drift.py` (a drifted ring/spec pair, #3422), `ring_spec_differential.py` (126 of 1190 disagreeing behind 16 of 16 identical signatures, #3420). **All three ran only when someone typed them.** That is a habit, and the next cron tick does not inherit habits.
+- I deferred wiring them **three times** as "a cost decision for the owner". Measured, it is not a decision: **12s** for the seal scan, **0s** for the drift scan, **~1s** per differential pair, ~1s for all three self-checks. Third time this session I called something a decision without measuring it first.
+- Self-checks run FIRST and in their own steps. A checker whose own negative control fails cannot be believed when it then reports zero, and sharing a step would let a green scan hide a broken instrument.
+- The pair list is DERIVED: `check_ring_spec_drift.py --converged` prints them, because a list written into the YAML goes stale the first time a pair converges. If it prints nothing the step **fails** rather than looping zero times and reporting success -- verified with an empty-list control that exits 1.
+- **Not a required context, and it must not become one without the owner.** A `paths:`-filtered workflow that is required hangs every pull request it does not match, forever, on a check that never posts -- measured earlier at 15 of 40 merged PRs. A `push:` trigger is included so master has a baseline at all.
+- `while read`, not `mapfile`: mapfile is bash 4+ and macOS ships bash 3.2, so the step **could not have been run locally before pushing it**. A construct only the runner can execute is one nobody tested. The loop, its empty-list guard, and the final-line-without-a-newline case were all run verbatim under bash 3.2.
