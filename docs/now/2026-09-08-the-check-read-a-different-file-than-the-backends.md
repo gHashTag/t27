@@ -1,0 +1,10 @@
+# NOW -- The check read a different file than the backends (2026-09-08)
+
+## The check read a different file than the backends (Closes #3412)
+
+- Every `gen-*` path splices imported declarations in before compiling; `typecheck` did not. So a type arriving through an import read as undeclared, and the unknown-type check shipped one pass earlier in #3409 warned about types the spec correctly imports. **This is my own defect, found by measuring my own output rather than by anyone reporting it.**
+- Measured over all 651 specs: `unknown type` warnings **1283 -> 1045**, all warnings **1775 -> 1570**, exit-code changes **0**. `specs/base/ternary_add.t27` alone went **10 -> 0**: it writes `use base::types;` and every type it names comes from there.
+- Counted a second way before the repair, by asking whether each warned name appears as a declaration in the RESOLVED output: **41 distinct names across 29 of the 169 flagged files** were false, against 228 true. Precision was ~85%, which is not broken -- but noise in a check whose only job is to be believed.
+- The naive repair is wrong, and the reason is written in the code already. `run_gen` carries the contract: *"this may only ADD declarations, never break a spec. If the spliced source stops compiling, the original is used."* Resolving without that fallback took `specs/nn/hslm.t27` from exit 0 to a parse failure at 652:1 -- while all four backends still compiled it, because they fall back and my version did not. With the contract mirrored, exactly **1 of 651** specs takes the fallback, and it says so on stderr rather than silently typechecking something other than what it claims to.
+- Mutation-checked: disabling the resolve fails the new test with the measured number, "it warned 10 times".
+- Named and not done: `Trit` is declared by four specs as `pub const Trit = enum(i8)` and simply not imported by the files using it. Adding one `use` line to `specs/ar/restraint.t27` takes its emitted Rust from **30 rustc errors to 19** and brings `pub enum Trit` into the output. A spec-side repair with a measured payoff, deserving its own change.

@@ -6100,8 +6100,37 @@ fn run_optimize(input_path: &str, opt_level: u32) -> anyhow::Result<()> {
 }
 
 fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
-    let source = fs::read_to_string(input_path)?;
-    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let raw = fs::read_to_string(input_path)?;
+    // Typecheck what the BACKENDS compile, not what the file literally holds.
+    // Every `gen-*` path resolves `use` first; typecheck did not, so a type
+    // that arrives through an import read as undeclared. Measured before this
+    // line existed: of 269 names the unknown-type check reported, 41 across 29
+    // files were declared in the resolved output -- warnings about types the
+    // spec correctly imports.
+    // The same safety contract every `gen-*` path carries, quoted from the one
+    // at run_gen: "this may only ADD declarations, never break a spec. If the
+    // spliced source stops compiling, the original is used." Without the
+    // fallback, specs/nn/hslm.t27 went from exit 0 to a parse failure at
+    // 652:1 while all four backends still compiled it -- the splice can
+    // produce source the parser rejects, and that is a handled condition
+    // rather than a verdict about the spec.
+    let spliced = use_resolve::resolve(std::path::Path::new(input_path), &raw);
+    let (source, ast) = match compiler::Compiler::parse_ast(&spliced) {
+        Ok(a) => (spliced, a),
+        Err(splice_err) => {
+            let a = compiler::Compiler::parse_ast(&raw).map_err(|_| {
+                // The raw source failing too is a real parse error and is
+                // reported as the spliced one, which is the more informative.
+                anyhow::anyhow!("{}", splice_err)
+            })?;
+            eprintln!(
+                "note: spliced source did not parse, typechecking the \
+unresolved original -- imported declarations are NOT considered here"
+            );
+            (raw.clone(), a)
+        }
+    };
+    let _ = &source;
     let result = compiler::typecheck_ast(&ast);
     if json {
         let resp = serde_json::json!({
