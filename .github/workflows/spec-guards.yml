@@ -15,6 +15,13 @@
 #   ring_spec_differential.py a matching signature is not matching behaviour:
 #                             ring-090 read 16 of 16 identical and disagreed on
 #                             126 of 1190 cases (#3420, #3424).
+#   check_duplicate_declarations.py
+#                             three specs declare 25 top-level names twice and
+#                             `t27c check` exited 0 on all of them. Every
+#                             backend rejects a redeclaration -- measured, not
+#                             assumed: cc `redefinition`, rustc E0428, zig
+#                             `duplicate`, iverilog `already been declared`
+#                             (#3438).
 #
 # NOT a required context, and it must not become one without the owner: a
 # `paths:`-filtered workflow that is required hangs every pull request it does
@@ -23,7 +30,8 @@
 # runs zero times on the default branch and its history is empty (#2925 family).
 #
 # Cost, measured rather than estimated: 12s for the seal scan, 0s for the drift
-# scan, ~1s per differential pair, on top of the compiler build.
+# scan, ~1s per differential pair, 7s for the duplicate-declaration ratchet, on
+# top of the compiler build.
 name: Spec Guards
 
 on:
@@ -36,6 +44,8 @@ on:
       - 'tools/check_seal_currency.py'
       - 'tools/check_ring_spec_drift.py'
       - 'tools/ring_spec_differential.py'
+      - 'tools/check_duplicate_declarations.py'
+      - 'tools/duplicate_declarations_baseline.txt'
       - '.github/workflows/spec-guards.yml'
   push:
     branches: [master]
@@ -47,6 +57,8 @@ on:
       - 'tools/check_seal_currency.py'
       - 'tools/check_ring_spec_drift.py'
       - 'tools/ring_spec_differential.py'
+      - 'tools/check_duplicate_declarations.py'
+      - 'tools/duplicate_declarations_baseline.txt'
       - '.github/workflows/spec-guards.yml'
   workflow_dispatch:
 
@@ -83,11 +95,20 @@ jobs:
       - name: Self-check -- differential harness
         run: python3 tools/ring_spec_differential.py --self-check
 
+      - name: Self-check -- duplicate declarations
+        run: python3 tools/check_duplicate_declarations.py --self-check
+
       - name: Does every seal still describe what the compiler emits
         run: python3 tools/check_seal_currency.py
 
       - name: Does every ring still agree with the spec it names
         run: python3 tools/check_ring_spec_drift.py
+
+      # A RATCHET against a per-spec baseline, not a total. A ceiling on the
+      # sum is satisfied by zero and says nothing about a spec that grew while
+      # another shrank.
+      - name: Does any spec declare one name twice
+        run: python3 tools/check_duplicate_declarations.py
 
       - name: Run each CONVERGED pair on the same inputs
         shell: bash

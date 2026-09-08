@@ -23139,6 +23139,88 @@ fn type_base_name(t: &str) -> Option<String> {
 
 /// Every type name this tree declares: structs, enums, and the Zig-shaped
 /// `pub const Trit = enum(i8) { .. }`, which the parser records as a ConstDecl.
+/// Every top-level declaration in the tree, as (name, kind), in source order.
+///
+/// The population is the one the BACKENDS emit from, which is why this walks
+/// the AST rather than the text. A line-based matcher written while scoping
+/// this reported 8 specs and 35 names; five of those specs were its own false
+/// positives -- methods inside `impl` blocks in files written in Rust rather
+/// than t27, which do not parse at all and emit nothing. Scope is not visible
+/// to a regex.
+fn collect_top_level_decls(node: &Node, out: &mut Vec<(String, &'static str)>) {
+    for child in &node.children {
+        let kind = match child.kind {
+            NodeKind::StructDecl => Some("struct"),
+            NodeKind::EnumDecl => Some("enum"),
+            NodeKind::FnDecl => Some("fn"),
+            _ => None,
+        };
+        if let Some(k) = kind {
+            if !child.name.is_empty() {
+                out.push((child.name.clone(), k));
+            }
+        }
+        // Declarations may sit at file level or inside a `module` node, so the
+        // scan recurses -- the same shape as `collect_declared_types`.
+        collect_top_level_decls(child, out);
+    }
+}
+
+/// Names declared more than once, each reported once, in first-seen order.
+///
+/// Two findings, because they are not the same claim and one message for both
+/// would be false. Measured against the real compilers rather than assumed:
+///
+///   SAME NAMESPACE -- `struct A` twice, or `struct A` and `enum A`. Every
+///   backend rejects it: C `redefinition of 'S'` and `tag type that does not
+///   match`, rustc `error[E0428]`, zig `duplicate ...`, iverilog `has already
+///   been declared in this scope`.
+///
+///   ACROSS NAMESPACES -- `struct A` and `fn A`. Rust and C ACCEPT this; types
+///   and values live in separate namespaces there. Zig does not, because a
+///   container has one namespace, and it says `duplicate struct member name`.
+///   So this is a real finding and a WEAKER one, and it says so.
+///
+/// The corpus carries 25 of the first kind and none of the second, which is a
+/// reason to state the second rule carefully rather than to leave it out: a
+/// zero that nothing could have produced is not evidence.
+fn duplicate_top_level_decls(ast: &Node) -> Vec<DuplicateDecl> {
+    let mut decls: Vec<(String, &'static str)> = Vec::new();
+    collect_top_level_decls(ast, &mut decls);
+    let ns = |k: &str| if k == "fn" { "value" } else { "type" };
+
+    let mut per_ns: std::collections::HashMap<(&str, &str), usize> =
+        std::collections::HashMap::new();
+    let mut namespaces: std::collections::HashMap<&str, std::collections::HashSet<&str>> =
+        std::collections::HashMap::new();
+    for (n, k) in &decls {
+        *per_ns.entry((n.as_str(), ns(k))).or_insert(0) += 1;
+        namespaces.entry(n.as_str()).or_default().insert(ns(k));
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for (n, k) in &decls {
+        if !seen.insert(n.clone()) {
+            continue;
+        }
+        let same = per_ns[&(n.as_str(), ns(k))];
+        if same > 1 {
+            out.push(DuplicateDecl::SameNamespace(n.clone(), k, same));
+        } else if namespaces[n.as_str()].len() > 1 {
+            out.push(DuplicateDecl::AcrossNamespaces(n.clone()));
+        }
+    }
+    out
+}
+
+enum DuplicateDecl {
+    /// The same name declared twice where one namespace holds both.
+    SameNamespace(String, &'static str, usize),
+    /// A type and a function sharing a name: legal in Rust and C, not in Zig.
+    AcrossNamespaces(String),
+}
+
 fn collect_declared_types(node: &Node, out: &mut std::collections::HashSet<String>) {
     match node.kind {
         NodeKind::StructDecl | NodeKind::EnumDecl => {
@@ -23268,6 +23350,22 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                 result.warnings += 1;
             }
         }
+    }
+
+    // A name declared twice reaches every backend as a redeclaration, and all
+    // four of them reject it -- yet `check` was silent. See
+    // `duplicate_top_level_decls`.
+    for d in duplicate_top_level_decls(ast) {
+        let msg = match d {
+            DuplicateDecl::SameNamespace(name, kind, n) => format!(
+                "warning: `{kind} {name}` is declared {n} times -- every backend rejects a redeclaration"
+            ),
+            DuplicateDecl::AcrossNamespaces(name) => format!(
+                "warning: `{name}` is declared as both a type and a function -- zig rejects this; rust and C do not"
+            ),
+        };
+        result.errors.push(msg);
+        result.warnings += 1;
     }
 
     for child in &ast.children {
