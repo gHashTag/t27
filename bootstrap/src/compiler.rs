@@ -18114,6 +18114,10 @@ pub struct CCodegen {
     /// type of its own; its consumer's parameter is declared, so the type is
     /// recoverable from the use. Zig has done this since W585.
     fn_param_types: std::collections::HashMap<String, Vec<String>>,
+    /// Enums this module declares. `Trit.pos` is an ENUM MEMBER, and C has no
+    /// `Type.member`: the constant is named `TRIT_POS`. Without this set the
+    /// dotted form went into C verbatim.
+    c_enum_names: std::collections::HashSet<String>,
     /// Scaffold binding name -> the C type recovered for it.
     scaffold_locals_c: std::collections::HashMap<String, String>,
     /// t27 tuple return type of the function currently being emitted, so an
@@ -18140,6 +18144,7 @@ impl CCodegen {
             module_name: String::new(),
             fn_return_types: std::collections::HashMap::new(),
             fn_param_types: std::collections::HashMap::new(),
+            c_enum_names: std::collections::HashSet::new(),
             scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
@@ -18681,6 +18686,13 @@ impl CCodegen {
         }
 
         // Section: Enums
+        // Recorded whether or not any enum is emitted here, because the
+        // dotted member form has to be recognised wherever it appears.
+        for e in &enums {
+            if !e.name.is_empty() {
+                self.c_enum_names.insert(e.name.clone());
+            }
+        }
         if !enums.is_empty() {
             self.write_line("/* -------------------------------------------------------");
             self.write_line("   Enums");
@@ -21008,6 +21020,28 @@ impl CCodegen {
                 }
             }
             NodeKind::ExprFieldAccess => {
+                // An ENUM MEMBER, not a field. `Trit.pos` went into C verbatim
+                // and C has no `Type.member`: 1373 errors across 12 files,
+                // reported as `unexpected type name 'Trit'` and as undeclared
+                // `POS`/`NEG`. The constant `gen_c_enum` emits is
+                // `{TYPE}_{MEMBER}`, both upper-cased, so the two spellings are
+                // brought together here rather than a third one invented.
+                //
+                // Rust emits `Trit::pos` and Zig `Trit.pos`, both correct for
+                // their language; C was the only backend without an answer.
+                if let Some(base) = node.children.first() {
+                    if base.kind == NodeKind::ExprIdentifier
+                        && self.c_enum_names.contains(&base.name)
+                        && !node.name.is_empty()
+                    {
+                        self.write(&format!(
+                            "{}_{}",
+                            base.name.to_uppercase(),
+                            node.name.to_uppercase()
+                        ));
+                        return;
+                    }
+                }
                 if !node.children.is_empty() {
                     self.gen_c_expr(&node.children[0]);
                 }
