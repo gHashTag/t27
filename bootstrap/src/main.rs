@@ -2975,9 +2975,63 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
 // Command Handlers
 // ============================================================================
 
+/// Read a spec, refusing one written in the OTHER `.tri` language.
+///
+/// trinity-fpga and this project both use the `.tri` extension for completely
+/// different languages. A t27 spec is block-structured -- `spec X { }`,
+/// `pub fn f(x f32) -> gf16`, `invariant { assert ... }`. A VIBEE spec is YAML
+/// with a top-level `name:`.
+///
+/// Pointed at a VIBEE spec, this compiler parses it into an EMPTY MODULE and
+/// exits 0. Measured over trinity-fpga's corpus of 1137 specs: 9 parse
+/// meaningfully, 293 error, and **835 come back as an empty module** -- silent,
+/// successful, and useless. During a migration between the two languages that
+/// is the worst possible behaviour, because nothing downstream can tell an
+/// empty result from a spec that genuinely declares nothing.
+///
+/// The discriminator is measured over both corpora rather than guessed:
+///
+///   1066 of trinity-fpga's 1137 specs have a top-level `name:`
+///      0 of this project's specs do, and they open with `spec `
+///
+/// Requiring the PRESENCE of `name:` and the ABSENCE of t27 markers matters in
+/// both directions: 42 of trinity-fpga's specs contain `spec ` at the start of
+/// a line while still being YAML.
+///
+/// The mirror of this guard lives in trinity-fpga's `vibee_gen`
+/// (gHashTag/trinity-fpga#788), which refuses a t27 spec and names `t27c`.
+fn read_spec_source(path: &Path) -> anyhow::Result<String> {
+    let source = fs::read_to_string(path)?;
+    if looks_like_vibee(&source) {
+        anyhow::bail!(
+            "{} looks like a VIBEE spec, not a t27 spec.\n\
+             Both languages use the .tri extension; t27c reads the block form \
+             (`spec X {{ ... }}`), not the YAML form with a top-level `name:`.\n\
+             Compile it with vibee_gen instead.",
+            path.display()
+        );
+    }
+    Ok(source)
+}
+
+/// YAML with a top-level `name:` and no t27 block syntax.
+fn looks_like_vibee(source: &str) -> bool {
+    let has_name = source.starts_with("name:") || source.contains("\nname:");
+    if !has_name {
+        return false;
+    }
+    // A t27 marker outranks `name:` -- a spec may legitimately contain both.
+    for marker in ["\nspec ", "\ninvariant ", "\nnumericformat ", "\npub fn "] {
+        if source.contains(marker) {
+            return false;
+        }
+    }
+    source.starts_with("spec ") == false
+}
+
 fn run_parse(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     let (ast, discarded, swallowed, dropped) =
         compiler::Compiler::parse_ast_full(&source);
@@ -3137,7 +3191,7 @@ fn spec_module_paths(input_path: &Path) -> std::collections::HashMap<String, Str
 
 fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     // A spec inside the tree gets its imports resolved against its own
     // location. Outside the tree there is no location to resolve against, and
@@ -3158,7 +3212,7 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     sva_behaviors: Option<&str>,
 ) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     match compiler::Compiler::compile_verilog(&source) {
         Ok(verilog_code) => {
@@ -3179,7 +3233,7 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
 
 fn run_debug_hir(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     match compiler::Compiler::debug_hir(&source) {
         Ok(hir_dump) => print!("{}", hir_dump),
@@ -3194,7 +3248,7 @@ fn run_gen_verilog_hir(
     sva_behaviors: Option<&str>,
 ) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     match compiler::Compiler::compile_verilog_hir(&source) {
         Ok(verilog) => {
@@ -3686,7 +3740,7 @@ fn run_gen_phi_selfcheck(
 
 fn run_asm(input_path: &str, output: Option<&str>, format: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
@@ -3745,7 +3799,7 @@ fn run_asm(input_path: &str, output: Option<&str>, format: &str) -> anyhow::Resu
 
 fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: Option<&str>) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
@@ -3771,7 +3825,7 @@ fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: 
 
 fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     match compiler::Compiler::compile_c(&source) {
         Ok(c_code) => print!("{}", c_code),
@@ -3782,7 +3836,7 @@ fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
 
 fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     match compiler::Compiler::compile_rust(&source) {
         Ok(rust_code) => print!("{}", rust_code),
@@ -3799,7 +3853,7 @@ fn sha256_hex(data: &[u8]) -> String {
 
 fn run_conformance(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     let json: serde_json::Value = serde_json::from_str(&source)?;
 
@@ -3864,7 +3918,7 @@ struct SealHashes {
 /// Compute all seal hashes for a .t27 spec file
 fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     let module = extract_module_name(&source)
         .unwrap_or_else(|| {
@@ -4075,7 +4129,7 @@ fn compile_source(source: &str, backend: &str) -> Result<String, String> {
 
 fn run_compile(input_path: &str, backend: &str, output: Option<&str>) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
@@ -5779,7 +5833,7 @@ fn run_graph(root: &str, format: &str) -> anyhow::Result<()> {
 
 fn run_doc(input_path: &str, output_dir: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+    let source = read_spec_source(path)?;
 
     let lexer = compiler::Lexer::new(&source);
     let mut parser = compiler::Parser::new(lexer);
