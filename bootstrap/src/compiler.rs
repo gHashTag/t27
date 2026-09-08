@@ -18499,6 +18499,25 @@ impl CCodegen {
             self.write_line("#include <math.h>");
         }
 
+        // `abs` is 389 uses in 43 specs, lowered by Rust as `(v).abs()` and by
+        // Zig as `@abs(v)`, and refused here for two passes because C has TWO
+        // of them -- `abs` for int, `fabs` for double -- and choosing without
+        // the argument's type is a silent truncation.
+        //
+        // C11 answers it without the type: `_Generic` dispatches on the
+        // argument's own type, evaluates it once, and is standard in the
+        // `-std=c11` this corpus is compiled with. The macro is named
+        // `t27_abs` and the call is rewritten, so a `<stdlib.h>` `abs` in
+        // scope is never shadowed.
+        if Self::module_uses_abs(ast) {
+            self.write_line("#include <math.h>");
+            self.write_line("#include <stdlib.h>");
+            self.write_line(
+                "#define t27_abs(x) _Generic((x), float: fabsf, double: fabs, \
+long double: fabsl, default: llabs)(x)",
+            );
+        }
+
         // Check if tests exist — add assert.h
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
         if has_tests {
@@ -19298,7 +19317,18 @@ impl CCodegen {
     /// builtin does.
     const LIBM: [&'static str; 3] = ["sqrt", "floor", "round"];
 
+    fn module_uses_abs(ast: &Node) -> bool {
+        Self::module_calls(ast, &["abs"])
+    }
+
     fn module_uses_libm(ast: &Node) -> bool {
+        Self::module_calls(ast, &Self::LIBM)
+    }
+
+    /// Does this module CALL any of `names`, none of them being a function it
+    /// declares itself? One predicate for both preamble decisions, so a spec
+    /// that defines its own `sqrt` or `abs` keeps it in either.
+    fn module_calls(ast: &Node, names: &[&str]) -> bool {
         fn declared(node: &Node, out: &mut std::collections::HashSet<String>) {
             for c in &node.children {
                 if c.kind == NodeKind::FnDecl && !c.name.is_empty() {
@@ -19307,17 +19337,21 @@ impl CCodegen {
                 declared(c, out);
             }
         }
-        fn calls(node: &Node, fns: &std::collections::HashSet<String>) -> bool {
+        fn calls(
+            node: &Node,
+            names: &[&str],
+            fns: &std::collections::HashSet<String>,
+        ) -> bool {
             node.children.iter().any(|c| {
                 (c.kind == NodeKind::ExprCall
-                    && CCodegen::LIBM.contains(&c.name.as_str())
+                    && names.contains(&c.name.as_str())
                     && !fns.contains(&c.name))
-                    || calls(c, fns)
+                    || calls(c, names, fns)
             })
         }
         let mut fns = std::collections::HashSet::new();
         declared(ast, &mut fns);
-        calls(ast, &fns)
+        calls(ast, names, &fns)
     }
 
     /// Does any item in this module take `.len` on a `string`? Decides the
@@ -21156,6 +21190,16 @@ impl CCodegen {
                 // different conversion and guessing between them would be a
                 // silent semantic choice. Guarded by the declared functions, so
                 // a spec that defines its own `cast_i8` keeps it.
+                // `abs(x)` becomes the type-generic macro; see the preamble.
+                if node.name == "abs"
+                    && node.children.len() == 1
+                    && !self.fn_param_types.contains_key(&node.name)
+                {
+                    self.write("t27_abs(");
+                    self.gen_c_expr(&node.children[0]);
+                    self.write(")");
+                    return;
+                }
                 if node.children.len() == 1 && !self.fn_param_types.contains_key(&node.name) {
                     if let Some(target) = node.name.strip_prefix("cast_") {
                         if is_integer_type_suffix(target) {

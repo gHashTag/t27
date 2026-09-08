@@ -52,12 +52,25 @@ CALLS = [
     "cast_i8(v)", "cast_i16(v)", "cast_i32(v)", "cast_f32(v)",
     "abs(v)", "abs_i16(v)", "abs_f32(v)",
     "sqrt(v)", "floor(v)", "round(v)", "min(v, v)", "max(v, v)", "sign(v)",
-    "default_input()", "valid_input()", "random_input()",
-    "assert_eq(v, v)", "approximately_equal(v, v)",
+    "default_input()", "valid_input()", "random_input()", "finite_input()",
+    "assert_eq(v, v)", "approximately_equal(v, v)", "eq(v, v)",
     "print(v)", "len(v)",
+    # Added once the population column counted CODE rather than prose, which
+    # reordered the list: `assert_eq` is 178 uses in 60 specs and `eq` 40 in 9,
+    # while `sign` -- recommended as a language question on 63 -- is one use in
+    # one spec. These rows were chosen from what the corpus actually calls.
+    "from_f64(v)", "compose(v, v, v)", "all_positive(v)", "all_equal(v)",
 ]
 
-HEAD = "module P {\n    fn probe(v: i32) -> i32 { var a = {call}; return 0; }\n}\n"
+# The probe carries a TEST BLOCK, because a spec without one is not
+# representative -- 528 of 651 specs have tests -- and because two of the
+# preambles are conditional on it: C emits `#define assert_eq(a, b)` and
+# `<assert.h>` only when a module has tests. Probing without one reported
+# `assert_eq` as undeclared in a backend that declares it.
+HEAD = ("module P {\n"
+        "    fn probe(v: i32) -> i32 { var a = {call}; return 0; }\n"
+        "    test \"t\" { assert(1 == 1); }\n"
+        "}\n")
 
 
 def t27c() -> str:
@@ -81,6 +94,40 @@ def emit(binary: str, sub: str, call: str, d: str) -> str:
     return r.stdout
 
 
+def declares(out: str, name: str) -> bool:
+    """Does the emitted file DEFINE this name itself?
+
+    The distinction the first version missed. A spelling that survives into the
+    target is a defect only if nothing declares it: C already emits
+    `#define assert_eq(a, b)` and Zig `fn assert_eq(a: anytype, ...)`, so both
+    columns read PASSTHROUGH while both were correct by design -- and the table
+    reported "no backend lowers any of them" about a call that two backends
+    answer with a helper. Defining the name is a lowering STRATEGY, not a gap.
+    """
+    # An INCLUDE declares too. `sqrt` is answered in C by `#include <math.h>`
+    # and nothing else -- the spelling was never wrong -- and the second
+    # version of this reader still called that column PASSTHROUGH, because it
+    # looked only for definitions written in the file. Three readings of one
+    # row, three different wrong answers, each from a narrower question than
+    # "does the output declare this name".
+    HEADERS = {
+        "math.h": ("sqrt", "floor", "round", "ceil", "fabs", "pow", "log", "exp"),
+        "string.h": ("strlen", "strcmp", "memcpy", "memset"),
+        "stdlib.h": ("abs", "malloc", "free"),
+        "stdio.h": ("printf", "puts"),
+    }
+    for hdr, names in HEADERS.items():
+        if name in names and re.search(r"^\s*#include\s*<" + re.escape(hdr) + r">", out, re.M):
+            return True
+    pats = (
+        r"^\s*#define\s+" + re.escape(name) + r"\s*\(",          # C macro
+        r"^\s*(?:pub\s+)?fn\s+" + re.escape(name) + r"\s*\(",    # Zig / Rust
+        r"^[\w \*]+\s+" + re.escape(name) + r"\s*\([^;]*\)\s*\{",  # C function
+        r"^\s*function\b[^\n]*\b" + re.escape(name) + r"\b",     # Verilog
+    )
+    return any(re.search(p, out, re.M) for p in pats)
+
+
 def cell(out: str, call: str) -> str:
     """What the backend did with this call, in one short phrase."""
     name = call.split("(")[0]
@@ -101,23 +148,35 @@ def cell(out: str, call: str) -> str:
     # failure of the instrument printed as a fact about the backend, which is
     # the sibling table's own recorded first-run mistake.
     if re.search(r"(?<![\w.@])" + re.escape(name) + r"\s*\(", body):
-        return "PASSTHROUGH " + body[:34]
+        return ("helper " if declares(out, name) else "PASSTHROUGH ") + body[:30]
     return body[:44]
 
 
 def corpus_counts():
-    """uses and distinct specs per name, so a row says what it is worth."""
+    """uses and distinct specs per name, COUNTED IN CODE ONLY.
+
+    The first version read the whole file, comments included, and every number
+    it printed was inflated -- `sign` read 63 uses in 48 specs where the code
+    holds ONE, `max` 51/26 where the code holds 4, `sqrt` 100/25 where it holds
+    33/13. A prose line that says "round the mantissa (see round(x))" is not a
+    call, and a population column that counts it makes a row look worth more
+    than it is. `sign` was recommended as a language-level question on the
+    strength of 63; it is one use in one spec.
+    """
     uses, files = {}, {}
     for r, _, fs in os.walk(os.path.join(ROOT, "specs")):
         for f in fs:
             if not f.endswith(".t27"):
                 continue
             p = os.path.join(r, f)
-            src = open(p, encoding="utf-8", errors="replace").read()
-            for m in re.finditer(r"(?<![\w.@])([a-z_][a-z0-9_]*)\s*\(", src):
-                n = m.group(1)
-                uses[n] = uses.get(n, 0) + 1
-                files.setdefault(n, set()).add(p)
+            for line in open(p, encoding="utf-8", errors="replace"):
+                t = line.lstrip()
+                if t.startswith("//") or t.startswith("#"):
+                    continue
+                for m in re.finditer(r"(?<![\w.@])([a-z_][a-z0-9_]*)\s*\(", line):
+                    n = m.group(1)
+                    uses[n] = uses.get(n, 0) + 1
+                    files.setdefault(n, set()).add(p)
     return uses, files
 
 
@@ -136,6 +195,35 @@ def self_check(binary: str) -> int:
         print(f"  cast_i8, C and Zig  -> {'lowered in both' if good else 'FAIL'} "
               f"({'PASS' if good else 'FAIL'})\n      C: {c}\n      Zig: {z}")
         ok &= good
+        # The population column must count CODE, not prose. `sign` appears 63
+        # times counting comments and ONCE in code, and the first version of
+        # this reader printed the 63 -- a row made to look 63x its worth.
+        uses, files = corpus_counts()
+        code_only = uses.get("sign", 0) <= 5
+        print(f"  `sign` counted in code only -> {uses.get('sign', 0)} uses "
+              f"({'PASS' if code_only else 'FAIL: comments are being counted'})")
+        ok &= code_only
+
+        # A name the OUTPUT declares is not a gap. C emits
+        # `#define assert_eq(a, b)` and Zig `fn assert_eq(...)`; the first
+        # version called both PASSTHROUGH and the table said "no backend
+        # lowers any of them" about a call two backends answer.
+        ce = cell(emit(binary, "gen-c", "assert_eq(v, v)", d), "assert_eq(v, v)")
+        ze = cell(emit(binary, "gen", "assert_eq(v, v)", d), "assert_eq(v, v)")
+        helped = ce.startswith("helper") and ze.startswith("helper")
+        print(f"  assert_eq is a HELPER, not a gap ({'PASS' if helped else 'FAIL'})"
+              f"\n      C: {ce}\n      Zig: {ze}")
+        ok &= helped
+
+        # And an INCLUDE is a declaration. `sqrt` is answered in C by
+        # `#include <math.h>` alone; a reader that looks only for definitions
+        # written in the file calls that a gap.
+        cs = cell(emit(binary, "gen-c", "sqrt(v)", d), "sqrt(v)")
+        inc_ok = cs.startswith("helper")
+        print(f"  sqrt in C is answered by its include ({'PASS' if inc_ok else 'FAIL'})"
+              f"\n      C: {cs}")
+        ok &= inc_ok
+
         n = "zzz_not_a_builtin(v)"
         seen = [cell(emit(binary, sub, n, d), n) for _, sub in BACKENDS[:3]]
         bad = all(s.startswith("PASSTHROUGH") for s in seen)
@@ -164,9 +252,13 @@ def main() -> int:
             cells = [cell(emit(binary, sub, call, d), call) for _, sub in BACKENDS]
             print(f"{call:22} {uses.get(name, 0):5} {len(files.get(name, ())):5}  "
                   + "  ".join(f"{c:<26}" for c in cells))
-    print("\nPASSTHROUGH means the spelling survived into the target unchanged.")
-    print("It is a CANDIDATE, not a verdict: `print` in synthesizable Verilog and")
-    print("a float cast in C are refusals somebody chose. Read the row, then decide.")
+    print("\nPASSTHROUGH means the spelling survived AND nothing in the output")
+    print("declares it -- neither a definition in the file nor an include that")
+    print("brings it in. `helper` means it survived and the output answers it --")
+    print("a lowering strategy, not a gap: C emits `#define assert_eq(a, b)` and")
+    print("Zig `fn assert_eq(...)`. Only PASSTHROUGH is a candidate, and even")
+    print("then not a verdict: `print` in synthesizable Verilog and a float cast")
+    print("in C are refusals somebody chose. Read the row, then decide.")
     return 0
 
 
