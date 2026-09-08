@@ -162,3 +162,49 @@ fn a_dotted_token_is_a_float_only_when_it_is_one() {
         assert!(!errors(&h, &d).contains("error"), "and it compiles");
     }
 }
+
+#[test]
+fn a_negative_element_makes_the_list_signed() {
+    // A negative element is a unary expression, not a literal, so the whole
+    // list was refused -- 193 corpus lists contain one. Looking through the
+    // `-` was the easy half; the FIRST version then emitted
+    // `uint32_t x[2] = { 1, -1 }`, an unsigned type holding a negative, which
+    // is exactly the quiet wrong answer this class of repairs exists to avoid.
+    for (body, want) in [
+        ("var x = [1, -1];", "int32_t x[2] = { 1, -1 };"),
+        ("var x = [-1];", "int32_t x[1] = { -1 };"),
+        ("var x = [-1.5, 2.0];", "double x[2] = { -1.5, 2.0 };"),
+    ] {
+        let (h, d) = gen_c(body, "neg");
+        assert!(h.contains(want), "for `{body}` expected `{want}`:\n{h}");
+        if cc_present() {
+            assert!(!errors(&h, &d).contains("error"), "and `{body}` must compile");
+        }
+    }
+    // And an all-positive list is still unsigned: the sign is a property of
+    // the list, not a widening applied to every list.
+    let (h, _d) = gen_c("var x = [1, 2];", "pos");
+    assert!(h.contains("uint32_t x[2] ="), "an all-positive list stays unsigned:\n{h}");
+}
+
+#[test]
+fn another_unary_operator_is_not_looked_through() {
+    // Only `-` is transparent here. `!1` is a unary expression whose value is
+    // not the literal underneath it, and typing the list from that literal
+    // would be reading the wrong number.
+    let (h, _d) = gen_c("var x = [!1];", "bang");
+    assert!(!h.contains("uint32_t x["), "a non-negation unary must not be looked through:\n{h}");
+    assert!(!h.contains("int32_t x["), "nor signed:\n{h}");
+}
+
+#[test]
+fn an_empty_list_is_left_alone() {
+    // `var x = []` emits `{ 0 }` because C11 has no `{}`, and there is nothing
+    // in an empty list to infer a type FROM. 439 corpus sites write it, and
+    // naming a type here would be inventing one.
+    let (h, _d) = gen_c("var x = [];", "empty");
+    assert!(
+        h.contains("__auto_type x = { 0 };"),
+        "an empty list keeps __auto_type rather than inventing an element type:\n{h}"
+    );
+}

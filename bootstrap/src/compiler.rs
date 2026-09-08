@@ -19393,11 +19393,18 @@ impl CCodegen {
                 return None;
             }
             let mut any_float = false;
+            let mut any_negative = false;
             for v in items {
                 if v.is_empty() {
                     return None;
                 }
-                let body = v.strip_prefix('-').unwrap_or(v);
+                let body = match v.strip_prefix('-') {
+                    Some(rest) => {
+                        any_negative = true;
+                        rest
+                    }
+                    None => v,
+                };
                 if body.contains('.') {
                     // A C floating literal: AT MOST ONE dot, and at least one
                     // digit. `a.b` is a field access, `1.2.3` is not a number
@@ -19420,9 +19427,17 @@ impl CCodegen {
                     return None;
                 }
             }
-            return Some(if any_float { "f64" } else { "u32" }.to_string());
+            return Some(if any_float {
+                "f64"
+            } else if any_negative {
+                "i32"
+            } else {
+                "u32"
+            }
+            .to_string());
         }
         let mut any_float = false;
+        let mut any_negative = false;
         for e in &lit.children {
             // SUBSUMED TODAY, and kept deliberately. A mutant deleting this
             // survives every test: an identifier, a call and a binary
@@ -19432,6 +19447,19 @@ impl CCodegen {
             // removed in the const path, this guard IS reachable; dropping it
             // would make correctness depend on the accident that non-literal
             // nodes carry no numeric text.
+            // A NEGATIVE element is a unary expression, not a literal, so the
+            // whole list was refused: 193 corpus lists contain one. Look
+            // through a `-` to the literal underneath, and only that -- any
+            // other unary operator keeps the list unnamed.
+            let e: &Node = if e.kind == NodeKind::ExprUnary
+                && e.extra_op == "-"
+                && e.children.len() == 1
+            {
+                any_negative = true;
+                &e.children[0]
+            } else {
+                e
+            };
             if e.kind != NodeKind::ExprLiteral {
                 return None;
             }
@@ -19459,7 +19487,29 @@ impl CCodegen {
                 return None;
             }
         }
-        Some(if any_float { "f64" } else { "u32" }.to_string())
+        // A negative element makes the list SIGNED. Emitting
+        // `uint32_t x[2] = { 1, -1 }` was the first version of this and is
+        // exactly the quiet wrong answer this whole class of repairs is meant
+        // to avoid.
+        //
+        // `any_negative` is NOT reachable on this branch, and that is recorded
+        // rather than assumed covered: a mutant forcing "u32" here survives
+        // every test. An integer list carrying a negative takes the
+        // `extra_size` path instead -- probed with `[1, -1]`, `[-1]` and
+        // `[_]i32{1, -1}`; the last has an `extra_type` and never reaches this
+        // function at all. The float case DOES arrive here (`[-1.5, 2.0]`) and
+        // is answered by `any_float` before the sign matters. Kept for the
+        // same reason as the `kind != ExprLiteral` test above: the branch is
+        // reachable even though this particular combination has not been
+        // produced, and dropping it would make correctness depend on that.
+        Some(if any_float {
+            "f64"
+        } else if any_negative {
+            "i32"
+        } else {
+            "u32"
+        }
+        .to_string())
     }
 
     fn c_array_field(ty: &str, fname: &str) -> Option<String> {
