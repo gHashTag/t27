@@ -10877,6 +10877,14 @@ impl VerilogCodegen {
 
     /// Map t27 type to Verilog type width. Returns bit width.
     fn type_to_width(ty: &str) -> u32 {
+        // A type written through its module -- `gf16::GF16` -- matched no arm
+        // and took the 32-bit default, so the SAME type was 16 bits bare and 32
+        // bits qualified. Eight corpus specs spell it that way. Stripping the
+        // qualifier can only turn the unknown-type default into a known width;
+        // it cannot change an answer this table already gives.
+        if let Some((_, last)) = ty.rsplit_once("::") {
+            return Self::type_to_width(last.trim());
+        }
         match ty {
             "bool" => 1,
             "u8" | "i8" => 8,
@@ -10889,6 +10897,17 @@ impl VerilogCodegen {
             // decision rather than a fallthrough.
             "f32" => 32,
             "f64" => 64,
+            // The same fallthrough the `f64` line above was added to stop, and
+            // this file already knew the answer: `HwType::GF16.hw_width()` is
+            // 16 and `HwType::GF16.verilog_range()` is `[15:0]`, both with
+            // passing tests -- while a GF16 function parameter reaching THIS
+            // reader took `_ => 32` and was declared twice as wide.
+            //
+            // Two readers of one type, one of them green. Measured: `u16`
+            // gives `input [15:0] x;`, `GF16` gave `input [31:0] x;`, and so
+            // did `NoSuchTypeXY` -- the width was the unknown-type default,
+            // not a decision about GF16.
+            "GF16" | "gf16" => 16,
             _ => 32, // default width
         }
     }
@@ -12544,6 +12563,7 @@ impl VerilogCodegen {
         matches!(
             ty.trim(),
             "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "bool"
+                | "GF16" | "gf16"
         )
     }
 
