@@ -18129,6 +18129,9 @@ pub struct CCodegen {
     /// C struct typedef name of the current function's [T; N] return type,
     /// so a returned array literal can be cast to the right compound literal.
     current_ret_array_type: Option<String>,
+    /// Type names this module actually DECLARES: structs and enums. A lowering
+    /// that names a type is only safe if the header carries that type.
+    c_declared_type_names: std::collections::HashSet<String>,
     /// (struct, field) -> the field's t27 type. A struct-literal field whose
     /// declared type is a slice takes the compound-literal cast, exactly as a
     /// call argument does; without it a brace list initialises a pointer.
@@ -18165,6 +18168,7 @@ impl CCodegen {
             scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
+            c_declared_type_names: std::collections::HashSet::new(),
             c_struct_field_types: std::collections::HashMap::new(),
             c_in_return: false,
             string_typed_names: std::collections::HashSet::new(),
@@ -18719,6 +18723,7 @@ impl CCodegen {
         // forms have to be recognised wherever they appear.
         for e in &enums {
             if !e.name.is_empty() {
+                self.c_declared_type_names.insert(e.name.clone());
                 let vs = e
                     .children
                     .iter()
@@ -18763,6 +18768,9 @@ impl CCodegen {
             // reached another way costs nothing.
             for s in &structs {
                 self.write_line(&format!("typedef struct {} {};", s.name, s.name));
+            }
+            for st in &structs {
+                self.c_declared_type_names.insert(st.name.clone());
             }
             // Recorded whether or not the cast is ever needed, because a
             // struct-literal field is written far from its declaration.
@@ -20375,6 +20383,42 @@ impl CCodegen {
                     } else {
                         self.write(&format!("int {}", node.name));
                     }
+                } else if raw_type.is_empty()
+                    && node.children.first().is_some_and(|c| {
+                        // An EMPTY slice literal that names its element type.
+                        // `var d = []u8{}` reaches C as `__auto_type d = { 0 }`
+                        // -- the type thrown away AND the length changed from
+                        // zero to one. 478 of these in the specs, the largest
+                        // shape left in the `__auto_type` class.
+                        c.kind == NodeKind::ExprArrayLiteral
+                            && c.children.is_empty()
+                            && c.extra_size.trim().is_empty()
+                            && !c.extra_type.trim().is_empty()
+                            // ...AND the element type is one C will know. The
+                            // first version trusted the spec: `[]u1{}` became
+                            // `u1* a = NULL` and `[]Port{}` became `Port*`
+                            // where no `Port` is declared anywhere -- two files
+                            // got WORSE, trading one diagnostic for two. A
+                            // lowering that names a type must check the header
+                            // carries it.
+                            && {
+                                let e = c.extra_type.trim();
+                                Self::type_to_c(e) != e || self.c_declared_type_names.contains(e)
+                            }
+                    })
+                {
+                    // A slice is a pointer everywhere else in this backend, so
+                    // an empty one is a null pointer -- which is also the only
+                    // honest length. `T x[0]` is not ISO C, and `T x[1] = {0}`
+                    // would answer a question about emptiness with a one.
+                    let lit = node.children.first().unwrap();
+                    let c_ty = Self::param_type_to_c(&format!("[]{}", lit.extra_type.trim()));
+                    self.write(&format!("{} {} = NULL", c_ty, node.name));
+                    // The initialiser is written HERE and the shared tail is
+                    // skipped: the literal it would emit is the `{ 0 }` this
+                    // branch exists to replace.
+                    self.write_line(";");
+                    return;
                 } else if raw_type.is_empty()
                     && node
                         .children
