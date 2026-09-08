@@ -22155,6 +22155,95 @@ fn collect_written_slice_params(
     written
 }
 
+/// Every `struct` declared anywhere in the tree, with its field types, and the
+/// name of every `enum`.
+///
+/// Feeds the `Copy` fixpoint below. A single pass is not enough on its own:
+/// declarations may appear in any order, and a struct's qualification depends
+/// on structs that may be declared after it.
+fn collect_type_decls(
+    node: &Node,
+    structs: &mut std::collections::HashMap<String, Vec<String>>,
+    enums: &mut std::collections::HashSet<String>,
+) {
+    match node.kind {
+        NodeKind::StructDecl => {
+            let fields: Vec<String> = node
+                .children
+                .iter()
+                .filter(|c| c.kind == NodeKind::ExprIdentifier && !c.name.is_empty())
+                .map(|c| RustCodegen::t27_type_to_rust(&c.extra_type))
+                .collect();
+            structs.insert(node.name.clone(), fields);
+        }
+        NodeKind::EnumDecl => {
+            enums.insert(node.name.clone());
+        }
+        _ => {}
+    }
+    for child in &node.children {
+        collect_type_decls(child, structs, enums);
+    }
+}
+
+/// The declared types that can derive `Copy`, as a least fixed point.
+///
+/// The derive used to ask `is_copy_rust_type` alone, which knows the scalars
+/// and `[T; N]` but nothing about declared types -- so a field whose type was
+/// another struct disqualified its owner even when that struct had itself been
+/// emitted `Copy`. The consequence is not cosmetic: a non-`Copy` struct passed
+/// by value is MOVED, so a caller reading the same value twice does not
+/// compile.
+///
+///     struct Inner { a : i32 }        // all scalars   -> Copy
+///     struct Outer { i : Inner }      // a struct field -> was NOT Copy
+///     fn probe(o: Outer) -> (i32, i32) { (first(o), second(o)) }
+///         error[E0382]: use of moved value: `o`
+///
+/// Every `enum` is emitted `#[derive(Debug, Clone, Copy, PartialEq, Eq)]`
+/// unconditionally, so an enum-typed field qualifies its owner too; that was
+/// the second half of the same blind spot.
+///
+/// A struct with no fields is NOT admitted: the emitter's existing rule is
+/// `all_fields_copy` over a non-empty list, and widening it here would change
+/// a case this fixpoint was not measured against.
+fn copy_qualified_types(
+    structs: &std::collections::HashMap<String, Vec<String>>,
+    enums: &std::collections::HashSet<String>,
+) -> std::collections::HashSet<String> {
+    fn is_copy(t: &str, ok: &std::collections::HashSet<String>) -> bool {
+        let t = t.trim();
+        if RustCodegen::is_copy_rust_type(t) {
+            return true;
+        }
+        // `[T; N]` is Copy exactly when T is -- including when T is a declared
+        // type, which is the case `is_copy_rust_type` cannot answer.
+        if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+            if let Some((elem, _len)) = inner.rsplit_once(';') {
+                return is_copy(elem, ok);
+            }
+        }
+        ok.contains(t)
+    }
+    let mut ok: std::collections::HashSet<String> = enums.clone();
+    loop {
+        let mut grew = false;
+        for (name, fields) in structs {
+            if ok.contains(name) || fields.is_empty() {
+                continue;
+            }
+            if fields.iter().all(|f| is_copy(f, &ok)) {
+                ok.insert(name.clone());
+                grew = true;
+            }
+        }
+        if !grew {
+            break;
+        }
+    }
+    ok
+}
+
 fn collect_bool_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
     if node.kind == NodeKind::FnDecl && node.extra_return_type.trim() == "bool" {
         out.insert(node.name.clone());
@@ -24113,6 +24202,9 @@ pub struct RustCodegen {
     /// spelling and what the parser produces. Rust spells it
     /// `Verdict::escalate`. Without knowing which identifiers name enums the
     /// emitter cannot tell that access apart from a struct field.
+    /// Declared types that qualify for `#[derive(Copy)]`, as a fixed point over
+    /// struct fields. See `copy_qualified_types`.
+    copy_types: std::collections::HashSet<String>,
     enum_names: std::collections::HashSet<String>,
     /// Type-parameter names the module declares, from `ArrayView(T)`. Module
     /// level in a spec, so a free function may use one without declaring it;
@@ -24149,6 +24241,7 @@ impl RustCodegen {
             var_types: std::collections::HashMap::new(),
             const_types: std::collections::HashMap::new(),
             fn_ret_types: std::collections::HashMap::new(),
+            copy_types: std::collections::HashSet::new(),
             enum_names: std::collections::HashSet::new(),
             type_params: std::collections::HashSet::new(),
             static_mut_names: std::collections::HashSet::new(),
@@ -24269,6 +24362,15 @@ impl RustCodegen {
         self.field_names.clear();
         collect_field_names(ast, &mut self.field_names);
 
+        // Whole-tree, because the `Copy` fixpoint follows struct fields across
+        // declarations that may appear in any order.
+        {
+            let mut structs = std::collections::HashMap::new();
+            let mut enums = std::collections::HashSet::new();
+            collect_type_decls(ast, &mut structs, &mut enums);
+            self.copy_types = copy_qualified_types(&structs, &enums);
+        }
+
         // Same pre-pass, for the integer widths used by `infer_int_type`:
         // callee return types and module-level constants are both visible from
         // any function body, so they are collected once over the whole tree.
@@ -24388,7 +24490,7 @@ impl RustCodegen {
             .children
             .iter()
             .filter(|c| c.kind == NodeKind::ExprIdentifier && !c.name.is_empty())
-            .all(|c| Self::is_copy_rust_type(&Self::t27_type_to_rust(&c.extra_type)));
+            .all(|c| self.rust_type_is_copy(&Self::t27_type_to_rust(&c.extra_type)));
         if all_fields_copy {
             self.write_line("#[derive(Debug, Clone, Copy)]");
         } else {
@@ -25244,6 +25346,24 @@ impl RustCodegen {
     /// of them. No transitivity: another struct's name answers false even when that struct
     /// did qualify, because getting it wrong in the other direction emits a `Copy` that
     /// does not compile, and a missing `Copy` only leaves the status quo.
+    /// `is_copy_rust_type`, plus the declared types this module can emit `Copy`.
+    ///
+    /// The static form knows the scalars and `[T; N]`; it cannot know that
+    /// `MemPort` was itself emitted `Copy`, so `[MemPort; 8]` disqualified its
+    /// owner. `copy_types` closes exactly that gap and nothing else.
+    fn rust_type_is_copy(&self, t: &str) -> bool {
+        let t = t.trim();
+        if Self::is_copy_rust_type(t) {
+            return true;
+        }
+        if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+            if let Some((elem, _len)) = inner.rsplit_once(';') {
+                return self.rust_type_is_copy(elem);
+            }
+        }
+        self.copy_types.contains(t)
+    }
+
     fn is_copy_rust_type(t: &str) -> bool {
         let t = t.trim();
         if matches!(
