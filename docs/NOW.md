@@ -2,6 +2,38 @@
 
 Last updated: 2026-09-08
 
+Last updated: 2026-09-08
+
+## t27c refused nothing and parsed 835 foreign specs into an empty module
+
+- Branch: `fix/reject-vibee-specs`
+- Changed: `bootstrap/src/main.rs` (new `read_spec_source`)
+
+trinity-fpga and this project both use the `.tri` extension for completely
+different languages. Pointed at a VIBEE spec, t27c parsed it into an EMPTY
+MODULE and exited 0 -- silent, successful, useless, and indistinguishable
+downstream from a spec that genuinely declares nothing.
+
+    trinity-fpga corpus, 1137 specs, through `t27c parse`
+      before   0 refused, 835 empty modules, 9 meaningful
+      after    1065 refused with a named error, 44 empty, 9 meaningful
+
+The 44 that remain lack a top-level `name:`, so the discriminator cannot see
+them by construction; they are the block-style specs, which are t27-ish already.
+
+One shared reader replaces 13 copies of `fs::read_to_string(path)?` across the
+command handlers -- the guard is added in one place rather than thirteen.
+
+Discriminator measured over both corpora, not guessed: 1066 of trinity-fpga's
+1137 specs carry a top-level `name:`, none of ours do. A t27 marker outranks
+`name:`, because 42 of their specs contain `spec ` at the start of a line while
+still being YAML.
+
+Negative-controlled both ways: our own corpus gives **513 parsed, 0 falsely
+refused**; a VIBEE spec is refused and names `vibee_gen`.
+
+Mirror of gHashTag/trinity-fpga#788, which closed the other half.
+
 ## A const type written without a colon lost its value as well as its type
 
 - Branch: `fix/const-type-without-colon`
