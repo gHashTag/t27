@@ -111,3 +111,54 @@ fn an_annotated_list_is_unchanged() {
         assert!(!errors(&h, &d).contains("error"), "and it compiles");
     }
 }
+
+#[test]
+fn a_one_element_list_is_typed_too() {
+    // The parser keeps a BARE list's elements in `extra_size` and leaves
+    // `children` empty -- stated in a comment on the emitter arm, forty lines
+    // from the code that reads it, and found only after `children` and
+    // `value` had both been searched and both come back empty.
+    //
+    // 334 of the remaining class were `{ 0 }` and every one arrived this way.
+    for (body, want) in [
+        ("var x = [7];", "uint32_t x[1] = { 7 };"),
+        ("var x = [0];", "uint32_t x[1] = { 0 };"),
+        ("var x = [1.5];", "double x[1] = { 1.5 };"),
+    ] {
+        let (h, d) = gen_c(body, "one");
+        assert!(h.contains(want), "for `{body}` expected `{want}`:\n{h}");
+        if cc_present() {
+            assert!(!errors(&h, &d).contains("error"), "and `{body}` must compile");
+        }
+    }
+}
+
+#[test]
+fn the_repeat_form_takes_its_length_from_the_count() {
+    // `[0; 4]` arrives as `extra_size` "0;4": the element is before the
+    // semicolon and the LENGTH after it, not the number of commas.
+    let (h, d) = gen_c("var x = [0; 4];", "repeat");
+    assert!(h.contains("uint32_t x[4] ="), "the repeat count is the length:\n{h}");
+    if cc_present() {
+        assert!(!errors(&h, &d).contains("error"), "and it compiles");
+    }
+}
+
+#[test]
+fn a_dotted_token_is_a_float_only_when_it_is_one() {
+    // The mutant that exposed both halves of this. Deleting the shape check
+    // types `[1.2.3]` as `double x[1] = { 1.2.3 }` -- a malformed C literal in
+    // a well-formed declaration. And the FIRST version of the check, requiring
+    // digits on both sides of the dot, refused `1.`, which IS valid C: the
+    // mutant was better than the guard for that input.
+    for (body, tag) in [("var x = [1.2.3];", "three"), ("var a = 1; var x = [a.b];", "field")] {
+        let (h, _d) = gen_c(body, tag);
+        assert!(!h.contains("double x["), "`{body}` is not a float:\n{h}");
+        assert!(!h.contains("uint32_t x["), "nor an integer:\n{h}");
+    }
+    let (h, d) = gen_c("var x = [1.];", "trailing");
+    assert!(h.contains("double x[1] = { 1. };"), "`1.` is a valid C double:\n{h}");
+    if cc_present() {
+        assert!(!errors(&h, &d).contains("error"), "and it compiles");
+    }
+}
