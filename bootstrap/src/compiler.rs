@@ -2378,6 +2378,26 @@ impl Parser {
         if self.current.kind == TokenKind::Colon {
             self.advance(); // consume :
             decl.extra_type = self.parse_type_annotation();
+        } else if self.current.kind == TokenKind::Ident && self.peek.kind == TokenKind::Equals {
+            // A type written WITHOUT the colon: `const GF16_PHI_DISTANCE f64 = 0.049`.
+            //
+            // This is the form the numeric specs use, and nothing accepted it.
+            // The colon branch above did not fire, so the next check saw an
+            // identifier where it wanted `=`, and the VALUE was dropped too --
+            // leaving a ConstDecl with a name and no children. gen_const_decl
+            // then correctly discarded it as a fragment, and every invariant
+            // and test referring to that constant was emitted against a
+            // declaration that no longer existed.
+            //
+            // Measured on specs/02-gf16-format.tri: 3 of 3 `pub const` lost,
+            // and the generated Zig failed with `use of undeclared identifier
+            // 'TF3_PHI_DISTANCE'`.
+            //
+            // Guarded by a one-token lookahead for `=`, so a bare identifier
+            // that is NOT a type annotation still falls through to whatever
+            // handled it before.
+            decl.extra_type = self.current.lexeme.clone();
+            self.advance();
         }
 
         // = value
