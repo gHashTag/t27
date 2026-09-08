@@ -19228,6 +19228,62 @@ impl CCodegen {
         out
     }
 
+    /// A `[N]T` STRUCT FIELD, rendered as C storage rather than a pointer.
+    ///
+    /// `struct Holder { f : [4]u8, g : i32 }` reached C as `uint8_t* f;`, so
+    /// the field held no storage at all -- `h.f[0] = 1` wrote through an
+    /// uninitialised pointer -- and the same struct measured 16 bytes in C
+    /// against 8 in Rust and Zig, which both store the four bytes inline.
+    /// 65 fields across 31 specs.
+    ///
+    /// The array-field path already existed for fields whose size the parser
+    /// puts in `extra_size`; this spelling never reached it.
+    ///
+    /// Returns None for anything it must not rewrite, leaving the pointer:
+    /// a slice `[]T`, the Rust spelling `[T; N]` (which has its own by-value
+    /// struct), and a zero length, since `uint8_t f[0]` inside a struct is a
+    /// GCC extension rather than standard C.
+    ///
+    /// FIELD POSITION ONLY. In parameter position `T x[static N]` is the
+    /// spelling that carries a check (#3435), and in return position C cannot
+    /// return an array at all (#3445) -- three positions, three answers.
+    fn c_array_field(ty: &str, fname: &str) -> Option<String> {
+        let t = ty.trim();
+        // The `;` test is REDUNDANT today and kept as intent: a mutant deleting
+        // it survives the whole test file, because `[u8; 4]` reaches the
+        // emptiness check below anyway (`find(']')` lands on the last char, so
+        // the element comes out empty). Written down rather than left as a
+        // guard that looks load-bearing -- and
+        // `the_rust_spelling_field_keeps_its_own_by_value_struct` is what
+        // actually pins that spelling's behaviour.
+        if !t.starts_with('[') || t.contains(';') {
+            return None;
+        }
+        let close = t.find(']')?;
+        let size = t[1..close].trim();
+        let elem = t[close + 1..].trim();
+        if size.is_empty() || elem.is_empty() || size == "0" {
+            return None;
+        }
+        // A nested `[2][3]u8` becomes `uint8_t f[2][3]`, which is ordinary C.
+        let mut dims = vec![size.to_string()];
+        let mut rest = elem;
+        while rest.starts_with('[') && !rest.contains(';') {
+            let c = rest.find(']')?;
+            let d = rest[1..c].trim();
+            if d.is_empty() || d == "0" {
+                return None;
+            }
+            dims.push(d.to_string());
+            rest = rest[c + 1..].trim();
+        }
+        if rest.is_empty() {
+            return None;
+        }
+        let suffix: String = dims.iter().map(|d| format!("[{}]", d)).collect();
+        Some(format!("{} {}{};", Self::param_type_to_c(rest), fname, suffix))
+    }
+
     fn gen_c_struct(&mut self, node: &Node) {
         // Tagged, because the forward declaration above names the tag. An
         // anonymous `typedef struct { ... } Name;` cannot be forward-declared
@@ -19237,6 +19293,16 @@ impl CCodegen {
 
         for field in &node.children {
             self.write_indent();
+            // A `[N]T` field is STORAGE, not a pointer: see `c_array_field`.
+            // Asked before the mapping below, because that one lowers every
+            // array spelling to `T*` and a field is the one position where
+            // that is not merely lossy but wrong.
+            if field.extra_size.is_empty() {
+                if let Some(decl) = Self::c_array_field(&field.extra_type, &field.name) {
+                    self.write_line(&decl);
+                    continue;
+                }
+            }
             // W582: struct fields used `type_to_c`, which passes anything it
             // does not recognise through verbatim -- so a slice was `[]u8` and
             // an optional `?[]u8`, neither of which is C. `param_type_to_c`
