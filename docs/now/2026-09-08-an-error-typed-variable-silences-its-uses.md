@@ -1,0 +1,10 @@
+# NOW -- An error-typed variable silences its uses (2026-09-08)
+
+## An error-typed variable silences its uses (Closes #3459)
+
+- Round seven began by auditing the declarator sites the twin-hunt had exposed, and one of them held the **largest single error class in the generated C corpus**: `__auto_type x = { ... }`, **1729 errors**, more than twice the next. `__auto_type` takes its type from the initialiser and a brace list has none. Under clang's default cap the same class reads as **97**.
+- The repair for it already existed (W699 rung 3) and required the array literal to carry its own `extra_type`. `[W{...}, W{...}]` does not -- the type sits on the CHILD, each element being a named struct literal. The same arm carried the `is_primitive` gate, **third instance of W583**, so `[_]f64{...}` would have emitted `f64 x[2]`.
+- Measured: errors **15021 → 14738**, the class **1729 → 1401**, files that compile **302 → 303**, **15 files better**. `igla/race/ternary_gemm` 562 → 437.
+- **Eight files' counts rose and all eight are unmasking, checked rather than assumed.** An error-typed variable silences every diagnostic about its USES: while `w` had no valid type, clang said nothing about `w.field` or `w[i].len`. Four of the eight name an element type absent from the header entirely -- a separate defect -- and the other four surface real downstream errors (`no member named 'len' in 'struct Item'`, `did you mean to use '->'`). This is the sharpest form of the non-monotonicity recorded yesterday: a repair that makes a declaration valid can raise a file's count by an arbitrary amount.
+- **A mutant survived because my test used the wrong spelling.** Restoring the `is_primitive` gate broke nothing, because the test declared `var x : [2]f64` -- an ANNOTATED local, which takes a different branch entirely. `[_]f64{...}` is the form that reaches this arm. Rewritten, and the mutant dies.
+- Residual named rather than implied: `var x = [1.0, 2.0]`, a bare list of numeric literals with no element type anywhere, still takes `__auto_type`. 1401 of the class remain and recovering a type there needs literal-kind inference.
