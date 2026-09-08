@@ -28,6 +28,11 @@ number above stayed invisible:
 Usage:
   tools/check_seal_currency.py                  report, exit 1 if any seal is stale
   tools/check_seal_currency.py --self-check     negative control on a scratch tree
+  tools/check_seal_currency.py --stale-specs    the stale spec paths, one per
+                                                line, WHOLE -- the report above
+                                                stops at 20, and a reseal list
+                                                scraped from it came back short
+                                                twice (17 where 26 were stale)
 """
 
 import json
@@ -142,6 +147,14 @@ def main() -> int:
         return 2
     binary = t27c()
     stale, none_sealed, missing, current = scan(binary, SEALS)
+    if "--stale-specs" in sys.argv:
+        # The human report stops at 20 and says "... and N more". Twice now a
+        # reseal list was scraped from it and came back SHORT -- 17 specs where
+        # 51 stale seals covered 26 -- leaving nine stale after a run that
+        # reported success. This mode is the list, whole, one path per line.
+        for spec in sorted({spec for _, spec, _ in stale}):
+            print(spec)
+        return 1 if stale else 0
     total = len(stale) + none_sealed + missing + current
     print(f"seals scanned: {total}")
     print(f"  current                       : {current}")

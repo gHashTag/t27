@@ -18129,6 +18129,10 @@ pub struct CCodegen {
     /// C struct typedef name of the current function's [T; N] return type,
     /// so a returned array literal can be cast to the right compound literal.
     current_ret_array_type: Option<String>,
+    /// Identifiers (params + locals) declared `*T` in the item being emitted:
+    /// a field access on them is `->`, not `.`. C is the only backend that
+    /// distinguishes the two, and 152 sites reached it with a dot.
+    pointer_typed_names: std::collections::HashSet<String>,
     /// Identifiers (params + locals) of [T; N] struct type in the item being
     /// emitted: indexing them must go through the .v member.
     array_typed_names: std::collections::HashSet<String>,
@@ -18151,6 +18155,7 @@ impl CCodegen {
             scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
+            pointer_typed_names: std::collections::HashSet::new(),
             array_typed_names: std::collections::HashSet::new(),
             const_defs: std::collections::HashMap::new(),
             local_tuple_counter: 0,
@@ -19753,9 +19758,17 @@ impl CCodegen {
         self.current_ret_array_type =
             self.c_array_info_r(&node.extra_return_type).map(|(n, _, _)| n);
         self.array_typed_names.clear();
+        self.pointer_typed_names.clear();
         for (pname, ptype) in &node.params {
             if Self::c_array_info(ptype).is_some() {
                 self.array_typed_names.insert(pname.clone());
+            }
+            // `*T` only. A slice `[]T` is also a C pointer, but `xs.len` on a
+            // slice is not a struct field at all -- that is the `len` family
+            // (#3464), and turning its dot into an arrow would move the error
+            // without answering it.
+            if ptype.trim_start().starts_with('*') {
+                self.pointer_typed_names.insert(pname.clone());
             }
         }
 
@@ -19799,6 +19812,7 @@ impl CCodegen {
         let fn_name = format!("test_{}", fn_name);
         self.current_ret_array_type = None;
         self.array_typed_names.clear();
+        self.pointer_typed_names.clear();
 
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
@@ -20018,6 +20032,12 @@ impl CCodegen {
             format!("bench_{}", fn_name)
         };
 
+        // A bench is an ITEM, like a fn or a test, and cleared NEITHER set
+        // before this. The pointer set made that visible: `cell` stayed in it
+        // from a `*MemoryCell` parameter, and a test block's own `MemoryCell
+        // cell;` was then written `cell->scope`, +38 errors in one file.
+        self.pointer_typed_names.clear();
+        self.array_typed_names.clear();
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
         self.write_indent();
@@ -21129,10 +21149,25 @@ impl CCodegen {
                         }
                     }
                 }
+                // A field of a `*T` is reached with `->`. C is the only
+                // backend that spells the two accesses differently -- Rust and
+                // Zig both auto-dereference -- so the dot travelled through
+                // 152 sites in 52 files, every one of them a real field on a
+                // real pointer, which clang answers with "did you mean to use
+                // '->'?". Only an IDENTIFIER base is considered: in `p.a.b`
+                // the outer base is a field access whose type this pass does
+                // not track, and `p->a.b` is already right.
+                let arrow = node
+                    .children
+                    .first()
+                    .is_some_and(|b| {
+                        b.kind == NodeKind::ExprIdentifier
+                            && self.pointer_typed_names.contains(&b.name)
+                    });
                 if !node.children.is_empty() {
                     self.gen_c_expr(&node.children[0]);
                 }
-                self.write(".");
+                self.write(if arrow { "->" } else { "." });
                 if node.name.chars().all(|c| c.is_ascii_digit()) {
                     // Tuple index: the C tuple structs name their fields f0/f1/...
                     self.write(&format!("f{}", node.name));
