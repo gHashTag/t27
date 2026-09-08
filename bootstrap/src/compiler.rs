@@ -18523,6 +18523,37 @@ impl CCodegen {
                     }
                 }
             };
+            // Every position that can now NAME the struct must also be able
+            // to cause it to be emitted: parameters, struct fields and locals
+            // joined the return type when `param_type_to_c` learned tuples.
+            fn walk_locals(
+                nodes: &[Node],
+                out: &mut Vec<String>,
+            ) {
+                for n in nodes {
+                    if n.kind == NodeKind::StmtLocal && !n.extra_type.is_empty() {
+                        out.push(n.extra_type.clone());
+                    }
+                    walk_locals(&n.children, out);
+                }
+            }
+            let mut extra: Vec<String> = Vec::new();
+            for st in &structs {
+                for field in &st.children {
+                    if !field.extra_type.is_empty() {
+                        extra.push(field.extra_type.clone());
+                    }
+                }
+            }
+            for f in &functions {
+                for (_, ptype) in &f.params {
+                    extra.push(ptype.clone());
+                }
+                walk_locals(&f.children, &mut extra);
+            }
+            for ty in &extra {
+                consider(ty, &mut seen, &mut typedefs);
+            }
             for f in &functions {
                 consider(&f.extra_return_type, &mut seen, &mut typedefs);
                 for stmt in &f.children {
@@ -20320,6 +20351,25 @@ impl CCodegen {
     }
 
     fn param_type_to_c(ty: &str) -> String {
+        // A TUPLE, in any position. The hoisted `t27_tuple_*` struct already
+        // existed and was consulted by `c_return_type_r` alone, so a tuple in a
+        // parameter, a struct field or a local reached C as the t27 text:
+        //
+        //     int32_t probe(H h, (u8, i32) t);
+        //     struct H { (u8, i32) f; };
+        //
+        // neither of which is C. Both halves were missing and only one was
+        // obvious: the use sites did not consult this, AND the typedef
+        // collection considered only a return type and a destructured call's
+        // return type. Naming the struct without emitting it is WORSE than the
+        // t27 text -- `unknown type name 't27_tuple_uint8_t_int32_t'` -- which
+        // is what the first attempt produced.
+        //
+        // Corpus population is ZERO: no spec puts a tuple in these positions
+        // today, and that is said here rather than left implied.
+        if let Some((name, _)) = Self::c_tuple_info(ty) {
+            return name;
+        }
         // A dotted foreign type (`std.mem.Allocator`) has no C spelling at all.
         // It reached the header as `std.mem.Allocator x;`, which is not C;
         // `void*` is the honest lowering and what a hand-written binding uses.
