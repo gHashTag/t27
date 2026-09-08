@@ -128,6 +128,30 @@ def self_check(binary: str) -> int:
         print(f"  type and function      -> strong {s}, weak {w} (want 0, 1) "
               f"{'PASS' if s == 0 and w == 1 else 'FAIL'}")
         ok &= s == 0 and w == 1
+
+        # A test block is a declaration in every backend, and 314 duplicated
+        # test names were invisible to this gate until they were counted.
+        duptest = os.path.join(d, "duptest.t27")
+        with open(duptest, "w", encoding="utf-8") as fh:
+            fh.write('module SC4 {\n  test "same" { assert(1 == 1); }\n'
+                     '  test "same" { assert(2 == 2); }\n}\n')
+        s, w = findings(binary, duptest)
+        print(f"  duplicated test name   -> strong {s}, weak {w} (want >= 1, 0) "
+              f"{'PASS' if s >= 1 and w == 0 else 'FAIL'}")
+        ok &= s >= 1 and w == 0
+
+        # And the case that keeps the population honest: a test name equal to a
+        # struct name is NOT a conflict in any backend. 138 names across 54
+        # specs are that shape, and counting them would be 138 false findings.
+        shared = os.path.join(d, "shared.t27")
+        with open(shared, "w", encoding="utf-8") as fh:
+            fh.write('module SC5 {\n  struct deque_clear { x : i32, }\n'
+                     '  fn f(a: deque_clear) -> i32 { return a.x; }\n'
+                     '  test "deque_clear" { assert(1 == 1); }\n}\n')
+        s, w = findings(binary, shared)
+        print(f"  test name = struct name-> strong {s}, weak {w} (want 0, 0) "
+              f"{'PASS' if s == 0 and w == 0 else 'FAIL'}")
+        ok &= s == 0 and w == 0
     return 0 if ok else 1
 
 

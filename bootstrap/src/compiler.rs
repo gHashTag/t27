@@ -23844,6 +23844,14 @@ fn collect_top_level_decls(node: &Node, out: &mut Vec<(String, &'static str)>) {
             NodeKind::StructDecl => Some("struct"),
             NodeKind::EnumDecl => Some("enum"),
             NodeKind::FnDecl => Some("fn"),
+            // A test block is a DECLARATION in every backend: gen-c emits
+            // `void test_{name}(void)`, gen-rust a `#[test] fn`. 29 specs
+            // declare the same test name twice -- 314 names, 373 extra
+            // definitions -- and the corpus reads them as 317 `redefinition
+            // of 'test_...'`. `check` was silent because this collector only
+            // looked at the three kinds a t27 program can CALL.
+            NodeKind::TestBlock => Some("test"),
+            NodeKind::BenchBlock => Some("bench"),
             _ => None,
         };
         if let Some(k) = kind {
@@ -23878,7 +23886,16 @@ fn collect_top_level_decls(node: &Node, out: &mut Vec<(String, &'static str)>) {
 fn duplicate_top_level_decls(ast: &Node) -> Vec<DuplicateDecl> {
     let mut decls: Vec<(String, &'static str)> = Vec::new();
     collect_top_level_decls(ast, &mut decls);
-    let ns = |k: &str| if k == "fn" { "value" } else { "type" };
+    // Four namespaces, not two. A test name collides only with another test
+    // name: `struct deque_clear` beside `test deque_clear` is not a conflict
+    // in any backend, and 138 names across 54 specs are exactly that shape.
+    // Folding tests into "type" would report every one of them.
+    let ns = |k: &str| match k {
+        "fn" => "value",
+        "test" => "test",
+        "bench" => "bench",
+        _ => "type",
+    };
 
     let mut per_ns: std::collections::HashMap<(&str, &str), usize> =
         std::collections::HashMap::new();
@@ -23898,7 +23915,12 @@ fn duplicate_top_level_decls(ast: &Node) -> Vec<DuplicateDecl> {
         let same = per_ns[&(n.as_str(), ns(k))];
         if same > 1 {
             out.push(DuplicateDecl::SameNamespace(n.clone(), k, same));
-        } else if namespaces[n.as_str()].len() > 1 {
+        } else if namespaces[n.as_str()].contains("type")
+            && namespaces[n.as_str()].contains("value")
+        {
+            // Named as the PAIR it is about, not as "more than one namespace":
+            // that message is only true of a type sharing a name with a
+            // function, and tests now occupy namespaces of their own.
             out.push(DuplicateDecl::AcrossNamespaces(n.clone()));
         }
     }

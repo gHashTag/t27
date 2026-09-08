@@ -135,3 +135,76 @@ fn the_finding_is_a_warning_and_does_not_change_the_exit_code() {
         "the duplicate finding is a warning; promoting it must be deliberate:\n{out}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// A test block is a declaration too (#3479)
+//
+// gen-c emits `void test_{name}(void)` and gen-rust a `#[test] fn`, so two
+// test blocks of one name are a redeclaration in every backend -- yet the
+// collector only looked at the three kinds a t27 program can CALL. 29 specs
+// declare the same test name twice (314 names), and the generated C had been
+// saying so all along: 317 `redefinition of 'test_...'` across 34 files.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_test_name_declared_twice_is_reported() {
+    let (_, out) = check(
+        "module T1 {\n  test \"same\" { assert(1 == 1); }\n  test \"same\" { assert(2 == 2); }\n}\n",
+        "duptest",
+    );
+    assert!(
+        out.contains("`test same` is declared 2 times"),
+        "a duplicated test name must be reported:\n{out}"
+    );
+}
+
+#[test]
+fn a_bench_name_declared_twice_is_reported() {
+    // One spec in the corpus, two names. Small, and the same law: gen-c emits
+    // `void bench_{name}(void)`.
+    let (_, out) = check(
+        "module T2 {\n  bench \"b\" { assert(1 == 1); }\n  bench \"b\" { assert(2 == 2); }\n}\n",
+        "dupbench",
+    );
+    assert!(
+        out.contains("`bench b` is declared 2 times"),
+        "a duplicated bench name must be reported:\n{out}"
+    );
+}
+
+#[test]
+fn a_test_sharing_a_name_with_a_struct_is_not_a_finding() {
+    // THE DISCRIMINATING CASE, and the reason tests get a namespace of their
+    // own. `void test_deque_clear(void)` and `struct deque_clear` do not
+    // collide in any backend. 138 names across 54 corpus specs have exactly
+    // this shape; folding tests into the type namespace reports every one of
+    // them, and folding them anywhere shared makes the weaker "both a type and
+    // a function" message fire on a name that is neither.
+    let (_, out) = check(
+        "module T3 {\n  struct deque_clear { x : i32, }\n  fn f(a: deque_clear) -> i32 { return a.x; }\n\
+         \x20 test \"deque_clear\" { assert(1 == 1); }\n}\n",
+        "testvsstruct",
+    );
+    assert!(
+        !out.contains("is declared 2 times"),
+        "a test and a struct of one name are not a redeclaration:\n{out}"
+    );
+    assert!(
+        !out.contains("both a type and a function"),
+        "and they are not the type/function pair either:\n{out}"
+    );
+}
+
+#[test]
+fn a_test_and_a_function_of_one_name_is_not_the_type_function_pair() {
+    // The narrower half of the same rule: the weak message names a PAIR, and
+    // a test is not the function half of it.
+    let (_, out) = check(
+        "module T4 {\n  fn helper(a: i32) -> i32 { return a; }\n  test \"helper\" { assert(1 == 1); }\n}\n",
+        "testvsfn",
+    );
+    assert!(
+        !out.contains("both a type and a function"),
+        "a test is not a function for this purpose:\n{out}"
+    );
+}
