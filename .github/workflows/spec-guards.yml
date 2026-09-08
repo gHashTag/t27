@@ -15,6 +15,12 @@
 #   ring_spec_differential.py a matching signature is not matching behaviour:
 #                             ring-090 read 16 of 16 identical and disagreed on
 #                             126 of 1190 cases (#3420, #3424).
+#   diagnostic_capacity.py    clang's default -ferror-limit=20 had been
+#                             censoring every C error total published for this
+#                             repository: 15133 errors, reported as 3849. A
+#                             ratchet on the MEASURING APPARATUS -- it fails if
+#                             an instrument that reported completely starts
+#                             truncating (#3450).
 #   check_duplicate_declarations.py
 #                             three specs declare 25 top-level names twice and
 #                             `t27c check` exited 0 on all of them. Every
@@ -30,8 +36,8 @@
 # runs zero times on the default branch and its history is empty (#2925 family).
 #
 # Cost, measured rather than estimated: 12s for the seal scan, 0s for the drift
-# scan, ~1s per differential pair, 7s for the duplicate-declaration ratchet, on
-# top of the compiler build.
+# scan, ~1s per differential pair, 7s for the duplicate-declaration ratchet,
+# under 1s for the diagnostic-capacity ratchet, on top of the compiler build.
 name: Spec Guards
 
 on:
@@ -46,6 +52,7 @@ on:
       - 'tools/ring_spec_differential.py'
       - 'tools/check_duplicate_declarations.py'
       - 'tools/duplicate_declarations_baseline.txt'
+      - 'tools/diagnostic_capacity.py'
       - '.github/workflows/spec-guards.yml'
   push:
     branches: [master]
@@ -59,6 +66,7 @@ on:
       - 'tools/ring_spec_differential.py'
       - 'tools/check_duplicate_declarations.py'
       - 'tools/duplicate_declarations_baseline.txt'
+      - 'tools/diagnostic_capacity.py'
       - '.github/workflows/spec-guards.yml'
   workflow_dispatch:
 
@@ -98,6 +106,11 @@ jobs:
       - name: Self-check -- duplicate declarations
         run: python3 tools/check_duplicate_declarations.py --self-check
 
+      # The fixtures, before the counts. Two of the first five produced the
+      # wrong KIND of diagnostic and both read as findings about the compiler.
+      - name: Self-check -- diagnostic capacity fixtures
+        run: python3 tools/diagnostic_capacity.py --self-check
+
       - name: Does every seal still describe what the compiler emits
         run: python3 tools/check_seal_currency.py
 
@@ -109,6 +122,12 @@ jobs:
       # another shrank.
       - name: Does any spec declare one name twice
         run: python3 tools/check_duplicate_declarations.py
+
+      # A ratchet on the instruments, not on the code: if a compiler that
+      # reported completely starts truncating, every total measured with it
+      # silently becomes a floor.
+      - name: Does every compiler still report what it finds
+        run: python3 tools/diagnostic_capacity.py
 
       - name: Run each CONVERGED pair on the same inputs
         shell: bash
