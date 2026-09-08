@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:94ec1ab2d1eb93f81ca0f8a16625af4197bf13271ec9f104e766bc8db94b50ee",
+  "gen_hash_c": "sha256:f118f10a7540063794da9e1172f74d0ef27aeafb1b9c372fdd91181b5f13fab3",
   "gen_hash_rust": "sha256:77c0564db10be29afcc6dda0eab695afdb56acf295b08700ee82bbf58b457772",
   "gen_hash_verilog": "sha256:f8a956019cea253548cd3f3eee38d2405cea113b8ee5e66e3d387be41810c697",
   "gen_hash_zig": "sha256:51d88b507c315ec746ec177be352377540d8989ae03666f57d9db787201c57b9",
   "module": "HSLM",
   "ring": 12,
-  "sealed_at": "2026-09-08T04:10:25Z",
+  "sealed_at": "2026-09-08T04:37:30Z",
   "spec_hash": "sha256:8ea0766984db7775c474eab25dfb14965fa835ce0a56b33173df319fad342182",
   "spec_path": "specs/nn/hslm.t27"
 }

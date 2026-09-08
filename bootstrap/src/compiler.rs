@@ -19326,6 +19326,28 @@ impl CCodegen {
         Some(format!("{}{} {}[]", qual, Self::type_to_c(elem), name))
     }
 
+    /// How many elements a bare array literal has, when the parser kept them
+    /// in `extra_size` rather than in `children`.
+    ///
+    /// `"1,2,3"` is three; `"0;4"` is the repeat form and is four. Returns None
+    /// for anything it cannot count, so the declarator is never given a length
+    /// this did not derive.
+    fn c_literal_list_len(lit: &Node) -> Option<usize> {
+        let text = lit.extra_size.trim();
+        if text.is_empty() {
+            return None;
+        }
+        if let Some((_, n)) = text.split_once(';') {
+            return n.trim().parse::<usize>().ok().filter(|n| *n > 0);
+        }
+        let n = text.split(',').filter(|p| !p.trim().is_empty()).count();
+        if n == 0 {
+            None
+        } else {
+            Some(n)
+        }
+    }
+
     /// The element type of an array literal whose elements are all numeric
     /// literals, or None.
     ///
@@ -19344,15 +19366,61 @@ impl CCodegen {
     /// numeric literal -- a call such as `cast_i8(1)` has a return type this
     /// does not read, and guessing one would be worse than `__auto_type`.
     fn c_literal_list_elem(lit: &Node) -> Option<String> {
-        // A ONE-element literal is NOT handled and the reason is written down
-        // rather than guessed at: `[7]` arrives as an `ExprArrayLiteral` with
-        // ZERO children -- confirmed by instrumenting this branch -- while the
-        // emitted C still reads `{ 7 }`, so the element is kept somewhere this
-        // does not read. `lit.value` was the obvious candidate and is empty
-        // too; that was tried and reverted. 334 of the remaining class are
-        // `{ 0 }` and every one takes that path. Filed rather than guessed.
-        if lit.kind != NodeKind::ExprArrayLiteral || lit.children.is_empty() {
+        if lit.kind != NodeKind::ExprArrayLiteral {
             return None;
+        }
+        // The answer was written on the emitter arm all along: "the parser
+        // stores the literal's ELEMENT TEXT in extra_size ("1,2,3" for a list,
+        // "0;4" for a repeat) with no children". `children` and `value` were
+        // both searched and both empty; the field is `extra_size`, and the
+        // comment naming it sits forty lines from the code that reads it.
+        //
+        // 334 of the remaining class are `{ 0 }` and every one arrives this
+        // way.
+        if lit.children.is_empty() {
+            let text = lit.extra_size.trim();
+            if text.is_empty() {
+                return None;
+            }
+            // The repeat form `[v; n]`: the element is the part before `;`.
+            let head = text.split(';').next().unwrap_or("").trim();
+            let items: Vec<&str> = if text.contains(';') {
+                vec![head]
+            } else {
+                text.split(',').map(str::trim).collect()
+            };
+            if items.is_empty() {
+                return None;
+            }
+            let mut any_float = false;
+            for v in items {
+                if v.is_empty() {
+                    return None;
+                }
+                let body = v.strip_prefix('-').unwrap_or(v);
+                if body.contains('.') {
+                    // A C floating literal: AT MOST ONE dot, and at least one
+                    // digit. `a.b` is a field access, `1.2.3` is not a number
+                    // at all -- both refused. `1.` and `.5` ARE valid C and are
+                    // accepted; requiring digits on both sides of the dot
+                    // refused them, which a mutant on this line exposed by
+                    // being BETTER than the guard for those two inputs.
+                    let mut parts = body.split('.');
+                    let head = parts.next().unwrap_or("");
+                    let tail = parts.next().unwrap_or("");
+                    if parts.next().is_some() {
+                        return None;
+                    }
+                    let digits = |t: &str| t.chars().all(|c| c.is_ascii_digit());
+                    if !digits(head) || !digits(tail) || (head.is_empty() && tail.is_empty()) {
+                        return None;
+                    }
+                    any_float = true;
+                } else if !body.chars().all(|c| c.is_ascii_digit() || c == '_') {
+                    return None;
+                }
+            }
+            return Some(if any_float { "f64" } else { "u32" }.to_string());
         }
         let mut any_float = false;
         for e in &lit.children {
@@ -20011,7 +20079,11 @@ impl CCodegen {
                         .first()
                         .is_some_and(|c| {
                             c.kind == NodeKind::ExprArrayLiteral
-                                && !c.children.is_empty()
+                                // Not `!children.is_empty()`: the parser keeps
+                                // a bare list's elements in `extra_size` and
+                                // leaves `children` EMPTY, which is why every
+                                // `{ 0 }` was still reaching `__auto_type`.
+                                && (!c.children.is_empty() || !c.extra_size.trim().is_empty())
                                 // The literal's own element type when it has
                                 // one, and otherwise the type of its first
                                 // element if that is a struct literal --
@@ -20055,7 +20127,12 @@ impl CCodegen {
                     // custom type through unchanged, which is what a struct
                     // name needs anyway.
                     let c_elem = Self::type_to_c(&elem).to_string();
-                    self.write(&format!("{} {}[{}]", c_elem, node.name, lit.children.len()));
+                    let n = if lit.children.is_empty() {
+                        Self::c_literal_list_len(lit).unwrap_or(0)
+                    } else {
+                        lit.children.len()
+                    };
+                    self.write(&format!("{} {}[{}]", c_elem, node.name, n));
                 } else {
                     let inferred_arr = if raw_type.is_empty() {
                         node.children
