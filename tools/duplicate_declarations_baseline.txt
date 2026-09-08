@@ -1,0 +1,9 @@
+# Specs that declare a top-level name more than once in ONE namespace, with the
+# number of such names. Every backend rejects a redeclaration; see
+# tools/check_duplicate_declarations.py and #3438.
+#
+# A ratchet: a spec may only shrink. Lower a number when you fix one, and
+# delete the line when it reaches zero.
+specs/file/operations.t27 1
+specs/igla/coder/benchmark.t27 13
+specs/ml/optimizer/adamw.t27 11
