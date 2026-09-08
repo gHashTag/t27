@@ -53,6 +53,10 @@ FORMS = [
     "[4]u8", "[N]u8", "[0]u8", "[2][3]u8", "[4]GF16",
     "[]u8", "[]const u8", "str",
     "*i32", "?u8", "Pair", "Colour", "[4]Pair",
+    # Combinations. The single forms above found six defects across four
+    # positions; nothing had yet asked what happens when two of them meet.
+    "[]Pair", "[][]u8", "?[4]u8", "?Pair", "*Pair",
+    "[4]Colour", "(u8, i32)", "([4]u8, i32)", "[]*i32", "Deep",
 ]
 
 HEAD = (
@@ -60,6 +64,7 @@ HEAD = (
     "    const N : usize = 4;\n"
     "    struct Pair { a : i32, b : i32, }\n"
     "    enum Colour { Red, Green }\n"
+    "    struct Deep { p : Pair, a : [2]u8, }\n"
 )
 
 BACKENDS = (("C", ["gen-c"]), ("Rust", ["gen-rust"]), ("Zig", ["gen"]), ("Verilog", ["gen-verilog"]))
