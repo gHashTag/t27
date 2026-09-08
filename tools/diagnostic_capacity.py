@@ -59,14 +59,31 @@ PLANTED = 50
 
 # name -> (fixture builder, argv builder, diagnostic regex, expected count,
 #          note). `expected` is what was MEASURED, not what the manual claims.
+# `None` means "report it, do not ratchet it": the default cap is a property of
+# the vendor, not of this repository -- clang stops at 20, gcc does not stop at
+# all -- so a runner switching compilers must not turn the gate red.
 EXPECT = {
-    "clang (default)": 20,
-    "clang (-ferror-limit=0)": PLANTED,
+    "cc (default)": None,
+    "cc (uncapped)": PLANTED,
     "rustc": PLANTED,
     "zig": PLANTED,
     "iverilog": PLANTED,
     "yosys": 1,
 }
+
+
+def c_uncap_flag() -> str:
+    """The flag that ACTUALLY removes the per-file cap, per vendor.
+
+    They are not interchangeable and the failure is silent in the worst
+    direction: gcc rejects `-ferror-limit`, while clang ACCEPTS
+    `-fmax-errors=0` and ignores it -- 20 errors of a planted 50, with no
+    diagnostic about the flag. A flag that is accepted and ignored is worse
+    than one that is refused, so the self-check below verifies the effect
+    rather than the spelling.
+    """
+    v = run(["cc", "--version"]) or ""
+    return "-ferror-limit=0" if "clang" in v.lower() else "-fmax-errors=0"
 
 
 def fixtures(d: str) -> dict:
@@ -106,9 +123,9 @@ def counts(d: str, f: dict) -> dict:
     got = {}
 
     t = run(["cc", "-std=c11", "-fsyntax-only", f["c"]])
-    got["clang (default)"] = None if t is None else len(re.findall(r"error:", t))
-    t = run(["cc", "-std=c11", "-ferror-limit=0", "-fsyntax-only", f["c"]])
-    got["clang (-ferror-limit=0)"] = None if t is None else len(re.findall(r"error:", t))
+    got["cc (default)"] = None if t is None else len(re.findall(r"error:", t))
+    t = run(["cc", "-std=c11", c_uncap_flag(), "-fsyntax-only", f["c"]])
+    got["cc (uncapped)"] = None if t is None else len(re.findall(r"error:", t))
 
     t = run(["rustc", "--edition", "2021", "--crate-type", "lib", "--crate-name", "m",
              "-A", "warnings", "--emit=metadata", "-o", os.path.join(out, "m.rmeta"), f["rs"]])
@@ -140,13 +157,17 @@ def self_check(d: str, f: dict) -> int:
     ok = True
     present = 0
     checks = [
-        ("clang", ["cc", "-std=c11", "-ferror-limit=0", "-fsyntax-only", f["c"]], r"use of undeclared identifier"),
+        # NOT the vendor's wording. This asserted clang's phrasing
+        # ("use of undeclared identifier") and went red on a gcc runner, where
+        # the same defect reads "'undefined_0' undeclared". The identifier is
+        # the part every C compiler must name.
+        ("cc", ["cc", "-std=c11", c_uncap_flag(), "-fsyntax-only", f["c"]], r"undefined_0"),
         ("rustc", ["rustc", "--edition", "2021", "--crate-type", "lib", "--crate-name", "m",
                    "-A", "warnings", "--emit=metadata", "-o", os.path.join(d, "m.rmeta"), f["rs"]],
-         r"cannot find value"),
-        ("zig", ["zig", "build-obj", f["zig"], "-femit-bin=" + os.path.join(d, "z.o")], r"use of undeclared identifier"),
-        ("iverilog", ["iverilog", "-o", os.path.join(d, "v.vvp"), f["v"]], r"Unable to bind"),
-        ("yosys", ["yosys", "-q", "-p", f"read_verilog {f['y']}; hierarchy -check"], r"is not part of the design"),
+         r"undefined_0"),
+        ("zig", ["zig", "build-obj", f["zig"], "-femit-bin=" + os.path.join(d, "z.o")], r"undefined_0"),
+        ("iverilog", ["iverilog", "-o", os.path.join(d, "v.vvp"), f["v"]], r"undefined_0"),
+        ("yosys", ["yosys", "-q", "-p", f"read_verilog {f['y']}; hierarchy -check"], r"nosuchmod_0"),
     ]
     for name, argv, want in checks:
         t = run(argv)
@@ -160,6 +181,14 @@ def self_check(d: str, f: dict) -> int:
         hit = re.search(want, t) is not None
         print(f"  {name:10} expects /{want}/ -> {'PASS' if hit else 'FAIL'}")
         ok &= hit
+    # The flag must have an EFFECT, not merely be accepted. clang takes
+    # `-fmax-errors=0` and ignores it; nothing in its output says so.
+    t = run(["cc", "-std=c11", c_uncap_flag(), "-fsyntax-only", f["c"]])
+    if t is not None:
+        n = len(re.findall(r"error:", t))
+        good = n >= PLANTED
+        print(f"  {'cc uncap':10} {c_uncap_flag()} reports {n} of {PLANTED} -> {'PASS' if good else 'FAIL'}")
+        ok &= good
     if present == 0:
         # A check that could not run has not passed.
         print("  no instrument on PATH. Exit 2 = COULD NOT RUN.", file=sys.stderr)
@@ -185,6 +214,10 @@ def main() -> int:
                 absent.append(name)
                 continue
             checked += 1
+            if want is None:
+                cap = "TRUNCATES at %d" % n if n < PLANTED else "no default cap"
+                print(f"  {name:24} {n:4}   {cap}   (reported, not ratcheted)")
+                continue
             verdict = "complete" if n >= PLANTED else ("ABORTS on the first" if n <= 1 else "TRUNCATES")
             flag = "" if n == want else "   <-- CHANGED, recorded " + str(want)
             print(f"  {name:24} {n:4}   {verdict}{flag}")
