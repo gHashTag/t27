@@ -1,0 +1,1486 @@
+# Proves properties of the generated BitNet RTL with Yosys, and checks that
+# there is something left to prove.
+#
+# a_event_never_lost in formal/interrupt_controller_props.sv is a regression
+# witness for a real lost-interrupt race: before 2026-08-09 a status_read
+# concurrent with an interrupt event provably destroyed that event.
+#
+# Background (docs/FORMAL_FOUNDATIONS.md Props 2, 5, 6): Yosys's Verilog
+# frontend accepts neither `property ... endproperty` nor inline
+# `assert property (@(posedge clk) ...)`, so the `--with-sva` output has never
+# been checkable by the open-source flow. sv2v is not a fix -- it drops
+# assertions silently and exits 0, which would give a green formal run over an
+# empty property set. `t27c gen-behavior-sva-yosys` emits the immediate-
+# assertion subset Yosys does accept.
+#
+# The vacuity check below is the load-bearing step. A formal job that only runs
+# a prover cannot distinguish "all properties hold" from "there are no
+# properties", and this repository has already shipped three CI jobs that were
+# a bare `echo`. Counting $check cells makes the difference observable.
+#
+# Anchor: phi^2 + 1/phi^2 = 3
+name: Formal (Yosys)
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-yosys-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prove:
+    name: immediate-assertion subset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-formal-${{ hashFiles('**/Cargo.lock') }}
+
+      # Prop. 207: FIRST. If a destructive sweep died holding the subjects,
+      # every step below measures a starved tree and reports a pass or a
+      # failure according to how it happens to be written. One line here beats
+      # a cascade of unrelated reds.
+      - name: Starve guard — refuse to trust results while a sweep's stash exists
+        run: python3 formal/starve_guard.py
+
+
+      - name: Install Yosys
+        run: sudo apt-get update && sudo apt-get install -y yosys
+
+      # `${CHFORMAL_LOWER}` exists only in newer Yosys, and this job installs
+      # whatever the runner image ships. The first run of this workflow died on
+      # `ERROR: Command syntax error: Unknown option` at that flag -- while the
+      # same log listed `$assert 1` and `$assume 1`, which is the proof that
+      # this Yosys emits the lowered cells directly and the flag is a no-op for
+      # it.
+      #
+      # Detected rather than chosen. Removing it outright would pass VACUOUSLY
+      # on a newer Yosys, where the properties arrive as `$check` cells that
+      # `sat` does not see -- the exact failure the vacuity counter below
+      # exists to catch.
+      - name: Does this Yosys accept the chformal lowering flag?
+        run: |
+          if yosys -p "read_verilog -sv -formal formal/assume_liveness_check.sv; \
+                       prep -top assume_liveness_check; chformal -lower" >/dev/null 2>&1
+          then
+            echo 'CHFORMAL_LOWER=chformal -lower;' >> "$GITHUB_ENV"
+            echo "yosys accepts -lower; using it"
+          else
+            echo "CHFORMAL_LOWER=" >> "$GITHUB_ENV"
+            echo "yosys does not accept -lower; omitting (this build emits \$assert directly)"
+          fi
+          yosys -V
+
+      - name: Build t27c
+        run: cargo build --release --manifest-path bootstrap/Cargo.toml
+
+      # Verify the verifier before trusting any result below. Yosys's `sat`
+      # ignores $assume cells unless -set-assumes is passed, silently: a
+      # harness still runs and still reports PROVED/REFUTED with every
+      # assumption inert. This module assumes something unsatisfiable and
+      # asserts something false, so it PROVES only when assumptions are live.
+      # If this step ever fails, every "given a compliant environment" result
+      # in this job is meaningless.
+      - name: Assumptions are active in the proof flow
+        run: |
+          yosys -p "read_verilog -sv -formal formal/assume_liveness_check.sv; \
+                    prep -top assume_liveness_check; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 4 -set-init-zero -set-assumes"
+
+      - name: Emit the BitNet RTL bundle
+        run: |
+          set -euo pipefail
+          mkdir -p build/rtl
+          ./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+          # trit_stdlib.sv is NOT part of the bundle -- BUNDLE_ORDER lists 12
+          # files and this is not one of them -- yet pipeline_stage2_compute
+          # instantiates trit27_dot_product from it, so the engine cannot
+          # elaborate without it. Every engine-level step here lists it as a
+          # source. Verified in Wave 628: a fresh bundle alone gives
+          # `prep -top bitnet_engine_top` exit 1. It worked locally only because
+          # an older gen-trit-stdlib run had left the file behind. Prop. 80.
+          ./target/release/t27c gen-trit-stdlib --output build/rtl/trit_stdlib.sv
+
+      # Vacuity gate. A formal job that only runs a prover cannot distinguish
+      # "all properties hold" from "there are no properties", and this repo has
+      # already shipped three CI jobs that were a bare `echo`. Counting $check
+      # cells makes the difference observable. sv2v output would score 0 here.
+
+      # Prop. 211: this MUST run after the RTL is emitted. It counted
+      # generated-rtl=13 from a dirty local worktree while sitting BEFORE
+      # the generator, and build/ is gitignored -- so on a clean clone it
+      # read 0 and failed the job at step 2. The fix is the order, not a
+      # zeroed baseline: zeroing would keep the population unratcheted.
+      - name: Corpus size scan — a finding ratchet improves when you delete the subject
+        run: python3 formal/corpus_size_scan.py
+
+      # The instrument is part of the system under test, and it has been wrong
+      # twice -- neither time as a bad number, both times as a number that did
+      # not move. A comptime shim that never forced analysis reported
+      # `All 0 tests passed` for a file with 14 tests and 26 errors (#2710); a
+      # shim keyed on the spec's PATH let Zig answer a new run from an old one
+      # (#2714). Both were found by accident. This looks on purpose: mutate one
+      # digit inside a passing assertion, same byte length, and require the
+      # harness to notice.
+      # 0.16.0 deliberately: it is the Zig every figure in the run scan was
+      # measured against. phi-loop-ci.yml pins 0.13.0 and the two are not
+      # interchangeable here -- `usingnamespace` was removed in 0.16 and the
+      # @typeInfo tags were renamed -- so a gate run on 0.13 would grade a
+      # different language than the numbers describe.
+      #
+      # This step is the reason the gate above it can run at all: it was
+      # added earlier in the same session at a point in this job where Zig
+      # is never installed, so it had never executed once. A gate without
+      # its tool is the decoration it was written to prevent.
+      - name: Install Zig for the harness self-check
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Harness self-check — can it still tell a pass from a break?
+        run: python3 formal/harness_selfcheck.py
+      # COUNTS BOTH `$check` AND `$assert`, and the difference is a Yosys
+      # version.
+      #
+      # `$check` is the newer cell; `chformal -lower` is what turns it into
+      # `$assert`/`$assume`. The Yosys `apt-get install -y yosys` provides has
+      # NEITHER -- no `-lower` option and no `$check` cell -- and emits
+      # `$assert` directly. The first run of this workflow in its existence
+      # printed exactly that while failing: `$assert 1`, `$assume 1`.
+      #
+      # So counting only `$check` returns zero on the Yosys this job actually
+      # runs, and this step -- whose entire purpose is to distinguish "all
+      # properties hold" from "there are no properties" -- could never pass.
+      # Wrong in the direction that makes the gate impossible, which is how it
+      # stayed invisible: the workflow had never run.
+      #
+      # Summing both is correct on either version.
+      - name: Assert the property set is non-empty
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/interrupt_controller.sv \
+                        formal/interrupt_controller_props.sv; \
+                        prep -top irq_props -flatten; stat" > /tmp/stat.$$.txt 2>&1 || {
+            echo "::error::yosys did not elaborate the design; its output follows"
+            cat /tmp/stat.$$.txt
+            exit 1
+          }
+          # `$assume` COUNTS TOO. The thresholds in these steps were written
+          # against `$check`, and on a Yosys that emits `$check` a single cell
+          # kind covers assertions AND assumptions. This Yosys splits them, and
+          # the dma design shows the arithmetic exactly:
+          #
+          #     $assert                         8
+          #     $assume                         4
+          #
+          # against a threshold of 12. Counting only `$assert` undercuts every
+          # threshold by precisely the number of assumptions.
+          #
+          # Summed WITHIN a `=== module ===` section and maximised ACROSS
+          # sections: `stat` prints the same tally once per module and once for
+          # the design, so a flat sum would double it -- and inflating a
+          # MAX, not sum. `stat` prints the tally once per module and once for
+          # the design, so the observed output is
+          #
+          #     $assert                         6
+          #     $assert                         6
+          #
+          # for six properties. Summing gives 12 -- and inflating a VACUITY
+          # counter is the dangerous direction: it would let a shortfall pass.
+          # `-flatten` above guarantees a single module, so the maximum is the
+          # true count.
+          #
+          # `stat` prints the cell NAME first and its count second:
+          #
+          #     $assert                         6
+          #
+          # so the count is the field AFTER the name. The pattern this replaced,
+          # `grep -oE '[0-9]+ +\$check'`, wanted `6 $check` -- the count before
+          # the name -- and so could never match on ANY Yosys, whatever cell it
+          # emitted. Two independent errors in one counter, either of which
+          # alone forced it to report zero, and both invisible while the
+          # workflow had never run.
+          #
+          # Show what was found before judging it. Four runs failed here
+          # without ever printing a count, because yosys's output went into
+          # a command substitution and a non-matching grep killed the step
+          # under `set -e` before the echo below could run.
+          grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
+          n=$(awk '/^=== /{if (s > m) m = s; s = 0} {for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert|assume)$/) s += $(i+1) + 0} END {if (s > m) m = s; print m+0}' /tmp/stat.$$.txt)
+          echo "check cells: ${n:-0}"
+          if [ "${n:-0}" -lt 6 ]; then
+            echo "::error::Expected >=6 \$check cells, found ${n:-0} — the run would be vacuous or properties were dropped."
+            exit 1
+          fi
+
+      # -flatten is required: `sat` refuses to run with more than one module
+      # selected, and the resulting error reads exactly like a refutation.
+      - name: Prove interrupt_controller properties
+        run: |
+          yosys -p "read_verilog -sv -formal build/rtl/interrupt_controller.sv \
+                    formal/interrupt_controller_props.sv; \
+                    prep -top irq_props -flatten; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 6 -tempinduct -set-assumes"
+
+      - name: Prove axi_lite_slave properties
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/axi_lite_slave.sv \
+                        formal/axi_lite_slave_props.sv; \
+                        prep -top axi_props -flatten; stat" > /tmp/stat.$$.txt 2>&1 || {
+            echo "::error::yosys did not elaborate the design; its output follows"
+            cat /tmp/stat.$$.txt
+            exit 1
+          }
+          # Show what was found before judging it. Four runs failed here
+          # without ever printing a count, because yosys's output went into
+          # a command substitution and a non-matching grep killed the step
+          # under `set -e` before the echo below could run.
+          grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
+          n=$(awk '/^=== /{if (s > m) m = s; s = 0} {for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert|assume)$/) s += $(i+1) + 0} END {if (s > m) m = s; print m+0}' /tmp/stat.$$.txt)
+          echo "axi check cells: ${n:-0}"
+          # 7 -> 6 in Wave 591: a_sanity was `X == X`, folded to constant true,
+          # and it still emitted a $check cell. This gate exists to catch an
+          # all-vacuous property set, and a syntactically-true property was
+          # inflating exactly the number meant to detect that. See Prop. 41.
+          if [ "${n:-0}" -lt 6 ]; then
+            echo "::error::Expected >=6 \$check cells for axi_props, found ${n:-0}."
+            exit 1
+          fi
+          # -set-init-zero, not -tempinduct: induction from an unconstrained
+          # initial state refutes properties that hold on every reachable
+          # state (bresp == 2'b00 is one). That was an artifact; starting from
+          # a reachable state is what separated it from the real defects.
+          yosys -p "read_verilog -sv -formal build/rtl/axi_lite_slave.sv \
+                    formal/axi_lite_slave_props.sv; \
+                    prep -top axi_props -flatten; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 10 -set-init-zero -set-assumes"
+
+      - name: Prove dma_controller properties
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv \
+                        formal/axi4_read_slave_model.sv \
+                        formal/dma_controller_props.sv; \
+                        prep -top dma_props -flatten; stat" > /tmp/stat.$$.txt 2>&1 || {
+            echo "::error::yosys did not elaborate the design; its output follows"
+            cat /tmp/stat.$$.txt
+            exit 1
+          }
+          # Show what was found before judging it. Four runs failed here
+          # without ever printing a count, because yosys's output went into
+          # a command substitution and a non-matching grep killed the step
+          # under `set -e` before the echo below could run.
+          grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
+          n=$(awk '/^=== /{if (s > m) m = s; s = 0} {for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert|assume)$/) s += $(i+1) + 0} END {if (s > m) m = s; print m+0}' /tmp/stat.$$.txt)
+          echo "dma check cells: ${n:-0}"
+          # 8 -> 7 in Wave 591, same reason as axi_props above (Prop. 41).
+          # 7 -> 8 in Wave 618: the AXI4 read-slave model contributes
+          # a_model_precondition_single_burst, which it asserts rather than
+          # assumes so it cannot silently over-constrain (Prop. 70).
+          # 8 -> 12 in Wave 619: a_writes_within_request plus the cells the
+          # model contributes (Prop. 71). Set to the actual count, not below it
+          # -- a floor three under the truth lets three properties vanish.
+          if [ "${n:-0}" -lt 12 ]; then
+            echo "::error::Expected >=12 \$check cells for dma_props, found ${n:-0}."
+            exit 1
+          fi
+          # One property per invocation, for the reason Prop. 35 recorded for
+          # weight_prefetch: `-prove-asserts` solves every assertion in a single
+          # SAT instance, superlinearly harder than its parts. Adding
+          # a_writes_within_request took the batch at seq 80 from ~10s to over
+          # 11 minutes without terminating. Split, the numbers are:
+          #
+          #   six properties        PROVED at seq 80, 4-6s each
+          #   a_writes_within_req.  PROVED at seq 20 in 16s; UNDECIDED at 30
+          #
+          # So the split keeps six properties at bound 80 that the batch would
+          # have cost the suite entirely, and the whole step runs in ~48s. The
+          # new property's bound is 20 and that is stated rather than averaged
+          # away -- it carries a 13-bit write counter and a 32-bit byte count,
+          # which is what makes it expensive and also what makes it bite.
+          python3 - <<'PY'
+          import re, subprocess, sys
+          MODEL = "formal/axi4_read_slave_model.sv"
+          BOUND = {"a_writes_within_request": 20}
+          src = open("formal/dma_controller_props.sv").read()
+          labels = re.findall(r"(a_[a-z_0-9]+): assert", src)
+          fail = []
+          for keep in labels:
+              s = src
+              for other in labels:
+                  if other != keep:
+                      s = re.sub(re.escape(other) + r": assert \([^;]*\);",
+                                 other + ": assert (1'b1);", s)
+              open("build/dma_one.sv", "w").write(s)
+              seq = BOUND.get(keep, 80)
+              r = subprocess.run(["yosys", "-q", "-p",
+                  f"read_verilog -sv -formal build/rtl/dma_controller.sv {MODEL} "
+                  "build/dma_one.sv; prep -top dma_props -flatten; async2sync; "
+                  f"${CHFORMAL_LOWER} sat -verify -prove-asserts -seq {seq} "
+                  "-set-init-zero -set-assumes"], capture_output=True, text=True)
+              out = r.stdout + r.stderr
+              if r.returncode == 0:
+                  print(f"ok       {keep} (seq {seq})")
+              elif "proof did fail" in out:
+                  fail.append(keep)
+                  print(f"::error::{keep} not proved at -seq {seq}")
+              else:
+                  fail.append(keep)
+                  print(f"::error::{keep} returned no verdict at -seq {seq} -- "
+                        "tool error, nothing was proved or refuted")
+          sys.exit(1 if fail else 0)
+          PY
+
+      # Wave 625. This module had no properties of its own until now (Prop. 76):
+      # 33 lines implementing the ping-pong, the subsystem behind the campaign's
+      # longest-running defect -- three changes across eight waves (Props. 33,
+      # 46b, 47), every one diagnosed and fixed at the ENGINE level because that
+      # is where the symptom showed. Prop. 77.
+      - name: Prove double_buffer_ctrl properties
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/double_buffer_ctrl.sv \
+                        formal/double_buffer_props.sv; \
+                        prep -top db_props -flatten; stat" > /tmp/stat.$$.txt 2>&1 || {
+            echo "::error::yosys did not elaborate the design; its output follows"
+            cat /tmp/stat.$$.txt
+            exit 1
+          }
+          # Show what was found before judging it. Four runs failed here
+          # without ever printing a count, because yosys's output went into
+          # a command substitution and a non-matching grep killed the step
+          # under `set -e` before the echo below could run.
+          grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
+          n=$(awk '/^=== /{if (s > m) m = s; s = 0} {for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert|assume)$/) s += $(i+1) + 0} END {if (s > m) m = s; print m+0}' /tmp/stat.$$.txt)
+          echo "db check cells: ${n:-0}"
+          if [ "${n:-0}" -lt 4 ]; then
+            echo "::error::Expected >=4 \$check cells for db_props, found ${n:-0}."
+            exit 1
+          fi
+          yosys -p "read_verilog -sv -formal build/rtl/double_buffer_ctrl.sv \
+                    formal/double_buffer_props.sv; \
+                    prep -top db_props -flatten; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 20 -set-init-zero -set-assumes"
+
+      # Wave 626. Prop. 76 classified this INDIRECT: the memory the prefetch
+      # fills and the compute stage reads, constrained only through the engine.
+      # The property is the memory axiom over a SYMBOLIC address, which is what
+      # makes it cover non-interference too. Prop. 78.
+      - name: Prove weight_bram properties
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/weight_bram.sv \
+                    formal/weight_bram_props.sv; \
+                    chparam -set DEPTH 4 weight_bram; chparam -set DEPTH 4 wb_props; \
+                    prep -top wb_props -flatten; memory_map; async2sync; \
+                    ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+
+      # Wave 627. Third INDIRECT module from Prop. 76 and the last non-trivial
+      # one: the MAC datapath. The properties are about the ACCUMULATION -- a
+      # second instance of trit27_dot_product supplies the expected per-chunk
+      # contribution, so nothing here assumes the primitive is correct. Prop. 79.
+      - name: Prove pipeline_stage2_compute properties
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
+                    build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
+                    prep -top ps2_props -flatten; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+
+      # Wave 631. The 16-bit accumulator's sufficiency, which nothing checked:
+      # a_accumulates_one_chunk is a 16-bit equation and so holds modulo 2^16,
+      # satisfied by an accumulator that wraps. The module has no chunk counter
+      # and no num_chunks input, so in isolation it overflows after 1214 chunks
+      # -- it is safe only via a caller contract (layer_sequencer's 8-bit
+      # chunk_id) that appeared nowhere in the tree. INDUCTION, not a bound: the
+      # overflow is 1214 cycles away, so every feasible depth would report
+      # "proves" and mean nothing. Prop. 83.
+      - name: Prove the accumulator cannot overflow (unbounded)
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
+                    build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
+                    prep -top ps2_bound -flatten; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 4 -tempinduct -set-init-zero -set-assumes"
+          echo "ok       ps2_bound (k-induction, no depth caveat)"
+          # The contract is the only assumption, and one that emptied the state
+          # space would make both properties hold for the worst reason. This
+          # asserts the accumulator is always zero, so it must REFUTE.
+          if yosys -q -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
+                          build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
+                          prep -top ps2_bound_alive -flatten; async2sync; ${CHFORMAL_LOWER} \
+                          sat -verify -prove-asserts -seq 6 -set-init-zero -set-assumes"; then
+            echo "::error::the chunk-count contract freezes the accumulator, so the bound proofs are vacuous"
+            exit 1
+          fi
+          echo "ok       accumulator still moves under the contract (refutes)"
+
+      # Wave 628. The last five INDIRECT modules from Prop. 76, and the only
+      # purely combinational ones. `-seq 1` on stateless logic quantifies over
+      # EVERY input combination, so these verdicts carry no depth caveat and no
+      # induction argument -- the first unbounded module results outside the
+      # k-induction suite, and the only ones exempt from the bound audit of
+      # Prop. 68. The proof of adder_tree_27 found a real defect. Prop. 80.
+      - name: Prove trit_stdlib primitives (exhaustive)
+        run: |
+          set -euo pipefail
+          for top in tha_props tfa_props tpm_props at27_props dot_props dot_range_props; do
+            yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                      formal/trit_stdlib_props.sv; \
+                      prep -top ${top} -flatten; async2sync; ${CHFORMAL_LOWER} \
+                      sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
+            echo "ok       ${top} (exhaustive over all inputs)"
+          done
+          # The validity assumption must not empty the input space: this asserts
+          # that no valid vector exists, so it must REFUTE. Prop. 12a's oracle,
+          # in the only form that makes sense for stateless logic.
+          if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                          formal/trit_stdlib_props.sv; \
+                          prep -top at27_alive -flatten; async2sync; ${CHFORMAL_LOWER} \
+                          sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
+            echo "::error::the validity assumption admits no inputs, so every proof above is vacuous"
+            exit 1
+          fi
+          echo "ok       valid inputs exist (refutes)"
+
+      # Wave 634. The six primitives Prop. 76 left UNREACHED for five waves,
+      # answered as an algebra rather than as dead code or missing plumbing.
+      # Combinational over at most 12 bits, so `-seq 1` quantifies over every
+      # input: exhaustive, no depth caveat. Props. 86 (T1-T5).
+      - name: Prove the trit algebra (exhaustive)
+        run: |
+          set -euo pipefail
+          for top in not_props and_props or_props lattice_props mul_props \
+                     cmp_props half_adder_props full_adder_props add3_props \
+                     add3_abstract; do
+            yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                      formal/trit_algebra_props.sv; \
+                      prep -top ${top} -flatten; async2sync; ${CHFORMAL_LOWER} \
+                      sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
+            echo "ok       ${top} (exhaustive over all inputs)"
+          done
+          if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                          formal/trit_algebra_props.sv; \
+                          prep -top algebra_alive -flatten; async2sync; \
+                          ${CHFORMAL_LOWER} \
+                          sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
+            echo "::error::the validity assumption admits no words, so every theorem above is vacuous"
+            exit 1
+          fi
+          echo "ok       valid words exist (refutes)"
+          # The composition proof is only worth its name if lemma F is
+          # satisfiable. Were the assumptions inside fv_abstract_fa to
+          # contradict each other for some input, add3_abstract would hold
+          # vacuously and say nothing about any real adder. This asserts the
+          # abstract carry is never positive -- false of any F-satisfying adder
+          # -- so it must REFUTE. Prop. 92.
+          if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                          formal/trit_algebra_props.sv; \
+                          prep -top abstract_alive -flatten; async2sync; \
+                          ${CHFORMAL_LOWER} \
+                          sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
+            echo "::error::lemma F admits no adder at all, so the composition proof is vacuous"
+            exit 1
+          fi
+          echo "ok       the abstract adder is satisfiable (refutes)"
+          # The guard that actually holds. abstract_alive above only shows F
+          # admits SOMETHING for SOME input in an UNCHAINED instance; an
+          # adversarial review defeated it by strengthening F so that 94% of the
+          # input space became unreachable inside the chain, leaving every gate
+          # green. This asserts the real adder satisfies exactly the shared
+          # `FA_LEMMA` the abstraction assumes -- no free variables, so it
+          # cannot hold vacuously. Prop. 93a.
+          yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                    formal/trit_algebra_props.sv; \
+                    prep -top abstract_is_inhabited -flatten; async2sync; \
+                    ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
+          echo "ok       lemma F is inhabited for every input (proves)"
+          # The composition proof duplicates trit3_add's wiring rather than
+          # sharing it, so a rewiring of the real tree would leave the
+          # abstraction behind and the proof would keep passing about a circuit
+          # that is no longer in the bundle. Prop. 92c.
+          python3 formal/mirror_check.py --self-test
+          python3 formal/mirror_check.py
+
+      - name: Prove layer_sequencer properties
+        run: |
+          yosys -p "read_verilog -sv -formal build/rtl/layer_sequencer.sv \
+                    formal/layer_sequencer_props.sv; \
+                    prep -top ls_props -flatten; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 48 -set-init-zero -set-assumes"
+
+      # Proved one property per invocation, not as a batch. `-prove-asserts`
+      # solves every assertion in a single SAT instance, and that instance is
+      # superlinearly harder than its parts: at -seq 40 this module is undecided
+      # in 240 s as a batch while its most expensive property alone proves in
+      # 89 s and the other two in under a second (Prop. 35). Splitting raised
+      # the bound this module is verified at from 14 to 40 for the same wall
+      # time -- and it also attributes a failure to one property instead of
+      # leaving "something in here broke".
+      - name: Prove weight_prefetch_ctrl properties
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys
+          src = open("formal/weight_prefetch_props.sv").read()
+          labels = re.findall(r"(a_[a-z_]+): assert", src)
+          fail = []
+          for keep in labels:
+              s = src
+              for other in labels:
+                  if other != keep:
+                      s = re.sub(re.escape(other) + r": assert \([^;]*\);",
+                                 other + ": assert (1'b1);", s)
+              open("build/wp_one.sv", "w").write(s)
+              r = subprocess.run(["yosys", "-q", "-p",
+                  "read_verilog -sv -formal build/rtl/weight_prefetch_ctrl.sv build/wp_one.sv; "
+                  "prep -top wp_props -flatten; async2sync; ${CHFORMAL_LOWER} "
+                  "sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"],
+                  capture_output=True, text=True)
+              if r.returncode != 0:
+                  fail.append(keep)
+                  print(f"::error::{keep} not proved at -seq 40")
+              else:
+                  print(f"ok       {keep}")
+          sys.exit(1 if fail else 0)
+          PY
+
+      - name: Prove activation_requant properties
+        run: |
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL build/rtl/activation_requant.sv; \
+                    prep -top activation_requant; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
+
+      # First multi-module proof in this repo. Everything above is
+      # module-scoped; these properties range across the sequencer, the BRAMs
+      # and the MAC, which only became possible once the datapath was wired
+      # (docs/BITNET_V2_POSITION.md). -DT27_FORMAL enables the `ifdef FORMAL block
+      # inside bitnet_engine_top; the properties live there because the
+      # alignment they check is internal and `sat` needs one flattened module.
+      # DEPTH is reduced because `sat` cannot model $mem_v2 and the properties
+      # do not read memory contents.
+      # Two sets since Wave 605. Four properties need ten formal-only tracking
+      # registers and cost 75% of the proof time (Prop. 54): behind
+      # T27_FORMAL_DEEP, the other 22 reach -seq 80 again, where all 26 are
+      # undecided beyond 1200 s at -seq 60. Nothing is dropped -- both sets are
+      # gated below, and the bound each property is checked at rises or holds.
+      - name: Prove integration properties (core 24, deep bound)
+        run: |
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL \
+                      build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
+                      build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
+                      build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
+                      build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
+                      build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
+                      build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
+                    chparam -set DEPTH 4 weight_bram; \
+                    prep -top bitnet_engine_top -flatten; memory_map; \
+                    async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 80 -set-init-zero -set-assumes"
+
+      - name: Prove integration properties (all 28, tracker-backed included)
+        run: |
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL -DT27_FORMAL_DEEP \
+                      build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
+                      build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
+                      build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
+                      build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
+                      build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
+                      build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
+                    chparam -set DEPTH 4 weight_bram; \
+                    prep -top bitnet_engine_top -flatten; memory_map; \
+                    async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
+
+      # Maximum-sized requests (Prop. 29). Counts are much wider than the
+      # addresses they drive -- num_words is 16 bits over a 12-bit bram_addr,
+      # length is 32 bits over a 12-bit local_addr -- so an oversized request
+      # wrapped the address and overwrote data already transferred, then
+      # reported success. Reaching 4096 writes is far outside any bounded check,
+      # which is why every property missed it; the address is scaled to 3 bits
+      # so the wrap lands inside the bound, exactly as `chparam DEPTH 4` scales
+      # the memory elsewhere in this file.
+      - name: Oversized requests do not wrap the local address
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys, os
+
+          def scale(dut, sig, n, src=None, dest="build/scaled"):
+              s = src if src else open(f"build/rtl/{dut}.sv").read()
+              s = s.replace(f"[11:0] {sig}", f"[{n-1}:0] {sig}")
+              s = s.replace("[11:0] word_index", f"[{n-1}:0] word_index")
+              s = re.sub(r"\b12'd(\d+)", lambda m: f"{n}'d{m.group(1)}", s)
+              s = s.replace("16'd4096", "16'd8").replace("32'd32768", "32'd64")
+              os.makedirs(dest, exist_ok=True)
+              open(f"{dest}/{dut}.sv", "w").write(s)
+
+          def props(sig, n):
+              # The wrapper's own wires must narrow with the DUT port. Left at 12
+              # bits against a 3-bit port, the upper bits are undriven and every
+              # comparison against them is x -- which reads exactly like a design
+              # defect and cost most of Wave 581 to find.
+              t = open("formal/max_size_props.sv").read()
+              t = t.replace(f"wire [11:0] {sig};", f"wire [{n-1}:0] {sig};")
+              t = t.replace("reg [11:0] fv_last;", f"reg [{n-1}:0] fv_last;")
+              t = t.replace("reg [11:0] fv_next;", f"reg [{n-1}:0] fv_next;")
+              t = re.sub(r"\b12'd(\d+)", lambda m: f"{n}'d{m.group(1)}", t)
+              open("build/ms_props.sv", "w").write(t)
+
+          def run(dut, wrap, d):
+              return subprocess.run(["yosys", "-q", "-p",
+                  f"read_verilog -sv -formal {d}/{dut}.sv build/ms_props.sv; "
+                  f"prep -top {wrap} -flatten; async2sync; ${CHFORMAL_LOWER} "
+                  "sat -verify -prove-asserts -seq 30 -set-init-zero -set-assumes"],
+                  capture_output=True, text=True).returncode == 0
+
+          CASES = [
+              # Contiguity is the property that would have caught Prop. 29d
+              # directly: monotonicity alone permits skipping slot 0, which is
+              # exactly what the off-by-one did.
+              ("weight_prefetch_ctrl", "ms_prefetch", "bram_addr", "proves",
+               "words_remaining <= (num_words > 16'd4096) ? 16'd4096 : num_words;",
+               "words_remaining <= num_words;"),
+              # CLOSED in Wave 581 after three defects: the write/address
+              # off-by-one (29d), local_addr serving two roles with a reset
+              # inside the length!=0 branch (31c), and a write strobe held as a
+              # level rather than pulsed per beat (32). Now expected to PROVE.
+              ("dma_controller", "ms_dma", "local_addr", "proves",
+               "bytes_remaining <= (length > 32'd32768) ? 32'd32768 : length;",
+               "bytes_remaining <= length;"),
+          ]
+
+          fail = []
+          for dut, wrap, sig, want, clamp, unclamp in CASES:
+              scale(dut, sig, 3)
+              props(sig, 3)
+              got = "proves" if run(dut, wrap, "build/scaled") else "refutes"
+              if got != want:
+                  fail.append(f"{dut}: expected {want}, got {got}")
+              else:
+                  print(f"ok       {dut} ({got})")
+              # the property must still be able to see the defect
+              raw = open(f"build/rtl/{dut}.sv").read()
+              if raw.count(clamp) != 1:
+                  fail.append(f"{dut}: clamp text not found -- the check below is blind")
+                  continue
+              scale(dut, sig, 3, src=raw.replace(clamp, unclamp, 1), dest="build/noclamp")
+              if run(dut, wrap, "build/noclamp"):
+                  fail.append(f"{dut}: property proves with the clamp REMOVED -- it is not testing the wrap")
+              else:
+                  print(f"ok       {dut} property still detects an unclamped wrap")
+
+          if fail:
+              for f in fail:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          PY
+
+      # The trace reader is validated before it is trusted. Two waves were spent
+      # reasoning about a counterexample that had never actually been parsed:
+      # an ad-hoc regex over `sat -show` dropped every row, and `-dump_json`
+      # emits invalid JSON (RTLIL names contain backslashes, so `execute`
+      # becomes the escape `\e`). This runs the reader against a property whose
+      # counterexample is KNOWN -- the prefetch with its clamp removed, which
+      # must show a write at a wrapped address -- and fails if the reader cannot
+      # see it. Verify the instrument on a case whose answer you already know.
+      # Wave 617: these eight properties were counted as proved and were run by
+      # NO job in this repository. `zero_size_props.sv` appeared once in the
+      # whole of .github/ -- inside the weekly mutation harness, as gate
+      # definitions for two of its four wrappers -- and `zs_prefetch` and
+      # `zs_layer` appeared nowhere at all. Found by a bound audit that could not
+      # locate a bound for them, which read at first like a bug in the audit.
+      #
+      # Four of the eight are EXPECTED REFUTATIONS: a zero-sized job does report
+      # done, which is safe only because its sibling proves it emitted no work
+      # (Prop. 26). A step that expects everything to prove cannot gate this
+      # suite, which is probably why it never had one. Prop. 69.
+      - name: Prove zero-size properties
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys
+          SUITES = [("multilayer_sequencer", "zs_multilayer"),
+                    ("dma_controller",       "zs_dma"),
+                    # Wave 648: this carried a stray third element, and the
+                    # loop below unpacks TWO. Python raised
+                    # `ValueError: too many values to unpack` after the first
+                    # two suites, so zs_prefetch and zs_layer -- four of the
+                    # eight zero-size properties -- were never proved, and the
+                    # step exited 1 in normal operation. The absence sweep read
+                    # that failure as "fails, correct", because a step that is
+                    # already broken fails when starved too. Prop. 114.
+                    ("weight_prefetch_ctrl", "zs_prefetch"),
+                    ("layer_sequencer",      "zs_layer")]
+          SEQ = 24
+          src = open("formal/zero_size_props.sv").read()
+          fail = []
+          for dut, top in SUITES:
+              i = src.index(f"module {top} (")
+              body = src[i:src.index("endmodule", i)]
+              for lab in re.findall(r"\b(a_[a-z0-9_]+)\s*:\s*assert", body):
+                  s = src
+                  for other in re.findall(r"\b(a_[a-z0-9_]+)\s*:\s*assert", src):
+                      if other != lab:
+                          s = re.sub(re.escape(other) + r"\s*:\s*assert\s*\(.*?\);",
+                                     other + ": assert (1'b1);", s, count=1, flags=re.S)
+                  open("build/zs_one.sv", "w").write(s)
+                  r = subprocess.run(["yosys", "-q", "-p",
+                      f"read_verilog -sv -formal build/rtl/{dut}.sv build/zs_one.sv; "
+                      f"prep -top {top} -flatten; async2sync; ${CHFORMAL_LOWER} "
+                      f"sat -verify -prove-asserts -seq {SEQ} -set-init-zero -set-assumes"],
+                      capture_output=True, text=True)
+                  out = r.stdout + r.stderr
+                  if r.returncode == 0:
+                      got = "proves"
+                  elif "proof did fail" in out:
+                      got = "refutes"
+                  else:
+                      got = "TOOL ERROR"
+                  want = "refutes" if lab.endswith("_never_completes") else "proves"
+                  if got != want:
+                      fail.append(f"{top}/{lab} expected to {want} but {got}")
+                      print(f"::error::{top}/{lab} expected to {want} but {got}")
+                  else:
+                      print(f"ok       {top}/{lab} ({got})")
+          sys.exit(1 if fail else 0)
+          PY
+
+      - name: Trace reader reads a known counterexample
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+          sys.path.insert(0, "formal")
+          import trace_reader as tr
+
+          raw = open("build/rtl/weight_prefetch_ctrl.sv").read()
+          s = raw.replace("words_remaining <= (num_words > 16'd4096) ? 16'd4096 : num_words;",
+                          "words_remaining <= num_words;", 1)
+          s = s.replace("[11:0] bram_addr", "[2:0] bram_addr")
+          s = s.replace("[11:0] word_index", "[2:0] word_index")
+          s = re.sub(r"\b12'd(\d+)", lambda m: f"3'd{m.group(1)}", s)
+          s = s.replace("16'd4096", "16'd8")
+          os.makedirs("build/known", exist_ok=True)
+          open("build/known/weight_prefetch_ctrl.sv", "w").write(s)
+
+          props = open("formal/max_size_props.sv").read()
+          for lab in re.findall(r"(a_[a-z_]+): assert", props):
+              if lab != "a_bram_writes_contiguous":
+                  props = re.sub(re.escape(lab) + r": assert \([^;]*\);",
+                                 lab + ": assert (1'b1);", props)
+          open("build/known_props.sv", "w").write(props)
+
+          refuted, trace = tr.run_and_read(
+              "read_verilog -sv -formal build/known/weight_prefetch_ctrl.sv build/known_props.sv; "
+              "prep -top ms_prefetch -flatten; async2sync; ${CHFORMAL_LOWER} "
+              "sat -verify -prove-asserts -seq 30 -set-init-zero -set-assumes "
+              "-show-all -dump_json build/known.json", "build/known.json")
+
+          def val(name, t):
+              a = trace.get(name)
+              if not a or t >= len(a) or not isinstance(a[t], str):
+                  return None
+              return int(a[t], 2) if set(a[t]) <= set("01") and a[t] else None
+
+          fail = []
+          if not refuted:
+              fail.append("the known-counterexample property did not refute")
+          if len(trace) < 20:
+              fail.append(f"reader parsed only {len(trace)} signals")
+          depth = max((len(v) for v in trace.values()), default=0)
+          wrapped = [t for t in range(1, depth)
+                     if val("bram_we", t) == 1 and val("bram_addr", t) is not None
+                     and val("bram_addr", t - 1) is not None
+                     and val("bram_addr", t) < val("bram_addr", t - 1)]
+          if not wrapped:
+              fail.append("reader saw no wrapping write in a trace that must contain one")
+
+          if fail:
+              for f in fail:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print(f"ok       reader parsed {len(trace)} signals; wrap visible at t={wrapped[0]}")
+          PY
+
+      # No property may be discharged by syntax alone (Prop. 41 / 42).
+      #
+      # Vacuity checking in this file asks whether a property's GUARD is
+      # reachable. It never asked whether the BODY survives the optimiser. Five
+      # properties of the form `X == X` proved unconditionally for dozens of
+      # waves, tested nothing, and still emitted $check cells -- padding the
+      # count-based gates above that exist to detect an all-vacuous set.
+      #
+      # The scan is syntactic and says so: it makes the known-free shapes
+      # unable to return, not "no free property can exist". It is itself
+      # mutation-tested -- see the second half of this step.
+      - name: No property is discharged by syntax alone
+        run: |
+          set -euo pipefail
+          python3 formal/identity_scan.py
+
+          # The gate must bite. Reintroduce each free shape and require a flag,
+          # and require a real property NOT to be flagged (Prop. 28's control).
+          mkdir -p build/gatetest
+          python3 - <<'PY'
+          import subprocess, sys
+          base = open("formal/layer_sequencer_props.sv").read()
+          CASES = [
+              ("self-comparison",        "a_probe: assert (chunk_id == chunk_id);",        True),
+              ("nested self-comparison", "a_probe: assert (valid && (chunk_id == chunk_id));", True),
+              ("unsigned >= 0",          "a_probe: assert (chunk_id >= 0);",               True),
+              ("literal true",           "a_probe: assert (1'b1);",                        True),
+              ("a real property",        "a_probe: assert (valid || !done);",              False),
+          ]
+          fail = []
+          for desc, inject, want_flag in CASES:
+              s = base.replace("endmodule",
+                               f"    always @(posedge clk) if (rst_n)\n        {inject}\nendmodule", 1)
+              open("build/gatetest/probe_props.sv", "w").write(s)
+              r = subprocess.run(["python3", "formal/identity_scan.py",
+                                  "build/gatetest/probe_props.sv"],
+                                 capture_output=True, text=True)
+              flagged = r.returncode != 0
+              if flagged != want_flag:
+                  fail.append(f"{desc}: expected {'flagged' if want_flag else 'passed'}, got "
+                              f"{'flagged' if flagged else 'passed'}")
+              else:
+                  print(f"ok       gate {'flags' if flagged else 'passes'} {desc}")
+          if fail:
+              for f in fail:
+                  print(f"::error::identity_scan {f}")
+              sys.exit(1)
+          PY
+
+      # Module-suite liveness (Prop. 51). The engine has had liveness witnesses
+      # since Wave 577; the module suites never did. Wave 600 found an
+      # assumption that silently removed behaviour from a whole file -- every
+      # property still passed, and two engine-level witnesses caught it only by
+      # luck of coverage. These probes close that gap: each asserts an activity
+      # is IMPOSSIBLE and must REFUTE, so a proof means the suite's assumptions
+      # removed it. Validated against Wave 600's exact over-constraint, which
+      # they catch.
+      - name: Module suites are still alive under their assumptions
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys
+
+          # The 7th field is extra sources the wrapper needs. dma_props
+          # instantiates the AXI4 read-slave model (Prop. 70), and without it
+          # this step reported TOOL ERROR for every dma probe -- correctly, since
+          # a step that reads only the DUT cannot elaborate a wrapper that
+          # instantiates something else. Worth noting that it said TOOL ERROR
+          # rather than "unreachable": Prop. 39d's distinction earning its keep.
+          SUITES = [
+              ("interrupt_controller", "formal/interrupt_controller_props.sv", "irq_props", 6,  "-tempinduct",    ["irq_out"], "", ""),
+              ("axi_lite_slave",       "formal/axi_lite_slave_props.sv",       "axi_props", 10, "-set-init-zero", ["bvalid", "rvalid"], "", ""),
+              # The last three gate the AXI4 read-slave model wired in during
+              # Wave 618 (Prop. 70). Its assumptions could make the suite prove
+              # by making the master idle; these make that impossible to do
+              # quietly, exactly as the wp_props probes do for its environment.
+              ("dma_controller",       "formal/dma_controller_props.sv",       "dma_props", 20, "-set-init-zero", ["local_we", "done", "arvalid && arready", "rvalid && rready", "rlast"], "formal/axi4_read_slave_model.sv", ""),
+              ("layer_sequencer",      "formal/layer_sequencer_props.sv",      "ls_props",  20, "-set-init-zero", ["valid", "done"], "", ""),
+              ("double_buffer_ctrl",   "formal/double_buffer_props.sv",        "db_props",  20, "-set-init-zero", ["layer_done", "use_buffer_a", "!use_buffer_a"], "", ""),
+              # 8th field: prep commands this suite needs. weight_bram is scaled
+              # by chparam and needs memory_map, exactly as every engine proof
+              # does (Prop. 34). Its assumptions are an address range and a fixed
+              # observation address; these probes are what keep them from quietly
+              # emptying the state space. Prop. 78.
+              ("weight_bram",          "formal/weight_bram_props.sv",          "wb_props",  12, "-set-init-zero", ["wr_en", "fv_written", "fv_written && rd_addr == fv_addr"], "", "chparam -set DEPTH 4 weight_bram; chparam -set DEPTH 4 wb_props; "),
+              ("pipeline_stage2_compute", "formal/pipeline_stage2_props.sv",   "ps2_props", 12, "-set-init-zero", ["valid_in", "valid_out", "valid_in && first_chunk", "valid_in && !first_chunk"], "build/rtl/trit_stdlib.sv", ""),
+              # The last two probe the AXI read-slave environment added in Wave
+              # 612 (Prop. 63). An assumption that removes a handshake would
+              # make a_writes_within_addresses prove by making the design idle,
+              # which is the failure Prop. 50d recorded. These two make that
+              # impossible to do quietly.
+              ("weight_prefetch_ctrl", "formal/weight_prefetch_props.sv",      "wp_props",  20, "-set-init-zero", ["bram_we", "prefetch_done", "arvalid && arready", "rvalid && rready"], "", ""),
+          ]
+          fail = []
+          for dut, props, top, seq, mode, sigs, extra, prep in SUITES:
+              src = open(props).read()
+              # Insert into the NAMED top module, not the last one in the file.
+              # Wave 636b (Prop. 95): this used `src.rindex("endmodule")`, which
+              # targets whichever module happens to be last. Wave 633 appended
+              # ps2_bound and ps2_bound_alive to pipeline_stage2_props.sv, so
+              # all four ps2_props probes began landing in ps2_bound_alive;
+              # `prep -top ps2_props` then pruned that module, the unprobed
+              # suite proved, and rc==0 is read below as "UNREACHABLE". The step
+              # has been failing ever since, and nothing about the message named
+              # the real cause. A file gaining a module must not silently
+              # redirect another module's probes.
+              m = re.search(r"^module\s+" + top + r"\b.*?^endmodule", src,
+                            re.M | re.S)
+              if m is None:
+                  fail.append(f"{top}: no module by that name in {props}")
+                  print(f"::error::{top} not found in {props}")
+                  continue
+              i = m.start() + m.group(0).rindex("endmodule")
+              for sig in sigs:
+                  open("build/live.sv", "w").write(
+                      src[:i] + f"    always @(posedge clk) if (rst_n) w_live: assert (!({sig}));\n" + src[i:])
+                  r = subprocess.run(["yosys", "-q", "-p",
+                      f"read_verilog -sv -formal build/rtl/{dut}.sv {extra} build/live.sv; {prep}"
+                      f"prep -top {top} -flatten; memory_map; "
+                      f"async2sync; ${CHFORMAL_LOWER} "
+                      f"sat -verify -prove-asserts -seq {seq} {mode} -set-assumes"],
+                      capture_output=True, text=True)
+                  out = r.stdout + r.stderr
+                  if "ERROR" in out and "proof did fail" not in out:
+                      fail.append(f"{top}/{sig}: tool error, not a verdict")
+                      print(f"::error::{top}/{sig} tool error")
+                  elif r.returncode == 0:
+                      fail.append(f"{top}/{sig} is UNREACHABLE -- an assumption removed it")
+                      print(f"::error::{top}/{sig} unreachable under this suite's assumptions")
+                  else:
+                      print(f"ok       {top}/{sig} reachable")
+          sys.exit(1 if fail else 0)
+          PY
+
+      # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
+      # refuted", so a probe verdict is only meaningful if the UNPROBED design
+      # proves first. This is not hypothetical: an interlock tried in wave 27
+      # made yosys' own async2sync obligations fail, and every probe in the
+      # liveness table silently flipped to "refutes" for a reason that had
+      # nothing to do with any probe. Establish the baseline, then trust probes.
+      - name: Baseline - unprobed design must prove
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal \
+                      build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
+                      build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
+                      build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
+                      build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
+                      build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
+                      build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
+                    chparam -set DEPTH 4 weight_bram; \
+                    prep -top bitnet_engine_top -flatten; memory_map; \
+                    async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes"
+
+      # Prop. 39e stood open for eight waves, gated here as an expected
+      # refutation so that closing it would turn the build red and demand
+      # promotion. It closed in Wave 597 and both properties now live in the
+      # default -DT27_FORMAL set, so this step asserts the absence of any
+      # remaining expected-refutation guard: nothing in the engine is knowingly
+      # broken. Re-add a guarded property here if a future defect must be
+      # recorded rather than fixed.
+      # Was an inline `grep -q ... bitnet_engine_top.sv` that printed "ok" and
+      # returned 0 when the file did not exist -- grep's nonzero exit sits in an
+      # `if` condition, where `set -e` does not reach -- and that read one file
+      # out of the twenty-three which can carry the guard. Prop. 59.
+      - name: No property is gated as an expected refutation
+        run: python3 formal/guard_scan.py
+
+      - name: Vacuity gate — no property may pass on an empty trace set
+        run: python3 formal/vacuity_gate.py
+
+      - name: Vacuity sweep — every proof step must refute assert(false)
+        run: python3 formal/vacuity_sweep.py
+
+      - name: Restatement scan — no property may merely repeat its RTL line
+        run: python3 formal/restatement_scan.py
+
+      - name: Value sweep — engine arithmetic against a reference, across configurations
+        run: python3 formal/value_sweep.py
+
+      - name: Spec parse gate — "parses OK" must mean the parser read the spec
+        run: python3 formal/spec_parse_gate.py
+
+
+      - name: Runaway string scan — an odd quote swallows the rest of its file
+        run: python3 formal/runaway_string_scan.py
+
+      - name: Delimiter balance scan — a spec whose delimiters cannot close
+        run: python3 formal/delimiter_balance_scan.py
+
+      - name: Coverage gate — a gate reporting only its numerator is not coverage
+        run: python3 formal/coverage_gate.py
+
+      - name: Capture density scan — if the output does not grow with the file, nothing was read
+        run: python3 formal/capture_density_scan.py
+
+      - name: Spec class scan — prose in a .t27 file is not a parser backlog
+        run: python3 formal/spec_class_scan.py
+
+      - name: Suspension scan — a suspended check must name what would end it
+        run: python3 formal/suspension_scan.py
+
+      - name: Assumption scan — ask Coq what each theorem actually rests on
+        run: python3 formal/assumption_scan.py
+
+      - name: Coq build scan — a Qed in a file nobody compiles is not a proof
+        run: python3 formal/coq_build_scan.py
+
+      # Prop. 159: bootstrap/tests/ holds 17 integration tests for the compiler
+      # and NO workflow ran them. rings-rust.yml discovers `ring-*-rust` crates
+      # by matrix and never matches t27c. One test had been failing for ten
+      # waves against RTL that changed under it.
+      - name: Compiler tests (bootstrap/tests -- ungated until Wave 676)
+        run: cargo test -p t27c --release
+
+      # Prop. 165: five of the eight crates no workflow built are workspace
+      # MEMBERS, so one --workspace invocation covers them. It passes with 0
+      # errors today; two crates had to be fixed first (Props. 163, 165).
+      - name: Workspace check (all crates, all targets)
+        run: cargo check --workspace --all-targets
+
+      # tools/converter is OUTSIDE the workspace (Cargo.toml `exclude`), so the
+      # --workspace check above cannot see it. It was one of three crates the
+      # coverage baseline recorded as knowingly ungated, and #2623 measured what
+      # that cost: the converter wrote `given input = default_input()` into
+      # every stub test it generated, defining `default_input` nowhere, and
+      # #2668 measured that one name blocking 150 specs.
+      #
+      # Checked by manifest path rather than made a workspace member: promoting
+      # it rewrites Cargo.lock, which currently carries someone else's
+      # uncommitted work.
+      - name: Converter check (outside the workspace, hence explicit)
+        run: cargo check --manifest-path tools/converter/Cargo.toml --all-targets
+
+      # The last two crates the baseline exempted. Both `cargo check` clean
+      # today with zero errors, so the exemption was never technical -- they
+      # were simply never wired to a workflow, and the baseline recorded that
+      # as acceptable rather than as a gap.
+      #
+      # tri-mining is a Solana program and takes ~45s to check; that is the
+      # whole cost of knowing it still compiles.
+      - name: Backend check (outside the workspace)
+        run: cargo check --manifest-path backend/trinity-core/Cargo.toml --all-targets
+
+      - name: Solana program check (outside the workspace)
+        run: cargo check --manifest-path contrib/solana/programs/tri-mining/Cargo.toml --all-targets
+
+      - name: Crate coverage scan — every crate must be built by some workflow
+        run: python3 formal/crate_coverage_scan.py
+
+      # NON-BLOCKING, and this is the one case where that is not a compromise.
+      # Prop. 169: this gate reports that THIS workflow is not on the default
+      # branch, so it cannot pass until that is fixed -- and it lives inside the
+      # workflow it indicts. Blocking would wall off every PR on a condition no
+      # PR can satisfy. Flip `continue-on-error` off the moment
+      # formal-yosys.yml exists on master; that flip is the deliverable.
+      - name: Workflow reachable scan — a cited workflow must exist on the default branch (non-blocking, see Prop. 169)
+        continue-on-error: true
+        run: python3 formal/workflow_reachable_scan.py
+
+      # A property that references a signal which does not exist proves without
+      # reading the design. `a_addr_ahead_of_data` did exactly that for four
+      # waves via `dut.word_index`, which yosys implicitly declared as an
+      # undriven one-bit wire -- warning and all, unread. Prop. 62.
+      # Wave 617 found eight properties counted as proved that no job ran:
+      # zero_size_props.sv appeared once in all of .github/, inside the weekly
+      # harness. Nothing was broken, which is why it sat unnoticed -- an ungated
+      # property that happens to hold is indistinguishable from a gated one.
+      # Counting properties tells you nothing; count the steps that run them.
+      # Prop. 70.
+      # Prop. 73 corrected a figure quoted for twelve waves without any harness
+      # having malfunctioned: the instrument measured what it was told to and
+      # the caption named the wrong thing. Twenty waves of gates check whether
+      # the tools lie; this one checks whether the prose does. Prop. 74.
+      - name: Numbers in the documentation match the tree
+        run: |
+          set -euo pipefail
+          python3 formal/claims_check.py --self-test
+          python3 formal/claims_check.py
+
+      # Prop. 110 sorted every confirmed gate defect into unsound, incomplete
+      # and unfaithful, and observed the third had no instrument. This is the
+      # first one: a gate that MUTATES a path its own docstring never names is
+      # changing an artifact its description does not mention. Prop. 111.
+      # Prop. 119: five fixes across four files went to one shape -- a regex
+      # applied to raw Verilog, matching inside a `//` comment. This closes the
+      # class rather than meeting it a sixth time.
+      # Prop. 123: Prop. 122a was invisible to every property because each side
+      # of the connection is internally consistent -- dma_controller is right
+      # about bytes, the engine is right about neurons, and nothing looked at
+      # what joins them. This reads the names across module boundaries.
+      - name: No port is driven by a signal naming a different quantity
+        run: |
+          set -euo pipefail
+          python3 formal/units_scan.py --self-test
+          python3 formal/units_scan.py
+
+      - name: No gate reads Verilog without stripping comments or saying why
+        run: |
+          set -euo pipefail
+          python3 formal/comment_scan.py --self-test
+          python3 formal/comment_scan.py
+
+      - name: No gate mutates a path its docstring never names
+        run: |
+          set -euo pipefail
+          python3 formal/faith_check.py --self-test
+          python3 formal/faith_check.py
+
+      # orphan_scan.py and absence_sweep.py both `import yaml`, and nothing
+      # in this job installed it -- so the step below could only ever have
+      # raised ModuleNotFoundError. Pinned rather than floating: a gate whose
+      # dependency can change under it grades a moving target.
+      - name: Install PyYAML for the scan scripts
+        run: pip install "pyyaml==6.0.2"
+
+      - name: Every property file is run by some workflow
+        run: |
+          set -euo pipefail
+          python3 formal/orphan_scan.py --self-test
+          python3 formal/orphan_scan.py
+
+      - name: No property references a signal that does not exist
+        run: |
+          set -euo pipefail
+          python3 formal/phantom_scan.py --self-test
+          python3 formal/phantom_scan.py
+
+      # The Wave 628 defect was legible in a comment sitting directly above the
+      # declaration that contradicted it, and stayed there from Wave 33 to Wave
+      # 628 because nothing ever compared the two numbers. This does. Prop. 82.
+      - name: No declaration is narrower than the range it carries
+        run: |
+          set -euo pipefail
+          python3 formal/width_scan.py --self-test
+          python3 formal/width_scan.py
+
+      # Prop. 83 found a 16-bit accumulator safe only because a different module
+      # walks its chunk counter over an 8-bit port -- a bound that lived in no
+      # comment, no input and no assumption. This maps every growing register to
+      # whatever limits it and fails when that argument is not written down.
+      # It proves nothing safe; it makes a missing argument visible. Prop. 84.
+      # Wave 634. Timings are claims about a machine state; Prop. 85f published
+      # a 4x that was 1.58x because nothing recorded the state. Prop. 87.
+      # Wave 634. The one hand-argument left in Prop. 85: bytes_remaining
+      # underflows by design, and is safe only because the wrapped value is
+      # never consumed. Proved here under the AXI read-slave model, which
+      # supplies the arlen-compliance the argument rests on. BOUNDED at 24 --
+      # the cost curve is steep (1.4 s at seq 12, 285 s at seq 24) and seq 80
+      # did not complete in 30 minutes, recorded as not completed rather than
+      # retried until it produced a number. Prop. 88.
+      - name: The DMA drain is never consumed after it wraps (bounded)
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN_AXI \
+                        build/rtl/dma_controller.sv; \
+                        prep -top dma_controller -flatten; stat" > /tmp/stat.$$.txt 2>&1 || {
+            echo "::error::yosys did not elaborate the design; its output follows"
+            cat /tmp/stat.$$.txt
+            exit 1
+          }
+          # Show what was found before judging it. Four runs failed here
+          # without ever printing a count, because yosys's output went into
+          # a command substitution and a non-matching grep killed the step
+          # under `set -e` before the echo below could run.
+          grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
+          n=$(awk '/^=== /{if (s > m) m = s; s = 0} {for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert|assume)$/) s += $(i+1) + 0} END {if (s > m) m = s; print m+0}' /tmp/stat.$$.txt)
+          if [ "${n:-0}" -lt 2 ]; then
+            echo "::error::Expected >=2 \$check cells for the DMA drain properties,"
+            echo "::error::found ${n:-0} -- they were not compiled and this proves nothing."
+            exit 1
+          fi
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN_AXI \
+                    build/rtl/dma_controller.sv formal/dma_controller_props.sv \
+                    formal/axi4_read_slave_model.sv; \
+                    prep -top dma_props -flatten; async2sync; ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes"
+          echo "ok       bytes_remaining is sane wherever beats_owed reads it"
+
+      # Wave 635. Prop. 86c tested one theorem by breaking it and found a
+      # second defect nobody predicted. That experiment is now a standing gate,
+      # checked in BOTH directions: no theorem may newly break under a permuted
+      # encoding, and the one that is encoding-dependent by design must still
+      # break -- a gate asserting only "nothing broke" passes when its own
+      # perturbation has become a no-op. Prop. 90.
+      - name: Permuting the trit encoding breaks exactly the right theorems
+        run: |
+          set -euo pipefail
+          python3 formal/encoding_gate.py --self-test
+          python3 formal/encoding_gate.py
+
+      # Wave 637. Every module suite is proved with -set-init-zero, described
+      # throughout this campaign as "starting from a reachable state". It starts
+      # from the ZERO state, which equals the reset state only where every
+      # register resets to zero -- and nine here do not. Not an unsoundness
+      # (extra states give spurious refutations, never false proofs) but a
+      # fragility: a pure FSM relabelling refutes two properties outright, and
+      # the failure reads as a design defect. Prop. 96.
+      - name: Registers that do not reset to zero are listed
+        run: |
+          set -euo pipefail
+          python3 formal/init_zero_scan.py --self-test
+          python3 formal/init_zero_scan.py
+
+      - name: Benchmark harness self-test
+        run: |
+          set -euo pipefail
+          python3 formal/bench.py --self-test
+
+      - name: Every growing register says what bounds it
+        run: |
+          set -euo pipefail
+          python3 formal/bound_scan.py --self-test
+          python3 formal/bound_scan.py
+
+      # Wave 633. The countdown that enforces weight_prefetch_ctrl's tightest
+      # bound. A drain that underflows does not stop -- it runs another 2^16
+      # beats past the request. Proved on the module directly, because
+      # words_remaining is internal and a wrapper referencing dut.words_remaining
+      # would silently prove against an undriven phantom wire (Prop. 62).
+      # Induction, so the verdict holds for every request length rather than to
+      # a depth. Prop. 85.
+      - name: The prefetch countdown cannot underflow (unbounded)
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+                        build/rtl/weight_prefetch_ctrl.sv; \
+                        prep -top weight_prefetch_ctrl -flatten; stat" > /tmp/stat.$$.txt 2>&1 || {
+            echo "::error::yosys did not elaborate the design; its output follows"
+            cat /tmp/stat.$$.txt
+            exit 1
+          }
+          # Show what was found before judging it. Four runs failed here
+          # without ever printing a count, because yosys's output went into
+          # a command substitution and a non-matching grep killed the step
+          # under `set -e` before the echo below could run.
+          grep -E '\$(check|assert|assume)' /tmp/stat.$$.txt || echo "(no property cells in stat)"
+          n=$(awk '/^=== /{if (s > m) m = s; s = 0} {for (i = 1; i <= NF; i++) if ($i ~ /^\$(check|assert|assume)$/) s += $(i+1) + 0} END {if (s > m) m = s; print m+0}' /tmp/stat.$$.txt)
+          if [ "${n:-0}" -lt 2 ]; then
+            echo "::error::Expected >=2 \$check cells, found ${n:-0} -- the inline"
+            echo "::error::drain properties were not compiled and this step proves nothing."
+            exit 1
+          fi
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+                    build/rtl/weight_prefetch_ctrl.sv; \
+                    prep -top weight_prefetch_ctrl -flatten; async2sync; \
+                    ${CHFORMAL_LOWER} \
+                    sat -verify -prove-asserts -seq 8 -tempinduct -set-init-zero -set-assumes"
+          echo "ok       words_remaining reaches 0 only as the FSM leaves FETCH"
+
+      # Liveness witnesses for the assembled engine. These deliberately pass NO
+      # property define, which only became meaningful in Wave 589: until the
+      # guard was renamed to T27_FORMAL, `read_verilog -formal` predefined
+      # FORMAL and every "probe-only" run compiled the whole property set
+      # (Prop. 39b). Re-checked in Wave 590 against a genuinely property-free
+      # build -- all six verdicts unchanged (Prop. 40b). Four waves of interlock
+      # work constrained the reachable state space; an over-tight guard would
+      # make every safety property pass by making the engine do nothing. Each
+      # probe below asserts that an activity is IMPOSSIBLE and must therefore
+      # REFUTE -- a counterexample is the proof the engine still functions.
+      # The final probe is the inverse: DMA and MAC concurrently active must be
+      # genuinely unreachable, so it must PROVE.
+      - name: Engine is still alive under its interlocks
+        run: |
+          set -euo pipefail
+          fail=0
+          top=build/rtl/bitnet_engine_top.sv
+          rest="build/rtl/multilayer_sequencer.sv build/rtl/layer_sequencer.sv \
+                build/rtl/double_buffer_ctrl.sv build/rtl/weight_bram.sv \
+                build/rtl/pipeline_stage2_compute.sv build/rtl/activation_requant.sv \
+                build/rtl/weight_prefetch_ctrl.sv build/rtl/interrupt_controller.sv \
+                build/rtl/axi_lite_slave.sv build/rtl/dma_controller.sv \
+                build/rtl/trit_stdlib.sv"
+          probe() {
+            expr="$1"; want="$2"; name="$3"; seq="${4:-22}"
+            python3 - "$top" "$expr" > build/probe.sv <<'PY'
+          import sys
+          src = open(sys.argv[1]).read()
+          i = src.rindex("endmodule")
+          probe = "    always @(posedge clk) if (rst_n) w: assert (%s);\n" % sys.argv[2]
+          sys.stdout.write(src[:i] + probe + src[i:])
+          PY
+            # Prop. 173: this read `else got=refutes`, so EVERY non-zero exit --
+            # an elaboration error, a syntax error, a missing yosys, a timeout --
+            # was scored as a refutation. Nine of the eleven probes below EXPECT
+            # `refutes`, so any breakage made this step report `ok` across the
+            # board. That is the campaign's own Prop. 58 defect ("returncode != 0
+            # is not a verdict") sitting inside the step whose whole purpose is
+            # to prove the engine is not inert.
+            #
+            # Three outcomes, never two. A run that neither proves nor names a
+            # refutation is a TOOL ERROR and fails loudly.
+            # Redirect to a FILE rather than capturing with $( ... 2>&1 ):
+            # inside a multi-line command substitution the stderr redirect did
+            # not reliably reach the capture, so the phantom warning below was
+            # printed to the log and never grepped. A file removes the quoting
+            # question entirely.
+            set +e
+            yosys -p "read_verilog -sv -formal build/probe.sv $rest; \
+                      chparam -set DEPTH 4 weight_bram; \
+                      prep -top bitnet_engine_top -flatten; memory_map; \
+                      async2sync; ${CHFORMAL_LOWER} \
+                      sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" \
+                 > build/probe.log 2>&1
+            rc=$?
+            set -e
+            # Prop. 173b: an undefined signal in the probe does NOT make yosys
+            # fail -- it implicitly declares an undriven wire and the property
+            # then genuinely refutes (Prop. 62). Nine probes expect `refutes`,
+            # so a typo or a signal that a future emitter renames scores `ok`
+            # forever. `-q` is dropped above precisely so these warnings reach
+            # the capture.
+            if grep -q "is implicitly declared" build/probe.log; then
+              echo "::error::$name: the probe names a signal the design does not"
+              echo "         have -- yosys declared it implicitly and the refutation"
+              echo "         is about a phantom wire, not the engine."
+              grep "implicitly declared" build/probe.log | head -2
+              fail=1
+              return
+            fi
+            if [ "$rc" -eq 0 ]; then
+              got=proves
+            elif grep -q "proof did fail" build/probe.log; then
+              got=refutes
+            else
+              # printf, not echo: yosys prints backslash-prefixed signal names
+              # and a shell whose echo expands escapes truncates at \c (Prop. 58).
+              echo "::error::$name: yosys neither proved nor refuted (rc=$rc)."
+              grep -iE "error|not found|no such" build/probe.log | head -3
+              fail=1
+              return
+            fi
+            if [ "$got" != "$want" ]; then
+              echo "::error::$name expected to $want but $got"
+              fail=1
+            else
+              echo "ok       $name ($got)"
+            fi
+          }
+          probe '!dma_busy'                      refutes 'DMA can start'
+          probe '!dma_local_we'                  refutes 'DMA can write local memory'
+          probe '!pf_bram_we'                    refutes 'weight prefetch can write'
+          probe '!mac_valid_q'                   refutes 'MAC can be active'
+          probe '!neuron_out_valid'              refutes 'neuron output can fire'
+          probe '!(dma_busy && mac_valid_q)'     proves  'DMA and MAC never concurrent'
+          # PHASE-CONDITIONED (Wave 616, Prop. 67). Every probe above asks
+          # whether an activity can happen AT ALL, and a fault that stalls one
+          # ping-pong phase leaves it happening in the other -- so none of them
+          # noticed a mutation that clears filled_b throughout the phase where B
+          # is the read buffer. This one is phase-specific and catches it.
+          #
+          # seq 40, not 22: at 22 this same probe PROVES on the real engine,
+          # i.e. reports the activity unreachable when it is merely further away
+          # than the bound. A probe run at too shallow a depth does not report
+          # "unknown", it reports the wrong answer. Prop. 67c.
+          probe '!(mac_valid_q && !use_buffer_a)' refutes 'MAC can be active while B is the read buffer' 40
+          exit $fail
+
+      # Vacuity gate, part two. The $check-cell count proves properties EXIST;
+      # this proves they BITE. Each witness asserts the negation of a case its
+      # property exists to cover, so a counterexample is the proof that the case
+      # is reachable. A witness that starts PROVING means that case became
+      # unreachable and the property guarding it is now free.
+      - name: Properties are non-vacuous (witnesses must refute)
+        run: |
+          set -euo pipefail
+          fail=0
+          run_witness() {
+            top="$1"; mod="$2"; seq="$3"
+            out=$(yosys -p "read_verilog -sv -formal build/rtl/${mod}.sv formal/witnesses.sv; \
+                            prep -top ${top} -flatten; async2sync; ${CHFORMAL_LOWER} \
+                            sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" 2>&1 || true)
+            # printf, not echo. Yosys prints signal names backslash-prefixed
+            # ("\chunk_id"), and a shell whose echo expands escapes reads \c as
+            # "stop output here" -- it truncated a 32 KB trace to 4.9 KB and
+            # dropped the verdict line, turning REFUTES into "did not refute".
+            # bash does not expand these, zsh does, so the same command gives
+            # different verdicts on CI and on a developer's machine. Prop. 58.
+            # Prop. 175: the same phantom exposure as the liveness probes.
+            # witnesses.sv is hand-written and names design signals; if an
+            # emitter renames one, yosys implicitly declares an undriven wire,
+            # the witness genuinely refutes, and this step reports "case
+            # reachable" about a wire that does not exist. Every witness here
+            # expects a refutation, so the failure is invisible by construction.
+            if printf '%s\n' "$out" | grep -q "is implicitly declared"; then
+              echo "::error::${top}: the witness names a signal the design does"
+              echo "         not have -- the refutation is about a phantom wire."
+              printf '%s\n' "$out" | grep "implicitly declared" | head -2
+              fail=1
+              return
+            fi
+            if printf '%s\n' "$out" | grep -q "proof did fail"; then
+              echo "ok       ${top} (case reachable)"
+            else
+              echo "::error::${top} did not refute -- the case it witnesses is unreachable, so the property it guards is vacuous."
+              fail=1
+            fi
+          }
+          run_witness w_irq_mask_case        interrupt_controller  6
+          run_witness w_irq_concurrent_read  interrupt_controller  6
+          run_witness w_axi_outstanding_one  axi_lite_slave       10
+          run_witness w_axi_resp_pending     axi_lite_slave       10
+          run_witness w_dma_multibeat_burst  dma_controller       12
+          run_witness w_dma_burst_active     dma_controller       12
+          run_witness w_ls_multi_neuron      layer_sequencer      12
+          run_witness w_wp_writes_happen     weight_prefetch_ctrl 14
+          # Interleaving witnesses (Wave 606). Prop. 51 probed that each module's
+          # core ACTIVITY is reachable and stated its limit: a constraint that
+          # removes a rare INTERLEAVING while leaving the activity reachable
+          # passes every one of those probes. These three close that gap, and
+          # each was validated by injecting a constraint that removes its
+          # interleaving and confirming it then PROVES.
+          run_witness w_dma_back_to_back     dma_controller       24
+          run_witness w_dma_both_directions  dma_controller       24
+          run_witness w_wp_back_to_back      weight_prefetch_ctrl 30
+          # Sequential-repetition witnesses (Wave 607). Prop. 56 covered
+          # interleaving for two modules and stated the rest of its scope: the
+          # other three had witnesses for CONCURRENCY but none for REPETITION,
+          # so a constraint allowing exactly one service / transaction / layer
+          # run left every existing witness refuting. Each was validated by a
+          # constraint that removes its repetition and makes it prove.
+          run_witness w_irq_serviced_twice   interrupt_controller 16
+          run_witness w_axi_two_writes       axi_lite_slave       24
+          run_witness w_ls_two_layers        layer_sequencer      30
+          exit $fail
+
+      # README.md described "a documentation gate covering all N propositions"
+      # for many waves while nothing in .github/ or formal/ implemented one --
+      # the check existed as a habit, run by hand. A claimed gate that CI never
+      # runs is the same failure as a property that proves vacuously. Prop. 58e.
+      - name: Every proposition carries the gate that keeps it true
+        run: |
+          set -euo pipefail
+          python3 formal/doc_gate.py
+          # ...and the gate is checked against six ways of breaking the
+          # document. Prop. 58e claimed this gate "was mutation-tested" when the
+          # test was a scratch script run once by hand -- the same defect as a
+          # gate claimed in the README and never wired up. Prop. 59.
+          python3 formal/doc_gate.py --self-test
+
+      - name: Behavior-DSL subset still emits and parses
+        run: |
+          set -euo pipefail
+          cat > behaviors.json <<'JSON'
+          [
+            {"name":"engine_busy_safety","given":"running","when":"posedge clk","then":"set full"},
+            {"name":"irq_clear_on_reset","given":"reset inactive","when":"posedge clk","then":"after 1 cycles set full"}
+          ]
+          JSON
+          ./target/release/t27c gen-behavior-sva-yosys behaviors.json --output formal_dsl.sv
+          yosys -p "read_verilog -sv -formal formal_dsl.sv; prep -top behavior_yosys"
+          # ...and that it emitted anything at all. Parsing was the whole check
+          # until Wave 608: stripping every assertion out of the emission left
+          # this step exiting 0, so an emitter that regressed to a module with
+          # no properties in it would have stayed green. One assertion per input
+          # behaviour, and the input is written directly above. Prop. 59.
+          n=$(grep -c 'assert *(' formal_dsl.sv || true)
+          echo "emitted assertions: ${n:-0} (2 behaviours in)"
+          if [ "${n:-0}" -lt 2 ]; then
+            echo "::error::the behaviour DSL parsed but emitted ${n:-0} assertions for 2 behaviours"
+            exit 1
+          fi
