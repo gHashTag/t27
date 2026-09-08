@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d481219af65cf77db967dca5780c2fdba0e0956f4e8ad5652ef0133fdb559819",
+  "gen_hash_c": "sha256:05b88d4b6e0bf7b33177bc0146877249cf131787b95d6ed5e3f35ebfd3c72237",
   "gen_hash_rust": "sha256:dbc34c6545d36d0c1aa284398f8c87a22d27f9f67ca1ff1190d2083351f422cb",
   "gen_hash_verilog": "sha256:29244ceb3b49d238c23d8cf1f3283599058ca8953158e58b7f3d1a58692dc8b5",
   "gen_hash_zig": "sha256:e74bb53517a9458208fbafb2b0a3e9af0a1b67992869d2033eddd122ad34301b",
   "module": "igla-race-systolic-ternary",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:44Z",
+  "sealed_at": "2026-09-08T03:43:40Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:968bea4fd52e44b99e900e9ae7b6e1642783a98413791edae61f450d59ead18f",
   "spec_path": "specs/igla/race/systolic_ternary.t27"

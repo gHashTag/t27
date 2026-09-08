@@ -19943,8 +19943,19 @@ impl CCodegen {
                         .first()
                         .is_some_and(|c| {
                             c.kind == NodeKind::ExprArrayLiteral
-                                && !c.extra_type.is_empty()
                                 && !c.children.is_empty()
+                                // The literal's own element type when it has
+                                // one, and otherwise the type of its first
+                                // element if that is a struct literal --
+                                // `[W{...}, W{...}]` carries `W` on the child,
+                                // not on the array. Without this the array fell
+                                // to `__auto_type x = { ... }`, which is the
+                                // largest single error class in the generated
+                                // corpus.
+                                && (!c.extra_type.is_empty()
+                                    || c.children.first().is_some_and(|e| {
+                                        e.kind == NodeKind::ExprStructLit && !e.name.is_empty()
+                                    }))
                         })
                 {
                     // W699 rung 3: `const vals = [_]i32{...}` has no annotation,
@@ -19953,12 +19964,19 @@ impl CCodegen {
                     // '__auto_type' with initializer list". The literal carries
                     // its own element type and its own length; use them.
                     let lit = node.children.first().unwrap();
-                    let elem = &lit.extra_type;
-                    let c_elem = if Self::is_primitive(elem) {
-                        Self::type_to_c(elem).to_string()
+                    let elem: String = if !lit.extra_type.is_empty() {
+                        lit.extra_type.clone()
                     } else {
-                        elem.to_string()
+                        // Recovered from the first element; the condition above
+                        // established it is a named struct literal.
+                        lit.children.first().map(|e| e.name.clone()).unwrap_or_default()
                     };
+                    // W583, third instance. The `is_primitive` gate lists only
+                    // the integer scalars, so `f32`, `f64`, `str` and `gf16`
+                    // took the pass-through arm; `type_to_c` passes a genuinely
+                    // custom type through unchanged, which is what a struct
+                    // name needs anyway.
+                    let c_elem = Self::type_to_c(&elem).to_string();
                     self.write(&format!("{} {}[{}]", c_elem, node.name, lit.children.len()));
                 } else {
                     let inferred_arr = if raw_type.is_empty() {
