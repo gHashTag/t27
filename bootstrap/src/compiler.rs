@@ -18129,6 +18129,9 @@ pub struct CCodegen {
     /// C struct typedef name of the current function's [T; N] return type,
     /// so a returned array literal can be cast to the right compound literal.
     current_ret_array_type: Option<String>,
+    /// Identifiers (params + annotated locals) declared `string` in the item
+    /// being emitted: `s.len` on one of them is `strlen(s)`, in both spellings.
+    string_typed_names: std::collections::HashSet<String>,
     /// Identifiers (params + locals) declared `*T` in the item being emitted:
     /// a field access on them is `->`, not `.`. C is the only backend that
     /// distinguishes the two, and 152 sites reached it with a dot.
@@ -18155,6 +18158,7 @@ impl CCodegen {
             scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
+            string_typed_names: std::collections::HashSet::new(),
             pointer_typed_names: std::collections::HashSet::new(),
             array_typed_names: std::collections::HashSet::new(),
             const_defs: std::collections::HashMap::new(),
@@ -18457,6 +18461,14 @@ impl CCodegen {
         self.write_line("#include <stdint.h>");
         self.write_line("#include <stdbool.h>");
         self.write_line("#include <stddef.h>");
+
+        // `s.len` on a `string` becomes `strlen(s)`. Decided by the SAME two
+        // helpers the emitter uses, so the include and the call site cannot
+        // disagree -- a missing include is an undeclared function, which is
+        // the very family this repair is shrinking.
+        if Self::module_uses_strlen(ast) {
+            self.write_line("#include <string.h>");
+        }
 
         // Check if tests exist — add assert.h
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
@@ -19179,6 +19191,83 @@ impl CCodegen {
         }
     }
 
+    /// Names declared `string` in one item: parameters, and locals that carry
+    /// an annotation. ONE source of truth, used both by the pre-scan that
+    /// decides whether `<string.h>` is included and by the emitter that writes
+    /// `strlen` -- if those two ever disagree, the header does not compile.
+    fn collect_string_typed(item: &Node) -> std::collections::HashSet<String> {
+        let mut out = std::collections::HashSet::new();
+        for (pname, ptype) in &item.params {
+            if ptype.trim() == "string" {
+                out.insert(pname.clone());
+            }
+        }
+        fn walk(nodes: &[Node], out: &mut std::collections::HashSet<String>) {
+            for n in nodes {
+                if n.kind == NodeKind::StmtLocal && n.extra_type.trim() == "string" {
+                    out.insert(n.name.clone());
+                }
+                walk(&n.children, out);
+            }
+        }
+        walk(&item.children, &mut out);
+        out
+    }
+
+    /// The base of a `.len` taken on a `string`, in EITHER spelling.
+    ///
+    /// The specs write both: `s.len()` parses as one `ExprCall` named `s.len`,
+    /// and `s.len` as an `ExprFieldAccess`. 1322 of the first and 687 of the
+    /// second across the corpus -- the third time in this campaign that one
+    /// rule had two spellings and only one was taught.
+    ///
+    /// `string` lowers to `const char*`, which carries no length, so the C
+    /// answer is `strlen`. That is the WHOLE of what is decidable here: on a
+    /// slice `[]T` the same expression needs a representation that does not
+    /// exist yet (#3464), and this returns None for it.
+    fn string_len_base<'a>(
+        node: &'a Node,
+        strings: &std::collections::HashSet<String>,
+    ) -> Option<&'a str> {
+        match node.kind {
+            NodeKind::ExprCall if node.children.is_empty() => {
+                let (base, field) = node.name.rsplit_once('.')?;
+                if field == "len" && strings.contains(base) {
+                    return Some(base);
+                }
+                None
+            }
+            NodeKind::ExprFieldAccess if node.name == "len" => {
+                let base = node.children.first()?;
+                if base.kind == NodeKind::ExprIdentifier && strings.contains(&base.name) {
+                    return Some(base.name.as_str());
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// Does any item in this module take `.len` on a `string`? Decides the
+    /// `<string.h>` include, using the same two helpers the emitter uses.
+    fn module_uses_strlen(ast: &Node) -> bool {
+        fn any(nodes: &[Node], strings: &std::collections::HashSet<String>) -> bool {
+            nodes.iter().any(|n| {
+                CCodegen::string_len_base(n, strings).is_some() || any(&n.children, strings)
+            })
+        }
+        fn items(node: &Node) -> bool {
+            node.children.iter().any(|c| {
+                let is_item = matches!(
+                    c.kind,
+                    NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::BenchBlock
+                );
+                (is_item && any(&c.children, &CCodegen::collect_string_typed(c))) || items(c)
+            })
+        }
+        items(ast)
+    }
+
     /// The C constant for `base`'s enum member `member`, if this module
     /// declares that enum AND that member.
     ///
@@ -19759,6 +19848,7 @@ impl CCodegen {
             self.c_array_info_r(&node.extra_return_type).map(|(n, _, _)| n);
         self.array_typed_names.clear();
         self.pointer_typed_names.clear();
+        self.string_typed_names = Self::collect_string_typed(node);
         for (pname, ptype) in &node.params {
             if Self::c_array_info(ptype).is_some() {
                 self.array_typed_names.insert(pname.clone());
@@ -19813,6 +19903,7 @@ impl CCodegen {
         self.current_ret_array_type = None;
         self.array_typed_names.clear();
         self.pointer_typed_names.clear();
+        self.string_typed_names = Self::collect_string_typed(node);
 
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
@@ -20038,6 +20129,7 @@ impl CCodegen {
         // cell;` was then written `cell->scope`, +38 errors in one file.
         self.pointer_typed_names.clear();
         self.array_typed_names.clear();
+        self.string_typed_names = Self::collect_string_typed(node);
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
         self.write_indent();
@@ -20936,6 +21028,11 @@ impl CCodegen {
                 self.write(&node.name.to_uppercase());
             }
             NodeKind::ExprCall => {
+                // `s.len()` -- one of the two spellings; see `string_len_base`.
+                if let Some(base) = Self::string_len_base(node, &self.string_typed_names) {
+                    self.write(&format!("strlen({})", base));
+                    return;
+                }
                 let fname = &node.name;
                 // The third call-site of the scaffold class. `default_input()`
                 // and `valid_input()` are TEMPLATE SCAFFOLD, not functions: 571
@@ -21141,6 +21238,11 @@ impl CCodegen {
                 // their language; C was the only backend without an answer.
                 // The `::` spelling of the SAME member reference is handled in
                 // the identifier arm -- one rule, one helper, two spellings.
+                // `s.len` -- the other spelling of the same rule.
+                if let Some(base) = Self::string_len_base(node, &self.string_typed_names) {
+                    self.write(&format!("strlen({})", base));
+                    return;
+                }
                 if let Some(base) = node.children.first() {
                     if base.kind == NodeKind::ExprIdentifier {
                         if let Some(c) = self.c_enum_constant(&base.name, &node.name) {
