@@ -44,7 +44,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-POSITIONS = ("param", "return", "field")
+POSITIONS = ("param", "return", "field", "local")
 
 # One row per declaration form. Kept deliberately small and hand-chosen: the
 # point is a page a person reads, not exhaustive coverage of the type surface.
@@ -94,6 +94,13 @@ BODY = {
     "return": "    fn probe(v: i32) -> {t} {{ return 0; }}\n",
     "field": ("    struct Holder {{ f : {t}, g : i32, }}\n"
               "    fn probe(h: Holder) -> i32 {{ return h.g; }}\n"),
+    # The local is initialised FROM A PARAMETER of the same type, which keeps
+    # one probe for every form -- a per-type literal would be a second thing
+    # that can be wrong. It also has to be initialised at all: `var x : T;`
+    # parses, and C and Rust declare it, but Zig and Verilog emit NOTHING for
+    # an uninitialised local, so that probe measured their dead-code removal
+    # rather than their lowering.
+    "local": "    fn probe(p: {t}) -> i32 {{ var x : {t} = p; return 0; }}\n",
 }
 
 # One pattern per (position, backend). Three positions, because the same
@@ -109,6 +116,14 @@ POS_PATTERNS = {
         "Rust": r"^pub fn probe\([^)]*\)\s*->\s*([^{\n]+)",
         "Zig": r"^(?:pub )?fn probe\([^)]*\)\s*([^{\n]+)",
         "Verilog": r"function\s+([^;\n]*?)\s*\bprobe;",
+    },
+    "local": {
+        # The declarator only, up to `=` -- the initialiser is the same in
+        # every row and would just push the type out of the column.
+        "C": r"^\s{4}([^\n;=]*\bx(?:\[[^\]]*\])*)\s*(?:=[^\n;]*)?;",
+        "Rust": r"^\s{4}(let (?:mut )?x:[^=;\n]*)",
+        "Zig": r"^\s{4}((?:var|const) x:[^=;\n]*)",
+        "Verilog": r"^\s*(reg[^\n;]*\bx\b[^\n;]*);",
     },
     "field": {
         "C": r"struct Holder \{[^}]*?\n\s*([^\n;]*\bf(?:\[[^\]]*\])*)\s*;",

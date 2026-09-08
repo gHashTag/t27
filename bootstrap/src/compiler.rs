@@ -19810,12 +19810,51 @@ impl CCodegen {
                     if let Some(bracket_end) = raw_type.find(']') {
                         let size = &raw_type[1..bracket_end];
                         let elem = &raw_type[bracket_end + 1..];
-                        let c_elem = if Self::is_primitive(elem) {
-                            Self::type_to_c(elem).to_string()
-                        } else {
-                            elem.to_string()
+                        // W583, again and in the other position. That note is
+                        // 200 lines below, on `param_type_to_c`: the gate used
+                        // to be `is_primitive`, "which lists only the integer
+                        // scalars -- so `f32`, `f64`, `str`, `string` and
+                        // `gf16` took the pass-through arm and reached C
+                        // unmapped even after `type_to_c` learned them." The
+                        // repair did not travel here, so a LOCAL array kept the
+                        // pass-through and C received
+                        //
+                        //     GF16 x[4];   error: use of undeclared identifier 'GF16'
+                        //
+                        // while the same element is `uint16_t` in both a
+                        // parameter (`uint16_t a[static 4]`) and a struct field
+                        // (`uint16_t f[4];`). `type_to_c` passes a genuinely
+                        // custom type through unchanged, so the gate only ever
+                        // suppressed correct mappings -- the same sentence that
+                        // retired it downstairs.
+                        // `[]const u8` carries the qualifier INSIDE the
+                        // element, so the element text is the literal
+                        // "const u8" and C received `const u8* x` --
+                        // "unknown type name 'u8'". `param_type_to_c` strips
+                        // it for a slice parameter; the same strip is needed
+                        // here.
+                        let elem = elem.trim();
+                        let (qual, elem) = match elem.strip_prefix("const ") {
+                            Some(rest) => ("const ", rest.trim()),
+                            None => ("", elem),
                         };
-                        self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                        let c_elem = format!("{}{}", qual, Self::type_to_c(elem));
+                        if size.is_empty() && node.children.is_empty() {
+                            // A slice `[]T` has no compile-time length, and
+                            // `uint8_t x[];` is not a definition -- clang says
+                            // "definition of variable with array type needs an
+                            // explicit size or an initializer".
+                            //
+                            // ONLY when there is no initialiser. `T x[] = {…}`
+                            // is legal C and takes its size from the list, and
+                            // rewriting that to `T* x = {…}` made the one
+                            // corpus file carrying the shape WORSE -- measured,
+                            // +5 errors and nothing better, which is how this
+                            // condition got here.
+                            self.write(&format!("{}* {}", c_elem, node.name));
+                        } else {
+                            self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                        }
                     } else {
                         self.write(&format!("int {}", node.name));
                     }
