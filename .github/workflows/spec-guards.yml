@@ -53,6 +53,7 @@ on:
       - 'tools/check_duplicate_declarations.py'
       - 'tools/duplicate_declarations_baseline.txt'
       - 'tools/lowered_collisions_baseline.txt'
+      - 'tools/published_figures.py'
       - 'tools/diagnostic_capacity.py'
       - '.github/workflows/spec-guards.yml'
   push:
@@ -68,6 +69,7 @@ on:
       - 'tools/check_duplicate_declarations.py'
       - 'tools/duplicate_declarations_baseline.txt'
       - 'tools/lowered_collisions_baseline.txt'
+      - 'tools/published_figures.py'
       - 'tools/diagnostic_capacity.py'
       - '.github/workflows/spec-guards.yml'
   workflow_dispatch:
@@ -124,6 +126,16 @@ jobs:
       # another shrank.
       - name: Does any spec declare one name twice
         run: python3 tools/check_duplicate_declarations.py
+
+      - name: Published figures -- self-check
+        run: python3 tools/published_figures.py --self-check
+
+      - name: Published figures -- every pinned spec population re-derived
+        # A figure without its matcher is not reproducible and a figure whose
+        # unit is implicit is not comparable. This re-derives each from the
+        # specs, in CODE ONLY, and fails when one drifts -- the same contract
+        # the census pin has: a change that moves a number must say so.
+        run: python3 tools/published_figures.py --check
 
       # A ratchet on the instruments, not on the code: if a compiler that
       # reported completely starts truncating, every total measured with it
