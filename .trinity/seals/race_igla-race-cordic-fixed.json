@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:13b33bb3feb73c6dfcd3450d0a3a44889a32639f9fd7f0365462df190db071c9",
+  "gen_hash_c": "sha256:a440294386f93bbc2ee73167e21914e8b8869728ae6fde7e37316ae1c23e3512",
   "gen_hash_rust": "sha256:df05a040ed1a48a8d04f20c1c3bbed9739bcffdf0bbaf9a9e40f8a9ec73d7197",
   "gen_hash_verilog": "sha256:f54b44f56f77a4104cdc3aa219f00be6a14f876d93b0d9e1594d8b56b80565da",
   "gen_hash_zig": "sha256:ec0e0f5aaf53c43afc0396f38b748445f536e807b3cbdba8ac52474333243fbf",
   "module": "igla-race-cordic-fixed",
   "ring": 12,
-  "sealed_at": "2026-09-08T11:16:07Z",
+  "sealed_at": "2026-09-08T13:25:07Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:bab39e8fc8641fd2db77b865b5d5be1a34ec958105af238d4972010887805f39",
   "spec_path": "specs/igla/race/cordic_fixed.t27"

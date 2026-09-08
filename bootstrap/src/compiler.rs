@@ -8174,15 +8174,8 @@ impl Codegen {
     // round locals like f16/f32/f64) must be emitted as @"name" -- Zig
     // rejects the bare name with "name shadows primitive". Applied at every
     // value-identifier emission site so declarations and uses stay consistent.
-    fn is_integer_type_suffix(t: &str) -> bool {
-        matches!(
-            t,
-            "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize"
-        )
-    }
-
     fn is_numeric_type_suffix(t: &str) -> bool {
-        Self::is_integer_type_suffix(t) || matches!(t, "f32" | "f64")
+        is_integer_type_suffix(t) || matches!(t, "f32" | "f64")
     }
 
     /// Re-escape a string the lexer already unescaped, so it can be written
@@ -9745,7 +9738,7 @@ impl Codegen {
                         // Integers only: a float cast needs @floatCast or
                         // @intFromFloat, and guessing between them would be a
                         // silent semantic choice.
-                        if Self::is_integer_type_suffix(target) {
+                        if is_integer_type_suffix(target) {
                             self.write(&format!("@as({}, @intCast(", target));
                             self.gen_expr(&node.children[0]);
                             self.write("))");
@@ -18156,6 +18149,18 @@ pub struct CCodegen {
     local_tuple_counter: u32,
 }
 
+/// The integer width suffix of a typed builtin -- `cast_i8`, `abs_i16`.
+///
+/// A free function rather than a method: `gen-zig` has recognised these since
+/// W570 and `gen-c` learned it in #3497, and a second copy is how one backend
+/// grows a spelling the other refuses.
+fn is_integer_type_suffix(t: &str) -> bool {
+    matches!(
+        t,
+        "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize"
+    )
+}
+
 impl CCodegen {
     pub fn new() -> Self {
         Self {
@@ -21099,6 +21104,28 @@ impl CCodegen {
                 self.write(&node.name.to_uppercase());
             }
             NodeKind::ExprCall => {
+                // `cast_i8(x)` is a CAST, not a call. The Zig backend has said
+                // so since W570 -- `@as(i8, @intCast(x))` -- and its comment
+                // records the same fact this campaign filed as a blocker:
+                // "`cast_i8(` alone appears 1,100 times and is defined nowhere
+                // in the corpus". Declared nowhere was true; *therefore
+                // unfixable* was not. C is the backend that had no answer:
+                // `cast_i8` 1079 uses, `cast_i16` 38, `cast_i32` 2.
+                //
+                // Integers only, exactly as Zig has it: a float cast needs a
+                // different conversion and guessing between them would be a
+                // silent semantic choice. Guarded by the declared functions, so
+                // a spec that defines its own `cast_i8` keeps it.
+                if node.children.len() == 1 && !self.fn_param_types.contains_key(&node.name) {
+                    if let Some(target) = node.name.strip_prefix("cast_") {
+                        if is_integer_type_suffix(target) {
+                            self.write(&format!("(({})(", Self::type_to_c(target)));
+                            self.gen_c_expr(&node.children[0]);
+                            self.write("))");
+                            return;
+                        }
+                    }
+                }
                 // `s.len()` -- one of the two spellings; see `string_len_base`.
                 if let Some(base) = Self::string_len_base(node, &self.string_typed_names) {
                     self.write(&format!("strlen({})", base));
