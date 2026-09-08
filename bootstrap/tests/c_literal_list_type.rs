@@ -23,6 +23,10 @@ fn cc_present() -> bool {
 }
 
 fn gen_c(body: &str, tag: &str) -> (String, std::path::PathBuf) {
+    gen_c_with("", body, tag)
+}
+
+fn gen_c_with(decls: &str, body: &str, tag: &str) -> (String, std::path::PathBuf) {
     let d = std::env::temp_dir().join(format!(
         "t27c-clit-{tag}-{}-{}",
         std::process::id(),
@@ -31,8 +35,11 @@ fn gen_c(body: &str, tag: &str) -> (String, std::path::PathBuf) {
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).expect("dir");
     let p = d.join("in.t27");
-    std::fs::write(&p, format!("module P {{\n    fn f(v: i32) -> i32 {{ {body} return 0; }}\n}}\n"))
-        .expect("write");
+    std::fs::write(
+        &p,
+        format!("module P {{\n{decls}    fn f(v: i32) -> i32 {{ {body} return 0; }}\n}}\n"),
+    )
+    .expect("write");
     let out = Command::new(env!("CARGO_BIN_EXE_t27c"))
         .arg("gen-c")
         .arg(&p)
@@ -207,4 +214,41 @@ fn an_empty_list_is_left_alone() {
         h.contains("__auto_type x = { 0 };"),
         "an empty list keeps __auto_type rather than inventing an element type:\n{h}"
     );
+}
+
+#[test]
+fn a_list_of_calls_to_declared_functions_is_typed() {
+    // The literal inference refuses calls because it reads literals, not
+    // return types. `fn_return_types` is already built, so this is a LOOKUP
+    // rather than a guess: a function this module does not declare is still
+    // refused, and so is a list whose calls disagree.
+    let decls = "    fn cast_i8(v: i32) -> i8 { return 0; }\n    fn other(v: i32) -> u16 { return 0; }\n";
+    let (h, d) = gen_c_with(decls, "var x = [cast_i8(1), cast_i8(2)];", "calls_ok");
+    assert!(h.contains("int8_t x[2] ="), "a uniform call list takes the return type:\n{h}");
+    if cc_present() {
+        assert!(!errors(&h, &d).contains("error"), "and it compiles");
+    }
+    for (body, why) in [
+        ("var x = [cast_i8(1), other(2)];", "disagreeing return types"),
+        ("var x = [nosuch(1)];", "a function this module does not declare"),
+        ("var x = [1, cast_i8(2)];", "a mixed literal-and-call list"),
+    ] {
+        let (h, _d) = gen_c_with(decls, body, "calls_no");
+        assert!(
+            h.contains("__auto_type x"),
+            "{why} must keep __auto_type:\n{h}"
+        );
+    }
+}
+
+#[test]
+fn a_call_returning_a_composite_is_refused() {
+    // The first version took the return type VERBATIM and emitted
+    // `[]Trit structures[2] = { ... }` -- t27 syntax in a C declarator, and
+    // two errors where there had been one. An array, slice, optional or
+    // pointer needs declarator machinery this branch does not have.
+    let decls = "    fn mk(v: i32) -> []i32 { return [1]; }\n";
+    let (h, _d) = gen_c_with(decls, "var x = [mk(1), mk(2)];", "composite");
+    assert!(h.contains("__auto_type x"), "a composite return must be refused:\n{h}");
+    assert!(!h.contains("[]i32 x"), "and no t27 spelling may reach C:\n{h}");
 }
