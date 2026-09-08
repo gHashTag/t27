@@ -1418,10 +1418,6 @@ test pipeline_decode_tokens_single_token
     when s = decode_tokens(tokens)
     then s.len() > 0
 
-test pipeline_tokenize_prompt_nonempty
-    given prompt = "hello"
-    when tokens = tokenize_prompt(prompt)
-    then tokens.len() > 0
 
 test pipeline_generate_tokens_autoregressive_len_bounded
     given input_ids = [1, 2, 3]
@@ -1978,15 +1974,7 @@ invariant pipeline_compose_triple_double_w311_inv:
 
 
 
-test pipeline_compose_triple_double_w311
-    given x = 2
-    when result = compose(triple, double, x)
-    then result == 12
 
-test pipeline_compose_double_identity_w311
-    given x = 7
-    when result = compose(double, identity, x)
-    then result == 14
 
 invariant pipeline_compose_triple_double_w311_inv:
     compose(triple, double, 2) == 12

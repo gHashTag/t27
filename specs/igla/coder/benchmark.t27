@@ -3008,17 +3008,11 @@ test carmen_competitor_benchmark
     when c = carmen_competitor()
     then c.benchmark == "28nm CORDIC ASIC 4.83 TOPS/mm2 (arXiv:2605.06878)"
 
-test tom_competitor_name
-    when c = tom_competitor()
-    then c.name == "TOM"
 
 test tom_competitor_benchmark
     when c = tom_competitor()
     then c.benchmark == "ROM-based ternary ASIC 3,306 tok/s BitNet-2B 5.33W (arXiv:2602.20662)"
 
-test tellme_competitor_name
-    when c = tellme_competitor()
-    then c.name == "TeLLMe"
 
 test tellme_competitor_benchmark
     when c = tellme_competitor()
@@ -3852,19 +3846,12 @@ bench competitor_lookup_latency
     measure c.pass_at_1
     target latency_us < 1.0
 
-test benchmark_count_passed_empty_zero
-    given results = []BenchmarkResult{}
-    when n = count_passed(results, 0, 0)
-    then n == 0
 
 test benchmark_count_passed_at_5_all_passed
     given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
     when n = count_passed_at_5(results, 0, 0)
     then n == 2
 
-test benchmark_trinity_self_train_estimate_positive
-    when e = trinity_self_train_estimate()
-    then e > 0.0
 
 invariant benchmark_count_passed_at_5_bounded_by_len
     forall results : []BenchmarkResult
@@ -3889,29 +3876,13 @@ invariant benchmark_count_passed_bounded_by_len_inv:
     forall results : []BenchmarkResult
     count_passed(results, 0, 0) >= 0 && count_passed(results, 0, 0) <= results.len()
 
-test benchmark_count_passed_empty_zero
-    given results = []BenchmarkResult{}
-    when n = count_passed(results, 0, 0)
-    then n == 0
 
-test benchmark_count_passed_at_5_empty_zero
-    given results = []BenchmarkResult{}
-    when n = count_passed_at_5(results, 0, 0)
-    then n == 0
 
 invariant benchmark_count_passed_empty_zero_inv:
     forall results : []BenchmarkResult
     results.len() == 0 ==> count_passed(results, 0, 0) == 0
 
-test benchmark_count_passed_all_passed
-    given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
-    when n = count_passed(results, 0, 0)
-    then n == 2
 
-test benchmark_count_passed_at_5_all_passed
-    given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
-    when n = count_passed_at_5(results, 0, 0)
-    then n == 2
 
 invariant benchmark_count_passed_all_passed_inv:
     forall results : []BenchmarkResult
@@ -4300,15 +4271,7 @@ test benchmark_mean_negative_positive_w309
 
 invariant benchmark_mean_five_equal_w309_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
-test benchmark_mean_five_equal_w309
-    given values = [7.0, 7.0, 7.0, 7.0, 7.0]
-    when m = mean(values)
-    then m == 7.0
 
-test benchmark_mean_negative_positive_w309
-    given values = [-5.0, 5.0]
-    when m = mean(values)
-    then m == 0.0
 
 invariant benchmark_mean_five_equal_w309_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
@@ -4342,15 +4305,7 @@ invariant benchmark_mean_five_equal_w311_inv:
 
 
 
-test benchmark_mean_five_equal_w311
-    given values = [7.0, 7.0, 7.0, 7.0, 7.0]
-    when m = mean(values)
-    then m == 7.0
 
-test benchmark_mean_negative_positive_w311
-    given values = [-5.0, 5.0]
-    when m = mean(values)
-    then m == 0.0
 
 invariant benchmark_mean_five_equal_w311_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0

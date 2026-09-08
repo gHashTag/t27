@@ -463,12 +463,6 @@ test decode_weight_code_3_returns_zero
     when d = ternary_decode(w)
     then d == 0
 
-test systolic_ternary_pe_zero_activation
-    given a = 0
-    given w = TernaryWeight { code: 1 }
-    given psum = 10
-    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
-    then psum_out == 10
 
 test decode_weight_code_255_returns_zero
     given w = TernaryWeight { code: 255 }
@@ -506,10 +500,6 @@ test systolic_ternary_pe_neg_activation_pos_weight
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == -40
 
-test decode_weight_code_1_returns_pos_one
-    given w = TernaryWeight { code: 1 }
-    when d = ternary_decode(w)
-    then d == 1
 
 test systolic_ternary_pe_neg_weight_subtracts
     given a = 10
@@ -972,12 +962,6 @@ test systolic_ternary_pe_reg_update_preserves_weight
     when new_pe = systolic_ternary_pe_reg(true, true, pe, 7, TernaryWeight { code: 0 }, 3)
     then new_pe.a_reg == 7 && new_pe.psum_reg == 10
 
-test systolic_ternary_pe_negative_activation_minus_weight
-    given a = -5
-    given w = TernaryWeight { code: 2 }
-    given psum = 10
-    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
-    then psum_out == 15
 
 test systolic_ternary_pe_reg_negative_activation
     given pe = SystolicTernaryPE { a_reg: 0, psum_reg: 0 }
@@ -1635,19 +1619,7 @@ test systolic_ternary_pe_minus_activation_minus_weight_adds_w309
 
 invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w309_inv:
     systolic_ternary_pe(3, TernaryWeight { code: 1 }, 10).1 == 13
-test systolic_ternary_pe_plus_activation_plus_weight_adds_w309
-    given a = 3
-    given w = TernaryWeight { code: 1 }
-    given psum = 10
-    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
-    then psum_out == 13
 
-test systolic_ternary_pe_minus_activation_minus_weight_adds_w309
-    given a = -4
-    given w = TernaryWeight { code: 2 }
-    given psum = 10
-    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
-    then psum_out == 14
 
 invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w309_inv:
     systolic_ternary_pe(3, TernaryWeight { code: 1 }, 10).1 == 13
@@ -1689,19 +1661,7 @@ invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w311_inv:
 
 
 
-test systolic_ternary_pe_plus_activation_plus_weight_adds_w311
-    given a = 3
-    given w = TernaryWeight { code: 1 }
-    given psum = 10
-    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
-    then psum_out == 13
 
-test systolic_ternary_pe_minus_activation_minus_weight_adds_w311
-    given a = -4
-    given w = TernaryWeight { code: 2 }
-    given psum = 10
-    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
-    then psum_out == 14
 
 invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w311_inv:
     systolic_ternary_pe(3, TernaryWeight { code: 1 }, 10).1 == 13

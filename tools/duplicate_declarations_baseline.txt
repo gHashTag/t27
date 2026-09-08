@@ -13,33 +13,34 @@
 # corpus. Tests and benches have namespaces of their own, so `struct
 # deque_clear` beside `test deque_clear` is not counted -- 138 such names in 54
 # specs would otherwise each be reported as a conflict that no backend has.
-specs/config/schema.t27 11
-specs/file/operations.t27 5
-specs/igla/coder/arch.t27 8
-specs/igla/coder/bench_proxy.t27 5
-specs/igla/coder/benchmark.t27 27
-specs/igla/coder/dataset.t27 6
-specs/igla/coder/eval.t27 7
-specs/igla/coder/pipeline.t27 5
-specs/igla/coder/prm.t27 2
-specs/igla/coder/tokenizer.t27 7
-specs/igla/coder/training.t27 8
-specs/igla/coder/weights.t27 6
-specs/igla/race/adder_tree.t27 12
-specs/igla/race/backend.t27 16
-specs/igla/race/bram_weights.t27 12
-specs/igla/race/cordic.t27 17
-specs/igla/race/cordic_fixed.t27 21
-specs/igla/race/cordic_top.t27 14
-specs/igla/race/eda.t27 10
-specs/igla/race/formal.t27 13
-specs/igla/race/gemm.t27 16
-specs/igla/race/opcodes.t27 10
-specs/igla/race/rtl.t27 14
-specs/igla/race/systolic_array.t27 11
-specs/igla/race/systolic_ternary.t27 18
-specs/igla/race/ternary_gemm.t27 17
-specs/igla/race/ternary_inference.t27 8
-specs/igla/race/ternary_mac.t27 11
-specs/igla/race/yosys.t27 13
+#
+# 2026-09-08 (second): 30 specs / 341 names -> 27 / 172. 188 duplicate test
+# blocks whose body was BYTE-IDENTICAL to their twin were deleted; what remains
+# is the 172 whose bodies differ and which need a reading, not a script.
+specs/config/schema.t27 1
+specs/file/operations.t27 1
+specs/igla/coder/arch.t27 2
+specs/igla/coder/benchmark.t27 16
+specs/igla/coder/dataset.t27 1
+specs/igla/coder/eval.t27 4
+specs/igla/coder/pipeline.t27 2
+specs/igla/coder/tokenizer.t27 2
+specs/igla/coder/training.t27 4
+specs/igla/race/adder_tree.t27 5
+specs/igla/race/backend.t27 10
+specs/igla/race/bram_weights.t27 8
+specs/igla/race/cordic.t27 6
+specs/igla/race/cordic_fixed.t27 14
+specs/igla/race/cordic_top.t27 8
+specs/igla/race/eda.t27 3
+specs/igla/race/formal.t27 6
+specs/igla/race/gemm.t27 12
+specs/igla/race/opcodes.t27 4
+specs/igla/race/rtl.t27 7
+specs/igla/race/systolic_array.t27 7
+specs/igla/race/systolic_ternary.t27 13
+specs/igla/race/ternary_gemm.t27 10
+specs/igla/race/ternary_inference.t27 4
+specs/igla/race/ternary_mac.t27 6
+specs/igla/race/yosys.t27 5
 specs/ml/optimizer/adamw.t27 11

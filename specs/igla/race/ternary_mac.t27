@@ -184,12 +184,6 @@ test ternary_dot_mixed_length
     when d = ternary_dot(a, w, 0, 0)
     then d == -1
 
-test ternary_mac_max_activation
-    given acc = 0
-    given a = 127
-    given w = TernaryWeight { code: 1 }
-    when r = ternary_mac(acc, a, w)
-    then r == 127
 
 test ternary_dot_empty_weights
     given a = []i8{}
@@ -1428,19 +1422,7 @@ test ternary_mac_plus_weight_adds_w309
 invariant ternary_mac_zero_weight_nop_w309_inv:
     forall acc : i32
     ternary_mac(99, TernaryWeight { code: 0 }, acc) == acc
-test ternary_mac_zero_weight_nop_w309
-    given a = 99
-    given w = TernaryWeight { code: 0 }
-    given acc = 42
-    when result = ternary_mac(a, w, acc)
-    then result == 42
 
-test ternary_mac_plus_weight_adds_w309
-    given a = 10
-    given w = TernaryWeight { code: 1 }
-    given acc = 5
-    when result = ternary_mac(a, w, acc)
-    then result == 15
 
 invariant ternary_mac_zero_weight_nop_w309_inv:
     forall acc : i32
@@ -1485,19 +1467,7 @@ invariant ternary_mac_zero_weight_nop_w311_inv:
 
 
 
-test ternary_mac_zero_weight_nop_w311
-    given a = 99
-    given w = TernaryWeight { code: 0 }
-    given acc = 42
-    when result = ternary_mac(a, w, acc)
-    then result == 42
 
-test ternary_mac_plus_weight_adds_w311
-    given a = 10
-    given w = TernaryWeight { code: 1 }
-    given acc = 5
-    when result = ternary_mac(a, w, acc)
-    then result == 15
 
 invariant ternary_mac_zero_weight_nop_w311_inv:
     forall acc : i32
