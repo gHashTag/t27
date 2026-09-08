@@ -27,7 +27,8 @@ a deliberate, load-bearing choice -- the HashMap key lowering asks this very
 mapping for its key type. A table proposes; it does not conclude.
 
 Usage:
-  tools/backend_parity_table.py               print the table
+  tools/backend_parity_table.py               all three positions
+  tools/backend_parity_table.py return field   only those positions
   tools/backend_parity_table.py --self-check  negative control
 
 Exit codes:
@@ -42,6 +43,8 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+POSITIONS = ("param", "return", "field")
 
 # One row per declaration form. Kept deliberately small and hand-chosen: the
 # point is a page a person reads, not exhaustive coverage of the type surface.
@@ -86,32 +89,78 @@ def t27c() -> str:
     sys.exit(2)
 
 
-def row(binary: str, form: str) -> dict:
+BODY = {
+    "param": "    fn probe(x: {t}) -> i32 {{ return 0; }}\n",
+    "return": "    fn probe(v: i32) -> {t} {{ return 0; }}\n",
+    "field": ("    struct Holder {{ f : {t}, g : i32, }}\n"
+              "    fn probe(h: Holder) -> i32 {{ return h.g; }}\n"),
+}
+
+# One pattern per (position, backend). Three positions, because the same
+# declaration gets three different answers and the parameter table alone hid
+# two defects: a fixed-array RETURN gave `uint8_t*` to a stack local
+# (-Wreturn-stack-address, 18 sites in 14 files, #3445) and a fixed-array FIELD
+# gave a pointer with no storage, making one struct 16 bytes in C and 8 in Rust
+# (65 fields in 31 specs, #3446).
+POS_PATTERNS = {
+    "param": PATTERNS,
+    "return": {
+        "C": r"^([\w \*]+?)\s+probe\(",
+        "Rust": r"^pub fn probe\([^)]*\)\s*->\s*([^{\n]+)",
+        "Zig": r"^(?:pub )?fn probe\([^)]*\)\s*([^{\n]+)",
+        "Verilog": r"function\s+([^;\n]*?)\s*\bprobe;",
+    },
+    "field": {
+        "C": r"struct Holder \{[^}]*?\n\s*([^\n;]*\bf(?:\[[^\]]*\])*)\s*;",
+        "Rust": r"pub struct Holder \{[^}]*?\n\s*(pub f:[^,\n]*)",
+        "Zig": r"(?:pub )?const Holder = (?:extern |packed )?struct \{[^}]*?\n\s*(f:[^,\n]*)",
+        # A struct has TWO Verilog shapes and the first pattern only knew one.
+        # When every field is lowerable the struct becomes one packed vector and
+        # a comment states its width; otherwise each field gets its own `reg`,
+        # under a comment saying the struct is unsupported. Matching only the
+        # packed form printed "(NOT MATCHED)" for six rows -- which reads as a
+        # finding and was a gap in this file.
+        # `(?im)` may not appear mid-pattern -- Python raises
+        # "global flags not at the start of the expression". re.M is already
+        # passed at the call site, and nothing here needs case folding.
+        "Verilog": (r"^\s*//\s*struct Holder (lowered[^\n]*)$"
+                    r"|^\s*(reg[^\n;]*\bholder_f\b[^\n;]*);"),
+    },
+}
+
+
+def row(binary: str, form: str, position: str = "param") -> dict:
     d = tempfile.mkdtemp()
     p = os.path.join(d, "p.t27")
     with open(p, "w", encoding="utf-8") as fh:
-        fh.write(HEAD + f"    fn probe(x: {form}) -> i32 {{ return 0; }}\n}}\n")
+        fh.write(HEAD + BODY[position].format(t=form) + "}\n")
     out = {}
     for label, cmd in BACKENDS:
         text = subprocess.run([binary] + cmd + [p], capture_output=True, text=True).stdout
         if not text.strip():
             out[label] = "(no output)"
             continue
-        m = re.search(PATTERNS[label], text, re.M)
-        out[label] = m.group(1).strip() if m else "(NOT MATCHED)"
+        m = re.search(POS_PATTERNS[position][label], text, re.M | re.S)
+        got = next((g for g in m.groups() if g), None) if m else None
+        out[label] = re.sub(r"\s+", " ", got).strip() if got else "(NOT MATCHED)"
     return out
 
 
 def self_check(binary: str) -> int:
-    """Every backend must answer for a plain `u8`, and each answer must differ
-    from the others' spelling. Without this, a table of "(NOT MATCHED)" reads
-    exactly like a table of real findings."""
-    r = row(binary, "u8")
+    """Every backend must answer for a plain `u8`, in every position.
+
+    Without this a table of "(NOT MATCHED)" reads exactly like a table of real
+    findings -- and it did: the first Verilog column was empty in every row
+    because the declaration ends `probe; // -> i32` and the pattern demanded a
+    newline right after `probe;`. A failure of this file, printed as a fact
+    about the backend."""
     ok = True
-    for label, _ in BACKENDS:
-        good = r[label] not in ("(no output)", "(NOT MATCHED)")
-        print(f"  {label:8} on u8 -> {r[label]!r} {'PASS' if good else 'FAIL'}")
-        ok &= good
+    for position in POSITIONS:
+        r = row(binary, "u8", position)
+        for label, _ in BACKENDS:
+            good = r[label] not in ("(no output)", "(NOT MATCHED)")
+            print(f"  {position:7} {label:8} on u8 -> {r[label]!r} {'PASS' if good else 'FAIL'}")
+            ok &= good
     return 0 if ok else 2
 
 
@@ -120,16 +169,20 @@ def main() -> int:
     if "--self-check" in sys.argv:
         return self_check(binary)
 
-    rows = [(f, row(binary, f)) for f in FORMS]
+    wanted = [a for a in sys.argv[1:] if a in POSITIONS] or list(POSITIONS)
+    widths = {"C": 26, "Rust": 22, "Zig": 18, "Verilog": 30}
     w = max(len(f) for f in FORMS)
-    widths = {"C": 26, "Rust": 22, "Zig": 18, "Verilog": 26}
-    header = "t27 form".ljust(w) + " | " + " | ".join(l.ljust(widths[l]) for l, _ in BACKENDS)
-    print(header)
-    print("-" * len(header))
-    for form, r in rows:
-        cells = [r[l][: widths[l]].ljust(widths[l]) for l, _ in BACKENDS]
-        print(form.ljust(w) + " | " + " | ".join(cells))
-    print()
+    for position in wanted:
+        header = f"{position} position".ljust(w) + " | " + " | ".join(
+            l.ljust(widths[l]) for l, _ in BACKENDS
+        )
+        print(header)
+        print("-" * len(header))
+        for form in FORMS:
+            r = row(binary, form, position)
+            cells = [r[l][: widths[l]].ljust(widths[l]) for l, _ in BACKENDS]
+            print(form.ljust(w) + " | " + " | ".join(cells))
+        print()
     print("A reader, not a gate. A row whose columns disagree is a QUESTION;")
     print("three of the five known divergences needed a real compiler to settle,")
     print("and one candidate was refuted by reading the compiler's own comments.")

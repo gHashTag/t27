@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6e2525df8bb57fbbd6fcb8580d3a52fb6d50d595038f925db8b7a7c59b7d350a",
+  "gen_hash_c": "sha256:a9880ebdb51408bb2d952994bfa9815df2ee2c35eb73d4b0aef5dd32a2db23f3",
   "gen_hash_rust": "sha256:bc9719a6aecfa4fa223008fcd185c323f5146d55e7b78855b751f1df87f0a2b8",
   "gen_hash_verilog": "sha256:b61c003f24955daa6eda2f075c52c3f38a1ae9febcd0aec01a197ee30c6582a0",
   "gen_hash_zig": "sha256:3ecedbf4e0cd2a1f0e1475fe00cf420f3bd6af6ada69ea53e60c0e4bc50bb463",
   "module": "SemanticSearch",
   "ring": 12,
-  "sealed_at": "2026-09-08T00:32:46Z",
+  "sealed_at": "2026-09-08T01:34:15Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:513b6a22de6436f9269e7422c67954b6836990fa5ddeb147df0c992e698e56ee",
   "spec_path": "specs/memory/semantic_search.t27"
