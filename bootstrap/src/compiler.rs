@@ -19365,6 +19365,51 @@ impl CCodegen {
     /// Returns None for an empty list and for any element that is not a plain
     /// numeric literal -- a call such as `cast_i8(1)` has a return type this
     /// does not read, and guessing one would be worse than `__auto_type`.
+    /// The element type of an array literal whose elements are all CALLS to
+    /// functions this module declares, when they all return the same thing.
+    ///
+    /// ~92 of the remaining `__auto_type x = { ... }` errors are lists like
+    /// `[cast_i8(1), cast_i8(2)]`. The literal inference refuses them because
+    /// it reads literals and not return types -- and the map it needs,
+    /// `fn_return_types`, is already built and already consulted a few hundred
+    /// lines away. A lookup, not an invention: nothing here guesses a type,
+    /// and a call to a function this module does not declare still refuses.
+    ///
+    /// All elements must agree. A mixed list has no single element type and
+    /// `__auto_type` remains the honest answer for it.
+    fn c_call_list_elem(&self, lit: &Node) -> Option<String> {
+        if lit.kind != NodeKind::ExprArrayLiteral || lit.children.is_empty() {
+            return None;
+        }
+        let mut found: Option<String> = None;
+        for e in &lit.children {
+            if e.kind != NodeKind::ExprCall {
+                return None;
+            }
+            let rt = self.fn_return_types.get(&e.name)?.trim().to_string();
+            if rt.is_empty() || rt == "void" {
+                return None;
+            }
+            // ONLY a scalar return type. The first version took the return
+            // type verbatim and emitted `[]Trit structures[2] = { ... }` --
+            // t27 syntax in a C declarator, and two errors where there had
+            // been one. An array, a slice, an optional or a pointer needs the
+            // declarator machinery this branch does not have, and `__auto_type`
+            // is the better answer until it does.
+            if rt.starts_with('[') || rt.starts_with('?') || rt.starts_with('*')
+                || rt.contains('(') || rt.contains("::")
+            {
+                return None;
+            }
+            match &found {
+                None => found = Some(rt),
+                Some(prev) if *prev == rt => {}
+                Some(_) => return None,
+            }
+        }
+        found
+    }
+
     fn c_literal_list_elem(lit: &Node) -> Option<String> {
         if lit.kind != NodeKind::ExprArrayLiteral {
             return None;
@@ -20153,7 +20198,10 @@ impl CCodegen {
                                     // `__auto_type x = { 1, 2, 3 }`. Rust and
                                     // Zig infer it; C cannot, so it has to be
                                     // named. See `c_literal_list_elem`.
-                                    || Self::c_literal_list_elem(c).is_some())
+                                    || Self::c_literal_list_elem(c).is_some()
+                                    // ... and a list of calls, whose element
+                                    // type is a LOOKUP in `fn_return_types`.
+                                    || self.c_call_list_elem(c).is_some())
                         })
                 {
                     // W699 rung 3: `const vals = [_]i32{...}` has no annotation,
@@ -20165,6 +20213,8 @@ impl CCodegen {
                     let elem: String = if !lit.extra_type.is_empty() {
                         lit.extra_type.clone()
                     } else if let Some(t) = Self::c_literal_list_elem(lit) {
+                        t
+                    } else if let Some(t) = self.c_call_list_elem(lit) {
                         t
                     } else {
                         // Recovered from the first element; the condition above
