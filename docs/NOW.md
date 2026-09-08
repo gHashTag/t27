@@ -1,6 +1,37 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-09-06
+Last updated: 2026-09-08
+
+## A const type written without a colon lost its value as well as its type
+
+- Branch: `fix/const-type-without-colon`
+- Changed: `bootstrap/src/compiler.rs` (`parse_const_decl`)
+
+`const GF16_PHI_DISTANCE f64 = 0.049` is the form the numeric specs use, and
+nothing accepted it. `parse_const_decl` looked for `: Type`; with no colon that
+branch did not fire, so the next check saw an identifier where it wanted `=`
+and the VALUE was dropped too. The result was a ConstDecl with a name and
+nothing else, which `gen_const_decl` then discarded -- correctly, since a const
+with no value declares nothing -- while the invariants and tests referring to
+that constant were still emitted.
+
+    specs/02-gf16-format.tri     3 of 3 `pub const` lost
+    specs/ (9 files)             20 declarations lost, all 20 now emitted
+
+Found from the trinity-fpga side, where `t27c gen` output was being compared
+against `vibee_gen` output. The error that led here was
+`use of undeclared identifier 'TF3_PHI_DISTANCE'` in generated Zig.
+
+**This does not make the Zig backend usable, and the number says so: still 0 of
+9 specs produce valid Zig.** The remaining blocker is separate --
+`pub fn gf16_to_f32(x gf16) -> f32` declares a signature with NO BODY, the
+parser produces no FnDecl for it at all, and a body-less signature cannot
+become a compilable Zig function without a decision about what to emit in its
+place. That is a design question for whoever owns the backend, not a parse bug.
+
+For contrast, measured the same day: `t27c gen-verilog` produces real module
+structure for 9 of 9 of those specs. The hardware path works; the software one
+does not.
 
 ## `const X = packed struct {}` lost its name, and yosys never minded (Closes #3383)
 
