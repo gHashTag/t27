@@ -22511,6 +22511,45 @@ fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
+/// Structs declared with type parameters, in source order, each once.
+///
+/// The parser records `pub const Map(K, V) = struct { ... }` as a StructDecl
+/// whose `params` are the type parameters, and `collect_type_params` feeds
+/// them to the unknown-type check so that `K` and `V` are not reported as
+/// undeclared. That tolerance is correct and it silences the only reader that
+/// might have noticed the rest.
+///
+/// Because the backends do NOT agree about what happens next, and the split
+/// was measured rather than assumed:
+///
+///   gen-rust   `pub struct Box<T>` and `pub fn get<T>(b: Box<T>)`. Compiles.
+///   gen-c      `struct Box { ... }` -- the parameter DROPPED from the
+///              declaration -- and `int32_t get(Box(T) b)` at the use site:
+///              "unknown type name 'T'".
+///   gen-zig    `pub const Box = struct` and `fn get(b: Box(T))`:
+///              "use of undeclared identifier 'T'".
+///   gen-verilog  per-field regs, marked UNSUPPORTED_ICARUS.
+///
+/// So this is not "no backend lowers generics". One does. Two drop the
+/// parameter in one place and keep it in another, which is the inconsistency
+/// worth reporting.
+fn generic_struct_decls(node: &Node, out: &mut Vec<(String, Vec<String>)>) {
+    if node.kind == NodeKind::StructDecl && !node.name.is_empty() {
+        let ps: Vec<String> = node
+            .params
+            .iter()
+            .map(|(n, _)| n.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .collect();
+        if !ps.is_empty() {
+            out.push((node.name.clone(), ps));
+        }
+    }
+    for child in &node.children {
+        generic_struct_decls(child, out);
+    }
+}
+
 fn collect_type_params(node: &Node, out: &mut std::collections::HashSet<String>) {
     if node.kind == NodeKind::StructDecl {
         for (name, _) in &node.params {
@@ -23480,6 +23519,24 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     // A name declared twice reaches every backend as a redeclaration, and all
     // four of them reject it -- yet `check` was silent. See
     // `duplicate_top_level_decls`.
+    // A generic struct: Rust lowers it, C and Zig do not, and nothing said so.
+    {
+        let mut generics = Vec::new();
+        generic_struct_decls(ast, &mut generics);
+        let mut seen = std::collections::HashSet::new();
+        for (name, ps) in generics {
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+            result.errors.push(format!(
+                "warning: `{name}({})` is generic -- gen-rust lowers it, but gen-c and gen-zig \
+drop the parameter from the declaration and keep it at each use, where it is undeclared",
+                ps.join(", ")
+            ));
+            result.warnings += 1;
+        }
+    }
+
     for d in duplicate_top_level_decls(ast) {
         let msg = match d {
             DuplicateDecl::SameNamespace(name, kind, n) => format!(

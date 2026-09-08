@@ -203,7 +203,18 @@ def main() -> int:
         if "--self-check" in sys.argv:
             return self_check(d, f)
         got = counts(d, f)
-        print(f"planted {PLANTED} errors per language\n")
+        # WHICH MACHINE. The same command reported 20 here and 50 on CI,
+        # because one `cc` is Apple clang and the other is gcc -- and no report
+        # said where it ran. A diagnostic count measures the code, the
+        # instrument AND the machine; only the first was ever written down.
+        print("instruments:")
+        for tool, argv in (("cc", ["cc", "--version"]), ("rustc", ["rustc", "--version"]),
+                           ("zig", ["zig", "version"]), ("iverilog", ["iverilog", "-V"]),
+                           ("yosys", ["yosys", "-V"])):
+            v = run(argv)
+            line = v.strip().splitlines()[0][:64] if v and v.strip() else "not on PATH"
+            print(f"  {tool:9} {line}")
+        print(f"\nplanted {PLANTED} errors per language\n")
         bad = False
         absent = []
         checked = 0
