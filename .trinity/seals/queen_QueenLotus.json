@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8d76609f52e81631129cb054e4c7eadd1c30d3a6497bc05ab703afc757c46af4",
+  "gen_hash_c": "sha256:fb12bf3edf0a409c991c6839103e26b6a589de31db345f3df569a0a55c28db2f",
   "gen_hash_rust": "sha256:52f5a56689b47378339bd92c8d4a7d91ca5d1184a7b63e446131a9edabc0bf4d",
   "gen_hash_verilog": "sha256:04b632aa441fe627113a46fa103e4bc8adf64523238f04960d0ea737b54fae8d",
   "gen_hash_zig": "sha256:fe65321a25cd30568372c17d88944f22a4b2dd9905b37142f5f3204305fdfb50",
   "module": "QueenLotus",
   "ring": 12,
-  "sealed_at": "2026-09-08T01:34:16Z",
+  "sealed_at": "2026-09-08T03:20:28Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:be1fcb56b7c1f569d9717245eb321e512ba8e19bbf711f386557de51b33fdbf5",
   "spec_path": "specs/queen/lotus.t27"

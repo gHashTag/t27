@@ -19091,7 +19091,15 @@ impl CCodegen {
             "int".to_string()
         };
         if node.extra_mutable {
-            self.write(&format!("static {} {} = ", c_type, node.name));
+            // The mutable twin of the `static const` below, and it carried the
+            // same defect: `static [4]u8 A = { ... }`. Found by grepping for
+            // every site that builds a declarator from a type and a name --
+            // fixing only the one the probe happened to use would have left
+            // this identical line four lines above it.
+            match Self::c_module_array_decl(&node.extra_type, &node.name) {
+                Some(decl) => self.write(&format!("static {} = ", decl)),
+                None => self.write(&format!("static {} {} = ", c_type, node.name)),
+            }
             if let Some(child) = node.children.first() {
                 self.gen_c_expr(child);
             } else if !node.value.is_empty() {
@@ -19119,8 +19127,20 @@ impl CCodegen {
                 };
                 self.write_line(&format!("#define {} {}", node.name, text));
             } else {
-                // Complex expression → static const
-                self.write(&format!("static const {} {} = ", c_type, node.name));
+                // Complex expression → static const.
+                //
+                // A `[N]T` const put the brackets before the name --
+                // `static const [4]u8 A = { 1, 2, 3, 4 };` -- which clang meets
+                // with "brackets are not allowed here; to declare an array,
+                // place the brackets after the identifier". The declarator is
+                // the same one struct fields already use, so `c_array_field`
+                // builds it rather than a fourth copy of the rule: parameters
+                // want `T x[static N]` (#3435), fields and now consts want
+                // `T name[N]` (#3446), and a local wants it too (#3448).
+                match Self::c_module_array_decl(&node.extra_type, &node.name) {
+                    Some(decl) => self.write(&format!("static const {} = ", decl)),
+                    None => self.write(&format!("static const {} {} = ", c_type, node.name)),
+                }
                 self.gen_c_expr(child);
                 self.write_line(";");
             }
@@ -19278,6 +19298,34 @@ impl CCodegen {
     /// FIELD POSITION ONLY. In parameter position `T x[static N]` is the
     /// spelling that carries a check (#3435), and in return position C cannot
     /// return an array at all (#3445) -- three positions, three answers.
+    /// A module-level `[N]T` or `[]T` declarator: `T name[N]` / `T name[]`.
+    ///
+    /// `c_array_field` answers the sized case and REFUSES a slice, because a
+    /// struct field cannot be an incomplete array. A module constant can:
+    /// `T name[] = { ... }` is legal C and takes its size from the initialiser
+    /// list, which is the same rule the local position needed (#3448).
+    ///
+    /// Both call sites are inside a branch that already HAS an initialiser, so
+    /// there is no unsized-slice case to guard. A `has_init` parameter was
+    /// written and removed: a mutant deleting its check survived every test,
+    /// which is what a guard nothing can reach looks like. Add it back with a
+    /// caller that needs it, not before.
+    fn c_module_array_decl(ty: &str, name: &str) -> Option<String> {
+        if let Some(sized) = Self::c_array_field(ty, name) {
+            return Some(sized.trim_end_matches(';').to_string());
+        }
+        let t = ty.trim();
+        let rest = t.strip_prefix("[]")?.trim();
+        let (qual, elem) = match rest.strip_prefix("const ") {
+            Some(r) => ("const ", r.trim()),
+            None => ("", rest),
+        };
+        if elem.is_empty() || elem.starts_with('[') {
+            return None;
+        }
+        Some(format!("{}{} {}[]", qual, Self::type_to_c(elem), name))
+    }
+
     fn c_array_field(ty: &str, fname: &str) -> Option<String> {
         let t = ty.trim();
         // The `;` test is REDUNDANT today and kept as intent: a mutant deleting
