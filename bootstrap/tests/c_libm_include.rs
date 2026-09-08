@@ -15,9 +15,11 @@
 //! For three of them the spelling was never wrong: `sqrt(x)` IS C, and the
 //! only thing missing was `<math.h>`. The whole repair is the include.
 //!
-//! `abs` is deliberately NOT included: C has `abs` for int and `fabs` for
-//! double, and picking one without the argument's type is a silent truncation.
-//! `min` and `max` are not C functions at all. Those two rows stay loud.
+//! `abs` was deliberately NOT included here: C has `abs` for int and `fabs`
+//! for double, and picking one without the argument's type is a silent
+//! truncation. The NEXT pass answered it with a C11 `_Generic` macro
+//! (`c_abs_generic.rs`), which needs no type from the emitter at all.
+//! `min` and `max` are not C functions in any spelling, and stay loud.
 
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -115,14 +117,20 @@ fn a_spec_that_declares_its_own_sqrt_does_not_get_it() {
 }
 
 #[test]
-fn abs_min_and_max_stay_loud() {
-    // Deliberate, and measured: `abs` is 392 uses and C has two of them
-    // (`abs` for int, `fabs` for double) -- choosing without the argument's
-    // type is a silent truncation. `min` and `max` are not C functions.
+fn min_and_max_stay_loud() {
+    // NARROWED, not weakened, and the reason is recorded rather than quietly
+    // dropped: this test also asserted that `abs` pulls nothing in, which was
+    // the deliberate limitation of the pass that added `<math.h>` -- C has two
+    // of them and choosing without the argument's type truncates silently.
+    // The next pass ANSWERED `abs` with a C11 `_Generic` macro, so that half
+    // of the assertion is now false ON PURPOSE and lives in
+    // `c_abs_generic.rs`. What remains true is the other half: `min` and `max`
+    // are not C functions at all, and nothing here invents them.
     let (h, _d) = gen_c(
-        "module M {\n    fn f(v: f64) -> f64 { var a = abs(v); var b = max(v, v); return a; }\n}\n",
+        "module M {\n    fn f(v: f64) -> f64 { var b = max(v, v); return b; }\n}\n",
         "loud",
     );
-    assert!(!h.contains("#include <math.h>"), "abs and max do not pull it in:\n{h}");
-    assert!(h.contains("abs(v)"), "and they are left as written:\n{h}");
+    assert!(h.contains("max(v, v)"), "max is left as written:\n{h}");
+    assert!(!h.contains("#include <math.h>"), "and pulls nothing in:\n{h}");
+    assert!(!h.contains("t27_max"), "and no helper is invented for it:\n{h}");
 }

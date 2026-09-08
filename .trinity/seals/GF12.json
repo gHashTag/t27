@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b2edabbb36a81f5aa07d58c32b9bfb1345044573f6f4e63c2285ba82ce0a7dac",
+  "gen_hash_c": "sha256:157c11aeb306a707fbc5f2de994b53928b8532f297a7c850087f2422eb4809f9",
   "gen_hash_rust": "sha256:2f7f464edd935e79782e68ac5975afddc176dda35409bdc5b466cc56fc11f10e",
   "gen_hash_verilog": "sha256:6e199eca4e1d219cc73a3cac86a42b86322f1a1020e836544703a68805abcf63",
   "gen_hash_zig": "sha256:f5bfe3a07bbfce77b1b1448b90fb9df5787b19cab2327091d2a17ec3df236cae",
   "module": "GF12",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-09-08T14:07:51Z",
   "spec_hash": "sha256:911fde186ecfca915f43290f2a98316db08bef4167b499fd8c9d3721346df79f",
   "spec_path": "specs/numeric/gf12.t27"
 }
