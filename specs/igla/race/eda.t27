@@ -801,7 +801,7 @@ test eda_command_exists_whitespace_true
     when ok = command_exists(cmd)
     then ok == true
 
-test eda_command_exists_unknown_false
+test eda_command_exists_unknown_false_2
     given cmd = "unknown_tool"
     when ok = command_exists(cmd)
     then ok == false
@@ -998,7 +998,7 @@ test eda_ppa_delta_equal_returns_zero
     when d = ppa_delta(m1, m2)
     then d == ""
 
-test eda_contains_substring_empty_needle_true
+test eda_contains_substring_empty_needle_true_2
     given s = "abc"
     given needle = ""
     when r = contains_substring(s, needle)
@@ -1023,7 +1023,7 @@ invariant eda_ppa_delta_equal_returns_empty
     m1.area_um2 == m2.area_um2 && m1.power_mw == m2.power_mw && m1.slack_ns == m2.slack_ns && m1.cell_count == m2.cell_count
     ==> ppa_delta(m1, m2) == ""
 
-test eda_command_exists_yosys_true
+test eda_command_exists_yosys_true_2
     when ok = command_exists("yosys")
     then ok == true
 
@@ -1099,7 +1099,7 @@ invariant eda_contains_substring_prefix_found_inv:
     s.len() >= prefix.len() && prefix.len() > 0 ==>
     contains_substring(s, prefix) == true && s.len() >= prefix.len()
 
-test eda_contains_substring_empty_needle_true
+test eda_contains_substring_empty_needle_true_3
     given haystack = "abc"
     given needle = ""
     when found = contains_substring(haystack, needle)
@@ -1208,7 +1208,7 @@ test eda_command_exists_klayout_true
 invariant eda_command_exists_openroad_true_inv:
     command_exists("openroad") == true
 
-test eda_command_exists_yosys_true
+test eda_command_exists_yosys_true_3
     when ok = command_exists("yosys")
     then ok == true
 

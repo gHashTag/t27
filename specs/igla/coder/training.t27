@@ -400,7 +400,7 @@ test neg_log_approx_one
     when y = neg_log_approx(x)
     then y == 0.0
 
-test execution_reward_exact_match
+test execution_reward_exact_match_2
     given code = "module add(input a, input b, output c); assign c = a + b; endmodule"
     given ref = "module add(input a, input b, output c); assign c = a + b; endmodule"
     when r = execution_reward(code, ref)
@@ -599,7 +599,7 @@ test random_batch_size_matches
     when batch = random_batch(batch_size)
     then len(batch) == 4
 
-test count_verified_samples_all_verified
+test count_verified_samples_all_verified_2
     given batch = [
         DataSample { prompt: "p1", rtl: "m1", template: "t1" },
         DataSample { prompt: "p2", rtl: "m2", template: "t2" }
@@ -824,7 +824,7 @@ invariant training_compute_lr_max_step_inv:
     min_lr > 0.0 && max_lr > min_lr ==>
     compute_lr(100, 100, min_lr, max_lr) == max_lr
 
-test training_sgd_update_zero_grads_identity
+test training_sgd_update_zero_grads_identity_2
     given weights = [1.0, 2.0, 3.0]
     given grads = [0.0, 0.0, 0.0]
     given lr = 0.1
@@ -1205,7 +1205,7 @@ test training_sgd_zero_lr_no_change_w309
     when new_w = sgd_update(w, grad, lr)
     then new_w == 5.0
 
-test training_sgd_negative_weight_positive_grad_w309
+test training_sgd_negative_weight_positive_grad_w309_2
     given w = -5.0
     given grad = 1.0
     given lr = 0.1
@@ -1215,7 +1215,7 @@ test training_sgd_negative_weight_positive_grad_w309
 invariant training_sgd_zero_lr_no_change_w309_inv:
     sgd_update(5.0, 1.0, 0.0) == 5.0
 
-test training_sgd_negative_weight_positive_grad_w309
+test training_sgd_negative_weight_positive_grad_w309_3
     given w = -5.0
     given grad = 1.0
     given lr = 0.1

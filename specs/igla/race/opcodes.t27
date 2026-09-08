@@ -187,7 +187,7 @@ test is_sacred_opcode_below_min
     when ok = is_sacred_opcode(op)
     then ok == false
 
-test validate_chain_empty
+test validate_chain_empty_2
     given chain = []u8{}
     when ok = validate_chain(chain)
     then ok == true
@@ -409,7 +409,7 @@ test validate_opcode_chain_empty_returns_true
     when ok = validate_opcode_chain(chain)
     then ok == true
 
-test opcode_name_sacred_boundary
+test opcode_name_sacred_boundary_2
     given op = 0xD0
     when name = opcode_name(op)
     then name == "OP_SACRED_BEGIN"
@@ -474,7 +474,7 @@ test opcode_name_unknown_returns_op_unknown
     when n = opcode_name(op)
     then n == "OP_UNKNOWN"
 
-test get_opcode_cycles_unknown_returns_zero
+test get_opcode_cycles_unknown_returns_zero_2
     given op = 0xFF
     when c = get_opcode_cycles(op)
     then c == 0
@@ -551,7 +551,7 @@ test validate_opcode_chain_single_invalid_returns_false
     when ok = validate_opcode_chain(chain)
     then ok == false
 
-test get_opcode_cycles_unknown_returns_zero
+test get_opcode_cycles_unknown_returns_zero_3
     given op = 0xFF
     when c = get_opcode_cycles(op)
     then c == 0
@@ -808,7 +808,7 @@ test opcodes_get_opcode_cycles_load_const
     when c = get_opcode_cycles(op)
     then c == 1
 
-test opcodes_validate_chain_empty_true
+test opcodes_validate_chain_empty_true_2
     given chain = []Opcode{}
     when ok = validate_opcode_chain(chain)
     then ok == true

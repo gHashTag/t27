@@ -584,7 +584,7 @@ test "config_provider_create" {
 
 
 
-test "config_validation_success" {
+test "config_validation_success_2" {
     const context = validation_context_default();
     const result = validate(config, context);
     try std.testing.expect(result.valid);

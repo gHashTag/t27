@@ -17,30 +17,13 @@
 # 2026-09-08 (second): 30 specs / 341 names -> 27 / 172. 188 duplicate test
 # blocks whose body was BYTE-IDENTICAL to their twin were deleted; what remains
 # is the 172 whose bodies differ and which need a reading, not a script.
-specs/config/schema.t27 1
+#
+# 2026-09-08 (third): 27 specs / 172 names -> 5 / 28. The 185 duplicated test
+# names were RENAMED, not deleted: their bodies differ in inputs and in
+# expectations, so deleting either copy loses a real case. What remains is 28
+# names that are not test blocks -- structs, enums and functions declared twice.
 specs/file/operations.t27 1
-specs/igla/coder/arch.t27 2
-specs/igla/coder/benchmark.t27 16
-specs/igla/coder/dataset.t27 1
-specs/igla/coder/eval.t27 4
-specs/igla/coder/pipeline.t27 2
-specs/igla/coder/tokenizer.t27 2
-specs/igla/coder/training.t27 4
-specs/igla/race/adder_tree.t27 5
-specs/igla/race/backend.t27 10
-specs/igla/race/bram_weights.t27 8
-specs/igla/race/cordic.t27 6
-specs/igla/race/cordic_fixed.t27 14
-specs/igla/race/cordic_top.t27 8
-specs/igla/race/eda.t27 3
-specs/igla/race/formal.t27 6
-specs/igla/race/gemm.t27 12
-specs/igla/race/opcodes.t27 4
-specs/igla/race/rtl.t27 7
-specs/igla/race/systolic_array.t27 7
-specs/igla/race/systolic_ternary.t27 13
-specs/igla/race/ternary_gemm.t27 10
-specs/igla/race/ternary_inference.t27 4
-specs/igla/race/ternary_mac.t27 6
-specs/igla/race/yosys.t27 5
+specs/igla/coder/benchmark.t27 13
+specs/igla/race/backend.t27 2
+specs/igla/race/cordic_top.t27 1
 specs/ml/optimizer/adamw.t27 11

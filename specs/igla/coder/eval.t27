@@ -2616,7 +2616,7 @@ test yosys_report_empty_module_fails
     when r = run_yosys_real(code)
     then r.synth_ok == false
 
-test boolean_minimize_absorption
+test boolean_minimize_absorption_2
     given expr = "A + AB"
     when out = boolean_minimize(expr)
     then out == "A"
@@ -2944,7 +2944,7 @@ test eval_compare_ppa_selects_higher_mhz_equal_luts
     when best = compare_ppa_reports(a, b)
     then best.max_mhz == 200.0
 
-test eval_count_assign_statements_single_assign
+test eval_count_assign_statements_single_assign_2
     given rtl = "assign y = a + b;"
     when n = count_assign_statements(rtl)
     then n == 1
@@ -2952,12 +2952,12 @@ test eval_count_assign_statements_single_assign
 invariant eval_count_assign_statements_single_assign_inv:
     count_assign_statements("assign y = a + b;") == 1
 
-test eval_count_assign_statements_two_assigns
+test eval_count_assign_statements_two_assigns_2
     given rtl = "assign y = a; assign z = b;"
     when n = count_assign_statements(rtl)
     then n == 2
 
-test eval_compare_ppa_equal_reports
+test eval_compare_ppa_equal_reports_2
     given a = YosysReport { lut_count: 50, ff_count: 10, carry_count: 5, max_mhz: 200.0, synth_ok: true }
     given b = YosysReport { lut_count: 50, ff_count: 10, carry_count: 5, max_mhz: 200.0, synth_ok: true }
     when best = compare_ppa_reports(a, b)

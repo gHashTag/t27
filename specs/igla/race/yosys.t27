@@ -703,7 +703,7 @@ test strings_equal_prefix_false
     when ok = strings_equal(a, b)
     then ok == false
 
-test count_substring_no_match
+test count_substring_no_match_2
     given haystack = "abcd"
     given needle = "xyz"
     when c = count_substring(haystack, needle)
@@ -726,7 +726,7 @@ test strings_equal_same_true
     when ok = strings_equal(a, b)
     then ok == true
 
-test count_substring_single_char
+test count_substring_single_char_2
     given haystack = "aaaa"
     given needle = "a"
     when c = count_substring(haystack, needle)
@@ -830,13 +830,13 @@ test yosys_match_at_same_string_position_zero
     when ok = match_at(haystack, needle, start)
     then ok == true
 
-test yosys_compute_coverage_percent_zero_proved
+test yosys_compute_coverage_percent_zero_proved_2
     given proved = 0
     given total = 10
     when p = compute_coverage_percent(proved, total)
     then p == 0.0
 
-test yosys_compute_coverage_percent_half
+test yosys_compute_coverage_percent_half_2
     given proved = 5
     given total = 10
     when p = compute_coverage_percent(proved, total)
@@ -938,7 +938,7 @@ test yosys_strings_equal_same_string_true
     when r = strings_equal(a, b)
     then r == true
 
-test yosys_compute_coverage_percent_half
+test yosys_compute_coverage_percent_half_3
     given proved = 2
     given total = 4
     when p = compute_coverage_percent(proved, total)
@@ -972,7 +972,7 @@ test yosys_strings_equal_empty_true
     when r = strings_equal(a, b)
     then r == true
 
-test yosys_compute_coverage_percent_half
+test yosys_compute_coverage_percent_half_4
     given proved = 4
     given total = 8
     when p = compute_coverage_percent(proved, total)
@@ -1075,7 +1075,7 @@ test yosys_match_at_beginning_boundary
 invariant yosys_count_substring_single_occurrence_inv:
     count_substring("hello", "l") == 2
 
-test yosys_strings_equal_empty_empty_true
+test yosys_strings_equal_empty_empty_true_2
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)

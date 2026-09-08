@@ -276,7 +276,7 @@ test cordic_sin_zero
     when (s, c) = cordic_sin_cos(angle, iters)
     then abs_f32(s[0]) < 0.01
 
-test cordic_cos_zero
+test cordic_cos_zero_2
     given angle = 0.0
     given iters = 8
     when (s, c) = cordic_sin_cos(angle, iters)
@@ -294,13 +294,13 @@ test cordic_cos_quarter_pi
     when (s, c) = cordic_sin_cos(angle, iters)
     then abs_f32(c[0] - 0.70710678) < 0.01
 
-test cordic_sin_half_pi
+test cordic_sin_half_pi_2
     given angle = 1.5707963267948966
     given iters = 12
     when (s, c) = cordic_sin_cos(angle, iters)
     then abs_f32(s[0] - 1.0) < 0.01
 
-test cordic_cos_half_pi
+test cordic_cos_half_pi_2
     given angle = 1.5707963267948966
     given iters = 12
     when (s, c) = cordic_sin_cos(angle, iters)
@@ -607,7 +607,7 @@ test cordic_arctan_table_entry_max
     when val = arctan_table_entry(i)
     then val > 0.0 && val < 0.001
 
-test cordic_arctan_table_entry_first
+test cordic_arctan_table_entry_first_2
     given i = 1
     when val = arctan_table_entry(i)
     then val > 0.46 && val < 0.47
@@ -820,7 +820,7 @@ test cordic_arctan_table_entry_0_is_pi_over_4
     when v = arctan_table_entry(i)
     then v > 0.78 && v < 0.79
 
-test cordic_sin_cos_pi_over_2_approx
+test cordic_sin_cos_pi_over_2_approx_2
     given angle = 1.5707963267948966
     given iters = 8
     when result = cordic_sin_cos(angle, iters)
@@ -905,7 +905,7 @@ test cordic_pow2_neg_entry_7_onetwentyeighth
     when v = pow2_neg_entry(i)
     then v == 0.0078125
 
-test cordic_sin_zero_exact
+test cordic_sin_zero_exact_2
     given angle = 0.0
     given iters = 8
     when (s_arr, c_arr) = cordic_sin_cos(angle, iters)

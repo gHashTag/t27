@@ -292,11 +292,11 @@ test cordic_fixed_shift_15_extreme
     when nx = cordic_x_next(x, y, z, shift)
     then nx == 100
 
-test cordic_fixed_sin_zero
+test cordic_fixed_sin_zero_2
     when s = cordic_sin(0)
     then s == 0
 
-test cordic_fixed_cos_zero
+test cordic_fixed_cos_zero_2
     when c = cordic_cos(0)
     then c > 16383
 
@@ -387,12 +387,12 @@ test cordic_fixed_cos_zero_q15
     when c = cordic_cos(a)
     then c == 16384
 
-test cordic_fixed_sin_pi
+test cordic_fixed_sin_pi_2
     given a = 16384
     when s = cordic_sin(a)
     then s > -500 && s < 500
 
-test cordic_fixed_cos_pi
+test cordic_fixed_cos_pi_2
     given a = 16384
     when c = cordic_cos(a)
     then c < -15800
@@ -402,7 +402,7 @@ test cordic_fixed_sin_negative
     when s = cordic_sin(a)
     then s < -16000
 
-test cordic_fixed_cos_half_pi
+test cordic_fixed_cos_half_pi_2
     given a = 8192
     when c = cordic_cos(a)
     then c > -500 && c < 500
@@ -424,7 +424,7 @@ test cordic_fixed_min_i16_angle
     when c = cordic_cos(a)
     then s >= -16384 && s <= 16384 && c >= -16384 && c <= 16384
 
-test cordic_fixed_shift_15_extreme
+test cordic_fixed_shift_15_extreme_2
     given x = 1000
     given y = 2000
     given z = 1
@@ -566,7 +566,7 @@ test cordic_fixed_y_next_y_zero
     then ny == 500
 
 
-test cordic_fixed_cos_zero_angle
+test cordic_fixed_cos_zero_angle_2
     given a = 0
     when c = cordic_cos(a)
     then c == 16384
@@ -632,12 +632,12 @@ test cordic_fixed_cos_quarter_pi
     then c > 11000 && c < 12000
 
 
-test cordic_fixed_cos_zero_angle
+test cordic_fixed_cos_zero_angle_3
     given a = 0
     when c = cordic_cos(a)
     then c > 32760 && c < 32768
 
-test cordic_fixed_cos_half_pi
+test cordic_fixed_cos_half_pi_3
     given a = 0.5
     when c = cordic_cos(a)
     then c > 0 && c < 500
@@ -648,7 +648,7 @@ test cordic_fixed_cos_zero_exact
     when c = cordic_cos(a)
     then c == 9953
 
-test cordic_fixed_sin_quarter_pi
+test cordic_fixed_sin_quarter_pi_2
     given a = 4096
     when s = cordic_sin(a)
     then s > 7000 && s < 8500
@@ -668,12 +668,12 @@ test cordic_fixed_cos_quarter_pi_approx
     when c = cordic_cos(a)
     then c > 7000 && c < 8500
 
-test cordic_fixed_sin_negative_angle
+test cordic_fixed_sin_negative_angle_2
     given a = -4096
     when s = cordic_sin(a)
     then s < -7000 && s > -8500
 
-test cordic_fixed_cos_zero_angle
+test cordic_fixed_cos_zero_angle_4
     given a = 0
     when c = cordic_cos(a)
     then c == 9953
@@ -690,7 +690,7 @@ test cordic_fixed_sin_small_positive
     when s = cordic_sin(a)
     then s > 400 && s < 600
 
-test cordic_fixed_cos_zero_angle_exact
+test cordic_fixed_cos_zero_angle_exact_2
     given a = 0
     when c = cordic_cos(a)
     then c == 16384
@@ -713,12 +713,12 @@ test cordic_fixed_x_next_negative_z
     when nx = cordic_x_next(x, y, z, shift)
     then nx == 125
 
-test cordic_fixed_sin_half_pi
+test cordic_fixed_sin_half_pi_2
     given a = 8192
     when s = cordic_sin(a)
     then s > 9000 && s < 10000
 
-test cordic_fixed_cos_half_pi
+test cordic_fixed_cos_half_pi_4
     given a = 8192
     when c = cordic_cos(a)
     then c > -1000 && c < 1000
@@ -745,7 +745,7 @@ test cordic_fixed_y_next_x_zero_returns_y
     when ny = cordic_y_next(y, x, z, shift)
     then ny == 200
 
-test cordic_fixed_cos_zero_angle
+test cordic_fixed_cos_zero_angle_5
     given a = 0
     when c = cordic_cos(a)
     then c > 0
@@ -758,7 +758,7 @@ test cordic_fixed_y_next_negative_z
     when ny = cordic_y_next(y, x, z, shift)
     then ny == 125
 
-test cordic_fixed_sin_cos_sum_squares_zero_angle
+test cordic_fixed_sin_cos_sum_squares_zero_angle_2
     given a = 0
     when s = cordic_sin(a)
     when c = cordic_cos(a)
@@ -894,12 +894,12 @@ test cordic_fixed_cordic_sin_zero_angle
     when s = cordic_sin(a)
     then s < 0.1 && s > -0.1
 
-test cordic_fixed_cordic_cos_negative_angle
+test cordic_fixed_cordic_cos_negative_angle_2
     given a = cast_i16(-4096)
     when c = cordic_cos(a)
     then c > 0.5
 
-test cordic_fixed_cordic_sin_negative_angle
+test cordic_fixed_cordic_sin_negative_angle_2
     given a = cast_i16(-4096)
     when s = cordic_sin(a)
     then s < -0.5
