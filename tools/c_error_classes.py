@@ -38,6 +38,13 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# A DIAGNOSTIC, not the word. Clang echoes the offending source line under each
+# message, so a spec that contains the text `error: ` in a STRING LITERAL is
+# counted as an error by a bare `error:` search: 9 phantom errors in this
+# corpus, from three lines of one spec. Anchoring on `file:line:col: error: `
+# is what separates what the compiler SAID from what it QUOTED.
+DIAG = re.compile(r"^\S+:\d+:\d+: error: (.*)$", re.M)
+
 
 def t27c() -> str:
     for rel in ("target/release/t27c", "bootstrap/target/release/t27c"):
@@ -131,7 +138,7 @@ def self_check(binary: str) -> int:
             ["cc", "-std=c11", cc_uncap_flag(), "-fsyntax-only", "-x", "c", bad],
             capture_output=True, text=True,
         )
-        n = len(re.findall(r"error:", r.stdout + r.stderr))
+        n = len(DIAG.findall(r.stdout + r.stderr))
         print(f"  planted 1 error -> counted {n} {'PASS' if n >= 1 else 'FAIL'}")
         ok &= n >= 1
         good = os.path.join(d, "good.h")
@@ -140,9 +147,29 @@ def self_check(binary: str) -> int:
             ["cc", "-std=c11", cc_uncap_flag(), "-fsyntax-only", "-x", "c", good],
             capture_output=True, text=True,
         )
-        n = len(re.findall(r"error:", r.stdout + r.stderr))
+        n = len(DIAG.findall(r.stdout + r.stderr))
         print(f"  clean file      -> counted {n} {'PASS' if n == 0 else 'FAIL'}")
         ok &= n == 0
+        # The case that found the defect: a file that is CLEAN except that it
+        # contains the text `error: ` inside a string. A bare `error:` search
+        # counts the compiler's echo of that line and reports 1.
+        # The error must be ON the quoted line, or clang never echoes it and
+        # the control cannot fail. The first version of this fixture put the
+        # string on its own clean line and passed for the wrong reason.
+        quoted = os.path.join(d, "quoted.h")
+        open(quoted, "w").write(
+            'const char *f(void){ return ("error: " zzz_undeclared); }\n'
+        )
+        r = subprocess.run(
+            ["cc", "-std=c11", cc_uncap_flag(), "-fsyntax-only", "-x", "c", quoted],
+            capture_output=True, text=True,
+        )
+        n = len(DIAG.findall(r.stdout + r.stderr))
+        raw = len(re.findall(r"error:", r.stdout + r.stderr))
+        print(f"  1 error on a line quoting \"error: \" -> counted {n}, "
+              f"unanchored counts {raw} "
+              f"{'PASS' if n == 1 and raw > n else 'FAIL'}")
+        ok &= n == 1 and raw > n
     return 0 if ok else 2
 
 
@@ -158,11 +185,11 @@ def main() -> int:
     v = subprocess.run(["cc", "--version"], capture_output=True, text=True).stdout
     print(f"instrument: {v.strip().splitlines()[0][:64]}  {cc_uncap_flag()}")
     files = text.count("### ")
-    errors = len(re.findall(r"error:", text))
-    clean = sum(1 for c in text.split("### ")[1:] if "error:" not in c)
+    errors = len(DIAG.findall(text))
+    clean = sum(1 for c in text.split("### ")[1:] if not DIAG.search(c))
     print(f"translation units {files}   errors {errors}   compiling {clean}\n")
     classes = collections.Counter(
-        re.sub(r"\d+", "N", m) for m in re.findall(r"error: ([^[\n]*)", text)
+        re.sub(r"\d+", "N", m.split("[")[0]) for m in DIAG.findall(text)
     )
     for msg, n in classes.most_common(12):
         print(f"  {n:5}  {msg.strip()[:70]}")

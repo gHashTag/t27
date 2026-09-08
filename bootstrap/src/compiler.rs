@@ -18114,10 +18114,13 @@ pub struct CCodegen {
     /// type of its own; its consumer's parameter is declared, so the type is
     /// recoverable from the use. Zig has done this since W585.
     fn_param_types: std::collections::HashMap<String, Vec<String>>,
-    /// Enums this module declares. `Trit.pos` is an ENUM MEMBER, and C has no
-    /// `Type.member`: the constant is named `TRIT_POS`. Without this set the
-    /// dotted form went into C verbatim.
-    c_enum_names: std::collections::HashSet<String>,
+    /// Enums this module declares, each with its variant names UPPER-CASED.
+    /// `Trit.pos` and `TokenKind::KwFn` are both ENUM MEMBERS, and C has
+    /// neither `Type.member` nor `Type::member`: the constant `gen_c_enum`
+    /// emits is `{TYPE}_{MEMBER}`. The variants are kept, not just the type
+    /// names, so a member the enum does NOT declare stays loud instead of
+    /// being lowered into a constant that was never emitted.
+    c_enum_variants: std::collections::HashMap<String, std::collections::HashSet<String>>,
     /// Scaffold binding name -> the C type recovered for it.
     scaffold_locals_c: std::collections::HashMap<String, String>,
     /// t27 tuple return type of the function currently being emitted, so an
@@ -18144,7 +18147,7 @@ impl CCodegen {
             module_name: String::new(),
             fn_return_types: std::collections::HashMap::new(),
             fn_param_types: std::collections::HashMap::new(),
-            c_enum_names: std::collections::HashSet::new(),
+            c_enum_variants: std::collections::HashMap::new(),
             scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
@@ -18686,11 +18689,16 @@ impl CCodegen {
         }
 
         // Section: Enums
-        // Recorded whether or not any enum is emitted here, because the
-        // dotted member form has to be recognised wherever it appears.
+        // Recorded whether or not any enum is emitted here, because the member
+        // forms have to be recognised wherever they appear.
         for e in &enums {
             if !e.name.is_empty() {
-                self.c_enum_names.insert(e.name.clone());
+                let vs = e
+                    .children
+                    .iter()
+                    .map(|v| v.name.to_uppercase())
+                    .collect::<std::collections::HashSet<String>>();
+                self.c_enum_variants.insert(e.name.clone(), vs);
             }
         }
         if !enums.is_empty() {
@@ -19163,6 +19171,30 @@ impl CCodegen {
                 node.name,
                 Self::c_literal(&node.value)
             ));
+        }
+    }
+
+    /// The C constant for `base`'s enum member `member`, if this module
+    /// declares that enum AND that member.
+    ///
+    /// Both spellings the specs use -- `Trit.pos` and `TokenKind::KwFn` --
+    /// arrive here so that one convention answers them: `gen_c_enum` writes
+    /// `{TYPE}_{MEMBER}` upper-cased, and nothing else may be invented.
+    ///
+    /// The membership test is deliberately on the VARIANT, not just the enum
+    /// name. 12 sites in the corpus name a member their enum does not declare
+    /// (`Trit::TRUE` against an enum of pos/neg/zero); lowering those would
+    /// emit `TRIT_TRUE`, a constant `gen_c_enum` never wrote, and trade a
+    /// diagnostic that names the spec's mistake for one that hides it.
+    fn c_enum_constant(&self, base: &str, member: &str) -> Option<String> {
+        if member.is_empty() {
+            return None;
+        }
+        let up = member.to_uppercase();
+        if self.c_enum_variants.get(base)?.contains(&up) {
+            Some(format!("{}_{}", base.to_uppercase(), up))
+        } else {
+            None
         }
     }
 
@@ -20829,6 +20861,22 @@ impl CCodegen {
             }
             NodeKind::ExprIdentifier => {
                 let name = &node.name;
+                // `TokenKind::KwFn` is the SAME enum-member reference the field
+                // -access arm handles, spelled with a path instead of a dot,
+                // and the parser keeps a path in ONE identifier's name. Fixing
+                // only the dotted spelling one pass earlier left 917 `X::Y`
+                // occurrences in the generated C, of which 538 name an enum
+                // this translation unit declares.
+                // No guard against a multi-segment path here: a variant name
+                // is an identifier, so `c_enum_variants` can never hold
+                // `b::c`, and a `!member.contains("::")` test could not change
+                // the outcome. It was written, found unreachable, and removed.
+                if let Some((base, member)) = name.split_once("::") {
+                    if let Some(c) = self.c_enum_constant(base, member) {
+                        self.write(&c);
+                        return;
+                    }
+                }
                 // Map Zig-specific identifiers to C equivalents
                 if name == "undefined" {
                     self.write("{0}");
@@ -21029,17 +21077,14 @@ impl CCodegen {
                 //
                 // Rust emits `Trit::pos` and Zig `Trit.pos`, both correct for
                 // their language; C was the only backend without an answer.
+                // The `::` spelling of the SAME member reference is handled in
+                // the identifier arm -- one rule, one helper, two spellings.
                 if let Some(base) = node.children.first() {
-                    if base.kind == NodeKind::ExprIdentifier
-                        && self.c_enum_names.contains(&base.name)
-                        && !node.name.is_empty()
-                    {
-                        self.write(&format!(
-                            "{}_{}",
-                            base.name.to_uppercase(),
-                            node.name.to_uppercase()
-                        ));
-                        return;
+                    if base.kind == NodeKind::ExprIdentifier {
+                        if let Some(c) = self.c_enum_constant(&base.name, &node.name) {
+                            self.write(&c);
+                            return;
+                        }
                     }
                 }
                 if !node.children.is_empty() {
