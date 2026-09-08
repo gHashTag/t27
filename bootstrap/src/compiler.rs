@@ -19326,6 +19326,74 @@ impl CCodegen {
         Some(format!("{}{} {}[]", qual, Self::type_to_c(elem), name))
     }
 
+    /// The element type of an array literal whose elements are all numeric
+    /// literals, or None.
+    ///
+    /// The last shape of the `__auto_type x = { ... }` class: `[1, 2, 3]` and
+    /// `[1.0, 2.0]` carry a type NOWHERE -- not on the array, not on a child --
+    /// and C has no inference for a brace list, so it must be named. Rust
+    /// writes `let mut x = [1, 2, 3]` and Zig `var x = .{ 1, 2, 3 }`; only C
+    /// needs this.
+    ///
+    /// The choice matches what a SCALAR literal already gets, so the two agree:
+    /// `var x = 1` emits `uint32_t x = 1` here and `var x: u32 = 1` in Zig. Any
+    /// fractional element makes the whole list `f64`, which is C's own
+    /// promotion.
+    ///
+    /// Returns None for an empty list and for any element that is not a plain
+    /// numeric literal -- a call such as `cast_i8(1)` has a return type this
+    /// does not read, and guessing one would be worse than `__auto_type`.
+    fn c_literal_list_elem(lit: &Node) -> Option<String> {
+        // A ONE-element literal is NOT handled and the reason is written down
+        // rather than guessed at: `[7]` arrives as an `ExprArrayLiteral` with
+        // ZERO children -- confirmed by instrumenting this branch -- while the
+        // emitted C still reads `{ 7 }`, so the element is kept somewhere this
+        // does not read. `lit.value` was the obvious candidate and is empty
+        // too; that was tried and reverted. 334 of the remaining class are
+        // `{ 0 }` and every one takes that path. Filed rather than guessed.
+        if lit.kind != NodeKind::ExprArrayLiteral || lit.children.is_empty() {
+            return None;
+        }
+        let mut any_float = false;
+        for e in &lit.children {
+            // SUBSUMED TODAY, and kept deliberately. A mutant deleting this
+            // survives every test: an identifier, a call and a binary
+            // expression all reach the checks below with an empty or
+            // non-numeric `value`, so they are refused anyway -- probed, all
+            // three still emit `__auto_type`. Unlike the `has_init` parameter
+            // removed in the const path, this guard IS reachable; dropping it
+            // would make correctness depend on the accident that non-literal
+            // nodes carry no numeric text.
+            if e.kind != NodeKind::ExprLiteral {
+                return None;
+            }
+            // A STRING literal is an ExprLiteral whose `value` is the text
+            // WITHOUT its quotes, so `["12", "34"]` passed the digit test and
+            // the list was typed `uint32_t` -- "incompatible pointer to
+            // integer conversion initializing 'uint32_t' with an expression of
+            // type 'char *'", four of them in one file. The tag lives on the
+            // node, exactly as the `#define` path upstream already knows.
+            if e.extra_kind == "string" {
+                return None;
+            }
+            let v = e.value.trim();
+            if v.is_empty() {
+                return None;
+            }
+            let body = v.strip_prefix('-').unwrap_or(v);
+            if body.contains('.') || body.contains('e') || body.contains('E') {
+                if body.chars().any(|c| c == '.') {
+                    any_float = true;
+                } else {
+                    return None;
+                }
+            } else if !body.chars().all(|c| c.is_ascii_digit() || c == '_') {
+                return None;
+            }
+        }
+        Some(if any_float { "f64" } else { "u32" }.to_string())
+    }
+
     fn c_array_field(ty: &str, fname: &str) -> Option<String> {
         let t = ty.trim();
         // The `;` test is REDUNDANT today and kept as intent: a mutant deleting
@@ -19955,7 +20023,15 @@ impl CCodegen {
                                 && (!c.extra_type.is_empty()
                                     || c.children.first().is_some_and(|e| {
                                         e.kind == NodeKind::ExprStructLit && !e.name.is_empty()
-                                    }))
+                                    })
+                                    // A bare list of NUMERIC LITERALS carries
+                                    // its type nowhere -- not on the array, not
+                                    // on a child -- and it is what remained of
+                                    // the largest error class: 1401 of
+                                    // `__auto_type x = { 1, 2, 3 }`. Rust and
+                                    // Zig infer it; C cannot, so it has to be
+                                    // named. See `c_literal_list_elem`.
+                                    || Self::c_literal_list_elem(c).is_some())
                         })
                 {
                     // W699 rung 3: `const vals = [_]i32{...}` has no annotation,
@@ -19966,6 +20042,8 @@ impl CCodegen {
                     let lit = node.children.first().unwrap();
                     let elem: String = if !lit.extra_type.is_empty() {
                         lit.extra_type.clone()
+                    } else if let Some(t) = Self::c_literal_list_elem(lit) {
+                        t
                     } else {
                         // Recovered from the first element; the condition above
                         // established it is a named struct literal.
