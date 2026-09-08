@@ -23906,9 +23906,48 @@ fn duplicate_top_level_decls(ast: &Node) -> Vec<DuplicateDecl> {
         namespaces.entry(n.as_str()).or_default().insert(ns(k));
     }
 
+    // A collision that exists only AFTER lowering. `fn test_booth_encode_zero`
+    // and `test booth_encode_zero` are different namespaces in t27 and the same
+    // identifier in C, where a test block becomes `void test_{name}(void)`.
+    // Measured per backend rather than assumed:
+    //   gen-c        `void test_X(void)` / `void bench_X(void)`  -- COLLIDES
+    //   gen (zig)    `test "X"` is a STRING, no identifier       -- no collision
+    //                `fn bench_X()`                              -- COLLIDES
+    //   gen-rust     tests are not lowered at all                -- no collision
+    //   gen-verilog  a test is emitted as a comment              -- no collision
+    // Corpus: 66 functions are named `test_*` and 4 of them meet a test block
+    // of the matching name; 0 functions are named `bench_*`, so that half is
+    // stated and tested rather than left out -- a zero nothing could have
+    // produced is not evidence.
+    let blocks = |want: &str| {
+        decls
+            .iter()
+            .filter(|(_, k)| *k == want)
+            .map(|(n, _)| n.as_str())
+            .collect::<std::collections::HashSet<&str>>()
+    };
+    let tests = blocks("test");
+    let benches = blocks("bench");
+
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
     for (n, k) in &decls {
+        if *k == "fn" {
+            if let Some(rest) = n.strip_prefix("test_") {
+                if tests.contains(rest) {
+                    out.push(DuplicateDecl::LoweredCollision(n.clone(), "test", "gen-c"));
+                }
+            }
+            if let Some(rest) = n.strip_prefix("bench_") {
+                if benches.contains(rest) {
+                    out.push(DuplicateDecl::LoweredCollision(
+                        n.clone(),
+                        "bench",
+                        "gen-c and gen (zig)",
+                    ));
+                }
+            }
+        }
         if !seen.insert(n.clone()) {
             continue;
         }
@@ -23932,6 +23971,10 @@ enum DuplicateDecl {
     SameNamespace(String, &'static str, usize),
     /// A type and a function sharing a name: legal in Rust and C, not in Zig.
     AcrossNamespaces(String),
+    /// Two declarations that do NOT collide in t27 and DO collide once a
+    /// backend has added its prefix: `fn test_x` beside `test x`.
+    /// (function name, block kind, the backends that collide)
+    LoweredCollision(String, &'static str, &'static str),
 }
 
 fn collect_declared_types(node: &Node, out: &mut std::collections::HashSet<String>) {
@@ -24093,6 +24136,10 @@ drop the parameter from the declaration and keep it at each use, where it is und
             ),
             DuplicateDecl::AcrossNamespaces(name) => format!(
                 "warning: `{name}` is declared as both a type and a function -- zig rejects this; rust and C do not"
+            ),
+            DuplicateDecl::LoweredCollision(name, block, backends) => format!(
+                "warning: `fn {name}` and `{block} {}` are different names in t27 and the SAME identifier in {backends}, which emits `{name}` for the {block} block",
+                name.trim_start_matches(if block == "test" { "test_" } else { "bench_" })
             ),
         };
         result.errors.push(msg);

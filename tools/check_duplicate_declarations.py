@@ -42,8 +42,16 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE = os.path.join(ROOT, "tools", "duplicate_declarations_baseline.txt")
+LOWERED_BASELINE = os.path.join(ROOT, "tools", "lowered_collisions_baseline.txt")
 STRONG = "every backend rejects a redeclaration"
 WEAK = "both a type and a function"
+# A third finding, and a different claim again: two names that do NOT collide in
+# t27 and DO collide once a backend adds its prefix. `fn test_x` beside
+# `test x` is one identifier in gen-c, which emits `void test_x(void)` for the
+# block. Measured per backend: zig spells a test name as a STRING and rust does
+# not lower tests at all, so this one is gen-c's alone -- except for `bench`,
+# which zig also lowers to `fn bench_X()`.
+LOWERED = "SAME identifier in"
 
 
 def t27c() -> str:
@@ -62,12 +70,13 @@ def t27c() -> str:
 
 
 def findings(binary: str, spec: str):
-    """(strong, weak) counts for one spec."""
+    """(strong, weak, lowered) counts for one spec."""
     r = subprocess.run([binary, "check", spec], capture_output=True, text=True)
     text = r.stdout + r.stderr
     return (
         sum(1 for ln in text.splitlines() if STRONG in ln),
         sum(1 for ln in text.splitlines() if WEAK in ln),
+        sum(1 for ln in text.splitlines() if LOWERED in ln),
     )
 
 
@@ -95,6 +104,21 @@ def read_baseline():
     return base
 
 
+def read_lowered_baseline():
+    if not os.path.exists(LOWERED_BASELINE):
+        print(f"check_duplicate_declarations: no baseline at {LOWERED_BASELINE}. Exit 2.",
+              file=sys.stderr)
+        sys.exit(2)
+    base = {}
+    for line in open(LOWERED_BASELINE, encoding="utf-8"):
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        path, n = line.rsplit(None, 1)
+        base[path] = int(n)
+    return base
+
+
 def self_check(binary: str) -> int:
     """The gate must fire on a planted duplicate and stay quiet on a clean spec.
 
@@ -106,7 +130,7 @@ def self_check(binary: str) -> int:
         with open(dup, "w", encoding="utf-8") as fh:
             fh.write("module SC1 {\n  struct A { x : i32, }\n  struct A { y : i32, }\n"
                      "  fn f(a: A) -> i32 { return a.x; }\n}\n")
-        s, _ = findings(binary, dup)
+        s, _w, _lo = findings(binary, dup)
         print(f"  planted duplicate      -> strong findings {s} (want >= 1) "
               f"{'PASS' if s >= 1 else 'FAIL'}")
         ok &= s >= 1
@@ -115,7 +139,7 @@ def self_check(binary: str) -> int:
         with open(clean, "w", encoding="utf-8") as fh:
             fh.write("module SC2 {\n  struct C { x : i32, }\n"
                      "  fn g(c: C) -> i32 { return c.x; }\n}\n")
-        s, w = findings(binary, clean)
+        s, w, _lo = findings(binary, clean)
         print(f"  clean spec             -> strong {s}, weak {w} (want 0, 0) "
               f"{'PASS' if s == 0 and w == 0 else 'FAIL'}")
         ok &= s == 0 and w == 0
@@ -124,7 +148,7 @@ def self_check(binary: str) -> int:
         with open(cross, "w", encoding="utf-8") as fh:
             fh.write("module SC3 {\n  struct B { x : i32, }\n"
                      "  fn B(v: i32) -> i32 { return v; }\n}\n")
-        s, w = findings(binary, cross)
+        s, w, _lo = findings(binary, cross)
         print(f"  type and function      -> strong {s}, weak {w} (want 0, 1) "
               f"{'PASS' if s == 0 and w == 1 else 'FAIL'}")
         ok &= s == 0 and w == 1
@@ -135,7 +159,7 @@ def self_check(binary: str) -> int:
         with open(duptest, "w", encoding="utf-8") as fh:
             fh.write('module SC4 {\n  test "same" { assert(1 == 1); }\n'
                      '  test "same" { assert(2 == 2); }\n}\n')
-        s, w = findings(binary, duptest)
+        s, w, _lo = findings(binary, duptest)
         print(f"  duplicated test name   -> strong {s}, weak {w} (want >= 1, 0) "
               f"{'PASS' if s >= 1 and w == 0 else 'FAIL'}")
         ok &= s >= 1 and w == 0
@@ -148,10 +172,46 @@ def self_check(binary: str) -> int:
             fh.write('module SC5 {\n  struct deque_clear { x : i32, }\n'
                      '  fn f(a: deque_clear) -> i32 { return a.x; }\n'
                      '  test "deque_clear" { assert(1 == 1); }\n}\n')
-        s, w = findings(binary, shared)
+        s, w, _lo = findings(binary, shared)
         print(f"  test name = struct name-> strong {s}, weak {w} (want 0, 0) "
               f"{'PASS' if s == 0 and w == 0 else 'FAIL'}")
         ok &= s == 0 and w == 0
+
+        # The third finding: names that collide only after a backend adds its
+        # prefix. gen-c emits `void test_x(void)` for `test x`, so a function
+        # already called `test_x` is a redefinition there and nowhere else.
+        low = os.path.join(d, "lowered.t27")
+        with open(low, "w", encoding="utf-8") as fh:
+            fh.write('module SC6 {\n  fn test_thing(v: i32) -> i32 { return v; }\n'
+                     '  test "thing" { assert(1 == 1); }\n}\n')
+        s, w, lo = findings(binary, low)
+        print(f"  fn test_x beside test x-> strong {s}, weak {w}, lowered {lo} "
+              f"(want 0, 0, 1) {'PASS' if s == 0 and w == 0 and lo == 1 else 'FAIL'}")
+        ok &= s == 0 and w == 0 and lo == 1
+
+        # The `bench` half has a population of ZERO in the corpus -- 0 functions
+        # are named `bench_*` -- so it is proved reachable here instead of being
+        # left out. A zero nothing could have produced is not evidence.
+        lowb = os.path.join(d, "loweredb.t27")
+        with open(lowb, "w", encoding="utf-8") as fh:
+            fh.write('module SC7 {\n  fn bench_thing(v: i32) -> i32 { return v; }\n'
+                     '  bench "thing" { assert(1 == 1); }\n}\n')
+        s, w, lo = findings(binary, lowb)
+        print(f"  fn bench_x beside bench-> strong {s}, weak {w}, lowered {lo} "
+              f"(want 0, 0, 1) {'PASS' if s == 0 and w == 0 and lo == 1 else 'FAIL'}")
+        ok &= s == 0 and w == 0 and lo == 1
+
+        # And the case that keeps THIS population honest: a function named
+        # `test_*` with no test block of the matching name is 62 of the corpus's
+        # 66 and must stay quiet.
+        nolow = os.path.join(d, "nolowered.t27")
+        with open(nolow, "w", encoding="utf-8") as fh:
+            fh.write('module SC8 {\n  fn test_thing(v: i32) -> i32 { return v; }\n'
+                     '  test "other" { assert(1 == 1); }\n}\n')
+        s, w, lo = findings(binary, nolow)
+        print(f"  fn test_x, no `test x` -> strong {s}, weak {w}, lowered {lo} "
+              f"(want 0, 0, 0) {'PASS' if s == 0 and w == 0 and lo == 0 else 'FAIL'}")
+        ok &= s == 0 and w == 0 and lo == 0
     return 0 if ok else 1
 
 
@@ -165,14 +225,16 @@ def main() -> int:
         print("check_duplicate_declarations: no specs found. Exit 2.", file=sys.stderr)
         return 2
 
-    strong, weak = {}, {}
+    strong, weak, lowered = {}, {}, {}
     for p in all_specs:
-        s, w = findings(binary, p)
+        s, w, lo = findings(binary, p)
         rel = os.path.relpath(p, ROOT)
         if s:
             strong[rel] = s
         if w:
             weak[rel] = w
+        if lo:
+            lowered[rel] = lo
 
     print(f"specs scanned: {len(all_specs)}")
     print(f"specs declaring a name twice in one namespace: {len(strong)} "
@@ -183,12 +245,33 @@ def main() -> int:
           f"({sum(weak.values())} names) -- zig rejects these; rust and C do not")
     for p in sorted(weak):
         print(f"   {weak[p]:3}  {p}")
+    print(f"specs whose names collide only AFTER lowering: {len(lowered)} "
+          f"({sum(lowered.values())} names) -- `fn test_x` beside `test x`")
+    for p in sorted(lowered):
+        print(f"   {lowered[p]:3}  {p}")
 
     if "--list" in sys.argv:
         return 0
 
+    # The third finding gets a ratchet of its own rather than being folded into
+    # the first: it is a different claim (gen-c only, and gen-zig for `bench`),
+    # and a shared number would let one kind be paid for with the other.
     base = read_baseline()
+    lbase = read_lowered_baseline()
     bad = False
+    for p, n in sorted(lowered.items()):
+        allowed = lbase.get(p)
+        if allowed is None:
+            print(f"NEW: {p} has {n} name(s) that collide after lowering "
+                  f"and is not in {os.path.basename(LOWERED_BASELINE)}")
+            bad = True
+        elif n > allowed:
+            print(f"GREW (lowered): {p} {allowed} -> {n}")
+            bad = True
+    for p, allowed in sorted(lbase.items()):
+        now = lowered.get(p, 0)
+        if now < allowed:
+            print(f"progress (lowered): {p} {allowed} -> {now} -- lower the baseline")
     for p, n in sorted(strong.items()):
         allowed = base.get(p)
         if allowed is None:

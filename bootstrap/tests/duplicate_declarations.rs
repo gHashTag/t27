@@ -208,3 +208,86 @@ fn a_test_and_a_function_of_one_name_is_not_the_type_function_pair() {
         "a test is not a function for this purpose:\n{out}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// A collision that exists only AFTER lowering (#3485)
+//
+// `fn test_booth_encode_zero` and `test booth_encode_zero` are different
+// namespaces in t27 and the SAME identifier in C, where a test block becomes
+// `void test_{name}(void)`. Measured per backend rather than assumed:
+//
+//   gen-c        `void test_X(void)` / `void bench_X(void)`  -- COLLIDES
+//   gen (zig)    `test "X"` is a STRING, no identifier       -- no collision
+//                `fn bench_X()`                              -- COLLIDES
+//   gen-rust     tests are not lowered at all                -- no collision
+//   gen-verilog  a test is emitted as a comment              -- no collision
+//
+// 66 functions in the corpus are named `test_*` and 4 meet a test block of the
+// matching name; 0 are named `bench_*`, so that half is proved reachable by a
+// test rather than left out.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_function_named_after_a_test_block_collides_in_c() {
+    let (_, out) = check(
+        "module L1 {\n  fn test_thing(v: i32) -> i32 { return v; }\n  test \"thing\" { assert(1 == 1); }\n}\n",
+        "lowered",
+    );
+    assert!(
+        out.contains("SAME identifier in gen-c"),
+        "the collision must be reported, and named as gen-c's:\n{out}"
+    );
+    assert!(
+        !out.contains("every backend rejects"),
+        "and it must NOT claim every backend rejects it -- zig and rust do not:\n{out}"
+    );
+}
+
+#[test]
+fn the_bench_half_is_reachable_and_names_two_backends() {
+    // Population zero in the corpus. Kept and tested rather than left out: a
+    // zero nothing could have produced is not evidence. gen-c writes
+    // `void bench_X(void)` and zig writes `fn bench_X()`, so this one really
+    // does collide twice.
+    let (_, out) = check(
+        "module L2 {\n  fn bench_thing(v: i32) -> i32 { return v; }\n  bench \"thing\" { assert(1 == 1); }\n}\n",
+        "loweredbench",
+    );
+    assert!(
+        out.contains("SAME identifier in gen-c and gen (zig)"),
+        "the bench collision must name both backends:\n{out}"
+    );
+}
+
+#[test]
+fn a_function_named_test_something_with_no_such_test_is_quiet() {
+    // THE DISCRIMINATING CASE. 62 of the corpus's 66 `test_*` functions have no
+    // test block of the matching name, and a rule keyed on the prefix alone
+    // would report every one of them.
+    let (_, out) = check(
+        "module L3 {\n  fn test_thing(v: i32) -> i32 { return v; }\n  test \"other\" { assert(1 == 1); }\n}\n",
+        "nolowered",
+    );
+    assert!(
+        !out.contains("SAME identifier"),
+        "a `test_*` name with no matching block is not a collision:\n{out}"
+    );
+}
+
+#[test]
+fn a_test_block_named_test_something_is_not_a_collision() {
+    // The rule keys on `fn`, and that is load-bearing rather than incidental.
+    // `test "test_thing"` and `test "thing"` become `void test_test_thing(void)`
+    // and `void test_thing(void)` -- two different identifiers. A mutant that
+    // lets any declaration kind trigger the rule reports them as a collision
+    // and passes every other test here, because no other fixture has a test
+    // block whose own name starts with `test_`.
+    let (_, out) = check(
+        "module L4 {\n  test \"test_thing\" { assert(1 == 1); }\n  test \"thing\" { assert(2 == 2); }\n}\n",
+        "testprefixed",
+    );
+    assert!(
+        !out.contains("SAME identifier"),
+        "two test blocks get two different C names:\n{out}"
+    );
+}
