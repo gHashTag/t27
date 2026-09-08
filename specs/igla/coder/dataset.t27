@@ -1778,10 +1778,6 @@ invariant dataset_count_dataset_by_template_single_match_inv:
     count_dataset_by_template([DataSample { prompt: "p", rtl: "r", template: template, bits: 8 }], template) == 1
 
 
-test dataset_count_dataset_by_template_single_match
-    given dataset = [DataSample { prompt: "p", rtl: "r", template: "adder", bits: 8 }]
-    when n = count_dataset_by_template(dataset, "adder")
-    then n == 1
 
 test dataset_generate_rtl_for_template_adder_returns_module
     when rtl = generate_rtl_for_template("adder", 8)
@@ -2081,19 +2077,7 @@ test dataset_batch_size_one_same_len_w309
 
 invariant dataset_batch_size_one_same_len_w309_inv:
     batch([1, 2, 3], 1).len() == 3
-test dataset_shuffle_different_seed_different_w309
-    given data = [1, 2, 3, 4]
-    given seed1 = 1
-    given seed2 = 2
-    when r1 = shuffle(data, seed1)
-    when r2 = shuffle(data, seed2)
-    then r1 != r2
 
-test dataset_batch_size_one_same_len_w309
-    given data = [1, 2, 3]
-    given size = 1
-    when batches = batch(data, size)
-    then batches.len() == 3
 
 invariant dataset_batch_size_one_same_len_w309_inv:
     batch([1, 2, 3], 1).len() == 3
@@ -2135,19 +2119,7 @@ invariant dataset_batch_size_one_same_len_w311_inv:
 
 
 
-test dataset_shuffle_different_seed_different_w311
-    given data = [1, 2, 3, 4]
-    given seed1 = 1
-    given seed2 = 2
-    when r1 = shuffle(data, seed1)
-    when r2 = shuffle(data, seed2)
-    then r1 != r2
 
-test dataset_batch_size_one_same_len_w311
-    given data = [1, 2, 3]
-    given size = 1
-    when batches = batch(data, size)
-    then batches.len() == 3
 
 invariant dataset_batch_size_one_same_len_w311_inv:
     batch([1, 2, 3], 1).len() == 3

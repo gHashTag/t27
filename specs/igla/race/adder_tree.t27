@@ -150,10 +150,6 @@ test adder_tree_2_basic
     when sum = adder_tree_2(a, b)
     then sum == 7
 
-test adder_tree_8_zero
-    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
-    when sum = adder_tree_8(v)
-    then sum == 0
 
 test adder_tree_4_identity_nonzero
     given a = 0
@@ -392,10 +388,6 @@ test adder_tree_2_positive_negative_cancel
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_ones
-    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
-    when sum = adder_tree_8(v)
-    then sum == 8
 
 test adder_tree_4_all_equal_max
     given a = 100
@@ -462,11 +454,6 @@ test adder_tree_4_all_negative
     when sum = adder_tree_4(a, b, c, d)
     then sum == -10
 
-test adder_tree_2_max_i32
-    given a = 2147483647
-    given b = 0
-    when sum = adder_tree_2(a, b)
-    then sum == 2147483647
 
 test adder_tree_8_mixed_signs
     given v = Vec8 { v0: 10, v1: -5, v2: 3, v3: -8, v4: 0, v5: 7, v6: -2, v7: 1 }
@@ -533,10 +520,6 @@ test adder_tree_2_large_neg_plus_pos
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_zeros
-    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
-    when sum = adder_tree_8(v)
-    then sum == 0
 
 test adder_tree_8_ascending_values
     given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
@@ -576,10 +559,6 @@ test adder_tree_2_symmetric_bounds
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_ones
-    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
-    when sum = adder_tree_8(v)
-    then sum == 8
 
 test adder_tree_4_mixed_signs
     given a = 50
@@ -622,10 +601,6 @@ test adder_tree_2_zero_operands
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_ones
-    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
-    when sum = adder_tree_8(v)
-    then sum == 8
 
 test adder_tree_4_mixed_signs
     given a = 5
@@ -1277,15 +1252,7 @@ test adder_tree_4_mixed_large_sum_w309
 
 invariant adder_tree_4_all_negative_sum_w309_inv:
     adder_tree([-1, -2, -3, -4]) == -10
-test adder_tree_4_all_negative_sum_w309
-    given inputs = [-1, -2, -3, -4]
-    when sum = adder_tree(inputs)
-    then sum == -10
 
-test adder_tree_4_mixed_large_sum_w309
-    given inputs = [100, -50, 25, -75]
-    when sum = adder_tree(inputs)
-    then sum == 0
 
 invariant adder_tree_4_all_negative_sum_w309_inv:
     adder_tree([-1, -2, -3, -4]) == -10
@@ -1319,15 +1286,7 @@ invariant adder_tree_4_all_negative_sum_w311_inv:
 
 
 
-test adder_tree_4_all_negative_sum_w311
-    given inputs = [-1, -2, -3, -4]
-    when sum = adder_tree(inputs)
-    then sum == -10
 
-test adder_tree_4_mixed_large_sum_w311
-    given inputs = [100, -50, 25, -75]
-    when sum = adder_tree(inputs)
-    then sum == 0
 
 invariant adder_tree_4_all_negative_sum_w311_inv:
     adder_tree([-1, -2, -3, -4]) == -10
