@@ -115,7 +115,11 @@ def report(binary: str) -> int:
     for ring, spec, verdict, nh, ns, nsh, diff in rows:
         print(f"  {verdict:<12} {ring:<18} {spec}")
         print(f"               hand fns {nh}, spec fns {ns}, shared {nsh}, differing {len(diff)}")
-        for k in diff[:6]:
+        # Every name, uncapped. This printed `diff[:6]` and reported
+        # "differing 7" one line above it -- the reader saw six names and a
+        # seven, and the missing one was not marked as elided. A cap that the
+        # output does not name reads as coverage.
+        for k in diff:
             print(f"                 differs: {k}")
     conv = sum(1 for r in rows if r[2] == "CONVERGED")
     print(
