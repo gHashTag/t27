@@ -20,7 +20,8 @@ whole corpus, which is minutes, and nothing here is a pass/fail claim. Run it
 at the start of a pass to decide what the pass is about.
 
 Usage:
-  tools/c_error_classes.py                ranked classes
+  tools/c_error_classes.py                classes ranked by DISTINCT LINES,
+                                          with diagnostics and the ratio
   tools/c_error_classes.py --undeclared   split the undeclared symbols by cause
   tools/c_error_classes.py --self-check   negative control
 
@@ -188,11 +189,25 @@ def main() -> int:
     errors = len(DIAG.findall(text))
     clean = sum(1 for c in text.split("### ")[1:] if not DIAG.search(c))
     print(f"translation units {files}   errors {errors}   compiling {clean}\n")
-    classes = collections.Counter(
-        re.sub(r"\d+", "N", m.split("[")[0]) for m in DIAG.findall(text)
-    )
-    for msg, n in classes.most_common(12):
-        print(f"  {n:5}  {msg.strip()[:70]}")
+    # Ranked by DISTINCT LINES, with the ratio beside the count. They answer
+    # different questions: diagnostics say how loud a class is, lines say how
+    # many things are wrong, and the ratio says whether the population is real.
+    # A class at 1.00 has no cascade -- every diagnostic is its own site. A
+    # class at 1.33 contains an unknown number of consequences of somebody
+    # else's problem. Ranking by diagnostics alone left `redefinition` in
+    # eighth place for six passes at a ratio of exactly 1.00, and it was the
+    # cleanest population in the corpus.
+    classes, lines = collections.Counter(), collections.defaultdict(set)
+    for chunk in text.split("### ")[1:]:
+        name = chunk.split("\n", 1)[0].strip()
+        for m in DIAG.finditer(chunk):
+            key = re.sub(r"\d+", "N", m.group(1).split("[")[0]).strip()
+            classes[key] += 1
+            lines[key].add((name, m.string[m.start():].split(":")[1]))
+    print(f"  {'diags':>5}  {'lines':>5}  {'d/l':>4}  class")
+    for msg, _ in sorted(classes.items(), key=lambda kv: -len(lines[kv[0]]))[:12]:
+        n, ln = classes[msg], len(lines[msg])
+        print(f"  {n:5}  {ln:5}  {n / ln:4.2f}  {msg[:62]}")
     if "--undeclared" in sys.argv:
         undeclared_split(text)
     return 0

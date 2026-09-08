@@ -18129,6 +18129,13 @@ pub struct CCodegen {
     /// C struct typedef name of the current function's [T; N] return type,
     /// so a returned array literal can be cast to the right compound literal.
     current_ret_array_type: Option<String>,
+    /// (struct, field) -> the field's t27 type. A struct-literal field whose
+    /// declared type is a slice takes the compound-literal cast, exactly as a
+    /// call argument does; without it a brace list initialises a pointer.
+    c_struct_field_types: std::collections::HashMap<(String, String), String>,
+    /// Emitting the operand of a `return`. A compound literal there is a
+    /// block-scoped object, so the cast is refused (#3445).
+    c_in_return: bool,
     /// Identifiers (params + annotated locals) declared `string` in the item
     /// being emitted: `s.len` on one of them is `strlen(s)`, in both spellings.
     string_typed_names: std::collections::HashSet<String>,
@@ -18158,6 +18165,8 @@ impl CCodegen {
             scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
+            c_struct_field_types: std::collections::HashMap::new(),
+            c_in_return: false,
             string_typed_names: std::collections::HashSet::new(),
             pointer_typed_names: std::collections::HashSet::new(),
             array_typed_names: std::collections::HashSet::new(),
@@ -18754,6 +18763,16 @@ impl CCodegen {
             // reached another way costs nothing.
             for s in &structs {
                 self.write_line(&format!("typedef struct {} {};", s.name, s.name));
+            }
+            // Recorded whether or not the cast is ever needed, because a
+            // struct-literal field is written far from its declaration.
+            for st in &structs {
+                for f in &st.children {
+                    if !f.name.is_empty() && !f.extra_type.is_empty() {
+                        self.c_struct_field_types
+                            .insert((st.name.clone(), f.name.clone()), f.extra_type.clone());
+                    }
+                }
             }
             self.write_line("");
             for s in Self::structs_in_declaration_order(&structs) {
@@ -20154,6 +20173,13 @@ impl CCodegen {
             NodeKind::ExprReturn => {
                 self.write_indent();
                 self.write("return ");
+                // The STATEMENT return, distinct from the expression one. The
+                // first version of the #3445 guard set this flag in only ONE of
+                // the two arms, and the returned struct literal took the cast
+                // anyway -- the same "all the call sites" defect the guard
+                // exists to prevent, one level up.
+                let outer_return = self.c_in_return;
+                self.c_in_return = true;
                 if !node.children.is_empty() {
                     // A returned array literal needs the compound-literal cast
                     // to the fn's [T; N] struct; bare braces are not a C
@@ -20165,6 +20191,7 @@ impl CCodegen {
                     }
                     self.gen_c_expr(&node.children[0]);
                 }
+                self.c_in_return = outer_return;
                 self.write_line(";");
             }
             NodeKind::StmtLocal
@@ -21396,14 +21423,32 @@ impl CCodegen {
                         self.write(", ");
                     }
                     self.write(&format!(".{} = ", field.name));
-                    if !field.children.is_empty() {
-                        self.gen_c_expr(&field.children[0]);
+                    if let Some(v) = field.children.first() {
+                        // A slice field is a POINTER in C, and a brace list is
+                        // not a pointer: 199 sites read `incompatible integer
+                        // to pointer conversion`. The compound literal that
+                        // fixes it lives in the enclosing block, which is fine
+                        // for the 197 that initialise a local and wrong for the
+                        // 4 inside a `return`, where it would hand back the
+                        // address of a local (#3445) -- so the return refuses.
+                        if v.kind == NodeKind::ExprArrayLiteral && !self.c_in_return {
+                            if let Some(cast) = self
+                                .c_struct_field_types
+                                .get(&(node.name.clone(), field.name.clone()))
+                                .and_then(|t| Self::c_slice_compound_cast(t))
+                            {
+                                self.write(&cast);
+                            }
+                        }
+                        self.gen_c_expr(v);
                     }
                 }
                 self.write(" }");
             }
             NodeKind::ExprReturn => {
                 self.write("return ");
+                let outer_return = self.c_in_return;
+                self.c_in_return = true;
                 if !node.children.is_empty() {
                     // A returned array literal needs the compound-literal cast
                     // to the fn's [T; N] struct type; bare braces are not an
@@ -21415,6 +21460,7 @@ impl CCodegen {
                     }
                     self.gen_c_expr(&node.children[0]);
                 }
+                self.c_in_return = outer_return;
             }
             NodeKind::ExprCast => {
                 if !node.children.is_empty() {
