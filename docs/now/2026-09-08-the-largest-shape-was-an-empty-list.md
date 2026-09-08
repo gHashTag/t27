@@ -1,0 +1,10 @@
+# NOW -- The largest shape was an empty list (2026-09-08)
+
+## The largest shape was an empty list (Refs #3459)
+
+- 670 `__auto_type x = { ... }` errors remained and had never been categorised. Printing them by shape first, before writing any code, split the wall into six families: **319 `{ 0 }`**, ~92 lists of `cast_iN(...)` calls, ~85 lists containing a NEGATIVE, 32 with an exponent suffix, 21 enum-member accesses, 12 strings.
+- **The largest family cannot be inferred at all, and finding that out was the point of measuring first.** `{ 0 }` comes from `var x = []` -- an EMPTY list, of which the specs contain **439**. C11 has no `{}`, so `{ 0 }` is the emitter's stand-in, and there is nothing in an empty list to take a type from. Naming one would be inventing it. A test now pins that it keeps `__auto_type`.
+- The tractable family was the negatives, 193 corpus sites: a negative element is a **unary expression, not a literal**, so the whole list was refused. Looking through the `-` was the easy half. The first version then emitted `uint32_t x[2] = { 1, -1 }` -- an unsigned type holding a negative, exactly the quiet wrong answer this class of repairs exists to avoid. A negative now makes the list `i32`.
+- Measured: errors **14165 → 14041**, the class **670 → 523**, 11 files better, 2 worse and both unmasking. Sign-related diagnostics unchanged at 7 and 60 on both sides, so the signed choice introduced none. Across three passes the class has gone **1729 → 523**.
+- **Only `-` is looked through.** `[!1]` keeps `__auto_type`: a unary whose value is not the literal underneath it would have the list typed from the wrong number. A mutant widening the look-through to any unary operator dies on that test.
+- A mutant forcing the children branch to `u32` **survives**, and that is written into the comment rather than papered over: an integer list carrying a negative takes the `extra_size` path -- probed with three spellings -- and the float case reaching the children branch is answered by `any_float` before the sign matters. The branch is reachable; the combination has not been produced.
