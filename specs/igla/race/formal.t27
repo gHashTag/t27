@@ -749,7 +749,7 @@ test formal_count_admitted_one
     when n = count_admitted(pos, 0)
     then n == 1
 
-test prove_equivalence_different_ports
+test prove_equivalence_different_ports_2
     given spec = RtlModule { name: "s", inputs: ["a"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
     given impl = RtlModule { name: "i", inputs: ["a", "c"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
     when ok = prove_equivalence(spec, impl)
@@ -795,7 +795,7 @@ test formal_count_proved_multiple_mixed
     when n = count_proved(pos, 0)
     then n == 2
 
-test formal_count_proved_all_admitted_returns_zero
+test formal_count_proved_all_admitted_returns_zero_2
     given pos = [
         ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
         ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }
@@ -842,13 +842,13 @@ test formal_count_admitted_empty_returns_zero
     when n = count_admitted(pos, 0)
     then n == 0
 
-test formal_generate_report_single_violation
+test formal_generate_report_single_violation_2
     given mod = FormalModule { name: "bad", invariants: ["false"] }
     when report = generate_report(mod)
     then report.proved_count == 0 && report.violation_count == 1
 
 
-test formal_strings_equal_same
+test formal_strings_equal_same_2
     given a = "hello"
     when ok = strings_equal(a, a)
     then ok == true
@@ -870,7 +870,7 @@ test formal_generate_report_obligations_count
     then r.total_obligations == 2
 
 
-test formal_generate_report_empty_module_zero_obligations
+test formal_generate_report_empty_module_zero_obligations_2
     given mod = RtlModule { name: "empty", assigns: []Assignment{} }
     when r = generate_report(mod)
     then r.total_obligations == 0
@@ -881,7 +881,7 @@ test formal_compute_coverage_zero_total_zero
     when c = compute_coverage(p, t)
     then c == 0.0
 
-test formal_all_proved_empty_returns_true
+test formal_all_proved_empty_returns_true_2
     given pos = []ProofObligation{}
     when r = all_proved(pos, 0)
     then r == true

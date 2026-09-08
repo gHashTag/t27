@@ -1657,12 +1657,12 @@ invariant arch_relu_positive_identity_inv:
     forall x : f32
     x >= 0.0 ==> relu(x) == x
 
-test arch_relu_negative_zero
+test arch_relu_negative_zero_2
     given x = -3.0
     when y = relu(x)
     then y == 0.0
 
-test arch_select_best_beam_empty
+test arch_select_best_beam_empty_2
     given candidates = []BeamCandidate{}
     given beam_width = 3
     when selected = select_best_beam(candidates, beam_width)

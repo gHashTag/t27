@@ -1381,7 +1381,7 @@ test pipeline_token_count_empty_result
     when count = pipeline_token_count(p)
     then count == 0
 
-test tokenize_prompt_empty
+test tokenize_prompt_empty_2
     given prompt = ""
     when tokens = tokenize_prompt(prompt)
     then tokens.len() == 0
@@ -1526,7 +1526,7 @@ test pipeline_select_best_candidate_single
     when best = select_best_candidate([c])
     then best.token == 5
 
-test pipeline_generate_tokens_autoregressive_empty_input
+test pipeline_generate_tokens_autoregressive_empty_input_2
     given input_ids = []u32{}
     given bank = WeightBank { depth: 1, width: 1, data: [0] }
     given cfg = PipelineConfig { max_tokens: 5, temperature: 1.0, top_p: 1.0 }

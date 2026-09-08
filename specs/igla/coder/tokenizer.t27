@@ -464,7 +464,7 @@ test tokenize_single_char
     when tokens = tokenize(text)
     then len(tokens) == 1 && tokens[0] == 97
 
-test detokenize_empty
+test detokenize_empty_2
     given tokens = []u16{}
     when text = detokenize(tokens)
     then text == ""
@@ -668,7 +668,7 @@ invariant tokenizer_encode_char_bounded:
     forall c : u8
     encode_char(c) <= 255
 
-test tokenizer_encode_char_zero
+test tokenizer_encode_char_zero_2
     given c = 0
     when id = encode_char(c)
     then id == 0

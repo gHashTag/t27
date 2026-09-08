@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:fd474d6353533623ef9172336c77eea37edff13ee1a3a3058f8d2b9127d5eea0",
+  "gen_hash_c": "sha256:c14ee9123cacf6eed3b47fc3e6761cf8c44b1999d965380ed951763230d556f7",
   "gen_hash_rust": "sha256:c103921e09e51a6b1c7cc7e7cfa6a43b7651dfdc5397915293e7975a6fb1eaac",
-  "gen_hash_verilog": "sha256:c6211d32171e7de0d917222c48282ad8e62b14a899922bccb11141281c769f4e",
-  "gen_hash_zig": "sha256:a9c279628915ac3b91e55137b500db52d4e7ec466128fe5a36bf134af3c3caac",
+  "gen_hash_verilog": "sha256:f365308297d87d4fa7268b80ec6d90ad91a2ca026d8ea6cf56716a75efcc3277",
+  "gen_hash_zig": "sha256:270af45cd5c6748b9b8dc5cbfd1358d872d9b10ec22ec245eaa98021839ced41",
   "module": "igla-race-backend",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:55:59Z",
+  "sealed_at": "2026-09-08T11:16:06Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:0ff4b116919b5693bd01638a7bcea9616af53ef6195a220df32ae4f8d1944d21",
+  "spec_hash": "sha256:62f35791f856137a862caf7c205d54de386d8494bf2536fcab561741f08010e1",
   "spec_path": "specs/igla/race/backend.t27"
 }

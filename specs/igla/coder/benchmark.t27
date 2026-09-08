@@ -1602,7 +1602,7 @@ invariant competitor_delta_range
     && compare_with_competitor(t, c, 1) <= 1.0
 
 // W113 competitor tests
-test rtlscout_competitor_name
+test rtlscout_competitor_name_2
     when c = rtlscout_competitor()
     then c.name == "RTLScout"
 
@@ -1643,7 +1643,7 @@ test hiersva_competitor_name
     then c.name == "HierSVA"
 
 // W116 competitor tests
-test rtlseek_competitor_name
+test rtlseek_competitor_name_2
     when c = rtlseek_competitor()
     then c.name == "RTLSeek"
 
@@ -3953,7 +3953,7 @@ invariant benchmark_estimate_pass_at_k_half_coverage_inv:
     forall k : u32
     estimate_pass_at_k_from_coverage(0.5, k) == 0.5
 
-test benchmark_estimate_pass_at_k_full_coverage
+test benchmark_estimate_pass_at_k_full_coverage_2
     given coverage = 1.0
     given k = 1
     when est = estimate_pass_at_k_from_coverage(coverage, k)

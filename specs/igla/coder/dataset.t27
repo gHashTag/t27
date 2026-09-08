@@ -1664,7 +1664,7 @@ test dataset_score_sample_rtl_nonempty_positive
     when score = score_dataset_sample(sample)
     then score >= 0.0
 
-test dataset_filter_by_quality_empty_returns_empty
+test dataset_filter_by_quality_empty_returns_empty_2
     given samples = []DataSample{}
     when filtered = filter_dataset_by_quality(samples)
     then filtered.len() == 0
