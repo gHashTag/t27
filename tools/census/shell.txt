@@ -1,13 +1,13 @@
 WHICH INTERPRETER EACH GATE STEP IS HANDED TO, AND WHO SAYS SO
 
-  workflow files read           50
-  jobs                          71
-  run: steps                    235
+  workflow files read           51
+  jobs                          72
+  run: steps                    246
 
   who names the shell:
-    the runner does             214   no container, so bash -eo pipefail
-    a `shell:` key does         0
-    NOBODY                      21   a container and no `shell:` key
+    the runner does             225   no container, so bash -eo pipefail
+    a `shell:` key does         6
+    NOBODY                      15   a container and no `shell:` key
 
   bash-only syntax inside those unnamed steps:  1   (0 fatal under sh)
     quiet  vivado-synth.yml:105  source 
