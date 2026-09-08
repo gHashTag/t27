@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:206ea9d69d20e1c99bcb0ad5e52fbc7b73b381e8fa5f2012548a6d835e9b4071",
-  "gen_hash_rust": "sha256:88d1fdc9f1f578f5d19476d6139e570cdf829843743ba06ef4b09b548fe78d8a",
+  "gen_hash_rust": "sha256:d9a8bc48b6093a3cfc731ebc173bcfb09b92a4674f737caf3096f9b4697db4c8",
   "gen_hash_verilog": "sha256:2f4eb6fa80e5fc5bf0d3a991c45a1f45646c9e8e3d3df69ce778ed7ad3afc10f",
   "gen_hash_zig": "sha256:5e1650631219e9101f17848b6326087685f4df42326921d318c26d7c426f8186",
   "module": "SimilaritySearch",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:59Z",
+  "sealed_at": "2026-09-08T00:32:47Z",
   "spec_hash": "sha256:49d1e8ddabc30e6cc9e852ea156510b928d618264e25737e12cd57a2eb4d3de7",
   "spec_path": "specs/vsa/similarity_search.t27"
 }
