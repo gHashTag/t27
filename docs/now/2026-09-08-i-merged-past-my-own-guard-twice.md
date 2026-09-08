@@ -1,0 +1,9 @@
+# NOW -- I merged past my own guard twice (2026-09-08)
+
+## I merged past my own guard twice (Refs #3440)
+
+- `Spec Guards`, wired one pass earlier precisely because three checks «only ran when I typed them», has been **red on master since #3435** and red again after #3437. Both merged. It is not a required context, so `--auto` never looked at it, and neither did I.
+- **The guard is right.** #3435 changed C parameter emission and #3437 changed the Rust `Copy` derive, so the seals recording what those backends emit stopped describing the output. On `b519f902e`: 1318 seals scanned, **102 stale across 57 specs** — 88 `gen_hash_rust`, 19 `gen_hash_c` — and `spec_hash` stale for **zero**, which is exactly why every coverage and freshness gate stayed green. The same shape as #3415, one merge later.
+- Not rot but a **cycle**: the previous `sealed_at` on the affected files was `2026-09-07T21:07:04Z`, hours old. Every backend change invalidates seals and nothing in the merge path refreshes them or blocks on them. Resealed: 102 files, three keys move (`sealed_at` 102, `gen_hash_rust` 88, `gen_hash_c` 19), `spec_hash` and the Verilog and Zig hashes untouched. After: **0 stale**, gate exits 0.
+- The repair is one-time and the condition recurs, so the cure is the owner's: make the workflow required (which needs the `paths:` filter dealt with first — a required paths-filtered workflow hangs every PR it does not match, #2925), reseal automatically in the pre-commit hook, or accept that a human must read it. The status quo is option three and it failed twice in two days.
+- Two populations deliberately untouched and named rather than folded in: **94** seals whose spec file no longer exists, and **169** recording `gen_hash=none`. Conflating them with the 102 is how the last batch stayed invisible.
