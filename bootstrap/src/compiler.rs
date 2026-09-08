@@ -19198,6 +19198,30 @@ impl CCodegen {
         }
     }
 
+    /// The compound-literal cast for an array literal passed where a t27
+    /// SLICE is declared: `[]u32` -> `(uint32_t[])`.
+    ///
+    /// A bare `{ 1, 2 }` is an initialiser, not an operand: C accepts it after
+    /// `=` in a declaration and nowhere else, so `f({ 0 })` is
+    /// `expected expression`. 170 call sites in the corpus are exactly this.
+    ///
+    /// The cast is derived from `param_type_to_c` rather than spelled again,
+    /// so it AGREES with the parameter's own declaration by construction --
+    /// if `acc` is declared `const char** acc`, the cast is `(const char*[])`.
+    /// A `[T; N]` parameter is a by-value struct here, not a pointer, and is
+    /// refused: that is a different repair.
+    fn c_slice_compound_cast(ty: &str) -> Option<String> {
+        if !ty.trim().starts_with("[]") {
+            return None;
+        }
+        let c = Self::param_type_to_c(ty);
+        let elem = c.strip_suffix('*')?.trim_end();
+        if elem.is_empty() {
+            return None;
+        }
+        Some(format!("({}[])", elem))
+    }
+
     fn gen_c_enum(&mut self, node: &Node) {
         // typedef enum { ... } Name;
         self.write_line("typedef enum {");
@@ -21010,9 +21034,27 @@ impl CCodegen {
                 } else {
                     self.write(fname);
                     self.write("(");
+                    // An array literal in an argument needs the compound-
+                    // literal cast; bare braces are not a C expression. The
+                    // element type comes from the CALLEE's declared parameter,
+                    // so nothing is inferred from the elements. The literal's
+                    // lifetime is this block, which outlives the call -- unlike
+                    // the same cast in a `return`, where it would hand back the
+                    // address of a local (#3445), and which is why only the
+                    // argument position is repaired here.
+                    let ptypes = self.fn_param_types.get(fname).cloned();
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
+                        }
+                        if arg.kind == NodeKind::ExprArrayLiteral {
+                            if let Some(cast) = ptypes
+                                .as_ref()
+                                .and_then(|ts| ts.get(i))
+                                .and_then(|t| Self::c_slice_compound_cast(t))
+                            {
+                                self.write(&cast);
+                            }
                         }
                         self.gen_c_expr(arg);
                     }
