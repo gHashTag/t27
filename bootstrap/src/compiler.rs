@@ -18488,6 +18488,17 @@ impl CCodegen {
             self.write_line("#include <string.h>");
         }
 
+        // `sqrt`, `floor` and `round` ARE the C names. The specs call them
+        // 100, 98 and 136 times; Rust lowers them to methods and Zig to
+        // builtins, and C passed them through -- not because the spelling was
+        // wrong but because nothing declared them. The whole repair is the
+        // include. `abs` is deliberately NOT here: C has `abs` for int and
+        // `fabs` for double, and picking one without the argument's type is a
+        // silent truncation. `min`/`max` are not C functions at all.
+        if Self::module_uses_libm(ast) {
+            self.write_line("#include <math.h>");
+        }
+
         // Check if tests exist — add assert.h
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
         if has_tests {
@@ -19278,6 +19289,35 @@ impl CCodegen {
             }
             _ => None,
         }
+    }
+
+    /// The C-named math functions the specs call: `sqrt`, `floor`, `round`.
+    ///
+    /// Only names that ARE the C function, so the lowering is the include and
+    /// nothing else. A spec that declares its own keeps it, exactly as the cast
+    /// builtin does.
+    const LIBM: [&'static str; 3] = ["sqrt", "floor", "round"];
+
+    fn module_uses_libm(ast: &Node) -> bool {
+        fn declared(node: &Node, out: &mut std::collections::HashSet<String>) {
+            for c in &node.children {
+                if c.kind == NodeKind::FnDecl && !c.name.is_empty() {
+                    out.insert(c.name.clone());
+                }
+                declared(c, out);
+            }
+        }
+        fn calls(node: &Node, fns: &std::collections::HashSet<String>) -> bool {
+            node.children.iter().any(|c| {
+                (c.kind == NodeKind::ExprCall
+                    && CCodegen::LIBM.contains(&c.name.as_str())
+                    && !fns.contains(&c.name))
+                    || calls(c, fns)
+            })
+        }
+        let mut fns = std::collections::HashSet::new();
+        declared(ast, &mut fns);
+        calls(ast, &fns)
     }
 
     /// Does any item in this module take `.len` on a `string`? Decides the
