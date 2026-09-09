@@ -96,3 +96,4 @@ module TriOption;
         given opt = none()
         when result = is_some(opt)
         then result == false
+
