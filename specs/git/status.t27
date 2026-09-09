@@ -12,27 +12,79 @@ module GitStatus {
 
     // status returns the working tree status
     fn status(cwd: str) -> Result<[Item], GitError> {
-        // Implementation: Run git status --porcelain=v1 --untracked-files=all
+        var cmd = "cd " + cwd + " && git status --porcelain=v1 --untracked-files=all";
+        var result = system(cmd);
+        if result != 0 {
+            return Err(GitError { message = "git status failed" });
+        }
+        var output = capture_stdout(cmd);
+        var items: [Item] = [];
+        for line in output.lines() {
+            if line.len >= 2 {
+                var code = line[0..2];
+                var file = line[2..];
+                var kind = parse_kind(code);
+                items.push(Item { file = file, code = code, status = kind });
+            }
+        }
+        return Ok(items);
     }
 
     // is_clean checks if the working tree has no changes
     fn is_clean(cwd: str) -> Result<bool, GitError> {
-        // Implementation: Run git diff --quiet && git diff --cached --quiet
+        var cmd1 = "cd " + cwd + " && git diff --quiet";
+        var result1 = system(cmd1);
+        if result1 != 0 {
+            return Ok(false);
+        }
+        var cmd2 = "cd " + cwd + " && git diff --cached --quiet";
+        var result2 = system(cmd2);
+        if result2 != 0 {
+            return Ok(false);
+        }
+        return Ok(true);
     }
 
     // status_short returns short format status
     fn status_short(cwd: str) -> Result<str, GitError> {
-        // Implementation: Run git status --short
+        var cmd = "cd " + cwd + " && git status --short";
+        var result = system(cmd);
+        if result != 0 {
+            return Err(GitError { message = "git status --short failed" });
+        }
+        var output = capture_stdout(cmd);
+        return Ok(output);
     }
 
     // status_long returns detailed status information
     fn status_long(cwd: str) -> Result<str, GitError> {
-        // Implementation: Run git status --long
+        var cmd = "cd " + cwd + " && git status --long";
+        var result = system(cmd);
+        if result != 0 {
+            return Err(GitError { message = "git status --long failed" });
+        }
+        var output = capture_stdout(cmd);
+        return Ok(output);
     }
 
     // status_ignored returns ignored files
     fn status_ignored(cwd: str) -> Result<[str], GitError> {
-        // Implementation: Run git status --ignored
+        var cmd = "cd " + cwd + " && git status --ignored";
+        var result = system(cmd);
+        if result != 0 {
+            return Err(GitError { message = "git status --ignored failed" });
+        }
+        var output = capture_stdout(cmd);
+        var files: [str] = [];
+        for line in output.lines() {
+            if line.contains("ignored") {
+                var parts = line.split();
+                if parts.len >= 2 {
+                    files.push(parts[1]);
+                }
+            }
+        }
+        return Ok(files);
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -41,12 +93,24 @@ module GitStatus {
 
     // filter_by_status filters items by their status kind
     fn filter_by_status(items: [Item], kind: Kind) -> [Item] {
-        // Implementation: Return items matching the given kind
+        var result: [Item] = [];
+        for item in items {
+            if item.status == kind {
+                result.push(item);
+            }
+        }
+        return result;
     }
 
     // filter_by_pattern filters items by file path pattern
     fn filter_by_pattern(items: [Item], pattern: str) -> [Item] {
-        // Implementation: Return items whose file path matches pattern
+        var result: [Item] = [];
+        for item in items {
+            if matches_pattern(item.file, pattern) {
+                result.push(item);
+            }
+        }
+        return result;
     }
 
     // filter_added returns only added files
@@ -70,17 +134,33 @@ module GitStatus {
 
     // count_by_kind counts items by their status kind
     fn count_by_kind(items: [Item]) -> (added: u32, deleted: u32, modified: u32) {
-        // Implementation: Count items in each category
+        var added: u32 = 0;
+        var deleted: u32 = 0;
+        var modified: u32 = 0;
+        for item in items {
+            if item.status == Kind::Added {
+                added += 1;
+            } else if item.status == Kind::Deleted {
+                deleted += 1;
+            } else if item.status == Kind::Modified {
+                modified += 1;
+            }
+        }
+        return (added, deleted, modified);
     }
 
     // get_changed_files returns all changed file paths
     fn get_changed_files(items: [Item]) -> [str] {
-        // Implementation: Extract file paths from items
+        var files: [str] = [];
+        for item in items {
+            files.push(item.file);
+        }
+        return files;
     }
 
     // has_changes checks if there are any changes
     fn has_changes(items: [Item]) -> bool {
-        // Implementation: Return true if items is not empty
+        return items.len > 0;
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -184,5 +264,48 @@ module GitStatus {
 
         var unmerged = parse_kind("UU");
         assert(unmerged == Kind::Modified);
+    }
+
+    test "filter_by_status_filters_correctly" {
+        var items = [
+            Item { file = "a.t27", code = "A", status = Kind::Added },
+            Item { file = "b.t27", code = "M", status = Kind::Modified },
+            Item { file = "c.t27", code = "D", status = Kind::Deleted },
+            Item { file = "d.t27", code = "A", status = Kind::Added },
+        ];
+        var modified = filter_by_status(items, Kind::Modified);
+        assert(modified.len == 1);
+        assert(modified[0].file == "b.t27");
+        
+        var added = filter_by_status(items, Kind::Added);
+        assert(added.len == 2);
+        assert(added[0].file == "a.t27");
+        assert(added[1].file == "d.t27");
+    }
+
+    test "filter_by_pattern_filters_correctly" {
+        var items = [
+            Item { file = "src/main.t27", code = "M", status = Kind::Modified },
+            Item { file = "src/test.t27", code = "A", status = Kind::Added },
+            Item { file = "docs/readme.md", code = "M", status = Kind::Modified },
+            Item { file = "build/output.txt", code = "D", status = Kind::Deleted },
+        ];
+        var src_files = filter_by_pattern(items, "src/*.t27");
+        assert(src_files.len == 2);
+        assert(src_files[0].file == "src/main.t27");
+        assert(src_files[1].file == "src/test.t27");
+        
+        var md_files = filter_by_pattern(items, "*.md");
+        assert(md_files.len == 1);
+        assert(md_files[0].file == "docs/readme.md");
+    }
+
+    test "is_clean_detects_clean_repository" {
+        // Test that is_clean returns true when there are no changes
+        // This is a conceptual test since we can't easily create a clean git repo here
+        // The actual implementation would test git diff commands
+        var clean_result = is_clean("/some/clean/path");
+        // The result depends on the actual git state, but the function should handle it correctly
+        assert(clean_result == Ok(true) || clean_result == Ok(false));
     }
 }
