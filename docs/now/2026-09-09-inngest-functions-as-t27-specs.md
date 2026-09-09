@@ -1,0 +1,11 @@
+# NOW -- The 28 Inngest functions of 999-multibots-telegraf as first-class .t27 specs (2026-09-09)
+
+## Inngest functions as first-class .t27 specs
+
+- `specs/functions/` (28): one `.t27` module per Inngest function the bot `999-multibots-telegraf` registers at `main @a9c08b4` (`functions/<id>.t27`, `KIND = "function"`, module `fn_<id>`). Every constant is `pub const`; the schema is in `specs/functions/README.md`. Layer five of the ladder Specs -> Skills -> Crons -> Agents -> Functions: what one run does step by step (STEPS in source order), what starts it (TRIGGER, EVENT + LEGACY_EVENTS or CRON + TZ), how it fails (RETRIES, ON_FAILURE), what it touches outside (SIDE_EFFECTS), the first step that stops a bad payload (GUARD) and what the 2026-09-09 safe probe reached (SAFE_PROBE, PROBE_RESULT).
+- Values were read from the source, not inferred: the functions manifest (28 entries, the code witness the site vendors) plus the checkout itself where the manifest has gaps -- three functions with no file/steps/retries in the manifest and eight with undeclared `retries` (the spec writes the Inngest JS SDK v3 default, 4, and says so in NOTE). One disagreement is kept visible rather than resolved: `payment-ai-server-process` declares an `onFailure` handler that messages the admin chat, the manifest says `log`.
+- Not hidden: four functions (`training-model-complete`, `training-stuck-check`, `webhook-generation-validate`, `welcome-avatar-generate`) are not on the production Railway build as of 2026-09-09 (24 base functions deployed, 28 on `main`); their PROBE_RESULT is `not-deployed`, GUARD `unknown`.
+- Measured: **28/28** typecheck ok under the vendored wasm (sha256 `4d9c0447b5ca2887...`), nothing discarded, field schema satisfied, all ASCII. The bootstrap compiler on `master` was not run against these files.
+- Language: the specs are English-only (LANG-EN). `specs/i18n/agents-ru.t27` `SCOPE` gains `specs/functions` (`[4]str`); the RU bundle (`trinity:apps/website/i18n/agents.ru.json`) gains 28 entries keyed by `ID` in the companion trinity PR.
+- Not claimed: no function was renamed in the code by this change; no run was triggered; no silicon, no first/only/best.
+- `specs/OWNERS.md` gains the row `functions/` -> **T-Queen**.
