@@ -62,8 +62,8 @@ written by hand.
 | `CLARA_ROLE`      | `str`     | the CLARA role; `""` when the table says `—`                                              |
 | `SKILLS`          | `[N]str`  | skill IDs (`specs/skills`) the agent holds — ONLY when a source binds them (see below)     |
 | `SKILLS_NOTE`     | `str`     | where the binding comes from, or why `SKILLS` is empty; required when `SKILLS` is `[]`    |
-| `TOOLS`           | `[N]str`  | *optional, layer 5:* tool IDs (`specs/tools`) the agent owns, evidence-bound like SKILLS   |
-| `TOOLS_NOTE`      | `str`     | *optional:* source of the tool binding; required when `TOOLS` is present and `[]`          |
+| `TOOLS`           | `[N]str`  | tool IDs from `specs/tools` (`tri/<command>`, `mcp/<server>`) a source line binds to the letter |
+| `TOOLS_NOTE`      | `str`     | the source line, or why `TOOLS` is empty; required when `TOOLS` is `[]`                    |
 | `EXPERIENCE_LOG`  | `str`     | the experience directory the agent's episodes are read from, or `""`                      |
 | `ENABLED`         | `bool`    | `false` only for the reserved seat (Ti)                                                   |
 
