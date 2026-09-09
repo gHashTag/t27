@@ -19,6 +19,7 @@
 | `vsa/`, `nn/` | **N-Numeric** / ML adjacent | Bundles and attention specs |
 | `demos/`, `sandbox/` | **A-Architect** / **Q-QA** | Examples; not ring gold by default |
 | `isa/` | **C-Compiler** | Register alphabet |
+| `skills/`, `crons/`, `i18n/` | **T-Queen** | Agent skills and scheduled jobs as `.t27` specs, plus the per-locale translation contracts (`i18n/agents-<locale>.t27`) that point at the site's text bundles; the site (gHashTag/trinity) generates its catalogs from a vendored copy |
 
 Each subtree with substantial churn should keep a local **`OWNERS.md`** (see below).
 
