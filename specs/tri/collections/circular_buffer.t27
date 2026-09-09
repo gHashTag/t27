@@ -22,57 +22,133 @@ module TriCircularBuffer;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // init(allocator: std.mem.Allocator, capacity: usize) → CircularBuffer
+    fn init(allocator: std.mem.Allocator, capacity: usize) -> CircularBuffer {
+        // Allocate data slice with given capacity
+        let data = allocator.alloc(i64, capacity) catch @panic("allocation failed");
+        
+        // Initialize with head and tail at 0
+        return CircularBuffer{
+            .data = data,
+            .head = 0,
+            .tail = 0,
+            .capacity = capacity,
+            .allocator = allocator,
+        };
     }
 
-    // write(buf: *CircularBuffer) → void
-    fn write(buf: *CircularBuffer) -> void {
-        // TODO: Implement from .tri spec
+    // write(buf: *CircularBuffer, value: i64) → !void
+    fn write(buf: *CircularBuffer, value: i64) -> !void {
+        // Full buffer policy: overwrite the oldest element (tail position)
+        // This is consistent with circular buffer behavior
+        
+        // Store value at head position
+        buf.data[buf.head] = value;
+        
+        // Advance head modulo capacity
+        buf.head = (buf.head + 1) % buf.capacity;
+        
+        // If buffer is full, tail also advances (overwrite oldest)
+        if (buf.head == buf.tail) {
+            buf.tail = (buf.tail + 1) % buf.capacity;
+        }
     }
 
-    // read(buf: *CircularBuffer) → void
-    fn read(buf: *CircularBuffer) -> void {
-        // TODO: Implement from .tri spec
+    // read(buf: *CircularBuffer) → i64
+    fn read(buf: *CircularBuffer) -> i64 {
+        // Callers must check is_empty() first before calling read
+        // This function has no error/optional return type as per signature
+        
+        return buf.data[buf.tail];
     }
 
-    // is_empty(buf: *CircularBuffer) → void
-    fn is_empty(buf: *CircularBuffer) -> void {
-        // TODO: Implement from .tri spec
+    // is_empty(buf: *CircularBuffer) → bool
+    fn is_empty(buf: *CircularBuffer) -> bool {
+        // Empty state: head == tail
+        // This matches the existing test: circular_buffer_empty_state_has_head_meeting_tail
+        return buf.head == buf.tail;
     }
 
     // deinit(buf: *CircularBuffer) → void
     fn deinit(buf: *CircularBuffer) -> void {
-        // TODO: Implement from .tri spec
+        // Free the allocated data
+        buf.allocator.free(buf.data);
+        
+        // Reset all fields to 0
+        buf.head = 0;
+        buf.tail = 0;
+        buf.capacity = 0;
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    test circular_buffer_empty_state_has_head_meeting_tail
+        given empty = CircularBuffer{.data=&[_]i64{},.head=0,.tail=0,.capacity=0,.allocator=std.testing.allocator}
+        then empty.head == empty.tail
+        and empty.capacity == 0
+        and empty.data.len == 0
 
-    test write_basic_case
-        given input = default_input()
-        when result = write(input)
-        then result != undefined
+    test circular_buffer_capacity_matches_its_backing_array
+        given buf = CircularBuffer{.data=@constCast(&[_]i64{7,8,9,10}),.head=3,.tail=1,.capacity=4,.allocator=std.testing.allocator}
+        then buf.capacity == buf.data.len
+        and buf.head != buf.tail
+        and buf.data[buf.tail] == 8
 
-    test read_basic_case
-        given input = default_input()
-        when result = read(input)
-        then result != undefined
+    test circular_buffer_indices_stay_inside_the_capacity
+        given wrapped = CircularBuffer{.data=@constCast(&[_]i64{1,2,3,4}),.head=3,.tail=1,.capacity=4,.allocator=std.testing.allocator}
+        then wrapped.head > wrapped.tail
+        and wrapped.head < wrapped.capacity
+        and wrapped.tail < wrapped.capacity
 
-    test is_empty_basic_case
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
+    test init_creates_buffer_with_correct_capacity
+        given buf = init(std.testing.allocator, 5)
+        then buf.capacity == 5
+        and buf.data.len == 5
+        and buf.head == 0
+        and buf.tail == 0
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    test write_advances_head_position_modulo_capacity
+        given buf = init(std.testing.allocator, 3)
+        when write(buf, 10)
+        and write(buf, 20)
+        and write(buf, 30)
+        then buf.head == 0  // Should wrap around after 3 writes
+        and buf.data[0] == 10  // First element overwritten
+        and buf.data[1] == 20
+        and buf.data[2] == 30
 
+    test read_returns_value_and_advances_tail
+        given buf = init(std.testing.allocator, 3)
+        when write(buf, 100)
+        and write(buf, 200)
+        and value1 = read(buf)
+        and value2 = read(buf)
+        then value1 == 100
+        and value2 == 200
+        and buf.tail == 2
+
+    test is_empty_detects_empty_buffer_correctly
+        given buf = init(std.testing.allocator, 3)
+        then is_empty(buf) == true
+        and write(buf, 42)
+        and is_empty(buf) == false
+
+    test deinit_frees_memory_and_resets_fields
+        given buf = init(std.testing.allocator, 3)
+        when write(buf, 123)
+        and deinit(buf)
+        then buf.capacity == 0
+        and buf.head == 0
+        and buf.tail == 0
+
+    test write_overrides_oldest_element_when_full
+        given buf = init(std.testing.allocator, 2)
+        when write(buf, 1)
+        and write(buf, 2)
+        and write(buf, 3)  // Should override element at position 0
+        then buf.data[0] == 3  // Overwritten
+        and buf.data[1] == 2  // Still there
+        and buf.head == 1
+        and buf.tail == 1  // Both head and tail at same position (full buffer)
