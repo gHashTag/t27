@@ -19,107 +19,231 @@ module TriBitmap;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(capacity: usize) → void
-    fn init(capacity: usize) -> void {
-        // TODO: Implement from .tri spec
+    // init(capacity: usize, allocator: std.mem.Allocator) -> !Bitmap
+    fn init(capacity: usize, allocator: std.mem.Allocator) -> !Bitmap {
+        const W = @bitSizeOf(usize);
+        const word_count = (capacity + W - 1) / W;
+        const bits = allocator.alloc(usize, word_count) catch return error.OutOfMemory;
+        @memset(bits, 0, word_count);
+        return Bitmap{ .bits = bits, .capacity = capacity };
     }
 
-    // get(bitmap: Bitmap) → void
-    fn get(bitmap: Bitmap) -> void {
-        // TODO: Implement from .tri spec
+    // get(bitmap: Bitmap, index: usize) -> bool
+    fn get(bitmap: Bitmap, index: usize) -> bool {
+        if (index >= bitmap.capacity) return false;
+        const W = @bitSizeOf(usize);
+        const word = index / W;
+        const off = index % W;
+        return (bitmap.bits[word] & (1 << off)) != 0;
     }
 
-    // set(bitmap: *Bitmap) → void
-    fn set(bitmap: *Bitmap) -> void {
-        // TODO: Implement from .tri spec
+    // set(bitmap: *Bitmap, index: usize) -> void
+    fn set(bitmap: *Bitmap, index: usize) -> void {
+        if (index >= bitmap.capacity) return;
+        const W = @bitSizeOf(usize);
+        const word = index / W;
+        const off = index % W;
+        bitmap.bits[word] |= 1 << off;
     }
 
-    // clear(bitmap: *Bitmap) → void
-    fn clear(bitmap: *Bitmap) -> void {
-        // TODO: Implement from .tri spec
+    // clear(bitmap: *Bitmap, index: usize) -> void
+    fn clear(bitmap: *Bitmap, index: usize) -> void {
+        if (index >= bitmap.capacity) return;
+        const W = @bitSizeOf(usize);
+        const word = index / W;
+        const off = index % W;
+        bitmap.bits[word] &= ~(1 << off);
     }
 
-    // flip(bitmap: *Bitmap) → void
-    fn flip(bitmap: *Bitmap) -> void {
-        // TODO: Implement from .tri spec
+    // flip(bitmap: *Bitmap, index: usize) -> void
+    fn flip(bitmap: *Bitmap, index: usize) -> void {
+        if (index >= bitmap.capacity) return;
+        const W = @bitSizeOf(usize);
+        const word = index / W;
+        const off = index % W;
+        bitmap.bits[word] ^= 1 << off;
     }
 
-    // set_all(bitmap: *Bitmap) → void
+    // set_all(bitmap: *Bitmap) -> void
     fn set_all(bitmap: *Bitmap) -> void {
-        // TODO: Implement from .tri spec
+        const W = @bitSizeOf(usize);
+        const word_count = (bitmap.capacity + W - 1) / W;
+        for (0..word_count) |i| {
+            if (i == word_count - 1) {
+                const last_word_bits = bitmap.capacity % W;
+                if (last_word_bits != 0) {
+                    bitmap.bits[i] = (1 << last_word_bits) - 1;
+                } else {
+                    bitmap.bits[i] = ~@as(usize, 0);
+                }
+            } else {
+                bitmap.bits[i] = ~@as(usize, 0);
+            }
+        }
     }
 
-    // clear_all(bitmap: *Bitmap) → void
+    // clear_all(bitmap: *Bitmap) -> void
     fn clear_all(bitmap: *Bitmap) -> void {
-        // TODO: Implement from .tri spec
+        const W = @bitSizeOf(usize);
+        const word_count = (bitmap.capacity + W - 1) / W;
+        @memset(bitmap.bits, 0, word_count);
     }
 
-    // count(bitmap: Bitmap) → void
-    fn count(bitmap: Bitmap) -> void {
-        // TODO: Implement from .tri spec
+    // count(bitmap: Bitmap) -> usize
+    fn count(bitmap: Bitmap) -> usize {
+        var total: usize = 0;
+        const W = @bitSizeOf(usize);
+        const word_count = (bitmap.capacity + W - 1) / W;
+        for (0..word_count) |i| {
+            if (i == word_count - 1) {
+                const last_word_bits = bitmap.capacity % W;
+                if (last_word_bits != 0) {
+                    total += @popCount(bitmap.bits[i] & ((1 << last_word_bits) - 1));
+                } else {
+                    total += @popCount(bitmap.bits[i]);
+                }
+            } else {
+                total += @popCount(bitmap.bits[i]);
+            }
+        }
+        return total;
     }
 
-    // find_first(bitmap: Bitmap) → void
-    fn find_first(bitmap: Bitmap) -> void {
-        // TODO: Implement from .tri spec
+    // find_first(bitmap: Bitmap) -> ?usize
+    fn find_first(bitmap: Bitmap) -> ?usize {
+        const W = @bitSizeOf(usize);
+        const word_count = (bitmap.capacity + W - 1) / W;
+        for (0..word_count) |i| {
+            if (bitmap.bits[i] != 0) {
+                const word = bitmap.bits[i];
+                const last_word_bits = if (i == word_count - 1) bitmap.capacity % W else W;
+                const masked_word = if (last_word_bits != 0) word & ((1 << last_word_bits) - 1) else word;
+                if (masked_word != 0) {
+                    var off: usize = 0;
+                    while (off < W) {
+                        if ((masked_word & (1 << off)) != 0) {
+                            return i * W + off;
+                        }
+                        off += 1;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
-    // find_last(bitmap: Bitmap) → void
-    fn find_last(bitmap: Bitmap) -> void {
-        // TODO: Implement from .tri spec
+    // find_last(bitmap: Bitmap) -> ?usize
+    fn find_last(bitmap: Bitmap) -> ?usize {
+        const W = @bitSizeOf(usize);
+        const word_count = (bitmap.capacity + W - 1) / W;
+        var i: usize = word_count;
+        while (i > 0) {
+            i -= 1;
+            if (bitmap.bits[i] != 0) {
+                const word = bitmap.bits[i];
+                const last_word_bits = if (i == word_count - 1) bitmap.capacity % W else W;
+                const masked_word = if (last_word_bits != 0) word & ((1 << last_word_bits) - 1) else word;
+                if (masked_word != 0) {
+                    var off: usize = 0;
+                    while (off < W) {
+                        if ((masked_word & (1 << off)) != 0) {
+                            return i * W + (W - 1 - off);
+                        }
+                        off += 1;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    test bits_are_packed_into_usize_words
+        then @FieldType(Bitmap, "bits") == []usize
+        and @bitSizeOf(usize) >= 32
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    test capacity_is_a_bit_count_not_a_word_count
+        then @FieldType(Bitmap, "capacity") == usize
+        and @popCount(@as(usize, 0b1010)) == 2
 
-    test set_basic_case
-        given input = default_input()
-        when result = set(input)
-        then result != undefined
+    test bitmap_is_a_slice_plus_a_length
+        then @FieldType(Bitmap, "bits") == []usize
+        and @FieldType(Bitmap, "capacity") == usize
 
-    test clear_basic_case
-        given input = default_input()
-        when result = clear(input)
-        then result != undefined
+    test init_allocates_correct_word_count
+        given allocator = std.testing.allocator
+        when bitmap = init(1024, allocator)
+        then bitmap.capacity == 1024
+        and bitmap.bits.len == @ceil(1024 / @bitSizeOf(usize))
 
-    test flip_basic_case
-        given input = default_input()
-        when result = flip(input)
-        then result != undefined
+    test get_returns_correct_bit_value
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then get(bitmap, 0) == false
+        and get(bitmap, 1) == false
 
-    test set_all_basic_case
-        given input = default_input()
-        when result = set_all(input)
-        then result != undefined
+    test set_sets_bit_correctly
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then set(bitmap, 5)
+        and get(bitmap, 5) == true
+        and get(bitmap, 4) == false
 
-    test clear_all_basic_case
-        given input = default_input()
-        when result = clear_all(input)
-        then result != undefined
+    test clear_clears_bit_correctly
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then set(bitmap, 10)
+        and clear(bitmap, 10)
+        and get(bitmap, 10) == false
 
-    test count_basic_case
-        given input = default_input()
-        when result = count(input)
-        then result != undefined
+    test test_flips_bit_correctly
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then flip(bitmap, 15)
+        and get(bitmap, 15) == true
+        and flip(bitmap, 15)
+        and get(bitmap, 15) == false
 
-    test find_first_basic_case
-        given input = default_input()
-        when result = find_first(input)
-        then result != undefined
+    test test_set_all_sets_all_bits
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then set_all(bitmap)
+        and get(bitmap, 0) == true
+        and get(bitmap, 99) == true
 
-    test find_last_basic_case
-        given input = default_input()
-        when result = find_last(input)
-        then result != undefined
+    test test_clear_all_clears_all_bits
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then set_all(bitmap)
+        and clear_all(bitmap)
+        and get(bitmap, 0) == false
+        and get(bitmap, 99) == false
 
+    test test_count_returns_correct_population
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then set(bitmap, 0)
+        and set(bitmap, 5)
+        and set(bitmap, 10)
+        and count(bitmap) == 3
+
+    test test_find_finds_first_set_bit
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then find_first(bitmap) == null
+        and set(bitmap, 10)
+        and find_first(bitmap) == 10
+        and set(bitmap, 5)
+        and find_first(bitmap) == 5
+
+    test test_find_last_finds_last_set_bit
+        given allocator = std.testing.allocator
+        when bitmap = init(100, allocator)
+        then find_last(bitmap) == null
+        and set(bitmap, 10)
+        and find_last(bitmap) == 10
+        and set(bitmap, 20)
+        and find_last(bitmap) == 20
