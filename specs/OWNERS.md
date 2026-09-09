@@ -20,6 +20,7 @@
 | `demos/`, `sandbox/` | **A-Architect** / **Q-QA** | Examples; not ring gold by default |
 | `isa/` | **C-Compiler** | Register alphabet |
 | `skills/`, `crons/`, `i18n/` | **T-Queen** | Agent skills and scheduled jobs as `.t27` specs, plus the per-locale translation contracts (`i18n/agents-<locale>.t27`) that point at the site's text bundles; the site (gHashTag/trinity) generates its catalogs from a vendored copy |
+| `agents/` | **T-Queen** | The 27 agents of `docs/agents/AGENTS_ALPHABET.md` as `.t27` specs (`agents/<letter>.t27`, `KIND = "agent"`): letter, domain, archetype, register, invariants, the documents that bind it (`SOUL.md`, `AGENTS.md`, the alphabet) and the skills a source evidently binds; the site joins experience by LETTER |
 
 Each subtree with substantial churn should keep a local **`OWNERS.md`** (see below).
 
