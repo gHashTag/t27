@@ -3,7 +3,7 @@
 ## Measured, declared, external
 
 The project separates what was measured from what was declared, and both from what was taken
-from outside. The tags are defined in the first chapter; this chapter says how each tag is
+from outside. The tags are defined in the chapter "The project"; this chapter says how each tag is
 earned on the site.
 
 A **measured** number has a producer in a repository -- a script, a workflow, a test -- whose
@@ -78,7 +78,7 @@ pointing to one):
   forbidden-words scan in English and Russian.
 
 Each JSON names the commit its inputs were read at. Comparing that commit with the one in
-front of you is the first step of any reproduction; a number that cannot be tied to a
+front of you is step one of any reproduction; a number that cannot be tied to a
 commit is not a measurement.
 
 ## Published record

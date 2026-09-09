@@ -17,7 +17,7 @@ pub const ORDER : u8 = 1;
 pub const TITLE : str = "The project";
 ; Repository files this chapter quotes or is generated from (paths from the t27 root,
 ; or from the trinity root when prefixed with trinity:).
-pub const SOURCES : [3]str = ["README.md", "SOUL.md", "specs/docs/system.t27"];
+pub const SOURCES : [5]str = ["SOUL.md", "AGENTS.md", "specs/docs/system.t27", "trinity:apps/website/src/data/siliconHistory.ts", "trinity:apps/website/src/content/tnf.ts"];
 ; Section headings, in order. The Markdown body must carry each as a level-2 heading.
 pub const SECTIONS : [4]str = ["What t27 and Trinity are", "Claims and their status", "Boundaries", "How to read this documentation"];
 ; Figure the site renders from data next to this chapter; one of DIAGRAMS in system.t27,
