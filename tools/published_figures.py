@@ -65,9 +65,11 @@ FIGURES = [
     # byte-identical to their twin. 12644 - 188 = 12456, which is what a
     # re-derivation gives -- the first thing this file caught, on its first run.
     # #3557 added specs/ui/viewport.t27 with six test blocks: 12456 + 6 = 12462.
+    # #3556 (Closes #3559) added specs/automation/inngest-probe-suite.t27 with
+    # three test blocks: 12462 + 3 = 12465.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12462,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12465,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3"),
 ]
 
 
