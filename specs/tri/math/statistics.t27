@@ -10,34 +10,117 @@ module TriStatistics;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // mean(values: []f64) → void
-    fn mean(values: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // mean(values: []f64) → f64
+    fn mean(values: []f64) -> f64 {
+        if (values.len == 0) {
+            return 0.0;
+        }
+        var sum: f64 = 0.0;
+        for (values) |value| {
+            sum += value;
+        }
+        return sum / @as(f64, @intCast(values.len));
     }
 
-    // variance(values: []f64) → void
-    fn variance(values: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // variance(values: []f64) → f64
+    fn variance(values: []f64) -> f64 {
+        // Sample variance: divide by n-1, not n
+        if (values.len < 2) {
+            return 0.0;
+        }
+        const m = mean(values);
+        var sum_sq_dev: f64 = 0.0;
+        for (values) |value| {
+            const dev = value - m;
+            sum_sq_dev += dev * dev;
+        }
+        return sum_sq_dev / @as(f64, @intCast(values.len - 1));
     }
 
-    // std_dev(values: []f64) → void
-    fn std_dev(values: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // std_dev(values: []f64) → f64
+    fn std_dev(values: []f64) -> f64 {
+        return @sqrt(variance(values));
     }
 
-    // median(allocator: std.mem.Allocator) → void
-    fn median(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // median(allocator: std.mem.Allocator, values: []f64) → f64
+    fn median(allocator: std.mem.Allocator, values: []f64) -> f64 {
+        if (values.len == 0) {
+            return 0.0;
+        }
+        const copy = allocator.alloc(f64, values.len) catch return 0.0;
+        defer allocator.free(copy);
+        
+        @memcpy(copy, values, values.len);
+        
+        // Sort the copy
+        std.mem.sort(f64, copy, copy.len, {}, comptime std.mem.lessThan(f64));
+        
+        const mid = values.len / 2;
+        if (values.len % 2 == 1) {
+            return copy[mid];
+        } else {
+            // Even number of elements: average of two middle values
+            return (copy[mid - 1] + copy[mid]) / 2.0;
+        }
     }
 
-    // percentile(allocator: std.mem.Allocator) → void
-    fn percentile(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // percentile(allocator: std.mem.Allocator, values: []f64, p: f64) → f64
+    fn percentile(allocator: std.mem.Allocator, values: []f64, p: f64) -> f64 {
+        // Clamp p into [0, 1] range
+        const clamped_p = @max(0.0, @min(1.0, p));
+        
+        if (values.len == 0) {
+            return 0.0;
+        }
+        
+        const copy = allocator.alloc(f64, values.len) catch return 0.0;
+        defer allocator.free(copy);
+        
+        @memcpy(copy, values, values.len);
+        
+        // Sort the copy
+        std.mem.sort(f64, copy, copy.len, {}, comptime std.mem.lessThan(f64));
+        
+        // Linear interpolation between nearest ranks
+        const index = clamped_p * @as(f64, @intCast(values.len - 1));
+        const lower_idx = @floor(index);
+        const upper_idx = @ceil(index);
+        const fraction = index - lower_idx;
+        
+        if (lower_idx == upper_idx) {
+            return copy[@as(usize, @intCast(lower_idx))];
+        } else {
+            const lower_val = copy[@as(usize, @intCast(lower_idx))];
+            const upper_val = copy[@as(usize, @intCast(upper_idx))];
+            return lower_val + fraction * (upper_val - lower_val);
+        }
     }
 
-    // correlation(x: []f64) → void
-    fn correlation(x: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // correlation(x: []f64, y: []f64) → f64
+    fn correlation(x: []f64, y: []f64) -> f64 {
+        if (x.len != y.len or x.len < 2) {
+            return 0.0;
+        }
+        
+        const std_dev_x = std_dev(x);
+        const std_dev_y = std_dev(y);
+        
+        if (std_dev_x == 0.0 or std_dev_y == 0.0) {
+            return 0.0;
+        }
+        
+        // Calculate covariance
+        const mean_x = mean(x);
+        const mean_y = mean(y);
+        var covariance: f64 = 0.0;
+        
+        for (x) |xi, i| {
+            const yi = y[i];
+            covariance += (xi - mean_x) * (yi - mean_y);
+        }
+        covariance /= @as(f64, @intCast(x.len - 1));
+        
+        return covariance / (std_dev_x * std_dev_y);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -49,28 +132,64 @@ module TriStatistics;
         when result = mean(input)
         then result != undefined
 
+    test mean_simple_case
+        given input = [1.0, 3.0]
+        when result = mean(input)
+        then result == 2.0
+
     test variance_basic_case
         given input = default_input()
         when result = variance(input)
         then result != undefined
+
+    test variance_constant_sample
+        given input = [2.0, 2.0, 2.0]
+        when result = variance(input)
+        then result == 0.0
 
     test std_dev_basic_case
         given input = default_input()
         when result = std_dev(input)
         then result != undefined
 
+    test std_dev_from_variance
+        given input = [1.0, 3.0, 5.0]
+        when result = std_dev(input)
+        then result == @sqrt(8.0 / 2.0)
+
     test median_basic_case
         given input = default_input()
         when result = median(input)
         then result != undefined
+
+    test median_odd_length
+        given input = [1.0, 3.0, 5.0]
+        when result = median(input)
+        then result == 3.0
 
     test percentile_basic_case
         given input = default_input()
         when result = percentile(input)
         then result != undefined
 
+    test percentile_50th
+        given input = [1.0, 2.0, 3.0, 4.0]
+        when result = percentile(input, 0.5)
+        then result == 2.5
+
     test correlation_basic_case
         given input = default_input()
         when result = correlation(input)
         then result != undefined
 
+    test correlation_perfect
+        given x = [1.0, 2.0, 3.0]
+        given y = [1.0, 2.0, 3.0]
+        when result = correlation(x, y)
+        then result == 1.0
+
+    test correlation_zero_length
+        given x = []
+        given y = []
+        when result = correlation(x, y)
+        then result == 0.0
