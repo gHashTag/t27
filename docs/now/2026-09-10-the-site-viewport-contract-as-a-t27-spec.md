@@ -8,4 +8,5 @@
 - Inside a `test` block only `//` comments are safe: the parser reads a `;` line inside a block as a statement (recorded in the README).
 - English only, ASCII only, no user-visible copy in the spec (so no i18n SCOPE row); no absolute developer home path; the checkout is referred to as `T27_ROOT` or `git rev-parse --show-toplevel`.
 - `specs/OWNERS.md` gains the row `ui/` -> **T-Queen**.
+- `tools/published_figures.py`: the pinned `test blocks` population follows the corpus, 12456 -> 12462 (the six test blocks of this spec), with the movement written next to the pin as the file's protocol asks; the other nine figures are unchanged and `--check` exits 0.
 - Not claimed: the bootstrap compiler on `master` was not run against this file; the Queen rail capacity is a model (a CSS budget plus one consistent observation at 1024x768), not a measurement of every height; `gate-topology` and `untrusted-input` still fail on `master` for already-merged PRs and are not addressed here.
