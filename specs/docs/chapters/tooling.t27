@@ -17,7 +17,7 @@ pub const ORDER : u8 = 6;
 pub const TITLE : str = "Tooling";
 ; Repository files this chapter quotes or is generated from (paths from the t27 root,
 ; or from the trinity root when prefixed with trinity:).
-pub const SOURCES : [2]str = ["specs/tools/README.md", "cli/tri/src/main.rs"];
+pub const SOURCES : [4]str = ["specs/tools/README.md", "specs/tools/tri/cell.t27", "specs/agents/README.md", "SOUL.md"];
 ; Section headings, in order. The Markdown body must carry each as a level-2 heading.
 pub const SECTIONS : [3]str = ["The tri CLI", "MCP servers", "Who owns a tool"];
 ; Figure the site renders from data next to this chapter; one of DIAGRAMS in system.t27,
