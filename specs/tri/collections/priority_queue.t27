@@ -25,8 +25,8 @@ module TriPriorityQueue;
         return PriorityQueue{ .data = &[_]i64{}, .size = 0, .allocator = allocator };
     }
 
-    // enqueue(pq: *PriorityQueue) → void
-    fn enqueue(pq: *PriorityQueue) -> !void {
+    // enqueue(pq: *PriorityQueue, value: i64) → void
+    fn enqueue(pq: *PriorityQueue, value: i64) -> !void {
         if (pq.size == pq.data.len) {
             let new_capacity = if (pq.data.len == 0) 1 else pq.data.len * 2;
             let new_data = @as([]i64, @ptrCast(@alignCast(pq.allocator.alloc(u8, new_capacity * @sizeOf(i64))))));
