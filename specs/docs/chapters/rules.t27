@@ -17,7 +17,7 @@ pub const ORDER : u8 = 2;
 pub const TITLE : str = "Constitution and the rules of the game for agents";
 ; Repository files this chapter quotes or is generated from (paths from the t27 root,
 ; or from the trinity root when prefixed with trinity:).
-pub const SOURCES : [5]str = ["SOUL.md", "AGENTS.md", "docs/T27-CONSTITUTION.md", "docs/coordination/TASK_PROTOCOL.md", ".github/workflows/issue-gate.yml"];
+pub const SOURCES : [5]str = ["SOUL.md", "AGENTS.md", "CLAUDE.md", "docs/T27-CONSTITUTION.md", "docs/coordination/TASK_PROTOCOL.md"];
 ; Section headings, in order. The Markdown body must carry each as a level-2 heading.
 pub const SECTIONS : [6]str = ["The constitutional stack", "SOUL articles", "Invariant laws and their priority", "Non-negotiables for changes", "TASK protocol", "Issue gate and TDD mandate"];
 ; Figure the site renders from data next to this chapter; one of DIAGRAMS in system.t27,
