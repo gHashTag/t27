@@ -64,9 +64,10 @@ FIGURES = [
     # blessed away: #3482 deleted 188 duplicate test blocks whose bodies were
     # byte-identical to their twin. 12644 - 188 = 12456, which is what a
     # re-derivation gives -- the first thing this file caught, on its first run.
+    # #3557 added specs/ui/viewport.t27 with six test blocks: 12456 + 6 = 12462.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12456,
-     "#3479 pinned 12644; #3482 removed 188"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12462,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6"),
 ]
 
 
