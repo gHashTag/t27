@@ -47,11 +47,11 @@ FIGURES = [
     ("cast_i16 uses", "uses",
      r"(?<![\w.@])cast_i16\s*\(", 38, "#3497"),
     ("[]T{} empty slice literals", "literals",
-     r"\[\]\s*[A-Za-z_][\w:]*\s*\{\s*\}", 478, "#3495"),
+     r"\[\]\s*[A-Za-z_][\w:]*\s*\{\s*\}", 480, "#3495; queen harvest 2026-09-10 added 2"),
     ("x.len() with an identifier base", "call sites",
      r"\b[A-Za-z_]\w*\s*\.\s*len\s*\(", 1319, "#3489, corrected from 1322"),
     ("x.len with an identifier base", "field reads",
-     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 680, "#3489, corrected from 687"),
+     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 710, "#3489, corrected from 687; queen harvest 2026-09-10 added 30"),
     ("len(x) free-function spelling", "call sites",
      r"(?<![\w.@])len\s*\(", 296, "#3489 said 142 -- that was a DIAGNOSTIC count"),
     ("three-segment paths a::b::c", "occurrences",
@@ -67,9 +67,12 @@ FIGURES = [
     # #3557 added specs/ui/viewport.t27 with six test blocks: 12456 + 6 = 12462.
     # #3556 (Closes #3559) added specs/automation/inngest-probe-suite.t27 with
     # three test blocks: 12462 + 3 = 12465.
+    # The 2026-09-10 queen harvest (#3560) landed 9 bee patches (#3508 #3515
+    # #3524 #3525 #3530 #3531 #3534 #3536 #3538), each adding test blocks
+    # beside the functions it implemented: 12465 + 77 = 12542.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12465,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12542,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77"),
 ]
 
 
