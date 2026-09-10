@@ -33,7 +33,7 @@ module TriDeque;
         };
     }
 
-    // push_front(deque: *Deque) → void
+    // push_front(deque: *Deque, value: i64) → !void
     fn push_front(deque: *Deque, value: i64) -> !void {
         if (deque.size == deque.data.len) {
             const new_capacity = if (deque.data.len == 0) 4 else deque.data.len * 2;
@@ -53,7 +53,7 @@ module TriDeque;
         deque.size += 1;
     }
 
-    // push_back(deque: *Deque) → void
+    // push_back(deque: *Deque, value: i64) → !void
     fn push_back(deque: *Deque, value: i64) -> !void {
         if (deque.size == deque.data.len) {
             const new_capacity = if (deque.data.len == 0) 4 else deque.data.len * 2;
@@ -71,7 +71,7 @@ module TriDeque;
         deque.size += 1;
     }
 
-    // pop_front(deque: *Deque) → void
+    // pop_front(deque: *Deque) → i64
     fn pop_front(deque: *Deque) -> i64 {
         if (deque.size == 0) {
             @panic("pop_front on empty deque is a programmer error");
@@ -82,7 +82,7 @@ module TriDeque;
         return value;
     }
 
-    // pop_back(deque: *Deque) → void
+    // pop_back(deque: *Deque) → i64
     fn pop_back(deque: *Deque) -> i64 {
         if (deque.size == 0) {
             @panic("pop_back on empty deque is a programmer error");
@@ -106,34 +106,47 @@ module TriDeque;
     // ═══════════════════════════════════════════════════════════
 
     test init_basic_case
-        given input = default_input()
+        given input = std.testing.allocator
         when result = init(input)
         then result != undefined
 
     test push_front_basic_case
-        given input = default_input()
-        when result = push_front(input)
-        then result != undefined
+        given d = init(std.testing.allocator)
+        when d.push_front(42) catch unreachable
+        then d.size == 1
+        and d.data[d.front] == 42
 
     test push_back_basic_case
-        given input = default_input()
-        when result = push_back(input)
-        then result != undefined
+        given d = init(std.testing.allocator)
+        when d.push_back(42) catch unreachable
+        then d.size == 1
+        and d.data[d.back - 1] == 42
 
     test pop_front_basic_case
-        given input = default_input()
-        when result = pop_front(input)
-        then result != undefined
+        given d = init(std.testing.allocator)
+        when d.push_back(10) catch unreachable
+        and d.push_back(20) catch unreachable
+        and result = d.pop_front()
+        then result == 10
+        and d.size == 1
+        and d.data[d.front] == 20
 
     test pop_back_basic_case
-        given input = default_input()
-        when result = pop_back(input)
-        then result != undefined
+        given d = init(std.testing.allocator)
+        when d.push_front(10) catch unreachable
+        and d.push_front(20) catch unreachable
+        and result = d.pop_back()
+        then result == 10
+        and d.size == 1
+        and d.data[d.front] == 20
 
     test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+        given d = init(std.testing.allocator)
+        when d.push_back(10) catch unreachable
+        and d.deinit()
+        then d.size == 0
+        and d.front == 0
+        and d.back == 0
 
     test init_creates_empty_deque
         given d = init(std.testing.allocator)
@@ -156,6 +169,24 @@ module TriDeque;
         and d.data[d.back - 1] == 42
         and d.front == 0
 
+    test push_front_grows_capacity_when_full
+        given d = Deque{.data=@constCast(&[_]i64{10,20}),.front=0,.back=2,.size=2,.allocator=std.testing.allocator}
+        when d.push_front(30) catch unreachable
+        then d.data.len == 4
+        and d.size == 3
+        and d.data[d.front] == 30
+        and d.data[1] == 10
+        and d.data[2] == 20
+
+    test push_back_grows_capacity_when_full
+        given d = Deque{.data=@constCast(&[_]i64{10,20}),.front=0,.back=2,.size=2,.allocator=std.testing.allocator}
+        when d.push_back(30) catch unreachable
+        then d.data.len == 4
+        and d.size == 3
+        and d.data[2] == 30
+        and d.data[0] == 10
+        and d.data[1] == 20
+
     test pop_front_removes_and_returns_front_element
         given d = init(std.testing.allocator)
         when d.push_back(10) catch unreachable
@@ -174,6 +205,24 @@ module TriDeque;
         and d.size == 1
         and d.data[d.front] == 20
 
+    test pop_front_maintains_circular_buffer_after_wrap
+        given d = Deque{.data=@constCast(&[_]i64{0,10,20,0}),.front=1,.back=3,.size=2,.allocator=std.testing.allocator}
+        when d.push_front(30) catch unreachable
+        and result = d.pop_front()
+        then result == 30
+        and d.size == 2
+        and d.data[d.front] == 10
+        and d.data[d.back - 1] == 20
+
+    test pop_back_maintains_circular_buffer_after_wrap
+        given d = Deque{.data=@constCast(&[_]i64{0,10,20,0}),.front=1,.back=3,.size=2,.allocator=std.testing.allocator}
+        when d.push_back(30) catch unreachable
+        and result = d.pop_back()
+        then result == 30
+        and d.size == 2
+        and d.data[d.front] == 10
+        and d.data[d.back - 1] == 20
+
     test deinit_frees_memory_and_resets_state
         given d = init(std.testing.allocator)
         when d.push_back(10) catch unreachable
@@ -188,4 +237,3 @@ module TriDeque;
         and d.data[d.front] == 20
         and d.data[d.back] == 40
         and d.size <= d.data.len
-
