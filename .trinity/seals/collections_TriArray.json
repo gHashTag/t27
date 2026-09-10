@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:c3a6fe3b5e00bb59d95d479cb19353915561e698080428663cafe3c91e3ec20d",
-  "gen_hash_rust": "sha256:bccd29ac3fed64b294e858ede8693d78314919ed86ca89a2cf3ec64d8e770e4d",
-  "gen_hash_verilog": "sha256:b9a0c37dc409df444aeeaa105ef0514ee6c526075d2742a82f104293e51af3c9",
-  "gen_hash_zig": "sha256:c60d2c46a5fe2df68032b4ab03af4df19ea556d80f8c64ee396a30ed71df8415",
+  "gen_hash_c": "sha256:1e29523d6fe3c668ada1c982e5af6284939b78a4b355f5b994093d84c79e65bb",
+  "gen_hash_rust": "sha256:f85d125ba05e472e37c58c93308f9f0b022c52566b0cc02df4c057dba108d3c3",
+  "gen_hash_verilog": "sha256:17f894adfbd5d80a88e426612fe24dd6c3f34fec45b657520180d13fdc1fc9c7",
+  "gen_hash_zig": "sha256:010c60a5326c0a4d0c21bc8f3d71781c52f3113ab290bbf326e58e078fda5942",
   "module": "TriArray",
   "ring": 12,
-  "sealed_at": "2026-09-08T01:34:16Z",
+  "sealed_at": "2026-09-10T03:34:25Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:60653d3f4d6594d26519e2a2da5fb21c191c1e6c5823d192a0d0518df6010f87",
+  "spec_hash": "sha256:9cef031364c904a77e2e4b3b5e087264772e8db757aad7455942517a0d59ede5",
   "spec_path": "specs/tri/collections/array.t27"
 }
