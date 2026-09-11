@@ -1,0 +1,1112 @@
+{
+  "constants": {
+    "evidence": {
+      "emulator": "loopback HTTP transfer and exact dot",
+      "fpga": "not produced by this demo",
+      "rtl-simulation": "row replays in Icarus"
+    },
+    "experiment": {
+      "modes": [
+        "dense5",
+        "baseline2"
+      ],
+      "predictions": 12,
+      "rtl_rows": 36,
+      "rtl_seed": "seed + row",
+      "rtl_seed_max": 4294967293,
+      "seed_default": 27,
+      "server": {
+        "max_object_bytes": 32768,
+        "max_objects": 4,
+        "max_request_bytes": 131072,
+        "max_storage_bytes": 131072,
+        "max_trits": 16384,
+        "timeout_seconds": 10.0
+      }
+    },
+    "fixtures": {
+      "alternating_amplitude": 30,
+      "count": 6,
+      "expected_label": "index mod 3",
+      "step_amplitude": 40
+    },
+    "model": {
+      "axes": [
+        "class",
+        "sample"
+      ],
+      "description": "hand-authored ternary template classifier, shape [3,12]",
+      "labels": [
+        "rising",
+        "falling",
+        "alternating"
+      ],
+      "name": "signal_templates",
+      "scale_axis": null,
+      "scales": [
+        1.0
+      ],
+      "shape": [
+        3,
+        12
+      ],
+      "templates": [
+        [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        [
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ]
+      ]
+    },
+    "report": {
+      "case_fields": [
+        "name",
+        "samples",
+        "expected",
+        "label",
+        "ambiguous",
+        "accumulators",
+        "scores",
+        "backend",
+        "reference",
+        "rpc_wall_ns",
+        "rtl",
+        "passed"
+      ],
+      "evidence": [
+        "software-loopback-http",
+        "rtl-simulation"
+      ],
+      "fixture_count": 6,
+      "limitations": [
+        "Illustrative synthetic fixtures; no measured generalization accuracy.",
+        "HTTP wall times include native C, JSON and scheduling overhead.",
+        "RTL cycles are simulation evidence, not FPGA throughput or power.",
+        "No physical board, DDR controller, trained checkpoint or ZK proof."
+      ],
+      "mode_fields": [
+        "codec",
+        "capabilities",
+        "container_bytes",
+        "raw_weight_payload_bytes",
+        "container_sha256",
+        "roundtrip_exact",
+        "upload_read_wall_ns",
+        "cases"
+      ],
+      "physical_device_tested": false,
+      "runtime": "native-t27",
+      "schema": "trinity.edge-report.v1",
+      "timing_fields": [
+        "upload_read_wall_ns",
+        "rpc_wall_ns"
+      ]
+    },
+    "scoring": {
+      "label": "strict maximum",
+      "scales": "positive finite; a non-finite score is rejected",
+      "score": "accumulator * scale (one scale for all rows or one per row)",
+      "tie": "ambiguous, label null"
+    }
+  },
+  "created_at": "2026-09-11T00:00:00Z",
+  "description": "The template classifier model in both encodings, six fixtures with exact accumulators and labels, twelve predictions, thirty-six RTL rows with their seeds, scoring rules (ties, per-row scales, finiteness) and the report contract, computed from the spec by tools/generate-spec-vectors.py.",
+  "format_family": "Conformance",
+  "generator": "tools/generate-spec-vectors.py",
+  "invariants": [
+    {
+      "condition": "3 * 12 == 36",
+      "id": "the_model_is_three_by_twelve"
+    },
+    {
+      "condition": "dense5 8 bytes, baseline2 9 bytes for 36 trits",
+      "id": "raw_payload_bytes_follow_the_codec_geometry"
+    },
+    {
+      "condition": "480 == 40 * 12, 360 == 30 * 12",
+      "id": "synthetic_accumulators_are_amplitude_times_samples"
+    },
+    {
+      "condition": "12 == 6 * 2, 36 == 6 * 2 * 3",
+      "id": "predictions_and_rtl_rows_count_every_fixture_in_every_mode"
+    },
+    {
+      "condition": "seed + 2 <= 2^32 - 1",
+      "id": "the_rtl_seed_leaves_room_for_three_rows"
+    }
+  ],
+  "module": "TrinityMemoryEdgeDemoSpec",
+  "schema_version": 2,
+  "spec_path": "specs/memory/edge_demo.t27",
+  "vector_name": "Trinity Edge Demo",
+  "vectors": [
+    {
+      "codec": "dense5",
+      "container_bytes": 231,
+      "container_sha256": "42c1cc78a0d9053082e8c72ad3136fab976c6205bb069e20cebb33412f154660",
+      "id": "model_dense5",
+      "kind": "model",
+      "raw_weight_payload_bytes": 8,
+      "ttpk_hex": "5454504b01000000a7000000010000002000000000000000cc5f80e94a7a5e8b7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b22636c617373222c2273616d706c65225d2c22636f646563223a2264656e736535222c226c656e677468223a33322c226e616d65223a227369676e616c5f74656d706c61746573222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b332c31325d7d5d7d544d454d010100002400000000000000080000008fb1e70300f0f21a00b63c7a"
+    },
+    {
+      "codec": "baseline2",
+      "container_bytes": 235,
+      "container_sha256": "97eac7f9e8ff1e887afabf68e603f15f6ff940fb2941f78a3de4332028ec817a",
+      "id": "model_baseline2",
+      "kind": "model",
+      "raw_weight_payload_bytes": 9,
+      "ttpk_hex": "5454504b01000000aa000000010000002100000000000000da9f51b3fbedda3d7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b22636c617373222c2273616d706c65225d2c22636f646563223a22626173656c696e6532222c226c656e677468223a33332c226e616d65223a227369676e616c5f74656d706c61746573222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b332c31325d7d5d7d544d454d01000000240000000000000009000000d7463544aa5a5555a5aa666666"
+    },
+    {
+      "accumulators": [
+        480,
+        -480,
+        0
+      ],
+      "ambiguous": false,
+      "expected": "rising",
+      "id": "fixture_step_up",
+      "kind": "fixture",
+      "label": "rising",
+      "name": "step_up",
+      "samples": [
+        -40,
+        -40,
+        -40,
+        -40,
+        -40,
+        -40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ],
+      "scores": [
+        480.0,
+        -480.0,
+        0.0
+      ]
+    },
+    {
+      "accumulators": [
+        -480,
+        480,
+        0
+      ],
+      "ambiguous": false,
+      "expected": "falling",
+      "id": "fixture_step_down",
+      "kind": "fixture",
+      "label": "falling",
+      "name": "step_down",
+      "samples": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        -40,
+        -40,
+        -40,
+        -40,
+        -40,
+        -40
+      ],
+      "scores": [
+        -480.0,
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "accumulators": [
+        0,
+        0,
+        360
+      ],
+      "ambiguous": false,
+      "expected": "alternating",
+      "id": "fixture_alternating",
+      "kind": "fixture",
+      "label": "alternating",
+      "name": "alternating",
+      "samples": [
+        -30,
+        30,
+        -30,
+        30,
+        -30,
+        30,
+        -30,
+        30,
+        -30,
+        30,
+        -30,
+        30
+      ],
+      "scores": [
+        0.0,
+        0.0,
+        360.0
+      ]
+    },
+    {
+      "accumulators": [
+        249,
+        -249,
+        3
+      ],
+      "ambiguous": false,
+      "expected": "rising",
+      "id": "fixture_offset_step_up",
+      "kind": "fixture",
+      "label": "rising",
+      "name": "offset_step_up",
+      "samples": [
+        -8,
+        -7,
+        -9,
+        -8,
+        -6,
+        -8,
+        33,
+        34,
+        35,
+        34,
+        32,
+        35
+      ],
+      "scores": [
+        249.0,
+        -249.0,
+        3.0
+      ]
+    },
+    {
+      "accumulators": [
+        -255,
+        255,
+        3
+      ],
+      "ambiguous": false,
+      "expected": "falling",
+      "id": "fixture_offset_step_down",
+      "kind": "fixture",
+      "label": "falling",
+      "name": "offset_step_down",
+      "samples": [
+        36,
+        35,
+        33,
+        35,
+        34,
+        36,
+        -8,
+        -9,
+        -7,
+        -8,
+        -8,
+        -6
+      ],
+      "scores": [
+        -255.0,
+        255.0,
+        3.0
+      ]
+    },
+    {
+      "accumulators": [
+        1,
+        -1,
+        341
+      ],
+      "ambiguous": false,
+      "expected": "alternating",
+      "id": "fixture_noisy_alternating",
+      "kind": "fixture",
+      "label": "alternating",
+      "name": "noisy_alternating",
+      "samples": [
+        -25,
+        29,
+        -27,
+        31,
+        -28,
+        30,
+        -26,
+        28,
+        -29,
+        32,
+        -25,
+        31
+      ],
+      "scores": [
+        1.0,
+        -1.0,
+        341.0
+      ]
+    },
+    {
+      "accumulators": [
+        480,
+        -480,
+        0
+      ],
+      "codec": "dense5",
+      "fixture": "step_up",
+      "id": "prediction_dense5_step_up",
+      "kind": "prediction",
+      "label": "rising"
+    },
+    {
+      "accumulators": [
+        -480,
+        480,
+        0
+      ],
+      "codec": "dense5",
+      "fixture": "step_down",
+      "id": "prediction_dense5_step_down",
+      "kind": "prediction",
+      "label": "falling"
+    },
+    {
+      "accumulators": [
+        0,
+        0,
+        360
+      ],
+      "codec": "dense5",
+      "fixture": "alternating",
+      "id": "prediction_dense5_alternating",
+      "kind": "prediction",
+      "label": "alternating"
+    },
+    {
+      "accumulators": [
+        249,
+        -249,
+        3
+      ],
+      "codec": "dense5",
+      "fixture": "offset_step_up",
+      "id": "prediction_dense5_offset_step_up",
+      "kind": "prediction",
+      "label": "rising"
+    },
+    {
+      "accumulators": [
+        -255,
+        255,
+        3
+      ],
+      "codec": "dense5",
+      "fixture": "offset_step_down",
+      "id": "prediction_dense5_offset_step_down",
+      "kind": "prediction",
+      "label": "falling"
+    },
+    {
+      "accumulators": [
+        1,
+        -1,
+        341
+      ],
+      "codec": "dense5",
+      "fixture": "noisy_alternating",
+      "id": "prediction_dense5_noisy_alternating",
+      "kind": "prediction",
+      "label": "alternating"
+    },
+    {
+      "accumulators": [
+        480,
+        -480,
+        0
+      ],
+      "codec": "baseline2",
+      "fixture": "step_up",
+      "id": "prediction_baseline2_step_up",
+      "kind": "prediction",
+      "label": "rising"
+    },
+    {
+      "accumulators": [
+        -480,
+        480,
+        0
+      ],
+      "codec": "baseline2",
+      "fixture": "step_down",
+      "id": "prediction_baseline2_step_down",
+      "kind": "prediction",
+      "label": "falling"
+    },
+    {
+      "accumulators": [
+        0,
+        0,
+        360
+      ],
+      "codec": "baseline2",
+      "fixture": "alternating",
+      "id": "prediction_baseline2_alternating",
+      "kind": "prediction",
+      "label": "alternating"
+    },
+    {
+      "accumulators": [
+        249,
+        -249,
+        3
+      ],
+      "codec": "baseline2",
+      "fixture": "offset_step_up",
+      "id": "prediction_baseline2_offset_step_up",
+      "kind": "prediction",
+      "label": "rising"
+    },
+    {
+      "accumulators": [
+        -255,
+        255,
+        3
+      ],
+      "codec": "baseline2",
+      "fixture": "offset_step_down",
+      "id": "prediction_baseline2_offset_step_down",
+      "kind": "prediction",
+      "label": "falling"
+    },
+    {
+      "accumulators": [
+        1,
+        -1,
+        341
+      ],
+      "codec": "baseline2",
+      "fixture": "noisy_alternating",
+      "id": "prediction_baseline2_noisy_alternating",
+      "kind": "prediction",
+      "label": "alternating"
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "step_up",
+      "groups": 3,
+      "id": "rtl_dense5_step_up_0",
+      "kind": "rtl_row",
+      "result": 480,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "step_up",
+      "groups": 3,
+      "id": "rtl_dense5_step_up_1",
+      "kind": "rtl_row",
+      "result": -480,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "step_up",
+      "groups": 3,
+      "id": "rtl_dense5_step_up_2",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "step_down",
+      "groups": 3,
+      "id": "rtl_dense5_step_down_0",
+      "kind": "rtl_row",
+      "result": -480,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "step_down",
+      "groups": 3,
+      "id": "rtl_dense5_step_down_1",
+      "kind": "rtl_row",
+      "result": 480,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "step_down",
+      "groups": 3,
+      "id": "rtl_dense5_step_down_2",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "alternating",
+      "groups": 3,
+      "id": "rtl_dense5_alternating_0",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "alternating",
+      "groups": 3,
+      "id": "rtl_dense5_alternating_1",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "alternating",
+      "groups": 3,
+      "id": "rtl_dense5_alternating_2",
+      "kind": "rtl_row",
+      "result": 360,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "offset_step_up",
+      "groups": 3,
+      "id": "rtl_dense5_offset_step_up_0",
+      "kind": "rtl_row",
+      "result": 249,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "offset_step_up",
+      "groups": 3,
+      "id": "rtl_dense5_offset_step_up_1",
+      "kind": "rtl_row",
+      "result": -249,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "offset_step_up",
+      "groups": 3,
+      "id": "rtl_dense5_offset_step_up_2",
+      "kind": "rtl_row",
+      "result": 3,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "offset_step_down",
+      "groups": 3,
+      "id": "rtl_dense5_offset_step_down_0",
+      "kind": "rtl_row",
+      "result": -255,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "offset_step_down",
+      "groups": 3,
+      "id": "rtl_dense5_offset_step_down_1",
+      "kind": "rtl_row",
+      "result": 255,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "offset_step_down",
+      "groups": 3,
+      "id": "rtl_dense5_offset_step_down_2",
+      "kind": "rtl_row",
+      "result": 3,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "noisy_alternating",
+      "groups": 3,
+      "id": "rtl_dense5_noisy_alternating_0",
+      "kind": "rtl_row",
+      "result": 1,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "noisy_alternating",
+      "groups": 3,
+      "id": "rtl_dense5_noisy_alternating_1",
+      "kind": "rtl_row",
+      "result": -1,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "dense5",
+      "encoded_weight_bits": 24,
+      "error": false,
+      "fixture": "noisy_alternating",
+      "groups": 3,
+      "id": "rtl_dense5_noisy_alternating_2",
+      "kind": "rtl_row",
+      "result": 341,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "step_up",
+      "groups": 3,
+      "id": "rtl_baseline2_step_up_0",
+      "kind": "rtl_row",
+      "result": 480,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "step_up",
+      "groups": 3,
+      "id": "rtl_baseline2_step_up_1",
+      "kind": "rtl_row",
+      "result": -480,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "step_up",
+      "groups": 3,
+      "id": "rtl_baseline2_step_up_2",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "step_down",
+      "groups": 3,
+      "id": "rtl_baseline2_step_down_0",
+      "kind": "rtl_row",
+      "result": -480,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "step_down",
+      "groups": 3,
+      "id": "rtl_baseline2_step_down_1",
+      "kind": "rtl_row",
+      "result": 480,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "step_down",
+      "groups": 3,
+      "id": "rtl_baseline2_step_down_2",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "alternating",
+      "groups": 3,
+      "id": "rtl_baseline2_alternating_0",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "alternating",
+      "groups": 3,
+      "id": "rtl_baseline2_alternating_1",
+      "kind": "rtl_row",
+      "result": 0,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "alternating",
+      "groups": 3,
+      "id": "rtl_baseline2_alternating_2",
+      "kind": "rtl_row",
+      "result": 360,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "offset_step_up",
+      "groups": 3,
+      "id": "rtl_baseline2_offset_step_up_0",
+      "kind": "rtl_row",
+      "result": 249,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "offset_step_up",
+      "groups": 3,
+      "id": "rtl_baseline2_offset_step_up_1",
+      "kind": "rtl_row",
+      "result": -249,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "offset_step_up",
+      "groups": 3,
+      "id": "rtl_baseline2_offset_step_up_2",
+      "kind": "rtl_row",
+      "result": 3,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "offset_step_down",
+      "groups": 3,
+      "id": "rtl_baseline2_offset_step_down_0",
+      "kind": "rtl_row",
+      "result": -255,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "offset_step_down",
+      "groups": 3,
+      "id": "rtl_baseline2_offset_step_down_1",
+      "kind": "rtl_row",
+      "result": 255,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "offset_step_down",
+      "groups": 3,
+      "id": "rtl_baseline2_offset_step_down_2",
+      "kind": "rtl_row",
+      "result": 3,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "noisy_alternating",
+      "groups": 3,
+      "id": "rtl_baseline2_noisy_alternating_0",
+      "kind": "rtl_row",
+      "result": 1,
+      "row": 0,
+      "seed": 27,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "noisy_alternating",
+      "groups": 3,
+      "id": "rtl_baseline2_noisy_alternating_1",
+      "kind": "rtl_row",
+      "result": -1,
+      "row": 1,
+      "seed": 28,
+      "weight_count": 12
+    },
+    {
+      "codec": "baseline2",
+      "encoded_weight_bits": 30,
+      "error": false,
+      "fixture": "noisy_alternating",
+      "groups": 3,
+      "id": "rtl_baseline2_noisy_alternating_2",
+      "kind": "rtl_row",
+      "result": 341,
+      "row": 2,
+      "seed": 29,
+      "weight_count": 12
+    },
+    {
+      "accumulators": [
+        0,
+        0,
+        0
+      ],
+      "ambiguous": true,
+      "id": "constant_input_is_ambiguous",
+      "kind": "scoring",
+      "label": null,
+      "samples": [
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17
+      ],
+      "scales": [
+        1.0
+      ]
+    },
+    {
+      "accumulators": [
+        3,
+        3,
+        -3
+      ],
+      "ambiguous": false,
+      "id": "per_row_scales_reorder_the_winner",
+      "kind": "scoring",
+      "label": "falling",
+      "model": {
+        "scale_axis": 0,
+        "scales": [
+          1.0,
+          2.0,
+          0.5
+        ],
+        "shape": [
+          3,
+          1
+        ],
+        "values": [
+          1,
+          1,
+          -1
+        ]
+      },
+      "samples": [
+        3
+      ],
+      "scores": [
+        3.0,
+        6.0,
+        -1.5
+      ]
+    },
+    {
+      "error": "finite",
+      "id": "overflowing_scale_is_rejected",
+      "kind": "scoring",
+      "model": {
+        "scale_axis": 0,
+        "scales": [
+          1e+308,
+          1e+308,
+          1.0
+        ],
+        "shape": [
+          3,
+          1
+        ],
+        "values": [
+          1,
+          1,
+          -1
+        ]
+      },
+      "samples": [
+        3
+      ]
+    },
+    {
+      "id": "two_way_tie_is_ambiguous",
+      "kind": "scoring",
+      "label": null,
+      "scores": [
+        5.0,
+        5.0,
+        1.0
+      ]
+    },
+    {
+      "id": "strict_maximum_wins",
+      "kind": "scoring",
+      "label": "falling",
+      "scores": [
+        1.0,
+        3.0,
+        2.0
+      ]
+    }
+  ]
+}

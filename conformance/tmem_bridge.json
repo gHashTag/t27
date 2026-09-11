@@ -1,0 +1,1939 @@
+{
+  "constants": {
+    "dot": {
+      "accumulators": "exact integer, never applied to scales",
+      "activation_range": [
+        -128,
+        127
+      ],
+      "ranks": [
+        1,
+        2
+      ],
+      "scale_applied": false,
+      "scale_axis": "none or 0 on a rank-2 tensor",
+      "tensor_name_max_codepoints": 1024,
+      "tmem_tensor_name": "weights"
+    },
+    "envelope": {
+      "batches": false,
+      "id_integer_range": [
+        -9007199254740991,
+        9007199254740991
+      ],
+      "id_string_max_codepoints": 128,
+      "json_max_depth": 64,
+      "jsonrpc": "2.0",
+      "notifications": false,
+      "optional": [
+        "params"
+      ],
+      "required": [
+        "jsonrpc",
+        "id",
+        "method"
+      ]
+    },
+    "errors": {
+      "internal": -32603,
+      "invalid_params": -32602,
+      "invalid_request": -32600,
+      "limit": -32010,
+      "method_not_found": -32601,
+      "not_found": -32004,
+      "parse": -32700,
+      "transport": -32000
+    },
+    "handle": {
+      "alphabet": "0-9a-f",
+      "bytes": 16,
+      "hex_chars": 32,
+      "variant_char_index": 16,
+      "variant_chars": "89ab",
+      "version_char": "4",
+      "version_char_index": 12
+    },
+    "http_status": {
+      "content_type": 415,
+      "headers_too_large": 431,
+      "host_origin_or_path": 403,
+      "invalid_json_or_framing": 400,
+      "not_post": 405,
+      "ok": 200,
+      "request_too_large": 413,
+      "rpc_errors_are_200": true
+    },
+    "identity": {
+      "anchor": 18368,
+      "anchor_hex": "0x47C0",
+      "derivation": "sha256('trinity-memory-emulator-v1:' + part)[0:16] for phi, euler, gamma",
+      "euler_id": "753ddc8a3afc49c2d25fb1e66391c65f",
+      "gamma_id": "71f69df85da14b24f17e187e95bbd35b",
+      "identity_kind": "synthetic-public-16-byte",
+      "phi_id": "7f2a2badfec845842e9d0890f06b68ad"
+    },
+    "limits_default": {
+      "client_max_response_bytes": 4194304,
+      "max_object_bytes": 524288,
+      "max_objects": 16,
+      "max_request_bytes": 2097152,
+      "max_storage_bytes": 8388608,
+      "max_trits": 1000000,
+      "timeout_seconds": 5.0
+    },
+    "params": {
+      "chip_info": [],
+      "compute.dot": [
+        "handle",
+        "tensor_name",
+        "activations"
+      ],
+      "memory.delete": [
+        "handle"
+      ],
+      "memory.info": [
+        "handle"
+      ],
+      "memory.read": [
+        "handle",
+        "offset?",
+        "length?"
+      ],
+      "memory.upload": [
+        "data"
+      ],
+      "trinity.capabilities": [],
+      "trinity_chipInfo": []
+    },
+    "protocol": {
+      "authentication": "none-loopback-only",
+      "backend": "emulator",
+      "formats": [
+        "TMEM/1",
+        "TensorPack/1"
+      ],
+      "hardware": false,
+      "methods": [
+        "trinity.capabilities",
+        "memory.upload",
+        "memory.read",
+        "memory.info",
+        "memory.delete",
+        "compute.dot",
+        "chip_info",
+        "trinity_chipInfo"
+      ],
+      "name": "trinity-memory-bridge",
+      "persistence": "process-memory",
+      "version": 1
+    },
+    "sdk_adapter": {
+      "backend_class": "trinity_memory.bridge.SDKMemoryBackend",
+      "chip_info_requires": {
+        "backend": "emulator",
+        "hardware": false
+      },
+      "pins": {
+        "trinity-node": "4da4d7f7fee7a76c78f91c3b80e97a23b54e344d",
+        "trinity-sdk": "fa8476397ac69438315268342958759e91da9e20"
+      },
+      "unsupported": [
+        "prove_inference",
+        "submit_to_bittensor"
+      ]
+    }
+  },
+  "created_at": "2026-09-11T00:00:00Z",
+  "description": "JSON-RPC envelope, error codes and HTTP statuses, limits, handles, upload/read/info/delete/dot semantics and the synthetic identity of the emulator. Requests and expected responses are computed from the spec by tools/generate-spec-vectors.py; the TMEM/TensorPack containers use the pure-Python encoders.",
+  "format_family": "Conformance",
+  "generator": "tools/generate-spec-vectors.py",
+  "invariants": [
+    {
+      "condition": "-32700 < -32603 < -32602 < -32601 < -32600 < -32010 < -32004 < -32000 < 0",
+      "id": "error_codes_are_distinct_and_negative"
+    },
+    {
+      "condition": "REQUIRED == jsonrpc|id|method; ALLOWED == REQUIRED|params",
+      "id": "envelope_masks_cover_the_four_fields"
+    },
+    {
+      "condition": "READ_ALLOWED == handle|offset|length; DOT_REQUIRED == handle|tensor_name|activations",
+      "id": "read_and_dot_masks_are_sums_of_their_fields"
+    },
+    {
+      "condition": "|id| <= 2^53 - 1",
+      "id": "request_id_bounds_are_the_double_precision_integer_range"
+    },
+    {
+      "condition": "16 * 524288 == 8388608",
+      "id": "default_storage_holds_exactly_max_objects_of_max_size"
+    },
+    {
+      "condition": "4*ceil(524288/3) + 256 <= 2097152",
+      "id": "a_maximal_object_uploads_within_the_default_request_limit"
+    },
+    {
+      "condition": "1000000 * 128 <= 2^31 - 1",
+      "id": "default_accumulators_fit_a_signed_32_bit_word"
+    },
+    {
+      "condition": "32 == 2 * 16",
+      "id": "handles_serialize_two_hex_chars_per_byte"
+    },
+    {
+      "condition": "18368 == 0x47C0",
+      "id": "identity_anchor_is_0x47c0"
+    }
+  ],
+  "module": "TrinityMemoryBridgeSpec",
+  "replay": {
+    "kinds": {
+      "rpc": "one request body, default or per-vector limits",
+      "sequence": "ordered steps on one server; $name substitutes a captured result field",
+      "transport": "raw HTTP framing (TCP replay only)"
+    },
+    "native": "tests/native/test_spec_bridge_vectors.py",
+    "tcp": "tests/test_spec_bridge.py"
+  },
+  "schema_version": 2,
+  "spec_path": "specs/memory/bridge.t27",
+  "vector_name": "Trinity Bridge protocol",
+  "vectors": [
+    {
+      "description": "The capability descriptor names the emulator explicitly and reports the configured limits",
+      "expect": {
+        "result": {
+          "authentication": "none-loopback-only",
+          "backend": "emulator",
+          "codecs": [
+            "baseline2",
+            "dense5",
+            "dense17",
+            "dense22",
+            "sparse41",
+            "sparse82"
+          ],
+          "formats": [
+            "TMEM/1",
+            "TensorPack/1"
+          ],
+          "hardware": false,
+          "limits": {
+            "max_object_bytes": 524288,
+            "max_objects": 16,
+            "max_request_bytes": 2097152,
+            "max_storage_bytes": 8388608,
+            "max_trits": 1000000
+          },
+          "methods": [
+            "trinity.capabilities",
+            "memory.upload",
+            "memory.read",
+            "memory.info",
+            "memory.delete",
+            "compute.dot",
+            "chip_info",
+            "trinity_chipInfo"
+          ],
+          "persistence": "process-memory",
+          "protocol": "trinity-memory-bridge",
+          "version": 1
+        }
+      },
+      "id": "capabilities_default_limits",
+      "kind": "rpc",
+      "limits": {
+        "max_object_bytes": 524288,
+        "max_objects": 16,
+        "max_request_bytes": 2097152,
+        "max_storage_bytes": 8388608,
+        "max_trits": 1000000
+      },
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "result": {
+          "backend": "emulator",
+          "hardware": false
+        }
+      },
+      "id": "capabilities_with_empty_params",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities",
+        "params": {}
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "capabilities_rejects_unknown_param",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities",
+        "params": {
+          "extra": 1
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "capabilities_rejects_array_params",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities",
+        "params": []
+      }
+    },
+    {
+      "description": "SDK field names; identities are SHA-256('trinity-memory-emulator-v1:'+part)[0:16]",
+      "expect": {
+        "result": {
+          "anchor": 18368,
+          "backend": "emulator",
+          "euler_id": "753ddc8a3afc49c2d25fb1e66391c65f",
+          "gamma_id": "71f69df85da14b24f17e187e95bbd35b",
+          "hardware": false,
+          "identity_kind": "synthetic-public-16-byte",
+          "phi_id": "7f2a2badfec845842e9d0890f06b68ad",
+          "status": "memory emulator"
+        }
+      },
+      "id": "trinity_chip_info_is_synthetic",
+      "kind": "rpc",
+      "request": {
+        "id": "abc",
+        "jsonrpc": "2.0",
+        "method": "trinity_chipInfo"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "result": {
+          "anchor": "0x47C0",
+          "backend": "emulator",
+          "euler": "753ddc8a3afc49c2d25fb1e66391c65f",
+          "gamma": "71f69df85da14b24f17e187e95bbd35b",
+          "hardware": false,
+          "identity_kind": "synthetic-public-16-byte",
+          "phi": "7f2a2badfec845842e9d0890f06b68ad",
+          "status": "memory emulator"
+        }
+      },
+      "id": "chip_info_alias_uses_node_names",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "chip_info"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32601
+      },
+      "id": "method_not_found",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "trinity_proveInference"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "batch_rejected",
+      "kind": "rpc",
+      "request_text": "[]"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "empty_object_rejected",
+      "kind": "rpc",
+      "request_text": "{}"
+    },
+    {
+      "description": "A null id is a notification, which the Bridge does not implement",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "missing_id_rejected",
+      "kind": "rpc",
+      "request": {
+        "id": null,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "id_absent_rejected",
+      "kind": "rpc",
+      "request_text": "{\"jsonrpc\":\"2.0\",\"method\":\"trinity.capabilities\"}"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "boolean_id_rejected",
+      "kind": "rpc",
+      "request": {
+        "id": true,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "id_above_2_53_rejected",
+      "kind": "rpc",
+      "request": {
+        "id": 9007199254740992,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "result": {
+          "version": 1
+        }
+      },
+      "id": "id_at_2_53_minus_1_accepted",
+      "kind": "rpc",
+      "request": {
+        "id": 9007199254740991,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "result": {
+          "version": 1
+        }
+      },
+      "id": "negative_id_at_bound_accepted",
+      "kind": "rpc",
+      "request": {
+        "id": -9007199254740991,
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "result": {
+          "version": 1
+        }
+      },
+      "id": "string_id_128_codepoints_accepted",
+      "kind": "rpc",
+      "request": {
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "string_id_129_codepoints_rejected",
+      "kind": "rpc",
+      "request": {
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "jsonrpc": "2.0",
+        "method": "trinity.capabilities"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": null
+      },
+      "id": "unknown_envelope_field_rejected",
+      "kind": "rpc",
+      "request_text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"trinity.capabilities\",\"extra\":2}"
+    },
+    {
+      "description": "The envelope is complete, so the id is echoed",
+      "expect": {
+        "error_code": -32600,
+        "id": 1
+      },
+      "id": "jsonrpc_version_1_rejected",
+      "kind": "rpc",
+      "request_text": "{\"jsonrpc\":\"1.0\",\"id\":1,\"method\":\"trinity.capabilities\"}"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "id": 1
+      },
+      "id": "method_not_a_string_rejected",
+      "kind": "rpc",
+      "request_text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":[]}"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32700,
+        "http_status": 400,
+        "id": null
+      },
+      "id": "duplicate_keys_are_invalid_json",
+      "kind": "rpc",
+      "request_text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"id\":2,\"method\":\"chip_info\"}"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32700,
+        "http_status": 400,
+        "id": null
+      },
+      "id": "nan_is_invalid_json",
+      "kind": "rpc",
+      "request_text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"x\",\"params\":{\"n\":NaN}}"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32700,
+        "http_status": 400,
+        "id": null
+      },
+      "id": "malformed_json",
+      "kind": "rpc",
+      "request_text": "{broken"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32700,
+        "http_status": 400,
+        "id": null
+      },
+      "id": "nesting_deeper_than_64_is_invalid_json",
+      "kind": "rpc",
+      "request_text": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
+    },
+    {
+      "description": "A body above max_request_bytes is refused before parsing",
+      "expect": {
+        "error_code": -32010,
+        "http_status": 413,
+        "id": null
+      },
+      "id": "oversized_request",
+      "kind": "rpc",
+      "limits": {
+        "max_request_bytes": 100
+      },
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "VE1FTQEBAAAGAAAAAAAAAAIAAACTTPpIS3k="
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "read_invalid_handle_format",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.read",
+        "params": {
+          "handle": "../../etc/passwd"
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "read_uppercase_handle_rejected",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.read",
+        "params": {
+          "handle": "0123456789ABCDEF0123456789ABCDEF"
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32004
+      },
+      "id": "read_unknown_handle",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.read",
+        "params": {
+          "handle": "0123456789abcdef0123456789abcdef"
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "read_missing_handle",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.read",
+        "params": {}
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "read_unknown_param",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.read",
+        "params": {
+          "extra": 1,
+          "handle": "0123456789abcdef0123456789abcdef"
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "upload_missing_params",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload"
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "upload_invalid_base64",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "!"
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "upload_noncanonical_base64",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "AB=="
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "upload_not_a_container",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "AAAA"
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "upload_data_not_a_string",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": true
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "upload_corrupted_crc",
+      "kind": "rpc",
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "VE1FTQEBAAADAAAAAAAAAAEAAAC8HfAydg=="
+        }
+      }
+    },
+    {
+      "description": "The TMEM count field is checked against max_trits before decoding",
+      "expect": {
+        "error_code": -32010
+      },
+      "id": "upload_tmem_count_over_trit_limit",
+      "kind": "rpc",
+      "limits": {
+        "max_trits": 2
+      },
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "VE1FTQEBAAADAAAAAAAAAAEAAAC8HfAydw=="
+        }
+      }
+    },
+    {
+      "description": "TensorPack's decoded-trit limit is a container validation error",
+      "expect": {
+        "error_code": -32602
+      },
+      "id": "upload_tensorpack_over_trit_limit",
+      "kind": "rpc",
+      "limits": {
+        "max_trits": 2
+      },
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "VFRQSwEAAACJAAAAAQAAABkAAAAAAAAAQoHUzuF3pMl7Im9yZGVyIjoiQyIsInRlbnNvcnMiOlt7ImF4ZXMiOltdLCJjb2RlYyI6ImRlbnNlNSIsImxlbmd0aCI6MjUsIm5hbWUiOiJ0aHJlZSIsIm9mZnNldCI6MCwic2NhbGVfYXhpcyI6bnVsbCwic2NhbGVzIjpbMS4wXSwic2hhcGUiOlszXX1dfVRNRU0BAQAAAwAAAAAAAAABAAAAuzBI1Xk="
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32010
+      },
+      "id": "upload_over_object_limit",
+      "kind": "rpc",
+      "limits": {
+        "max_object_bytes": 26,
+        "max_objects": 1,
+        "max_storage_bytes": 26,
+        "max_trits": 100
+      },
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "VE1FTQEBAAAUAAAAAAAAAAQAAAAQpzFOeXl5eQ=="
+        }
+      }
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32010
+      },
+      "id": "upload_over_storage_limit",
+      "kind": "rpc",
+      "limits": {
+        "max_object_bytes": 26,
+        "max_objects": 1,
+        "max_storage_bytes": 25,
+        "max_trits": 100
+      },
+      "request": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "memory.upload",
+        "params": {
+          "data": "VE1FTQEBAAAGAAAAAAAAAAIAAACTTPpIS3k="
+        }
+      }
+    },
+    {
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"trinity.capabilities\"}",
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "http_status": 403
+      },
+      "headers": {
+        "Content-Type": "application/json",
+        "Origin": "http://example.org"
+      },
+      "id": "origin_header_forbidden",
+      "kind": "transport"
+    },
+    {
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"trinity.capabilities\"}",
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "http_status": 403
+      },
+      "headers": {
+        "Content-Type": "application/json",
+        "Host": "evil.example"
+      },
+      "id": "foreign_host_forbidden",
+      "kind": "transport"
+    },
+    {
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"trinity.capabilities\"}",
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "http_status": 415
+      },
+      "headers": {
+        "Content-Type": "text/plain"
+      },
+      "id": "text_plain_unsupported",
+      "kind": "transport"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "http_status": 405
+      },
+      "id": "get_not_allowed",
+      "kind": "transport",
+      "raw": "GET / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "http_status": 403
+      },
+      "id": "path_not_root_forbidden",
+      "kind": "transport",
+      "raw": "POST /x HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "http_status": 400
+      },
+      "id": "missing_content_length",
+      "kind": "transport",
+      "raw": "POST / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\n\r\n"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32600,
+        "http_status": 400
+      },
+      "id": "chunked_transfer_rejected",
+      "kind": "transport",
+      "raw": "POST / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nContent-Length: 2\r\n\r\n{}"
+    },
+    {
+      "description": "",
+      "expect": {
+        "error_code": -32010,
+        "http_status": 413
+      },
+      "id": "content_length_over_limit",
+      "kind": "transport",
+      "limits": {
+        "max_request_bytes": 100
+      },
+      "raw": "POST / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: 200\r\n\r\n{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{"
+    },
+    {
+      "description": "The body never completes; after the inactivity timeout the request is invalid JSON",
+      "expect": {
+        "error_code": -32700,
+        "http_status": 400
+      },
+      "id": "truncated_body_times_out",
+      "kind": "transport",
+      "limits": {
+        "timeout": 0.05
+      },
+      "raw": "POST / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{"
+    },
+    {
+      "description": "",
+      "expect": {
+        "http_status": 200,
+        "result": {
+          "backend": "emulator"
+        }
+      },
+      "id": "http_1_0_accepted",
+      "kind": "transport",
+      "raw": "POST / HTTP/1.0\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: 56\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"trinity.capabilities\"}"
+    },
+    {
+      "description": "upload -> read (whole, range, tail, out of range) -> info -> dot -> delete on one TMEM container",
+      "id": "tmem_lifecycle",
+      "kind": "sequence",
+      "steps": [
+        {
+          "capture": {
+            "handle": "handle"
+          },
+          "expect": {
+            "result": {
+              "backend": "emulator",
+              "bytes": 26
+            },
+            "result_format": {
+              "handle": "uuid4-hex32"
+            }
+          },
+          "name": "upload",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.upload",
+            "params": {
+              "data": "VE1FTQEBAAAGAAAAAAAAAAIAAACTTPpIS3k="
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "backend": "emulator",
+              "data": "VE1FTQEBAAAGAAAAAAAAAAIAAACTTPpIS3k=",
+              "length": 26,
+              "offset": 0,
+              "total_bytes": 26
+            }
+          },
+          "name": "read_whole",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "data": "TQEBAAA=",
+              "length": 5,
+              "offset": 3,
+              "total_bytes": 26
+            }
+          },
+          "name": "read_range",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle",
+              "length": 5,
+              "offset": 3
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "data": "",
+              "length": 0,
+              "offset": 26
+            }
+          },
+          "name": "read_tail",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle",
+              "offset": 26
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "read_offset_past_end",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle",
+              "offset": 27
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "read_length_past_end",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle",
+              "length": 26,
+              "offset": 1
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "read_negative_offset",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle",
+              "offset": -1
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "read_boolean_length",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle",
+              "length": false
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "backend": "emulator",
+              "codec": "dense5",
+              "container_bpw": 34.666666666666664,
+              "container_bytes": 26,
+              "count": 6,
+              "crc32": "48fa4c93",
+              "format": "TMEM",
+              "header_bytes": 24,
+              "layout": {
+                "group_bits": 8,
+                "group_size": 5,
+                "id": 1,
+                "max_nonzero": null,
+                "name": "dense5"
+              },
+              "payload_bpw": 2.6666666666666665,
+              "payload_bytes": 2,
+              "sha256": "50953d5c24d5d2bcb372ad93731a4505e2232dbf21ce58f1ce7640d13c0aff21",
+              "tensors": [
+                {
+                  "name": "weights",
+                  "scale_axis": null,
+                  "scales": [
+                    1.0
+                  ],
+                  "shape": [
+                    6
+                  ]
+                }
+              ],
+              "validated": true,
+              "version": 1
+            }
+          },
+          "name": "info",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.info",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "accumulators": [
+                255
+              ],
+              "arithmetic": "exact-integer",
+              "backend": "emulator",
+              "input_shape": [
+                6
+              ],
+              "output_shape": [
+                1
+              ],
+              "scale_applied": false,
+              "scales": [
+                1.0
+              ],
+              "tensor_name": "weights"
+            }
+          },
+          "name": "dot",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                -128,
+                127,
+                -128,
+                127,
+                -128,
+                127
+              ],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32004
+          },
+          "name": "dot_unknown_tensor",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "handle": "$handle",
+              "tensor_name": "other"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "dot_length_mismatch",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "dot_activation_128",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                128
+              ],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "dot_activation_minus_129",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                -129
+              ],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "dot_activation_float",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                1.0
+              ],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "dot_activation_boolean",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                true
+              ],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "dot_empty_tensor_name",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "handle": "$handle",
+              "tensor_name": ""
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "dot_missing_activations",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "backend": "emulator",
+              "deleted": true
+            }
+          },
+          "name": "delete",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.delete",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32004
+          },
+          "name": "read_after_delete",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32004
+          },
+          "name": "delete_after_delete",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.delete",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "A 2x3 matrix with per-row scales: exact accumulators, scales returned unapplied",
+      "id": "tensorpack_row_scales",
+      "kind": "sequence",
+      "steps": [
+        {
+          "capture": {
+            "handle": "handle"
+          },
+          "expect": {
+            "result": {
+              "bytes": 199
+            },
+            "result_format": {
+              "handle": "uuid4-hex32"
+            }
+          },
+          "name": "upload",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.upload",
+            "params": {
+              "data": "VFRQSwEAAACNAAAAAQAAABoAAAAAAAAAGqEgFpXKtb57Im9yZGVyIjoiQyIsInRlbnNvcnMiOlt7ImF4ZXMiOltdLCJjb2RlYyI6ImRlbnNlNSIsImxlbmd0aCI6MjYsIm5hbWUiOiJtYXRyaXgiLCJvZmZzZXQiOjAsInNjYWxlX2F4aXMiOjAsInNjYWxlcyI6WzAuNSwyLjBdLCJzaGFwZSI6WzIsM119XX1UTUVNAQEAAAYAAAAAAAAAAgAAAENJ19mteg=="
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "data": "VFRQSwEAAACNAAAAAQAAABoAAAAAAAAAGqEgFpXKtb57Im9yZGVyIjoiQyIsInRlbnNvcnMiOlt7ImF4ZXMiOltdLCJjb2RlYyI6ImRlbnNlNSIsImxlbmd0aCI6MjYsIm5hbWUiOiJtYXRyaXgiLCJvZmZzZXQiOjAsInNjYWxlX2F4aXMiOjAsInNjYWxlcyI6WzAuNSwyLjBdLCJzaGFwZSI6WzIsM119XX1UTUVNAQEAAAYAAAAAAAAAAgAAAENJ19mteg==",
+              "total_bytes": 199
+            }
+          },
+          "name": "read_whole",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "backend": "emulator",
+              "container_bytes": 199,
+              "format": "TensorPack",
+              "header_bytes": 32,
+              "metadata_bytes": 141,
+              "order": "C",
+              "payload_bytes": 26,
+              "sha256": "196328c2023edd64790b22ab6350a5c2d150774cda5349773866c6c5088b6481",
+              "tensor_count": 1,
+              "tensors": [
+                {
+                  "axes": [],
+                  "codec": "dense5",
+                  "count": 6,
+                  "length": 26,
+                  "name": "matrix",
+                  "offset": 0,
+                  "payload_bytes": 2,
+                  "scale_axis": 0,
+                  "scales": [
+                    0.5,
+                    2.0
+                  ],
+                  "shape": [
+                    2,
+                    3
+                  ]
+                }
+              ],
+              "total_count": 6,
+              "validated": true,
+              "version": 1
+            }
+          },
+          "name": "info",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.info",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "accumulators": [
+                -255,
+                127
+              ],
+              "arithmetic": "exact-integer",
+              "input_shape": [
+                2,
+                3
+              ],
+              "output_shape": [
+                2
+              ],
+              "scale_applied": false,
+              "scales": [
+                0.5,
+                2.0
+              ]
+            }
+          },
+          "name": "dot_rows",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                -128,
+                127,
+                -128
+              ],
+              "handle": "$handle",
+              "tensor_name": "matrix"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32004
+          },
+          "name": "dot_unknown_tensor",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                0,
+                0,
+                0
+              ],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "deleted": true
+            }
+          },
+          "name": "delete",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.delete",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "Scales on a contracted axis, rank 3 and scalars are rejected; vectors and scalar-scaled matrices work",
+      "id": "tensorpack_dot_layouts",
+      "kind": "sequence",
+      "steps": [
+        {
+          "capture": {
+            "handle": "handle"
+          },
+          "expect": {
+            "result": {
+              "bytes": 774
+            }
+          },
+          "name": "upload",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.upload",
+            "params": {
+              "data": "VFRQSwEAAABnAgAABQAAAH8AAAAAAAAASJCC+Yo+ved7Im9yZGVyIjoiQyIsInRlbnNvcnMiOlt7ImF4ZXMiOltdLCJjb2RlYyI6ImRlbnNlNSIsImxlbmd0aCI6MjYsIm5hbWUiOiJjb2x1bW5fc2NhbGVzIiwib2Zmc2V0IjowLCJzY2FsZV9heGlzIjoxLCJzY2FsZXMiOlsxLjAsMi4wLDMuMF0sInNoYXBlIjpbMiwzXX0seyJheGVzIjpbXSwiY29kZWMiOiJkZW5zZTUiLCJsZW5ndGgiOjI1LCJuYW1lIjoicmFuazMiLCJvZmZzZXQiOjI2LCJzY2FsZV9heGlzIjpudWxsLCJzY2FsZXMiOlsxLjBdLCJzaGFwZSI6WzEsMSwzXX0seyJheGVzIjpbXSwiY29kZWMiOiJkZW5zZTUiLCJsZW5ndGgiOjI1LCJuYW1lIjoic2NhbGFyIiwib2Zmc2V0Ijo1MSwic2NhbGVfYXhpcyI6bnVsbCwic2NhbGVzIjpbMS4wXSwic2hhcGUiOltdfSx7ImF4ZXMiOltdLCJjb2RlYyI6ImRlbnNlNSIsImxlbmd0aCI6MjUsIm5hbWUiOiJ2ZWN0b3IiLCJvZmZzZXQiOjc2LCJzY2FsZV9heGlzIjpudWxsLCJzY2FsZXMiOlswLjI1XSwic2hhcGUiOlszXX0seyJheGVzIjpbXSwiY29kZWMiOiJkZW5zZTUiLCJsZW5ndGgiOjI2LCJuYW1lIjoibWF0cml4MiIsIm9mZnNldCI6MTAxLCJzY2FsZV9heGlzIjpudWxsLCJzY2FsZXMiOlsyLjBdLCJzaGFwZSI6WzIsM119XX1UTUVNAQEAAAYAAAAAAAAAAgAAANgI9OTyelRNRU0BAQAAAwAAAAAAAAABAAAAibiT23FUTUVNAQEAAAEAAAAAAAAAAQAAAErUHSx6VE1FTQEBAAADAAAAAAAAAAEAAACVSi5mgVRNRU0BAQAABgAAAAAAAAACAAAAEBBdnBp4"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "column_scales_rejected",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                1,
+                2,
+                3
+              ],
+              "handle": "$handle",
+              "tensor_name": "column_scales"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "rank3_rejected",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                1,
+                2,
+                3
+              ],
+              "handle": "$handle",
+              "tensor_name": "rank3"
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32602
+          },
+          "name": "scalar_rejected",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                1
+              ],
+              "handle": "$handle",
+              "tensor_name": "scalar"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "accumulators": [
+                2
+              ],
+              "input_shape": [
+                3
+              ],
+              "output_shape": [
+                1
+              ],
+              "scales": [
+                0.25
+              ]
+            }
+          },
+          "name": "vector_dot",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                2,
+                3,
+                4
+              ],
+              "handle": "$handle",
+              "tensor_name": "vector"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "accumulators": [
+                9,
+                -9
+              ],
+              "output_shape": [
+                2
+              ],
+              "scales": [
+                2.0,
+                2.0
+              ]
+            }
+          },
+          "name": "matrix_scalar_scale_repeats_per_row",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [
+                2,
+                3,
+                4
+              ],
+              "handle": "$handle",
+              "tensor_name": "matrix2"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "format": "TensorPack",
+              "tensor_count": 5,
+              "total_count": 19
+            }
+          },
+          "name": "info_lists_all_tensors",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.info",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "An empty TMEM vector is a valid object; its dot with no activations is [0]",
+      "id": "empty_tmem_dot",
+      "kind": "sequence",
+      "steps": [
+        {
+          "capture": {
+            "handle": "handle"
+          },
+          "expect": {
+            "result": {
+              "bytes": 24
+            }
+          },
+          "name": "upload",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.upload",
+            "params": {
+              "data": "VE1FTQEBAAAAAAAAAAAAAAAAAADomjno"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "accumulators": [
+                0
+              ],
+              "input_shape": [
+                0
+              ],
+              "output_shape": [
+                1
+              ],
+              "scales": [
+                1.0
+              ]
+            }
+          },
+          "name": "dot_empty",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "compute.dot",
+            "params": {
+              "activations": [],
+              "handle": "$handle",
+              "tensor_name": "weights"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "container_bpw": null,
+              "count": 0,
+              "payload_bpw": null,
+              "payload_bytes": 0
+            }
+          },
+          "name": "info",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.info",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "Object count and byte limits refuse the second upload; delete reclaims both",
+      "id": "storage_limits_and_reclaim",
+      "kind": "sequence",
+      "limits": {
+        "max_object_bytes": 26,
+        "max_objects": 1,
+        "max_storage_bytes": 26,
+        "max_trits": 100
+      },
+      "steps": [
+        {
+          "capture": {
+            "handle": "handle"
+          },
+          "expect": {
+            "result": {
+              "bytes": 26
+            }
+          },
+          "name": "upload_first",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.upload",
+            "params": {
+              "data": "VE1FTQEBAAAKAAAAAAAAAAIAAADPiX+PeXk="
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32010
+          },
+          "name": "upload_second_refused",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.upload",
+            "params": {
+              "data": "VE1FTQEBAAAKAAAAAAAAAAIAAADPiX+PeXk="
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "deleted": true
+            }
+          },
+          "name": "delete",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.delete",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "capture": {
+            "second": "handle"
+          },
+          "expect": {
+            "result": {
+              "bytes": 26
+            }
+          },
+          "name": "upload_again",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.upload",
+            "params": {
+              "data": "VE1FTQEBAAAKAAAAAAAAAAIAAADPiX+PeXk="
+            }
+          }
+        },
+        {
+          "expect": {
+            "error_code": -32004
+          },
+          "name": "first_handle_gone",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$handle"
+            }
+          }
+        },
+        {
+          "expect": {
+            "result": {
+              "data": "VE1FTQEBAAAKAAAAAAAAAAIAAADPiX+PeXk="
+            }
+          },
+          "name": "second_readable",
+          "request": {
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "memory.read",
+            "params": {
+              "handle": "$second"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
