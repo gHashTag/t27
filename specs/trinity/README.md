@@ -26,6 +26,14 @@ owns its contract.
 | `conformance/trinity/report.json` | -- | what `tools/trinity_manifest.py check` derived: counts, cards by disposition, profile, evidence and work package, findings |
 | `../vsa/trinity_compat.t27` | `vsa_trinity_compat` (`KIND = "vsa-compat"`) | the VSA and numeric contract the consumer's facade actually runs: the owner of each of the sixteen re-exported operations, where the canonical `vsa_core.t27` agrees and differs, the selected reference as elementwise functions (S04) |
 | `conformance/vsa_trinity_compat.json` | -- | the golden vectors of the reference and what `tools/trinity_vsa_compat.py run` replayed through the generated C |
+| `../isa/ternary_encoding.t27` | `Tri27Encoding` (`KIND = "isa-encoding"`) | the TRI-27 instruction word of `src/tri27/emu/decoder.zig`: forty-seven opcodes, three layouts, the fifteen-bit immediate, the rules the owner never wrote down (S05) |
+| `../isa/tri27_machine.t27` | `Tri27Machine` (`KIND = "isa-machine"`) | the TRI-27 machine of `executor.zig`: registers, memory, fetch, entry profiles, flags, every opcode's numeric rule, stack, budget, errors and status codes, exit codes, host boundary (S05) |
+| `../isa/tri27_bytecode.t27` | `Tri27Bytecode` (`KIND = "isa-bytecode"`) | the `.tbin` container of `loader.zig`: header, sections, every rejection in order, where the code lands (S05) |
+| `../vm/trinity_vm.t27` | `TrinityVsaVm` (`KIND = "vm-contract"`) | the VSA VM of `src/vm.zig`: opcode numbering, registers, step and run, condition codes, no budget, no serialized form, the sacred opcodes (S05) |
+| `../api/c_abi.t27` | `TrinityCAbi` (`KIND = "host-abi"`) | the twenty-two exports of `src/c_api.zig` with prototypes, ownership and NULL rules; the source does not parse at the pin (S05) |
+| `conformance/trinity/tri27_programs.json` | -- | twenty-two golden programs and eighteen loader vectors with final state, status and bounded trace; what `tools/trinity_tri27.py run` replayed through the generated C |
+| `conformance/trinity/c_abi.json` | -- | what `tools/trinity_c_abi.py check` measured: header, source exports, agreement, the fixture's syntax check, `zig ast-check` |
+| `conformance/trinity/abi/abi_fixture.c` | -- | the ABI fixture: ownership, NULL safety, clamping, normalization, the bind/unbind round trip; compiles against the header, not linked at the pin |
 
 ## How the cards are held to the tree
 
@@ -213,6 +221,59 @@ python3 tools/trinity_vsa_compat.py vectors
 python3 tools/trinity_vsa_compat.py run
 python3 tools/trinity_vsa_compat.py check
 python3 tools/trinity_vsa_compat.py --self-check
+```
+
+## The VM, the TRI-27 bytecode and the host ABI (S05)
+
+The consumer has two virtual machines and one C boundary, and none of the three had an
+executable contract. `../isa/ternary_encoding.t27`, `../isa/tri27_machine.t27` and
+`../isa/tri27_bytecode.t27` state the TRI-27 layer as the owner's tests execute it --
+`src/tri27/emu/decoder.zig`, `executor.zig` with `cpu_state.zig`, and `loader.zig` at the pin --
+rule by rule, as functions the C backend runs: field extraction and encoding, opcode validity,
+the numeric rule of every executed opcode, flags, bounds, stack, budget, jumps, and every
+container check. `tools/trinity_tri27.py vectors` assembles twenty-two golden programs in the
+decoder's layout and runs them through a Python model of the same three files, writing
+`conformance/trinity/tri27_programs.json` with final registers, flags, memory changes, status and
+a bounded trace, plus eighteen loader vectors (one per rejection rule and per accepted shape).
+`run` generates the three specs to C, links them into a driver that owns the arrays and the loops
+and calls the specs for every decision, and replays. `check` holds the record to the specs and the
+model; `--self-check` plants a wrong register, a rejection declared as acceptance, a `BIND` without
+its zero identity and a wrong sign bit. The status codes are the machine spec's own, because the
+owner's error set has no ordinals and three of its halts are silent: `halted` is 0, everything else
+is nonzero.
+
+What the replay found, and the specs record as findings: `CALL` pushes its own address and `RET`
+returns to it, so every subroutine call loops until the budget; `loader.load` writes eight-byte
+words while `run` fetches four-byte units, and reads a `tri_asm.zig` container two bytes early, so
+nothing it loads runs as written (the owner's tests copy the file to byte 0 and start at word 3);
+`DOT`, `BIND`, `BUNDLE2` cannot carry a second register and `SACR` cannot carry its mode through
+the encoding; no encodable load or store can leave memory; the `CONSTANTS` section's id byte is
+read as its count; `3^27` is written where `3^9` is computed; five instruction layouts, two
+assemblers and an emitted template disagree with the decoder.
+
+`../vm/trinity_vm.t27` states the VSA VM of `src/vm.zig` (twenty-six opcodes numbered by
+declaration order, four hyperdimensional registers over S04's operations, no budget, no
+serialized form, forty sacred opcodes of which six are implemented) and records its CI evidence as
+it is: `zig test src/vm.zig` fails to compile on every push to main. `../api/c_abi.t27` states the
+twenty-two C exports with prototypes, ownership and NULL rules; `tools/trinity_c_abi.py check
+--trinity-root` holds the table to the header and to the source (all twenty-two agree), compiles
+`conformance/trinity/abi/abi_fixture.c` against the header, and records that `zig ast-check`
+rejects `src/c_api.zig` at the pin (a duplicated `if` in `trinity_vsa_set_trit`), so the library
+and its tests do not build and the fixture is not linked.
+
+Measured on 2026-09-12: `All N tests passed.` on C for the five specs (11, 10, 6, 5, 4); 40 of 40
+vectors pass the replay; 22 of 22 ABI functions agree across spec, header and source; the fixture
+compiles. Not measured: anything on the owner's Zig (no build target, binaries that do not compile,
+no Zig on this host that builds the tree); the string and file opcodes; `SACR` modes 2..4; the VSA
+VM's programs; the ABI across a linked boundary. No hardware is involved.
+
+```
+python3 tools/trinity_tri27.py vectors
+python3 tools/trinity_tri27.py run
+python3 tools/trinity_tri27.py check
+python3 tools/trinity_tri27.py --self-check
+python3 tools/trinity_c_abi.py check --trinity-root <clone at PINNED_REVISION> [--zig <zig>]
+python3 tools/trinity_c_abi.py --self-check
 ```
 
 ## Boundaries

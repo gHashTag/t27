@@ -22,8 +22,8 @@ pub const DISPOSITION : str = "executable";
 pub const PROFILE : str = "headless";
 ; The canonical spec: a path in this repository, trinity:<path> for a spec authored in the
 ; consumer, <repo>:<path> elsewhere, "" while none exists. Never a mirrored copy.
-pub const CANONICAL_SPEC : str = "";
-pub const DIALECT : str = "none";
+pub const CANONICAL_SPEC : str = "specs/vsa/trinity_compat.t27";
+pub const DIALECT : str = "t27";
 ; Implementation and generated paths of the pinned tree (trinity: prefix), checked to exist.
 pub const IMPLEMENTATION : [6]str = ["trinity:src/trinity.zig", "trinity:src/sdk.zig", "trinity:src/science.zig", "trinity:src/sparse.zig", "trinity:src/jit.zig", "trinity:src/vm.zig"];
 pub const GENERATED : [0]str = [];
@@ -38,7 +38,7 @@ pub const EVIDENCE : str = "measured";
 pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- Build & Test on ubuntu-latest with zig 0.15.2 at 79ffb034 (the pinned 976df517 differs from it only in apps/website/src/data/signalHealth.json): zig build -Dci=true succeeded. zig build test is piped through tee there, so its exit code is not measured (gHashTag/trinity#616).";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S04";
-pub const NOTE : str = "src/trinity.zig re-exports golden_float (ternary_primitives, packed_trit, bigint) and hdc_vsa from the two pinned packages; the facade's own contract is S04's deliverable, no t27 spec names it yet.";
+pub const NOTE : str = "src/trinity.zig re-exports golden_float (ternary_primitives, packed_trit, bigint) and hdc_vsa from the two pinned packages; S04 states the facade's VSA contract in specs/vsa/trinity_compat.t27; S05 states the VSA VM of src/vm.zig in specs/vm/trinity_vm.t27.";
 pub const ENABLED : bool = true;
 
 test card_is_bound_to_its_package {

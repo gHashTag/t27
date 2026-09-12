@@ -1,0 +1,253 @@
+{
+  "agreement": {
+    "arity_mismatches": [],
+    "max_dim_in_header": true,
+    "prototype_mismatches": [],
+    "spec_header_source_names_equal": true,
+    "version_in_header": true,
+    "version_in_source": true
+  },
+  "ast_check": {
+    "command": "zig ast-check c_api.zig",
+    "first_error": "/Users/ssdm4/Documents/Codex/2026-09-12/trinity/src/c_api.zig:270:1: error: expected statement, found 'a document comment'",
+    "ok": false,
+    "rc": 1,
+    "zig": "0.15.2"
+  },
+  "at": "2026-09-12T11:29:24Z",
+  "consumer": {
+    "header": "src/libs/c/libtrinityvsa/include/trinity_vsa.h",
+    "header_sha256": "sha256:87d06ad16c3138502603b5a2fd9dd02dcdc74b002ebecb4f0b232359cb9101c8",
+    "pinned": "976df517419f918f05b78e73767e2fdf4aad14be",
+    "repo": "gHashTag/trinity",
+    "revision": "976df517419f918f05b78e73767e2fdf4aad14be",
+    "source": "src/c_api.zig",
+    "source_sha256": "sha256:e0dc1047027cb572a68e7ce756543ebd80f1435516cf30a9891452fe5f126759"
+  },
+  "evidence": "declared: prototypes and arity agree across spec, header and source; the fixture compiles against the header; the library is not built and the fixture is not linked at the pin",
+  "findings": [],
+  "fixture": {
+    "path": "conformance/trinity/abi/abi_fixture.c",
+    "sha256": "sha256:7c6b7b6f5dffa3924440c6468353c9832b205a7a02bb24a113d965a0d6e52343",
+    "syntax_check": {
+      "command": "cc -std=c11 -Wall -Wextra -fsyntax-only -I <include> conformance/trinity/abi/abi_fixture.c",
+      "diagnostics": "",
+      "ok": true,
+      "rc": 0
+    }
+  },
+  "generated_by": "tools/trinity_c_abi.py check",
+  "header_functions": {
+    "trinity_vsa_bind": {
+      "arity": 2,
+      "line": 109,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_bind(trinity_vsa_vector_t a, trinity_vsa_vector_t b)"
+    },
+    "trinity_vsa_bundle2": {
+      "arity": 2,
+      "line": 128,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_bundle2(trinity_vsa_vector_t a, trinity_vsa_vector_t b)"
+    },
+    "trinity_vsa_bundle3": {
+      "arity": 3,
+      "line": 137,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_bundle3(trinity_vsa_vector_t a, trinity_vsa_vector_t b, trinity_vsa_vector_t c)"
+    },
+    "trinity_vsa_cosine_similarity": {
+      "arity": 2,
+      "line": 160,
+      "prototype": "double trinity_vsa_cosine_similarity(trinity_vsa_vector_t a, trinity_vsa_vector_t b)"
+    },
+    "trinity_vsa_decode_text": {
+      "arity": 3,
+      "line": 204,
+      "prototype": "size_t trinity_vsa_decode_text(trinity_vsa_vector_t v, char* buf, size_t buf_len)"
+    },
+    "trinity_vsa_dot_product": {
+      "arity": 2,
+      "line": 176,
+      "prototype": "int64_t trinity_vsa_dot_product(trinity_vsa_vector_t a, trinity_vsa_vector_t b)"
+    },
+    "trinity_vsa_encode_text": {
+      "arity": 2,
+      "line": 192,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_encode_text(const char* text, size_t len)"
+    },
+    "trinity_vsa_encode_text_words": {
+      "arity": 2,
+      "line": 216,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_encode_text_words(const char* text, size_t len)"
+    },
+    "trinity_vsa_from_array": {
+      "arity": 2,
+      "line": 79,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_from_array(const int8_t* data, size_t dim)"
+    },
+    "trinity_vsa_get_dim": {
+      "arity": 1,
+      "line": 227,
+      "prototype": "size_t trinity_vsa_get_dim(trinity_vsa_vector_t v)"
+    },
+    "trinity_vsa_get_trit": {
+      "arity": 2,
+      "line": 235,
+      "prototype": "int8_t trinity_vsa_get_trit(trinity_vsa_vector_t v, size_t index)"
+    },
+    "trinity_vsa_hamming_distance": {
+      "arity": 2,
+      "line": 168,
+      "prototype": "size_t trinity_vsa_hamming_distance(trinity_vsa_vector_t a, trinity_vsa_vector_t b)"
+    },
+    "trinity_vsa_max_dim": {
+      "arity": 0,
+      "line": 52,
+      "prototype": "size_t trinity_vsa_max_dim(void)"
+    },
+    "trinity_vsa_permute": {
+      "arity": 2,
+      "line": 148,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_permute(trinity_vsa_vector_t v, size_t k)"
+    },
+    "trinity_vsa_set_trit": {
+      "arity": 3,
+      "line": 243,
+      "prototype": "void trinity_vsa_set_trit(trinity_vsa_vector_t v, size_t index, int8_t value)"
+    },
+    "trinity_vsa_to_array": {
+      "arity": 3,
+      "line": 252,
+      "prototype": "size_t trinity_vsa_to_array(trinity_vsa_vector_t v, int8_t* out, size_t max_len)"
+    },
+    "trinity_vsa_unbind": {
+      "arity": 2,
+      "line": 117,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_unbind(trinity_vsa_vector_t a, trinity_vsa_vector_t b)"
+    },
+    "trinity_vsa_vector_clone": {
+      "arity": 1,
+      "line": 86,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_vector_clone(trinity_vsa_vector_t v)"
+    },
+    "trinity_vsa_vector_free": {
+      "arity": 1,
+      "line": 92,
+      "prototype": "void trinity_vsa_vector_free(trinity_vsa_vector_t v)"
+    },
+    "trinity_vsa_vector_random": {
+      "arity": 2,
+      "line": 71,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_vector_random(size_t dim, uint64_t seed)"
+    },
+    "trinity_vsa_vector_zeros": {
+      "arity": 1,
+      "line": 63,
+      "prototype": "trinity_vsa_vector_t trinity_vsa_vector_zeros(size_t dim)"
+    },
+    "trinity_vsa_version": {
+      "arity": 0,
+      "line": 46,
+      "prototype": "const char* trinity_vsa_version(void)"
+    }
+  },
+  "host": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+    "system": "Darwin arm64"
+  },
+  "link_attempted": false,
+  "source_exports": {
+    "trinity_vsa_bind": {
+      "arity": 2,
+      "line": 116
+    },
+    "trinity_vsa_bundle2": {
+      "arity": 2,
+      "line": 134
+    },
+    "trinity_vsa_bundle3": {
+      "arity": 3,
+      "line": 143
+    },
+    "trinity_vsa_cosine_similarity": {
+      "arity": 2,
+      "line": 165
+    },
+    "trinity_vsa_decode_text": {
+      "arity": 3,
+      "line": 219
+    },
+    "trinity_vsa_dot_product": {
+      "arity": 2,
+      "line": 179
+    },
+    "trinity_vsa_encode_text": {
+      "arity": 2,
+      "line": 190
+    },
+    "trinity_vsa_encode_text_words": {
+      "arity": 2,
+      "line": 203
+    },
+    "trinity_vsa_from_array": {
+      "arity": 2,
+      "line": 72
+    },
+    "trinity_vsa_get_dim": {
+      "arity": 1,
+      "line": 233
+    },
+    "trinity_vsa_get_trit": {
+      "arity": 2,
+      "line": 239
+    },
+    "trinity_vsa_hamming_distance": {
+      "arity": 2,
+      "line": 172
+    },
+    "trinity_vsa_max_dim": {
+      "arity": 0,
+      "line": 283
+    },
+    "trinity_vsa_permute": {
+      "arity": 2,
+      "line": 153
+    },
+    "trinity_vsa_set_trit": {
+      "arity": 3,
+      "line": 251
+    },
+    "trinity_vsa_to_array": {
+      "arity": 3,
+      "line": 272
+    },
+    "trinity_vsa_unbind": {
+      "arity": 2,
+      "line": 125
+    },
+    "trinity_vsa_vector_clone": {
+      "arity": 1,
+      "line": 96
+    },
+    "trinity_vsa_vector_free": {
+      "arity": 1,
+      "line": 104
+    },
+    "trinity_vsa_vector_random": {
+      "arity": 2,
+      "line": 65
+    },
+    "trinity_vsa_vector_zeros": {
+      "arity": 1,
+      "line": 56
+    },
+    "trinity_vsa_version": {
+      "arity": 0,
+      "line": 47
+    }
+  },
+  "spec": {
+    "functions": 22,
+    "path": "specs/api/c_abi.t27",
+    "sha256": "sha256:45f24257632e6874936c6c861577cfb3e7dfe9980d45a46cc270402ece70beef"
+  },
+  "version": 1
+}

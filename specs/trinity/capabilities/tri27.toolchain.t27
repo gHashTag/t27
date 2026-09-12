@@ -38,7 +38,7 @@ pub const EVIDENCE : str = "not-claimed";
 pub const EVIDENCE_SOURCE : str = "src/tri27/tri27_cli.zig is a module of the tri executable, not an artifact of its own; its validate path prints that validation is not implemented and still records success (S02 finding recorded in gHashTag/t27#3564).";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S05";
-pub const NOTE : str = "The canonical ISA lives in t27 (specs/isa/ternary_encoding.t27, registers.t27, ternary_control_flow.t27, ternary_memory.t27); src/tri27/emu/specs/tri27_isa.md is a description, not a source of truth.";
+pub const NOTE : str = "S05: specs/isa/ternary_encoding.t27 (the instruction word of decoder.zig), specs/isa/tri27_machine.t27 (registers, memory, fetch, entry points, flags, arithmetic, stack, budget, errors, host boundary of executor.zig) and specs/isa/tri27_bytecode.t27 (the .tbin container of loader.zig) state what the emulator executes; tools/trinity_tri27.py replays conformance/trinity/tri27_programs.json through their generated C; registers.t27, ternary_control_flow.t27 and ternary_memory.t27 describe a machine the emulator does not run; src/tri27/emu/specs/tri27_isa.md and tbin_format.md are descriptions that disagree with the code.";
 pub const ENABLED : bool = true;
 
 test card_is_bound_to_its_package {
