@@ -75,8 +75,11 @@ FIGURES = [
     # #3563 (S01 of gHashTag/trinity#988) added specs/trinity/ (project.t27 with
     # five test blocks, fifty capability cards with one each) and the canonical
     # copy specs/catalog/discovery.t27 with five: 12593 + 60 = 12653.
+    # #3564 (S02) added specs/trinity/compiler_matrix.t27 with six: 12653 + 6 = 12659.
+    # Its fixtures live under bootstrap/tests/fixtures/trinity_matrix/, outside
+    # specs/, and are not counted here.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12653,
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12659,
      "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51"),
 ]
 

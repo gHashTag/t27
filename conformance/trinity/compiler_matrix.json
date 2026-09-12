@@ -1,0 +1,2387 @@
+{
+ "version": 1,
+ "generated_by": "tools/trinity_compiler_matrix.py run",
+ "at": "2026-09-12T10:08:25Z",
+ "spec": {
+  "path": "specs/trinity/compiler_matrix.t27",
+  "sha256": "05823d086b8853b3cb587bbb2d51f20118186a45b9b129fbcbc02ed7b2355614"
+ },
+ "native": {
+  "compiler": "t27c 0.2.0",
+  "revision": "bff21b85b206a0dd367876343e56dcd8312d81ba",
+  "revision_meaning": "last commit that changed bootstrap/, Cargo.toml or Cargo.lock",
+  "head": "88878f4118b47d89be28ca6065e8701894697687",
+  "declared_revision": "bff21b85b206a0dd367876343e56dcd8312d81ba",
+  "t27c_sha256": "4510786f6342b9ca6268eaa68dad1048923d0079f3df15946fcbdda65b13e5dd",
+  "build": "cargo build --release -p t27c"
+ },
+ "wasm": {
+  "path": "trinity:apps/website/public/t27/t27_compiler.wasm",
+  "sha256": "4d9c0447b5ca288790ab03d3dffc2dda629ed47af9d6731a105fc923aea0aee4",
+  "declared_sha256": "4d9c0447b5ca288790ab03d3dffc2dda629ed47af9d6731a105fc923aea0aee4",
+  "declared_revision": "1cd2877f97e33efb574fa03c589f7368dc1385ba",
+  "measured": true
+ },
+ "host": {
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+  "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)",
+  "node": "v24.13.0",
+  "zig": "0.17.0-dev.2122+3e15e99e6"
+ },
+ "stages": [
+  "declaration",
+  "generate",
+  "compile",
+  "runtime"
+ ],
+ "backends": [
+  "c",
+  "zig",
+  "rust",
+  "verilog"
+ ],
+ "matrix": {
+  "features": [
+   {
+    "feature": "scalars",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/scalars.t27",
+    "sha256": "dee238e993a4877edf244c9e22dcc8550f964af916beb5e098a9b7fd90b318b4",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "LANES",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "WORD_BITS",
+       "type": "u16",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "BIG",
+       "type": "u32",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "NEGATIVE",
+       "type": "i32",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "ENABLED",
+       "type": "bool",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 10,
+      "ast": 10
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2368,
+       "sha256": "9135ecbccdff3b4baa56899fc07faedb30fda0a86f615b5620861943919f0186",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1837,
+       "sha256": "b992a955a2ab2633643663a4cef6ea1cf9bc572431544cf8e52794b810050bc6",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 683,
+       "sha256": "d60963cd31bae860b198aa1fd2135795f6acb5ac3f8e010d90ad86e1403605a0",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 3502,
+       "sha256": "8a7eed60a87ddbdcc6fa62097380dc64f5ac988d9b9c4d4c6c40e4eae75d1cf7",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 83
+    }
+   },
+   {
+    "feature": "arrays",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/arrays.t27",
+    "sha256": "82852d35ce3d37feae88af635fbe95a80a18041b9e5d789b4ca44d8e3d239b4e",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "TABLE",
+       "type": "[4]u8",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "NAMES",
+       "type": "[2]str",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 5,
+      "ast": 5
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2085,
+       "sha256": "f67892adcff4f5a4f42a82c5b3205b4ad2903340d1aa86038b04668c0e4326a3",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1328,
+       "sha256": "18f624d24c97e029fcb4f86a47d88723e4eb265469ae545266fb1e566524ec95",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "zig test <file>",
+       "message": "<work>/arrays.zig:19:21: error: use of undeclared identifier 'str'"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 579,
+       "sha256": "7c06da34b1bb78037442b86cd657365ad522f996b07aad848d9aa95dc08b7e84",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": "error[E0308]: mismatched types"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 3405,
+       "sha256": "d029b0f635ae025a3414c58402eefc181af7bb3892296760987c02a288466fd8",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 57
+    }
+   },
+   {
+    "feature": "strings",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/strings.t27",
+    "sha256": "03fde1f995bd2cd29dfa456a54c99781b7e86fffe3930b99972b38513bfedf18",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "PROJECT",
+       "type": "str",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "PROFILE",
+       "type": "str",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 5,
+      "ast": 5
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2049,
+       "sha256": "592f1e05aa98bcffcf90000407a1a864b111b035ec3575693a16eefeb21b184b",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1391,
+       "sha256": "2695e343c207a4e5f28dfbc1621cfd20ca21e15c37de0dde6a7400f9d1946228",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "zig test <file>",
+       "message": "<work>/strings.zig:31:30: error: operator == not allowed for type '[]const u8'"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 506,
+       "sha256": "2f6c1ec5d97365204a7d47601082fd7df79e4b80c9f30666ceb82472a803f07f",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2822,
+       "sha256": "bab6eb17d445d8f9f8bc433c4c4b2312cdff9941ca9d0e6ebe14b9dfd09ea532",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 3,
+       "message": "2 FAILED, 1 PASSED",
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 37
+    }
+   },
+   {
+    "feature": "structs",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/structs.t27",
+    "sha256": "eb6583207d52e56d6374411554d285ed3423bfbd918de232b7c6e95d70a08217",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [],
+     "imports": [],
+     "declarations": {
+      "lexical": 4,
+      "ast": 4
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2135,
+       "sha256": "21b5c7da4c433863ecf5b3f402426ac8452be182161cedb5d5113534029271a0",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1324,
+       "sha256": "34747ded1feb524b2f675ed578370355ec725d8e5ae78eef57c615275ef08c22",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 767,
+       "sha256": "b7c2d73d5a5fd1154ffcd090b18ffe6f26b603e16ffff54f59102bab4aca1304",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": "error[E0381]: partially assigned binding `p` isn't fully initialized"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 3333,
+       "sha256": "c192fe3eb20d22cbed144c75bf0b81b0ec9b51f814fb69dc4874624929443ac8",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 72
+    }
+   },
+   {
+    "feature": "enums",
+    "status_declared": "blocked",
+    "backend": "c",
+    "reached": "generate",
+    "verdict": "blocked",
+    "executable_on": [
+     "zig"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/enums.t27",
+    "sha256": "d25b2bace31a0ef0eb0cc61430287b55ef21001ff6b391c784042399f6e5fb61",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [],
+     "imports": [],
+     "declarations": {
+      "lexical": 3,
+      "ast": 3
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2018,
+       "sha256": "9185fe292233077197005ef3838a80093e88bd2f765148da79b3c368f9dadf52",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": "<work>/enums.c:40:18: error: use of undeclared identifier 'EMULATOR'"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1186,
+       "sha256": "286a10678f9ba28cc2ae2520a155d70db41357e30e3167d56b0b097e6ee96ec0",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 677,
+       "sha256": "282c1d7947c8149066a4c5df80f071280779ccb16d1758e2eb181233daa71ebc",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2783,
+       "sha256": "2cd7f77cc4c5ba53a4081a104291f70755fe5b49eb7bb0470f575c337c266e76",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "iverilog -o <out> <file>",
+       "message": "1 error(s) during elaboration."
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 33
+    }
+   },
+   {
+    "feature": "functions",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/functions.t27",
+    "sha256": "ddb3121f389799300e03255cf947acad86a88631afd3d93807a0519c498a1996",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [],
+     "imports": [],
+     "declarations": {
+      "lexical": 4,
+      "ast": 4
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2040,
+       "sha256": "bb755d257b7d913388e4c7db99a3b68691511dced5bfc3ed7324e4bd4b8d2a33",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1304,
+       "sha256": "697df1152712352ecde44d313f2447e98662b51d0186b0ec18d6b12142c539f2",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 633,
+       "sha256": "4b9885545dbc05bcff0062800eabd4bccbb87748049f87dd4170cdb361ed0083",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 3545,
+       "sha256": "2b1261c17cf70297260850a11c35614bee085ff138f841e15dd146414a2eda93",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 66
+    }
+   },
+   {
+    "feature": "control_flow",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/control_flow.t27",
+    "sha256": "f03e65c6d1814c4d6237b43d428b1baec0ef499487a25ca6d53e5c0e50d8b9be",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [],
+     "imports": [],
+     "declarations": {
+      "lexical": 4,
+      "ast": 4
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2272,
+       "sha256": "175bdf14b9716a2588ed3f5a8c6dba754ae49ce39aa1a5e0c8530d0e7f1599e0",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1605,
+       "sha256": "91caec296026fb236f06039e77f615dcfd5d2ed063fcd35dbc9d9c4f79fdd731",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 869,
+       "sha256": "7fff6a10ba046ee2af44dfaad446c016e928a60e332b66ba2626c03e140f8a0b",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 4472,
+       "sha256": "18c94c203d2ea7d30ee8072cf1a26b1877073720fa98deb7467d43d64ffdac1f",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 93
+    }
+   },
+   {
+    "feature": "module_state",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/module_state.t27",
+    "sha256": "d254d150341c77b095823eba91f69d97a7a47761df5a8ed60f80f56c9bea5323",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "  - warning: cannot assign to immutable 'counter':14",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "counter",
+       "type": "u32",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 4,
+      "ast": 4
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1931,
+       "sha256": "8367b3501d774b6eb324fb291cfd01475016532c6ce4759fd22636f9b4bed45c",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1047,
+       "sha256": "ed10bfcf53776a0d59180dda5dbc959b4366213c2296cfe1df3b72384c0e627f",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 497,
+       "sha256": "7fb72478c87901d08229a57da877e77d417093189bcf3d90559866c475e1cc1f",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2825,
+       "sha256": "be8196394b1567ca490385918d1b2b974000c295ada822bb35fa8fb4d4163216",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": false,
+     "typecheckErrors": 1,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 38
+    }
+   },
+   {
+    "feature": "invariants",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/invariants.t27",
+    "sha256": "7a5b6523fa3133aa7549a4458414f55f0d760d5dcc4b41a50d3e08dd0e06789e",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "FRAME_BEATS",
+       "type": "u32",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "FRAMES",
+       "type": "u32",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "TOTAL_BEATS",
+       "type": "u32",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 6,
+      "ast": 6
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1912,
+       "sha256": "e125982e40198489d9fc210433c4a8cab78bc96057491f41ad34f4df2cd09da8",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1160,
+       "sha256": "9d20fcec0b6b81700d814ca656112a4df69ad9bf5f39ffd4c89b30084ec003ae",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "zig test <file>",
+       "message": "<work>/invariants.zig:23:28: error: value of type 'bool' ignored"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 386,
+       "sha256": "c0140f8b795fb7c448f2afe84ea95be32cadd124e5262f368cd716dd669567a4",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2285,
+       "sha256": "e0b2d06007225f1a8187af950711e2d3f68ee109296a9c8f46d26975a8069e67",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 32
+    }
+   },
+   {
+    "feature": "imports",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/imports.t27",
+    "sha256": "ad3a425fffc02fe0f02fc5c01dbb8ef29eefd702872aa00e4796e9e637abbce1",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "WIDTH",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [
+      {
+       "target": "base::types",
+       "resolved": "specs/base/types.t27"
+      }
+     ],
+     "declarations": {
+      "lexical": 4,
+      "ast": 4
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1755,
+       "sha256": "c6cceca1a9f39539ca17de8c74049de01f7388bea70054fcfa62bff40a6fd6c3",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 806,
+       "sha256": "c71a216a1f83f4e87e23a457281f962e92e8501fdba65bf42230356154e7e7ad",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 364,
+       "sha256": "84b43c50b1fa612383f978ad648ae0808054a687076438cdd233cb352607eed3",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2553,
+       "sha256": "e7f10f90def537d4bcdcda46278afd1f09b26d7f88a2d7a33fe44a4877e22e77",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 16
+    }
+   },
+   {
+    "feature": "errors",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/errors.t27",
+    "sha256": "24b113adaed5f1cd1db118bbe253e90ccb98b4981ca296427ee81929baac6ed2",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "OK",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "ERR_RANGE",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "ERR_EMPTY",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 5,
+      "ast": 5
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2007,
+       "sha256": "be755808dfe8de3e1fa723f3e1a6df4b41c2ea11d420c65c1f7aaf25933ac9a5",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1322,
+       "sha256": "6095f7e7fa1a86ca8ec71db01bd62909ebd23e3da20a1672229fdd9cf2c4e114",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 572,
+       "sha256": "cffd6468c8113e568734eaa7731e66900bed7868aacde0d2bd487acade68cf65",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 3205,
+       "sha256": "49d4fadb3e1597d2654ea789d4bb8ba40647181b21808b9bf897a48d7766bc23",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 50
+    }
+   },
+   {
+    "feature": "clocked_state",
+    "status_declared": "enabled",
+    "backend": "verilog",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/clocked_state.t27",
+    "sha256": "488af77492c2664a504de98dc8dc2a19a37e3cce3d355f3a1af26e259bfb3038",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "  - warning: cannot assign to immutable 'count':12",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "count",
+       "type": "u32",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "tick",
+       "type": "bool",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 7,
+      "ast": 7
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2013,
+       "sha256": "2ba451a64a37bde9e40ef546eeebbbeb68b6c68f2dee74f56b9492b34b5157ae",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 870,
+       "sha256": "4273e449f1aebe2e2cf892fd91bcb6ee9e219112adc0d4cdf4020ea7b26355d0",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "zig test <file>",
+       "message": "<work>/clocked_state.zig:20:1: error: variables must be initialized"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 598,
+       "sha256": "8550fc35c17f66d0dd13841cc32be0dc887fd3dce9838beee6d7f60b42cd18c8",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": false,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": "error[E0308]: mismatched types"
+      },
+      "runtime": {
+       "ok": null,
+       "tests": null,
+       "message": null,
+       "command": null
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2954,
+       "sha256": "35f0507eb61bc908d538711470725938206cf7eb6774035497b1dc056931d279",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 2,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 2,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": false,
+     "typecheckErrors": 1,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 47
+    }
+   },
+   {
+    "feature": "adapters_declared",
+    "status_declared": "enabled",
+    "backend": "c",
+    "reached": "runtime",
+    "verdict": "executable",
+    "executable_on": [
+     "c",
+     "zig",
+     "verilog"
+    ],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/adapters_declared.t27",
+    "sha256": "91048d7c7ae27d96b52540d240f169968c0c77c769bf6eeddad35022b8c15fba",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "ADAPTER",
+       "type": "str",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "STATUS_OK",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "STATUS_RETRY",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "STATUS_FAIL",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "MAX_RETRIES",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 7,
+      "ast": 7
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 2319,
+       "sha256": "7cab488f983f61de2a8bd59aed0e3be4750d3648fd2103e4ce281769768f8640",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1742,
+       "sha256": "177b806b39d3c863b98faa3e5fb8e06c743f78d16dae3646b709a505577e2561",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "zig test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "zig test <file>"
+      }
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": true,
+       "exit": 0,
+       "bytes": 753,
+       "sha256": "09da7bc3a3a59703c49387eaf85fa90dd12966245d1cb60c9a71edf6aa261105",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "rustc --edition 2021 --test <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "no test was lowered to Rust",
+       "command": "./<test binary>"
+      }
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": true,
+       "exit": 0,
+       "bytes": 3352,
+       "sha256": "f074ab4eec09d9aced2e840f87e026ee385470891103424ce2f92ca4cf8df60b",
+       "declarations_only": true,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "iverilog -o <out> <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "t27c icarus-simulate <spec>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 64
+    }
+   },
+   {
+    "feature": "ffi_boundary",
+    "status_declared": "blocked",
+    "backend": "c",
+    "reached": "none",
+    "verdict": "blocked",
+    "executable_on": [],
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/neg_bodyless_fn.t27",
+    "sha256": "0f4494d56c800b3c811c9bcfc11646a059681d0fa9fa95ca4780a118f6c1c866",
+    "declaration": {
+     "typecheck": false,
+     "typecheck_errors": null,
+     "typecheck_message": "Error: Expected LBrace, got Semicolon (';') at line 6:27",
+     "ast": null,
+     "annotations": [],
+     "imports": [],
+     "declarations": null,
+     "ok": false,
+     "reason": "typecheck rejected the file"
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": false,
+       "exit": 1,
+       "bytes": 0,
+       "sha256": null,
+       "declarations_only": false,
+       "message": "Error: Compile error: Expected LBrace, got Semicolon (';') at line 6:27"
+      },
+      "compile": null,
+      "runtime": null
+     },
+     "zig": {
+      "generate": {
+       "command": "t27c gen",
+       "ok": false,
+       "exit": 1,
+       "bytes": 0,
+       "sha256": null,
+       "declarations_only": false,
+       "message": "Error: Compile error: Expected LBrace, got Semicolon (';') at line 6:27"
+      },
+      "compile": null,
+      "runtime": null
+     },
+     "rust": {
+      "generate": {
+       "command": "t27c gen-rust",
+       "ok": false,
+       "exit": 1,
+       "bytes": 0,
+       "sha256": null,
+       "declarations_only": false,
+       "message": "Error: Compile error: Expected LBrace, got Semicolon (';') at line 6:27"
+      },
+      "compile": null,
+      "runtime": null
+     },
+     "verilog": {
+      "generate": {
+       "command": "t27c gen-verilog",
+       "ok": false,
+       "exit": 1,
+       "bytes": 0,
+       "sha256": null,
+       "declarations_only": false,
+       "message": "Error: Compile error: Expected LBrace, got Semicolon (';') at line 6:27"
+      },
+      "compile": null,
+      "runtime": null
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 9
+    }
+   }
+  ],
+  "negatives": [
+   {
+    "negative": "neg_invalid_annotation.t27",
+    "required_rejection_by": "declaration",
+    "reached": "none",
+    "rejected_at": "declaration",
+    "verdict": "rejected",
+    "reason": "annotation disagrees with its literal: NAME annotated str, literal is '5'",
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/neg_invalid_annotation.t27",
+    "sha256": "7003fb2eea2c09498de0d3cfb0cc3b7c081f4ac6bc16484aab5c97809daa6bf8",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "NAME",
+       "type": "str",
+       "ok": false,
+       "detail": "annotated str, literal is '5'"
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 2,
+      "ast": 2
+     },
+     "ok": false,
+     "reason": "annotation disagrees with its literal: NAME annotated str, literal is '5'"
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1398,
+       "sha256": "a8b520529adaa738cbb999008046e1574172ef591aee379e7ee06f8f30e6d76b",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "Assertion failed: ((NAME == \"five\")), function test_the_name_is_a_string, file neg_invalid_annotation.c, line 28.",
+       "command": "./<binary>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 9
+    }
+   },
+   {
+    "negative": "neg_false_assert.t27",
+    "required_rejection_by": "runtime",
+    "reached": "compile",
+    "rejected_at": "runtime",
+    "verdict": "rejected",
+    "reason": "runtime: Assertion failed: ((ONE > 2)), function test_one_is_greater_than_two, file neg_false_assert.c, line 28.",
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/neg_false_assert.t27",
+    "sha256": "436c703f6031eb93b7faf8777d15c5c059c1ac5750fb1477ae321c1dd91fd082",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "ONE",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [],
+     "declarations": {
+      "lexical": 2,
+      "ast": 2
+     },
+     "ok": true,
+     "reason": null
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1372,
+       "sha256": "ad8103b5dbf51cf7bb5fdb96fe682ed652a983d90acfe5bd277ed6649a31e997",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": false,
+       "tests": 0,
+       "message": "Assertion failed: ((ONE > 2)), function test_one_is_greater_than_two, file neg_false_assert.c, line 28.",
+       "command": "./<binary>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 9
+    }
+   },
+   {
+    "negative": "neg_unresolved_import.t27",
+    "required_rejection_by": "declaration",
+    "reached": "none",
+    "rejected_at": "declaration",
+    "verdict": "rejected",
+    "reason": "unresolved import nowhere::thing",
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/neg_unresolved_import.t27",
+    "sha256": "88a19f0f834d7cf72ce68bd59cfd69d74daa682ce4e2bdcc0174a0e47719eb72",
+    "declaration": {
+     "typecheck": true,
+     "typecheck_errors": 0,
+     "typecheck_message": "Typecheck OK (0 errors, 0 warnings)",
+     "ast": true,
+     "annotations": [
+      {
+       "name": "N",
+       "type": "u8",
+       "ok": true,
+       "detail": null
+      }
+     ],
+     "imports": [
+      {
+       "target": "nowhere::thing",
+       "resolved": null
+      }
+     ],
+     "declarations": {
+      "lexical": 3,
+      "ast": 3
+     },
+     "ok": false,
+     "reason": "unresolved import nowhere::thing"
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": true,
+       "exit": 0,
+       "bytes": 1399,
+       "sha256": "8e0b766ba4409485f646aa9549e24f92ab9fc640d15d89b1ef9e73ae54a72d90",
+       "declarations_only": false,
+       "message": null
+      },
+      "compile": {
+       "ok": true,
+       "command": "cc -DT27_TEST_MAIN -x c <file>",
+       "message": null
+      },
+      "runtime": {
+       "ok": true,
+       "tests": 1,
+       "message": null,
+       "command": "./<binary>"
+      }
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 10
+    }
+   },
+   {
+    "negative": "neg_bodyless_fn.t27",
+    "required_rejection_by": "declaration",
+    "reached": "none",
+    "rejected_at": "declaration",
+    "verdict": "rejected",
+    "reason": "typecheck rejected the file",
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/neg_bodyless_fn.t27",
+    "sha256": "0f4494d56c800b3c811c9bcfc11646a059681d0fa9fa95ca4780a118f6c1c866",
+    "declaration": {
+     "typecheck": false,
+     "typecheck_errors": null,
+     "typecheck_message": "Error: Expected LBrace, got Semicolon (';') at line 6:27",
+     "ast": null,
+     "annotations": [],
+     "imports": [],
+     "declarations": null,
+     "ok": false,
+     "reason": "typecheck rejected the file"
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": false,
+       "exit": 1,
+       "bytes": 0,
+       "sha256": null,
+       "declarations_only": false,
+       "message": "Error: Compile error: Expected LBrace, got Semicolon (';') at line 6:27"
+      },
+      "compile": null,
+      "runtime": null
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 0,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 9
+    }
+   },
+   {
+    "negative": "neg_dropped_module.t27",
+    "required_rejection_by": "declaration",
+    "reached": "none",
+    "rejected_at": "declaration",
+    "verdict": "rejected",
+    "reason": "typecheck rejected the file",
+    "fixture": "bootstrap/tests/fixtures/trinity_matrix/neg_dropped_module.t27",
+    "sha256": "1b24b1694f18c7a0481393f176311bd7526fc2b05425dd1746211b294df65699",
+    "declaration": {
+     "typecheck": false,
+     "typecheck_errors": null,
+     "typecheck_message": "Error: parse error at module level near line 4: Unexpected token in expression: Semicolon (';') at line 4:1",
+     "ast": null,
+     "annotations": [],
+     "imports": [],
+     "declarations": null,
+     "ok": false,
+     "reason": "typecheck rejected the file"
+    },
+    "backends": {
+     "c": {
+      "generate": {
+       "command": "t27c gen-c",
+       "ok": false,
+       "exit": 1,
+       "bytes": 0,
+       "sha256": null,
+       "declarations_only": false,
+       "message": "Error: Compile error: parse error at module level near line 4: Unexpected token in expression: Semicolon (';') at line 4:1"
+      },
+      "compile": null,
+      "runtime": null
+     }
+    },
+    "wasm": {
+     "astError": null,
+     "discarded": 1,
+     "swallowed": 0,
+     "lexerDiscarded": 0,
+     "typecheckOk": true,
+     "typecheckErrors": 0,
+     "targets": {
+      "c": true,
+      "rust": true,
+      "verilog": true,
+      "verilog_hir": true,
+      "zig": true
+     },
+     "nodes": 9
+    }
+   }
+  ],
+  "absent_backend": {
+   "backend": "python",
+   "listed": false,
+   "command": null,
+   "verdict": "blocked"
+  }
+ },
+ "summary": {
+  "features": 14,
+  "executable": [
+   "adapters_declared",
+   "arrays",
+   "clocked_state",
+   "control_flow",
+   "errors",
+   "functions",
+   "imports",
+   "invariants",
+   "module_state",
+   "scalars",
+   "strings",
+   "structs"
+  ],
+  "blocked": [
+   "enums",
+   "ffi_boundary"
+  ],
+  "negatives_rejected": 5,
+  "negatives": 5
+ },
+ "findings": []
+}

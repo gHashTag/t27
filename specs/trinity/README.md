@@ -17,6 +17,8 @@ owns its contract.
 |---|---|---|
 | `project.t27` | `trinity_project` (`KIND = "project"`) | the consumer repository and the pinned revision, the profiles, the disposition and evidence vocabularies, the dialect and build counts the inventory measured, the dependency pins and the twelve work packages |
 | `capabilities/<id>.t27` | `trinity_capability_<id>` (`KIND = "capability"`) | one capability; `ID = trinity/<id>` |
+| `compiler_matrix.t27` | `trinity_compiler_matrix` (`KIND = "compiler-matrix"`) | the executable t27 subset of the headless profile: compilers, backends, stages, features with fixtures, negatives (S02) |
+| `conformance/trinity/compiler_matrix.json` | -- | what `tools/trinity_compiler_matrix.py run` measured, stage by stage and backend by backend |
 | `conformance/trinity/inventory.json` | -- | the inventory of the pinned tree, written by `tools/trinity_manifest.py inventory` |
 | `conformance/trinity/report.json` | -- | what `tools/trinity_manifest.py check` derived: counts, cards by disposition, profile, evidence and work package, findings |
 
@@ -91,6 +93,38 @@ not checked.
 - The measured evidence of the headless profile is one public CI run (`Build & Test`,
   ubuntu-latest, zig 0.15.2) in which `zig build -Dci=true` succeeded; the test step is piped
   through `tee` there and its exit code is not measured (gHashTag/trinity#616).
+
+## The compiler matrix (S02)
+
+`compiler_matrix.t27` (module `trinity_compiler_matrix`, `KIND = "compiler-matrix"`) names the
+native compiler (`t27c 0.2.0`, `NATIVE_REVISION` = the last commit that changed `bootstrap/`),
+the vendored WASM of the site (an older revision, its own column, no runtime), the four
+backends with the command that emits each and what proves a runtime result on each, the four
+stages kept apart in the record, fourteen features with one fixture each under
+`bootstrap/tests/fixtures/trinity_matrix/`, and five negatives with the latest stage at which
+each must be rejected. `tools/trinity_compiler_matrix.py run` carries every fixture through
+`t27c typecheck` and `parse --json` (annotation agreement, import resolution, declaration
+count), `gen-c` / `gen` / `gen-rust` / `gen-verilog`, `cc -DT27_TEST_MAIN`, `zig test`,
+`rustc --test`, `iverilog` and `t27c icarus-simulate`, and writes
+`conformance/trinity/compiler_matrix.json`; `check` holds the committed record to the spec and
+the fixture hashes; `--self-check` proves the negatives are negatives.
+
+Measured on 2026-09-12 (compiler sources at `bff21b85`, host clang 21, rustc 1.94, Icarus 13,
+zig 0.17.0-dev nightly because zig 0.15.2 cannot link on the host): 12 of 14 features reach a
+runtime pass on their backend; `enums` is blocked on C (the enum declares `EVIDENCE_EMULATOR`,
+the switch compares against `EMULATOR`) while it executes on Zig; `ffi_boundary` is blocked at
+declaration (a bodyless signature is a parse error, gHashTag/t27#3472). The Rust backend emits
+declarations only (`NOT LOWERED`) for every fixture. The Zig backend does not lower string
+equality, array constants, invariant blocks or the clocked form. All five negatives are
+rejected: the invalid annotation and the unresolved import by this tool at declaration (the
+compiler and the vendored WASM accept both with `typecheck.ok`), the false assertion at
+runtime, the bodyless function and the dropped module by the parser.
+
+```
+python3 tools/trinity_compiler_matrix.py run --zig <zig> --wasm <trinity>/apps/website/public/t27/t27_compiler.wasm
+python3 tools/trinity_compiler_matrix.py check
+python3 tools/trinity_compiler_matrix.py --self-check
+```
 
 ## Boundaries
 
