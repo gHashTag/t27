@@ -16,7 +16,7 @@
 | `queen/` | **T-Queen** | Lotus orchestration spec |
 | `brain/` | **T-Queen** + **P-Physics** + **N-Numeric** | Strand VI — unified brain specs; see `specs/brain/OWNERS.md` |
 | `fpga/` | **B-Builder** / hardware | Boards, constraints, testbenches |
-| `vsa/`, `nn/` | **N-Numeric** / ML adjacent | Bundles and attention specs |
+| `vsa/`, `nn/` | **N-Numeric** / ML adjacent | Bundles and attention specs; `vsa/trinity_compat.t27` (`KIND = "vsa-compat"`) records which semantics gHashTag/trinity's facade actually runs for the sixteen VSA operations it re-exports (the pinned gHashTag/zig-golden-float, not `vsa_core.t27` where the two differ) and states that reference as elementwise functions; `tools/trinity_vsa_compat.py` replays `conformance/vsa_trinity_compat.json` through the generated C (S04 of gHashTag/trinity#988) |
 | `demos/`, `sandbox/` | **A-Architect** / **Q-QA** | Examples; not ring gold by default |
 | `isa/` | **C-Compiler** | Register alphabet |
 | `skills/`, `crons/`, `i18n/` | **T-Queen** | Agent skills and scheduled jobs as `.t27` specs, plus the per-locale translation contracts (`i18n/agents-<locale>.t27`) that point at the site's text bundles; the site (gHashTag/trinity) generates its catalogs from a vendored copy |
