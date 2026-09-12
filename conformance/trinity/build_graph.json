@@ -1,0 +1,3169 @@
+{
+ "version": 1,
+ "generated_by": "tools/trinity_build_receipt.py graph",
+ "repo": "gHashTag/trinity",
+ "sha": "976df517419f918f05b78e73767e2fdf4aad14be",
+ "options": [
+  {
+   "name": "ci",
+   "type": "bool",
+   "description": "CI mode: skip GUI and system-library targets"
+  },
+  {
+   "name": "treesitter",
+   "type": "bool",
+   "description": "Enable tree-sitter AST analysis for VIBEE (requires libtree-sitter)"
+  }
+ ],
+ "dependencies": [
+  {
+   "name": "emsdk",
+   "url": "git+https://github.com/emscripten-core/emsdk?ref=4.0.9#3bcf1dcd01f040f370e10fe673a092d9ed79ebb5",
+   "hash": "N-V-__8AAJl1DwBezhYo_VE6f53mPVm00R-Fk28NPW7P14EQ",
+   "referenced_by_build_zig": 0,
+   "use": "not referenced by build.zig directly; raylib-zig's emsdk helpers use it for the emscripten canvas check, guarded by !ci_mode"
+  },
+  {
+   "name": "raylib",
+   "url": "git+https://github.com/raylib-zig/raylib-zig#cd71c85d571027ac8033357f83b124ee051825b3",
+   "hash": "raylib_zig-5.6.0-dev-KE8REENOBQC-m5nK7M2b5aKSIubJPbPLUYcRhT7aT3RN",
+   "referenced_by_build_zig": 1,
+   "use": "b.dependency in the canvas and node GUI targets, guarded by !ci_mode"
+  },
+  {
+   "name": "zig_hdc",
+   "url": "https://github.com/gHashTag/zig-hdc/archive/b73b2fa29874f4e30297f167a6ea8a3c2ded9d32.tar.gz",
+   "hash": "zig_hdc-0.1.0-6NS2Eg99FQCG62j7TmpGwVTnq07LhNb1FUHrwUacgWdO",
+   "referenced_by_build_zig": 2,
+   "use": "b.dependency; its module hdc_vsa is imported by the trinity library and most executables"
+  },
+  {
+   "name": "zig_golden_float",
+   "url": "https://github.com/gHashTag/zig-golden-float/archive/e7ce32885de2a8c50b7b6a3030d0592202145dd1.tar.gz",
+   "hash": "golden_float-2.1.0-h7LKhUUNCwAtKVHQ56wjridCZVwXY7_oxT2hXD9xCDdF",
+   "referenced_by_build_zig": 1,
+   "use": "b.dependency; its module golden_float is imported by the trinity library"
+  }
+ ],
+ "submodules": [
+  {
+   "name": "external/zig-golden-float",
+   "path": "external/zig-golden-float",
+   "url": "https://github.com/gHashTag/zig-golden-float"
+  }
+ ],
+ "modules": [
+  {
+   "var": "agent_mu_mod",
+   "root": "src/agent_mu/agent_mu.zig",
+   "line": 1338,
+   "tracked": true
+  },
+  {
+   "var": "api_mod",
+   "root": "src/api/unified_server.zig",
+   "line": 2055,
+   "tracked": true
+  },
+  {
+   "var": "bsd_mod",
+   "root": "src/bsd/scanner.zig",
+   "line": 2127,
+   "tracked": true
+  },
+  {
+   "var": "c_api_mod",
+   "root": "src/c_api.zig",
+   "line": 88,
+   "tracked": true
+  },
+  {
+   "var": "fluent_release_chat",
+   "root": "src/vibeec/igla_local_chat.zig",
+   "line": 610,
+   "tracked": true
+  },
+  {
+   "var": "gguf_model_mod",
+   "root": "src/vibeec/gguf_model.zig",
+   "line": 2357,
+   "tracked": true
+  },
+  {
+   "var": "golden_chain_mod",
+   "root": "src/vibeec/golden_chain.zig",
+   "line": 2029,
+   "tracked": true
+  },
+  {
+   "var": "igla_kg_mod",
+   "root": "src/vibeec/igla_knowledge_graph.zig",
+   "line": 1292,
+   "tracked": true
+  },
+  {
+   "var": "igla_tvc_chat_mod",
+   "root": "src/vibeec/igla_tvc_chat.zig",
+   "line": 2038,
+   "tracked": true
+  },
+  {
+   "var": "kg_sync_mod",
+   "root": "src/vibeec/kg_sync.zig",
+   "line": 2702,
+   "tracked": true
+  },
+  {
+   "var": "kv_cache_mod",
+   "root": "src/vibeec/kv_cache.zig",
+   "line": 2725,
+   "tracked": true
+  },
+  {
+   "var": "needle_mod",
+   "root": "src/needle/mod.zig",
+   "line": 1435,
+   "tracked": true
+  },
+  {
+   "var": "os_mod",
+   "root": "src/os/boot.zig",
+   "line": 2117,
+   "tracked": true
+  },
+  {
+   "var": "pas_orchestrator_mod",
+   "root": "src/agent_mu/pas_orchestrator.zig",
+   "line": 2048,
+   "tracked": true
+  },
+  {
+   "var": "queen_api_mod",
+   "root": "src/queen_api.zig",
+   "line": 134,
+   "tracked": true
+  },
+  {
+   "var": "registry_mod",
+   "root": "src/registry/mcp_gen.zig",
+   "line": 2090,
+   "tracked": true
+  },
+  {
+   "var": "sacred_const_mod",
+   "root": "src/sacred/const.zig",
+   "line": 2101,
+   "tracked": true
+  },
+  {
+   "var": "sacred_mod",
+   "root": "src/sacred/sacred.zig",
+   "line": 2107,
+   "tracked": true
+  },
+  {
+   "var": "telegram_mod",
+   "root": "tools/mcp/trinity_mcp/agent/telegram.zig",
+   "line": 1569,
+   "tracked": true
+  },
+  {
+   "var": "token_rotator_mod",
+   "root": "src/tri/token_rotator.zig",
+   "line": 2826,
+   "tracked": true
+  },
+  {
+   "var": "tri_colors_mod",
+   "root": "src/tri/tri_colors.zig",
+   "line": 2062,
+   "tracked": true
+  },
+  {
+   "var": "tri_commands_mod",
+   "root": "src/tri/tri_commands.zig",
+   "line": 2077,
+   "tracked": true
+  },
+  {
+   "var": "tri_train_mod",
+   "root": "src/tri/metabolism.zig",
+   "line": 1490,
+   "tracked": true
+  },
+  {
+   "var": "tri_utils_mod",
+   "root": "src/tri/tri_utils.zig",
+   "line": 2068,
+   "tracked": true
+  },
+  {
+   "var": "trinity_lang_mod",
+   "root": "deploy/trinity-nexus/lang/src/root.zig",
+   "line": 42,
+   "tracked": true
+  },
+  {
+   "var": "trinity_mod",
+   "root": "src/trinity.zig",
+   "line": 30,
+   "tracked": true
+  },
+  {
+   "var": "trinity_workspace_mod",
+   "root": "src/trinity_workspace.zig",
+   "line": 1500,
+   "tracked": true
+  },
+  {
+   "var": "triples_parser_mod",
+   "root": "src/vibeec/triples_parser.zig",
+   "line": 1300,
+   "tracked": true
+  },
+  {
+   "var": "ts_zig_mod",
+   "root": "src/tvc/treesitter/zig.zig",
+   "line": 1409,
+   "tracked": true
+  },
+  {
+   "var": "tvc_corpus_mod",
+   "root": "src/tvc/tvc_corpus.zig",
+   "line": 1282,
+   "tracked": true
+  },
+  {
+   "var": "tvc_distributed_mod",
+   "root": "src/tvc/tvc_distributed.zig",
+   "line": 2008,
+   "tracked": true
+  },
+  {
+   "var": "vibeec_chat",
+   "root": "src/vibeec/igla_local_chat.zig",
+   "line": 1264,
+   "tracked": true
+  },
+  {
+   "var": "vibeec_coder",
+   "root": "src/vibeec/igla_local_coder.zig",
+   "line": 2001,
+   "tracked": true
+  },
+  {
+   "var": "vibeec_fluent_chat",
+   "root": "src/vibeec/igla_fluent_chat_engine.zig",
+   "line": 1271,
+   "tracked": true
+  },
+  {
+   "var": "vibeec_hybrid_chat",
+   "root": "src/vibeec/igla_hybrid_chat.zig",
+   "line": 2017,
+   "tracked": true
+  },
+  {
+   "var": "vibeec_swe",
+   "root": "src/vibeec/trinity_swe_agent.zig",
+   "line": 1995,
+   "tracked": true
+  },
+  {
+   "var": "wasm_auto_shard",
+   "root": "src/wasm_stubs/auto_shard_stub.zig",
+   "line": 2527,
+   "tracked": true
+  },
+  {
+   "var": "wasm_fluent_chat",
+   "root": "src/wasm_stubs/igla_fluent_chat_stub.zig",
+   "line": 2515,
+   "tracked": true
+  },
+  {
+   "var": "wasm_golden_chain",
+   "root": "src/wasm_stubs/golden_chain_stub.zig",
+   "line": 2550,
+   "tracked": true
+  },
+  {
+   "var": "wasm_hybrid_chat",
+   "root": "src/wasm_stubs/igla_hybrid_chat_stub.zig",
+   "line": 2539,
+   "tracked": true
+  },
+  {
+   "var": "wasm_igla_chat",
+   "root": "src/wasm_stubs/igla_chat_stub.zig",
+   "line": 2509,
+   "tracked": true
+  },
+  {
+   "var": "wasm_igla_kg",
+   "root": "src/wasm_stubs/igla_knowledge_graph_stub.zig",
+   "line": 2533,
+   "tracked": true
+  },
+  {
+   "var": "wasm_root",
+   "root": "deploy/trinity-nexus/canvas/src/photon_trinity_canvas.zig",
+   "line": 2559,
+   "tracked": true
+  },
+  {
+   "var": "wasm_tvc_corpus",
+   "root": "src/wasm_stubs/tvc_corpus_stub.zig",
+   "line": 2521,
+   "tracked": true
+  }
+ ],
+ "edges": [
+  {
+   "from": "module:trinity_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:trinity_mod",
+   "import": "hdc_vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:trinity_mod",
+   "import": "golden_float",
+   "expr": "gf_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_golden_float",
+    "module": "golden-float"
+   }
+  },
+  {
+   "from": "module:trinity_lang_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "lib:trinity",
+   "import": "hdc_vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "lib:trinity",
+   "import": "golden_float",
+   "expr": "gf_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_golden_float",
+    "module": "golden-float"
+   }
+  },
+  {
+   "from": "module:c_api_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "lib:trinity-vsa-static",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:queen_api_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "lib:trinity-queen-static",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "lib:trinity-vsa",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity.zig",
+   "import": "hdc_vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity.zig",
+   "import": "golden_float",
+   "expr": "gf_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_golden_float",
+    "module": "golden-float"
+   }
+  },
+  {
+   "from": "test:src/queen_api.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:tests/benchmarks/benchmarks/benchmark_test.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:tests/benchmarks/benchmarks/benchmark_test.zig",
+   "import": "vsa",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "test:src/vm.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/e2e_test.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/c_api.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/vibeec/codegen_tests.zig",
+   "import": "trinity-lang",
+   "expr": "trinity_lang_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_lang_mod",
+    "root": "deploy/trinity-nexus/lang/src/root.zig"
+   }
+  },
+  {
+   "from": "test:src/igla/trace.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/agent_mu/swarm_collaboration.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/agent_mu/production_hardening_test.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/agent_mu/production_test.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-search",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-query",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:bench-core",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:bench-core",
+   "import": "vsa",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "exe:bench-compress",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:example-memory",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:example-memory",
+   "import": "trinity",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "exe:example-sequence",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:example-sequence",
+   "import": "trinity",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "exe:example-vm",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:example-vm",
+   "import": "trinity",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "exe:sota-report",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:sota-report",
+   "import": "trinity",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "exe:pas-demo",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:firebird",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/firebird/b2t_integration.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/firebird/wasm_parser.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:firebird",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:fluent_release_chat",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:fluent",
+   "import": "igla_chat",
+   "expr": "fluent_release_chat",
+   "to": {
+    "kind": "module",
+    "var": "fluent_release_chat",
+    "root": "src/vibeec/igla_local_chat.zig"
+   }
+  },
+  {
+   "from": "test:src/firebird/extension_wasm.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/firebird/depin.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/depin/network.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/api/unified_server.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/file_encoder.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/protocol.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/storage.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/shard_manager.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/storage_discovery.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/remote_storage.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/crypto.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/galois.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/reed_solomon.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/connection_pool.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/manifest_dht.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/integration_test.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/proof_of_storage.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/shard_rebalancer.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/bandwidth_aggregator.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/shard_scrubber.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/node_reputation.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/graceful_shutdown.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/network_stats.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/auto_repair.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/incentive_slashing.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/prometheus_metrics.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/repair_rate_limiter.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/token_staking.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/peer_latency.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/rs_repair.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/metrics_http.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/erasure_repair.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/reputation_consensus.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/stake_delegation.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/region_topology.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/slashing_escrow.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/prometheus_http.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/vsa_shard_encoder.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/semantic_index.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/cross_shard_tx.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/vsa_shard_locks.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/region_router.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/dynamic_erasure.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/saga_coordinator.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/transaction_wal.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/parallel_saga.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/trinity_node/wal_disk.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:b2t",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:claude-ui",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-cli",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:vibeec_chat",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:vibeec_fluent_chat",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:tvc_corpus_mod",
+   "import": "vsa",
+   "expr": "vsa_tri",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:igla_kg_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:triples_parser_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:fluent",
+   "import": "igla_chat",
+   "expr": "vibeec_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_chat",
+    "root": "src/vibeec/igla_local_chat.zig"
+   }
+  },
+  {
+   "from": "exe:fluent",
+   "import": "tvc_corpus",
+   "expr": "tvc_corpus_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_corpus_mod",
+    "root": "src/tvc/tvc_corpus.zig"
+   }
+  },
+  {
+   "from": "exe:fluent",
+   "import": "igla_kg",
+   "expr": "igla_kg_mod",
+   "to": {
+    "kind": "module",
+    "var": "igla_kg_mod",
+    "root": "src/vibeec/igla_knowledge_graph.zig"
+   }
+  },
+  {
+   "from": "exe:fluent",
+   "import": "triples_parser",
+   "expr": "triples_parser_mod",
+   "to": {
+    "kind": "module",
+    "var": "triples_parser_mod",
+    "root": "src/vibeec/triples_parser.zig"
+   }
+  },
+  {
+   "from": "module:agent_mu_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:vibee",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:ts_zig_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:vibee-self-improve",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:ts_zig_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:needle_mod",
+   "import": "treesitter_zig",
+   "expr": "ts_zig_mod",
+   "to": {
+    "kind": "module",
+    "var": "ts_zig_mod",
+    "root": "src/tvc/treesitter/zig.zig"
+   }
+  },
+  {
+   "from": "test:src/needle/mod.zig",
+   "import": "treesitter_zig",
+   "expr": "ts_zig_mod",
+   "to": {
+    "kind": "module",
+    "var": "ts_zig_mod",
+    "root": "src/tvc/treesitter/zig.zig"
+   }
+  },
+  {
+   "from": "exe:needle-mcp",
+   "import": "needle",
+   "expr": "needle_mod",
+   "to": {
+    "kind": "module",
+    "var": "needle_mod",
+    "root": "src/needle/mod.zig"
+   }
+  },
+  {
+   "from": "exe:needle-mcp",
+   "import": "vsa",
+   "expr": "vsa_tri",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:needle-mcp",
+   "import": "treesitter_zig",
+   "expr": "ts_zig_mod",
+   "to": {
+    "kind": "module",
+    "var": "ts_zig_mod",
+    "root": "src/tvc/treesitter/zig.zig"
+   }
+  },
+  {
+   "from": "module:tri_train_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:trinity_workspace_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-mcp",
+   "import": "needle",
+   "expr": "needle_mod",
+   "to": {
+    "kind": "module",
+    "var": "needle_mod",
+    "root": "src/needle/mod.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-mcp",
+   "import": "vsa",
+   "expr": "vsa_tri",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-mcp",
+   "import": "treesitter_zig",
+   "expr": "ts_zig_mod",
+   "to": {
+    "kind": "module",
+    "var": "ts_zig_mod",
+    "root": "src/tvc/treesitter/zig.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-mcp",
+   "import": "tri_train",
+   "expr": "tri_train_mod",
+   "to": {
+    "kind": "module",
+    "var": "tri_train_mod",
+    "root": "src/tri/metabolism.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-mcp",
+   "import": "trinity_workspace",
+   "expr": "trinity_workspace_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_workspace_mod",
+    "root": "src/trinity_workspace.zig"
+   }
+  },
+  {
+   "from": "exe:ralph-agent",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:telegram_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:mu-agent",
+   "import": "telegram",
+   "expr": "telegram_mod",
+   "to": {
+    "kind": "module",
+    "var": "telegram_mod",
+    "root": "tools/mcp/trinity_mcp/agent/telegram.zig"
+   }
+  },
+  {
+   "from": "exe:scholar-agent",
+   "import": "telegram",
+   "expr": "telegram_mod",
+   "to": {
+    "kind": "module",
+    "var": "telegram_mod",
+    "root": "tools/mcp/trinity_mcp/agent/telegram.zig"
+   }
+  },
+  {
+   "from": "exe:agent-entrypoint",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:ralph-hook",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:pipeline-guard",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:tri-bot",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:phi-loop",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:forge",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:quantum",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:beal",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/beal.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:hslm-train",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:railway-redeploy",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:railway-update-service",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:railway-set-builder",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:railway-create-service",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:railway-set-startcmd",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:railway-trigger-redeploy",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:railway-set-dockerfile",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:swe-entrypoint",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:external/zig-hslm/src/root.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:vibeec_swe",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:vibeec_coder",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:tvc_distributed_mod",
+   "import": "tvc_corpus",
+   "expr": "tvc_corpus_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_corpus_mod",
+    "root": "src/tvc/tvc_corpus.zig"
+   }
+  },
+  {
+   "from": "module:vibeec_hybrid_chat",
+   "import": "igla_chat",
+   "expr": "vibeec_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_chat",
+    "root": "src/vibeec/igla_local_chat.zig"
+   }
+  },
+  {
+   "from": "module:vibeec_hybrid_chat",
+   "import": "tvc_corpus",
+   "expr": "tvc_corpus_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_corpus_mod",
+    "root": "src/tvc/tvc_corpus.zig"
+   }
+  },
+  {
+   "from": "module:vibeec_hybrid_chat",
+   "import": "igla_kg",
+   "expr": "igla_kg_mod",
+   "to": {
+    "kind": "module",
+    "var": "igla_kg_mod",
+    "root": "src/vibeec/igla_knowledge_graph.zig"
+   }
+  },
+  {
+   "from": "module:vibeec_hybrid_chat",
+   "import": "triples_parser",
+   "expr": "triples_parser_mod",
+   "to": {
+    "kind": "module",
+    "var": "triples_parser_mod",
+    "root": "src/vibeec/triples_parser.zig"
+   }
+  },
+  {
+   "from": "module:golden_chain_mod",
+   "import": "igla_hybrid_chat",
+   "expr": "vibeec_hybrid_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_hybrid_chat",
+    "root": "src/vibeec/igla_hybrid_chat.zig"
+   }
+  },
+  {
+   "from": "module:igla_tvc_chat_mod",
+   "import": "igla_chat",
+   "expr": "vibeec_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_chat",
+    "root": "src/vibeec/igla_local_chat.zig"
+   }
+  },
+  {
+   "from": "module:igla_tvc_chat_mod",
+   "import": "tvc_corpus",
+   "expr": "tvc_corpus_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_corpus_mod",
+    "root": "src/tvc/tvc_corpus.zig"
+   }
+  },
+  {
+   "from": "module:pas_orchestrator_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:api_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:tri_colors_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:tri_utils_mod",
+   "import": "tri_colors",
+   "expr": "tri_colors_mod",
+   "to": {
+    "kind": "module",
+    "var": "tri_colors_mod",
+    "root": "src/tri/tri_colors.zig"
+   }
+  },
+  {
+   "from": "module:tri_commands_mod",
+   "import": "tri_colors",
+   "expr": "tri_colors_mod",
+   "to": {
+    "kind": "module",
+    "var": "tri_colors_mod",
+    "root": "src/tri/tri_colors.zig"
+   }
+  },
+  {
+   "from": "module:registry_mod",
+   "import": "command_def",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "module:sacred_const_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:sacred_mod",
+   "import": "const",
+   "expr": "sacred_const_mod",
+   "to": {
+    "kind": "module",
+    "var": "sacred_const_mod",
+    "root": "src/sacred/const.zig"
+   }
+  },
+  {
+   "from": "module:os_mod",
+   "import": "sacred",
+   "expr": "sacred_mod",
+   "to": {
+    "kind": "module",
+    "var": "sacred_mod",
+    "root": "src/sacred/sacred.zig"
+   }
+  },
+  {
+   "from": "module:bsd_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "trinity_swe",
+   "expr": "vibeec_swe",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_swe",
+    "root": "src/vibeec/trinity_swe_agent.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "igla_chat",
+   "expr": "vibeec_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_chat",
+    "root": "src/vibeec/igla_local_chat.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "igla_hybrid_chat",
+   "expr": "vibeec_hybrid_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_hybrid_chat",
+    "root": "src/vibeec/igla_hybrid_chat.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "igla_coder",
+   "expr": "vibeec_coder",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_coder",
+    "root": "src/vibeec/igla_local_coder.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "vsa",
+   "expr": "vsa_tri",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "tvc_corpus",
+   "expr": "tvc_corpus_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_corpus_mod",
+    "root": "src/tvc/tvc_corpus.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "tvc_distributed",
+   "expr": "tvc_distributed_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_distributed_mod",
+    "root": "src/tvc/tvc_distributed.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "igla_tvc_chat",
+   "expr": "igla_tvc_chat_mod",
+   "to": {
+    "kind": "module",
+    "var": "igla_tvc_chat_mod",
+    "root": "src/vibeec/igla_tvc_chat.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "pas_orchestrator",
+   "expr": "pas_orchestrator_mod",
+   "to": {
+    "kind": "module",
+    "var": "pas_orchestrator_mod",
+    "root": "src/agent_mu/pas_orchestrator.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "api",
+   "expr": "api_mod",
+   "to": {
+    "kind": "module",
+    "var": "api_mod",
+    "root": "src/api/unified_server.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "sacred",
+   "expr": "sacred_mod",
+   "to": {
+    "kind": "module",
+    "var": "sacred_mod",
+    "root": "src/sacred/sacred.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "os",
+   "expr": "os_mod",
+   "to": {
+    "kind": "module",
+    "var": "os_mod",
+    "root": "src/os/boot.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "bsd",
+   "expr": "bsd_mod",
+   "to": {
+    "kind": "module",
+    "var": "bsd_mod",
+    "root": "src/bsd/scanner.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "registry",
+   "expr": "registry_mod",
+   "to": {
+    "kind": "module",
+    "var": "registry_mod",
+    "root": "src/registry/mcp_gen.zig"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "kaggle",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/kaggle/kag",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "arrow_of_time",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/time/arrow",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "origin_of_life",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/biology/or",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "quantum_gravity_full",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/gravity/qu",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "measurement",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/quantum/me",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "monopoles",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/monopoles/",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "superconductivity",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/supercondu",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "gravity",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/gravity/bl",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "storm_golden_chain",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/storm/gold",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "basal_ganglia",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/brain/basa",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "locus_coeruleus",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/brain/locu",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "reticular_formation",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/brain/reti",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "depin",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/depin/mod.",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "firebird_slashing",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/firebird/s",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "exe:tri",
+   "import": "tri27_cli",
+   "expr": "b.createModule(.{\n                    .root_source_file = b.path(\"src/tri27/tri2",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "tri_utils",
+   "expr": "tri_utils_mod",
+   "to": {
+    "kind": "module",
+    "var": "tri_utils_mod",
+    "root": "src/tri/tri_utils.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "tri_commands",
+   "expr": "tri_commands_mod",
+   "to": {
+    "kind": "module",
+    "var": "tri_commands_mod",
+    "root": "src/tri/tri_commands.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "trinity_swe",
+   "expr": "vibeec_swe",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_swe",
+    "root": "src/vibeec/trinity_swe_agent.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "igla_chat",
+   "expr": "vibeec_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_chat",
+    "root": "src/vibeec/igla_local_chat.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "igla_hybrid_chat",
+   "expr": "vibeec_hybrid_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_hybrid_chat",
+    "root": "src/vibeec/igla_hybrid_chat.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "igla_coder",
+   "expr": "vibeec_coder",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_coder",
+    "root": "src/vibeec/igla_local_coder.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "vsa",
+   "expr": "vsa_tri",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "tvc_corpus",
+   "expr": "tvc_corpus_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_corpus_mod",
+    "root": "src/tvc/tvc_corpus.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "tvc_distributed",
+   "expr": "tvc_distributed_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_distributed_mod",
+    "root": "src/tvc/tvc_distributed.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "igla_tvc_chat",
+   "expr": "igla_tvc_chat_mod",
+   "to": {
+    "kind": "module",
+    "var": "igla_tvc_chat_mod",
+    "root": "src/vibeec/igla_tvc_chat.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "pas_orchestrator",
+   "expr": "pas_orchestrator_mod",
+   "to": {
+    "kind": "module",
+    "var": "pas_orchestrator_mod",
+    "root": "src/agent_mu/pas_orchestrator.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/testing/repl_tests.zig",
+   "import": "api",
+   "expr": "api_mod",
+   "to": {
+    "kind": "module",
+    "var": "api_mod",
+    "root": "src/api/unified_server.zig"
+   }
+  },
+  {
+   "from": "test:src/tri/tri_config.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/tri/tri_history.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/tri/tri_error.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-hybrid",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:gguf_model_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-node",
+   "import": "gguf_model",
+   "expr": "gguf_model_mod",
+   "to": {
+    "kind": "module",
+    "var": "gguf_model_mod",
+    "root": "src/vibeec/gguf_model.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-node-gui",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:photon-demo",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:photon-immersive",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:trinity-canvas",
+   "import": "igla_chat",
+   "expr": "vibeec_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_chat",
+    "root": "src/vibeec/igla_local_chat.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-canvas",
+   "import": "igla_fluent_chat",
+   "expr": "vibeec_fluent_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_fluent_chat",
+    "root": "src/vibeec/igla_fluent_chat_engine.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-canvas",
+   "import": "igla_hybrid_chat",
+   "expr": "vibeec_hybrid_chat",
+   "to": {
+    "kind": "module",
+    "var": "vibeec_hybrid_chat",
+    "root": "src/vibeec/igla_hybrid_chat.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-canvas",
+   "import": "golden_chain",
+   "expr": "golden_chain_mod",
+   "to": {
+    "kind": "module",
+    "var": "golden_chain_mod",
+    "root": "src/vibeec/golden_chain.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-canvas",
+   "import": "tvc_corpus",
+   "expr": "tvc_corpus_mod",
+   "to": {
+    "kind": "module",
+    "var": "tvc_corpus_mod",
+    "root": "src/tvc/tvc_corpus.zig"
+   }
+  },
+  {
+   "from": "exe:trinity-canvas",
+   "import": "auto_shard",
+   "expr": "b.createModule(.{\n                        .root_source_file = b.path(\"src/trinit",
+   "to": {
+    "kind": "inline-module"
+   }
+  },
+  {
+   "from": "module:wasm_igla_chat",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:wasm_fluent_chat",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:wasm_tvc_corpus",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:wasm_auto_shard",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:wasm_igla_kg",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:wasm_hybrid_chat",
+   "import": "igla_chat",
+   "expr": "wasm_igla_chat",
+   "to": {
+    "kind": "module",
+    "var": "wasm_igla_chat",
+    "root": "src/wasm_stubs/igla_chat_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_hybrid_chat",
+   "import": "tvc_corpus",
+   "expr": "wasm_tvc_corpus",
+   "to": {
+    "kind": "module",
+    "var": "wasm_tvc_corpus",
+    "root": "src/wasm_stubs/tvc_corpus_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_hybrid_chat",
+   "import": "igla_kg",
+   "expr": "wasm_igla_kg",
+   "to": {
+    "kind": "module",
+    "var": "wasm_igla_kg",
+    "root": "src/wasm_stubs/igla_knowledge_graph_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_hybrid_chat",
+   "import": "triples_parser",
+   "expr": "triples_parser_mod",
+   "to": {
+    "kind": "module",
+    "var": "triples_parser_mod",
+    "root": "src/vibeec/triples_parser.zig"
+   }
+  },
+  {
+   "from": "module:wasm_golden_chain",
+   "import": "igla_hybrid_chat",
+   "expr": "wasm_hybrid_chat",
+   "to": {
+    "kind": "module",
+    "var": "wasm_hybrid_chat",
+    "root": "src/wasm_stubs/igla_hybrid_chat_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_root",
+   "import": "igla_chat",
+   "expr": "wasm_igla_chat",
+   "to": {
+    "kind": "module",
+    "var": "wasm_igla_chat",
+    "root": "src/wasm_stubs/igla_chat_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_root",
+   "import": "igla_fluent_chat",
+   "expr": "wasm_fluent_chat",
+   "to": {
+    "kind": "module",
+    "var": "wasm_fluent_chat",
+    "root": "src/wasm_stubs/igla_fluent_chat_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_root",
+   "import": "igla_hybrid_chat",
+   "expr": "wasm_hybrid_chat",
+   "to": {
+    "kind": "module",
+    "var": "wasm_hybrid_chat",
+    "root": "src/wasm_stubs/igla_hybrid_chat_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_root",
+   "import": "golden_chain",
+   "expr": "wasm_golden_chain",
+   "to": {
+    "kind": "module",
+    "var": "wasm_golden_chain",
+    "root": "src/wasm_stubs/golden_chain_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_root",
+   "import": "tvc_corpus",
+   "expr": "wasm_tvc_corpus",
+   "to": {
+    "kind": "module",
+    "var": "wasm_tvc_corpus",
+    "root": "src/wasm_stubs/tvc_corpus_stub.zig"
+   }
+  },
+  {
+   "from": "module:wasm_root",
+   "import": "auto_shard",
+   "expr": "wasm_auto_shard",
+   "to": {
+    "kind": "module",
+    "var": "wasm_auto_shard",
+    "root": "src/wasm_stubs/auto_shard_stub.zig"
+   }
+  },
+  {
+   "from": "exe:photon-terminal",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/vibeec/triples_parser.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/vibeec/kg_pipeline.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/vibeec/kg_sync.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "module:kg_sync_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/vibeec/sym_005_demo.zig",
+   "import": "triples_parser",
+   "expr": "triples_parser_mod",
+   "to": {
+    "kind": "module",
+    "var": "triples_parser_mod",
+    "root": "src/vibeec/triples_parser.zig"
+   }
+  },
+  {
+   "from": "test:src/vibeec/sym_005_demo.zig",
+   "import": "kg_sync",
+   "expr": "kg_sync_mod",
+   "to": {
+    "kind": "module",
+    "var": "kg_sync_mod",
+    "root": "src/vibeec/kg_sync.zig"
+   }
+  },
+  {
+   "from": "module:kv_cache_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/vibeec/prefix_cache_completion.zig",
+   "import": "kv_cache",
+   "expr": "kv_cache_mod",
+   "to": {
+    "kind": "module",
+    "var": "kv_cache_mod",
+    "root": "src/vibeec/kv_cache.zig"
+   }
+  },
+  {
+   "from": "exe:export-registry",
+   "import": "mcp_gen",
+   "expr": "registry_mod",
+   "to": {
+    "kind": "module",
+    "var": "registry_mod",
+    "root": "src/registry/mcp_gen.zig"
+   }
+  },
+  {
+   "from": "exe:export-registry",
+   "import": "trinity",
+   "expr": "trinity_mod",
+   "to": {
+    "kind": "module",
+    "var": "trinity_mod",
+    "root": "src/trinity.zig"
+   }
+  },
+  {
+   "from": "module:token_rotator_mod",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "exe:tri-api",
+   "import": "token_rotator",
+   "expr": "token_rotator_mod",
+   "to": {
+    "kind": "module",
+    "var": "token_rotator_mod",
+    "root": "src/tri/token_rotator.zig"
+   }
+  },
+  {
+   "from": "exe:arena",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "test:src/arena/main.zig",
+   "import": "zig-hdc-vsa",
+   "expr": "hdc_vsa_mod",
+   "to": {
+    "kind": "package",
+    "package": "zig_hdc",
+    "module": "zig-hdc-vsa"
+   }
+  },
+  {
+   "from": "var:vibee",
+   "import": "agent_mu",
+   "expr": "agent_mu_mod",
+   "to": {
+    "kind": "module",
+    "var": "agent_mu_mod",
+    "root": "src/agent_mu/agent_mu.zig"
+   }
+  },
+  {
+   "from": "var:vibee",
+   "import": "treesitter_zig",
+   "expr": "ts_zig_mod",
+   "to": {
+    "kind": "module",
+    "var": "ts_zig_mod",
+    "root": "src/tvc/treesitter/zig.zig"
+   }
+  }
+ ],
+ "edge_resolution": {
+  "module": 84,
+  "package": 152,
+  "inline-module": 16,
+  "variable": 0,
+  "unresolved": 0
+ },
+ "edge_count": 252,
+ "profiles": {
+  "headless": {
+   "status": "measured: zig build -Dci=true in the consumer CI",
+   "targets": [
+    "exe:agent-entrypoint",
+    "exe:arena",
+    "exe:b2t",
+    "exe:background-agent-api",
+    "exe:beal",
+    "exe:bench-compress",
+    "exe:bench-core",
+    "exe:claude-ui",
+    "exe:example-memory",
+    "exe:example-sequence",
+    "exe:example-vm",
+    "exe:firebird",
+    "exe:fluent",
+    "exe:forge",
+    "exe:hslm-train",
+    "exe:mu-agent",
+    "exe:needle-mcp",
+    "exe:pas-demo",
+    "exe:phi-loop",
+    "exe:photon-terminal",
+    "exe:pipeline-guard",
+    "exe:quantum",
+    "exe:railway-create-service",
+    "exe:railway-redeploy",
+    "exe:railway-set-builder",
+    "exe:railway-set-dockerfile",
+    "exe:railway-set-startcmd",
+    "exe:railway-trigger-redeploy",
+    "exe:railway-update-service",
+    "exe:ralph-agent",
+    "exe:ralph-hook",
+    "exe:scholar-agent",
+    "exe:sota-report",
+    "exe:swe-entrypoint",
+    "exe:tri",
+    "exe:tri-api",
+    "exe:tri-bot",
+    "exe:trinity-cli",
+    "exe:trinity-hybrid",
+    "exe:trinity-mcp",
+    "exe:trinity-node",
+    "exe:trinity-query",
+    "exe:trinity-search",
+    "exe:vibee",
+    "exe:vibee-self-improve",
+    "lib:trinity"
+   ]
+  },
+  "guarded": {
+   "targets": [
+    "exe:photon-demo",
+    "exe:photon-immersive",
+    "exe:trinity-canvas",
+    "exe:trinity-canvas-wasm-check",
+    "exe:trinity-node-gui"
+   ],
+   "guards": [
+    "!ci_mode",
+    "target.query.os_tag == .emscripten"
+   ]
+  },
+  "on_demand_steps": [
+   "step:agent",
+   "step:arena",
+   "step:b2t",
+   "step:background-agent-api",
+   "step:beal",
+   "step:bench",
+   "step:bench-compress",
+   "step:bench-test",
+   "step:bpe-train",
+   "step:claude-ui",
+   "step:cli",
+   "step:e2e",
+   "step:examples",
+   "step:export-registry",
+   "step:firebird",
+   "step:fluent",
+   "step:forge",
+   "step:hslm-bench",
+   "step:hslm-train",
+   "step:hybrid",
+   "step:libqueen",
+   "step:libvsa",
+   "step:mu-agent",
+   "step:needle-mcp",
+   "step:needle-test",
+   "step:node",
+   "step:node-gui",
+   "step:pas-demo",
+   "step:phi-loop",
+   "step:photon-demo",
+   "step:photon-immersive",
+   "step:photon-terminal",
+   "step:quantum",
+   "step:query",
+   "step:railway-create-service",
+   "step:railway-redeploy",
+   "step:railway-set-builder",
+   "step:railway-set-dockerfile",
+   "step:railway-set-startcmd",
+   "step:railway-trigger-redeploy",
+   "step:railway-update-service",
+   "step:release",
+   "step:release-fluent",
+   "step:release-libvsa",
+   "step:run-agent-entrypoint",
+   "step:scholar-agent",
+   "step:search",
+   "step:self-improve",
+   "step:sota-report",
+   "step:swe-deploy",
+   "step:test",
+   "step:test-kg-pipeline",
+   "step:test-kg-sync",
+   "step:test-prefix-cache",
+   "step:test-repl",
+   "step:test-sym-005",
+   "step:test-tri-config",
+   "step:test-tri-error",
+   "step:test-tri-history",
+   "step:test-triples-parser",
+   "step:train-deploy",
+   "step:tri",
+   "step:tri-api",
+   "step:tri-bot",
+   "step:trinity-canvas",
+   "step:trinity-canvas-wasm",
+   "step:trinity-mcp",
+   "step:vibee"
+  ],
+  "web": {
+   "status": "measured: the website checks in the consumer CI"
+  },
+  "native": {
+   "status": "unbuilt: raylib targets guarded by !ci_mode, no CI step"
+  },
+  "fpga": {
+   "status": "external: gHashTag/trinity-fpga"
+  },
+  "training": {
+   "status": "external: gHashTag/trinity-training"
+  },
+  "network": {
+   "status": "external: gHashTag/tri-net"
+  },
+  "research": {
+   "status": "not a build profile: research programs build with headless"
+  }
+ },
+ "outputs": {
+  "untracked": [
+   "zig-out/bin",
+   "zig-out/lib",
+   ".zig-cache"
+  ],
+  "generated_tracked": [
+   {
+    "path": ".trinity/registry.json",
+    "generator": "zig build export-registry",
+    "inputs": [
+     {
+      "path": "src/registry",
+      "object": "3b882ed5b3705f29b63b2b457f662bafbe59950a"
+     }
+    ],
+    "sha256": "9b42ed14dcaad67d4ff6800411c6b3ed735d38e89afbe2df58e490f3b3c1b08e"
+   },
+   {
+    "path": ".trinity/mcp_schemas.json",
+    "generator": "./zig-out/bin/tri mcp export .trinity/mcp_schemas.json",
+    "inputs": [
+     {
+      "path": "tools/mcp/trinity_mcp",
+      "object": "c580d3266967d3ab5b34e10b55885c64c7a4f191"
+     }
+    ],
+    "sha256": "74f2e5a2a7eadaedf89a6a79c382d8923887277ff33352717195429a0545d4a1"
+   },
+   {
+    "path": "apps/website/public/t27/manifest.json",
+    "generator": "cd apps/website && node scripts/sync-t27-specs.mjs; node scripts/discover-t27-worlds.mjs vendor",
+    "inputs": [
+     {
+      "path": "external:gHashTag/t27 checkout and the tarballs of the discovered repositories",
+      "object": "external"
+     }
+    ],
+    "sha256": "4970a54d1cc7fc3954c66a9a11f885d7b2b4633614618f7896adb94cb3589e28"
+   },
+   {
+    "path": "apps/website/public/t27/shared-core.json",
+    "generator": "cd apps/website && npm run core -- index",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/manifest.json",
+      "object": "67a0bab095390ecd2db247e3ff90a06108dd5a03"
+     },
+     {
+      "path": "apps/website/public/t27/files",
+      "object": "ce9d670b886603262abe4d932646078a24ff98af"
+     },
+     {
+      "path": "apps/website/src/lib/sharedSpecCore.ts",
+      "object": "f7e4190423f6cb906400e75050e775440a8a75b2"
+     }
+    ],
+    "sha256": "60efb0b36ea3e08fed2ab8fc31bace57afdbc4a5f90b108341150f59db13178d"
+   },
+   {
+    "path": "apps/website/public/t27/universe-atlas.json",
+    "generator": "cd apps/website && npm run atlas -- scan; npm run atlas -- build",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/shared-core.json",
+      "object": "954bfdf0891b300bc4b4479878e9c5c30d34c2a6"
+     },
+     {
+      "path": "external:GitHub issues and repositories",
+      "object": "external"
+     }
+    ],
+    "sha256": "6f1618afb229dc3f2e2c9dbeb8af2ddb93aa735a64af16d0dffdd08149831bde"
+   },
+   {
+    "path": "apps/website/public/skills/spec-skills.json",
+    "generator": "cd apps/website && node scripts/agents-from-specs.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/skills",
+      "object": "74205518aeb60380818007521c6142aee2f2fd1b"
+     },
+     {
+      "path": "apps/website/public/t27/files/specs/i18n",
+      "object": "327c2c9628436c0983f2d4098a9ba08b2c03f825"
+     }
+    ],
+    "sha256": "1314cebedc797e5343b3e43df291a05e838df2e6ef531aaf37d174540c871224"
+   },
+   {
+    "path": "apps/website/public/skills/skills-core.json",
+    "generator": "cd apps/website && node scripts/skills-core.mjs index",
+    "inputs": [
+     {
+      "path": "apps/website/public/skills/manifest.json",
+      "object": "85610a2a2414f9bdc5e529a66fd77a907dd6bb5d"
+     },
+     {
+      "path": "apps/website/public/t27/manifest.json",
+      "object": "67a0bab095390ecd2db247e3ff90a06108dd5a03"
+     }
+    ],
+    "sha256": "78c2912d5f7ba2997bbbac9bceb3710da1909182b52430c074919d853cf8a9ac"
+   },
+   {
+    "path": "apps/website/public/crons/spec-crons.json",
+    "generator": "cd apps/website && node scripts/agents-from-specs.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/crons",
+      "object": "a322278a713711ae3c505c1a972c01487e682d99"
+     },
+     {
+      "path": "apps/website/public/crons/manifest.json",
+      "object": "60e54c015ab494b0c10bc67d42ce4348246ad845"
+     }
+    ],
+    "sha256": "6777367b3f677237c4b444ca5e35089b443cee675f20f3a182abc515ae5ff6dc"
+   },
+   {
+    "path": "apps/website/public/agents/spec-agents.json",
+    "generator": "cd apps/website && node scripts/agents-from-specs.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/agents",
+      "object": "866d5c5d216413c47e662921971803602701d918"
+     },
+     {
+      "path": "apps/website/public/agents/experience.json",
+      "object": "b446a9a57eb9e4761f55f9308eed2e4b9e608975"
+     }
+    ],
+    "sha256": "d1d1aa3b4fe54ebb14a942f6f82226c03fed1753c8812b2eab634cf08d92187c"
+   },
+   {
+    "path": "apps/website/public/tools/spec-tools.json",
+    "generator": "cd apps/website && node scripts/agents-from-specs.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/tools",
+      "object": "dec520f846a7f88f34bb46224e248e3669aaefa2"
+     }
+    ],
+    "sha256": "1fd309be60fe76ffce16540053ac15716cf1a9823f62f06607f6388e4825c72a"
+   },
+   {
+    "path": "apps/website/public/functions/spec-functions.json",
+    "generator": "cd apps/website && node scripts/agents-from-specs.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/functions",
+      "object": "e7f1fd1a7075dc9cd16953abe3bbba66b3141cb6"
+     },
+     {
+      "path": "apps/website/public/functions/manifest.json",
+      "object": "79a80bbbad9e22fc7ea6f7d4170e626eb15670b5"
+     }
+    ],
+    "sha256": "32c5611aac7038854f043fd39d6673ce97d2582d2e8ad3c92feb7de15ef3044e"
+   },
+   {
+    "path": "apps/website/public/docs/system-docs.json",
+    "generator": "cd apps/website && node scripts/docs-from-specs.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/docs",
+      "object": "f475483e7ec286e92f6a326cf7701f6732ea8e8e"
+     }
+    ],
+    "sha256": "5040343c301afd0693bf8d682c6600cc1c1ec4210764aedd3d726207f93721a4"
+   },
+   {
+    "path": "apps/website/src/lib/viewport.generated.ts",
+    "generator": "cd apps/website && node scripts/viewport-from-spec.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/ui/viewport.t27",
+      "object": "f94f6b8525ef50869af3dac0ba1f9a5ca585194a"
+     }
+    ],
+    "sha256": "5b21ea23f23e5d9182000453d1f4b5a005b5515540fd34e9c15336d2ca54457f"
+   },
+   {
+    "path": "apps/website/src/styles/viewport.generated.css",
+    "generator": "cd apps/website && node scripts/viewport-from-spec.mjs",
+    "inputs": [
+     {
+      "path": "apps/website/public/t27/files/specs/ui/viewport.t27",
+      "object": "f94f6b8525ef50869af3dac0ba1f9a5ca585194a"
+     }
+    ],
+    "sha256": "3518b2dabc03c39efad599cb7544c5d95ecd3035ff091ea5ea50b876315e2e4a"
+   }
+  ]
+ },
+ "findings": []
+}

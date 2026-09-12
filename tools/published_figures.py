@@ -78,8 +78,9 @@ FIGURES = [
     # #3564 (S02) added specs/trinity/compiler_matrix.t27 with six: 12653 + 6 = 12659.
     # Its fixtures live under bootstrap/tests/fixtures/trinity_matrix/, outside
     # specs/, and are not counted here.
+    # #3565 (S03) added specs/trinity/build_graph.t27 with four: 12659 + 4 = 12663.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12659,
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12663,
      "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51"),
 ]
 
