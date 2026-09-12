@@ -25,67 +25,501 @@ module TriTrie;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // empty() → Trie(T)
-    fn empty() -> Trie(T) {
-        // TODO: Implement from .tri spec
+    // empty(allocator: std.mem.Allocator) → Trie(T)
+    fn empty(allocator: std.mem.Allocator) -> Trie(T) {
+        // Allocate the root node through the allocator. The caller must pass this same 
+        // allocator to every later call and to deinit.
+        const root = allocator.alloc(TrieNode(T), 1);
+        root.* = TrieNode(T){
+            .is_end = false,
+            .value = undefined,
+            .children = std.StringHashMap(*TrieNode(T)).init(allocator),
+        };
+        return Trie(T){
+            .root = root,
+            .size = 0,
+        };
     }
 
-    // insert(trie: *Trie(T)) → void
-    fn insert(trie: *Trie(T)) -> void {
-        // TODO: Implement from .tri spec
+    // insert(trie: *Trie(T), allocator: std.mem.Allocator, key: []const u8, value: T) → void
+    fn insert(trie: *Trie(T), allocator: std.mem.Allocator, key: []const u8, value: T) -> void {
+        var current = trie.root;
+        
+        for (key) |byte, i| {
+            const key_slice = key[i..i + 1];
+            
+            if (!current.children.contains(key_slice)) {
+                // Allocate a new node
+                const new_node = allocator.alloc(TrieNode(T), 1);
+                new_node.* = TrieNode(T){
+                    .is_end = false,
+                    .value = undefined,
+                    .children = std.StringHashMap(*TrieNode(T)).init(allocator),
+                };
+                
+                // Allocate a one-byte buffer for the key to avoid dangling pointers
+                const key_buffer = allocator.alloc(u8, 1);
+                key_buffer.* = byte;
+                
+                // Insert the new node into the children map
+                current.children.put(key_buffer[0..1], new_node);
+                current = new_node;
+            } else {
+                current = current.children.get(key_slice).?;
+            }
+        }
+        
+        // At the final node, update is_end and size if this is a new key
+        if (!current.is_end) {
+            current.is_end = true;
+            current.value = value;
+            trie.size += 1;
+        } else {
+            // Overwrite value for existing key
+            current.value = value;
+        }
     }
 
-    // get(trie: *const Trie(T)) → void
-    fn get(trie: *const Trie(T)) -> void {
-        // TODO: Implement from .tri spec
+    // get(trie: *const Trie(T), key: []const u8) → ?T
+    fn get(trie: *const Trie(T), key: []const u8) -> ?T {
+        var current = trie.root;
+        
+        for (key) |byte, i| {
+            const key_slice = key[i..i + 1];
+            
+            if (!current.children.contains(key_slice)) {
+                return null; // Missing child at any byte means key doesn't exist
+            }
+            current = current.children.get(key_slice).?;
+        }
+        
+        // A prefix that is not a key is not a hit
+        return if (current.is_end) current.value else null;
     }
 
-    // has_prefix(trie: *const Trie(T)) → void
-    fn has_prefix(trie: *const Trie(T)) -> void {
-        // TODO: Implement from .tri spec
+    // has_prefix(trie: *const Trie(T), prefix: []const u8) → bool
+    fn has_prefix(trie: *const Trie(T), prefix: []const u8) -> bool {
+        var current = trie.root;
+        
+        for (prefix) |byte, i| {
+            const key_slice = prefix[i..i + 1];
+            
+            if (!current.children.contains(key_slice)) {
+                return false; // Missing child at any byte means prefix doesn't exist
+            }
+            current = current.children.get(key_slice).?;
+        }
+        
+        // Reaching the end of prefix returns true regardless of is_end
+        return true;
     }
 
-    // keys_with_prefix(trie: *const Trie(T)) → void
-    fn keys_with_prefix(trie: *const Trie(T)) -> void {
-        // TODO: Implement from .tri spec
+    // keys_with_prefix(trie: *const Trie(T), allocator: std.mem.Allocator, prefix: []const u8) → [][]const u8
+    fn keys_with_prefix(trie: *const Trie(T), allocator: std.mem.Allocator, prefix: []const u8) -> [][]const u8 {
+        // First, walk to the node at the end of the prefix
+        var current = trie.root;
+        
+        for (prefix) |byte, i| {
+            const key_slice = prefix[i..i + 1];
+            
+            if (!current.children.contains(key_slice)) {
+                // Prefix doesn't exist, return empty slice
+                return allocator.alloc([]const u8, 0);
+            }
+            current = current.children.get(key_slice).?;
+        }
+        
+        // Collect all keys under this prefix
+        var keys = std.ArrayList([]const u8).init(allocator);
+        collect_keys_from_node(current, prefix, &keys, allocator);
+        
+        // Convert to slice and return
+        return keys.toSlice();
     }
 
-    // remove(trie: *Trie(T)) → void
-    fn remove(trie: *Trie(T)) -> void {
-        // TODO: Implement from .tri spec
+    // Helper function to recursively collect keys from a node
+    fn collect_keys_from_node(node: *const TrieNode(T), current_prefix: []const u8, keys: *std.ArrayList([]const u8), allocator: std.mem.Allocator) -> void {
+        if (node.is_end) {
+            // Allocate a copy of the current prefix as a full key
+            const full_key = allocator.alloc(u8, current_prefix.len);
+            @memcpy(full_key, current_prefix);
+            keys.append(full_key[0..full_key.len]);
+        }
+        
+        // Recursively collect keys from all children
+        var it = node.children.iterator();
+        while (it.next()) |entry| {
+            const child_key = entry.key_ptr.*;
+            const child_node = entry.value_ptr.*;
+            
+            // Create new prefix by appending the child key byte
+            const new_prefix_len = current_prefix.len + child_key.len;
+            const new_prefix = allocator.alloc(u8, new_prefix_len);
+            @memcpy(new_prefix[0..current_prefix.len], current_prefix);
+            @memcpy(new_prefix[current_prefix.len..], child_key);
+            
+            collect_keys_from_node(child_node, new_prefix, keys, allocator);
+            
+            // Free the temporary prefix buffer
+            allocator.free(new_prefix);
+        }
+    }
+
+    // remove(trie: *Trie(T), allocator: std.mem.Allocator, key: []const u8) → bool
+    fn remove(trie: *Trie(T), allocator: std.mem.Allocator, key: []const u8) -> bool {
+        var current = trie.root;
+        var path = std.ArrayList(*TrieNode(T)).init(allocator);
+        defer path.deinit();
+        
+        // First pass: walk to the node and record the path
+        for (key) |byte, i| {
+            const key_slice = key[i..i + 1];
+            
+            if (!current.children.contains(key_slice)) {
+                return false; // Key doesn't exist
+            }
+            
+            path.append(current);
+            current = current.children.get(key_slice).?;
+        }
+        
+        // Check if this is actually a key (is_end == true)
+        if (!current.is_end) {
+            return false; // This is just a prefix, not a stored key
+        }
+        
+        // Remove the key
+        current.is_end = false;
+        trie.size -= 1;
+        
+        // Prune empty nodes going back up the path
+        var i = path.items.len - 1;
+        while (i >= 0) {
+            const parent = path.items[i];
+            // Find the key that was used to get to current node
+            var it = parent.children.iterator();
+            var found_key: []const u8 = undefined;
+            while (it.next()) |entry| {
+                if (entry.value_ptr.* == current) {
+                    found_key = entry.key_ptr.*;
+                    break;
+                }
+            }
+            const child_key = found_key;
+            
+            // Check if current node has no children and is not a key end
+            if (current.children.count() == 0 and !current.is_end) {
+                // Free the child node's map and key buffer
+                free_node_children(current, allocator);
+                
+                // Remove from parent's map
+                const removed_key = parent.children.get(child_key).?;
+                parent.children.remove(child_key);
+                allocator.free(child_key);
+                allocator.free(removed_key);
+                
+                current = parent;
+                i -= 1;
+            } else {
+                break; // Stop at first node that has children or is a key end
+            }
+        }
+        
+        return true;
+    }
+
+    // Helper function to free a node's children
+    fn free_node_children(node: *TrieNode(T), allocator: std.mem.Allocator) -> void {
+        // Free all child nodes recursively
+        var it = node.children.iterator();
+        while (it.next()) |entry| {
+            const child_key = entry.key_ptr.*;
+            const child_node = entry.value_ptr.*;
+            
+            // Free the child's children first
+            free_node_children(child_node, allocator);
+            
+            // Free the child node and its key buffer
+            allocator.free(child_key);
+            allocator.free(child_node);
+        }
+        
+        // Free the children map itself
+        node.children.deinit();
+    }
+
+    // deinit(trie: *Trie(T), allocator: std.mem.Allocator) → void
+    fn deinit(trie: *Trie(T), allocator: std.mem.Allocator) -> void {
+        free_node_recursive(trie.root, allocator);
+        trie.size = 0;
+    }
+
+    // Helper function to recursively free a node and all its children
+    fn free_node_recursive(node: *TrieNode(T), allocator: std.mem.Allocator) -> void {
+        // Free all children first (post-order traversal)
+        var it = node.children.iterator();
+        while (it.next()) |entry| {
+            const child_key = entry.key_ptr.*;
+            const child_node = entry.value_ptr.*;
+            
+            // Recursively free child subtree
+            free_node_recursive(child_node, allocator);
+            
+            // Free the child's key buffer
+            allocator.free(child_key);
+        }
+        
+        // Free the children map
+        node.children.deinit();
+        
+        // Free the node itself
+        allocator.free(node);
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
+    test "empty_trie_has_size_zero" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        assert(trie.size == 0);
+        deinit(&trie, allocator);
+    }
 
-    test insert_basic_case
-        given input = default_input()
-        when result = insert(input)
-        then result != undefined
+    test "insert_one_key_sets_size_one" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        assert(trie.size == 1);
+        deinit(&trie, allocator);
+    }
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    test "insert_same_key_twice_overwrites_value_and_keeps_size" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "cat", 42);
+        assert(trie.size == 1);
+        assert(get(&trie, "cat") == 42);
+        deinit(&trie, allocator);
+    }
 
-    test has_prefix_basic_case
-        given input = default_input()
-        when result = has_prefix(input)
-        then result != undefined
+    test "get_returns_the_value_of_a_stored_key" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "car", 2);
+        insert(&trie, allocator, "cart", 3);
+        assert(get(&trie, "cat") == 1);
+        assert(get(&trie, "car") == 2);
+        assert(get(&trie, "cart") == 3);
+        deinit(&trie, allocator);
+    }
 
-    test keys_with_prefix_basic_case
-        given input = default_input()
-        when result = keys_with_prefix(input)
-        then result != undefined
+    test "get_on_a_prefix_that_is_not_a_key_returns_null" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "car", 2);
+        insert(&trie, allocator, "cart", 3);
+        assert(get(&trie, "ca") == null);
+        deinit(&trie, allocator);
+    }
 
-    test remove_basic_case
-        given input = default_input()
-        when result = remove(input)
-        then result != undefined
+    test "get_on_an_absent_key_returns_null" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        assert(get(&trie, "dog") == null);
+        assert(get(&trie, "car") == null);
+        deinit(&trie, allocator);
+    }
 
+    test "has_prefix_is_true_for_a_prefix_that_is_not_a_key" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "car", 2);
+        insert(&trie, allocator, "cart", 3);
+        assert(has_prefix(&trie, "ca") == true);
+        assert(has_prefix(&trie, "cat") == true);
+        deinit(&trie, allocator);
+    }
+
+    test "has_prefix_is_false_for_an_absent_prefix" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        assert(has_prefix(&trie, "dog") == false);
+        assert(has_prefix(&trie, "c") == true); // "c" is a prefix
+        deinit(&trie, allocator);
+    }
+
+    test "has_prefix_of_the_empty_prefix_is_true_on_an_empty_trie" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        assert(has_prefix(&trie, "") == true);
+        deinit(&trie, allocator);
+    }
+
+    test "empty_key_is_stored_at_the_root_and_can_be_read_back" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "", 9);
+        assert(trie.size == 1);
+        assert(get(&trie, "") == 9);
+        assert(has_prefix(&trie, "") == true);
+        deinit(&trie, allocator);
+    }
+
+    test "keys_with_prefix_returns_every_key_under_the_prefix" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "car", 2);
+        insert(&trie, allocator, "cart", 3);
+        insert(&trie, allocator, "dog", 4);
+        
+        const keys = keys_with_prefix(&trie, allocator, "car");
+        assert(keys.len == 2); // "car" and "cart"
+        
+        // Check that both keys are present (order doesn't matter)
+        var found_car = false;
+        var found_cart = false;
+        for (keys) |key| {
+            if (std.mem.eql(u8, key, "car")) {
+                found_car = true;
+            } else if (std.mem.eql(u8, key, "cart")) {
+                found_cart = true;
+            }
+            allocator.free(key);
+        }
+        assert(found_car);
+        assert(found_cart);
+        
+        allocator.free(keys);
+        deinit(&trie, allocator);
+    }
+
+    test "keys_with_prefix_on_an_absent_prefix_returns_an_empty_slice" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "car", 2);
+        
+        const keys = keys_with_prefix(&trie, allocator, "dog");
+        assert(keys.len == 0);
+        allocator.free(keys);
+        deinit(&trie, allocator);
+    }
+
+    test "keys_with_prefix_on_empty_prefix_returns_all_keys" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "dog", 2);
+        insert(&trie, allocator, "", 3); // empty key
+        
+        const keys = keys_with_prefix(&trie, allocator, "");
+        assert(keys.len == 3); // "", "cat", "dog"
+        
+        // Check all keys are present
+        var found_empty = false;
+        var found_cat = false;
+        var found_dog = false;
+        for (keys) |key| {
+            if (std.mem.eql(u8, key, "")) {
+                found_empty = true;
+            } else if (std.mem.eql(u8, key, "cat")) {
+                found_cat = true;
+            } else if (std.mem.eql(u8, key, "dog")) {
+                found_dog = true;
+            }
+            allocator.free(key);
+        }
+        assert(found_empty);
+        assert(found_cat);
+        assert(found_dog);
+        
+        allocator.free(keys);
+        deinit(&trie, allocator);
+    }
+
+    test "remove_an_existing_key_returns_true_and_decrements_size" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "car", 2);
+        insert(&trie, allocator, "cart", 3);
+        
+        assert(trie.size == 3);
+        assert(remove(&trie, allocator, "car") == true);
+        assert(trie.size == 2);
+        assert(get(&trie, "car") == null);
+        assert(get(&trie, "cart") == 3); // "cart" should still exist
+        deinit(&trie, allocator);
+    }
+
+    test "remove_does_not_unlink_a_longer_key" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "car", 2);
+        insert(&trie, allocator, "cart", 3);
+        
+        assert(remove(&trie, allocator, "car") == true);
+        assert(trie.size == 1);
+        assert(get(&trie, "car") == null);
+        assert(get(&trie, "cart") == 3); // "cart" should still exist
+        deinit(&trie, allocator);
+    }
+
+    test "remove_an_absent_key_returns_false_and_changes_nothing" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        
+        assert(trie.size == 1);
+        assert(remove(&trie, allocator, "dog") == false);
+        assert(trie.size == 1);
+        assert(get(&trie, "cat") == 1);
+        deinit(&trie, allocator);
+    }
+
+    test "remove_a_prefix_that_is_not_a_key_returns_false" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cart", 3);
+        
+        assert(trie.size == 1);
+        assert(remove(&trie, allocator, "car") == false); // "car" is not a stored key
+        assert(trie.size == 1);
+        assert(get(&trie, "cart") == 3);
+        deinit(&trie, allocator);
+    }
+
+    test "deinit_leaves_size_zero" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "cat", 1);
+        insert(&trie, allocator, "car", 2);
+        insert(&trie, allocator, "cart", 3);
+        
+        assert(trie.size == 3);
+        deinit(&trie, allocator);
+        assert(trie.size == 0);
+    }
+
+    test "remove_empty_key_works_correctly" {
+        const allocator = std.testing.allocator;
+        var trie = empty(allocator);
+        insert(&trie, allocator, "", 9);
+        insert(&trie, allocator, "cat", 1);
+        
+        assert(trie.size == 2);
+        assert(remove(&trie, allocator, "") == true);
+        assert(trie.size == 1);
+        assert(get(&trie, "") == null);
+        assert(get(&trie, "cat") == 1);
+        deinit(&trie, allocator);
+    }
