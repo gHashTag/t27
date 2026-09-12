@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:2c0ec8c2850169589807e8c142b30660f00b62aff2f58b85543ac75c8791c421",
+  "gen_hash_rust": "sha256:2edf1cc4ba66e346e463f3db6be742fc66348be4c5d4f5bb68e7840b35d1c378",
+  "gen_hash_verilog": "sha256:9e930fd035dd0e8210310fe98fe5b74eb795cebd6a1c2d67cd869de89a9af1d9",
+  "gen_hash_zig": "sha256:dfdc325eae3cb4e29e51ec937ddbbf8da91b3528ba2f21c9a0d21e027bff7c00",
+  "module": "TrinityMemoryStreamComputeSpec",
+  "ring": 12,
+  "sealed_at": "2026-09-11T10:00:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:6435b9bcacee0748f5e714b47e98f95fd379b34dffb6fb8e84028d6e090e8012",
+  "spec_path": "specs/memory/tmem/stream_compute.t27"
+}

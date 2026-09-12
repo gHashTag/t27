@@ -70,9 +70,11 @@ FIGURES = [
     # The 2026-09-10 queen harvest (#3560) landed 9 bee patches (#3508 #3515
     # #3524 #3525 #3530 #3531 #3534 #3536 #3538), each adding test blocks
     # beside the functions it implemented: 12465 + 77 = 12542.
+    # #3561 added specs/memory/tmem/ (six Trinity Memory contract specs) with
+    # 51 test blocks: 12542 + 51 = 12593.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12542,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12593,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51"),
 ]
 
 

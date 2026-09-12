@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:c60affc571c53311b4caebb866a1a9b16d6618e1ef0cc53554095c9c368cc865",
+  "gen_hash_rust": "sha256:6f52d092d1082660a99cd4e3308a5050ef33e6d50462b48e42e642e9b6112c32",
+  "gen_hash_verilog": "sha256:ffd5895178da5d8b64cef8cdc5c8c3f2cc78e4f6ad9250a33a71739f45f476d4",
+  "gen_hash_zig": "sha256:cf11f190b96fa8a72d01f4289a4e6b07ceffe4a8730e2073b9c9d46ed87cf5bc",
+  "module": "TrinityMemoryTensorPackSpec",
+  "ring": 12,
+  "sealed_at": "2026-09-11T10:00:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:674a166252ed87e18ef467e7c8cb62f8363abc831102041a9eb6862be6ca6023",
+  "spec_path": "specs/memory/tmem/tensorpack.t27"
+}

@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:fb7ce7eee1a9a0987f096a324850493c02338d724c92ac66af01921ff988f5b7",
+  "gen_hash_rust": "sha256:5e1cb94b347455db002f1e5decad50e85355062411d8eedad5f985233256dc1e",
+  "gen_hash_verilog": "sha256:07e3cd2690a873299087759b719dcc1a8881aea769e17e0ff997a6996e5ab870",
+  "gen_hash_zig": "sha256:fd232897f8d874381f916a18e6ea51f6c5da2b6519de677d61718c1f92395ad5",
+  "module": "TrinityMemoryConformanceLabSpec",
+  "ring": 12,
+  "sealed_at": "2026-09-11T10:00:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:2b06972268c0f268ef8a288ec26591fbb0f6c1f6202af9055221d34fee9d9e9d",
+  "spec_path": "specs/memory/tmem/conformance.t27"
+}
