@@ -38,7 +38,7 @@ pub const EVIDENCE : str = "measured";
 pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- Build & Test on ubuntu-latest with zig 0.15.2 at 79ffb034 (the pinned 976df517 differs from it only in apps/website/src/data/signalHealth.json): zig build -Dci=true succeeded. zig build test is piped through tee there, so its exit code is not measured (gHashTag/trinity#616).";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S06";
-pub const NOTE : str = "The t27 tool card records 210 static tool literals, 32 with an unbalanced trailing brace in the source; .trinity/mcp_schemas.json (29 names) disagrees with the code and the code is the source.";
+pub const NOTE : str = "The t27 tool card records 210 static tool literals, 32 with an unbalanced trailing brace in the source; .trinity/mcp_schemas.json (29 names) disagrees with the code and the code is the source. S06: specs/tools/mcp_protocol.t27 states the server's protocol behaviour (substring routing, no negotiation, 210 advertised tools of which 32 are malformed JSON, failures as isError results, unknown tools run through the generic executor, cancellation and permissions declared but not imported); conformance/trinity/mcp_fixtures.json holds the offline fixtures.";
 pub const ENABLED : bool = true;
 
 test card_is_bound_to_its_package {

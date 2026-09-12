@@ -85,8 +85,10 @@ FIGURES = [
     # #3567 (S05) rewrote specs/isa/ternary_encoding.t27 (eleven) and added specs/isa/tri27_machine.t27
     # (ten), specs/isa/tri27_bytecode.t27 (six), specs/vm/trinity_vm.t27 (five), specs/api/c_abi.t27
     # (four): 12673 + 36 = 12709.
+    # #3568 (S06) added specs/tools/catalog.t27 (five) and specs/tools/mcp_protocol.t27 (five); the 29
+    # cards under specs/tools/trinity/tri/ carry no test block: 12709 + 10 = 12719.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12709,
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12719,
      "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51"),
 ]
 

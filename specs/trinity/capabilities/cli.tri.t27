@@ -22,8 +22,8 @@ pub const DISPOSITION : str = "executable";
 pub const PROFILE : str = "headless";
 ; The canonical spec: a path in this repository, trinity:<path> for a spec authored in the
 ; consumer, <repo>:<path> elsewhere, "" while none exists. Never a mirrored copy.
-pub const CANONICAL_SPEC : str = "";
-pub const DIALECT : str = "none";
+pub const CANONICAL_SPEC : str = "specs/tools/catalog.t27";
+pub const DIALECT : str = "t27";
 ; Implementation and generated paths of the pinned tree (trinity: prefix), checked to exist.
 pub const IMPLEMENTATION : [1]str = ["trinity:src/tri"];
 pub const GENERATED : [0]str = [];
@@ -38,7 +38,7 @@ pub const EVIDENCE : str = "measured";
 pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- Build & Test on ubuntu-latest with zig 0.15.2 at 79ffb034 (the pinned 976df517 differs from it only in apps/website/src/data/signalHealth.json): zig build -Dci=true succeeded. zig build test is piped through tee there, so its exit code is not measured (gHashTag/trinity#616).";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S06";
-pub const NOTE : str = "t27's specs/tools/tri/*.t27 describe the Rust tri of gHashTag/t27, not this binary; S06 gives this one a repository-qualified registry. ci.yml notes that ./zig-out/bin/tri mcp export segfaults on Linux (tvc_corpus init), so the MCP schema drift step is continue-on-error.";
+pub const NOTE : str = "t27's specs/tools/tri/*.t27 describe the Rust tri of gHashTag/t27, not this binary; S06 gives this one a repository-qualified registry. ci.yml notes that ./zig-out/bin/tri mcp export segfaults on Linux (tvc_corpus init), so the MCP schema drift step is continue-on-error. S06: the 29 commands the binary exports are cards under specs/tools/trinity/tri/ with repository-qualified IDs; specs/tools/catalog.t27 holds the identity rules and the measured counts (187 table entries, five dispatch layers, six exported commands with no route).";
 pub const ENABLED : bool = true;
 
 test card_is_bound_to_its_package {

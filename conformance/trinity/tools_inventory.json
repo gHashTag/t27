@@ -1,0 +1,1264 @@
+{
+  "at": "2026-09-12T12:20:20Z",
+  "cards": {
+    "mcp": 10,
+    "t27_tri": 52,
+    "trinity_tri": 29,
+    "trinity_tri_names": [
+      "bench",
+      "bio",
+      "blindspots",
+      "conscious",
+      "constants",
+      "cosmos",
+      "dashboard",
+      "fib",
+      "fpga",
+      "gematria",
+      "govern",
+      "hardware",
+      "identity",
+      "lucas",
+      "mesh",
+      "needle",
+      "needle-check",
+      "needle-search",
+      "omega",
+      "particles",
+      "phi",
+      "quantum",
+      "reputation",
+      "sacred-const",
+      "spiral",
+      "swarm",
+      "test",
+      "vsa",
+      "wallet"
+    ]
+  },
+  "collisions": [
+    "fpga",
+    "test"
+  ],
+  "command_table": {
+    "count": 187,
+    "mcp_enabled": 29,
+    "unrouted": [
+      "gravity",
+      "blindspots",
+      "qcd",
+      "wallet",
+      "mesh",
+      "reputation",
+      "hardware",
+      "conscious",
+      "docs-gen",
+      "registry-validate",
+      "bench-suite",
+      "bench-verdict"
+    ],
+    "unrouted_count": 12
+  },
+  "consumer": {
+    "repo": "gHashTag/trinity",
+    "revision": "976df517419f918f05b78e73767e2fdf4aad14be"
+  },
+  "dispatch": {
+    "cell_map_keys": 175,
+    "execute_map_disabled": [
+      "gravity",
+      "blindspots",
+      "qcd",
+      "test",
+      "identity",
+      "swarm",
+      "govern",
+      "dashboard",
+      "omega",
+      "wallet",
+      "mesh",
+      "reputation",
+      "hardware",
+      "math-agent",
+      "deploy",
+      "conscious",
+      "docs-gen",
+      "registry-validate"
+    ],
+    "execute_map_live": 180,
+    "execute_map_live_distinct": 177,
+    "main_chain_distinct": 95,
+    "main_chain_tokens": 113,
+    "parse_command_distinct": 317,
+    "parse_command_tokens": 322
+  },
+  "generated_by": "tools/trinity_tools_registry.py inventory",
+  "help_witness": {
+    "actions_mismatch": [],
+    "carded_not_in_help": [],
+    "checked": 52,
+    "in_help_not_carded": [],
+    "ok": true,
+    "top_level": 53,
+    "tri": "target/release/tri",
+    "version": ""
+  },
+  "mcp_schemas": {
+    "count": 29,
+    "equals_registry_mcp_names": true,
+    "names": [
+      "tri_bio_dna",
+      "tri_cosmos_hubble",
+      "tri_blindspots",
+      "tri_constants",
+      "tri_phi",
+      "tri_fib",
+      "tri_lucas",
+      "tri_spiral",
+      "tri_gematria",
+      "tri_particles",
+      "tri_test",
+      "tri_bench",
+      "tri_identity",
+      "tri_swarm",
+      "tri_govern",
+      "tri_dashboard_serve",
+      "tri_omega_status",
+      "tri_wallet_balance",
+      "tri_mesh_status",
+      "tri_omega_reputation",
+      "tri_hardware_info",
+      "tri_quantum_constants",
+      "tri_vsa_bind",
+      "tri_consciousness",
+      "tri_needle",
+      "tri_needle_search",
+      "tri_needle_check",
+      "tri_fpga",
+      "tri_sacred_const_fpga"
+    ]
+  },
+  "mcp_server": {
+    "malformed": [
+      "tri_execute",
+      "tri_code",
+      "tri_gen",
+      "tri_spec_create",
+      "tri_decompose",
+      "tri_plan",
+      "tri_test",
+      "tri_fix",
+      "tri_explain",
+      "tri_refactor",
+      "tri_doc",
+      "tri_reason",
+      "tri_commit",
+      "needle_structural_replace",
+      "needle_search",
+      "needle_quality_gates",
+      "needle_preview",
+      "needle_batch_edit",
+      "needle_graph_refactor",
+      "needle_graph_extract",
+      "needle_graph_affected",
+      "needle_graph_vsa_search",
+      "needle_semantic_replace",
+      "needle_safe_cross_refactor",
+      "needle_vsa_rule_apply",
+      "needle_cross_preview",
+      "needle_safety_gates_run",
+      "needle_atomic_refactor",
+      "needle_parse_check",
+      "tri_loop_decision",
+      "tri_pipeline",
+      "tri_omega_awaken"
+    ],
+    "malformed_count": 32,
+    "names": [
+      "tri_execute",
+      "tri_code",
+      "tri_gen",
+      "tri_spec_create",
+      "tri_decompose",
+      "tri_plan",
+      "tri_verify",
+      "tri_bench",
+      "tri_verdict",
+      "tri_test",
+      "tri_test_run",
+      "tri_fix",
+      "tri_explain",
+      "tri_refactor",
+      "tri_doc",
+      "tri_reason",
+      "tri_status",
+      "tri_diff",
+      "tri_log",
+      "tri_commit",
+      "needle_structural_replace",
+      "needle_search",
+      "needle_quality_gates",
+      "needle_preview",
+      "needle_batch_edit",
+      "needle_graph_build",
+      "needle_graph_refactor",
+      "needle_graph_extract",
+      "needle_graph_visualize",
+      "needle_graph_affected",
+      "needle_graph_vsa_search",
+      "needle_semantic_replace",
+      "needle_vsa_index",
+      "needle_safe_cross_refactor",
+      "needle_vsa_rule_apply",
+      "needle_cross_preview",
+      "needle_rollback_all",
+      "needle_omega_init",
+      "needle_omega_analyze",
+      "needle_omega_execute",
+      "needle_omega_detect",
+      "needle_omega_status",
+      "needle_safety_gates_run",
+      "needle_atomic_refactor",
+      "needle_parse_check",
+      "needle_compile_check",
+      "tri_constants",
+      "tri_phi",
+      "tri_fib",
+      "tri_lucas",
+      "tri_spiral",
+      "tri_chat",
+      "tri_loop_decision",
+      "tri_pipeline",
+      "tri_omega_awaken",
+      "tri_os_boot",
+      "tri_tvc_demo",
+      "tri_tvc_stats",
+      "tri_chem_periodic",
+      "tri_chem_element",
+      "tri_chem_mass",
+      "tri_chem_moles",
+      "tri_bio_dna",
+      "tri_bio_codon",
+      "tri_bio_protein",
+      "tri_quantum_constants",
+      "tri_quantum_states",
+      "tri_bell_states",
+      "tri_formula",
+      "swarm_status",
+      "swarm_agents",
+      "swarm_register",
+      "swarm_heartbeat",
+      "swarm_task_get",
+      "swarm_task_add",
+      "swarm_task_cancel",
+      "swarm_tasks",
+      "swarm_pause",
+      "swarm_resume",
+      "swarm_assign",
+      "swarm_github_sync",
+      "swarm_github_on_start",
+      "swarm_github_on_complete",
+      "swarm_github_on_fail",
+      "oracle_start",
+      "oracle_stop",
+      "oracle_status",
+      "tri_train_status",
+      "tri_train_diagnose",
+      "tri_train_loss_curve",
+      "tri_train_recommend",
+      "tri_train_checkpoint",
+      "cloud_spawn",
+      "cloud_kill",
+      "cloud_list",
+      "cloud_status",
+      "cloud_logs",
+      "cloud_spawn_all",
+      "cloud_cleanup",
+      "cloud_history",
+      "cloud_api_check",
+      "cloud_redeploy",
+      "cloud_diagnose",
+      "cloud_issue_create",
+      "cloud_farm",
+      "cloud_farm_sync",
+      "cloud_farm_capacity",
+      "cloud_farm_rebalance",
+      "farm_evolve_health",
+      "farm_evolve_notify",
+      "farm_evolve_watch",
+      "cloud_train",
+      "cloud_train_batch",
+      "chain_cache",
+      "chain_baseline",
+      "chain_metrics",
+      "chain_patterns",
+      "chain_tree",
+      "chain_check_spec",
+      "chain_spec",
+      "chain_codegen",
+      "chain_analyze",
+      "chain_test",
+      "chain_bench",
+      "chain_fix",
+      "chain_bench_ext",
+      "chain_bench_theory",
+      "chain_delta",
+      "chain_optimize",
+      "chain_docs",
+      "chain_verdict",
+      "chain_git",
+      "chain_loop",
+      "chain_deploy",
+      "chain_evolve",
+      "chain_self_ref",
+      "chain_fpga_test",
+      "chain_research",
+      "chain_lint_spec",
+      "chain_list",
+      "cloud_decompose",
+      "tri_notify",
+      "fpga_uart_scan",
+      "fpga_uart_ping",
+      "fpga_uart_send",
+      "doctor_status",
+      "doctor_scan",
+      "doctor_report",
+      "doctor_plan",
+      "doctor_heal",
+      "job_start",
+      "job_status",
+      "job_logs",
+      "job_list",
+      "job_cancel",
+      "job_artifacts",
+      "issue_list",
+      "issue_view",
+      "issue_create",
+      "issue_comment",
+      "issue_close",
+      "issue_assign",
+      "issue_decompose",
+      "deploy_status",
+      "deploy_logs",
+      "deploy_vars",
+      "deploy_start",
+      "deploy_stop",
+      "experience_save",
+      "experience_recall",
+      "experience_mistakes",
+      "patent_status",
+      "patent_analysis",
+      "depin_status",
+      "depin_nodes",
+      "depin_fitness",
+      "research_query",
+      "experiment_list",
+      "experiment_compare",
+      "chimera_run",
+      "ouroboros_status",
+      "ouroboros_run",
+      "self_test",
+      "self_health",
+      "context_info",
+      "context_load",
+      "faculty_status",
+      "mu_status",
+      "mu_patterns",
+      "zenodo_status",
+      "tri_analyze",
+      "tri_clean",
+      "tri_fmt",
+      "tri_stats",
+      "tri_lint",
+      "tri_search",
+      "tri_metrics",
+      "tri_trace",
+      "tri_eval",
+      "farm_status",
+      "farm_idle",
+      "farm_recycle",
+      "farm_fill",
+      "farm_accounts",
+      "farm_wave_spawn",
+      "fpga_synth",
+      "fpga_status",
+      "fpga_build",
+      "fpga_verify",
+      "fpga_flash"
+    ],
+    "needle_tools": [
+      "needle_structural_replace",
+      "needle_search",
+      "needle_quality_gates",
+      "needle_preview",
+      "needle_batch_edit",
+      "needle_autonomous_refactor"
+    ],
+    "overlap_count": 9,
+    "overlap_with_export": [
+      "tri_bench",
+      "tri_bio_dna",
+      "tri_constants",
+      "tri_fib",
+      "tri_lucas",
+      "tri_phi",
+      "tri_quantum_constants",
+      "tri_spiral",
+      "tri_test"
+    ],
+    "prefix_handlers": 25,
+    "prompts": [
+      "sacred_formula_analysis",
+      "sacred_derivation",
+      "gematria_analysis",
+      "trinity_code_review",
+      "sacred_exploration"
+    ],
+    "resources": [
+      "trinity://constants/all",
+      "trinity://constants/particle_physics",
+      "trinity://constants/cosmology",
+      "trinity://constants/sacred",
+      "trinity://papers/temporal_phi",
+      "trinity://papers/consciousness_trinity",
+      "trinity://papers/gravity_phi",
+      "trinity://papers/unified",
+      "file://CLAUDE.md",
+      "trinity://docs/architecture"
+    ],
+    "static_tools": 210
+  },
+  "method": {
+    "cell_maps": "src/tri/tri_cell_dispatch.zig: StaticStringMap keys",
+    "execute_map": "src/tri/tri_register.zig: live and commented-out .name entries",
+    "main_chain": "src/tri/main.zig main..dispatchNamespacedCommand: string literals compared with eql",
+    "parse_command": "src/tri/tri_utils.zig parseCommand: string literals compared with eql",
+    "registry": ".trinity/registry.json (the binary's export, drift-checked by ci.yml)",
+    "routed": "a registry name is routed when the execute map, parseCommand, the main chain or a cell map names it; whether the arm it reaches executes or prints not-implemented is not measured",
+    "server_tools": "tools/mcp/trinity_mcp/server.zig tools_body: one object per line, each parsed alone",
+    "table": "src/registry/command_table.zig: top-level entries of all_commands (single-line entries and the .name line after a multi-line opener)"
+  },
+  "registry": {
+    "commands": [
+      {
+        "aliases": [
+          "biology"
+        ],
+        "category": "science",
+        "cli_namespace": "core",
+        "description": "Biology v14.0 \u2014 DNA/RNA/Protein sacred analysis",
+        "examples": [
+          "tri bio dna ATGCGT",
+          "tri bio rna AUGCCAUAA",
+          "tri bio protein MVHLTPEEK",
+          "tri bio codon ATG"
+        ],
+        "input_params": [
+          {
+            "description": "DNA/RNA/Protein sequence",
+            "name": "sequence",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "DNA Analysis",
+        "mcp_enabled": true,
+        "mcp_name": "tri_bio_dna",
+        "mode": "sync",
+        "name": "bio",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "cosmology"
+        ],
+        "category": "science",
+        "cli_namespace": "core",
+        "description": "Cosmology v15.0 \u2014 Universe through \u03c6",
+        "examples": [
+          "tri cosmos hubble",
+          "tri cosmos dark",
+          "tri cosmos w-z",
+          "tri cosmos lambda-z",
+          "tri cosmos phantom",
+          "tri cosmos consciousness-de"
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Hubble Tension",
+        "mcp_enabled": true,
+        "mcp_name": "tri_cosmos_hubble",
+        "mode": "sync",
+        "name": "cosmos",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "blind-spot",
+          "blindspot",
+          "bs"
+        ],
+        "category": "science",
+        "cli_namespace": "core",
+        "description": "Blind Spots v1.0 \u2014 90+ new formulas across 8 domains",
+        "examples": [
+          "tri blindspots all",
+          "tri blindspots nuclear",
+          "tri blindspots atomic",
+          "tri blindspots plasma",
+          "tri blindspots optics",
+          "tri blindspots astro",
+          "tri blindspots quantum",
+          "tri blindspots condensed",
+          "tri blindspots biology-advanced",
+          "tri blindspots domains"
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Blind Spots (8 Domains)",
+        "mcp_enabled": true,
+        "mcp_name": "tri_blindspots",
+        "mode": "sync",
+        "name": "blindspots",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "const",
+          "c"
+        ],
+        "category": "math",
+        "cli_namespace": "core",
+        "description": "Display sacred constants (\u03c6, \u03c0, e, \u03bc, \u03c7, \u03c3, \u03b5)",
+        "examples": [
+          "tri constants"
+        ],
+        "job_timeout": 0,
+        "mcp_display_name": "Sacred Constants",
+        "mcp_enabled": true,
+        "mcp_name": "tri_constants",
+        "mode": "sync",
+        "name": "constants",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "math",
+        "cli_namespace": "core",
+        "description": "Compute \u03c6\u207f (golden ratio power)",
+        "examples": [
+          "tri phi 10",
+          "tri phi 100"
+        ],
+        "input_params": [
+          {
+            "description": "Power of phi",
+            "name": "n",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "job_timeout": 0,
+        "mcp_display_name": "Phi Power",
+        "mcp_enabled": true,
+        "mcp_name": "tri_phi",
+        "mode": "sync",
+        "name": "phi",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "fibonacci"
+        ],
+        "category": "math",
+        "cli_namespace": "core",
+        "description": "Fibonacci numbers with BigInt",
+        "examples": [
+          "tri fib 10",
+          "tri fib 100"
+        ],
+        "input_params": [
+          {
+            "description": "Fibonacci index",
+            "name": "n",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Fibonacci",
+        "mcp_enabled": true,
+        "mcp_name": "tri_fib",
+        "mode": "sync",
+        "name": "fib",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "math",
+        "cli_namespace": "core",
+        "description": "Lucas numbers (L(2)=3=TRINITY)",
+        "examples": [
+          "tri lucas 10",
+          "tri lucas 20"
+        ],
+        "input_params": [
+          {
+            "description": "Lucas index",
+            "name": "n",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Lucas Numbers",
+        "mcp_enabled": true,
+        "mcp_name": "tri_lucas",
+        "mode": "sync",
+        "name": "lucas",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "math",
+        "cli_namespace": "core",
+        "description": "\u03c6-spiral coordinates",
+        "examples": [
+          "tri spiral 10"
+        ],
+        "input_params": [
+          {
+            "description": "Number of spiral points",
+            "name": "points",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Phi Spiral",
+        "mcp_enabled": true,
+        "mcp_name": "tri_spiral",
+        "mode": "sync",
+        "name": "spiral",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "math",
+        "cli_namespace": "core",
+        "description": "Gematria word value calculator",
+        "examples": [
+          "tri gematria hello"
+        ],
+        "input_params": [
+          {
+            "description": "Text to analyze",
+            "name": "text",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "Language system",
+            "name": "language",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Gematria",
+        "mcp_enabled": true,
+        "mcp_name": "tri_gematria",
+        "mode": "sync",
+        "name": "gematria",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "particle",
+          "pdg"
+        ],
+        "category": "science",
+        "cli_namespace": "core",
+        "description": "Particle physics sacred formulas (49 constants from \u03c6)",
+        "examples": [
+          "tri particles",
+          "tri particles all",
+          "tri particles tier1",
+          "tri particles search alpha_s"
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Particle Physics Sacred",
+        "mcp_enabled": true,
+        "mcp_name": "tri_particles",
+        "mode": "sync",
+        "name": "particles",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "dev",
+        "cli_namespace": "dev",
+        "description": "Generate comprehensive test suites",
+        "examples": [
+          "tri test src/vsa.zig",
+          "tri test src/math/commands.zig --output tests/math_test.zig",
+          "tri test src/crypto.zig --coverage"
+        ],
+        "input_params": [
+          {
+            "description": "Path to file to test",
+            "name": "file",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "Output test file path",
+            "name": "output",
+            "type": "string"
+          },
+          {
+            "description": "Include coverage markers",
+            "name": "coverage",
+            "type": "boolean"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Test Generator",
+        "mcp_enabled": true,
+        "mcp_name": "tri_test",
+        "mode": "job",
+        "name": "test",
+        "required_artifacts": [
+          "*_test.zig",
+          "test_results.xml"
+        ],
+        "side_effects": [
+          "filesystem"
+        ],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "benchmark"
+        ],
+        "category": "benchmark",
+        "cli_namespace": "dev",
+        "description": "Run performance benchmarks",
+        "examples": [
+          "tri bench",
+          "tri bench --filter vsa",
+          "tri bench --output report.json"
+        ],
+        "input_params": [
+          {
+            "description": "Filter benchmarks by pattern",
+            "name": "filter",
+            "type": "string"
+          },
+          {
+            "description": "Output report file",
+            "name": "output",
+            "type": "string"
+          },
+          {
+            "description": "Number of iterations (default: 1000)",
+            "name": "iterations",
+            "type": "integer"
+          }
+        ],
+        "job_timeout": 600,
+        "mcp_display_name": "Performance Benchmarks",
+        "mcp_enabled": true,
+        "mcp_name": "tri_bench",
+        "mode": "job",
+        "name": "bench",
+        "required_artifacts": [
+          "metrics.json",
+          "report.json"
+        ],
+        "side_effects": [
+          "filesystem"
+        ],
+        "stability": "stable"
+      },
+      {
+        "category": "sacred",
+        "cli_namespace": "core",
+        "description": "Sacred identity",
+        "input_params": [
+          {
+            "description": "node, generate, verify, reputation",
+            "name": "subcommand",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Sacred Identity",
+        "mcp_enabled": true,
+        "mcp_name": "tri_identity",
+        "mode": "sync",
+        "name": "identity",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "sacred",
+        "cli_namespace": "core",
+        "description": "Sacred swarm intelligence",
+        "input_params": [
+          {
+            "description": "status, coordinator, agents, tasks, converge",
+            "name": "subcommand",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Swarm Intelligence",
+        "mcp_enabled": true,
+        "mcp_name": "tri_swarm",
+        "mode": "sync",
+        "name": "swarm",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "sacred",
+        "cli_namespace": "core",
+        "description": "Sacred governance",
+        "input_params": [
+          {
+            "description": "proposals, vote, treasury, rewards",
+            "name": "subcommand",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Governance System",
+        "mcp_enabled": true,
+        "mcp_name": "tri_govern",
+        "mode": "sync",
+        "name": "govern",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "system",
+        "cli_namespace": "core",
+        "description": "Sacred dashboard",
+        "input_params": [
+          {
+            "description": "Dashboard port",
+            "name": "port",
+            "type": "integer"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Dashboard Server",
+        "mcp_enabled": true,
+        "mcp_name": "tri_dashboard_serve",
+        "mode": "sync",
+        "name": "dashboard",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "sacred",
+        "cli_namespace": "core",
+        "description": "Omega phase",
+        "job_timeout": 300,
+        "mcp_display_name": "Omega Status",
+        "mcp_enabled": true,
+        "mcp_name": "tri_omega_status",
+        "mode": "sync",
+        "name": "omega",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "depin",
+        "cli_namespace": "core",
+        "description": "Wallet management \u2014 connect, balance, claim rewards",
+        "examples": [
+          "tri wallet connect metamask",
+          "tri wallet balance",
+          "tri wallet claim 50.0"
+        ],
+        "input_params": [
+          {
+            "description": "Wallet address",
+            "name": "address",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Wallet Balance",
+        "mcp_enabled": true,
+        "mcp_name": "tri_wallet_balance",
+        "mode": "sync",
+        "name": "wallet",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "depin",
+        "cli_namespace": "core",
+        "description": "Global mesh management \u2014 status, topology, discovery",
+        "examples": [
+          "tri mesh status",
+          "tri mesh topology",
+          "tri mesh discover"
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Mesh Status",
+        "mcp_enabled": true,
+        "mcp_name": "tri_mesh_status",
+        "mode": "sync",
+        "name": "mesh",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "rep"
+        ],
+        "category": "depin",
+        "cli_namespace": "core",
+        "description": "Reputation system \u2014 show node reputation, leaderboard",
+        "examples": [
+          "tri reputation show",
+          "tri reputation leaderboard"
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Reputation Leaderboard",
+        "mcp_enabled": true,
+        "mcp_name": "tri_omega_reputation",
+        "mode": "sync",
+        "name": "reputation",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "depin",
+        "cli_namespace": "core",
+        "description": "Hardware deployment \u2014 deploy, status, stop nodes",
+        "examples": [
+          "tri hardware deploy",
+          "tri hardware status"
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Hardware Info",
+        "mcp_enabled": true,
+        "mcp_name": "tri_hardware_info",
+        "mode": "sync",
+        "name": "hardware",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "science",
+        "cli_namespace": "core",
+        "description": "Quantum Trinity",
+        "job_timeout": 300,
+        "mcp_display_name": "Quantum Constants",
+        "mcp_enabled": true,
+        "mcp_name": "tri_quantum_constants",
+        "mode": "sync",
+        "name": "quantum",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "vector-symbolic"
+        ],
+        "category": "science",
+        "cli_namespace": "core",
+        "description": "Vector Symbolic Architecture operations",
+        "examples": [
+          "tri vsa bind alice bob",
+          "tri vsa similarity cat dog",
+          "tri vsa memory show stats"
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "VSA Operations",
+        "mcp_enabled": true,
+        "mcp_name": "tri_vsa_bind",
+        "mode": "sync",
+        "name": "vsa",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "consciousness"
+        ],
+        "category": "science",
+        "cli_namespace": "core",
+        "description": "Consciousness awakening simulator (IIT+GWT+OrchOR+Qutrit+ActiveInf)",
+        "job_timeout": 300,
+        "mcp_display_name": "Consciousness Simulator",
+        "mcp_enabled": true,
+        "mcp_name": "tri_consciousness",
+        "mode": "sync",
+        "name": "conscious",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "category": "dev",
+        "cli_namespace": "core",
+        "description": "Structural editor core",
+        "input_params": [
+          {
+            "description": "File to edit",
+            "name": "file",
+            "type": "string"
+          },
+          {
+            "description": "Edit query",
+            "name": "query",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Needle Editor",
+        "mcp_enabled": true,
+        "mcp_name": "tri_needle",
+        "mode": "sync",
+        "name": "needle",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "needle_search"
+        ],
+        "category": "dev",
+        "cli_namespace": "core",
+        "description": "Needle search",
+        "input_params": [
+          {
+            "description": "Search pattern",
+            "name": "pattern",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Needle Search",
+        "mcp_enabled": true,
+        "mcp_name": "tri_needle_search",
+        "mode": "sync",
+        "name": "needle-search",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "needle_check"
+        ],
+        "category": "dev",
+        "cli_namespace": "core",
+        "description": "Needle check",
+        "input_params": [
+          {
+            "description": "File to check",
+            "name": "file",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Needle Check",
+        "mcp_enabled": true,
+        "mcp_name": "tri_needle_check",
+        "mode": "sync",
+        "name": "needle-check",
+        "side_effects": [],
+        "stability": "stable"
+      },
+      {
+        "aliases": [
+          "forge"
+        ],
+        "category": "dev",
+        "cli_namespace": "forge",
+        "description": "FPGA toolchain via FORGE v2.0 (native Zig)",
+        "examples": [
+          "tri fpga bench",
+          "tri fpga verdict",
+          "tri fpga run design.json",
+          "tri fpga flash design.bit"
+        ],
+        "job_timeout": 1800,
+        "mcp_display_name": "FPGA Toolchain",
+        "mcp_enabled": true,
+        "mcp_name": "tri_fpga",
+        "mode": "job",
+        "name": "fpga",
+        "required_artifacts": [
+          "*.bit",
+          "routing_report.json"
+        ],
+        "side_effects": [
+          "hardware",
+          "filesystem"
+        ],
+        "stability": "experimental"
+      },
+      {
+        "aliases": [
+          "sacred_constants",
+          "sacred-fpga"
+        ],
+        "category": "advanced",
+        "cli_namespace": "forge",
+        "description": "Sacred constants FPGA synthesis (0 DSP48)",
+        "examples": [
+          "tri sacred-const phi-arith",
+          "tri sacred-const cordic-sacred",
+          "tri sacred-const const-rom"
+        ],
+        "input_params": [
+          {
+            "description": "Target constant (phi2_pi2, e_pi, etc.)",
+            "name": "target",
+            "type": "string"
+          },
+          {
+            "description": "Number of CORDIC stages",
+            "name": "stages",
+            "type": "integer"
+          },
+          {
+            "description": "Data width in bits",
+            "name": "width",
+            "type": "integer"
+          },
+          {
+            "description": "Output Verilog file",
+            "name": "output",
+            "type": "string"
+          }
+        ],
+        "job_timeout": 300,
+        "mcp_display_name": "Sacred Constants FPGA",
+        "mcp_enabled": true,
+        "mcp_name": "tri_sacred_const_fpga",
+        "mode": "job",
+        "name": "sacred-const",
+        "required_artifacts": [
+          "*.v"
+        ],
+        "side_effects": [
+          "filesystem"
+        ],
+        "stability": "experimental"
+      }
+    ],
+    "count": 29,
+    "generated_at": "1773041968",
+    "names": [
+      "bio",
+      "cosmos",
+      "blindspots",
+      "constants",
+      "phi",
+      "fib",
+      "lucas",
+      "spiral",
+      "gematria",
+      "particles",
+      "test",
+      "bench",
+      "identity",
+      "swarm",
+      "govern",
+      "dashboard",
+      "omega",
+      "wallet",
+      "mesh",
+      "reputation",
+      "hardware",
+      "quantum",
+      "vsa",
+      "conscious",
+      "needle",
+      "needle-search",
+      "needle-check",
+      "fpga",
+      "sacred-const"
+    ],
+    "sha256": "sha256:9b42ed14dcaad67d4ff6800411c6b3ed735d38e89afbe2df58e490f3b3c1b08e",
+    "version": "1.0.0"
+  },
+  "registry_routing": {
+    "route_kind": {
+      "bench": "execute_map",
+      "bio": "execute_map",
+      "blindspots": "none",
+      "conscious": "none",
+      "constants": "execute_map",
+      "cosmos": "execute_map",
+      "dashboard": "parse_command",
+      "fib": "execute_map",
+      "fpga": "execute_map",
+      "gematria": "execute_map",
+      "govern": "parse_command",
+      "hardware": "none",
+      "identity": "parse_command",
+      "lucas": "execute_map",
+      "mesh": "none",
+      "needle": "execute_map",
+      "needle-check": "execute_map",
+      "needle-search": "execute_map",
+      "omega": "parse_command",
+      "particles": "execute_map",
+      "phi": "execute_map",
+      "quantum": "execute_map",
+      "reputation": "none",
+      "sacred-const": "execute_map",
+      "spiral": "execute_map",
+      "swarm": "parse_command",
+      "test": "parse_command",
+      "vsa": "execute_map",
+      "wallet": "none"
+    },
+    "routed": [
+      "bio",
+      "cosmos",
+      "constants",
+      "phi",
+      "fib",
+      "lucas",
+      "spiral",
+      "gematria",
+      "particles",
+      "test",
+      "bench",
+      "identity",
+      "swarm",
+      "govern",
+      "dashboard",
+      "omega",
+      "quantum",
+      "vsa",
+      "needle",
+      "needle-search",
+      "needle-check",
+      "fpga",
+      "sacred-const"
+    ],
+    "unrouted": [
+      "blindspots",
+      "wallet",
+      "mesh",
+      "reputation",
+      "hardware",
+      "conscious"
+    ]
+  },
+  "version": 1
+}
