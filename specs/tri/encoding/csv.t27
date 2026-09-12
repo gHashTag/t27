@@ -5,12 +5,14 @@
 module TriCsv;
     use base::types;
     use math::constants;
+    use std;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const CsvRow = struct {
+        fields : [][]const u8,
     };
 
     pub const CsvDocument = struct {
@@ -23,47 +25,449 @@ module TriCsv;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // parse(text: []const u8) → void
-    fn parse(text: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // parse(allocator: std.mem.Allocator, text: []const u8, delimiter: u8) → ?CsvDocument
+// Quoted fields are not supported: returns null if text contains 0x22.
+    fn parse(allocator: std.mem.Allocator, text: []const u8, delimiter: u8) -> ?CsvDocument {
+        // Check for forbidden quote bytes (D2)
+        for (text) |byte| {
+            if (byte == 0x22) {
+                return null;
+            }
+        }
+        
+        // Count records (D4, D5) - skip empty lines
+        var record_count: usize = 0;
+        var i: usize = 0;
+        while (i < text.len) : (i += 1) {
+            if (text[i] == 0x0A) { // LF
+                // Skip empty lines (D5)
+                var is_empty_line: bool = true;
+                var j: usize = i - 1;
+                while (j < text.len and j >= 0) : (j -= 1) {
+                    if (text[j] != 0x0A and text[j] != 0x0D) {
+                        is_empty_line = false;
+                        break;
+                    }
+                }
+                if (!is_empty_line) {
+                    record_count += 1;
+                }
+            }
+        }
+        
+        // Handle trailing newline case - don't count extra record
+        if (text.len > 0 and text[text.len - 1] == 0x0A) {
+            var has_non_newline: bool = false;
+            for (text[0..text.len - 1]) |byte| {
+                if (byte != 0x0A and byte != 0x0D) {
+                    has_non_newline = true;
+                    break;
+                }
+            }
+            if (!has_non_newline) {
+                record_count = 0;
+            }
+        }
+        
+        // Allocate headers and rows
+        var headers: []CsvRow = if (record_count > 0) allocator.alloc(CsvRow, 1) else allocator.alloc(CsvRow, 0);
+        var rows: []CsvRow = if (record_count > 1) allocator.alloc(CsvRow, record_count - 1) else allocator.alloc(CsvRow, 0);
+        
+        if (headers.ptr == null or rows.ptr == null) {
+            if (headers.ptr != null) allocator.free(headers);
+            if (rows.ptr != null) allocator.free(rows);
+            return null;
+        }
+        
+        // Initialize document
+        var doc: CsvDocument = .{
+            .headers = headers,
+            .rows = rows,
+            .delimiter = delimiter,
+        };
+        
+        // Parse records
+        var current_record: usize = 0;
+        var is_header: bool = true;
+        i = 0;
+        
+        while (i < text.len) : (i += 1) {
+            if (text[i] == 0x0A) {
+                // Skip empty lines (D5)
+                var j: usize = i + 1;
+                while (j < text.len and text[j] == 0x0A) : (j += 1) {
+                    i = j;
+                }
+                if (is_header and current_record == 0) {
+                    is_header = false;
+                }
+                continue;
+            }
+            
+            // Count fields in this record
+            var field_count: usize = 1; // At least one field
+            var j: usize = i;
+            while (j < text.len and text[j] != 0x0A) : (j += 1) {
+                if (text[j] == delimiter) {
+                    field_count += 1;
+                }
+            }
+            
+            // Allocate fields for this record
+            var fields: [][]const u8 = allocator.alloc([]const u8, field_count);
+            if (fields.ptr == null) {
+                return null;
+            }
+            
+            // Fill fields
+            var field_idx: usize = 0;
+            var start: usize = i;
+            j = i;
+            while (j < text.len and text[j] != 0x0A) : (j += 1) {
+                if (text[j] == delimiter) {
+                    fields[field_idx] = text[start..j];
+                    field_idx += 1;
+                    start = j + 1;
+                }
+            }
+            // Last field
+            if (start < j) {
+                fields[field_idx] = text[start..j];
+            } else {
+                fields[field_idx] = text[start..start]; // Empty field
+            }
+            
+            // Store record
+            if (is_header) {
+                doc.headers[0] = .{ .fields = fields };
+            } else {
+                doc.rows[current_record - 1] = .{ .fields = fields };
+                current_record += 1;
+            }
+            
+            i = j;
+        }
+        
+        return doc;
     }
 
-    // get(doc: CsvDocument) → void
-    fn get(doc: CsvDocument) -> void {
-        // TODO: Implement from .tri spec
+    // get(doc: CsvDocument, row: usize, col: usize) → ?[]const u8
+    fn get(doc: CsvDocument, row: usize, col: usize) -> ?[]const u8 {
+        // Bounds check both axes (D8)
+        if (row >= doc.rows.len) {
+            return null;
+        }
+        
+        var target_row = doc.rows[row];
+        if (col >= target_row.fields.len) {
+            return null;
+        }
+        
+        return target_row.fields[col];
     }
 
-    // set(doc: *CsvDocument) → void
-    fn set(doc: *CsvDocument) -> void {
-        // TODO: Implement from .tri spec
+    // set(doc: *CsvDocument, row: usize, col: usize, value: []const u8) → bool
+    fn set(doc: *CsvDocument, row: usize, col: usize, value: []const u8) -> bool {
+        // Bounds check both axes (D8)
+        if (row >= doc.rows.len) {
+            return false;
+        }
+        
+        var target_row = doc.rows[row];
+        if (col >= target_row.fields.len) {
+            return false;
+        }
+        
+        // Check for forbidden bytes in value (D3)
+        for (value) |byte| {
+            if (byte == doc.delimiter or byte == 0x22 or byte == 0x0D or byte == 0x0A) {
+                return false;
+            }
+        }
+        
+        // Overwrite the field
+        target_row.fields[col] = value;
+        return true;
     }
 
-    // serialize(doc: CsvDocument) → void
-    fn serialize(doc: CsvDocument) -> void {
-        // TODO: Implement from .tri spec
+    // serialize(allocator: std.mem.Allocator, doc: CsvDocument) → ?[]u8
+    fn serialize(allocator: std.mem.Allocator, doc: CsvDocument) -> ?[]u8 {
+        // Calculate required size
+        var total_size: usize = 0;
+        
+        // Header row (if present)
+        if (doc.headers.len > 0) {
+            for (doc.headers[0].fields) |field| {
+                total_size += field.len;
+            }
+            if (doc.headers[0].fields.len > 0) {
+                total_size += doc.headers[0].fields.len - 1; // delimiters
+            }
+            total_size += 1; // newline
+        }
+        
+        // Data rows
+        for (doc.rows) |row| {
+            for (row.fields) |field| {
+                total_size += field.len;
+            }
+            if (row.fields.len > 0) {
+                total_size += row.fields.len - 1; // delimiters
+            }
+            total_size += 1; // newline
+        }
+        
+        // Allocate buffer
+        var buffer: []u8 = allocator.alloc(u8, total_size);
+        if (buffer.ptr == null) {
+            return null;
+        }
+        
+        var offset: usize = 0;
+        
+        // Serialize header row
+        if (doc.headers.len > 0) {
+            for (doc.headers[0].fields) |field| {
+                for (field) |byte| {
+                    buffer[offset] = byte;
+                    offset += 1;
+                }
+                if (offset < total_size - 1 and field != doc.headers[0].fields[doc.headers[0].fields.len - 1]) {
+                    buffer[offset] = doc.delimiter;
+                    offset += 1;
+                }
+            }
+            if (offset < total_size) {
+                buffer[offset] = 0x0A; // LF
+                offset += 1;
+            }
+        }
+        
+        // Serialize data rows
+        for (doc.rows) |row| {
+            for (row.fields) |field| {
+                for (field) |byte| {
+                    buffer[offset] = byte;
+                    offset += 1;
+                }
+                if (offset < total_size - 1 and field != row.fields[row.fields.len - 1]) {
+                    buffer[offset] = doc.delimiter;
+                    offset += 1;
+                }
+            }
+            if (offset < total_size) {
+                buffer[offset] = 0x0A; // LF
+                offset += 1;
+            }
+        }
+        
+        return buffer;
+    }
+
+    // free_document(allocator: std.mem.Allocator, doc: CsvDocument) → void
+    fn free_document(allocator: std.mem.Allocator, doc: CsvDocument) -> void {
+        // Free each header row's fields slice
+        for (doc.headers) |header| {
+            allocator.free(header.fields);
+        }
+        
+        // Free each row's fields slice
+        for (doc.rows) |row| {
+            allocator.free(row.fields);
+        }
+        
+        // Free the slices themselves
+        allocator.free(doc.headers);
+        allocator.free(doc.rows);
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
+    test "parse_splits_records_on_lf_and_fields_on_the_delimiter" {
+        const allocator = std.heap.page_allocator;
+        const text = "name,age\nada,36\n";
+        const doc = parse(allocator, text, ',');
+        assert(doc != null);
+        assert(doc.headers.len == 1);
+        assert(doc.rows.len == 1);
+        assert(doc.headers[0].fields.len == 2);
+        assert(doc.rows[0].fields.len == 2);
+        assert(std.mem.eql(u8, doc.headers[0].fields[0], "name"));
+        assert(std.mem.eql(u8, doc.headers[0].fields[1], "age"));
+        assert(std.mem.eql(u8, doc.rows[0].fields[0], "ada"));
+        assert(std.mem.eql(u8, doc.rows[0].fields[1], "36"));
+        free_document(allocator, doc.*);
+    }
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    test "blank_line_is_skipped_and_comma_is_two_empty_fields" {
+        const allocator = std.heap.page_allocator;
+        const text = "name,age\nada,36\n\nbob,\n";
+        const doc = parse(allocator, text, ',');
+        assert(doc != null);
+        assert(doc.headers.len == 1);
+        assert(doc.rows.len == 2);
+        assert(doc.headers[0].fields.len == 2);
+        assert(doc.rows[0].fields.len == 2);
+        assert(doc.rows[1].fields.len == 2);
+        assert(std.mem.eql(u8, doc.headers[0].fields[0], "name"));
+        assert(std.mem.eql(u8, doc.headers[0].fields[1], "age"));
+        assert(std.mem.eql(u8, doc.rows[0].fields[0], "ada"));
+        assert(std.mem.eql(u8, doc.rows[0].fields[1], "36"));
+        assert(std.mem.eql(u8, doc.rows[1].fields[0], "bob"));
+        assert(doc.rows[1].fields[1].len == 0); // Empty field
+        free_document(allocator, doc.*);
+    }
 
-    test set_basic_case
-        given input = default_input()
-        when result = set(input)
-        then result != undefined
+    test "a_b_with_no_trailing_newline_parses_same_as_a_b_with_newline" {
+        const allocator = std.heap.page_allocator;
+        const text1 = "a,b";
+        const text2 = "a,b\n";
+        const doc1 = parse(allocator, text1, ',');
+        const doc2 = parse(allocator, text2, ',');
+        assert(doc1 != null);
+        assert(doc2 != null);
+        assert(doc1.headers.len == doc2.headers.len);
+        assert(doc1.rows.len == doc2.rows.len);
+        assert(std.mem.eql(u8, doc1.headers[0].fields[0], doc2.headers[0].fields[0]));
+        assert(std.mem.eql(u8, doc1.headers[0].fields[1], doc2.headers[0].fields[1]));
+        assert(std.mem.eql(u8, doc1.rows[0].fields[0], doc2.rows[0].fields[0]));
+        assert(std.mem.eql(u8, doc1.rows[0].fields[1], doc2.rows[0].fields[1]));
+        free_document(allocator, doc1.*);
+        free_document(allocator, doc2.*);
+    }
 
-    test serialize_basic_case
-        given input = default_input()
-        when result = serialize(input)
-        then result != undefined
+    test "crlf_input_drops_the_cr" {
+        const allocator = std.heap.page_allocator;
+        const text = "name,age\r\nada,36\r\n";
+        const doc = parse(allocator, text, ',');
+        assert(doc != null);
+        assert(doc.headers.len == 1);
+        assert(doc.rows.len == 1);
+        assert(std.mem.eql(u8, doc.headers[0].fields[0], "name"));
+        assert(std.mem.eql(u8, doc.headers[0].fields[1], "age"));
+        assert(std.mem.eql(u8, doc.rows[0].fields[0], "ada"));
+        assert(std.mem.eql(u8, doc.rows[0].fields[1], "36"));
+        free_document(allocator, doc.*);
+    }
+
+    test "parse_returns_null_on_quote_byte" {
+        const allocator = std.heap.page_allocator;
+        const doc = parse(allocator, "a,\"b,c\"\n", ',');
+        assert(doc == null);
+    }
+
+    test "parse_empty_input_returns_document_with_zero_rows" {
+        const allocator = std.heap.page_allocator;
+        const doc = parse(allocator, "", ',');
+        assert(doc != null);
+        assert(doc.headers.len == 0);
+        assert(doc.rows.len == 0);
+    }
+
+    test "get_returns_field_or_null_for_out_of_range" {
+        const allocator = std.heap.page_allocator;
+        const text = "name,age\nada,36\nbob,\n";
+        const doc = parse(allocator, text, ',');
+        assert(doc != null);
+        
+        // Valid field
+        var field = get(doc.*, 0, 0);
+        assert(field != null);
+        assert(std.mem.eql(u8, field.?, "ada"));
+        
+        // Empty field (length 0, not null)
+        field = get(doc.*, 1, 1);
+        assert(field != null);
+        assert(field.?.len == 0);
+        
+        // Row out of range
+        field = get(doc.*, 2, 0);
+        assert(field == null);
+        
+        // Column out of range
+        field = get(doc.*, 0, 5);
+        assert(field == null);
+        
+        free_document(allocator, doc.*);
+    }
+
+    test "set_replaces_field_and_returns_true_false_for_invalid" {
+        const allocator = std.heap.page_allocator;
+        const text = "name,age\nada,36\n";
+        const doc = parse(allocator, text, ',');
+        assert(doc != null);
+        
+        // Valid replacement
+        var result = set(&doc.*, 0, 0, "alice");
+        assert(result == true);
+        assert(std.mem.eql(u8, doc.rows[0].fields[0], "alice"));
+        
+        // Out of range
+        result = set(&doc.*, 5, 0, "test");
+        assert(result == false);
+        assert(std.mem.eql(u8, doc.rows[0].fields[0], "alice")); // Unchanged
+        
+        // Value contains delimiter
+        result = set(&doc.*, 0, 0, "test,value");
+        assert(result == false);
+        assert(std.mem.eql(u8, doc.rows[0].fields[0], "alice")); // Unchanged
+        
+        // Value contains quote
+        result = set(&doc.*, 0, 0, "test\"value");
+        assert(result == false);
+        assert(std.mem.eql(u8, doc.rows[0].fields[0], "alice")); // Unchanged
+        
+        free_document(allocator, doc.*);
+    }
+
+    test "serialize_produces_correct_output" {
+        const allocator = std.heap.page_allocator;
+        const text = "name,age\nada,36\nbob,\n";
+        const doc = parse(allocator, text, ',');
+        assert(doc != null);
+        
+        const serialized = serialize(allocator, doc.*);
+        assert(serialized != null);
+        const expected = "name,age\nada,36\nbob,\n";
+        assert(std.mem.eql(u8, serialized.?, expected));
+        
+        allocator.free(serialized.?);
+        free_document(allocator, doc.*);
+    }
+
+    test "serialize_returns_null_when_field_contains_delimiter" {
+        const allocator = std.heap.page_allocator;
+        // Create a document manually with a field containing delimiter
+        var headers: []CsvRow = allocator.alloc(CsvRow, 1);
+        var rows: []CsvRow = allocator.alloc(CsvRow, 1);
+        assert(headers.ptr != null and rows.ptr != null);
+        
+        var bad_fields: [][]const u8 = allocator.alloc([]const u8, 2);
+        assert(bad_fields.ptr != null);
+        bad_fields[0] = "good";
+        bad_fields[1] = "bad,value"; // Contains delimiter
+        
+        headers[0] = .{ .fields = allocator.alloc([]const u8, 2) };
+        headers[0].fields[0] = "header1";
+        headers[0].fields[1] = "header2";
+        
+        rows[0] = .{ .fields = bad_fields };
+        
+        var doc: CsvDocument = .{
+            .headers = headers,
+            .rows = rows,
+            .delimiter = ',',
+        };
+        
+        const serialized = serialize(allocator, doc);
+        assert(serialized == null);
+        
+        // Clean up
+        allocator.free(headers[0].fields);
+        allocator.free(rows[0].fields);
+        allocator.free(headers);
+        allocator.free(rows);
+    }
 
