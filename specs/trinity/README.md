@@ -24,6 +24,8 @@ owns its contract.
 | `conformance/trinity/compiler_matrix.json` | -- | what `tools/trinity_compiler_matrix.py run` measured, stage by stage and backend by backend |
 | `conformance/trinity/inventory.json` | -- | the inventory of the pinned tree, written by `tools/trinity_manifest.py inventory` |
 | `conformance/trinity/report.json` | -- | what `tools/trinity_manifest.py check` derived: counts, cards by disposition, profile, evidence and work package, findings |
+| `../vsa/trinity_compat.t27` | `vsa_trinity_compat` (`KIND = "vsa-compat"`) | the VSA and numeric contract the consumer's facade actually runs: the owner of each of the sixteen re-exported operations, where the canonical `vsa_core.t27` agrees and differs, the selected reference as elementwise functions (S04) |
+| `conformance/vsa_trinity_compat.json` | -- | the golden vectors of the reference and what `tools/trinity_vsa_compat.py run` replayed through the generated C |
 
 ## How the cards are held to the tree
 
@@ -164,6 +166,53 @@ python3 tools/trinity_build_receipt.py graph --trinity-root <clean clone at PINN
 python3 tools/trinity_build_receipt.py receipt --runs 2
 python3 tools/trinity_build_receipt.py check --trinity-root <clone>
 python3 tools/trinity_build_receipt.py --self-check
+```
+
+## The VSA compatibility contract (S04)
+
+`../vsa/trinity_compat.t27` (module `vsa_trinity_compat`, `KIND = "vsa-compat"`) is the
+contract behind `trinity:src/trinity.zig`, which re-exports sixteen VSA operations from the
+package the consumer pins (gHashTag/zig-golden-float `e7ce3288`, `src/vsa/core.zig`, passed
+through gHashTag/zig-hdc `b73b2fa2` name by name). `specs/vsa/vsa_core.t27` describes the same
+names with other semantics, so the spec records, per export, the owner function (file:line),
+the canonical function (name:line), a finding and a verdict: 4 agree on every input
+(`permute`, `inversePermute`, `countNonZero`, `vectorNorm`), 6 agree on equal lengths only
+(`bundle2`, `bundle3`, `cosineSimilarity`, `hammingDistance`, `hammingSimilarity`,
+`dotSimilarity`) and 6 differ in kind (`bind` and `unbind` -- the owner annihilates on a zero
+trit, the canonical spec keeps it as an identity -- `encodeSequence`, `probeSequence`,
+`randomVector`, `bundleN`). The semantics the pinned consumer executes are the reference of
+the Trinity profile and are stated as elementwise functions the C backend runs, because the
+compiler does not lower array parameters (S02): `trit_bind`, `trit_bundle2`, `trit_bundle3`,
+`trit_differs`, `trit_nonzero`, `len_max`, `len_min`, `rotate_right`, `rotate_left`,
+`packed_bytes`, `cosine_defined`, `tri27_bind`. The zero-identity bind of `vsa_core.t27` and
+`ops.t27` and the additive TRI27 register bind of `src/tri27/emu/executor.zig` are classified
+separately, each with its own function. The numeric representation is declared: i8 trits, five
+to a byte, two capacities in one package (12000 packed, 59049 hybrid), SIMD width 32, an i32
+dot accumulator in the owner, f64 similarities, no GoldenFloat format on the facade, no
+allocation and no error in the sixteen operations.
+
+`tools/trinity_vsa_compat.py vectors` writes `conformance/vsa_trinity_compat.json` from a
+Python statement of the owner's semantics (149 vectors over 15 operations: equal lengths, one
+SIMD chunk, a chunk plus a remainder, unequal lengths, all-zero and empty vectors, ties, the
+rotation identities and the inverse law, the TRI27 fix-up; the pseudo-random trits come from the
+tool's own LCG, not from the owner's PRNG). `run` generates the spec to C with `t27c gen-c`,
+composes the elementwise functions into whole-vector operations in a C driver whose length
+rules are the spec's own `len_max`, `len_min` and `rotate_*`, replays every vector and records
+the verdict with the compiler, the C compiler and the spec hash. `check` holds the committed
+record to the spec and the model; `--self-check` proves a wrong expected trit fails exactly its
+vector and that a zero-identity bind planted into the spec fails only bind-shaped vectors.
+
+Measured on 2026-09-12: `All 10 tests passed.` for the spec on C; 149 of 149 vectors pass the
+replay. Not measured: the owner's Zig itself -- the package does not build with the Zig
+available on this host (0.15.2 cannot link against the host SDK, the 0.17 nightly rejects the
+package), so the reference is read from the owner's source and the spec says so
+(`NOT_MEASURED`); a differential run against the owner remains the owner's own test suite.
+
+```
+python3 tools/trinity_vsa_compat.py vectors
+python3 tools/trinity_vsa_compat.py run
+python3 tools/trinity_vsa_compat.py check
+python3 tools/trinity_vsa_compat.py --self-check
 ```
 
 ## Boundaries
