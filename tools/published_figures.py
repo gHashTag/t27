@@ -56,8 +56,10 @@ FIGURES = [
      r"(?<![\w.@])len\s*\(", 296, "#3489 said 142 -- that was a DIAGNOSTIC count"),
     ("three-segment paths a::b::c", "occurrences",
      r"\b[A-Za-z_]\w*::[A-Za-z_]\w*::[A-Za-z_]\w*", 473, "#3473, corrected from 477"),
+    # #3567 (S05) added the forty-seven opcodes of specs/isa/ternary_encoding.t27 and OP_NOP, OP_HALT
+    # of specs/vm/trinity_vm.t27: 11 + 49 = 60.
     ("pub const OP_* declarations", "declarations",
-     r"^\s*pub\s+const\s+OP_\w+", 11, "#3497 said 20 -- that was a SITE count in the C"),
+     r"^\s*pub\s+const\s+OP_\w+", 60, "#3497 said 20 -- that was a SITE count in the C"),
     ("abs( uses", "uses",
      r"(?<![\w.@])abs\s*\(", 389, "#3501"),
     # The pin FOLLOWED the corpus, and the movement is explained rather than
@@ -80,8 +82,11 @@ FIGURES = [
     # specs/, and are not counted here.
     # #3565 (S03) added specs/trinity/build_graph.t27 with four: 12659 + 4 = 12663.
     # #3566 (S04) added specs/vsa/trinity_compat.t27 with ten: 12663 + 10 = 12673.
+    # #3567 (S05) rewrote specs/isa/ternary_encoding.t27 (eleven) and added specs/isa/tri27_machine.t27
+    # (ten), specs/isa/tri27_bytecode.t27 (six), specs/vm/trinity_vm.t27 (five), specs/api/c_abi.t27
+    # (four): 12673 + 36 = 12709.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12673,
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12709,
      "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51"),
 ]
 

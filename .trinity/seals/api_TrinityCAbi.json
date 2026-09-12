@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:1ae9f5ccea68ee4b698fbcfbf4978d39368563e3b2b3bdecd3ed82a32b27bc76",
+  "gen_hash_rust": "sha256:ebd07502bd76230ca9281500b630ade95b1c3a5f54c13160df7263bab43498e9",
+  "gen_hash_verilog": "sha256:b2fa033790a3e4c058c1a5830b06f557e3c5f41774e7d5d547c485519e3530ce",
+  "gen_hash_zig": "sha256:0ba027e8b1a80c4743fc0f6b9b74060fb4954b8f08208e1b35722909f53cf4a0",
+  "module": "TrinityCAbi",
+  "ring": 12,
+  "sealed_at": "2026-09-12T11:40:24Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:45f24257632e6874936c6c861577cfb3e7dfe9980d45a46cc270402ece70beef",
+  "spec_path": "specs/api/c_abi.t27"
+}

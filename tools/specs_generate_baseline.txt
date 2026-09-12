@@ -31,7 +31,6 @@ specs/file/watcher.t27 | Error: Compile error: Expected LBrace, got LParen ('(')
 specs/graph/knowledge_graph.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 101:59
 specs/hslm/forward_pass.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 82:134
 specs/interop/gf_cross_language.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
-specs/isa/ternary_encoding.t27 | Error: Compile error: parse error at module level near line 4: unexpected token after expression statement: Ident
 specs/lsp/language.t27 | Error: Compile error: parse error in fn 'symbol_kind_to_string' near line 311: Expected RBrace, got FatArrow ('=>') at line 311:17
 specs/math/gf_competitive.t27 | Error: Compile error: parse error in fn 'decode_complexity_returns_3_formats' near line 55: unexpected token after expression statement: Bang
 specs/ml/transformer/multi_head_attn.t27 | Error: Compile error: parse error in fn 'compute_phi_scale' near line 175: unknown cast target type `GF16`; expected one of ["bool", "u8", "i8", "u16"

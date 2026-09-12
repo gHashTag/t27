@@ -22,8 +22,8 @@ pub const DISPOSITION : str = "executable";
 pub const PROFILE : str = "headless";
 ; The canonical spec: a path in this repository, trinity:<path> for a spec authored in the
 ; consumer, <repo>:<path> elsewhere, "" while none exists. Never a mirrored copy.
-pub const CANONICAL_SPEC : str = "";
-pub const DIALECT : str = "none";
+pub const CANONICAL_SPEC : str = "specs/api/c_abi.t27";
+pub const DIALECT : str = "t27";
 ; Implementation and generated paths of the pinned tree (trinity: prefix), checked to exist.
 pub const IMPLEMENTATION : [1]str = ["trinity:src/c_api.zig"];
 pub const GENERATED : [0]str = [];
@@ -38,7 +38,7 @@ pub const EVIDENCE : str = "declared";
 pub const EVIDENCE_SOURCE : str = "Not built by zig build -Dci=true (the step is not installed by default) and not exercised by any CI step at the pinned revision; the tree declares it.";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S05";
-pub const NOTE : str = "S05 documents layout and ownership across this boundary; nothing here claims the ABI is verified.";
+pub const NOTE : str = "S05: specs/api/c_abi.t27 states the twenty-two exports with prototypes, ownership and NULL rules and records that src/c_api.zig does not parse at the pin; tools/trinity_c_abi.py holds the table to the header and the source and compiles the fixture conformance/trinity/abi/abi_fixture.c against the header; nothing links, nothing here claims the ABI is verified.";
 pub const ENABLED : bool = true;
 
 test card_is_bound_to_its_package {

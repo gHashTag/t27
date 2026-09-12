@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:f6fe0e08cea96fa74f0c299dfabafe9342e855bc7f75c745e149bf38f9256128",
+  "gen_hash_rust": "sha256:bbc40a727d7776832caf1eb0b26f10736677a9069bf4c14faa0199f94a796458",
+  "gen_hash_verilog": "sha256:cbf81d5c69e6c69d979b0536d68495adeb0b10764eba3da92d799967331967f3",
+  "gen_hash_zig": "sha256:751db5e624f488cf58f18dcd33286aab69021f39d3b5203d297ef416cf80aaa8",
+  "module": "Tri27Encoding",
+  "ring": 12,
+  "sealed_at": "2026-09-12T11:40:24Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:ef5a18962d09cd28074c0a9026d69bba4753b3a13eccf49dc10cef73fb5b4266",
+  "spec_path": "specs/isa/ternary_encoding.t27"
+}
