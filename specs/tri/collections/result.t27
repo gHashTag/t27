@@ -105,3 +105,4 @@ module TriResult;
         assert(unwrap_or(r, "fallback") == "fallback");
         assert(unwrap_or(r, "fallback") != "error");
     }
+
