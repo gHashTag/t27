@@ -34,6 +34,11 @@ owns its contract.
 | `conformance/trinity/tri27_programs.json` | -- | twenty-two golden programs and eighteen loader vectors with final state, status and bounded trace; what `tools/trinity_tri27.py run` replayed through the generated C |
 | `conformance/trinity/c_abi.json` | -- | what `tools/trinity_c_abi.py check` measured: header, source exports, agreement, the fixture's syntax check, `zig ast-check` |
 | `conformance/trinity/abi/abi_fixture.c` | -- | the ABI fixture: ownership, NULL safety, clamping, normalization, the bind/unbind round trip; compiles against the header, not linked at the pin |
+| `../tools/catalog.t27` | `ToolsCatalog` (`KIND = "tools-catalog"`) | the tools catalog at schema 2: repository-qualified IDs, legacy resolution, witnesses, vocabularies, the counts the consumer measures to (S06) |
+| `../tools/trinity/tri/<command>.t27` | `tool_trinity_tri_<command>` (`KIND = "tool"`) | one card per command the Trinity tri exports in `.trinity/registry.json`, 29 at the pin (S06) |
+| `../tools/mcp_protocol.t27` | `McpProtocol` (`KIND = "mcp-protocol"`) | what the Trinity MCP server does with a JSON-RPC message, method by method, at the pin (S06) |
+| `conformance/trinity/tools_inventory.json` | -- | what `tools/trinity_tools_registry.py inventory` measured: registry, table, dispatch layers, the server literal, the help witness of the t27 tri |
+| `conformance/trinity/mcp_fixtures.json` | -- | fourteen offline JSON-RPC fixtures and what `run` replayed through the generated C of the protocol spec |
 
 ## How the cards are held to the tree
 
@@ -274,6 +279,44 @@ python3 tools/trinity_tri27.py check
 python3 tools/trinity_tri27.py --self-check
 python3 tools/trinity_c_abi.py check --trinity-root <clone at PINNED_REVISION> [--zig <zig>]
 python3 tools/trinity_c_abi.py --self-check
+```
+
+## The CLI and MCP commands from one registry (S06)
+
+`../tools/catalog.t27` names the one artifact the consumer's own binary exports and its CI holds
+to the binary -- `.trinity/registry.json`, 29 commands, the `mcp_enabled` subset of a 187-entry
+table -- as the registry the Trinity cards derive from, and states the catalog at schema 2: every
+card under `specs/tools/` carries `REPO`, `QUALIFIED_ID` (`<owner>/<repo>:<family>/<name>`) and
+`SCHEMA = 2`; the 62 legacy cards keep their short `ID` and gain the qualified one; a Trinity card
+(`../tools/trinity/tri/<command>.t27`) has only the qualified ID, so a same-named command of the
+two binaries (`fpga`, `test`) is never selected by the wrong repository, and a legacy ID resolves
+through a 62-pair table and nothing else. Each Trinity card carries the registry's fields, the
+dispatcher's routing (six of the 29 reach no dispatcher at the pin), the exit-code and result
+rules as they are, and the witness `registry-export`. `../tools/mcp_protocol.t27` states what
+`tools/mcp/trinity_mcp/server.zig` does with a JSON-RPC message: stdio only, substring method
+matching, no negotiation, silence for notifications and unknown methods, a 210-tool literal of
+which 32 objects are malformed JSON, exact-prefix-generic call routing with no refusal, failures as
+`isError` results, no cancellation, no timeout, no permission gate at the server.
+
+`tools/trinity_tools_registry.py inventory --trinity-root <clone> --tri target/release/tri`
+measures the clone and the built t27 `tri` (the `help-output` witness of the 52 t27 cards: 52 of
+52 agree) into `conformance/trinity/tools_inventory.json`; `check` holds the 29 cards to the
+registry field by field (an unexplained addition or removal fails), every card to schema 2, and the
+two contracts' counts to the measurement; `fixtures` and `run` write and replay fourteen offline
+JSON-RPC fixtures through the generated C of the protocol spec (14 of 14); `--self-check` plants
+the defects each must catch.
+
+Not measured: any Trinity command or MCP tool running -- no host here builds the binary, and no
+workflow runs one without `|| true` or a server at all. The site generator in gHashTag/trinity
+reads only `tri/` and `mcp/` and refuses unknown constants; schema 2 needs its companion change
+before the vendored copy is refreshed.
+
+```
+python3 tools/trinity_tools_registry.py inventory --trinity-root <clone at PINNED_REVISION> --tri target/release/tri
+python3 tools/trinity_tools_registry.py check
+python3 tools/trinity_tools_registry.py fixtures
+python3 tools/trinity_tools_registry.py run
+python3 tools/trinity_tools_registry.py --self-check [--trinity-root <clone>]
 ```
 
 ## Boundaries

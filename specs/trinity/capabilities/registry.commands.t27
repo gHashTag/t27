@@ -22,8 +22,8 @@ pub const DISPOSITION : str = "executable";
 pub const PROFILE : str = "headless";
 ; The canonical spec: a path in this repository, trinity:<path> for a spec authored in the
 ; consumer, <repo>:<path> elsewhere, "" while none exists. Never a mirrored copy.
-pub const CANONICAL_SPEC : str = "";
-pub const DIALECT : str = "none";
+pub const CANONICAL_SPEC : str = "specs/tools/catalog.t27";
+pub const DIALECT : str = "t27";
 ; Implementation and generated paths of the pinned tree (trinity: prefix), checked to exist.
 pub const IMPLEMENTATION : [1]str = ["trinity:src/registry"];
 pub const GENERATED : [1]str = ["trinity:.trinity/registry.json"];
@@ -38,7 +38,7 @@ pub const EVIDENCE : str = "measured";
 pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- the Registry schema check step regenerated .trinity/registry.json with zig build export-registry and found no drift.";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S06";
-pub const NOTE : str = "29 commands at the pinned revision; S06 derives the Trinity CLI and MCP catalog from this registry rather than from a second list.";
+pub const NOTE : str = "29 commands at the pinned revision; S06 derives the Trinity CLI and MCP catalog from this registry rather than from a second list. S06: specs/tools/catalog.t27 names this export as the one registry the Trinity cards derive from and records that it keeps the 29 mcp_enabled commands of a 187-entry table.";
 pub const ENABLED : bool = true;
 
 test card_is_bound_to_its_package {
