@@ -18,6 +18,9 @@ owns its contract.
 | `project.t27` | `trinity_project` (`KIND = "project"`) | the consumer repository and the pinned revision, the profiles, the disposition and evidence vocabularies, the dialect and build counts the inventory measured, the dependency pins and the twelve work packages |
 | `capabilities/<id>.t27` | `trinity_capability_<id>` (`KIND = "capability"`) | one capability; `ID = trinity/<id>` |
 | `compiler_matrix.t27` | `trinity_compiler_matrix` (`KIND = "compiler-matrix"`) | the executable t27 subset of the headless profile: compilers, backends, stages, features with fixtures, negatives (S02) |
+| `build_graph.t27` | `trinity_build_graph` (`KIND = "build-graph"`) | the consumer's toolchain and CI commands, pins and their use, profiles, untracked outputs, generated tracked files with generators and inputs, the receipt policy (S03) |
+| `conformance/trinity/build_graph.json` | -- | the derived graph: modules, import edges, packages, profiles, generated files hashed at the pin |
+| `conformance/trinity/bootstrap_receipt.json` | -- | the bootstrap/fixture-profile receipt: compiler identity, fixtures and every generated output hashed over two runs |
 | `conformance/trinity/compiler_matrix.json` | -- | what `tools/trinity_compiler_matrix.py run` measured, stage by stage and backend by backend |
 | `conformance/trinity/inventory.json` | -- | the inventory of the pinned tree, written by `tools/trinity_manifest.py inventory` |
 | `conformance/trinity/report.json` | -- | what `tools/trinity_manifest.py check` derived: counts, cards by disposition, profile, evidence and work package, findings |
@@ -124,6 +127,43 @@ runtime, the bodyless function and the dropped module by the parser.
 python3 tools/trinity_compiler_matrix.py run --zig <zig> --wasm <trinity>/apps/website/public/t27/t27_compiler.wasm
 python3 tools/trinity_compiler_matrix.py check
 python3 tools/trinity_compiler_matrix.py --self-check
+```
+
+## The build graph and the receipts (S03)
+
+`build_graph.t27` (module `trinity_build_graph`, `KIND = "build-graph"`) declares what the
+consumer's build is made of: the Zig the consumer requires and the one its CI measures with,
+the CI build and test commands (and that the test exit code does not reach the job,
+gHashTag/trinity#616), the `build.zig` options, the four `build.zig.zon` pins with how
+`build.zig` actually uses each, the submodule, the seven profiles with what is measured for
+each, the untracked build outputs, the fourteen tracked files a generator writes (with the
+generator and the inputs it reads), the seven directories that are generator output
+locations, and the receipt policy of the bootstrap/fixture profile (two independent runs,
+no normalization). `tools/trinity_build_receipt.py graph --trinity-root` derives the graph
+from the pinned tree into `conformance/trinity/build_graph.json` -- every named module with
+its root, every import edge resolved to a module, a package module or an inline module -- and
+hashes each generated file and its inputs at the pinned revision (blob hashes for files,
+tree hashes for directories). `receipt` writes `conformance/trinity/bootstrap_receipt.json`:
+the compiler-source revision, the `t27c` hash, the host, and the hash of what each backend
+generated from each matrix fixture in two runs. `check` recomputes what can be recomputed
+offline (the compiler sources, `Cargo.lock`, the fixtures and a fresh generation must match
+the receipt) and, with `--trinity-root`, judges drift in the consumer: a generated file that
+changed while its inputs did not is a suspected hand edit, inputs that changed while the file
+did not make it stale, and JSON in a generated location that no entry registers is
+unregistered. `--self-check` plants each of those.
+
+Measured on 2026-09-12 at gHashTag/trinity@976df517: 44 named modules, 252 import edges (84 to
+named modules, 152 to the package modules `zig-hdc-vsa` of zig_hdc and `golden-float` of
+zig_golden_float, 16 to inline modules, 0 unresolved); `emsdk` is pinned but not referenced by
+`build.zig` directly; the receipt of the bootstrap/fixture profile is deterministic: 2 runs
+over 18 fixtures x 4 backends, 72 outputs, 0 differing (gHashTag/t27#3006's wobble does not
+reach this profile); the consumer's 14 generated tracked files show no drift at the pin.
+
+```
+python3 tools/trinity_build_receipt.py graph --trinity-root <clean clone at PINNED_REVISION>
+python3 tools/trinity_build_receipt.py receipt --runs 2
+python3 tools/trinity_build_receipt.py check --trinity-root <clone>
+python3 tools/trinity_build_receipt.py --self-check
 ```
 
 ## Boundaries

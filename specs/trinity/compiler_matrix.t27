@@ -16,7 +16,7 @@ pub const KIND : str = "compiler-matrix";
 pub const ID : str = "trinity/compiler_matrix";
 pub const NAME : str = "Trinity compiler matrix: the executable t27 subset of the headless profile";
 ; The native compiler: built with NATIVE_BUILD from this repository; NATIVE_REVISION is the last
-; commit that changed the compiler sources (bootstrap/, Cargo.toml, Cargo.lock), so a spec-only
+; commit that changed the compiler sources (bootstrap/src, Cargo.toml, Cargo.lock), so a spec-only
 ; commit on top of it does not change the compiler the record names.
 pub const NATIVE_COMPILER : str = "t27c 0.2.0";
 pub const NATIVE_REVISION : str = "bff21b85b206a0dd367876343e56dcd8312d81ba";

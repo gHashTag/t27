@@ -472,7 +472,7 @@ def do_run(args) -> int:
     # The revision that matters is the one the compiler sources were last changed at, so a
     # spec-only commit on top does not invalidate the record; HEAD is recorded beside it.
     head = run(["git", "-C", str(ROOT), "rev-parse", "HEAD"])[1].strip()
-    revision = run(["git", "-C", str(ROOT), "log", "-1", "--format=%H", "HEAD", "--", "bootstrap", "Cargo.toml", "Cargo.lock"])[1].strip() or head
+    revision = run(["git", "-C", str(ROOT), "log", "-1", "--format=%H", "HEAD", "--", "bootstrap/src", "Cargo.toml", "Cargo.lock"])[1].strip() or head
     with tempfile.TemporaryDirectory() as tmp:
         matrix, findings = build_matrix(spec, t27c, tools, wasm, fixtures_dir, pathlib.Path(tmp))
     for f in matrix["features"] + matrix["negatives"]:
@@ -482,7 +482,7 @@ def do_run(args) -> int:
     report = {
         "version": 1, "generated_by": "tools/trinity_compiler_matrix.py run", "at": datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "spec": {"path": SPEC, "sha256": sha256(spec_path.read_bytes())},
-        "native": {"compiler": tool_version([str(t27c), "--version"]), "revision": revision, "revision_meaning": "last commit that changed bootstrap/, Cargo.toml or Cargo.lock", "head": head, "declared_revision": spec["NATIVE_REVISION"], "t27c_sha256": sha256(t27c.read_bytes()), "build": "cargo build --release -p t27c"},
+        "native": {"compiler": tool_version([str(t27c), "--version"]), "revision": revision, "revision_meaning": "last commit that changed bootstrap/src, Cargo.toml or Cargo.lock", "head": head, "declared_revision": spec["NATIVE_REVISION"], "t27c_sha256": sha256(t27c.read_bytes()), "build": "cargo build --release -p t27c"},
         # The WASM is named by its declared vendored path and its hash, never by where it sat on this host.
         "wasm": {"path": spec.get("WASM_VENDORED_PATH") if wasm else None, "sha256": sha256(wasm.read_bytes()) if wasm and wasm.exists() else None, "declared_sha256": spec.get("WASM_VENDORED_SHA256"), "declared_revision": spec["WASM_VENDORED_REVISION"], "measured": bool(wasm and wasm.exists() and tools.get("node_path"))},
         "host": {k: v for k, v in tools.items() if k not in ("zig_path", "node_path")},

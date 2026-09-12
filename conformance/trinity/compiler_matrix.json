@@ -1,16 +1,16 @@
 {
  "version": 1,
  "generated_by": "tools/trinity_compiler_matrix.py run",
- "at": "2026-09-12T10:08:25Z",
+ "at": "2026-09-12T10:21:36Z",
  "spec": {
   "path": "specs/trinity/compiler_matrix.t27",
-  "sha256": "05823d086b8853b3cb587bbb2d51f20118186a45b9b129fbcbc02ed7b2355614"
+  "sha256": "eabb5fbd560deceb47ad6ae9f8bc4f70a2b91e2504e8026ba09387963560b9f2"
  },
  "native": {
   "compiler": "t27c 0.2.0",
   "revision": "bff21b85b206a0dd367876343e56dcd8312d81ba",
-  "revision_meaning": "last commit that changed bootstrap/, Cargo.toml or Cargo.lock",
-  "head": "88878f4118b47d89be28ca6065e8701894697687",
+  "revision_meaning": "last commit that changed bootstrap/src, Cargo.toml or Cargo.lock",
+  "head": "684d3af85e8693ea627a1ea7dabec143ed87d682",
   "declared_revision": "bff21b85b206a0dd367876343e56dcd8312d81ba",
   "t27c_sha256": "4510786f6342b9ca6268eaa68dad1048923d0079f3df15946fcbdda65b13e5dd",
   "build": "cargo build --release -p t27c"

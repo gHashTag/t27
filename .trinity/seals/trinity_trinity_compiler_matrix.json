@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:c8de2ac5b6f475f3efb27f8ea092735bebee48973378d30432149f05244a2a79",
   "module": "trinity_compiler_matrix",
   "ring": 12,
-  "sealed_at": "2026-09-12T10:08:40Z",
+  "sealed_at": "2026-09-12T10:21:36Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:05823d086b8853b3cb587bbb2d51f20118186a45b9b129fbcbc02ed7b2355614",
+  "spec_hash": "sha256:eabb5fbd560deceb47ad6ae9f8bc4f70a2b91e2504e8026ba09387963560b9f2",
   "spec_path": "specs/trinity/compiler_matrix.t27"
 }
