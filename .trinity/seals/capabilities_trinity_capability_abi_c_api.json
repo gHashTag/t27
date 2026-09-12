@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:c290e38d8695b385e94cc965ea7b49c013d0dfe8a14ebb5a1b0667d511846ae4",
+  "gen_hash_rust": "sha256:044626bb91a05ae9de5069cfa4838bb864e1c97f7d4b97ecaa05ef2758007895",
+  "gen_hash_verilog": "sha256:89a1ca9c6aca1dd15cdbf09f1002b2651b69fe881f8d04eb6a9a6994c90dbee6",
+  "gen_hash_zig": "sha256:312354ee404912996d36a2b35235c9d4b344caf4b7c2fc0604c5c07ff5abc4fe",
+  "module": "trinity_capability_abi_c_api",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:36Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:5f2d8321fa5563b11fb1bf7005ba9dec7a9462547d3cec7a7d6fca08ccda672b",
+  "spec_path": "specs/trinity/capabilities/abi.c-api.t27"
+}

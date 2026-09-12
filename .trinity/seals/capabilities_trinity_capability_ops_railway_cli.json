@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:af06343eb3c8e5b3e2f02b18afff63c951f1e85d7f0cb7b26b2fb12de1d745aa",
+  "gen_hash_rust": "sha256:548a29dc7cf731929e977c4cea85c0cb2117208f9e20008c6fb0ac6753949420",
+  "gen_hash_verilog": "sha256:5bc9f5d6f795422b7300863df4d82939c0e04ff49b9d25bb221ace0972440937",
+  "gen_hash_zig": "sha256:fda4a30b04c9d7cbd4ee65ffaf28a82e495d55377db581a5d0cfeb43954cec1f",
+  "module": "trinity_capability_ops_railway_cli",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:f046ff4cde6b29a60b3821753eec2dbf66f01bc183ae9906af3ea97c089e6f8b",
+  "spec_path": "specs/trinity/capabilities/ops.railway-cli.t27"
+}

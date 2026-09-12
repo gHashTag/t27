@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:9e0d19fd713cf55f477414796da6e128085fa944429147470e41a9545966fca4",
+  "gen_hash_rust": "sha256:afda0a712a7985918b30cf7b7325802cd92cb41c1e119ac0c4e9c2c188374d98",
+  "gen_hash_verilog": "sha256:ad7a1d92643360f86ba5e02a95e7d97a8b83ba0bf0375c9b07f7db6fdd4fd58c",
+  "gen_hash_zig": "sha256:97a1b855a8f98937840a60cbf3eee2d116526b8f9c297010960cee35de06c7c3",
+  "module": "trinity_capability_pkg_vendored_cache",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:cf9e908b16b5a03e57bf788258e8b607f47d0342fa51d2f31ba7fed62efd6efc",
+  "spec_path": "specs/trinity/capabilities/pkg.vendored-cache.t27"
+}

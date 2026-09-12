@@ -88,6 +88,13 @@ def t27c():
 # excluding them from a generate census is right.
 CONTROL_FIXTURES = (
     "bootstrap/tests/fixtures/terminator/",
+    # The Trinity compiler matrix (specs/trinity/compiler_matrix.t27, gHashTag/t27#3564):
+    # one fixture per feature and five negatives, each carrying its own verdict in
+    # conformance/trinity/compiler_matrix.json -- the negatives exist to be rejected
+    # at a named stage, and two of the positives are blocked on purpose (the enum
+    # switch the C backend cannot compile, the bodyless function the parser refuses).
+    # A generate census cannot read those verdicts, so it does not count them.
+    "bootstrap/tests/fixtures/trinity_matrix/",
 )
 
 # These exist to be REJECTED. The comment that used to sit over all three said

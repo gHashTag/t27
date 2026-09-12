@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:44b7a6e8bdb1552f6b89c40c22234b8d5950fbdfa93913e040bcae9b89723991",
+  "gen_hash_rust": "sha256:9d01368c5f9f3c389c2c0e4daeb04267716856a8172e81273def8b767171c946",
+  "gen_hash_verilog": "sha256:051ec21e7fa6d14369deeea1b4b08df219b6c88fbc2176564a4846ea70062ae7",
+  "gen_hash_zig": "sha256:c1f5cabec4daae37d526bd0669be2a90368276bd8aa66e4e5337c3b34a94b5bb",
+  "module": "trinity_capability_llm_firebird",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:37Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:9c72e0708c09aa65265bc7a089d77f35949d4304f42c67826f5ae269ac268264",
+  "spec_path": "specs/trinity/capabilities/llm.firebird.t27"
+}

@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:66e58d5c06cae657a2086c2c72436e4e3e93c9b3b0d24f37fbd047286c02d7a3",
+  "gen_hash_rust": "sha256:81bb2a5f559d6daf05e3e4df2427fc40f9e7aa0dd33e22f7d7d311557e51db7a",
+  "gen_hash_verilog": "sha256:90a8619e2dbb1b53a48cdba46deb8595bf1d96bb4a571680b1f24fd7cc2ce05b",
+  "gen_hash_zig": "sha256:be1049b0e306bea72065f8ea05e7bbbd757e1565996addb845bdf244a4b820e0",
+  "module": "trinity_capability_queen_lib",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:d9f354f8b828fc2f29503d7e928ea5771635ddec31997a8b9196a1cae79c1eca",
+  "spec_path": "specs/trinity/capabilities/queen.lib.t27"
+}

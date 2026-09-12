@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:32046802ab226a497fbe61164f6f16b7f9027079d8b908220501fd6f9a6f4a88",
+  "gen_hash_rust": "sha256:09b6002f3af8d18ce0ef0db20c7b7370935582a65c5b979431efb8f535801249",
+  "gen_hash_verilog": "sha256:dc201d51a4b0d49dace27c93c82d72ce5d36472a9b1815b69812730d23b9517e",
+  "gen_hash_zig": "sha256:e1da33c1f3849d39203d4605348ab2d6f7d20a11fc05e687a4690b30066d1690",
+  "module": "trinity_capability_specs_vibee_corpus",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:e80558ed3a7a773aa1171a8233e13517664f4241081525b100898bc468946920",
+  "spec_path": "specs/trinity/capabilities/specs.vibee-corpus.t27"
+}

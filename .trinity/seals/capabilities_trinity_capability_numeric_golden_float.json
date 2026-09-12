@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:d7df9118427395ef0cf76c1cfa09c419b6fc302835df29bd9e5ebe2efadd95a7",
+  "gen_hash_rust": "sha256:476d6397c753569127c528064b93636e1738230e0ebe36be0f486932ec526a67",
+  "gen_hash_verilog": "sha256:f2b5bd085d076dde3fb339e14d70b0df757a1277643b53a9c20fe5c0c7812aad",
+  "gen_hash_zig": "sha256:181a5624f8c6bb7d3c032b92dd1109110c2cf6a7fb9f4585f84646de066ef83c",
+  "module": "trinity_capability_numeric_golden_float",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:45af6aee6801336077dc92898917fdea1ea9ef5c6e9283fd2868d9e3714cf91c",
+  "spec_path": "specs/trinity/capabilities/numeric.golden-float.t27"
+}
