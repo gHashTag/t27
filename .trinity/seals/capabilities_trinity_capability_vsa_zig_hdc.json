@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:88bbea37cfd02c2151459b5a100d318646f0b78373b61ef1ed2445ce56361efd",
+  "gen_hash_rust": "sha256:ab52019eb8506f4cbb793336dfc025e915769219ffd195b4c811b4767d9d98a1",
+  "gen_hash_verilog": "sha256:16dcd83a4e56ea8075df2d540c191eddfe54d75d39145e792e41bc71553b3cb7",
+  "gen_hash_zig": "sha256:fde42c850bee7ac0677d76a8c97124222c08b6d75d6a664e716e5d572c38b5c0",
+  "module": "trinity_capability_vsa_zig_hdc",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:66bee6b87377d1747f36fcb46949ee39e39de1515779dbd1ead183c06efb0dfc",
+  "spec_path": "specs/trinity/capabilities/vsa.zig-hdc.t27"
+}

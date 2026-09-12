@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:d543f0420c5021efb3982249629061c476eb03eb70aea31c8ce54df144fbc611",
+  "gen_hash_rust": "sha256:891724f5d6785a3423957ef3689a0ba66ecf6369e8ea7b6cc77afb1b688d51b4",
+  "gen_hash_verilog": "sha256:582ee9f599168b2576a95fe2b94d76d64d763ff3430d41c2cea82f7012c27d60",
+  "gen_hash_zig": "sha256:7f45dc3193f91c46e5351d91026e4001ccbf83f1db52a160c02c632ca2a5d5f4",
+  "module": "trinity_capability_mcp_needle_mcp",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:37Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:f6faf793a7547b31fda5fa9a40da0698c7b8f1100425bb474dd73b6d69ec127b",
+  "spec_path": "specs/trinity/capabilities/mcp.needle-mcp.t27"
+}

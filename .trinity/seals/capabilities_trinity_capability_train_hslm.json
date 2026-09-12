@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:c3b791e8c536b66e35c3522e63e93b5d645d7bdf23484ac4e124e0809c16d8ae",
+  "gen_hash_rust": "sha256:a3fb7363e89798899d9ac336c1258252aeedcfebb2895a8a64dec3c24a2e7b7f",
+  "gen_hash_verilog": "sha256:91b4a030c25bf264ed3f042c31c03716e1be9c5e97cd03391ee6478262bfb4c8",
+  "gen_hash_zig": "sha256:16d5f562ccfea0da27ac38448ddc8a915e2b01cd3c7e7285596c8429f35cb323",
+  "module": "trinity_capability_train_hslm",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:a17c670a518c715c6597a88710a861b14addef86901199bdeaed17b9669318a0",
+  "spec_path": "specs/trinity/capabilities/train.hslm.t27"
+}

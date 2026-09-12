@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:3f6089490a8745fb85970f34c1bbcf5124464741eb2587a9fd3a06c6a2794008",
+  "gen_hash_rust": "sha256:c5b03e5342ace2ad0cf5fd630149ad1d9ae809a74c219993c8dcdc0a09e27859",
+  "gen_hash_verilog": "sha256:76fff708e22b8fe5cba71e0b7a773fb60986fb0583c1b2df30a7a494183d5e49",
+  "gen_hash_zig": "sha256:760de1fdd90382a9fffd384e5cd83d66d28acc399afd2c53166747a9b0633611",
+  "module": "trinity_capability_bench_suite",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:37Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:c3d50f765c9a9c0003446e9d2fa3df72d86d3c75c599c10498df31dfed1768f6",
+  "spec_path": "specs/trinity/capabilities/bench.suite.t27"
+}
