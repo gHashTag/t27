@@ -15,7 +15,7 @@ module system::unified_agent_operations {
 
     pub const KIND : str = "system";
     pub const ID : str = "unified-agent-operations";
-    pub const VERSION : u8 = 1;
+    pub const VERSION : u8 = 2;
     pub const OWNER : str = "gHashTag";
     pub const AUTHORED : str = "2026-09-13";
 
@@ -131,17 +131,20 @@ module system::unified_agent_operations {
     pub const STT_HALLUCINATION_FILTER : bool = true;
     // The marker text itself is a localized string of the edge repository (media-library.md).
     pub const UNREAD_MARKER_SOURCE : str = "999-multibots-telegraf/docs/crm/media-library.md";
-    // Vision: llama.cpp server with Qwen3-VL-2B on CPU. Measured 2026-09-13 on Railway:
-    // prompt processing 17-30 tok/s, generation about 1.5-3 tok/s; a four-frame clip at
-    // 448 px width-only scaling produced 1514 prompt tokens and did not finish in 300 s.
+    // Vision: llama.cpp server with Qwen3-VL-2B on CPU. Measured 2026-09-13 on Railway with
+    // default threads (one per host core, 27 vCPU of load on a 24 vCPU limit): prompt 6-30 tok/s,
+    // generation 0.5-3 tok/s, three clips missed 300 s. With THREADS = 8 and Q4_K_M the same
+    // clip took 4.0 s: 525 prompt tokens at 216 tok/s, 105 answer tokens at 66 tok/s. The thread
+    // cap, not the quant, was the larger win; a CPU inference card must declare its thread count.
     pub const VISION_SERVICE : str = "vision";
-    pub const VISION_MODEL : str = "ggml-org/Qwen3-VL-2B-Instruct-GGUF:Q8_0";
+    pub const VISION_MODEL : str = "unsloth/Qwen3-VL-2B-Instruct-GGUF:Q4_K_M";
+    pub const VISION_THREADS : u8 = 8;
     pub const VISION_FRAMES : u8 = 4;
     pub const VISION_FRAME_LONGEST_SIDE : u16 = 448;
     pub const VISION_VIDEO_MAX_TOKENS : u16 = 200;
-    pub const VISION_TIMEOUT_S : u16 = 300;
+    pub const VISION_TIMEOUT_S : u16 = 600;
     // Fallbacks, in order, when a clip still misses the timeout (owner decision, not automatic):
-    pub const VISION_FALLBACKS : [3]str = ["frames=2", "quant=Q4_K_M", "timeout=600"];
+    pub const VISION_FALLBACKS : [2]str = ["frames=2", "quant=Q3_K_M"];
     // Inference images are pinned; a daily-moving build broke prompt speed upstream (b10780).
     pub const INFERENCE_IMAGES_PINNED : bool = true;
 
