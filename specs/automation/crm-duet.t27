@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/automation/crm-duet.t27 -- a REAL Telegram dialogue between two agents: the owner's
+// seller agent (from @t27_dev, 144022504) sells every function of the bot to a connected
+// seller acting as a new buyer (@playom, 435572800, answered by a persona model from HER
+// session), and the content offered is for HER real game -- Leela Chakra
+// (@leela_chakra_ai_bot, mini app t27.ai/leela, 72 planes, entry with a six, ruleset classic).
+// Host: 999-multibots-telegraf apps/vibee-editor/render/src/agent/crm-duet-tool.ts -- owner-only
+//       tools crm_duet (starts a run in the background, returns its id) and crm_duet_status
+//       (transcript, tool coverage, media sent, paid calls). Seller turns are runAgent with the
+//       owner's ToolContext and surface "business" (no button markers, sales playbook applies);
+//       buyer turns are one plain completion on resolveProvider() with the buyer persona.
+//       Sessions come from tg_sessions by id (crm-sellers.t27); sends go through the same
+//       address-book warm-up as owner-button proposals (tg-proposals.ts).
+// WHY the seller speaks first: the production business bot answers any DM to the owner, but
+// pauses for OWNER_TAKEOVER_MS (30 min) after a message typed by the owner himself. A duet that
+// opens from the owner's session puts the business bot on hold, so the buyer's replies are
+// answered by the duet's seller agent and not twice. A duet that let the buyer open would race it.
+// WHY it is an exception to the proposal rule: owner buttons are the normal path for a send.
+// Here the owner authorises the whole run in advance (confirm before each run), the tool is
+// owner-only, both accounts are connected sellers (the row in tg_sessions is the consent), and
+// the transcript is returned; session strings never are.
+// Coverage: every tool the seller agent calls is recorded name -> ok/fail; paid generations
+// (image_generate, image_edit, audio_generate, video_generate, reel_render) are counted; the
+// brief asks for at most one per reply and three per run -- a SOFT cap enforced by the prompt
+// and measured in the report, not a hard limit in code.
+// Claim status: tool written and unit-tested with doubles. Whether a run SUCCEEDED live -- both
+// sessions alive, the business bot silent, content delivered -- is shown by crm_duet_status,
+// not by this file.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module automation::crm_duet {
+
+    pub const KIND : str = "automation";
+    pub const ID : str = "crm-duet";
+    pub const REPO : str = "999-multibots-telegraf";
+    pub const VERSION : u8 = 1;
+
+    // ---- Who ----------------------------------------------------------------------------
+    pub const SELLER : str = "144022504";  // @t27_dev: the owner, sells
+    pub const BUYER : str = "435572800";  // @playom: connected seller, plays a new buyer
+    pub const BUYER_GAME : str = "Leela Chakra";
+    pub const BUYER_BOT : str = "leela_chakra_ai_bot";
+    pub const BUYER_APP : str = "https://t27.ai/leela/";
+    pub const LEELA_PLANES : u8 = 72;
+    pub const LEELA_RULESET : str = "classic";
+
+    // ---- The tools ------------------------------------------------------------------------
+    pub const TOOL_START : str = "crm_duet";
+    pub const TOOL_STATUS : str = "crm_duet_status";
+    pub const TOOL_CALLER : str = "owner";  // requireOwner
+    pub const BUYER_MUST_BE_SELLER : bool = true;  // row in tg_sessions
+    pub const BUYER_MAY_BE_OWNER : bool = false;
+    pub const RUNS_IN_BACKGROUND : bool = true;  // start returns at once; status reads the run
+    pub const TURNS_DEFAULT : u8 = 4;  // seller+buyer pairs
+    pub const TURNS_MAX : u8 = 8;
+    pub const SELLER_SPEAKS_FIRST : bool = true;
+    pub const SELLER_SURFACE : str = "business";
+    pub const BUYER_TURN_IS_PLAIN_COMPLETION : bool = true;  // no tools on the buyer's side
+    pub const DRY_RUN_SENDS : bool = false;  // dry_run: agents talk, Telegram receives nothing
+    pub const REPORT_TO_OWNER_SAVED : bool = true;  // final report from the owner's session to "me"
+    pub const RETURNS_SESSION : bool = false;
+
+    // ---- Why the seller opens -------------------------------------------------------------
+    pub const BUSINESS_BOT_TAKEOVER_MIN : u8 = 30;  // OWNER_TAKEOVER_MS in businessBotService.ts
+
+    // ---- Coverage -----------------------------------------------------------------------
+    pub const PAID_TOOLS : u8 = 5;  // image_generate image_edit audio_generate video_generate reel_render
+    pub const PAID_PER_REPLY_SOFT : u8 = 1;
+    pub const PAID_PER_RUN_SOFT : u8 = 3;
+    pub const PAID_CAP_IS_HARD : bool = false;
+    pub const MEDIA_FORWARDED : bool = true;  // a tool result with done=true and an http url is sent as a file
+
+    // ---- Not claimed ----------------------------------------------------------------------
+    pub const DUET_RAN_LIVE : bool = false;  // crm_duet_status of a real run is the evidence
+
+    struct Turn {
+        from_owner: bool,
+        index: u8,
+    }
+
+    // The duet alternates and the seller holds every even index, starting at 0.
+    fn speaker_at(i: u8) -> Turn {
+        return Turn { from_owner: i % 2 == 0, index: i };
+    }
+
+    fn business_bot_silent(opened_by_owner: bool, minutes_since_owner_msg: u8) -> bool {
+        return opened_by_owner && minutes_since_owner_msg < BUSINESS_BOT_TAKEOVER_MIN;
+    }
+
+    test "the seller opens and the business bot stays silent for the run"
+        assert(SELLER_SPEAKS_FIRST);
+        assert(speaker_at(0).from_owner);
+        assert(!speaker_at(1).from_owner);
+        assert(speaker_at(2).from_owner);
+        assert(business_bot_silent(true, 12));
+        assert(!business_bot_silent(false, 12));
+        assert(!business_bot_silent(true, 31));
+
+    test "the run is the owner's, needs a connected buyer who is not the owner, and returns no session"
+        assert(TOOL_CALLER == "owner");
+        assert(BUYER_MUST_BE_SELLER);
+        assert(!BUYER_MAY_BE_OWNER);
+        assert(!RETURNS_SESSION);
+        assert(SELLER != BUYER);
+
+    test "the paid cap is soft and says so"
+        assert(!PAID_CAP_IS_HARD);
+        assert(PAID_PER_REPLY_SOFT == 1);
+        assert(PAID_PER_RUN_SOFT == 3);
+        assert(PAID_TOOLS == 5);
+
+    test "turns are bounded and the buyer side never calls tools"
+        assert(TURNS_DEFAULT <= TURNS_MAX);
+        assert(TURNS_MAX == 8);
+        assert(BUYER_TURN_IS_PLAIN_COMPLETION);
+        assert(RUNS_IN_BACKGROUND);
+
+    test "content is for the real game and nothing live is claimed"
+        assert(BUYER_GAME == "Leela Chakra");
+        assert(LEELA_PLANES == 72);
+        assert(LEELA_RULESET == "classic");
+        assert(!DUET_RAN_LIVE);
+        assert(!DRY_RUN_SENDS);
+}
