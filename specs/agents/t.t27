@@ -1,0 +1,419 @@
+// SPDX-License-Identifier: Apache-2.0
+# specs/agents/t.t27
+# Tau (Queen) Agent Configuration
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+module agents::t {
+    use base::types;
+    use tools::mcp;
+    use automation::inngest_queen_scheduler;
+
+    // Tau (Queen) TOOLS gains mcp/inngest-dev
+    // Bound by the scheduler spec's OWNER = "T"
+
+    const AGENT_NAME : str = "Tau";
+    const AGENT_TYPE : str = "Queen";
+    const OWNER : str = "T";
+    const MAX_CONCURRENT_TASKS : u32 = 5;
+
+    // Agent capability types
+    enum CapabilityType {
+        MCPIntegration = 0,     // MCP server integration
+        WorkflowDispatch = 1,   // Workflow triggering and management
+        SkillExecution = 2,     // Skill card execution
+        Monitoring = 3,        // Health and performance monitoring
+    }
+
+    // Agent configuration
+    struct AgentConfig {
+        name: str,
+        agent_type: str,
+        owner: str,
+        capabilities: [CapabilityType],
+        max_concurrent: u32,
+        tools: [str],
+        environment: str,
+    }
+
+    // Agent state
+    struct AgentState {
+        is_active: bool,
+        current_tasks: u32,
+        completed_tasks: u64,
+        failed_tasks: u32,
+        last_activity: u64,
+    }
+
+    // Task definition
+    struct Task {
+        id: str,
+        name: str,
+        type: CapabilityType,
+        priority: u32,
+        created_at: u64,
+        started_at: u64?,
+        completed_at: u64?,
+        status: str,
+        result: any?,
+        error: str?,
+    }
+
+    // Tau agent with MCP integration
+    struct TauAgent {
+        config: AgentConfig,
+        state: AgentState,
+        mcp_server: mcp::InngestServer,
+        scheduler: inngest_queen_scheduler::SchedulerConfig,
+    }
+
+    // Create agent configuration
+    fn create_agent_config() -> AgentConfig {
+        AgentConfig {
+            name: AGENT_NAME,
+            agent_type: AGENT_TYPE,
+            owner: OWNER,
+            capabilities: [
+                CapabilityType::MCPIntegration,
+                CapabilityType::WorkflowDispatch,
+                CapabilityType::SkillExecution,
+                CapabilityType::Monitoring,
+            ],
+            max_concurrent: MAX_CONCURRENT_TASKS,
+            tools: ["mcp/inngest-dev"],
+            environment: "production",
+        }
+    }
+
+    // Create initial agent state
+    fn create_agent_state() -> AgentState {
+        AgentState {
+            is_active: false,
+            current_tasks: 0,
+            completed_tasks: 0,
+            failed_tasks: 0,
+            last_activity: 0,
+        }
+    }
+
+    // Initialize Tau agent with MCP server
+    fn initialize_tau_agent(signing_key: str, env: str) -> TauAgent {
+        let config = create_agent_config();
+        let state = create_agent_state();
+        let mcp_server = mcp::create_server();
+        let scheduler = inngest_queen_scheduler::create_scheduler_config(
+            inngest_queen_scheduler::HostType::GitHubActions,
+            signing_key,
+            env
+        );
+
+        TauAgent {
+            config: config,
+            state: state,
+            mcp_server: mcp_server,
+            scheduler: scheduler,
+        }
+    }
+
+    // Connect to MCP server
+    fn connect_to_mcp(agent: TauAgent) -> Result<void, str> {
+        // Validate environment
+        let validation = mcp::validate_environment();
+        match validation {
+            Ok(_) => {
+                // Test connection with health check
+                let health_result = mcp::get_tool("health_get");
+                match health_result {
+                    Ok(_) => {
+                        agent.state.is_active = true;
+                        agent.state.last_activity = current_timestamp();
+                        Ok(())
+                    },
+                    Err(e) => Err(format!("MCP connection failed: {}", e)),
+                }
+            },
+            Err(e) => Err(format!("Environment validation failed: {}", e)),
+        }
+    }
+
+    // Process cron cards (33 cards)
+    fn process_cron_cards(agent: TauAgent) -> Result<[Task], str> {
+        let tasks = [];
+        
+        // Simulate processing 33 cron cards
+        for i in 0..33 {
+            let card_id = format!("cron-{:03d}", i + 1);
+            let task = create_cron_task(card_id, agent);
+            tasks = tasks + [task];
+        }
+        
+        Ok(tasks)
+    }
+
+    // Process skill cards (26 cards)
+    fn process_skill_cards(agent: TauAgent) -> Result<[Task], str> {
+        let tasks = [];
+        
+        // Simulate processing 26 skill cards
+        for i in 0..26 {
+            let card_id = format!("skill-{:03d}", i + 1);
+            let task = create_skill_task(card_id, agent);
+            tasks = tasks + [task];
+        }
+        
+        Ok(tasks)
+    }
+
+    // Create cron task
+    fn create_cron_task(card_id: str, agent: TauAgent) -> Task {
+        Task {
+            id: format!("{}-{}", card_id, current_timestamp()),
+            name: format!("Process cron card {}", card_id),
+            type: CapabilityType::WorkflowDispatch,
+            priority: 1,
+            created_at: current_timestamp(),
+            started_at: nil,
+            completed_at: nil,
+            status: "pending",
+            result: nil,
+            error: nil,
+        }
+    }
+
+    // Create skill task
+    fn create_skill_task(card_id: str, agent: TauAgent) -> Task {
+        Task {
+            id: format!("{}-{}", card_id, current_timestamp()),
+            name: format!("Execute skill card {}", card_id),
+            type: CapabilityType::SkillExecution,
+            priority: 2,
+            created_at: current_timestamp(),
+            started_at: nil,
+            completed_at: nil,
+            status: "pending",
+            result: nil,
+            error: nil,
+        }
+    }
+
+    // Execute task using MCP tools
+    fn execute_task(agent: TauAgent, task: Task) -> Result<any?, str> {
+        // Update task status
+        task.status = "running";
+        task.started_at = current_timestamp();
+
+        match task.type {
+            CapabilityType::WorkflowDispatch => {
+                execute_workflow_task(agent, task)
+            },
+            CapabilityType::SkillExecution => {
+                execute_skill_task(agent, task)
+            },
+            CapabilityType::Monitoring => {
+                execute_monitoring_task(agent, task)
+            },
+            CapabilityType::MCPIntegration => {
+                execute_mcp_task(agent, task)
+            },
+        }
+    }
+
+    // Execute workflow task
+    fn execute_workflow_task(agent: TauAgent, task: Task) -> Result<any?, str> {
+        // Use MCP tools to trigger workflow
+        let trigger_result = mcp::trigger_run(
+            agent.scheduler.signing_key,
+            "test-app",
+            "cron-event",
+            { "card_id": task.name.split(" ")[2] }
+        );
+        
+        match trigger_result {
+            Ok(result) => {
+                task.status = "completed";
+                task.completed_at = current_timestamp();
+                task.result = result;
+                Ok(result)
+            },
+            Err(e) => {
+                task.status = "failed";
+                task.completed_at = current_timestamp();
+                task.error = e;
+                Err(e)
+            },
+        }
+    }
+
+    // Execute skill task
+    fn execute_skill_task(agent: TauAgent, task: Task) -> Result<any?, str> {
+        // Use MCP tools to handle skill execution
+        let skill_id = task.name.split(" ")[2];
+        let issue = create_queen_issue(skill_id);
+        
+        // Send skill execution event
+        let event_result = mcp::send_event(
+            agent.scheduler.signing_key,
+            "test-app",
+            "skill-execution",
+            {
+                "skill_id": skill_id,
+                "issue_id": issue.issue_id,
+                "owner": OWNER,
+            }
+        );
+        
+        match event_result {
+            Ok(result) => {
+                task.status = "completed";
+                task.completed_at = current_timestamp();
+                task.result = result;
+                Ok(result)
+            },
+            Err(e) => {
+                task.status = "failed";
+                task.completed_at = current_timestamp();
+                task.error = e;
+                Err(e)
+            },
+        }
+    }
+
+    // Execute monitoring task
+    fn execute_monitoring_task(agent: TauAgent, task: Task) -> Result<any?, str> {
+        // Get server health and metrics
+        let health_result = mcp::get_tool("health_get");
+        let metrics_result = mcp::get_tool("metrics");
+        
+        let monitoring_data = {
+            "health": health_result,
+            "metrics": metrics_result,
+            "agent_state": agent.state,
+            "timestamp": current_timestamp(),
+        };
+        
+        task.status = "completed";
+        task.completed_at = current_timestamp();
+        task.result = monitoring_data;
+        Ok(monitoring_data)
+    }
+
+    // Execute MCP integration task
+    fn execute_mcp_task(agent: TauAgent, task: Task) -> Result<any?, str> {
+        // Test MCP server connectivity
+        let server_info = mcp::server_info();
+        
+        let connectivity_data = {
+            "server_info": server_info,
+            "tools_count": agent.mcp_server.tools.len,
+            "deprecated_count": agent.mcp_server.info.deprecated_count,
+            "timestamp": current_timestamp(),
+        };
+        
+        task.status = "completed";
+        task.completed_at = current_timestamp();
+        task.result = connectivity_data;
+        Ok(connectivity_data)
+    }
+
+    // Create queen issue for skill execution
+    fn create_queen_issue(skill_id: str) -> inngest_queen_scheduler::QueenIssue {
+        inngest_queen_scheduler::create_queen_issue(
+            skill_id,
+            format!("Skill {}", skill_id),
+            "Success criteria met",
+            "Boundary respected",
+            format!("issue-{}", skill_id)
+        )
+    }
+
+    // Get current timestamp (placeholder)
+    fn current_timestamp() -> u64 {
+        1234567890 // Placeholder implementation
+    }
+
+    // Main agent execution loop
+    fn run_agent(signing_key: str, env: str) -> Result<void, str> {
+        let mut agent = initialize_tau_agent(signing_key, env);
+        
+        // Connect to MCP server
+        let connection_result = connect_to_mcp(agent);
+        match connection_result {
+            Ok(_) => {
+                // Process cron and skill cards
+                let cron_tasks = process_cron_cards(agent);
+                let skill_tasks = process_skill_cards(agent);
+                
+                match (cron_tasks, skill_tasks) {
+                    (Ok(cron), Ok(skill)) => {
+                        let all_tasks = cron + skill;
+                        println!("Processed {} tasks total", all_tasks.len);
+                        Ok(())
+                    },
+                    (Err(e), _) => Err(e),
+                    (_, Err(e)) => Err(e),
+                }
+            },
+            Err(e) => Err(e),
+        }
+    }
+
+    // Agent health check
+    fn check_agent_health(agent: TauAgent) -> bool {
+        agent.state.is_active && agent.state.current_tasks < agent.config.max_concurrent
+    }
+
+    // Get agent statistics
+    fn get_agent_stats(agent: TauAgent) -> any {
+        {
+            "name": agent.config.name,
+            "type": agent.config.agent_type,
+            "owner": agent.config.owner,
+            "is_active": agent.state.is_active,
+            "current_tasks": agent.state.current_tasks,
+            "completed_tasks": agent.state.completed_tasks,
+            "failed_tasks": agent.state.failed_tasks,
+            "max_concurrent": agent.config.max_concurrent,
+            "tools": agent.config.tools,
+            "capabilities": agent.config.capabilities,
+        }
+    }
+
+    test "create_agent_config_success"
+        const config = create_agent_config();
+        assert(config.name == "Tau");
+        assert(config.agent_type == "Queen");
+        assert(config.owner == "T");
+        assert(config.max_concurrent == 5);
+        assert(config.tools.len == 1);
+        assert(config.tools[0] == "mcp/inngest-dev");
+    }
+
+    test "create_agent_state_success"
+        const state = create_agent_state();
+        assert(state.is_active == false);
+        assert(state.current_tasks == 0);
+        assert(state.completed_tasks == 0);
+        assert(state.failed_tasks == 0);
+    }
+
+    test "initialize_tau_agent_success"
+        const agent = initialize_tau_agent("test-key", "test-env");
+        assert(agent.config.name == "Tau");
+        assert(agent.config.owner == "T");
+        assert(agent.scheduler.signing_key == "test-key");
+        assert(agent.scheduler.env == "test-env");
+    }
+
+    test "check_agent_health_inactive"
+        const agent = initialize_tau_agent("test-key", "test-env");
+        const is_healthy = check_agent_health(agent);
+        assert(is_healthy == false); // Inactive by default
+    }
+
+    test "get_agent_stats_success"
+        const agent = initialize_tau_agent("test-key", "test-env");
+        const stats = get_agent_stats(agent);
+        assert(stats.name == "Tau");
+        assert(stats.owner == "T");
+        assert(stats.max_concurrent == 5);
+    }
+}

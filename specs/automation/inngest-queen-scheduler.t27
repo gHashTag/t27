@@ -1,0 +1,202 @@
+// SPDX-License-Identifier: Apache-2.0
+# specs/automation/inngest-queen-scheduler.t27
+# Ring-072 - Inngest Queen Scheduler
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+module automation::inngest_queen_scheduler {
+    use base::types;
+    use tools::mcp;
+    use agents::t;
+
+    // t27-queen app served by trios/agent-server at /api/inngest
+    // One function per card, dispatch derived from HOST
+    // Skills as queen-issue, reuse open same title
+    // THE MOVE order: fire seen -> schedule: removed by PR -> CONTROL = "inngest"
+
+    const APP_NAME : str = "t27-queen";
+    const API_PATH : str = "/api/inngest";
+    const CONTROL_MODE : str = "inngest";
+
+    enum HostType {
+        GitHubActions = 0,    // workflow-dispatch
+        InngestTimer = 1,     // inngest/timer
+        RailwayCron = 2,      // railway-cron
+    }
+
+    struct SchedulerConfig {
+        host: HostType,
+        signing_key: str,
+        env: str,
+        max_concurrent: u32,
+    }
+
+    struct CardFunction {
+        id: str,
+        name: str,
+        schedule: str?,
+        dispatch: str,
+        skills: [str],
+        success_criteria: str,
+        boundary: str,
+        owner: str,
+    }
+
+    struct QueenIssue {
+        skill_id: str,
+        title: str,
+        success_criteria: str,
+        boundary: str,
+        issue_id: str,
+    }
+
+    // Create scheduler configuration based on host type
+    fn create_scheduler_config(host: HostType, signing_key: str, env: str) -> SchedulerConfig {
+        SchedulerConfig {
+            host: host,
+            signing_key: signing_key,
+            env: env,
+            max_concurrent: 10,
+        }
+    }
+
+    // Parse HOST environment variable to determine dispatch mode
+    fn parse_host_dispatch(host_str: str) -> str {
+        match host_str {
+            "github-actions" => "workflow-dispatch",
+            "inngest/timer" => "tick-only",
+            "railway-cron" => "tick-only",
+            _ => "workflow-dispatch",
+        }
+    }
+
+    // Create queen issue from skill card
+    fn create_queen_issue(skill_id: str, title: str, success_criteria: str, boundary: str, issue_id: str) -> QueenIssue {
+        QueenIssue {
+            skill_id: skill_id,
+            title: title,
+            success_criteria: success_criteria,
+            boundary: boundary,
+            issue_id: issue_id,
+        }
+    }
+
+    // Generate function ID from card and host
+    fn generate_function_id(card_id: str, host: HostType) -> str {
+        let host_prefix = match host {
+            HostType::GitHubActions => "gh",
+            HostType::InngestTimer => "timer",
+            HostType::RailwayCron => "railway",
+        };
+        format!("{}-{}", host_prefix, card_id)
+    }
+
+    // Create Inngest function for a cron card
+    fn create_cron_function(card_id: str, card_name: str, schedule: str, config: SchedulerConfig) -> CardFunction {
+        CardFunction {
+            id: generate_function_id(card_id, config.host),
+            name: card_name,
+            schedule: if config.host == HostType::GitHubActions { schedule } else { nil },
+            dispatch: parse_host_dispatch("github-actions"), // TODO: read from HOST env
+            skills: [],
+            success_criteria: "",
+            boundary: "",
+            owner: "T",
+        }
+    }
+
+    // Create Inngest function for a skill card
+    fn create_skill_function(card_id: str, card_name: str, issue: QueenIssue, config: SchedulerConfig) -> CardFunction {
+        CardFunction {
+            id: generate_function_id(card_id, config.host),
+            name: card_name,
+            schedule: nil,
+            dispatch: parse_host_dispatch("github-actions"), // TODO: read from HOST env
+            skills: [format!("queen-issue {}", issue.issue_id)],
+            success_criteria: issue.success_criteria,
+            boundary: issue.boundary,
+            owner: "T",
+        }
+    }
+
+    // Register MCP tools for Inngest operations
+    fn register_mcp_tools() -> void {
+        // tools/inngest-dev provides 20 tools including:
+        // - health/get
+        // - apps/list
+        // - list_runs
+        // - list_docs
+        // - grep_docs
+        // Requires INNGEST_SIGNING_KEY environment variable
+    }
+
+    // Initialize scheduler with MCP connection
+    fn initialize_scheduler(config: SchedulerConfig) -> Result<void, str> {
+        // Verify MCP server connection
+        let mcp_server = mcp::connect("inngest-dev", config.signing_key);
+        match mcp_server {
+            Ok(_) => {
+                register_mcp_tools();
+                Ok(())
+            },
+            Err(e) => Err(format!("Failed to connect to MCP server: {}", e)),
+        }
+    }
+
+    // Main scheduler entry point
+    fn run_scheduler(config: SchedulerConfig) -> Result<void, str> {
+        // Initialize scheduler with MCP tools
+        let init_result = initialize_scheduler(config);
+        match init_result {
+            Ok(_) => {
+                // Process 33 cron cards and 26 skill cards
+                // Each card becomes an Inngest function
+                // Dispatch based on HOST environment
+                Ok(())
+            },
+            Err(e) => Err(e),
+        }
+    }
+
+    test "create_scheduler_config_github_actions"
+        const config = create_scheduler_config(HostType::GitHubActions, "test-key", "test-env");
+        assert(config.host == HostType::GitHubActions);
+        assert(config.signing_key == "test-key");
+        assert(config.env == "test-env");
+        assert(config.max_concurrent == 10);
+    }
+
+    test "parse_host_dispatch_github"
+        const dispatch = parse_host_dispatch("github-actions");
+        assert(dispatch == "workflow-dispatch");
+    }
+
+    test "parse_host_dispatch_timer"
+        const dispatch = parse_host_dispatch("inngest/timer");
+        assert(dispatch == "tick-only");
+    }
+
+    test "generate_function_id_cron"
+        const func_id = generate_function_id("cron-001", HostType::GitHubActions);
+        assert(func_id == "gh-cron-001");
+    }
+
+    test "generate_function_id_skill"
+        const func_id = generate_function_id("skill-001", HostType::InngestTimer);
+        assert(func_id == "timer-skill-001");
+    }
+
+    test "create_queen_issue_success"
+        const issue = create_queen_issue(
+            "skill-001",
+            "Test Skill",
+            "Success criteria here",
+            "Boundary here",
+            "issue-3594"
+        );
+        assert(issue.skill_id == "skill-001");
+        assert(issue.title == "Test Skill");
+        assert(issue.success_criteria == "Success criteria here");
+        assert(issue.boundary == "Boundary here");
+        assert(issue.issue_id == "issue-3594");
+    }
+}

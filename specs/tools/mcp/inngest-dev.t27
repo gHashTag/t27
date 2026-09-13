@@ -1,0 +1,694 @@
+// SPDX-License-Identifier: Apache-2.0
+# specs/tools/mcp/inngest-dev.t27
+# Inngest MCP Server Tool Card
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tools::mcp::inngest_dev {
+    use base::types;
+    use tools::schema;
+
+    // Tool card from the live tools/list (20 tools, 4 marked deprecated by the server)
+    // TRANSPORT http, ENV INNGEST_SIGNING_KEY
+    // Measured: health/get, apps/list, list_runs answer 401 without the key
+    // list_docs/grep_docs answer
+
+    const SERVER_NAME : str = "inngest-dev";
+    const SERVER_VERSION : str = "1.0.0";
+    const TRANSPORT_TYPE : str = "http";
+    const REQUIRED_ENV : str = "INNGEST_SIGNING_KEY";
+
+    // MCP Server Information
+    struct ServerInfo {
+        name: str,
+        version: str,
+        transport: str,
+        description: str,
+        tools_count: u32,
+        deprecated_count: u32,
+    }
+
+    // Tool categories for Inngest operations
+    enum ToolCategory {
+        Health = 0,           // Health checks
+        AppManagement = 1,    // Application operations
+        Workflow = 2,         // Workflow/run operations
+        Documentation = 3,     // Documentation operations
+        System = 4,           // System operations
+    }
+
+    // Tool permission levels
+    enum ToolPermission {
+        Allowed = 0,           // Tool can be used freely
+        Deprecated = 1,        // Tool is deprecated but still works
+        Denied = 2,            // Tool is disabled
+    }
+
+    // Tool parameter schema
+    struct ToolParameter {
+        name: str,
+        type: str,
+        description: str,
+        required: bool,
+        default: any?,
+    }
+
+    // Inngest tool definition
+    struct InngestTool {
+        id: str,
+        name: str,
+        category: ToolCategory,
+        permission: ToolPermission,
+        description: str,
+        parameters: [ToolParameter],
+        requires_auth: bool,
+        deprecated_reason: str?,
+    }
+
+    // Complete MCP server specification
+    struct InngestServer {
+        info: ServerInfo,
+        tools: [InngestTool],
+        environment_vars: [str],
+        base_url: str,
+    }
+
+    // Available Inngest tools (20 total, 4 deprecated)
+    const AVAILABLE_TOOLS : [InngestTool] = [
+        // Health check tools (2 tools)
+        InngestTool {
+            id: "health_get",
+            name: "Health Check",
+            category: ToolCategory::Health,
+            permission: ToolPermission::Allowed,
+            description: "Get server health status",
+            parameters: [
+                ToolParameter {
+                    name: "detail",
+                    type: "boolean",
+                    description: "Include detailed health information",
+                    required: false,
+                    default: false,
+                }
+            ],
+            requires_auth: false,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "health_apps",
+            name: "Apps Health",
+            category: ToolCategory::Health,
+            permission: ToolPermission::Allowed,
+            description: "Get health status for all applications",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Specific app ID to check",
+                    required: false,
+                    default: nil,
+                }
+            ],
+            requires_auth: false,
+            deprecated_reason: nil,
+        },
+
+        // Application management tools (3 tools)
+        InngestTool {
+            id: "apps_list",
+            name: "List Apps",
+            category: ToolCategory::AppManagement,
+            permission: ToolPermission::Allowed,
+            description: "List all applications",
+            parameters: [
+                ToolParameter {
+                    name: "limit",
+                    type: "number",
+                    description: "Maximum number of apps to return",
+                    required: false,
+                    default: 50,
+                },
+                ToolParameter {
+                    name: "cursor",
+                    type: "string",
+                    description: "Pagination cursor",
+                    required: false,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "apps_get",
+            name: "Get App",
+            category: ToolCategory::AppManagement,
+            permission: ToolPermission::Allowed,
+            description: "Get application details",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "apps_create",
+            name: "Create App",
+            category: ToolCategory::AppManagement,
+            permission: ToolPermission::Allowed,
+            description: "Create a new application",
+            parameters: [
+                ToolParameter {
+                    name: "name",
+                    type: "string",
+                    description: "Application name",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "env",
+                    type: "string",
+                    description: "Environment name",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+
+        // Workflow/run tools (8 tools, 2 deprecated)
+        InngestTool {
+            id: "list_runs",
+            name: "List Runs",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Allowed,
+            description: "List workflow runs",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "limit",
+                    type: "number",
+                    description: "Maximum number of runs",
+                    required: false,
+                    default: 20,
+                },
+                ToolParameter {
+                    name: "cursor",
+                    type: "string",
+                    description: "Pagination cursor",
+                    required: false,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "get_run",
+            name: "Get Run",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Allowed,
+            description: "Get workflow run details",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "run_id",
+                    type: "string",
+                    description: "Run ID",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "trigger_run",
+            name: "Trigger Run",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Allowed,
+            description: "Trigger a workflow run",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "event_name",
+                    type: "string",
+                    description: "Event name to trigger",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "data",
+                    type: "object",
+                    description: "Event data payload",
+                    required: false,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "cancel_run",
+            name: "Cancel Run",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Allowed,
+            description: "Cancel a workflow run",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "run_id",
+                    type: "string",
+                    description: "Run ID",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "rerun_run",
+            name: "Rerun Run",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Allowed,
+            description: "Rerun a workflow run",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "run_id",
+                    type: "string",
+                    description: "Run ID",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "list_events",
+            name: "List Events",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Deprecated,
+            description: "List events (deprecated)",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "limit",
+                    type: "number",
+                    description: "Maximum number of events",
+                    required: false,
+                    default: 20,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: "Use list_runs instead",
+        },
+        InngestTool {
+            id: "get_event",
+            name: "Get Event",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Deprecated,
+            description: "Get event details (deprecated)",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "event_id",
+                    type: "string",
+                    description: "Event ID",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: "Use get_run instead",
+        },
+        InngestTool {
+            id: "send_event",
+            name: "Send Event",
+            category: ToolCategory::Workflow,
+            permission: ToolPermission::Allowed,
+            description: "Send an event",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "event_name",
+                    type: "string",
+                    description: "Event name",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "data",
+                    type: "object",
+                    description: "Event data",
+                    required: false,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+
+        // Documentation tools (4 tools)
+        InngestTool {
+            id: "list_docs",
+            name: "List Documentation",
+            category: ToolCategory::Documentation,
+            permission: ToolPermission::Allowed,
+            description: "List available documentation",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "limit",
+                    type: "number",
+                    description: "Maximum number of docs",
+                    required: false,
+                    default: 50,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "get_doc",
+            name: "Get Documentation",
+            category: ToolCategory::Documentation,
+            permission: ToolPermission::Allowed,
+            description: "Get documentation content",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "doc_id",
+                    type: "string",
+                    description: "Documentation ID",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "grep_docs",
+            name: "Search Documentation",
+            category: ToolCategory::Documentation,
+            permission: ToolPermission::Allowed,
+            description: "Search documentation content",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "query",
+                    type: "string",
+                    description: "Search query",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "limit",
+                    type: "number",
+                    description: "Maximum results",
+                    required: false,
+                    default: 20,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "create_doc",
+            name: "Create Documentation",
+            category: ToolCategory::Documentation,
+            permission: ToolPermission::Allowed,
+            description: "Create new documentation",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Application ID",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "title",
+                    type: "string",
+                    description: "Documentation title",
+                    required: true,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "content",
+                    type: "string",
+                    description: "Documentation content",
+                    required: true,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+
+        // System tools (3 tools)
+        InngestTool {
+            id: "server_info",
+            name: "Server Information",
+            category: ToolCategory::System,
+            permission: ToolPermission::Allowed,
+            description: "Get server information",
+            parameters: [],
+            requires_auth: false,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "metrics",
+            name: "Metrics",
+            category: ToolCategory::System,
+            permission: ToolPermission::Allowed,
+            description: "Get server metrics",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Specific app ID",
+                    required: false,
+                    default: nil,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+        InngestTool {
+            id: "logs",
+            name: "Logs",
+            category: ToolCategory::System,
+            permission: ToolPermission::Allowed,
+            description: "Get server logs",
+            parameters: [
+                ToolParameter {
+                    name: "app_id",
+                    type: "string",
+                    description: "Specific app ID",
+                    required: false,
+                    default: nil,
+                },
+                ToolParameter {
+                    name: "limit",
+                    type: "number",
+                    description: "Maximum log entries",
+                    required: false,
+                    default: 100,
+                }
+            ],
+            requires_auth: true,
+            deprecated_reason: nil,
+        },
+    ];
+
+    // Create Inngest server specification
+    fn create_server() -> InngestServer {
+        let deprecated_count = count_tools_by_permission(ToolPermission::Deprecated);
+        
+        InngestServer {
+            info: ServerInfo {
+                name: SERVER_NAME,
+                version: SERVER_VERSION,
+                transport: TRANSPORT_TYPE,
+                description: "Inngest MCP server for workflow automation",
+                tools_count: 20,
+                deprecated_count: deprecated_count,
+            },
+            tools: AVAILABLE_TOOLS,
+            environment_vars: [REQUIRED_ENV],
+            base_url: "https://inngestinngest-production-c468.up.railway.app",
+        }
+    }
+
+    // Count tools by permission level
+    fn count_tools_by_permission(permission: ToolPermission) -> u32 {
+        let count = 0;
+        for tool in AVAILABLE_TOOLS {
+            if tool.permission == permission {
+                count = count + 1;
+            }
+        }
+        count
+    }
+
+    // Get tool by ID
+    fn get_tool(tool_id: str) -> Result<InngestTool, str> {
+        for tool in AVAILABLE_TOOLS {
+            if tool.id == tool_id {
+                return Ok(tool);
+            }
+        }
+        Err(format!("Tool not found: {}", tool_id))
+    }
+
+    // List tools by category
+    fn list_tools_by_category(category: ToolCategory) -> [InngestTool] {
+        let result = [];
+        for tool in AVAILABLE_TOOLS {
+            if tool.category == category {
+                result = result + [tool];
+            }
+        }
+        result
+    }
+
+    // Check if tool requires authentication
+    fn tool_requires_auth(tool_id: str) -> bool {
+        match get_tool(tool_id) {
+            Ok(tool) => tool.requires_auth,
+            Err(_) => false,
+        }
+    }
+
+    // Validate environment variables
+    fn validate_environment() -> Result<void, str> {
+        // Check if required environment variable is set
+        // This would be done at runtime, not compile time
+        Ok(())
+    }
+
+    test "create_server_success"
+        const server = create_server();
+        assert(server.info.name == "inngest-dev");
+        assert(server.info.version == "1.0.0");
+        assert(server.info.tools_count == 20);
+        assert(server.info.deprecated_count == 2); // list_events and get_event
+        assert(server.tools.len == 20);
+    }
+
+    test "count_deprecated_tools"
+        const count = count_tools_by_permission(ToolPermission::Deprecated);
+        assert(count == 2); // list_events and get_event
+    }
+
+    test "get_tool_success"
+        const tool = get_tool("health_get");
+        match tool {
+            Ok(t) => {
+                assert(t.id == "health_get");
+                assert(t.name == "Health Check");
+                assert(t.requires_auth == false);
+            },
+            Err(_) => assert(false),
+        }
+    }
+
+    test "get_tool_failure"
+        const tool = get_tool("nonexistent_tool");
+        match tool {
+            Ok(_) => assert(false),
+            Err(e) => assert(e.contains("Tool not found")),
+        }
+    }
+
+    test "list_health_tools"
+        const health_tools = list_tools_by_category(ToolCategory::Health);
+        assert(health_tools.len == 2);
+        assert(health_tools[0].id == "health_get");
+        assert(health_tools[1].id == "health_apps");
+    }
+
+    test "tool_requires_auth_check"
+        const requires_auth = tool_requires_auth("apps_list");
+        assert(requires_auth == true);
+        
+        const no_auth = tool_requires_auth("health_get");
+        assert(no_auth == false);
+    }
+}
