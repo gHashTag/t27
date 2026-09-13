@@ -59,7 +59,8 @@ FIGURES = [
     # #3567 (S05) added the forty-seven opcodes of specs/isa/ternary_encoding.t27 and OP_NOP, OP_HALT
     # of specs/vm/trinity_vm.t27: 11 + 49 = 60.
     ("pub const OP_* declarations", "declarations",
-     r"^\s*pub\s+const\s+OP_\w+", 60, "#3497 said 20 -- that was a SITE count in the C"),
+     # #3596 added specs/automation/crm-lead-magnet.t27 with `pub const OP_TOKENS`: 60 + 1 = 61.
+     r"^\s*pub\s+const\s+OP_\w+", 61, "#3497 said 20 -- that was a SITE count in the C; #3596 added 1"),
     ("abs( uses", "uses",
      r"(?<![\w.@])abs\s*\(", 389, "#3501"),
     # The pin FOLLOWED the corpus, and the movement is explained rather than
@@ -87,9 +88,10 @@ FIGURES = [
     # (four): 12673 + 36 = 12709.
     # #3568 (S06) added specs/tools/catalog.t27 (five) and specs/tools/mcp_protocol.t27 (five); the 29
     # cards under specs/tools/trinity/tri/ carry no test block: 12709 + 10 = 12719.
+    # #3596 added specs/automation/crm-lead-magnet.t27 with five: 12719 + 5 = 12724.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12719,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12724,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5"),
 ]
 
 
