@@ -57,7 +57,20 @@ module automation::crm_client_workspace {
     pub const PANELS : u8 = 6;  // profile+soul+skills, plan, duets, touches+stage, media, messages
     pub const UNREACHABLE_SAYS : str = "unavailable";  // never zeros (rule inherited from /crm)
     pub const NEW_READ_TOOLS : u8 = 3;  // crm_clients, crm_client_plan, crm_duet_runs
-    pub const DASHBOARD_SENDS_NOTHING : bool = true;
+    pub const DASHBOARD_SENDS_NOTHING_UNASKED : bool = true;  // reads never send; the one sender is the explicit duet control below
+
+    // ---- The start-duet control on /crm/:clientId (#3611) --------------------------------
+    pub const DASHBOARD_STARTS_DUET : bool = true;  // calls crm_duet through the same /mcp gate
+    pub const DUET_CONTROL_GATE : str = "server";  // owner-only in the tool; the UI shows the refusal text, never guesses the role
+    pub const DUET_CONTROL_DEFAULT_DRY_RUN : bool = true;
+    pub const DUET_CONTROL_REAL_SEND_CONFIRMS : bool = true;  // dry_run off -> an inline confirm step before the call
+    pub const DUET_CONTROL_TURNS_MAX : u8 = 8;
+    pub const DUET_CONTROL_TURNS_DEFAULT : u8 = 4;
+
+    // ---- The /crm list (#3611) -------------------------------------------------------------
+    pub const LIST_PAID_BADGE : bool = true;  // rows with paid: true carry a badge
+    pub const LIST_FILTER : str = "all,clients,leads";  // clients = paid or stage client/winback; leads = the rest
+    pub const LIST_SAYS_PAID_UNKNOWN : bool = true;  // paid_known: false is one visible line, not a hidden zero
 
     // ---- Persisted duet runs ----------------------------------------------------------------
     pub const TABLE_RUNS : str = "crm_duet_runs";
@@ -106,9 +119,17 @@ module automation::crm_client_workspace {
         assert(refused_before_db(9, true, true));
         assert(!refused_before_db(9, false, true));
 
-    test "the dashboard reads through the tool gate, sends nothing and says unavailable rather than zero"
+    test "the dashboard reads through the tool gate, sends nothing unasked and says unavailable rather than zero"
         assert(READS_THROUGH == "/mcp");
-        assert(DASHBOARD_SENDS_NOTHING);
+        assert(DASHBOARD_SENDS_NOTHING_UNASKED);
+        assert(DASHBOARD_STARTS_DUET);
+        assert(DUET_CONTROL_GATE == "server");
+        assert(DUET_CONTROL_DEFAULT_DRY_RUN);
+        assert(DUET_CONTROL_REAL_SEND_CONFIRMS);
+        assert(DUET_CONTROL_TURNS_DEFAULT <= DUET_CONTROL_TURNS_MAX);
+        assert(LIST_PAID_BADGE);
+        assert(LIST_FILTER == "all,clients,leads");
+        assert(LIST_SAYS_PAID_UNKNOWN);
         assert(UNREACHABLE_SAYS == "unavailable");
         assert(PANELS == 6);
         assert(NEW_READ_TOOLS == 3);

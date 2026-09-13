@@ -57,9 +57,16 @@ module automation::crm_client_ownership {
     pub const PAID_FLAG_IN_ROWS : bool = true;  // crm_clients rows and crm_history carry paid: bool
     pub const MONEY_UNREACHABLE_FALLS_BACK_TO_TOUCHES : bool = true;  // and says paid_known: false
 
+    // ---- The read-only schema witness (#3611) ---------------------------------------------
+    pub const SCHEMA_CHECK_TOOL : str = "crm_schema_check";  // owner-only; reads pg_constraint, pg_indexes, information_schema and one count
+    pub const SCHEMA_CHECK_WRITES : bool = false;  // it never calls ensureProfileTable; a witness that migrates is not a witness
+    pub const SCHEMA_CHECK_REPORTS : str = "owner_column,legacy_pkey,unique_index,rows_total,rows_owned,rows_unowned,owners";
+
+    // ---- Claimed live -----------------------------------------------------------------------
+    pub const PAYING_CLIENT_SEEN_LIVE : bool = true;  // 2026-09-13 ~21:25 +07: crm_history 435572800 -> stage client, paid true, paid_known true, after the #2390 deploy
+
     // ---- Not claimed ----------------------------------------------------------------------
-    pub const MIGRATION_RAN_ON_PROD : bool = false;
-    pub const PAYING_CLIENT_SEEN_LIVE : bool = false;
+    pub const MIGRATION_RAN_ON_PROD : bool = false;  // flip only on a crm_schema_check answer with legacy_pkey false and unique_index true
 
     struct ProfileRow {
         has_owner: bool,
@@ -124,10 +131,12 @@ module automation::crm_client_ownership {
         assert(paid_known(true));
         assert(PAID_FLAG_IN_ROWS);
 
-    test "this spec extends the client workspace and claims nothing live"
+    test "this spec extends the client workspace; a paying client was seen live, the migration only through a witness"
         assert(EXTENDS == "crm-client-workspace");
         assert(KIND == "automation");
         assert(WINBACK_AFTER_QUIET_DAYS == 60);
+        assert(PAYING_CLIENT_SEEN_LIVE);
         assert(!MIGRATION_RAN_ON_PROD);
-        assert(!PAYING_CLIENT_SEEN_LIVE);
+        assert(SCHEMA_CHECK_TOOL == "crm_schema_check");
+        assert(!SCHEMA_CHECK_WRITES);
 }
