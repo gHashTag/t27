@@ -70,8 +70,32 @@ module automation::crm_duet {
     pub const PAID_CAP_IS_HARD : bool = false;
     pub const MEDIA_FORWARDED : bool = true;  // a tool result with done=true and an http url is sent as a file
 
+    // ---- Honesty of the seller line (duet-mtzyg2t6, 2026-09-13) ---------------------------
+    // Turn 0 of a dry run said "I already built a trial reel in your style and am preparing
+    // it for publication" -- the only tools called were crm_client_profile and
+    // crm_lead_context, no reel existed. promisesFile() catches "I am sending the file";
+    // it does not catch "the work is done". A claim of finished work is honest only when
+    // the same turn called a producing tool or forwarded media.
+    pub const CLAIMED_WORK_NEEDS_TOOL : bool = true;
+    pub const CLAIM_CHECK_CORRECTIONS : u8 = 1;  // one rewrite round, as the voice check; the second miss is sent and reported
+    pub const CLAIM_MISS_IS_VIOLATION : bool = true;  // both misses land in violations, the corrected one marked as rewritten
+
+    // ---- State of a run that broke off (same run) ----------------------------------------
+    // Turn 2: every provider answered with a rate limit, the seller produced no text, the
+    // loop broke and the run was stored as done with 3 of 8 lines and no error. The
+    // dashboard showed "finished, 0 violations". A run that did not play every turn is
+    // failed, and the turn's error is the run's error.
+    pub const ABORTED_RUN_STATE : str = "failed";
+    pub const ABORTED_RUN_KEEPS_ERROR : bool = true;
+    pub const DONE_MEANS_ALL_LINES : bool = true;  // done only when the transcript has turns * 2 lines
+    pub const RUN_ERROR_SHOWN_ON_DASHBOARD : bool = true;  // crm_duet_runs returns error; the client dashboard prints it
+
+    // ---- Seen live ------------------------------------------------------------------------
+    pub const DRY_RUN_SEEN_LIVE : bool = true;  // duet-mtzyg2t6 started from /crm/435572800, 3 lines, nothing sent
+    pub const RUN_KILLED_BY_REDEPLOY_SEEN : bool = true;  // duet-mtzy6kao: vibee-render redeployed 21 s after start, 0 lines, stays running until lost
+
     // ---- Not claimed ----------------------------------------------------------------------
-    pub const DUET_RAN_LIVE : bool = false;  // crm_duet_status of a real run is the evidence
+    pub const DUET_RAN_LIVE : bool = false;  // crm_duet_status of a real (non-dry) run is the evidence
 
     struct Turn {
         from_owner: bool,
@@ -114,6 +138,42 @@ module automation::crm_duet {
         assert(TURNS_MAX == 8);
         assert(BUYER_TURN_IS_PLAIN_COMPLETION);
         assert(RUNS_IN_BACKGROUND);
+
+    // The state a finished loop stores: done only for a full transcript, failed otherwise.
+    fn state_after(lines: u8, turns: u8, errored: bool) -> str {
+        if errored || lines < turns * 2 {
+            return ABORTED_RUN_STATE;
+        }
+        return "done";
+    }
+
+    // A claim of finished work in a turn that produced nothing is a miss.
+    fn claim_is_honest(claims_done_work: bool, producing_tool_called: bool, media_forwarded: bool) -> bool {
+        return !claims_done_work || producing_tool_called || media_forwarded;
+    }
+
+    test "a run that broke off is failed and keeps the turn's error"
+        assert(ABORTED_RUN_STATE == "failed");
+        assert(ABORTED_RUN_KEEPS_ERROR);
+        assert(DONE_MEANS_ALL_LINES);
+        assert(state_after(3, 4, true) == "failed");
+        assert(state_after(3, 4, false) == "failed");
+        assert(state_after(8, 4, false) == "done");
+        assert(RUN_ERROR_SHOWN_ON_DASHBOARD);
+
+    test "a claim of finished work needs a tool or a file in the same turn"
+        assert(CLAIMED_WORK_NEEDS_TOOL);
+        assert(CLAIM_CHECK_CORRECTIONS == 1);
+        assert(CLAIM_MISS_IS_VIOLATION);
+        assert(!claim_is_honest(true, false, false));
+        assert(claim_is_honest(true, true, false));
+        assert(claim_is_honest(true, false, true));
+        assert(claim_is_honest(false, false, false));
+
+    test "what was seen live is separated from what is not claimed"
+        assert(DRY_RUN_SEEN_LIVE);
+        assert(RUN_KILLED_BY_REDEPLOY_SEEN);
+        assert(!DUET_RAN_LIVE);
 
     test "content is for the real game and nothing live is claimed"
         assert(BUYER_GAME == "Leela Chakra");
