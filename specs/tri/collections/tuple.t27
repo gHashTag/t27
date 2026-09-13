@@ -110,4 +110,3 @@ module TriTuple;
         assert(swapped_back.first == t.first);
         assert(swapped_back.second == t.second);
     }
-
