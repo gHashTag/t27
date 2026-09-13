@@ -92,8 +92,9 @@ FIGURES = [
     # #3598 added specs/automation/crm-sellers.t27 with five: 12724 + 5 = 12729.
     # #3600 added specs/automation/leela-agent-link.t27 with five: 12729 + 5 = 12734.
     # #3602 added specs/automation/crm-duet.t27 with five: 12734 + 5 = 12739.
+    # #3604 added specs/automation/crm-client-workspace.t27 with five: 12739 + 5 = 12744.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12739,
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12744,
      "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5"),
 ]
 
