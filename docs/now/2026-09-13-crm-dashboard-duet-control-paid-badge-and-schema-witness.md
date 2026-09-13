@@ -1,6 +1,8 @@
-# CRM: the dashboard starts a duet, the list shows who paid, a witness reads the schema
+# NOW -- CRM: the dashboard starts a duet, the list shows who paid, a witness reads the schema (2026-09-13)
 
-Date: 2026-09-13. Issue: #3611. Follows #3604 (client workspace) and #3608 (ownership and money).
+## Follow-up to #3604 and #3608 (Closes #3611)
+
+- Issue #3611. Follows #3604 (client workspace) and #3608 (ownership and money).
 
 ## What changed in the specs
 
