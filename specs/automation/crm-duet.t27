@@ -90,9 +90,26 @@ module automation::crm_duet {
     pub const DONE_MEANS_ALL_LINES : bool = true;  // done only when the transcript has turns * 2 lines
     pub const RUN_ERROR_SHOWN_ON_DASHBOARD : bool = true;  // crm_duet_runs returns error; the client dashboard prints it
 
+    // ---- One pause and one retry on a provider limit (duet-mu00klri, 2026-09-13) ----------
+    // Third run of the day to die on the same wall: every provider answered with a limit
+    // ("request limit exceeded" -- 429 -- from z.ai twice, "Worker local total request limit
+    // reached (16/16)" from NVIDIA), the seller had already called five free tools and
+    // produced no text. A limit is temporary; a seller turn that hits one waits once and
+    // plays the turn again from the same history. Anything else (bad key, no balance,
+    // unknown model) is not retried -- waiting would not change the answer.
+    pub const SELLER_RETRY_ON_LIMIT : u8 = 1;  // one retry per seller turn, never more
+    pub const SELLER_RETRY_PAUSE_MS : u32 = 30000;
+    pub const RETRY_ONLY_WITHOUT_PAID_CALL : bool = true;  // a turn that already paid for a generation is not replayed
+    pub const RETRY_NOTED_IN_TRANSCRIPT : bool = true;  // the transcript line keeps `retried: "<first error>"`
+    pub const LIMIT_MARKERS : str = "429|limit|ResourceExhausted|too many requests";  // case-insensitive; "limit" covers "rate limit" and "limit reached"
+    pub const LIMIT_MARKER_RU_DIAGNOSE : bool = true;  // provider.ts diagnose() renders 429 in Russian ("... limit zaprosov"); that word is matched too
+
     // ---- Seen live ------------------------------------------------------------------------
     pub const DRY_RUN_SEEN_LIVE : bool = true;  // duet-mtzyg2t6 started from /crm/435572800, 3 lines, nothing sent
     pub const RUN_KILLED_BY_REDEPLOY_SEEN : bool = true;  // duet-mtzy6kao: vibee-render redeployed 21 s after start, 0 lines, stays running until lost
+    pub const FAILED_STATE_SEEN_LIVE : bool = true;  // duet-mu00klri: state failed, error "turn 0: ...", dashboard shows the failed badge and lines 1/8
+    pub const CLAIM_CHECK_SEEN_LIVE : bool = false;  // the seller never spoke in that run; unit tests only
+    pub const RETRY_SEEN_LIVE : bool = false;  // a transcript line with `retried` from a real run is the evidence
 
     // ---- Not claimed ----------------------------------------------------------------------
     pub const DUET_RAN_LIVE : bool = false;  // crm_duet_status of a real (non-dry) run is the evidence
@@ -147,6 +164,12 @@ module automation::crm_duet {
         return "done";
     }
 
+    // Whether a failed seller turn is played again: once, only on a limit, only when no
+    // paid generation happened in the failed attempt.
+    fn retry_allowed(retries_done: u8, is_limit: bool, paid_calls_in_attempt: u8) -> bool {
+        return retries_done < SELLER_RETRY_ON_LIMIT && is_limit && paid_calls_in_attempt == 0;
+    }
+
     // A claim of finished work in a turn that produced nothing is a miss.
     fn claim_is_honest(claims_done_work: bool, producing_tool_called: bool, media_forwarded: bool) -> bool {
         return !claims_done_work || producing_tool_called || media_forwarded;
@@ -170,9 +193,22 @@ module automation::crm_duet {
         assert(claim_is_honest(true, false, true));
         assert(claim_is_honest(false, false, false));
 
+    test "a seller turn that hit a limit is retried once, without paid calls"
+        assert(SELLER_RETRY_ON_LIMIT == 1);
+        assert(SELLER_RETRY_PAUSE_MS == 30000);
+        assert(RETRY_ONLY_WITHOUT_PAID_CALL);
+        assert(RETRY_NOTED_IN_TRANSCRIPT);
+        assert(retry_allowed(0, true, 0));
+        assert(!retry_allowed(1, true, 0));
+        assert(!retry_allowed(0, false, 0));
+        assert(!retry_allowed(0, true, 1));
+
     test "what was seen live is separated from what is not claimed"
         assert(DRY_RUN_SEEN_LIVE);
         assert(RUN_KILLED_BY_REDEPLOY_SEEN);
+        assert(FAILED_STATE_SEEN_LIVE);
+        assert(!CLAIM_CHECK_SEEN_LIVE);
+        assert(!RETRY_SEEN_LIVE);
         assert(!DUET_RAN_LIVE);
 
     test "content is for the real game and nothing live is claimed"
