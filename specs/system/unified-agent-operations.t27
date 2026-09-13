@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/system/unified-agent-operations.t27 -- unified agent operations specification v1
+; Source of truth for the Trinity system architecture, contracts between parts, gates for changes,
+; and budgets for runs. Every numeric field is a chosen limit or a dated measurement; silicon is not claimed.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module system_unified_agent_operations;
+
+pub const KIND : str = "system";
+pub const ID : str = "system/unified-agent-operations";
+pub const VERSION : str = "v1";
+pub const TITLE : str = "Unified Agent Operations - Trinity System Architecture";
+pub const SUMMARY_EN : str = "Comprehensive specification of Trinity repositories architecture, contracts between parts, gates for changes, and budgets for runs";
+
+// Four layers of the Trinity system architecture
+pub const LAYERS : [4]str = [
+    "application-layer",    // User-facing interfaces and applications
+    "control-layer",        // Queen, Bees, Inngest orchestration and scheduling
+    "runtime-layer",        // Edge compute, VM execution, and runtime services
+    "infrastructure-layer"  // Hardware, silicon, and foundational infrastructure
+];
+
+// Subsystems within each layer
+pub const SUBSYSTEMS : [12]str = [
+    "skills",              // Application layer: Skill definitions and execution
+    "crons",               // Control layer: Scheduled operations and automation
+    "agents",              // Control layer: Autonomous agents and decision-making
+    "tools",               // Control layer: Tool registry and capability management
+    "runtime",             // Runtime layer: VM instances and execution environments
+    "memory",              // Runtime layer: Data storage and retrieval systems
+    "network",             // Runtime layer: Communication and transport protocols
+    "compute",             // Runtime layer: Resource allocation and scheduling
+    "hardware",            // Infrastructure layer: Physical devices and silicon
+    "storage",             // Infrastructure layer: Persistent data storage
+    "security",            // Infrastructure layer: Authentication and authorization
+    "monitoring"           // Infrastructure layer: Observability and health monitoring
+];
+
+// Required fields for cron cards (based on existing cron specifications)
+pub const CRON_CARD_REQUIRED_FIELDS : [9]str = [
+    "KIND",                // Always "cron"
+    "ID",                  // Unique identifier: "host/repo/name"
+    "NAME",                // Display name for the cron job
+    "HOST",                // Hosting platform (e.g., "inngest")
+    "REPO",                // Repository name
+    "SCHEDULE",            // Cron schedule expression
+    "TZ",                  // Timezone for schedule execution
+    "ENABLED",             // Whether the cron is active
+    "CONTROL"             // Control system identifier
+];
+
+// HITL (Human-in-the-Loop) model configuration
+pub const HITL_MODEL : str = "staged-review";
+pub const HITL_THRESHOLDS : [3]u16 = [25, 50, 75];  // Confidence thresholds for human intervention
+pub const HITL_ESCALATION : u16 = 30;               // Minutes before automatic escalation
+
+// Budget limits for system operations
+pub const BUDGETS : [6]u16 = [
+    15,   // Skills: Maximum execution time in minutes
+    5,    // Crons: Maximum execution time in minutes  
+    120,  // Training: Maximum time in minutes
+    256,  // Memory: Maximum MB per operation
+    1024, // Storage: Maximum MB per dataset
+    24    // Monitoring: Hours of data retention
+];
+
+// Secret rules and security constraints
+pub const SECRET_RULES : [5]str = [
+    "no-plaintext-credentials",  // Credentials must be encrypted at rest
+    "zero-trust-communications", // All communications require authentication
+    "immutable-audit-logs",     // Audit logs cannot be modified after creation
+    "encrypted-backups",        // All backups must be encrypted
+    "regular-rotation"           // Secrets and keys must be rotated quarterly
+];
+
+// Media measurements and quality metrics
+pub const MEDIA_MEASUREMENTS : [4]u16 = [
+    1920,  // Maximum video width in pixels
+    1080,  // Maximum video height in pixels
+    30,    // Maximum video frame rate
+    128    // Maximum audio sample rate in kHz
+];
+
+// Reliability and performance metrics
+pub const RELIABILITY_METRIC : str = "uptime-sla";
+pub const RELIABILITY_TARGET : u16 = 99;    // Target: 99% uptime
+pub const RELIABILITY_WINDOW : u16 = 168;    // Measurement window: 168 hours (1 week)
+pub const ERROR_BUDGET : u16 = 1;           // Error budget: 1% of operations
+
+// Owner boundaries and governance
+pub const OWNER_BOUNDARIES : [4]str = [
+    "queen-control",      // Queen system control boundaries
+    "bee-autonomy",       // Bee agent autonomy limits
+    "edge-deployment",    // Edge deployment permissions
+    "data-sensitivity"    // Data classification levels
+];
+
+// Contract enforcement points
+pub const CONTRACT_GATES : [6]str = [
+    "typecheck",          // Compile-time type verification
+    "runtime-validation",  // Runtime behavior validation
+    "resource-limits",    // Resource usage enforcement
+    "security-scan",      // Security vulnerability scanning
+    "performance-test",   // Performance benchmarking
+    "conformance-test"    // Behavioral conformance testing
+];
+
+// Measurement timestamps (dated measurements)
+pub const MEASUREMENT_DATE : str = "2024-12-01";
+pub const LAST_UPDATE : str = "2024-12-01T00:00:00Z";
+
+// System health indicators
+pub const HEALTH_INDICATORS : [5]str = [
+    "agent-responsiveness",
+    "skill-success-rate", 
+    "cron-completion-rate",
+    "resource-utilization",
+    "error-rate"
+];
+
+// Operational constraints
+pub const OPERATIONAL_CONSTRAINTS : [4]u16 = [
+    1000,  // Maximum concurrent operations
+    50,    // Maximum concurrent skills
+    24,    // Maximum hours of continuous operation
+    7      // Days of operational data retention
+];
+
+pub const ENABLED : bool = true;
