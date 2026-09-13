@@ -94,9 +94,10 @@ FIGURES = [
     # #3602 added specs/automation/crm-duet.t27 with five: 12734 + 5 = 12739.
     # #3604 added specs/automation/crm-client-workspace.t27 with five: 12739 + 5 = 12744.
     # #3608 added specs/automation/crm-client-ownership.t27 with five: 12744 + 5 = 12749.
+    # #3613 added three to specs/automation/crm-duet.t27: 12749 + 3 = 12752.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12749,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12752,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3"),
 ]
 
 
