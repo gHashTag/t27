@@ -45,6 +45,11 @@ module TriTuple;
         return pair.second;
     }
 
+    // swap(t: Tuple2(A, B)) → Tuple2(B, A)
+    fn swap(t: Tuple2(A, B)) -> Tuple2(B, A) {
+        return Tuple2(B, A){ .first = t.second, .second = t.first };
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
@@ -96,5 +101,13 @@ module TriTuple;
         const t2 = pair(2, 1);
         assert(t1.first != t2.first);
         assert(t1.second != t2.second);
+    }
+
+    test "swapping_twice_is_the_identity" {
+        const t = pair(10, 20);
+        const swapped = swap(t);
+        const swapped_back = swap(swapped);
+        assert(swapped_back.first == t.first);
+        assert(swapped_back.second == t.second);
     }
 
