@@ -64,9 +64,7 @@ module automation::crm_client_ownership {
 
     // ---- Claimed live -----------------------------------------------------------------------
     pub const PAYING_CLIENT_SEEN_LIVE : bool = true;  // 2026-09-13 ~21:25 +07: crm_history 435572800 -> stage client, paid true, paid_known true, after the #2390 deploy
-
-    // ---- Not claimed ----------------------------------------------------------------------
-    pub const MIGRATION_RAN_ON_PROD : bool = false;  // flip only on a crm_schema_check answer with legacy_pkey false and unique_index true
+    pub const MIGRATION_RAN_ON_PROD : bool = true;  // 2026-09-13 ~21:37 +07: crm_schema_check on prod -> owner_column true, legacy_pkey false, unique_index true, rows 1/1 owned/0 unowned (#2392)
 
     struct ProfileRow {
         has_owner: bool,
@@ -131,12 +129,12 @@ module automation::crm_client_ownership {
         assert(paid_known(true));
         assert(PAID_FLAG_IN_ROWS);
 
-    test "this spec extends the client workspace; a paying client was seen live, the migration only through a witness"
+    test "this spec extends the client workspace; a paying client and the migration were both witnessed live"
         assert(EXTENDS == "crm-client-workspace");
         assert(KIND == "automation");
         assert(WINBACK_AFTER_QUIET_DAYS == 60);
         assert(PAYING_CLIENT_SEEN_LIVE);
-        assert(!MIGRATION_RAN_ON_PROD);
+        assert(MIGRATION_RAN_ON_PROD);
         assert(SCHEMA_CHECK_TOOL == "crm_schema_check");
         assert(!SCHEMA_CHECK_WRITES);
 }

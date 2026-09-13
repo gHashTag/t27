@@ -23,13 +23,14 @@ Date: 2026-09-13. Issue: #3611. Follows #3604 (client workspace) and #3608 (owne
   touch stages.
 - `crm_schema_check`: an owner-only, read-only tool that reports `owner_column`, `legacy_pkey`,
   `unique_index`, `rows_total`, `rows_owned`, `rows_unowned`, `owners`. It never calls the
-  migration. `MIGRATION_RAN_ON_PROD` stays false until this witness answers
-  `legacy_pkey: false, unique_index: true` on production.
+  migration. `MIGRATION_RAN_ON_PROD` flipped to true on its first production answer (~21:37 +07,
+  after the #2392 deploy): `owner_column: true, legacy_pkey: false, unique_index: true,
+  rows_total: 1, rows_owned: 1, rows_unowned: 0, owners: [{144022504: 1}]`.
 
 ## What is not claimed
 
-- That the migration dropped the legacy primary key on production: only inferred so far (the
-  owner_id backfill read back as `144022504`), which is why the witness exists.
+- The witness saw one profile row; how the migration behaves on a base with many legacy rows is
+  covered by unit tests only.
 - That a duet started from the dashboard was seen live; the control is specified and built, the
   first run from it is not yet recorded.
 
