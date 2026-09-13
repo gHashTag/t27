@@ -66,7 +66,7 @@ module automation::crm_client_workspace {
     pub const RUN_LOST_IS_STORED : bool = false;  // derived on read, never written
 
     // ---- Not claimed ----------------------------------------------------------------------
-    pub const DASHBOARD_SEEN_LIVE : bool = false;
+    pub const DASHBOARD_SEEN_LIVE : bool = true;  // 2026-09-13 ~20:40 +07: /crm, /crm/435572800 and its chat opened by the owner on app.t27.ai after the #2384 deploy (#3608)
     pub const RUN_SURVIVED_REDEPLOY : bool = false;
 
     struct Thread {
@@ -121,11 +121,11 @@ module automation::crm_client_workspace {
         assert(!run_reads_as_lost(false, 90));
         assert(!RUN_LOST_IS_STORED);
 
-    test "the client is a telegram id, the caller is a seller, and nothing live is claimed"
+    test "the client is a telegram id, the caller is a seller, and only the dashboard is claimed live"
         assert(CLIENT_IS == "telegram-id");
         assert(CALLER == "seller");
         assert(ROUTE_CLIENT == "/crm/:clientId");
         assert(ROUTE_CLIENT_CHAT == "/crm/:clientId/chat");
-        assert(!DASHBOARD_SEEN_LIVE);
+        assert(DASHBOARD_SEEN_LIVE);
         assert(!RUN_SURVIVED_REDEPLOY);
 }
