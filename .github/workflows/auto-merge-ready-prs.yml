@@ -76,6 +76,20 @@ jobs:
             MAIN_CHECKS=$(echo "$PR_METADATA" | jq \
               '[.statusCheckRollup[]? | select(.name != "NotebookLM Auto-Sync" and .name != ".github/workflows/notebook-sync.yml")]')
             FAILING=$(echo "$MAIN_CHECKS" | jq '[.[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED")] | length')
+            # An EMPTY rollup is not a clean one. `[] | length` is 0 either way,
+            # so a PR on which nothing has run scored FAILING=0 and was printed
+            # "Ready to merge". Measured with this workflow's own jq: a rollup
+            # that is absent, and one that is present but empty, both give 0.
+            #
+            # A still-running check is handled correctly and deliberately --
+            # `null != "SUCCESS"` is true in jq, so it counts as failing. Only
+            # the empty set was wrong.
+            POSTED=$(echo "$MAIN_CHECKS" | jq 'length')
+            if [ "$POSTED" = "0" ]; then
+              echo "  Skipped: no check has posted yet -- zero checks is not zero failures"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
 
             echo "  Failing checks: $FAILING | Approved reviews: $APPROVED_REVIEWS"
 
@@ -107,11 +121,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "Merging ${{ steps.find-ready.outputs.count }} PRs..."
+          MERGED=0
+          FAILED=0
 
           for pr in ${{ steps.find-ready.outputs.ready_prs }}; do
             echo "  Merging PR #$pr..."
-            gh pr merge "$pr" --merge --delete-branch || echo "  Failed to merge PR #$pr"
+            # `|| echo` made this step exit 0 whether every merge succeeded or
+            # every one failed: a batch where nothing merged reported green.
+            if gh pr merge "$pr" --merge --delete-branch; then
+              MERGED=$((MERGED + 1))
+            else
+              echo "  Failed to merge PR #$pr"
+              FAILED=$((FAILED + 1))
+            fi
           done
+
+          echo "merged $MERGED, failed $FAILED"
+          if [ "$FAILED" != "0" ]; then
+            echo "::error::$FAILED merge(s) failed. A batch that merged nothing must not"
+            echo "::error::report success -- that is how a refused merge goes unread." >&2
+            exit 1
+          fi
 
       - name: Post Summary
         if: always()

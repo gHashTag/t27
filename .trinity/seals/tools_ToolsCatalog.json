@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:a0007fe9e3313994b5afb5e3bc310241f4c9d83fd43cd6e4ad10aab48fc5f3b0",
+  "gen_hash_rust": "sha256:39fc1e4670ca8a6d3c28d631a926044240e6a5521cf7378096bf6f5f6dab7099",
+  "gen_hash_verilog": "sha256:191ac688fd734ba5ad0e9ef410dd12bcc671285692c36c591edb814289502186",
+  "gen_hash_zig": "sha256:4047f02d8d2d73f2f9d17a03251de5aa086ecfcc8b0813fcac99b8ff4873cacc",
+  "module": "ToolsCatalog",
+  "ring": 12,
+  "sealed_at": "2026-09-13T04:09:22Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:1ec86e7561e1830b7f478ffc835f028522b5297c375296b7674990b182956235",
+  "spec_path": "specs/tools/catalog.t27"
+}

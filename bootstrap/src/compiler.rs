@@ -2212,6 +2212,42 @@ impl Parser {
                 // Parse enum body with brace-skip for safety
                 self.parse_enum_body(&mut decl)?;
                 self.expect(TokenKind::RBrace)?;
+            } else if self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "packed"
+                && self.peek.kind == TokenKind::KwStruct
+            {
+                // `pub const Greeting = packed struct { ... };`
+                //
+                // The bare `struct` case below has been handled since the
+                // beginning; `packed struct` had not, and there is no KwPacked
+                // in this lexer -- `packed` arrives as an Ident, exactly like
+                // `union` above. So this declaration fell through to the
+                // generic expression path and became a ConstDecl whose
+                // initializer started at the token `packed`.
+                //
+                // The Verilog backend then rendered it as a scalar parameter:
+                //
+                //     parameter [31:0] Greeting = packed;
+                //
+                // `packed` is not a value. That line is what a reader of
+                // specs/demos/hello_world.t27 -- the spec the corpus opens on,
+                // and the one that claims to show "every part of the language"
+                // -- gets under the Verilog tab today.
+                //
+                // A packed struct is exactly the declaration that matters most
+                // to a hardware backend: it IS a bit layout. Losing it to a
+                // keyword token is the worst-placed gap in the emitter.
+                // Packedness itself is NOT recorded on the node. Nothing
+                // downstream reads it today, and inventing a field no emitter
+                // consumes would look like support that does not exist. The
+                // declaration now reaches the backends as a struct, which is
+                // the part that was missing.
+                decl.kind = NodeKind::StructDecl;
+                self.advance(); // consume 'packed'
+                self.advance(); // consume 'struct'
+                self.expect(TokenKind::LBrace)?;
+                self.parse_struct_body(&mut decl)?;
+                self.expect(TokenKind::RBrace)?;
             } else if self.current.kind == TokenKind::KwStruct {
                 // pub const Foo = struct { ... };
                 decl.kind = NodeKind::StructDecl;
@@ -8138,15 +8174,8 @@ impl Codegen {
     // round locals like f16/f32/f64) must be emitted as @"name" -- Zig
     // rejects the bare name with "name shadows primitive". Applied at every
     // value-identifier emission site so declarations and uses stay consistent.
-    fn is_integer_type_suffix(t: &str) -> bool {
-        matches!(
-            t,
-            "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize"
-        )
-    }
-
     fn is_numeric_type_suffix(t: &str) -> bool {
-        Self::is_integer_type_suffix(t) || matches!(t, "f32" | "f64")
+        is_integer_type_suffix(t) || matches!(t, "f32" | "f64")
     }
 
     /// Re-escape a string the lexer already unescaped, so it can be written
@@ -8350,6 +8379,12 @@ impl Codegen {
             "double" => "f64",
             "int" => "i32",
             "uint" => "u32",
+            // W591's family again, and the value is not a guess: the Rust
+            // backend maps `GF16` to `u16` and the C backend to `uint16_t`, so
+            // Zig was the one column disagreeing. Measured over the emitted
+            // corpus: a bare `GF16` reaches 9 Zig files at 95 sites, where it
+            // is not a type Zig knows.
+            "GF16" | "gf16" => "u16",
             other => other,
         };
         // W588: a SCOPED type name in a type position -- `const PHI: gf16::GF16`.
@@ -9703,7 +9738,7 @@ impl Codegen {
                         // Integers only: a float cast needs @floatCast or
                         // @intFromFloat, and guessing between them would be a
                         // silent semantic choice.
-                        if Self::is_integer_type_suffix(target) {
+                        if is_integer_type_suffix(target) {
                             self.write(&format!("@as({}, @intCast(", target));
                             self.gen_expr(&node.children[0]);
                             self.write("))");
@@ -10835,6 +10870,14 @@ impl VerilogCodegen {
 
     /// Map t27 type to Verilog type width. Returns bit width.
     fn type_to_width(ty: &str) -> u32 {
+        // A type written through its module -- `gf16::GF16` -- matched no arm
+        // and took the 32-bit default, so the SAME type was 16 bits bare and 32
+        // bits qualified. Eight corpus specs spell it that way. Stripping the
+        // qualifier can only turn the unknown-type default into a known width;
+        // it cannot change an answer this table already gives.
+        if let Some((_, last)) = ty.rsplit_once("::") {
+            return Self::type_to_width(last.trim());
+        }
         match ty {
             "bool" => 1,
             "u8" | "i8" => 8,
@@ -10847,6 +10890,17 @@ impl VerilogCodegen {
             // decision rather than a fallthrough.
             "f32" => 32,
             "f64" => 64,
+            // The same fallthrough the `f64` line above was added to stop, and
+            // this file already knew the answer: `HwType::GF16.hw_width()` is
+            // 16 and `HwType::GF16.verilog_range()` is `[15:0]`, both with
+            // passing tests -- while a GF16 function parameter reaching THIS
+            // reader took `_ => 32` and was declared twice as wide.
+            //
+            // Two readers of one type, one of them green. Measured: `u16`
+            // gives `input [15:0] x;`, `GF16` gave `input [31:0] x;`, and so
+            // did `NoSuchTypeXY` -- the width was the unknown-type default,
+            // not a decision about GF16.
+            "GF16" | "gf16" => 16,
             _ => 32, // default width
         }
     }
@@ -12502,6 +12556,7 @@ impl VerilogCodegen {
         matches!(
             ty.trim(),
             "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "bool"
+                | "GF16" | "gf16"
         )
     }
 
@@ -18052,6 +18107,13 @@ pub struct CCodegen {
     /// type of its own; its consumer's parameter is declared, so the type is
     /// recoverable from the use. Zig has done this since W585.
     fn_param_types: std::collections::HashMap<String, Vec<String>>,
+    /// Enums this module declares, each with its variant names UPPER-CASED.
+    /// `Trit.pos` and `TokenKind::KwFn` are both ENUM MEMBERS, and C has
+    /// neither `Type.member` nor `Type::member`: the constant `gen_c_enum`
+    /// emits is `{TYPE}_{MEMBER}`. The variants are kept, not just the type
+    /// names, so a member the enum does NOT declare stays loud instead of
+    /// being lowered into a constant that was never emitted.
+    c_enum_variants: std::collections::HashMap<String, std::collections::HashSet<String>>,
     /// Scaffold binding name -> the C type recovered for it.
     scaffold_locals_c: std::collections::HashMap<String, String>,
     /// t27 tuple return type of the function currently being emitted, so an
@@ -18060,6 +18122,23 @@ pub struct CCodegen {
     /// C struct typedef name of the current function's [T; N] return type,
     /// so a returned array literal can be cast to the right compound literal.
     current_ret_array_type: Option<String>,
+    /// Type names this module actually DECLARES: structs and enums. A lowering
+    /// that names a type is only safe if the header carries that type.
+    c_declared_type_names: std::collections::HashSet<String>,
+    /// (struct, field) -> the field's t27 type. A struct-literal field whose
+    /// declared type is a slice takes the compound-literal cast, exactly as a
+    /// call argument does; without it a brace list initialises a pointer.
+    c_struct_field_types: std::collections::HashMap<(String, String), String>,
+    /// Emitting the operand of a `return`. A compound literal there is a
+    /// block-scoped object, so the cast is refused (#3445).
+    c_in_return: bool,
+    /// Identifiers (params + annotated locals) declared `string` in the item
+    /// being emitted: `s.len` on one of them is `strlen(s)`, in both spellings.
+    string_typed_names: std::collections::HashSet<String>,
+    /// Identifiers (params + locals) declared `*T` in the item being emitted:
+    /// a field access on them is `->`, not `.`. C is the only backend that
+    /// distinguishes the two, and 152 sites reached it with a dot.
+    pointer_typed_names: std::collections::HashSet<String>,
     /// Identifiers (params + locals) of [T; N] struct type in the item being
     /// emitted: indexing them must go through the .v member.
     array_typed_names: std::collections::HashSet<String>,
@@ -18070,6 +18149,18 @@ pub struct CCodegen {
     local_tuple_counter: u32,
 }
 
+/// The integer width suffix of a typed builtin -- `cast_i8`, `abs_i16`.
+///
+/// A free function rather than a method: `gen-zig` has recognised these since
+/// W570 and `gen-c` learned it in #3497, and a second copy is how one backend
+/// grows a spelling the other refuses.
+fn is_integer_type_suffix(t: &str) -> bool {
+    matches!(
+        t,
+        "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize"
+    )
+}
+
 impl CCodegen {
     pub fn new() -> Self {
         Self {
@@ -18078,9 +18169,15 @@ impl CCodegen {
             module_name: String::new(),
             fn_return_types: std::collections::HashMap::new(),
             fn_param_types: std::collections::HashMap::new(),
+            c_enum_variants: std::collections::HashMap::new(),
             scaffold_locals_c: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
             current_ret_array_type: None,
+            c_declared_type_names: std::collections::HashSet::new(),
+            c_struct_field_types: std::collections::HashMap::new(),
+            c_in_return: false,
+            string_typed_names: std::collections::HashSet::new(),
+            pointer_typed_names: std::collections::HashSet::new(),
             array_typed_names: std::collections::HashSet::new(),
             const_defs: std::collections::HashMap::new(),
             local_tuple_counter: 0,
@@ -18150,6 +18247,73 @@ impl CCodegen {
         let sane = |x: &str| x.replace(|c: char| !c.is_alphanumeric(), "_");
         let name = format!("t27_arr_{}_{}", sane(&elem), sane(resolved.trim()));
         Some((name, elem, resolved))
+    }
+
+    /// A `[N]T` PARAMETER, spelled so the C compiler can check the caller.
+    ///
+    /// `[4]u8` reached C as `uint8_t*`: the size was gone, and passing a
+    /// two-element array was silent. Rust keeps it (`[u8; 4]`) and Zig keeps
+    /// it (`[4]u8`), so C was the one column that dropped it -- 150 such
+    /// parameters across 120 functions.
+    ///
+    /// `T name[static N]` is the spelling that restores the check, and it had
+    /// to be MEASURED rather than assumed. A plain `T name[N]` decays to a
+    /// pointer and diagnoses nothing (Apple clang 21, `-Wall -Wextra`):
+    ///
+    ///     void f(uint64_t a[4]);         uint64_t small[2]; f(small);  /* silent */
+    ///     void f(uint64_t a[static 4]);  uint64_t small[2]; f(small);
+    ///         warning: array argument is too small; contains 2 elements,
+    ///         callee requires at least 4  [-Warray-bounds]
+    ///
+    /// Returns None for anything it cannot render safely, leaving the caller
+    /// on the existing pointer lowering:
+    ///   * a size that is neither a literal nor a const this file `#define`s
+    ///     (an unresolved name would expand to nothing);
+    ///   * a size of zero -- `[static 0]` is not valid C;
+    ///   * an array of arrays, whose element has no scalar C spelling here.
+    ///
+    /// PARAMETER POSITION ONLY. `param_type_to_c` also spells struct fields,
+    /// where `[static N]` is a syntax error -- the same narrowing the `&mut`
+    /// lowering needed.
+    fn c_static_array_param(&self, ty: &str, pname: &str) -> Option<String> {
+        let t = ty.trim();
+        if !t.starts_with('[') || t.contains(';') {
+            return None;
+        }
+        let close = t.find(']')?;
+        let size = t[1..close].trim();
+        let elem = t[close + 1..].trim();
+        if size.is_empty() || elem.is_empty() || elem.starts_with('[') {
+            return None;
+        }
+        let rendered = if size.chars().all(|c| c.is_ascii_digit()) {
+            size.to_string()
+        } else if let Some(v) = self.const_defs.get(size) {
+            // Keep the NAME, not its value: C sees `#define N 4` earlier in
+            // this same file, so `[static N]` expands, and the header stays
+            // readable. The lookup is only to prove the `#define` exists.
+            let _ = v;
+            size.to_string()
+        } else {
+            return None;
+        };
+        let zero = self
+            .const_defs
+            .get(&rendered)
+            .map(|v| v.trim())
+            .unwrap_or(rendered.as_str())
+            .parse::<u64>()
+            .map(|n| n == 0)
+            .unwrap_or(false);
+        if zero {
+            return None;
+        }
+        Some(format!(
+            "{} {}[static {}]",
+            Self::param_type_to_c(elem),
+            pname,
+            rendered
+        ))
     }
 
     fn param_type_to_c_r(&self, ty: &str) -> String {
@@ -18316,6 +18480,44 @@ impl CCodegen {
         self.write_line("#include <stdbool.h>");
         self.write_line("#include <stddef.h>");
 
+        // `s.len` on a `string` becomes `strlen(s)`. Decided by the SAME two
+        // helpers the emitter uses, so the include and the call site cannot
+        // disagree -- a missing include is an undeclared function, which is
+        // the very family this repair is shrinking.
+        if Self::module_uses_strlen(ast) {
+            self.write_line("#include <string.h>");
+        }
+
+        // `sqrt`, `floor` and `round` ARE the C names. The specs call them
+        // 100, 98 and 136 times; Rust lowers them to methods and Zig to
+        // builtins, and C passed them through -- not because the spelling was
+        // wrong but because nothing declared them. The whole repair is the
+        // include. `abs` is deliberately NOT here: C has `abs` for int and
+        // `fabs` for double, and picking one without the argument's type is a
+        // silent truncation. `min`/`max` are not C functions at all.
+        if Self::module_uses_libm(ast) {
+            self.write_line("#include <math.h>");
+        }
+
+        // `abs` is 389 uses in 43 specs, lowered by Rust as `(v).abs()` and by
+        // Zig as `@abs(v)`, and refused here for two passes because C has TWO
+        // of them -- `abs` for int, `fabs` for double -- and choosing without
+        // the argument's type is a silent truncation.
+        //
+        // C11 answers it without the type: `_Generic` dispatches on the
+        // argument's own type, evaluates it once, and is standard in the
+        // `-std=c11` this corpus is compiled with. The macro is named
+        // `t27_abs` and the call is rewritten, so a `<stdlib.h>` `abs` in
+        // scope is never shadowed.
+        if Self::module_uses_abs(ast) {
+            self.write_line("#include <math.h>");
+            self.write_line("#include <stdlib.h>");
+            self.write_line(
+                "#define t27_abs(x) _Generic((x), float: fabsf, double: fabs, \
+long double: fabsl, default: llabs)(x)",
+            );
+        }
+
         // Check if tests exist — add assert.h
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
         if has_tests {
@@ -18394,6 +18596,37 @@ impl CCodegen {
                     }
                 }
             };
+            // Every position that can now NAME the struct must also be able
+            // to cause it to be emitted: parameters, struct fields and locals
+            // joined the return type when `param_type_to_c` learned tuples.
+            fn walk_locals(
+                nodes: &[Node],
+                out: &mut Vec<String>,
+            ) {
+                for n in nodes {
+                    if n.kind == NodeKind::StmtLocal && !n.extra_type.is_empty() {
+                        out.push(n.extra_type.clone());
+                    }
+                    walk_locals(&n.children, out);
+                }
+            }
+            let mut extra: Vec<String> = Vec::new();
+            for st in &structs {
+                for field in &st.children {
+                    if !field.extra_type.is_empty() {
+                        extra.push(field.extra_type.clone());
+                    }
+                }
+            }
+            for f in &functions {
+                for (_, ptype) in &f.params {
+                    extra.push(ptype.clone());
+                }
+                walk_locals(&f.children, &mut extra);
+            }
+            for ty in &extra {
+                consider(ty, &mut seen, &mut typedefs);
+            }
             for f in &functions {
                 consider(&f.extra_return_type, &mut seen, &mut typedefs);
                 for stmt in &f.children {
@@ -18521,6 +18754,19 @@ impl CCodegen {
         }
 
         // Section: Enums
+        // Recorded whether or not any enum is emitted here, because the member
+        // forms have to be recognised wherever they appear.
+        for e in &enums {
+            if !e.name.is_empty() {
+                self.c_declared_type_names.insert(e.name.clone());
+                let vs = e
+                    .children
+                    .iter()
+                    .map(|v| v.name.to_uppercase())
+                    .collect::<std::collections::HashSet<String>>();
+                self.c_enum_variants.insert(e.name.clone(), vs);
+            }
+        }
         if !enums.is_empty() {
             self.write_line("/* -------------------------------------------------------");
             self.write_line("   Enums");
@@ -18557,6 +18803,19 @@ impl CCodegen {
             // reached another way costs nothing.
             for s in &structs {
                 self.write_line(&format!("typedef struct {} {};", s.name, s.name));
+            }
+            for st in &structs {
+                self.c_declared_type_names.insert(st.name.clone());
+            }
+            // Recorded whether or not the cast is ever needed, because a
+            // struct-literal field is written far from its declaration.
+            for st in &structs {
+                for f in &st.children {
+                    if !f.name.is_empty() && !f.extra_type.is_empty() {
+                        self.c_struct_field_types
+                            .insert((st.name.clone(), f.name.clone()), f.extra_type.clone());
+                    }
+                }
             }
             self.write_line("");
             for s in Self::structs_in_declaration_order(&structs) {
@@ -18931,7 +19190,15 @@ impl CCodegen {
             "int".to_string()
         };
         if node.extra_mutable {
-            self.write(&format!("static {} {} = ", c_type, node.name));
+            // The mutable twin of the `static const` below, and it carried the
+            // same defect: `static [4]u8 A = { ... }`. Found by grepping for
+            // every site that builds a declarator from a type and a name --
+            // fixing only the one the probe happened to use would have left
+            // this identical line four lines above it.
+            match Self::c_module_array_decl(&node.extra_type, &node.name) {
+                Some(decl) => self.write(&format!("static {} = ", decl)),
+                None => self.write(&format!("static {} {} = ", c_type, node.name)),
+            }
             if let Some(child) = node.children.first() {
                 self.gen_c_expr(child);
             } else if !node.value.is_empty() {
@@ -18959,8 +19226,20 @@ impl CCodegen {
                 };
                 self.write_line(&format!("#define {} {}", node.name, text));
             } else {
-                // Complex expression → static const
-                self.write(&format!("static const {} {} = ", c_type, node.name));
+                // Complex expression → static const.
+                //
+                // A `[N]T` const put the brackets before the name --
+                // `static const [4]u8 A = { 1, 2, 3, 4 };` -- which clang meets
+                // with "brackets are not allowed here; to declare an array,
+                // place the brackets after the identifier". The declarator is
+                // the same one struct fields already use, so `c_array_field`
+                // builds it rather than a fourth copy of the rule: parameters
+                // want `T x[static N]` (#3435), fields and now consts want
+                // `T name[N]` (#3446), and a local wants it too (#3448).
+                match Self::c_module_array_decl(&node.extra_type, &node.name) {
+                    Some(decl) => self.write(&format!("static const {} = ", decl)),
+                    None => self.write(&format!("static const {} {} = ", c_type, node.name)),
+                }
                 self.gen_c_expr(child);
                 self.write_line(";");
             }
@@ -18972,6 +19251,175 @@ impl CCodegen {
                 Self::c_literal(&node.value)
             ));
         }
+    }
+
+    /// Names declared `string` in one item: parameters, and locals that carry
+    /// an annotation. ONE source of truth, used both by the pre-scan that
+    /// decides whether `<string.h>` is included and by the emitter that writes
+    /// `strlen` -- if those two ever disagree, the header does not compile.
+    fn collect_string_typed(item: &Node) -> std::collections::HashSet<String> {
+        let mut out = std::collections::HashSet::new();
+        for (pname, ptype) in &item.params {
+            if ptype.trim() == "string" {
+                out.insert(pname.clone());
+            }
+        }
+        fn walk(nodes: &[Node], out: &mut std::collections::HashSet<String>) {
+            for n in nodes {
+                if n.kind == NodeKind::StmtLocal && n.extra_type.trim() == "string" {
+                    out.insert(n.name.clone());
+                }
+                walk(&n.children, out);
+            }
+        }
+        walk(&item.children, &mut out);
+        out
+    }
+
+    /// The base of a `.len` taken on a `string`, in EITHER spelling.
+    ///
+    /// The specs write both: `s.len()` parses as one `ExprCall` named `s.len`,
+    /// and `s.len` as an `ExprFieldAccess`. 1322 of the first and 687 of the
+    /// second across the corpus -- the third time in this campaign that one
+    /// rule had two spellings and only one was taught.
+    ///
+    /// `string` lowers to `const char*`, which carries no length, so the C
+    /// answer is `strlen`. That is the WHOLE of what is decidable here: on a
+    /// slice `[]T` the same expression needs a representation that does not
+    /// exist yet (#3464), and this returns None for it.
+    fn string_len_base<'a>(
+        node: &'a Node,
+        strings: &std::collections::HashSet<String>,
+    ) -> Option<&'a str> {
+        match node.kind {
+            NodeKind::ExprCall if node.children.is_empty() => {
+                let (base, field) = node.name.rsplit_once('.')?;
+                if field == "len" && strings.contains(base) {
+                    return Some(base);
+                }
+                None
+            }
+            NodeKind::ExprFieldAccess if node.name == "len" => {
+                let base = node.children.first()?;
+                if base.kind == NodeKind::ExprIdentifier && strings.contains(&base.name) {
+                    return Some(base.name.as_str());
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// The C-named math functions the specs call: `sqrt`, `floor`, `round`.
+    ///
+    /// Only names that ARE the C function, so the lowering is the include and
+    /// nothing else. A spec that declares its own keeps it, exactly as the cast
+    /// builtin does.
+    const LIBM: [&'static str; 3] = ["sqrt", "floor", "round"];
+
+    fn module_uses_abs(ast: &Node) -> bool {
+        Self::module_calls(ast, &["abs"])
+    }
+
+    fn module_uses_libm(ast: &Node) -> bool {
+        Self::module_calls(ast, &Self::LIBM)
+    }
+
+    /// Does this module CALL any of `names`, none of them being a function it
+    /// declares itself? One predicate for both preamble decisions, so a spec
+    /// that defines its own `sqrt` or `abs` keeps it in either.
+    fn module_calls(ast: &Node, names: &[&str]) -> bool {
+        fn declared(node: &Node, out: &mut std::collections::HashSet<String>) {
+            for c in &node.children {
+                if c.kind == NodeKind::FnDecl && !c.name.is_empty() {
+                    out.insert(c.name.clone());
+                }
+                declared(c, out);
+            }
+        }
+        fn calls(
+            node: &Node,
+            names: &[&str],
+            fns: &std::collections::HashSet<String>,
+        ) -> bool {
+            node.children.iter().any(|c| {
+                (c.kind == NodeKind::ExprCall
+                    && names.contains(&c.name.as_str())
+                    && !fns.contains(&c.name))
+                    || calls(c, names, fns)
+            })
+        }
+        let mut fns = std::collections::HashSet::new();
+        declared(ast, &mut fns);
+        calls(ast, names, &fns)
+    }
+
+    /// Does any item in this module take `.len` on a `string`? Decides the
+    /// `<string.h>` include, using the same two helpers the emitter uses.
+    fn module_uses_strlen(ast: &Node) -> bool {
+        fn any(nodes: &[Node], strings: &std::collections::HashSet<String>) -> bool {
+            nodes.iter().any(|n| {
+                CCodegen::string_len_base(n, strings).is_some() || any(&n.children, strings)
+            })
+        }
+        fn items(node: &Node) -> bool {
+            node.children.iter().any(|c| {
+                let is_item = matches!(
+                    c.kind,
+                    NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::BenchBlock
+                );
+                (is_item && any(&c.children, &CCodegen::collect_string_typed(c))) || items(c)
+            })
+        }
+        items(ast)
+    }
+
+    /// The C constant for `base`'s enum member `member`, if this module
+    /// declares that enum AND that member.
+    ///
+    /// Both spellings the specs use -- `Trit.pos` and `TokenKind::KwFn` --
+    /// arrive here so that one convention answers them: `gen_c_enum` writes
+    /// `{TYPE}_{MEMBER}` upper-cased, and nothing else may be invented.
+    ///
+    /// The membership test is deliberately on the VARIANT, not just the enum
+    /// name. 12 sites in the corpus name a member their enum does not declare
+    /// (`Trit::TRUE` against an enum of pos/neg/zero); lowering those would
+    /// emit `TRIT_TRUE`, a constant `gen_c_enum` never wrote, and trade a
+    /// diagnostic that names the spec's mistake for one that hides it.
+    fn c_enum_constant(&self, base: &str, member: &str) -> Option<String> {
+        if member.is_empty() {
+            return None;
+        }
+        let up = member.to_uppercase();
+        if self.c_enum_variants.get(base)?.contains(&up) {
+            Some(format!("{}_{}", base.to_uppercase(), up))
+        } else {
+            None
+        }
+    }
+
+    /// The compound-literal cast for an array literal passed where a t27
+    /// SLICE is declared: `[]u32` -> `(uint32_t[])`.
+    ///
+    /// A bare `{ 1, 2 }` is an initialiser, not an operand: C accepts it after
+    /// `=` in a declaration and nowhere else, so `f({ 0 })` is
+    /// `expected expression`. 170 call sites in the corpus are exactly this.
+    ///
+    /// The cast is derived from `param_type_to_c` rather than spelled again,
+    /// so it AGREES with the parameter's own declaration by construction --
+    /// if `acc` is declared `const char** acc`, the cast is `(const char*[])`.
+    /// A `[T; N]` parameter is a by-value struct here, not a pointer, and is
+    /// refused: that is a different repair.
+    fn c_slice_compound_cast(ty: &str) -> Option<String> {
+        if !ty.trim().starts_with("[]") {
+            return None;
+        }
+        let c = Self::param_type_to_c(ty);
+        let elem = c.strip_suffix('*')?.trim_end();
+        if elem.is_empty() {
+            return None;
+        }
+        Some(format!("({}[])", elem))
     }
 
     fn gen_c_enum(&mut self, node: &Node) {
@@ -19099,6 +19547,321 @@ impl CCodegen {
         out
     }
 
+    /// A `[N]T` STRUCT FIELD, rendered as C storage rather than a pointer.
+    ///
+    /// `struct Holder { f : [4]u8, g : i32 }` reached C as `uint8_t* f;`, so
+    /// the field held no storage at all -- `h.f[0] = 1` wrote through an
+    /// uninitialised pointer -- and the same struct measured 16 bytes in C
+    /// against 8 in Rust and Zig, which both store the four bytes inline.
+    /// 65 fields across 31 specs.
+    ///
+    /// The array-field path already existed for fields whose size the parser
+    /// puts in `extra_size`; this spelling never reached it.
+    ///
+    /// Returns None for anything it must not rewrite, leaving the pointer:
+    /// a slice `[]T`, the Rust spelling `[T; N]` (which has its own by-value
+    /// struct), and a zero length, since `uint8_t f[0]` inside a struct is a
+    /// GCC extension rather than standard C.
+    ///
+    /// FIELD POSITION ONLY. In parameter position `T x[static N]` is the
+    /// spelling that carries a check (#3435), and in return position C cannot
+    /// return an array at all (#3445) -- three positions, three answers.
+    /// A module-level `[N]T` or `[]T` declarator: `T name[N]` / `T name[]`.
+    ///
+    /// `c_array_field` answers the sized case and REFUSES a slice, because a
+    /// struct field cannot be an incomplete array. A module constant can:
+    /// `T name[] = { ... }` is legal C and takes its size from the initialiser
+    /// list, which is the same rule the local position needed (#3448).
+    ///
+    /// Both call sites are inside a branch that already HAS an initialiser, so
+    /// there is no unsized-slice case to guard. A `has_init` parameter was
+    /// written and removed: a mutant deleting its check survived every test,
+    /// which is what a guard nothing can reach looks like. Add it back with a
+    /// caller that needs it, not before.
+    fn c_module_array_decl(ty: &str, name: &str) -> Option<String> {
+        if let Some(sized) = Self::c_array_field(ty, name) {
+            return Some(sized.trim_end_matches(';').to_string());
+        }
+        let t = ty.trim();
+        let rest = t.strip_prefix("[]")?.trim();
+        let (qual, elem) = match rest.strip_prefix("const ") {
+            Some(r) => ("const ", r.trim()),
+            None => ("", rest),
+        };
+        if elem.is_empty() || elem.starts_with('[') {
+            return None;
+        }
+        Some(format!("{}{} {}[]", qual, Self::type_to_c(elem), name))
+    }
+
+    /// How many elements a bare array literal has, when the parser kept them
+    /// in `extra_size` rather than in `children`.
+    ///
+    /// `"1,2,3"` is three; `"0;4"` is the repeat form and is four. Returns None
+    /// for anything it cannot count, so the declarator is never given a length
+    /// this did not derive.
+    fn c_literal_list_len(lit: &Node) -> Option<usize> {
+        let text = lit.extra_size.trim();
+        if text.is_empty() {
+            return None;
+        }
+        if let Some((_, n)) = text.split_once(';') {
+            return n.trim().parse::<usize>().ok().filter(|n| *n > 0);
+        }
+        let n = text.split(',').filter(|p| !p.trim().is_empty()).count();
+        if n == 0 {
+            None
+        } else {
+            Some(n)
+        }
+    }
+
+    /// The element type of an array literal whose elements are all numeric
+    /// literals, or None.
+    ///
+    /// The last shape of the `__auto_type x = { ... }` class: `[1, 2, 3]` and
+    /// `[1.0, 2.0]` carry a type NOWHERE -- not on the array, not on a child --
+    /// and C has no inference for a brace list, so it must be named. Rust
+    /// writes `let mut x = [1, 2, 3]` and Zig `var x = .{ 1, 2, 3 }`; only C
+    /// needs this.
+    ///
+    /// The choice matches what a SCALAR literal already gets, so the two agree:
+    /// `var x = 1` emits `uint32_t x = 1` here and `var x: u32 = 1` in Zig. Any
+    /// fractional element makes the whole list `f64`, which is C's own
+    /// promotion.
+    ///
+    /// Returns None for an empty list and for any element that is not a plain
+    /// numeric literal -- a call such as `cast_i8(1)` has a return type this
+    /// does not read, and guessing one would be worse than `__auto_type`.
+    /// The element type of an array literal whose elements are all CALLS to
+    /// functions this module declares, when they all return the same thing.
+    ///
+    /// ~92 of the remaining `__auto_type x = { ... }` errors are lists like
+    /// `[cast_i8(1), cast_i8(2)]`. The literal inference refuses them because
+    /// it reads literals and not return types -- and the map it needs,
+    /// `fn_return_types`, is already built and already consulted a few hundred
+    /// lines away. A lookup, not an invention: nothing here guesses a type,
+    /// and a call to a function this module does not declare still refuses.
+    ///
+    /// All elements must agree. A mixed list has no single element type and
+    /// `__auto_type` remains the honest answer for it.
+    fn c_call_list_elem(&self, lit: &Node) -> Option<String> {
+        if lit.kind != NodeKind::ExprArrayLiteral || lit.children.is_empty() {
+            return None;
+        }
+        let mut found: Option<String> = None;
+        for e in &lit.children {
+            if e.kind != NodeKind::ExprCall {
+                return None;
+            }
+            let rt = self.fn_return_types.get(&e.name)?.trim().to_string();
+            if rt.is_empty() || rt == "void" {
+                return None;
+            }
+            // ONLY a scalar return type. The first version took the return
+            // type verbatim and emitted `[]Trit structures[2] = { ... }` --
+            // t27 syntax in a C declarator, and two errors where there had
+            // been one. An array, a slice, an optional or a pointer needs the
+            // declarator machinery this branch does not have, and `__auto_type`
+            // is the better answer until it does.
+            if rt.starts_with('[') || rt.starts_with('?') || rt.starts_with('*')
+                || rt.contains('(') || rt.contains("::")
+            {
+                return None;
+            }
+            match &found {
+                None => found = Some(rt),
+                Some(prev) if *prev == rt => {}
+                Some(_) => return None,
+            }
+        }
+        found
+    }
+
+    fn c_literal_list_elem(lit: &Node) -> Option<String> {
+        if lit.kind != NodeKind::ExprArrayLiteral {
+            return None;
+        }
+        // The answer was written on the emitter arm all along: "the parser
+        // stores the literal's ELEMENT TEXT in extra_size ("1,2,3" for a list,
+        // "0;4" for a repeat) with no children". `children` and `value` were
+        // both searched and both empty; the field is `extra_size`, and the
+        // comment naming it sits forty lines from the code that reads it.
+        //
+        // 334 of the remaining class are `{ 0 }` and every one arrives this
+        // way.
+        if lit.children.is_empty() {
+            let text = lit.extra_size.trim();
+            if text.is_empty() {
+                return None;
+            }
+            // The repeat form `[v; n]`: the element is the part before `;`.
+            let head = text.split(';').next().unwrap_or("").trim();
+            let items: Vec<&str> = if text.contains(';') {
+                vec![head]
+            } else {
+                text.split(',').map(str::trim).collect()
+            };
+            if items.is_empty() {
+                return None;
+            }
+            let mut any_float = false;
+            let mut any_negative = false;
+            for v in items {
+                if v.is_empty() {
+                    return None;
+                }
+                let body = match v.strip_prefix('-') {
+                    Some(rest) => {
+                        any_negative = true;
+                        rest
+                    }
+                    None => v,
+                };
+                if body.contains('.') {
+                    // A C floating literal: AT MOST ONE dot, and at least one
+                    // digit. `a.b` is a field access, `1.2.3` is not a number
+                    // at all -- both refused. `1.` and `.5` ARE valid C and are
+                    // accepted; requiring digits on both sides of the dot
+                    // refused them, which a mutant on this line exposed by
+                    // being BETTER than the guard for those two inputs.
+                    let mut parts = body.split('.');
+                    let head = parts.next().unwrap_or("");
+                    let tail = parts.next().unwrap_or("");
+                    if parts.next().is_some() {
+                        return None;
+                    }
+                    let digits = |t: &str| t.chars().all(|c| c.is_ascii_digit());
+                    if !digits(head) || !digits(tail) || (head.is_empty() && tail.is_empty()) {
+                        return None;
+                    }
+                    any_float = true;
+                } else if !body.chars().all(|c| c.is_ascii_digit() || c == '_') {
+                    return None;
+                }
+            }
+            return Some(if any_float {
+                "f64"
+            } else if any_negative {
+                "i32"
+            } else {
+                "u32"
+            }
+            .to_string());
+        }
+        let mut any_float = false;
+        let mut any_negative = false;
+        for e in &lit.children {
+            // SUBSUMED TODAY, and kept deliberately. A mutant deleting this
+            // survives every test: an identifier, a call and a binary
+            // expression all reach the checks below with an empty or
+            // non-numeric `value`, so they are refused anyway -- probed, all
+            // three still emit `__auto_type`. Unlike the `has_init` parameter
+            // removed in the const path, this guard IS reachable; dropping it
+            // would make correctness depend on the accident that non-literal
+            // nodes carry no numeric text.
+            // A NEGATIVE element is a unary expression, not a literal, so the
+            // whole list was refused: 193 corpus lists contain one. Look
+            // through a `-` to the literal underneath, and only that -- any
+            // other unary operator keeps the list unnamed.
+            let e: &Node = if e.kind == NodeKind::ExprUnary
+                && e.extra_op == "-"
+                && e.children.len() == 1
+            {
+                any_negative = true;
+                &e.children[0]
+            } else {
+                e
+            };
+            if e.kind != NodeKind::ExprLiteral {
+                return None;
+            }
+            // A STRING literal is an ExprLiteral whose `value` is the text
+            // WITHOUT its quotes, so `["12", "34"]` passed the digit test and
+            // the list was typed `uint32_t` -- "incompatible pointer to
+            // integer conversion initializing 'uint32_t' with an expression of
+            // type 'char *'", four of them in one file. The tag lives on the
+            // node, exactly as the `#define` path upstream already knows.
+            if e.extra_kind == "string" {
+                return None;
+            }
+            let v = e.value.trim();
+            if v.is_empty() {
+                return None;
+            }
+            let body = v.strip_prefix('-').unwrap_or(v);
+            if body.contains('.') || body.contains('e') || body.contains('E') {
+                if body.chars().any(|c| c == '.') {
+                    any_float = true;
+                } else {
+                    return None;
+                }
+            } else if !body.chars().all(|c| c.is_ascii_digit() || c == '_') {
+                return None;
+            }
+        }
+        // A negative element makes the list SIGNED. Emitting
+        // `uint32_t x[2] = { 1, -1 }` was the first version of this and is
+        // exactly the quiet wrong answer this whole class of repairs is meant
+        // to avoid.
+        //
+        // `any_negative` is NOT reachable on this branch, and that is recorded
+        // rather than assumed covered: a mutant forcing "u32" here survives
+        // every test. An integer list carrying a negative takes the
+        // `extra_size` path instead -- probed with `[1, -1]`, `[-1]` and
+        // `[_]i32{1, -1}`; the last has an `extra_type` and never reaches this
+        // function at all. The float case DOES arrive here (`[-1.5, 2.0]`) and
+        // is answered by `any_float` before the sign matters. Kept for the
+        // same reason as the `kind != ExprLiteral` test above: the branch is
+        // reachable even though this particular combination has not been
+        // produced, and dropping it would make correctness depend on that.
+        Some(if any_float {
+            "f64"
+        } else if any_negative {
+            "i32"
+        } else {
+            "u32"
+        }
+        .to_string())
+    }
+
+    fn c_array_field(ty: &str, fname: &str) -> Option<String> {
+        let t = ty.trim();
+        // The `;` test is REDUNDANT today and kept as intent: a mutant deleting
+        // it survives the whole test file, because `[u8; 4]` reaches the
+        // emptiness check below anyway (`find(']')` lands on the last char, so
+        // the element comes out empty). Written down rather than left as a
+        // guard that looks load-bearing -- and
+        // `the_rust_spelling_field_keeps_its_own_by_value_struct` is what
+        // actually pins that spelling's behaviour.
+        if !t.starts_with('[') || t.contains(';') {
+            return None;
+        }
+        let close = t.find(']')?;
+        let size = t[1..close].trim();
+        let elem = t[close + 1..].trim();
+        if size.is_empty() || elem.is_empty() || size == "0" {
+            return None;
+        }
+        // A nested `[2][3]u8` becomes `uint8_t f[2][3]`, which is ordinary C.
+        let mut dims = vec![size.to_string()];
+        let mut rest = elem;
+        while rest.starts_with('[') && !rest.contains(';') {
+            let c = rest.find(']')?;
+            let d = rest[1..c].trim();
+            if d.is_empty() || d == "0" {
+                return None;
+            }
+            dims.push(d.to_string());
+            rest = rest[c + 1..].trim();
+        }
+        if rest.is_empty() {
+            return None;
+        }
+        let suffix: String = dims.iter().map(|d| format!("[{}]", d)).collect();
+        Some(format!("{} {}{};", Self::param_type_to_c(rest), fname, suffix))
+    }
+
     fn gen_c_struct(&mut self, node: &Node) {
         // Tagged, because the forward declaration above names the tag. An
         // anonymous `typedef struct { ... } Name;` cannot be forward-declared
@@ -19108,6 +19871,16 @@ impl CCodegen {
 
         for field in &node.children {
             self.write_indent();
+            // A `[N]T` field is STORAGE, not a pointer: see `c_array_field`.
+            // Asked before the mapping below, because that one lowers every
+            // array spelling to `T*` and a field is the one position where
+            // that is not merely lossy but wrong.
+            if field.extra_size.is_empty() {
+                if let Some(decl) = Self::c_array_field(&field.extra_type, &field.name) {
+                    self.write_line(&decl);
+                    continue;
+                }
+            }
             // W582: struct fields used `type_to_c`, which passes anything it
             // does not recognise through verbatim -- so a slice was `[]u8` and
             // an optional `?[]u8`, neither of which is C. `param_type_to_c`
@@ -19150,8 +19923,12 @@ impl CCodegen {
             if i > 0 {
                 self.write(", ");
             }
-            let c_type = self.param_type_to_c_r(ptype);
-            self.write(&format!("{} {}", c_type, pname));
+            if let Some(decl) = self.c_static_array_param(ptype, pname) {
+                self.write(&decl);
+            } else {
+                let c_type = self.param_type_to_c_r(ptype);
+                self.write(&format!("{} {}", c_type, pname));
+            }
         }
         if node.params.is_empty() {
             self.write("void");
@@ -19176,9 +19953,18 @@ impl CCodegen {
         self.current_ret_array_type =
             self.c_array_info_r(&node.extra_return_type).map(|(n, _, _)| n);
         self.array_typed_names.clear();
+        self.pointer_typed_names.clear();
+        self.string_typed_names = Self::collect_string_typed(node);
         for (pname, ptype) in &node.params {
             if Self::c_array_info(ptype).is_some() {
                 self.array_typed_names.insert(pname.clone());
+            }
+            // `*T` only. A slice `[]T` is also a C pointer, but `xs.len` on a
+            // slice is not a struct field at all -- that is the `len` family
+            // (#3464), and turning its dot into an arrow would move the error
+            // without answering it.
+            if ptype.trim_start().starts_with('*') {
+                self.pointer_typed_names.insert(pname.clone());
             }
         }
 
@@ -19187,8 +19973,12 @@ impl CCodegen {
             if i > 0 {
                 self.write(", ");
             }
-            let c_type = self.param_type_to_c_r(ptype);
-            self.write(&format!("{} {}", c_type, pname));
+            if let Some(decl) = self.c_static_array_param(ptype, pname) {
+                self.write(&decl);
+            } else {
+                let c_type = self.param_type_to_c_r(ptype);
+                self.write(&format!("{} {}", c_type, pname));
+            }
         }
         if node.params.is_empty() {
             self.write("void");
@@ -19218,6 +20008,8 @@ impl CCodegen {
         let fn_name = format!("test_{}", fn_name);
         self.current_ret_array_type = None;
         self.array_typed_names.clear();
+        self.pointer_typed_names.clear();
+        self.string_typed_names = Self::collect_string_typed(node);
 
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
@@ -19437,6 +20229,13 @@ impl CCodegen {
             format!("bench_{}", fn_name)
         };
 
+        // A bench is an ITEM, like a fn or a test, and cleared NEITHER set
+        // before this. The pointer set made that visible: `cell` stayed in it
+        // from a `*MemoryCell` parameter, and a test block's own `MemoryCell
+        // cell;` was then written `cell->scope`, +38 errors in one file.
+        self.pointer_typed_names.clear();
+        self.array_typed_names.clear();
+        self.string_typed_names = Self::collect_string_typed(node);
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
         self.write_indent();
@@ -19461,6 +20260,13 @@ impl CCodegen {
             NodeKind::ExprReturn => {
                 self.write_indent();
                 self.write("return ");
+                // The STATEMENT return, distinct from the expression one. The
+                // first version of the #3445 guard set this flag in only ONE of
+                // the two arms, and the returned struct literal took the cast
+                // anyway -- the same "all the call sites" defect the guard
+                // exists to prevent, one level up.
+                let outer_return = self.c_in_return;
+                self.c_in_return = true;
                 if !node.children.is_empty() {
                     // A returned array literal needs the compound-literal cast
                     // to the fn's [T; N] struct; bare braces are not a C
@@ -19472,6 +20278,7 @@ impl CCodegen {
                     }
                     self.gen_c_expr(&node.children[0]);
                 }
+                self.c_in_return = outer_return;
                 self.write_line(";");
             }
             NodeKind::StmtLocal
@@ -19607,23 +20414,124 @@ impl CCodegen {
                     if let Some(bracket_end) = raw_type.find(']') {
                         let size = &raw_type[1..bracket_end];
                         let elem = &raw_type[bracket_end + 1..];
-                        let c_elem = if Self::is_primitive(elem) {
-                            Self::type_to_c(elem).to_string()
-                        } else {
-                            elem.to_string()
+                        // W583, again and in the other position. That note is
+                        // 200 lines below, on `param_type_to_c`: the gate used
+                        // to be `is_primitive`, "which lists only the integer
+                        // scalars -- so `f32`, `f64`, `str`, `string` and
+                        // `gf16` took the pass-through arm and reached C
+                        // unmapped even after `type_to_c` learned them." The
+                        // repair did not travel here, so a LOCAL array kept the
+                        // pass-through and C received
+                        //
+                        //     GF16 x[4];   error: use of undeclared identifier 'GF16'
+                        //
+                        // while the same element is `uint16_t` in both a
+                        // parameter (`uint16_t a[static 4]`) and a struct field
+                        // (`uint16_t f[4];`). `type_to_c` passes a genuinely
+                        // custom type through unchanged, so the gate only ever
+                        // suppressed correct mappings -- the same sentence that
+                        // retired it downstairs.
+                        // `[]const u8` carries the qualifier INSIDE the
+                        // element, so the element text is the literal
+                        // "const u8" and C received `const u8* x` --
+                        // "unknown type name 'u8'". `param_type_to_c` strips
+                        // it for a slice parameter; the same strip is needed
+                        // here.
+                        let elem = elem.trim();
+                        let (qual, elem) = match elem.strip_prefix("const ") {
+                            Some(rest) => ("const ", rest.trim()),
+                            None => ("", elem),
                         };
-                        self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                        let c_elem = format!("{}{}", qual, Self::type_to_c(elem));
+                        if size.is_empty() && node.children.is_empty() {
+                            // A slice `[]T` has no compile-time length, and
+                            // `uint8_t x[];` is not a definition -- clang says
+                            // "definition of variable with array type needs an
+                            // explicit size or an initializer".
+                            //
+                            // ONLY when there is no initialiser. `T x[] = {…}`
+                            // is legal C and takes its size from the list, and
+                            // rewriting that to `T* x = {…}` made the one
+                            // corpus file carrying the shape WORSE -- measured,
+                            // +5 errors and nothing better, which is how this
+                            // condition got here.
+                            self.write(&format!("{}* {}", c_elem, node.name));
+                        } else {
+                            self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                        }
                     } else {
                         self.write(&format!("int {}", node.name));
                     }
+                } else if raw_type.is_empty()
+                    && node.children.first().is_some_and(|c| {
+                        // An EMPTY slice literal that names its element type.
+                        // `var d = []u8{}` reaches C as `__auto_type d = { 0 }`
+                        // -- the type thrown away AND the length changed from
+                        // zero to one. 478 of these in the specs, the largest
+                        // shape left in the `__auto_type` class.
+                        c.kind == NodeKind::ExprArrayLiteral
+                            && c.children.is_empty()
+                            && c.extra_size.trim().is_empty()
+                            && !c.extra_type.trim().is_empty()
+                            // ...AND the element type is one C will know. The
+                            // first version trusted the spec: `[]u1{}` became
+                            // `u1* a = NULL` and `[]Port{}` became `Port*`
+                            // where no `Port` is declared anywhere -- two files
+                            // got WORSE, trading one diagnostic for two. A
+                            // lowering that names a type must check the header
+                            // carries it.
+                            && {
+                                let e = c.extra_type.trim();
+                                Self::type_to_c(e) != e || self.c_declared_type_names.contains(e)
+                            }
+                    })
+                {
+                    // A slice is a pointer everywhere else in this backend, so
+                    // an empty one is a null pointer -- which is also the only
+                    // honest length. `T x[0]` is not ISO C, and `T x[1] = {0}`
+                    // would answer a question about emptiness with a one.
+                    let lit = node.children.first().unwrap();
+                    let c_ty = Self::param_type_to_c(&format!("[]{}", lit.extra_type.trim()));
+                    self.write(&format!("{} {} = NULL", c_ty, node.name));
+                    // The initialiser is written HERE and the shared tail is
+                    // skipped: the literal it would emit is the `{ 0 }` this
+                    // branch exists to replace.
+                    self.write_line(";");
+                    return;
                 } else if raw_type.is_empty()
                     && node
                         .children
                         .first()
                         .is_some_and(|c| {
                             c.kind == NodeKind::ExprArrayLiteral
-                                && !c.extra_type.is_empty()
-                                && !c.children.is_empty()
+                                // Not `!children.is_empty()`: the parser keeps
+                                // a bare list's elements in `extra_size` and
+                                // leaves `children` EMPTY, which is why every
+                                // `{ 0 }` was still reaching `__auto_type`.
+                                && (!c.children.is_empty() || !c.extra_size.trim().is_empty())
+                                // The literal's own element type when it has
+                                // one, and otherwise the type of its first
+                                // element if that is a struct literal --
+                                // `[W{...}, W{...}]` carries `W` on the child,
+                                // not on the array. Without this the array fell
+                                // to `__auto_type x = { ... }`, which is the
+                                // largest single error class in the generated
+                                // corpus.
+                                && (!c.extra_type.is_empty()
+                                    || c.children.first().is_some_and(|e| {
+                                        e.kind == NodeKind::ExprStructLit && !e.name.is_empty()
+                                    })
+                                    // A bare list of NUMERIC LITERALS carries
+                                    // its type nowhere -- not on the array, not
+                                    // on a child -- and it is what remained of
+                                    // the largest error class: 1401 of
+                                    // `__auto_type x = { 1, 2, 3 }`. Rust and
+                                    // Zig infer it; C cannot, so it has to be
+                                    // named. See `c_literal_list_elem`.
+                                    || Self::c_literal_list_elem(c).is_some()
+                                    // ... and a list of calls, whose element
+                                    // type is a LOOKUP in `fn_return_types`.
+                                    || self.c_call_list_elem(c).is_some())
                         })
                 {
                     // W699 rung 3: `const vals = [_]i32{...}` has no annotation,
@@ -19632,13 +20540,29 @@ impl CCodegen {
                     // '__auto_type' with initializer list". The literal carries
                     // its own element type and its own length; use them.
                     let lit = node.children.first().unwrap();
-                    let elem = &lit.extra_type;
-                    let c_elem = if Self::is_primitive(elem) {
-                        Self::type_to_c(elem).to_string()
+                    let elem: String = if !lit.extra_type.is_empty() {
+                        lit.extra_type.clone()
+                    } else if let Some(t) = Self::c_literal_list_elem(lit) {
+                        t
+                    } else if let Some(t) = self.c_call_list_elem(lit) {
+                        t
                     } else {
-                        elem.to_string()
+                        // Recovered from the first element; the condition above
+                        // established it is a named struct literal.
+                        lit.children.first().map(|e| e.name.clone()).unwrap_or_default()
                     };
-                    self.write(&format!("{} {}[{}]", c_elem, node.name, lit.children.len()));
+                    // W583, third instance. The `is_primitive` gate lists only
+                    // the integer scalars, so `f32`, `f64`, `str` and `gf16`
+                    // took the pass-through arm; `type_to_c` passes a genuinely
+                    // custom type through unchanged, which is what a struct
+                    // name needs anyway.
+                    let c_elem = Self::type_to_c(&elem).to_string();
+                    let n = if lit.children.is_empty() {
+                        Self::c_literal_list_len(lit).unwrap_or(0)
+                    } else {
+                        lit.children.len()
+                    };
+                    self.write(&format!("{} {}[{}]", c_elem, node.name, n));
                 } else {
                     let inferred_arr = if raw_type.is_empty() {
                         node.children
@@ -20078,6 +21002,25 @@ impl CCodegen {
     }
 
     fn param_type_to_c(ty: &str) -> String {
+        // A TUPLE, in any position. The hoisted `t27_tuple_*` struct already
+        // existed and was consulted by `c_return_type_r` alone, so a tuple in a
+        // parameter, a struct field or a local reached C as the t27 text:
+        //
+        //     int32_t probe(H h, (u8, i32) t);
+        //     struct H { (u8, i32) f; };
+        //
+        // neither of which is C. Both halves were missing and only one was
+        // obvious: the use sites did not consult this, AND the typedef
+        // collection considered only a return type and a destructured call's
+        // return type. Naming the struct without emitting it is WORSE than the
+        // t27 text -- `unknown type name 't27_tuple_uint8_t_int32_t'` -- which
+        // is what the first attempt produced.
+        //
+        // Corpus population is ZERO: no spec puts a tuple in these positions
+        // today, and that is said here rather than left implied.
+        if let Some((name, _)) = Self::c_tuple_info(ty) {
+            return name;
+        }
         // A dotted foreign type (`std.mem.Allocator`) has no C spelling at all.
         // It reached the header as `std.mem.Allocator x;`, which is not C;
         // `void*` is the honest lowering and what a hand-written binding uses.
@@ -20204,6 +21147,22 @@ impl CCodegen {
             }
             NodeKind::ExprIdentifier => {
                 let name = &node.name;
+                // `TokenKind::KwFn` is the SAME enum-member reference the field
+                // -access arm handles, spelled with a path instead of a dot,
+                // and the parser keeps a path in ONE identifier's name. Fixing
+                // only the dotted spelling one pass earlier left 917 `X::Y`
+                // occurrences in the generated C, of which 538 name an enum
+                // this translation unit declares.
+                // No guard against a multi-segment path here: a variant name
+                // is an identifier, so `c_enum_variants` can never hold
+                // `b::c`, and a `!member.contains("::")` test could not change
+                // the outcome. It was written, found unreachable, and removed.
+                if let Some((base, member)) = name.split_once("::") {
+                    if let Some(c) = self.c_enum_constant(base, member) {
+                        self.write(&c);
+                        return;
+                    }
+                }
                 // Map Zig-specific identifiers to C equivalents
                 if name == "undefined" {
                     self.write("{0}");
@@ -20219,6 +21178,43 @@ impl CCodegen {
                 self.write(&node.name.to_uppercase());
             }
             NodeKind::ExprCall => {
+                // `cast_i8(x)` is a CAST, not a call. The Zig backend has said
+                // so since W570 -- `@as(i8, @intCast(x))` -- and its comment
+                // records the same fact this campaign filed as a blocker:
+                // "`cast_i8(` alone appears 1,100 times and is defined nowhere
+                // in the corpus". Declared nowhere was true; *therefore
+                // unfixable* was not. C is the backend that had no answer:
+                // `cast_i8` 1079 uses, `cast_i16` 38, `cast_i32` 2.
+                //
+                // Integers only, exactly as Zig has it: a float cast needs a
+                // different conversion and guessing between them would be a
+                // silent semantic choice. Guarded by the declared functions, so
+                // a spec that defines its own `cast_i8` keeps it.
+                // `abs(x)` becomes the type-generic macro; see the preamble.
+                if node.name == "abs"
+                    && node.children.len() == 1
+                    && !self.fn_param_types.contains_key(&node.name)
+                {
+                    self.write("t27_abs(");
+                    self.gen_c_expr(&node.children[0]);
+                    self.write(")");
+                    return;
+                }
+                if node.children.len() == 1 && !self.fn_param_types.contains_key(&node.name) {
+                    if let Some(target) = node.name.strip_prefix("cast_") {
+                        if is_integer_type_suffix(target) {
+                            self.write(&format!("(({})(", Self::type_to_c(target)));
+                            self.gen_c_expr(&node.children[0]);
+                            self.write("))");
+                            return;
+                        }
+                    }
+                }
+                // `s.len()` -- one of the two spellings; see `string_len_base`.
+                if let Some(base) = Self::string_len_base(node, &self.string_typed_names) {
+                    self.write(&format!("strlen({})", base));
+                    return;
+                }
                 let fname = &node.name;
                 // The third call-site of the scaffold class. `default_input()`
                 // and `valid_input()` are TEMPLATE SCAFFOLD, not functions: 571
@@ -20337,9 +21333,27 @@ impl CCodegen {
                 } else {
                     self.write(fname);
                     self.write("(");
+                    // An array literal in an argument needs the compound-
+                    // literal cast; bare braces are not a C expression. The
+                    // element type comes from the CALLEE's declared parameter,
+                    // so nothing is inferred from the elements. The literal's
+                    // lifetime is this block, which outlives the call -- unlike
+                    // the same cast in a `return`, where it would hand back the
+                    // address of a local (#3445), and which is why only the
+                    // argument position is repaired here.
+                    let ptypes = self.fn_param_types.get(fname).cloned();
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
+                        }
+                        if arg.kind == NodeKind::ExprArrayLiteral {
+                            if let Some(cast) = ptypes
+                                .as_ref()
+                                .and_then(|ts| ts.get(i))
+                                .and_then(|t| Self::c_slice_compound_cast(t))
+                            {
+                                self.write(&cast);
+                            }
                         }
                         self.gen_c_expr(arg);
                     }
@@ -20395,10 +21409,49 @@ impl CCodegen {
                 }
             }
             NodeKind::ExprFieldAccess => {
+                // An ENUM MEMBER, not a field. `Trit.pos` went into C verbatim
+                // and C has no `Type.member`: 1373 errors across 12 files,
+                // reported as `unexpected type name 'Trit'` and as undeclared
+                // `POS`/`NEG`. The constant `gen_c_enum` emits is
+                // `{TYPE}_{MEMBER}`, both upper-cased, so the two spellings are
+                // brought together here rather than a third one invented.
+                //
+                // Rust emits `Trit::pos` and Zig `Trit.pos`, both correct for
+                // their language; C was the only backend without an answer.
+                // The `::` spelling of the SAME member reference is handled in
+                // the identifier arm -- one rule, one helper, two spellings.
+                // `s.len` -- the other spelling of the same rule.
+                if let Some(base) = Self::string_len_base(node, &self.string_typed_names) {
+                    self.write(&format!("strlen({})", base));
+                    return;
+                }
+                if let Some(base) = node.children.first() {
+                    if base.kind == NodeKind::ExprIdentifier {
+                        if let Some(c) = self.c_enum_constant(&base.name, &node.name) {
+                            self.write(&c);
+                            return;
+                        }
+                    }
+                }
+                // A field of a `*T` is reached with `->`. C is the only
+                // backend that spells the two accesses differently -- Rust and
+                // Zig both auto-dereference -- so the dot travelled through
+                // 152 sites in 52 files, every one of them a real field on a
+                // real pointer, which clang answers with "did you mean to use
+                // '->'?". Only an IDENTIFIER base is considered: in `p.a.b`
+                // the outer base is a field access whose type this pass does
+                // not track, and `p->a.b` is already right.
+                let arrow = node
+                    .children
+                    .first()
+                    .is_some_and(|b| {
+                        b.kind == NodeKind::ExprIdentifier
+                            && self.pointer_typed_names.contains(&b.name)
+                    });
                 if !node.children.is_empty() {
                     self.gen_c_expr(&node.children[0]);
                 }
-                self.write(".");
+                self.write(if arrow { "->" } else { "." });
                 if node.name.chars().all(|c| c.is_ascii_digit()) {
                     // Tuple index: the C tuple structs name their fields f0/f1/...
                     self.write(&format!("f{}", node.name));
@@ -20525,14 +21578,32 @@ impl CCodegen {
                         self.write(", ");
                     }
                     self.write(&format!(".{} = ", field.name));
-                    if !field.children.is_empty() {
-                        self.gen_c_expr(&field.children[0]);
+                    if let Some(v) = field.children.first() {
+                        // A slice field is a POINTER in C, and a brace list is
+                        // not a pointer: 199 sites read `incompatible integer
+                        // to pointer conversion`. The compound literal that
+                        // fixes it lives in the enclosing block, which is fine
+                        // for the 197 that initialise a local and wrong for the
+                        // 4 inside a `return`, where it would hand back the
+                        // address of a local (#3445) -- so the return refuses.
+                        if v.kind == NodeKind::ExprArrayLiteral && !self.c_in_return {
+                            if let Some(cast) = self
+                                .c_struct_field_types
+                                .get(&(node.name.clone(), field.name.clone()))
+                                .and_then(|t| Self::c_slice_compound_cast(t))
+                            {
+                                self.write(&cast);
+                            }
+                        }
+                        self.gen_c_expr(v);
                     }
                 }
                 self.write(" }");
             }
             NodeKind::ExprReturn => {
                 self.write("return ");
+                let outer_return = self.c_in_return;
+                self.c_in_return = true;
                 if !node.children.is_empty() {
                     // A returned array literal needs the compound-literal cast
                     // to the fn's [T; N] struct type; bare braces are not an
@@ -20544,6 +21615,7 @@ impl CCodegen {
                     }
                     self.gen_c_expr(&node.children[0]);
                 }
+                self.c_in_return = outer_return;
             }
             NodeKind::ExprCast => {
                 if !node.children.is_empty() {
@@ -21897,12 +22969,259 @@ fn parse_int_value(s: &str) -> Option<i64> {
 /// - Field assignments: `s.f = expr` → s is mutable
 /// Recurses into if/while/for bodies.
 /// Collect names of functions declared with a `bool` return type, at any depth.
+/// Which `[]T` parameter of each function is written through, to a fixpoint.
+///
+/// A direct `buf[i] = x` is the base case. The inductive case is what a
+/// per-function scan cannot see: `char_to_trits` never assigns into its own
+/// `trits`, it hands it to `byte_to_trits`, which does. Marking only the direct
+/// writers gives the caller a `Vec<i32>` and the callee a `&mut [i32]`, and the
+/// call between them is E0308. Iterating to a fixpoint marks the whole chain.
+///
+/// The argument must be a bare identifier naming a slice parameter of the
+/// caller. Anything else -- a literal, an index, a call -- is not a parameter
+/// being threaded through and is left alone rather than guessed at.
+/// Every struct field name this file declares, at any depth.
+///
+/// `bool_fields` is filled DURING emission, from inside `gen_struct`, so it is
+/// only complete once the structs have been written. A guard consulted from an
+/// expression must not depend on emission order, so this is a pre-pass like its
+/// neighbours.
+fn collect_field_names(node: &Node, out: &mut std::collections::HashSet<String>) {
+    if node.kind == NodeKind::StructDecl {
+        for f in &node.children {
+            if f.kind == NodeKind::ExprIdentifier && !f.name.is_empty() {
+                out.insert(f.name.clone());
+            }
+        }
+    }
+    for c in &node.children {
+        collect_field_names(c, out);
+    }
+}
+
+/// Each function's parameter names, in order. A call site knows argument
+/// POSITIONS; `written_slice_params` is keyed by parameter NAME, and this is
+/// the map between them.
+fn collect_param_names(
+    node: &Node,
+    out: &mut std::collections::HashMap<String, Vec<String>>,
+) {
+    if node.kind == NodeKind::FnDecl {
+        out.insert(
+            node.name.clone(),
+            node.params.iter().map(|(n, _)| n.clone()).collect(),
+        );
+    }
+    for c in &node.children {
+        collect_param_names(c, out);
+    }
+}
+
+fn collect_written_slice_params(
+    ast: &Node,
+) -> std::collections::HashMap<String, std::collections::HashSet<String>> {
+    fn fns<'a>(n: &'a Node, out: &mut Vec<&'a Node>) {
+        if n.kind == NodeKind::FnDecl {
+            out.push(n);
+        }
+        for c in &n.children {
+            fns(c, out);
+        }
+    }
+    fn calls<'a>(n: &'a Node, out: &mut Vec<&'a Node>) {
+        if n.kind == NodeKind::ExprCall {
+            out.push(n);
+        }
+        for c in &n.children {
+            calls(c, out);
+        }
+    }
+    let is_slice = |t: &str| t.trim_start().starts_with("[]");
+
+    let mut all: Vec<&Node> = Vec::new();
+    fns(ast, &mut all);
+
+    let mut written: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    for f in &all {
+        let slice_params: std::collections::HashSet<String> = f
+            .params
+            .iter()
+            .filter(|(_, t)| is_slice(t))
+            .map(|(n, _)| n.clone())
+            .collect();
+        let mut direct = std::collections::HashSet::new();
+        collect_mutable_names(&f.children, &mut direct);
+        written.insert(
+            f.name.clone(),
+            direct.intersection(&slice_params).cloned().collect(),
+        );
+    }
+
+    // A chain is at most as long as the number of functions, so the loop
+    // terminates; the counter is a backstop against a cycle in a malformed AST
+    // rather than an expected exit.
+    for _ in 0..=all.len() {
+        let mut changed = false;
+        for f in &all {
+            let slice_params: std::collections::HashSet<String> = f
+                .params
+                .iter()
+                .filter(|(_, t)| is_slice(t))
+                .map(|(n, _)| n.clone())
+                .collect();
+            if slice_params.is_empty() {
+                continue;
+            }
+            let mut sites: Vec<&Node> = Vec::new();
+            calls(f, &mut sites);
+            let mut add: Vec<String> = Vec::new();
+            for site in &sites {
+                let Some(callee) = all.iter().find(|g| g.name == site.name) else {
+                    continue;
+                };
+                let Some(callee_written) = written.get(&callee.name) else {
+                    continue;
+                };
+                for (i, arg) in site.children.iter().enumerate() {
+                    if arg.kind != NodeKind::ExprIdentifier {
+                        continue;
+                    }
+                    let Some((pname, _)) = callee.params.get(i) else {
+                        continue;
+                    };
+                    if callee_written.contains(pname) && slice_params.contains(&arg.name) {
+                        add.push(arg.name.clone());
+                    }
+                }
+            }
+            if let Some(set) = written.get_mut(&f.name) {
+                for a in add {
+                    if set.insert(a) {
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    written
+}
+
+/// Every `struct` declared anywhere in the tree, with its field types, and the
+/// name of every `enum`.
+///
+/// Feeds the `Copy` fixpoint below. A single pass is not enough on its own:
+/// declarations may appear in any order, and a struct's qualification depends
+/// on structs that may be declared after it.
+fn collect_type_decls(
+    node: &Node,
+    structs: &mut std::collections::HashMap<String, Vec<String>>,
+    enums: &mut std::collections::HashSet<String>,
+) {
+    match node.kind {
+        NodeKind::StructDecl => {
+            let fields: Vec<String> = node
+                .children
+                .iter()
+                .filter(|c| c.kind == NodeKind::ExprIdentifier && !c.name.is_empty())
+                .map(|c| RustCodegen::t27_type_to_rust(&c.extra_type))
+                .collect();
+            structs.insert(node.name.clone(), fields);
+        }
+        NodeKind::EnumDecl => {
+            enums.insert(node.name.clone());
+        }
+        _ => {}
+    }
+    for child in &node.children {
+        collect_type_decls(child, structs, enums);
+    }
+}
+
+/// The declared types that can derive `Copy`, as a least fixed point.
+///
+/// The derive used to ask `is_copy_rust_type` alone, which knows the scalars
+/// and `[T; N]` but nothing about declared types -- so a field whose type was
+/// another struct disqualified its owner even when that struct had itself been
+/// emitted `Copy`. The consequence is not cosmetic: a non-`Copy` struct passed
+/// by value is MOVED, so a caller reading the same value twice does not
+/// compile.
+///
+///     struct Inner { a : i32 }        // all scalars   -> Copy
+///     struct Outer { i : Inner }      // a struct field -> was NOT Copy
+///     fn probe(o: Outer) -> (i32, i32) { (first(o), second(o)) }
+///         error[E0382]: use of moved value: `o`
+///
+/// Every `enum` is emitted `#[derive(Debug, Clone, Copy, PartialEq, Eq)]`
+/// unconditionally, so an enum-typed field qualifies its owner too; that was
+/// the second half of the same blind spot.
+///
+/// A struct with no fields is NOT admitted: the emitter's existing rule is
+/// `all_fields_copy` over a non-empty list, and widening it here would change
+/// a case this fixpoint was not measured against.
+fn copy_qualified_types(
+    structs: &std::collections::HashMap<String, Vec<String>>,
+    enums: &std::collections::HashSet<String>,
+) -> std::collections::HashSet<String> {
+    fn is_copy(t: &str, ok: &std::collections::HashSet<String>) -> bool {
+        let t = t.trim();
+        if RustCodegen::is_copy_rust_type(t) {
+            return true;
+        }
+        // `[T; N]` is Copy exactly when T is -- including when T is a declared
+        // type, which is the case `is_copy_rust_type` cannot answer.
+        if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+            if let Some((elem, _len)) = inner.rsplit_once(';') {
+                return is_copy(elem, ok);
+            }
+        }
+        ok.contains(t)
+    }
+    let mut ok: std::collections::HashSet<String> = enums.clone();
+    loop {
+        let mut grew = false;
+        for (name, fields) in structs {
+            if ok.contains(name) || fields.is_empty() {
+                continue;
+            }
+            if fields.iter().all(|f| is_copy(f, &ok)) {
+                ok.insert(name.clone());
+                grew = true;
+            }
+        }
+        if !grew {
+            break;
+        }
+    }
+    ok
+}
+
 fn collect_bool_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
     if node.kind == NodeKind::FnDecl && node.extra_return_type.trim() == "bool" {
         out.insert(node.name.clone());
     }
     for child in &node.children {
         collect_bool_fns(child, out);
+    }
+}
+
+/// Collect the name of EVERY function declared anywhere in the tree.
+///
+/// Deliberately not keyed on the return type. `collect_fn_ret_types` skips a
+/// declaration whose `extra_return_type` is empty, and 3 of the 30 corpus
+/// declarations that shadow a math builtin use the Zig-style return syntax
+/// (`pub fn min(a: usize, b: usize) usize`) rather than `->`. A guard built on
+/// that map would therefore be narrower than its subject exactly where it is
+/// needed, so this walks `FnDecl` unconditionally.
+fn collect_declared_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
+    if node.kind == NodeKind::FnDecl {
+        out.insert(node.name.clone());
+    }
+    for child in &node.children {
+        collect_declared_fns(child, out);
     }
 }
 
@@ -22020,6 +23339,45 @@ fn mentions_type(hay: &str, name: &str) -> bool {
 
 fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// Structs declared with type parameters, in source order, each once.
+///
+/// The parser records `pub const Map(K, V) = struct { ... }` as a StructDecl
+/// whose `params` are the type parameters, and `collect_type_params` feeds
+/// them to the unknown-type check so that `K` and `V` are not reported as
+/// undeclared. That tolerance is correct and it silences the only reader that
+/// might have noticed the rest.
+///
+/// Because the backends do NOT agree about what happens next, and the split
+/// was measured rather than assumed:
+///
+///   gen-rust   `pub struct Box<T>` and `pub fn get<T>(b: Box<T>)`. Compiles.
+///   gen-c      `struct Box { ... }` -- the parameter DROPPED from the
+///              declaration -- and `int32_t get(Box(T) b)` at the use site:
+///              "unknown type name 'T'".
+///   gen-zig    `pub const Box = struct` and `fn get(b: Box(T))`:
+///              "use of undeclared identifier 'T'".
+///   gen-verilog  per-field regs, marked UNSUPPORTED_ICARUS.
+///
+/// So this is not "no backend lowers generics". One does. Two drop the
+/// parameter in one place and keep it in another, which is the inconsistency
+/// worth reporting.
+fn generic_struct_decls(node: &Node, out: &mut Vec<(String, Vec<String>)>) {
+    if node.kind == NodeKind::StructDecl && !node.name.is_empty() {
+        let ps: Vec<String> = node
+            .params
+            .iter()
+            .map(|(n, _)| n.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .collect();
+        if !ps.is_empty() {
+            out.push((node.name.clone(), ps));
+        }
+    }
+    for child in &node.children {
+        generic_struct_decls(child, out);
+    }
 }
 
 fn collect_type_params(node: &Node, out: &mut std::collections::HashSet<String>) {
@@ -22736,6 +24094,293 @@ struct FnEntry {
     params: Vec<(String, TypeInfo)>,
 }
 
+/// The identifier a type annotation ultimately names, with the wrappers the
+/// language spells around it stripped.
+///
+/// `resolve_type_str` only matches whole strings, so `[]Trit` and `[3]Trit`
+/// both fall through to `Custom("[]Trit")` -- the wrapper, not the type. A
+/// check that consulted `Custom(..)` directly would therefore compare a name
+/// nothing ever declares and report every array as unresolved.
+fn type_base_name(t: &str) -> Option<String> {
+    let mut t = t.trim();
+    loop {
+        let before = t;
+        t = t.trim_start_matches('*').trim_start_matches('&');
+        t = t.trim_end_matches('?');
+        t = t.trim();
+        if let Some(rest) = t.strip_prefix("const ") {
+            t = rest.trim();
+        }
+        if let Some(rest) = t.strip_prefix('[') {
+            // `[]T` and `[N]T` alike: everything up to the first `]`.
+            if let Some(i) = rest.find(']') {
+                t = rest[i + 1..].trim();
+            }
+        }
+        if t == before {
+            break;
+        }
+    }
+    let ok = !t.is_empty()
+        && t.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if ok {
+        Some(t.to_string())
+    } else {
+        None
+    }
+}
+
+/// Every type name this tree declares: structs, enums, and the Zig-shaped
+/// `pub const Trit = enum(i8) { .. }`, which the parser records as a ConstDecl.
+/// Every top-level declaration in the tree, as (name, kind), in source order.
+///
+/// The population is the one the BACKENDS emit from, which is why this walks
+/// the AST rather than the text. A line-based matcher written while scoping
+/// this reported 8 specs and 35 names; five of those specs were its own false
+/// positives -- methods inside `impl` blocks in files written in Rust rather
+/// than t27, which do not parse at all and emit nothing. Scope is not visible
+/// to a regex.
+fn collect_top_level_decls(node: &Node, out: &mut Vec<(String, &'static str)>) {
+    for child in &node.children {
+        let kind = match child.kind {
+            NodeKind::StructDecl => Some("struct"),
+            NodeKind::EnumDecl => Some("enum"),
+            NodeKind::FnDecl => Some("fn"),
+            // A test block is a DECLARATION in every backend: gen-c emits
+            // `void test_{name}(void)`, gen-rust a `#[test] fn`. 29 specs
+            // declare the same test name twice -- 314 names, 373 extra
+            // definitions -- and the corpus reads them as 317 `redefinition
+            // of 'test_...'`. `check` was silent because this collector only
+            // looked at the three kinds a t27 program can CALL.
+            NodeKind::TestBlock => Some("test"),
+            NodeKind::BenchBlock => Some("bench"),
+            _ => None,
+        };
+        if let Some(k) = kind {
+            if !child.name.is_empty() {
+                out.push((child.name.clone(), k));
+            }
+        }
+        // Declarations may sit at file level or inside a `module` node, so the
+        // scan recurses -- the same shape as `collect_declared_types`.
+        collect_top_level_decls(child, out);
+    }
+}
+
+/// Names declared more than once, each reported once, in first-seen order.
+///
+/// Two findings, because they are not the same claim and one message for both
+/// would be false. Measured against the real compilers rather than assumed:
+///
+///   SAME NAMESPACE -- `struct A` twice, or `struct A` and `enum A`. Every
+///   backend rejects it: C `redefinition of 'S'` and `tag type that does not
+///   match`, rustc `error[E0428]`, zig `duplicate ...`, iverilog `has already
+///   been declared in this scope`.
+///
+///   ACROSS NAMESPACES -- `struct A` and `fn A`. Rust and C ACCEPT this; types
+///   and values live in separate namespaces there. Zig does not, because a
+///   container has one namespace, and it says `duplicate struct member name`.
+///   So this is a real finding and a WEAKER one, and it says so.
+///
+/// The corpus carries 25 of the first kind and none of the second, which is a
+/// reason to state the second rule carefully rather than to leave it out: a
+/// zero that nothing could have produced is not evidence.
+fn duplicate_top_level_decls(ast: &Node) -> Vec<DuplicateDecl> {
+    let mut decls: Vec<(String, &'static str)> = Vec::new();
+    collect_top_level_decls(ast, &mut decls);
+    // Four namespaces, not two. A test name collides only with another test
+    // name: `struct deque_clear` beside `test deque_clear` is not a conflict
+    // in any backend, and 138 names across 54 specs are exactly that shape.
+    // Folding tests into "type" would report every one of them.
+    let ns = |k: &str| match k {
+        "fn" => "value",
+        "test" => "test",
+        "bench" => "bench",
+        _ => "type",
+    };
+
+    let mut per_ns: std::collections::HashMap<(&str, &str), usize> =
+        std::collections::HashMap::new();
+    let mut namespaces: std::collections::HashMap<&str, std::collections::HashSet<&str>> =
+        std::collections::HashMap::new();
+    for (n, k) in &decls {
+        *per_ns.entry((n.as_str(), ns(k))).or_insert(0) += 1;
+        namespaces.entry(n.as_str()).or_default().insert(ns(k));
+    }
+
+    // A collision that exists only AFTER lowering. `fn test_booth_encode_zero`
+    // and `test booth_encode_zero` are different namespaces in t27 and the same
+    // identifier in C, where a test block becomes `void test_{name}(void)`.
+    // Measured per backend rather than assumed:
+    //   gen-c        `void test_X(void)` / `void bench_X(void)`  -- COLLIDES
+    //   gen (zig)    `test "X"` is a STRING, no identifier       -- no collision
+    //                `fn bench_X()`                              -- COLLIDES
+    //   gen-rust     tests are not lowered at all                -- no collision
+    //   gen-verilog  a test is emitted as a comment              -- no collision
+    // Corpus: 66 functions are named `test_*` and 4 of them meet a test block
+    // of the matching name; 0 functions are named `bench_*`, so that half is
+    // stated and tested rather than left out -- a zero nothing could have
+    // produced is not evidence.
+    let blocks = |want: &str| {
+        decls
+            .iter()
+            .filter(|(_, k)| *k == want)
+            .map(|(n, _)| n.as_str())
+            .collect::<std::collections::HashSet<&str>>()
+    };
+    let tests = blocks("test");
+    let benches = blocks("bench");
+
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for (n, k) in &decls {
+        if *k == "fn" {
+            if let Some(rest) = n.strip_prefix("test_") {
+                if tests.contains(rest) {
+                    out.push(DuplicateDecl::LoweredCollision(n.clone(), "test", "gen-c"));
+                }
+            }
+            if let Some(rest) = n.strip_prefix("bench_") {
+                if benches.contains(rest) {
+                    out.push(DuplicateDecl::LoweredCollision(
+                        n.clone(),
+                        "bench",
+                        "gen-c and gen (zig)",
+                    ));
+                }
+            }
+        }
+        if !seen.insert(n.clone()) {
+            continue;
+        }
+        let same = per_ns[&(n.as_str(), ns(k))];
+        if same > 1 {
+            out.push(DuplicateDecl::SameNamespace(n.clone(), k, same));
+        } else if namespaces[n.as_str()].contains("type")
+            && namespaces[n.as_str()].contains("value")
+        {
+            // Named as the PAIR it is about, not as "more than one namespace":
+            // that message is only true of a type sharing a name with a
+            // function, and tests now occupy namespaces of their own.
+            out.push(DuplicateDecl::AcrossNamespaces(n.clone()));
+        }
+    }
+    out
+}
+
+enum DuplicateDecl {
+    /// The same name declared twice where one namespace holds both.
+    SameNamespace(String, &'static str, usize),
+    /// A type and a function sharing a name: legal in Rust and C, not in Zig.
+    AcrossNamespaces(String),
+    /// Two declarations that do NOT collide in t27 and DO collide once a
+    /// backend has added its prefix: `fn test_x` beside `test x`.
+    /// (function name, block kind, the backends that collide)
+    LoweredCollision(String, &'static str, &'static str),
+}
+
+fn collect_declared_types(node: &Node, out: &mut std::collections::HashSet<String>) {
+    match node.kind {
+        NodeKind::StructDecl | NodeKind::EnumDecl => {
+            out.insert(node.name.clone());
+        }
+        // `pub const PackedTrit = u8;  // Type alias` and
+        // `pub const Trit = enum(i8) { .. }` are both type declarations spelled
+        // as constants, and neither carries a type ANNOTATION -- that is what
+        // separates them from `pub const ONE : i8 = 1`. Missing the alias form
+        // produced 33 false warnings on specs/base/types.t27 alone.
+        //
+        // The test is deliberately loose. A name wrongly added here only
+        // SUPPRESSES a warning; a name wrongly left out invents one. Of the two
+        // failure directions only the second is loud and wrong.
+        NodeKind::ConstDecl if node.extra_type.trim().is_empty() => {
+            out.insert(node.name.clone());
+        }
+        _ => {}
+    }
+    for c in &node.children {
+        collect_declared_types(c, out);
+    }
+}
+
+/// Type annotations naming something this tree never declares.
+///
+/// The typechecker resolved a type name to `TypeInfo::Custom(..)` and asked no
+/// further question, so `struct S { a: NoSuchType }` produced
+/// "Typecheck OK (0 errors, 0 warnings)" and the first reader to notice was
+/// rustc, downstream, in a different language. Measured over the corpus: **62
+/// distinct undefined type names across 61 of 651 specs**, headed by `List`,
+/// `Float`, `Trit`, `Int` and `Bool` -- and of those, `Float`, `Int` and `Bool`
+/// are declared by NO spec at all, while `Trit` is declared by four and simply
+/// not imported by the files that use it.
+///
+/// Reported as warnings, not errors. Making 61 specs fail is a decision about
+/// what `check` means and belongs to the owner; making the omission visible
+/// does not.
+fn collect_unresolved_types(
+    node: &Node,
+    declared: &std::collections::HashSet<String>,
+    type_params: &std::collections::HashSet<String>,
+    out: &mut Vec<(String, String)>,
+) {
+    let mut note = |ty: &str, where_: String, out: &mut Vec<(String, String)>| {
+        if let Some(base) = type_base_name(ty) {
+            // TWO resolvers, and they do not agree. `resolve_type_str` knows
+            // 15 spellings (`i32`, `f64`, `str`, ...); the emitter's
+            // `t27_type_to_rust` also knows the language's OWN keyword
+            // spellings -- `int` -> `i32`, `float` -> `f64`,
+            // `string` -> `&'static str`. Asking only the first reported
+            // `int`, `string` and `float` as unknown types in
+            // specs/ar/coa_planning.t27, which the emitter lowers correctly.
+            //
+            // A name the emitter rewrites is a name the language knows. A name
+            // it hands back unchanged, and that nothing declares, is the one
+            // rustc will later fail to find. That disagreement between the two
+            // resolvers is worth its own repair; this check works around it
+            // rather than pretending it is not there.
+            // The emitter answers for the spellings it REWRITES (`int` ->
+            // `i32`) and passes through the ones already valid in Rust -- so
+            // `usize`, `isize` and `char` came back unchanged and read as
+            // undeclared types. That was 565 of the 1045 remaining warnings,
+            // every one of them on `usize`, every one false.
+            //
+            // `int_value_bits(&base).is_some()` was tried here as a second
+            // oracle and REMOVED: it answers for `usize` and `isize` and not
+            // for `char`, so the explicit list below is needed anyway, and with
+            // the list present dropping `int_value_bits` changes nothing --
+            // measured, the test still passes and the corpus count is
+            // unchanged. Three names is the whole gap.
+            let emitter_knows = RustCodegen::t27_type_to_rust(&base) != base
+                || matches!(base.as_str(), "char" | "usize" | "isize");
+            if !declared.contains(&base)
+                && !type_params.contains(&base)
+                && !emitter_knows
+                && matches!(resolve_type_str(&base), TypeInfo::Custom(_))
+            {
+                out.push((base, where_));
+            }
+        }
+    };
+    match node.kind {
+        NodeKind::FnDecl => {
+            note(&node.extra_return_type, format!("return type of `{}`", node.name), out);
+            for (pname, ptype) in &node.params {
+                note(ptype, format!("parameter `{}` of `{}`", pname, node.name), out);
+            }
+        }
+        NodeKind::StructDecl => {
+            for f in &node.children {
+                note(&f.extra_type, format!("field `{}` of `{}`", f.name, node.name), out);
+            }
+        }
+        _ => {}
+    }
+    for c in &node.children {
+        collect_unresolved_types(c, declared, type_params, out);
+    }
+}
+
 pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     let mut result = TypeCheckResult {
         ok: true,
@@ -22745,6 +24390,64 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     };
     let mut symbols: Vec<SymbolEntry> = Vec::new();
     let mut fns: Vec<FnEntry> = Vec::new();
+
+    // A type name that resolves to nothing was silently accepted, and rustc was
+    // the first reader to say so. See `collect_unresolved_types`.
+    {
+        let mut declared = std::collections::HashSet::new();
+        collect_declared_types(ast, &mut declared);
+        let mut tparams = std::collections::HashSet::new();
+        collect_type_params(ast, &mut tparams);
+        let mut unresolved: Vec<(String, String)> = Vec::new();
+        collect_unresolved_types(ast, &declared, &tparams, &mut unresolved);
+        let mut seen = std::collections::HashSet::new();
+        for (name, wher) in unresolved {
+            if seen.insert(format!("{name}|{wher}")) {
+                result
+                    .errors
+                    .push(format!("warning: unknown type `{name}` in {wher}"));
+                result.warnings += 1;
+            }
+        }
+    }
+
+    // A name declared twice reaches every backend as a redeclaration, and all
+    // four of them reject it -- yet `check` was silent. See
+    // `duplicate_top_level_decls`.
+    // A generic struct: Rust lowers it, C and Zig do not, and nothing said so.
+    {
+        let mut generics = Vec::new();
+        generic_struct_decls(ast, &mut generics);
+        let mut seen = std::collections::HashSet::new();
+        for (name, ps) in generics {
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+            result.errors.push(format!(
+                "warning: `{name}({})` is generic -- gen-rust lowers it, but gen-c and gen-zig \
+drop the parameter from the declaration and keep it at each use, where it is undeclared",
+                ps.join(", ")
+            ));
+            result.warnings += 1;
+        }
+    }
+
+    for d in duplicate_top_level_decls(ast) {
+        let msg = match d {
+            DuplicateDecl::SameNamespace(name, kind, n) => format!(
+                "warning: `{kind} {name}` is declared {n} times -- every backend rejects a redeclaration"
+            ),
+            DuplicateDecl::AcrossNamespaces(name) => format!(
+                "warning: `{name}` is declared as both a type and a function -- zig rejects this; rust and C do not"
+            ),
+            DuplicateDecl::LoweredCollision(name, block, backends) => format!(
+                "warning: `fn {name}` and `{block} {}` are different names in t27 and the SAME identifier in {backends}, which emits `{name}` for the {block} block",
+                name.trim_start_matches(if block == "test" { "test_" } else { "bench_" })
+            ),
+        };
+        result.errors.push(msg);
+        result.warnings += 1;
+    }
 
     for child in &ast.children {
         match child.kind {
@@ -23621,6 +25324,30 @@ pub struct RustCodegen {
     fn_ret_type: String,
     /// Functions in this module whose declared return type is `bool`.
     bool_fns: std::collections::HashSet<String>,
+    /// Per function, the `[]T` parameters written through -- directly or by
+    /// being threaded into a callee that writes them. Emitted as `&mut [T]`.
+    written_slice_params:
+        std::collections::HashMap<String, std::collections::HashSet<String>>,
+    /// Every struct field name this file declares. Guards the `.len` lowering:
+    /// 6 corpus specs give a struct a field actually named `len`, and rewriting
+    /// that field access into a method call would be wrong there.
+    field_names: std::collections::HashSet<String>,
+    /// Parameter names by position, per function. Pairs with the map above so a
+    /// call site can ask "is argument 2 a `&mut [T]` slot?".
+    param_names: std::collections::HashMap<String, Vec<String>>,
+    /// The slice parameters of the function currently being emitted that are
+    /// themselves `&mut [T]`. Passing one of those on is a reborrow and must
+    /// NOT get another `&mut`.
+    current_mut_slice_params: std::collections::HashSet<String>,
+    /// True while the initialiser of a `pub const` is being emitted. Rust's
+    /// float methods are not `const fn`, so a builtin rewrite is invalid there
+    /// in any spelling: `(x).sqrt()` is E0015 where the bare `sqrt(x)` was
+    /// E0425. Both fail, but only the first is a NEW failure introduced here.
+    in_const_init: bool,
+    /// Every function name this file declares, whatever its return type.
+    /// Guards the bare math-builtin lowering: a spec's own `fn abs` must keep
+    /// its call, not become `(x).abs()`.
+    declared_fns: std::collections::HashSet<String>,
     /// Parameters and locals of the current function declared `bool`.
     bool_vars: std::collections::HashSet<String>,
     /// Module-level `var x : bool`. `bool_vars` is cleared per function and
@@ -23654,6 +25381,9 @@ pub struct RustCodegen {
     /// spelling and what the parser produces. Rust spells it
     /// `Verdict::escalate`. Without knowing which identifiers name enums the
     /// emitter cannot tell that access apart from a struct field.
+    /// Declared types that qualify for `#[derive(Copy)]`, as a fixed point over
+    /// struct fields. See `copy_qualified_types`.
+    copy_types: std::collections::HashSet<String>,
     enum_names: std::collections::HashSet<String>,
     /// Type-parameter names the module declares, from `ArrayView(T)`. Module
     /// level in a spec, so a free function may use one without declaring it;
@@ -23678,12 +25408,19 @@ impl RustCodegen {
             mut_names: std::collections::HashSet::new(),
             fn_ret_type: String::new(),
             bool_fns: std::collections::HashSet::new(),
+            declared_fns: std::collections::HashSet::new(),
+            in_const_init: false,
+            written_slice_params: std::collections::HashMap::new(),
+            param_names: std::collections::HashMap::new(),
+            field_names: std::collections::HashSet::new(),
+            current_mut_slice_params: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
             bool_module_vars: std::collections::HashSet::new(),
             bool_fields: std::collections::HashSet::new(),
             var_types: std::collections::HashMap::new(),
             const_types: std::collections::HashMap::new(),
             fn_ret_types: std::collections::HashMap::new(),
+            copy_types: std::collections::HashSet::new(),
             enum_names: std::collections::HashSet::new(),
             type_params: std::collections::HashSet::new(),
             static_mut_names: std::collections::HashSet::new(),
@@ -23793,6 +25530,26 @@ impl RustCodegen {
         self.bool_fns.clear();
         collect_bool_fns(ast, &mut self.bool_fns);
 
+        // Same pre-pass, for the bare math-builtin guard below.
+        self.declared_fns.clear();
+        collect_declared_fns(ast, &mut self.declared_fns);
+
+        // Whole-tree, because the fixpoint below follows calls across functions.
+        self.written_slice_params = collect_written_slice_params(ast);
+        self.param_names.clear();
+        collect_param_names(ast, &mut self.param_names);
+        self.field_names.clear();
+        collect_field_names(ast, &mut self.field_names);
+
+        // Whole-tree, because the `Copy` fixpoint follows struct fields across
+        // declarations that may appear in any order.
+        {
+            let mut structs = std::collections::HashMap::new();
+            let mut enums = std::collections::HashSet::new();
+            collect_type_decls(ast, &mut structs, &mut enums);
+            self.copy_types = copy_qualified_types(&structs, &enums);
+        }
+
         // Same pre-pass, for the integer widths used by `infer_int_type`:
         // callee return types and module-level constants are both visible from
         // any function body, so they are collected once over the whole tree.
@@ -23892,7 +25649,32 @@ impl RustCodegen {
         // single cause in the Rust column. Behind a cfg the default output
         // compiles against std alone, and anyone who wants serialisation turns
         // the feature on and gets exactly what was emitted before.
-        self.write_line("#[derive(Debug, Clone)]");
+        // `Copy` when every field is Copy, and not otherwise.
+        //
+        // WHY. A struct parameter is passed BY VALUE, so an expression that names the same
+        // parameter twice moves it twice. Six corpus specs fail exactly there, and they
+        // read like ordinary arithmetic:
+        //
+        //     return (region_width(r) * region_height(r));
+        //     return (est_dynamic_power_mw(u, t) + est_static_power_mw(u, t));
+        //
+        // `Clone` alone does not help -- rustc will not insert a clone. `Copy` does, and
+        // it is what the spec's own value semantics mean.
+        //
+        // The guard is the whole design. `Copy` on a struct holding a `Vec` or a `String`
+        // does not compile, so the derive is emitted only when EVERY field maps to a type
+        // that is Copy in Rust, with no transitivity: a field whose type is another struct
+        // is not assumed, because this emitter cannot see whether that one qualified.
+        let all_fields_copy = node
+            .children
+            .iter()
+            .filter(|c| c.kind == NodeKind::ExprIdentifier && !c.name.is_empty())
+            .all(|c| self.rust_type_is_copy(&Self::t27_type_to_rust(&c.extra_type)));
+        if all_fields_copy {
+            self.write_line("#[derive(Debug, Clone, Copy)]");
+        } else {
+            self.write_line("#[derive(Debug, Clone)]");
+        }
         self.write_line(
             "#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]",
         );
@@ -23927,6 +25709,24 @@ impl RustCodegen {
             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
                 let field_name = &child.name;
                 let field_type = Self::t27_type_to_rust(&child.extra_type);
+                // A struct that holds an OPTIONAL of itself is infinitely sized in Rust:
+                //
+                //     pub left: Option<KDNode>            error[E0072]
+                //     pub children: [Option<OctNode>; 8]  the same, once per element
+                //
+                // Zig writes `?KDNode` and stores it inline because its optional of a
+                // struct is a tagged union of known size; Rust needs the indirection
+                // spelled out. rustc says exactly this and names the repair.
+                //
+                // Only `Option<ThisStruct>` is rewritten, and only on an exact name match.
+                // `Vec<ThisStruct>` is already indirect and is left alone; a bare
+                // `ThisStruct` would still be infinite but does not occur in the corpus,
+                // and guessing at a shape nothing exhibits is how a rule outgrows its
+                // evidence.
+                let field_type = field_type.replace(
+                    &format!("Option<{}>", node.name),
+                    &format!("Option<Box<{}>>", node.name),
+                );
                 if field_type.trim() == "bool" {
                     self.bool_fields.insert(field_name.clone());
                 }
@@ -23979,7 +25779,11 @@ impl RustCodegen {
         self.indent += 1;
         for child in &node.children {
             if child.kind == NodeKind::EnumVariant {
-                let variant_name = &child.name;
+                // The Zig emitter escapes variant names and says why, one comment above
+                // its own call to `zig_ident`. The rule did not travel here, so a variant
+                // named with a Rust keyword reached rustc bare: `enum = 12,` and
+                // `continue = 5,` are what two corpus specs produced.
+                let variant_name = rust_ident(&child.name);
                 if child.value.is_empty() {
                     self.write_line(&format!("{},", variant_name));
                 } else {
@@ -24001,7 +25805,10 @@ impl RustCodegen {
         let value = if node.children.is_empty() {
             "()".to_string()
         } else {
-            self.expr_to_rust(&node.children[0])
+            self.in_const_init = !node.extra_mutable;
+            let v = self.expr_to_rust(&node.children[0]);
+            self.in_const_init = false;
+            v
         };
         // A module-level `var` is MUTABLE. gen-verilog lowers it to a `reg`,
         // gen-c to a `static`, Zig to a `var` -- all three mean shared mutable
@@ -24020,11 +25827,102 @@ impl RustCodegen {
     }
 
     fn gen_fn(&mut self, node: &Node) {
-        let fn_name = &node.name;
+        // A function named with a Rust keyword reached rustc bare: `pub fn match<T>(` and
+        // `pub fn await<T>(` are what two corpus specs produced. `rust_ident` already
+        // escapes struct fields, parameters, struct-literal fields and field access; the
+        // name of the function itself was the position it had not reached.
+        let fn_name = rust_ident(&node.name);
         let params: Vec<(String, String)> = node.params.clone();
+
+        // A `[]T` parameter that the body ASSIGNS INTO is an out-parameter, and
+        // `t27_type_to_rust` renders it `Vec<T>` -- taken BY VALUE and without
+        // `mut`. The emitted body then does `trits[i] = ...`, which rustc
+        // rejects (E0382 use of moved value, E0596 cannot borrow as mutable),
+        // and even if it compiled the caller would see nothing: the writes
+        // would land in a moved copy. Both the Verilog backend (`output reg`)
+        // and the C backend (a pointer) give the caller the writes, so the Rust
+        // column was the one disagreeing with the other three.
+        //
+        // Measured over the corpus before this change: 189 specs declare a
+        // slice parameter, 174 parse, and 23 emit Rust that index-assigns into
+        // one. **Zero of those 23 compiled.** The path is uniformly broken, so
+        // this cannot regress a working case -- there are none.
+        //
+        // Deliberately narrow: only the written-into slices move to `&mut [T]`.
+        // A read-only `Vec<T>` parameter is valid Rust that compiles today, and
+        // rewriting it to `&[T]` would change call sites for no defect.
+        let mut mut_slices: Vec<String> = Vec::new();
+        let empty = std::collections::HashSet::new();
+        let written = self
+            .written_slice_params
+            .get(&node.name)
+            .unwrap_or(&empty)
+            .clone();
         let params_str = params
             .iter()
-            .map(|(n, t)| format!("{}: {}", rust_ident(n), Self::t27_type_to_rust(t)))
+            .map(|(n, t)| {
+                let rust_ty = Self::t27_type_to_rust(t);
+                let is_slice = t.trim_start().starts_with("[]");
+                // The element type must come from a `Vec<T>` the mapping
+                // actually produced. `[]const u8` is a Zig-ism that
+                // `t27_type_to_rust` does not translate, and taking the whole
+                // rendered string as the element wrote
+                // `shards: &[const], u8: )` -- the one genuinely INTRODUCED
+                // error in a corpus-wide before/after over 193 changed files.
+                // If the mapping did not give a Vec, the type is not understood
+                // here and is left exactly as it was.
+                let elem = rust_ty
+                    .strip_prefix("Vec<")
+                    .and_then(|r| r.strip_suffix('>'))
+                    .filter(|e| {
+                        // `[]const u8` renders as `Vec<const>` -- the type was
+                        // split on the space by an earlier stage, and `const`
+                        // is a keyword, not an element type. Rewriting that to
+                        // `&[const]` was the single genuinely INTRODUCED error
+                        // in a before/after over 193 changed files. Where the
+                        // element is not a plausible type name, the parameter
+                        // is left exactly as master rendered it: the line is
+                        // already broken and this is not the change that
+                        // should be blamed for it.
+                        !e.is_empty()
+                            && e.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                            && !matches!(*e, "const" | "mut" | "ref" | "dyn" | "impl" | "fn")
+                    });
+                // THREE outcomes, not two. An experiment that made every
+                // slice parameter a reference was measured and reverted: `[]T`
+                // then meant `&[T]` in parameter position and `Vec<T>` in
+                // return, field and local position, so
+                //   fn join(base: []u8, name: []u8) []u8 { var r : []u8 = base; }
+                // emitted `base: &[u8]` beside `let mut r: Vec<u8> = base;`
+                // and E0308. Zig renders `[]u8` in every position and C renders
+                // `uint8_t*` in every position; only Rust would have disagreed
+                // with itself. A parameter the fixpoint does not mark is left
+                // EXACTLY as it was, which is the no-op this comment promises.
+                if let (true, true, Some(elem)) = (is_slice, written.contains(n), elem) {
+                    mut_slices.push(n.clone());
+                    format!("{}: &mut [{}]", rust_ident(n), elem)
+                } else if rust_ty.starts_with("*mut ") && t.trim_start().starts_with('*')
+                    && !t.trim_start()[1..].trim_start().starts_with("const ")
+                    && !t.trim_start()[1..].trim_start().starts_with("mut ")
+                {
+                    // A bare `*T` parameter is an out-parameter: the corpus
+                    // writes through it as `p.* = v`, and the C backend renders
+                    // it `T*`. `*mut T` cannot work in the emitted Rust because
+                    // every dereference of a raw pointer needs an `unsafe`
+                    // block and this emitter writes none. `&mut T` is the
+                    // rendering under which the emitted `*p = v` compiles, and
+                    // it is what rings/ring-099-rust uses for the very same
+                    // parameter -- the one difference that made that pair read
+                    // DRIFTED.
+                    //
+                    // Parameter position ONLY. A struct field cannot take
+                    // `&mut T` without a lifetime, and doing it everywhere
+                    // introduced 9 errors across 3 specs against 1 revealed.
+                    format!("{}: &mut {}", rust_ident(n), &rust_ty[5..])
+                } else {
+                    format!("{}: {}", rust_ident(n), rust_ty)
+                }
+            })
             .collect::<Vec<_>>()
             .join(", ");
         let ret_type = if node.extra_return_type.is_empty() {
@@ -24053,6 +25951,7 @@ impl RustCodegen {
                 used.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
             )
         };
+        self.current_mut_slice_params = mut_slices.into_iter().collect();
         self.write(&format!(
             "pub fn {}{}({}) -> {} {{",
             fn_name, generics, params_str, ret_type
@@ -24138,7 +26037,11 @@ impl RustCodegen {
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
                         let typ = Self::t27_type_to_rust(&child.extra_type);
-                        if child.children.is_empty() {
+                        // The same question `gen_rust_stmt` asks. This function carries its
+                        // own copy of the local-emission logic, and a fix applied to only
+                        // one of the two is not applied: the first attempt at this patched
+                        // `gen_rust_stmt` alone and changed no output at all.
+                        if child.children.is_empty() || Self::is_undefined_init(&child.children) {
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {};", kw, var_name));
                             } else {
@@ -24146,6 +26049,14 @@ impl RustCodegen {
                             }
                         } else {
                             let val = self.expr_to_rust(&child.children[0]);
+                            // Same question, second copy of the same logic. See
+                            // `is_undefined_init`: a fix applied to one of these two is
+                            // not applied.
+                            let val = if Self::is_vec_from_array_literal(&typ, &child.children) {
+                                format!("vec!{val}")
+                            } else {
+                                val
+                            };
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {} = {};", kw, var_name, val));
                             } else {
@@ -24295,6 +26206,46 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// Does this local declare a `Vec` and initialise it with an array literal?
+    ///
+    /// `var xs : []u32 = [];` maps its TYPE to `Vec<u32>` and emits its VALUE as `[]`,
+    /// so rustc reads `expected `Vec<u32>`, found `[_; 0]``. Nine of the twenty
+    /// `mismatched types` first-errors in the corpus are this pair, and `[]` where a
+    /// `Vec` is declared is the only one of them with a single unambiguous answer.
+    ///
+    /// `expr_to_rust` already renders the literal as `[a, b]`, so the whole repair is the
+    /// three characters in front of it. Only the LOCAL is touched here: `return []` in a
+    /// `Vec`-returning function and `pub const N: Vec<u32> = [...]` are the same pair in
+    /// two other positions, and the const one has no answer at all -- a `Vec` cannot be a
+    /// constant in Rust, which makes it a question about the type mapping rather than
+    /// about this line.
+    fn is_vec_from_array_literal(rust_type: &str, children: &[Node]) -> bool {
+        rust_type.starts_with("Vec<")
+            && children.len() == 1
+            && children[0].kind == NodeKind::ExprArrayLiteral
+    }
+
+    /// Is this local's initialiser the single word `undefined`?
+    ///
+    /// Zig's word for "not initialised yet". It reached rustc as an identifier --
+    /// `let mut info: EncodingInfo = undefined;` -- and `cannot find value` was the
+    /// largest single name in the corpus's first-error census, 14 of 21 in its class.
+    ///
+    /// The answer is a DECLARATION, not a value. An earlier attempt mapped it to
+    /// `Default::default()` and was withdrawn (#3223) because `[usize; 256]` has no
+    /// `Default`; the blocker was the mapping, not the defect. Deferred initialisation
+    /// needs no bound and is the exact semantics -- and rustc refuses a read before the
+    /// assignment, which surfaces a real defect instead of defaulting it away.
+    ///
+    /// Distinct from `CCodegen::mentions_undefined`, which asks whether the word appears
+    /// ANYWHERE in an expression (`result != undefined`). This asks whether it IS the
+    /// whole initialiser, the only shape a declaration can absorb.
+    fn is_undefined_init(children: &[Node]) -> bool {
+        children.len() == 1
+            && children[0].kind == NodeKind::ExprIdentifier
+            && children[0].name == "undefined"
+    }
+
     fn gen_rust_stmt(&mut self, stmt: &Node) {
         match stmt.kind {
             NodeKind::ExprReturn => {
@@ -24324,7 +26275,7 @@ impl RustCodegen {
                 }
                 let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
                 let typ = Self::t27_type_to_rust(&stmt.extra_type);
-                if stmt.children.is_empty() {
+                if stmt.children.is_empty() || Self::is_undefined_init(&stmt.children) {
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {};", kw, stmt.name));
                     } else {
@@ -24332,6 +26283,11 @@ impl RustCodegen {
                     }
                 } else {
                     let val = self.expr_to_rust(&stmt.children[0]);
+                    let val = if Self::is_vec_from_array_literal(&typ, &stmt.children) {
+                        format!("vec!{val}")
+                    } else {
+                        val
+                    };
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {} = {};", kw, stmt.name, val));
                     } else {
@@ -24522,6 +26478,90 @@ impl RustCodegen {
         })
     }
 
+    /// Split a comma-separated type list, honouring nesting.
+    ///
+    /// A naive `split(',')` cuts `Map<K, V>, T` into `Map<K`, ` V>` and ` T`, which is
+    /// worse than the input. Shared by the tuple arm and the map arm so the two cannot
+    /// disagree about what a comma means.
+    fn split_type_list(inner: &str) -> Option<Vec<String>> {
+        let mut parts: Vec<String> = Vec::new();
+        let (mut depth, mut start) = (0i32, 0usize);
+        for (i, c) in inner.char_indices() {
+            match c {
+                '<' | '[' | '(' => depth += 1,
+                // `->` is a `-` then a `>`, and counting that `>` as a close drove depth
+                // NEGATIVE on `fn(A) -> B`, making the split silently wrong rather than
+                // absent. A list that does not balance is not one this function can answer
+                // about, and None is the honest reply.
+                '>' | ']' | ')' => {
+                    depth -= 1;
+                    if depth < 0 {
+                        return None;
+                    }
+                }
+                ',' if depth == 0 => {
+                    parts.push(inner[start..i].to_string());
+                    start = i + c.len_utf8();
+                }
+                _ => {}
+            }
+        }
+        if depth != 0 {
+            return None;
+        }
+        parts.push(inner[start..].to_string());
+        // An EMPTY argument is not an argument. `std.StringHashMap()` split to one empty
+        // string, passed a `len() == 1` guard and emitted `HashMap<&'static str, >`,
+        // which is not Rust: the guard counted commas where it meant to count types.
+        if parts.iter().any(|q| q.trim().is_empty()) {
+            return None;
+        }
+        Some(parts)
+    }
+
+    /// Is this emitted Rust type `Copy`?
+    ///
+    /// Deliberately a CLOSED list of primitives plus `&'static str` and fixed-size arrays
+    /// of them. No transitivity: another struct's name answers false even when that struct
+    /// did qualify, because getting it wrong in the other direction emits a `Copy` that
+    /// does not compile, and a missing `Copy` only leaves the status quo.
+    /// `is_copy_rust_type`, plus the declared types this module can emit `Copy`.
+    ///
+    /// The static form knows the scalars and `[T; N]`; it cannot know that
+    /// `MemPort` was itself emitted `Copy`, so `[MemPort; 8]` disqualified its
+    /// owner. `copy_types` closes exactly that gap and nothing else.
+    fn rust_type_is_copy(&self, t: &str) -> bool {
+        let t = t.trim();
+        if Self::is_copy_rust_type(t) {
+            return true;
+        }
+        if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+            if let Some((elem, _len)) = inner.rsplit_once(';') {
+                return self.rust_type_is_copy(elem);
+            }
+        }
+        self.copy_types.contains(t)
+    }
+
+    fn is_copy_rust_type(t: &str) -> bool {
+        let t = t.trim();
+        if matches!(
+            t,
+            "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+                | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+                | "f32" | "f64" | "bool" | "char" | "&'static str"
+        ) {
+            return true;
+        }
+        // `[T; N]` is Copy exactly when T is.
+        if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+            if let Some((elem, _len)) = inner.rsplit_once(';') {
+                return Self::is_copy_rust_type(elem);
+            }
+        }
+        false
+    }
+
     fn t27_type_to_rust(t27_type: &str) -> String {
         let t = t27_type.trim();
         // Handle optional types. t27 writes the Zig spelling -- a LEADING `?`
@@ -24536,10 +26576,108 @@ impl RustCodegen {
             (t, false)
         };
 
+        // A Zig standard-library MAP, which eight corpus fields declare as their type:
+        //
+        //     "std.StringHashMap([]const u8)"      5 fields
+        //     "std.HashMap(K, V)"                  3 fields
+        //
+        // The type is written as a QUOTED STRING in the spec; the compiler strips the
+        // quotes and emits the content, so rustc received `std.StringHashMap(...)`, which
+        // is not Rust. `StringHashMap` keys by string, so its Rust equivalent names the
+        // key type the Zig form leaves implicit.
+        //
+        // Anchored on the WHOLE type string. `std.math.`, `std.mem.` and the rest appear
+        // only in expression position and never reach this function, but an unanchored
+        // match would be a rule about a prefix rather than about a type.
+        if let Some(rest) = base_type.strip_prefix("std.StringHashMap(") {
+            if let Some(v) = rest.strip_suffix(')') {
+                // ARITY. `StringHashMap` takes exactly one argument; without this guard
+                // `std.StringHashMap(K, V)` emitted `HashMap<String, K, V>` -- three type
+                // arguments, which is not Rust. A wrong arity now falls through to the
+                // default and rustc says so loudly, which is the honest outcome.
+                let args = Self::split_type_list(v).unwrap_or_default();
+                if args.len() == 1 {
+                    // The KEY type is whatever this emitter maps `[]const u8` to, not a
+                    // hardcoded `String`. Zig's `StringHashMap` keys by `[]const u8`, and
+                    // writing `String` here made two spellings of the same intent produce
+                    // incompatible Rust: `std.StringHashMap(u32)` gave
+                    // `HashMap<String, u32>` while `std.HashMap([]const u8, u32)` gave
+                    // `HashMap<&'static str, u32>`. One emitter, one answer.
+                    let key = Self::t27_type_to_rust("[]const u8");
+                    let out = format!(
+                        "std::collections::HashMap<{key}, {}>",
+                        Self::t27_type_to_rust(args[0].trim())
+                    );
+                    return if is_optional { format!("Option<{out}>") } else { out };
+                }
+            }
+        }
+        if let Some(rest) = base_type.strip_prefix("std.HashMap(") {
+            if let Some(kv) = rest.strip_suffix(')') {
+                let parts = Self::split_type_list(kv).unwrap_or_default();
+                if parts.len() == 2 {
+                    let out = format!(
+                        "std::collections::HashMap<{}, {}>",
+                        Self::t27_type_to_rust(parts[0].trim()),
+                        Self::t27_type_to_rust(parts[1].trim())
+                    );
+                    return if is_optional { format!("Option<{out}>") } else { out };
+                }
+            }
+        }
+
+        // A TUPLE maps element by element. Without this arm `(A, B)` fell through to
+        // the default and was emitted verbatim, so an inner `[]f32` -- which every other
+        // position maps to `Vec<f32>` -- reached rustc as `[]f32`. The rule existed and
+        // did not travel into this position. Measured on the corpus: 6 specs.
+        //
+        // The split is DEPTH-AWARE. A naive `split(',')` would cut `(Map<K, V>, T)` into
+        // `Map<K` and ` V>` and produce something worse than the input.
+        if base_type.starts_with('(') && base_type.ends_with(')') && base_type.len() > 2 {
+            let inner = &base_type[1..base_type.len() - 1];
+            let parts = match Self::split_type_list(inner) {
+                Some(p) => p,
+                // Malformed inside a tuple: leave it exactly as written, which is what
+                // this position did before the arm existed. rustc then says so loudly.
+                None => {
+                    return if is_optional {
+                        format!("Option<{base_type}>")
+                    } else {
+                        base_type.to_string()
+                    }
+                }
+            };
+            // A one-element "tuple" is a parenthesised type, not a tuple, and Rust writes
+            // it without the comma. Emitting `(T,)` there would change the type.
+            let mapped: Vec<String> = parts
+                .iter()
+                .map(|q| Self::t27_type_to_rust(q.trim()))
+                .collect();
+            let joined = format!("({})", mapped.join(", "));
+            return if is_optional { format!("Option<{joined}>") } else { joined };
+        }
+
         let rust_type = match base_type {
             "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
             "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
             "f32" | "f64" => base_type.to_string(),
+            // The generic spellings, which every neighbour already answers and this
+            // mapper never learned. `t27_array_type_to_zig` (compiler.rs:8349) carries
+            // them with a comment naming the same defect one backend over:
+            //
+            //   "float" => "f64", "double" => "f64", "int" => "i32", "uint" => "u32",
+            //   // W591: `float` is not a Zig type. Same family as the f32/f64 gap
+            //   // W583 found on the C side -- a scalar the corpus spells and the
+            //   // mapper never learned, so it passed through the `other` arm and
+            //   // reached the backend verbatim.
+            //
+            // and the C emitter matches on `"f16" | "f32" | "f64" | "float" | "double"`
+            // in three places. Here they fell to the default and reached rustc as
+            // `int` and `float`, which are not Rust types -- `cannot find type` was
+            // the largest first-error class in the corpus.
+            "int" => "i32".to_string(),
+            "uint" => "u32".to_string(),
+            "float" | "double" => "f64".to_string(),
             "GF16" | "gf16" => "u16".to_string(),
             "bool" => "bool".to_string(),
             // The Zig mapper spells this `"str" | "string" => "[]const u8"`
@@ -24705,6 +26843,13 @@ impl RustCodegen {
                 } else if let Some(inner) = rest.strip_prefix("mut ") {
                     format!("*mut {}", Self::t27_type_to_rust(inner))
                 } else {
+                    // Stays `*mut` HERE. A bare `*T` is an out-parameter and
+                    // `&mut T` is the only rendering under which the emitted
+                    // `*p = v` compiles -- but that rewrite belongs in
+                    // PARAMETER position only. Applied to every position it
+                    // reached struct fields, and `pub fail: &mut ACTrieNode`
+                    // needs a lifetime: 9 introduced E0106/E0308 across 3
+                    // specs, against 1 revealed. See `gen_fn`.
                     format!("*mut {}", Self::t27_type_to_rust(rest))
                 }
             }
@@ -24998,13 +27143,126 @@ impl RustCodegen {
                 }
             }
             NodeKind::ExprCall => {
-                let args: Vec<String> = node
+                let mut args: Vec<String> = node
                     .children
                     .iter()
                     .map(|c| self.expr_to_rust(c))
                     .collect();
+                // A parameter that became `&mut [T]` needs its ARGUMENT
+                // borrowed. Rewriting the parameter and not the argument left
+                // `tritwise_and(a, b, temp, len)` reading
+                // "expected `&mut [i32]`, found `[i32; 27]`" -- the signature
+                // was right and the call was not.
+                //
+                // A caller passing on its OWN `&mut [T]` parameter is
+                // reborrowing and must not get a second `&mut`; that is what
+                // `current_mut_slice_params` is for. It is also why this cannot
+                // be done by looking at the argument text alone.
+                // The FREE-call spelling of the same thing. Zig exposes a
+                // slice length as a field, so specs write both `x.len` and
+                // `len(x)`; the second reached rustc as a call to a function
+                // that does not exist -- 38 of the corpus's E0425 diagnostics.
+                // Two guards, and the code checks both: `declared_fns` because
+                // 3 specs declare their own `fn len`, and `field_names` because
+                // 6 declare a struct field named `len`. The second is stricter
+                // than this form strictly needs -- a free `len(x)` is a length
+                // call even in a file that also has a `len` field -- and it is
+                // kept deliberately so both spellings answer to one condition
+                // rather than drifting apart.
+                if node.name == "len"
+                    && args.len() == 1
+                    && !self.declared_fns.contains("len")
+                    && !self.field_names.contains("len")
+                {
+                    return format!("({}).len()", args[0]);
+                }
+                if let Some(callee_params) = self.param_names.get(&node.name) {
+                    if let Some(callee_written) = self.written_slice_params.get(&node.name) {
+                        for (i, a) in args.iter_mut().enumerate() {
+                            let Some(pname) = callee_params.get(i) else {
+                                continue;
+                            };
+                            if !callee_written.contains(pname) {
+                                continue;
+                            }
+                            if self.current_mut_slice_params.contains(a.as_str()) {
+                                continue;
+                            }
+                            *a = format!("&mut {}", a);
+                        }
+                    }
+                }
+                let args = args;
                 if let Some(built) = Self::zig_builtin_to_rust(&node.name, &args) {
                     return built;
+                }
+                // Specs write the math builtins BARE -- `abs(x)`, `min(a, b)` --
+                // and the table above answers only to Zig's `@abs`, because its
+                // first line returns None for any name without the sigil. Rust
+                // has none of these as free functions, so the bare call was
+                // emitted verbatim and rustc replied "cannot find function `abs`
+                // in this scope". Measured: 118 of the 650 specs contain such a
+                // call and 99 of those parse.
+                //
+                // The repair routes the bare name through the SAME table rather
+                // than restating it, so the two spellings cannot drift apart.
+                // The Zig backend closed this identical class at `gen_expr`.
+                //
+                // Guarded by `declared_fns`: 30 declarations across the corpus
+                // give one of these names to a spec's own function (`fn floor` in
+                // 10 specs, `fn abs` in 9). Rewriting those into a Rust method
+                // would be a wrong translation that COMPILES, which is strictly
+                // worse than a bare name that does not.
+                // The receiver must carry a type. Rust cannot call a method on
+                // an unsuffixed float literal -- `(5.0).sqrt()` is E0689, "can't
+                // call method `sqrt` on ambiguous numeric type `{float}`" --
+                // whereas the bare `sqrt(5.0)` merely fails with E0425 as it
+                // always did. Measured over the corpus: without this guard the
+                // rewrite swapped one error for another in 4 files and added
+                // E0689 where none existed, which is a regression even though
+                // neither form compiled. `sqrt` is also not a `const fn`, so a
+                // literal receiver inside a `const` initialiser could not work
+                // in any spelling.
+                // The test is for an IDENTIFIER, not for a single literal token.
+                // `(5.0).sqrt()` and `((2.0 / 3.141592653589793)).sqrt()` are
+                // both `{float}` to rustc; only a typed name rules the ambiguity
+                // out. Measured: the single-token form of this test still
+                // admitted the compound one and left E0689 in 2 files.
+                let receiver_is_typed = args
+                    .first()
+                    .map(|a| a.chars().any(|c| c.is_ascii_alphabetic()))
+                    .unwrap_or(false);
+                if receiver_is_typed
+                    && !self.in_const_init
+                    && !self.declared_fns.contains(&node.name)
+                    && matches!(
+                        node.name.as_str(),
+                        "abs"
+                            | "sqrt"
+                            | "round"
+                            | "floor"
+                            | "ceil"
+                            | "trunc"
+                            | "exp"
+                            // `log` is deliberately absent. Rust's `f64::log`
+                            // takes a BASE argument, so `(x).log()` is E0061,
+                            // "this method takes 1 argument but 0 were
+                            // supplied"; the natural log is `ln`. The existing
+                            // `@log` arm in `zig_builtin_to_rust` carries the
+                            // same defect. It is filed rather than changed
+                            // under an unrelated title.
+                            | "sin"
+                            | "cos"
+                            | "tan"
+                            | "min"
+                            | "max"
+                    )
+                {
+                    if let Some(built) =
+                        Self::zig_builtin_to_rust(&format!("@{}", node.name), &args)
+                    {
+                        return built;
+                    }
                 }
                 format!("{}({})", node.name, args.join(", "))
             }
@@ -25104,8 +27362,28 @@ impl RustCodegen {
                         // direct equivalent of what the spec wrote, and the spec has
                         // already guarded it: every occurrence measured sits behind
                         // an `if x != null`.
-                        if node.name == "?" {
+                        if node.name == "*" {
+                            // Zig spells a dereference postfix, `count.*`, and
+                            // the corpus is written that way -- 70 sites across
+                            // 6 specs. Rust spells it prefix. The postfix form
+                            // reached rustc verbatim and did not even tokenise:
+                            // "error: unexpected token: `*`".
+                            format!("(*{})", base)
+                        } else if node.name == "?" {
                             format!("{}.unwrap()", base)
+                        } else if node.name == "len" && !self.field_names.contains("len") {
+                            // Zig exposes a slice length as the FIELD `.len` and
+                            // specs are written in that shape, so `data.len`
+                            // reached rustc verbatim: "attempted to take value
+                            // of method `len`" (E0615, 26 diagnostics). Rust
+                            // spells it as a method. The Zig backend documents
+                            // the mirror image of this at its own `.len` site.
+                            //
+                            // Guarded by the whole-file field census: 6 corpus
+                            // specs declare a struct field genuinely named
+                            // `len`, and in those files the access is a field
+                            // and must stay one.
+                            format!("{}.len()", base)
                         } else {
                             format!("{}.{}", base, rust_ident(&node.name))
                         }
@@ -32184,6 +34462,64 @@ mod tests_hir_module {
         assert!(m.assigns.is_empty());
         assert!(m.always_blocks.is_empty());
         assert!(m.instances.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod tests_packed_struct_decl {
+    use super::*;
+
+    /// `pub const X = packed struct { ... };` must reach the backends as a
+    /// StructDecl, exactly like the bare `struct` form.
+    ///
+    /// Before this was handled, `packed` (an Ident -- there is no KwPacked in
+    /// this lexer) fell through to the generic expression path, the whole
+    /// declaration became a ConstDecl, and the Verilog backend rendered its
+    /// initializer as a scalar parameter:
+    ///
+    ///     parameter [31:0] Greeting = packed;
+    ///
+    /// `packed` is not a value. No spec in this repository declares one today,
+    /// which is why nothing caught it -- but the corpus snapshot the website
+    /// vendors does, in `specs/demos/hello_world.t27`, the spec the Spec
+    /// Explorer opens on and describes as showing "every part of the language".
+    /// So this test is the only thing standing between the construct and a
+    /// silent regression.
+    #[test]
+    fn packed_struct_const_parses_as_a_struct_declaration() {
+        let src = "module m;\npub const Greeting = packed struct {\n    length: u8,\n    trit: i8,\n};\n";
+        let lex = Lexer::new(src);
+        let mut parser = Parser::new(lex);
+        let root = parser.parse().expect("packed struct should parse");
+
+        let greeting = root
+            .children
+            .iter()
+            .find(|d| d.name == "Greeting")
+            .expect("Greeting declaration should be present");
+
+        assert_eq!(
+            greeting.kind,
+            NodeKind::StructDecl,
+            "packed struct must be a StructDecl, not a ConstDecl whose value is the token `packed`"
+        );
+        assert_eq!(greeting.children.len(), 2, "both fields should be parsed");
+    }
+
+    /// The bare form must keep working — this test exists so a future edit to
+    /// the packed branch cannot quietly shadow the one beneath it.
+    #[test]
+    fn plain_struct_const_still_parses_as_a_struct_declaration() {
+        let src = "module m;\npub const Plain = struct {\n    a: u8,\n};\n";
+        let lex = Lexer::new(src);
+        let mut parser = Parser::new(lex);
+        let root = parser.parse().expect("plain struct should parse");
+        let plain = root
+            .children
+            .iter()
+            .find(|d| d.name == "Plain")
+            .expect("Plain declaration should be present");
+        assert_eq!(plain.kind, NodeKind::StructDecl);
     }
 }
 
@@ -41604,6 +43940,16 @@ fn read_it() -> u16 {
             }
         }"#;
         let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // `unwrap_or("")` makes the region EMPTY when the key is absent, and an
+        // empty region satisfies the assertion below by construction. Nothing
+        // else here asserts the clocked block exists: `fn on_clock` appears as a
+        // fixture exactly once in this file, in this test, so a rename of the
+        // emitted `always @(posedge` would leave this passing on nothing.
+        assert!(
+            v.contains("always @(posedge"),
+            "the emitter no longer produces a clocked block, so the assertion \
+             below would pass over an empty region:\n{v}"
+        );
         let clocked = v.split("always @(posedge").nth(1).unwrap_or("");
         assert!(
             !clocked.contains("__t27_ret"),
@@ -41645,10 +43991,27 @@ fn read_it() -> u16 {
         // last one may name the flag.
         let v = Compiler::compile_verilog_for_simulation(src)
             .expect("compile should succeed");
+        // The `.expect` below cannot fire and does not check what it says:
+        // `__mul_noop` is injected unconditionally, so an `endfunction` is
+        // present whether or not the fixture declares a function. The real
+        // precondition is that the lowered test block is emitted AFTER the
+        // functions -- nothing in this test asserted that ordering, and the
+        // region is empty of the subject the moment it changes.
+        assert!(
+            v.contains("initial begin"),
+            "the test block is no longer lowered, so the region below holds \
+             nothing to find:\n{v}"
+        );
         let end_of_functions = v
             .rfind("endfunction")
             .or_else(|| v.rfind("endtask"))
             .expect("the fixture declares a function");
+        assert!(
+            v[end_of_functions..].contains("initial begin"),
+            "the lowered test block no longer sits after the last endfunction, \
+             so this region is not the one the assertion means:\n{}",
+            &v[end_of_functions..]
+        );
         assert!(
             !v[end_of_functions..].contains("__t27_ret"),
             "nothing outside a function body may test a flag that is declared \

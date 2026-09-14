@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:642560929a8194444335f20564d911bd310ca5411ed91193a57aa60e9b17e82f",
+  "gen_hash_rust": "sha256:20e4169f59157e56d8c4359d66839e8dce8d3ab6b0d2dd8bf4a37d211801af04",
+  "gen_hash_verilog": "sha256:9ef2b8a5b6c4b8a7d8e3f35f9e5711019e7ef9553bce4cf658918273adaa84de",
+  "gen_hash_zig": "sha256:78aed63f861419f631e3fdcf35ff3a33d6a9be2abc774724b37f42a17b89767d",
+  "module": "Tri27Bytecode",
+  "ring": 12,
+  "sealed_at": "2026-09-12T11:40:24Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:ddade525fb5f57aa035780cb877afcc013077bbdf07f5ff155541fbaeb1f2176",
+  "spec_path": "specs/isa/tri27_bytecode.t27"
+}

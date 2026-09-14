@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# L1 for `git am`, the analogue of commit-msg. git passes the message file as $1.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+TRI_BIN=""
+for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+  [ -x "$cand" ] || continue
+  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
+done
+if [ -z "$TRI_BIN" ]; then
+  echo "note: no tri binary; L1 was not checked and nothing about this message is claimed."
+  exit 0
+fi
+exec "$TRI_BIN" hooks commit-msg "$1"

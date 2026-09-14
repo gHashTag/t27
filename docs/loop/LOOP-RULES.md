@@ -225,10 +225,32 @@ Violating any of these fails the tick.
 
 ## R12 -- Before opening a PR
 
-Add a `## <topic> (Closes #N)` section to the top of `docs/NOW.md`, set
-`Last updated:` to the current UTC date (the gate accepts yesterday / today /
-tomorrow UTC), and put a literal `Closes #N` line in the PR body -- `Refs #N`
-does NOT satisfy `check-linked-issue`.
+Add one entry FILE, `docs/now/<YYYY-MM-DD>-<slug>.md`, dated inside the window
+the gate prints (yesterday / today / tomorrow UTC). `docs/NOW.md` is a FROZEN
+ARCHIVE and says so on its first line: do not add entries there. It was frozen
+in `f5be7dc1c` (#2298) precisely because one file per PR is what stops every
+concurrent PR colliding on its first line, and this rule went on naming it for
+sixteen days.
+
+`docs/NOW.md` is now ENFORCED, not merely labelled: a range that edits it is
+refused unless a commit in it carries
+
+    Archive-Repair: <what was damaged, and how you know>
+
+Repairing the archive is legitimate -- one of the two post-freeze edits is a
+repair of destroyed bodies -- and no textual rule separates a repair from a new
+entry, since the repair adds headings too. So the exception is DECLARED rather
+than detected. The gate does not judge the reason; it requires one to exist.
+
+Reference the issue in the PR body. `Refs #N` DOES satisfy `check-linked-issue`:
+the matcher is `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+` at
+`.github/workflows/issue-gate.yml:69`, and seven readers in this tree carry that
+same dictionary. Prefer `Refs #N` over `Closes #N` whenever the issue is one R11
+forbids closing -- which is most of them, since `Closes` autocloses on merge.
+
+Do not re-transcribe that dictionary anywhere: a hand-copied copy missing `Refs`
+once matched 4 references where the gate matched 33, and this sentence was the
+next copy to go wrong. Read it out of `issue-gate.yml`.
 
 Four required checks: `check`, `validate`, `check-now-freshness`,
 `check-linked-issue`.
@@ -345,3 +367,42 @@ instead of substituting it, because the wrong number gets quoted downstream.
   after. A test that also passes beforehand is a regression guard, not evidence.
 - A gate that lands red and stays red for a reason nobody is permitted to fix
   teaches everyone to ignore red. Report those as warnings and name the reason.
+
+## R17 -- Two ticks may run at once, so a tick owns a worktree and takes a claim
+
+A scheduled loop is not guaranteed to be alone. Two sessions ran concurrently on
+2026-09-06 and shared one checkout and one `target/`. Neither had a way to find
+out.
+
+What that produced, and how each symptom was misread first:
+
+- `HEAD` sat on `w119a-fold`, a branch this session never created. The other
+  session's reflog showed five branch switches inside the same directory over
+  five minutes.
+- A commit "did not form" while `git push` printed success -- it pushed an
+  unchanged `HEAD`. Read as a git bug; it was the other session moving the tree
+  under an in-flight commit.
+- The built binary lost a subcommand it had a minute earlier. Read as a bad
+  build; both sessions were writing one `target/`.
+- Census readings flip-flopped between runs. Read as a flaky gate; the tree was
+  being changed between the two readings.
+
+Every one of those was attributed to the tool being measured. That is the
+broken-ruler error with a second session as the ruler.
+
+- **Own the tree.** A tick works in its own `git worktree` with its own
+  `CARGO_TARGET_DIR`. Never the repository's primary checkout, which any other
+  session may be standing in.
+- **Take the claim first.** `tri loop claim <name>` before any work; exit 0
+  taken, 1 refused and names the holder, 2 could not run. The claim is a git ref
+  (`refs/tags/loop-claim/<name>`), so the atomicity is the remote's
+  compare-and-swap, not a file two machines both believe they hold.
+- **A private target dir hides the binary from the hooks.** `.githooks/pre-commit`
+  and `.githooks/commit-msg` probe `$ROOT/target/{debug,release}/tri`. With
+  `CARGO_TARGET_DIR` pointed elsewhere they report "not built", refuse with exit
+  2, and the commit silently does not form. Symlink the binary where the hooks
+  look, and check `git rev-parse HEAD` moved rather than trusting the output of
+  `git commit`.
+- **Do not diagnose a shared tree through the tree.** Ownership is answered by
+  `git worktree list` and the reflog, not by re-running the tool that is giving
+  strange answers.

@@ -1,0 +1,1619 @@
+{
+  "constants": {
+    "empty_pack": {
+      "bytes": 58,
+      "metadata": "{\"order\":\"C\",\"tensors\":[]}"
+    },
+    "errors": {
+      "axes": -24,
+      "descriptor": -20,
+      "json": -27,
+      "offset": -25,
+      "scale": -23,
+      "schema": -26,
+      "shape": -22,
+      "text": -21
+    },
+    "float_presentation": {
+      "examples": {
+        "0.00001": "1e-05",
+        "0.0001": "0.0001",
+        "123456789.0": "123456789.0",
+        "1e16": "1e+16"
+      },
+      "fixed_exponent_range": [
+        -4,
+        15
+      ],
+      "scientific_exponent_min_digits": 2
+    },
+    "header": {
+      "crc32": "IEEE, as zlib.crc32",
+      "endianness": "little",
+      "flags": 0,
+      "header_bytes": 32,
+      "magic": "TTPK",
+      "metadata_crc_covers": "header[0:24] + metadata",
+      "metadata_crc_offset": 24,
+      "metadata_length_offset": 8,
+      "payload_crc_covers": "payload",
+      "payload_crc_offset": 28,
+      "payload_length_offset": 16,
+      "reserved": 0,
+      "tensor_count_offset": 12,
+      "version": 1
+    },
+    "limits": {
+      "axis_bytes": 64,
+      "dimension": 2147483647,
+      "json_depth": 8,
+      "json_integer_chars": 20,
+      "metadata_bytes": 1048576,
+      "name_bytes": 256,
+      "payload_bytes": 67108864,
+      "rank": 16,
+      "scale_axis": 15,
+      "tensors": 1024,
+      "total_trits": 4194304
+    },
+    "nested": {
+      "checks": [
+        "magic",
+        "version",
+        "flags",
+        "codec byte equals descriptor codec",
+        "count equals shape product",
+        "payload length",
+        "CRC32",
+        "valid codes",
+        "zero padding",
+        "zero unused high bits"
+      ],
+      "format": "TMEM v1",
+      "header_bytes": 24,
+      "length": "24 + payload bytes of the codec"
+    },
+    "schema": {
+      "codecs": [
+        "baseline2",
+        "dense5",
+        "dense17",
+        "dense22",
+        "sparse41",
+        "sparse82"
+      ],
+      "descriptor": [
+        "axes",
+        "codec",
+        "length",
+        "name",
+        "offset",
+        "scale_axis",
+        "scales",
+        "shape"
+      ],
+      "order": "C",
+      "root": [
+        "order",
+        "tensors"
+      ],
+      "scale_axis": "null or an unsigned index below the rank",
+      "scales": "JSON reals only; integer tokens are rejected",
+      "writer": "sorted keys, no insignificant whitespace, raw UTF-8, only quote and backslash escaped"
+    }
+  },
+  "created_at": "2026-09-11T00:00:00Z",
+  "description": "Golden TTPK containers per codec, scalar, per-axis scales, axis labels, float presentation and an empty pack, plus rejected containers for framing, JSON, schema, descriptor, chain and nested-TMEM rules. Bytes come from the pure-Python encoders in tools/generate-spec-vectors.py.",
+  "format_family": "Conformance",
+  "generator": "tools/generate-spec-vectors.py",
+  "invariants": [
+    {
+      "condition": "4+1+1+2+4+4+8+4+4 == 32",
+      "id": "header_layout_is_contiguous"
+    },
+    {
+      "condition": "covered bytes == 24 == metadata_crc_offset",
+      "id": "metadata_crc_covers_the_header_prefix"
+    },
+    {
+      "condition": "58 == 32 + 26",
+      "id": "empty_pack_is_header_plus_empty_metadata"
+    },
+    {
+      "condition": "1 MiB metadata, 64 MiB payload, 4 Mi trits, 2^31-1 dimension",
+      "id": "limits_are_the_documented_powers_of_two"
+    },
+    {
+      "condition": "max scale_axis + 1 == max rank",
+      "id": "scale_axis_indexes_a_dimension"
+    },
+    {
+      "condition": "4194304 trits at 2 bits or 8/5 bits + 24 <= 64 MiB",
+      "id": "a_maximal_pack_of_any_codec_fits_the_payload_limit"
+    },
+    {
+      "condition": "2 root members, 8 descriptor members, 6 codec names",
+      "id": "schema_member_counts_are_fixed"
+    },
+    {
+      "condition": "fixed for -4 <= exponent <= 15",
+      "id": "float_notation_thresholds_match_python"
+    },
+    {
+      "condition": "-27 < ... < -20 < -10",
+      "id": "tensorpack_status_codes_are_distinct_and_below_the_shared_codes"
+    }
+  ],
+  "module": "TrinityMemoryTensorPackSpec",
+  "schema_version": 2,
+  "spec_path": "specs/memory/tensorpack.t27",
+  "vector_name": "TensorPack v1 containers",
+  "vectors": [
+    {
+      "description": "An empty pack: 32-byte header and 26 bytes of metadata, no payload",
+      "id": "empty_pack",
+      "inspect": {
+        "container_bytes": 58,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 26,
+        "order": "C",
+        "payload_bytes": 0,
+        "tensor_count": 0,
+        "tensors": [],
+        "total_count": 0,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[]}",
+      "tensors": [],
+      "ttpk_hex": "5454504b010000001a000000000000000000000000000000e3f09b0f000000007b226f72646572223a2243222c2274656e736f7273223a5b5d7d"
+    },
+    {
+      "description": "One baseline2 tensor with a partial final group; nested TMEM keeps its canonical padding",
+      "id": "baseline2_23_trits",
+      "inspect": {
+        "container_bytes": 207,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 145,
+        "order": "C",
+        "payload_bytes": 30,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "baseline2",
+            "count": 23,
+            "length": 30,
+            "name": "baseline2",
+            "offset": 0,
+            "payload_bytes": 6,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": [
+              23
+            ]
+          }
+        ],
+        "total_count": 23,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"baseline2\",\"length\":30,\"name\":\"baseline2\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[23]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "baseline2",
+          "name": "baseline2",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [
+            23
+          ],
+          "values": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b0100000091000000010000001e000000000000005927a4d6359850ec7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a22626173656c696e6532222c226c656e677468223a33302c226e616d65223a22626173656c696e6532222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b32335d7d5d7d544d454d01000000170000000000000006000000699f0f72020002000200"
+    },
+    {
+      "description": "One dense5 tensor with a partial final group; nested TMEM keeps its canonical padding",
+      "id": "dense5_23_trits",
+      "inspect": {
+        "container_bytes": 200,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 139,
+        "order": "C",
+        "payload_bytes": 29,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "dense5",
+            "count": 23,
+            "length": 29,
+            "name": "dense5",
+            "offset": 0,
+            "payload_bytes": 5,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": [
+              23
+            ]
+          }
+        ],
+        "total_count": 23,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"dense5\",\"length\":29,\"name\":\"dense5\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[23]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "dense5",
+          "name": "dense5",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [
+            23
+          ],
+          "values": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b010000008b000000010000001d00000000000000f042d40e81b493e07b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32392c226e616d65223a2264656e736535222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b32335d7d5d7d544d454d01010000170000000000000005000000e9eade25785e797679"
+    },
+    {
+      "description": "One dense17 tensor with a partial final group; nested TMEM keeps its canonical padding",
+      "id": "dense17_23_trits",
+      "inspect": {
+        "container_bytes": 204,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 141,
+        "order": "C",
+        "payload_bytes": 31,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "dense17",
+            "count": 23,
+            "length": 31,
+            "name": "dense17",
+            "offset": 0,
+            "payload_bytes": 7,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": [
+              23
+            ]
+          }
+        ],
+        "total_count": 23,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"dense17\",\"length\":31,\"name\":\"dense17\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[23]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "dense17",
+          "name": "dense17",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [
+            23
+          ],
+          "values": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b010000008d000000010000001f00000000000000d4c511804c2608587b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e73653137222c226c656e677468223a33312c226e616d65223a2264656e73653137222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b32335d7d5d7d544d454d010200001700000000000000070000000fc870d3fe51480917ca1e"
+    },
+    {
+      "description": "One dense22 tensor with a partial final group; nested TMEM keeps its canonical padding",
+      "id": "dense22_23_trits",
+      "inspect": {
+        "container_bytes": 206,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 141,
+        "order": "C",
+        "payload_bytes": 33,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "dense22",
+            "count": 23,
+            "length": 33,
+            "name": "dense22",
+            "offset": 0,
+            "payload_bytes": 9,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": [
+              23
+            ]
+          }
+        ],
+        "total_count": 23,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"dense22\",\"length\":33,\"name\":\"dense22\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[23]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "dense22",
+          "name": "dense22",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [
+            23
+          ],
+          "values": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b010000008d0000000100000021000000000000003dae2f5aac4bc4037b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e73653232222c226c656e677468223a33332c226e616d65223a2264656e73653232222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b32335d7d5d7d544d454d01030000170000000000000009000000c7fafbf8298ba9a463e0d3391d"
+    },
+    {
+      "description": "One sparse41 tensor with a partial final group; nested TMEM keeps its canonical padding",
+      "id": "sparse41_23_trits",
+      "inspect": {
+        "container_bytes": 202,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 143,
+        "order": "C",
+        "payload_bytes": 27,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "sparse41",
+            "count": 23,
+            "length": 27,
+            "name": "sparse41",
+            "offset": 0,
+            "payload_bytes": 3,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": [
+              23
+            ]
+          }
+        ],
+        "total_count": 23,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"sparse41\",\"length\":27,\"name\":\"sparse41\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[23]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "sparse41",
+          "name": "sparse41",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [
+            23
+          ],
+          "values": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b010000008f000000010000001b00000000000000b7787177ac9d223f7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a227370617273653431222c226c656e677468223a32372c226e616d65223a227370617273653431222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b32335d7d5d7d544d454d01040000170000000000000003000000b532b4e9010101"
+    },
+    {
+      "description": "One sparse82 tensor with a partial final group; nested TMEM keeps its canonical padding",
+      "id": "sparse82_23_trits",
+      "inspect": {
+        "container_bytes": 202,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 143,
+        "order": "C",
+        "payload_bytes": 27,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "sparse82",
+            "count": 23,
+            "length": 27,
+            "name": "sparse82",
+            "offset": 0,
+            "payload_bytes": 3,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": [
+              23
+            ]
+          }
+        ],
+        "total_count": 23,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"sparse82\",\"length\":27,\"name\":\"sparse82\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[23]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "sparse82",
+          "name": "sparse82",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [
+            23
+          ],
+          "values": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b010000008f000000010000001b00000000000000097e1c486269818d7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a227370617273653832222c226c656e677468223a32372c226e616d65223a227370617273653832222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b32335d7d5d7d544d454d010500001700000000000000030000005484e606010101"
+    },
+    {
+      "description": "A scalar has shape [] and exactly one trit",
+      "id": "scalar_baseline2_quarter_scale",
+      "inspect": {
+        "container_bytes": 198,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 141,
+        "order": "C",
+        "payload_bytes": 25,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "baseline2",
+            "count": 1,
+            "length": 25,
+            "name": "scalar",
+            "offset": 0,
+            "payload_bytes": 1,
+            "scale_axis": null,
+            "scales": [
+              0.25
+            ],
+            "shape": []
+          }
+        ],
+        "total_count": 1,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"baseline2\",\"length\":25,\"name\":\"scalar\",\"offset\":0,\"scale_axis\":null,\"scales\":[0.25],\"shape\":[]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "baseline2",
+          "name": "scalar",
+          "scale_axis": null,
+          "scales": [
+            0.25
+          ],
+          "shape": [],
+          "values": [
+            -1
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b010000008d000000010000001900000000000000b4aa39cacb61c3447b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a22626173656c696e6532222c226c656e677468223a32352c226e616d65223a227363616c6172222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b302e32355d2c227368617065223a5b5d7d5d7d544d454d01000000010000000000000001000000d5bcabdc02"
+    },
+    {
+      "description": "Per-row scales on axis 0, labelled axes, a non-ASCII name written as raw UTF-8",
+      "id": "matrix_row_scales_dense22_with_axes",
+      "inspect": {
+        "container_bytes": 223,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 162,
+        "order": "C",
+        "payload_bytes": 29,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [
+              "output",
+              "input"
+            ],
+            "codec": "dense22",
+            "count": 6,
+            "length": 29,
+            "name": "matrix.α",
+            "offset": 0,
+            "payload_bytes": 5,
+            "scale_axis": 0,
+            "scales": [
+              0.1,
+              0.75
+            ],
+            "shape": [
+              2,
+              3
+            ]
+          }
+        ],
+        "total_count": 6,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[\"output\",\"input\"],\"codec\":\"dense22\",\"length\":29,\"name\":\"matrix.α\",\"offset\":0,\"scale_axis\":0,\"scales\":[0.1,0.75],\"shape\":[2,3]}]}",
+      "tensors": [
+        {
+          "axes": [
+            "output",
+            "input"
+          ],
+          "codec": "dense22",
+          "name": "matrix.α",
+          "scale_axis": 0,
+          "scales": [
+            0.1,
+            0.75
+          ],
+          "shape": [
+            2,
+            3
+          ],
+          "values": [
+            -1,
+            0,
+            1,
+            1,
+            0,
+            -1
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b01000000a2000000010000001d00000000000000f4c686031d9f65987b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b226f7574707574222c22696e707574225d2c22636f646563223a2264656e73653232222c226c656e677468223a32392c226e616d65223a226d61747269782eceb1222c226f6666736574223a302c227363616c655f61786973223a302c227363616c6573223a5b302e312c302e37355d2c227368617065223a5b322c335d7d5d7d544d454d010300000600000000000000050000003b30571f3c7b3aa703"
+    },
+    {
+      "description": "Rank 3, sparse41 block across the flattened values, a scale printed with 17 significant digits",
+      "id": "cube_sparse41_next_after_one",
+      "inspect": {
+        "container_bytes": 236,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 179,
+        "order": "C",
+        "payload_bytes": 25,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [
+              "batch",
+              "row",
+              "column"
+            ],
+            "codec": "sparse41",
+            "count": 4,
+            "length": 25,
+            "name": "cube",
+            "offset": 0,
+            "payload_bytes": 1,
+            "scale_axis": null,
+            "scales": [
+              1.0000000000000002
+            ],
+            "shape": [
+              1,
+              2,
+              2
+            ]
+          }
+        ],
+        "total_count": 4,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[\"batch\",\"row\",\"column\"],\"codec\":\"sparse41\",\"length\":25,\"name\":\"cube\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0000000000000002],\"shape\":[1,2,2]}]}",
+      "tensors": [
+        {
+          "axes": [
+            "batch",
+            "row",
+            "column"
+          ],
+          "codec": "sparse41",
+          "name": "cube",
+          "scale_axis": null,
+          "scales": [
+            1.0000000000000002
+          ],
+          "shape": [
+            1,
+            2,
+            2
+          ],
+          "values": [
+            0,
+            0,
+            0,
+            -1
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b01000000b3000000010000001900000000000000706e9b0a7e6624287b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b226261746368222c22726f77222c22636f6c756d6e225d2c22636f646563223a227370617273653431222c226c656e677468223a32352c226e616d65223a2263756265222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e303030303030303030303030303030325d2c227368617065223a5b312c322c325d7d5d7d544d454d01040000040000000000000001000000ceb7df6507"
+    },
+    {
+      "description": "Descriptors and payload stay in input order; offsets chain without gaps",
+      "id": "three_tensors_in_one_pack",
+      "inspect": {
+        "container_bytes": 541,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 430,
+        "order": "C",
+        "payload_bytes": 79,
+        "tensor_count": 3,
+        "tensors": [
+          {
+            "axes": [
+              "output",
+              "input"
+            ],
+            "codec": "dense22",
+            "count": 6,
+            "length": 29,
+            "name": "matrix.α",
+            "offset": 0,
+            "payload_bytes": 5,
+            "scale_axis": 0,
+            "scales": [
+              0.1,
+              0.75
+            ],
+            "shape": [
+              2,
+              3
+            ]
+          },
+          {
+            "axes": [
+              "batch",
+              "row",
+              "column"
+            ],
+            "codec": "sparse41",
+            "count": 4,
+            "length": 25,
+            "name": "cube",
+            "offset": 29,
+            "payload_bytes": 1,
+            "scale_axis": null,
+            "scales": [
+              1.0000000000000002
+            ],
+            "shape": [
+              1,
+              2,
+              2
+            ]
+          },
+          {
+            "axes": [],
+            "codec": "dense5",
+            "count": 1,
+            "length": 25,
+            "name": "scalar",
+            "offset": 54,
+            "payload_bytes": 1,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": []
+          }
+        ],
+        "total_count": 11,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[\"output\",\"input\"],\"codec\":\"dense22\",\"length\":29,\"name\":\"matrix.α\",\"offset\":0,\"scale_axis\":0,\"scales\":[0.1,0.75],\"shape\":[2,3]},{\"axes\":[\"batch\",\"row\",\"column\"],\"codec\":\"sparse41\",\"length\":25,\"name\":\"cube\",\"offset\":29,\"scale_axis\":null,\"scales\":[1.0000000000000002],\"shape\":[1,2,2]},{\"axes\":[],\"codec\":\"dense5\",\"length\":25,\"name\":\"scalar\",\"offset\":54,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[]}]}",
+      "tensors": [
+        {
+          "axes": [
+            "output",
+            "input"
+          ],
+          "codec": "dense22",
+          "name": "matrix.α",
+          "scale_axis": 0,
+          "scales": [
+            0.1,
+            0.75
+          ],
+          "shape": [
+            2,
+            3
+          ],
+          "values": [
+            -1,
+            0,
+            1,
+            1,
+            0,
+            -1
+          ]
+        },
+        {
+          "axes": [
+            "batch",
+            "row",
+            "column"
+          ],
+          "codec": "sparse41",
+          "name": "cube",
+          "scale_axis": null,
+          "scales": [
+            1.0000000000000002
+          ],
+          "shape": [
+            1,
+            2,
+            2
+          ],
+          "values": [
+            0,
+            0,
+            0,
+            -1
+          ]
+        },
+        {
+          "axes": [],
+          "codec": "dense5",
+          "name": "scalar",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [],
+          "values": [
+            1
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b01000000ae010000030000004f00000000000000225af029d819172a7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b226f7574707574222c22696e707574225d2c22636f646563223a2264656e73653232222c226c656e677468223a32392c226e616d65223a226d61747269782eceb1222c226f6666736574223a302c227363616c655f61786973223a302c227363616c6573223a5b302e312c302e37355d2c227368617065223a5b322c335d7d2c7b2261786573223a5b226261746368222c22726f77222c22636f6c756d6e225d2c22636f646563223a227370617273653431222c226c656e677468223a32352c226e616d65223a2263756265222c226f6666736574223a32392c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e303030303030303030303030303030325d2c227368617065223a5b312c322c325d7d2c7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a227363616c6172222c226f6666736574223a35342c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b5d7d5d7d544d454d010300000600000000000000050000003b30571f3c7b3aa703544d454d01040000040000000000000001000000ceb7df6507544d454d010100000100000000000000010000004ad41d2c7a"
+    },
+    {
+      "description": "Fixed notation for exponents -4..15, scientific with a two-digit exponent otherwise",
+      "id": "float_presentation_of_scales",
+      "inspect": {
+        "container_bytes": 219,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 162,
+        "order": "C",
+        "payload_bytes": 25,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [],
+            "codec": "dense5",
+            "count": 4,
+            "length": 25,
+            "name": "scaled",
+            "offset": 0,
+            "payload_bytes": 1,
+            "scale_axis": 0,
+            "scales": [
+              0.0001,
+              1e-05,
+              1e+16,
+              123456789.0
+            ],
+            "shape": [
+              4
+            ]
+          }
+        ],
+        "total_count": 4,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[],\"codec\":\"dense5\",\"length\":25,\"name\":\"scaled\",\"offset\":0,\"scale_axis\":0,\"scales\":[0.0001,1e-05,1e+16,123456789.0],\"shape\":[4]}]}",
+      "tensors": [
+        {
+          "axes": [],
+          "codec": "dense5",
+          "name": "scaled",
+          "scale_axis": 0,
+          "scales": [
+            0.0001,
+            1e-05,
+            1e+16,
+            123456789.0
+          ],
+          "shape": [
+            4
+          ],
+          "values": [
+            1,
+            0,
+            -1,
+            0
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b01000000a20000000100000019000000000000007ba375fa910b90ea7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a227363616c6564222c226f6666736574223a302c227363616c655f61786973223a302c227363616c6573223a5b302e303030312c31652d30352c31652b31362c3132333435363738392e305d2c227368617065223a5b345d7d5d7d544d454d01010000040000000000000001000000d1bee0a671"
+    },
+    {
+      "description": "The repository example input examples/tensorpack.json",
+      "id": "example_tensorpack_json",
+      "inspect": {
+        "container_bytes": 205,
+        "format": "TensorPack",
+        "header_bytes": 32,
+        "metadata_bytes": 147,
+        "order": "C",
+        "payload_bytes": 26,
+        "tensor_count": 1,
+        "tensors": [
+          {
+            "axes": [
+              "sample"
+            ],
+            "codec": "dense5",
+            "count": 7,
+            "length": 26,
+            "name": "weights",
+            "offset": 0,
+            "payload_bytes": 2,
+            "scale_axis": null,
+            "scales": [
+              1.0
+            ],
+            "shape": [
+              7
+            ]
+          }
+        ],
+        "total_count": 7,
+        "validated": true,
+        "version": 1
+      },
+      "kind": "pack",
+      "metadata_json": "{\"order\":\"C\",\"tensors\":[{\"axes\":[\"sample\"],\"codec\":\"dense5\",\"length\":26,\"name\":\"weights\",\"offset\":0,\"scale_axis\":null,\"scales\":[1.0],\"shape\":[7]}]}",
+      "tensors": [
+        {
+          "axes": [
+            "sample"
+          ],
+          "codec": "dense5",
+          "name": "weights",
+          "scale_axis": null,
+          "scales": [
+            1.0
+          ],
+          "shape": [
+            7
+          ],
+          "values": [
+            1,
+            -1,
+            0,
+            1,
+            0,
+            -1,
+            1
+          ]
+        }
+      ],
+      "ttpk_hex": "5454504b0100000093000000010000001a00000000000000a4b48618fd17c3e17b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b2273616d706c65225d2c22636f646563223a2264656e736535222c226c656e677468223a32362c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b375d7d5d7d544d454d010100000700000000000000020000009fb2016b927b"
+    },
+    {
+      "error_class": "header",
+      "id": "wrong_magic",
+      "kind": "invalid_pack",
+      "reason": "magic must be TTPK",
+      "ttpk_hex": "54545058010000008b000000010000001900000000000000810fe58dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "header",
+      "id": "version_2",
+      "kind": "invalid_pack",
+      "reason": "only version 1 exists",
+      "ttpk_hex": "5454504b020000008b000000010000001900000000000000810fe58dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "header",
+      "id": "flags_set",
+      "kind": "invalid_pack",
+      "reason": "flags must be zero",
+      "ttpk_hex": "5454504b010100008b000000010000001900000000000000810fe58dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "header",
+      "id": "reserved_set",
+      "kind": "invalid_pack",
+      "reason": "reserved bytes must be zero",
+      "ttpk_hex": "5454504b010001008b000000010000001900000000000000810fe58dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "length",
+      "id": "trailing_byte",
+      "kind": "invalid_pack",
+      "reason": "size must equal 32 + metadata + payload",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db7100"
+    },
+    {
+      "error_class": "length",
+      "id": "truncated_payload",
+      "kind": "invalid_pack",
+      "reason": "size must equal 32 + metadata + payload",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db"
+    },
+    {
+      "error_class": "length",
+      "id": "truncated_header",
+      "kind": "invalid_pack",
+      "reason": "a container is at least 32 bytes",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58dbe7d2c"
+    },
+    {
+      "error_class": "checksum",
+      "id": "metadata_crc_mismatch",
+      "kind": "invalid_pack",
+      "reason": "CRC32 over header[0:24] + metadata",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000800fe58dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "checksum",
+      "id": "payload_crc_mismatch",
+      "kind": "invalid_pack",
+      "reason": "CRC32 over the payload",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58dbf7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "limit",
+      "id": "metadata_limit_in_header",
+      "kind": "invalid_pack",
+      "reason": "metadata length above 1 MiB",
+      "ttpk_hex": "5454504b01000000010010000000000000000000000000000000000000000000"
+    },
+    {
+      "error_class": "limit",
+      "id": "tensor_count_limit_in_header",
+      "kind": "invalid_pack",
+      "reason": "more than 1024 tensors",
+      "ttpk_hex": "5454504b01000000000000000104000000000000000000000000000000000000"
+    },
+    {
+      "error_class": "limit",
+      "id": "payload_limit_in_header",
+      "kind": "invalid_pack",
+      "reason": "payload above 64 MiB",
+      "ttpk_hex": "5454504b01000000000000000000000001000004000000000000000000000000"
+    },
+    {
+      "error_class": "text",
+      "id": "utf8_bom",
+      "kind": "invalid_pack",
+      "reason": "no byte order mark",
+      "ttpk_hex": "5454504b010000008e000000010000001900000000000000b163454bbe7d2c2befbbbf7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "text",
+      "id": "invalid_utf8_metadata",
+      "kind": "invalid_pack",
+      "reason": "metadata must be UTF-8",
+      "ttpk_hex": "5454504b0100000001000000010000001900000000000000305ebf67be7d2c2bff544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "json_null",
+      "kind": "invalid_pack",
+      "reason": "root must be an object",
+      "ttpk_hex": "5454504b01000000040000000100000019000000000000009f17cc55be7d2c2b6e756c6c544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "json_array_root",
+      "kind": "invalid_pack",
+      "reason": "root must be an object",
+      "ttpk_hex": "5454504b0100000002000000010000001900000000000000b9e98bc1be7d2c2b5b5d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "json_empty_object",
+      "kind": "invalid_pack",
+      "reason": "root needs order and tensors",
+      "ttpk_hex": "5454504b0100000002000000010000001900000000000000d3ed616fbe7d2c2b7b7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_trailing_comma",
+      "kind": "invalid_pack",
+      "reason": "strict JSON grammar",
+      "ttpk_hex": "5454504b010000001b000000010000001900000000000000ffa9a125be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b5d2c7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_duplicate_root_key",
+      "kind": "invalid_pack",
+      "reason": "duplicate keys are rejected",
+      "ttpk_hex": "5454504b0100000026000000010000001900000000000000d76aa97fbe7d2c2b7b226f72646572223a2243222c226f72646572223a2243222c2274656e736f7273223a5b5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_duplicate_descriptor_key",
+      "kind": "invalid_pack",
+      "reason": "duplicate keys are rejected",
+      "ttpk_hex": "5454504b010000009a0000000100000019000000000000004960474bbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c226e616d65223a226f74686572222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_nan_scale",
+      "kind": "invalid_pack",
+      "reason": "nonfinite numbers are invalid JSON",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000a5ad8ebbbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b4e614e5d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_overflowing_real",
+      "kind": "invalid_pack",
+      "reason": "nonfinite numbers are invalid JSON",
+      "ttpk_hex": "5454504b010000008d000000010000001900000000000000cf8fc1fabe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b31653939395d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_integer_token_too_long",
+      "kind": "invalid_pack",
+      "reason": "integer tokens have at most 20 characters",
+      "ttpk_hex": "5454504b010000009f0000000100000019000000000000002c17165abe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a3131313131313131313131313131313131313131312c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_nesting_too_deep",
+      "kind": "invalid_pack",
+      "reason": "nesting deeper than 8 levels",
+      "ttpk_hex": "5454504b010000002a00000001000000190000000000000017b09537be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b5b5b5b5b5b5b5b5b5d5d5d5d5d5d5d5d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "json",
+      "id": "json_trailing_garbage",
+      "kind": "invalid_pack",
+      "reason": "one JSON document only",
+      "ttpk_hex": "5454504b01000000910000000100000019000000000000003ebf0ef1be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d206578747261544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "order_f",
+      "kind": "invalid_pack",
+      "reason": "only C order",
+      "ttpk_hex": "5454504b010000008b0000000100000019000000000000002de01ba0be7d2c2b7b226f72646572223a2246222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "root_extra_member",
+      "kind": "invalid_pack",
+      "reason": "exactly two root members",
+      "ttpk_hex": "5454504b01000000960000000100000019000000000000003f26b369be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d2c22667574757265223a317d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "tensors_not_an_array",
+      "kind": "invalid_pack",
+      "reason": "tensors must be an array",
+      "ttpk_hex": "5454504b010000001a00000001000000190000000000000027a88dd1be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a7b7d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "descriptor_null",
+      "kind": "invalid_pack",
+      "reason": "descriptors are objects",
+      "ttpk_hex": "5454504b010000001e000000010000001900000000000000057e77fbbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b6e756c6c5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "descriptor_missing_name",
+      "kind": "invalid_pack",
+      "reason": "exactly eight descriptor members",
+      "ttpk_hex": "5454504b010000007a000000010000001900000000000000cb62a373be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "descriptor_missing_length",
+      "kind": "invalid_pack",
+      "reason": "exactly eight descriptor members",
+      "ttpk_hex": "5454504b010000007f00000001000000190000000000000077ca3f6dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a307d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "descriptor_extra_member",
+      "kind": "invalid_pack",
+      "reason": "exactly eight descriptor members",
+      "ttpk_hex": "5454504b0100000096000000010000001900000000000000bde1f40fbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32352c22667574757265223a317d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "tensor_count_header_mismatch",
+      "kind": "invalid_pack",
+      "reason": "header count must equal the array length",
+      "ttpk_hex": "5454504b010000008b000000020000001900000000000000d169ccfcbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "shape",
+      "id": "shape_zero_dimension",
+      "kind": "invalid_pack",
+      "reason": "dimensions are at least 1",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000aad7aa75be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b305d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "shape",
+      "id": "shape_negative_dimension",
+      "kind": "invalid_pack",
+      "reason": "dimensions are unsigned integers",
+      "ttpk_hex": "5454504b010000008c0000000100000019000000000000009dbfd3c9be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b2d335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "shape",
+      "id": "shape_real_dimension",
+      "kind": "invalid_pack",
+      "reason": "dimensions are integers",
+      "ttpk_hex": "5454504b010000008d0000000100000019000000000000008f562713be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b332e305d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "descriptor",
+      "id": "shape_count_mismatch",
+      "kind": "invalid_pack",
+      "reason": "product of the shape must equal the nested count",
+      "ttpk_hex": "5454504b010000008b0000000100000019000000000000008ff1cef1be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b345d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "shape",
+      "id": "shape_rank_17",
+      "kind": "invalid_pack",
+      "reason": "rank at most 16",
+      "ttpk_hex": "5454504b01000000ab000000010000001900000000000000402d2b92be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b312c312c312c312c312c312c312c312c312c312c312c312c312c312c312c312c335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "shape",
+      "id": "shape_dimension_over_limit",
+      "kind": "invalid_pack",
+      "reason": "dimension at most 2^31 - 1",
+      "ttpk_hex": "5454504b0100000094000000010000001900000000000000052ecb39be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b323134373438333634385d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "shape",
+      "id": "shape_product_over_limit",
+      "kind": "invalid_pack",
+      "reason": "at most 4194304 trits",
+      "ttpk_hex": "5454504b0100000093000000010000001900000000000000053ffd4ebe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b323034382c323034395d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "axes",
+      "id": "axes_count_mismatch",
+      "kind": "invalid_pack",
+      "reason": "axes are empty or one label per dimension",
+      "ttpk_hex": "5454504b0100000092000000010000001900000000000000a8763b51be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b2278222c2279225d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "axes",
+      "id": "axes_duplicate_labels",
+      "kind": "invalid_pack",
+      "reason": "axis labels are unique",
+      "ttpk_hex": "5454504b0100000094000000010000001900000000000000e95606c6be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b332c315d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b2278222c2278225d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "axes",
+      "id": "axes_empty_label",
+      "kind": "invalid_pack",
+      "reason": "labels are nonempty",
+      "ttpk_hex": "5454504b010000008d00000001000000190000000000000005b37e6dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b22225d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "axes",
+      "id": "axes_label_65_bytes",
+      "kind": "invalid_pack",
+      "reason": "labels are at most 64 bytes",
+      "ttpk_hex": "5454504b01000000ce000000010000001900000000000000a92b2f8dbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b227878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878225d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "text",
+      "id": "name_empty",
+      "kind": "invalid_pack",
+      "reason": "names are nonempty",
+      "ttpk_hex": "5454504b01000000840000000100000019000000000000001de74fd8be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a22222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "text",
+      "id": "name_257_bytes",
+      "kind": "invalid_pack",
+      "reason": "names are at most 256 bytes",
+      "ttpk_hex": "5454504b010000008501000001000000190000000000000026ee1ffabe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a226e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "text",
+      "id": "name_control_character",
+      "kind": "invalid_pack",
+      "reason": "no ASCII control characters",
+      "ttpk_hex": "5454504b0100000088000000010000001900000000000000f2559603be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a22615c6e62222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scales_integer_token",
+      "kind": "invalid_pack",
+      "reason": "scales are JSON reals",
+      "ttpk_hex": "5454504b0100000089000000010000001900000000000000191e2e7bbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b315d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scales_empty",
+      "kind": "invalid_pack",
+      "reason": "exactly one scale without an axis",
+      "ttpk_hex": "5454504b0100000088000000010000001900000000000000617733f1be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b5d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scales_zero",
+      "kind": "invalid_pack",
+      "reason": "scales are positive",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000120022c7be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b302e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scales_negative",
+      "kind": "invalid_pack",
+      "reason": "scales are positive",
+      "ttpk_hex": "5454504b010000008c0000000100000019000000000000002b69b12cbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b2d312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scales_two_without_axis",
+      "kind": "invalid_pack",
+      "reason": "exactly one scale without an axis",
+      "ttpk_hex": "5454504b010000008f00000001000000190000000000000001a84c31be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e302c322e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scale_axis_out_of_rank",
+      "kind": "invalid_pack",
+      "reason": "scale_axis is below the rank",
+      "ttpk_hex": "5454504b01000000880000000100000019000000000000001f2f902bbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a312c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scale_axis_negative",
+      "kind": "invalid_pack",
+      "reason": "scale_axis is null or unsigned",
+      "ttpk_hex": "5454504b010000008900000001000000190000000000000092658221be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a2d312c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scale_axis_16",
+      "kind": "invalid_pack",
+      "reason": "scale_axis is at most 15",
+      "ttpk_hex": "5454504b0100000089000000010000001900000000000000fdf8d34cbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a31362c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "scale",
+      "id": "scale_axis_real",
+      "kind": "invalid_pack",
+      "reason": "scale_axis is an integer",
+      "ttpk_hex": "5454504b010000008a000000010000001900000000000000af9b775bbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a302e302c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "codec",
+      "id": "codec_unknown",
+      "kind": "invalid_pack",
+      "reason": "codec is one of the six names",
+      "ttpk_hex": "5454504b010000008c000000010000001900000000000000a7dcf478be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a22756e6b6e6f776e222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "descriptor",
+      "id": "codec_mismatch_with_nested",
+      "kind": "invalid_pack",
+      "reason": "nested codec byte must match",
+      "ttpk_hex": "5454504b010000008e0000000100000019000000000000007e1a039abe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a22626173656c696e6532222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "offset",
+      "id": "offset_not_zero",
+      "kind": "invalid_pack",
+      "reason": "first offset is zero",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000109e8d23be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a312c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "schema",
+      "id": "offset_negative",
+      "kind": "invalid_pack",
+      "reason": "offsets are unsigned",
+      "ttpk_hex": "5454504b010000008c000000010000001900000000000000497897f3be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a2d312c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "offset",
+      "id": "length_short",
+      "kind": "invalid_pack",
+      "reason": "length is the whole nested file",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000e4685935be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32347d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "offset",
+      "id": "length_long",
+      "kind": "invalid_pack",
+      "reason": "length is the whole nested file",
+      "ttpk_hex": "5454504b010000008b0000000100000019000000000000006fa0509fbe7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32367d5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "descriptor",
+      "id": "duplicate_names",
+      "kind": "invalid_pack",
+      "reason": "names are unique",
+      "ttpk_hex": "5454504b01000000fe00000002000000320000000000000076700aef3efcd78a7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d2c7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a32352c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71544d454d010100000300000000000000010000008c8e436185"
+    },
+    {
+      "error_class": "offset",
+      "id": "gap_between_tensors",
+      "kind": "invalid_pack",
+      "reason": "no gaps",
+      "ttpk_hex": "5454504b01000000fc00000002000000320000000000000038774ed23efcd78a7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d2c7b226e616d65223a226f74686572222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a32362c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71544d454d010100000300000000000000010000008c8e436185"
+    },
+    {
+      "error_class": "offset",
+      "id": "overlapping_tensors",
+      "kind": "invalid_pack",
+      "reason": "no overlaps",
+      "ttpk_hex": "5454504b01000000fb000000020000003200000000000000fbfa332d3efcd78a7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d2c7b226e616d65223a226f74686572222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71544d454d010100000300000000000000010000008c8e436185"
+    },
+    {
+      "error_class": "offset",
+      "id": "reordered_descriptors",
+      "kind": "invalid_pack",
+      "reason": "descriptors follow payload order",
+      "ttpk_hex": "5454504b01000000fc00000002000000320000000000000043576bfc3efcd78a7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a226f74686572222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a32352c226c656e677468223a32357d2c7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db71544d454d010100000300000000000000010000008c8e436185"
+    },
+    {
+      "error_class": "offset",
+      "id": "payload_tail",
+      "kind": "invalid_pack",
+      "reason": "no unused payload bytes",
+      "ttpk_hex": "5454504b010000008b000000010000001a000000000000008a2991297b5df0fe7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d0101000003000000000000000100000089b893db7100"
+    },
+    {
+      "error_class": "offset",
+      "id": "payload_without_descriptors",
+      "kind": "invalid_pack",
+      "reason": "payload must be covered",
+      "ttpk_hex": "5454504b010000001a0000000000000019000000000000008737ccf1be7d2c2b7b226f72646572223a2243222c2274656e736f7273223a5b5d7d544d454d0101000003000000000000000100000089b893db71"
+    },
+    {
+      "error_class": "checksum",
+      "id": "nested_crc_mismatch",
+      "kind": "invalid_pack",
+      "reason": "nested TMEM checksum",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58d55d385d27b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d010100000300000000000000010000000000000071"
+    },
+    {
+      "error_class": "descriptor",
+      "id": "nested_count_mismatch",
+      "kind": "invalid_pack",
+      "reason": "nested count must match the shape",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58dfa86c4fa7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d01010000010000000000000001000000c20dcfbb71"
+    },
+    {
+      "error_class": "header",
+      "id": "nested_flags_set",
+      "kind": "invalid_pack",
+      "reason": "nested reserved bytes must be zero",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58da0c6a9997b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d010101000300000000000000010000006163686271"
+    },
+    {
+      "error_class": "header",
+      "id": "nested_version_2",
+      "kind": "invalid_pack",
+      "reason": "nested version must be 1",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000810fe58d1d524a697b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b335d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d020100000300000000000000010000000de3098871"
+    },
+    {
+      "error_class": "padding",
+      "id": "nested_nonzero_padding",
+      "kind": "invalid_pack",
+      "reason": "padding trits must be zero",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000b39f6f22480f7ad67b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b315d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d01010000010000000000000001000000c6677ce7ca"
+    },
+    {
+      "error_class": "code",
+      "id": "nested_reserved_code",
+      "kind": "invalid_pack",
+      "reason": "reserved dense5 code 243",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000b39f6f2225d10aaa7b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a2277656967687473222c227368617065223a5b315d2c22636f646563223a2264656e736535222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d01010000010000000000000001000000ceef79b8f3"
+    },
+    {
+      "error_class": "padding",
+      "id": "nested_unused_high_bits",
+      "kind": "invalid_pack",
+      "reason": "unused high bits must be zero",
+      "ttpk_hex": "5454504b010000008e000000010000001c0000000000000020b42b188dc4fa557b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a22736576656e7465656e222c227368617065223a5b315d2c22636f646563223a2264656e73653137222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32387d5d7d544d454d01020000010000000000000004000000e0a6bcd2e142d983"
+    },
+    {
+      "error_class": "code",
+      "id": "nested_sparse41_reserved_code",
+      "kind": "invalid_pack",
+      "reason": "reserved sparse41 code 9",
+      "ttpk_hex": "5454504b010000008c00000001000000190000000000000075e8a496092a96f57b226f72646572223a2243222c2274656e736f7273223a5b7b226e616d65223a22737061727365222c227368617065223a5b345d2c22636f646563223a227370617273653431222c227363616c6573223a5b312e305d2c227363616c655f61786973223a6e756c6c2c2261786573223a5b5d2c226f6666736574223a302c226c656e677468223a32357d5d7d544d454d01040000040000000000000001000000c99a678209"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:6bb9a2b44b18c8eabe1564640bb7288aca327cbf38c69dc1c72080413a5095c9",
+  "gen_hash_rust": "sha256:9d01e6190af4eebb0fa5ea02271cb23ab424414ffe16b19fc256dd8e6d7f2cc4",
+  "gen_hash_verilog": "sha256:f026bf5fa46c6837946ce8222132ab5aa4edefc8dd775bb2f31ec76d108a5ecc",
+  "gen_hash_zig": "sha256:b50afc44274bea044d4e1dd582c2c52f9ad3279b30d606c8ebf6dbaddd1f0a0b",
+  "module": "trinity_capability_agent_tri_api",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:37Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:39fe65ef46e74e75fc0b39666f7398fc3558485c9910d5563df17238c94b530c",
+  "spec_path": "specs/trinity/capabilities/agent.tri-api.t27"
+}

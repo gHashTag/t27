@@ -1,0 +1,6203 @@
+{
+  "constants": {
+    "accumulator": {
+      "error_result": 0,
+      "overflow": "checked after every accepted group; error is sticky, result 0, no wrap or saturate",
+      "runner_widths": [
+        12,
+        32
+      ],
+      "widths": [
+        2,
+        32
+      ]
+    },
+    "beat": {
+      "activation_range": [
+        -128,
+        127
+      ],
+      "baseline_code_limit": 1024,
+      "dense_code_limit": 243,
+      "dense_high_bits_must_be_zero": [
+        9,
+        8
+      ],
+      "group_sum_range": [
+        -640,
+        640
+      ],
+      "inactive_lanes": "trit code 00 and activation byte 0",
+      "lane_encoding": {
+        "00": 0,
+        "01": 1,
+        "10": -1,
+        "11": "invalid"
+      },
+      "lanes": 5,
+      "mask_rule": "11111 before the last beat; 00001/00011/00111/01111/11111 on the last beat; 00000 only as a whole empty frame"
+    },
+    "dot_ports": {
+      "inputs": [
+        "clk",
+        "rst",
+        "in_valid",
+        "in_code[9:0]",
+        "in_activations[39:0]",
+        "in_mask[4:0]",
+        "in_last",
+        "out_ready"
+      ],
+      "module": "trinity_dot_stream_t27",
+      "outputs": [
+        "in_ready",
+        "out_valid",
+        "out_result[ACC_WIDTH-1:0]",
+        "out_error"
+      ],
+      "parameters": {
+        "ACC_WIDTH": [
+          2,
+          32
+        ],
+        "DENSE5": [
+          0,
+          1
+        ]
+      }
+    },
+    "evidence": {
+      "label": "rtl-simulation",
+      "not_claimed": [
+        "fpga",
+        "timing",
+        "utilization",
+        "throughput"
+      ],
+      "simulator": "Icarus Verilog"
+    },
+    "pipeline": {
+      "accept_to_consume_edges": 2,
+      "accept_to_valid_edges": 1,
+      "in_ready": "!reset && (!stage_valid || !out_valid || out_ready)",
+      "reset": "synchronous, flushes stage, accumulator, errors and pending output",
+      "stable_output": "out_valid, out_result and out_error hold until out_ready",
+      "stages": 2
+    },
+    "runner_packet": {
+      "activations": [
+        49,
+        10
+      ],
+      "code": [
+        9,
+        0
+      ],
+      "expected_error": 32,
+      "expected_result": [
+        31,
+        0
+      ],
+      "last": 55,
+      "mask": [
+        54,
+        50
+      ],
+      "reset": 56,
+      "reset_pending_output": 57,
+      "status": {
+        "argument": -80,
+        "capacity": -81,
+        "mismatch": -84,
+        "output": -83,
+        "overflow": -82,
+        "process": -85,
+        "resource": -86
+      }
+    },
+    "storage": {
+      "backpressure": false,
+      "capacity_groups": 64,
+      "code_widths": {
+        "baseline5": 10,
+        "dense5": 8
+      },
+      "element_bits": 16,
+      "join_to_dot_stream": "recorded gap: needs a FIFO of WORDS beats or a ready-capable sequencer",
+      "load_ready": "!rst && !busy && !start && WORDS in 1..64",
+      "max_trits": 320,
+      "module": "ternary_dense5_stream_t27 / ternary_baseline5_stream_t27",
+      "reset": "aborts the read, keeps RAM contents",
+      "signals": [
+        "rst",
+        "start",
+        "busy",
+        "load_en",
+        "load_addr",
+        "load_code",
+        "load_ready",
+        "out_valid",
+        "out_code_valid",
+        "out_last",
+        "out_lane_mask",
+        "out_trits"
+      ],
+      "specialized_capacities_simulated": [
+        1,
+        65,
+        820,
+        4096
+      ],
+      "timing": {
+        "S": "start accepted; busy=1",
+        "S+1+k": "word k visible",
+        "S+WORDS": "last word, out_last=1",
+        "S+WORDS+1": "idle"
+      }
+    },
+    "view": {
+      "idle": 0,
+      "invalid_code": "mask << 10",
+      "packed": "[15] code valid, [14:10] lane mask, [9:0] visible lanes"
+    }
+  },
+  "created_at": "2026-09-11T00:00:00Z",
+  "description": "Cycle-exact traces of the framed dot pipeline and the storage sequencer with view, plus frame-level dot products, computed by the cycle models in tools/generate-spec-vectors.py from the contract in the spec. Replayed in Icarus Verilog by tests/spec_stream_replay.py; evidence label rtl-simulation.",
+  "format_family": "Conformance",
+  "generator": "tools/generate-spec-vectors.py",
+  "invariants": [
+    {
+      "condition": "5*8 == 40, 5*2 == 10, valid bit == 2^10",
+      "id": "beat_fields_have_the_documented_widths"
+    },
+    {
+      "condition": "243 == 3^5 <= 256, 1024 == 2^10",
+      "id": "code_limits_are_three_to_the_fifth_and_two_to_the_tenth"
+    },
+    {
+      "condition": "640 == 5*128",
+      "id": "group_sum_bound_is_five_times_the_int8_magnitude"
+    },
+    {
+      "condition": "2 < 12 <= 32",
+      "id": "accumulator_widths_nest"
+    },
+    {
+      "condition": "accept -> valid: 1 edge; accept -> consume: 2 edges",
+      "id": "pipeline_latency_follows_the_two_stages"
+    },
+    {
+      "condition": "10 + 40 + 5 + 1 + 1 + 1 bits",
+      "id": "packet_fields_are_contiguous"
+    },
+    {
+      "condition": "64*5 == 320; 16 >= 10 > 8",
+      "id": "storage_capacity_and_element_width"
+    },
+    {
+      "condition": "no backpressure; join needs a buffer",
+      "id": "the_storage_join_is_a_recorded_gap"
+    },
+    {
+      "condition": "valid bit 2^15, mask shift 10",
+      "id": "view_packing_uses_the_upper_bits"
+    }
+  ],
+  "module": "TrinityMemoryStreamComputeSpec",
+  "replay": {
+    "frames": "tests/test_spec_stream_compute.py through trinity_memory.rtl_compute",
+    "traces": "tests/spec_stream_replay.py (tests/tb_spec_dot_trace.v, tests/tb_spec_storage_trace.v)"
+  },
+  "schema_version": 2,
+  "spec_path": "specs/memory/stream_compute.t27",
+  "vector_name": "Trinity Stream Compute traces and frames",
+  "vectors": [
+    {
+      "acc_width": 32,
+      "cycle_count": 8,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              -128,
+              127,
+              5,
+              3,
+              9
+            ],
+            "in_code": 146,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              10,
+              -10,
+              0,
+              0,
+              0
+            ],
+            "in_code": 125,
+            "in_last": true,
+            "in_mask": 3,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "A full beat then a two-lane final beat; the result is visible one edge after the last beat is accepted",
+      "id": "two_beat_frame_dense",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 8,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              -128,
+              127,
+              5,
+              3,
+              9
+            ],
+            "in_code": 73,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              10,
+              -10,
+              0,
+              0,
+              0
+            ],
+            "in_code": 5,
+            "in_last": true,
+            "in_mask": 3,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -252,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": false,
+      "description": "The same frame in five-lane two-bit mode",
+      "id": "two_beat_frame_baseline",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 7,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 121,
+            "in_last": true,
+            "in_mask": 0,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Mask 00000 on a single last beat is an empty frame with result zero",
+      "id": "empty_frame",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 10,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 243,
+            "in_last": true,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              100,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 100,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 100,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 100,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 100,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "A reserved dense code produces an error result; the next frame is unaffected",
+      "id": "reserved_code_then_recovery",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 7,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 121,
+            "in_last": true,
+            "in_mask": 11,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "A final mask with a hole (01011) is malformed",
+      "id": "mask_hole_rejected",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 7,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              5,
+              0,
+              0,
+              0
+            ],
+            "in_code": 121,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "An activation in a masked-out lane is malformed",
+      "id": "inactive_lane_activation_rejected",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 7,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 124,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "A nonzero trit in a masked-out lane is malformed",
+      "id": "inactive_lane_weight_rejected",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 8,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 121,
+            "in_last": false,
+            "in_mask": 3,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 121,
+            "in_last": true,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Every beat before the last must carry mask 11111",
+      "id": "partial_mask_before_last_rejected",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 8,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 121,
+            "in_last": true,
+            "in_mask": 0,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Mask 00000 cannot terminate a nonempty frame",
+      "id": "empty_beat_inside_frame_rejected",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 9,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 7,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 7,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 7,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 7,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Reset after an accepted beat drops the partial frame; in_ready is low during reset",
+      "id": "reset_mid_frame",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 8,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              9,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 9,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 9,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "A result held under backpressure is discarded by reset",
+      "id": "reset_with_pending_output",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 14,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 3,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 3,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              2,
+              2,
+              0,
+              0,
+              0
+            ],
+            "in_code": 125,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 3,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 3,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 3,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": false,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 3,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 122,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 9,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 9,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 9,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 9,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 9,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "out_ready low holds the result; a buffered beat stalls in_ready until the result is consumed",
+      "id": "backpressure_holds_result_and_stalls_input",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 32,
+      "cycle_count": 14,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              10,
+              20,
+              30,
+              40,
+              50
+            ],
+            "in_code": 113,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ],
+            "in_code": 124,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 120,
+            "in_last": true,
+            "in_mask": 1,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -22,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -22,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -22,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -22,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Gaps between beats do not change the result",
+      "id": "input_bubbles",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 12,
+      "cycle_count": 10,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              15,
+              0,
+              0,
+              0
+            ],
+            "in_code": 125,
+            "in_last": true,
+            "in_mask": 3,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 2047,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 2047,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 2047,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 2047,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Twelve-bit accumulator: three full groups of 635 plus 142 equal the maximum 2047",
+      "id": "acc12_reaches_2047",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 12,
+      "cycle_count": 10,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              16,
+              0,
+              0,
+              0
+            ],
+            "in_code": 117,
+            "in_last": true,
+            "in_mask": 3,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -2048,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -2048,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -2048,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": -2048,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Twelve-bit accumulator: the minimum -2048 is representable",
+      "id": "acc12_reaches_minus_2048",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 12,
+      "cycle_count": 10,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              16,
+              0,
+              0,
+              0
+            ],
+            "in_code": 125,
+            "in_last": true,
+            "in_mask": 3,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Twelve-bit accumulator: 2048 overflows at the final beat and yields an error result",
+      "id": "acc12_overflow",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 12,
+      "cycle_count": 10,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              17,
+              0,
+              0,
+              0
+            ],
+            "in_code": 117,
+            "in_last": true,
+            "in_mask": 3,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Twelve-bit accumulator: -2049 overflows",
+      "id": "acc12_negative_overflow",
+      "kind": "dot_trace"
+    },
+    {
+      "acc_width": 12,
+      "cycle_count": 11,
+      "cycles": [
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": false,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": false,
+            "reset": true
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 242,
+            "in_last": false,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": false,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "in_code": 0,
+            "in_last": true,
+            "in_mask": 31,
+            "in_valid": true,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        },
+        {
+          "expect": {
+            "in_ready": true,
+            "out_error": true,
+            "out_result": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "in_activations": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "in_code": 0,
+            "in_last": false,
+            "in_mask": 0,
+            "in_valid": false,
+            "out_ready": true,
+            "reset": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "An overflow inside the frame is sticky even when later beats bring the total back",
+      "id": "acc12_cancellation_after_overflow",
+      "kind": "dot_trace"
+    },
+    {
+      "cycle_count": 12,
+      "cycles": [
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 146,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 1,
+            "load_code": 121,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 2,
+            "load_code": 125,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 73,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 3,
+            "out_last": true,
+            "out_trits": 5,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Word k is visible after edge S+1+k; the last word carries the tail mask; idle after S+WORDS+1",
+      "id": "load_three_words_and_read",
+      "kind": "storage_trace",
+      "tail_mask": 3,
+      "trit_count": 12,
+      "words": 3
+    },
+    {
+      "cycle_count": 19,
+      "cycles": [
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 146,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 1,
+            "load_code": 121,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 2,
+            "load_code": 125,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 73,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 1,
+            "load_code": 242,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 3,
+            "out_last": true,
+            "out_trits": 5,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 73,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 3,
+            "out_last": true,
+            "out_trits": 5,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "A second start and a write during the read do nothing; the next read shows the original words",
+      "id": "start_and_writes_while_busy_are_ignored",
+      "kind": "storage_trace",
+      "tail_mask": 3,
+      "trit_count": 12,
+      "words": 3
+    },
+    {
+      "cycle_count": 16,
+      "cycles": [
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 146,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 1,
+            "load_code": 121,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 2,
+            "load_code": 125,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 73,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 73,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 3,
+            "out_last": true,
+            "out_trits": 5,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "Reset aborts the read; a new start replays the stored words",
+      "id": "reset_mid_stream_preserves_contents",
+      "kind": "storage_trace",
+      "tail_mask": 3,
+      "trit_count": 12,
+      "words": 3
+    },
+    {
+      "cycle_count": 12,
+      "cycles": [
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 122,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 1,
+            "load_code": 243,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 2,
+            "load_code": 118,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 1,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 3,
+            "out_last": true,
+            "out_trits": 8,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "A reserved code yields out_valid=1, out_code_valid=0, zero lanes and the normal mask",
+      "id": "invalid_code_word_zeroes_lanes",
+      "kind": "storage_trace",
+      "tail_mask": 3,
+      "trit_count": 12,
+      "words": 3
+    },
+    {
+      "cycle_count": 10,
+      "cycles": [
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 73,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 1,
+            "load_code": 5,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 31,
+            "out_last": false,
+            "out_trits": 73,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 3,
+            "out_last": true,
+            "out_trits": 5,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        }
+      ],
+      "dense": false,
+      "description": "Five-lane two-bit words with a two-lane tail",
+      "id": "baseline_two_words",
+      "kind": "storage_trace",
+      "tail_mask": 3,
+      "trit_count": 7,
+      "words": 2
+    },
+    {
+      "cycle_count": 8,
+      "cycles": [
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": true,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 120,
+            "load_en": true,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": true
+          }
+        },
+        {
+          "expect": {
+            "busy": true,
+            "load_ready": false,
+            "out_code_valid": true,
+            "out_lane_mask": 1,
+            "out_last": true,
+            "out_trits": 2,
+            "out_valid": true
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        },
+        {
+          "expect": {
+            "busy": false,
+            "load_ready": true,
+            "out_code_valid": false,
+            "out_lane_mask": 0,
+            "out_last": false,
+            "out_trits": 0,
+            "out_valid": false
+          },
+          "stimulus": {
+            "load_addr": 0,
+            "load_code": 0,
+            "load_en": false,
+            "rst": false,
+            "start": false
+          }
+        }
+      ],
+      "dense": true,
+      "description": "TRIT_COUNT=1: one word, mask 00001, idle after S+2",
+      "id": "single_word_stream",
+      "kind": "storage_trace",
+      "tail_mask": 1,
+      "trit_count": 1,
+      "words": 1
+    },
+    {
+      "acc_width": 32,
+      "activations": [
+        44,
+        -12,
+        -56,
+        -78,
+        72,
+        26,
+        -109,
+        -85,
+        -41,
+        107,
+        -51,
+        7,
+        -102,
+        -40,
+        -121,
+        103,
+        -51,
+        49,
+        84,
+        -95,
+        29,
+        96,
+        111,
+        52,
+        -122,
+        56,
+        -48,
+        7,
+        -38,
+        119,
+        54,
+        -97,
+        -1,
+        -41,
+        -22,
+        122,
+        -82
+      ],
+      "codec": "dense5",
+      "description": "37 random weights and int8 activations",
+      "expect": {
+        "error": false,
+        "result": 421
+      },
+      "id": "frame_random_seed27_dense5",
+      "kind": "frame",
+      "weights": [
+        1,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        0,
+        -1,
+        1,
+        1,
+        1,
+        1,
+        -1,
+        1,
+        0,
+        0,
+        1,
+        -1,
+        1,
+        0,
+        0,
+        -1,
+        1,
+        0,
+        0,
+        -1
+      ]
+    },
+    {
+      "acc_width": 32,
+      "activations": [
+        44,
+        -12,
+        -56,
+        -78,
+        72,
+        26,
+        -109,
+        -85,
+        -41,
+        107,
+        -51,
+        7,
+        -102,
+        -40,
+        -121,
+        103,
+        -51,
+        49,
+        84,
+        -95,
+        29,
+        96,
+        111,
+        52,
+        -122,
+        56,
+        -48,
+        7,
+        -38,
+        119,
+        54,
+        -97,
+        -1,
+        -41,
+        -22,
+        122,
+        -82
+      ],
+      "codec": "baseline2",
+      "description": "",
+      "expect": {
+        "error": false,
+        "result": 421
+      },
+      "id": "frame_random_seed27_baseline2",
+      "kind": "frame",
+      "weights": [
+        1,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        0,
+        -1,
+        1,
+        1,
+        1,
+        1,
+        -1,
+        1,
+        0,
+        0,
+        1,
+        -1,
+        1,
+        0,
+        0,
+        -1,
+        1,
+        0,
+        0,
+        -1
+      ]
+    },
+    {
+      "acc_width": 32,
+      "activations": [
+        -128,
+        -128,
+        -128,
+        -128,
+        -128
+      ],
+      "codec": "dense5",
+      "description": "(-1)(-128) widened before negation gives 640",
+      "expect": {
+        "error": false,
+        "result": 640
+      },
+      "id": "frame_signed_extremes",
+      "kind": "frame",
+      "weights": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "acc_width": 32,
+      "activations": [
+        127,
+        127,
+        127,
+        127,
+        127
+      ],
+      "codec": "dense5",
+      "description": "",
+      "expect": {
+        "error": false,
+        "result": 635
+      },
+      "id": "frame_positive_extremes",
+      "kind": "frame",
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "acc_width": 32,
+      "activations": [],
+      "codec": "dense5",
+      "description": "An empty vector is one empty frame with result 0",
+      "expect": {
+        "error": false,
+        "result": 0
+      },
+      "id": "frame_empty_vector",
+      "kind": "frame",
+      "weights": []
+    },
+    {
+      "acc_width": 32,
+      "activations": [
+        127,
+        -128,
+        55,
+        2,
+        -90,
+        3,
+        -4
+      ],
+      "codec": "dense5",
+      "description": "Seven values: a full group and a two-lane tail",
+      "expect": {
+        "error": false,
+        "result": 250
+      },
+      "id": "frame_partial_group",
+      "kind": "frame",
+      "weights": [
+        1,
+        -1,
+        0,
+        1,
+        0,
+        -1,
+        1
+      ]
+    },
+    {
+      "acc_width": 12,
+      "activations": [
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127
+      ],
+      "codec": "dense5",
+      "description": "16 x 127 = 2032 fits twelve bits",
+      "expect": {
+        "error": false,
+        "result": 2032
+      },
+      "id": "frame_acc12_at_max",
+      "kind": "frame",
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "acc_width": 12,
+      "activations": [
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128
+      ],
+      "codec": "dense5",
+      "description": "16 x -128 = -2048 fits twelve bits",
+      "expect": {
+        "error": false,
+        "result": -2048
+      },
+      "id": "frame_acc12_at_min",
+      "kind": "frame",
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "acc_width": 12,
+      "activations": [
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127
+      ],
+      "codec": "dense5",
+      "description": "2159 exceeds 2047 at the fourth group",
+      "expect": {
+        "error": true,
+        "result": 0
+      },
+      "id": "frame_acc12_overflow",
+      "kind": "frame",
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "acc_width": 12,
+      "activations": [
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128,
+        -128
+      ],
+      "codec": "dense5",
+      "description": "-2176 is below -2048",
+      "expect": {
+        "error": true,
+        "result": 0
+      },
+      "id": "frame_acc12_negative_overflow",
+      "kind": "frame",
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "acc_width": 12,
+      "activations": [
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127,
+        127
+      ],
+      "codec": "dense5",
+      "description": "The total returns to 889 but the frame stays in error",
+      "expect": {
+        "error": false,
+        "result": 889
+      },
+      "id": "frame_acc12_cancellation_after_overflow",
+      "kind": "frame",
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    }
+  ]
+}

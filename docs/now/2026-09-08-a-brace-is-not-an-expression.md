@@ -1,0 +1,11 @@
+# NOW -- A brace is not an expression (2026-09-08)
+
+## A brace is not an expression (Closes #3475)
+
+- `expected expression` is the corpus's largest class (885). Splitting it by **the character the caret points at** -- one run, no code -- puts **508 of them on `{`**, over 496 distinct lines. A bare `{ 1, 2 }` is an initialiser: C accepts it after `=` in a declaration and nowhere else.
+- Repaired the argument position only: the element type comes from the CALLEE's declared parameter, and the cast is derived from `param_type_to_c` so it agrees with that parameter's own declaration by construction. Errors **12420 → 12321**, **12 files better and none worse**, `expected expression` **885 → 757**. `fpga_testbench_mac_tb` 130 → 86.
+- **The `return { ... }` half is left loud on purpose, and the reason is measured: all 131 of those sites have a POINTER return type**, 131 of 131. A compound literal there is a block-scoped object, so the "obvious" widening would hand back the address of a local (#3445) -- a silent dangling pointer in place of a loud syntax error. A test pins that limitation so nobody widens the rule without reading why it is narrow.
+- **My precondition was measured on the wrong side of the lowering.** I asked "is the C parameter a pointer?" and got 170 reachable; the repair asks "is the t27 parameter a slice?", and 124 were removed. The 70 that remain reconcile exactly: 45 are `[N]T`, 19 are `[T]`, 6 have no declaration anywhere, 2 are not arrays, and 2 are declared in another spec. A count taken in the artifact you happen to be reading is not the count the repair will reach.
+- **A mutant that ignores the argument's position survived** every test, because every test passed the literal FIRST -- while 63 of the 194 corpus sites pass it later. Added `take(7, [1,2,3])`; the mutant dies.
+- **And my mutation harness reported a false verdict**: an anchor that matched twice made the edit fail, and the run that followed was the unmutated file, printed as `*** SURVIVED ***`. It now exits with `ANCHOR FAILED -- NOT A VERDICT`, with a deliberately unmatchable anchor as the positive control.
+- Neighbouring finding, filed not folded in: **`[T]` is a third array spelling, 220 occurrences across 43 specs**, which C reads as `[SIZE]Type` with a type where the size goes.

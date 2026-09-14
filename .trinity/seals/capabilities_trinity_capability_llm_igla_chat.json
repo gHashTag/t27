@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:9f52e2dc1d2676323505a98c64f5797cd7bde805edc4e8a1cf03d52e1e462270",
+  "gen_hash_rust": "sha256:7e766b269afbf1eaefbff80f3891222729f534834a98dc1ea09aeab1d6f056f2",
+  "gen_hash_verilog": "sha256:6b417b65f0755b3bdbf63d2a2fd220be03ea01c44a7fdbae7b3d42e1d7a970fb",
+  "gen_hash_zig": "sha256:93534e76cf4ef19a5badd6028ffb0a56adcfcc73be70c2585239e3d9631613f4",
+  "module": "trinity_capability_llm_igla_chat",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:37Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:f055f3e19d5672b8a2a023c30ceb98afe73b1002e00c50a9eed5041cdb51da81",
+  "spec_path": "specs/trinity/capabilities/llm.igla-chat.t27"
+}

@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:68cf4d25af01fe96f93375db45447ab8fa60d1e855dc430e13bce287091ca54b",
+  "gen_hash_rust": "sha256:f0ecf27b77c4101b7c4f0175b99d529ba1df28b4fa0e49b06ae337fb4710e391",
+  "gen_hash_verilog": "sha256:27326599b0d21f8790d7af78f6b1ec67788dc8cb665614250df502b09af4f571",
+  "gen_hash_zig": "sha256:a3b118355608d6f833fbf76c4287815c1125eb64da4017b61704216f471b280f",
+  "module": "McpProtocol",
+  "ring": 12,
+  "sealed_at": "2026-09-12T12:19:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:d5a6f45f2e24d63888479df20d7dade3fab3b8b70321edc602b433261e6342f2",
+  "spec_path": "specs/tools/mcp_protocol.t27"
+}

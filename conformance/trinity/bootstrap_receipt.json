@@ -1,0 +1,507 @@
+{
+ "version": 1,
+ "generated_by": "tools/trinity_build_receipt.py receipt",
+ "at": "2026-09-12T10:19:53Z",
+ "compiler": {
+  "head": "684d3af85e8693ea627a1ea7dabec143ed87d682",
+  "compiler_revision": "bff21b85b206a0dd367876343e56dcd8312d81ba",
+  "cargo_lock_sha256": "227e220ea5916cb4dc6c3f1a416a06af23d8fdeb84d929955bde2fae3e78be99",
+  "t27c_version": "t27c 0.2.0",
+  "t27c_sha256": "4510786f6342b9ca6268eaa68dad1048923d0079f3df15946fcbdda65b13e5dd",
+  "build": "cargo build --release -p t27c"
+ },
+ "host": {
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O"
+ },
+ "profile": {
+  "commands": [
+   "cargo build --release -p t27c",
+   "t27c gen-c <fixture>",
+   "t27c gen <fixture>",
+   "t27c gen-rust <fixture>",
+   "t27c gen-verilog <fixture>"
+  ],
+  "fixture_dir": "bootstrap/tests/fixtures/trinity_matrix",
+  "backends": [
+   "c",
+   "zig",
+   "rust",
+   "verilog"
+  ]
+ },
+ "normalization": "none: two runs must produce identical bytes",
+ "runs": 2,
+ "deterministic": true,
+ "differing": [],
+ "fixtures": [
+  {
+   "name": "adapters_declared.t27",
+   "sha256": "91048d7c7ae27d96b52540d240f169968c0c77c769bf6eeddad35022b8c15fba",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "7cab488f983f61de2a8bd59aed0e3be4750d3648fd2103e4ce281769768f8640",
+     "bytes": 2319
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "177b806b39d3c863b98faa3e5fb8e06c743f78d16dae3646b709a505577e2561",
+     "bytes": 1742
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "09da7bc3a3a59703c49387eaf85fa90dd12966245d1cb60c9a71edf6aa261105",
+     "bytes": 753
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "f074ab4eec09d9aced2e840f87e026ee385470891103424ce2f92ca4cf8df60b",
+     "bytes": 3352
+    }
+   }
+  },
+  {
+   "name": "arrays.t27",
+   "sha256": "82852d35ce3d37feae88af635fbe95a80a18041b9e5d789b4ca44d8e3d239b4e",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "f67892adcff4f5a4f42a82c5b3205b4ad2903340d1aa86038b04668c0e4326a3",
+     "bytes": 2085
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "18f624d24c97e029fcb4f86a47d88723e4eb265469ae545266fb1e566524ec95",
+     "bytes": 1328
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "7c06da34b1bb78037442b86cd657365ad522f996b07aad848d9aa95dc08b7e84",
+     "bytes": 579
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "d029b0f635ae025a3414c58402eefc181af7bb3892296760987c02a288466fd8",
+     "bytes": 3405
+    }
+   }
+  },
+  {
+   "name": "clocked_state.t27",
+   "sha256": "488af77492c2664a504de98dc8dc2a19a37e3cce3d355f3a1af26e259bfb3038",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "2ba451a64a37bde9e40ef546eeebbbeb68b6c68f2dee74f56b9492b34b5157ae",
+     "bytes": 2013
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "4273e449f1aebe2e2cf892fd91bcb6ee9e219112adc0d4cdf4020ea7b26355d0",
+     "bytes": 870
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "8550fc35c17f66d0dd13841cc32be0dc887fd3dce9838beee6d7f60b42cd18c8",
+     "bytes": 598
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "35f0507eb61bc908d538711470725938206cf7eb6774035497b1dc056931d279",
+     "bytes": 2954
+    }
+   }
+  },
+  {
+   "name": "control_flow.t27",
+   "sha256": "f03e65c6d1814c4d6237b43d428b1baec0ef499487a25ca6d53e5c0e50d8b9be",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "175bdf14b9716a2588ed3f5a8c6dba754ae49ce39aa1a5e0c8530d0e7f1599e0",
+     "bytes": 2272
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "91caec296026fb236f06039e77f615dcfd5d2ed063fcd35dbc9d9c4f79fdd731",
+     "bytes": 1605
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "7fff6a10ba046ee2af44dfaad446c016e928a60e332b66ba2626c03e140f8a0b",
+     "bytes": 869
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "18c94c203d2ea7d30ee8072cf1a26b1877073720fa98deb7467d43d64ffdac1f",
+     "bytes": 4472
+    }
+   }
+  },
+  {
+   "name": "enums.t27",
+   "sha256": "d25b2bace31a0ef0eb0cc61430287b55ef21001ff6b391c784042399f6e5fb61",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "9185fe292233077197005ef3838a80093e88bd2f765148da79b3c368f9dadf52",
+     "bytes": 2018
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "286a10678f9ba28cc2ae2520a155d70db41357e30e3167d56b0b097e6ee96ec0",
+     "bytes": 1186
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "282c1d7947c8149066a4c5df80f071280779ccb16d1758e2eb181233daa71ebc",
+     "bytes": 677
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "2cd7f77cc4c5ba53a4081a104291f70755fe5b49eb7bb0470f575c337c266e76",
+     "bytes": 2783
+    }
+   }
+  },
+  {
+   "name": "errors.t27",
+   "sha256": "24b113adaed5f1cd1db118bbe253e90ccb98b4981ca296427ee81929baac6ed2",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "be755808dfe8de3e1fa723f3e1a6df4b41c2ea11d420c65c1f7aaf25933ac9a5",
+     "bytes": 2007
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "6095f7e7fa1a86ca8ec71db01bd62909ebd23e3da20a1672229fdd9cf2c4e114",
+     "bytes": 1322
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "cffd6468c8113e568734eaa7731e66900bed7868aacde0d2bd487acade68cf65",
+     "bytes": 572
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "49d4fadb3e1597d2654ea789d4bb8ba40647181b21808b9bf897a48d7766bc23",
+     "bytes": 3205
+    }
+   }
+  },
+  {
+   "name": "functions.t27",
+   "sha256": "ddb3121f389799300e03255cf947acad86a88631afd3d93807a0519c498a1996",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "bb755d257b7d913388e4c7db99a3b68691511dced5bfc3ed7324e4bd4b8d2a33",
+     "bytes": 2040
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "697df1152712352ecde44d313f2447e98662b51d0186b0ec18d6b12142c539f2",
+     "bytes": 1304
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "4b9885545dbc05bcff0062800eabd4bccbb87748049f87dd4170cdb361ed0083",
+     "bytes": 633
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "2b1261c17cf70297260850a11c35614bee085ff138f841e15dd146414a2eda93",
+     "bytes": 3545
+    }
+   }
+  },
+  {
+   "name": "imports.t27",
+   "sha256": "ad3a425fffc02fe0f02fc5c01dbb8ef29eefd702872aa00e4796e9e637abbce1",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "c6cceca1a9f39539ca17de8c74049de01f7388bea70054fcfa62bff40a6fd6c3",
+     "bytes": 1755
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "c71a216a1f83f4e87e23a457281f962e92e8501fdba65bf42230356154e7e7ad",
+     "bytes": 806
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "84b43c50b1fa612383f978ad648ae0808054a687076438cdd233cb352607eed3",
+     "bytes": 364
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "e7f10f90def537d4bcdcda46278afd1f09b26d7f88a2d7a33fe44a4877e22e77",
+     "bytes": 2553
+    }
+   }
+  },
+  {
+   "name": "invariants.t27",
+   "sha256": "7a5b6523fa3133aa7549a4458414f55f0d760d5dcc4b41a50d3e08dd0e06789e",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "e125982e40198489d9fc210433c4a8cab78bc96057491f41ad34f4df2cd09da8",
+     "bytes": 1912
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "9d20fcec0b6b81700d814ca656112a4df69ad9bf5f39ffd4c89b30084ec003ae",
+     "bytes": 1160
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "c0140f8b795fb7c448f2afe84ea95be32cadd124e5262f368cd716dd669567a4",
+     "bytes": 386
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "e0b2d06007225f1a8187af950711e2d3f68ee109296a9c8f46d26975a8069e67",
+     "bytes": 2285
+    }
+   }
+  },
+  {
+   "name": "module_state.t27",
+   "sha256": "d254d150341c77b095823eba91f69d97a7a47761df5a8ed60f80f56c9bea5323",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "8367b3501d774b6eb324fb291cfd01475016532c6ce4759fd22636f9b4bed45c",
+     "bytes": 1931
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "ed10bfcf53776a0d59180dda5dbc959b4366213c2296cfe1df3b72384c0e627f",
+     "bytes": 1047
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "7fb72478c87901d08229a57da877e77d417093189bcf3d90559866c475e1cc1f",
+     "bytes": 497
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "be8196394b1567ca490385918d1b2b974000c295ada822bb35fa8fb4d4163216",
+     "bytes": 2825
+    }
+   }
+  },
+  {
+   "name": "neg_bodyless_fn.t27",
+   "sha256": "0f4494d56c800b3c811c9bcfc11646a059681d0fa9fa95ca4780a118f6c1c866",
+   "outputs": {
+    "c": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    },
+    "zig": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    },
+    "rust": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    },
+    "verilog": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    }
+   }
+  },
+  {
+   "name": "neg_dropped_module.t27",
+   "sha256": "1b24b1694f18c7a0481393f176311bd7526fc2b05425dd1746211b294df65699",
+   "outputs": {
+    "c": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    },
+    "zig": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    },
+    "rust": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    },
+    "verilog": {
+     "exit": 1,
+     "sha256": null,
+     "bytes": 0
+    }
+   }
+  },
+  {
+   "name": "neg_false_assert.t27",
+   "sha256": "436c703f6031eb93b7faf8777d15c5c059c1ac5750fb1477ae321c1dd91fd082",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "ad8103b5dbf51cf7bb5fdb96fe682ed652a983d90acfe5bd277ed6649a31e997",
+     "bytes": 1372
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "cdd440f722c1b9353e2be39fd89f9f4a4ffffe276e435d8470c2bf44e50aa6a4",
+     "bytes": 678
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "b3bd64a15039f11d9c1e9e275f71e9eb6c57059b0bd50767f8ef49969077809a",
+     "bytes": 311
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "23c2b4b1df0339a0ff7ae25212c346a14ae51a28add8bcb01638bdf01248b20d",
+     "bytes": 2116
+    }
+   }
+  },
+  {
+   "name": "neg_invalid_annotation.t27",
+   "sha256": "7003fb2eea2c09498de0d3cfb0cc3b7c081f4ac6bc16484aab5c97809daa6bf8",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "a8b520529adaa738cbb999008046e1574172ef591aee379e7ee06f8f30e6d76b",
+     "bytes": 1398
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "325cb6a2f3585b8d7e9611d6871352b0908afeb08bc59ee6063723ef525a362d",
+     "bytes": 714
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "a5c73130123b8632f8e53abf1371658a1a206a86975463d191679dbde9286923",
+     "bytes": 322
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "f3469830193b85f71eacde0323fa197780ab28d486740b96ec078830c44f1d6d",
+     "bytes": 2127
+    }
+   }
+  },
+  {
+   "name": "neg_unresolved_import.t27",
+   "sha256": "88a19f0f834d7cf72ce68bd59cfd69d74daa682ce4e2bdcc0174a0e47719eb72",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "8e0b766ba4409485f646aa9549e24f92ab9fc640d15d89b1ef9e73ae54a72d90",
+     "bytes": 1399
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "a5819ea00f27167466702928cc039d8ab5a171afa33416406a483d15df9860e4",
+     "bytes": 724
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "afe8a6fbda04cdfb23c1f83d205cdf4e549edb62df488799566cbd0776d41303",
+     "bytes": 309
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "472751633d926bfd7e1c98744cf1a20a2c8a55885e6dd61a6def072fd7efbab0",
+     "bytes": 2129
+    }
+   }
+  },
+  {
+   "name": "scalars.t27",
+   "sha256": "dee238e993a4877edf244c9e22dcc8550f964af916beb5e098a9b7fd90b318b4",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "9135ecbccdff3b4baa56899fc07faedb30fda0a86f615b5620861943919f0186",
+     "bytes": 2368
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "b992a955a2ab2633643663a4cef6ea1cf9bc572431544cf8e52794b810050bc6",
+     "bytes": 1837
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "d60963cd31bae860b198aa1fd2135795f6acb5ac3f8e010d90ad86e1403605a0",
+     "bytes": 683
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "8a7eed60a87ddbdcc6fa62097380dc64f5ac988d9b9c4d4c6c40e4eae75d1cf7",
+     "bytes": 3502
+    }
+   }
+  },
+  {
+   "name": "strings.t27",
+   "sha256": "03fde1f995bd2cd29dfa456a54c99781b7e86fffe3930b99972b38513bfedf18",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "592f1e05aa98bcffcf90000407a1a864b111b035ec3575693a16eefeb21b184b",
+     "bytes": 2049
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "2695e343c207a4e5f28dfbc1621cfd20ca21e15c37de0dde6a7400f9d1946228",
+     "bytes": 1391
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "2f6c1ec5d97365204a7d47601082fd7df79e4b80c9f30666ceb82472a803f07f",
+     "bytes": 506
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "bab6eb17d445d8f9f8bc433c4c4b2312cdff9941ca9d0e6ebe14b9dfd09ea532",
+     "bytes": 2822
+    }
+   }
+  },
+  {
+   "name": "structs.t27",
+   "sha256": "eb6583207d52e56d6374411554d285ed3423bfbd918de232b7c6e95d70a08217",
+   "outputs": {
+    "c": {
+     "exit": 0,
+     "sha256": "21b5c7da4c433863ecf5b3f402426ac8452be182161cedb5d5113534029271a0",
+     "bytes": 2135
+    },
+    "zig": {
+     "exit": 0,
+     "sha256": "34747ded1feb524b2f675ed578370355ec725d8e5ae78eef57c615275ef08c22",
+     "bytes": 1324
+    },
+    "rust": {
+     "exit": 0,
+     "sha256": "b7c2d73d5a5fd1154ffcd090b18ffe6f26b603e16ffff54f59102bab4aca1304",
+     "bytes": 767
+    },
+    "verilog": {
+     "exit": 0,
+     "sha256": "c192fe3eb20d22cbed144c75bf0b81b0ec9b51f814fb69dc4874624929443ac8",
+     "bytes": 3333
+    }
+   }
+  }
+ ],
+ "findings": []
+}

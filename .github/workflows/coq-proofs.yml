@@ -40,7 +40,23 @@ jobs:
       - name: Install Coq Interval
         run: |
           opam update
-          opam install -y coq-interval.4.9.0
+          # NOT `coq-interval.4.9.0`. That pin is incompatible with the image
+          # this job runs in, and said so as soon as OPAMROOT was fixed and opam
+          # could get far enough to compute a solution:
+          #
+          #     [ERROR] Package conflict!
+          #       * Missing dependency:
+          #         - coq-interval = 4.9.0 -> coq < 8.19~
+          #     No solution found, exiting
+          #
+          # The image is coqorg/coq:8.19. 7 of the 13 proof files `Require Import
+          # Interval.Tactic`, so the dependency is real and cannot be dropped --
+          # only the version can move. Unpinned here deliberately, because the
+          # version that resolves against Coq 8.19 has never been observed in
+          # this job: it has never run this far. The next line records what the
+          # solver chose, and that reading is what a pin should be restored from.
+          opam install -y coq-interval
+          opam list --installed coq-interval
           # Prove the switch is really there before anything depends on it.
           eval $(opam env)
           coqc --version

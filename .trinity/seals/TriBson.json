@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:8cfc6ecfafe5e6a1d5ab893b8089517f0f1c30560a7cc16243b0f44c9f0a2565",
-  "gen_hash_rust": "sha256:c037ef5296e3fc3abc30bdb22acb5156f37d748fd836fdcc51883d469c89a6e0",
+  "gen_hash_rust": "sha256:78c28e903696fc25d6fe6eecdaff6c4d3d734c67d2639bcdc460c295edbf1fcf",
   "gen_hash_verilog": "sha256:01e51c3fa658deb58577d3d71bbf8955c2fd733333abe9a72cdd2a9a0ab96588",
   "gen_hash_zig": "sha256:8fde8b4a35fae82496299fe56caa1bc1f96dba4345b2b798b05e4f0a5f1f8b17",
   "module": "TriBson",

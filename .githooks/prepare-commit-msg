@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# The barrier for a CHERRY-PICK, and only for a cherry-pick.
+#
+# MEASURED with marker hooks on git 2.50.1 over the full hook set (13 names, not the six
+# a narrower probe used -- "nothing fired" can mean "I did not look"):
+#
+#     event            hooks that fire
+#     normal commit    pre-commit, prepare-commit-msg, commit-msg, post-commit
+#     merge --no-ff    pre-merge-commit, prepare-commit-msg, commit-msg
+#     cherry-pick      prepare-commit-msg, post-commit
+#     git am           applypatch-msg, pre-applypatch, post-applypatch
+#     rebase           NOTHING
+#
+# A previous note in docs/now claimed cherry-pick could not be stopped by any hook. That
+# was wrong, and the correction is this file: a non-zero exit from prepare-commit-msg
+# aborts the cherry-pick -- verified, exit 128 and no commit created.
+#
+# It must do nothing on an ordinary commit, where pre-commit has already run and running
+# again would double the barrier's cost for no answer. `.git/CHERRY_PICK_HEAD` is the
+# definitive marker of a cherry-pick in progress.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+GITDIR="$(git rev-parse --git-dir)"
+[ -e "$GITDIR/CHERRY_PICK_HEAD" ] || exit 0
+
+TRI_BIN=""
+for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+  [ -x "$cand" ] || continue
+  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
+done
+if [ -z "$TRI_BIN" ]; then
+  echo "note: no tri binary; this cherry-pick was not checked and nothing about it is claimed."
+  exit 0
+fi
+echo "cherry-pick: running the barrier, which pre-commit does not see."
+exec "$TRI_BIN" hooks pre-commit

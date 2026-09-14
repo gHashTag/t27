@@ -43,7 +43,10 @@ Exit status: 0 clean, 1 violations found, 2 setup error.
 """
 import glob
 import os
+from pathlib import Path
+import subprocess
 import sys
+import tempfile
 
 try:
     import yaml
@@ -80,6 +83,10 @@ MERGE_CRITICAL = (
     "corpus-ratchet.yml",
     "withdrawn-live-gate.yml",
     "harness-scratch.yml",
+    # These checks guard CI topology and untrusted workflow inputs themselves.
+    # Omitting them would let a branch filter hide either on a stacked PR.
+    "gate-topology.yml",
+    "untrusted-input-gate.yml",
 )
 
 # The two lists above are a partition ONLY of the files they name. Everything
@@ -97,7 +104,9 @@ MERGE_CRITICAL = (
 # commit that discovers them and a gate that is red on the day it lands teaches
 # everyone to ignore red. It moves DOWN only: classify a file and lower this in
 # the same commit, so the next unclassified workflow cannot hide in the slack.
-MAX_UNCLASSIFIED = 27
+# Classifying the two guards above takes the live population from 28 to 26.
+# Lower the old ceiling (27), rather than raising it to bless the regression.
+MAX_UNCLASSIFIED = 26
 
 # Not merge-critical, and each exclusion is stated with its reason so that a
 # future reader can disagree with the reason rather than guess at the omission.
@@ -284,5 +293,52 @@ def main():
     return 0
 
 
+def self_test():
+    """Exercise the real checker on disposable workflow trees, not this repo."""
+    script = str(Path(__file__).resolve())
+    clean = "on:\n  pull_request:\njobs: {}\n"
+    failures = []
+
+    def probe(label, edits, expected, diagnostic):
+        with tempfile.TemporaryDirectory(prefix="gate-topology-") as root:
+            workflows = Path(root) / ".github/workflows"
+            workflows.mkdir(parents=True)
+            for name in MERGE_CRITICAL:
+                (workflows / name).write_text(clean)
+            for name, content in edits.items():
+                path = workflows / name
+                if content is None:
+                    path.unlink()
+                else:
+                    path.write_text(content)
+            result = subprocess.run(
+                [sys.executable, script], cwd=root, capture_output=True, text=True,
+                timeout=30,
+            )
+            ok = result.returncode == expected and diagnostic in result.stdout
+            print(f"{'ok' if ok else 'FAIL'}: {label}")
+            if not ok:
+                failures.append(label)
+                print(result.stdout + result.stderr)
+
+    probe("clean classified tree passes", {}, 0, "CLEAN:")
+    for name in ("gate-topology.yml", "untrusted-input-gate.yml"):
+        for key in FILTER_KEYS:
+            probe(
+                f"{name} rejects pull_request.{key}",
+                {name: f"on:\n  pull_request:\n    {key}: [master]\njobs: {{}}\n"},
+                1, f"pull_request.{key}",
+            )
+    probe("missing classified guard fails", {"untrusted-input-gate.yml": None},
+          1, "MISSING")
+    probe("malformed classified guard fails", {"gate-topology.yml": "on: [\n"},
+          1, "UNPARSEABLE MERGE-CRITICAL")
+    at_ceiling = {f"unclassified-{i}.yml": clean for i in range(MAX_UNCLASSIFIED)}
+    probe("existing debt at ceiling passes", at_ceiling, 0, "CLEAN:")
+    probe("one new unclassified workflow fails",
+          {**at_ceiling, "one-too-many.yml": clean}, 1, "UNCLASSIFIED ROSE")
+    return 1 if failures else 0
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(self_test() if "--self-test" in sys.argv else main())

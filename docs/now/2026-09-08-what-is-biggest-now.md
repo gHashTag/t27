@@ -1,0 +1,9 @@
+# NOW -- What is biggest now (2026-09-08)
+
+## What is biggest now (Refs #3464)
+
+- Three passes followed one error class from 1729 down to 522 while a family ten times its size sat uncounted, because the first question of each pass was «what is left of what I was doing» rather than «what is biggest now». `tools/c_error_classes.py` asks the second one: it ranks the classes of the generated C corpus, with the cap off and the compiler's identity printed beside the numbers.
+- It found in one run what three passes had not. The `Trit` family -- `unexpected type name 'Trit'` **642**, `use of undeclared identifier 'POS'` **412**, `'NEG'` **319** -- is **1373 errors**, more than twice the `__auto_type` class I have been shrinking. It has never been looked at.
+- The 2057 undeclared-function errors split by cause, which the totals could not do: **A 487 (23%)** declared as `fn` in some spec and not reaching this file (`len` 142, `mean` 40); **B 149 (7%)** the name of a MODULE or spec FILE called as a function (`adder_tree` 58, `ternary_gemm` 50); **C 1421 (69%)** a name nothing in the tree declares (`cast_i8` 210, `compose` 76). Three causes, three different repairs, and the counts had them in one bucket.
+- **I misread my own output on the way there.** A list I printed «excluding len and expect» I then read as if it were bucket A, and concluded `cast_i8` was declared somewhere -- while a grep two commands earlier had said zero files. The contradiction was visible in the same terminal. `cast_i8` is in bucket C, as the grep said.
+- The tool is a READER, not a gate, and deliberately not wired into CI: it rebuilds the whole corpus, and nothing it prints is a pass/fail claim. Its self-check is the usual pair -- a planted error must be counted, a clean file must count zero -- because a report of «0» and a report that could not run look identical.

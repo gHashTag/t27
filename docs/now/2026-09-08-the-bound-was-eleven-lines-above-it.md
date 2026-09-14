@@ -1,0 +1,9 @@
+# NOW -- The bound was eleven lines above it (2026-09-08)
+
+## The bound was eleven lines above it (Closes #3432, Refs #3430)
+
+- One pass ago I listed `cache_kv` as needing "either a new parameter or `.len`, and that is a decision". It was not. `const CONTEXT_LEN : usize = 81;  // Max sequence length` is declared **eleven lines above it** in the same file.
+- Three functions in `specs/nn/attention.t27` share the shape, and **two of them were not in that audit at all** -- I found them by reading the neighbours of the one I had flagged. `apply_rope_qk` reads `rope_tables.cos[position * ROPE_PAIRS + pair_idx]` against a `[CONTEXT_LEN * ROPE_PAIRS]` table; `cache_kv` writes `cache_k[position * EMBED_DIM + i]`; `compute_scores` writes `scores[h * CONTEXT_LEN + j]` with `j < seq_len` against `[NUM_HEADS * CONTEXT_LEN]`. Nothing bounded `position` or `seq_len`. In the generated Rust each panics; in C the write simply happens, the parameter being a bare pointer.
+- **The intent was already written down twice.** The declaration carries `// [CONTEXT_LEN][EMBED_DIM]` in a comment, and the spec's own test allocates `[0.0; EMBED_DIM * CONTEXT_LEN]`. Stated in a comment, exercised by a test, enforced by nothing.
+- Guarded by the CONSTANT, not by `.len`, for the same reason as #3431: a `[]T` loses its length at the C ABI, so a `.len` guard would live in Rust and Zig and be absent from C. `compute_scores` clamps `seq_len` rather than returning -- a caller asking for more rows than exist still wants the ones that do. rustc errors on the file are unchanged at 23, all pre-existing.
+- The lesson: I read the function and not the file. Twice now the thing I called a decision was a constant already in scope -- the same mistake as calling the CI cost a decision, and as calling the out-parameter shape one.

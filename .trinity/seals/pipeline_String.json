@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:26f8ff2d122fed02de7b33ea98430d2a43c2b1f6729d831bb593113d4edd158a",
-  "gen_hash_rust": "sha256:093a78e105986e0efa7fe115d17ab9b31ad88e39d64000fb5d1e6877284f28d8",
+  "gen_hash_c": "sha256:f07427341815626e4fb986e0fa66e09fd5258146a4f4d930426fa1e6d487b69f",
+  "gen_hash_rust": "sha256:426dbb3c702b30118ae36ff85944fb1e3ccef9a9b47f5bd2c5f843b6edc95f28",
   "gen_hash_verilog": "sha256:1d4ffd20adb13b94f3763aac44a715f1c6f73647438f44f1e1fbe96a7c6b3d4b",
-  "gen_hash_zig": "sha256:83f329b432bc766cfaa1a65840fc8661bfb4996adfe37d48d907dac1bd8cf22c",
+  "gen_hash_zig": "sha256:05025c6ca94f5db5a2e67a3bc1aa6f9eaaa9168649f030da9e773280f0903be8",
   "module": "String",
   "ring": 12,
-  "sealed_at": "2026-09-05T09:02:10Z",
+  "sealed_at": "2026-09-06T05:46:33Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:7a90f2f01e63b2d83a0f559741520007f1e09c04e63d82f49a7de33f230c02c7",
+  "spec_hash": "sha256:dae2f7625dc11f9fd8d878151c24c36e508397e0782405156da0b0bf634a7731",
   "spec_path": "specs/tri/pipeline/workflow.t27"
 }

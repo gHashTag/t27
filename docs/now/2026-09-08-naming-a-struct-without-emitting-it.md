@@ -1,0 +1,11 @@
+# NOW -- Naming a struct without emitting it (2026-09-08)
+
+## Naming a struct without emitting it (Closes #3455)
+
+- Fifth round of the parity table, the cross product of combinations against all four positions. **Every finding was latent**: three real defects, all with a corpus population of **zero**. Closest to a dry round yet, and not one -- the stopping rule wants two consecutive rounds finding nothing, and this found three things.
+- The `t27_tuple_*` hoisted struct existed and `c_return_type_r` was its ONLY caller, so a tuple in a parameter, a field or a local reached C as the t27 text -- `struct H { (u8, i32) f; };`, which is not C.
+- **Both halves were missing and only one was obvious.** Teaching the use sites to name the struct, without teaching the typedef collection to emit it, produced `unknown type name 't27_tuple_uint8_t_int32_t'` -- **worse** than the t27 text, because it looks right. That was my first attempt, and it is why every test here hands the header to `cc` rather than matching on the type name. The collection considered a return type and a destructured call's return type; parameters, fields and locals were absent.
+- Population zero, and measured rather than asserted: the change alters **not one generated file** across 651 specs, errors 15126 before and after. Said up front so nobody reads it as a fire.
+- **A mutant survived because one fixture covered three positions at once.** Dropping LOCALS from the collection changed nothing any test caught -- the fixture used one tuple type as a parameter, a field AND a local, so the typedef was still collected from the other two. Each position needs its subject alone in it; the added test uses a tuple that appears only as a local, and the mutant dies.
+- Two further defects from the round are filed rather than fixed, both population zero: a tuple whose element is a fixed array gives `uint8_t* f0` -- the #3446 defect inside a tuple struct -- and `[]*i32` reaches C as `*i32* x` in every position.
+- Three instrument failures in one pass, all mine: `grep` read a leading `->` as a flag; a bracket class with escaped square brackets matched nothing, and its **control failed**, which is the only reason the zero was not published; and a matcher for tuple parameters caught `Map(K, V)` again, the same shape collision as the previous pass.

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:4eba3c34b8da11791654329d0f5831c1ecbc6a5cd8f16b3ef5c83b69e50fd48a",
-  "gen_hash_rust": "sha256:8883c402945082b14527055d7b8943b5e1dc4294ed2e80ea625f8b94e1dada7f",
+  "gen_hash_rust": "sha256:fec5791b656d9b0176ea046158ca11e5975d954065b6ed89bbe998921314a702",
   "gen_hash_verilog": "sha256:50d0bf394739d9b08187c901a124647f652cf1f1224dc7d0111cbeda7b83847b",
   "gen_hash_zig": "sha256:f80a9a13c01ee238bce828e2aea0f62adf54347205191efc70c3750c358cf19a",
   "module": "Lstm",

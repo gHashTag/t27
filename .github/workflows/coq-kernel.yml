@@ -144,13 +144,31 @@ jobs:
           python3 tools/check_coq_in_build.py
 
       - name: Verify Kernel PHI layer has no Admitted
+        # The shell key below is load-bearing, not style (#3396). Without it this
+        # step inherits the container default `sh -e` -- dash in coqorg/coq -- and
+        # the body uses four bash-only constructs: `VFILES=()`, `VFILES+=(...)`,
+        # `${#VFILES[@]}` and `done < <(...)`. Dash dies on the first of them with
+        # a syntax error BEFORE opening any file, and returns exit 2 whether or
+        # not an `Admitted` exists, so the gate carries no information at all.
+        #
+        # Measured on the body extracted verbatim from this file, against the 9
+        # `.v` files coq/_CoqProject names: dash exits 2 on a clean tree AND on a
+        # tree with one `Admitted.` planted in coq/Kernel/Trit.v -- identical, no
+        # discrimination -- while bash exits 0 and 1 respectively. The bash row is
+        # the positive control: it proves the probe can tell the states apart.
+        #
+        # If you re-run that probe, do NOT use `sh` on macOS: /bin/sh there is
+        # bash 3.2 and ACCEPTS arrays, so it passes and proves nothing. Use
+        # /bin/dash. The same trap is why this survived review for so long.
+        shell: bash
         run: |
-          # `set -eu`, NOT `set -uo pipefail`. This job runs in the
-          # coqorg/coq container, where the step shell is `sh -e` -- dash, which
-          # rejects `-o pipefail` with "Illegal option" ON LINE 1, killing the step
-          # before it reads a file. Every sibling step in this job uses `set -eux`;
-          # this one was the only `-o pipefail`, and there is no pipeline here for
-          # pipefail to guard.
+          # `set -eu`, NOT `set -uo pipefail`. Actions invokes a bash step as
+          # `bash --noprofile --norc -eo pipefail {0}`, so pipefail is already on
+          # and repeating it buys nothing; there is no pipeline here for it to
+          # guard either. Every sibling step in this job uses `set -eux`. Before
+          # #3396 this line read `set -eu` because dash rejects `-o pipefail` on
+          # line 1 -- that reason is gone with the shell, the line is kept because
+          # it is still correct.
           set -eu
           # GREP HAS THREE ANSWERS AND THIS USED TO KEEP ONE.
           #

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# The barrier for `git am`. It runs once per patch with the index already holding the
+# applied patch -- the same operand `tri hooks pre-commit` reads since it was corrected
+# to `--staged`. A non-zero exit stops the apply; verified, exit 1 and no commit created.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+TRI_BIN=""
+for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
+  [ -x "$cand" ] || continue
+  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
+done
+if [ -z "$TRI_BIN" ]; then
+  echo "note: no tri binary; this patch was not checked and nothing about it is claimed."
+  exit 0
+fi
+exec "$TRI_BIN" hooks pre-commit

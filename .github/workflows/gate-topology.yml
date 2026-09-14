@@ -30,7 +30,9 @@ jobs:
         run: python3 -m pip install --quiet pyyaml
 
       - name: Merge-critical workflows must not filter pull_request by branch
-        run: python3 scripts/ci/check_pr_branch_filters.py
+        run: |
+          python3 scripts/ci/check_pr_branch_filters.py --self-test
+          python3 scripts/ci/check_pr_branch_filters.py
 
       # A gate that does not fire is one way to get a green that means nothing;
       # a gate that fires and describes itself as deeper than it is, is another.

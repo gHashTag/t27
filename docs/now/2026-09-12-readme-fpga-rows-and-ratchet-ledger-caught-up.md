@@ -1,0 +1,7 @@
+# NOW -- README FPGA rows and the ratchet ledger catch up with CI reality (2026-09-12)
+
+## What this PR still changes after master absorbed its CI fixes (Refs #2279)
+
+- `README.md` System Status: three FPGA rows advertised GREEN for work that is red. `Yosys synthesis` and `E2E bitstream` are RED -- the `fpga-synthesis` job last passed 2026-04-14 and `fpga-bitstream` is skipped behind `needs: fpga-synthesis` (measured from the API: 36 success / 842 failure / 3 cancelled over 881 runs of `fpga-build.yml`); `FPGA bitstream artifact` is RED with the same date. The `gen-verilog` smoke rows stay GREEN: that path passes.
+- Everything else this branch originally carried was superseded on master while the PR sat conflicting: `read_verilog -sv -DSIMULATION` landed in `bootstrap/src/main.rs`, the openXC7/nextpnr-xilinx + bbasm build replaced the YosysHQ clone in `fpga-build.yml` (#2181-era), and the gf16 catalog row got its own withdrawal treatment. The branch is rebased onto master and keeps only what master does not have.
+- `docs/reports/suite_expectations.json`: removed the `specs/isa/ternary_encoding.t27` [parse] entry. 73e0f294b (S05) rewrote the spec so it parses, but the ledger entry survived it -- the ratchet's own verdict read "UNEXPECTED PASSES: 1 (fixed -- remove from the ledger)" on this tree and on master itself (run 34696791688, red since 2026-09-12 11:49 UTC). 151 entries remain, cap stays 152 (monotone-downward; lowering it further is optional).

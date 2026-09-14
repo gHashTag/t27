@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:e0f06241d4560c01c202c9ed8ad700ff4c61094f882eae938870eaaea3264bc5",
-  "gen_hash_rust": "sha256:9479af7b2435d2ad1c1e4610ed5b4ee73375746a0cbdc459ba21df75ee829d93",
+  "gen_hash_rust": "sha256:fb56048fa86b9e687e5e6a8410847caf05dad260804e870f8f61ce2b6b7b3744",
   "gen_hash_verilog": "sha256:f9a8de8fae36a6ae1bf310d76e478b1805b037f57e9ad83108ec51cdc8431e9a",
   "gen_hash_zig": "sha256:adbaf5d87e2543064441a2a894c5d339d38a61561e127c9aa59e504e44f4a09b",
   "module": "Router",
