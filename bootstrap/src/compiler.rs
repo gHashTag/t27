@@ -19374,6 +19374,24 @@ long double: fabsl, default: llabs)(x)",
         items(ast)
     }
 
+    /// The single enum in this module that declares `member`, if exactly one
+    /// does. `None` when none does, and `None` when several do -- an inferred
+    /// literal carries no type, so two owners is an ambiguity to leave loud
+    /// rather than a coin to flip.
+    fn c_unique_enum_owner(&self, member: &str) -> Option<String> {
+        let up = member.to_uppercase();
+        let mut found: Option<&String> = None;
+        for (name, vs) in &self.c_enum_variants {
+            if vs.contains(&up) {
+                if found.is_some() {
+                    return None;
+                }
+                found = Some(name);
+            }
+        }
+        found.cloned()
+    }
+
     /// The C constant for `base`'s enum member `member`, if this module
     /// declares that enum AND that member.
     ///
@@ -21174,7 +21192,28 @@ long double: fabsl, default: llabs)(x)",
                 }
             }
             NodeKind::ExprEnumValue => {
-                // In C enums, we use ENUM_VARIANT style
+                // THE THIRD SPELLING of an enum member. `Trit.pos` and
+                // `Trit::pos` are handled elsewhere; this is Zig's INFERRED
+                // literal, `.pos`, whose type comes from context:
+                //
+                //     return switch (a) { .neg => .pos, .zero => .zero, ... };
+                //
+                // C got `POS`, `NEG`, `ZERO` -- the member upper-cased with no
+                // type prefix, which nothing declares. Measured 2026-09-08: 788
+                // diagnostics in FOUR files, filed for eight passes as "those
+                // bare names appear nowhere in the specs" -- true of the text,
+                // false of its origin.
+                //
+                // The owner is looked up rather than guessed. On 2026-09-08,
+                // 775 of the corpus's 798 (unit, variant) pairs were declared
+                // by exactly ONE enum in their translation unit; the rest --
+                // `ERROR` in two enums, `PTR`, `SRV`, `TXT` -- stay as they
+                // were, because choosing between two owners would be a guess
+                // and the loud form names the real ambiguity.
+                if let Some(owner) = self.c_unique_enum_owner(&node.name) {
+                    self.write(&format!("{}_{}", owner.to_uppercase(), node.name.to_uppercase()));
+                    return;
+                }
                 self.write(&node.name.to_uppercase());
             }
             NodeKind::ExprCall => {
@@ -21684,11 +21723,20 @@ long double: fabsl, default: llabs)(x)",
                     self.write("(");
                     self.gen_c_expr(&switch_node.children[0]);
                     self.write(" == ");
-                    // Enum variant name
+                    // The case LABEL is the same inferred enum literal as the
+                    // arm's value, and needs the same owner prefix. Fixing the
+                    // value alone left `(a == NEG) ? (TRIT_POS)` -- half a
+                    // repair, and the half that still does not compile.
                     let is_numeric = case.name.starts_with(|c: char| c.is_ascii_digit())
                         || (case.name.starts_with('-') && case.name.len() > 1);
                     if is_numeric {
                         self.write(&case.name);
+                    } else if let Some(owner) = self.c_unique_enum_owner(&case.name) {
+                        self.write(&format!(
+                            "{}_{}",
+                            owner.to_uppercase(),
+                            case.name.to_uppercase()
+                        ));
                     } else {
                         self.write(&case.name.to_uppercase());
                     }
