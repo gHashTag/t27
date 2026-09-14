@@ -104,12 +104,49 @@ module automation::crm_duet {
     pub const LIMIT_MARKERS : str = "429|limit|ResourceExhausted|too many requests";  // case-insensitive; "limit" covers "rate limit" and "limit reached"
     pub const LIMIT_MARKER_RU_DIAGNOSE : bool = true;  // provider.ts diagnose() renders 429 in Russian ("... limit zaprosov"); that word is matched too
 
+    // ---- Discovery gate (duet-mu027xqr, 2026-09-14) -----------------------------------------
+    // First run to play all 8 lines. The seller's line 0 opened with a paid reel_render
+    // (70 s, one token) and "the same style you liked" -- nothing had been shown or liked;
+    // the buyer caught it, the seller apologised on line 2. The brief said "first 1-2 lines
+    // are discovery only"; the model did not hold it. The gate is in code: on the first
+    // DISCOVERY_SELLER_TURNS seller turns the paid tools are not offered to the model and a
+    // call that arrives anyway is refused by the dispatcher; a familiarity claim gets one
+    // rewrite, as the claim check, and both misses are violations.
+    pub const DISCOVERY_SELLER_TURNS : u8 = 2;  // seller turns 0 and 1 (transcript lines 0 and 2)
+    pub const DISCOVERY_HIDES_PAID_TOOLS : bool = true;  // toOpenAITools does not list them on those turns
+    pub const DISCOVERY_REFUSES_PAID_CALL : bool = true;  // a paid call on those turns answers with an error, no handler runs, nothing is spent
+    pub const FAMILIARITY_MARKERS_RU : str = "ponravil|dogovar|dogovoril|kak vy prosili|po vashej pros'be|obsuzhdali|kak my reshili";  // transliterated; the code holds the Cyrillic regex
+    pub const FAMILIARITY_CORRECTIONS : u8 = 1;
+    pub const FAMILIARITY_MISS_IS_VIOLATION : bool = true;
+
+    // ---- The seller's voice (same run) ------------------------------------------------------
+    // Line 2 "ya ne videl" (masculine), line 4 "ya zadavala ... sama ... ne videla" (feminine):
+    // the seller writes for the owner, Dmitrii, and the brief now says so. A feminine
+    // first-person past form in a seller line is reported as a voice flag, not rewritten.
+    pub const SELLER_GENDER : str = "m";
+    pub const SELLER_GENDER_IN_BRIEF : bool = true;
+    pub const GENDER_SLIP_IS_FLAG_ONLY : bool = true;
+
+    // ---- Negation in the stop-list, and the hook (same run) ---------------------------------
+    // Line 6 "bez obeshchanij i bez predskazanij" was flagged for "predskaz": a claim word
+    // under negation is not a claim. The voice check skips a CLAIM word preceded within two
+    // words by a negation (bez / ne / net / nikakikh / ni / nikogda). Pressure words and
+    // prices are not exempted -- "not today" still presses. The plan-6 hook "Ne sluchajno."
+    // reads as prophecy (client lesson of 2026-09-13); the brief forbids it by name and asks
+    // for a hook that names the square, not a verdict about the reader.
+    pub const CLAIM_NEGATION_EXEMPT : bool = true;
+    pub const NEGATION_WINDOW_WORDS : u8 = 2;
+    pub const PRESSURE_NEGATION_EXEMPT : bool = false;
+    pub const HOOK_NE_SLUCHAJNO_FORBIDDEN_IN_BRIEF : bool = true;
+
     // ---- Seen live ------------------------------------------------------------------------
     pub const DRY_RUN_SEEN_LIVE : bool = true;  // duet-mtzyg2t6 started from /crm/435572800, 3 lines, nothing sent
     pub const RUN_KILLED_BY_REDEPLOY_SEEN : bool = true;  // duet-mtzy6kao: vibee-render redeployed 21 s after start, 0 lines, stays running until lost
     pub const FAILED_STATE_SEEN_LIVE : bool = true;  // duet-mu00klri: state failed, error "turn 0: ...", dashboard shows the failed badge and lines 1/8
     pub const CLAIM_CHECK_SEEN_LIVE : bool = false;  // the seller never spoke in that run; unit tests only
     pub const RETRY_SEEN_LIVE : bool = false;  // a transcript line with `retried` from a real run is the evidence
+    pub const FULL_DRY_RUN_SEEN_LIVE : bool = true;  // duet-mu027xqr: state done, 8/8 lines, 1 paid call, 0 violations, 1 voice flag
+    pub const DISCOVERY_GATE_SEEN_LIVE : bool = false;  // a run after this change with no paid call on lines 0 and 2 is the evidence
 
     // ---- Not claimed ----------------------------------------------------------------------
     pub const DUET_RAN_LIVE : bool = false;  // crm_duet_status of a real (non-dry) run is the evidence
@@ -170,6 +207,17 @@ module automation::crm_duet {
         return retries_done < SELLER_RETRY_ON_LIMIT && is_limit && paid_calls_in_attempt == 0;
     }
 
+    // Whether a paid tool is offered to the seller model on seller turn `seller_turn`.
+    fn paid_tool_offered(seller_turn: u8) -> bool {
+        return seller_turn >= DISCOVERY_SELLER_TURNS;
+    }
+
+    // Whether a CLAIM-word hit counts, given how many words back the nearest negation stands
+    // (0 = none in the window).
+    fn claim_hit_counts(negation_distance: u8) -> bool {
+        return negation_distance == 0 || negation_distance > NEGATION_WINDOW_WORDS;
+    }
+
     // A claim of finished work in a turn that produced nothing is a miss.
     fn claim_is_honest(claims_done_work: bool, producing_tool_called: bool, media_forwarded: bool) -> bool {
         return !claims_done_work || producing_tool_called || media_forwarded;
@@ -203,8 +251,33 @@ module automation::crm_duet {
         assert(!retry_allowed(0, false, 0));
         assert(!retry_allowed(0, true, 1));
 
+    test "the first two seller turns are discovery: no paid tools, no familiarity"
+        assert(DISCOVERY_SELLER_TURNS == 2);
+        assert(DISCOVERY_HIDES_PAID_TOOLS);
+        assert(DISCOVERY_REFUSES_PAID_CALL);
+        assert(!paid_tool_offered(0));
+        assert(!paid_tool_offered(1));
+        assert(paid_tool_offered(2));
+        assert(FAMILIARITY_CORRECTIONS == 1);
+        assert(FAMILIARITY_MISS_IS_VIOLATION);
+        assert(SELLER_GENDER == "m");
+        assert(SELLER_GENDER_IN_BRIEF);
+        assert(GENDER_SLIP_IS_FLAG_ONLY);
+
+    test "a negated claim word is not a claim; pressure is never exempt"
+        assert(CLAIM_NEGATION_EXEMPT);
+        assert(!PRESSURE_NEGATION_EXEMPT);
+        assert(NEGATION_WINDOW_WORDS == 2);
+        assert(claim_hit_counts(0));
+        assert(!claim_hit_counts(1));
+        assert(!claim_hit_counts(2));
+        assert(claim_hit_counts(3));
+        assert(HOOK_NE_SLUCHAJNO_FORBIDDEN_IN_BRIEF);
+
     test "what was seen live is separated from what is not claimed"
         assert(DRY_RUN_SEEN_LIVE);
+        assert(FULL_DRY_RUN_SEEN_LIVE);
+        assert(!DISCOVERY_GATE_SEEN_LIVE);
         assert(RUN_KILLED_BY_REDEPLOY_SEEN);
         assert(FAILED_STATE_SEEN_LIVE);
         assert(!CLAIM_CHECK_SEEN_LIVE);
