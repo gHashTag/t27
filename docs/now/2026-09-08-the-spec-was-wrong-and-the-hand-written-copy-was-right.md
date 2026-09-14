@@ -1,0 +1,9 @@
+# NOW -- The spec was wrong and the hand-written copy was right (2026-09-08)
+
+## The spec was wrong and the hand-written copy was right (Closes #3420)
+
+- `rings/ring-090-rust` says in its own doc comment that it is "faithful to the spec" `specs/fpga/simulator.t27`. A differential harness driving every shared function from both on the same inputs: **1190 cases, 126 disagreed.** `sim_time_ns` wraps in the spec where the hand-written model saturates -- at 2_000_000_000 cycles on the default 100 MHz clock, 20_000_000_000 ns becomes **2_820_130_816** instead of **4_294_967_295**.
+- The spec states the assumption that fails, in a comment on the line above it: *"Widen the intermediate to u64 and narrow the **(small)** result back."* It is not always small. The hand-written author guarded it; the spec did not. After adding the guard: **1190 of 1190 agree**, with a harness control proving it can see a difference.
+- **Ten of seventeen `rings/*` crates name a spec that exists**, and the overlap is wildly uneven: ring-090 shares **21 of 22** declared items and **15 of 16 signatures byte-identical**; ring-097 11 of 18; ring-098 5 of 12 with **2 items only in the spec**; ring-088 and ring-101 share **zero** with `gf16.t27` -- they name a spec they were never generated from. The closest pair in the repository had still drifted in behaviour, which is what a name-level comparison could never have shown.
+- Two guards from the previous two passes proved themselves on this change, on their first real case: `check_seal_currency.py` (#3416) named `Simulator.json` and its two stale hashes the moment the spec was edited, and the `--save` duplicate maintenance (#3419) updated **both** `fpga_Simulator.json` and `Simulator.json`, reporting "and 1 other seal file". Neither needed a human to remember.
+- Two tests added to the spec itself, in its own language rather than around it: the saturating case and an exact case below the ceiling. Both reach the Zig output.

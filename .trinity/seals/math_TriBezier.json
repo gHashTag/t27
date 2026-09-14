@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:f6273538995d2dee37676749d02bfe9ec5afca2ca8bad257362cb57d90307cd6",
-  "gen_hash_rust": "sha256:a4d03b85fcb706d193bd7a0df2ff3257fc7ffd5e119dab8c2db580b30a135835",
-  "gen_hash_verilog": "sha256:ba40e2dc3aae73023727f9769a3bb277418278a05fd35004842a8831276e4f31",
-  "gen_hash_zig": "sha256:6e2a8b9af652c8ae967c2fb7d95fc4bf894bd30c95d11c464323b9e2c1537405",
+  "gen_hash_c": "sha256:b8b5a100103b22cfde83785a010008fb8980b5bd7d2fb1ebde4aae2564b39bdd",
+  "gen_hash_rust": "sha256:48d439d722c3e77f680bf382efdd00fb62398fa6168ad07ed840ae0c8e6179a1",
+  "gen_hash_verilog": "sha256:351235bf0f82b7d3243db63349a5dd0f8aad2831ef3a763119c96f39771dbb10",
+  "gen_hash_zig": "sha256:e2c9f7d624cdcb5aa5ab241879db00c083b8caef67fbe4e2f9185fc76fdd5158",
   "module": "TriBezier",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:45Z",
+  "sealed_at": "2026-09-10T03:34:25Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:78f3055160faff7c16774d8530aa22b14f3de931612c1e2925c7caeb49b99e82",
+  "spec_hash": "sha256:fb85674138b3970b457f59c3efab52d413511259fa82b02de7ce2406d1d15588",
   "spec_path": "specs/tri/math/bezier.t27"
 }

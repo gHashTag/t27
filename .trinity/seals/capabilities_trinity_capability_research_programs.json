@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:576ff3552fba086fa143f8625cc6d16c40ce4e49090719032bc8866e46ece9b4",
+  "gen_hash_rust": "sha256:a04aad66212756b570c05d6037efb93d522a12829c2eb01aa33adf018e63ae28",
+  "gen_hash_verilog": "sha256:87e8abc7f8c5d59f411a5bff54d64e0094c98cc2e79780c784e1e9ffae1b1942",
+  "gen_hash_zig": "sha256:62d9b28ea28d5739fadfdabd558f3756ba6b109002a123d9ca5b003eb38bf8fa",
+  "module": "trinity_capability_research_programs",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:ceeade29b5422ff8ecbad180c425515d7a8962cebb7683aef5b35643c0ddc312",
+  "spec_path": "specs/trinity/capabilities/research.programs.t27"
+}

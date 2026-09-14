@@ -1602,7 +1602,7 @@ invariant competitor_delta_range
     && compare_with_competitor(t, c, 1) <= 1.0
 
 // W113 competitor tests
-test rtlscout_competitor_name
+test rtlscout_competitor_name_2
     when c = rtlscout_competitor()
     then c.name == "RTLScout"
 
@@ -1643,7 +1643,7 @@ test hiersva_competitor_name
     then c.name == "HierSVA"
 
 // W116 competitor tests
-test rtlseek_competitor_name
+test rtlseek_competitor_name_2
     when c = rtlseek_competitor()
     then c.name == "RTLSeek"
 
@@ -3008,17 +3008,11 @@ test carmen_competitor_benchmark
     when c = carmen_competitor()
     then c.benchmark == "28nm CORDIC ASIC 4.83 TOPS/mm2 (arXiv:2605.06878)"
 
-test tom_competitor_name
-    when c = tom_competitor()
-    then c.name == "TOM"
 
 test tom_competitor_benchmark
     when c = tom_competitor()
     then c.benchmark == "ROM-based ternary ASIC 3,306 tok/s BitNet-2B 5.33W (arXiv:2602.20662)"
 
-test tellme_competitor_name
-    when c = tellme_competitor()
-    then c.name == "TeLLMe"
 
 test tellme_competitor_benchmark
     when c = tellme_competitor()
@@ -3852,19 +3846,12 @@ bench competitor_lookup_latency
     measure c.pass_at_1
     target latency_us < 1.0
 
-test benchmark_count_passed_empty_zero
-    given results = []BenchmarkResult{}
-    when n = count_passed(results, 0, 0)
-    then n == 0
 
 test benchmark_count_passed_at_5_all_passed
     given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
     when n = count_passed_at_5(results, 0, 0)
     then n == 2
 
-test benchmark_trinity_self_train_estimate_positive
-    when e = trinity_self_train_estimate()
-    then e > 0.0
 
 invariant benchmark_count_passed_at_5_bounded_by_len
     forall results : []BenchmarkResult
@@ -3889,29 +3876,13 @@ invariant benchmark_count_passed_bounded_by_len_inv:
     forall results : []BenchmarkResult
     count_passed(results, 0, 0) >= 0 && count_passed(results, 0, 0) <= results.len()
 
-test benchmark_count_passed_empty_zero
-    given results = []BenchmarkResult{}
-    when n = count_passed(results, 0, 0)
-    then n == 0
 
-test benchmark_count_passed_at_5_empty_zero
-    given results = []BenchmarkResult{}
-    when n = count_passed_at_5(results, 0, 0)
-    then n == 0
 
 invariant benchmark_count_passed_empty_zero_inv:
     forall results : []BenchmarkResult
     results.len() == 0 ==> count_passed(results, 0, 0) == 0
 
-test benchmark_count_passed_all_passed
-    given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
-    when n = count_passed(results, 0, 0)
-    then n == 2
 
-test benchmark_count_passed_at_5_all_passed
-    given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
-    when n = count_passed_at_5(results, 0, 0)
-    then n == 2
 
 invariant benchmark_count_passed_all_passed_inv:
     forall results : []BenchmarkResult
@@ -3982,7 +3953,7 @@ invariant benchmark_estimate_pass_at_k_half_coverage_inv:
     forall k : u32
     estimate_pass_at_k_from_coverage(0.5, k) == 0.5
 
-test benchmark_estimate_pass_at_k_full_coverage
+test benchmark_estimate_pass_at_k_full_coverage_2
     given coverage = 1.0
     given k = 1
     when est = estimate_pass_at_k_from_coverage(coverage, k)
@@ -4300,15 +4271,7 @@ test benchmark_mean_negative_positive_w309
 
 invariant benchmark_mean_five_equal_w309_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
-test benchmark_mean_five_equal_w309
-    given values = [7.0, 7.0, 7.0, 7.0, 7.0]
-    when m = mean(values)
-    then m == 7.0
 
-test benchmark_mean_negative_positive_w309
-    given values = [-5.0, 5.0]
-    when m = mean(values)
-    then m == 0.0
 
 invariant benchmark_mean_five_equal_w309_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
@@ -4342,15 +4305,7 @@ invariant benchmark_mean_five_equal_w311_inv:
 
 
 
-test benchmark_mean_five_equal_w311
-    given values = [7.0, 7.0, 7.0, 7.0, 7.0]
-    when m = mean(values)
-    then m == 7.0
 
-test benchmark_mean_negative_positive_w311
-    given values = [-5.0, 5.0]
-    when m = mean(values)
-    then m == 0.0
 
 invariant benchmark_mean_five_equal_w311_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0

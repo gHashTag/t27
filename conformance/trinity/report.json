@@ -1,0 +1,340 @@
+{
+ "version": 1,
+ "generated_by": "tools/trinity_manifest.py check",
+ "consumer": {
+  "repo": "gHashTag/trinity",
+  "sha": "976df517419f918f05b78e73767e2fdf4aad14be",
+  "committed_at": "2026-09-12T08:40:38Z"
+ },
+ "canonical_specs": {
+  "t27_files_in_trinity_outside_the_mirror": 31,
+  "tri_files": 764,
+  "vibee_files": 1981,
+  "note": "files of three dialects; only .t27 is compiled by t27c, counts cannot be added into a generation claim"
+ },
+ "mirrored_files": {
+  "t27_mirror": 1044,
+  "prefix": "apps/website/public/t27/files/",
+  "note": "vendored copies of other repositories' specs; never canonical"
+ },
+ "catalog_snapshot": {
+  "note": "counts of the vendored website catalog at this revision; a snapshot, never implementation coverage",
+  "manifest_specs": 856,
+  "manifest_repos": [
+   {
+    "repo": "t27",
+    "specs": 575
+   },
+   {
+    "repo": "tri-net",
+    "specs": 113
+   },
+   {
+    "repo": "trinity-fpga",
+    "specs": 64
+   },
+   {
+    "repo": "trinity",
+    "specs": 3
+   },
+   {
+    "repo": "tt-trinity-corona",
+    "specs": 5
+   },
+   {
+    "repo": "dmitrii-f-t27/trinity-memory",
+    "specs": 37
+   },
+   {
+    "repo": "trios",
+    "specs": 58
+   },
+   {
+    "repo": "tt-trinity-gamma",
+    "specs": 1
+   }
+  ],
+  "atlas_at": "2026-09-12T04:15:45.736Z",
+  "atlas_worlds": 8,
+  "atlas_specs": 856,
+  "atlas_issues": 1030
+ },
+ "build": {
+  "BUILD_EXECUTABLES": 51,
+  "BUILD_LIBRARIES": 6,
+  "BUILD_TESTS": 73,
+  "BUILD_STEPS": 68,
+  "INSTALLED_BY_DEFAULT": 46,
+  "INSTALLED_GUARDED": 5
+ },
+ "zig_unreachable": {
+  "count": 2081,
+  "by_dir": {
+   "src/tri": 499,
+   "src/vibeec": 375,
+   "deploy": 258,
+   "src/phi-engine": 216,
+   "zig-pkg": 69,
+   "fpga": 46,
+   "src/agent_mu": 44,
+   "src/brain": 43,
+   "src/consciousness": 43,
+   "src/b2t": 37,
+   "tests": 29,
+   "tools": 28,
+   "src/cli": 27,
+   "src/tvc": 27,
+   "src/tri27": 26,
+   "archive": 24,
+   "trinity": 23,
+   "src/sacred": 19,
+   "src/storm": 19,
+   "src/needle": 11,
+   "src/quantum": 10,
+   ".trinity": 9,
+   "src/api": 9,
+   "src/firebird": 9,
+   "src/vsa_core": 9,
+   "src/gravity": 8,
+   "src/math": 7,
+   "src/maxwell": 7,
+   "src/string_theory": 7,
+   "src/depin": 6,
+   "examples": 5,
+   "src/bsd": 5,
+   "src/clara": 5,
+   "src/common": 5,
+   "src/cosmos": 5,
+   "src/forge": 5,
+   "src/libs": 5,
+   "src/stdlib": 5,
+   "src/biology": 4,
+   "src/mcp": 4,
+   "src/ternary": 4,
+   "external": 3,
+   "src/autonomous": 3,
+   "src/format": 3,
+   "src/hyperspace": 3,
+   "src/phi_loop": 3,
+   "src/time": 3,
+   "benchmarks": 2,
+   "src/blind_spot": 2,
+   "src/crypto": 2,
+   "src/models": 2,
+   "src/orchestration": 2,
+   "src/registry": 2,
+   "src/string": 2,
+   "src/terminal": 2,
+   "src/tri_lang": 2,
+   "src/vm": 2,
+   "src/vsa_simple": 2,
+   "targets": 2,
+   "build": 1,
+   "build.zig": 1,
+   "build_minimal.zig": 1,
+   "deploy_wave9.zig": 1,
+   "src/background_agent": 1,
+   "src/baryogenesis": 1,
+   "src/bindings": 1,
+   "src/btc_mining_mvp.zig": 1,
+   "src/common.zig": 1,
+   "src/competitive_repl.zig": 1,
+   "src/dark_matter": 1,
+   "src/economy": 1,
+   "src/evolved_codex.zig": 1,
+   "src/formats": 1,
+   "src/hslm": 1,
+   "src/kaggle": 1,
+   "src/math_bridge.zig": 1,
+   "src/network_codex.zig": 1,
+   "src/origin": 1,
+   "src/parallel.zig": 1,
+   "src/particle_physics": 1,
+   "src/pas_mining_core.zig": 1,
+   "src/pas_mining_test.zig": 1,
+   "src/plasma": 1,
+   "src/qcd": 1,
+   "src/quantum_gravity": 1,
+   "src/ralph": 1,
+   "src/reality": 1,
+   "src/research": 1,
+   "src/ribosome_cache_fns.zig": 1,
+   "src/sacred_constants.zig": 1,
+   "src/sacred_constants_reexport.zig": 1,
+   "src/server_main.zig": 1,
+   "src/simd_avx512.zig": 1,
+   "src/test-module": 1,
+   "src/test_mlp_forward.zig": 1,
+   "src/test_mlp_semantic.zig": 1,
+   "src/test_training_loop.zig": 1,
+   "src/tools": 1,
+   "src/tri_commander.zig": 1,
+   "src/tri_query.zig": 1,
+   "src/tri_storm.zig": 1,
+   "src/trinity_fpga_mvp.zig": 1
+  }
+ },
+ "capabilities": {
+  "count": 50,
+  "by_disposition": {
+   "executable": [
+    "trinity/abi.c-api",
+    "trinity/agent.phi-loop",
+    "trinity/agent.tri-api",
+    "trinity/api.http-server",
+    "trinity/bench.suite",
+    "trinity/cli.tri",
+    "trinity/convert.b2t",
+    "trinity/examples.zig",
+    "trinity/lib.trinity",
+    "trinity/llm.firebird",
+    "trinity/llm.igla-chat",
+    "trinity/mcp.needle-mcp",
+    "trinity/mcp.trinity-mcp",
+    "trinity/node.trinity-node",
+    "trinity/queen.lib",
+    "trinity/registry.commands",
+    "trinity/search.vsa-index",
+    "trinity/test.graph",
+    "trinity/vibee.compiler"
+   ],
+   "declared": [
+    "trinity/fpga.in-repo",
+    "trinity/specs.tri-corpus",
+    "trinity/specs.vibee-corpus",
+    "trinity/state.trinity-dir",
+    "trinity/train.hslm",
+    "trinity/tri27.programs",
+    "trinity/tri27.toolchain"
+   ],
+   "adapter": [
+    "trinity/agent.daemons",
+    "trinity/bot.tri-bot",
+    "trinity/catalog.world-scan",
+    "trinity/ext.vscode-swe",
+    "trinity/native.canvas",
+    "trinity/native.node-gui",
+    "trinity/native.queen-app",
+    "trinity/ops.deploy-infra",
+    "trinity/ops.railway-cli",
+    "trinity/release.packaging",
+    "trinity/tools.scripts",
+    "trinity/web.docsite",
+    "trinity/web.queen-web",
+    "trinity/web.site"
+   ],
+   "external": [
+    "trinity/numeric.golden-float",
+    "trinity/vsa.zig-hdc"
+   ],
+   "deprecated": [
+    "trinity/archive.legacy",
+    "trinity/pkg.vendored-cache",
+    "trinity/specs.t27-vendored-compiler"
+   ],
+   "out-of-scope": [],
+   "research": [
+    "trinity/research.nexus-docs",
+    "trinity/research.programs",
+    "trinity/research.unreferenced-sources",
+    "trinity/training.targets"
+   ],
+   "catalog-only": [
+    "trinity/catalog.spec-mirror"
+   ]
+  },
+  "by_profile": {
+   "headless": 37,
+   "web": 5,
+   "native": 4,
+   "fpga": 1,
+   "training": 1,
+   "network": 1,
+   "research": 1
+  },
+  "by_evidence": {
+   "measured": 22,
+   "declared": 15,
+   "specified": 0,
+   "external": 3,
+   "not-claimed": 10
+  },
+  "by_work_package": {
+   "S01": [
+    "trinity/archive.legacy",
+    "trinity/research.nexus-docs",
+    "trinity/research.programs",
+    "trinity/research.unreferenced-sources",
+    "trinity/specs.t27-vendored-compiler"
+   ],
+   "S02": [
+    "trinity/specs.tri-corpus",
+    "trinity/specs.vibee-corpus",
+    "trinity/tri27.programs",
+    "trinity/vibee.compiler"
+   ],
+   "S03": [
+    "trinity/bench.suite",
+    "trinity/pkg.vendored-cache",
+    "trinity/release.packaging",
+    "trinity/test.graph"
+   ],
+   "S04": [
+    "trinity/lib.trinity",
+    "trinity/numeric.golden-float",
+    "trinity/search.vsa-index",
+    "trinity/vsa.zig-hdc"
+   ],
+   "S05": [
+    "trinity/abi.c-api",
+    "trinity/convert.b2t",
+    "trinity/tri27.toolchain"
+   ],
+   "S06": [
+    "trinity/api.http-server",
+    "trinity/cli.tri",
+    "trinity/mcp.needle-mcp",
+    "trinity/mcp.trinity-mcp",
+    "trinity/registry.commands",
+    "trinity/tools.scripts"
+   ],
+   "S07": [
+    "trinity/agent.daemons",
+    "trinity/agent.tri-api",
+    "trinity/llm.igla-chat"
+   ],
+   "S08": [
+    "trinity/state.trinity-dir"
+   ],
+   "S09": [
+    "trinity/agent.phi-loop",
+    "trinity/queen.lib"
+   ],
+   "S10": [
+    "trinity/catalog.spec-mirror",
+    "trinity/catalog.world-scan",
+    "trinity/ext.vscode-swe",
+    "trinity/native.canvas",
+    "trinity/native.queen-app",
+    "trinity/web.docsite",
+    "trinity/web.queen-web",
+    "trinity/web.site"
+   ],
+   "S11": [
+    "trinity/bot.tri-bot",
+    "trinity/fpga.in-repo",
+    "trinity/llm.firebird",
+    "trinity/native.node-gui",
+    "trinity/node.trinity-node",
+    "trinity/ops.deploy-infra",
+    "trinity/ops.railway-cli",
+    "trinity/train.hslm",
+    "trinity/training.targets"
+   ],
+   "S12": [
+    "trinity/examples.zig"
+   ]
+  }
+ },
+ "findings": []
+}

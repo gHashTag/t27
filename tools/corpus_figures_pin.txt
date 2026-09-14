@@ -1,0 +1,25 @@
+# Figures measured in the GENERATED C, with the instrument that
+# produced them. A number from this side quoted without saying so is
+# how `len(x)` came to be published as 142 -- a diagnostic count --
+# inside a sentence about the specs. See tools/corpus_figures.py.
+#
+# instrument: Apple clang version 21.0.0 (clang-2100.1.1.101)
+# name | unit | value
+specs seen | units | 945
+specs that generate | units | 877
+translation units compiling clean | units | 341
+total errors | errors | 11704
+class: expected expression | errors | 951
+class: expected expression | lines | 867
+class: cannot use '__auto_type' with initializer list in C | errors | 385
+class: cannot use '__auto_type' with initializer list in C | lines | 385
+class: use of undeclared identifier 'POS' | errors | 0
+class: use of undeclared identifier 'POS' | lines | 0
+class: use of undeclared identifier 'NEG' | errors | 0
+class: use of undeclared identifier 'NEG' | lines | 0
+class: call to undeclared function 'len' | errors | 142
+class: call to undeclared function 'len' | lines | 142
+class: redefinition of | errors | 66
+class: redefinition of | lines | 66
+class: incompatible integer to pointer conversion initializing | errors | 6
+class: incompatible integer to pointer conversion initializing | lines | 6

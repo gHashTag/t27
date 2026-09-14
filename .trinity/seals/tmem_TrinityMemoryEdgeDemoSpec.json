@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:d2a58dd287c8069ac75f270db3185d9fa53a728ee23ffb76a86b35744a1ae10c",
+  "gen_hash_rust": "sha256:45a88c24c087476053d525a52f620bfa8ad9bd0080ae6cf802cae50de5f28b24",
+  "gen_hash_verilog": "sha256:6edd9c7894732f0101ec468a743e1354451cfd6a2bb1cfc9bdce30b62bf071cf",
+  "gen_hash_zig": "sha256:c9b3132c0fec162a42281f46caa189fa7b5e13af21af22d4cdb0639261deed2a",
+  "module": "TrinityMemoryEdgeDemoSpec",
+  "ring": 12,
+  "sealed_at": "2026-09-11T10:00:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:fe5cd36d3e031ae951e11290b42e4fa89ca8e1f8cc0599da1b4518bab9285c6a",
+  "spec_path": "specs/memory/tmem/edge_demo.t27"
+}

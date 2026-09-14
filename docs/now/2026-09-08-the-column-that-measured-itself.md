@@ -1,0 +1,9 @@
+# NOW -- The column that measured itself (2026-09-08)
+
+## The column that measured itself (Closes #3505)
+
+- `published_figures.py` pins the spec-side populations; this pins the other side, **the side both of that audit's unit conflations came from**. `len(x)` was published as 142 -- a diagnostic count in the generated C -- inside a sentence about the specs, and `pub const OP_*` as 20, a count of list sites rather than declarations.
+- **It refuses to compare across instruments.** The same command gives 20 diagnostics on Apple clang and 50 on ubuntu's gcc (#3450), and 141 files hit clang's default cap, making every uncapped-less total a floor (#3448). The pin records the compiler; `--check` exits **3, CANNOT TELL**, rather than reporting a machine difference as a drift. Positive controls recorded both ways: a gcc string in the pin gives 3, a wrong value under the same instrument gives 1 and names the row.
+- **Every row carries its unit**, and each class is pinned by BOTH its diagnostic count and its distinct-line count, because the ratio is what says whether a population is real: `expected expression` 750/**668**, `POS` 412/**314**, `NEG` 319/**242**, while `__auto_type` 385/385 and `redefinition` 66/66 are cascade-free.
+- **And the reader was one command from pinning a column that measured nothing.** The first version keyed distinct lines on the diagnostic's byte offset in the output, so every diagnostic got its own key and `lines` came out **exactly equal to `errors` on every row** -- 750/750, 385/385, 412/412. A column that always equals its neighbour measures nothing, and it was one `--bless` from being recorded as a fact. The line number is captured from the diagnostic now, and the self-check asserts the discriminating case: two errors on one line must count as two errors and one line.
+- Pinned today: 651 specs seen, 582 generating, **309 compiling clean**, **10 802 errors**.

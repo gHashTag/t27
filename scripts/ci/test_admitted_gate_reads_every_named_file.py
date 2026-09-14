@@ -15,12 +15,13 @@ than no test.
 """
 
 import os
-import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 WF = REPO / ".github/workflows/coq-kernel.yml"
@@ -34,12 +35,79 @@ def check(name, ok, detail=""):
         FAILURES.append(f"{name}: {detail}")
 
 
-def step_body():
-    y = WF.read_text()
-    m = re.search(rf"- name: {re.escape(STEP)}\n        run: \|\n(.*?)(?=\n      - |\n\Z)", y, re.S)
-    if not m:
-        return None
-    return "\n".join(l[10:] if l.startswith(" " * 10) else l for l in m.group(1).split("\n"))
+def step_body(text=None):
+    """Read the actual build step, independent of YAML formatting.
+
+    The old regex required `name` immediately followed by `run`. Adding the
+    required `shell: bash` and its explanation broke extraction. Do not loosen
+    a regex across step boundaries: parse YAML and require one unambiguous step.
+    """
+    doc = yaml.safe_load(WF.read_text() if text is None else text)
+    if not isinstance(doc, dict):
+        raise ValueError("workflow must be a mapping")
+    jobs = doc.get("jobs")
+    build = jobs.get("build") if isinstance(jobs, dict) else None
+    steps = build.get("steps") if isinstance(build, dict) else None
+    if not isinstance(steps, list):
+        raise ValueError("build.steps must be a list")
+    matches = [s for s in steps if isinstance(s, dict) and s.get("name") == STEP]
+    if len(matches) != 1:
+        raise ValueError(f"expected exactly one build step named {STEP!r}, got {len(matches)}")
+    step = matches[0]
+    # The Coq container defaults to sh (dash), which cannot run these arrays.
+    # Running the fixture in bash must not hide a missing workflow shell key.
+    if step.get("shell") != "bash":
+        raise ValueError("the Admitted step must explicitly declare shell: bash")
+    body = step.get("run")
+    if not isinstance(body, str) or not body.strip():
+        raise ValueError("the Admitted step must contain a non-empty run string")
+    return body
+
+
+def extractor_tests():
+    fixture = (
+        "jobs:\n  build:\n    steps:\n"
+        f"      - name: '{STEP}'\n"
+        "        # An explanation between name and run must be harmless.\n"
+        "        shell: bash\n"
+        "        run: |\n"
+        "          printf 'fixture\\n'\n"
+        "      - name: Unrelated sibling\n"
+        "        run: echo not-the-gate\n"
+    )
+    check("comments, quoted names and shell do not hide the body",
+          step_body(fixture) == "printf 'fixture\\n'\n")
+    # A different indentation, key order and block style denote the same step.
+    reordered = {"jobs": {"build": {"steps": [
+        {"run": "echo fixture\n", "shell": "bash", "name": STEP},
+    ]}}}
+    check("key order and indentation do not select another body",
+          step_body(yaml.safe_dump(reordered, indent=4, sort_keys=False)) == "echo fixture\n")
+    step = {"name": STEP, "shell": "bash", "run": "echo fixture"}
+    for label, steps in (
+        ("missing step", []),
+        ("duplicate step", [step, step]),
+        ("missing shell", [{"name": STEP, "run": "echo fixture"}]),
+        ("wrong shell", [{**step, "shell": "sh"}]),
+        ("empty body", [{**step, "run": ""}]),
+        ("non-string body", [{**step, "run": ["echo fixture"]}]),
+    ):
+        rejected = False
+        try:
+            step_body(yaml.safe_dump({"jobs": {"build": {"steps": steps}}}))
+        except ValueError:
+            rejected = True
+        check(f"extractor refuses {label}", rejected)
+    for label, text in (
+        ("malformed YAML", "jobs: ["),
+        ("missing build job", yaml.safe_dump({"jobs": {"other": {"steps": [step]}}})),
+    ):
+        rejected = False
+        try:
+            step_body(text)
+        except (ValueError, yaml.YAMLError):
+            rejected = True
+        check(f"extractor refuses {label}", rejected)
 
 
 # The gate's operand list. Named here rather than taken from `files`, because the
@@ -69,7 +137,10 @@ def arm(body, files, named=OPERANDS):
         for f, c in files.items():
             with open(os.path.join(d, "coq/Kernel", f), "w") as fh:
                 fh.write(c)
-        r = subprocess.run(["bash", "-c", body], capture_output=True, text=True, cwd=d)
+        r = subprocess.run(
+            ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", body],
+            capture_output=True, text=True, cwd=d, timeout=30,
+        )
         return r.returncode, r.stdout + r.stderr
     finally:
         shutil.rmtree(d, ignore_errors=True)
@@ -80,12 +151,14 @@ DIRTY = "Lemma b.\nAdmitted.\n"
 
 
 def main():
-    body = step_body()
-    check("the step body was found in the workflow", body is not None,
-          f"no step named {STEP!r} with a literal run block -- this test would assert nothing")
-    if body is None:
-        print("\nFAILED:\n  - extractor")
+    FAILURES.clear()
+    extractor_tests()
+    try:
+        body = step_body()
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        print(f"\nFAILED:\n  - extractor: {error}")
         return 1
+    check("the unique bash step body was found in the workflow", True)
 
     rc, out = arm(body, {"Phi.v": CLEAN, "PhiFloat.v": CLEAN})
     check("both files present and clean passes", rc == 0 and "OK: no Admitted" in out, f"rc={rc} out={out!r}")

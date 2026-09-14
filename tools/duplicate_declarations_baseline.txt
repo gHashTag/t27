@@ -1,0 +1,29 @@
+# Specs that declare a top-level name more than once in ONE namespace, with the
+# number of such names. Every backend rejects a redeclaration; see
+# tools/check_duplicate_declarations.py and #3438.
+#
+# A ratchet: a spec may only shrink. Lower a number when you fix one, and
+# delete the line when it reaches zero.
+#
+# 2026-09-08: 3 specs / 25 names -> 30 specs / 341 names. NOT new debt -- newly
+# VISIBLE debt. A `test` block is a declaration in every backend (gen-c emits
+# `void test_{name}(void)`), and the collector only looked at the three kinds a
+# t27 program can CALL. The generated C had been saying so all along: 317
+# `redefinition of 'test_...'` across 34 files, the largest 1:1 class in the
+# corpus. Tests and benches have namespaces of their own, so `struct
+# deque_clear` beside `test deque_clear` is not counted -- 138 such names in 54
+# specs would otherwise each be reported as a conflict that no backend has.
+#
+# 2026-09-08 (second): 30 specs / 341 names -> 27 / 172. 188 duplicate test
+# blocks whose body was BYTE-IDENTICAL to their twin were deleted; what remains
+# is the 172 whose bodies differ and which need a reading, not a script.
+#
+# 2026-09-08 (third): 27 specs / 172 names -> 5 / 28. The 185 duplicated test
+# names were RENAMED, not deleted: their bodies differ in inputs and in
+# expectations, so deleting either copy loses a real case. What remains is 28
+# names that are not test blocks -- structs, enums and functions declared twice.
+specs/file/operations.t27 1
+specs/igla/coder/benchmark.t27 13
+specs/igla/race/backend.t27 2
+specs/igla/race/cordic_top.t27 1
+specs/ml/optimizer/adamw.t27 11

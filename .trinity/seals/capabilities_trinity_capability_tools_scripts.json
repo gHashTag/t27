@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:1dffa019e1231a71f22ef12fcc1a9afad67a6b86b0d24ed02c32fb423f4b8979",
+  "gen_hash_rust": "sha256:d1d7535ad2b163fc744f7ba203450dbc5cf1e9708f7a914da2f9a876ebb44d02",
+  "gen_hash_verilog": "sha256:3345b0ab04f20e2322cb5826dc8266e59447cad1a005510b1aad655d650186c2",
+  "gen_hash_zig": "sha256:2cee52bf5f9cdc7b9b3dbebf4a0bd12d849d1e44a35f29a4e402432534167c34",
+  "module": "trinity_capability_tools_scripts",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:0d086cf4354cf037854382bc5dc532b4b3e7b166276b0cd603c2962bfb09a29b",
+  "spec_path": "specs/trinity/capabilities/tools.scripts.t27"
+}

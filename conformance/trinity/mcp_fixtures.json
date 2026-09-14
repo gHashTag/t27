@@ -1,0 +1,411 @@
+{
+  "consumer": {
+    "client": "src/tri-api/mcp_client.zig",
+    "needle_server": "tools/mcp/needle_mcp/server.zig",
+    "repo": "gHashTag/trinity",
+    "server": "tools/mcp/trinity_mcp/server.zig"
+  },
+  "description": "Offline protocol fixtures: what the pinned trinity-mcp does with each request, modelled from server.zig (substring method routing, exact/prefix/generic tool routing, failures as isError results, notifications and unknown methods answered with silence) and the client-side permission gate of tri-api. Not run against a server: no workflow runs one and no Zig on this host builds it.",
+  "exact_tools_modelled": [
+    "tri_bench",
+    "tri_constants",
+    "tri_execute",
+    "tri_fib",
+    "tri_gen",
+    "tri_lucas",
+    "tri_notify",
+    "tri_phi",
+    "tri_spec_create",
+    "tri_status",
+    "tri_verdict"
+  ],
+  "fixtures": [
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": null,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": null,
+        "route_name": null
+      },
+      "id": "initialize",
+      "note": "answered with the literal initialize result; the requested protocolVersion 2025-06-18 is ignored and 2024-11-05 comes back",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"fixture\",\"version\":\"0\"}}}",
+      "tool": null
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": null,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": null,
+        "route_name": null
+      },
+      "id": "tools-list",
+      "note": "answered with the static literal of 210 objects; the body is not parseable JSON (32 malformed objects, one closing brace too many)",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}",
+      "tool": null
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": true,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 0,
+        "route_name": "exact handler"
+      },
+      "id": "tools-call-exact",
+      "note": "an exact handler: spawns zig-out/bin/tri status",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"tri_status\",\"arguments\":{}}}",
+      "tool": "tri_status"
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": true
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 1,
+        "route_name": "prefix handler"
+      },
+      "id": "tools-call-prefix",
+      "note": "a prefix handler (needle_)",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"needle_search\",\"arguments\":{\"query\":\"phi\"}}}",
+      "tool": "needle_search"
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": true
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": true,
+        "jsonrpc_error_object": false,
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 1,
+        "route_name": "prefix handler"
+      },
+      "id": "tools-call-missing-required",
+      "note": "malformed parameters: the required file_path is absent; the answer is a result with isError true and the text Error: Missing file_path, not a -32602",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"needle_structural_replace\",\"arguments\":{}}}",
+      "tool": "needle_structural_replace"
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "needle_mcp": {
+          "error_code": -32601,
+          "message": "Unknown tool"
+        },
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 2,
+        "route_name": "generic tri executor"
+      },
+      "id": "tools-call-unknown-tool",
+      "note": "an unknown tool is not refused: the name is stripped of tri_ and run as `tri no_such_tool` with no arguments through the generic executor",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"no_such_tool\",\"arguments\":{}}}",
+      "tool": "no_such_tool"
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 2,
+        "route_name": "generic tri executor"
+      },
+      "id": "tools-call-fallback-advertised",
+      "note": "an advertised tool with no handler of its own: arguments are dropped and `tri pipeline` runs bare",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\"tri_pipeline\",\"arguments\":{\"task\":\"x\"}}}",
+      "tool": "tri_pipeline"
+    },
+    {
+      "classification": {
+        "is_known_method": false,
+        "is_notification": true,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": null,
+        "reply": 1,
+        "reply_name": "silent notification",
+        "route": null,
+        "route_name": null
+      },
+      "id": "cancellation",
+      "note": "swallowed: no reply, and the child process of request 3 keeps running (cancellation.zig is not imported)",
+      "request": "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":3,\"reason\":\"user\"}}",
+      "tool": null
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": true,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": null,
+        "reply": 1,
+        "reply_name": "silent notification",
+        "route": null,
+        "route_name": null
+      },
+      "id": "initialized-notification",
+      "note": "swallowed, as every notification",
+      "request": "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}",
+      "tool": null
+    },
+    {
+      "classification": {
+        "is_known_method": false,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": null,
+        "reply": 2,
+        "reply_name": "silent unknown method",
+        "route": null,
+        "route_name": null
+      },
+      "id": "unknown-method",
+      "note": "no reply at all; method_not_found (-32601) exists in errors.zig and is never sent",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"ping\"}",
+      "tool": null
+    },
+    {
+      "classification": {
+        "is_known_method": false,
+        "is_notification": false,
+        "tool_exact": false,
+        "tool_prefix": false
+      },
+      "client": null,
+      "expect": {
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": null,
+        "reply": 2,
+        "reply_name": "silent unknown method",
+        "route": null,
+        "route_name": null
+      },
+      "id": "transport-garbage",
+      "note": "no method substring matches: no reply; parse_error (-32700) is never sent",
+      "request": "not json at all",
+      "tool": null
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": true,
+        "tool_prefix": false
+      },
+      "client": "src/tri-api/tool_executor.zig:145-171 with src/tri-api/permissions.zig",
+      "expect": {
+        "client_permission": {
+          "decision": 1,
+          "decision_name": "deny",
+          "default_allowed": false,
+          "has_allow_rule": false,
+          "has_deny_rule": false
+        },
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 0,
+        "route_name": "exact handler"
+      },
+      "id": "denied-capability-at-the-client",
+      "note": "the only permission gate in the tree is tri-api's: with no allow rule for tri_notify the default denies it, the executor returns Permission denied with is_error and the server never sees the call",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":\"trinity.tri_notify\",\"arguments\":{\"message\":\"hi\"}}}",
+      "tool": "tri_notify"
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": true,
+        "tool_prefix": false
+      },
+      "client": "src/tri-api/permissions.zig",
+      "expect": {
+        "client_permission": {
+          "decision": 0,
+          "decision_name": "allow",
+          "default_allowed": false,
+          "has_allow_rule": true,
+          "has_deny_rule": false
+        },
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 0,
+        "route_name": "exact handler"
+      },
+      "id": "allowed-capability-at-the-client",
+      "note": "an allow rule tool(tri_status) lets the call reach the server",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"tools/call\",\"params\":{\"name\":\"trinity.tri_status\",\"arguments\":{}}}",
+      "tool": "tri_status"
+    },
+    {
+      "classification": {
+        "is_known_method": true,
+        "is_notification": false,
+        "tool_exact": true,
+        "tool_prefix": false
+      },
+      "client": "src/tri-api/permissions.zig",
+      "expect": {
+        "client_permission": {
+          "decision": 1,
+          "decision_name": "deny",
+          "default_allowed": true,
+          "has_allow_rule": true,
+          "has_deny_rule": true
+        },
+        "error_as_result": false,
+        "jsonrpc_error_object": false,
+        "refused": false,
+        "reply": 0,
+        "reply_name": "answered",
+        "route": 0,
+        "route_name": "exact handler"
+      },
+      "id": "deny-beats-allow-at-the-client",
+      "note": "a deny rule wins over an allow rule for the same tool",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"tools/call\",\"params\":{\"name\":\"trinity.tri_status\",\"arguments\":{}}}",
+      "tool": "tri_status"
+    }
+  ],
+  "generated_by": "tools/trinity_tools_registry.py fixtures",
+  "prefixes": [
+    "needle_",
+    "swarm_",
+    "chain_",
+    "cloud_",
+    "farm_evolve_",
+    "fpga_",
+    "doctor_",
+    "job_",
+    "issue_",
+    "deploy_",
+    "experience_",
+    "patent_",
+    "depin_",
+    "research_",
+    "experiment_",
+    "chimera_",
+    "ouroboros_",
+    "self_",
+    "context_",
+    "faculty_",
+    "mu_",
+    "zenodo_",
+    "farm_",
+    "oracle_",
+    "tri_train_"
+  ],
+  "replay": {
+    "at": "2026-09-12T12:18:30Z",
+    "detail": "",
+    "failed": 0,
+    "failures": [],
+    "fixtures": 14,
+    "generated": "sha256:68cf4d25af01fe96f93375db45447ab8fa60d1e855dc430e13bce287091ca54b",
+    "host": "Darwin arm64",
+    "ok": true,
+    "passed": 14,
+    "spec_sha256": "sha256:d5a6f45f2e24d63888479df20d7dade3fab3b8b70321edc602b433261e6342f2",
+    "stage": "runtime",
+    "t27c": "t27c 0.2.0"
+  },
+  "reply_codes": {
+    "0": "answered",
+    "1": "silent notification",
+    "2": "silent unknown method"
+  },
+  "route_codes": {
+    "0": "exact handler",
+    "1": "prefix handler",
+    "2": "generic tri executor"
+  },
+  "spec": "specs/tools/mcp_protocol.t27",
+  "version": 1
+}

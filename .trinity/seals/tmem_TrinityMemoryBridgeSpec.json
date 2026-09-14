@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:53341684e781fa42027979482f3a4344e28077c942123d81f5c4d34778047026",
+  "gen_hash_rust": "sha256:b5ffda3ba65dceca96b39e98f618a3a942e66cd08582c15f2c0a2c2822d57e58",
+  "gen_hash_verilog": "sha256:dc95de544723e1506a3d0530147567b5b1cad563a7868c6b2136bd055737c6d8",
+  "gen_hash_zig": "sha256:6fe15e9cc1d35f2fc75df129e634c951f316783041a37c66dec726be25e9146d",
+  "module": "TrinityMemoryBridgeSpec",
+  "ring": 12,
+  "sealed_at": "2026-09-11T10:00:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:f638cf4e192733c30bfbe81b3511a9f9d35b62fd1b0be2504424dbb60a74391b",
+  "spec_path": "specs/memory/tmem/bridge.t27"
+}

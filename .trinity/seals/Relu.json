@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:559dcb068fa9615c57b674553768d43d91dc2dc0afa9c4c3ac73f61d4345c640",
-  "gen_hash_rust": "sha256:56ef3b02c71b6ad4c301f4ca8c8834015238b9036114dc23ff97b0dcf83df2d1",
-  "gen_hash_verilog": "sha256:763ce817473d0c19e38545eea985935c2937b7de860ae94042383a6e1be23fd6",
-  "gen_hash_zig": "sha256:5ef734358ccad6c9e1e3600fa5126fb708bd294537664272c40b15f90138fc60",
+  "gen_hash_c": "sha256:7895bcb81d66ffb1418e3b874fe406a7085fb3f73db3d6ceef2f5a2c4f105d72",
+  "gen_hash_rust": "sha256:ec055c4424a3aab5567abc9b68f94a847ac87872c5222ddc65e51fba1bc3c6c0",
+  "gen_hash_verilog": "sha256:db5cc810283311d0529c30a64fea270ba519ced8c2b71478a345305e0e037c3e",
+  "gen_hash_zig": "sha256:e5c4b09d44c68ab836cec3c85d8519318ad9bcb86d4b8fbb23233193ab75bb5c",
   "module": "Relu",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:a5bdd0ef72dc158e827f1a1986185e6d2429c7171f7a345b1afcaf45ed159a4a",
+  "sealed_at": "2026-09-10T03:34:25Z",
+  "spec_hash": "sha256:45799ff43fefd2149b47df88a5da2a3c8cd85a40fc0a1f2951dcfa243fc13426",
   "spec_path": "specs/ml/activation/relu_activation.t27"
 }

@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:72238fd355a997551f04aa41d0a5d192a232348c1727cb0a99406e70d507bca1",
+  "gen_hash_rust": "sha256:551061894b81e2654c9ae2262990430db39d063a768f284f43a8842dc51093b0",
+  "gen_hash_verilog": "sha256:8be348c3e6ef12b4940c62d259c3d156c93878406864116cc64b8551e1b39af9",
+  "gen_hash_zig": "sha256:94b4a1f4402e85d3175c22ba3e9cd3fceba9f2e01df8f0c41e899802d1b1e8fa",
+  "module": "trinity_capability_agent_daemons",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:36Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:ffd65a9544a8d1bbfaa1a92b670c9e73137add7ef85524adf4ca692df16d5831",
+  "spec_path": "specs/trinity/capabilities/agent.daemons.t27"
+}

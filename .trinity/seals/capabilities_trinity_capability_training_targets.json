@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:aa91c5c249ef52f7abc0c9f892ac3a7c207f8f62f2bab699ac1132b80871f25f",
+  "gen_hash_rust": "sha256:a40ab0885ec22651bd0b55717983af2bd5e96f3c280948d718ade043812e715d",
+  "gen_hash_verilog": "sha256:c70bf65e74404ff66875953ff1e5d653d77ff019cf6cef6a4480df37b3eb330c",
+  "gen_hash_zig": "sha256:4079742512b3d5e46abccd7af3a6ac444ad76943f54e967e692e587954e42cba",
+  "module": "trinity_capability_training_targets",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:deb1ec9d99f16c1182bdc602e9a74db3a5c82f58f125c502e7a9c50a15820cd6",
+  "spec_path": "specs/trinity/capabilities/training.targets.t27"
+}

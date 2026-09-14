@@ -263,10 +263,6 @@ test average_score_single_element
     when avg = average_score(scores)
     then avg == 0.75
 
-test count_passed_all_pass
-    given results = [BenchResult { pass: true }, BenchResult { pass: true }]
-    when c = count_passed(results)
-    then c == 2
 
 test run_benchmark_inner_empty_problems
     given template_name = "adder"
@@ -888,17 +884,7 @@ test bench_proxy_throughput_zero_ns_inf_w309
 
 invariant bench_proxy_throughput_thousand_ops_w309_inv:
     throughput(1000, 500) == 2.0
-test bench_proxy_throughput_thousand_ops_w309
-    given ops = 1000
-    given ns = 500
-    when t = throughput(ops, ns)
-    then t == 2.0
 
-test bench_proxy_throughput_zero_ns_inf_w309
-    given ops = 100
-    given ns = 0
-    when t = throughput(ops, ns)
-    then t == 0.0
 
 invariant bench_proxy_throughput_thousand_ops_w309_inv:
     throughput(1000, 500) == 2.0
@@ -936,17 +922,7 @@ invariant bench_proxy_throughput_thousand_ops_w311_inv:
 
 
 
-test bench_proxy_throughput_thousand_ops_w311
-    given ops = 1000
-    given ns = 500
-    when t = throughput(ops, ns)
-    then t == 2.0
 
-test bench_proxy_throughput_zero_ns_inf_w311
-    given ops = 100
-    given ns = 0
-    when t = throughput(ops, ns)
-    then t == 0.0
 
 invariant bench_proxy_throughput_thousand_ops_w311_inv:
     throughput(1000, 500) == 2.0

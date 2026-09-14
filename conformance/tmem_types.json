@@ -1,0 +1,543 @@
+{
+  "constants": {
+    "codecs": {
+      "baseline2": {
+        "group_bits": 8,
+        "group_trits": 4,
+        "id": 0,
+        "max_nonzero": null,
+        "valid_words": 81
+      },
+      "dense17": {
+        "group_bits": 27,
+        "group_trits": 17,
+        "id": 2,
+        "max_nonzero": null,
+        "valid_words": 129140163
+      },
+      "dense22": {
+        "group_bits": 35,
+        "group_trits": 22,
+        "id": 3,
+        "max_nonzero": null,
+        "valid_words": 31381059609
+      },
+      "dense5": {
+        "group_bits": 8,
+        "group_trits": 5,
+        "id": 1,
+        "max_nonzero": null,
+        "valid_words": 243
+      },
+      "sparse41": {
+        "group_bits": 4,
+        "group_trits": 4,
+        "id": 4,
+        "max_nonzero": 1,
+        "valid_words": 9
+      },
+      "sparse82": {
+        "group_bits": 8,
+        "group_trits": 8,
+        "id": 5,
+        "max_nonzero": 2,
+        "valid_words": 129
+      }
+    },
+    "crc32": {
+      "check_value": "0xcbf43926",
+      "init": "0xffffffff",
+      "poly": "0xedb88320",
+      "xor_out": "0xffffffff"
+    },
+    "dense5": {
+      "code_limit": 243,
+      "reserved_first": 243,
+      "reserved_last": 255,
+      "zero_group_code": 121
+    },
+    "evidence": {
+      "emulator": 0,
+      "fpga": 3,
+      "rtl_simulation": 2,
+      "software": 1
+    },
+    "lanes": {
+      "bits": 2,
+      "invalid": 3,
+      "neg": 2,
+      "pos": 1,
+      "zero": 0
+    },
+    "payload_bytes_65536": {
+      "baseline2": 16384,
+      "dense17": 13014,
+      "dense22": 13034,
+      "dense5": 13108,
+      "sparse41": 8192,
+      "sparse82": 8192
+    },
+    "sparse41": {
+      "code_limit": 9,
+      "reserved_first": 9,
+      "reserved_last": 15
+    },
+    "sparse82": {
+      "code_limit": 129,
+      "reserved_first": 129,
+      "reserved_last": 255
+    },
+    "status": {
+      "err_capacity": -2,
+      "err_checksum": -9,
+      "err_code": -6,
+      "err_codec": -1,
+      "err_header": -8,
+      "err_length": -5,
+      "err_limit": -10,
+      "err_padding": -7,
+      "err_sparsity": -4,
+      "err_trit": -3,
+      "ok": 0
+    },
+    "tmem": {
+      "codec_offset": 5,
+      "count_offset": 8,
+      "crc_covers": "header[0:20] + payload",
+      "crc_offset": 20,
+      "header_bytes": 24,
+      "magic": "TMEM",
+      "max_payload_bytes": 4294967295,
+      "payload_length_offset": 16,
+      "reserved_offset": 6,
+      "version": 1,
+      "version_offset": 4
+    }
+  },
+  "created_at": "2026-09-11T00:00:00Z",
+  "description": "Lane codes, codec geometry, valid-code limits, TMEM v1 framing, CRC32 and status codes. Expectations are computed from the spec by tools/generate-spec-vectors.py without the native implementation.",
+  "format_family": "Conformance",
+  "generator": "tools/generate-spec-vectors.py",
+  "invariants": [
+    {
+      "condition": "TMS_LANE_INVALID < 4 && TMS_LANE_BITS == 2",
+      "id": "lane_codes_fit_two_bits"
+    },
+    {
+      "condition": "TMS_DENSE5_CODE_LIMIT <= 256",
+      "id": "dense5_fits_one_byte"
+    },
+    {
+      "condition": "TMS_DENSE17_CODE_LIMIT <= 2^27",
+      "id": "dense17_fits_27_bits"
+    },
+    {
+      "condition": "TMS_DENSE22_CODE_LIMIT <= 2^35",
+      "id": "dense22_fits_35_bits"
+    },
+    {
+      "condition": "TMS_SPARSE41_CODE_LIMIT == 1 + 4*2",
+      "id": "sparse41_state_count"
+    },
+    {
+      "condition": "TMS_SPARSE82_CODE_LIMIT == 1 + 8*2 + 28*4",
+      "id": "sparse82_state_count"
+    },
+    {
+      "condition": "TMS_DENSE5_ZERO_GROUP_CODE == 1+3+9+27+81",
+      "id": "dense5_zero_group_is_all_middle_digits"
+    },
+    {
+      "condition": "4+1+1+2+8+4+4 == 24",
+      "id": "tmem_header_is_contiguous"
+    },
+    {
+      "condition": "TMS_TMEM_CRC_COVERED_HEADER_BYTES == TMS_TMEM_CRC_OFFSET",
+      "id": "tmem_crc_covers_the_header_prefix"
+    },
+    {
+      "condition": "TMS_ERR_LIMIT < ... < TMS_ERR_CODEC < TMS_OK",
+      "id": "status_codes_are_distinct_and_negative"
+    }
+  ],
+  "module": "TrinityMemoryTypes",
+  "schema_version": 2,
+  "spec_path": "specs/memory/types.t27",
+  "vector_name": "Trinity Memory shared types",
+  "vectors": [
+    {
+      "codec": "baseline2",
+      "description": "One complete baseline2 group; payload is the encoded word in little-endian bit order",
+      "id": "baseline2_group",
+      "kind": "group",
+      "payload_hex": "49",
+      "trits": [
+        1,
+        -1,
+        0,
+        1
+      ]
+    },
+    {
+      "codec": "dense5",
+      "description": "One complete dense5 group; payload is the encoded word in little-endian bit order",
+      "id": "dense5_group",
+      "kind": "group",
+      "payload_hex": "79",
+      "trits": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "codec": "dense17",
+      "description": "One complete dense17 group; payload is the encoded word in little-endian bit order",
+      "id": "dense17_group",
+      "kind": "group",
+      "payload_hex": "20718101",
+      "trits": [
+        1,
+        -1,
+        0,
+        1,
+        1,
+        0,
+        -1,
+        -1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        -1,
+        1,
+        0,
+        -1
+      ]
+    },
+    {
+      "codec": "dense22",
+      "description": "One complete dense22 group; payload is the encoded word in little-endian bit order",
+      "id": "dense22_group",
+      "kind": "group",
+      "payload_hex": "8ba1d7a504",
+      "trits": [
+        -1,
+        0,
+        1,
+        1,
+        0,
+        -1,
+        0,
+        1,
+        1,
+        -1,
+        0,
+        0,
+        1,
+        0,
+        -1,
+        1,
+        0,
+        0,
+        -1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "codec": "sparse41",
+      "description": "One complete sparse41 group; payload is the encoded word in little-endian bit order",
+      "id": "sparse41_group",
+      "kind": "group",
+      "payload_hex": "03",
+      "trits": [
+        0,
+        -1,
+        0,
+        0
+      ]
+    },
+    {
+      "codec": "sparse82",
+      "description": "One complete sparse82 group; payload is the encoded word in little-endian bit order",
+      "id": "sparse82_group",
+      "kind": "group",
+      "payload_hex": "26",
+      "trits": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "codec": "dense5",
+      "description": "All-zero dense5 group uses code 121 (0x79), not 0",
+      "id": "dense5_zero_group_is_code_121",
+      "kind": "group",
+      "payload_hex": "79",
+      "trits": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "codec": "dense5",
+      "description": "Seven trits: the second group pads lanes 2..4 with logical zero",
+      "id": "dense5_partial_group_padding",
+      "kind": "group",
+      "payload_hex": "927b",
+      "trits": [
+        1,
+        -1,
+        0,
+        1,
+        0,
+        -1,
+        1
+      ]
+    },
+    {
+      "codec": "baseline2",
+      "description": "TMEM v1: 24-byte header, CRC32 over header[0:20] + payload",
+      "id": "tmem_baseline2_group",
+      "kind": "container",
+      "tmem_hex": "544d454d01000000040000000000000001000000de978a2049",
+      "trits": [
+        1,
+        -1,
+        0,
+        1
+      ]
+    },
+    {
+      "codec": "dense5",
+      "description": "TMEM v1: 24-byte header, CRC32 over header[0:20] + payload",
+      "id": "tmem_dense5_group",
+      "kind": "container",
+      "tmem_hex": "544d454d0101000005000000000000000100000066efad7579",
+      "trits": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "codec": "dense17",
+      "description": "TMEM v1: 24-byte header, CRC32 over header[0:20] + payload",
+      "id": "tmem_dense17_group",
+      "kind": "container",
+      "tmem_hex": "544d454d01020000110000000000000004000000847f93ad20718101",
+      "trits": [
+        1,
+        -1,
+        0,
+        1,
+        1,
+        0,
+        -1,
+        -1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        -1,
+        1,
+        0,
+        -1
+      ]
+    },
+    {
+      "codec": "dense22",
+      "description": "TMEM v1: 24-byte header, CRC32 over header[0:20] + payload",
+      "id": "tmem_dense22_group",
+      "kind": "container",
+      "tmem_hex": "544d454d010300001600000000000000050000006d9060ee8ba1d7a504",
+      "trits": [
+        -1,
+        0,
+        1,
+        1,
+        0,
+        -1,
+        0,
+        1,
+        1,
+        -1,
+        0,
+        0,
+        1,
+        0,
+        -1,
+        1,
+        0,
+        0,
+        -1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "codec": "sparse41",
+      "description": "TMEM v1: 24-byte header, CRC32 over header[0:20] + payload",
+      "id": "tmem_sparse41_group",
+      "kind": "container",
+      "tmem_hex": "544d454d01040000040000000000000001000000d773b26203",
+      "trits": [
+        0,
+        -1,
+        0,
+        0
+      ]
+    },
+    {
+      "codec": "sparse82",
+      "description": "TMEM v1: 24-byte header, CRC32 over header[0:20] + payload",
+      "id": "tmem_sparse82_group",
+      "kind": "container",
+      "tmem_hex": "544d454d01050000080000000000000001000000fa8f641d26",
+      "trits": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        0
+      ]
+    },
+    {
+      "codec": "dense5",
+      "description": "Container with a padded final group",
+      "id": "tmem_dense5_seven_trits",
+      "kind": "container",
+      "tmem_hex": "544d454d010100000700000000000000020000009fb2016b927b",
+      "trits": [
+        1,
+        -1,
+        0,
+        1,
+        0,
+        -1,
+        1
+      ]
+    },
+    {
+      "codec": "dense5",
+      "count": 5,
+      "description": "First reserved dense5 code",
+      "id": "dense5_reserved_code_243",
+      "kind": "invalid_word",
+      "payload_hex": "f3"
+    },
+    {
+      "codec": "dense5",
+      "count": 5,
+      "description": "Last reserved dense5 code",
+      "id": "dense5_reserved_code_255",
+      "kind": "invalid_word",
+      "payload_hex": "ff"
+    },
+    {
+      "codec": "dense5",
+      "count": 4,
+      "description": "Lane 4 holds +1 beyond count 4",
+      "id": "dense5_nonzero_padding",
+      "kind": "invalid_word",
+      "payload_hex": "ca"
+    },
+    {
+      "codec": "baseline2",
+      "count": 4,
+      "description": "Lane 3 equals the invalid code 11",
+      "id": "baseline2_lane_11",
+      "kind": "invalid_word",
+      "payload_hex": "c0"
+    },
+    {
+      "codec": "baseline2",
+      "count": 4,
+      "description": "Lane 0 equals the invalid code 11",
+      "id": "baseline2_lane_11_low",
+      "kind": "invalid_word",
+      "payload_hex": "03"
+    },
+    {
+      "codec": "dense17",
+      "count": 17,
+      "description": "3^17 is the first reserved dense17 word",
+      "id": "dense17_reserved_code",
+      "kind": "invalid_word",
+      "payload_hex": "c385b207"
+    },
+    {
+      "codec": "dense22",
+      "count": 22,
+      "description": "3^22 is the first reserved dense22 word",
+      "id": "dense22_reserved_code",
+      "kind": "invalid_word",
+      "payload_hex": "19f8744e07"
+    },
+    {
+      "codec": "sparse41",
+      "count": 4,
+      "description": "First reserved sparse41 code",
+      "id": "sparse41_reserved_code_9",
+      "kind": "invalid_word",
+      "payload_hex": "09"
+    },
+    {
+      "codec": "sparse82",
+      "count": 8,
+      "description": "First reserved sparse82 code",
+      "id": "sparse82_reserved_code_129",
+      "kind": "invalid_word",
+      "payload_hex": "81"
+    },
+    {
+      "codec": "sparse41",
+      "description": "Two nonzero trits in a block of four violate sparse41",
+      "id": "sparse41_two_nonzero_rejected",
+      "kind": "invalid_sparsity",
+      "trits": [
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "codec": "sparse82",
+      "description": "Three nonzero trits in a block of eight violate sparse82",
+      "id": "sparse82_three_nonzero_rejected",
+      "kind": "invalid_sparsity",
+      "trits": [
+        1,
+        0,
+        -1,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    }
+  ]
+}

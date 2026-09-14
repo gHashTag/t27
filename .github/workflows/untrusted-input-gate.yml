@@ -37,6 +37,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install pyyaml for structural workflow extraction
+        run: python3 -m pip install --quiet pyyaml
+
       - name: The Admitted gate reads every file _CoqProject names, or says it could not
         # #3063. grep answers 0 matched / 1 no match / 2 cannot open, and an
         # `if` merges the last two. Runs here rather than in coq-kernel.yml so

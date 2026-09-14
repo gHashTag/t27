@@ -1316,6 +1316,8 @@ fn flash_id_debug() -> Result<()> {
             id[0], id[1], id[2]
         );
         match id[0] {
+            // 0x20ba18 is the part fpga/HARDWARE_SSOT.md:323 refuses the quad flags
+            // for; `program_flash` reads that refusal from SSOT_PART.
             0x20 => eprintln!("  → Micron (N25Q / MT25Q family)"),
             0xC2 => eprintln!("  → Macronix (MX25 family)"),
             0xEF => eprintln!("  → Winbond (W25Q family)"),
@@ -6836,6 +6838,21 @@ fn yosys_available() -> bool {
         .unwrap_or(false)
 }
 
+/// The board `fpga/HARDWARE_SSOT.md` is about, and whose flash refuses the quad
+/// flags. CLAUDE.md names that file the single source of truth for this bench;
+/// the refusal was measured in W396 (experiment E4) and written into Markdown
+/// only, so the CLI went on advertising `--enable-quad` for this exact default.
+const SSOT_PART: &str = "xc7a200tfgg676";
+
+/// Whether the quad flags must be refused for this part.
+///
+/// A predicate rather than an inline condition, so it can be tested without
+/// reaching the code that SPAWNS `openFPGALoader`. A test that could spawn the
+/// programmer is a test that writes to a board when it regresses.
+pub fn quad_refused(part: &str, enable_quad: bool, disable_quad: bool) -> bool {
+    (enable_quad || disable_quad) && part == SSOT_PART
+}
+
 fn program_flash(
     bit: &PathBuf,
     cable: &str,
@@ -6855,6 +6872,17 @@ fn program_flash(
     }
     if enable_quad && disable_quad {
         bail!("--enable-quad and --disable-quad are mutually exclusive");
+    }
+    if quad_refused(part, enable_quad, disable_quad) {
+        bail!(
+            "refusing --enable-quad/--disable-quad on {part}.\n\
+             fpga/HARDWARE_SSOT.md:323 records this as a MEASURED result (W396, E4):\n\
+             the Micron N25Q128_3V (JEDEC 0x20ba18) on this board has no separate QE\n\
+             status bit -- the N25Q family supports quad natively -- so openFPGALoader\n\
+             v1.1.0 answers \"SPI Flash has no Quad bit\" and ABORTS the command.\n\
+             The canonical write is x1, with verify and no quad flags.\n\
+             If your bench is a different board or flash, pass --part."
+        );
     }
 
     let bit_str = bit
@@ -6895,7 +6923,11 @@ fn program_flash(
     }
     args.push(bit_str.to_string());
 
-    if let Some(w) = spi_buswidth {
+    // Silent on x1 -- the width the SSOT's own canonical command uses and that all
+    // three internal callers hardcode. Printing "ensure the flash QE bit matches"
+    // there sent a reader to align a bit the SSOT records as not existing on this
+    // part, in the middle of the experiment the SSOT itself prescribes.
+    if let Some(w) = spi_buswidth.filter(|w| *w != "1") {
         eprintln!(
             "[program-flash] bitstream expects SPI x{}; ensure the flash QE bit and board straps match",
             w
@@ -10815,5 +10847,56 @@ mod tests {
         assert_eq!(pvt.vccint_mv, 1000);
         assert_eq!(pvt.vccaux_mv, 1807);
         assert_eq!(pvt.process_corner, ProcessCorner::Ss);
+    }
+}
+
+#[cfg(test)]
+mod quad_refusal_tests {
+    use super::{quad_refused, SSOT_PART};
+
+    #[test]
+    fn both_quad_flags_are_refused_on_the_ssot_board() {
+        assert!(quad_refused(SSOT_PART, true, false));
+        assert!(quad_refused(SSOT_PART, false, true));
+    }
+
+    #[test]
+    fn without_a_quad_flag_nothing_is_refused() {
+        // The canonical x1 write must stay reachable.
+        assert!(!quad_refused(SSOT_PART, false, false));
+    }
+
+    #[test]
+    fn another_board_is_not_this_bench() {
+        // The SSOT speaks about one board; refusing everywhere would be a rule
+        // wider than its measurement.
+        assert!(!quad_refused("xc7a35tcsg324", true, false));
+        assert!(!quad_refused("xc7a35tcsg324", false, true));
+    }
+
+    /// `--part` defaults to the very board the SSOT refuses, which is why the
+    /// advertised flag was reachable with no argument at all.
+    #[test]
+    fn the_default_part_is_the_refused_one() {
+        let src = include_str!("fpga.rs");
+        let d = concat!("default_value = \"", "xc7a200tfgg676\"");
+        assert!(
+            src.contains(d),
+            "the default part moved; re-check SSOT_PART"
+        );
+        assert_eq!(SSOT_PART, "xc7a200tfgg676");
+    }
+
+    /// The refusal must sit before anything spawns the programmer.
+    #[test]
+    fn the_refusal_precedes_the_spawn() {
+        let src = include_str!("fpga.rs");
+        let guard = src
+            .find("if quad_refused(part, enable_quad, disable_quad) {")
+            .expect("the guard is gone");
+        let spawn = src[guard..]
+            .find("openfpgaloader")
+            .expect("no spawn after the guard -- anchor moved");
+        assert!(spawn > 0, "the guard must precede the invocation");
     }
 }

@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:a8516f4d229270e874568c582ed797304283709051d970fbf0846f7847c6ce68",
+  "gen_hash_rust": "sha256:dee58e7b64b00d2b526e094c0531a26c0b4c4fccf69028d348b254186db55a34",
+  "gen_hash_verilog": "sha256:6410e1365ff80f862a5fb9ba1c2a2bee832d8e8da7be29363b72b8e3660aec0b",
+  "gen_hash_zig": "sha256:00b3effd48f116c3283e87b0fba4e080d83165aca650c3a92202b830043e938e",
+  "module": "TrinityMemoryTypes",
+  "ring": 12,
+  "sealed_at": "2026-09-11T10:00:39Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:344f42e42174ead35a201804037295018edd2a0b4c05cd17426cc7d92239d51a",
+  "spec_path": "specs/memory/tmem/types.t27"
+}

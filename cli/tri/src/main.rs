@@ -29,6 +29,8 @@ mod leanvac;
 mod ledgers;
 mod loopclaim;
 mod misread;
+mod oneaway;
+mod window;
 mod modreach;
 mod mutate;
 mod nownote;
@@ -169,6 +171,10 @@ enum Commands {
     Merging(inflight::Merging),
     /// The specs the compiler reads WRONGLY. Every gate is green on them.
     Misread(misread::Misread),
+    /// Failing specs one defect from compiling, and what that defect is
+    OneAway(oneaway::OneAway),
+    /// Was the base you measured against still the tip when you reported?
+    Window(window::Window),
     /// What the checkouts on this disk are holding. Deletes nothing.
     Worktrees(trees::Worktrees),
     /// Synthesise across a parameter and check the area actually moves.
@@ -1064,6 +1070,8 @@ fn main() -> Result<()> {
         Commands::Pr { action } => prcheck::run(action)?,
         Commands::Merging(a) => inflight::run(a)?,
         Commands::Misread(a) => misread::run(a)?,
+        Commands::OneAway(a) => oneaway::run(a)?,
+        Commands::Window(a) => window::run(a)?,
         Commands::Worktrees(a) => trees::run(a)?,
         Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
