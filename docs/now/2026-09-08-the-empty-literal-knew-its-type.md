@@ -1,0 +1,10 @@
+# NOW -- The empty literal knew its type (2026-09-08)
+
+## The empty literal knew its type (Closes #3495)
+
+- `cannot use '__auto_type' with initializer list` was **590 diagnostics over 590 lines** -- ratio 1.00, every one its own site. Splitting the initialiser bodies: **282 are `{ 0 }`**, 82 are `cast_i8(...)` calls (#3464), 82 are enum constants, 36 the repeat form, 11 string literals.
+- **The largest shape is not type-less at all.** The source is `var data = []u8{}` -- the Zig empty-slice spelling, which NAMES its element type -- and the emitter threw it away, writing `__auto_type data = { 0 }`: the type discarded and the length changed from zero to one. **478 `[]T{}` literals in the specs** (`[]f32{}` 80, `[]i8{}` 45, `[]u8{}` 43, `[]TernaryWeight{}` 42). The condition that skipped them says so in its own comment: it requires non-empty children or a non-empty `extra_size`, which is exactly false here.
+- A slice is a pointer everywhere else in this backend, so an empty one is a **null pointer** -- also the only honest length. `T x[0]` is not ISO C, and `T x[1] = { 0 }` would answer a question about emptiness with a one.
+- **THE ELEMENT TYPE HAS TO BE ONE C WILL KNOW, and the first version did not check.** It emitted `u1* a = NULL` and `Port* ports = NULL` where no `u1` and no `Port` are declared anywhere -- **two files got WORSE**, each trading one diagnostic for two, because C parses `Port * ports` as a multiplication and calls `ports` undeclared. The branch now requires the element type to map to a C primitive or to name a struct or enum this module declares. With the check: **19 files better, 0 worse.**
+- Errors **11 191 -> 11 042**, the class **590 -> 385**, 230 `T* x = NULL;` emitted. `igla_race_ternary_mac` 118 -> 94, `igla_race_ternary_dot_sw` 38 -> 14.
+- What is left of the class is 385, and the two decidable shapes are small and now cheap: **82 lists of enum constants** (`c_enum_constant` already resolves them) and **11 of string literals**. The 82 `cast_i8(...)` lists wait on #3464.

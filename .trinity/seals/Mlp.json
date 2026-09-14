@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:e11f26cd9d5162f573ff355fbf4c55008b9166f79e628d0dd46e95e1c419113a",
-  "gen_hash_rust": "sha256:b7692467d86b0541400ef525eecf45eb4eb281f1c6e2c0f06f696b4ecb98c5f2",
+  "gen_hash_rust": "sha256:87cabba921c4ac10f5c9f6aebca6c6eec13ff2ade8a0aebd3badc8edca7f8454",
   "gen_hash_verilog": "sha256:7b35edb5bc3ed929719b47503133359720e6f63e68f4d92286ed52588a680339",
   "gen_hash_zig": "sha256:2fa381351ef6ccef54102538f66f335ac0a6d75e15250b225654e1a634278c7f",
   "module": "Mlp",

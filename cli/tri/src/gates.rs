@@ -3510,13 +3510,68 @@ fn parse_branch_list(rest: &str) -> Vec<String> {
 /// Can a human get the missing reading at all? Without `workflow_dispatch:`
 /// there is no way to fire it against the default branch on purpose, so the
 /// gap cannot be closed even by someone who wants to.
-fn has_dispatch(root: &std::path::Path, rel: &str) -> bool {
-    match std::fs::read_to_string(root.join(rel)) {
-        Ok(t) => t
-            .lines()
-            .any(|l| l.trim_start().starts_with("workflow_dispatch:")),
-        Err(_) => false,
+///
+/// Three states, because the domain has three. A workflow with no dispatch may
+/// be missing one, or may have REFUSED one on purpose -- and "add
+/// `workflow_dispatch:` first" is not merely useless for the second, it is an
+/// instruction to undo a deliberate decision.
+///
+/// #3325 removed the dispatch from `release.yml`, where it could only ever
+/// fail: every job keys off `github.event.release.tag_name`, which is empty on
+/// a dispatch, so preflight refuses and every publishing job is skipped. The
+/// reason was left in a YAML comment, which this tool does not read. It went on
+/// printing `dispatch: NO` beside the advice to add one -- that is, advising the
+/// next reader to put a dispatch back in front of `cargo publish` and `npm
+/// publish` against live registries. A refusal has to be recorded where the
+/// tool looks, not only where a human reads.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Dispatch {
+    /// `workflow_dispatch:` is present: the reading can be taken.
+    Yes,
+    /// Absent, with no reason given: the gap cannot be closed on purpose.
+    No,
+    /// Absent on purpose, and the workflow says so with `# tri:no-dispatch`.
+    Refused,
+}
+
+impl Dispatch {
+    fn label(self) -> &'static str {
+        match self {
+            Dispatch::Yes => "yes",
+            Dispatch::No => "NO",
+            Dispatch::Refused => "refused",
+        }
     }
+}
+
+/// The marker a workflow uses to say its missing dispatch is a decision.
+pub const NO_DISPATCH_MARKER: &str = "tri:no-dispatch";
+
+fn has_dispatch(root: &std::path::Path, rel: &str) -> Dispatch {
+    match std::fs::read_to_string(root.join(rel)) {
+        Ok(t) => dispatch_of(&t),
+        Err(_) => Dispatch::No,
+    }
+}
+
+/// Split out from the file read so it can be asked of a string in a test.
+fn dispatch_of(text: &str) -> Dispatch {
+    // A present dispatch wins over the marker. If a workflow carries both, the
+    // reading CAN be taken whatever the comment says, and reporting otherwise
+    // would hide a real one behind a stale note.
+    if text
+        .lines()
+        .any(|l| l.trim_start().starts_with("workflow_dispatch:"))
+    {
+        return Dispatch::Yes;
+    }
+    if text.lines().any(|l| {
+        let l = l.trim_start();
+        l.starts_with('#') && l.contains(NO_DISPATCH_MARKER)
+    }) {
+        return Dispatch::Refused;
+    }
+    Dispatch::No
 }
 
 /// The active-workflow listing, in one place because it was in two.
@@ -3541,11 +3596,11 @@ fn workflow_listing(repo: &str, jq: &str) -> Result<String> {
 
 fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
     let root = repo_root()?;
-    let mut no_auto: Vec<(String, String, bool, bool, String)> = Vec::new();
+    let mut no_auto: Vec<(String, String, Dispatch, bool, String)> = Vec::new();
     // Named once, so the printed sentence quotes the branch actually queried
     // rather than the word "master" hardcoded into a message.
     let mut default_branch_seen = String::new();
-    let mut rows: Vec<(String, String, String, bool, bool, bool)> = Vec::new();
+    let mut rows: Vec<(String, String, String, bool, Dispatch, bool)> = Vec::new();
     let mut checked = 0usize;
     let mut unreadable = 0usize;
     let mut ghosts: Vec<(String, String, String)> = Vec::new();
@@ -3701,7 +3756,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             println!(
                 "  {:<10}  {:<9}  {:<8}  {}  ({})",
                 last,
-                if *dispatch { "yes" } else { "NO" },
+                dispatch.label(),
                 if *pr_only { "YES" } else { "-" },
                 name,
                 repo
@@ -3718,7 +3773,9 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                not a dispatch: either the check learns a default-branch mode, or the\n\
                context is recorded as PR-only by construction and stops being read as a\n\
                gap.\n\
-             \n  `LAST` is a lifetime per-workflow query, not a window over recent runs.\n\
+             \n  `dispatch: refused` means the workflow declined one on purpose, with\n\
+                   a `# tri:no-dispatch` comment saying why. It is not a gap to close.\n\
+                 \n  `LAST` is a lifetime per-workflow query, not a window over recent runs.\n\
                Reading a window and reporting a lifetime is how this section came to\n\
                exist.\n"
         );
@@ -3748,7 +3805,7 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
             "  {:<10}  {:<7}  {:<9}  {:<8}  {}  ({})",
             last,
             if *filtered { "yes" } else { "-" },
-            if *dispatch { "yes" } else { "NO" },
+            dispatch.label(),
             if *pr_only { "YES" } else { "-" },
             name,
             repo
@@ -3758,6 +3815,12 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
         "\n  A gate that has not run on the default branch is not passing there; it is\n\
            unmeasured. `paths: yes` is usually the reason. `dispatch: NO` means the\n\
            reading cannot be taken on purpose -- add `workflow_dispatch:` first.\n\
+             \n  `dispatch: refused` means the workflow declined one ON PURPOSE and\n\
+               says so with a `# tri:no-dispatch` comment. Do not add one.\n\
+               `release.yml` is the case that put this column here: every job keys\n\
+               off the release tag, which is empty on a dispatch, so a dispatch there\n\
+               cannot publish and cannot measure -- it can only fail. Advising one is\n\
+               advising a dispatch in front of `cargo publish` on a live registry.\n\
          \n  `pr-only: YES` means a dispatch STARTS it and measures nothing, so\n\
            `dispatch: yes` beside it is not an invitation. That column was added to the\n\
            table above this one after telling a reader to take a reading that cannot be\n\
@@ -4006,6 +4069,36 @@ fn workflow_file_present(path: &str) -> bool {
 }
 
 /// Where a never-succeeded workflow belongs.
+/// The reason a never-green workflow records for its own redness, when the
+/// cause has been diagnosed and removed and it simply has not run since.
+///
+/// `dead` had a fourth state in the world and three in its vocabulary. It
+/// printed, unconditionally, that a suppressed workflow's "last step is
+/// forbidden by this repository's own ruleset" -- true of
+/// `brain-seal-refresh.yml` until #3324 removed that step. On master its last
+/// step is `Upload brain seals` and the only `git push` left in the file is
+/// inside the comment explaining the removal, which this tool cannot read.
+///
+/// So the refusal goes where the tool looks, the way `# tri:no-dispatch` did.
+pub const CAUSE_REMOVED_MARKER: &str = "tri:cause-removed";
+
+/// The reason recorded on a workflow whose diagnosed cause is gone.
+pub fn cause_removed(text: &str) -> Option<String> {
+    text.lines().find_map(|l| {
+        let l = l.trim();
+        if !l.starts_with('#') {
+            return None;
+        }
+        let i = l.find(CAUSE_REMOVED_MARKER)?;
+        let rest = l[i + CAUSE_REMOVED_MARKER.len()..].trim();
+        if rest.is_empty() {
+            None
+        } else {
+            Some(rest.to_string())
+        }
+    })
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Bucket {
     /// Has a file and enough runs to judge: a dead gate, reported.
@@ -4032,13 +4125,14 @@ pub fn classify(on_disk: bool, total: u64, min_runs: u64) -> Bucket {
 }
 
 fn dead(repos: &[String], min_runs: u64) -> Result<()> {
-    let mut rows: Vec<(String, String, u64, String)> = Vec::new();
-    let mut deleted: Vec<(String, String, u64, String)> = Vec::new();
+    let mut rows: Vec<(String, String, u64, String, Option<String>)> = Vec::new();
+    let mut deleted: Vec<(String, String, u64, String, Option<String>)> = Vec::new();
     // Every workflow the threshold hid, so a bounded report never reads as a
-    // complete one. `brain-seal-refresh.yml` fails structurally -- its last step
-    // is a `git push` this repository's own ruleset rejects -- and has 8 lifetime
-    // runs, so the shipped floor of 50 suppresses it entirely.
-    let mut suppressed: Vec<(String, String, u64, String)> = Vec::new();
+    // complete one. `brain-seal-refresh.yml` has 8 lifetime runs, so the shipped
+    // floor of 50 suppresses it entirely. Its cause -- a `git push` to master the
+    // ruleset rejects -- was REMOVED by #3324, and the workflow has not run since;
+    // it now records that in itself with `# tri:cause-removed`.
+    let mut suppressed: Vec<(String, String, u64, String, Option<String>)> = Vec::new();
     let single_repo = repos.len() == 1;
     for repo in repos {
         let listing = workflow_listing(
@@ -4059,7 +4153,16 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
             // The path check only means anything for the repository we are standing
             // in; for any other repo in the list, take the API at its word.
             let on_disk = !single_repo || workflow_file_present(path);
-            let row = (repo.clone(), name.to_string(), total, id.to_string());
+            // Read from the file the classifier already consults, so a refusal
+            // recorded in the workflow reaches the tool rather than only a reader.
+            let why = if single_repo {
+                std::fs::read_to_string(path)
+                    .ok()
+                    .and_then(|t| cause_removed(&t))
+            } else {
+                None
+            };
+            let row = (repo.clone(), name.to_string(), total, id.to_string(), why);
             match classify(on_disk, total, min_runs) {
                 Bucket::Deleted => deleted.push(row),
                 Bucket::Suppressed => suppressed.push(row),
@@ -4084,7 +4187,7 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
         total
     );
     let mut never_ran = 0usize;
-    for (repo, name, runs, id) in &rows {
+    for (repo, name, runs, id, _) in &rows {
         let short: String = name.chars().take(38).collect();
         // Ask the newest runs whether a job was ever allocated. A run with zero jobs
         // is a startup failure: recorded as failed, never executed a line.
@@ -4117,11 +4220,12 @@ fn dead(repos: &[String], min_runs: u64) -> Result<()> {
 }
 
 /// Say what was left out. A bounded report that does not name its bound reads as
-/// a complete one, and the four workflows below the shipped floor include the two
-/// whose failure is structural rather than situational.
+/// a complete one. A row that records why it is red -- `# tri:cause-removed` in
+/// the workflow -- is listed with that reason instead of under the blanket
+/// footnote, which had gone on diagnosing a cause #3324 had already removed.
 fn report_suppressed_and_deleted(
-    suppressed: &[(String, String, u64, String)],
-    deleted: &[(String, String, u64, String)],
+    suppressed: &[(String, String, u64, String, Option<String>)],
+    deleted: &[(String, String, u64, String, Option<String>)],
     min_runs: u64,
 ) {
     if !suppressed.is_empty() {
@@ -4130,13 +4234,23 @@ fn report_suppressed_and_deleted(
             "{} more have never succeeded but fall under --min-runs {min_runs}:",
             suppressed.len()
         );
-        for (repo, name, runs, _) in suppressed {
+        for (repo, name, runs, _, why) in suppressed {
             let short: String = name.chars().take(44).collect();
-            println!("  {runs:>6}  {repo:<22} {short}");
+            match why {
+                Some(r) => println!("  {runs:>6}  {repo:<22} {short:<46}cause removed: {r}"),
+                None => println!("  {runs:>6}  {repo:<22} {short}"),
+            }
         }
-        println!("Few runs is not few enough to be safe: a workflow whose last step is");
-        println!("forbidden by this repository's own ruleset fails every time it runs,");
-        println!("and runs rarely.");
+        // Only about the rows that carry no reason. The blanket version of this
+        // sentence outlived its single referent: #3324 removed the `git push`
+        // from `brain-seal-refresh.yml`, and the footnote went on diagnosing it.
+        let unexplained = suppressed.iter().filter(|r| r.4.is_none()).count();
+        if unexplained > 0 {
+            println!("Few runs is not few enough to be safe: a workflow that fails every");
+            println!("time it runs, runs rarely. {unexplained} of the above say nothing about");
+            println!("why; a workflow whose cause is fixed records it with");
+            println!("`# {CAUSE_REMOVED_MARKER} <reason>` and is listed with that reason.");
+        }
     }
     if !deleted.is_empty() {
         println!();
@@ -4145,7 +4259,7 @@ fn report_suppressed_and_deleted(
             deleted.len()
         );
         println!("history, not a gate, and nothing to fix:");
-        for (repo, name, runs, _) in deleted {
+        for (repo, name, runs, _, _) in deleted {
             let short: String = name.chars().take(44).collect();
             println!("  {runs:>6}  {repo:<22} {short}");
         }
@@ -4235,10 +4349,13 @@ mod tests {
 
     /// Below the floor is named, not dropped.
     ///
-    /// `brain-seal-refresh.yml` has 8 lifetime runs across five months and fails
-    /// every one: its last step is a `git push` to master, which the ruleset
-    /// answers with GH013. The shipped floor of 50 hid it completely, and a
-    /// bounded report that does not name its bound reads as a complete one.
+    /// `brain-seal-refresh.yml` has 8 lifetime runs across five months and failed
+    /// every one: its last step WAS a `git push` to master, which the ruleset
+    /// answers with GH013. #3324 removed that step -- the last step on master is
+    /// `Upload brain seals`, and the only `git push` left in the file is inside
+    /// the comment explaining the removal. The shipped floor of 50 hid the row
+    /// completely, and a bounded report that does not name its bound reads as a
+    /// complete one.
     #[test]
     fn under_the_floor_is_a_bucket_and_not_a_silence() {
         assert_eq!(classify(true, 8, 50), Bucket::Suppressed);
@@ -5516,16 +5633,39 @@ impl Reading {
 pub fn issue_pattern(yaml: &str) -> Option<String> {
     for line in yaml.lines() {
         let l = line.trim();
-        if !l.contains("grep") || !l.contains("#[0-9]+") {
+        // Anchored on the gate's VOCABULARY, not on how it spells a number.
+        //
+        // This read `#[0-9]+` twice -- once to find the line, once to pick the quoted
+        // span -- and #3388 changed the spelling to `#[1-9][0-9]*` to reject `#0`. The
+        // line then matched nothing and the extractor reported that the gate states no
+        // pattern at all. A number's spelling is the part of a pattern most likely to be
+        // tightened; the keyword list is the part that identifies it.
+        if !l.contains("grep") || !l.contains("Closes?") {
             continue;
         }
-        // The pattern is the single-quoted argument on that line.
-        let start = l.find('\'')?;
-        let rest = &l[start + 1..];
-        let end = rest.find('\'')?;
-        let pat = &rest[..end];
-        if pat.contains("#[0-9]+") {
-            return Some(pat.to_string());
+        // EVERY single-quoted span on the line, not the first one.
+        //
+        // The gate's line used to begin with its `grep`, so the first quote pair was the
+        // pattern. #3388 rewrote it to strip fenced blocks and quotes from the body first,
+        // and the line now opens with `printf '%s\n%s\n'` -- so the first pair is a
+        // printf format, the extractor read that, found no `#[0-9]+` in it, and gave up on
+        // the line instead of looking further along it. `tri gates preview` then had no
+        // pattern at all and `the_pattern_is_read_out_of_the_gate_that_enforces_it`
+        // panicked, reddening `cli-tri` on master.
+        //
+        // Taking the first span was never the rule; it was the first span happening to be
+        // the only one.
+        let mut rest = l;
+        while let Some(start) = rest.find('\'') {
+            let after = &rest[start + 1..];
+            let Some(end) = after.find('\'') else { break };
+            let pat = &after[..end];
+            // A `#` and the keyword: that is a reference pattern whatever the digits
+            // are spelled like.
+            if pat.contains('#') && pat.contains("Closes?") {
+                return Some(pat.to_string());
+            }
+            rest = &after[end + 1..];
         }
     }
     None
@@ -8568,5 +8708,155 @@ jobs:
         assert_eq!(bash_only("  if [ -f x ]; then"), None);
         assert_eq!(bash_only("  . ./env.sh"), None);
         assert_eq!(bash_only("  COUNT=$(wc -l < f)"), None);
+    }
+}
+
+#[cfg(test)]
+mod dispatch_refusal_tests {
+    use super::{dispatch_of, Dispatch};
+
+    #[test]
+    fn a_marker_without_a_dispatch_is_a_refusal_not_a_gap() {
+        let y = "name: x\non:\n  release:\n    types: [published]\n  # tri:no-dispatch every job keys off the tag\njobs: {}\n";
+        assert_eq!(dispatch_of(y), Dispatch::Refused);
+    }
+
+    #[test]
+    fn no_dispatch_and_no_marker_is_still_a_gap() {
+        let y = "name: x\non:\n  release:\n    types: [published]\njobs: {}\n";
+        assert_eq!(dispatch_of(y), Dispatch::No);
+    }
+
+    #[test]
+    fn a_present_dispatch_wins_over_a_stale_marker() {
+        // Both present is a contradiction, and the reading CAN be taken. Reporting
+        // `refused` here would hide a real dispatch behind an out-of-date comment.
+        let y = "name: x\non:\n  # tri:no-dispatch left behind\n  workflow_dispatch:\njobs: {}\n";
+        assert_eq!(dispatch_of(y), Dispatch::Yes);
+    }
+
+    #[test]
+    fn the_marker_must_be_a_comment_not_prose() {
+        // A workflow that merely mentions the string in a `run:` body has not
+        // refused anything.
+        let y = "name: x\non:\n  release:\njobs:\n  a:\n    steps:\n      - run: echo tri:no-dispatch\n";
+        assert_eq!(dispatch_of(y), Dispatch::No);
+    }
+
+    /// The function was right and the two columns still printed a bool. This asks
+    /// the wiring, not the reader -- the defect this whole change exists to fix
+    /// lived in a print site, not in a predicate.
+    #[test]
+    fn both_dispatch_columns_ask_the_three_state_reader() {
+        let src = include_str!("gates.rs");
+        let ternary = concat!("if *dispatch { \"yes\" }", " else { \"NO\" }");
+        assert_eq!(
+            src.matches(ternary).count(),
+            0,
+            "a dispatch column still prints a two-state bool"
+        );
+        let call = concat!("dispatch.", "label()");
+        assert_eq!(
+            src.matches(call).count(),
+            2,
+            "expected both dispatch columns to call label()"
+        );
+    }
+
+    /// The advice is the defect. A table that prints `refused` while its footnote
+    /// still says only "add `workflow_dispatch:` first" sends the next reader to
+    /// undo the refusal.
+    #[test]
+    fn the_advice_explains_a_refusal_wherever_a_column_prints_one() {
+        let src = include_str!("gates.rs");
+        let needle = concat!("`dispatch: ", "refused`");
+        assert!(
+            src.matches(needle).count() >= 2,
+            "each dispatch table needs a footnote explaining `refused`"
+        );
+    }
+}
+
+#[cfg(test)]
+mod cause_removed_tests {
+    use super::{cause_removed, CAUSE_REMOVED_MARKER};
+
+    #[test]
+    fn a_marker_comment_yields_its_reason() {
+        let y = "name: x\n# tri:cause-removed the push step was removed in #3324\non:\n";
+        assert_eq!(
+            cause_removed(y).as_deref(),
+            Some("the push step was removed in #3324")
+        );
+    }
+
+    #[test]
+    fn a_workflow_with_no_marker_says_nothing() {
+        assert_eq!(cause_removed("name: x\non:\n  push:\n"), None);
+        assert_eq!(cause_removed(""), None);
+    }
+
+    #[test]
+    fn a_marker_with_no_reason_is_not_a_reason() {
+        // A bare marker would print "cause removed:" and explain nothing, which
+        // is the silence this whole change exists to remove.
+        assert_eq!(cause_removed("# tri:cause-removed\n"), None);
+        assert_eq!(cause_removed("# tri:cause-removed    \n"), None);
+    }
+
+    #[test]
+    fn the_marker_must_be_a_comment_not_a_run_line() {
+        let y = "jobs:\n  a:\n    steps:\n      - run: echo tri:cause-removed nope\n";
+        assert_eq!(cause_removed(y), None);
+    }
+
+    /// The defect was an unconditional footnote, so the guard reads the print
+    /// SITE. A blanket sentence about every suppressed row is what outlived its
+    /// single referent when #3324 removed the cause it diagnosed.
+    #[test]
+    fn the_blanket_footnote_is_scoped_to_rows_that_explain_nothing() {
+        let src = include_str!("gates.rs");
+        let old = concat!(
+            "forbidden by this repository's own ruleset ",
+            "fails every time it runs,"
+        );
+        assert_eq!(
+            src.matches(old).count(),
+            0,
+            "the unconditional footnote is back"
+        );
+        let guard = concat!(
+            "let unexplained = suppressed.iter()",
+            ".filter(|r| r.4.is_none()).count();"
+        );
+        assert_eq!(
+            src.matches(guard).count(),
+            1,
+            "the footnote must count only unexplained rows"
+        );
+        assert!(
+            src.contains("if unexplained > 0 {"),
+            "the footnote must be conditional"
+        );
+        assert_eq!(CAUSE_REMOVED_MARKER, "tri:cause-removed");
+    }
+
+    /// The workflow that motivated this must actually carry the marker, or the
+    /// mechanism is untested against the only case it was built for.
+    #[test]
+    fn the_motivating_workflow_records_its_own_reason() {
+        let y = include_str!("../../../.github/workflows/brain-seal-refresh.yml");
+        let why = cause_removed(y).expect("brain-seal-refresh.yml must record why it is red");
+        assert!(
+            why.contains("#3324"),
+            "the reason must name the repair: {why}"
+        );
+        // And the cause really is gone: the only `git push` left is in prose.
+        for line in y.lines().filter(|l| l.contains("git push")) {
+            assert!(
+                line.trim_start().starts_with('#'),
+                "a live `git push` is back in this workflow: {line}"
+            );
+        }
     }
 }

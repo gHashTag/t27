@@ -1,0 +1,16 @@
+# Names that do NOT collide in t27 and DO collide once a backend adds its
+# prefix, per file. `fn test_x` beside `test x` is one identifier in gen-c,
+# which emits `void test_x(void)` for the block. See #3485.
+#
+# Measured per backend, not assumed:
+#   gen-c        `void test_X(void)` / `void bench_X(void)`  -- COLLIDES
+#   gen (zig)    `test "X"` is a STRING, no identifier       -- no collision
+#                `fn bench_X()`                              -- COLLIDES
+#   gen-rust     tests are not lowered at all                -- no collision
+#   gen-verilog  a test is emitted as a comment              -- no collision
+#
+# A ratchet: a file may only shrink. 66 functions in the corpus are named
+# `test_*` and 4 of them meet a test block of the matching name; 0 are named
+# `bench_*`, so that half of the rule has a test rather than a population.
+specs/igla/race/backend.t27 2
+specs/math/property_test_template.t27 2

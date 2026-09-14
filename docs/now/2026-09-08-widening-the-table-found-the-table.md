@@ -1,0 +1,10 @@
+# NOW -- Widening the table found the table (2026-09-08)
+
+## Widening the table found the table (Closes #3501)
+
+- The reader shipped one pass ago found a real family on its first run. Widening it found **three defects in the reader**, each from a narrower question than *"does the output answer this call?"*
+- **The population column counted comments.** `sign` was published as 63 uses in 48 specs and is **1 use in 1 spec**; `max` 51/26 is 4/4, `min` 19/12 is 4/4, `sqrt` 100/25 is 33/13, `round` 136/38 is 63/21. The six-name family was reported as **796 uses** and is **582** in code. `sign` was recommended as a language-level question on the strength of 63.
+- **`PASSTHROUGH` conflated a gap with a strategy.** C emits `#define assert_eq(a, b)` and Zig `fn assert_eq(...)`, both columns read PASSTHROUGH, and the report said *"no backend lowers any of them"* about a call two backends answer. The cell distinguishes `helper` now -- and the probe gained a test block, because C emits that macro only when a module has tests and 528 of 651 specs do.
+- **An `#include` declares as surely as a definition.** `sqrt` is answered in C by `#include <math.h>` and nothing else; the reader looked only for definitions written in the file and called the column a gap for the third time in three readings.
+- After the corrections the largest real C gap was `abs` -- **389 uses in 43 specs** -- refused for two passes because C has `abs` for int and `fabs` for double and choosing without the argument's type truncates silently. **C11 answers it without the type**: `_Generic` dispatches on the argument, evaluates it once, and is standard in the `-std=c11` this corpus compiles with. Errors **10 811 -> 10 802**, **9 files better and none worse**, one more translation unit clean.
+- **A test changed on purpose and says so.** `abs_min_and_max_stay_loud` asserted that `abs` pulls nothing in -- the previous pass's deliberate limitation, now false by design. It is narrowed to `min`/`max`, which no backend answers, with the reason recorded rather than the assertion quietly dropped.

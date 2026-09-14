@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:828fc82a236b6bf5df44edf9240ae0d04583f84d5b0ae5c55e6a77eb3a4d6cfd",
-  "gen_hash_rust": "sha256:e24b677b005fc0cda15455fb678fc8e66967383668e49dce1f99aa03ce328c01",
+  "gen_hash_rust": "sha256:e7d324877a5245b963365ac869c743020c0254da105d223389027548deaf12f7",
   "gen_hash_verilog": "sha256:3ef17d9a8094dc73a216534dfee145be8597ed6183c588a9d65e61ca54b78c2e",
   "gen_hash_zig": "sha256:9995382e28dee32d3848ad9e49de0819eedcc380f559dd2e1262f98aa6f87e0e",
   "module": "TriTime",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:27Z",
+  "sealed_at": "2026-09-06T04:36:45Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:3bc8d058f4b301edc4f1584510910da792098ecc9fb60f6d4e38f16ba3bcdf74",
   "spec_path": "specs/tri/utils/time.t27"

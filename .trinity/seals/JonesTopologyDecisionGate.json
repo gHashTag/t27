@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:86db699c8c02863802408cde081c27e64e330b124995c34a4936ea560cc586d3",
-  "gen_hash_rust": "sha256:cc537e13411b9b1001d486557bc09f9b837cc5cfef7a00dc5bfe8ce2f3fe041a",
+  "gen_hash_rust": "sha256:728645cbb11d02e1b1bc5885a74bcba326bc2f9c5b8caa6d52802a27e45a524b",
   "gen_hash_verilog": "sha256:13abdfc9dbb7b8e416bf4fafe6de936c62066529e2327fe6645d7b225ce9e6fe",
   "gen_hash_zig": "sha256:5d267d3888f6abfd3438e80f87a3fcc68d483d3d533ee48adb84e78296a0018c",
   "module": "JonesTopologyDecisionGate",

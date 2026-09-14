@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:bb676aef8811e7d8d5149e33c34ca83800f7c7fab6d912481b97fd5045aa54dd",
-  "gen_hash_rust": "sha256:6aa7a834c47437548b2b4113d6ec1eb1fb338cff0d587f75f0f0eae0f475814b",
+  "gen_hash_rust": "sha256:5e3c9fd1a47f73ac72b6ca22ef00a3ddbbcce98269f7f48cf064130e2360a28b",
   "gen_hash_verilog": "sha256:9fc14a810b0fed3b7eea242ec1da25e8c6d6ddbf746fb48fba9ca27a118dfb73",
   "gen_hash_zig": "sha256:c2802e5d1ec5df7f274e02153c9ca470af9e6ba5357eeeb72129c6609c7dec3f",
   "module": "Embedding",

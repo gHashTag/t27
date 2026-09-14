@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:6a3f9357add789820b44c3c88316f5acdf821acd0324f2174f7b3bf3bab22d21",
+  "gen_hash_rust": "sha256:514c8dbbf2c323a8bd8c6d2760a5392805158d2f342758ab1bfa5110b1ddeaca",
+  "gen_hash_verilog": "sha256:f63fc2720c4bc4190bc1fa7f2afa16919bb3c43cf47bc5fdabbf56db6153d0cb",
+  "gen_hash_zig": "sha256:7c37cf3b7cea30482274e0ba15aa8d657f6737098cfbfa0b1a1c141e54e0e274",
+  "module": "TrinityVsaVm",
+  "ring": 12,
+  "sealed_at": "2026-09-12T11:40:24Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:3195a264eeb3a9f6a1894ea50f84cd3ce9c91b52e62f169b7518249a90b5df97",
+  "spec_path": "specs/vm/trinity_vm.t27"
+}

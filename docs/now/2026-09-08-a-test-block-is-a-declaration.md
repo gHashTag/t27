@@ -1,0 +1,10 @@
+# NOW -- A test block is a declaration too (2026-09-08)
+
+## A test block is a declaration too (Closes #3479)
+
+- Ranked by **distinct lines** instead of diagnostics, `redefinition of 'X'` is the corpus's cleanest class: **361 diagnostics over 361 lines**, one error per site and no cascade. **317 of them are `void test_NAME(void)` emitted twice**, and the cause is in the specs.
+- `collect_top_level_decls` matched `StructDecl | EnumDecl | FnDecl` -- the three kinds a t27 program can CALL. gen-c emits `void test_{name}(void)` per test block and gen-rust a `#[test] fn`, so two test blocks of one name are a redeclaration in every backend, which is this gate's own stated criterion. **29 specs, 314 duplicated test names, 373 extra definitions**; 2 duplicated bench names in 1 spec. Names colliding only after C-identifier sanitisation: **0**, so the raw-name rule is the whole rule.
+- **Tests and benches get namespaces of their own, and that half is load-bearing.** `struct deque_clear` beside `test deque_clear` is not a conflict anywhere -- the C names are `deque_clear` and `test_deque_clear` -- and **138 such names across 54 specs** would each be reported if tests were folded into the type namespace. The weaker "declared as both a type and a function" check now names that PAIR rather than saying "more than one namespace", which was false of a test the moment tests had one.
+- Baseline **3 specs / 25 names -> 30 specs / 341 names**. Not new debt: newly visible debt, and the generated C had been saying so all along.
+- **This removes no C errors, and the commit says so.** 12 071 before and after, all 582 headers diffed byte for byte. The pass makes a blind detector see the largest 1:1 class and names the debt per spec.
+- What removing it would take, measured rather than guessed: of the 373 duplicate blocks, **174 have a body identical to their twin** and are deletable mechanically; **199 differ** and each needs a reading -- the same shape as `adamw.t27`, whose two `AdamWConfig` bodies are not identical either.

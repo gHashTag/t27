@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:78c4b244f7e08e98b96dfafb82013ec8c3d4c4150fb160b21920069decac8fae",
-  "gen_hash_rust": "sha256:4a7a305eb68e476dc4b5a898aca85f35914e83fa52c1d24377ab0107480d1519",
+  "gen_hash_rust": "sha256:03b1fbd2f856d374d739ea8ee5344550a1bd0c968ece5c72f8c801af5a239d86",
   "gen_hash_verilog": "sha256:4ba74bdcce2c92b000ac31fd749fdc1a27d37e808b4673526138cf744cf6d9f1",
   "gen_hash_zig": "sha256:3292fb85cd4009d3c9a1bf9fa21067c1dbf54328ef3d1b18a505d953053cb4b3",
   "module": "ClockDomain",

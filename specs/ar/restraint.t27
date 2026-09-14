@@ -2,6 +2,8 @@
 // spec: Restraint
 // Bounded rationality and restraint mechanisms for neuro-symbolic reasoning
 
+use base::types;
+
 spec Restraint {
     // Restraint type
     enum RestraintType {

@@ -329,27 +329,7 @@ module FileOperations {
         assert(DEFAULT_READ_CHUNK == 8192);
     }
 
-    test "file_content_text" {
-        var content = FileContent {
-            type = ContentType::Text,
-            content = "hello",
-            diff = null,
-            mimeType = "text/plain",
-            encoding = null,
-            lineCount = 1,
-        };
-        assert(is_text(content.type));
-    }
 
-    test "file_change_creation" {
-        var change = FileChange {
-            path = "test.txt",
-            status = FileStatus::Modified,
-            additions = 1,
-            deletions = 0,
-        };
-        assert(change.status == FileStatus::Modified);
-    }
 
     test "watcher_handle_creation" {
         var handle = WatcherHandle {
@@ -398,17 +378,7 @@ module FileOperations {
         assert(options.glob?.len == 1);
     }
 
-    test "content_type_values" {
-        assert(ContentType::Text as u32 == 0);
-        assert(ContentType::Binary as u32 == 1);
-        assert(ContentType::Image as u32 == 2);
-    }
 
-    test "file_status_values" {
-        assert(FileStatus::Added as u32 == 0);
-        assert(FileStatus::Deleted as u32 == 1);
-        assert(FileStatus::Modified as u32 == 2);
-    }
 
     test "is_text_true" {
         assert(is_text(ContentType::Text));

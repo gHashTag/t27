@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:f2a99522c1c83364cec5908b739203dfe22cdbdb66c1e5c9d7690278961d4a56",
+  "gen_hash_rust": "sha256:2d5fe1301b853e86fed4fee7f58589064b0a2e391b9d9520d7b53866b42d4098",
+  "gen_hash_verilog": "sha256:39158171eb2c4f1a0885f2b4408a0c7558ddc91a9d20d4daaae83757935a1de7",
+  "gen_hash_zig": "sha256:744877ba7eddc95430a4992669c641d5eb4729c37ec2e810024b12bd3d50fb87",
+  "module": "trinity_capability_fpga_in_repo",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:37Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:1ca3f27fd3cadb4931f82ef647d12e04f4dac20e2c632cae112490f4457c9093",
+  "spec_path": "specs/trinity/capabilities/fpga.in-repo.t27"
+}

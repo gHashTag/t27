@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:4e0507aed0592f67dbd7175d458e6843f7c82d95bbf9f6372fbcb60a4a5f1847",
+  "gen_hash_rust": "sha256:92ef0b7d90537c816a2bc5c00bf843e6b3ea494618374fc30f60acfe71aaca20",
+  "gen_hash_verilog": "sha256:b5b857a13ccbcad1100c06d1209081b1c7f807e0cf02d35c4644b98ff16e5ee6",
+  "gen_hash_zig": "sha256:d063a0d65a3de4bddf2fc5d787859aa210550e8c2a1879ada9cb0289493d3cc6",
+  "module": "Tri27Machine",
+  "ring": 12,
+  "sealed_at": "2026-09-12T11:40:24Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:e7972e95bb56cff6bf29950fbea4738b31fe41a6cb19a48d82ba2b265a6762ff",
+  "spec_path": "specs/isa/tri27_machine.t27"
+}

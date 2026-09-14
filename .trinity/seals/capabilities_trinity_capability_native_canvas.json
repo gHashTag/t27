@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:fa904def5cb34888bb1025e0d554817eb741e1582a080a50c69ea14fc31f40fb",
+  "gen_hash_rust": "sha256:871d036800cf932ee0367ba6e2c470046e2c90e4a878f19a203806d0e116dfa5",
+  "gen_hash_verilog": "sha256:8e4f98025c6cdf74c1cb52d4d69123b891c2c18ab67c08081d3accb818cb3b8b",
+  "gen_hash_zig": "sha256:e8670eb95cbc83fb13b92ca8fc3a0ec24e933eecd462ba937ec7376d25b5dadb",
+  "module": "trinity_capability_native_canvas",
+  "ring": 12,
+  "sealed_at": "2026-09-12T09:36:38Z",
+  "sealed_by": "t27c-bootstrap@0.2.0",
+  "spec_hash": "sha256:41d804d63c7cea9c3bed9025f52bd8d5f576855b3cd8b065800d6e6ba53f99a9",
+  "spec_path": "specs/trinity/capabilities/native.canvas.t27"
+}

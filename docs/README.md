@@ -25,6 +25,12 @@ First-party docs follow the **27-agent trinity alphabet** grouping: **three nona
 | [`coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md`](coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md) | Phased plan: seed → tests → Queen brain (`tri`/`t27c`, conformance, codegen gap). |
 | [`coordination/inter-agent-handoff/`](coordination/inter-agent-handoff/) | Portable handoff bundle. |
 
+## [`system/`](system/) — system documentation bodies (rendered at `t27.ai/#/docs`)
+
+| Path | Role |
+|---|---|
+| [`system/project.md`](system/project.md) .. [`system/evidence.md`](system/evidence.md) | English canonical prose of the seven chapters declared in [`specs/docs/`](../specs/docs/); sections are checked against `SECTIONS` at site build. |
+
 ## [`nona-01-foundation/`](nona-01-foundation/) — agents **A–I**
 
 Architecture, seed rings, brain charter, language purge, sandbox.

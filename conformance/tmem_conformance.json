@@ -1,0 +1,1462 @@
+{
+  "catalogue": {
+    "corruption": {
+      "header_bit_flip": [
+        "memory_tensorpack.json#wrong_magic",
+        "memory_tensorpack.json#version_2",
+        "memory_tensorpack.json#flags_set",
+        "fixture_corruption#0",
+        "fixture_corruption#1"
+      ],
+      "metadata_bit_flip": [
+        "fixture_corruption#2",
+        "memory_tensorpack.json#metadata_crc_mismatch"
+      ],
+      "nonzero_padding": [
+        "memory_types.json#dense5_nonzero_padding",
+        "memory_tensorpack.json#nested_nonzero_padding",
+        "memory_tensorpack.json#nested_unused_high_bits"
+      ],
+      "oversized_request": [
+        "memory_bridge.json#oversized_request",
+        "memory_bridge.json#content_length_over_limit"
+      ],
+      "payload_bit_flip": [
+        "fixture_corruption#3",
+        "fixture_corruption#4",
+        "fixture_corruption#5",
+        "memory_tensorpack.json#payload_crc_mismatch",
+        "memory_bridge.json#upload_corrupted_crc"
+      ],
+      "resealed_crc": [
+        "memory_tensorpack.json#nested_nonzero_padding",
+        "memory_tensorpack.json#nested_reserved_code",
+        "memory_tensorpack.json#nested_count_mismatch",
+        "memory_types.json#dense5_nonzero_padding"
+      ],
+      "reserved_code": [
+        "memory_types.json#dense5_reserved_code_243",
+        "memory_types.json#sparse41_reserved_code_9",
+        "memory_tensorpack.json#nested_reserved_code"
+      ],
+      "truncated_body": [
+        "memory_bridge.json#truncated_body_times_out",
+        "memory_tensorpack.json#truncated_payload",
+        "memory_tensorpack.json#truncated_header"
+      ],
+      "wrong_content_type": [
+        "memory_bridge.json#text_plain_unsupported"
+      ]
+    },
+    "interruption": {
+      "client_disconnect_after_upload": [
+        "memory_bridge.json#tmem_lifecycle",
+        "lab#client_disconnect_after_upload"
+      ],
+      "server_restart_clears_objects": [
+        "lab#server_restart_clears_objects"
+      ],
+      "truncated_body_timeout": [
+        "memory_bridge.json#truncated_body_times_out"
+      ]
+    },
+    "reset": {
+      "rtl_reset_mid_frame": [
+        "memory_stream_compute.json#reset_mid_frame"
+      ],
+      "rtl_reset_with_pending_output": [
+        "memory_stream_compute.json#reset_with_pending_output"
+      ],
+      "storage_reset_mid_stream": [
+        "memory_stream_compute.json#reset_mid_stream_preserves_contents"
+      ]
+    }
+  },
+  "constants": {
+    "fixture_schema": {
+      "name": "trinity.conformance.v1",
+      "optional": [
+        "dense5_hex",
+        "baseline2_hex",
+        "dense17_hex",
+        "dense22_hex"
+      ],
+      "required": [
+        "name",
+        "weights",
+        "activations",
+        "dot"
+      ],
+      "root": [
+        "schema",
+        "vectors"
+      ],
+      "rules": [
+        "unique nonempty names",
+        "weights in {-1,0,1}",
+        "int8 activations",
+        "dot == sum(weights*activations)",
+        "fixture <= 16 MiB"
+      ],
+      "vectors": [
+        1,
+        256
+      ],
+      "weights": [
+        1,
+        4096
+      ]
+    },
+    "plan": {
+      "codec_order": [
+        "dense5",
+        "baseline2",
+        "dense17",
+        "dense22"
+      ],
+      "corrupt_rejections": 6,
+      "corruption_positions": "0, 4, 12, 31, size/2, size-1",
+      "corruption_rpc_error": -32602,
+      "positive_checks": "4 * (vectors + 7) + 2",
+      "random_case_counts": [
+        1,
+        4,
+        5,
+        6,
+        12,
+        31,
+        65
+      ],
+      "rtl_checks": "2 * (vectors + 7) when rtl",
+      "rtl_codecs": [
+        "dense5",
+        "baseline2"
+      ],
+      "rtl_seed_range": [
+        0,
+        4294967295
+      ],
+      "seed_default": 27,
+      "server": {
+        "max_object_bytes": 32768,
+        "max_objects": 4,
+        "max_request_bytes": 131072,
+        "max_storage_bytes": 131072,
+        "max_trits": 16384,
+        "timeout_seconds": 10.0
+      },
+      "sparse_pattern": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0
+      ],
+      "sparse_transfer_codecs": [
+        "sparse41",
+        "sparse82"
+      ]
+    },
+    "report": {
+      "determinism": "two runs from one clone are equal after removing the timing keys",
+      "fields": [
+        "schema",
+        "passed",
+        "seed",
+        "sections",
+        "catalogue",
+        "sources",
+        "tools",
+        "timing",
+        "physical_device_tested"
+      ],
+      "native_report_schema": "trinity.conformance-report.v1",
+      "schema": "trinity.conformance-lab.v1",
+      "sections": [
+        "fixture",
+        "codecs",
+        "containers",
+        "bridge",
+        "stream",
+        "frames"
+      ],
+      "timing_keys": [
+        "timing"
+      ],
+      "tool": "tools/conformance-lab.py"
+    },
+    "status": {
+      "check": -90,
+      "resource": -91,
+      "rtl": -82
+    }
+  },
+  "created_at": "2026-09-11T00:00:00Z",
+  "description": "The fixture the native conformance experiment consumes (with golden bytes for all four dense codecs), the containers it uploads, its six corruption blobs, the fixtures it must reject, the map from lab sections to the sibling conformance files and their consumers, and the catalogue of corruption, interruption and reset cases.",
+  "fixture_containers": [
+    {
+      "codec": "dense5",
+      "ttpk_hex": "5454504b010000008b000000010000001a00000000000000b8ad2e2ffd17c3e17b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32362c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b375d7d5d7d544d454d010100000700000000000000020000009fb2016b927b",
+      "vector": "signed-boundary-partial"
+    },
+    {
+      "codec": "baseline2",
+      "ttpk_hex": "5454504b010000008e000000010000001a000000000000006677020eb36e34b27b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a22626173656c696e6532222c226c656e677468223a32362c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b375d7d5d7d544d454d01000000070000000000000002000000ea55d05a4918",
+      "vector": "signed-boundary-partial"
+    },
+    {
+      "codec": "dense5",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000bc3fda686c7cec607b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000066efad7579",
+      "vector": "zero-group"
+    },
+    {
+      "codec": "baseline2",
+      "ttpk_hex": "5454504b010000008e000000010000001a000000000000000624c274c9141a2d7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a22626173656c696e6532222c226c656e677468223a32362c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d010000000500000000000000020000005dfd69890000",
+      "vector": "zero-group"
+    },
+    {
+      "codec": "dense5",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000bc3fda68fde918657b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d01010000050000000000000001000000fe26745c00",
+      "vector": "negative-group"
+    },
+    {
+      "codec": "baseline2",
+      "ttpk_hex": "5454504b010000008e000000010000001a000000000000000624c274ebcbee3b7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a22626173656c696e6532222c226c656e677468223a32362c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0100000005000000000000000200000012c88f33aa02",
+      "vector": "negative-group"
+    },
+    {
+      "codec": "dense5",
+      "ttpk_hex": "5454504b010000008b000000010000001900000000000000bc3fda68dfc2f16e7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d01010000050000000000000001000000ceb5c70ff2",
+      "vector": "positive-group"
+    },
+    {
+      "codec": "baseline2",
+      "ttpk_hex": "5454504b010000008e000000010000001a000000000000000624c274587b60267b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a22626173656c696e6532222c226c656e677468223a32362c226e616d65223a2277656967687473222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d01000000050000000000000002000000da64a2395501",
+      "vector": "positive-group"
+    }
+  ],
+  "fixture_corruption": {
+    "blob_ttpk_hex": "5454504b0100000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2",
+    "flips": [
+      {
+        "index": 0,
+        "position": 0,
+        "ttpk_hex": "5554504b0100000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+      },
+      {
+        "index": 1,
+        "position": 4,
+        "ttpk_hex": "5454504b0000000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+      },
+      {
+        "index": 2,
+        "position": 12,
+        "ttpk_hex": "5454504b0100000085000000000000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+      },
+      {
+        "index": 3,
+        "position": 31,
+        "ttpk_hex": "5454504b0100000085000000010000001900000000000000e11b9972def5524d7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+      },
+      {
+        "index": 4,
+        "position": 95,
+        "ttpk_hex": "5454504b0100000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352d226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+      },
+      {
+        "index": 5,
+        "position": 189,
+        "ttpk_hex": "5454504b0100000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c3"
+      }
+    ],
+    "size": 190
+  },
+  "fixture_document": {
+    "schema": "trinity.conformance.v1",
+    "vectors": [
+      {
+        "activations": [
+          127,
+          -128,
+          55,
+          2,
+          -90,
+          3,
+          -4
+        ],
+        "baseline2_hex": "4918",
+        "dense17_hex": "e044d903",
+        "dense22_hex": "0b7e3aa703",
+        "dense5_hex": "927b",
+        "dot": 250,
+        "name": "signed-boundary-partial",
+        "weights": [
+          1,
+          -1,
+          0,
+          1,
+          0,
+          -1,
+          1
+        ]
+      },
+      {
+        "activations": [
+          -128,
+          127,
+          1,
+          -1,
+          0
+        ],
+        "baseline2_hex": "0000",
+        "dense17_hex": "e142d903",
+        "dense22_hex": "0c7c3aa703",
+        "dense5_hex": "79",
+        "dot": 0,
+        "name": "zero-group",
+        "weights": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "activations": [
+          -128,
+          -128,
+          -128,
+          -128,
+          -128
+        ],
+        "baseline2_hex": "aa02",
+        "dense17_hex": "6842d903",
+        "dense22_hex": "937b3aa703",
+        "dense5_hex": "00",
+        "dot": 640,
+        "name": "negative-group",
+        "weights": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ]
+      },
+      {
+        "activations": [
+          127,
+          127,
+          127,
+          127,
+          127
+        ],
+        "baseline2_hex": "5501",
+        "dense17_hex": "5a43d903",
+        "dense22_hex": "857c3aa703",
+        "dense5_hex": "f2",
+        "dot": 635,
+        "name": "positive-group",
+        "weights": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    ]
+  },
+  "fixture_text": "{\n  \"schema\": \"trinity.conformance.v1\",\n  \"vectors\": [\n    {\n      \"name\": \"signed-boundary-partial\",\n      \"weights\": [\n        1,\n        -1,\n        0,\n        1,\n        0,\n        -1,\n        1\n      ],\n      \"activations\": [\n        127,\n        -128,\n        55,\n        2,\n        -90,\n        3,\n        -4\n      ],\n      \"dot\": 250,\n      \"dense5_hex\": \"927b\",\n      \"baseline2_hex\": \"4918\",\n      \"dense17_hex\": \"e044d903\",\n      \"dense22_hex\": \"0b7e3aa703\"\n    },\n    {\n      \"name\": \"zero-group\",\n      \"weights\": [\n        0,\n        0,\n        0,\n        0,\n        0\n      ],\n      \"activations\": [\n        -128,\n        127,\n        1,\n        -1,\n        0\n      ],\n      \"dot\": 0,\n      \"dense5_hex\": \"79\",\n      \"baseline2_hex\": \"0000\",\n      \"dense17_hex\": \"e142d903\",\n      \"dense22_hex\": \"0c7c3aa703\"\n    },\n    {\n      \"name\": \"negative-group\",\n      \"weights\": [\n        -1,\n        -1,\n        -1,\n        -1,\n        -1\n      ],\n      \"activations\": [\n        -128,\n        -128,\n        -128,\n        -128,\n        -128\n      ],\n      \"dot\": 640,\n      \"dense5_hex\": \"00\",\n      \"baseline2_hex\": \"aa02\",\n      \"dense17_hex\": \"6842d903\",\n      \"dense22_hex\": \"937b3aa703\"\n    },\n    {\n      \"name\": \"positive-group\",\n      \"weights\": [\n        1,\n        1,\n        1,\n        1,\n        1\n      ],\n      \"activations\": [\n        127,\n        127,\n        127,\n        127,\n        127\n      ],\n      \"dot\": 635,\n      \"dense5_hex\": \"f2\",\n      \"baseline2_hex\": \"5501\",\n      \"dense17_hex\": \"5a43d903\",\n      \"dense22_hex\": \"857c3aa703\"\n    }\n  ]\n}\n",
+  "format_family": "Conformance",
+  "generator": "tools/generate-spec-vectors.py",
+  "invalid_fixtures": [
+    {
+      "document": {
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          },
+          {
+            "activations": [
+              -128,
+              127,
+              1,
+              -1,
+              0
+            ],
+            "baseline2_hex": "0000",
+            "dense17_hex": "e142d903",
+            "dense22_hex": "0c7c3aa703",
+            "dense5_hex": "79",
+            "dot": 0,
+            "name": "zero-group",
+            "weights": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "activations": [
+              -128,
+              -128,
+              -128,
+              -128,
+              -128
+            ],
+            "baseline2_hex": "aa02",
+            "dense17_hex": "6842d903",
+            "dense22_hex": "937b3aa703",
+            "dense5_hex": "00",
+            "dot": 640,
+            "name": "negative-group",
+            "weights": [
+              -1,
+              -1,
+              -1,
+              -1,
+              -1
+            ]
+          },
+          {
+            "activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "baseline2_hex": "5501",
+            "dense17_hex": "5a43d903",
+            "dense22_hex": "857c3aa703",
+            "dense5_hex": "f2",
+            "dot": 635,
+            "name": "positive-group",
+            "weights": [
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "missing_schema",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v2",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          },
+          {
+            "activations": [
+              -128,
+              127,
+              1,
+              -1,
+              0
+            ],
+            "baseline2_hex": "0000",
+            "dense17_hex": "e142d903",
+            "dense22_hex": "0c7c3aa703",
+            "dense5_hex": "79",
+            "dot": 0,
+            "name": "zero-group",
+            "weights": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "activations": [
+              -128,
+              -128,
+              -128,
+              -128,
+              -128
+            ],
+            "baseline2_hex": "aa02",
+            "dense17_hex": "6842d903",
+            "dense22_hex": "937b3aa703",
+            "dense5_hex": "00",
+            "dot": 640,
+            "name": "negative-group",
+            "weights": [
+              -1,
+              -1,
+              -1,
+              -1,
+              -1
+            ]
+          },
+          {
+            "activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "baseline2_hex": "5501",
+            "dense17_hex": "5a43d903",
+            "dense22_hex": "857c3aa703",
+            "dense5_hex": "f2",
+            "dot": 635,
+            "name": "positive-group",
+            "weights": [
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "wrong_schema",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "extra": 1,
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          },
+          {
+            "activations": [
+              -128,
+              127,
+              1,
+              -1,
+              0
+            ],
+            "baseline2_hex": "0000",
+            "dense17_hex": "e142d903",
+            "dense22_hex": "0c7c3aa703",
+            "dense5_hex": "79",
+            "dot": 0,
+            "name": "zero-group",
+            "weights": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "activations": [
+              -128,
+              -128,
+              -128,
+              -128,
+              -128
+            ],
+            "baseline2_hex": "aa02",
+            "dense17_hex": "6842d903",
+            "dense22_hex": "937b3aa703",
+            "dense5_hex": "00",
+            "dot": 640,
+            "name": "negative-group",
+            "weights": [
+              -1,
+              -1,
+              -1,
+              -1,
+              -1
+            ]
+          },
+          {
+            "activations": [
+              127,
+              127,
+              127,
+              127,
+              127
+            ],
+            "baseline2_hex": "5501",
+            "dense17_hex": "5a43d903",
+            "dense22_hex": "857c3aa703",
+            "dense5_hex": "f2",
+            "dot": 635,
+            "name": "positive-group",
+            "weights": [
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "extra_root_member",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": []
+      },
+      "id": "zero_vectors",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "too_many_vectors",
+      "recipe": {
+        "vector": {
+          "activations": [
+            1
+          ],
+          "dot": 1,
+          "weights": [
+            1
+          ]
+        },
+        "vectors": 257
+      },
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "vector_missing_dot",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "note": "x",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "vector_extra_field",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 251,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "dot_mismatch",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          },
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "duplicate_names",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 377,
+            "name": "signed-boundary-partial",
+            "weights": [
+              2,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "weight_out_of_range",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              128,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 251,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "activation_out_of_range",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4,
+              1
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "count_mismatch",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 0,
+            "name": "signed-boundary-partial",
+            "weights": []
+          }
+        ]
+      },
+      "id": "empty_weights",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "927b",
+            "dot": 250,
+            "name": "",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "empty_name",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": 1,
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "golden_not_a_string",
+      "rejected_at": "validation"
+    },
+    {
+      "document": {
+        "schema": "trinity.conformance.v1",
+        "vectors": [
+          {
+            "activations": [
+              127,
+              -128,
+              55,
+              2,
+              -90,
+              3,
+              -4
+            ],
+            "baseline2_hex": "4918",
+            "dense17_hex": "e044d903",
+            "dense22_hex": "0b7e3aa703",
+            "dense5_hex": "00",
+            "dot": 250,
+            "name": "signed-boundary-partial",
+            "weights": [
+              1,
+              -1,
+              0,
+              1,
+              0,
+              -1,
+              1
+            ]
+          }
+        ]
+      },
+      "id": "golden_hex_mismatch",
+      "rejected_at": "checks"
+    },
+    {
+      "id": "too_many_weights",
+      "recipe": {
+        "activation": 1,
+        "weight": 1,
+        "weights": 4097
+      },
+      "rejected_at": "validation"
+    }
+  ],
+  "invariants": [
+    {
+      "condition": "name|weights|activations|dot == 15; allowed == 255",
+      "id": "required_fields_are_the_first_four_bits"
+    },
+    {
+      "condition": "256 vectors, 4096 weights, 16 MiB",
+      "id": "fixture_bounds_are_the_documented_limits"
+    },
+    {
+      "condition": "4 codecs, 2 RTL codecs, 7 random cases, 2 sparse transfers, 6 flips",
+      "id": "the_plan_counts_add_up"
+    },
+    {
+      "condition": "-32602",
+      "id": "corruption_is_rejected_as_invalid_params"
+    },
+    {
+      "condition": "4 * 32768 == 131072; 16384 >= 4096",
+      "id": "the_experiment_server_fits_its_vectors"
+    },
+    {
+      "condition": "6 sections; physical_device_tested == false",
+      "id": "the_report_has_six_sections_and_no_device"
+    }
+  ],
+  "module": "TrinityMemoryConformanceLabSpec",
+  "schema_version": 2,
+  "sections": {
+    "bridge": {
+      "consumers": [
+        "native loopback server over TCP"
+      ],
+      "evidence": [
+        "emulator",
+        "software-loopback-http"
+      ],
+      "file": "memory_bridge.json",
+      "kinds": [
+        "rpc",
+        "transport",
+        "sequence"
+      ],
+      "lab_checks": [
+        "client_disconnect_after_upload",
+        "server_restart_clears_objects"
+      ]
+    },
+    "codecs": {
+      "consumers": [
+        "python adapter",
+        "wasm (five-trit groups)"
+      ],
+      "evidence": [
+        "software",
+        "wasm"
+      ],
+      "file": "memory_types.json",
+      "kinds": [
+        "group",
+        "container",
+        "invalid_word",
+        "invalid_sparsity"
+      ]
+    },
+    "containers": {
+      "consumers": [
+        "python adapter",
+        "native CLI when built"
+      ],
+      "evidence": [
+        "software"
+      ],
+      "file": "memory_tensorpack.json",
+      "kinds": [
+        "pack",
+        "invalid_pack"
+      ]
+    },
+    "fixture": {
+      "consumer": "native runtime (t27/experiments.t27) through trinity_memory.conformance",
+      "evidence": [
+        "software-loopback-http",
+        "rtl-simulation"
+      ],
+      "expected": {
+        "checks_without_rtl": 52,
+        "corrupt_rejections": 6,
+        "physical_device_tested": false,
+        "positive_checks": 46,
+        "rtl_checks": 22
+      },
+      "input": "fixture_document"
+    },
+    "frames": {
+      "consumers": [
+        "native RTL runner"
+      ],
+      "evidence": [
+        "rtl-simulation"
+      ],
+      "file": "memory_stream_compute.json",
+      "kinds": [
+        "frame"
+      ]
+    },
+    "stream": {
+      "consumers": [
+        "Icarus Verilog trace replay"
+      ],
+      "evidence": [
+        "rtl-simulation"
+      ],
+      "file": "memory_stream_compute.json",
+      "kinds": [
+        "dot_trace",
+        "storage_trace"
+      ]
+    }
+  },
+  "spec_path": "specs/memory/conformance.t27",
+  "vector_name": "Trinity Conformance Lab manifest",
+  "vectors": [
+    {
+      "activations": [
+        127,
+        -128,
+        55,
+        2,
+        -90,
+        3,
+        -4
+      ],
+      "baseline2_hex": "4918",
+      "dense17_hex": "e044d903",
+      "dense22_hex": "0b7e3aa703",
+      "dense5_hex": "927b",
+      "dot": 250,
+      "id": "fixture_signed-boundary-partial",
+      "kind": "fixture_vector",
+      "name": "signed-boundary-partial",
+      "weights": [
+        1,
+        -1,
+        0,
+        1,
+        0,
+        -1,
+        1
+      ]
+    },
+    {
+      "activations": [
+        -128,
+        127,
+        1,
+        -1,
+        0
+      ],
+      "baseline2_hex": "0000",
+      "dense17_hex": "e142d903",
+      "dense22_hex": "0c7c3aa703",
+      "dense5_hex": "79",
+      "dot": 0,
+      "id": "fixture_zero-group",
+      "kind": "fixture_vector",
+      "name": "zero-group",
+      "weights": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "activations": [
+        -128,
+        -128,
+        -128,
+        -128,
+        -128
+      ],
+      "baseline2_hex": "aa02",
+      "dense17_hex": "6842d903",
+      "dense22_hex": "937b3aa703",
+      "dense5_hex": "00",
+      "dot": 640,
+      "id": "fixture_negative-group",
+      "kind": "fixture_vector",
+      "name": "negative-group",
+      "weights": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "activations": [
+        127,
+        127,
+        127,
+        127,
+        127
+      ],
+      "baseline2_hex": "5501",
+      "dense17_hex": "5a43d903",
+      "dense22_hex": "857c3aa703",
+      "dense5_hex": "f2",
+      "dot": 635,
+      "id": "fixture_positive-group",
+      "kind": "fixture_vector",
+      "name": "positive-group",
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "corruption_0",
+      "index": 0,
+      "kind": "fixture_corruption",
+      "position": 0,
+      "ttpk_hex": "5554504b0100000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+    },
+    {
+      "id": "corruption_1",
+      "index": 1,
+      "kind": "fixture_corruption",
+      "position": 4,
+      "ttpk_hex": "5454504b0000000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+    },
+    {
+      "id": "corruption_2",
+      "index": 2,
+      "kind": "fixture_corruption",
+      "position": 12,
+      "ttpk_hex": "5454504b0100000085000000000000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+    },
+    {
+      "id": "corruption_3",
+      "index": 3,
+      "kind": "fixture_corruption",
+      "position": 31,
+      "ttpk_hex": "5454504b0100000085000000010000001900000000000000e11b9972def5524d7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+    },
+    {
+      "id": "corruption_4",
+      "index": 4,
+      "kind": "fixture_corruption",
+      "position": 95,
+      "ttpk_hex": "5454504b0100000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352d226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c2"
+    },
+    {
+      "id": "corruption_5",
+      "index": 5,
+      "kind": "fixture_corruption",
+      "position": 189,
+      "ttpk_hex": "5454504b0100000085000000010000001900000000000000e11b9972def5524c7b226f72646572223a2243222c2274656e736f7273223a5b7b2261786573223a5b5d2c22636f646563223a2264656e736535222c226c656e677468223a32352c226e616d65223a2277222c226f6666736574223a302c227363616c655f61786973223a6e756c6c2c227363616c6573223a5b312e305d2c227368617065223a5b355d7d5d7d544d454d0101000005000000000000000100000062851e29c3"
+    },
+    {
+      "id": "missing_schema",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "wrong_schema",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "extra_root_member",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "zero_vectors",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "too_many_vectors",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "vector_missing_dot",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "vector_extra_field",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "dot_mismatch",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "duplicate_names",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "weight_out_of_range",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "activation_out_of_range",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "count_mismatch",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "empty_weights",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "empty_name",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "golden_not_a_string",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    },
+    {
+      "id": "golden_hex_mismatch",
+      "kind": "invalid_fixture",
+      "rejected_at": "checks"
+    },
+    {
+      "id": "too_many_weights",
+      "kind": "invalid_fixture",
+      "rejected_at": "validation"
+    }
+  ]
+}

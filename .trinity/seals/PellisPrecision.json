@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:76b7fda96e46af51c64d563068cec1f2856a232b543d86e7f8bf98e25b50d550",
-  "gen_hash_rust": "sha256:1adc654cddf89eb84abc5f31c36554aef07545439df4239767bc98090dcf2df8",
+  "gen_hash_rust": "sha256:91eff5c42c633f9987b811e1457424f23ce12caefa82714be5a312e291e39bc3",
   "gen_hash_verilog": "sha256:c21d52fdac1ff2cb6cdad353e00c7b25d379a5096d2353ae11f62b194e039e50",
   "gen_hash_zig": "sha256:4e08a8416b9749b2239dc3ef98cf8cbb5bbfdf89ddf02113a8c27ac05ac2ceb2",
   "module": "PellisPrecision",

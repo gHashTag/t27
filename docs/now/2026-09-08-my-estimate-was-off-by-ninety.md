@@ -1,0 +1,9 @@
+# NOW -- My estimate was off by ninety (2026-09-08)
+
+## My estimate was off by ninety (Refs #3459, Closes-adjacent #3464)
+
+- Set out to type lists of calls, estimating **~92** errors from the shape count. The change removed **one**. The reason is the finding, not the fix: `cast_i8` is called in **6 specs and declared in none**, so a lookup-based inference correctly refuses it. The refusal is right; the missing declaration is the defect.
+- Counting what that implies, over the generated C with the cap off: **`use of undeclared identifier` 3007**, **`call to undeclared function` 2057** across 91 files, **`unknown type name` 848** -- **5912 in total**, against the **522** remaining in the `__auto_type` class I have followed for three passes. **The undeclared-symbol family is more than ten times larger**, and it went uncounted because I was following one class rather than reading the distribution.
+- `cast_i8` is not a user function: `compiler.rs` records it as *«integer cast, `cast_i8(` alone appears 1,100 times»* and, elsewhere, that it is *«never lowered»*. A convention the parser understands and at least one backend does not emit. `len` is the same shape.
+- **The change I shipped introduced a defect and the corpus caught it.** Taking the return type verbatim emitted `[]Trit structures[2] = { ... }` -- t27 syntax in a C declarator, two errors where there had been one. Composite return types are now refused. Final: errors **14041 → 14040**, the class 523 → 522, one file better, **none worse**. One error, stated as one.
+- What has NOT been measured, and is the next thing: whether the 5912 split into a compiler-known builtin never emitted, a function reached through `use`, or one declared nowhere. Those need different repairs and the counts do not separate them. That separation comes BEFORE any code -- the same first move that turned 1729 `__auto_type` errors into three tractable problems and one impossible one.

@@ -286,3 +286,317 @@ fn rust_keeps_the_arms_of_a_switch() {
         "an empty match reached the output:\n{src}"
     );
 }
+
+/// The emitted Rust as TEXT, for the one property that cannot be observed by
+/// running: what a file that deliberately does NOT compile was emitted as.
+fn rust_text(spec: &str, tag: &str) -> Option<String> {
+    let dir = tmp_dir(tag);
+    Some(generate("gen-rust", spec, &dir, tag))
+}
+
+/// Specs write the math builtins bare. `zig_builtin_to_rust` knew all of them
+/// and its first line returned `None` for any name without a `@`, so the bare
+/// call reached rustc verbatim: "cannot find function `abs` in this scope".
+const SPEC_BARE_MATH_BUILTINS: &str = r#"
+module builtins_probe {
+    fn mix(x: f64) -> f64 {
+        return abs(x) + sqrt(y4()) + floor(y27()) + ceil(y21()) + round(y25()) + min(x, y9()) + max(x, y9());
+    }
+    fn y4() -> f64 { return 4.0; }
+    fn y27() -> f64 { return 2.7; }
+    fn y21() -> f64 { return 2.1; }
+    fn y25() -> f64 { return 2.5; }
+    fn y9() -> f64 { return 9.0; }
+}
+"#;
+
+/// The guard. A spec may name its own function `abs`, and 30 declarations in
+/// the corpus do exactly that (`fn floor` in 10 specs, `fn abs` in 9). This
+/// one is deliberately NOT absolute value, so a wrong redirect to `f64::abs`
+/// changes the printed answer instead of merely changing the text.
+const SPEC_USER_DEFINED_ABS: &str = r#"
+module guard_probe {
+    fn abs(x: f64) -> f64 { return x + 100.0; }
+    fn call_it(y: f64) -> f64 { return abs(y); }
+}
+"#;
+
+#[test]
+fn rust_lowers_bare_math_builtins_to_methods() {
+    // -3 -> 3, sqrt 4 -> 2, floor 2.7 -> 2, ceil 2.1 -> 3, round 2.5 -> 3,
+    // min(-3, 9) -> -3, max(-3, 9) -> 9.  3 + 2 + 2 + 3 + 3 - 3 + 9 = 19.
+    let Some(out) = rust_says(
+        SPEC_BARE_MATH_BUILTINS,
+        "fn main(){ println!(\"{}\", mix(-3.0)); }\n",
+        "rust-bare-math-builtins",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "19", "a bare `abs(` does not compile in Rust at all");
+}
+
+#[test]
+fn a_spec_declaring_its_own_abs_keeps_its_own_abs() {
+    // The spec's `abs` adds 100. Redirecting the call to `f64::abs` would
+    // print 3 -- a wrong translation that COMPILES, which is strictly worse
+    // than the bare name that does not. This test fails on 3 and passes on 97.
+    let Some(out) = rust_says(
+        SPEC_USER_DEFINED_ABS,
+        "fn main(){ println!(\"{}\", call_it(-3.0)); }\n",
+        "rust-user-defined-abs",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "97", "the spec's own `fn abs` must win over the builtin");
+}
+
+#[test]
+fn a_literal_receiver_is_left_bare() {
+    // `(5.0).sqrt()` is E0689, "can't call method `sqrt` on ambiguous numeric
+    // type `{float}`", and `sqrt` is not a `const fn` either, so no spelling of
+    // a builtin works in a `const` initialiser. Leaving the bare call there
+    // keeps the pre-existing E0425 rather than trading it for a new failure.
+    let src = "module lit_probe {\n    const K : f64 = sqrt(5.0);\n    fn g(x: f64) -> f64 { return sqrt(x); }\n}\n";
+    let Some(text) = rust_text(src, "rust-literal-receiver") else {
+        return;
+    };
+    assert!(
+        text.contains("sqrt(5.0)"),
+        "a literal receiver must stay bare, got:\n{text}"
+    );
+    assert!(
+        text.contains("(x).sqrt()"),
+        "a typed receiver must become a method call, got:\n{text}"
+    );
+}
+
+/// A `[]T` parameter written by the body is an OUT parameter. gen-rust rendered
+/// it `Vec<T>` -- by value, no `mut` -- and then emitted `buf[i] = x` into it.
+/// rustc rejects that, and had it compiled the caller would see nothing.
+const SPEC_OUT_PARAM: &str = r#"
+module outp {
+    fn fill(buf: []i32, n: usize) -> void {
+        var i : usize = 0;
+        while (i < n) {
+            buf[i] = 7;
+            i = i + 1;
+        }
+    }
+}
+"#;
+
+/// The inductive half: `outer` never assigns into its own `buf`, it hands it to
+/// `inner`, which does. Marking only direct writers gave the caller `Vec<i32>`
+/// and the callee `&mut [i32]`, and the call between them was E0308.
+const SPEC_OUT_PARAM_CHAIN: &str = r#"
+module chain {
+    fn inner(buf: []i32, n: usize) -> void {
+        var i : usize = 0;
+        while (i < n) {
+            buf[i] = 5;
+            i = i + 1;
+        }
+    }
+    fn outer(buf: []i32, n: usize) -> void {
+        inner(buf, n);
+    }
+}
+"#;
+
+#[test]
+fn an_out_parameter_gives_the_caller_its_writes() {
+    let Some(out) = rust_says(
+        SPEC_OUT_PARAM,
+        "fn main(){ let mut a = [0i32; 3]; fill(&mut a, 3); println!(\"{}\", a[0]+a[1]+a[2]); }\n",
+        "rust-out-param",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "21", "three sevens; 0 means the writes landed in a copy");
+}
+
+#[test]
+fn an_out_parameter_threaded_through_a_call_is_still_an_out_parameter() {
+    let Some(out) = rust_says(
+        SPEC_OUT_PARAM_CHAIN,
+        "fn main(){ let mut a = [0i32; 2]; outer(&mut a, 2); println!(\"{}\", a[0]+a[1]); }\n",
+        "rust-out-param-chain",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "10", "two fives, written two calls deep");
+}
+
+#[test]
+fn only_the_written_slice_parameter_changes() {
+    // The guard has THREE outcomes and the third one matters. An earlier draft
+    // made every slice parameter a reference; `[]T` then meant `&[T]` in
+    // parameter position and `Vec<T>` in return, field and local position, and
+    // `fn join(base: []u8) []u8 { var r : []u8 = base; }` emitted
+    // `base: &[u8]` beside `let mut r: Vec<u8> = base;` -- E0308. Zig renders
+    // `[]u8` in every position and C renders `uint8_t*` in every position; only
+    // Rust would have disagreed with itself. An unmarked parameter is a no-op.
+    let src = "module ro {\n    fn peek(a: []i32, b: []i32, c: [3]i32) -> i32 { a[0] = 1; return b[0] + c[0]; }\n}\n";
+    let Some(text) = rust_text(src, "rust-readonly-slice") else {
+        return;
+    };
+    assert!(text.contains("a: &mut [i32]"), "written slice, got:\n{text}");
+    assert!(text.contains("b: Vec<i32>"), "read-only slice must be untouched, got:\n{text}");
+    assert!(text.contains("c: [i32; 3]"), "fixed array untouched, got:\n{text}");
+}
+
+/// The argument half. Rewriting the PARAMETER to `&mut [T]` and leaving the
+/// argument alone gave `tritwise_and(a, b, temp, len)` reading
+/// "expected `&mut [i32]`, found `[i32; 27]`" -- the signature was right and
+/// the call was not. A caller passing on its OWN `&mut [T]` parameter is
+/// reborrowing and must NOT get a second `&mut`, so both shapes are here.
+const SPEC_OUT_PARAM_CALLERS: &str = r#"
+module callers {
+    fn fill(buf: []i32, n: usize) -> void {
+        var i : usize = 0;
+        while (i < n) {
+            buf[i] = 3;
+            i = i + 1;
+        }
+    }
+    fn via_local(n: usize) -> i32 {
+        // NOT `= undefined`: that lowers to `let mut tmp: [i32; 4];` with no
+        // initialiser and rustc answers E0381 before it ever type-checks the
+        // call, which is a different defect and would make this test measure it
+        // instead of the one it is here for.
+        var tmp : [4]i32 = [_]i32{0, 0, 0, 0};
+        fill(tmp, n);
+        return tmp[0];
+    }
+    fn via_param(buf: []i32, n: usize) -> void {
+        fill(buf, n);
+    }
+}
+"#;
+
+#[test]
+fn a_local_array_is_borrowed_at_the_call_and_a_parameter_is_not() {
+    let Some(text) = rust_text(SPEC_OUT_PARAM_CALLERS, "rust-callsite-borrow") else {
+        return;
+    };
+    assert!(
+        text.contains("fill(&mut tmp, n)"),
+        "a local array must be borrowed at the call, got:\n{text}"
+    );
+    assert!(
+        text.contains("fill(buf, n)") && !text.contains("fill(&mut buf, n)"),
+        "passing on a &mut [T] parameter is a reborrow, not a second borrow, got:\n{text}"
+    );
+}
+
+#[test]
+fn a_local_array_out_parameter_round_trips_at_runtime() {
+    let Some(out) = rust_says(
+        SPEC_OUT_PARAM_CALLERS,
+        "fn main(){ println!(\"{}\", via_local(4)); }\n",
+        "rust-callsite-run",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "3", "the local array must actually receive the write");
+}
+
+/// Zig exposes a slice length as the FIELD `.len`, so specs are written that
+/// way and both spellings reached rustc unlowered: `data.len` as E0615
+/// ("attempted to take value of method"), `len(data)` as E0425.
+const SPEC_LEN_BOTH_SPELLINGS: &str = r#"
+module lens {
+    fn field_form(a: []i32) -> usize {
+        return a.len;
+    }
+    fn call_form(a: []i32) -> usize {
+        return len(a);
+    }
+}
+"#;
+
+/// The guard. A struct may have a field genuinely named `len` -- 6 corpus specs
+/// do -- and there the access is a field and must stay one.
+const SPEC_LEN_IS_A_REAL_FIELD: &str = r#"
+module owns_len {
+    struct Buf {
+        len: u32,
+        cap: u32,
+    }
+    fn size_of(b: Buf) -> u32 {
+        return b.len;
+    }
+}
+"#;
+
+#[test]
+fn both_spellings_of_length_become_a_method_call() {
+    let Some(text) = rust_text(SPEC_LEN_BOTH_SPELLINGS, "rust-len-both") else {
+        return;
+    };
+    assert!(text.contains("a.len()"), "field form, got:\n{text}");
+    assert!(text.contains("(a).len()"), "free-call form, got:\n{text}");
+}
+
+#[test]
+fn a_struct_field_named_len_stays_a_field() {
+    // Rewriting this to `b.len()` is a wrong translation: `Buf` has no such
+    // method, and in a struct that did have one it would read the wrong thing.
+    let Some(out) = rust_says(
+        SPEC_LEN_IS_A_REAL_FIELD,
+        "fn main(){ println!(\"{}\", size_of(Buf{ len: 7, cap: 9 })); }\n",
+        "rust-len-real-field",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "7", "the declared field must win over the method");
+}
+
+/// A bare `*T` parameter is an out-parameter, and the corpus writes through it
+/// with Zig's POSTFIX dereference `p.* = v`. gen-rust emitted both verbatim:
+/// the type as `*mut T`, whose every dereference needs an `unsafe` block this
+/// emitter never writes, and the dereference as `count.*`, which does not even
+/// tokenise -- "error: unexpected token: `*`".
+const SPEC_OUT_POINTER: &str = r#"
+module outp2 {
+    fn bump(count: *usize, by: usize) -> void {
+        count.* = count.* + by;
+    }
+}
+"#;
+
+/// The narrowing. A struct field cannot take `&mut T` without a lifetime, so
+/// only the PARAMETER moves. Applying it everywhere introduced 9 errors across
+/// 3 specs -- `pub fail: &mut ACTrieNode` is E0106 -- against 1 revealed.
+const SPEC_POINTER_FIELD: &str = r#"
+module ptrfield {
+    struct Node {
+        next: *Node,
+        value: i32,
+    }
+    fn value_of(n: Node) -> i32 { return n.value; }
+}
+"#;
+
+#[test]
+fn an_out_pointer_parameter_is_written_through_at_runtime() {
+    let Some(out) = rust_says(
+        SPEC_OUT_POINTER,
+        "fn main(){ let mut c: usize = 5; bump(&mut c, 7); println!(\"{}\", c); }\n",
+        "rust-out-pointer",
+    ) else {
+        return;
+    };
+    assert_eq!(out, "12", "5 + 7; the caller must observe the write");
+}
+
+#[test]
+fn a_pointer_struct_field_stays_a_raw_pointer() {
+    let Some(text) = rust_text(SPEC_POINTER_FIELD, "rust-pointer-field") else {
+        return;
+    };
+    assert!(
+        text.contains("pub next: *mut Node"),
+        "a field must not become &mut, which needs a lifetime; got:\n{text}"
+    );
+}
