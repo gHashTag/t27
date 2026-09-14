@@ -7,7 +7,7 @@ pub const PHI f64 = 1.6180339887498948482
 pub const TRINITY f64 = 3.0
 
 -- Ternary base type
-pub const Trit enum(i8) {
+pub type Trit = enum(i8) {
   neg = -1,
   neu = 0,
   pos = 1
