@@ -5,6 +5,7 @@
 module TriNet;
     use base::types;
     use math::constants;
+    use mem;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -24,23 +25,145 @@ module TriNet;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // parse_ip(addr: []const u8) → void
-    fn parse_ip(addr: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // parse_ip(addr: []const u8) → ?IpAddress
+    fn parse_ip(addr: []const u8) -> ?IpAddress {
+        if (addr.len == 0) {
+            return null;
+        }
+        
+        if (mem.indexOf(u8, addr, &':') != null) {
+            // IPv6 parsing
+            var groups: [8]u16 = undefined;
+            var group_count: u32 = 0;
+            var i: u32 = 0;
+            var current_group: u32 = 0;
+            var hex_digits: u32 = 0;
+            
+            while (i < addr.len and group_count < 8) : (i += 1) {
+                switch (addr[i]) {
+                    ':' => {
+                        if (i + 1 < addr.len and addr[i + 1] == ':') {
+                            // Handle :: expansion
+                            var zeros_needed: u32 = 8 - group_count;
+                            while (zeros_needed > 0 and group_count < 8) : ({
+                                groups[group_count] = 0;
+                                group_count += 1;
+                                zeros_needed -= 1;
+                            }) {}
+                            i += 1; // Skip the second :
+                        } else {
+                            // End of current group
+                            if (hex_digits > 0) {
+                                if (hex_digits > 4) return null; // Too many digits
+                                groups[group_count] = current_group;
+                                group_count += 1;
+                                current_group = 0;
+                                hex_digits = 0;
+                            }
+                        }
+                    },
+                    '0'...'9' => {
+                        current_group = (current_group << 4) | (@as(u16, addr[i]) - '0');
+                        hex_digits += 1;
+                    },
+                    'a'...'f' => {
+                        current_group = (current_group << 4) | (@as(u16, addr[i]) - 'a' + 10);
+                        hex_digits += 1;
+                    },
+                    'A'...'F' => {
+                        current_group = (current_group << 4) | (@as(u16, addr[i]) - 'A' + 10);
+                        hex_digits += 1;
+                    },
+                    else => return null,
+                }
+            }
+            
+            // Handle last group
+            if (hex_digits > 0) {
+                if (hex_digits > 4) return null; // Too many digits
+                if (group_count >= 8) return null; // Too many groups
+                groups[group_count] = current_group;
+                group_count += 1;
+            }
+            
+            if (group_count > 8) return null;
+            
+            var result = IpAddress{.is_v6 = true, .bytes = [_]u8{0} ** 16};
+            
+            var j: u32 = 0;
+            while (j < group_count and j < 8) : (j += 1) {
+                result.bytes[j * 2] = @as(u8, @intCast((groups[j] >> 8) & 0xFF));
+                result.bytes[j * 2 + 1] = @as(u8, @intCast(groups[j] & 0xFF));
+            }
+            
+            return result;
+        } else {
+            // IPv4 parsing
+            var groups: [4]u32 = undefined;
+            var group_count: u32 = 0;
+            var i: u32 = 0;
+            var current_group: u32 = 0;
+            
+            while (i < addr.len and group_count < 4) : (i += 1) {
+                switch (addr[i]) {
+                    '.' => {
+                        if (current_group > 255) return null;
+                        groups[group_count] = current_group;
+                        group_count += 1;
+                        current_group = 0;
+                    },
+                    '0'...'9' => {
+                        current_group = current_group * 10 + (@as(u32, addr[i]) - '0');
+                        if (current_group > 255) return null;
+                    },
+                    else => return null,
+                }
+            }
+            
+            // Handle last group
+            if (current_group > 255) return null;
+            if (group_count >= 4) return null; // Too many groups
+            groups[group_count] = current_group;
+            group_count += 1;
+            
+            if (group_count != 4) return null;
+            
+            var result = IpAddress{.is_v6 = false, .bytes = [_]u8{0} ** 16};
+            result.bytes[0] = @as(u8, @intCast(groups[0]));
+            result.bytes[1] = @as(u8, @intCast(groups[1]));
+            result.bytes[2] = @as(u8, @intCast(groups[2]));
+            result.bytes[3] = @as(u8, @intCast(groups[3]));
+            
+            return result;
+        }
     }
 
-    // is_localhost(addr: IpAddress) → void
-    fn is_localhost(addr: IpAddress) -> void {
-        // TODO: Implement from .tri spec
+    // is_localhost(addr: IpAddress) → bool
+    fn is_localhost(addr: IpAddress) -> bool {
+        if (!addr.is_v6) {
+            // IPv4 loopback: 127.0.0.0/8
+            return addr.bytes[0] == 127;
+        } else {
+            // IPv6 loopback: ::1
+            var i: u32 = 0;
+            while (i < 15) : (i += 1) {
+                if (addr.bytes[i] != 0) return false;
+            }
+            return addr.bytes[15] == 1;
+        }
     }
 
-    // is_valid_port(port: u16) → void
-    fn is_valid_port(port: u16) -> void {
-        // TODO: Implement from .tri spec
+    // is_valid_port(port: u16) → bool
+    fn is_valid_port(port: u16) -> bool {
+        // port is already a u16, so upper bound (65535) needs no check
+        return port != 0;
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
+    // parse_ip(), is_localhost() and is_valid_port() are now implemented, so they
+    // return proper values instead of panicking. The tests below check specific
+    // behaviors and edge cases.
     // ═══════════════════════════════════════════════════════════
 
     test parse_ip_basic_case
@@ -57,4 +180,27 @@ module TriNet;
         given input = default_input()
         when result = is_valid_port(input)
         then result != undefined
+
+    test parse_ip_invalid_case
+        given invalid_addr = "999.999.999.999"
+        and valid_addr = "192.168.1.1"
+        when invalid_result = parse_ip(invalid_addr)
+        and valid_result = parse_ip(valid_addr)
+        then invalid_result == null
+        and valid_result != null
+
+    test is_localhost_ipv6_loopback
+        given v6_loopback = IpAddress{.is_v6=true,.bytes=[_]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}}
+        and v4_loopback = IpAddress{.is_v6=false,.bytes=[_]u8{127,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0}}
+        when v6_result = is_localhost(v6_loopback)
+        and v4_result = is_localhost(v4_loopback)
+        then v6_result == true
+        and v4_result == true
+
+    test is_valid_port_wildcard_case
+        given wildcard = 0
+        and highest = 65535
+        when low_ok = is_valid_port(wildcard)
+        and high_ok = is_valid_port(highest)
+        then low_ok == false and high_ok == true
 
