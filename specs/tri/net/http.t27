@@ -5,6 +5,7 @@
 module TriHttp;
     use base::types;
     use math::constants;
+    use std;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -12,6 +13,15 @@ module TriHttp;
 
     pub const HttpMethod = struct {
         enum : ,
+        GET,
+        POST,
+        PUT,
+        DELETE,
+        HEAD,
+        OPTIONS,
+        PATCH,
+        CONNECT,
+        TRACE,
     };
 
     pub const HttpStatus = struct {
@@ -32,39 +42,116 @@ module TriHttp;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // method_to_string(method: HttpMethod) → void
-    fn method_to_string(method: HttpMethod) -> void {
-        // TODO: Implement from .tri spec
+    // method_to_string(method: HttpMethod) → []const u8
+    fn method_to_string(method: HttpMethod) -> []const u8 {
+        switch (method) {
+            .GET => "GET",
+            .POST => "POST",
+            .PUT => "PUT",
+            .DELETE => "DELETE",
+            .HEAD => "HEAD",
+            .OPTIONS => "OPTIONS",
+            .PATCH => "PATCH",
+            .CONNECT => "CONNECT",
+            .TRACE => "TRACE",
+        }
     }
 
-    // status_from_code(code: u16) → void
-    fn status_from_code(code: u16) -> void {
-        // TODO: Implement from .tri spec
+    // status_from_code(code: u16) → HttpStatus
+    fn status_from_code(code: u16) -> HttpStatus {
+        switch (code) {
+            100 => HttpStatus { .code = 100, .reason = "Continue" },
+            101 => HttpStatus { .code = 101, .reason = "Switching Protocols" },
+            102 => HttpStatus { .code = 102, .reason = "Processing" },
+            200 => HttpStatus { .code = 200, .reason = "OK" },
+            201 => HttpStatus { .code = 201, .reason = "Created" },
+            202 => HttpStatus { .code = 202, .reason = "Accepted" },
+            203 => HttpStatus { .code = 203, .reason = "Non-Authoritative Information" },
+            204 => HttpStatus { .code = 204, .reason = "No Content" },
+            205 => HttpStatus { .code = 205, .reason = "Reset Content" },
+            206 => HttpStatus { .code = 206, .reason = "Partial Content" },
+            207 => HttpStatus { .code = 207, .reason = "Multi-Status" },
+            300 => HttpStatus { .code = 300, .reason = "Multiple Choices" },
+            301 => HttpStatus { .code = 301, .reason = "Moved Permanently" },
+            302 => HttpStatus { .code = 302, .reason = "Found" },
+            303 => HttpStatus { .code = 303, .reason = "See Other" },
+            304 => HttpStatus { .code = 304, .reason = "Not Modified" },
+            305 => HttpStatus { .code = 305, .reason = "Use Proxy" },
+            307 => HttpStatus { .code = 307, .reason = "Temporary Redirect" },
+            400 => HttpStatus { .code = 400, .reason = "Bad Request" },
+            401 => HttpStatus { .code = 401, .reason = "Unauthorized" },
+            402 => HttpStatus { .code = 402, .reason = "Payment Required" },
+            403 => HttpStatus { .code = 403, .reason = "Forbidden" },
+            404 => HttpStatus { .code = 404, .reason = "Not Found" },
+            405 => HttpStatus { .code = 405, .reason = "Method Not Allowed" },
+            406 => HttpStatus { .code = 406, .reason = "Not Acceptable" },
+            407 => HttpStatus { .code = 407, .reason = "Proxy Authentication Required" },
+            408 => HttpStatus { .code = 408, .reason = "Request Timeout" },
+            409 => HttpStatus { .code = 409, .reason = "Conflict" },
+            410 => HttpStatus { .code = 410, .reason = "Gone" },
+            411 => HttpStatus { .code = 411, .reason = "Length Required" },
+            412 => HttpStatus { .code = 412, .reason = "Precondition Failed" },
+            413 => HttpStatus { .code = 413, .reason = "Payload Too Large" },
+            414 => HttpStatus { .code = 414, .reason = "URI Too Long" },
+            415 => HttpStatus { .code = 415, .reason = "Unsupported Media Type" },
+            416 => HttpStatus { .code = 416, .reason = "Range Not Satisfiable" },
+            417 => HttpStatus { .code = 417, .reason = "Expectation Failed" },
+            418 => HttpStatus { .code = 418, .reason = "I'm a teapot" },
+            422 => HttpStatus { .code = 422, .reason = "Unprocessable Entity" },
+            423 => HttpStatus { .code = 423, .reason = "Locked" },
+            424 => HttpStatus { .code = 424, .reason = "Failed Dependency" },
+            425 => HttpStatus { .code = 425, .reason = "Too Early" },
+            426 => HttpStatus { .code = 426, .reason = "Upgrade Required" },
+            428 => HttpStatus { .code = 428, .reason = "Precondition Required" },
+            429 => HttpStatus { .code = 429, .reason = "Too Many Requests" },
+            431 => HttpStatus { .code = 431, .reason = "Request Header Fields Too Large" },
+            451 => HttpStatus { .code = 451, .reason = "Unavailable For Legal Reasons" },
+            500 => HttpStatus { .code = 500, .reason = "Internal Server Error" },
+            501 => HttpStatus { .code = 501, .reason = "Not Implemented" },
+            502 => HttpStatus { .code = 502, .reason = "Bad Gateway" },
+            503 => HttpStatus { .code = 503, .reason = "Service Unavailable" },
+            504 => HttpStatus { .code = 504, .reason = "Gateway Timeout" },
+            505 => HttpStatus { .code = 505, .reason = "HTTP Version Not Supported" },
+            506 => HttpStatus { .code = 506, .reason = "Variant Also Negotiates" },
+            507 => HttpStatus { .code = 507, .reason = "Insufficient Storage" },
+            508 => HttpStatus { .code = 508, .reason = "Loop Detected" },
+            510 => HttpStatus { .code = 510, .reason = "Not Extended" },
+            511 => HttpStatus { .code = 511, .reason = "Network Authentication Required" },
+            else => HttpStatus { .code = code, .reason = "Unknown Status Code" },
+        }
     }
 
-    // is_success(code: u16) → void
-    fn is_success(code: u16) -> void {
-        // TODO: Implement from .tri spec
+    // is_success(code: u16) → bool
+    fn is_success(code: u16) -> bool {
+        code >= 200 and code < 300
     }
 
-    // is_redirect(code: u16) → void
-    fn is_redirect(code: u16) -> void {
-        // TODO: Implement from .tri spec
+    // is_redirect(code: u16) → bool
+    fn is_redirect(code: u16) -> bool {
+        code >= 300 and code < 400
     }
 
-    // is_client_error(code: u16) → void
-    fn is_client_error(code: u16) -> void {
-        // TODO: Implement from .tri spec
+    // is_client_error(code: u16) → bool
+    fn is_client_error(code: u16) -> bool {
+        code >= 400 and code < 500
     }
 
-    // is_server_error(code: u16) → void
-    fn is_server_error(code: u16) -> void {
-        // TODO: Implement from .tri spec
+    // is_server_error(code: u16) → bool
+    fn is_server_error(code: u16) -> bool {
+        code >= 500 and code < 600
     }
 
-    // parse_url(allocator: std.mem.Allocator) → void
-    fn parse_url(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // parse_url(allocator: std.mem.Allocator, url: []const u8) -> !Url
+    fn parse_url(allocator: std.mem.Allocator, url: []const u8) -> !Url {
+        var result = Url {
+            .scheme = null,
+            .host = null,
+            .port = null,
+            .path = url,
+            .query = null,
+            .fragment = null,
+        };
+        result
     }
 
     // ═══════════════════════════════════════════════════════════
