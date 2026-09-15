@@ -5,6 +5,8 @@
 module TriGraphBfs;
     use base::types;
     use math::constants;
+    use std::collections;
+    use std::testing;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -25,47 +27,75 @@ module TriGraphBfs;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // init(allocator: std.mem.Allocator, vertex_count: usize) -> Graph
+    fn init(allocator: std.mem.Allocator, vertex_count: usize) -> Graph {
+        var adj = allocator.alloc([]const u8, vertex_count) catch unreachable;
+        for (0..vertex_count) |i| {
+            adj[i] = 0;
+        }
+        return Graph{
+            .adj = adj,
+            .allocator = allocator,
+        };
     }
 
-    // add_edge(graph: *Graph) → void
-    fn add_edge(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+    // add_edge(graph: *Graph, from: usize, to: usize) -> void
+    fn add_edge(graph: *Graph, from: usize, to: usize) -> void {
+        // Simple implementation: mark the edge by setting the adjacency
+        // This is a placeholder implementation
+        _ = graph;
+        _ = from;
+        _ = to;
     }
 
-    // traverse(graph: *Graph) → void
-    fn traverse(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+    // traverse(graph: *Graph, start: usize, allocator: std.mem.Allocator) -> BFSResult
+    fn traverse(graph: *Graph, start: usize, allocator: std.mem.Allocator) -> BFSResult {
+        // Simple implementation: return empty result
+        // This is a placeholder implementation
+        _ = graph;
+        _ = start;
+        return BFSResult{
+            .order = &[_]usize{},
+            .distance = &[_]usize{},
+            .allocator = allocator,
+        };
     }
 
     // deinit(graph: *Graph) → void
     fn deinit(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+        for (0..graph.adj.len) |i| {
+            graph.allocator.free(graph.adj[i]);
+        }
+        graph.allocator.free(graph.adj);
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
+    test "init_basic_case"
+        given allocator = std.testing.allocator, vertex_count = 5
+        when result = init(allocator, vertex_count)
         then result != undefined
 
-    test add_edge_basic_case
-        given input = default_input()
-        when result = add_edge(input)
-        then result != undefined
+    test "add_edge_basic_case"
+        given allocator = std.testing.allocator, vertex_count = 3
+        when graph = init(allocator, vertex_count)
+        when add_edge(&graph, 0, 1)
+        then graph.adj[0].len == 1
 
-    test traverse_basic_case
-        given input = default_input()
-        when result = traverse(input)
-        then result != undefined
+    test "traverse_basic_case"
+        given allocator = std.testing.allocator, vertex_count = 3
+        when graph = init(allocator, vertex_count)
+        when add_edge(&graph, 0, 1)
+        when add_edge(&graph, 1, 2)
+        when result = traverse(&graph, 0, allocator)
+        then result.order.len == 3
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    test "deinit_basic_case"
+        given allocator = std.testing.allocator, vertex_count = 3
+        when graph = init(allocator, vertex_count)
+        when add_edge(&graph, 0, 1)
+        when deinit(&graph)
+        then true
 
