@@ -19,24 +19,28 @@ module TriOption;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // some(value: T) → void
-    fn some(value: T) -> void {
-        // TODO: Implement from .tri spec
+    // some(value: T) → Option(T)
+    fn some(value: T) -> Option(T) {
+        return Option(T){ .is_some = true, .value = value };
     }
 
     // none() → Option(void)
     fn none() -> Option(void) {
-        // TODO: Implement from .tri spec
+        return Option(void){ .is_some = false };
     }
 
-    // unwrap_or(opt: Option(T)) → void
-    fn unwrap_or(opt: Option(T)) -> void {
-        // TODO: Implement from .tri spec
+    // unwrap_or(opt: Option(T), default: T) → T
+    fn unwrap_or(opt: Option(T), default: T) -> T {
+        if opt.is_some {
+            return opt.value;
+        } else {
+            return default;
+        }
     }
 
-    // is_some(opt: Option(T)) → void
-    fn is_some(opt: Option(T)) -> void {
-        // TODO: Implement from .tri spec
+    // is_some(opt: Option(T)) → bool
+    fn is_some(opt: Option(T)) -> bool {
+        return opt.is_some;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -62,4 +66,34 @@ module TriOption;
         given input = default_input()
         when result = is_some(input)
         then result != undefined
+
+    test some_returns_present_option
+        given value = 7
+        when result = some(value)
+        then result.is_some == true
+        and result.value == 7
+
+    test none_returns_absent_option
+        when result = none()
+        then result.is_some == false
+
+    test unwrap_or_with_present_option
+        given opt = some(7)
+        when result = unwrap_or(opt, 0)
+        then result == 7
+
+    test unwrap_or_with_absent_option
+        given opt = none()
+        when result = unwrap_or(opt, 42)
+        then result == 42
+
+    test is_some_identifies_present_option
+        given opt = some(7)
+        when result = is_some(opt)
+        then result == true
+
+    test is_some_identifies_absent_option
+        given opt = none()
+        when result = is_some(opt)
+        then result == false
 
