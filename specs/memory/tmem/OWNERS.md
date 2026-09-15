@@ -37,3 +37,5 @@ Demo scoring. Roadmap: [epic #3](https://github.com/dmitrii-f-t27/trinity-memory
 - Every change to a spec: rerun `tools/check-specs.sh`, refresh the seal, regenerate the
   vectors with `tools/generate-spec-vectors.py`, and keep `tests/native_spec_types.c` and
   `tests/test_spec_types.py` passing.
+- `session.t27` (S08): durable session/checkpoint record layout and rules for provenance,
+  atomic writes, recovery, and retention; adapts DNA and Mozg state contracts.

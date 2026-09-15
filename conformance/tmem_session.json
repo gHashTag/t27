@@ -1,0 +1,383 @@
+{
+  "schema_version": 2,
+  "format_family": "Conformance",
+  "module": "TrinityMemorySession",
+  "spec_path": "specs/memory/tmem/session.t27",
+  "vector_name": "Trinity Memory session record layout and validation",
+  "description": "Versioned serialization, atomic writes, recovery after interruption, stale/invalid records, retention and source/compiler ancestry for Trinity Memory sessions. Expectations are computed from the spec by tools/generate-spec-vectors.py without the native implementation.",
+  "generator": "tools/generate-spec-vectors.py",
+  "created_at": "2026-09-12T00:00:00Z",
+  "constants": {
+    "magic": {
+      "magic_0": 84,
+      "magic_1": 77,
+      "magic_2": 83,
+      "magic_3": 83,
+      "version": 1,
+      "kind_open": 0,
+      "kind_checkpoint": 1,
+      "kind_close": 2,
+      "kind_count": 3,
+      "id_bytes": 16,
+      "sequence_bytes": 8,
+      "action_count_bytes": 8,
+      "timestamp_bytes": 8,
+      "spec_hash_bytes": 32,
+      "compiler_rev_bytes": 20,
+      "parent_sha256_bytes": 32,
+      "payload_len_bytes": 4,
+      "payload_sha256_bytes": 32,
+      "crc_bytes": 4,
+      "magic_offset": 0,
+      "version_offset": 4,
+      "kind_offset": 8,
+      "id_offset": 12,
+      "sequence_offset": 28,
+      "action_count_offset": 36,
+      "timestamp_offset": 44,
+      "spec_hash_offset": 52,
+      "compiler_rev_offset": 84,
+      "parent_sha256_offset": 104,
+      "payload_len_offset": 136,
+      "payload_sha256_offset": 140,
+      "crc_offset": 172,
+      "header_bytes": 176,
+      "crc_covered_bytes": 172,
+      "max_payload_bytes": 1048576
+    },
+    "status": {
+      "ok": 0,
+      "err_truncated": -1,
+      "err_magic": -2,
+      "err_version": -3,
+      "err_kind": -4,
+      "err_crc": -5,
+      "err_ancestry": -6,
+      "err_stale": -7,
+      "err_chain": -8,
+      "err_replay": -9,
+      "err_payload": -10
+    },
+    "write_states": {
+      "staged": 0,
+      "synced": 1,
+      "published": 2,
+      "failed": 3
+    },
+    "retention": {
+      "min": 3,
+      "default": 27
+    },
+    "field_classes": {
+      "magic": 0,
+      "version": 1,
+      "kind": 2,
+      "id": 3,
+      "sequence": 4,
+      "action_count": 5,
+      "timestamp": 6,
+      "spec_hash": 7,
+      "compiler_rev": 8,
+      "parent_sha256": 9,
+      "payload_len": 10,
+      "payload_sha256": 11,
+      "payload": 12,
+      "crc": 13,
+      "class_private": 0,
+      "class_evidence": 1
+    }
+  },
+  "invariants": [
+    {
+      "condition": "TMS_SESSION_MAGIC_OFFSET == 0 && TMS_SESSION_VERSION_OFFSET == 4 && TMS_SESSION_KIND_OFFSET == 8 && TMS_SESSION_ID_OFFSET == 28 && TMS_SESSION_SEQUENCE_OFFSET == 36 && TMS_SESSION_ACTION_COUNT_OFFSET == 44 && TMS_SESSION_TIMESTAMP_OFFSET == 52 && TMS_SESSION_SPEC_HASH_OFFSET == 84 && TMS_SESSION_COMPILER_REV_OFFSET == 104 && TMS_SESSION_PARENT_SHA256_OFFSET == 136 && TMS_SESSION_PAYLOAD_LEN_OFFSET == 140 && TMS_SESSION_PAYLOAD_SHA256_OFFSET == 172 && TMS_SESSION_CRC_OFFSET == 176",
+      "id": "header_offsets_ascend"
+    },
+    {
+      "condition": "TMS_SESSION_CRC_OFFSET + TMS_SESSION_CRC_BYTES == TMS_SESSION_HEADER_BYTES",
+      "id": "header_no_overlap"
+    },
+    {
+      "condition": "TMS_SESSION_HEADER_BYTES == 176 && TMS_SESSION_HEADER_BYTES % 8 == 0",
+      "id": "header_multiple_of_8"
+    },
+    {
+      "condition": "TMS_SESSION_MAX_PAYLOAD_BYTES <= 4294967295",
+      "id": "payload_limit_sufficient"
+    },
+    {
+      "condition": "TMS_SESSION_CRC_COVERED_BYTES == TMS_SESSION_CRC_OFFSET",
+      "id": "crc_covered_matches_offset"
+    },
+    {
+      "condition": "TMS_SESSION_ERR_TRUNCATED > TMS_SESSION_ERR_MAGIC && TMS_SESSION_ERR_MAGIC > TMS_SESSION_ERR_VERSION && TMS_SESSION_ERR_VERSION > TMS_SESSION_ERR_KIND && TMS_SESSION_ERR_KIND > TMS_SESSION_ERR_CRC && TMS_SESSION_ERR_CRC > TMS_SESSION_ERR_ANCESTRY && TMS_SESSION_ERR_ANCESTRY > TMS_SESSION_ERR_STALE && TMS_SESSION_ERR_STALE > TMS_SESSION_ERR_CHAIN && TMS_SESSION_ERR_CHAIN > TMS_SESSION_ERR_REPLAY && TMS_SESSION_ERR_REPLAY > TMS_SESSION_ERR_PAYLOAD",
+      "id": "status_codes_ordered"
+    },
+    {
+      "condition": "TMS_SESSION_RETAIN_MIN == 3 && TMS_SESSION_RETAIN_DEFAULT == 27",
+      "id": "retain_bounds"
+    },
+    {
+      "condition": "TMS_SESSION_FIELD_MAGIC < TMS_SESSION_FIELD_VERSION && TMS_SESSION_FIELD_VERSION < TMS_SESSION_FIELD_KIND && TMS_SESSION_FIELD_KIND < TMS_SESSION_FIELD_ID && TMS_SESSION_FIELD_ID < TMS_SESSION_FIELD_SEQUENCE && TMS_SESSION_FIELD_SEQUENCE < TMS_SESSION_FIELD_ACTION_COUNT && TMS_SESSION_FIELD_ACTION_COUNT < TMS_SESSION_FIELD_TIMESTAMP && TMS_SESSION_FIELD_TIMESTAMP < TMS_SESSION_FIELD_SPEC_HASH && TMS_SESSION_FIELD_SPEC_HASH < TMS_SESSION_FIELD_COMPILER_REV && TMS_SESSION_FIELD_COMPILER_REV < TMS_SESSION_FIELD_PARENT_SHA256 && TMS_SESSION_FIELD_PARENT_SHA256 < TMS_SESSION_FIELD_PAYLOAD_LEN && TMS_SESSION_FIELD_PAYLOAD_LEN < TMS_SESSION_FIELD_PAYLOAD_SHA256 && TMS_SESSION_FIELD_PAYLOAD_SHA256 < TMS_SESSION_FIELD_PAYLOAD && TMS_SESSION_FIELD_PAYLOAD < TMS_SESSION_FIELD_CRC",
+      "id": "field_id_ranges"
+    },
+    {
+      "condition": "TMS_SESSION_OK == 0 && TMS_SESSION_ERR_TRUNCATED == -1 && TMS_SESSION_ERR_MAGIC == -2 && TMS_SESSION_ERR_VERSION == -3 && TMS_SESSION_ERR_KIND == -4 && TMS_SESSION_ERR_CRC == -5 && TMS_SESSION_ERR_ANCESTRY == -6 && TMS_SESSION_ERR_STALE == -7 && TMS_SESSION_ERR_CHAIN == -8 && TMS_SESSION_ERR_REPLAY == -9 && TMS_SESSION_ERR_PAYLOAD == -10",
+      "id": "status_code_coverage"
+    }
+  ],
+  "vectors": [
+    {
+      "id": "valid_header_status",
+      "kind": "function_test",
+      "description": "Valid header returns OK status",
+      "inputs": {
+        "length": 176,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": 0
+    },
+    {
+      "id": "truncated_header",
+      "kind": "function_test",
+      "description": "Header shorter than expected returns truncated error",
+      "inputs": {
+        "length": 175,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": -1
+    },
+    {
+      "id": "bad_magic",
+      "kind": "function_test",
+      "description": "Invalid magic bytes returns magic error",
+      "inputs": {
+        "length": 176,
+        "magic_ok": 0,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": -2
+    },
+    {
+      "id": "wrong_version",
+      "kind": "function_test",
+      "description": "Wrong version number returns version error",
+      "inputs": {
+        "length": 176,
+        "magic_ok": 1,
+        "version": 2,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": -3
+    },
+    {
+      "id": "unknown_kind",
+      "kind": "function_test",
+      "description": "Unknown session kind returns kind error",
+      "inputs": {
+        "length": 176,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 5,
+        "crc_ok": 1
+      },
+      "expected": -4
+    },
+    {
+      "id": "crc_mismatch",
+      "kind": "function_test",
+      "description": "CRC mismatch returns CRC error",
+      "inputs": {
+        "length": 176,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 0
+      },
+      "expected": -5
+    },
+    {
+      "id": "ancestry_mismatch",
+      "kind": "function_test",
+      "description": "Spec hash or compiler rev mismatch returns ancestry error",
+      "inputs": {
+        "spec_hash_match": 0,
+        "compiler_rev_match": 1
+      },
+      "expected": -6
+    },
+    {
+      "id": "chain_ok",
+      "kind": "function_test",
+      "description": "Valid sequence and parent chain returns OK",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 6,
+        "prev_action_count": 10,
+        "action_count": 11,
+        "parent_match": 1
+      },
+      "expected": 0
+    },
+    {
+      "id": "stale_sequence",
+      "kind": "function_test",
+      "description": "Sequence not prev_sequence + 1 returns stale error",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 7,
+        "prev_action_count": 10,
+        "action_count": 11,
+        "parent_match": 1
+      },
+      "expected": -7
+    },
+    {
+      "id": "parent_mismatch",
+      "kind": "function_test",
+      "description": "Parent digest mismatch returns chain error",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 6,
+        "prev_action_count": 10,
+        "action_count": 11,
+        "parent_match": 0
+      },
+      "expected": -8
+    },
+    {
+      "id": "replay_jump",
+      "kind": "function_test",
+      "description": "action_count jumps by more than 1 returns replay error",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 6,
+        "prev_action_count": 10,
+        "action_count": 12,
+        "parent_match": 1
+      },
+      "expected": -9
+    },
+    {
+      "id": "recover_pick_newest_valid",
+      "kind": "function_test",
+      "description": "Recovery picks the newest valid record",
+      "inputs": {
+        "seq_a": 8,
+        "valid_a": 1,
+        "seq_b": 5,
+        "valid_b": 1
+      },
+      "expected": 8
+    },
+    {
+      "id": "recover_pick_no_valid",
+      "kind": "function_test",
+      "description": "No valid records returns 0",
+      "inputs": {
+        "seq_a": 0,
+        "valid_a": 0,
+        "seq_b": 0,
+        "valid_b": 0
+      },
+      "expected": 0
+    },
+    {
+      "id": "retain_open_always",
+      "kind": "function_test",
+      "description": "OPEN session is always retained",
+      "inputs": {
+        "kind": 0,
+        "sequence": 0,
+        "newest": 10,
+        "retain": 3
+      },
+      "expected": 1
+    },
+    {
+      "id": "retain_checkpoint_within_window",
+      "kind": "function_test",
+      "description": "Checkpoint within retention window is kept",
+      "inputs": {
+        "kind": 1,
+        "sequence": 5,
+        "newest": 10,
+        "retain": 3
+      },
+      "expected": 1
+    },
+    {
+      "id": "retain_checkpoint_too_old",
+      "kind": "function_test",
+      "description": "Checkpoint outside retention window is dropped",
+      "inputs": {
+        "kind": 1,
+        "sequence": 2,
+        "newest": 10,
+        "retain": 3
+      },
+      "expected": 0
+    },
+    {
+      "id": "field_classification_private",
+      "kind": "function_test",
+      "description": "session_id and payload are private fields",
+      "inputs": {
+        "field_id": 3,
+        "field_payload": 12
+      },
+      "expected": 0
+    },
+    {
+      "id": "field_classification_evidence",
+      "kind": "function_test",
+      "description": "Magic and sequence are evidence fields",
+      "inputs": {
+        "field_magic": 0,
+        "field_sequence": 4
+      },
+      "expected": 1
+    },
+    {
+      "id": "complex_recovery_scenario",
+      "kind": "function_test",
+      "description": "Complex recovery scenario with all functions working",
+      "inputs": {
+        "header_status": 0,
+        "ancestry_status": 0,
+        "chain_status": 0
+      },
+      "expected": 0
+    },
+    {
+      "id": "field_name_mapping",
+      "kind": "function_test",
+      "description": "Field name mapping returns correct indices",
+      "inputs": {
+        "field_magic": 0,
+        "field_payload": 12,
+        "field_unknown": 999
+      },
+      "expected": 0
+    },
+    {
+      "id": "validate_sequence_transition",
+      "kind": "function_test",
+      "description": "Sequence validation handles CLOSE state correctly",
+      "inputs": {
+        "prev_kind": 2,
+        "prev_seq": 5,
+        "curr_seq": 6
+      },
+      "expected": -7
+    }
+  ]
+}

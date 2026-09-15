@@ -1,0 +1,398 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/memory/tmem/session.t27 -- durable session/checkpoint record layout and validation rules
+// Versioned serialization, atomic writes, recovery after interruption, stale/invalid records,
+// retention and source/compiler ancestry for Trinity Memory sessions. The reference
+// functions here implement the recovery and validation logic; they are not the production
+// implementation (see src/tri-api/session_store.zig and src/tri-api/checkpoint.zig).
+// phi^2 + 1/phi^2 = 3 | TRINITY
+module TrinityMemorySession {
+    // adapts: magic <- specs/organism/dna.tri::DnaRecord.magic
+    // adapts: payload_sha256 <- specs/organism/dna.tri::DnaRecord.payload_sha256  
+    // adapts: payload_len <- specs/organism/dna.tri::DnaRecord.payload_len
+    // adapts: timestamp_epoch <- specs/organism/dna.tri::DnaRecord.timestamp_epoch
+    // adapts: sequence <- specs/organism/mozg.tri::MozgState.cycle
+    // adapts: TMS_CRC32_POLY <- specs/memory/tmem/types.t27::TMS_CRC32_POLY
+    // adapts: TMS_CRC32_INIT <- specs/memory/tmem/types.t27::TMS_CRC32_INIT
+    // adapts: TMS_CRC32_XOR_OUT <- specs/memory/tmem/types.t27::TMS_CRC32_XOR_OUT
+    // adapts: spec_hash <- .trinity/seals/tmem_TrinityMemoryTypes.json::spec_hash
+    // adapts: compiler_rev <- new (S08)
+    // adapts: parent_sha256 <- new (S08)
+    // adapts: action_count <- new (S08)
+    // adapts: session_id <- new (S08)
+    // adapts: kind <- new (S08)
+    // adapts: version <- new (S08)
+
+    // Record header layout: little-endian, fixed offsets, multiple of 8 bytes
+    pub const TMS_SESSION_MAGIC_0: u32 = 84;      // 'T'
+    pub const TMS_SESSION_MAGIC_1: u32 = 77;      // 'M'
+    pub const TMS_SESSION_MAGIC_2: u32 = 83;      // 'S'
+    pub const TMS_SESSION_MAGIC_3: u32 = 83;      // 'S'
+    pub const TMS_SESSION_VERSION: u32 = 1;
+    pub const TMS_SESSION_KIND_OPEN: u32 = 0;
+    pub const TMS_SESSION_KIND_CHECKPOINT: u32 = 1;
+    pub const TMS_SESSION_KIND_CLOSE: u32 = 2;
+    pub const TMS_SESSION_KIND_COUNT: u32 = 3;
+    pub const TMS_SESSION_ID_BYTES: u32 = 16;
+    pub const TMS_SESSION_SEQUENCE_BYTES: u32 = 8;
+    pub const TMS_SESSION_ACTION_COUNT_BYTES: u32 = 8;
+    pub const TMS_SESSION_TIMESTAMP_BYTES: u32 = 8;
+    pub const TMS_SESSION_SPEC_HASH_BYTES: u32 = 32;
+    pub const TMS_SESSION_COMPILER_REV_BYTES: u32 = 20;
+    pub const TMS_SESSION_PARENT_SHA256_BYTES: u32 = 32;
+    pub const TMS_SESSION_PAYLOAD_LEN_BYTES: u32 = 4;
+    pub const TMS_SESSION_PAYLOAD_SHA256_BYTES: u32 = 32;
+    pub const TMS_SESSION_CRC_BYTES: u32 = 4;
+    
+    // Header field offsets (little-endian)
+    pub const TMS_SESSION_MAGIC_OFFSET: u32 = 0;
+    pub const TMS_SESSION_VERSION_OFFSET: u32 = 4;
+    pub const TMS_SESSION_KIND_OFFSET: u32 = 8;
+    pub const TMS_SESSION_ID_OFFSET: u32 = 12;
+    pub const TMS_SESSION_SEQUENCE_OFFSET: u32 = 28;
+    pub const TMS_SESSION_ACTION_COUNT_OFFSET: u32 = 36;
+    pub const TMS_SESSION_TIMESTAMP_OFFSET: u32 = 44;
+    pub const TMS_SESSION_SPEC_HASH_OFFSET: u32 = 52;
+    pub const TMS_SESSION_COMPILER_REV_OFFSET: u32 = 84;
+    pub const TMS_SESSION_PARENT_SHA256_OFFSET: u32 = 104;
+    pub const TMS_SESSION_PAYLOAD_LEN_OFFSET: u32 = 136;
+    pub const TMS_SESSION_PAYLOAD_SHA256_OFFSET: u32 = 140;
+    pub const TMS_SESSION_CRC_OFFSET: u32 = 172;
+    pub const TMS_SESSION_HEADER_BYTES: u32 = 176;
+    pub const TMS_SESSION_CRC_COVERED_BYTES: u32 = 172;
+    pub const TMS_SESSION_MAX_PAYLOAD_BYTES: u32 = 1048576;
+
+    // Status codes
+    pub const TMS_SESSION_OK: i32 = 0;
+    pub const TMS_SESSION_ERR_TRUNCATED: i32 = -1;
+    pub const TMS_SESSION_ERR_MAGIC: i32 = -2;
+    pub const TMS_SESSION_ERR_VERSION: i32 = -3;
+    pub const TMS_SESSION_ERR_KIND: i32 = -4;
+    pub const TMS_SESSION_ERR_CRC: i32 = -5;
+    pub const TMS_SESSION_ERR_ANCESTRY: i32 = -6;
+    pub const TMS_SESSION_ERR_STALE: i32 = -7;
+    pub const TMS_SESSION_ERR_CHAIN: i32 = -8;
+    pub const TMS_SESSION_ERR_REPLAY: i32 = -9;
+    pub const TMS_SESSION_ERR_PAYLOAD: i32 = -10;
+
+    // Write states
+    pub const TMS_SESSION_WRITE_STAGED: u32 = 0;
+    pub const TMS_SESSION_WRITE_SYNCED: u32 = 1;
+    pub const TMS_SESSION_WRITE_PUBLISHED: u32 = 2;
+    pub const TMS_SESSION_WRITE_FAILED: u32 = 3;
+
+    // Retention constants
+    pub const TMS_SESSION_RETAIN_MIN: u32 = 3;
+    pub const TMS_SESSION_RETAIN_DEFAULT: u32 = 27;
+
+    // Field classes
+    pub const TMS_SESSION_FIELD_MAGIC: u32 = 0;
+    pub const TMS_SESSION_FIELD_VERSION: u32 = 1;
+    pub const TMS_SESSION_FIELD_KIND: u32 = 2;
+    pub const TMS_SESSION_FIELD_ID: u32 = 3;
+    pub const TMS_SESSION_FIELD_SEQUENCE: u32 = 4;
+    pub const TMS_SESSION_FIELD_ACTION_COUNT: u32 = 5;
+    pub const TMS_SESSION_FIELD_TIMESTAMP: u32 = 6;
+    pub const TMS_SESSION_FIELD_SPEC_HASH: u32 = 7;
+    pub const TMS_SESSION_FIELD_COMPILER_REV: u32 = 8;
+    pub const TMS_SESSION_FIELD_PARENT_SHA256: u32 = 9;
+    pub const TMS_SESSION_FIELD_PAYLOAD_LEN: u32 = 10;
+    pub const TMS_SESSION_FIELD_PAYLOAD_SHA256: u32 = 11;
+    pub const TMS_SESSION_FIELD_PAYLOAD: u32 = 12;
+    pub const TMS_SESSION_FIELD_CRC: u32 = 13;
+    pub const TMS_SESSION_CLASS_PRIVATE: u32 = 0;
+    pub const TMS_SESSION_CLASS_EVIDENCE: u32 = 1;
+
+    // Reference functions: pure, C-generatable validation logic
+    pub fn tms_session_header_status(length: u64, magic_ok: u32, version: u32, kind: u32, crc_ok: u32) -> i32 {
+        if (length < TMS_SESSION_HEADER_BYTES) { return TMS_SESSION_ERR_TRUNCATED; }
+        if (magic_ok == 0) { return TMS_SESSION_ERR_MAGIC; }
+        if (version != TMS_SESSION_VERSION) { return TMS_SESSION_ERR_VERSION; }
+        if (kind >= TMS_SESSION_KIND_COUNT) { return TMS_SESSION_ERR_KIND; }
+        if (crc_ok == 0) { return TMS_SESSION_ERR_CRC; }
+        return TMS_SESSION_OK;
+    }
+
+    pub fn tms_session_ancestry_status(spec_hash_match: u32, compiler_rev_match: u32) -> i32 {
+        if (spec_hash_match == 0 || compiler_rev_match == 0) { 
+            return TMS_SESSION_ERR_ANCESTRY; 
+        }
+        return TMS_SESSION_OK;
+    }
+
+    pub fn tms_session_chain_status(prev_sequence: u64, sequence: u64, prev_action_count: u64, action_count: u64, parent_match: u32) -> i32 {
+        if (sequence != prev_sequence + 1) { 
+            return TMS_SESSION_ERR_STALE; 
+        }
+        if (parent_match == 0) { 
+            return TMS_SESSION_ERR_CHAIN; 
+        }
+        if (action_count < prev_action_count) { 
+            return TMS_SESSION_ERR_REPLAY; 
+        }
+        if (action_count > prev_action_count + 1) { 
+            return TMS_SESSION_ERR_REPLAY; 
+        }
+        return TMS_SESSION_OK;
+    }
+
+    pub fn tms_session_recover_pick(seq_a: u64, valid_a: u32, seq_b: u64, valid_b: u32) -> u64 {
+        if (valid_a != 0 && valid_b != 0) {
+            if (seq_a >= seq_b) { return seq_a; }
+            else { return seq_b; }
+        } else if (valid_a != 0) {
+            return seq_a;
+        } else if (valid_b != 0) {
+            return seq_b;
+        } else {
+            return 0;
+        }
+    }
+
+    pub fn tms_session_write_next(state: u32, step_ok: u32) -> u32 {
+        if (step_ok == 0) { return TMS_SESSION_WRITE_FAILED; }
+        if (state == TMS_SESSION_WRITE_STAGED) { return TMS_SESSION_WRITE_SYNCED; }
+        if (state == TMS_SESSION_WRITE_SYNCED) { return TMS_SESSION_WRITE_PUBLISHED; }
+        return state;
+    }
+
+    pub fn tms_session_retain_keep(kind: u32, sequence: u64, newest: u64, retain: u32) -> u32 {
+        if (kind == TMS_SESSION_KIND_OPEN) { return 1; }
+        if (newest - sequence < retain) { return 1; }
+        return 0;
+    }
+
+    pub fn tms_session_field_class(field: u32) -> u32 {
+        if (field == TMS_SESSION_FIELD_ID || field == TMS_SESSION_FIELD_PAYLOAD) {
+            return TMS_SESSION_CLASS_PRIVATE;
+        }
+        return TMS_SESSION_CLASS_EVIDENCE;
+    }
+
+    pub fn tms_session_validate_sequence_transition(prev_kind: u32, prev_seq: u64, curr_seq: u64) -> i32 {
+        if (prev_kind == TMS_SESSION_KIND_CLOSE) {
+            return TMS_SESSION_ERR_STALE;
+        }
+        if (curr_seq <= prev_seq) {
+            return TMS_SESSION_ERR_STALE;
+        }
+        return TMS_SESSION_OK;
+    }
+
+    pub fn tms_session_validate_payload_size(payload_len: u32, max_size: u32) -> i32 {
+        if (payload_len > max_size) {
+            return TMS_SESSION_ERR_PAYLOAD;
+        }
+        return TMS_SESSION_OK;
+    }
+
+    pub fn tms_session_compute_covered_crc32(crc_state: u32, header_bytes: u32, payload_bytes: u32) -> u32 {
+        var crc: u32 = crc_state;
+        var i: u32 = 0;
+        while (i < header_bytes) {
+            crc = crc ^ (i & 255);
+            var bit: u32 = 0;
+            while (bit < 8) {
+                if ((crc & 1) != 0) { crc = (crc >> 1) ^ 0xedb88320; }
+                else { crc = crc >> 1; }
+                bit = bit + 1;
+            }
+            i = i + 1;
+        }
+        return crc;
+    }
+
+    pub fn tms_session_validate_seal_integrity(spec_hash_ptr: u32, compiler_rev_ptr: u32, expected_spec_hash: u32, expected_compiler_rev: u32) -> i32 {
+        if (spec_hash_ptr != expected_spec_hash) {
+            return TMS_SESSION_ERR_ANCESTRY;
+        }
+        if (compiler_rev_ptr != expected_compiler_rev) {
+            return TMS_SESSION_ERR_ANCESTRY;
+        }
+        return TMS_SESSION_OK;
+    }
+
+    pub fn tms_session_diagnose_recovery_failure(header_status: i32, ancestry_status: i32, chain_status: i32) -> u32 {
+        if (header_status != TMS_SESSION_OK) { return 1; }
+        if (ancestry_status != TMS_SESSION_OK) { return 2; }
+        if (chain_status != TMS_SESSION_OK) { return 3; }
+        return 0;
+    }
+
+    pub fn tms_session_get_field_name(field_id: u32) -> u32 {
+        if (field_id == TMS_SESSION_FIELD_MAGIC) { return 0; }
+        if (field_id == TMS_SESSION_FIELD_VERSION) { return 1; }
+        if (field_id == TMS_SESSION_FIELD_KIND) { return 2; }
+        if (field_id == TMS_SESSION_FIELD_ID) { return 3; }
+        if (field_id == TMS_SESSION_FIELD_SEQUENCE) { return 4; }
+        if (field_id == TMS_SESSION_FIELD_ACTION_COUNT) { return 5; }
+        if (field_id == TMS_SESSION_FIELD_TIMESTAMP) { return 6; }
+        if (field_id == TMS_SESSION_FIELD_SPEC_HASH) { return 7; }
+        if (field_id == TMS_SESSION_FIELD_COMPILER_REV) { return 8; }
+        if (field_id == TMS_SESSION_FIELD_PARENT_SHA256) { return 9; }
+        if (field_id == TMS_SESSION_FIELD_PAYLOAD_LEN) { return 10; }
+        if (field_id == TMS_SESSION_FIELD_PAYLOAD_SHA256) { return 11; }
+        if (field_id == TMS_SESSION_FIELD_PAYLOAD) { return 12; }
+        if (field_id == TMS_SESSION_FIELD_CRC) { return 13; }
+        return 999;
+    }
+
+    // Invariants are constant expressions and become compile-time assertions
+    invariant header_offsets_ascend { 
+        assert TMS_SESSION_MAGIC_OFFSET == 0 && 
+               TMS_SESSION_VERSION_OFFSET == 4 && 
+               TMS_SESSION_KIND_OFFSET == 8 && 
+               TMS_SESSION_ID_OFFSET == 12 && 
+               TMS_SESSION_SEQUENCE_OFFSET == 28 && 
+               TMS_SESSION_ACTION_COUNT_OFFSET == 36 && 
+               TMS_SESSION_TIMESTAMP_OFFSET == 44 && 
+               TMS_SESSION_SPEC_HASH_OFFSET == 52 && 
+               TMS_SESSION_COMPILER_REV_OFFSET == 84 && 
+               TMS_SESSION_PARENT_SHA256_OFFSET == 104 && 
+               TMS_SESSION_PAYLOAD_LEN_OFFSET == 136 && 
+               TMS_SESSION_PAYLOAD_SHA256_OFFSET == 140 && 
+               TMS_SESSION_CRC_OFFSET == 172; 
+    }
+    invariant header_no_overlap { 
+        assert TMS_SESSION_CRC_OFFSET + TMS_SESSION_CRC_BYTES == TMS_SESSION_HEADER_BYTES; 
+    }
+    invariant header_multiple_of_8 { 
+        assert TMS_SESSION_HEADER_BYTES == 176 && TMS_SESSION_HEADER_BYTES % 8 == 0; 
+    }
+    invariant payload_limit_sufficient { 
+        assert TMS_SESSION_MAX_PAYLOAD_BYTES <= 4294967295; 
+    }
+    invariant crc_covered_matches_offset { 
+        assert TMS_SESSION_CRC_COVERED_BYTES == TMS_SESSION_CRC_OFFSET; 
+    }
+    invariant status_codes_ordered { 
+        assert TMS_SESSION_ERR_TRUNCATED > TMS_SESSION_ERR_MAGIC && 
+               TMS_SESSION_ERR_MAGIC > TMS_SESSION_ERR_VERSION && 
+               TMS_SESSION_ERR_VERSION > TMS_SESSION_ERR_KIND && 
+               TMS_SESSION_ERR_KIND > TMS_SESSION_ERR_CRC && 
+               TMS_SESSION_ERR_CRC > TMS_SESSION_ERR_ANCESTRY && 
+               TMS_SESSION_ERR_ANCESTRY > TMS_SESSION_ERR_STALE && 
+               TMS_SESSION_ERR_STALE > TMS_SESSION_ERR_CHAIN && 
+               TMS_SESSION_ERR_CHAIN > TMS_SESSION_ERR_REPLAY && 
+               TMS_SESSION_ERR_REPLAY > TMS_SESSION_ERR_PAYLOAD; 
+    }
+    invariant retain_bounds { 
+        assert TMS_SESSION_RETAIN_MIN == 3 && TMS_SESSION_RETAIN_DEFAULT == 27; 
+    }
+    invariant field_id_ranges { 
+        assert TMS_SESSION_FIELD_MAGIC < TMS_SESSION_FIELD_VERSION && 
+               TMS_SESSION_FIELD_VERSION < TMS_SESSION_FIELD_KIND && 
+               TMS_SESSION_FIELD_KIND < TMS_SESSION_FIELD_ID && 
+               TMS_SESSION_FIELD_ID < TMS_SESSION_FIELD_SEQUENCE && 
+               TMS_SESSION_FIELD_SEQUENCE < TMS_SESSION_FIELD_ACTION_COUNT && 
+               TMS_SESSION_FIELD_ACTION_COUNT < TMS_SESSION_FIELD_TIMESTAMP && 
+               TMS_SESSION_FIELD_TIMESTAMP < TMS_SESSION_FIELD_SPEC_HASH && 
+               TMS_SESSION_FIELD_SPEC_HASH < TMS_SESSION_FIELD_COMPILER_REV && 
+               TMS_SESSION_FIELD_COMPILER_REV < TMS_SESSION_FIELD_PARENT_SHA256 && 
+               TMS_SESSION_FIELD_PARENT_SHA256 < TMS_SESSION_FIELD_PAYLOAD_LEN && 
+               TMS_SESSION_FIELD_PAYLOAD_LEN < TMS_SESSION_FIELD_PAYLOAD_SHA256 && 
+               TMS_SESSION_FIELD_PAYLOAD_SHA256 < TMS_SESSION_FIELD_PAYLOAD && 
+               TMS_SESSION_FIELD_PAYLOAD < TMS_SESSION_FIELD_CRC; 
+    }
+    invariant status_code_coverage {
+        assert TMS_SESSION_OK == 0 &&
+               TMS_SESSION_ERR_TRUNCATED == -1 &&
+               TMS_SESSION_ERR_MAGIC == -2 &&
+               TMS_SESSION_ERR_VERSION == -3 &&
+               TMS_SESSION_ERR_KIND == -4 &&
+               TMS_SESSION_ERR_CRC == -5 &&
+               TMS_SESSION_ERR_ANCESTRY == -6 &&
+               TMS_SESSION_ERR_STALE == -7 &&
+               TMS_SESSION_ERR_CHAIN == -8 &&
+               TMS_SESSION_ERR_REPLAY == -9 &&
+               TMS_SESSION_ERR_PAYLOAD == -10;
+    }
+
+    // Tests execute in the generated C test runner (-DT27_TEST_MAIN)
+    test "valid header status" {
+        var status: i32 = tms_session_header_status(176, 1, 1, 0, 1);
+        assert status == TMS_SESSION_OK;
+    }
+    test "truncated header" {
+        var status: i32 = tms_session_header_status(175, 1, 1, 0, 1);
+        assert status == TMS_SESSION_ERR_TRUNCATED;
+    }
+    test "bad magic" {
+        var status: i32 = tms_session_header_status(176, 0, 1, 0, 1);
+        assert status == TMS_SESSION_ERR_MAGIC;
+    }
+    test "wrong version" {
+        var status: i32 = tms_session_header_status(176, 1, 2, 0, 1);
+        assert status == TMS_SESSION_ERR_VERSION;
+    }
+    test "unknown kind" {
+        var status: i32 = tms_session_header_status(176, 1, 1, 5, 1);
+        assert status == TMS_SESSION_ERR_KIND;
+    }
+    test "crc mismatch" {
+        var status: i32 = tms_session_header_status(176, 1, 1, 0, 0);
+        assert status == TMS_SESSION_ERR_CRC;
+    }
+    test "ancestry mismatch" {
+        var status: i32 = tms_session_ancestry_status(0, 1);
+        assert status == TMS_SESSION_ERR_ANCESTRY;
+    }
+    test "chain ok" {
+        var status: i32 = tms_session_chain_status(5, 6, 10, 11, 1);
+        assert status == TMS_SESSION_OK;
+    }
+    test "stale sequence" {
+        var status: i32 = tms_session_chain_status(5, 7, 10, 11, 1);
+        assert status == TMS_SESSION_ERR_STALE;
+    }
+    test "parent mismatch" {
+        var status: i32 = tms_session_chain_status(5, 6, 10, 11, 0);
+        assert status == TMS_SESSION_ERR_CHAIN;
+    }
+    test "replay jump" {
+        var status: i32 = tms_session_chain_status(5, 6, 10, 12, 1);
+        assert status == TMS_SESSION_ERR_REPLAY;
+    }
+    test "recover pick newest valid" {
+        var result: u64 = tms_session_recover_pick(8, 1, 5, 1);
+        assert result == 8;
+    }
+    test "recover pick no valid" {
+        var result: u64 = tms_session_recover_pick(0, 0, 0, 0);
+        assert result == 0;
+    }
+    test "retain open always" {
+        var keep: u32 = tms_session_retain_keep(TMS_SESSION_KIND_OPEN, 0, 10, 3);
+        assert keep == 1;
+    }
+    test "retain checkpoint within window" {
+        var keep: u32 = tms_session_retain_keep(TMS_SESSION_KIND_CHECKPOINT, 5, 10, 3);
+        assert keep == 1;
+    }
+    test "retain checkpoint too old" {
+        var keep: u32 = tms_session_retain_keep(TMS_SESSION_KIND_CHECKPOINT, 2, 10, 3);
+        assert keep == 0;
+    }
+    test "field classification private" {
+        var class_id: u32 = tms_session_field_class(TMS_SESSION_FIELD_ID);
+        var class_payload: u32 = tms_session_field_class(TMS_SESSION_FIELD_PAYLOAD);
+        assert class_id == TMS_SESSION_CLASS_PRIVATE && class_payload == TMS_SESSION_CLASS_PRIVATE;
+    }
+    test "field classification evidence" {
+        var class_magic: u32 = tms_session_field_class(TMS_SESSION_FIELD_MAGIC);
+        var class_sequence: u32 = tms_session_field_class(TMS_SESSION_FIELD_SEQUENCE);
+        assert class_magic == TMS_SESSION_CLASS_EVIDENCE && class_sequence == TMS_SESSION_CLASS_EVIDENCE;
+    }
+    test "complex recovery scenario" {
+        var header_status: i32 = tms_session_header_status(176, 1, 1, 0, 1);
+        var ancestry_status: i32 = tms_session_ancestry_status(1, 1);
+        var chain_status: i32 = tms_session_chain_status(5, 6, 10, 11, 1);
+        var diagnosis: u32 = tms_session_diagnose_recovery_failure(header_status, ancestry_status, chain_status);
+        assert diagnosis == 0;
+    }
+    test "field name mapping" {
+        var magic_name: u32 = tms_session_get_field_name(TMS_SESSION_FIELD_MAGIC);
+        var payload_name: u32 = tms_session_get_field_name(TMS_SESSION_FIELD_PAYLOAD);
+        var unknown_name: u32 = tms_session_get_field_name(999);
+        assert magic_name == 0 && payload_name == 12 && unknown_name == 999;
+    }
+}
