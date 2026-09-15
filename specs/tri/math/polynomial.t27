@@ -19,67 +19,139 @@ module TriPolynomial;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // init(allocator: std.mem.Allocator, coeffs: []f64) -> Polynomial
+    fn init(allocator: std.mem.Allocator, coeffs: []f64) -> Polynomial {
+        var p: Polynomial = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = allocator };
+        return p;
     }
 
-    // eval(p: *Polynomial) → void
-    fn eval(p: *Polynomial) -> void {
-        // TODO: Implement from .tri spec
+    // eval(p: *Polynomial, x: f64) -> f64
+    fn eval(p: *Polynomial, x: f64) -> f64 {
+        var acc: f64 = 0.0;
+        var i: usize = p.coeffs.len;
+        while (i > 0) {
+            i -= 1;
+            acc = acc * x + p.coeffs[i];
+        }
+        return acc;
     }
 
-    // add(a: *Polynomial) → void
-    fn add(a: *Polynomial) -> void {
-        // TODO: Implement from .tri spec
+    // add(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial
+    fn add(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
+        var max_len: usize = if (a.coeffs.len > b.coeffs.len) a.coeffs.len else b.coeffs.len;
+        var result_coeffs = @constCast(&[_]f64{0.0} * max_len);
+        
+        for (var i: usize = 0; i < max_len; i += 1) {
+            var a_val: f64 = if (i < a.coeffs.len) a.coeffs[i] else 0.0;
+            var b_val: f64 = if (i < b.coeffs.len) b.coeffs[i] else 0.0;
+            result_coeffs[i] = a_val + b_val;
+        }
+        
+        return Polynomial{ .coeffs = result_coeffs, .allocator = allocator };
     }
 
-    // multiply(a: *Polynomial) → void
-    fn multiply(a: *Polynomial) -> void {
-        // TODO: Implement from .tri spec
+    // multiply(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial
+    fn multiply(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
+        var result_len: usize = if (a.coeffs.len > 0 and b.coeffs.len > 0) a.coeffs.len + b.coeffs.len - 1 else 0;
+        var result_coeffs = @constCast(&[_]f64{0.0} * result_len);
+        
+        for (var i: usize = 0; i < a.coeffs.len; i += 1) {
+            for (var j: usize = 0; j < b.coeffs.len; j += 1) {
+                if (i + j < result_len) {
+                    result_coeffs[i + j] += a.coeffs[i] * b.coeffs[j];
+                }
+            }
+        }
+        
+        return Polynomial{ .coeffs = result_coeffs, .allocator = allocator };
     }
 
-    // derivative(p: *Polynomial) → void
-    fn derivative(p: *Polynomial) -> void {
-        // TODO: Implement from .tri spec
+    // derivative(p: *Polynomial, allocator: std.mem.Allocator) -> Polynomial
+    fn derivative(p: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
+        var result_len: usize = p.coeffs.len - 1;
+        var result_coeffs = @constCast(&[_]f64{0.0} * result_len);
+        
+        for (var i: usize = 0; i < result_len; i += 1) {
+            result_coeffs[i] = p.coeffs[i + 1] * @as(f64, @floatFromInt(i + 1));
+        }
+        
+        return Polynomial{ .coeffs = result_coeffs, .allocator = allocator };
     }
 
-    // deinit(p: *Polynomial) → void
+    // deinit(p: *Polynomial) -> void
     fn deinit(p: *Polynomial) -> void {
-        // TODO: Implement from .tri spec
+        p.coeffs = @constCast(&[_]f64{});
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    test coefficients_are_stored_in_ascending_degree
+        // Verify: coeffs[i] is the coefficient of x^i. For 1 + 2x + 3x^2 the
+        // Horner evaluation at x = 2 is 1 + 2*(2 + 2*3) = 17; under the
+        // opposite (descending) convention the same slice would give 11
+        given coeffs = [_]f64{ 1.0, 2.0, 3.0 }
+        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
+        when value = p.coeffs[0] + 2.0 * (p.coeffs[1] + 2.0 * p.coeffs[2])
+        and error_ = @abs(value - 17.0)
+        then error_ < 1.0e-12
 
-    test eval_basic_case
-        given input = default_input()
-        when result = eval(input)
-        then result != undefined
+    test degree_is_one_below_the_coefficient_count
+        // Verify: a cubic needs four slots, so derivative() must return three
+        given coeffs = [_]f64{ 4.0, 3.0, 2.0, 1.0 }
+        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
+        when degree = p.coeffs.len - 1
+        then degree == 3
 
-    test add_basic_case
-        given input = default_input()
-        when result = add(input)
-        then result != undefined
+    test init_of_the_zero_polynomial
+        given coeffs = [_]f64{}
+        and p = init(std.testing.allocator, coeffs)
+        then p.coeffs.len == 0
 
-    test multiply_basic_case
-        given input = default_input()
-        when result = multiply(input)
-        then result != undefined
+    test eval_of_the_zero_polynomial_is_zero
+        given coeffs = [_]f64{}
+        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
+        when value = eval(&p, 3.0)
+        then @abs(value) < 1.0e-12
 
-    test derivative_basic_case
-        given input = default_input()
-        when result = derivative(input)
-        then result != undefined
+    test eval_uses_horners_method
+        given coeffs = [_]f64{ 1.0, 2.0, 3.0 }
+        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
+        when value = eval(&p, 2.0)
+        then @abs(value - 17.0) < 1.0e-12
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    test add_sums_polynomials
+        given a_coeffs = [_]f64{ 1.0, 2.0, 3.0 }
+        and b_coeffs = [_]f64{ 4.0, 5.0 }
+        and a = Polynomial{ .coeffs = @constCast(&a_coeffs), .allocator = std.testing.allocator }
+        and b = Polynomial{ .coeffs = @constCast(&b_coeffs), .allocator = std.testing.allocator }
+        when result = add(&a, &b, std.testing.allocator)
+        then @abs(result.coeffs[0] - 5.0) < 1.0e-12
+        and @abs(result.coeffs[1] - 7.0) < 1.0e-12
+        and @abs(result.coeffs[2] - 3.0) < 1.0e-12
 
+    test multiply_accumulates_correctly
+        given a_coeffs = [_]f64{ 1.0, 2.0 }
+        and b_coeffs = [_]f64{ 3.0, 4.0 }
+        and a = Polynomial{ .coeffs = @constCast(&a_coeffs), .allocator = std.testing.allocator }
+        and b = Polynomial{ .coeffs = @constCast(&b_coeffs), .allocator = std.testing.allocator }
+        when result = multiply(&a, &b, std.testing.allocator)
+        then @abs(result.coeffs[0] - 3.0) < 1.0e-12
+        and @abs(result.coeffs[1] - 10.0) < 1.0e-12
+        and @abs(result.coeffs[2] - 8.0) < 1.0e-12
+
+    test derivative_reduces_degree_by_one
+        given coeffs = [_]f64{ 4.0, 3.0, 2.0, 1.0 }
+        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
+        when result = derivative(&p, std.testing.allocator)
+        then result.coeffs.len == 3
+        and @abs(result.coeffs[0] - 3.0) < 1.0e-12
+        and @abs(result.coeffs[1] - 4.0) < 1.0e-12
+        and @abs(result.coeffs[2] - 3.0) < 1.0e-12
+
+    test deinitializes_empty_coeffs
+        given coeffs = [_]f64{ 1.0, 2.0, 3.0 }
+        and p = Polynomial{ .coeffs = @constCast(&coeffs), .allocator = std.testing.allocator }
+        when _ = deinit(&p)
+        then p.coeffs.len == 0
