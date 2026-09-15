@@ -146,7 +146,18 @@ module automation::crm_duet {
     pub const CLAIM_CHECK_SEEN_LIVE : bool = false;  // the seller never spoke in that run; unit tests only
     pub const RETRY_SEEN_LIVE : bool = false;  // a transcript line with `retried` from a real run is the evidence
     pub const FULL_DRY_RUN_SEEN_LIVE : bool = true;  // duet-mu027xqr: state done, 8/8 lines, 1 paid call, 0 violations, 1 voice flag
-    pub const DISCOVERY_GATE_SEEN_LIVE : bool = false;  // a run after this change with no paid call on lines 0 and 2 is the evidence
+    // duet-mu2qj57q (2026-09-15, vibee-render e2c4617, dry run, 4 turns, state done, 8/8 lines): seller
+    // lines 0 and 2 called only crm_client_profile, crm_lead_context, my_renders, providers_status and
+    // asked one question each; the single paid call (reel_render) came on line 4 after the buyer asked
+    // for an example; line 0 was rewritten once ("ssylka na nesushchestvuyushchuyu dogovorennost'").
+    pub const DISCOVERY_GATE_SEEN_LIVE : bool = true;
+    pub const DISCOVERY_GATE_LIVE_RUN : str = "duet-mu2qj57q";
+    pub const FAMILIARITY_REWRITE_SEEN_LIVE : bool = true;  // same run, violations[0] is the turn 0 rewrite
+    pub const SELLER_GENDER_FIXED_SEEN_LIVE : bool = true;  // same run, line 0 "Ya Dmitrij", line 6 "Rad" -- no feminine slip in 4 seller lines
+    // Open debt seen in the same run: line 4 says "the video is already in the chat as the next message"
+    // while dry_run sends nothing (media_sent 0). promisesFile() does not catch "already in the chat".
+    pub const DRY_RUN_DELIVERY_CLAIM_SEEN : bool = true;
+    pub const DRY_RUN_DELIVERY_CLAIM_FIXED : bool = false;
 
     // ---- Not claimed ----------------------------------------------------------------------
     pub const DUET_RAN_LIVE : bool = false;  // crm_duet_status of a real (non-dry) run is the evidence
@@ -277,7 +288,11 @@ module automation::crm_duet {
     test "what was seen live is separated from what is not claimed"
         assert(DRY_RUN_SEEN_LIVE);
         assert(FULL_DRY_RUN_SEEN_LIVE);
-        assert(!DISCOVERY_GATE_SEEN_LIVE);
+        assert(DISCOVERY_GATE_SEEN_LIVE);
+        assert(FAMILIARITY_REWRITE_SEEN_LIVE);
+        assert(SELLER_GENDER_FIXED_SEEN_LIVE);
+        assert(DRY_RUN_DELIVERY_CLAIM_SEEN);
+        assert(!DRY_RUN_DELIVERY_CLAIM_FIXED);
         assert(RUN_KILLED_BY_REDEPLOY_SEEN);
         assert(FAILED_STATE_SEEN_LIVE);
         assert(!CLAIM_CHECK_SEEN_LIVE);

@@ -6,6 +6,11 @@
 - GET /api/agent/provider on commit e2c4617 lists the live chain zai, zai-lite, nemotron, reserve(deepseek-chat). The spec `automation/agent-provider-chain.t27` now carries RESERVE_CONFIGURED_LIVE=true with that listing as the evidence.
 - RESERVE_ANSWERED_LIVE stays false: with reserve moved first, one ephemeral tools_only turn was answered by zai. The reserve was skipped, and nothing in the log says why.
 
+## The control dry duet
+
+- duet-mu2qj57q (dry run, 4 turns, 8/8 lines, state done) on the same commit: seller lines 0 and 2 called only free tools and asked one question each; the one paid call (reel_render) came on line 4, after the buyer asked for an example. `crm-duet.t27` now carries DISCOVERY_GATE_SEEN_LIVE=true, FAMILIARITY_REWRITE_SEEN_LIVE=true (line 0 was rewritten once) and SELLER_GENDER_FIXED_SEEN_LIVE=true.
+- Open debt from the same run: line 4 says the video is already in the chat while a dry run sends nothing (media_sent 0). Recorded as DRY_RUN_DELIVERY_CLAIM_SEEN=true, FIXED=false. One voice flag on line 6 (a stars sum after one rewrite) went out and is reported.
+
 ## What changed in the spec
 
 - New rule SKIPPED_PROVIDER_IS_LOGGED with SKIP_LOG_PREFIX "[agent] provider skipped:" -- every fall-through in streamModel (HTTP error, thrown fetch, timeout) becomes one warn line with the diagnose() reason before the next provider is tried.
