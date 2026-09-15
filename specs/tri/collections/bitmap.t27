@@ -245,3 +245,88 @@ module TriBitmap;
         when result = find_last(bitmap)
         then result == undefined
 
+    test init_edge_cases
+        given capacity = 1
+        when result = init(capacity, std.mem.default_allocator)
+        then result != undefined
+        then result.capacity == 1
+
+    test get_multiple_bits
+        given bitmap = init(128, std.mem.default_allocator)
+        when set(&bitmap, 0)
+        when set(&bitmap, 63)
+        when set(&bitmap, 64)
+        when set(&bitmap, 127)
+        then get(bitmap, 0) == true
+        then get(bitmap, 63) == true
+        then get(bitmap, 64) == true
+        then get(bitmap, 127) == true
+        then get(bitmap, 1) == false
+
+    test set_and_clear_interaction
+        given bitmap = init(64, std.mem.default_allocator)
+        when set(&bitmap, 0)
+        when set(&bitmap, 1)
+        when clear(&bitmap, 0)
+        then get(bitmap, 0) == false
+        then get(bitmap, 1) == true
+
+    test flip_toggle_behavior
+        given bitmap = init(64, std.mem.default_allocator)
+        when flip(&bitmap, 0)
+        then get(bitmap, 0) == true
+        when flip(&bitmap, 0)
+        then get(bitmap, 0) == false
+
+    test set_all_and_clear_all
+        given bitmap = init(96, std.mem.default_allocator)
+        when set_all(&bitmap)
+        then count(bitmap) == 96
+        when clear_all(&bitmap)
+        then count(bitmap) == 0
+
+    test count_partial_words
+        given bitmap = init(96, std.mem.default_allocator)
+        when set(&bitmap, 0)
+        when set(&bitmap, 1)
+        when set(&bitmap, 64)
+        when set(&bitmap, 65)
+        when set(&bitmap, 95)
+        then count(bitmap) == 5
+
+    test find_first_set_bit
+        given bitmap = init(128, std.mem.default_allocator)
+        when set(&bitmap, 5)
+        when set(&bitmap, 10)
+        when set(&bitmap, 127)
+        then find_first(bitmap) == 5
+
+    test find_last_set_bit
+        given bitmap = init(128, std.mem.default_allocator)
+        when set(&bitmap, 5)
+        when set(&bitmap, 10)
+        when set(&bitmap, 127)
+        then find_last(bitmap) == 127
+
+    test find_first_no_bits_set
+        given bitmap = init(64, std.mem.default_allocator)
+        when result = find_first(bitmap)
+        then result == undefined
+
+    test find_last_no_bits_set
+        given bitmap = init(64, std.mem.default_allocator)
+        when result = find_last(bitmap)
+        then result == undefined
+
+    test find_first_middle_bit
+        given bitmap = init(128, std.mem.default_allocator)
+        when set(&bitmap, 32)
+        when set(&bitmap, 33)
+        then find_first(bitmap) == 32
+
+    test find_last_middle_bit
+        given bitmap = init(128, std.mem.default_allocator)
+        when set(&bitmap, 32)
+        when set(&bitmap, 33)
+        then find_last(bitmap) == 33
+
