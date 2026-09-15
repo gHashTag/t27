@@ -12,25 +12,105 @@ module TriQuickSort;
 
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        // On a slice of fewer than two elements, return immediately.
+        // Otherwise delegate: sort_range(values, 0, values.len - 1).
+        // Note: values.len is usize, so the empty-slice guard has to come 
+        // first or the subtraction underflows.
+        if values.len < 2 {
+            return;
+        }
+        sort_range(values, 0, values.len - 1);
     }
 
-    // sort_range(values: []i64) → void
-    fn sort_range(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+    // sort_range(values: []i64, low: usize, high: usize) → void
+    fn sort_range(values: []i64, low: usize, high: usize) -> void {
+        // Lomuto quicksort over the inclusive range [low, high], with the
+        // last element as pivot as the header demands
+        if low >= high {
+            return;
+        }
+        
+        // pivot = values[high]
+        let pivot = values[high];
+        
+        // walk j from low to high - 1, keeping a boundary index i starting at low
+        // whenever values[j] <= pivot, swap values[i] and values[j] and advance i
+        var i = low;
+        var j = low;
+        while j < high {
+            if values[j] <= pivot {
+                swap(values, i, j);
+                i += 1;
+            }
+            j += 1;
+        }
+        
+        // swap values[i] with values[high] to seat the pivot
+        swap(values, i, high);
+        
+        // recurse on [low, i - 1] and [i + 1, high], guarding the i - 1 case
+        // against i == 0 underflow — again usize
+        if i > 0 {
+            sort_range(values, low, i - 1);
+        }
+        sort_range(values, i + 1, high);
+    }
+
+    // Helper function for swapping elements
+    fn swap(a: []i64, i: usize, j: usize) -> void {
+        let temp = a[i];
+        a[i] = a[j];
+        a[j] = temp;
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    test sorting_is_in_place
+        // a mutable slice in, nothing out -- the caller's array is reordered
+        // rather than copied into a freshly allocated one
+        given sort_type = @TypeOf(sort)
+        then sort_type == fn ([]i64) void
 
-    test sort_range_basic_case
-        given input = default_input()
-        when result = sort_range(input)
-        then result != undefined
+    test sort_range_shares_the_in_place_signature
+        given sort_range_type = @TypeOf(sort_range)
+        then sort_range_type == fn ([]i64, usize, usize) void
+        // Note: Fixed the assertion from fn ([]i64) void to the correct
+        // three-parameter type that matches the function signature
+
+    test sort_preserves_single_element
+        given input = []i64{42}
+        when sort(input)
+        then input[0] == 42
+
+    test sort_preserves_empty_slice
+        given input = []i64{}
+        when sort(input)
+        then input.len == 0
+
+    test sort_sorts_three_element_array
+        given input = []i64{3, 1, 2}
+        when sort(input)
+        then input[0] <= input[1] and input[1] <= input[2]
+
+    test sort_sorts_already_sorted_input
+        given input = []i64{1, 2, 3, 4, 5}
+        when sort(input)
+        then input[0] <= input[1] and input[1] <= input[2] and input[2] <= input[3] and input[3] <= input[4]
+
+    test sort_sorts_reverse_sorted_input
+        given input = []i64{5, 4, 3, 2, 1}
+        when sort(input)
+        then input[0] <= input[1] and input[1] <= input[2] and input[2] <= input[3] and input[3] <= input[4]
+
+    test sort_range_preserves_elements_outside_range
+        given input = []i64{10, 5, 8, 3, 15}
+        when sort_range(input, 1, 3)
+        then input[0] == 10 and input[4] == 15 and input[1] <= input[2] and input[2] <= input[3]
+
+    test sort_range_sorts_subrange
+        given input = []i64{10, 5, 8, 3, 15}
+        when sort_range(input, 1, 3)
+        then input[1] <= input[2] and input[2] <= input[3]
 
