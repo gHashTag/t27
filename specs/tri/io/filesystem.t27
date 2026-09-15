@@ -26,39 +26,182 @@ module TriFilesystem;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // join(allocator: std.mem.Allocator) → void
-    fn join(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // join(allocator: std.mem.Allocator, parts: [][]const u8) -> ![]u8
+    fn join(allocator: std.mem.Allocator, parts: [][]const u8) -> ![]u8 {
+        if (parts.len == 0) {
+            return allocator.dupe(u8, "");
+        }
+        
+        // Calculate total length needed
+        var total_len: usize = 0;
+        var m: usize = 0;
+        while (m < parts.len) {
+            const part = parts[m];
+            total_len += part.len;
+            m += 1;
+        }
+        
+        // Add separators (n-1 separators for n parts)
+        total_len += parts.len - 1;
+        
+        const result = allocator.alloc(u8, total_len);
+        var pos: usize = 0;
+        
+        var i: usize = 0;
+        while (i < parts.len) {
+            const part = parts[i];
+            if (i > 0) {
+                result[pos] = '/';
+                pos += 1;
+            }
+            
+            var j: usize = 0;
+            while (j < part.len) {
+                const char = part[j];
+                result[pos] = char;
+                pos += 1;
+                j += 1;
+            }
+            i += 1;
+        }
+        
+        return result;
     }
 
-    // basename(path: []const u8) → void
-    fn basename(path: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // basename(path: []const u8) -> []const u8
+    fn basename(path: []const u8) -> []const u8 {
+        if (path.len == 0) {
+            return "";
+        }
+        
+        var last_slash: usize = 0;
+        var i: usize = 0;
+        while (i < path.len) {
+            const char = path[i];
+            if (char == '/') {
+                last_slash = i + 1;
+            }
+            i += 1;
+        }
+        
+        return path[last_slash..];
     }
 
-    // dirname(path: []const u8) → void
-    fn dirname(path: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // dirname(path: []const u8) -> []const u8
+    fn dirname(path: []const u8) -> []const u8 {
+        if (path.len == 0) {
+            return ".";
+        }
+        
+        var last_slash: ?usize = null;
+        var i: usize = 0;
+        while (i < path.len) {
+            const char = path[i];
+            if (char == '/') {
+                last_slash = i;
+            }
+            i += 1;
+        }
+        
+        if (last_slash == null) {
+            return ".";
+        }
+        
+        // Handle root case
+        if (last_slash.? == 0) {
+            return "/";
+        }
+        
+        // Find the previous slash to avoid trailing slash
+        var prev_slash: ?usize = null;
+        var n: usize = 0;
+        while (n < last_slash.?) {
+            const char = path[n];
+            if (char == '/') {
+                prev_slash = n;
+            }
+            n += 1;
+        }
+        
+        if (prev_slash == null) {
+            return path[0..last_slash.?];
+        } else {
+            return path[0..prev_slash.? + 1];
+        }
     }
 
-    // ext(path: []const u8) → void
-    fn ext(path: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // ext(path: []const u8) -> []const u8
+    fn ext(path: []const u8) -> []const u8 {
+        var last_dot: ?usize = null;
+        var last_slash: ?usize = null;
+        
+        var p: usize = 0;
+        while (p < path.len) {
+            const char = path[p];
+            const i = p;
+            if (char == '/') {
+                last_slash = i;
+            } else if (char == '.') {
+                // Only consider dots after the last slash
+                if (last_slash == null or i > last_slash.?) {
+                    last_dot = i;
+                }
+            }
+            p += 1;
+        }
+        
+        if (last_dot == null) {
+            return "";
+        }
+        
+        return path[last_dot.?..];
     }
 
-    // has_ext(path: []const u8) → void
-    fn has_ext(path: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // has_ext(path: []const u8, ext: []const u8) -> bool
+    fn has_ext(path: []const u8, ext: []const u8) -> bool {
+        const path_ext = ext(path);
+        return std.mem.eql(u8, path_ext, ext);
     }
 
-    // is_absolute(path: []const u8) → void
-    fn is_absolute(path: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // is_absolute(path: []const u8) -> bool
+    fn is_absolute(path: []const u8) -> bool {
+        if (path.len == 0) {
+            return false;
+        }
+        return path[0] == '/';
     }
 
-    // normalize(allocator: std.mem.Allocator) → void
-    fn normalize(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // normalize(allocator: std.mem.Allocator, path: []const u8) -> ![]u8
+    fn normalize(allocator: std.mem.Allocator, path: []const u8) -> ![]u8 {
+        if (path.len == 0) {
+            return allocator.dupe(u8, "");
+        }
+        
+        // Simple normalization: remove duplicate slashes and trailing slash (except for root)
+        var result = allocator.alloc(u8, path.len);
+        var pos: usize = 0;
+        var last_char: u8 = 0;
+        
+        var k: usize = 0;
+        while (k < path.len) {
+            const char = path[k];
+            // Skip duplicate slashes
+            if (char == '/' && last_char == '/') {
+                k += 1;
+                continue;
+            }
+            result[pos] = char;
+            pos += 1;
+            last_char = char;
+            k += 1;
+        }
+        
+        // Remove trailing slash unless it's the root
+        if (pos > 1 && result[pos - 1] == '/') {
+            pos -= 1;
+        }
+        
+        return result[0..pos];
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -70,33 +213,182 @@ module TriFilesystem;
         when result = join(input)
         then result != undefined
 
+    test join_empty_parts
+        given parts = [_][]const u8{ }
+        when result = join(default_allocator(), parts)
+        then result == ""
+
+    test join_single_part
+        given parts = [_][]const u8{ "hello" }
+        when result = join(default_allocator(), parts)
+        then result == "hello"
+
+    test join_multiple_parts
+        given parts = [_][]const u8{ "dir", "subdir", "file.txt" }
+        when result = join(default_allocator(), parts)
+        then result == "dir/subdir/file.txt"
+
     test basename_basic_case
         given input = default_input()
         when result = basename(input)
         then result != undefined
+
+    test basename_empty_path
+        given path = ""
+        when result = basename(path)
+        then result == ""
+
+    test basename_filename_only
+        given path = "file.txt"
+        when result = basename(path)
+        then result == "file.txt"
+
+    test basename_full_path
+        given path = "/path/to/file.txt"
+        when result = basename(path)
+        then result == "file.txt"
+
+    test basename_trailing_slash
+        given path = "/path/to/directory/"
+        when result = basename(path)
+        then result == "directory"
 
     test dirname_basic_case
         given input = default_input()
         when result = dirname(input)
         then result != undefined
 
+    test dirname_empty_path
+        given path = ""
+        when result = dirname(path)
+        then result == "."
+
+    test dirname_filename_only
+        given path = "file.txt"
+        when result = dirname(path)
+        then result == "."
+
+    test dirname_full_path
+        given path = "/path/to/file.txt"
+        when result = dirname(path)
+        then result == "/path/to/"
+
+    test dirname_root
+        given path = "/"
+        when result = dirname(path)
+        then result == "/"
+
     test ext_basic_case
         given input = default_input()
         when result = ext(input)
         then result != undefined
+
+    test ext_empty_path
+        given path = ""
+        when result = ext(path)
+        then result == ""
+
+    test ext_no_extension
+        given path = "filename"
+        when result = ext(path)
+        then result == ""
+
+    test ext_with_extension
+        given path = "file.txt"
+        when result = ext(path)
+        then result == ".txt"
+
+    test ext_multiple_dots
+        given path = "archive.tar.gz"
+        when result = ext(path)
+        then result == ".gz"
+
+    test ext_path_with_slashes
+        given path = "/path/to/file.txt"
+        when result = ext(path)
+        then result == ".txt"
 
     test has_ext_basic_case
         given input = default_input()
         when result = has_ext(input)
         then result != undefined
 
+    test has_ext_no_extension
+        given path = "filename", and ext = ".txt"
+        when result = has_ext(path, ext)
+        then result == false
+
+    test has_ext_with_extension
+        given path = "file.txt", ext = ".txt"
+        when result = has_ext(path, ext)
+        then result == true
+
+    test has_ext_case_sensitive
+        given path = "file.TXT", ext = ".txt"
+        when result = has_ext(path, ext)
+        then result == false
+
+    test has_ext_multiple_extensions
+        given path = "archive.tar.gz", ext = ".gz"
+        when result = has_ext(path, ext)
+        then result == true
+
     test is_absolute_basic_case
         given input = default_input()
         when result = is_absolute(input)
         then result != undefined
+
+    test is_absolute_empty_path
+        given path = ""
+        when result = is_absolute(path)
+        then result == false
+
+    test is_absolute_relative_path
+        given path = "relative/path"
+        when result = is_absolute(path)
+        then result == false
+
+    test is_absolute_absolute_path
+        given path = "/absolute/path"
+        when result = is_absolute(path)
+        then result == true
+
+    test is_absolute_root
+        given path = "/"
+        when result = is_absolute(path)
+        then result == true
 
     test normalize_basic_case
         given input = default_input()
         when result = normalize(input)
         then result != undefined
 
+    test normalize_empty_path
+        given path = ""
+        when result = normalize(default_allocator(), path)
+        then result == ""
+
+    test normalize_no_duplicates
+        given path = "/normal/path"
+        when result = normalize(default_allocator(), path)
+        then result == "/normal/path"
+
+    test normalize_remove_duplicates
+        given path = "/path//to//file"
+        when result = normalize(default_allocator(), path)
+        then result == "/path/to/file"
+
+    test normalize_remove_trailing_slash
+        given path = "/path/to/directory/"
+        when result = normalize(default_allocator(), path)
+        then result == "/path/to/directory"
+
+    test normalize_root_preserved
+        given path = "/"
+        when result = normalize(default_allocator(), path)
+        then result == "/"
+
+    test normalize_multiple_consecutive_slashes
+        given path = "////path////to////file"
+        when result = normalize(default_allocator(), path)
+        then result == "/path/to/file"
