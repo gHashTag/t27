@@ -57,17 +57,17 @@ module TriJson;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
+    test "parse_basic_case"
         given input = "null"
         when result = parse(input, std.testing.allocator)
         then result.type == JsonType.Null
 
-    test stringify_basic_case
+    test "stringify_basic_case"
         given input = JsonValue{ .type = JsonType.Null, .data = null }
         when result = stringify(input, std.testing.allocator)
         then result == "null"
 
-    test get_basic_case
+    test "get_basic_case"
         given input = JsonObject{}
         when result = get(input, "key")
         then result == null
