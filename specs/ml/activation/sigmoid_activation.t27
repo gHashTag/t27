@@ -18,19 +18,27 @@ module Sigmoid;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(x: f32) → void
-    fn forward(x: f32) -> void {
-        // TODO: Implement from .tri spec
+    // forward(x: f32) → f32
+    fn forward(x: f32) -> f32 {
+        // Sigmoid function: 1 / (1 + e^(-x))
+        let exp_neg_x = math::exp(-x);
+        return 1.0 / (1.0 + exp_neg_x);
     }
 
-    // forward_batch(input: []f32) → void
-    fn forward_batch(input: []f32) -> void {
-        // TODO: Implement from .tri spec
+    // forward_batch(input: []f32) → []f32
+    fn forward_batch(input: []f32) -> []f32 {
+        // Apply sigmoid function to each element in the input array
+        let result = []f32{len = input.len};
+        for (let i = 0; i < input.len; i = i + 1) {
+            result[i] = forward(input[i]);
+        }
+        return result;
     }
 
-    // derivative(sigmoid_x: f32) → void
-    fn derivative(sigmoid_x: f32) -> void {
-        // TODO: Implement from .tri spec
+    // derivative(sigmoid_x: f32) → f32
+    fn derivative(sigmoid_x: f32) -> f32 {
+        // Derivative of sigmoid: sigmoid_x * (1 - sigmoid_x)
+        return sigmoid_x * (1.0 - sigmoid_x);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -40,15 +48,33 @@ module Sigmoid;
     test forward_basic_case
         given input = default_input()
         when result = forward(input)
-        then result != undefined
+        then result >= 0.0 and result <= 1.0  // Sigmoid output is always between 0 and 1
 
     test forward_batch_basic_case
         given input = default_input()
         when result = forward_batch(input)
-        then result != undefined
+        then result.len == input.len  // Output array should have same length as input
+        and for (let i = 0; i < result.len; i = i + 1) {
+            result[i] >= 0.0 and result[i] <= 1.0  // Each sigmoid output is between 0 and 1
+        }
 
     test derivative_basic_case
         given input = default_input()
         when result = derivative(input)
-        then result != undefined
+        then result >= 0.0  // Sigmoid derivative is always non-negative
+
+    test forward_zero_input
+        given input = 0.0
+        when result = forward(input)
+        then result == 0.5  // Sigmoid(0) = 0.5
+
+    test forward_large_positive
+        given input = 10.0
+        when result = forward(input)
+        then result > 0.99  // Sigmoid(10) should be very close to 1
+
+    test forward_large_negative
+        given input = -10.0
+        when result = forward(input)
+        then result < 0.01  // Sigmoid(-10) should be very close to 0
 
