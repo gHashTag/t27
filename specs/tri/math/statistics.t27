@@ -10,34 +10,110 @@ module TriStatistics;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // mean(values: []f64) → void
-    fn mean(values: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // mean(values: []f64) → f64
+    fn mean(values: []f64) -> f64 {
+        var sum: f64 = 0.0;
+        for (i in 0..values.len) {
+            sum += values[i];
+        }
+        return sum / f64(values.len);
     }
 
-    // variance(values: []f64) → void
-    fn variance(values: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // variance(values: []f64) → f64
+    fn variance(values: []f64) -> f64 {
+        if (values.len == 0) return 0.0;
+        
+        var mean_val = mean(values);
+        var sum_sq: f64 = 0.0;
+        for (i in 0..values.len) {
+            sum_sq += (values[i] - mean_val) * (values[i] - mean_val);
+        }
+        return sum_sq / f64(values.len);
     }
 
-    // std_dev(values: []f64) → void
-    fn std_dev(values: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // std_dev(values: []f64) → f64
+    fn std_dev(values: []f64) -> f64 {
+        return math.sqrt(variance(values));
     }
 
-    // median(allocator: std.mem.Allocator) → void
-    fn median(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // median(allocator: std.mem.Allocator, values: []f64) → f64
+    fn median(allocator: std.mem.Allocator, values: []f64) -> f64 {
+        if (values.len == 0) return 0.0;
+        
+        var sorted_values: []f64 = values;
+        
+        // Simple bubble sort for small datasets
+        for (i in 0..sorted_values.len) {
+            for (j in i+1..sorted_values.len) {
+                if (sorted_values[i] > sorted_values[j]) {
+                    var temp = sorted_values[i];
+                    sorted_values[i] = sorted_values[j];
+                    sorted_values[j] = temp;
+                }
+            }
+        }
+        
+        var mid = sorted_values.len / 2;
+        if (sorted_values.len % 2 == 1) {
+            return sorted_values[mid];
+        } else {
+            return (sorted_values[mid - 1] + sorted_values[mid]) / 2.0;
+        }
     }
 
-    // percentile(allocator: std.mem.Allocator) → void
-    fn percentile(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // percentile(allocator: std.mem.Allocator, values: []f64, p: f64) → f64
+    fn percentile(allocator: std.mem.Allocator, values: []f64, p: f64) -> f64 {
+        if (values.len == 0) return 0.0;
+        if (p < 0.0 or p > 100.0) return 0.0;
+        
+        var sorted_values: []f64 = values;
+        
+        // Simple bubble sort for small datasets
+        for (i in 0..sorted_values.len) {
+            for (j in i+1..sorted_values.len) {
+                if (sorted_values[i] > sorted_values[j]) {
+                    var temp = sorted_values[i];
+                    sorted_values[i] = sorted_values[j];
+                    sorted_values[j] = temp;
+                }
+            }
+        }
+        
+        var index = (p / 100.0) * f64(sorted_values.len - 1);
+        var lower_idx = math.floor(index);
+        var upper_idx = math.ceil(index);
+        var weight = index - lower_idx;
+        
+        if (lower_idx == upper_idx) {
+            return sorted_values[lower_idx];
+        } else {
+            return sorted_values[lower_idx] * (1.0 - weight) + sorted_values[upper_idx] * weight;
+        }
     }
 
-    // correlation(x: []f64) → void
-    fn correlation(x: []f64) -> void {
-        // TODO: Implement from .tri spec
+    // correlation(x: []f64, y: []f64) → f64
+    fn correlation(x: []f64, y: []f64) -> f64 {
+        if (x.len != y.len or x.len == 0) return 0.0;
+        
+        var mean_x = mean(x);
+        var mean_y = mean(y);
+        
+        var numerator: f64 = 0.0;
+        var sum_sq_x: f64 = 0.0;
+        var sum_sq_y: f64 = 0.0;
+        
+        for (i in 0..x.len) {
+            var diff_x = x[i] - mean_x;
+            var diff_y = y[i] - mean_y;
+            numerator += diff_x * diff_y;
+            sum_sq_x += diff_x * diff_x;
+            sum_sq_y += diff_y * diff_y;
+        }
+        
+        var denominator = math.sqrt(sum_sq_x * sum_sq_y);
+        if (denominator == 0.0) return 0.0;
+        
+        return numerator / denominator;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -61,16 +137,91 @@ module TriStatistics;
 
     test median_basic_case
         given input = default_input()
-        when result = median(input)
+        when result = median(default_allocator(), input)
         then result != undefined
 
     test percentile_basic_case
         given input = default_input()
-        when result = percentile(input)
+        when result = percentile(default_allocator(), input, 50.0)
         then result != undefined
 
     test correlation_basic_case
-        given input = default_input()
-        when result = correlation(input)
+        given x = default_input()
+        given y = default_input()
+        when result = correlation(x, y)
         then result != undefined
 
+    test mean_calculates_correctly
+        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
+        when result = mean(values)
+        then result == 3.0
+
+    test variance_calculates_correctly
+        given values = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]
+        when result = variance(values)
+        then result == 4.0
+
+    test std_dev_calculates_correctly
+        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
+        when result = std_dev(values)
+        then result == math.sqrt(2.0)
+
+    test median_odd_number
+        given values = [1.0, 3.0, 2.0, 5.0, 4.0]
+        when result = median(default_allocator(), values)
+        then result == 3.0
+
+    test median_even_number
+        given values = [1.0, 2.0, 3.0, 4.0]
+        when result = median(default_allocator(), values)
+        then result == 2.5
+
+    test median_empty
+        given values: []f64 = []
+        when result = median(default_allocator(), values)
+        then result == 0.0
+
+    test percentile_50th
+        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
+        when result = percentile(default_allocator(), values, 50.0)
+        then result == 3.0
+
+    test percentile_25th
+        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
+        when result = percentile(default_allocator(), values, 25.0)
+        then result == 2.0
+
+    test percentile_empty
+        given values: []f64 = []
+        when result = percentile(default_allocator(), values, 50.0)
+        then result == 0.0
+
+    test correlation_perfect_positive
+        given x = [1.0, 2.0, 3.0, 4.0, 5.0]
+        given y = [2.0, 4.0, 6.0, 8.0, 10.0]
+        when result = correlation(x, y)
+        then result == 1.0
+
+    test correlation_perfect_negative
+        given x = [1.0, 2.0, 3.0, 4.0, 5.0]
+        given y = [10.0, 8.0, 6.0, 4.0, 2.0]
+        when result = correlation(x, y)
+        then result == -1.0
+
+    test correlation_no_correlation
+        given x = [1.0, 2.0, 3.0, 4.0, 5.0]
+        given y = [3.0, 1.0, 4.0, 2.0, 5.0]
+        when result = correlation(x, y)
+        then result >= -1.0 and result <= 1.0
+
+    test correlation_different_lengths
+        given x = [1.0, 2.0, 3.0]
+        given y = [1.0, 2.0]
+        when result = correlation(x, y)
+        then result == 0.0
+
+    test correlation_empty
+        given x: []f64 = []
+        given y: []f64 = []
+        when result = correlation(x, y)
+        then result == 0.0
