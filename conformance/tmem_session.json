@@ -1,0 +1,306 @@
+{
+  "schema_version": "1.0.0",
+  "format_family": "t27-conformance",
+  "module": "TrinityMemorySession",
+  "spec_path": "specs/memory/tmem/session.t27",
+  "vector_name": "session-layout-and-recovery",
+  "description": "Conformance test vectors for Trinity Memory Session record layout and recovery rules",
+  "generator": "t27c 0.2.0",
+  "created_at": "2026-09-12T00:00:00Z",
+  "constants": {
+    "TMS_SESSION_MAGIC": 1397523396,
+    "TMS_SESSION_VERSION": 1,
+    "TMS_SESSION_KIND_OPEN": 0,
+    "TMS_SESSION_KIND_CHECKPOINT": 1,
+    "TMS_SESSION_KIND_CLOSE": 2,
+    "TMS_SESSION_KIND_COUNT": 3,
+    "TMS_SESSION_HEADER_BYTES": 176,
+    "TMS_SESSION_CRC_COVERED_BYTES": 172,
+    "TMS_SESSION_MAX_PAYLOAD_BYTES": 1048576,
+    "TMS_SESSION_OK": 0,
+    "TMS_SESSION_ERR_TRUNCATED": -1,
+    "TMS_SESSION_ERR_MAGIC": -2,
+    "TMS_SESSION_ERR_VERSION": -3,
+    "TMS_SESSION_ERR_KIND": -4,
+    "TMS_SESSION_ERR_CRC": -5,
+    "TMS_SESSION_ERR_ANCESTRY": -6,
+    "TMS_SESSION_ERR_STALE": -7,
+    "TMS_SESSION_ERR_CHAIN": -8,
+    "TMS_SESSION_ERR_REPLAY": -9,
+    "TMS_SESSION_ERR_PAYLOAD": -10,
+    "TMS_SESSION_WRITE_STAGED": 0,
+    "TMS_SESSION_WRITE_SYNCED": 1,
+    "TMS_SESSION_WRITE_PUBLISHED": 2,
+    "TMS_SESSION_WRITE_FAILED": 3,
+    "TMS_SESSION_RETAIN_MIN": 3,
+    "TMS_SESSION_RETAIN_DEFAULT": 27,
+    "TMS_SESSION_CLASS_PRIVATE": 0,
+    "TMS_SESSION_CLASS_EVIDENCE": 1
+  },
+  "invariants": [
+    "header_offsets_ascending",
+    "magic_size_correct",
+    "version_size_correct",
+    "kind_size_correct",
+    "id_size_correct",
+    "sequence_size_correct",
+    "action_count_size_correct",
+    "timestamp_size_correct",
+    "spec_hash_size_correct",
+    "compiler_rev_size_correct",
+    "parent_sha256_size_correct",
+    "payload_len_size_correct",
+    "payload_sha256_size_correct",
+    "crc_size_correct",
+    "header_aligned",
+    "crc_coverage",
+    "payload_bounded"
+  ],
+  "vectors": [
+    {
+      "id": "valid_header",
+      "kind": "TestBlock",
+      "description": "Valid header validation should return OK",
+      "inputs": {
+        "length": 200,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": 0
+    },
+    {
+      "id": "truncated_header",
+      "kind": "TestBlock",
+      "description": "Truncated header should return TRUNCATED error",
+      "inputs": {
+        "length": 100,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": -1
+    },
+    {
+      "id": "bad_magic",
+      "kind": "TestBlock",
+      "description": "Bad magic should return MAGIC error",
+      "inputs": {
+        "length": 200,
+        "magic_ok": 0,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": -2
+    },
+    {
+      "id": "wrong_version",
+      "kind": "TestBlock",
+      "description": "Wrong version should return VERSION error",
+      "inputs": {
+        "length": 200,
+        "magic_ok": 1,
+        "version": 2,
+        "kind": 0,
+        "crc_ok": 1
+      },
+      "expected": -3
+    },
+    {
+      "id": "unknown_kind",
+      "kind": "TestBlock",
+      "description": "Unknown kind should return KIND error",
+      "inputs": {
+        "length": 200,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 5,
+        "crc_ok": 1
+      },
+      "expected": -4
+    },
+    {
+      "id": "crc_mismatch",
+      "kind": "TestBlock",
+      "description": "CRC mismatch should return CRC error",
+      "inputs": {
+        "length": 200,
+        "magic_ok": 1,
+        "version": 1,
+        "kind": 0,
+        "crc_ok": 0
+      },
+      "expected": -5
+    },
+    {
+      "id": "ancestry_mismatch",
+      "kind": "TestBlock",
+      "description": "Ancestry mismatch should return ANCESTRY error",
+      "inputs": {
+        "spec_hash_match": 0,
+        "compiler_rev_match": 1
+      },
+      "expected": -6
+    },
+    {
+      "id": "chain_ok",
+      "kind": "TestBlock",
+      "description": "Valid chain progression should return OK",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 6,
+        "prev_action_count": 10,
+        "action_count": 11,
+        "parent_match": 1
+      },
+      "expected": 0
+    },
+    {
+      "id": "stale_sequence",
+      "kind": "TestBlock",
+      "description": "Stale sequence should return STALE error",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 7,
+        "prev_action_count": 10,
+        "action_count": 11,
+        "parent_match": 1
+      },
+      "expected": -7
+    },
+    {
+      "id": "parent_mismatch",
+      "kind": "TestBlock",
+      "description": "Parent mismatch should return CHAIN error",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 6,
+        "prev_action_count": 10,
+        "action_count": 11,
+        "parent_match": 0
+      },
+      "expected": -8
+    },
+    {
+      "id": "replay_jump",
+      "kind": "TestBlock",
+      "description": "Replay with action_count jump should return REPLAY error",
+      "inputs": {
+        "prev_sequence": 5,
+        "sequence": 6,
+        "prev_action_count": 10,
+        "action_count": 13,
+        "parent_match": 1
+      },
+      "expected": -9
+    },
+    {
+      "id": "recovery_staged_crash",
+      "kind": "TestBlock",
+      "description": "Recovery after staged crash should keep previous sequence",
+      "inputs": {
+        "seq_a": 5,
+        "valid_a": 1,
+        "seq_b": 6,
+        "valid_b": 0
+      },
+      "expected": 5
+    },
+    {
+      "id": "recovery_synced_crash",
+      "kind": "TestBlock",
+      "description": "Recovery after synced crash should keep previous sequence",
+      "inputs": {
+        "seq_a": 5,
+        "valid_a": 1,
+        "seq_b": 6,
+        "valid_b": 0
+      },
+      "expected": 5
+    },
+    {
+      "id": "retention_keep_open",
+      "kind": "TestBlock",
+      "description": "Retention should always keep OPEN records",
+      "inputs": {
+        "kind": 0,
+        "sequence": 0,
+        "newest": 10,
+        "retain": 5
+      },
+      "expected": 1
+    },
+    {
+      "id": "retention_drop_old",
+      "kind": "TestBlock",
+      "description": "Retention should drop oldest checkpoint beyond limit",
+      "inputs": {
+        "kind": 1,
+        "sequence": 2,
+        "newest": 10,
+        "retain": 5
+      },
+      "expected": 0
+    },
+    {
+      "id": "retention_keep_recent",
+      "kind": "TestBlock",
+      "description": "Retention should keep recent checkpoint within limit",
+      "inputs": {
+        "kind": 1,
+        "sequence": 8,
+        "newest": 10,
+        "retain": 5
+      },
+      "expected": 1
+    },
+    {
+      "id": "session_id_private",
+      "kind": "TestBlock",
+      "description": "Session ID should be classified as private",
+      "inputs": {
+        "field": 3
+      },
+      "expected": 0
+    },
+    {
+      "id": "payload_private",
+      "kind": "TestBlock",
+      "description": "Payload should be classified as private",
+      "inputs": {
+        "field": 12
+      },
+      "expected": 0
+    },
+    {
+      "id": "magic_evidence",
+      "kind": "TestBlock",
+      "description": "Magic should be classified as evidence",
+      "inputs": {
+        "field": 0
+      },
+      "expected": 1
+    },
+    {
+      "id": "sequence_evidence",
+      "kind": "TestBlock",
+      "description": "Sequence should be classified as evidence",
+      "inputs": {
+        "field": 4
+      },
+      "expected": 1
+    },
+    {
+      "id": "payload_sha256_evidence",
+      "kind": "TestBlock",
+      "description": "Payload SHA256 should be classified as evidence",
+      "inputs": {
+        "field": 11
+      },
+      "expected": 1
+    }
+  ]
+}

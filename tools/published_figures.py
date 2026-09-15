@@ -47,60 +47,26 @@ FIGURES = [
     ("cast_i16 uses", "uses",
      r"(?<![\w.@])cast_i16\s*\(", 38, "#3497"),
     ("[]T{} empty slice literals", "literals",
-     r"\[\]\s*[A-Za-z_][\w:]*\s*\{\s*\}", 480, "#3495; queen harvest 2026-09-10 added 2"),
+     r"\[\]\s*[A-Za-z_][\w:]*\s*\{\s*\}", 478, "#3495"),
     ("x.len() with an identifier base", "call sites",
      r"\b[A-Za-z_]\w*\s*\.\s*len\s*\(", 1319, "#3489, corrected from 1322"),
     ("x.len with an identifier base", "field reads",
-     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 710, "#3489, corrected from 687; queen harvest 2026-09-10 added 30"),
+     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 680, "#3489, corrected from 687"),
     ("len(x) free-function spelling", "call sites",
      r"(?<![\w.@])len\s*\(", 296, "#3489 said 142 -- that was a DIAGNOSTIC count"),
     ("three-segment paths a::b::c", "occurrences",
      r"\b[A-Za-z_]\w*::[A-Za-z_]\w*::[A-Za-z_]\w*", 473, "#3473, corrected from 477"),
-    # #3567 (S05) added the forty-seven opcodes of specs/isa/ternary_encoding.t27 and OP_NOP, OP_HALT
-    # of specs/vm/trinity_vm.t27: 11 + 49 = 60.
     ("pub const OP_* declarations", "declarations",
-     # #3596 added specs/automation/crm-lead-magnet.t27 with `pub const OP_TOKENS`: 60 + 1 = 61.
-     r"^\s*pub\s+const\s+OP_\w+", 61, "#3497 said 20 -- that was a SITE count in the C; #3596 added 1"),
+     r"^\s*pub\s+const\s+OP_\w+", 11, "#3497 said 20 -- that was a SITE count in the C"),
     ("abs( uses", "uses",
      r"(?<![\w.@])abs\s*\(", 389, "#3501"),
     # The pin FOLLOWED the corpus, and the movement is explained rather than
     # blessed away: #3482 deleted 188 duplicate test blocks whose bodies were
     # byte-identical to their twin. 12644 - 188 = 12456, which is what a
     # re-derivation gives -- the first thing this file caught, on its first run.
-    # #3557 added specs/ui/viewport.t27 with six test blocks: 12456 + 6 = 12462.
-    # #3556 (Closes #3559) added specs/automation/inngest-probe-suite.t27 with
-    # three test blocks: 12462 + 3 = 12465.
-    # The 2026-09-10 queen harvest (#3560) landed 9 bee patches (#3508 #3515
-    # #3524 #3525 #3530 #3531 #3534 #3536 #3538), each adding test blocks
-    # beside the functions it implemented: 12465 + 77 = 12542.
-    # #3561 added specs/memory/tmem/ (six Trinity Memory contract specs) with
-    # 51 test blocks: 12542 + 51 = 12593.
-    # #3563 (S01 of gHashTag/trinity#988) added specs/trinity/ (project.t27 with
-    # five test blocks, fifty capability cards with one each) and the canonical
-    # copy specs/catalog/discovery.t27 with five: 12593 + 60 = 12653.
-    # #3564 (S02) added specs/trinity/compiler_matrix.t27 with six: 12653 + 6 = 12659.
-    # Its fixtures live under bootstrap/tests/fixtures/trinity_matrix/, outside
-    # specs/, and are not counted here.
-    # #3565 (S03) added specs/trinity/build_graph.t27 with four: 12659 + 4 = 12663.
-    # #3566 (S04) added specs/vsa/trinity_compat.t27 with ten: 12663 + 10 = 12673.
-    # #3567 (S05) rewrote specs/isa/ternary_encoding.t27 (eleven) and added specs/isa/tri27_machine.t27
-    # (ten), specs/isa/tri27_bytecode.t27 (six), specs/vm/trinity_vm.t27 (five), specs/api/c_abi.t27
-    # (four): 12673 + 36 = 12709.
-    # #3568 (S06) added specs/tools/catalog.t27 (five) and specs/tools/mcp_protocol.t27 (five); the 29
-    # cards under specs/tools/trinity/tri/ carry no test block: 12709 + 10 = 12719.
-    # #3596 added specs/automation/crm-lead-magnet.t27 with five: 12719 + 5 = 12724.
-    # #3598 added specs/automation/crm-sellers.t27 with five: 12724 + 5 = 12729.
-    # #3600 added specs/automation/leela-agent-link.t27 with five: 12729 + 5 = 12734.
-    # #3602 added specs/automation/crm-duet.t27 with five: 12734 + 5 = 12739.
-    # #3604 added specs/automation/crm-client-workspace.t27 with five: 12739 + 5 = 12744.
-    # #3608 added specs/automation/crm-client-ownership.t27 with five: 12744 + 5 = 12749.
-    # #3613 added three to specs/automation/crm-duet.t27: 12749 + 3 = 12752.
-    # #3615 added one to crm-duet.t27 and three in the new
-    # specs/automation/agent-provider-chain.t27: 12752 + 4 = 12756.
-    # #3617 added two to crm-duet.t27 (discovery gate, negation): 12756 + 2 = 12758.
-    ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12758,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3"),
+("test blocks", "blocks",
+      r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 12514,
+      "#3479 pinned 12644; #3482 removed 188; #3576 added 22"),
 ]
 
 
