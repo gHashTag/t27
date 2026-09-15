@@ -22,37 +22,190 @@ module TriVersion;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // parse(version_str: []const u8) → void
-    fn parse(version_str: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // parse(version_str: []const u8, allocator: std.mem.Allocator) -> !Version
+    fn parse(version_str: []const u8, allocator: std.mem.Allocator) -> !Version {
+        var build_start = std.mem.indexOf(u8, version_str, "+");
+        var prerelease_start = std.mem.indexOf(u8, version_str, "-");
+        var core_end = if (build_start) |b| b else if (prerelease_start) |p| p else version_str.len;
+        
+        var core = version_str[0..core_end];
+        var prerelease = if (prerelease_start) |p| version_str[p + 1..build_start orelse version_str.len] else "";
+        var build = if (build_start) |b| version_str[b + 1..] else "";
+        
+        var parts = std.mem.split(u8, core, ".");
+        var major_str = parts.next() orelse return error.InvalidVersion;
+        var minor_str = parts.next() orelse return error.InvalidVersion;
+        var patch_str = parts.next() orelse return error.InvalidVersion;
+        
+        if (parts.next() != null) return error.InvalidVersion;
+        
+        var major = std.fmt.parseInt(usize, major_str, 10) catch return error.InvalidVersion;
+        var minor = std.fmt.parseInt(usize, minor_str, 10) catch return error.InvalidVersion;
+        var patch = std.fmt.parseInt(usize, patch_str, 10) catch return error.InvalidVersion;
+        
+        return Version{
+            .major = major,
+            .minor = minor,
+            .patch = patch,
+            .prerelease = prerelease,
+            .build = build,
+        };
     }
 
-    // compare(a: Version) → void
-    fn compare(a: Version) -> void {
-        // TODO: Implement from .tri spec
+    // compare(a: Version, b: Version) -> i8
+    fn compare(a: Version, b: Version) -> i8 {
+        if (a.major != b.major) {
+            return if (a.major < b.major) -1 else 1;
+        }
+        if (a.minor != b.minor) {
+            return if (a.minor < b.minor) -1 else 1;
+        }
+        if (a.patch != b.patch) {
+            return if (a.patch < b.patch) -1 else 1;
+        }
+        
+        if (a.prerelease.len == 0 and b.prerelease.len == 0) {
+            return 0;
+        }
+        if (a.prerelease.len == 0) {
+            return 1;
+        }
+        if (b.prerelease.len == 0) {
+            return -1;
+        }
+        
+        return std.mem.compare(u8, a.prerelease, b.prerelease);
     }
 
-    // next(version: Version) → void
-    fn next(version: Version) -> void {
-        // TODO: Implement from .tri spec
+    // next(version: Version, part: []const u8, allocator: std.mem.Allocator) -> !Version
+    fn next(version: Version, part: []const u8, allocator: std.mem.Allocator) -> !Version {
+        var major = version.major;
+        var minor = version.minor;
+        var patch = version.patch;
+        
+        if (std.mem.eql(u8, part, "major")) {
+            major += 1;
+            minor = 0;
+            patch = 0;
+        } else if (std.mem.eql(u8, part, "minor")) {
+            minor += 1;
+            patch = 0;
+        } else if (std.mem.eql(u8, part, "patch")) {
+            patch += 1;
+        } else {
+            return error.InvalidPart;
+        }
+        
+        return Version{
+            .major = major,
+            .minor = minor,
+            .patch = patch,
+            .prerelease = "",
+            .build = "",
+        };
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test release_version_has_empty_text_fields
+        given v = Version{ .major = 2, .minor = 0, .patch = 0, .prerelease = "", .build = "" }
+        then v.prerelease.len == 0
+        and v.build.len == 0
+        and v.major == 2
+
+    test prerelease_and_build_are_independent
+        given pre_only = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "rc.1", .build = "" }
+        and build_only = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "sha.abc" }
+        then pre_only.prerelease.len > 0
+        and pre_only.build.len == 0
+        and build_only.prerelease.len == 0
+        and build_only.build.len > 0
+
     test parse_basic_case
-        given input = default_input()
-        when result = parse(input)
-        then result != undefined
+        given input = "1.2.3"
+        when result = parse(input, std.testing.allocator)
+        then result.major == 1
+        and result.minor == 2
+        and result.patch == 3
+        and result.prerelease.len == 0
+        and result.build.len == 0
 
-    test compare_basic_case
-        given input = default_input()
-        when result = compare(input)
-        then result != undefined
+    test parse_with_prerelease
+        given input = "1.2.3-alpha"
+        when result = parse(input, std.testing.allocator)
+        then result.major == 1
+        and result.minor == 2
+        and result.patch == 3
+        and std.mem.eql(u8, result.prerelease, "alpha")
+        and result.build.len == 0
 
-    test next_basic_case
-        given input = default_input()
-        when result = next(input)
-        then result != undefined
+    test parse_with_build
+        given input = "1.2.3+build.123"
+        when result = parse(input, std.testing.allocator)
+        then result.major == 1
+        and result.minor == 2
+        and result.patch == 3
+        and result.prerelease.len == 0
+        and std.mem.eql(u8, result.build, "build.123")
 
+    test parse_with_both
+        given input = "1.2.3-alpha.1+build.456"
+        when result = parse(input, std.testing.allocator)
+        then result.major == 1
+        and result.minor == 2
+        and result.patch == 3
+        and std.mem.eql(u8, result.prerelease, "alpha.1")
+        and std.mem.eql(u8, result.build, "build.456")
+
+    test compare_orders_by_major_first
+        given older = Version{ .major = 1, .minor = 9, .patch = 9, .prerelease = "", .build = "" }
+        and newer = Version{ .major = 2, .minor = 0, .patch = 0, .prerelease = "", .build = "" }
+        when ordering = compare(older, newer)
+        then ordering == -1
+
+    test compare_equal_versions
+        given v1 = Version{ .major = 1, .minor = 2, .patch = 3, .prerelease = "", .build = "" }
+        and v2 = Version{ .major = 1, .minor = 2, .patch = 3, .prerelease = "", .build = "" }
+        when ordering = compare(v1, v2)
+        then ordering == 0
+
+    test compare_prerelease_lower
+        given prerelease = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "rc.1", .build = "" }
+        and release = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" }
+        when ordering = compare(prerelease, release)
+        then ordering == -1
+
+    test compare_prerelease_equal
+        given v1 = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "alpha", .build = "" }
+        and v2 = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "alpha", .build = "" }
+        when ordering = compare(v1, v2)
+        then ordering == 0
+
+    test next_major_bump
+        given version = Version{ .major = 1, .minor = 2, .patch = 3, .prerelease = "rc.1", .build = "build.123" }
+        when result = next(version, "major", std.testing.allocator)
+        then result.major == 2
+        and result.minor == 0
+        and result.patch == 0
+        and result.prerelease.len == 0
+        and result.build.len == 0
+
+    test next_minor_bump
+        given version = Version{ .major = 1, .minor = 2, .patch = 3, .prerelease = "rc.1", .build = "build.123" }
+        when result = next(version, "minor", std.testing.allocator)
+        then result.major == 1
+        and result.minor == 3
+        and result.patch == 0
+        and result.prerelease.len == 0
+        and result.build.len == 0
+
+    test next_patch_bump
+        given version = Version{ .major = 1, .minor = 2, .patch = 3, .prerelease = "rc.1", .build = "build.123" }
+        when result = next(version, "patch", std.testing.allocator)
+        then result.major == 1
+        and result.minor == 2
+        and result.patch == 4
+        and result.prerelease.len == 0
+        and result.build.len == 0
