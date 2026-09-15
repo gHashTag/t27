@@ -20,24 +20,73 @@ module TriDisjointSet;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(size: usize) → void
-    fn init(size: usize) -> void {
-        // TODO: Implement from .tri spec
+    // init(size: usize) → DisjointSet
+    fn init(size: usize) -> DisjointSet {
+        let parent = []usize;
+        let rank = []usize;
+        let count = size;
+        
+        // Initialize parent array: each element is its own parent initially
+        for i in 0..size {
+            parent.append(i);
+            rank.append(0);
+        }
+        
+        return DisjointSet {
+            parent: parent,
+            rank: rank,
+            count: count
+        };
     }
 
-    // find(ds: *DisjointSet) → void
-    fn find(ds: *DisjointSet) -> void {
-        // TODO: Implement from .tri spec
+    // find(ds: *DisjointSet, x: usize) → usize
+    fn find(ds: *DisjointSet, x: usize) -> usize {
+        // Find the root of the set
+        let mut current = x;
+        while ds.parent[current] != current {
+            current = ds.parent[current];
+        }
+        
+        // Path compression: set all traversed nodes to point directly to root
+        let mut temp = x;
+        while ds.parent[temp] != current {
+            let next = ds.parent[temp];
+            ds.parent[temp] = current;
+            temp = next;
+        }
+        
+        return current;
     }
 
-    // union(ds: *DisjointSet) → void
-    fn union(ds: *DisjointSet) -> void {
-        // TODO: Implement from .tri spec
+    // union(ds: *DisjointSet, x: usize, y: usize) → void
+    fn union(ds: *DisjointSet, x: usize, y: usize) -> void {
+        let root_x = find(ds, x);
+        let root_y = find(ds, y);
+        
+        // If x and y are already in the same set, do nothing
+        if root_x == root_y {
+            return;
+        }
+        
+        // Union by rank: attach smaller rank tree to higher rank tree
+        if ds.rank[root_x] < ds.rank[root_y] {
+            ds.parent[root_x] = root_y;
+        } else if ds.rank[root_x] > ds.rank[root_y] {
+            ds.parent[root_y] = root_x;
+        } else {
+            // If ranks are equal, attach one to the other and increment rank
+            ds.parent[root_y] = root_x;
+            ds.rank[root_x] = ds.rank[root_x] + 1;
+        }
+        
+        ds.count = ds.count - 1;
     }
 
-    // connected(ds: *const DisjointSet) → void
-    fn connected(ds: *const DisjointSet) -> void {
-        // TODO: Implement from .tri spec
+    // connected(ds: *const DisjointSet, x: usize, y: usize) → bool
+    fn connected(ds: *const DisjointSet, x: usize, y: usize) -> bool {
+        let root_x = find(ds, x);
+        let root_y = find(ds, y);
+        return root_x == root_y;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -45,22 +94,28 @@ module TriDisjointSet;
     // ═══════════════════════════════════════════════════════════
 
     test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+        given size = 5
+        when ds = init(size)
+        then ds.count == size
+        and ds.parent.length == size
+        and ds.rank.length == size
 
     test find_basic_case
-        given input = default_input()
-        when result = find(input)
-        then result != undefined
+        given ds = init(5)
+        when root = find(ds, 2)
+        then root < ds.count
+        and ds.parent[root] == root
 
     test union_basic_case
-        given input = default_input()
-        when result = union(input)
-        then result != undefined
+        given ds = init(5)
+        when union(ds, 1, 2)
+        then ds.count == 4
+        and find(ds, 1) == find(ds, 2)
 
     test connected_basic_case
-        given input = default_input()
-        when result = connected(input)
-        then result != undefined
+        given ds = init(5)
+        when connected1 = connected(ds, 1, 2)
+        and connected2 = connected(ds, 1, 3)
+        then connected1 == false
+        and connected2 == false
 
