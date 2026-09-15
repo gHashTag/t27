@@ -21,42 +21,181 @@ module TriBitvector;
 
     // empty() → BitVector
     fn empty() -> BitVector {
-        // TODO: Implement from .tri spec
+        return BitVector {
+            bits = [],
+            length = 0,
+        };
     }
 
-    // with_capacity(bits: usize) → void
-    fn with_capacity(bits: usize) -> void {
-        // TODO: Implement from .tri spec
+    // with_capacity(bits: usize, allocator: std.mem.Allocator) → !BitVector
+    fn with_capacity(bits: usize, allocator: std.mem.Allocator) -> !BitVector {
+        if (bits == 0) {
+            return empty();
+        }
+        
+        // Calculate how many usize elements we need to store the bits
+        let usize_count = (bits + @sizeOf(usize) * 8 - 1) / (@sizeOf(usize) * 8);
+        let allocated_bits = allocator.alloc(usize, usize_count);
+        
+        return BitVector {
+            bits = allocated_bits,
+            length = bits,
+        };
     }
 
-    // push(bv: *BitVector) → void
-    fn push(bv: *BitVector) -> void {
-        // TODO: Implement from .tri spec
+    // push(bv: *BitVector, bit: bool, allocator: std.mem.Allocator) → !void
+    fn push(bv: *BitVector, bit: bool, allocator: std.mem.Allocator) -> !void {
+        let new_length = bv.length + 1;
+        
+        // Check if we need to reallocate
+        let bits_per_usize = @sizeOf(usize) * 8;
+        let current_usize_count = (bv.length + bits_per_usize - 1) / bits_per_usize;
+        let new_usize_count = (new_length + bits_per_usize - 1) / bits_per_usize;
+        
+        if (new_usize_count > current_usize_count) {
+            // Need to allocate more space
+            let new_bits = allocator.alloc(usize, new_usize_count);
+            
+            // Copy existing bits
+            let i = 0;
+            while (i < current_usize_count) {
+                new_bits[i] = bv.bits[i];
+                i = i + 1;
+            }
+            
+            // Zero out the new space
+            while (i < new_usize_count) {
+                new_bits[i] = 0;
+                i = i + 1;
+            }
+            
+            // Free old allocation if it exists
+            if (bv.bits != null) {
+                allocator.free(bv.bits);
+            }
+            
+            bv.bits = new_bits;
+            bv.length = new_length;
+        } else {
+            // Just add the bit to existing allocation
+            bv.length = new_length;
+        }
+        
+        // Set the bit
+        let bit_index = bv.length - 1;
+        let usize_index = bit_index / bits_per_usize;
+        let bit_offset = bit_index % bits_per_usize;
+        let mask = 1 << bit_offset;
+        
+        if (bit) {
+            bv.bits[usize_index] = bv.bits[usize_index] | mask;
+        } else {
+            bv.bits[usize_index] = bv.bits[usize_index] & ~mask;
+        }
     }
 
-    // pop(bv: *BitVector) → void
-    fn pop(bv: *BitVector) -> void {
-        // TODO: Implement from .tri spec
+    // pop(bv: *BitVector) → ?bool
+    fn pop(bv: *BitVector) -> ?bool {
+        if (bv.length == 0) {
+            return null;
+        }
+        
+        let bits_per_usize = @sizeOf(usize) * 8;
+        let bit_index = bv.length - 1;
+        let usize_index = bit_index / bits_per_usize;
+        let bit_offset = bit_index % bits_per_usize;
+        let mask = 1 << bit_offset;
+        
+        let bit = (bv.bits[usize_index] & mask) != 0;
+        
+        bv.length = bv.length - 1;
+        
+        return bit;
     }
 
-    // get(bv: BitVector) → void
-    fn get(bv: BitVector) -> void {
-        // TODO: Implement from .tri spec
+    // get(bv: BitVector, index: usize) → bool
+    fn get(bv: BitVector, index: usize) -> bool {
+        if (index >= bv.length) {
+            return false; // Or should this be an error? For now, return false
+        }
+        
+        let bits_per_usize = @sizeOf(usize) * 8;
+        let usize_index = index / bits_per_usize;
+        let bit_offset = index % bits_per_usize;
+        let mask = 1 << bit_offset;
+        
+        return (bv.bits[usize_index] & mask) != 0;
     }
 
-    // set(bv: *BitVector) → void
-    fn set(bv: *BitVector) -> void {
-        // TODO: Implement from .tri spec
+    // set(bv: *BitVector, index: usize, value: bool) → void
+    fn set(bv: *BitVector, index: usize, value: bool) -> void {
+        if (index >= bv.length) {
+            return; // Or should this be an error? For now, do nothing
+        }
+        
+        let bits_per_usize = @sizeOf(usize) * 8;
+        let usize_index = index / bits_per_usize;
+        let bit_offset = index % bits_per_usize;
+        let mask = 1 << bit_offset;
+        
+        if (value) {
+            bv.bits[usize_index] = bv.bits[usize_index] | mask;
+        } else {
+            bv.bits[usize_index] = bv.bits[usize_index] & ~mask;
+        }
     }
 
-    // len(bv: BitVector) → void
-    fn len(bv: BitVector) -> void {
-        // TODO: Implement from .tri spec
+    // len(bv: BitVector) → usize
+    fn len(bv: BitVector) -> usize {
+        return bv.length;
     }
 
-    // append(bv: *BitVector) → void
-    fn append(bv: *BitVector) -> void {
-        // TODO: Implement from .tri spec
+    // append(bv: *BitVector, other: BitVector, allocator: std.mem.Allocator) -> !void
+    fn append(bv: *BitVector, other: BitVector, allocator: std.mem.Allocator) -> !void {
+        if (other.length == 0) {
+            return; // Nothing to append
+        }
+        
+        let new_length = bv.length + other.length;
+        let bits_per_usize = @sizeOf(usize) * 8;
+        
+        // Check if we need to reallocate
+        let current_usize_count = (bv.length + bits_per_usize - 1) / bits_per_usize;
+        let new_usize_count = (new_length + bits_per_usize - 1) / bits_per_usize;
+        let other_usize_count = (other.length + bits_per_usize - 1) / bits_per_usize;
+        
+        if (new_usize_count > current_usize_count) {
+            // Need to allocate more space
+            let new_bits = allocator.alloc(usize, new_usize_count);
+            
+            // Copy existing bits
+            let i = 0;
+            while (i < current_usize_count) {
+                new_bits[i] = bv.bits[i];
+                i = i + 1;
+            }
+            
+            // Zero out the new space
+            while (i < new_usize_count) {
+                new_bits[i] = 0;
+                i = i + 1;
+            }
+            
+            // Free old allocation if it exists
+            if (bv.bits != null) {
+                allocator.free(bv.bits);
+            }
+            
+            bv.bits = new_bits;
+        }
+        
+        // Copy the bits from other to bv
+        let i = 0;
+        while (i < other.length) {
+            let bit = get(other, i);
+            push(bv, bit, allocator);
+            i = i + 1;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -64,42 +203,53 @@ module TriBitvector;
     // ═══════════════════════════════════════════════════════════
 
     test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
+        given result = empty()
         then result != undefined
 
     test with_capacity_basic_case
-        given input = default_input()
-        when result = with_capacity(input)
+        given allocator = std.mem.Allocator
+        when result = with_capacity(64, allocator)
         then result != undefined
 
     test push_basic_case
-        given input = default_input()
-        when result = push(input)
+        given allocator = std.mem.Allocator
+        when result = push(empty(), true, allocator)
         then result != undefined
 
     test pop_basic_case
-        given input = default_input()
-        when result = pop(input)
+        given allocator = std.mem.Allocator
+        let bv = empty();
+        push(bv, true, allocator);
+        when result = pop(bv)
         then result != undefined
 
     test get_basic_case
-        given input = default_input()
-        when result = get(input)
+        given allocator = std.mem.Allocator
+        let bv = empty();
+        push(bv, true, allocator);
+        when result = get(bv, 0)
         then result != undefined
 
     test set_basic_case
-        given input = default_input()
-        when result = set(input)
+        given allocator = std.mem.Allocator
+        let bv = empty();
+        push(bv, true, allocator);
+        when result = set(bv, 0, false)
         then result != undefined
 
     test len_basic_case
-        given input = default_input()
-        when result = len(input)
+        given allocator = std.mem.Allocator
+        let bv = empty();
+        push(bv, true, allocator);
+        when result = len(bv)
         then result != undefined
 
     test append_basic_case
-        given input = default_input()
-        when result = append(input)
+        given allocator = std.mem.Allocator
+        let bv1 = empty();
+        let bv2 = empty();
+        push(bv1, true, allocator);
+        push(bv2, false, allocator);
+        when result = append(bv1, bv2, allocator)
         then result != undefined
 
