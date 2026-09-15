@@ -120,108 +120,128 @@ module TriStatistics;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test mean_basic_case
-        given input = default_input()
-        when result = mean(input)
-        then result != undefined
+    test "mean_basic_case" {
+        var input = default_input();
+        var result = mean(input);
+        assert(result != undefined);
+    }
 
-    test variance_basic_case
-        given input = default_input()
-        when result = variance(input)
-        then result != undefined
+    test "variance_basic_case" {
+        var input = default_input();
+        var result = variance(input);
+        assert(result != undefined);
+    }
 
-    test std_dev_basic_case
-        given input = default_input()
-        when result = std_dev(input)
-        then result != undefined
+    test "std_dev_basic_case" {
+        var input = default_input();
+        var result = std_dev(input);
+        assert(result != undefined);
+    }
 
-    test median_basic_case
-        given input = default_input()
-        when result = median(default_allocator(), input)
-        then result != undefined
+    test "median_basic_case" {
+        var input = default_input();
+        var result = median(default_allocator(), input);
+        assert(result != undefined);
+    }
 
-    test percentile_basic_case
-        given input = default_input()
-        when result = percentile(default_allocator(), input, 50.0)
-        then result != undefined
+    test "percentile_basic_case" {
+        var input = default_input();
+        var result = percentile(default_allocator(), input, 50.0);
+        assert(result != undefined);
+    }
 
-    test correlation_basic_case
-        given x = default_input()
-        given y = default_input()
-        when result = correlation(x, y)
-        then result != undefined
+    test "correlation_basic_case" {
+        var x = default_input();
+        var y = default_input();
+        var result = correlation(x, y);
+        assert(result != undefined);
+    }
 
-    test mean_calculates_correctly
-        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
-        when result = mean(values)
-        then result == 3.0
+    test "mean_calculates_correctly" {
+        var values = [1.0, 2.0, 3.0, 4.0, 5.0];
+        var result = mean(values);
+        assert(result == 3.0);
+    }
 
-    test variance_calculates_correctly
-        given values = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]
-        when result = variance(values)
-        then result == 4.0
+    test "variance_calculates_correctly" {
+        var values = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0];
+        var result = variance(values);
+        assert(result == 4.0);
+    }
 
-    test std_dev_calculates_correctly
-        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
-        when result = std_dev(values)
-        then result == math.sqrt(2.0)
+    test "std_dev_calculates_correctly" {
+        var values = [1.0, 2.0, 3.0, 4.0, 5.0];
+        var result = std_dev(values);
+        assert(result == math.sqrt(2.0));
+    }
 
-    test median_odd_number
-        given values = [1.0, 3.0, 2.0, 5.0, 4.0]
-        when result = median(default_allocator(), values)
-        then result == 3.0
+    test "median_odd_number" {
+        var values = [1.0, 3.0, 2.0, 5.0, 4.0];
+        var result = median(default_allocator(), values);
+        assert(result == 3.0);
+    }
 
-    test median_even_number
-        given values = [1.0, 2.0, 3.0, 4.0]
-        when result = median(default_allocator(), values)
-        then result == 2.5
+    test "median_even_number" {
+        var values = [1.0, 2.0, 3.0, 4.0];
+        var result = median(default_allocator(), values);
+        assert(result == 2.5);
+    }
 
-    test median_empty
-        given values: []f64 = []
-        when result = median(default_allocator(), values)
-        then result == 0.0
+    test "median_empty" {
+        var values: []f64 = [];
+        var result = median(default_allocator(), values);
+        assert(result == 0.0);
+    }
 
-    test percentile_50th
-        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
-        when result = percentile(default_allocator(), values, 50.0)
-        then result == 3.0
+    test "percentile_50th" {
+        var values = [1.0, 2.0, 3.0, 4.0, 5.0];
+        var result = percentile(default_allocator(), values, 50.0);
+        assert(result == 3.0);
+    }
 
-    test percentile_25th
-        given values = [1.0, 2.0, 3.0, 4.0, 5.0]
-        when result = percentile(default_allocator(), values, 25.0)
-        then result == 2.0
+    test "percentile_25th" {
+        var values = [1.0, 2.0, 3.0, 4.0, 5.0];
+        var result = percentile(default_allocator(), values, 25.0);
+        assert(result == 2.0);
+    }
 
-    test percentile_empty
-        given values: []f64 = []
-        when result = percentile(default_allocator(), values, 50.0)
-        then result == 0.0
+    test "percentile_empty" {
+        var values: []f64 = [];
+        var result = percentile(default_allocator(), values, 50.0);
+        assert(result == 0.0);
+    }
 
-    test correlation_perfect_positive
-        given x = [1.0, 2.0, 3.0, 4.0, 5.0]
-        given y = [2.0, 4.0, 6.0, 8.0, 10.0]
-        when result = correlation(x, y)
-        then result == 1.0
+    test "correlation_perfect_positive" {
+        var x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        var y = [2.0, 4.0, 6.0, 8.0, 10.0];
+        var result = correlation(x, y);
+        assert(result == 1.0);
+    }
 
-    test correlation_perfect_negative
-        given x = [1.0, 2.0, 3.0, 4.0, 5.0]
-        given y = [10.0, 8.0, 6.0, 4.0, 2.0]
-        when result = correlation(x, y)
-        then result == -1.0
+    test "correlation_perfect_negative" {
+        var x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        var y = [10.0, 8.0, 6.0, 4.0, 2.0];
+        var result = correlation(x, y);
+        assert(result == -1.0);
+    }
 
-    test correlation_no_correlation
-        given x = [1.0, 2.0, 3.0, 4.0, 5.0]
-        given y = [3.0, 1.0, 4.0, 2.0, 5.0]
-        when result = correlation(x, y)
-        then result >= -1.0 and result <= 1.0
+    test "correlation_no_correlation" {
+        var x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        var y = [3.0, 1.0, 4.0, 2.0, 5.0];
+        var result = correlation(x, y);
+        assert(result >= -1.0 and result <= 1.0);
+    }
 
-    test correlation_different_lengths
-        given x = [1.0, 2.0, 3.0]
-        given y = [1.0, 2.0]
-        when result = correlation(x, y)
-        then result == 0.0
+    test "correlation_different_lengths" {
+        var x = [1.0, 2.0, 3.0];
+        var y = [1.0, 2.0];
+        var result = correlation(x, y);
+        assert(result == 0.0);
+    }
 
-    test correlation_empty
-        given x: []f64 = []
-        given y: []f64 = []
-        when result = correlation(x, y)
-        then result == 0.0
+    test "correlation_empty" {
+        var x: []f64 = [];
+        var y: []f64 = [];
+        var result = correlation(x, y);
+        assert(result == 0.0);
+    }
