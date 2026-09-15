@@ -5,6 +5,7 @@
 module TriKmp;
     use base::types;
     use math::constants;
+    use std;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -19,14 +20,53 @@ module TriKmp;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // build_prefix(pattern: []const u8) → void
-    fn build_prefix(pattern: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // build_prefix(pattern: []const u8, allocator: std.mem.Allocator) -> !KMPPrefix
+    fn build_prefix(pattern: []const u8, allocator: std.mem.Allocator) -> !KMPPrefix {
+        var table = allocator.alloc(usize, pattern.len) catch unreachable;
+        
+        if (pattern.len == 0) {
+            return KMPPrefix{ .table = table, .pattern = pattern };
+        }
+        
+        table[0] = 0;
+        var k : usize = 0;
+        var i : usize = 1;
+        
+        while (i < pattern.len) : (i += 1) {
+            while (k > 0 and pattern[i] != pattern[k]) : (k = table[k - 1]) {}
+            if (pattern[i] == pattern[k]) {
+                k += 1;
+            }
+            table[i] = k;
+        }
+        
+        return KMPPrefix{ .table = table, .pattern = pattern };
     }
 
-    // search(text: []const u8) → void
-    fn search(text: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // search(text: []const u8, prefix: *const KMPPrefix) -> []usize
+    fn search(text: []const u8, prefix: *const KMPPrefix) -> []usize {
+        var result = std.ArrayList(usize).init(std.testing.allocator);
+        defer result.deinit();
+        
+        if (prefix.pattern.len == 0 or text.len < prefix.pattern.len) {
+            return result.toOwnedSlice();
+        }
+        
+        var j : usize = 0;
+        var i : usize = 0;
+        
+        while (i < text.len) : (i += 1) {
+            while (j > 0 and text[i] != prefix.pattern[j]) : (j = prefix.table[j - 1]) {}
+            if (text[i] == prefix.pattern[j]) {
+                j += 1;
+            }
+            if (j == prefix.pattern.len) {
+                result.append(i + 1 - j) catch unreachable;
+                j = prefix.table[j - 1];
+            }
+        }
+        
+        return result.toOwnedSlice();
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -43,3 +83,53 @@ module TriKmp;
         when result = search(input)
         then result != undefined
 
+    test the_border_table_of_ababa
+        // "ababa": no border at 'a' or 'ab', then "aba" borders on "a" (1),
+        // "abab" on "ab" (2), "ababa" on "aba" (3). This is what build_prefix
+        // must produce for this pattern.
+        given table = [_]usize{ 0, 0, 1, 2, 3 }
+        given kmp = KMPPrefix{ .table = @constCast(&table), .pattern = "ababa" }
+        then kmp.table.len == kmp.pattern.len
+        and kmp.table[0] == 0
+        and kmp.table[2] == 1
+        and kmp.table[4] == 3
+
+    test a_fallback_chain_strictly_decreases_so_the_scan_terminates
+        // On a mismatch the search follows j = table[j-1] repeatedly. Each hop
+        // lands on a strictly smaller index, which is why the whole scan is
+        // O(n + m) rather than quadratic: "ababa" falls 3 -> 1 -> 0.
+        given table = [_]usize{ 0, 0, 1, 2, 3 }
+        given first_hop = table[4]
+        given second_hop = table[first_hop - 1]
+        then first_hop == 3
+        and second_hop == 1
+        and second_hop < first_hop
+        and table[second_hop - 1] == 0
+
+    test build_prefix_produces_the_ababa_table
+        given kmp = build_prefix("ababa", std.testing.allocator)
+        then kmp.table.len == 5
+        and kmp.table[2] == 1
+        and kmp.table[4] == 3
+
+    test build_prefix_produces_the_aaaa_table
+        given kmp = build_prefix("aaaa", std.testing.allocator)
+        then kmp.table.len == 4
+        and kmp.table[0] == 0
+        and kmp.table[1] == 1
+        and kmp.table[2] == 2
+        and kmp.table[3] == 3
+
+    test search_finds_pattern_at_start
+        given kmp = build_prefix("abc", std.testing.allocator)
+        given result = search("abcxyz", &kmp)
+        then result.len == 1
+        and result[0] == 0
+
+    test search_finds_overlapping_matches
+        given kmp = build_prefix("aa", std.testing.allocator)
+        given result = search("aaaa", &kmp)
+        then result.len == 3
+        and result[0] == 0
+        and result[1] == 1
+        and result[2] == 2
