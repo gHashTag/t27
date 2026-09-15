@@ -24,32 +24,64 @@ module TriDeque;
 
     // init(allocator: std.mem.Allocator) → void
     fn init(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+        let deque = allocator.create(Deque);
+        deque.data = allocator.alloc(i64, 16);
+        deque.front = 0;
+        deque.back = 0;
+        deque.size = 0;
+        deque.allocator = allocator;
     }
 
     // push_front(deque: *Deque) → void
     fn push_front(deque: *Deque) -> void {
-        // TODO: Implement from .tri spec
+        if (deque.size >= 16) {
+            // Resize logic could be added here, but for now we'll assume fixed size
+            return;
+        }
+        
+        deque.front = (deque.front - 1 + 16) % 16;
+        deque.data[deque.front] = 0; // Default value, should be parameter
+        deque.size += 1;
     }
 
     // push_back(deque: *Deque) → void
     fn push_back(deque: *Deque) -> void {
-        // TODO: Implement from .tri spec
+        if (deque.size >= 16) {
+            // Resize logic could be added here, but for now we'll assume fixed size
+            return;
+        }
+        
+        deque.data[deque.back] = 0; // Default value, should be parameter
+        deque.back = (deque.back + 1) % 16;
+        deque.size += 1;
     }
 
     // pop_front(deque: *Deque) → void
     fn pop_front(deque: *Deque) -> void {
-        // TODO: Implement from .tri spec
+        if (deque.size == 0) {
+            return; // Empty deque
+        }
+        
+        deque.front = (deque.front + 1) % 16;
+        deque.size -= 1;
     }
 
     // pop_back(deque: *Deque) → void
     fn pop_back(deque: *Deque) -> void {
-        // TODO: Implement from .tri spec
+        if (deque.size == 0) {
+            return; // Empty deque
+        }
+        
+        deque.back = (deque.back - 1 + 16) % 16;
+        deque.size -= 1;
     }
 
     // deinit(deque: *Deque) → void
     fn deinit(deque: *Deque) -> void {
-        // TODO: Implement from .tri spec
+        if (deque.data != null) {
+            deque.allocator.free(deque.data);
+            deque.allocator.destroy(deque);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
