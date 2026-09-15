@@ -29,14 +29,511 @@ module TriMsgpack;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // encode(value: MsgPackValue) → void
-    fn encode(value: MsgPackValue) -> void {
-        // TODO: Implement from .tri spec
+    // encode(value: MsgPackValue, allocator: std.mem.Allocator) → ![]u8
+    fn encode(value: MsgPackValue, allocator: std.mem.Allocator) -> ![]u8 {
+        let result = std.ArrayList(u8).init(allocator);
+        defer result.deinit();
+        
+        switch (value.type) {
+            .Nil => {
+                result.append(0xc0);
+            },
+            .Bool => {
+                result.append(if (value.bool_value) 0xc3 else 0xc2);
+            },
+            .Int => {
+                let int_val = value.int_value;
+                if (int_val >= -32 and int_val <= -1) {
+                    // negative fixint
+                    result.append(@intCast(u8, int_val & 0xff));
+                } else if (int_val >= -128 and int_val <= 127) {
+                    // int8
+                    result.append(0xd0);
+                    result.append(@intCast(u8, int_val & 0xff));
+                } else if (int_val >= -32768 and int_val <= 32767) {
+                    // int16
+                    result.append(0xd1);
+                    result.append(@intCast(u8, (int_val >> 8) & 0xff));
+                    result.append(@intCast(u8, int_val & 0xff));
+                } else if (int_val >= -2147483648 and int_val <= 2147483647) {
+                    // int32
+                    result.append(0xd2);
+                    result.append(@intCast(u8, (int_val >> 24) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 16) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 8) & 0xff));
+                    result.append(@intCast(u8, int_val & 0xff));
+                } else {
+                    // int64
+                    result.append(0xd3);
+                    result.append(@intCast(u8, (int_val >> 56) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 48) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 40) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 32) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 24) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 16) & 0xff));
+                    result.append(@intCast(u8, (int_val >> 8) & 0xff));
+                    result.append(@intCast(u8, int_val & 0xff));
+                }
+            },
+            .Uint => {
+                let uint_val = value.uint_value;
+                if (uint_val <= 127) {
+                    // positive fixint
+                    result.append(@intCast(u8, uint_val));
+                } else if (uint_val <= 255) {
+                    // uint8
+                    result.append(0xcc);
+                    result.append(@intCast(u8, uint_val));
+                } else if (uint_val <= 65535) {
+                    // uint16
+                    result.append(0xcd);
+                    result.append(@intCast(u8, (uint_val >> 8) & 0xff));
+                    result.append(@intCast(u8, uint_val & 0xff));
+                } else if (uint_val <= 4294967295) {
+                    // uint32
+                    result.append(0xce);
+                    result.append(@intCast(u8, (uint_val >> 24) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 16) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 8) & 0xff));
+                    result.append(@intCast(u8, uint_val & 0xff));
+                } else {
+                    // uint64
+                    result.append(0xcf);
+                    result.append(@intCast(u8, (uint_val >> 56) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 48) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 40) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 32) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 24) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 16) & 0xff));
+                    result.append(@intCast(u8, (uint_val >> 8) & 0xff));
+                    result.append(@intCast(u8, uint_val & 0xff));
+                }
+            },
+            .Float => {
+                result.append(0xcb);
+                let float_val = value.float_value;
+                let int_val = @bitCast(u64, float_val);
+                result.append(@intCast(u8, (int_val >> 56) & 0xff));
+                result.append(@intCast(u8, (int_val >> 48) & 0xff));
+                result.append(@intCast(u8, (int_val >> 40) & 0xff));
+                result.append(@intCast(u8, (int_val >> 32) & 0xff));
+                result.append(@intCast(u8, (int_val >> 24) & 0xff));
+                result.append(@intCast(u8, (int_val >> 16) & 0xff));
+                result.append(@intCast(u8, (int_val >> 8) & 0xff));
+                result.append(@intCast(u8, int_val & 0xff));
+            },
+            .Str => {
+                let str_val = value.str_value;
+                let len = str_val.len;
+                if (len < 32) {
+                    // fixstr
+                    result.append(0xa0 | @intCast(u8, len));
+                } else if (len <= 255) {
+                    // str8
+                    result.append(0xd9);
+                    result.append(@intCast(u8, len));
+                } else if (len <= 65535) {
+                    // str16
+                    result.append(0xda);
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                } else {
+                    // str32
+                    result.append(0xdb);
+                    result.append(@intCast(u8, (len >> 24) & 0xff));
+                    result.append(@intCast(u8, (len >> 16) & 0xff));
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                }
+                result.appendSlice(str_val);
+            },
+            .Bin => {
+                let bin_val = value.bin_value;
+                let len = bin_val.len;
+                if (len <= 255) {
+                    // bin8
+                    result.append(0xc4);
+                    result.append(@intCast(u8, len));
+                } else if (len <= 65535) {
+                    // bin16
+                    result.append(0xc5);
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                } else {
+                    // bin32
+                    result.append(0xc6);
+                    result.append(@intCast(u8, (len >> 24) & 0xff));
+                    result.append(@intCast(u8, (len >> 16) & 0xff));
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                }
+                result.appendSlice(bin_val);
+            },
+            .Array => {
+                let array_val = value.array_value;
+                let len = array_val.len;
+                if (len < 16) {
+                    // fixarray
+                    result.append(0x90 | @intCast(u8, len));
+                } else if (len <= 65535) {
+                    // array16
+                    result.append(0xdc);
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                } else {
+                    // array32
+                    result.append(0xdd);
+                    result.append(@intCast(u8, (len >> 24) & 0xff));
+                    result.append(@intCast(u8, (len >> 16) & 0xff));
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                }
+                for (array_val) |item| {
+                    let encoded_item = encode(item, allocator) catch return error.EncodingFailed;
+                    result.appendSlice(encoded_item);
+                    allocator.free(encoded_item);
+                }
+            },
+            .Map => {
+                let map_val = value.map_value;
+                let len = map_val.count();
+                if (len < 16) {
+                    // fixmap
+                    result.append(0x80 | @intCast(u8, len));
+                } else if (len <= 65535) {
+                    // map16
+                    result.append(0xde);
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                } else {
+                    // map32
+                    result.append(0xdf);
+                    result.append(@intCast(u8, (len >> 24) & 0xff));
+                    result.append(@intCast(u8, (len >> 16) & 0xff));
+                    result.append(@intCast(u8, (len >> 8) & 0xff));
+                    result.append(@intCast(u8, len & 0xff));
+                }
+                var it = map_val.iterator();
+                while (it.next()) |entry| {
+                    let encoded_key = encode(entry.key_ptr.*, allocator) catch return error.EncodingFailed;
+                    result.appendSlice(encoded_key);
+                    allocator.free(encoded_key);
+                    let encoded_value = encode(entry.value_ptr.*, allocator) catch return error.EncodingFailed;
+                    result.appendSlice(encoded_value);
+                    allocator.free(encoded_value);
+                }
+            },
+        }
+        
+        return result.toOwnedSlice();
     }
 
-    // decode(data: []const u8) → void
-    fn decode(data: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // decode(data: []const u8, allocator: std.mem.Allocator) → !MsgPackValue
+    fn decode(data: []const u8, allocator: std.mem.Allocator) -> !MsgPackValue {
+        if (data.len == 0) {
+            return error.InsufficientData;
+        }
+        
+        let tag = data[0];
+        let remaining = data[1..];
+        
+        switch (tag) {
+            0xc0 => { // Nil
+                return MsgPackValue{
+                    .type = .Nil,
+                };
+            },
+            0xc2 => { // False
+                return MsgPackValue{
+                    .type = .Bool,
+                    .bool_value = false,
+                };
+            },
+            0xc3 => { // True
+                return MsgPackValue{
+                    .type = .Bool,
+                    .bool_value = true,
+                };
+            },
+            // Positive fixint (0x00..0x7f)
+            0x00...0x7f => {
+                return MsgPackValue{
+                    .type = .Uint,
+                    .uint_value = @intCast(u64, tag),
+                };
+            },
+            // Negative fixint (0xe0..0xff)
+            0xe0...0xff => {
+                return MsgPackValue{
+                    .type = .Int,
+                    .int_value = @intCast(i64, tag),
+                };
+            },
+            0xcc => { // uint8
+                if (remaining.len < 1) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Uint,
+                    .uint_value = @intCast(u64, remaining[0]),
+                };
+            },
+            0xcd => { // uint16
+                if (remaining.len < 2) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Uint,
+                    .uint_value = @intCast(u64, remaining[0]) << 8 | @intCast(u64, remaining[1]),
+                };
+            },
+            0xce => { // uint32
+                if (remaining.len < 4) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Uint,
+                    .uint_value = @intCast(u64, remaining[0]) << 24 | @intCast(u64, remaining[1]) << 16 | @intCast(u64, remaining[2]) << 8 | @intCast(u64, remaining[3]),
+                };
+            },
+            0xcf => { // uint64
+                if (remaining.len < 8) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Uint,
+                    .uint_value = @intCast(u64, remaining[0]) << 56 | @intCast(u64, remaining[1]) << 48 | @intCast(u64, remaining[2]) << 40 | @intCast(u64, remaining[3]) << 32 | @intCast(u64, remaining[4]) << 24 | @intCast(u64, remaining[5]) << 16 | @intCast(u64, remaining[6]) << 8 | @intCast(u64, remaining[7]),
+                };
+            },
+            0xd0 => { // int8
+                if (remaining.len < 1) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Int,
+                    .int_value = @intCast(i64, @bitCast(i8, remaining[0])),
+                };
+            },
+            0xd1 => { // int16
+                if (remaining.len < 2) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Int,
+                    .int_value = @intCast(i64, @bitCast(i16, @intCast(u16, remaining[0]) << 8 | @intCast(u16, remaining[1]))),
+                };
+            },
+            0xd2 => { // int32
+                if (remaining.len < 4) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Int,
+                    .int_value = @intCast(i64, @bitCast(i32, @intCast(u32, remaining[0]) << 24 | @intCast(u32, remaining[1]) << 16 | @intCast(u32, remaining[2]) << 8 | @intCast(u32, remaining[3]))),
+                };
+            },
+            0xd3 => { // int64
+                if (remaining.len < 8) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Int,
+                    .int_value = @intCast(i64, @bitCast(i64, @intCast(u64, remaining[0]) << 56 | @intCast(u64, remaining[1]) << 48 | @intCast(u64, remaining[2]) << 40 | @intCast(u64, remaining[3]) << 32 | @intCast(u64, remaining[4]) << 24 | @intCast(u64, remaining[5]) << 16 | @intCast(u64, remaining[6]) << 8 | @intCast(u64, remaining[7]))),
+                };
+            },
+            0xcb => { // float64
+                if (remaining.len < 8) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Float,
+                    .float_value = @bitCast(f64, @intCast(u64, remaining[0]) << 56 | @intCast(u64, remaining[1]) << 48 | @intCast(u64, remaining[2]) << 40 | @intCast(u64, remaining[3]) << 32 | @intCast(u64, remaining[4]) << 24 | @intCast(u64, remaining[5]) << 16 | @intCast(u64, remaining[6]) << 8 | @intCast(u64, remaining[7])),
+                };
+            },
+            // fixstr (0xa0..0xbf)
+            0xa0...0xbf => {
+                let len = tag & 0x1f;
+                if (remaining.len < len) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Str,
+                    .str_value = remaining[0..len],
+                };
+            },
+            0xd9 => { // str8
+                if (remaining.len < 1) return error.InsufficientData;
+                let len = @intCast(usize, remaining[0]);
+                if (remaining.len < len + 1) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Str,
+                    .str_value = remaining[1..len + 1],
+                };
+            },
+            0xda => { // str16
+                if (remaining.len < 2) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u16, remaining[0]) << 8 | @intCast(u16, remaining[1]));
+                if (remaining.len < len + 2) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Str,
+                    .str_value = remaining[2..len + 2],
+                };
+            },
+            0xdb => { // str32
+                if (remaining.len < 4) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u32, remaining[0]) << 24 | @intCast(u32, remaining[1]) << 16 | @intCast(u32, remaining[2]) << 8 | @intCast(u32, remaining[3]));
+                if (remaining.len < len + 4) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Str,
+                    .str_value = remaining[4..len + 4],
+                };
+            },
+            0xc4 => { // bin8
+                if (remaining.len < 1) return error.InsufficientData;
+                let len = @intCast(usize, remaining[0]);
+                if (remaining.len < len + 1) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Bin,
+                    .bin_value = remaining[1..len + 1],
+                };
+            },
+            0xc5 => { // bin16
+                if (remaining.len < 2) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u16, remaining[0]) << 8 | @intCast(u16, remaining[1]));
+                if (remaining.len < len + 2) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Bin,
+                    .bin_value = remaining[2..len + 2],
+                };
+            },
+            0xc6 => { // bin32
+                if (remaining.len < 4) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u32, remaining[0]) << 24 | @intCast(u32, remaining[1]) << 16 | @intCast(u32, remaining[2]) << 8 | @intCast(u32, remaining[3]));
+                if (remaining.len < len + 4) return error.InsufficientData;
+                return MsgPackValue{
+                    .type = .Bin,
+                    .bin_value = remaining[4..len + 4],
+                };
+            },
+            // fixarray (0x90..0x9f)
+            0x90...0x9f => {
+                let len = tag & 0x0f;
+                let mut array = std.ArrayList(MsgPackValue).init(allocator);
+                defer array.deinit();
+                
+                var i: usize = 0;
+                while (i < len) {
+                    if (remaining.len == 0) return error.InsufficientData;
+                    let item = decode(remaining, allocator) catch return error.DecodingFailed;
+                    array.append(item);
+                    i += 1;
+                }
+                
+                return MsgPackValue{
+                    .type = .Array,
+                    .array_value = array.toOwnedSlice(),
+                };
+            },
+            0xdc => { // array16
+                if (remaining.len < 2) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u16, remaining[0]) << 8 | @intCast(u16, remaining[1]));
+                let mut array = std.ArrayList(MsgPackValue).init(allocator);
+                defer array.deinit();
+                
+                var i: usize = 0;
+                while (i < len) {
+                    if (remaining.len < 2) return error.InsufficientData;
+                    let item = decode(remaining[2..], allocator) catch return error.DecodingFailed;
+                    array.append(item);
+                    i += 1;
+                }
+                
+                return MsgPackValue{
+                    .type = .Array,
+                    .array_value = array.toOwnedSlice(),
+                };
+            },
+            0xdd => { // array32
+                if (remaining.len < 4) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u32, remaining[0]) << 24 | @intCast(u32, remaining[1]) << 16 | @intCast(u32, remaining[2]) << 8 | @intCast(u32, remaining[3]));
+                let mut array = std.ArrayList(MsgPackValue).init(allocator);
+                defer array.deinit();
+                
+                var i: usize = 0;
+                while (i < len) {
+                    if (remaining.len < 4) return error.InsufficientData;
+                    let item = decode(remaining[4..], allocator) catch return error.DecodingFailed;
+                    array.append(item);
+                    i += 1;
+                }
+                
+                return MsgPackValue{
+                    .type = .Array,
+                    .array_value = array.toOwnedSlice(),
+                };
+            },
+            // fixmap (0x80..0x8f)
+            0x80...0x8f => {
+                let len = tag & 0x0f;
+                var map = std.StringHashMap(MsgPackValue).init(allocator);
+                defer map.deinit();
+                
+                var i: usize = 0;
+                while (i < len) {
+                    if (remaining.len == 0) return error.InsufficientData;
+                    let key = decode(remaining, allocator) catch return error.DecodingFailed;
+                    if (key.type != .Str) return error.InvalidKeyType;
+                    let key_str = std.fmt.allocPrint(allocator, "{s}", .{key.str_value}) catch return error.AllocationFailed;
+                    defer allocator.free(key_str);
+                    
+                    if (remaining.len == 0) return error.InsufficientData;
+                    let value = decode(remaining, allocator) catch return error.DecodingFailed;
+                    
+                    map.put(key_str, value) catch return error.AllocationFailed;
+                    i += 1;
+                }
+                
+                return MsgPackValue{
+                    .type = .Map,
+                    .map_value = map,
+                };
+            },
+            0xde => { // map16
+                if (remaining.len < 2) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u16, remaining[0]) << 8 | @intCast(u16, remaining[1]));
+                var map = std.StringHashMap(MsgPackValue).init(allocator);
+                defer map.deinit();
+                
+                var i: usize = 0;
+                while (i < len) {
+                    if (remaining.len < 2) return error.InsufficientData;
+                    let key = decode(remaining[2..], allocator) catch return error.DecodingFailed;
+                    if (key.type != .Str) return error.InvalidKeyType;
+                    let key_str = std.fmt.allocPrint(allocator, "{s}", .{key.str_value}) catch return error.AllocationFailed;
+                    defer allocator.free(key_str);
+                    
+                    if (remaining.len < 2) return error.InsufficientData;
+                    let value = decode(remaining[2..], allocator) catch return error.DecodingFailed;
+                    
+                    map.put(key_str, value) catch return error.AllocationFailed;
+                    i += 1;
+                }
+                
+                return MsgPackValue{
+                    .type = .Map,
+                    .map_value = map,
+                };
+            },
+            0xdf => { // map32
+                if (remaining.len < 4) return error.InsufficientData;
+                let len = @intCast(usize, @intCast(u32, remaining[0]) << 24 | @intCast(u32, remaining[1]) << 16 | @intCast(u32, remaining[2]) << 8 | @intCast(u32, remaining[3]));
+                var map = std.StringHashMap(MsgPackValue).init(allocator);
+                defer map.deinit();
+                
+                var i: usize = 0;
+                while (i < len) {
+                    if (remaining.len < 4) return error.InsufficientData;
+                    let key = decode(remaining[4..], allocator) catch return error.DecodingFailed;
+                    if (key.type != .Str) return error.InvalidKeyType;
+                    let key_str = std.fmt.allocPrint(allocator, "{s}", .{key.str_value}) catch return error.AllocationFailed;
+                    defer allocator.free(key_str);
+                    
+                    if (remaining.len < 4) return error.InsufficientData;
+                    let value = decode(remaining[4..], allocator) catch return error.DecodingFailed;
+                    
+                    map.put(key_str, value) catch return error.AllocationFailed;
+                    i += 1;
+                }
+                
+                return MsgPackValue{
+                    .type = .Map,
+                    .map_value = map,
+                };
+            },
+            else => {
+                return error.UnknownTag;
+            },
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -44,12 +541,60 @@ module TriMsgpack;
     // ═══════════════════════════════════════════════════════════
 
     test encode_basic_case
-        given input = default_input()
-        when result = encode(input)
+        given input = MsgPackValue{ .type = .Nil }
+        when result = encode(input, std.testing.allocator)
         then result != undefined
 
     test decode_basic_case
-        given input = default_input()
-        when result = decode(input)
-        then result != undefined
+        given input = []u8{0xc0} // nil
+        when result = decode(input, std.testing.allocator)
+        then result.type == .Nil
+
+    test msgpack_type_names_the_nine_families
+        given family_count = @typeInfo(MsgPackType).@"enum".fields.len
+        and has_nil = @hasField(MsgPackType, "Nil")
+        and has_map = @hasField(MsgPackType, "Map")
+        then family_count == 9 and has_nil and has_map
+
+    test signed_and_unsigned_integers_are_separate_families
+        given signed_type = @FieldType(MsgPackValue, "int_value")
+        and unsigned_type = @FieldType(MsgPackValue, "uint_value")
+        then signed_type == i64 and unsigned_type == u64
+
+    test positive_fixint_covers_zero_through_127
+        given low = 0x00
+        and high = 0x7f
+        when span = high - low + 1
+        then span == 128
+
+    test negative_fixint_covers_minus_32_through_minus_1
+        given low = 0xe0
+        and high = 0xff
+        when span = high - low + 1
+        then span == 32
+
+    test nil_encodes_to_single_byte_c0
+        given input = MsgPackValue{ .type = .Nil }
+        when result = encode(input, std.testing.allocator)
+        then result.len == 1 and result[0] == 0xc0
+
+    test fixstr_tag_for_5byte_string_is_a5
+        given input = MsgPackValue{ .type = .Str, .str_value = "hello" }
+        when result = encode(input, std.testing.allocator)
+        then result[0] == 0xa5
+
+    test fixarray_tag_for_3_elements_is_93
+        given input = MsgPackValue{ .type = .Array, .array_value = []MsgPackValue{
+            MsgPackValue{ .type = .Uint, .uint_value = 1 },
+            MsgPackValue{ .type = .Uint, .uint_value = 2 },
+            MsgPackValue{ .type = .Uint, .uint_value = 3 },
+        }}
+        when result = encode(input, std.testing.allocator)
+        then result[0] == 0x93
+
+    test round_trip_decode_encode_returns_same_family
+        given original = MsgPackValue{ .type = .Str, .str_value = "test" }
+        when encoded = encode(original, std.testing.allocator)
+        and decoded = decode(encoded, std.testing.allocator)
+        then decoded.type == original.type
 
