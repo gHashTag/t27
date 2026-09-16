@@ -315,6 +315,11 @@ module TernaryControlFlow {
         // PC write to zero address should be valid
         then true
 
+    test "pc_write basic functionality"
+        given pc_write(42)
+        // PC write should execute without error
+        then true
+
     test jump_link_saves_return_addr
         given lr : u32 = 0
         and   pc_set_to(50)
