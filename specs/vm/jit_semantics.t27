@@ -71,7 +71,6 @@ module JitSemantics {
     // Returns initialized JitCompiler with empty code buffer
     // Complexity: O(1)
     pub fn initCompiler(allocator_id: u16) -> JitCompiler {
-        // TODO: Implement actual compiler initialization
         JitCompiler {
             code_buffer: [],
             allocator_id: allocator_id,
@@ -79,21 +78,21 @@ module JitSemantics {
         }
     }
 
-    // deinitCompiler(compiler: &JitCompiler)
+    // deinitCompiler(compiler: JitCompiler)
     // Destroy JIT compiler and free resources
     // Releases code buffer and executable memory
     // Complexity: O(1) + memory deallocation
-    pub fn deinitCompiler(compiler: &JitCompiler) {
+    pub fn deinitCompiler(compiler: JitCompiler) {
         // Free code buffer and executable memory
         var temp = compiler.code_buffer;
         _ = temp;
     }
 
-    // resetCompiler(compiler: &JitCompiler)
+    // resetCompiler(compiler: JitCompiler)
     // Reset code buffer for new compilation
     // Retains allocated capacity but clears content
     // Complexity: O(n) where n = current code buffer size
-    pub fn resetCompiler(compiler: &JitCompiler) {
+    pub fn resetCompiler(compiler: JitCompiler) {
         // Clear code buffer while preserving capacity
         var temp = compiler.code_buffer;
         _ = temp;
@@ -104,33 +103,34 @@ module JitSemantics {
     // Returns code size in bytes of generated code
     // Generates platform-specific machine code for the operation
     // Complexity: O(dimension) for code generation
-    pub fn compileOperation(compiler: &JitCompiler, op: VsaOperation, dimension: usize) -> usize {
-        // TODO: Implement actual operation compilation
+    pub fn compileOperation(compiler: JitCompiler, op: VsaOperation, dimension: usize) -> usize {
+        // Reserve space for code generation (placeholder implementation)
+        // In a real implementation, this would generate actual machine code
+        var code_size = dimension * 4; // Estimate: 4 bytes per element
         _ = compiler;
         _ = op;
-        _ = dimension;
-        0
+        return code_size;
     }
 
-    // finalizeCompiler(compiler: &JitCompiler) -> ?JitVsaFn
+    // finalizeCompiler(compiler: JitCompiler) -> ?JitVsaFn
     // Make generated code executable and return function pointer
     // Allocates executable memory, copies code, sets permissions
     // Returns null pointer if code buffer is empty
     // Complexity: O(1) for mmap + copy + mprotect
-    pub fn finalizeCompiler(compiler: &JitCompiler) -> ?JitVsaFn {
-        // TODO: Implement actual code finalization
+    pub fn finalizeCompiler(compiler: JitCompiler) -> ?JitVsaFn {
+        // Placeholder implementation: return null for now
+        // In a real implementation, this would allocate executable memory
+        // and create a function pointer from the compiled code
         _ = compiler;
-        null
+        return null;
     }
 
-    // codeSize(compiler: &JitCompiler) -> usize
+    // codeSize(compiler: JitCompiler) -> usize
     // Get current size of generated code
     // Returns byte count of code buffer
     // Complexity: O(1)
-    pub fn codeSize(compiler: &JitCompiler) -> usize {
-        // TODO: Implement actual code size calculation
-        _ = compiler;
-        0
+    pub fn codeSize(compiler: JitCompiler) -> usize {
+        return compiler.code_buffer.len();
     }
 
     // ========================================================================
@@ -142,7 +142,6 @@ module JitSemantics {
     // Returns initialized JitCache with empty cache and compiler
     // Complexity: O(1)
     pub fn initCache(allocator_id: u16) -> JitCache {
-        // TODO: Implement actual cache initialization
         JitCache {
             bind_cache: map,
             compiler: initCompiler(allocator_id),
@@ -150,21 +149,23 @@ module JitSemantics {
         }
     }
 
-    // deinitCache(cache: &JitCache)
+    // deinitCache(cache: JitCache)
     // Destroy JIT cache and free all cached functions
     // Releases compiler instance and clears cache map
     // Complexity: O(n) where n = cached functions
-    pub fn deinitCache(cache: &JitCache) {
-        // Free cached functions and compiler resources
-        var temp = cache.bind_cache;
-        _ = temp;
+    pub fn deinitCache(cache: JitCache) {
+        // Placeholder implementation: clear cache and deinitialize compiler
+        // In a real implementation, this would free all cached function pointers
+        // and properly clean up memory resources
+        var temp_cache = cache;
+        _ = &temp_cache;
     }
 
     // getOrCompile(cache: &JitCache, op: VsaOperation, dimension: usize) -> ?JitVsaFn
     // Get cached function or compile if not cached
     // Returns function pointer or compiles new function if needed
     // Complexity: O(1) for cache hit, O(dimension) for compile
-    pub fn getOrCompile(cache: &JitCache, op: VsaOperation, dimension: usize) -> ?JitVsaFn {
+    pub fn getOrCompile(cache: JitCache, op: VsaOperation, dimension: usize) -> ?JitVsaFn {
         // TODO: Implement actual cache lookup and compilation
         _ = cache;
         _ = op;
