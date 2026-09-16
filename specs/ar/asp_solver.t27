@@ -28,6 +28,18 @@ spec AspSolver {
         cost: int
     }
 
+    // Proof step for trace
+    struct ProofStep {
+        name: string,
+        args: [Literal],
+        result: bool
+    }
+
+    // Proof trace for ASP solving
+    struct ProofTrace {
+        steps: [ProofStep]
+    }
+
     // Maximum ASP derivation steps (bounded for explainability)
     const MAX_ASP_STEPS: int = 10
 
@@ -324,6 +336,39 @@ spec AspSolver {
     fn naf(prog: Program, lit: Literal) -> bool {
         // NAF returns true if lit is NOT derivable
         return !is_derivable(prog, lit, [])
+    }
+
+    // Helper functions
+    fn new_proof_trace() -> ProofTrace {
+        return ProofTrace {
+            steps: []
+        }
+    }
+
+    fn add_step(trace: ProofTrace, name: string, args: [Literal], result: bool) -> ProofTrace {
+        let new_steps = trace.steps;
+        new_steps.push(ProofStep {
+            name: name,
+            args: args,
+            result: result
+        });
+        return ProofTrace {
+            steps: new_steps
+        }
+    }
+
+    fn finalize_trace(trace: ProofTrace) -> ProofTrace {
+        return trace
+    }
+
+    fn range(start: int, end: int) -> [int] {
+        let result: [int] = [];
+        var i = start;
+        while i < end {
+            result.push(i);
+            i = i + 1;
+        }
+        return result
     }
 
     // INVARIANTS
