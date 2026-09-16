@@ -215,6 +215,11 @@ module ZeroDSP_TopLevel {
         // Implementation: call the function to measure its latency
         system_ready()
 
+    test set_uart_data_implementation
+        given set_uart_data(0x42)
+        and   data = get_uart_data()
+        then data == 0x42
+
     bench system_reset_latency
         measure: nanoseconds to system_reset()
         target: < 100ns
