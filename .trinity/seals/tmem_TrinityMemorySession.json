@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:07b56ca932456fb90020567b9ed8fa040f1c7438253e8e81f8f03116c8d4bdd1",
-  "gen_hash_rust": "sha256:6510410d02f99f12ce58cc18446baaa8c608a1ed19c3e81e867f12535eecc829",
-  "gen_hash_verilog": "sha256:773ba55f7072079572f1a83167786b64f89513f1f1147e8e5cef24b2bbadf26e",
-  "gen_hash_zig": "sha256:e74d92a6d22be641e359edce9992c06c2a8bb8a452884d43c7649a2885bc80c5",
+  "gen_hash_c": "sha256:f9a1ebcc32c4de20200339c12623874dad3cdf79d8078e44debd75d2a5e4542c",
+  "gen_hash_rust": "sha256:080a052181bc272f3a4443a8753ef9a44e231253cb9c1c6fb70318bc8abe73f6",
+  "gen_hash_verilog": "sha256:9405d35842c432954d045eecf521395926450c7263fd70adb4304108a2274e4d",
+  "gen_hash_zig": "sha256:f97da795c10cf98228c08959092aaee0fddcb16e16e57245e9b2918c37115589",
   "module": "TrinityMemorySession",
   "ring": 12,
-  "sealed_at": "2026-09-15T19:32:26Z",
+  "sealed_at": "2026-09-16T04:46:04Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:168023ad04a40cb7d67b7370b82703343646f579cf3c241dc3807f58cb4ec8a2",
+  "spec_hash": "sha256:ec8d93ba5858b7659bf6ef5a42f4193da3ba41ffdb6cf2780f4e2ee647f21064",
   "spec_path": "specs/memory/tmem/session.t27"
 }
