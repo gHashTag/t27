@@ -89,6 +89,12 @@ module HIR_Testbench {
         invariant MAX_HIR_DEPTH == 16;
     }
 
+    test test_tick_clock_toggle {
+        var initial_clk : bool = clk;
+        tick();
+        invariant clk != initial_clk;
+    }
+
     invariant max_depth_positive : MAX_HIR_DEPTH > 0;
     invariant max_nodes_positive : MAX_NODES > 0;
 
