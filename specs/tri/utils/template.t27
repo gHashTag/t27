@@ -47,6 +47,15 @@ module TriTemplate;
         }
     }
 
+    // Helper function for tests
+    fn default_input() -> Template {
+        return Template{ .parts = @constCast(&[_]TemplatePart{
+            TemplatePart{ .is_literal = true, .text = "Hello", .variable = "" },
+            TemplatePart{ .is_literal = false, .text = "", .variable = "name" },
+            TemplatePart{ .is_literal = true, .text = "!", .variable = "" },
+        }) };
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
