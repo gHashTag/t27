@@ -1767,3 +1767,19 @@ test igla_race_ternary_inference_w392_batch_depth_invariant_2 {
 }
 
 invariant igla_race_ternary_inference_w392_depth: true
+
+test "load_ternary_weights_basic" {
+    // Test basic functionality of load_ternary_weights
+    const weights = [
+        TernaryWeight { code: 1 },
+        TernaryWeight { code: 0 },
+        TernaryWeight { code: 2 },
+        TernaryWeight { code: 1 }
+    ];
+    const model = load_ternary_weights(weights);
+    assert model.weights.len() == 4;
+    assert model.weights[0].code == 1;
+    assert model.weights[1].code == 0;
+    assert model.weights[2].code == 2;
+    assert model.weights[3].code == 1;
+}
