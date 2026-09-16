@@ -141,39 +141,39 @@ invariant perplexity_gte_one:
     // 5. Tests
     // ===========================================================
 
-    test tiny_model_identity
+    test "tiny_model_identity"
         given cfg = TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 32, learning_rate: 0.001, warmup_steps: 100, max_steps: 1000, seq_len: 512, vocab_size: 32000 }
         assert cfg.model_size == ModelSize.Tiny_50M
 
-    test checkpoint_fields_valid
+    test "checkpoint_fields_valid"
         given cp = Checkpoint { step: 100, loss: 2.5, perplexity: 12.0, timestamp: 1700000000 }
         assert cp.step >= 0 && cp.loss >= 0.0 && cp.perplexity >= 1.0
 
-    test lr_decay_monotonic
+    test "lr_decay_monotonic"
         given lr1 = 0.001
         given lr2 = 0.0005
         assert lr1 > lr2
 
-    test train_basic_functionality
+    test "train_basic_functionality"
         given cfg = TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 32, learning_rate: 0.001, warmup_steps: 100, max_steps: 10, seq_len: 512, vocab_size: 32000 }
         let result = train(cfg)
         assert result.step == 10 && result.loss >= 0.0 && result.perplexity >= 1.0
 
-    test evaluate_different_datasets
+    test "evaluate_different_datasets"
         given cp = Checkpoint { step: 100, loss: 2.0, perplexity: 7.4, timestamp: 1700000000 }
         let val_loss = evaluate(cp, "validation_split")
         let test_loss = evaluate(cp, "test_split")
         let train_loss = evaluate(cp, "train_split")
         assert val_loss <= test_loss && test_loss >= train_loss
 
-    test save_and_load_checkpoint
+    test "save_and_load_checkpoint"
         given cp = Checkpoint { step: 500, loss: 1.5, perplexity: 4.5, timestamp: 1700000000 }
         let test_path = "/tmp/test_checkpoint.t27"
         save_checkpoint(cp, test_path)
         let loaded_cp = load_checkpoint(test_path)
         assert loaded_cp.step == cp.step && loaded_cp.loss == cp.loss && loaded_cp.perplexity == cp.perplexity
 
-    test_load_checkpoint_nonexistent
+    test "test_load_checkpoint_nonexistent"
         let nonexistent_path = "/tmp/nonexistent_checkpoint.t27"
         // This should handle the case where file doesn't exist gracefully
         // In a real implementation, this might return a default checkpoint or error
