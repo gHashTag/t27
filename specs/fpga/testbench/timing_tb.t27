@@ -96,6 +96,11 @@ module Timing_Testbench {
         invariant clk == initial_clk;
     }
 
+    test "tick_function_exists" {
+        tick();
+        invariant clk == true;
+    }
+
     bench bench_timing_analysis {
         reset();
         var delay : u32 = 1000;
