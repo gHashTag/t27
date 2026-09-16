@@ -584,6 +584,18 @@ spec AspSolver {
 
     bench solve_latency {
         // Target: <50μs for simple 2-literal program
+        let prog = new_program();
+        let clause1 = Clause {literals: [Literal {name: "p", is_negated: false, args: []}]};
+        let prog = add_clause(prog, clause1);
+        let clause2 = Clause {literals: [Literal {name: "q", is_negated: false, args: []}]};
+        let prog = add_clause(prog, clause2);
+        
+        // Benchmark the solve function
+        var i = 0;
+        while i < 100 {
+            let _ = solve(prog);
+            i = i + 1;
+        }
     }
 
     bench grounding_latency {
