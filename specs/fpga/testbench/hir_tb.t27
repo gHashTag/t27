@@ -95,6 +95,14 @@ module HIR_Testbench {
         invariant clk != initial_clk;
     }
 
+    test test_tick_basic {
+        var initial_clk : bool = clk;
+        tick();
+        invariant clk == true;
+        tick();
+        invariant clk == false;
+    }
+
     invariant max_depth_positive : MAX_HIR_DEPTH > 0;
     invariant max_nodes_positive : MAX_NODES > 0;
 
