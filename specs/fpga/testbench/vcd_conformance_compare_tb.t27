@@ -98,6 +98,12 @@ module VcdConformanceCompare_Testbench {
 
     invariant max_compares_positive : MAX_COMPARES > 0;
 
+    test test_tick_function {
+        // Test that tick() function exists and can be called
+        tick();
+        invariant true;
+    }
+
     bench bench_vcd_compare {
         reset();
         compare_en = true;
