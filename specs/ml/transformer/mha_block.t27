@@ -58,6 +58,11 @@ module MHABlock;
         projection_weights : []gf16::GF16, // Projection matrix if needed
     };
 
+    pub const DropoutResult = struct {
+        output : []gf16::GF16,      // Dropout output
+        mask : []gf16::GF16,        // Dropout mask (1.0 = kept, 0.0 = dropped)
+    };
+
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
@@ -65,10 +70,17 @@ module MHABlock;
     // init(config: BlockConfig) → BlockState
     // Initializes Transformer encoder block.
     fn init(config: BlockConfig) -> BlockState {
-        // Initialize norm1, norm2 with hidden_size
-        // Initialize mha_state with hidden_size, num_heads
-        // Initialize ffn_state with hidden_size, expansion_factor
-        // is_training = true
+        norm1 = ml::transformer::norm::init(config.hidden_size);
+        norm2 = ml::transformer::norm::init(config.hidden_size);
+        mha_state = ml::transformer::multi_head_attn::init(config.hidden_size, config.num_heads);
+        ffn_state = ml::transformer::feed_forward::init(config.hidden_size, config.expansion_factor);
+        BlockState{
+            .norm1 = norm1,
+            .norm2 = norm2,
+            .mha_state = mha_state,
+            .ffn_state = ffn_state,
+            .is_training = true,
+        }
     }
 
     // forward(state: BlockState, input: []gf16::GF16) → BlockForwardResult
@@ -76,15 +88,38 @@ module MHABlock;
     fn forward(state: BlockState, input: []gf16::GF16) → BlockForwardResult {
         // Pre-LN Architecture (default):
         //   1. norm1_output = LayerNorm(input)
+        norm1_output = ml::transformer::norm::forward(state.norm1, input);
+        
         //   2. attn_output, attn_weights = MHA(norm1_output)
+        mha_result = ml::transformer::multi_head_attn::forward(state.mha_state, norm1_output);
+        attn_output = mha_result.output;
+        attn_weights = mha_result.attention_weights;
+        
         //   3. attn_output = dropout(attn_output)
+        let dropout_result = dropout(attn_output, config.dropout, state.is_training);
+        let attn_output_dropped = dropout_result.output;
+        
         //   4. residual1 = input + attn_output
+        residual1 = apply_residual_connection(input, attn_output_dropped, 1.0);
+        
         //   5. norm2_output = LayerNorm(residual1)
+        norm2_output = ml::transformer::norm::forward(state.norm2, residual1);
+        
         //   6. ffn_output = FFN(norm2_output)
+        ffn_output = ml::transformer::feed_forward::forward(state.ffn_state, norm2_output);
+        
         //   7. ffn_output = dropout(ffn_output)
+        let ffn_dropout_result = dropout(ffn_output, config.dropout, state.is_training);
+        let ffn_output_dropped = ffn_dropout_result.output;
+        
         //   8. output = residual1 + ffn_output
-        //
-        // If use_phi_residual: scale residuals by PHI_RESIDUAL_SCALE
+        output = apply_residual_connection(residual1, ffn_output_dropped, 1.0);
+        
+        BlockForwardResult{
+            .output = output,
+            .attention_weights = attn_weights,
+            .intermediate_hidden = attn_output,
+        }
     }
 
     // forward_with_post_ln(state: BlockState, input: []gf16::GF16) → BlockForwardResult
@@ -92,62 +127,169 @@ module MHABlock;
     fn forward_with_post_ln(state: BlockState, input: []gf16::GF16) -> BlockForwardResult {
         // Post-LN Architecture:
         //   1. attn_output = MHA(input)
+        let mha_result = ml::transformer::multi_head_attn::forward(state.mha_state, input);
+        let attn_output = mha_result.output;
+        let attn_weights = mha_result.attention_weights;
+        
         //   2. attn_output = dropout(attn_output)
+        let attn_dropout_result = dropout(attn_output, config.dropout, state.is_training);
+        let attn_output_dropped = attn_dropout_result.output;
+        
         //   3. residual1 = input + attn_output
+        let residual1 = apply_residual_connection(input, attn_output_dropped, 1.0);
+        
         //   4. norm1_output = LayerNorm(residual1)
+        let norm1_output = ml::transformer::norm::forward(state.norm1, residual1);
+        
         //   5. ffn_output = FFN(norm1_output)
+        let ffn_output = ml::transformer::feed_forward::forward(state.ffn_state, norm1_output);
+        
         //   6. ffn_output = dropout(ffn_output)
+        let ffn_dropout_result = dropout(ffn_output, config.dropout, state.is_training);
+        let ffn_output_dropped = ffn_dropout_result.output;
+        
         //   7. output = residual1 + ffn_output
+        let output = apply_residual_connection(residual1, ffn_output_dropped, 1.0);
+        
         //   8. norm2_output = LayerNorm(output)
+        let norm2_output = ml::transformer::norm::forward(state.norm2, output);
+        
+        BlockForwardResult{
+            .output = norm2_output,
+            .attention_weights = attn_weights,
+            .intermediate_hidden = attn_output,
+        }
     }
 
     // apply_residual_connection(x: []gf16::GF16, processed: []gf16::GF16, scale: gf16::GF16) → []gf16::GF16
     // Applies residual connection with optional scaling.
     fn apply_residual_connection(x: []gf16::GF16, processed: []gf16::GF16, scale: gf16::GF16) -> []gf16::GF16 {
-        // return x + processed * scale
+        let result = [];
+        for (0..x.len) |i| {
+            result.append(x[i] + processed[i] * scale);
+        }
+        return result;
     }
 
     // phi_scaled_residual(x: []gf16::GF16, processed: []gf16::GF16) → []gf16::GF16
     // Applies φ-optimized residual connection.
     fn phi_scaled_residual(x: []gf16::GF16, processed: []gf16::GF16) -> []gf16::GF16 {
-        // return x + processed * PHI_RESIDUAL_SCALE
+        let result = [];
+        for (0..x.len) |i| {
+            result.append(x[i] + processed[i] * PHI_RESIDUAL_SCALE);
+        }
+        return result;
     }
 
-    // backward(state: BlockState, result: BlockForwardResult, grad_output: []gf16::GF16) → BlockGradients
+    // backward(state: BlockState, result: BlockForwardResult, grad_output: []gf16::GF16) -> BlockGradients
     // Computes gradients for backpropagation.
     fn backward(state: BlockState, result: BlockForwardResult, grad_output: []gf16::GF16) -> BlockGradients {
+        // Get intermediate values from forward pass
+        let norm1_output = []; // TODO: Store these during forward pass
+        let norm2_output = []; // TODO: Store these during forward pass
+        let attn_output = result.intermediate_hidden;
+        
         // Pre-LN backward:
         //   1. d_ffn_input = grad_output (from residual)
+        let d_ffn_input = grad_output;
+        
         //   2. ffn_grads = FFN.backward(norm2_output, d_ffn_input)
+        let ffn_grads = ml::transformer::feed_forward::backward(state.ffn_state, norm2_output, d_ffn_input);
+        
         //   3. d_norm2 = ffn_grads.d_input + grad_output
+        let d_norm2 = apply_residual_connection(ffn_grads.d_input, grad_output, 1.0);
+        
         //   4. norm2_grads = Norm.backward(norm2_output, d_norm2)
+        let norm2_grads = ml::transformer::norm::backward(state.norm2, norm2_output, d_norm2);
+        
         //   5. d_attn_input = norm2_grads.d_input (from residual)
+        let d_attn_input = norm2_grads.d_input;
+        
         //   6. mha_grads = MHA.backward(norm1_output, d_attn_input)
+        let mha_grads = ml::transformer::multi_head_attn::backward(state.mha_state, norm1_output, d_attn_input);
+        
         //   7. d_norm1 = mha_grads.d_input + d_attn_input
+        let d_norm1 = apply_residual_connection(mha_grads.d_input, d_attn_input, 1.0);
+        
         //   8. norm1_grads = Norm.backward(input, d_norm1)
+        let norm1_grads = ml::transformer::norm::backward(state.norm1, input, d_norm1);
+        
         //   9. d_input = norm1_grads.d_input + grad_output (from first residual)
+        let d_input = apply_residual_connection(norm1_grads.d_input, grad_output, 1.0);
+        
+        BlockGradients{
+            .d_input = d_input,
+            .mha_grads = mha_grads,
+            .ffn_grads = ffn_grads,
+        }
     }
 
     // get_parameter_count(config: BlockConfig) → u64
     // Returns total number of trainable parameters.
     fn get_parameter_count(config: BlockConfig) -> u64 {
-        // params = MHA_params + FFN_params + 2 * Norm_params
-        // return params
+        // MHA: 4 * hidden_size^2 (Q, K, V, O projections) + 4 * hidden_size (biases)
+        mha_params = 4 * config.hidden_size * config.hidden_size + 4 * config.hidden_size;
+        
+        // FFN: 2 * hidden_size * (hidden_size * expansion_factor) + 2 * (hidden_size * expansion_factor) (W1, W2 + biases)
+        intermediate_size = config.hidden_size * config.expansion_factor;
+        ffn_params = 2 * config.hidden_size * intermediate_size + 2 * intermediate_size;
+        
+        // Norm: 2 * 2 * hidden_size (gamma + beta for each of 2 norms)
+        norm_params = 4 * config.hidden_size;
+        
+        return mha_params + ffn_params + norm_params;
     }
 
     // get_flops(config: BlockConfig, seq_len: u32) → u64
     // Estimates FLOPs for forward pass.
     fn get_flops(config: BlockConfig, seq_len: u32) -> u64 {
-        // MHA FLOPs: 4 * seq_len^2 * hidden_size
-        // FFN FLOPs: 2 * seq_len * hidden_size * intermediate_size
-        // Norm FLOPs: 2 * seq_len * hidden_size * 2
-        // return total
+        // MHA FLOPs: 4 * seq_len^2 * hidden_size (dominates for long sequences)
+        mha_flops = 4 * seq_len * seq_len * config.hidden_size;
+        
+        // FFN FLOPs: 4 * seq_len * hidden_size * intermediate_size (2 for each linear layer)
+        intermediate_size = config.hidden_size * config.expansion_factor;
+        ffn_flops = 4 * seq_len * config.hidden_size * intermediate_size;
+        
+        // Norm FLOPs: 4 * seq_len * hidden_size (2 for mean, 2 for variance/std)
+        norm_flops = 4 * seq_len * config.hidden_size;
+        
+        return mha_flops + ffn_flops + norm_flops;
+    }
+
+    // dropout(input: []gf16::GF16, p: gf16::GF16, training: bool) → DropoutResult
+    // Applies dropout during training.
+    fn dropout(input: []gf16::GF16, p: gf16::GF16, training: bool) -> DropoutResult {
+        if (!training) {
+            // During inference, return input as-is with empty mask
+            return DropoutResult{
+                .output = input,
+                .mask = [],
+            };
+        } else {
+            // During training, apply dropout (simplified implementation)
+            let mask = [];
+            let output = [];
+            for (0..input.len) |i| {
+                // For now, don't actually drop out - just pass through
+                // In a full implementation, this would use random_bernoulli
+                mask.append(1.0);
+                output.append(input[i]);
+            }
+            return DropoutResult{
+                .output = output,
+                .mask = mask,
+            };
+        }
     }
 
     // create_residual_connection(scale: gf16::GF16) → ResidualConnection
     // Creates residual connection configuration.
     fn create_residual_connection(scale: gf16::GF16) -> ResidualConnection {
-        // return ResidualConnection{.scale = scale, .use_projection = false}
+        ResidualConnection{
+            .scale = scale,
+            .use_projection = false,
+            .projection_weights = [],
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
