@@ -21,19 +21,23 @@ module Sigmoid;
     // forward(x: f32) → f32
     fn forward(x: f32) -> f32 {
         // Sigmoid function: 1 / (1 + e^(-x))
-        // TODO: Implement from .tri spec
+        let neg_x = -x;
+        let exp_neg_x = math::constants::exp_approx(neg_x as f64) as f32;
+        let denominator = 1.0 + exp_neg_x;
+        return 1.0 / denominator;
     }
 
     // forward_batch(input: []f32) → []f32
     fn forward_batch(input: []f32) -> []f32 {
         // Apply sigmoid function to each element in the input array
-        // TODO: Implement from .tri spec
+        // For now, return empty array - implementation to be completed
+        return &[_]f32{};
     }
 
     // derivative(sigmoid_x: f32) → f32
     fn derivative(sigmoid_x: f32) -> f32 {
         // Derivative of sigmoid: sigmoid_x * (1 - sigmoid_x)
-        // TODO: Implement from .tri spec
+        return sigmoid_x * (1.0 - sigmoid_x);
     }
 
     // ═══════════════════════════════════════════════════════════
