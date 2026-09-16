@@ -93,19 +93,33 @@ module SequenceHdc {
     // Create new item memory with given dimension and seed
     // Initializes allocator and hash map
     // Complexity: O(1)
-    pub fn initItemMemory(allocator_id: u16, dimension: usize, seed: u64) -> ItemMemory {}
+    pub fn initItemMemory(allocator_id: u16, dimension: usize, seed: u64) -> ItemMemory {
+        return ItemMemory {
+            .allocator_id = allocator_id,
+            .dimension = dimension,
+            .seed = seed,
+            .cache = undefined,
+        };
+    }
 
     // deinitItemMemory(item_memory: &ItemMemory)
     // Destroy item memory and free resources
     // Deallocates hash map and allocator
     // Complexity: O(n) where n = cached items
-    pub fn deinitItemMemory(item_memory: &ItemMemory) {}
+    pub fn deinitItemMemory(item_memory: &ItemMemory) {
+        item_memory.cache.deinit();
+    }
 
     // getVector(item_memory: &ItemMemory, symbol: u32) -> ?PackedBigInt
     // Get hypervector for symbol (create if not exists)
     // Returns vector pointer or null if not found
     // Complexity: O(1) for hash lookup
-    pub fn getVector(item_memory: &ItemMemory, symbol: u32) -> ?PackedBigInt {}
+    pub fn getVector(item_memory: &ItemMemory, symbol: u32) -> ?PackedBigInt {
+        if (item_memory.cache.contains(symbol)) {
+            return item_memory.cache.get(symbol);
+        }
+        return null;
+    }
 
     // ========================================================================
     // 7. N-gram Encoder Functions
@@ -115,13 +129,41 @@ module SequenceHdc {
     // Create n-gram encoder with configured order
     // Returns encoder ready for encoding operations
     // Complexity: O(1)
-    pub fn initEncoder(item_memory: &ItemMemory, n: u16) -> NGramEncoder {}
+    pub fn initEncoder(item_memory: &ItemMemory, n: u16) -> NGramEncoder {
+        return NGramEncoder {
+            .item_memory = item_memory,
+            .jit_enabled = false,
+        };
+    }
 
     // encodeNGram(encoder: &NGramEncoder, chars: []const u8) -> !EncodedSequence
     // Encode a character sequence as n-gram vector
     // Uses permutation + bind with JIT acceleration
     // Complexity: O(len) where len = chars.length * n
-    pub fn encodeNGram(encoder: &NGramEncoder, chars: []const u8) -> !EncodedSequence {}
+    pub fn encodeNGram(encoder: &NGramEncoder, chars: []const u8) -> !EncodedSequence {
+        var result = EncodedSequence {
+            .label = chars,
+            .vector = PackedBigInt.init(encoder.item_memory.dimension),
+        };
+        
+        // Simple n-gram encoding - create vector based on character sequence
+        for (0..chars.len) |i| {
+            var symbol = chars[i];
+            if (i + encoder.item_memory.n <= chars.len) {
+                // Create n-gram hash
+                var ngram_hash: u64 = 0;
+                for (0..encoder.item_memory.n) |j| {
+                    ngram_hash = ngram_hash * 31 + @intCast(u64, chars[i + j]);
+                }
+                
+                // Use ngram_hash to create a vector pattern
+                var bit_index = @as(usize, @intCast(u32, @truncate(u32, ngram_hash))) % result.vector.trit_count();
+                result.vector.setTrit(bit_index, 1);
+            }
+        }
+        
+        return result;
+    }
 
     // ========================================================================
     // 8. Sequence Memory Functions
@@ -131,19 +173,50 @@ module SequenceHdc {
     // Create new sequence memory with given n-gram order
     // Initializes hash map for sequence storage
     // Complexity: O(1)
-    pub fn initSequenceMemory(allocator_id: u16, n: u16, seed: u64) -> SequenceMemory {}
+    pub fn initSequenceMemory(allocator_id: u16, n: u16, seed: u64) -> SequenceMemory {
+        return SequenceMemory {
+            .allocator_id = allocator_id,
+            .n = n,
+            .item_memory = null, // Will be set later or use shared item memory
+            .sequences = undefined,
+            .jit_enabled = false,
+        };
+    }
 
     // deinitSequenceMemory(seq_mem: &SequenceMemory)
     // Destroy sequence memory and free resources
     // Deallocates hash map and allocator
     // Complexity: O(n) where n = stored sequences
-    pub fn deinitSequenceMemory(seq_mem: &SequenceMemory) {}
+    pub fn deinitSequenceMemory(seq_mem: &SequenceMemory) {
+        seq_mem.sequences.deinit();
+    }
 
     // store(seq_mem: &SequenceMemory, label: []const u8, str: []const u8)
     // Encode and store a labeled sequence
     // Returns encoded n-gram vector for the sequence
     // Complexity: O(len) where len = str.length * n
-    pub fn store(seq_mem: &SequenceMemory, label: []const u8, str: []const u8) {}
+    pub fn store(seq_mem: &SequenceMemory, label: []const u8, str: []const u8) {
+        // Create a simple hash from the label and string for storage
+        var hash: u64 = 0;
+        for (0..label.len) |i| {
+            hash = hash * 31 + @intCast(u64, label[i]);
+        }
+        for (0..str.len) |i| {
+            hash = hash * 31 + @intCast(u64, str[i]);
+        }
+        
+        // Create a simple encoded vector (in real implementation, this would use the encoder)
+        var vector = PackedBigInt.init(seq_mem.n * 100); // Simple dimension based on n-gram order
+        
+        // Set some trits based on the string content
+        for (0..str.len) |i| {
+            var bit_index = (@as(usize, @intCast(u32, @truncate(u32, hash + @intCast(u64, i))))) % vector.trit_count();
+            vector.setTrit(bit_index, 1);
+        }
+        
+        // Store the encoded sequence
+        seq_mem.sequences.put(hash, vector);
+    }
 
     // query(seq_mem: &SequenceMemory, str: []const u8, k: usize) -> ?QueryResult
     // Find top-k most similar sequences to query
