@@ -104,27 +104,27 @@ module IGLAScaleUp;
     // 5. Tests
     // ===========================================================
 
-    test deploy_size_order
+    test "deploy_size_order"
         assert DeploySize.Mid_500M < DeploySize.Large_1B && DeploySize.Large_1B < DeploySize.XLarge_1_5B
 
-    test metrics_fields_valid
+    test "metrics_fields_valid"
         given m = DeploymentMetrics { throughput_tok_s: 1200.0, latency_p99_ms: 50.0, memory_gb: 16.0, flops_utilization: 0.65 }
         assert m.throughput_tok_s >= 0.0 && m.latency_p99_ms > 0.0 && m.memory_gb > 0.0 && m.flops_utilization >= 0.0 && m.flops_utilization <= 1.0
 
-    test scale_config_gpu_count
+    test "scale_config_gpu_count"
         given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 }
         assert cfg.gpu_count >= 1
 
-    test scale_up_basic
+    test "scale_up_basic"
         given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Mid_500M, dist_strategy: "fsdp", gpu_count: 4, gradient_accum: 2 }
         let metrics = scale_up(cfg)
         assert metrics.throughput_tok_s > 0.0
 
-    test distill_basic
+    test "distill_basic"
         given metrics = distill("ckpt_1B", DeploySize.Mid_500M)
         assert metrics.throughput_tok_s > 0.0
 
-    test benchmark_deployment_basic
+    test "benchmark_deployment_basic"
         given metrics = DeploymentMetrics { throughput_tok_s: 800.0, latency_p99_ms: 150.0, memory_gb: 20.0, flops_utilization: 0.65 }
         assert benchmark_deployment(metrics)
 
