@@ -143,6 +143,15 @@ module FIFO_Testbench {
         invariant fill_count == 1;
     }
 
+    test "test_tick_function" {
+        reset();
+        var initial_clk : bool = clk;
+        tick();
+        invariant clk == !initial_clk;
+        tick();
+        invariant clk == initial_clk;
+    }
+
     invariant fifo_depth_positive : FIFO_DEPTH > 0;
     invariant data_width_positive : DATA_WIDTH > 0;
 
