@@ -12,27 +12,108 @@ module FileOperations {
 
     // read reads a file's contents
     fn read(path: str, includeDiff: bool) -> Result<FileContent, FileError> {
-        // Implementation: Read file and return content
+        var binaryResult = read_binary(path);
+        if binaryResult.err() {
+            return binaryResult;
+        }
+        var contentBytes = binaryResult.unwrap();
+        var content = "";
+        // TODO: Implement char_from_byte conversion
+        for byte in contentBytes {
+            content += str_from_byte(byte);
+        }
+        var contentType = detect_type(path, content);
+        
+        var fileContent = FileContent {
+            type = contentType,
+            content = content,
+            diff = null,
+            mimeType = "text/plain",
+            encoding = null,
+            lineCount = null,
+        };
+        
+        if contentType == ContentType::Text {
+            fileContent.lineCount = count_lines(content);
+            fileContent.mimeType = "text/plain";
+        } else if contentType == ContentType::Image {
+            fileContent.encoding = "base64";
+            // For images, we'd need to encode to base64, but for now use placeholder
+            fileContent.mimeType = "image/" + get_extension(path);
+        } else {
+            fileContent.mimeType = "application/octet-stream";
+        }
+        
+        if includeDiff {
+            // No git access in this module, so diff is always null when requested
+            fileContent.diff = null;
+        }
+        
+        return Ok(fileContent);
     }
 
     // read_range reads a range of lines from a file
     fn read_range(path: str, startLine: u32, endLine: u32) -> Result<str, FileError> {
-        // Implementation: Read specific line range
+        if startLine < 1 || endLine < 1 || startLine > endLine {
+            return Err(FileError::InvalidPath);
+        }
+        
+        var result = read(path, false);
+        if result.err() {
+            return result;
+        }
+        var content = result.unwrap().content;
+        
+        var lines = split(content, "\n");
+        if startLine > lines.len {
+            return Err(FileError::InvalidPath);
+        }
+        
+        var end = endLine;
+        if end > lines.len {
+            end = lines.len;
+        }
+        
+        var range = "";
+        for i in startLine-1..end {
+            if i > startLine-1 {
+                range += "\n";
+            }
+            range += lines[i];
+        }
+        
+        return Ok(range);
     }
 
     // read_binary reads binary file content
     fn read_binary(path: str) -> Result<[u8], FileError> {
-        // Implementation: Read binary file
+        if path.len > MAX_FILE_SIZE {
+            return Err(FileError::ReadError);
+        }
+        return fs_read(path);
     }
 
     // exists checks if a file exists
     fn exists(path: str) -> Result<bool, FileError> {
-        // Implementation: Check file existence
+        var result = stat(path);
+        if result.err() {
+            if result.unwrap_err() == FileError::NotFound {
+                return Ok(false);
+            }
+            return result;
+        }
+        return Ok(true);
     }
 
     // stat returns file information
     fn stat(path: str) -> Result<FileInfo, FileError> {
-        // Implementation: Get file metadata
+        var result = fs_stat(path);
+        if result.err() {
+            return result;
+        }
+        var info = result.unwrap();
+        info.isHidden = is_hidden(path);
+        return Ok(info);
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -41,37 +122,164 @@ module FileOperations {
 
     // write writes content to a file
     fn write(path: str, content: str) -> Result<void, FileError> {
-        // Implementation: Write content to file
+        var bytes = bytes_from_string(content);
+        return write_binary(path, bytes);
     }
 
     // write_binary writes binary content to a file
     fn write_binary(path: str, data: [u8]) -> Result<void, FileError> {
-        // Implementation: Write binary data to file
+        return fs_write(path, data);
     }
 
     // append appends content to a file
     fn append(path: str, content: str) -> Result<void, FileError> {
-        // Implementation: Append content to file
+        var existing = read(path, false);
+        var existingContent = "";
+        if existing.ok() {
+            existingContent = existing.unwrap().content;
+        }
+        
+        var newContent = existingContent + content;
+        var bytes = bytes_from_string(newContent);
+        return write_binary(path, bytes);
     }
 
     // edit edits a file with replacements
     fn edit(path: str, oldText: str, newText: str) -> Result<void, FileError> {
-        // Implementation: Replace text in file
+        var result = read(path, false);
+        if result.err() {
+            return result;
+        }
+        var content = result.unwrap().content;
+        
+        var index = find(content, oldText);
+        if index == -1 {
+            return Err(FileError::InvalidPath);
+        }
+        
+        var before = substring(content, 0, index);
+        var after = substring(content, index + oldText.len, content.len);
+        var newContent = before + newText + after;
+        
+        var bytes = bytes_from_string(newContent);
+        return write_binary(path, bytes);
     }
 
     // edit_all edits all occurrences in a file
     fn edit_all(path: str, oldText: str, newText: str) -> Result<u32, FileError> {
-        // Implementation: Replace all occurrences, return count
+        var result = read(path, false);
+        if result.err() {
+            return result;
+        }
+        var content = result.unwrap().content;
+        
+        var count = 0;
+        var currentContent = content;
+        var searchIndex = 0;
+        
+        while true {
+            var index = find(currentContent, oldText);
+            if index == -1 {
+                break;
+            }
+            
+            count += 1;
+            var before = substring(currentContent, 0, index);
+            var after = substring(currentContent, index + oldText.len, currentContent.len);
+            currentContent = before + newText + after;
+            searchIndex = index + newText.len;
+        }
+        
+        if count > 0 {
+            var bytes = bytes_from_string(currentContent);
+            var writeResult = write_binary(path, bytes);
+            if writeResult.err() {
+                return writeResult;
+            }
+        }
+        
+        return Ok(count);
     }
 
     // insert inserts text at a line number
     fn insert(path: str, line: u32, content: str) -> Result<void, FileError> {
-        // Implementation: Insert content at line
+        if line < 1 {
+            return Err(FileError::InvalidPath);
+        }
+        
+        var result = read(path, false);
+        var existingContent = "";
+        if result.ok() {
+            existingContent = result.unwrap().content;
+        }
+        
+        var lines = split(existingContent, "\n");
+        
+        if line > lines.len + 1 {
+            return Err(FileError::InvalidPath);
+        }
+        
+        var newContent = "";
+        for i in 0..lines.len {
+            if i == line - 1 {
+                if i > 0 {
+                    newContent += "\n";
+                }
+                newContent += content;
+            }
+            if i < lines.len {
+                if i > 0 {
+                    newContent += "\n";
+                }
+                newContent += lines[i];
+            }
+        }
+        
+        if line == lines.len + 1 {
+            if lines.len > 0 {
+                newContent += "\n";
+            }
+            newContent += content;
+        }
+        
+        var bytes = bytes_from_string(newContent);
+        return write_binary(path, bytes);
     }
 
-    // delete removes lines from a file
-    fn delete(path: str, startLine: u32, endLine: u32) -> Result<void, FileError> {
-        // Implementation: Delete line range
+    // delete_lines removes a line range from a file
+    fn delete_lines(path: str, startLine: u32, endLine: u32) -> Result<void, FileError> {
+        if startLine < 1 || endLine < 1 || startLine > endLine {
+            return Err(FileError::InvalidPath);
+        }
+        
+        var result = read(path, false);
+        if result.err() {
+            return result;
+        }
+        var content = result.unwrap().content;
+        
+        var lines = split(content, "\n");
+        if startLine > lines.len {
+            return Err(FileError::InvalidPath);
+        }
+        
+        var end = endLine;
+        if end > lines.len {
+            end = lines.len;
+        }
+        
+        var newContent = "";
+        for i in 0..lines.len {
+            if i < startLine - 1 || i >= end {
+                if i > 0 {
+                    newContent += "\n";
+                }
+                newContent += lines[i];
+            }
+        }
+        
+        var bytes = bytes_from_string(newContent);
+        return write_binary(path, bytes);
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -182,12 +390,31 @@ module FileOperations {
 
     // detect_type detects content type
     fn detect_type(path: str, content: str) -> ContentType {
-        // Implementation: Detect if text, binary, or image
+        var extension = get_extension(path);
+        if extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "bmp" || extension == "svg" {
+            return ContentType::Image;
+        }
+        // Simple heuristic: if content contains null bytes, it's binary
+        for i in 0..content.len {
+            if content[i] == '\0' {
+                return ContentType::Binary;
+            }
+        }
+        return ContentType::Text;
     }
 
     // count_lines counts lines in content
     fn count_lines(content: str) -> u32 {
-        // Implementation: Count line breaks
+        if content.len == 0 {
+            return 0;
+        }
+        var count = 1;
+        for i in 0..content.len {
+            if content[i] == '\n' {
+                count += 1;
+            }
+        }
+        return count;
     }
 
     // truncate truncates content to max length
