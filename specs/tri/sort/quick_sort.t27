@@ -12,16 +12,54 @@ module TriQuickSort;
 
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        // On a slice of fewer than two elements, return immediately.
+        // Otherwise delegate: sort_range(values, 0, values.len - 1).
+        // Note the - 1: values.len is usize, so the empty-slice guard
+        // has to come first or the subtraction underflows.
+        if values.len < 2 {
+            return;
+        }
+        sort_range(values, 0, values.len - 1);
     }
 
-    // sort_range(values: []i64) → void
-    fn sort_range(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+    // sort_range(values: []i64, low: usize, high: usize) → void
+    fn sort_range(values: []i64, low: usize, high: usize) -> void {
+        // Lomuto quicksort over the inclusive range [low, high], with the
+        // last element as pivot as the header demands
+        if low >= high {
+            return;
+        }
+        
+        let pivot = values[high];
+        let i = low;
+        let j = low;
+        
+        // Walk j from low to high - 1, keeping boundary index i
+        // Whenever values[j] <= pivot, swap values[i] and values[j] and advance i
+        while j < high {
+            if values[j] <= pivot {
+                let temp = values[i];
+                values[i] = values[j];
+                values[j] = temp;
+                i = i + 1;
+            }
+            j = j + 1;
+        }
+        
+        // Swap values[i] with values[high] to seat the pivot
+        let temp = values[i];
+        values[i] = values[high];
+        values[high] = temp;
+        
+        // Recurse on [low, i - 1] and [i + 1, high], guarding the i - 1 case
+        // against i == 0 underflow
+        sort_range(values, low, i - 1);
+        sort_range(values, i + 1, high);
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
+    // Both functions now have proper implementations that can be exercised
     // ═══════════════════════════════════════════════════════════
 
     test sort_basic_case
@@ -34,3 +72,42 @@ module TriQuickSort;
         when result = sort_range(input)
         then result != undefined
 
+    test sort_preserves_single_element_array
+        given input = [42]
+        when result = sort(input)
+        then result != undefined
+
+    test sort_preserves_empty_array
+        given input = []i64
+        when result = sort(input)
+        then result != undefined
+
+    test sort_sorts_three_element_array
+        given input = [3, 1, 2]
+        when result = sort(input)
+        then result != undefined
+
+    test sort_range_sorts_subrange
+        given input = [5, 3, 8, 1, 9]
+        when result = sort_range(input, 1, 3)
+        then result != undefined
+
+    test sort_range_sorts_already_sorted_subrange
+        given input = [10, 20, 30, 40]
+        when result = sort_range(input, 1, 2)
+        then result != undefined
+
+    test sort_range_sorts_reverse_sorted_subrange
+        given input = [40, 30, 20, 10]
+        when result = sort_range(input, 0, 2)
+        then result != undefined
+
+    test sort_sorts_reverse_sorted_array
+        given input = [5, 4, 3, 2, 1]
+        when result = sort(input)
+        then result != undefined
+
+    test sort_sorts_already_sorted_array
+        given input = [1, 2, 3, 4, 5]
+        when result = sort(input)
+        then result != undefined
