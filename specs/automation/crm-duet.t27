@@ -299,6 +299,16 @@ module automation::crm_duet {
         assert(!RETRY_SEEN_LIVE);
         assert(!DUET_RAN_LIVE);
 
+    test "speaker_at correctly identifies speaker for each turn index"
+        assert(speaker_at(0).from_owner);  // turn 0: seller (even)
+        assert(!speaker_at(1).from_owner); // turn 1: buyer (odd)
+        assert(speaker_at(2).from_owner);  // turn 2: seller (even)
+        assert(!speaker_at(3).from_owner); // turn 3: buyer (odd)
+        assert(speaker_at(4).from_owner);  // turn 4: seller (even)
+        assert(speaker_at(0).index == 0);  // index matches input
+        assert(speaker_at(1).index == 1);  // index matches input
+        assert(speaker_at(2).index == 2);  // index matches input
+
     test "content is for the real game and nothing live is claimed"
         assert(BUYER_GAME == "Leela Chakra");
         assert(LEELA_PLANES == 72);
